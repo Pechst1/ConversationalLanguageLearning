@@ -16,6 +16,9 @@ Two guards stand behind that brief:
   no spoiler. «Episodes without meaningful change are refused»: a refusal gets ONE
   retry with the critic's words; a second refusal is accepted and logged
   (``journey_story_critic_override``) — a learner never loses a day to the critic.
+  WP-149: that holds for *storytelling* refusals only. A refusal that names a
+  correctness defect (the register canon, the flags, a spoiler —
+  ``canon_guards.review_class``) is never served; the day falls to the re-read.
 """
 
 from __future__ import annotations
@@ -143,6 +146,16 @@ Score each rubric item true or false:
   it, a relationship ignores what the learner chose.
 - obstacle_faced: when today.open_obstacle is set (yesterday's complication), the page
   shows it still in the way and someone deals with it, visibly. True when it is null.
+  The learner's task counts: a page whose learner_turn.task asks the learner to deal
+  with the obstacle faces it.
+The page is not the whole day (learner_turn). It ends where the learner answers: the
+learner never has a line on the page, and their reply, the character's answer and the
+day's ending come after the last panel. learner_turn.planned_change is the change that
+exchange is planned to make. Judge meaningful_change and value_turn on the page PLUS
+that planned exchange: a page that sets up a concrete decision the learner's reply
+settles (the ticket moved or kept, the letter answered or not) is a change. Never ask
+for the learner's reply, words or decision to appear on the page; refuse only when even
+the planned exchange would leave the day as it began.
 Write change_summary as «before → after» in one sentence. issues: one short sentence per
 failed item, written as an instruction for a rewrite. accepted is true only when
 meaningful_change, in_character, honours_choices and obstacle_faced are true and
@@ -408,6 +421,26 @@ def critic_payload(brief: dict[str, Any], draft: dict[str, Any]) -> dict[str, An
                 "season_checklist",
             )
         },
+        # WP-149 §B.3: the page with its learner-turn structure. The WP-136 read had
+        # the critic refuse pages that end on the learner's task for showing «no
+        # visible change» — five of its ten refusals asked for the learner's own reply
+        # on the page, which the learner never has. The change comes after the page.
+        "learner_turn": learner_turn(draft),
+    }
+
+
+def learner_turn(draft: dict[str, Any]) -> dict[str, Any]:
+    """What happens after the last panel: the learner's task, whom they answer, and
+    the change the director planned that exchange to make (its checklist)."""
+
+    checklist = draft.get("season_checklist") or {}
+    return {
+        "page_ends_on_learner_turn": True,
+        "task": draft.get("objective_native"),
+        "answers": draft.get("character_id"),
+        "character_asks_fr": draft.get("opening_line_fr"),
+        "turn_want": checklist.get("turn_want") or None,
+        "planned_change": checklist.get("change_after") or None,
     }
 
 

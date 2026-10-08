@@ -1,0 +1,325 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.202536,
+  "calls": 63,
+  "cap": 0.2
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "Le choix de Lila",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Lila veut une réponse",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La décision — tournant",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La décision — résolution",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La réponse de Lila",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (mixed_address_register); serving the refused draft",
+  "living_story: story critic refused g4.2 twice; accepted and logged (Montrer l'obstacle ouvert: inclure Solvel (une lettre, un message, ou une mention anxieuse) ou faire voir quelqu'un qui gère la menace pour que l'ouverture «Solvel pourrait envoyer…» soit tangible.; Rendre la conséquence du silence plus forte: ajouter un panneau où quelqu'un indique concrètement l'u)",
+  "living_story: the retry the story critic bought failed (repeated_situation); serving the refused draft",
+  "living_story: story critic refused g4.3 twice; accepted and logged (Montrer que l'obstacle ouvert (la possible proposition formelle de Solvel) est toujours en jeu aujourd'hui et qu'on y répond : faites lire ou citer la lettre, ou montrez quelqu'un préparant une réponse ou parlant d'urgence.; Rendre explicite, dans au moins une ligne ou un plan, qui accepterait de te)",
+  "living_story: every SceneDraft attempt refused (story_provider_failed): story_provider_failed",
+  "daily_journey: season day lost (story_provider_failed); journey 6783d803-2ed4-4feb-922f-f95caf1f53c1 re-reads t4.b"
+ ],
+ "refusals": [
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_spoiler",
+   "hint": "«Berlin» breaks a rule of the season (Berlin revealed (T5 owns it). Only hints: her phone face down, an unanswered message.). Rewrite the day without it: hint at most, never reveal.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Départ ou détour ?",
+    "dramatic_question": "Lila va-t-elle vraiment partir pour Berlin, et avez-vous un rôle à jouer dans sa décision ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Donnez votre opinion sur le départ de Lila et proposez une condition si vous voulez qu'elle reste quelques mois.",
+    "objective_words": 19,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_critic_refused",
+   "hint": "Montrer l'obstacle ouvert: inclure Solvel (une lettre, un message, ou une mention anxieuse) ou faire voir quelqu'un qui gère la menace pour que l'ouverture «Solvel pourrait envoyer…» soit tangible. | Rendre la conséquence du silence plus forte: ajouter un panneau où quelqu'un indique concrètement l'urgence (date écrite, calendrier, ou un rappel de la «15») pour que l'enjeu soit palpable visuellement.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "La décision",
+    "dramatic_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "open_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Dis si tu acceptes que Lila parte avant le 15, donne une condition précise et explique pourquoi.",
+    "objective_words": 17,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.2",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "La décision",
+    "dramatic_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "open_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Propose une condition concrète et une raison pour convaincre Marin d'accepter un partage provisoire, ou propose un compromis en deux parties (quoi et quand).",
+    "objective_words": 24,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "La décision",
+    "dramatic_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "open_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Proposez à Lila que vous gardiez ses élèves pendant son absence et formulez une condition précise pour accepter son départ.",
+    "objective_words": 20,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_critic_refused",
+   "hint": "Montrer que l'obstacle ouvert (la possible proposition formelle de Solvel) est toujours en jeu aujourd'hui et qu'on y répond : faites lire ou citer la lettre, ou montrez quelqu'un préparant une réponse ou parlant d'urgence. | Rendre explicite, dans au moins une ligne ou un plan, qui accepterait de tenir la place du zinc pendant l'absence si le lecteur propose le plan (pour que le plan demandé ait weight dramatique).",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "La décision",
+    "dramatic_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "open_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Propose un plan concret et une condition qui permettent à Lila de partir avant le 15 tout en protégeant Le Mistral.",
+    "objective_words": 21,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.3",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "repeated_situation",
+   "hint": "this premise repeats \"Le lendemain de la dispute. Vous êtes chez Marin et Lila. Gus aide Lila à déplacer une toile. Marin remue une soupe. Lila vous regarde : elle a besoin d'une réponse avant le 15.\". Do not reword it: invent a different communicative need. Objectives already used: ['Montrez où le feu a commencé : en bas ou en haut.', 'Dites à Gus si vous saviez, et dites quelque chose sur votre grand-mère ou à Margaux.', \"Donne ton avis sur l'avenir de l'appartement (garder/partager/vendre), explique brièvement pourquoi, et propose une condition claire si tu veux le garder.\", 'Dis si tu acc…",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "La décision",
+    "dramatic_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "open_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Propose un plan précis pour que l'atelier de Lila continue si elle part avant le 15, et explique pourquoi ce plan est juste.",
+    "objective_words": 23,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.4",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "setting_not_rotated",
+   "hint": "lila_bonnet at marin_lila_flat has carried the last three situations. Choose another character or another location: unused characters ['marin_leveque', 'margaux_barman', 'romy_tremblay', 'landlord_marchand', 'camille_marchand', 'mme_diallo', 'maitre_vasseur', 'bastien_roux'], unused locations ['user_apartment', 'newsroom', 'ngo_office', 'marche_canal', 'buttes_chaumont', 'metro_platform', 'gus_loft', 'brocante', 'odile_flat', 'stairwell', 'mistral_back_room', 'quai_de_valmy', 'marchand_office', 'mairie', 'notaire', 'gare_de_lest', 'rue_de_lancry', 'boulangerie', 'ecole', 'toit'].",
+   "draft": {
+    "beat": "resolution",
+    "required_beat": [
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "La décision",
+    "dramatic_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "open_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Décide si tu aides Lila à partir avant le 15 et propose qui gardera l'atelier, avec une condition claire et une raison.",
+    "objective_words": 22,
+    "panels": 4,
+    "premise_id": "la_dispute"
+   }
+  },
+  {
+   "position": "g4.5",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "stale_problem",
+   "hint": "A new chapter needs a new practical problem; \"flat.future\" was already played (['flat.future', 'flat.future', 'flat.future', 'flat.future']). Start from another arc's next stage or another open thread, in a different part of this life — or, if this problem is genuinely getting WORSE because of something that happened, bring it back once as an escalation by setting escalates_ref to the consequence or unpaid plant that made it worse: ['0ec29853-f161-41f4-8a76-d933dd7d9019', 'journey:7a8830e4-42ef-45ed-b7ee-a807991842c1:story:mood_break:0'].",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "two_hander",
+    "chapter_title_fr": "La décision",
+    "dramatic_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "open_question": "Que faut-il faire de l'appartement d'Odile pour que Le Mistral survive et que le quartier reste lui‑même ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet"
+    ],
+    "objective_native": "Donne une condition précise qui permet à Lila de partir avant le 15 et explique pourquoi cette condition protège Le Mistral.",
+    "objective_words": 21,
+    "panels": 4,
+    "premise_id": "la_dispute"
+   }
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_provider_failed",
+   "hint": ""
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_provider_failed",
+   "hint": ""
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "story_provider_failed",
+   "hint": ""
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "story_provider_failed",
+   "hint": ""
+  }
+ ],
+ "refusal_reasons": {
+  "story_provider_failed": 4,
+  "story_critic_refused": 2,
+  "mixed_address_register": 2,
+  "season_spoiler": 1,
+  "repeated_situation": 1,
+  "setting_not_rotated": 1,
+  "stale_problem": 1
+ }
+}

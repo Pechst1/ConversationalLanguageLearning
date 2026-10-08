@@ -56,8 +56,14 @@ def apply_grammar_evidence(
     score: float | None = None,
     interval_multiplier: float = 1.0,
     weight_scale: float = 1.0,
+    withdraw: bool = False,
 ) -> MemoryDecision | None:
     """The one door through which grammar evidence reaches the schedule.
+
+    ``withdraw`` (WP-149 §A.2) gives back the advance a released success bought
+    when the grade is found false afterwards: ``evidence`` is the withdrawn
+    observation, the concept is due now, and nothing else moves (no lapse, no
+    stability change). Returns ``None``.
 
     ``weight_scale`` (WP-S3, La Forge) scales the format's evidence weight:
     the forge's second, third… schedule-moving success of one rule inside one
@@ -70,29 +76,34 @@ def apply_grammar_evidence(
     mention). Never commits.
     """
 
-    graded: Evidence | memory.EvidenceGrade = evidence
-    if weight_scale != 1.0:
-        grade = memory.grade_evidence(evidence)
-        if grade is not None:
-            graded = memory.EvidenceGrade(
-                rating=grade.rating,
-                weight=grade.weight * max(0.0, min(1.0, float(weight_scale))),
-                step=grade.step,
-            )
-    decision = memory.review(
-        grammar_memory_state(progress),
-        graded,
-        now=now,
-        interval_multiplier=interval_multiplier,
-    )
-    if decision is None:
+    decision: MemoryDecision | None = None
+    if not withdraw:
+        graded: Evidence | memory.EvidenceGrade = evidence
+        if weight_scale != 1.0:
+            grade = memory.grade_evidence(evidence)
+            if grade is not None:
+                graded = memory.EvidenceGrade(
+                    rating=grade.rating,
+                    weight=grade.weight * max(0.0, min(1.0, float(weight_scale))),
+                    step=grade.step,
+                )
+        decision = memory.review(
+            grammar_memory_state(progress),
+            graded,
+            now=now,
+            interval_multiplier=interval_multiplier,
+        )
+        if decision is None:
+            return None
+        progress.stability = decision.stability
+        progress.difficulty = decision.difficulty
+        progress.lapses = decision.lapses
+        progress.reps = decision.reps
+        progress.last_review = now
+    progress.next_review = decision.due_at if decision is not None else now
+    if decision is None:  # withdrawn: due now, nothing else moves
+        progress.updated_at = now
         return None
-    progress.stability = decision.stability
-    progress.difficulty = decision.difficulty
-    progress.lapses = decision.lapses
-    progress.reps = decision.reps
-    progress.last_review = now
-    progress.next_review = decision.due_at
     if score is not None:
         progress.score = max(0.0, min(10.0, float(score)))
     progress.state = determine_state(float(progress.score or 0.0), progress.reps)

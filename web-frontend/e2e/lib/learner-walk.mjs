@@ -6,6 +6,18 @@ import path from 'node:path';
 import { snapshot, sleep } from './driver.mjs';
 import { englishWords, PENDING_VERDICT, SERVER_BANNER } from './assertions.mjs';
 
+/**
+ * A word a character says, in either reader: the list's caption cards, or the
+ * vertical page's balloons and sheet rows (WP-144) — never the learner's own line
+ * ([data-you]), never a balloon not yet out, never the vertical page's hidden
+ * measuring copies.
+ */
+const CHARACTER_WORDS = [
+  '.fr-captions button[data-word]',
+  '.vp-panel > .vp-balloon:not([data-you]):not([data-shown="false"]) button[data-word]',
+  '.vp-sheet__row:not([data-you]):not([data-kind="caption"]):not([data-shown="false"]) button[data-word]',
+].join(', ');
+
 const STEP_RE = /(Step \d+ of \d+|Schritt \d+ von \d+|Étape \d+ sur \d+)/;
 const REPLIES = ['Oui, je peux vous aider samedi.', 'Merci, à samedi !', 'Avec plaisir, à bientôt.', 'D’accord, je viens.'];
 const FREE = 'Je voudrais un café, s’il vous plaît.';
@@ -308,7 +320,9 @@ export class LearnerWalk {
       const sig = `${kind}|${s.text.slice(0, 160)}|${s.graded.map((g) => g.state).join()}|${s.reader.map((r) => r.text).join()}`;
       this.trackVerdicts(s, kind);
       if (kind === 'reader') this.readerChecks(s, state);
-      if (!entry && (kind === 'reader' || kind === 'thread') && !this.dayText.includes(s.text.slice(0, 200))) {
+      // The whole screen, not its first 200 characters: on the vertical page a
+      // panel's balloons arrive one by one under the same opening text.
+      if (!entry && (kind === 'reader' || kind === 'thread') && !this.dayText.includes(s.text)) {
         this.dayText += `\n${s.text}`;
       }
       if (sig !== lastSig) {
@@ -429,13 +443,15 @@ export class LearnerWalk {
     for (let i = 0; i < 40; i += 1) {
       // WP-115b: once a day, a word a character says is kept («Garder»), as a learner
       // would — so the drill has a word from the story to bring back in its own line.
-      if (!this.keptToday && (await page.locator('.fr-captions button[data-word]').count())) {
+      if (!this.keptToday && (await page.locator(CHARACTER_WORDS).count())) {
         this.keptToday = await this.keepAWord();
       }
       const movement = (await stage.getAttribute('data-movement').catch(() => null)) || (await stage.getAttribute('data-kind'));
       seen.movements.push(movement);
       seen.panels += 1;
-      for (const text of await page.locator('.fr-bubble[data-you]').allInnerTexts()) seen.you.push(text.replace(/\s+/g, ' ').trim());
+      // WP-144: the vertical page draws the learner's line as its own docked balloon
+      // (or a sheet row); the list reader as a .fr-bubble. Both carry data-you.
+      for (const text of await page.locator('.fr-bubble[data-you], [data-you="true"]').allInnerTexts()) seen.you.push(text.replace(/\s+/g, ' ').trim());
       if (await page.locator('[data-a-suivre]').count()) seen.aSuivre = true;
       // WP-116: in the drawn set the people stand on the plate.
       if (await page.locator('.fr-stage .cast-stage__figure').count()) seen.castPanels += 1;
@@ -455,7 +471,7 @@ export class LearnerWalk {
   /** WP-115b: tap a word in a character's line and keep it; true when kept. */
   async keepAWord() {
     const page = this.page;
-    const words = page.locator('.fr-captions button[data-word]');
+    const words = page.locator(CHARACTER_WORDS);
     const count = Math.min(await words.count(), 8);
     for (let i = count - 1; i >= 0; i -= 1) {
       const text = ((await words.nth(i).innerText().catch(() => '')) || '').trim();

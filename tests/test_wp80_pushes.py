@@ -62,6 +62,20 @@ def sent(db_session, monkeypatch: pytest.MonkeyPatch) -> list[dict]:
     return _FakeNotifications.sent
 
 
+# WP-116 phase 6: the drawn cast is the default; pushes carry the painted portrait
+# or the drawn PNG face. The push tests run under both sets, each pinned explicitly.
+@pytest.fixture(params=["painted", "drawn"])
+def art_set(request, monkeypatch: pytest.MonkeyPatch) -> str:
+    monkeypatch.setattr(settings, "ATELIER_ART_SET", request.param)
+    return request.param
+
+
+def _face(art_set: str, key: str, face: str) -> str:
+    if art_set == "drawn":
+        return f"/assets/serial/drawn/{key}/portrait-{copy.DRAWN_FACES[face]}.png"
+    return f"/assets/serial/characters/{key}/portrait-{face}.webp"
+
+
 def _learner(db_session, *, tz: str, reminder: str = "08:30", band: str = "A1") -> User:
     user = User(
         id=uuid.uuid4(),
@@ -118,7 +132,7 @@ def _mine(sent: list[dict], user: User) -> list[dict]:
 AUCKLAND_0830 = datetime(2026, 9, 21, 20, 30, tzinfo=UTC)
 
 
-def test_the_morning_push_fires_at_the_local_reminder_time(db_session, sent) -> None:
+def test_the_morning_push_fires_at_the_local_reminder_time(db_session, sent, art_set) -> None:
     auckland = _learner(db_session, tz="Pacific/Auckland")
     los_angeles = _learner(db_session, tz="America/Los_Angeles")
     paris = _learner(db_session, tz="Europe/Paris")
@@ -134,7 +148,7 @@ def test_the_morning_push_fires_at_the_local_reminder_time(db_session, sent) -> 
     assert push["title"] == "Marin"
     assert push["message"] in {line["A"] for line in copy.MORNING_LINES.values()}
     assert push["data"]["route"] == "/atelier?start=today"
-    assert push["data"]["image"] == "/assets/serial/characters/marin_leveque/portrait-neutral.webp"
+    assert push["data"]["image"] == _face(art_set, "marin_leveque", "neutral")
     assert push["data"]["kind"] == "morning_teaser"
     assert push["data"]["notification_id"] == "2026-09-22"  # Auckland's day
     assert push["title"] != copy.DAILY_JOURNEY_MORNING_TITLE
@@ -148,7 +162,7 @@ def test_the_morning_push_fires_at_the_local_reminder_time(db_session, sent) -> 
     assert len(_mine(sent, los_angeles)) == 1
 
 
-def test_the_voice_is_the_latest_scene_s_character(db_session, sent) -> None:
+def test_the_voice_is_the_latest_scene_s_character(db_session, sent, art_set) -> None:
     user = _learner(db_session, tz="Pacific/Auckland", band="B1")
     _journey(db_session, user, date(2026, 9, 21), status="completed")
 
@@ -157,7 +171,7 @@ def test_the_voice_is_the_latest_scene_s_character(db_session, sent) -> None:
     push = _mine(sent, user)[0]
     assert push["title"] == "Romy"
     assert push["message"] == copy.MORNING_LINES["romy_tremblay"]["B"]
-    assert push["data"]["image"].endswith("/romy_tremblay/portrait-neutral.webp")
+    assert push["data"]["image"] == _face(art_set, "romy_tremblay", "neutral")
     assert push["data"]["teaser_source"] == "authored"
 
 
@@ -170,7 +184,7 @@ def test_silent_once_today_s_scene_is_done(db_session, sent) -> None:
     assert _mine(sent, user) == []
 
 
-def test_the_engine_s_teaser_wins_when_the_story_wrote_one(db_session, sent) -> None:
+def test_the_engine_s_teaser_wins_when_the_story_wrote_one(db_session, sent, art_set) -> None:
     user = _learner(db_session, tz="Pacific/Auckland")
     db_session.add(
         SerialThread(
@@ -193,7 +207,7 @@ def test_the_engine_s_teaser_wins_when_the_story_wrote_one(db_session, sent) -> 
 
     assert push is not None
     assert (push.title, push.message, push.source) == ("Lila", "Demain, je vous montre la lettre.", "engine")
-    assert push.image.endswith("/lila_bonnet/portrait-neutral.webp")
+    assert push.image == _face(art_set, "lila_bonnet", "neutral")
 
 
 def test_a_resumable_scene_is_picked_up_where_it_stopped(db_session, sent) -> None:
@@ -332,10 +346,10 @@ def test_every_line_says_vous_and_carries_no_emoji() -> None:
         assert not TU.search(line), line
 
 
-def test_every_portrait_character_has_its_own_lines() -> None:
+def test_every_portrait_character_has_its_own_lines(art_set) -> None:
     for character_id in copy.CHARACTER_NAMES:
         assert set(copy.MORNING_LINES[character_id]) == {"A", "B"}
         assert set(copy.STREAK_LINES[character_id]) == {"A", "B"}
-        assert copy.portrait_path(character_id).endswith(f"/{character_id}/portrait-neutral.webp")
+        assert copy.portrait_path(character_id) == _face(art_set, character_id, "neutral")
     assert copy.portrait_path("marin") == copy.portrait_path("marin_leveque")
     assert copy.portrait_path("nobody") is None

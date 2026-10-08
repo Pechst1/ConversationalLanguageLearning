@@ -36,3 +36,21 @@ test('successive relearning: wrong goes to the end, right leaves the loop', () =
   assert.deepEqual(ladder.nextAgainQueue([4, 7], 4, true), [7, 4]);
   assert.deepEqual(ladder.nextAgainQueue([7, 4], 4, false), [7]);
 });
+
+test('a line card blanks the form in the line and hints the lemma (owner 2026-10-08)', () => {
+  const cue = { sentence_fr: "Vous _____ d'où ?", expected_fr: 'venez', hint_fr: 'venir' };
+  assert.equal(ladder.linePrompt(cue), "Vous _____ d'où ? (venir)");
+  assert.equal(ladder.linePrompt({ sentence_fr: 'Tu as vu la _____ ?', hint_fr: null }), 'Tu as vu la _____ ?');
+  assert.equal(ladder.linePrompt(null), '');
+  assert.equal(ladder.lineAnswer('scene', cue, 'venir'), 'venez');
+  assert.equal(ladder.lineAnswer('production', cue, 'venir'), 'venir', 'context-free rungs keep the lemma');
+  assert.equal(ladder.lineAnswer('scene', { sentence_fr: 'x _____' }, 'venir'), 'venir', 'an older server');
+});
+
+test('the device folds a line answer with or without its elided clitic', () => {
+  assert.equal(ladder.matchesLineForm('venez', 'venez'), true);
+  assert.equal(ladder.matchesLineForm('venir', 'venez'), false);
+  assert.equal(ladder.matchesLineForm('j etais', 'etais'), true);
+  assert.equal(ladder.matchesLineForm('nous etais', 'etais'), false);
+  assert.equal(ladder.matchesLineForm('', 'etais'), false);
+});

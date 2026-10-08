@@ -1,4 +1,5 @@
 /* WP-116 · Marin, variant C. Ported from the Claude Design canvas rig (2026-10-01). */
+import React from 'react';
 import { circles, curlArcs } from '../rig-kit';
 import type { RigDef, RigValues } from '../rig-kit';
 

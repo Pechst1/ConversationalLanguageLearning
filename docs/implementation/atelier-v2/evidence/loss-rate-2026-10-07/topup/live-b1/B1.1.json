@@ -1,0 +1,116 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.035559999999999994,
+  "calls": 7,
+  "cap": 0.08
+ },
+ "weaves": [
+  {
+   "unit": "Le plus-que-parfait : le passé du passé",
+   "title": "Le matin d'après",
+   "uses": 3,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (mixed_address_register); serving the refused draft",
+  "living_story: story critic refused g4.6 twice; accepted and logged (Ajoute un retournement concret : fais que le joueur dise quelque chose ou que Lila révèle une nouvelle information (un petit détail) pour que quelque chose tourne aujourd'hui.; Inclue une différence visible en fin de page (par exemple : Lila baisse les bras, ou Margaux quitte la pièce, ou le joueur )"
+ ],
+ "refusals": [
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_spoiler",
+   "hint": "«Berlin» breaks a rule of the season (Berlin revealed (T5 owns it). Only hints: her phone face down, an unanswered message.). Rewrite the day without it: hint at most, never reveal.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Dire ou garder",
+    "dramatic_question": "Vas-tu soutenir Lila si elle partira à Berlin, ou demander des conditions pour qu'elle reste ?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Donner votre opinion sur le départ possible de Lila et expliquer pourquoi, en une position claire et courte (au moins une phrase avec une raison).",
+    "objective_words": 25,
+    "panels": 5,
+    "premise_id": "la_dispute"
+   }
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_critic_refused",
+   "hint": "Ajoute un retournement concret : fais que le joueur dise quelque chose ou que Lila révèle une nouvelle information (un petit détail) pour que quelque chose tourne aujourd'hui. | Inclue une différence visible en fin de page (par exemple : Lila baisse les bras, ou Margaux quitte la pièce, ou le joueur s'excuse explicitement) pour garantir un changement signifiant avant le cliffhanger.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "La confiance remise en jeu",
+    "dramatic_question": "Vas-tu dire pourquoi tu as caché la photo, et la convaincre que vous êtes une équipe ?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Explain to Lila why you hid the photo, give a clear reason and show you understand her feelings (one position with a justification).",
+    "objective_words": 23,
+    "panels": 5,
+    "premise_id": "la_dispute"
+   }
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Rester une équipe ?",
+    "dramatic_question": "Vas-tu réparer la dispute et rester dans l'alliance de Lila, ou la laisser partir ?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Exprime une excuse sincère à Lila et donne une raison concrète (au moins une phrase de position + une raison).",
+    "objective_words": 20,
+    "panels": 5,
+    "premise_id": "la_dispute"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "season_spoiler": 1,
+  "story_critic_refused": 1,
+  "mixed_address_register": 1
+ }
+}

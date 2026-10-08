@@ -59,6 +59,9 @@ import {
 import { useArtSet } from '@/lib/art-set';
 import { PanelStage } from '@/components/cast/PanelStage';
 import { useMouth } from '@/components/cast/useMouth';
+import { VerticalPanel, type VerticalPanelControl } from '@/components/atelier-v2/journey/vertical-page/VerticalPanel';
+import { nextStep } from '@/components/atelier-v2/journey/vertical-page/reveal-model';
+import { VerticalPageStyles } from '@/components/atelier-v2/journey/vertical-page/vertical-page-styles';
 
 export type ReaderSubmitError = { taskId: string; message: string } | null;
 
@@ -138,6 +141,13 @@ export type FeuilletonReaderProps = {
   rayonsPast?: boolean;
   /** WP-92: the page is being re-read (a replay, or the READ step): the toggle is there at once. */
   rayonsReplay?: boolean;
+  /**
+   * WP-144: `vertical` draws each story panel full-bleed with its lines as
+   * balloons (`VerticalPanel`); `list` (this prop's default) is the page as it
+   * was. Only the story reader (`panelVariant` given) has a vertical page; it
+   * passes `useReaderLayout()`, which is `vertical` unless a build or device says list.
+   */
+  layout?: 'list' | 'vertical';
 };
 
 function prefersReducedMotion(): boolean {
@@ -186,6 +196,7 @@ export function FeuilletonReader({
   rayonsTitle = null,
   rayonsPast = false,
   rayonsReplay = false,
+  layout = 'list',
 }: FeuilletonReaderProps) {
   const base = readerCopy(language);
   /* WP-91: the face's label comes from the journey's own table when it hands
@@ -224,6 +235,22 @@ export function FeuilletonReader({
     [count, onIndexChange, safeIndex],
   );
 
+  /* WP-144b, the visual-novel rule: on the vertical page a panel's lines may
+     still be arriving (timed, or with the voice). The first Next — button,
+     ArrowRight, swipe, or the last panel's own action — shows them all and
+     stays; only the next one moves on. The list page has no control: unchanged. */
+  const verticalControl = useRef<VerticalPanelControl | null>(null);
+  const completePanelFirst = useCallback((): boolean => {
+    const control = verticalControl.current;
+    if (nextStep(control) === 'advance') return false;
+    control?.revealAll();
+    return true;
+  }, []);
+  const forward = useCallback(() => {
+    if (completePanelFirst()) return;
+    go(safeIndex + 1);
+  }, [completePanelFirst, go, safeIndex]);
+
   /* Keyboard: arrows page, Home/End jump. Never while typing an answer, and
      never while the help sheet owns the keyboard. */
   useEffect(() => {
@@ -237,7 +264,7 @@ export function FeuilletonReader({
       if (target?.closest?.('[data-roving-line]')) return;
       if (event.key === 'ArrowRight') {
         event.preventDefault();
-        go(safeIndex + 1);
+        forward();
       } else if (event.key === 'ArrowLeft') {
         event.preventDefault();
         go(safeIndex - 1);
@@ -251,7 +278,7 @@ export function FeuilletonReader({
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [count, go, help, safeIndex]);
+  }, [count, forward, go, help, safeIndex]);
 
   /* Bring the new panel into view without stealing focus from Suivant. */
   useEffect(() => {
@@ -282,9 +309,10 @@ export function FeuilletonReader({
       const dx = event.clientX - start.x;
       const dy = event.clientY - start.y;
       if (Math.abs(dx) < SWIPE_DISTANCE || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-      go(dx < 0 ? safeIndex + 1 : safeIndex - 1);
+      if (dx < 0) forward();
+      else go(safeIndex - 1);
     },
-    [go, safeIndex],
+    [forward, go, safeIndex],
   );
 
   const readState = useMemo(
@@ -328,6 +356,8 @@ export function FeuilletonReader({
   if (!stage) return null;
 
   const stageKey = stage.key;
+  const vertical = layout === 'vertical' && Boolean(panelVariant);
+  const verticalPanel = vertical && stage.kind === 'panel';
   const showTranslation = Boolean(translated[stageKey]);
   const hasEnglish =
     stage.kind === 'panel' && stage.lines.some((line) => Boolean(line.en));
@@ -398,10 +428,12 @@ export function FeuilletonReader({
     /* The av2 root supplies the tokens and the `.av2` ancestor every reader
        rule is written against; the reader itself stays the section. */
     <AtelierV2Root as="div" className="fr-scope" language={language ?? undefined}>
+    {vertical && <VerticalPageStyles />}
     <section
       className="fr-reader"
       aria-label={t.reader_label}
       data-story={panelVariant ? '1' : undefined}
+      data-layout={vertical ? 'vertical' : undefined}
       data-art={artProvenance || undefined}
       ref={rootRef}
     >
@@ -430,7 +462,8 @@ export function FeuilletonReader({
         </p>
       )}
 
-      {!folded && (
+      {/* WP-144: on the vertical page the first panel carries the headline as its establishing caption. */}
+      {!folded && !verticalPanel && (
         <div className="fr-head">
           {head.eyebrow && <p className="fr-eyebrow">{head.eyebrow}</p>}
           {/* the one Garamond italic headline on this screen */}
@@ -474,7 +507,20 @@ export function FeuilletonReader({
           </p>
         )}
 
-        {stage.kind === 'panel' ? (
+        {stage.kind === 'panel' && verticalPanel ? (
+          <VerticalPanel
+            key={stage.key}
+            stage={stage}
+            showTranslation={showTranslation}
+            onWord={openHelp}
+            voice={lineVoice}
+            marksFor={(line) => lineRayons(line, rayons)}
+            head={folded ? null : { eyebrow: head.eyebrow, title: head.title }}
+            topInset={readState === 'read' || stageLiveTask ? 36 : 0}
+            control={verticalControl}
+            t={t}
+          />
+        ) : stage.kind === 'panel' ? (
           <PanelBody
             /* a new panel is a new plate: no crossfade between panels, only
                between a panel's plate and its own drawing */
@@ -606,7 +652,9 @@ export function FeuilletonReader({
               className="fr-btn fr-next is-action"
               data-press={primary === 'complete' ? '3d' : undefined}
               disabled={completing}
-              onClick={onComplete}
+              onClick={() => {
+                if (!completePanelFirst()) onComplete();
+              }}
             >
               {completing ? <SpinnerToken /> : <CheckIcon size={16} />}
               {completing ? t.completing : completeLabel || t.complete}
@@ -621,7 +669,7 @@ export function FeuilletonReader({
             type="button"
             className="fr-btn fr-next"
             data-press={primary === 'next' ? '3d' : undefined}
-            onClick={() => go(safeIndex + 1)}
+            onClick={forward}
           >
             {t.next} <ArrowRightIcon size={18} />
           </button>

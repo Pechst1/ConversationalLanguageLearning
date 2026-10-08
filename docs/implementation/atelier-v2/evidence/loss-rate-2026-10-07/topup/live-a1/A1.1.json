@@ -1,0 +1,114 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.037422000000000004,
+  "calls": 8,
+  "cap": 0.08
+ },
+ "weaves": [
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Le carnet et l'omelette",
+   "uses": 3,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (gendered_agreement); serving the refused draft",
+  "living_story: story critic refused g2.1 twice; accepted and logged (Add a visible change by the end of the page (for example: Marin starts the spreadsheet, Lila actually writes names, or someone moves an object) so the day ends different from how it began.)"
+ ],
+ "refusals": [
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "gendered_agreement",
+   "hint": "\"sûr\" agrees with a gender the learner never gave. Say it without agreeing on them: \"ça te plaît\", \"tu as de la chance\", \"ça y est\" — or write the sentence about the food, the room or the other character instead.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Feuille de route",
+    "dramatic_question": "Le groupe utilisera-t-il l'idée d'Odile maintenant ?",
+    "open_question": null,
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell Marin briefly if he may use Odile's plan (one short sentence).",
+    "objective_words": 12,
+    "panels": 4,
+    "premise_id": "je_peux"
+   }
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_critic_refused",
+   "hint": "Add a visible change by the end of the page (for example: Marin starts the spreadsheet, Lila actually writes names, or someone moves an object) so the day ends different from how it began.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Le projet d'Odile",
+    "dramatic_question": "Permets-tu à Marin d'utiliser l'idée d'Odile pour le café ?",
+    "open_question": null,
+    "character_id": "marin_leveque",
+    "speakers": [
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell Marin yes or no.",
+    "objective_words": 5,
+    "panels": 4,
+    "premise_id": "je_peux"
+   }
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "gendered_agreement",
+   "hint": "\"sûr\" agrees with a gender the learner never gave. Say it without agreeing on them: \"ça te plaît\", \"tu as de la chance\", \"ça y est\" — or write the sentence about the food, the room or the other character instead.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Donner la permission",
+    "dramatic_question": "Vas-tu laisser Marin utiliser l'idée d'Odile pour Le Mistral ?",
+    "open_question": null,
+    "character_id": "marin_leveque",
+    "speakers": [
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell Marin yes or no and give a short reason.",
+    "objective_words": 10,
+    "panels": 4,
+    "premise_id": "je_peux"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "gendered_agreement": 2,
+  "story_critic_refused": 1
+ }
+}

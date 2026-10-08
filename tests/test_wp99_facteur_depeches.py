@@ -84,6 +84,20 @@ def sent(db_session, monkeypatch: pytest.MonkeyPatch) -> list[dict]:
     return _FakeNotifications.sent
 
 
+# WP-116 phase 6: the drawn cast is the default; pushes carry the painted portrait
+# or the drawn PNG face. The push tests run under both sets, each pinned explicitly.
+@pytest.fixture(params=["painted", "drawn"])
+def art_set(request, monkeypatch: pytest.MonkeyPatch) -> str:
+    monkeypatch.setattr(settings, "ATELIER_ART_SET", request.param)
+    return request.param
+
+
+def _face(art_set: str, key: str, face: str) -> str:
+    if art_set == "drawn":
+        return f"/assets/serial/drawn/{key}/portrait-{copy.DRAWN_FACES[face]}.png"
+    return f"/assets/serial/characters/{key}/portrait-{face}.webp"
+
+
 def _learner(db_session, *, tz: str = "Europe/Paris", reminder: str = "08:30", band: str = "A1") -> User:
     user = User(
         id=uuid.uuid4(),
@@ -163,7 +177,7 @@ PARIS_0830 = datetime(2026, 10, 1, 6, 30, tzinfo=UTC)
 # ---------------------------------------------------------------------------
 
 
-def test_the_morning_depeche_is_the_teaser_in_the_mood_portrait_deep_linked(db_session, sent) -> None:
+def test_the_morning_depeche_is_the_teaser_in_the_mood_portrait_deep_linked(db_session, sent, art_set) -> None:
     user = _learner(db_session)
     _journey(db_session, user, date(2026, 9, 30))
     _thread(
@@ -184,7 +198,7 @@ def test_the_morning_depeche_is_the_teaser_in_the_mood_portrait_deep_linked(db_s
     data = push["data"]
     assert data["route"] == "/atelier?start=today"
     assert data["kind"] == "morning_teaser" and data["teaser_source"] == "engine"
-    assert data["image_url"] == data["image"] == "/assets/serial/characters/romy_tremblay/portrait-happy.webp"
+    assert data["image_url"] == data["image"] == _face(art_set, "romy_tremblay", "happy")
     assert data["mood"] == "happy" and data["register"] == "tu"
     assert data["teaser_date"] == "2026-09-30"
 
@@ -228,12 +242,12 @@ def test_recent_push_lines_fold_quotes_and_case(db_session) -> None:
     assert tasks.MORNING_EVENT == copy.MORNING_PUSH_EVENT
 
 
-def test_mood_faces_follow_the_courrier_seal_rule() -> None:
+def test_mood_faces_follow_the_courrier_seal_rule(art_set) -> None:
     assert [copy.mood_face(value) for value in (-2, -1, 0, 1, 2, None, "x")] == [
         "cross", "cross", "neutral", "happy", "happy", "neutral", "neutral",
     ]
-    assert copy.portrait_path("lila", "cross").endswith("/lila_bonnet/portrait-cross.webp")
-    assert copy.portrait_path("lila", "sulky").endswith("/lila_bonnet/portrait-neutral.webp")
+    assert copy.portrait_path("lila", "cross") == _face(art_set, "lila_bonnet", "cross")
+    assert copy.portrait_path("lila", "sulky") == _face(art_set, "lila_bonnet", "neutral")
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +299,7 @@ def test_the_courrier_push_is_the_learner_s_midday_in_their_zone() -> None:
     assert tasks.courrier_push_minute(User(reminder_time="21:00")) == tasks.COURRIER_PUSH_FALLBACK_MINUTE
 
 
-def test_a_letter_arrives_and_the_postman_says_so_once(db_session, sent) -> None:
+def test_a_letter_arrives_and_the_postman_says_so_once(db_session, sent, art_set) -> None:
     user = _learner(db_session)
     _thread(db_session, user)
     mission = _letter(db_session, user, created_at=datetime(2026, 10, 1, 7, 0, tzinfo=UTC))
@@ -303,7 +317,7 @@ def test_a_letter_arrives_and_the_postman_says_so_once(db_session, sent) -> None
     assert data["kind"] == "letter_arrived"
     assert data["mission_id"] == str(mission.id)
     assert data["route"] == f"/missions?mission={mission.id}"
-    assert data["image_url"].endswith("/romy_tremblay/portrait-neutral.webp")
+    assert data["image_url"] == _face(art_set, "romy_tremblay", "neutral")
     db_session.refresh(mission)
     assert mission.prompt_payload["courrier_push"] == {"arrived": "2026-10-01"}
 

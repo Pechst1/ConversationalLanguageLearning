@@ -15,6 +15,9 @@ import {
   gradedFormat,
   ladderCue,
   ladderRung,
+  lineAnswer,
+  linePrompt,
+  matchesLineForm,
   nextAgainQueue,
   type CardMode,
 } from '@/components/lexique/recall-ladder';
@@ -936,10 +939,15 @@ export default function VocabularyReviewPage() {
       : mode === 'cloze'
         ? clozePrompt(current)
         : mode === 'scene' || mode === 'rescue'
-          ? sceneOrRescueCue(current)?.sentence_fr || queueMeaning(current) || queueFrench(current)
+          ? linePrompt(sceneOrRescueCue(current)) || queueMeaning(current) || queueFrench(current)
           : queueWord(current)
     : '';
-  const answer = current ? (mode === 'recognition' ? queueTranslation(current) : queueFrench(current)) : '';
+  // Owner decision 2026-10-08: a line card is answered with the form in the line.
+  const answer = current
+    ? mode === 'recognition'
+      ? queueTranslation(current)
+      : lineAnswer(mode, sceneOrRescueCue(current), queueFrench(current))
+    : '';
   const french = current ? queueFrench(current) : '';
   const meaning = current ? queueMeaning(current) : '';
   const example = current ? queueExample(current) : '';
@@ -949,7 +957,10 @@ export default function VocabularyReviewPage() {
   const contextText = mode === 'audio'
     ? [meaning, example].filter(Boolean).join(' · ')
     : example || (current ? `${french} - ${meaning}` : '');
-  const typedMatches = normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
+  const typedMatches =
+    mode === 'scene' || mode === 'rescue'
+      ? matchesLineForm(normalizeAnswer(typedAnswer), normalizeAnswer(answer))
+      : normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
   const graded = mode !== 'recognition' && typedAnswer.trim().length > 0;
   const hint = current ? cardHint(t, current) : '';
   // WP-115b: the ladder's own cue on the scene and rescue rungs.

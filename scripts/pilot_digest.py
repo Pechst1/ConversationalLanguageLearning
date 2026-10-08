@@ -449,6 +449,66 @@ def format_revue_line(db, day: date, user_id: str | None = None) -> str:
     )
 
 
+#: WP-149 «Rien de refusé à l'écran». Kept as literals so the digest does not import
+#: the story engine: ``living_story._record_story_reviews`` writes the critic rows
+#: (payload ``class``: correctness / storytelling, absent before WP-149), and
+#: ``story_lanes`` the reply rows (``MET_GATED_EVENT``, ``GRADING_CORRECTED_EVENT``).
+CRITIC_OVERRIDE_EVENT = "journey_story_critic_override"
+CRITIC_REVIEW_EVENT = "journey_story_critic_review"
+MET_GATED_EVENT = "reply_met_gated"
+GRADING_CORRECTED_EVENT = "reply_grading_corrected"
+AFTER_RELEASE_EVENT = "reply_refused_after_release"
+
+
+def format_story_correctness_line(db, day: date, user_id: str | None = None) -> str:
+    """WP-149 §C. What learners saw that a checker refused, by class.
+
+    * served critic overrides, split by the refusal's class — the target is 0
+      correctness overrides (a correctness refusal is never served; an unclassified
+      row predates WP-149);
+    * correctness refusals the critic made (never served: a retry, or the re-read);
+    * replies the met-gate lowered before release, and after-release grading
+      corrections (a false «met» the story-lane critic found: the line stayed, the
+      learning record was corrected), beside every after-release issue logged.
+    """
+
+    normalized_user_id = UUID(str(user_id)) if user_id else None
+    wanted = (
+        CRITIC_OVERRIDE_EVENT, CRITIC_REVIEW_EVENT, MET_GATED_EVENT,
+        GRADING_CORRECTED_EVENT, AFTER_RELEASE_EVENT,
+    )
+    rows = db.query(PilotEvent.event_type, PilotEvent.payload).filter(
+        PilotEvent.event_type.in_(wanted),
+        func.date(PilotEvent.occurred_at) == day,
+    )
+    if normalized_user_id:
+        rows = rows.filter(PilotEvent.user_id == normalized_user_id)
+    overrides: dict[str, int] = {}
+    refused_correctness = 0
+    counts = dict.fromkeys(wanted, 0)
+    for event_type, payload in rows:
+        payload = payload or {}
+        counts[event_type] += 1
+        if event_type == CRITIC_OVERRIDE_EVENT:
+            kind = str(payload.get("class") or "unclassified")
+            overrides[kind] = overrides.get(kind, 0) + 1
+        elif event_type == CRITIC_REVIEW_EVENT and payload.get("class") == "correctness":
+            refused_correctness += 1
+    if not any(counts.values()):
+        return "Story correctness (WP-149): none"
+    served = sum(overrides.values())
+    split = ", ".join(
+        f"{kind} {count} ({count * 100 // served} %)" for kind, count in sorted(overrides.items())
+    ) if served else "none"
+    return (
+        f"Story correctness (WP-149): {served} critic override(s) served [{split}] · "
+        f"{refused_correctness} correctness refusal(s), never served · "
+        f"{counts[MET_GATED_EVENT]} «met» lowered by the met-gate before release · "
+        f"{counts[GRADING_CORRECTED_EVENT]} after-release grading correction(s) of "
+        f"{counts[AFTER_RELEASE_EVENT]} after-release issue(s)"
+    )
+
+
 def format_register_line(report: dict, user_id: str | None = None) -> str:
     """WP-33's dimension, read off the rollup the journey section already built.
 
@@ -561,6 +621,8 @@ def main() -> None:
         print(format_self_repair_line(db, args.day, args.user_id))
         # WP-119 §10c: Le Papier's sessions, turns, guests and cost.
         print(format_revue_line(db, args.day, args.user_id))
+        # WP-149 §C: critic overrides served by class, and the grading corrections.
+        print(format_story_correctness_line(db, args.day, args.user_id))
     # WP-33: read off the rollup above — no extra query, and it cannot disagree
     # with the capability line the journey section prints.
     print(format_register_line(report, args.user_id))

@@ -243,6 +243,10 @@ def keep_word(
     if not progress.context:
         # WP-115a: the first meeting is the one a review brings back.
         progress.context = met_context(sentence=sentence, journey_id=journey_id, met=met, now=now)
+        # Owner decision 2026-10-08: the form the word had in the line («venez» for
+        # «venir») is context, not a new item — the scene card blanks it.
+        if surface:
+            progress.context = {**progress.context, "surface_fr": surface}
     db.flush()
     return KeptWord(
         word_id=int(word.id),

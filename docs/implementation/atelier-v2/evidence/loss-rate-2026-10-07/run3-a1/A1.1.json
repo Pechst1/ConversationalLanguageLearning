@@ -1,0 +1,474 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.20578800000000003,
+  "calls": 48,
+  "cap": 0.2
+ },
+ "weaves": [
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Le premier pain",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "La même chose ?",
+   "uses": 2,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "La même chose ?",
+   "uses": 5,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+   "title": "La même chose ? — rumeur",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "Une lettre arrive",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "La lettre arrive",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "La même chose ? — la lettre",
+   "uses": 4,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "La soupe et la promesse",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Appel raté ou gagné ?",
+   "uses": 2,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.3 twice; accepted and logged (Replace Margaux holding the letter with Marin (who was trusted with the letter) or explain why Margaux has it now so the proposal doesn't contradict flags.; Show the open obstacle being actively faced: have someone react to the rumour or the reply (read it aloud, refuse to read it, or decide to keep)",
+  "living_story: the retry the story critic bought failed (mixed_address_register); serving the refused draft",
+  "living_story: story critic refused g1.5 twice; accepted and logged (Show the learner speaking or an outcome so a clear value turn happens (hope meets setback or advance).; Make a visible change by the end of the page (for example: the agent confirms the new date or refuses it) so the day is different from how it began.; Advance the ticket thread a little (the ticket)",
+  "living_story: every SceneDraft attempt refused (story_provider_failed): story_provider_failed",
+  "daily_journey: season day lost (story_provider_failed); journey 32546b5b-5651-4bbe-b296-c637cc70044b re-reads t2.b"
+ ],
+ "refusals": [
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Je suis, tu es : les pronoms et être») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Je suis au café. Et toi, tu es où ?»).",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "Commencer seul",
+    "dramatic_question": "Peux-tu commander ton pain tout seul et commencer à rester ici ?",
+    "open_question": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement po…",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "mme_diallo"
+    ],
+    "objective_native": "Order one bread at the bakery counter in French.",
+    "objective_words": 9,
+    "panels": 4,
+    "premise_id": "pain_avec_lila"
+   }
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; margaux_barman is this rule's coach: give margaux_barman one of those lines.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "Une habitude au zinc",
+    "dramatic_question": "Quel est ton ordre au Mistral, et pourquoi tu restes ici ?",
+    "open_question": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement po…",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Choose your usual order and say why you are staying.",
+    "objective_words": 10,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"tu\" while the character speaks to them as \"vous\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Le début d'une habitude",
+    "dramatic_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Answer Romy in one short sentence: say yes or no to 'Are you Odile's heir?'",
+    "objective_words": 15,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Avoir : j'ai, j'ai 20 ans, j'ai faim») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «J'ai vingt ans et j'ai soif.»).",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Le début d'une habitude",
+    "dramatic_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell Margaux if you told anyone about the letter.",
+    "objective_words": 9,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g1.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_required_moment",
+   "hint": "Today this gap stages «La même chose ?» (season_script.brief.today.required_premise): write that day, and set season_checklist.premise_id to 'la_meme_chose'. grammar_plan.introduce («Il y a : ce qui existe ici») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Dans la rue, il y a une boulangerie et deux cafés.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Le début d'une habitude",
+    "dramatic_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Write a short note saying you will send the document tomorrow.",
+    "objective_words": 11,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g1.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "missing_reading_aids",
+   "hint": "Today this gap stages «La même chose ?» (season_script.brief.today.required_premise): write that day, and set season_checklist.premise_id to 'la_meme_chose'; grammar_plan.introduce («Il y a : ce qui existe ici») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Dans la rue, il y a une boulangerie et deux cafés.»); 6 of 6 dialogue lines have no text_native — give every line a faithful short translation into 'en'.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Le début d'une habitude",
+    "dramatic_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Write a short note to Margaux accepting her help.",
+    "objective_words": 9,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g1.3",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "story_critic_refused",
+   "hint": "Replace Margaux holding the letter with Marin (who was trusted with the letter) or explain why Margaux has it now so the proposal doesn't contradict flags. | Show the open obstacle being actively faced: have someone react to the rumour or the reply (read it aloud, refuse to read it, or decide to keep it private) so the complication for tomorrow is clearly still in play and addressed. | Make the meaningful change visually explicit on the page (for example show the learner writing and someone seeing the sentence or the card left on the zinc) so the learner-visible difference is unambiguous.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Le début d'une habitude",
+    "dramatic_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Write a short reply to Margaux saying why you stay.",
+    "objective_words": 10,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "position": "g1.4",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "setting_not_rotated",
+   "hint": "margaux_barman at le_mistral has carried the last three situations. Choose another character or another location: unused characters ['lila_bonnet', 'marin_leveque', 'romy_tremblay', 'landlord_marchand', 'mme_diallo', 'maitre_vasseur', 'bastien_roux'], unused locations ['user_apartment', 'marin_lila_flat', 'newsroom', 'ngo_office', 'marche_canal', 'buttes_chaumont', 'metro_platform', 'gus_loft', 'brocante', 'odile_flat', 'stairwell', 'mistral_back_room', 'quai_de_valmy', 'marchand_office', 'mairie', 'notaire', 'gare_de_lest', 'rue_de_lancry', 'boulangerie', 'ecole', 'toit'].",
+   "draft": {
+    "beat": "resolution",
+    "required_beat": [
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Le début d'une habitude",
+    "dramatic_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell Margaux when you can start helping, in one short sentence.",
+    "objective_words": 11,
+    "panels": 4,
+    "premise_id": "romy_enquete"
+   }
+  },
+  {
+   "position": "g1.4",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "season_required_moment",
+   "hint": "Today this gap stages «Romy enquête» (season_script.brief.today.required_premise): write that day, and set season_checklist.premise_id to 'romy_enquete'. grammar_plan.introduce («Un, une, des : les articles indéfinis») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Il y a un croissant, une tarte et des macarons.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "resolution",
+    "required_beat": [
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Le début d'une habitude",
+    "dramatic_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell Marin you will help Margaux tomorrow.",
+    "objective_words": 7,
+    "panels": 4,
+    "premise_id": "soupe_de_marin"
+   }
+  },
+  {
+   "position": "g1.5",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "objective_too_complex",
+   "hint": "A A1 learner answers in one sentence: ask for ONE thing (at most 1 clause separator(s) and 16 words). \"Say to the airline, in French, that you will stay until December 2nd.\" chains 3 asks.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Le billet qu'on bouge",
+    "dramatic_question": "Peux-tu dire que tu restes sans te perdre dans les détails ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Say to the airline, in French, that you will stay until December 2nd.",
+    "objective_words": 13,
+    "panels": 4,
+    "premise_id": "le_billet"
+   }
+  },
+  {
+   "position": "g1.5",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_critic_refused",
+   "hint": "Show the learner speaking or an outcome so a clear value turn happens (hope meets setback or advance). | Make a visible change by the end of the page (for example: the agent confirms the new date or refuses it) so the day is different from how it began. | Advance the ticket thread a little (the ticket must move to 2 décembre or at least the call must create the obstacle that it will move).",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Le billet au téléphone",
+    "dramatic_question": "Vas-tu prolonger ton séjour, et pourquoi rester ici ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Call the airline in French and say you need to move your ticket to 2 December.",
+    "objective_words": 16,
+    "panels": 4,
+    "premise_id": "le_billet"
+   }
+  },
+  {
+   "position": "g1.5",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"tu\" while the character speaks to them as \"vous\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Le billet déplacé ?",
+    "dramatic_question": "Peux-tu dire en français que tu restes jusqu'au 2 décembre ?",
+    "open_question": "Quel est ton ordre habituel, et pourquoi restes-tu à Paris ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell the agent you will stay until 2 December.",
+    "objective_words": 9,
+    "panels": 4,
+    "premise_id": "le_billet"
+   }
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_provider_failed",
+   "hint": ""
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_provider_failed",
+   "hint": ""
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "story_provider_failed",
+   "hint": ""
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "story_provider_failed",
+   "hint": ""
+  }
+ ],
+ "refusal_reasons": {
+  "story_provider_failed": 4,
+  "grammar_not_woven": 3,
+  "mixed_address_register": 2,
+  "season_required_moment": 2,
+  "story_critic_refused": 2,
+  "missing_reading_aids": 1,
+  "setting_not_rotated": 1,
+  "objective_too_complex": 1
+ }
+}

@@ -121,6 +121,14 @@ async function playDayInner(l, day) {
         + `reps = 1, lapses = 0, stability = 2 `
         + `WHERE user_id = '${l.userId}' AND context IS NOT NULL`,
       );
+      // A word the learner kept missing is a leech, and the drill rightly opens on
+      // its «rescue» card; this check is about the kept word, so the learner's
+      // other cards wait a day while it is read.
+      stack.sql(
+        `UPDATE user_vocabulary_progress SET due_at = now() + interval '1 day', `
+        + `next_review_date = now() + interval '1 day', due_date = (now() + interval '1 day')::date `
+        + `WHERE user_id = '${l.userId}' AND context IS NULL`,
+      );
     }
     await walk.visit('/vocabulary/review', 'drill');
     const rung = await walk.page.locator('.lx-card').first().getAttribute('data-mode').catch(() => null);
@@ -195,7 +203,9 @@ const SEASON_PAGES = [
 
 function seasonChecks(l) {
   for (const page of SEASON_PAGES) {
-    const where = (l.pages || []).filter((row) => row.text.includes(page.line)).map((row) => row.day);
+    // French print sets the apostrophe as ’ (lib/french-typography); the bible writes '.
+    const fold = (text) => text.replace(/[’ʼ]/g, "'");
+    const where = (l.pages || []).filter((row) => fold(row.text).includes(fold(page.line))).map((row) => row.day);
     findings.check(
       'season-tentpole-on-its-day',
       where.length >= 1 && where.every((day) => page.days.includes(day)) && new Set(where).size === 1,

@@ -412,11 +412,26 @@ test('WP-90: a plate on the press is a duotone with a folio ribbon, in a frame t
   assert.ok(/alt="Augustin smiles at the counter\."/.test(drawn), 'the picture says what it shows');
 });
 
+// WP-116 phase 6: the drawn cast is the default; painted assertions pin the painted set.
+const launchFlags = require(path.join(ROOT, 'launch-flags.json'));
+function withArtSet(value, fn) {
+  const before = launchFlags.artSet;
+  launchFlags.artSet = value;
+  try {
+    return fn();
+  } finally {
+    launchFlags.artSet = before;
+  }
+}
+
 test('WP-90: captions — a face that acts, a line read as one sentence, words that rove', () => {
-  const markup = renderPlanche({ index: 0, language: 'en' });
+  const painted = withArtSet('painted', () => renderPlanche({ index: 0, language: 'en' }));
+  assert.ok(/alt="Augustin, pleased"/.test(painted), 'the portrait says who and how');
+  // Drawn: the rig is the image, named the same way, in the same mood.
+  const markup = withArtSet('drawn', () => renderPlanche({ index: 0, language: 'en' }));
+  assert.ok(/role="img" aria-label="Augustin, pleased" data-cast="augustin_de_roncourt" data-mood="ravie"/.test(markup), 'the drawn face says who and how');
   assert.ok(/class="fr-speech" data-compact="true"/.test(markup));
   assert.ok(/data-mood="happy"/.test(markup), 'the face wears the line’s mood');
-  assert.ok(/alt="Augustin, pleased"/.test(markup), 'the portrait says who and how');
   assert.ok(/role="group" tabindex="0" aria-label="Je peux aider\." data-roving-line=""/.test(markup));
   assert.ok(/aria-label="Help with “aider”"/.test(markup), 'the word labels are the learner’s language');
   assert.ok(/<button type="button" class="fr-word" data-word="" tabindex="-1"/.test(markup), 'words leave the Tab order');

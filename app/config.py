@@ -320,7 +320,7 @@ class Settings(BaseSettings):
         description="Generate Feuilleton panel images through OpenAI. When false, deterministic SVG panels are used.",
     )
     ATELIER_ART_SET: str = Field(
-        "painted",
+        "drawn",
         description=(
             "WP-116: which art set shows the cast. 'painted' keeps the painted portraits and panel art; "
             "'drawn' uses the SVG rigs over the location plates, sends the drawn PNG faces in pushes, "

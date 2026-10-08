@@ -31,6 +31,7 @@ export function TappableFrench({
   wordLabel = DEFAULT_WORD_LABEL,
   roving = false,
   marks = null,
+  revealChars = null,
 }: {
   text: string;
   idPrefix: string;
@@ -45,6 +46,12 @@ export function TappableFrench({
    * snap to whole words, so a word button is marked whole, never split.
    */
   marks?: MarkRange[] | null;
+  /**
+   * WP-144: the words arrive with the voice. Only the tokens whose first
+   * character is within this many characters show; the rest keep their place
+   * (the line never reflows) but are invisible. Null shows the whole line.
+   */
+  revealChars?: number | null;
 }) {
   // WP-82: « ? ! » stay on their word's line (U+202F). The narrow space is a
   // non-word run, so the tappable words — and their lookup terms — are unchanged.
@@ -56,15 +63,22 @@ export function TappableFrench({
     [idPrefix, text, marks],
   );
   if (!tokens.length) return null;
-  return (
-    <>
-      {tokens.map((token) =>
+  let offset = 0;
+  const starts = tokens.map((token) => {
+    const start = offset;
+    offset += token.text.length;
+    return start;
+  });
+  const hidden = (index: number) =>
+    revealChars !== null && revealChars !== undefined && starts[index] > revealChars ? '' : undefined;
+  const render = (token: (typeof tokens)[number], index: number, part?: { text: string; key: string }) =>
         token.word && !disabled ? (
           <button
             key={token.key}
             type="button"
             className="fr-word"
             data-word=""
+            data-unrevealed={hidden(index)}
             data-mark={token.marked ? 'rule' : undefined}
             tabIndex={roving ? -1 : undefined}
             onClick={() => onWord({ surface: token.text, term: token.term })}
@@ -73,13 +87,89 @@ export function TappableFrench({
             {token.text}
           </button>
         ) : (
-          <span key={token.key} data-mark={token.marked ? 'rule' : undefined}>
-            {token.text}
+          <span key={part ? part.key : token.key} data-mark={token.marked ? 'rule' : undefined} data-unrevealed={hidden(index)}>
+            {part ? part.text : token.text}
+          </span>
+        );
+  // WP-144b: a word button is an atomic inline, so the browser may break on
+  // either side of it. An elided form never ends a line alone («d’» + «Odile»,
+  // and l’, qu’, j’, n’, s’, c’, m’, t’, jusqu’, lorsqu’, puisqu’), and the
+  // punctuation after a word («Marin» + «.») never starts the next line.
+  const units = lineUnits(tokens);
+  const renderPart = (part: LinePart) =>
+    render(tokens[part.index], part.index, part.text !== undefined ? { text: part.text, key: `${tokens[part.index].key}-${part.tail ? 'b' : 'a'}` } : undefined);
+  return (
+    <>
+      {units.map((unit) =>
+        unit.length === 1 ? (
+          renderPart(unit[0])
+        ) : (
+          <span key={`${tokens[unit[0].index].key}-run`} className="fr-elision" style={{ whiteSpace: 'nowrap' }}>
+            {unit.map(renderPart)}
           </span>
         ),
       )}
     </>
   );
+}
+
+/** A token, or a slice of a punctuation run (`text`), in a line unit. */
+export type LinePart = { index: number; text?: string; tail?: boolean };
+
+const LETTER_END = /[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9]$/;
+const HAS_LETTER = /[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9]/;
+/** The punctuation that hangs on the word before it: up to the first breakable space (U+202F holds). */
+const HANGING = /^(?:[^\s]|\u202F)+/;
+
+/**
+ * The line's tokens as unbreakable units: an elision group, then the
+ * punctuation that follows a word (up to its first breakable space) glued to
+ * it. Everything else is a unit of its own.
+ */
+export function lineUnits(tokens: Array<{ text: string }>): LinePart[][] {
+  const units: LinePart[][] = [];
+  const groups = elisionGroups(tokens);
+  for (let g = 0; g < groups.length; g += 1) {
+    const unit: LinePart[] = groups[g].map((index) => ({ index }));
+    const last = groups[g][groups[g].length - 1];
+    const next = groups[g + 1];
+    const follower = next && next.length === 1 ? tokens[next[0]] : null;
+    const hanging = follower && !HAS_LETTER.test(follower.text) && LETTER_END.test(tokens[last].text)
+      ? (follower.text.match(HANGING) || [''])[0]
+      : '';
+    if (follower && hanging) {
+      unit.push(hanging === follower.text ? { index: next[0] } : { index: next[0], text: hanging });
+      units.push(unit);
+      if (hanging !== follower.text) units.push([{ index: next[0], text: follower.text.slice(hanging.length), tail: true }]);
+      g += 1;
+    } else {
+      units.push(unit);
+    }
+  }
+  return units;
+}
+
+const ELIDED = new Set(['l', 'd', 'j', 'n', 'm', 't', 's', 'c', 'qu', 'jusqu', 'lorsqu', 'puisqu']);
+const APOSTROPHE_ONLY = /^['’ʼ]$/;
+
+/**
+ * Token indexes grouped so that an elided form, its apostrophe and the word
+ * after it form one group (one unbreakable run); every other token is alone.
+ */
+export function elisionGroups(tokens: Array<{ text: string }>): number[][] {
+  const groups: number[][] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const elided = ELIDED.has(tokens[index].text.toLowerCase());
+    const apostrophe = tokens[index + 1] && APOSTROPHE_ONLY.test(tokens[index + 1].text);
+    const next = tokens[index + 2];
+    if (elided && apostrophe && next && /^[A-Za-zÀ-ÖØ-öø-ÿŒœ]/.test(next.text)) {
+      groups.push([index, index + 1, index + 2]);
+      index += 2;
+    } else {
+      groups.push([index]);
+    }
+  }
+  return groups;
 }
 
 /**
@@ -96,6 +186,7 @@ export function FrenchLine({
   marks = null,
   marksLabel = '',
   marksLang,
+  revealChars = null,
 }: {
   text: string;
   idPrefix: string;
@@ -111,6 +202,8 @@ export function FrenchLine({
   marksLabel?: string;
   /** The label's language (the reader's chrome); the line itself is French. */
   marksLang?: string;
+  /** WP-144: see `TappableFrench`. */
+  revealChars?: number | null;
 }) {
   const ref = useRef<HTMLParagraphElement | null>(null);
   const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLParagraphElement>) => {
@@ -151,6 +244,7 @@ export function FrenchLine({
         wordLabel={wordLabel}
         roving
         marks={marks}
+        revealChars={revealChars}
       />
       {marked && (
         <span className="fr-sr" id={describedBy} lang={marksLang}>

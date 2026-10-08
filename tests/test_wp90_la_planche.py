@@ -257,6 +257,9 @@ def test_b1_and_french_learners_get_no_translations(
 @pytest.fixture
 def art(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "ATELIER_PANEL_ART_ENABLED", True)
+    # WP-116 phase 6: drawn is the default and draws the cast in the client; per-panel
+    # drawing is the painted set's pipeline, so these tests pin painted.
+    monkeypatch.setattr(settings, "ATELIER_ART_SET", "painted")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
     monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_STORAGE", "local")
     monkeypatch.setattr(settings, "GRAPHIC_NOVEL_LOCAL_IMAGE_DIR", str(tmp_path))

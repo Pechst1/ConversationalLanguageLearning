@@ -1,0 +1,109 @@
+{
+ "band": "B2.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.04225400000000001,
+  "calls": 14,
+  "cap": 0.12
+ },
+ "weaves": [
+  {
+   "unit": "L'émotion + subjonctif : je suis content que",
+   "title": "La fenêtre allumée",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  }
+ ],
+ "failures": [],
+ "refusals": [
+  {
+   "position": "s1.end",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "departed_cast_on_page",
+   "hint": "«Je suis contente que tu sois là. Dis-moi : tu as vu la même lumière ?» puts Lila on the page, but Lila left for Berlin on 8 January (T8, the platform) and lives there now. After the finale Lila is never physically in a scene: no line, no panel, not the character the learner talks to. Lila may be mentioned or remembered, or reach Toi from afar (a message on the phone, a letter, a postcard). Give Lila's lines to someone who is here.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "La fenêtre allumée",
+    "dramatic_question": "Qui est derrière la fenêtre allumée de la rue de Lancry ? Est-ce un indice sur ce qu'Odile a laissé ?",
+    "open_question": "Ta grand-mère t'a laissé en héritage ce qui se trouve au-dessus du Mistral — et l'incendie qui a eu lieu en dessous. Tu le gardes, tu le partages, ou tu y reno…",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Demandez à Lila ce qu'elle a vu et dites si vous pensez que quelqu'un est encore dans la fenêtre, en donnant une raison courte.",
+    "objective_words": 24,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "s1.end",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "Le billet",
+    "dramatic_question": "Ta grand-mère t'a laissé en héritage ce qui se trouve au-dessus du Mistral — et l'incendie qui a eu lieu en dessous. Tu le gardes, tu le partages, ou tu y reno…",
+    "open_question": "Ta grand-mère t'a laissé en héritage ce qui se trouve au-dessus du Mistral — et l'incendie qui a eu lieu en dessous. Tu le gardes, tu le partages, ou tu y reno…",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Dites à Lila si vous êtes content(e) ou inquiet(e) que la fenêtre soit encore allumée (utilisez une phrase d'émotion + subjonctif), puis demandez-lui ce qu'ell…",
+    "objective_words": 28,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "s1.end",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («L'émotion + subjonctif : je suis content que») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Je suis vraiment contente que tu puisses venir.»); romy_tremblay is this rule's coach: give romy_tremblay one of those lines.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "La carte et le secret",
+    "dramatic_question": "Romy a une vidéo liée à Odile. Va-t-elle la publier, ou la garder entre vous ?",
+    "open_question": "Ta grand-mère t'a laissé en héritage ce qui se trouve au-dessus du Mistral — et l'incendie qui a eu lieu en dessous. Tu le gardes, tu le partages, ou tu y reno…",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Demandez à Romy de garder la vidéo privée sauf si vous acceptez de la publier ensemble, et dites pourquoi vous le voulez.",
+    "objective_words": 22,
+    "panels": 4,
+    "premise_id": null
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "departed_cast_on_page": 1,
+  "mixed_address_register": 1,
+  "grammar_not_woven": 1
+ }
+}

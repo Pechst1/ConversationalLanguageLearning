@@ -99,6 +99,19 @@ function day(recapOverrides = {}, journeyOverrides = {}) {
   return { journey, recap };
 }
 
+// WP-116 phase 6: the drawn cast is the default. Assertions about the painted
+// portraits pin the painted set; each has its drawn counterpart beside it.
+const launchFlags = require(path.join(WEB_ROOT, 'launch-flags.json'));
+function withArtSet(value, fn) {
+  const before = launchFlags.artSet;
+  launchFlags.artSet = value;
+  try {
+    return fn();
+  } finally {
+    launchFlags.artSet = before;
+  }
+}
+
 function render({ journey, recap }, props = {}) {
   return renderToStaticMarkup(
     React.createElement(JourneyRecap, {
@@ -124,7 +137,7 @@ const textOf = (html) => decode(html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, '
 const FR = journeyCopy('en');
 
 test('a finished day is one screen: seal, facts, words, face, teaser, actions', () => {
-  const html = render(day());
+  const html = withArtSet('painted', () => render(day()));
   const text = textOf(html);
   assert.equal((html.match(/class="journey-recap /g) || []).length, 1, 'exactly one recap');
   // WP-D4: Scène · Mots · Série, in that order, the streak in days.
@@ -153,6 +166,12 @@ test('a finished day is one screen: seal, facts, words, face, teaser, actions', 
   assert.doesNotMatch(text, /Continue\b/);
   assert.match(html, /av2-btn--quiet/);
   assert.match(text, /More practice/);
+
+  // Drawn: the same screen, the face is Margaux's rig, pleased.
+  const drawn = withArtSet('drawn', () => render(day()));
+  assert.equal(textOf(drawn), text, 'the art set changes the face, not a word');
+  assert.match(drawn, /data-cast="margaux_barman" data-mood="ravie"/);
+  assert.doesNotMatch(drawn, /\.webp/);
 });
 
 test('WP-82: one Garamond headline — the keepsake title, not also «Scene finished»', () => {
@@ -202,18 +221,25 @@ test('the deleted lines stay deleted and no number is invented', () => {
 });
 
 test('a mood line only when the ledger moved today; the face still reacts', () => {
-  const steady = render(day({ mood: { character_id: 'margaux_barman', character_name: 'Margaux', mood: 0, shift: null } }));
+  const steadyDay = day({ mood: { character_id: 'margaux_barman', character_name: 'Margaux', mood: 0, shift: null } });
+  const colderDay = day({ mood: { character_id: 'margaux_barman', character_name: 'Margaux', mood: -1, shift: 'colder' } });
+  const steady = withArtSet('painted', () => render(steadyDay));
   assert.doesNotMatch(textOf(steady), /smiles at you|is a little cross/);
   assert.match(steady, /portrait-neutral\.webp/);
 
-  const colder = render(day({ mood: { character_id: 'margaux_barman', character_name: 'Margaux', mood: -1, shift: 'colder' } }));
+  const colder = withArtSet('painted', () => render(colderDay));
   assert.match(textOf(colder), /Margaux is a little cross ↓/);
   assert.match(colder, /portrait-cross\.webp/);
 
   // No ledger at all: the face reacts to the day's outcome, with no claim.
-  const noLedger = render(day({ mood: null }));
+  const noLedger = withArtSet('painted', () => render(day({ mood: null })));
   assert.match(noLedger, /portrait-happy\.webp/);
   assert.doesNotMatch(textOf(noLedger), /smiles at you/);
+
+  // Drawn: the rig makes the same three faces.
+  assert.match(withArtSet('drawn', () => render(steadyDay)), /data-cast="margaux_barman" data-mood="neutre"/);
+  assert.match(withArtSet('drawn', () => render(colderDay)), /data-cast="margaux_barman" data-mood="fachee"/);
+  assert.match(withArtSet('drawn', () => render(day({ mood: null }))), /data-cast="margaux_barman" data-mood="ravie"/);
 });
 
 test('a «jour de relâche» is said in the learner language', () => {

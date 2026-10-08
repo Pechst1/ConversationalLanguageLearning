@@ -1,4 +1,5 @@
 /* WP-116 · Camille, variant C. Ported from the Claude Design canvas rig (2026-10-01). */
+import React from 'react';
 import type { RigDef, RigValues } from '../rig-kit';
 
 function CamilleArt({ v }: { v: RigValues }) {
