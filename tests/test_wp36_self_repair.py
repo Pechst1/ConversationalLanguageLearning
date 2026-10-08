@@ -655,6 +655,22 @@ def test_the_explicit_correction_copy_is_complete_in_three_languages():
         assert template.strip().endswith((".", "»", "“", "„")) or template.strip()[-1] in ".!?"
 
 
+@pytest.mark.parametrize(
+    ("level", "expected"),
+    [("A2.1", "That was the one you were just asked about"), ("B1.1", "on venait de vous demander")],
+)
+def test_the_explicit_note_follows_the_chrome_language(level, expected):
+    """WP-82: the learner's language up to A2, French from B1 (the walk read the
+    English note on a French B1 screen)."""
+
+    from types import SimpleNamespace
+
+    learner = SimpleNamespace(native_language="en", cefr_estimate=level, proficiency_level=level[:2])
+    note = jc._explicit_note(user=learner, wrong="une café", correct="un café", why="")
+    assert expected in note
+    assert "« un café »" in note or "“un café”" in note
+
+
 def test_the_characters_own_lines_are_french_and_carry_no_pronunciation_judgement():
     lines = [
         jc.SELF_REPAIR_CHOICE_FR,

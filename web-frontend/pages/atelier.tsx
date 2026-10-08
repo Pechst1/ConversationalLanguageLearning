@@ -140,7 +140,7 @@ import {
   type RecommendedAction,
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
-import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
+import { useChromeLanguage } from '@/lib/learner-language';
 import { fillForge, forgeCopy, forgeRungLabel } from '@/lib/forge-copy';
 import {
   clampRung,
@@ -3415,8 +3415,9 @@ function SessionView({
   };
   // WP-L10: an authored rule card replaces the English-only panel. Before a
   // rule's first exercise it is its own screen («Essayer» opens the drill);
-  // afterwards the «La règle» pill opens it above the exercise.
-  const learnerLanguage = useLearnerLanguage();
+  // afterwards the «La règle» pill opens it above the exercise. It speaks the
+  // forge's chrome language, as the journey's rule step does: the learner's up
+  // to A2, French from B1 (it printed «Today's rule» on a French B1 forge).
   const ruleCard = usableCard(activeConcept?.rule_card) ? activeConcept?.rule_card ?? null : null;
   const ruleIntro = Boolean(ruleCard && firstConceptDrill && ruleExpanded);
   // WP-S5: the rule's coach — the face on the card and on every answer.
@@ -3574,14 +3575,14 @@ function SessionView({
           {ruleIntro && ruleCard ? (
             <RuleCard
               card={ruleCard}
-              language={learnerLanguage}
+              language={language}
               variant="intro"
               conceptId={activeConcept.id}
               onDone={toggleRule}
               coach={ruleCoach}
             />
           ) : ruleExpanded && ruleCard ? (
-            <RuleCard card={ruleCard} language={learnerLanguage} variant="inline" conceptId={activeConcept.id} coach={ruleCoach} />
+            <RuleCard card={ruleCard} language={language} variant="inline" conceptId={activeConcept.id} coach={ruleCoach} />
           ) : ruleExpanded && (
             <EpRule
               lede={<ConceptRulePanel payload={activeSet} concept={activeConcept} />}

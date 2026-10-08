@@ -75,6 +75,7 @@ from app.db.models.error import UserError
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.services import pragmatics
+from app.services.chrome_language import user_chrome_language
 from app.services.error_memory import ErrorMemoryService
 from app.services.journey_content import render_authored_text
 from app.services.journey_contracts import (
@@ -2745,11 +2746,14 @@ def register_corrections(
     fabricated span — WP-05 would reject it anyway, and rightly.
     """
 
+    # The note is the app's own explanation, so it follows the chrome: the
+    # learner's language up to A2, French from B1 (WP-82).
+    language = user_chrome_language(user)
     counterpart = expected_counterpart_register(
         scenario=scenario,
         task=task,
         history=history,
-        native_language=getattr(user, "native_language", None),
+        native_language=language,
     )
     assessment = pragmatics.assess_register(
         text,
@@ -2771,7 +2775,7 @@ def register_corrections(
             finding,
             counterpart=counterpart.counterpart,
             reason_native=counterpart.reason_native,
-            language=getattr(user, "native_language", None),
+            language=language,
         ),
     )
     return assessment, [candidate] if candidate.is_valid_for(text) else []
@@ -3201,10 +3205,12 @@ def _explicit_note(*, user: User, wrong: str, correct: str, why: str) -> str:
     """The explicit correction's note: the rule, then the stored reason.
 
     Explicit means explicit (Lyster & Ranta): the learner is told which form is
-    right, in their own language, not shown a recast and left to notice.
+    right, in the chrome's language, not shown a recast and left to notice. That
+    is their own language up to A2 and French from B1 (WP-82): a B1 walk read
+    «That was the one you were just asked about…» on a French screen.
     """
 
-    language = getattr(user, "native_language", None)
+    language = user_chrome_language(user)
     note = learner_copy_text("self_repair.explicit_note", language, correct=correct, wrong=wrong)
     reason = " ".join(str(why or "").split())
     return f"{note} {reason}".strip() if reason else note
