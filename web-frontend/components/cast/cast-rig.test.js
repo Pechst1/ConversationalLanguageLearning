@@ -100,11 +100,22 @@ test('no SMIL anywhere: every loop is CSS that reduced motion and `still` stop',
   assert.match(fs.readFileSync(path.join(ROOT, 'pages/_app.tsx'), 'utf8'), /styles\/cast-rig\.css/);
 });
 
-test('the art set defaults to painted until the owner says otherwise', () => {
+test('the art set defaults to drawn (WP-116 phase 6, owner 2026-10-08); painted stays a device switch', () => {
   const { defaultArtSet, artSet, ART_SET_STORAGE_KEY } = require('../../lib/art-set.ts');
-  assert.equal(defaultArtSet(), 'painted');
-  assert.equal(artSet(), 'painted');
+  assert.equal(defaultArtSet(), 'drawn');
+  assert.equal(artSet(), 'drawn');
   assert.equal(ART_SET_STORAGE_KEY, 'atelier.artSet');
+  // Phase 7 (removing painted) is not approved: an unknown flag still means painted.
+  const flags = require('../../launch-flags.json');
+  const before = flags.artSet;
+  flags.artSet = 'painted';
+  try {
+    assert.equal(defaultArtSet(), 'painted');
+    flags.artSet = 'watercolour';
+    assert.equal(defaultArtSet(), 'painted', 'anything unknown means painted');
+  } finally {
+    flags.artSet = before;
+  }
 });
 
 test('every face has a PNG snapshot for pushes (scripts/render-rigs.mjs)', () => {
