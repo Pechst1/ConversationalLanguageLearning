@@ -17,7 +17,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { FrenchLine } from '@/components/feuilleton/reader/TappableFrench';
-import { fillReaderCopy, type ReaderCopy } from '@/components/feuilleton/reader/reader-copy';
+import { fillReaderCopy, portraitAlt, type ReaderCopy } from '@/components/feuilleton/reader/reader-copy';
+import { SpeakingPortrait } from '@/components/atelier-v2/journey/SpeakingPortrait';
 import type { ReaderLine, ReaderPanelStage } from '@/components/feuilleton/reader/panel-model';
 import { PanelStage, stageMembers } from '@/components/cast/PanelStage';
 import { useMouth } from '@/components/cast/useMouth';
@@ -137,6 +138,8 @@ export function VerticalPanel({
   const drawn = useArtSet() === 'drawn' && Boolean(stage.plateUrl);
   const src = drawn ? resolveMediaUrl(stage.plateUrl) : stage.artStatus === 'ready' ? resolveMediaUrl(stage.imageUrl) : '';
   const unknownFaces = !drawn && Boolean(src);
+  // No drawn figure to point at: each balloon shows its speaker's face (WP-144b).
+  const portraits = !drawn || !stageMembers(stage.cast ?? []).length;
   const alt = stage.imageAlt || (stage.title ? fillReaderCopy(t.plate_alt, { title: stage.title }) : '');
   const focus = plateFocus(stage);
   const members = useMemo(() => stage.cast ?? [], [stage.cast]);
@@ -383,6 +386,31 @@ export function VerticalPanel({
   const lineBody = (entry: Extract<Entry, { line: ReaderLine }>, revealChars: number | null) => {
     const line = entry.line;
     const canPlay = Boolean(voice) && !line.you && Boolean(line.who);
+    const body = lineText(entry, line, canPlay, revealChars);
+    // WP-144b: nobody on the plate to point at (the painted set, asked for by
+    // name): the balloon carries its speaker's portrait disc instead of a tail.
+    if (portraits && entry.kind === 'speech' && line.faceId) {
+      const mood = line.faceMood ?? 'neutral';
+      return (
+        <div className="vp-portrait-row">
+          <SpeakingPortrait
+            characterId={line.faceId}
+            name={line.who}
+            mood={mood}
+            size="xs"
+            alt={portraitAlt(t, line.who, mood, line.faceId)}
+            line={{ key: line.audioKey || line.key, text_fr: line.fr, character_id: line.speakerId ?? line.faceId }}
+            voice={voice}
+            label={fillReaderCopy(t.listen_to, { name: line.who || '' })}
+          />
+          <div className="vp-portrait-row__text">{body}</div>
+        </div>
+      );
+    }
+    return body;
+  };
+
+  const lineText = (entry: Extract<Entry, { line: ReaderLine }>, line: ReaderLine, canPlay: boolean, revealChars: number | null) => {
     return (
       <>
         {entry.kind === 'you' && !line.who && <p className="vp-who">{LEARNER_LABEL}</p>}

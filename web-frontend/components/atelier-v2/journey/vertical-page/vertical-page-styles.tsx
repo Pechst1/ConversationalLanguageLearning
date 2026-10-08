@@ -171,6 +171,9 @@ export function VerticalPageStyles() {
         line-height: 1.3;
         color: var(--fr-ink);
       }
+      /* WP-144b: a balloon with its speaker's face, when no figure stands on the plate */
+      .av2 .vp-portrait-row { display: flex; align-items: flex-start; gap: 10px; }
+      .av2 .vp-portrait-row__text { min-width: 0; }
       .av2 .vp-en { margin: 3px 0 0; font-size: 0.8125rem; line-height: 1.4; }
 
       /* the learner's own line: the bottom edge, the point of view; red press, as everywhere it is you */

@@ -549,3 +549,73 @@ test('the learner’s line is drawn as the you-balloon', () => {
   );
   assert.match(html, /class="vp-balloon vp-balloon--you[^"]*"[^>]*data-measure/);
 });
+
+// ---------------------------------------------------------------------------
+// WP-144b · the real day-1 scene («Le mauvais accueil», app/data/season/s1/t1.json,
+// as the API served it on the integration walk) under both art sets
+// ---------------------------------------------------------------------------
+
+const DAY1 = require('./__fixtures__/s1-t1-day1-episode.json');
+const { sceneFitsVertical, panelFitsVertical } = require('./scene-fit.ts');
+
+function withArtSet(value, fn) {
+  const before = launchFlags.artSet;
+  launchFlags.artSet = value;
+  try {
+    return fn();
+  } finally {
+    launchFlags.artSet = before;
+  }
+}
+
+test('day 1, painted (the production default): the scene falls back to the list, faces as portrait discs', () => {
+  const { buildStoryStages } = require('../story-episode-model.ts');
+  const stages = buildStoryStages(DAY1);
+  assert.equal(sceneFitsVertical(stages, 'painted'), false);
+  const html = withArtSet('painted', () => renderReader({ episode: DAY1, layout: null }));
+  assert.doesNotMatch(html, /class="vp-panel"/, 'no vertical page with nobody on it');
+  assert.doesNotMatch(html, /data-layout="vertical"/);
+});
+
+test('day 1, drawn: every panel with a voice stands its speakers, and the balloons point at them', () => {
+  const { buildStoryStages } = require('../story-episode-model.ts');
+  const stages = buildStoryStages(DAY1);
+  assert.equal(sceneFitsVertical(stages, 'drawn'), true);
+  const panel = { w: 375, h: 620 };
+  let anchored = 0;
+  for (const stage of stages.filter((entry) => entry.kind === 'panel')) {
+    assert.ok(panelFitsVertical(stage));
+    const speakers = stage.lines.filter((line) => !line.you && line.character !== 'toi');
+    if (!speakers.length) continue;
+    const heads = stageFrame(panel, stage.cast).heads;
+    assert.ok(heads.length > 0, `${stage.key}: figures on the stage`);
+    for (const line of speakers) if (headIndexFor(heads, line) >= 0) anchored += 1;
+  }
+  assert.ok(anchored > 0, 'lines anchored to drawn heads');
+  const html = withArtSet('drawn', () => renderReader({ episode: DAY1, layout: null }));
+  assert.match(html, /data-layout="vertical"/);
+});
+
+test('a scene with a voice but no figure for it falls back; a silent scene does not', () => {
+  const voice = { kind: 'panel', plateUrl: '/p.webp', cast: [], lines: [{ who: 'Quelqu’un', speakerId: 'stranger_x' }] };
+  assert.equal(panelFitsVertical(voice), false);
+  assert.equal(panelFitsVertical({ kind: 'panel', plateUrl: '/p.webp', cast: [], lines: [] }), true);
+  assert.equal(panelFitsVertical({ kind: 'panel', cast: [], lines: [{ character: 'toi', who: 'Vous' }] }), true, 'the learner needs no figure');
+  assert.equal(sceneFitsVertical([voice], 'drawn'), false);
+});
+
+test('an elided form stays on the line of the word after it, with a typographic apostrophe', () => {
+  const { TappableFrench, elisionGroups } = require('../../../feuilleton/reader/TappableFrench.tsx');
+  const html = renderToStaticMarkup(
+    React.createElement(TappableFrench, { text: "C'est l'appartement d'Odile ?", idPrefix: 'x', onWord: () => {} }),
+  );
+  assert.doesNotMatch(html, /'/, 'no typewriter apostrophe left');
+  for (const word of ['C', 'l', 'd']) {
+    assert.match(html, new RegExp(`<span class="fr-elision" style="white-space:nowrap">(<span[^>]*>)?${word}(</span>)?<span[^>]*>’</span><button`), `«${word}’» is joined to its word`);
+  }
+  const { tokenizeFrench } = require('../../../feuilleton/reader/french-text.ts');
+  for (const form of ['l', 'd', 'qu', 'j', 'n', 's', 'c', 'm', 't', 'jusqu', 'lorsqu', 'puisqu']) {
+    const tokens = tokenizeFrench(`${form}’avion`, 't');
+    assert.deepEqual(elisionGroups(tokens), [[0, 1, 2]], `${form}’ joins`);
+  }
+});

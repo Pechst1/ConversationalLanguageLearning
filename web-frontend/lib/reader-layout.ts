@@ -13,7 +13,13 @@
  * - `?readerLayout=list` (or `vertical`) on any URL sets that override and keeps it
  *   for the next pages — the way back to the old page; `?readerLayout=default` clears it.
  *
- * Components never read the flag, the key or the URL directly; they call `useReaderLayout()`.
+ * WP-144b: the default is only a wish. A scene the vertical page cannot stage —
+ * the painted art set, or a panel whose speakers have no drawn figure — falls back
+ * to the list for the whole scene (`sceneFitsVertical`), unless the device or the
+ * URL asked for the vertical page explicitly.
+ *
+ * Components never read the flag, the key or the URL directly; they call
+ * `useReaderLayout()` / `useReaderLayoutState()`.
  */
 import { useEffect, useState } from 'react';
 import launchFlags from '../launch-flags.json';
@@ -77,12 +83,24 @@ export function readerLayout(): ReaderLayout {
   return storedReaderLayout() ?? defaultReaderLayout();
 }
 
+export type ReaderLayoutState = {
+  layout: ReaderLayout;
+  /** True when this device or the URL chose the layout (not the build default). */
+  explicit: boolean;
+};
+
+function currentState(): ReaderLayoutState {
+  const stored = storedReaderLayout();
+  return { layout: stored ?? defaultReaderLayout(), explicit: stored !== null };
+}
+
 /**
- * The reader layout to render. The first render uses the build default (as the
- * server does), then follows the URL, this device's override and any later change.
+ * The reader layout to render, and whether someone chose it. The first render
+ * uses the build default (as the server does), then follows the URL, this
+ * device's override and any later change.
  */
-export function useReaderLayout(): ReaderLayout {
-  const [value, setValue] = useState<ReaderLayout>(() => defaultReaderLayout());
+export function useReaderLayoutState(): ReaderLayoutState {
+  const [value, setValue] = useState<ReaderLayoutState>(() => ({ layout: defaultReaderLayout(), explicit: false }));
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const asked = readerLayoutFromQuery(window.location.search);
@@ -93,12 +111,12 @@ export function useReaderLayout(): ReaderLayout {
         } catch {
           /* storage refused: the URL still decides this page */
         }
-        setValue(asked ?? defaultReaderLayout());
+        setValue(asked ? { layout: asked, explicit: true } : { layout: defaultReaderLayout(), explicit: false });
       } else {
-        setValue(readerLayout());
+        setValue(currentState());
       }
     }
-    const sync = () => setValue(readerLayout());
+    const sync = () => setValue(currentState());
     window.addEventListener(CHANGE_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
@@ -107,4 +125,9 @@ export function useReaderLayout(): ReaderLayout {
     };
   }, []);
   return value;
+}
+
+/** The reader layout to render (see `useReaderLayoutState`). */
+export function useReaderLayout(): ReaderLayout {
+  return useReaderLayoutState().layout;
 }

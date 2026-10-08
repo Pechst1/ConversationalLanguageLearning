@@ -39,7 +39,9 @@ import {
   Surface,
 } from '@/components/atelier-v2/ui';
 import { frenchSpacing } from '@/lib/french-typography';
-import { useReaderLayout, type ReaderLayout } from '@/lib/reader-layout';
+import { useArtSet } from '@/lib/art-set';
+import { useReaderLayoutState, type ReaderLayout } from '@/lib/reader-layout';
+import { sceneFitsVertical } from '@/components/atelier-v2/journey/vertical-page/scene-fit';
 import { saveStoryReadingPosition } from '@/services/daily-journey';
 import type { ReaderResolutionStage } from '@/components/feuilleton/reader/panel-model';
 import type { ControlLanguage, StoryEpisode } from '@/types/daily-journey';
@@ -160,8 +162,9 @@ export function StoryEpisodeReader({
   marginNotes = null,
   layout = null,
 }: StoryEpisodeReaderProps) {
-  // WP-144: the vertical page or the current one, for the owner's blind A/B.
-  const deviceLayout = useReaderLayout();
+  // WP-144: the vertical page or the current one.
+  const layoutChoice = useReaderLayoutState();
+  const artSet = useArtSet();
   // WP-94: a «Numéro spécial» day names itself in the reader's kicker too.
   const specialKicker = useSpecialKicker();
   const reread = mode === 'reread';
@@ -170,6 +173,12 @@ export function StoryEpisodeReader({
     () => (finale ? storyStagesWithFinale(episode, finale) : buildStoryStages(episode)),
     [episode, finale],
   );
+  // WP-144b: the vertical page only for a scene it can stage (drawn figures for
+  // every panel's voices); otherwise the whole scene reads as the list, unless
+  // this device or the URL asked for the vertical page by name.
+  const fits = useMemo(() => sceneFitsVertical(stages, artSet), [stages, artSet]);
+  const deviceLayout: ReaderLayout =
+    layoutChoice.layout === 'vertical' && !layoutChoice.explicit && !fits ? 'list' : layoutChoice.layout;
   const panelCount = episode.panels?.length ?? 0;
   // The finale opens on itself: the ending is what the learner came back for.
   // A page re-read (WP-93) opens on its first panel, whatever was saved yesterday.
