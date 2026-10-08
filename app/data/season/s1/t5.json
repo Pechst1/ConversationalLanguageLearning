@@ -2373,5 +2373,8 @@
     "Never write a scene where the learner can ask Lila to stay as a mechanic. They can say it, and she can hear it, but it is not a choice card.",
     "State out: s1.lila_path is updated only by what was expressed here. For example, (b) or (c) said with romantic intent confirms romance, and a joke-first scene keeps friendship. It is never shown.",
     "State out: lila.heard_the_true_thing (romance only) is read by T7."
+  ],
+  "reveals": [
+    {"id": "t5_berlin", "text": "T5 reveals Berlin. Before it, never write «Berlin», «Künstlerhaus», «Allemagne» or «résidence d'artiste», not even as a guess or a question: only hints (her phone turned face down, an unanswered message, an envelope with a German stamp closed quickly).", "patterns": ["\\bberlin\\b", "künstlerhaus", "\\ballemagne\\b", "résidence d'artiste"]}
   ]
 }

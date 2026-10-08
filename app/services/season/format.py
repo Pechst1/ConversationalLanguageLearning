@@ -438,6 +438,17 @@ class Day(_Model):
     minutes: int = Field(default=6, ge=1, le=30)
 
 
+class Forbidden(_Model):
+    """A reveal the gap must not make. ``patterns`` are regular expressions over the
+    French a learner reads (case-insensitive); the story critic judges the rest."""
+
+    id: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    patterns: list[str] = Field(default_factory=list)
+    #: A flag condition under which this is no longer forbidden.
+    unless: Cond = Field(default_factory=dict)
+
+
 class Tentpole(_Model):
     id: str = Field(pattern=r"^t[1-9]$")
     number: int = Field(ge=1, le=9)
@@ -451,6 +462,10 @@ class Tentpole(_Model):
     state_out: dict[str, Any] = Field(default_factory=dict)
     #: What the next gap must know (the "For gap N" notes).
     for_next_gap: list[str] = Field(default_factory=list)
+    #: WP-155: what this tentpole reveals (T5: Berlin). Every generated day before it
+    #: inherits these as ``must_not`` rows: the director reads them in its brief and
+    #: the page and reply-lane guards refuse a draft that names them.
+    reveals: list[Forbidden] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _both_days(self) -> Tentpole:
@@ -498,17 +513,6 @@ class SmallMoment(_Model):
     owner: str = Field(min_length=1)
     text: str = Field(min_length=1)
     sets: dict[str, Any] = Field(default_factory=dict)
-
-
-class Forbidden(_Model):
-    """A reveal the gap must not make. ``patterns`` are regular expressions over the
-    French a learner reads (case-insensitive); the story critic judges the rest."""
-
-    id: str = Field(min_length=1)
-    text: str = Field(min_length=1)
-    patterns: list[str] = Field(default_factory=list)
-    #: A flag condition under which this is no longer forbidden.
-    unless: Cond = Field(default_factory=dict)
 
 
 class Premise(_Model):
@@ -741,6 +745,10 @@ def validate_season(season: Season, *, locations: set[str] | None = None) -> lis
                 problems.append(f"{gap.id}: must_not {forbidden.id} unless names unknown {sorted(unknown)}")
     for tentpole in season.tentpoles.values():
         problems.extend(_check_tentpole(season, tentpole, locations=locations))
+        for forbidden in tentpole.reveals:
+            unknown = cond_flags(forbidden.unless) - known_flags
+            if unknown:
+                problems.append(f"{tentpole.id}: reveal {forbidden.id} unless names unknown {sorted(unknown)}")
     return problems
 
 
