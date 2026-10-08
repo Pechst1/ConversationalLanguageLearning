@@ -261,7 +261,9 @@ const SEASON_PAGES = [
 
 function seasonChecks(l) {
   for (const page of SEASON_PAGES) {
-    const where = (l.pages || []).filter((row) => row.text.includes(page.line)).map((row) => row.day);
+    // French print sets the apostrophe as ’ (lib/french-typography); the bible writes '.
+    const fold = (text) => text.replace(/[’ʼ]/g, "'");
+    const where = (l.pages || []).filter((row) => fold(row.text).includes(fold(page.line))).map((row) => row.day);
     findings.check(
       'season-tentpole-on-its-day',
       where.length >= 1 && where.every((day) => page.days.includes(day)) && new Set(where).size === 1,
