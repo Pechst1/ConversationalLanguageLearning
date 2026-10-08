@@ -49,6 +49,40 @@ def set_offset_days(days: int) -> int:
     return offset_days()
 
 
+def set_offset(delta: _dt.timedelta) -> _dt.timedelta:
+    """Any offset, not only whole days: the suite's pinned clock (WP-153) moves "now" to
+    the next noon UTC, so a test that reads «today» twice can never straddle a
+    midnight (UTC, Paris or Berlin)."""
+
+    global _offset
+    if _production():
+        raise RuntimeError("the test clock is refused in production")
+    with _lock:
+        _offset = delta
+    return _offset
+
+
+def uninstall() -> int:
+    """Put the real ``datetime`` / ``date`` back into every ``app.*`` module and zero the offset."""
+
+    global _installed
+    set_offset(_dt.timedelta(0))
+    moved = 0
+    for module in list(sys.modules.values()):
+        if module is None or not getattr(module, "__name__", "").startswith("app."):
+            continue
+        for attr, stand_in, real in (
+            ("datetime", ShiftedDatetime, _REAL_DATETIME),
+            ("date", ShiftedDate, _REAL_DATE),
+            ("_date", ShiftedDate, _REAL_DATE),
+        ):
+            if getattr(module, attr, None) is stand_in:
+                setattr(module, attr, real)
+                moved += 1
+    _installed = False
+    return moved
+
+
 class _DatetimeMeta(type):
     def __instancecheck__(cls, instance: Any) -> bool:
         return isinstance(instance, _REAL_DATETIME)
