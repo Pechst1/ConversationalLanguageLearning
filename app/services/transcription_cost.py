@@ -62,6 +62,9 @@ def record_transcription_cost(
     byte_count: int,
     content_type: str | None = None,
     surface: str = "unknown",
+    entity_type: str = "audio_upload",
+    entity_id: str | None = None,
+    extra: dict | None = None,
 ) -> None:
     """One pilot-cost row per real transcription call.
 
@@ -70,15 +73,20 @@ def record_transcription_cost(
     from the Studio's. Telemetry must never cost a learner their answer, so a
     failure to write the row is logged and swallowed. The caller's transaction
     owns the commit; nothing is committed here.
+
+    WP-158: a spoken story reply books its row against the turn
+    (``entity_type="journey_turn"``, ``entity_id="<step>:<turn>"``) so the
+    per-turn cost ceiling can be summed; ``extra`` adds its references.
     """
 
     try:
         PilotEventService(db).record(
             TRANSCRIPTION_EVENT_TYPE,
             user_id=user_id,
-            entity_type="audio_upload",
-            entity_id=None,
+            entity_type=entity_type,
+            entity_id=entity_id,
             payload={
+                **(extra or {}),
                 "surface": str(surface or "unknown"),
                 "content_type": str(content_type or ""),
                 "bytes": max(0, int(byte_count)),
