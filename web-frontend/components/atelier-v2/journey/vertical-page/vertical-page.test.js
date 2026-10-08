@@ -635,3 +635,82 @@ test('the punctuation after a word never starts the next line («Marin» + «.»
   const html = renderToStaticMarkup(React.createElement(TappableFrench, { text: 'Marin. Ce', idPrefix: 'y', onWord: () => {} }));
   assert.match(html, /<span class="fr-elision" style="white-space:nowrap"><button[^>]*>Marin<\/button><span[^>]*>\.<\/span><\/span><span[^>]*> <\/span>/);
 });
+
+// ---------------------------------------------------------------------------
+// WP-144b · Next on a panel still arriving (the visual-novel rule)
+// ---------------------------------------------------------------------------
+
+/** A panel as the reader sees it through `control`, driven by the real reveal model. */
+function panelUnderTest(plan, total) {
+  const { revealInitial: init, revealReduce: reduce, panelComplete } = require('./reveal-model.ts');
+  const panel = { state: init(plan, total), chars: null, allOut: false };
+  panel.isComplete = () => panelComplete({ plan, state: panel.state, total, chars: panel.chars, allOut: panel.allOut });
+  panel.revealAll = () => {
+    panel.allOut = true;
+    panel.chars = null;
+    panel.state = reduce(panel.state, { type: 'all' }, total);
+  };
+  return panel;
+}
+
+/** One press of Next: what the reader does (FeuilletonReader `forward`). */
+function pressNext(panel, page) {
+  const { nextStep } = require('./reveal-model.ts');
+  if (nextStep(panel) === 'reveal') panel.revealAll();
+  else page.index += 1;
+}
+
+test('timed panel, 3 lines: the first Next shows them all and stays; the second moves on', () => {
+  const { revealReduce: reduce } = require('./reveal-model.ts');
+  const plan = revealPlan({ reducedMotion: false, voicesAloud: false, voiceSupported: true, lineCount: 3 });
+  assert.equal(revealModeName(plan), 'timed', 'no audio (CI, a muted phone): the timed sequence');
+  const panel = panelUnderTest(plan, 3);
+  panel.state = reduce(panel.state, { type: 'line-started', index: 0 }, 3);
+  assert.equal(panel.state.shown, 1, 'one balloon out when the learner taps');
+  const page = { index: 0 };
+  pressNext(panel, page);
+  assert.equal(page.index, 0, 'still on the panel');
+  assert.equal(panel.state.shown, 3, 'every line out');
+  pressNext(panel, page);
+  assert.equal(page.index, 1, 'the second Next advances');
+});
+
+test('a panel already fully shown advances on the first Next; the list page always does', () => {
+  const plan = revealPlan({ reducedMotion: true, voicesAloud: false, voiceSupported: false, lineCount: 3 });
+  const panel = panelUnderTest(plan, 3);
+  const page = { index: 2 };
+  pressNext(panel, page);
+  assert.equal(page.index, 3);
+  const { nextStep } = require('./reveal-model.ts');
+  assert.equal(nextStep(null), 'advance', 'no vertical panel: unchanged');
+});
+
+test('voice mode: a line still arriving word by word is completed first, then Next advances', () => {
+  const { revealReduce: reduce } = require('./reveal-model.ts');
+  const plan = revealPlan({ reducedMotion: false, voicesAloud: true, voiceSupported: true, lineCount: 2 });
+  const panel = panelUnderTest(plan, 2);
+  panel.state = reduce(panel.state, { type: 'line-started', index: 0 }, 2);
+  panel.state = reduce(panel.state, { type: 'line-ended', index: 0 }, 2);
+  panel.state = reduce(panel.state, { type: 'line-started', index: 1 }, 2);
+  panel.chars = { index: 1, count: 4 }; // the last line, half said
+  assert.equal(panel.state.shown, 2, 'every balloon is open');
+  assert.equal(panel.isComplete(), false, 'but its words are still arriving');
+  const page = { index: 0 };
+  pressNext(panel, page);
+  assert.equal(page.index, 0);
+  assert.equal(panel.isComplete(), true);
+  pressNext(panel, page);
+  assert.equal(page.index, 1);
+});
+
+test('every way forward in the reader goes through the rule; the Next button keeps its place and label', () => {
+  const fs = require('node:fs');
+  const source = fs.readFileSync(path.join(ROOT, 'components/feuilleton/reader/FeuilletonReader.tsx'), 'utf8');
+  assert.equal((source.match(/go\(safeIndex \+ 1\)/g) || []).length, 1, 'only `forward` itself advances');
+  assert.match(source, /if \(completePanelFirst\(\)\) return;\s*go\(safeIndex \+ 1\);/);
+  assert.match(source, /event\.key === 'ArrowRight'\) \{\s*event\.preventDefault\(\);\s*forward\(\);/);
+  assert.match(source, /if \(dx < 0\) forward\(\);/, 'the swipe too');
+  assert.match(source, /className="fr-btn fr-next"\s*data-press=\{primary === 'next' \? '3d' : undefined\}\s*onClick=\{forward\}\s*>\s*\{t\.next\}/, 'same button, same label');
+  assert.match(source, /if \(!completePanelFirst\(\)\) onComplete\(\);/, 'the last panel’s action too');
+  assert.match(source, /control=\{verticalControl\}/);
+});
