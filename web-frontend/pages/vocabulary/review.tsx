@@ -109,6 +109,9 @@ const MAX_SEGMENTS = 12;
 const SESSION_NEW_WORDS = 8;
 
 // Direction is resolved server-side from the learner's stored preference.
+// WP-154: `drill: 'session'` — the server keeps the batch it dealt for the
+// learner's app day, so a reload mid-deck shows the rest of that batch in the
+// same order, never new words in the answered cards' slots.
 const reviewQueueParams = {
   limit: 50,
   due_limit: 30,
@@ -116,6 +119,7 @@ const reviewQueueParams = {
   new_limit: SESSION_NEW_WORDS,
   topic_limit: 8,
   linked_limit: 8,
+  drill: 'session',
 } as const;
 
 // WP-131: «Encore N mots» — the rest of the day's allowance (Soutenu 18,
@@ -130,6 +134,8 @@ function moreWordsParams(n: number) {
     new_limit: words,
     topic_limit: 0,
     linked_limit: 0,
+    // WP-154: appended to the day's batch, so a reload resumes the continuation.
+    drill: 'more',
   } as const;
 }
 
