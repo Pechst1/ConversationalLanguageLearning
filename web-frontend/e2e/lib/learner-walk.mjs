@@ -435,7 +435,9 @@ export class LearnerWalk {
       const movement = (await stage.getAttribute('data-movement').catch(() => null)) || (await stage.getAttribute('data-kind'));
       seen.movements.push(movement);
       seen.panels += 1;
-      for (const text of await page.locator('.fr-bubble[data-you]').allInnerTexts()) seen.you.push(text.replace(/\s+/g, ' ').trim());
+      // WP-144: the vertical page draws the learner's line as its own docked balloon
+      // (or a sheet row); the list reader as a .fr-bubble. Both carry data-you.
+      for (const text of await page.locator('.fr-bubble[data-you], [data-you="true"]').allInnerTexts()) seen.you.push(text.replace(/\s+/g, ' ').trim());
       if (await page.locator('[data-a-suivre]').count()) seen.aSuivre = true;
       // WP-116: in the drawn set the people stand on the plate.
       if (await page.locator('.fr-stage .cast-stage__figure').count()) seen.castPanels += 1;
