@@ -157,7 +157,7 @@ def unavailable_reason() -> str | None:
 
     if not settings.ATELIER_PANEL_ART_ENABLED:
         return "ATELIER_PANEL_ART_ENABLED is false"
-    if str(getattr(settings, "ATELIER_ART_SET", "painted") or "").strip().lower() == "drawn":
+    if str(getattr(settings, "ATELIER_ART_SET", "drawn") or "").strip().lower() == "drawn":
         # WP-116: the drawn cast draws the people; plates still come from the image pipeline.
         return "ATELIER_ART_SET is drawn: the cast is drawn in the client"
     if not settings.OPENAI_API_KEY:
