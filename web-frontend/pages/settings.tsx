@@ -63,6 +63,7 @@ import {
     type RhythmPrior,
 } from '@/lib/rhythm';
 import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
+import { ambiancePreferred, setAmbianceEnabled } from '@/lib/sound-bed';
 import { setVoicesAloud, voicesAloud } from '@/lib/voice-preference';
 import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
 import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
@@ -474,6 +475,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     // device only; on in the app, off on the web.
     const [voicesOn, setVoicesOn] = useState(false);
     useEffect(() => { setVoicesOn(voicesAloud()); }, []);
+    // WP-145 «Ambiance»: the place's sound bed under a scene. Read after mount
+    // like «Sons»; it plays only while «Sons» is on too.
+    const [ambianceOn, setAmbianceOn] = useState(false);
+    useEffect(() => { setAmbianceOn(ambiancePreferred()); }, []);
     // WP-49: the row exists only where the server can read an episode aloud.
     const [episodeAudioEnabled, setEpisodeAudioEnabled] = useState(false);
 
@@ -1557,6 +1562,18 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                         setSounds(next);
                                         // Turning it on answers with the sound itself.
                                         if (next) playFeelSound('correct');
+                                    }}
+                                />
+                            </Row>
+                            <Row id="st-ambiance-label" label={copy.row_ambiance} hint={copy.row_ambiance_hint}>
+                                <Switch
+                                    copy={copy}
+                                    labelledBy="st-ambiance-label"
+                                    checked={ambianceOn && sounds}
+                                    disabled={!sounds}
+                                    onChange={(next) => {
+                                        setAmbianceEnabled(next);
+                                        setAmbianceOn(next);
                                     }}
                                 />
                             </Row>
