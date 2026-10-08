@@ -125,3 +125,31 @@ export function tokenShown(tokenStart: number, revealChars: number | null | unde
   if (revealChars === null || revealChars === undefined) return true;
   return tokenStart <= revealChars;
 }
+
+/**
+ * WP-144b · is everything in the panel out? Every line shown, and no line
+ * still arriving word by word — unless the learner already asked for it all.
+ */
+export function panelComplete(input: {
+  plan: RevealPlan;
+  state: RevealState;
+  total: number;
+  /** The word count of the line being said, while its words arrive. */
+  chars: { index: number; count: number } | null;
+  /** The learner (or Next) asked for everything. */
+  allOut: boolean;
+}): boolean {
+  const { plan, state, total, chars, allOut } = input;
+  if (allOut) return true;
+  if (plan.text !== 'all' && !revealDone(state, total)) return false;
+  return !(plan.words && chars && chars.index === state.speaking);
+}
+
+/**
+ * WP-144b · the visual-novel rule for Next: a panel still arriving is completed
+ * first (`reveal`), and only a complete one moves on (`advance`). A page with no
+ * vertical panel (the list) always advances.
+ */
+export function nextStep(panel: { isComplete: () => boolean } | null): 'reveal' | 'advance' {
+  return panel && !panel.isComplete() ? 'reveal' : 'advance';
+}
