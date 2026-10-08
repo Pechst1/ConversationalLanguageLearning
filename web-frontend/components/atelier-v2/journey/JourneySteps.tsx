@@ -109,6 +109,10 @@ import {
   type AnswerMode,
 } from './voice-answer';
 import { useVoiceAnswer } from './useVoiceAnswer';
+import { spokenReplyLaunched } from '@/lib/launch-flags';
+import { RepeatLine, SpokenReplyButton, SpokenReplyStatus } from './SpokenReply';
+import { autoSubmitDue, spokenIsBusy, spokenMode, spokenReplyOffered } from './spoken-reply';
+import { useSpokenReply } from './useSpokenReply';
 import { MatchPairs } from './MatchPairs';
 import { WhoSaid } from './WhoSaid';
 import { listenTapHasAudio, optionLang } from './practice-formats';
@@ -812,6 +816,14 @@ export function RespondStepView({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const voice = useVoiceAnswer();
   const voiceState = voice.state;
+  // WP-158: «Parler» beside the field of a story reply, behind the build's
+  // launch flag and the server's `spoken_reply`. Read after mount: a device
+  // override must not cause a hydration mismatch.
+  const spoken = useSpokenReply(journeyId, step.id);
+  const spokenState = spoken.state;
+  const [spokenLaunched, setSpokenLaunched] = useState(false);
+  useEffect(() => setSpokenLaunched(spokenReplyLaunched()), []);
+  const spokenOn = spokenReplyOffered(step.prompt, spokenLaunched);
   // WP-89 — verdict only at the close. A turn the server answered with another
   // turn (`next_turn`) is the conversation going on: its reply types in and the
   // field reopens by itself. Only the closing turn is judged, and a judged turn
@@ -819,7 +831,7 @@ export function RespondStepView({
   const continuing = continuesConversation(feedback);
   const closing = closesConversation(feedback);
   const graded = closing || (continuing && feedback.kind === 'replying');
-  const busyVoice = voiceIsBusy(voiceState);
+  const busyVoice = voiceIsBusy(voiceState) || spokenIsBusy(spokenState);
   const locked = busy || feedback.kind === 'submitting' || graded || busyVoice;
   // WP-76: the one who answers — typing while the answer is read, then speaking.
   const replier = respondSpeaker(step.prompt);
@@ -832,6 +844,9 @@ export function RespondStepView({
     // the software keyboard survive the round trip. A resumed turn comes back
     // with exactly what the learner had typed.
     setText(draft?.get(draftKey) ?? '');
+    // WP-158: and «Parler» starts again from idle on every turn.
+    spoken.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, draftKey]);
 
   useEffect(() => {
@@ -918,6 +933,19 @@ export function RespondStepView({
     draft?.set(draftKey, next);
   };
 
+  // WP-158: the learner touching the field holds the spoken send — they are
+  // correcting what was heard, and they will press «Envoyer» themselves.
+  const editAnswer = (next: string) => {
+    if (spokenState.kind === 'confirm') spoken.hold();
+    setAnswer(next);
+  };
+
+  useEffect(() => {
+    // The spoken transcript lands in the same field a typed reply is written in.
+    if (spokenState.kind === 'confirm') setAnswer(spokenState.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spokenState.kind, spokenState.kind === 'confirm' ? spokenState.text : null]);
+
   useEffect(() => {
     // The transcript is a draft, never a submission: it lands in the field so
     // the learner can fix a misheard word before anything is graded.
@@ -937,8 +965,20 @@ export function RespondStepView({
       prompt_fr: step.prompt.character_line_fr || null,
     };
     setOpenNote(null);
-    onSubmit({ mode: submittedMode(voiceState, text), text });
+    // WP-158: a spoken story reply goes through exactly this call, as `voice`.
+    const mode = spokenMode(spokenState, text) ?? submittedMode(voiceState, text);
+    if (spokenState.kind === 'confirm') spoken.markSubmitted();
+    onSubmit({ mode, text });
   };
+
+  useEffect(() => {
+    // «C'est bien ça ?» — three seconds, then the transcript is sent as it
+    // stands, unless the learner touched the field.
+    if (!spokenOn || !autoSubmitDue(spokenState, spoken.now)) return;
+    if (locked || answerIsBlank(text)) return;
+    submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spokenOn, spokenState, spoken.now]);
 
   const sendAction = (
     <Action
@@ -1089,18 +1129,34 @@ export function RespondStepView({
   ) : (
     <>
       {textAnswerField({
-        label: copy.answer_label,
+        label: spokenState.kind === 'confirm' ? copy.voice_transcript_label : copy.answer_label,
         value: text,
         rows: 3,
         disabled: locked,
         placeholder: copy.answer_placeholder,
         invalid: feedback.kind === 'empty',
         inputRef,
-        onChange: setAnswer,
+        onChange: editAnswer,
       })}
+
+      {spokenOn && <SpokenReplyStatus state={spokenState} now={spoken.now} copy={copy} />}
 
       <div className="av2-respond__actions">
         {sendAction}
+        {spokenOn && (
+          <SpokenReplyButton
+            state={spokenState}
+            now={spoken.now}
+            copy={copy}
+            disabled={busy || feedback.kind === 'submitting'}
+            onStart={() => {
+              // The character stops talking while the learner speaks.
+              lineVoice.stop();
+              void spoken.start();
+            }}
+            onStop={spoken.stop}
+          />
+        )}
       </div>
     </>
   );
@@ -1245,6 +1301,10 @@ export function RespondStepView({
       />
       {!graded && !waitingForReply && brief}
       {answerArea}
+      {/* WP-158: once the conversation is closed, one useful line to repeat. */}
+      {closing && feedback.kind === 'graded' && spokenLaunched && result?.repeat_line_fr && (
+        <RepeatLine line={result.repeat_line_fr} copy={copy} voice={lineVoice} stepId={step.id} />
+      )}
       {aside}
     </section>
   );

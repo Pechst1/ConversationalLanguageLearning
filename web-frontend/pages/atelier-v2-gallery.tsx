@@ -135,6 +135,7 @@ const FIL_SLIP: JourneyCorrection = {
 function filPrompt(extra: Partial<RespondPrompt>): RespondPrompt {
   return {
     choices: [],
+    spoken_reply: false,
     turn_index: 0,
     max_turns: 3,
     repair_allowed: true,
