@@ -133,6 +133,7 @@ def authorize_story_upload(
     step_id: str | None,
     byte_count: int,
     content_type: str | None = None,
+    measured_seconds: float | None = None,
 ) -> StoryUpload:
     """Every check a spoken story turn must pass before a provider is called.
 
@@ -168,7 +169,7 @@ def authorize_story_upload(
         raise SpokenReplyRefused(
             409, "spoken_reply_turn_closed", "This conversation is already closed."
         )
-    seconds = estimate_audio_seconds(byte_count, content_type)
+    seconds = estimate_audio_seconds(byte_count, content_type, measured_seconds=measured_seconds)
     if seconds > float(settings.ATELIER_SPOKEN_REPLY_MAX_SECONDS):
         raise SpokenReplyRefused(
             413, "spoken_reply_too_long", "A spoken reply is at most thirty seconds."
@@ -181,7 +182,9 @@ def authorize_story_upload(
     )
     spent = turn_spend_usd(db, user_id=user_id, entity_id=upload.entity_id)
     ceiling = float(settings.ATELIER_SPOKEN_REPLY_MAX_USD_PER_TURN)
-    if spent + estimate_transcription_cost_usd(byte_count, content_type) > ceiling + 1e-9:
+    if spent + estimate_transcription_cost_usd(
+        byte_count, content_type, measured_seconds=measured_seconds
+    ) > ceiling + 1e-9:
         raise SpokenReplyRefused(
             429,
             "spoken_reply_turn_ceiling",

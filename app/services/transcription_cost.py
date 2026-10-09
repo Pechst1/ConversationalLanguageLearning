@@ -37,11 +37,14 @@ USD_PER_MINUTE = 0.006
 #: estimate stands on, so it is written down rather than buried in a magic number.
 ASSUMED_BYTES_PER_SECOND = 4000
 
-#: AAC in MP4 — what iOS and Safari record — at the 128 kbit/s an AAC encoder
-#: falls back to: Chrome's ignores the 32 kbit/s the recorder asks for (measured
-#: 2026-10-09: 13.7 kB/s). Sizing an MP4 upload at the Opus rate read a
-#: 9-second answer as thirty-five seconds.
-AAC_ASSUMED_BYTES_PER_SECOND = 16000
+#: AAC in MP4 when its length cannot be read: AAC encoders ignore the 32 kbit/s the
+#: recorder asks for (measured 2026-10-09: Chrome 13.7 kB/s, iOS 26 Safari 20 kB/s).
+AAC_ASSUMED_BYTES_PER_SECOND = 20000
+
+#: The fastest any recorder writes (iOS 26 Safari's default Opus: 21.8 kB/s), with
+#: room. A length read from the container is never taken below ``bytes / this``,
+#: so a large file cannot declare itself short.
+MAX_PLAUSIBLE_BYTES_PER_SECOND = 32000
 _AAC_CONTENT_TYPES = frozenset({"audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac"})
 
 #: Nothing a learner says in one journey turn runs longer than this. A file that
@@ -57,17 +60,30 @@ def assumed_bytes_per_second(content_type: str | None = None) -> int:
     return AAC_ASSUMED_BYTES_PER_SECOND if mime in _AAC_CONTENT_TYPES else ASSUMED_BYTES_PER_SECOND
 
 
-def estimate_audio_seconds(byte_count: int, content_type: str | None = None) -> float:
-    """Seconds of audio implied by an upload of ``byte_count`` bytes."""
+def estimate_audio_seconds(
+    byte_count: int, content_type: str | None = None, *, measured_seconds: float | None = None
+) -> float:
+    """Seconds of audio in an upload of ``byte_count`` bytes.
 
-    seconds = max(0, int(byte_count)) / float(assumed_bytes_per_second(content_type))
+    ``measured_seconds`` is the length read from the container
+    (:func:`app.services.audio_duration.audio_seconds`); without it the bytes are
+    sized at the content type's assumed rate."""
+
+    bytes_ = max(0, int(byte_count))
+    if measured_seconds is not None:
+        seconds = max(float(measured_seconds), bytes_ / float(MAX_PLAUSIBLE_BYTES_PER_SECOND))
+    else:
+        seconds = bytes_ / float(assumed_bytes_per_second(content_type))
     return min(seconds, MAX_ESTIMATED_SECONDS)
 
 
-def estimate_transcription_cost_usd(byte_count: int, content_type: str | None = None) -> float:
+def estimate_transcription_cost_usd(
+    byte_count: int, content_type: str | None = None, *, measured_seconds: float | None = None
+) -> float:
     """The declared estimate, in dollars, for one transcription request."""
 
-    return round(estimate_audio_seconds(byte_count, content_type) * USD_PER_MINUTE / 60.0, 6)
+    seconds = estimate_audio_seconds(byte_count, content_type, measured_seconds=measured_seconds)
+    return round(seconds * USD_PER_MINUTE / 60.0, 6)
 
 
 def record_transcription_cost(
@@ -76,6 +92,7 @@ def record_transcription_cost(
     user_id: UUID | None,
     byte_count: int,
     content_type: str | None = None,
+    measured_seconds: float | None = None,
     surface: str = "unknown",
     entity_type: str = "audio_upload",
     entity_id: str | None = None,
@@ -105,15 +122,21 @@ def record_transcription_cost(
                 "surface": str(surface or "unknown"),
                 "content_type": str(content_type or ""),
                 "bytes": max(0, int(byte_count)),
-                "estimated_seconds": round(estimate_audio_seconds(byte_count, content_type), 3),
+                "estimated_seconds": round(
+                    estimate_audio_seconds(byte_count, content_type, measured_seconds=measured_seconds), 3
+                ),
                 # The two fields that keep this row honest: the price is a
                 # model, not a bill, and the model is named.
                 "estimated": True,
                 "cost_basis": (
-                    f"bytes@{assumed_bytes_per_second(content_type)}Bps·${USD_PER_MINUTE}/min"
+                    f"container·${USD_PER_MINUTE}/min"
+                    if measured_seconds is not None
+                    else f"bytes@{assumed_bytes_per_second(content_type)}Bps·${USD_PER_MINUTE}/min"
                 ),
             },
-            cost_usd=estimate_transcription_cost_usd(byte_count, content_type),
+            cost_usd=estimate_transcription_cost_usd(
+                byte_count, content_type, measured_seconds=measured_seconds
+            ),
         )
     except Exception:  # pragma: no cover - defensive
         logger.warning("Transcription cost row could not be written")
@@ -122,6 +145,7 @@ def record_transcription_cost(
 __all__ = [
     "AAC_ASSUMED_BYTES_PER_SECOND",
     "ASSUMED_BYTES_PER_SECOND",
+    "MAX_PLAUSIBLE_BYTES_PER_SECOND",
     "assumed_bytes_per_second",
     "MAX_ESTIMATED_SECONDS",
     "TRANSCRIPTION_EVENT_TYPE",

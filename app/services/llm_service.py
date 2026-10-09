@@ -541,6 +541,10 @@ class OpenAIProvider:
         cannot be re-sent — and only on a retryable error.
         """
         upload_filename, upload_content_type = _audio_upload_metadata(filename, content_type)
+        if isinstance(file, (bytes, bytearray)) and bytes(file[4:12]) == b"ftypM4A ":
+            # Whisper checks the name against the brand: an «M4A » file named
+            # audio.mp4 is refused (400) while iOS Safari's «iso5» one is accepted.
+            upload_filename = "audio.m4a"
 
         def attempt(timeout: float) -> str:
             try:
