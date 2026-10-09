@@ -118,6 +118,7 @@ async def transcribe_audio(
                 journey_id=journey_id,
                 step_id=step_id,
                 byte_count=len(content),
+                content_type=file.content_type,
             )
         except spoken_reply.SpokenReplyRefused as refused:
             raise HTTPException(
