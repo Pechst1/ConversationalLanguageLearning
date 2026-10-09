@@ -951,7 +951,9 @@ export function useDailyJourney(
   useEffect(() => {
     const step = currentStepOf(journey);
     if (!journey || journey.status !== 'active' || !step || step.status !== 'completed') return;
-    if (feedback.kind !== 'idle' || busy) return;
+    // «reconciled» too: a step another device completed comes back with that
+    // notice, and a «Check» on it is refused (409) every time (two-device walk).
+    if ((feedback.kind !== 'idle' && feedback.kind !== 'reconciled') || busy) return;
     const key = `${journey.id}:${step.id}:${journey.revision}`;
     if (resumedPastRef.current === key) return;
     resumedPastRef.current = key;
