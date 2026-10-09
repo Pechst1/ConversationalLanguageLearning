@@ -138,6 +138,14 @@
   --phone-art-min-height: 240px;
 }
 
+/* A screen without the phone tab bar — the journey session hides it — keeps
+   only the safe area. Without this the session still reserved the bar's 64px:
+   the verdict sheet («Continue») floated 90px above the bottom over the step's
+   last control, with an empty strip beneath it (2026-10-09 walk). */
+.app-root:not(:has(.phone-product-nav)) {
+  --phone-bottom-nav-space: var(--phone-safe-bottom-space);
+}
+
 :root[data-phone-height="short"] {
   --phone-section-gap: 12px;
   --phone-card-gap: 10px;
