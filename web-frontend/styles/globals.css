@@ -146,6 +146,12 @@
   --phone-bottom-nav-space: var(--phone-safe-bottom-space);
 }
 
+/* An embedded tab bar (the home's) is in the flow and pads its own safe area:
+   the route shell's reservation for a fixed bar was 82px of empty page under it. */
+.app-root:has(.phone-product-nav.embedded):not(:has(.phone-product-nav.fixed)) .app-route-shell {
+  padding-bottom: 0;
+}
+
 :root[data-phone-height="short"] {
   --phone-section-gap: 12px;
   --phone-card-gap: 10px;
@@ -791,8 +797,10 @@ a {
    is added by Layout when Capacitor.isNativePlatform() is true. */
 html.is-native,
 html.is-native body {
-  /* Prevent horizontal rubber-band and accidental sideways scroll. */
-  overflow-x: hidden;
+  /* Prevent horizontal rubber-band and accidental sideways scroll. «clip», not
+     «hidden»: hidden on both html and body makes body a scroll container that
+     never scrolls, and every sticky bar (the tab bar, the verdict sheet) pins to it. */
+  overflow-x: clip;
   max-width: 100%;
   /* Kill the grey tap flash and the long-press text-selection callout. */
   -webkit-tap-highlight-color: transparent;
