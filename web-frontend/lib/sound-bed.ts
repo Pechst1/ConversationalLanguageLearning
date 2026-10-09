@@ -676,9 +676,19 @@ export class SoundBed {
     };
   }
 
-  /** A scene opened at `bed`. Nothing sounds, and no context is made, until a gesture. */
+  /**
+   * A scene opened at `bed`. No context is made here: only a gesture may create
+   * one. But a context the app already unlocked — «Sons» played the word steps'
+   * tones — may play at once, so the first panel («Il pleut…») has its place's
+   * sound instead of silence until the learner's first tap (2026-10-09 walk).
+   */
   open(bed: BedId): void {
     this.bed = bed;
+    if (this.playing || this.deps.hidden?.() || !this.deps.enabled()) return;
+    const ctx = this.ctx ?? this.deps.existing?.() ?? null;
+    if (!ctx || ctx.state !== 'running') return;
+    this.ctx = ctx;
+    this.start();
   }
 
   /** The scene moved to another place: cross-fade if the bed is playing. */
