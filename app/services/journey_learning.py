@@ -2423,13 +2423,59 @@ def build_correction(
     return candidate
 
 
-def validate_correction(correction: Correction | None, learner_text: str | None) -> bool:
-    """True when a proposed correction may be shown and may inform memory."""
+#: The learner speaking of themselves, then (up to two adverbs) the word that would
+#: agree with them: «je suis venu», «je me sens perdue», «j'étais prête».
+_SELF_AGREEMENT = re.compile(
+    r"\b(?:je\s+(?:ne\s+|n['’]\s*)?(?:suis|serai|serais|me\s+sens|me\s+suis)|j['’]\s*[ée]tais)"
+    r"(?:\s+(?:pas|déjà|très|bien|vraiment|un\s+peu|enfin|encore|tout|toute)){0,2}\s+([a-zà-ÿ]+)",
+    re.IGNORECASE,
+)
+#: -i/-u/-t/-s/-x forms that agree (masculine first); -é/-ée need no list.
+_AGREEING_WORDS = frozenset(
+    """venu venue revenu revenue devenu devenue parti partie sorti sortie assis assise
+    perdu perdue déçu déçue prêt prête content contente surpris surprise ravi ravie
+    seul seule sûr sûre heureux heureuse nerveux nerveuse mort morte""".split()
+)
+_NOT_AGREEING = frozenset({"été", "né", "café", "côté"})
+
+
+def introduced_learner_gender(learner_text: str | None, corrected_fr: str | None) -> list[str]:
+    """Words a correction makes agree with a gender the learner never gave.
+
+    «je suis là pour l'appartement» → «je suis venu pour l'appartement» (live,
+    2026-10-09) speaks for a man. A form the learner wrote themselves stays theirs.
+    """
+
+    own = set(fold_for_comparison(learner_text).split())
+    hits: list[str] = []
+    for match in _SELF_AGREEMENT.finditer(corrected_fr or ""):
+        word = match.group(1).lower()
+        agreeing = word in _AGREEING_WORDS or (
+            word not in _NOT_AGREEING and len(word) > 3 and word.endswith(("é", "ée", "és", "ées"))
+        )
+        if agreeing and fold_for_comparison(word) not in own:
+            hits.append(word)
+    return hits
+
+
+def validate_correction(
+    correction: Correction | None, learner_text: str | None, *, address: str | None = None
+) -> bool:
+    """True when a proposed correction may be shown and may inform memory.
+
+    ``address`` is the learner's ``address_preference``: only a learner who chose
+    «masculine» or «feminine» may be corrected into an agreement."""
 
     if correction is None:
         return False
     normalized = normalize_answer_text(learner_text)
     if not correction.is_valid_for(normalized):
+        return False
+    # The learner's gender is theirs to give: unless they chose a form of address,
+    # a rewrite that agrees for them is not a correction of their French.
+    if address not in {"masculine", "feminine"} and introduced_learner_gender(
+        learner_text, correction.corrected_fr
+    ):
         return False
     # A "correction" that only re-punctuates or re-accents the learner's own
     # words is a stylistic preference, not an error worth a punishment event.
@@ -2468,7 +2514,8 @@ def select_foreground_correction(
     "strict" preference is never silently downgraded to nothing.
     """
 
-    validated = [c for c in candidates if validate_correction(c, learner_text)]
+    address = getattr(user, "address_preference", None)
+    validated = [c for c in candidates if validate_correction(c, learner_text, address=address)]
     if not validated:
         return None, []
     validated.sort(key=lambda c: correction_relevance(c, targets), reverse=True)
@@ -3382,7 +3429,9 @@ def apply_learning_evidence(
     ):
         rebuilt = not attempted_answer(learner_text, correction.corrected_fr)
     if correction is not None and not rebuilt and validate_correction(
-        correction, learner_text if learner_text else correction.span_fr
+        correction,
+        learner_text if learner_text else correction.span_fr,
+        address=getattr(user, "address_preference", None),
     ):
         correction_key = evidence_source_key(
             journey_id=journey_id,
