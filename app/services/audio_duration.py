@@ -83,7 +83,7 @@ def _webm_seconds(data: bytes) -> float | None:
         if unknown or start + size > len(data):
             break
         body = data[start : start + size]
-        if element == _EBML_TIMECODE_SCALE and size:
+        if element == _EBML_TIMECODE_SCALE and 0 < size <= 8:
             scale = int.from_bytes(body, "big") or scale
         elif element == _EBML_DURATION and size in (4, 8):
             header_duration = struct.unpack(">f" if size == 4 else ">d", body)[0]
@@ -163,7 +163,7 @@ def _mp4_seconds(data: bytes) -> float | None:
         duration_default = default_duration
         base: int | None = None
         total = 0
-        for kind, body, _stop in _boxes(data, start, end):
+        for kind, body, stop in _boxes(data, start, end):
             if kind == b"tfhd":
                 flags = int.from_bytes(data[body + 1 : body + 4], "big")
                 offset = body + 8  # version/flags, track_ID
@@ -189,12 +189,16 @@ def _mp4_seconds(data: bytes) -> float | None:
                 if flags & 0x04:
                     offset += 4
                 per_sample = 4 * sum(bool(flags & bit) for bit in (0x100, 0x200, 0x400, 0x800))
+                if not flags & 0x100:
+                    # No per-sample durations: the count is a number, not a loop —
+                    # a forged 2^32 count must not pin the worker (fuzzed 2026-10-09).
+                    total += count * duration_default
+                    continue
+                # Never more samples than the box holds bytes for.
+                count = min(count, max(0, (stop - offset) // per_sample))
                 for index in range(count):
-                    if flags & 0x100:
-                        at = offset + index * per_sample
-                        total += struct.unpack(">I", data[at : at + 4])[0]
-                    else:
-                        total += duration_default
+                    at = offset + index * per_sample
+                    total += struct.unpack(">I", data[at : at + 4])[0]
         begin = running if base is None else base
         running = begin + total
         fragments_end = max(fragments_end, running)
@@ -242,7 +246,7 @@ def audio_seconds(data: bytes) -> float | None:
             seconds = _wav_seconds(data)
         else:
             return None
-    except (struct.error, IndexError, ValueError):
+    except (struct.error, IndexError, ValueError, OverflowError):
         return None
     if seconds is None or not (0 <= seconds < 24 * 3600):
         return None

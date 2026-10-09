@@ -98,3 +98,45 @@ def test_an_m4a_branded_upload_is_named_m4a_for_whisper(monkeypatch):
     iso5 = (AUDIO / "ios-mp4-3s.mp4").read_bytes()
     provider.transcribe_audio(iso5, filename="blob", content_type="audio/mp4")
     assert sent["name"] == "audio.mp4"
+
+
+def _forged_trun_count(data: bytes, count: int) -> bytes:
+    """The first trun's sample_count set to ``count`` and its per-sample duration flag cleared."""
+
+    at = data.index(b"trun")
+    flags = int.from_bytes(data[at + 5 : at + 8], "big") & ~0x100
+    return data[: at + 5] + flags.to_bytes(3, "big") + count.to_bytes(4, "big") + data[at + 12 :]
+
+
+def test_a_forged_sample_count_neither_hangs_nor_raises():
+    import time
+
+    data = _forged_trun_count((AUDIO / "ios-mp4-3s.mp4").read_bytes(), 0xFFFFFFFF)
+    started = time.perf_counter()
+    audio_seconds(data)  # an implausible length is None; the point is it returns
+    assert time.perf_counter() - started < 0.5
+
+
+def test_an_oversized_webm_timecode_scale_is_ignored():
+    data = (AUDIO / "chrome-webm-3s.webm").read_bytes()
+    at = data.index(bytes.fromhex("2ad7b1"))
+    # Size vint 0x88 = 8 bytes → 0xff: a 127-byte scale integer of 0xff.
+    forged = data[: at + 3] + b"\xff" + b"\xff" * 127 + data[at + 3 + 1 + data[at + 3] - 0x80 :]
+    assert audio_seconds(forged) is None or audio_seconds(forged) >= 0
+
+
+def test_mutated_recordings_never_raise_and_stay_fast():
+    import random
+    import time
+
+    rng = random.Random(20261009)
+    for path in sorted(AUDIO.iterdir()):
+        base = path.read_bytes()
+        for _ in range(150):
+            data = bytearray(base)
+            for _ in range(rng.randint(1, 30)):
+                data[rng.randrange(len(data))] = rng.randrange(256)
+            started = time.perf_counter()
+            result = audio_seconds(bytes(data))
+            assert result is None or 0 <= result < 86400
+            assert time.perf_counter() - started < 0.5, path.name
