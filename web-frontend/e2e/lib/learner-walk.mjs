@@ -485,7 +485,12 @@ export class LearnerWalk {
         // learner's language) is not a kept word, and the next word is tried.
         const stored = page
           .waitForResponse((r) => r.url().includes('/vocabulary/keep') && r.request().method() === 'POST', { timeout: 8000 })
-          .then((r) => r.ok(), () => false);
+          .then(async (r) => {
+            if (!r.ok()) return false;
+            const body = await r.json().catch(() => null);
+            if (body && Number.isInteger(body.word_id)) (this.keptWordIds ||= []).push(body.word_id);
+            return true;
+          }, () => false);
         await keep.click();
         kept = await stored;
         if (kept) (this.keptWords ||= []).push(text);
