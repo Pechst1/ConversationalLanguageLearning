@@ -941,6 +941,23 @@ export function useDailyJourney(
     }
   }, [advance, feedback, finishSnapshot]);
 
+  // A current step the server already completed, with no verdict on screen: the
+  // learner answered and then reloaded, closed the app, or answered on another
+  // device before «Continue». The verdict and its «Continue» were local state, so
+  // the step re-rendered unanswerable — a second «Check» met «This scene moved
+  // on», whose «Continue» refreshed to the same step, for the rest of the day
+  // (iPhone + browser, 2026-10-09). Move on once, against this snapshot.
+  const resumedPastRef = useRef<string | null>(null);
+  useEffect(() => {
+    const step = currentStepOf(journey);
+    if (!journey || journey.status !== 'active' || !step || step.status !== 'completed') return;
+    if (feedback.kind !== 'idle' || busy) return;
+    const key = `${journey.id}:${step.id}:${journey.revision}`;
+    if (resumedPastRef.current === key) return;
+    resumedPastRef.current = key;
+    void continueJourney();
+  }, [busy, continueJourney, feedback.kind, journey]);
+
   const pause = useCallback(async () => {
     const target = journey;
     if (!target) return;
