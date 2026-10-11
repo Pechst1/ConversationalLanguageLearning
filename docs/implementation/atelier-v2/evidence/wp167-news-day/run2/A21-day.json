@@ -1,0 +1,298 @@
+{
+ "marker": {
+  "generated": true,
+  "news": {
+   "id": "7ab2bca82489a906",
+   "keys": [
+    "7ab2bca82489a906",
+    "t:370ab08428ab8450"
+   ],
+   "title": "\"Assurer la régularité des trains et préserver la biodiversité\": SNCF Réseau teste un système d'effarouchement des animaux, pour éviter les collisions",
+   "summary": "Les collisions de trains avec des animaux sauvages ont augmenté de 60% ces trois dernières années, notamment en raison de la prolifération incontrôlée des sangliers",
+   "source": "Franceinfo",
+   "source_id": "franceinfo_france",
+   "url": "https://www.franceinfo.fr/economie/transports/assurer-la-regularite-des-trains-et-preserver-la-biodiversite-sncf-reseau-teste-un-systeme-d-effarouchement-des-animaux-pour-eviter-les-collisions_8232268.html#xtor=RSS-3-%5Bgeneral%5D",
+   "published_at": "2026-10-11T18:19:03+00:00",
+   "published_on": "2026-10-11",
+   "credit_fr": "D'après l'actualité du 11 octobre : \"Assurer la régularité des trains et préserver la biodiversité\": SNCF Réseau teste un système d'effarouchement des animaux, pour éviter les collisions (Franceinfo)",
+   "mechanic_fr": "SNCF teste son dispositif d'effarouchement des animaux sur la ligne qui dessert Paris‑Est — les essais provoquent aujourd'hui des retards et quelques suppressions de trains.",
+   "entry_fr": "",
+   "picked_by": "model",
+   "offered": 15,
+   "location_id": "le_mistral",
+   "plate": null
+  }
+ },
+ "pick": {
+  "mechanic_fr": "SNCF teste son dispositif d'effarouchement des animaux sur la ligne qui dessert Paris‑Est — les essais provoquent aujourd'hui des retards et quelques suppressions de trains.",
+  "why": "Train tests causing delays could strand the learner or change their return plans, directly affecting the succession timetable and the group's ability to meet.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "La même chose ?",
+  "premise_fr": "Margaux demande votre commande pour la troisième fois. Gus plaisante : votre commande dit qui vous êtes. Lila se moque et vous pousse à choisir. Le groupe attend votre réponse — et votre raison d'être encore ici.",
+  "setup_native": "Margaux asks your order again; Gus teases that your order reveals you. Choose your usual order and give a short reason why you are staying.",
+  "objective_native": "In French, say your usual order (a drink or pastry) and give a short reason why you are staying here.",
+  "objective_semantics": "Learner names one item to order (e.g. 'un café crème') and adds a brief reason with 'parce que' or 'pour' (one clause). This establishes the learner's 'usual order' and why they remain in Paris for the moment.",
+  "character_id": "margaux_barman",
+  "location_id": "le_mistral",
+  "causal_reason": "Margaux has asked the learner’s order three times; the group treats orders as signals of belonging, so the learner's answer will create the usual order and a small shift in the group's view of them.",
+  "source_event_ids": [],
+  "novelty_key": "meme_chose_setup_001",
+  "chapter": {
+   "title_fr": "Qui prend quoi ?",
+   "dramatic_question": "Quelle commande deviendra la vôtre, et est-ce un geste qui dit que vous restez ici ?",
+   "possible_developments": [
+    "The learner picks an order and explains a reason — the group accepts it and notes the new usual order.",
+    "Gus declares the learner un habitué and teases lovingly, changing how the group treats them.",
+    "Lila grades the choice and teases, creating a private bond; Margaux writes the order on the glass.",
+    "Romy hears and asks a follow-up question about Solvel, opening another thread."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "establish_usual_order",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:2",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "Le Mistral est réveillé. Gus fait une blague, Marin rit en soulevant sa cuillère.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Règle numéro un : une commande, c'est une identité.",
+      "mood": "happy",
+      "text_native": "Rule number one: an order is an identity."
+     },
+     {
+      "character_id": "marin_leveque",
+      "text_fr": "Bon. Qui veut une soupe ?",
+      "mood": "happy",
+      "text_native": "Okay. Who wants some soup?"
+     }
+    ],
+    "visual_direction": "Wide shot of the café: the worn zinc, the booth with Marin and Gus, Margaux behind the counter polishing a glass. Lila sits with a paint-stained shirt, leaning forward.",
+    "alt_native": "Wide view of the café interior with the cast at the counter and table."
+   },
+   {
+    "narration_fr": "Lila note, avec sa voix d'enseignante critique.",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Alors, tu as vraiment une habitude ?",
+      "mood": "neutral",
+      "text_native": "So, do you really have a habit?"
+     },
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Si vous choisissez bien, vous êtes un habitué. Choisissez bien.",
+      "mood": "happy",
+      "text_native": "If you choose well, you are a regular. Choose well."
+     }
+    ],
+    "visual_direction": "Medium shot on Lila and Gus at the booth. Lila nudges the learner's empty cup on the table; Gus straightens a salt cellar.",
+    "alt_native": "Lila nudging the cup; Gus arranging the tableware."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "margaux_barman",
+      "text_fr": "La même chose ?",
+      "mood": "neutral",
+      "text_native": "The same as always?"
+     }
+    ],
+    "visual_direction": "Close-up on Margaux at the counter, drying a glass and looking directly at the learner as she asks. The background shows a chalkboard menu.",
+    "alt_native": "Margaux at the counter looks at the learner and asks a short question."
+   },
+   {
+    "narration_fr": "Le groupe attend votre réponse — et la petite vérité qui va avec.",
+    "dialogue": [
+     {
+      "character_id": "romy_tremblay",
+      "text_fr": "C'est vous, l'héritage ?",
+      "mood": "neutral",
+      "text_native": "Are you the inheritance?"
+     }
+    ],
+    "visual_direction": "Medium shot including Margaux, Lila and Gus; they wait expectant. Romy leans on the counter with her recorder off, curious.",
+    "alt_native": "Group around the counter waiting; Romy asks a question while the recorder is off."
+   }
+  ],
+  "opening_line_fr": "La même chose ?",
+  "suggested_response_fr": "Je prends un café crème, parce que je reste ici quelques jours.",
+  "hint_native": "Say the item you want (drink or pastry) and a short reason with 'parce que' or 'pour'. Example: \"Je prends un café, parce que je dois régler des papiers.\"",
+  "translation_native": "Margaux: \"The same as always?\"",
+  "capability_key": "explain_delay",
+  "lexicon": [
+   {
+    "surface_fr": "habitude",
+    "lemma": "habitude",
+    "gloss_native": "habit, usual thing",
+    "part_of_speech": "noun",
+    "gender": "f",
+    "line_ref": "panel:1:line:0",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "habitué",
+    "lemma": "habitué",
+    "gloss_native": "regular (customer)",
+    "part_of_speech": "noun",
+    "gender": "m",
+    "line_ref": "panel:1:line:1",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "commande",
+    "lemma": "commande",
+    "gloss_native": "order (what you ask for in a café)",
+    "part_of_speech": "noun",
+    "gender": "f",
+    "line_ref": "premise",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_A21_EXPLAIN_WHY",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "la_meme_chose",
+   "threads": [
+    "s1:2"
+   ],
+   "change_before": "No usual order known →",
+   "change_after": "A usual order is established and the group treats the learner as an habitué.",
+   "turn_want": "Choose your order and say why you are staying (a short, honest reason).",
+   "small_moment_id": "la_meme_chose",
+   "hook_fr": "À suivre… quelqu'un écrit votre commande sur le verre.",
+   "forbidden_respected": true,
+   "complication": ""
+  },
+  "news_day_notes": null
+ },
+ "refusals": [
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "unknown_panel_character",
+   "hint": "['gus_loft'] speak in the panels but are not in the cast. Give their lines to someone who is, or to narration: cast is ['augustin_de_roncourt', 'bastien_roux', 'camille_marchand', 'landlord_marchand', 'lila_bonnet', 'maitre_vasseur', 'margaux_barman', 'marin_leveque', 'mme_diallo', 'romy_tremblay']. The learner never has a dialogue line (their words are their reply), and a person who is only remembered or mentioned (Odile, a clerk) is spoken about, never given a line.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "L'ordre qui vous définit",
+    "dramatic_question": "Quelle commande deviendra votre 'habitude' ici, et pourquoi restez-vous ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "gus_loft",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Choose your café order and say, in one or two short sentences, why you are still in Paris.",
+    "objective_words": 18,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"tu\" while the character speaks to them as \"vous\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Une commande qui reste",
+    "dramatic_question": "Quelle est ta commande habituelle, et est-ce que rester ici change quelque chose pour toi ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Choose your usual drink/food and give a short reason why you are staying (one or two short sentences).",
+    "objective_words": 18,
+    "panels": 5,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "news_day_notes_missing",
+   "hint": "Today is a news day: fill news_day_notes (mechanic_fr, plate_brief): the headline's mechanic as it plays out today, and the people-free plate brief.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Qui prend quoi ?",
+    "dramatic_question": "Quelle commande deviendra la vôtre, et est-ce un geste qui dit que vous restez ici ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "In French, say your usual order (a drink or pastry) and give a short reason why you are staying here.",
+    "objective_words": 20,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "La commande qui reste",
+    "dramatic_question": "Quel est votre 'petit geste' qui dira si vous restez ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Choose your order in French and say briefly why you are still here.",
+    "objective_words": 13,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  }
+ ]
+}
