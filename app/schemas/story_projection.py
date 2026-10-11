@@ -95,6 +95,15 @@ class StoryPageRead(ProjectionModel):
     a_suivre_fr: str | None = None
 
 
+class StoryCastRigRead(ProjectionModel):
+    """WP-168: a character a written season added, and how the drawn set draws them
+    (parameters from ``season.written_world.RIG_VOCABULARY``)."""
+
+    id: str
+    name: str
+    rig: dict[str, str]
+
+
 class StoryEpisodeRead(ProjectionModel):
     id: str
     scene_id: str
@@ -109,6 +118,7 @@ class StoryEpisodeRead(ProjectionModel):
     resolution: StoryResolutionRead | None
     grammar_focus: GrammarFocusRead | None
     page: StoryPageRead | None = None
+    cast_rigs: list[StoryCastRigRead] | None = None
 
 
 class StoryEpisodePageRead(ProjectionModel):
