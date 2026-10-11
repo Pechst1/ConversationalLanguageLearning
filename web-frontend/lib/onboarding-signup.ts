@@ -128,6 +128,8 @@ export type SignUpCopy = {
   language: string;
   created_sign_in: string;
   failed: string;
+  /** WP-138: the API answers 403 when sign-up is restricted to invited emails. */
+  invite_only: string;
   errors: Record<SignUpErrorKey, string>;
 };
 
@@ -152,6 +154,7 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
     language: 'App language',
     created_sign_in: 'Account created. Sign in to open your first scene.',
     failed: 'Something went wrong. Please try again.',
+    invite_only: 'Sign-up is by invitation during the pilot. Ask us to add your email.',
     errors: {
       email_required: 'Enter your email.',
       email_invalid: 'This email looks wrong.',
@@ -181,6 +184,7 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
     language: 'App-Sprache',
     created_sign_in: 'Konto erstellt. Melden Sie sich an, um Ihre erste Szene zu öffnen.',
     failed: 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
+    invite_only: 'Die Anmeldung ist während des Pilotbetriebs nur mit Einladung möglich. Bitten Sie uns, Ihre E-Mail freizuschalten.',
     errors: {
       email_required: 'Geben Sie Ihre E-Mail ein.',
       email_invalid: 'Diese E-Mail scheint falsch.',
@@ -210,6 +214,7 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
     language: 'Langue de l’app',
     created_sign_in: 'Compte créé. Connectez-vous pour ouvrir votre première scène.',
     failed: 'Une erreur est survenue. Réessayez.',
+    invite_only: 'Pendant le pilote, l’inscription se fait sur invitation. Demandez-nous d’ajouter votre adresse.',
     errors: {
       email_required: 'Indiquez votre adresse.',
       email_invalid: 'Adresse e-mail invalide.',

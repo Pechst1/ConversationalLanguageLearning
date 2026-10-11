@@ -127,6 +127,16 @@ class Settings(BaseSettings):
         ge=0,
         description="Per-learner spend per local day across the cost ledgers (panel art excluded: it has its own allowance); paid routes answer 429 daily_budget_reached beyond it. 0 = off. A normal day costs ~US$0.05.",
     )
+    SERVICE_DAILY_SPEND_CAP_USD: float = Field(
+        0.0,
+        ge=0,
+        description=(
+            "WP-138: what the whole service may spend per UTC day across every learner "
+            "and every ledger (panel art included). At the cap, paid routes answer 429 "
+            "daily_budget_reached, panels keep their plates and the prefetch beat skips. "
+            "0 = off. The per-learner cap alone cannot bound the bill."
+        ),
+    )
     USER_DAILY_SPEND_OPEN_DAY_MULTIPLIER: float = Field(
         2.0,
         ge=1.0,
@@ -179,6 +189,33 @@ class Settings(BaseSettings):
     #: Run every task in the calling process and never touch the broker. For local
     #: dev with no worker (WP-108): a queue nobody drains only fills up.
     CELERY_TASK_ALWAYS_EAGER: bool = False
+
+    # ---- WP-138: pilot registration gate ------------------------------------
+    # A journey cohort decides who gets the daily journey; it does not stop a
+    # stranger creating an account and spending on the paid routes. This does.
+    REGISTRATION_OPEN: bool = Field(
+        True,
+        description=(
+            "Anyone may create an account. False restricts sign-up to "
+            "REGISTRATION_ALLOWED_EMAILS (the private pilot). Existing accounts "
+            "always sign in."
+        ),
+    )
+    LEGAL_CONTACT_EMAIL: str = Field(
+        "",
+        description=(
+            "WP-138: the contact address the privacy policy and the terms print. "
+            "Kept out of the public repository; overrides legal_content.json's "
+            "placeholder. Required in production."
+        ),
+    )
+    REGISTRATION_ALLOWED_EMAILS: str = Field(
+        "",
+        description=(
+            "Comma-separated emails (case-insensitive) allowed to sign up while "
+            "REGISTRATION_OPEN is false. Empty with registration closed means nobody."
+        ),
+    )
 
     # Developer convenience: optionally auto-create users on first login attempt
     AUTO_CREATE_USERS_ON_LOGIN: bool = Field(

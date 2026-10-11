@@ -123,10 +123,12 @@ async function playDayInner(l, day) {
       );
       // A word the learner kept missing is a leech, and the drill rightly opens on
       // its «rescue» card; this check is about the kept word, so the learner's
-      // other cards wait a day while it is read.
+      // other cards wait a day while it is read — a day past the walk's clock, which
+      // runs day - 1 days ahead of the database's now().
+      const later = `now() + interval '${day} days'`;
       stack.sql(
-        `UPDATE user_vocabulary_progress SET due_at = now() + interval '1 day', `
-        + `next_review_date = now() + interval '1 day', due_date = (now() + interval '1 day')::date `
+        `UPDATE user_vocabulary_progress SET due_at = ${later}, `
+        + `next_review_date = ${later}, due_date = (${later})::date `
         + `WHERE user_id = '${l.userId}' AND context IS NULL`,
       );
     }

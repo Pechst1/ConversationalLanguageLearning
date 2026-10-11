@@ -146,3 +146,17 @@ def test_consent_to_a_stale_version_is_refused(signed_in: TestClient) -> None:
 def test_consent_requires_a_session(client: TestClient) -> None:
     response = client.post("/api/v1/legal/consent", json={"version": legal_content()["version"]})
     assert response.status_code == 401
+
+
+def test_the_contact_is_deployment_configuration_and_never_the_placeholder(monkeypatch):
+    """WP-138: the public repository carries a placeholder; production names a real contact."""
+
+    from app.api import legal
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "LEGAL_CONTACT_EMAIL", "")
+    assert legal.has_real_contact() is False
+    monkeypatch.setattr(settings, "LEGAL_CONTACT_EMAIL", "owner@example.org")
+    assert legal.has_real_contact() is True
+    page = legal.render_document("privacy", "en")
+    assert "mailto:owner@example.org" in page and "[contact e-mail]" not in page

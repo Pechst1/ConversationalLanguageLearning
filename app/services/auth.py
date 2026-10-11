@@ -35,6 +35,29 @@ class EmailAlreadyExistsError(ValueError):
     """Raised when attempting to register with an email that already exists."""
 
 
+class RegistrationClosedError(PermissionError):
+    """Raised when sign-up is restricted and the email is not on the allowlist."""
+
+
+REGISTRATION_CLOSED_MESSAGE = (
+    "Sign-up is by invitation only during the pilot. "
+    "Ask the team to add your email address."
+)
+
+
+def registration_allowed(email: str | None) -> bool:
+    """Whether this email may create an account under the current settings (WP-138)."""
+
+    if settings.REGISTRATION_OPEN:
+        return True
+    normalized = normalize_email(email)
+    if not normalized:
+        return False
+    allowed = {normalize_email(item) for item in (settings.REGISTRATION_ALLOWED_EMAILS or "").split(",")}
+    allowed.discard("")
+    return normalized in allowed
+
+
 class InvalidCredentialsError(ValueError):
     """Raised when authentication credentials are invalid."""
 
@@ -99,6 +122,9 @@ class AuthService:
         """Create a new user in the database."""
 
         email = normalize_email(payload.email)
+        # WP-138: the pilot gate sits in the one place every account is created.
+        if not registration_allowed(email):
+            raise RegistrationClosedError(REGISTRATION_CLOSED_MESSAGE)
         existing_user = self.db.scalar(select(User).where(func.lower(User.email) == email).limit(1))
         if existing_user:
             raise EmailAlreadyExistsError("A user with this email already exists.")
@@ -622,6 +648,15 @@ def handle_email_exists(error: EmailAlreadyExistsError) -> None:
 
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
+        detail=str(error),
+    ) from error
+
+
+def handle_registration_closed(error: RegistrationClosedError) -> None:
+    """Raise an HTTP 403 error when sign-up is restricted to invited emails."""
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
         detail=str(error),
     ) from error
 

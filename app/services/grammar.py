@@ -76,6 +76,8 @@ def apply_grammar_evidence(
     mention). Never commits.
     """
 
+    # The contact before this one (WP-138), read before the review overwrites it.
+    previous_contact_at = progress.last_review
     decision: MemoryDecision | None = None
     if not withdraw:
         graded: Evidence | memory.EvidenceGrade = evidence
@@ -112,7 +114,7 @@ def apply_grammar_evidence(
     # sees every observation that reaches the schedule.
     from app.services.concept_life import note_concept_evidence
 
-    note_concept_evidence(progress, evidence, now=now)
+    note_concept_evidence(progress, evidence, now=now, previous_contact_at=previous_contact_at)
     return decision
 
 

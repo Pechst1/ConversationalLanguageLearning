@@ -51,7 +51,11 @@ from app.services.vocabulary_credit import (
     VocabularyCreditService,
 )
 
-MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v1"
+MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v2"
+
+#: WP-138 — a provider erratum whose type only says a target was not used. Such a
+#: row is target practice that did not happen, never a language error.
+_TARGET_ABSENCE_MARKERS = ("missing_target", "target_missing", "unused_target", "target_unused", "target_not_used")
 MISSION_FAST_CORRECTION_PROMPT_VERSION = "mission-correction-fast-v1"
 MISSION_TEMPLATES = ("message", "explain_plan", "news_summary", "travel_work", "conversation")
 MISSION_FUEL_SOURCES = ("vocab", "theme", "news_seed")
@@ -3532,6 +3536,7 @@ class MissionCorrectionService:
                 deterministic_errata=deterministic_errata,
                 language=language,
             )
+            correction = self._separate_target_practice(correction=correction, mission=mission, language=language)
             if deterministic_errata:
                 correction = self._merge_deterministic_errata(
                     correction=correction,
@@ -3564,6 +3569,101 @@ class MissionCorrectionService:
         correction.pop("_model", None)
         correction.pop("_prompt_version", None)
         return correction
+
+    @staticmethod
+    def _is_target_absence_erratum(erratum: Any) -> bool:
+        """An "erratum" that only says a target (word, rule, old mistake) was not used."""
+        if not isinstance(erratum, dict):
+            return False
+        task_type = str(erratum.get("task_error_type") or "").casefold().replace("-", "_").replace(" ", "_")
+        return any(marker in task_type for marker in _TARGET_ABSENCE_MARKERS)
+
+    def _separate_target_practice(
+        self,
+        *,
+        correction: dict[str, Any],
+        mission: RealWorldMission,
+        language: Any = None,
+    ) -> dict[str, Any]:
+        """Keep communication, optional target practice and language errors apart.
+
+        WP-138 (status plan 2026-10-06, item 3): the provider sees the letter's
+        optional targets — a grammar point to place, an old mistake to repair, a
+        suggested word — and may report one it did not find as a missing target,
+        as an erratum, or by lowering its verdict. None of that is a language
+        error. An unused target is noted once as "not practised" (no negative
+        evidence), it opens no erratum, and it cannot turn a letter that handled
+        every required objective without a real mistake into a partial one.
+        WP-125A already does this for suggested words; this is the same contract
+        for grammar and repair targets, and for the verdict itself.
+        """
+        if not isinstance(correction, dict):
+            return correction
+        merged = {**correction}
+        raw_errata = [item for item in merged.get("errata") or [] if isinstance(item, dict)]
+        absence_errata = [item for item in raw_errata if self._is_target_absence_erratum(item)]
+        language_errata = [item for item in raw_errata if not self._is_target_absence_erratum(item)]
+        merged["errata"] = language_errata
+
+        unused_targets = list(merged.get("unused_targets") or [])
+        seen = {
+            str(item.get("external_id") or item.get("word_id") or "")
+            for item in unused_targets
+            if isinstance(item, dict)
+        }
+        for item in merged.get("missing_targets") or []:
+            if not isinstance(item, dict):
+                continue
+            key = str(item.get("external_id") or item.get("label") or "")
+            # Suggested words are WP-125A's to record (with their own event);
+            # here they are only taken off the missing list.
+            if key.startswith("VOCAB_") or key in seen:
+                continue
+            seen.add(key)
+            unused_targets.append(
+                {"external_id": item.get("external_id"), "label": item.get("label"), "kind": "grammar"}
+            )
+        merged["missing_targets"] = []
+        merged["unused_targets"] = unused_targets
+
+        optional_ids = {
+            str(item.get("id"))
+            for item in mission.objectives or []
+            if isinstance(item, dict) and item.get("id") and not item.get("required")
+        }
+        required_ids = {
+            str(item.get("id"))
+            for item in mission.objectives or []
+            if isinstance(item, dict) and item.get("id") and item.get("required")
+        }
+        progress = [item for item in merged.get("objective_progress") or [] if isinstance(item, dict)]
+        unpractised = False
+        rewritten: list[dict[str, Any]] = []
+        for row in progress:
+            row_id = str(row.get("id") or "")
+            if row_id in optional_ids and not row.get("met") and not row_id.startswith("vocabulary_"):
+                unpractised = True
+                row = {
+                    **row,
+                    "observed": False,
+                    "note": learner_text("mission.target_unpractised", language),
+                }
+            rewritten.append(row)
+        if progress:
+            merged["objective_progress"] = rewritten
+
+        target_signal = bool(absence_errata or correction.get("missing_targets") or unpractised)
+        verdict = str(merged.get("verdict") or "")
+        if target_signal and verdict in {"partial", "needs_revision"} and not language_errata and required_ids:
+            met_required = {
+                str(row.get("id"))
+                for row in rewritten
+                if row.get("met") and row.get("assessed", True) is not False
+            }
+            if required_ids <= met_required:
+                merged["verdict"] = "accepted"
+                merged["score_0_4"] = max(float(merged.get("score_0_4") or 0), 3.0)
+        return merged
 
     @staticmethod
     def _has_language_repair(correction: dict[str, Any]) -> bool:
@@ -3820,6 +3920,9 @@ class MissionCorrectionService:
             "corrected_answer must be THEIR message with the mistakes fixed — never a different message you invent, and never a "
             "template with placeholders in brackets. If the message is already correct and natural, return an empty errata list "
             "and repeat their message as corrected_answer. "
+            "The verdict judges only whether the reply does its job and the real language errors in it: an optional grammar "
+            "target, an old mistake to repair or a suggested word that the reply did not use is never an error, never an "
+            "erratum and never a reason to lower the verdict; leave missing_targets empty. "
             # Last line, and repeated: mid-prompt the model kept defaulting to the
             # language of the text it was correcting instead of the learner's own.
             f"LANGUAGE RULE, applies to every field: write why_wrong, repair_hint and display_label in {gloss_language}, "

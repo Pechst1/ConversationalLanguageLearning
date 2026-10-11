@@ -243,6 +243,7 @@ test('release verification refuses local, placeholder, http and sandbox builds',
     NEXT_PUBLIC_WS_URL: 'wss://atelier.onrender.com',
     NEXT_PUBLIC_NATIVE_PUSH_ENABLED: 'true',
     NEXT_PUBLIC_APNS_ENVIRONMENT: 'production',
+    NEXT_PUBLIC_LEGAL_CONTACT_EMAIL: 'owner@example.org',
   };
   writeNativeBuildManifest(root, production);
   assert.deepEqual(verifyNativeBundle(root, { release: true }), []);
@@ -250,12 +251,13 @@ test('release verification refuses local, placeholder, http and sandbox builds',
   writeNativeBuildManifest(root, { ...production, NEXT_PUBLIC_APNS_ENVIRONMENT: 'sandbox' });
   assert.match(verifyNativeBundle(root, { release: true }).join('\n'), /not "production"/);
 
-  const base = { nativePushEnabled: true, apnsEnvironment: 'production' };
+  const base = { nativePushEnabled: true, apnsEnvironment: 'production', legalContactEmail: 'owner@example.org' };
   assert.match(releaseProblems({ ...base, apiBaseUrl: 'http://localhost:8010/api/v1' }).join('\n'), /HTTPS|localhost/);
   assert.match(releaseProblems({ ...base, apiBaseUrl: 'https://127.0.0.1/api/v1' }).join('\n'), /localhost/);
   assert.match(releaseProblems({ ...base, apiBaseUrl: 'https://api.example.com/api/v1' }).join('\n'), /placeholder/);
   assert.match(releaseProblems({ ...base, apiBaseUrl: 'http://atelier.onrender.com/api/v1' }).join('\n'), /HTTPS/);
-  assert.match(releaseProblems({ apiBaseUrl: production.NEXT_PUBLIC_API_BASE_URL, nativePushEnabled: false, apnsEnvironment: 'production' }).join('\n'), /PUSH_ENABLED/);
+  assert.match(releaseProblems({ ...base, apiBaseUrl: production.NEXT_PUBLIC_API_BASE_URL, nativePushEnabled: false }).join('\n'), /PUSH_ENABLED/);
+  assert.match(releaseProblems({ ...base, apiBaseUrl: production.NEXT_PUBLIC_API_BASE_URL, legalContactEmail: '' }).join('\n'), /LEGAL_CONTACT/);
   assert.match(releaseProblems({ ...base, apiBaseUrl: production.NEXT_PUBLIC_API_BASE_URL, allowLocalApi: true }).join('\n'), /ALLOW_LOCAL/);
 
   writeNativeBuildManifest(root, { ...production, NEXT_PUBLIC_API_BASE_URL: 'https://other-host.onrender.com/api/v1' });

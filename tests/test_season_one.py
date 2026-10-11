@@ -302,6 +302,43 @@ def test_t5_is_told_or_discovered_by_what_happened_to_the_photograph():
     assert places == {True: "odile_flat", False: "marin_lila_flat"}
 
 
+def _solve(node, solve_id):
+    if isinstance(node, dict):
+        if node.get("id") == solve_id:
+            return node
+        node = list(node.values())
+    if isinstance(node, list):
+        for item in node:
+            found = _solve(item, solve_id)
+            if found is not None:
+                return found
+    return None
+
+
+@pytest.mark.parametrize("band", ["A1", "A2", "B1", "B2", "C1"])
+@pytest.mark.parametrize("language", ["en", "de", "fr"])
+def test_lila_answers_both_key_cards_at_every_level(band, language):
+    """WP-132A / status plan item 6: the affirmative «Lui faire un double» gets
+    Lila's immediate reaction on the page, as «Pas encore» does — at every band and
+    chrome language, with a translation wherever the band reads one."""
+
+    season = load_season("s1")
+    page = resolve_day(season, "t2", "b", flags=effective_flags(season, {}, seed="x"), band=band, language=language)
+    solve = _solve(page["movements"], "b.key")
+    assert solve is not None
+    options = {option["id"]: option for option in solve["options"]}
+    assert set(options) == {"double", "pas_encore"}
+    for option in options.values():
+        lines = [line for beat in option["beats"] for line in beat["lines"]]
+        assert lines and lines[0]["who"] == "lila_bonnet", (option["id"], band, language)
+        assert lines[0]["text_fr"].strip() not in ("", "…")
+    double = options["double"]["beats"][0]["lines"][0]
+    assert double["text_fr"].startswith("Un double")
+    assert double["mood"] == "happy"
+    if band in ("A1", "A2") and language != "fr":
+        assert double["text_native"], (band, language)
+
+
 @pytest.mark.parametrize("ending", ["garder", "partager", "laisser_partir"])
 def test_t8_plays_the_ending_the_flat_decided(ending):
     season = load_season("s1")

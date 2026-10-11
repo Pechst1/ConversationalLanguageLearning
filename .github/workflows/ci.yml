@@ -51,9 +51,16 @@ jobs:
         working-directory: web-frontend
 
   backend:
-    name: Backend · ruff + pytest
+    # The suite outgrew one 2-core runner (cancelled at 30 minutes, 80 % done):
+    # four shards, dealt by scripts/ci_test_shard.py. `needs: backend` waits
+    # for all of them.
+    name: Backend · ruff + pytest (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       # The suite itself runs on an in-memory SQLite engine (tests/conftest.py);
       # these stay so that nothing that reaches for the configured URLs finds a
@@ -102,6 +109,7 @@ jobs:
           python -m spacy download fr_core_news_sm
 
       - name: Check Python with Ruff
+        if: matrix.shard == 1
         run: ruff check .
 
       - name: Run backend tests
@@ -119,6 +127,7 @@ jobs:
           -p randomly --randomly-seed=${{ github.run_id }}
           --durations=15
           --junitxml=pytest-report.xml
+          $(python scripts/ci_test_shard.py ${{ matrix.shard }} 4)
 
       - name: Test count
         if: always()
@@ -134,7 +143,7 @@ jobs:
           line = f"pytest: {passed} passed, {failures} failed, {errors} errors, {skipped} skipped (of {tests})"
           print(line)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
-              out.write(f"### Backend\n\n{line}\n")
+              out.write(f"### Backend shard ${{ matrix.shard }}/4\n\n{line}\n")
           PY
 
   learner-walk:
@@ -254,8 +263,10 @@ jobs:
           WP69_PG_URL: ${{ env.DATABASE_URL }}
           WP18_HEALTH_DATABASE_URL: ${{ env.DATABASE_URL }}
           PRODUCTION_READINESS_PG_URL: ${{ env.DATABASE_URL }}
+          WP138_PG_URL: ${{ env.DATABASE_URL }}
         run: >-
           pytest -q -p no:cacheprovider
+          tests/test_wp138_catalog_seeding_race.py::test_eight_concurrent_first_requests_seed_one_catalogue_on_real_postgres
           tests/test_wp69_never_lose_a_day.py::test_best_effort_on_real_postgres
           tests/test_grammar_catalog_seed_race.py
           tests/test_rollout_scripts.py::test_every_query_executes_against_a_real_database

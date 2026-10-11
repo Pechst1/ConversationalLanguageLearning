@@ -125,7 +125,9 @@ export default function SignUpPage() {
       toast.success(copy.created_sign_in);
       void router.push({ pathname: '/auth/signin', query: { callbackUrl: landing, email: payload.email } });
     } catch (error: any) {
-      toast.error(authErrorMessage(error, copy.failed));
+      toast.error(
+        error?.response?.status === 403 ? copy.invite_only : authErrorMessage(error, copy.failed),
+      );
     } finally {
       setIsLoading(false);
     }

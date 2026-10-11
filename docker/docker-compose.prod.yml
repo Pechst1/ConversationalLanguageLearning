@@ -11,8 +11,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Loopback only: the TLS proxy on the host (Caddy) is the one public door.
+    # Published on every interface, a client could reach the API around the
+    # proxy and forge the X-Forwarded-For hop RATE_LIMIT_TRUSTED_PROXY_HOPS=1 trusts.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test:
         - CMD
