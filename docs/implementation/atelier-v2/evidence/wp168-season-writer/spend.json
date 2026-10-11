@@ -1,0 +1,32 @@
+{
+  "llm_usd": 0.064368,
+  "lives": {
+    "garder": {
+      "rolled": true,
+      "refused": null
+    },
+    "partager": {
+      "rolled": true,
+      "refused": null
+    },
+    "laisser_partir": {
+      "rolled": true,
+      "refused": null
+    }
+  },
+  "plates": {
+    "garder": {
+      "place": "quai_vieux_port",
+      "url": "/media/graphic-novel/revue-plates/season-w-quai_vieux_port-6e9f0233-be7e67303841000b.webp",
+      "file": "plate-garder-quai_vieux_port.webp",
+      "seconds": 31.6
+    },
+    "laisser_partir": {
+      "place": "bateau_yann",
+      "url": "/media/graphic-novel/revue-plates/season-w-bateau_yann-57513d27-ac5f0a13fcf19079.webp",
+      "file": "plate-laisser_partir-bateau_yann.webp",
+      "seconds": 30.6
+    }
+  },
+  "estimated_image_usd": 0.12
+}
