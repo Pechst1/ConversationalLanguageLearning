@@ -525,6 +525,9 @@ class Premise(_Model):
     #: Flags this premise may set (whitelisted for the day's turn).
     sets: list[str] = Field(default_factory=list)
     when: Cond = Field(default_factory=dict)
+    #: WP-166: the place the premise is set in, when it has one (a season place id).
+    #: The place spread lets a premise set at Le Mistral take the Mistral past its share.
+    place: str | None = None
 
 
 class Required(_Model):
