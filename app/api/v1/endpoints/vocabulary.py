@@ -749,6 +749,67 @@ def _context_timeline_events(db: Session, *, user: User, word_id: int) -> list[V
     return events
 
 
+def _drill_deck(
+    db: Session,
+    service: ProgressService,
+    user: User,
+    *,
+    drill: str,
+    context_kwargs: dict[str, Any],
+    new_limit: int,
+    reserved_new: set[int],
+    new_room: int | None,
+) -> dict[str, Any]:
+    """WP-154: the word drill's deck, kept for the learner's app day.
+
+    ``session``: what is left of today's batch, in the order it was dealt; a new
+    batch only when that one is answered (or on a new day). ``more``: the
+    «Encore N mots» continuation, appended to the batch, never a word already in
+    it. See :mod:`app.services.drill_batch`.
+    """
+
+    from app.services import drill_batch
+    from app.services.streak import local_today
+
+    now = datetime.now(UTC)
+    day = local_today(user, now)
+    batch = drill_batch.load_batch(db, user, day)
+    if drill == drill_batch.DRILL_SESSION and batch is not None:
+        items = list(batch.items or [])
+        remaining = drill_batch.remaining_items(db, user, items, reserved_new=reserved_new)
+        if remaining:
+            batch.cursor = len(items) - len(remaining)
+            db.commit()
+            payload = service.vocabulary_due_context_from_batch(user=user, items=remaining, now=now)
+            payload["new_words_left_today"] = drill_batch.resumed_new_words_left(
+                new_room, batch, len(payload["new_words"])
+            )
+            return payload
+
+    exclude = set(reserved_new)
+    if drill == drill_batch.DRILL_MORE and batch is not None:
+        # Nothing the batch already dealt as new is dealt again.
+        exclude |= {int(item["word_id"]) for item in batch.items or [] if item.get("list") == "new_words"}
+    payload = service.get_vocabulary_due_context(**{**context_kwargs, "exclude_new_word_ids": exclude, "now": now})
+    served_new = len(payload.get("new_words") or [])
+    dealt = drill_batch.items_from_payload(payload, now)
+    if drill == drill_batch.DRILL_MORE and batch is not None:
+        items = drill_batch.merge_items(db, user, list(batch.items or []), dealt)
+        drill_batch.save_batch(db, user, day, items, new_limit=new_limit, new_dealt=served_new, batch=batch)
+        db.commit()
+        remaining = drill_batch.remaining_items(db, user, items, reserved_new=reserved_new)
+        payload = service.vocabulary_due_context_from_batch(user=user, items=remaining, now=now)
+        payload["new_words_left_today"] = drill_batch.resumed_new_words_left(
+            new_room, batch, len(payload["new_words"])
+        )
+        return payload
+
+    drill_batch.save_batch(db, user, day, dealt, new_limit=new_limit, new_dealt=served_new, batch=batch)
+    db.commit()
+    payload["new_words_left_today"] = new_words_left_today(new_room, new_limit, served_new)
+    return payload
+
+
 @router.get("/due-context", response_model=VocabularyDueContextResponse)
 def get_vocabulary_due_context(
     *,
@@ -763,6 +824,14 @@ def get_vocabulary_due_context(
     linked_word_ids: Annotated[list[str] | None, Query()] = None,
     mission_id: UUID | None = Query(None),
     feuilleton_scene_id: UUID | None = Query(None),
+    drill: str | None = Query(
+        None,
+        pattern="^(session|more)$",
+        description=(
+            "WP-154: the word drill's own deck. `session` serves the rest of the batch dealt "
+            "today (a new one once it is answered); `more` appends the «Encore N mots» continuation."
+        ),
+    ),
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user_or_demo),
 ) -> VocabularyDueContextResponse:
@@ -895,22 +964,35 @@ def get_vocabulary_due_context(
         fragile_limit = min(fragile_limit, max(0, reviews_left - due_limit))
 
     service = ProgressService(db)
-    payload = service.get_vocabulary_due_context(
-        user=current_user,
-        limit=limit,
-        due_limit=due_limit,
-        fragile_limit=fragile_limit,
-        new_limit=new_limit,
-        exclude_new_word_ids=reserved_new,
-        topic_limit=topic_limit,
-        linked_limit=linked_limit,
-        direction=direction,
-        topic_tags=resolved_topic_tags,
-        linked_word_ids=resolved_linked_ids,
-    )
-    payload["new_words_left_today"] = new_words_left_today(
-        new_room, new_limit, len(payload.get("new_words") or [])
-    )
+    context_kwargs: dict[str, Any] = {
+        "user": current_user,
+        "limit": limit,
+        "due_limit": due_limit,
+        "fragile_limit": fragile_limit,
+        "new_limit": new_limit,
+        "exclude_new_word_ids": reserved_new,
+        "topic_limit": topic_limit,
+        "linked_limit": linked_limit,
+        "direction": direction,
+        "topic_tags": resolved_topic_tags,
+        "linked_word_ids": resolved_linked_ids,
+    }
+    if drill and getattr(current_user, "id", None):
+        payload = _drill_deck(
+            db,
+            service,
+            current_user,
+            drill=drill,
+            context_kwargs=context_kwargs,
+            new_limit=new_limit,
+            reserved_new=set(reserved_new or ()),
+            new_room=new_room,
+        )
+    else:
+        payload = service.get_vocabulary_due_context(**context_kwargs)
+        payload["new_words_left_today"] = new_words_left_today(
+            new_room, new_limit, len(payload.get("new_words") or [])
+        )
     if episodic_anchor:
         anchor_word_ids = {int(word_id) for word_id in resolved_linked_ids}
         for bucket_name in (

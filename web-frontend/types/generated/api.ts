@@ -22299,6 +22299,8 @@ export interface operations {
             query?: {
                 /** @description Optional card direction filter; defaults to the learner's stored direction */
                 direction?: string | null;
+                /** @description WP-154: the word drill's own deck. `session` serves the rest of the batch dealt today (a new one once it is answered); `more` appends the «Encore N mots» continuation. */
+                drill?: string | null;
                 due_limit?: number;
                 feuilleton_scene_id?: string | null;
                 fragile_limit?: number;

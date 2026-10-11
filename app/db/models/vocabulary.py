@@ -23,6 +23,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
+from app.db.models._clock import app_now
 from app.db.types import StringList
 
 
@@ -153,4 +154,39 @@ class UserDailyWordSlate(Base):
 
     __table_args__ = (
         UniqueConstraint("user_id", "slate_date", name="uq_user_daily_word_slate_day"),
+    )
+
+
+class VocabularyDrillBatch(Base):
+    """WP-154: the word drill's batch for one learner's app day.
+
+    ``get_vocabulary_due_context`` reads current state, so after a few answers a
+    reload used to fill the freed «new» slots with other words. The batch is
+    stored when first dealt — ``items`` is the deck in order, one
+    ``{"word_id", "bucket", "at"}`` per card (``at`` = when it was dealt) — and a
+    reload the same day serves what is left of it. How far the learner got is
+    read from their own review records (a card is answered once its progress
+    row's ``last_review_date`` is at or after ``at``); ``cursor`` keeps that
+    count as of the last read. ``new_limit`` / ``new_dealt`` are the latest deal's
+    new-word allowance and how many new words it served, so a resumed deck can
+    still say whether the supply ran out (WP-131's «Encore N mots»).
+    """
+
+    __tablename__ = "vocabulary_drill_batch"
+
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    day = Column(Date, nullable=False)
+    items = Column(JSONB().with_variant(JSON(), "sqlite"), default=list, nullable=False)
+    new_limit = Column(Integer, nullable=False, default=0)
+    new_dealt = Column(Integer, nullable=False, default=0)
+    cursor = Column(Integer, nullable=False, default=0)
+
+    created_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=app_now, onupdate=app_now, server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "day", name="uq_vocabulary_drill_batch_user_day"),
     )

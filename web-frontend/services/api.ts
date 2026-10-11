@@ -868,6 +868,9 @@ export interface VocabularyDueContextParams extends VocabularyRecommendationPara
   linked_word_ids?: number[] | string;
   mission_id?: string;
   feuilleton_scene_id?: string;
+  /** WP-154: the drill page's own deck — `session` serves the rest of the batch
+   *  dealt today, `more` appends the «Encore N mots» continuation to it. */
+  drill?: 'session' | 'more';
 }
 
 export type VocabularyWord = components['schemas']['VocabularyWordRead'];
