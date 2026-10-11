@@ -27,6 +27,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
+from app.services import news_day  # WP-167
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -51,6 +52,7 @@ from app.services.lexical_coverage import (
     world_proper_nouns,
 )
 from app.services.llm_service import LLMService
+from app.services.news_day import NewsDayNotes  # WP-167
 from app.services.season.director import SeasonChecklist
 
 logger = logging.getLogger(__name__)
@@ -487,6 +489,11 @@ class SceneDraft(StrictModel):
     # touched, the change before → after, the turn, the small moment, the hook).
     # Optional: a life that is not on a season never fills it.
     season_checklist: SeasonChecklist | None = None
+    # WP-167: on a news day only (``news_day`` in the payload), the director's notes —
+    # the headline's mechanic, how the news enters, the day's people-free plate brief.
+    news_day_notes: NewsDayNotes | None = Field(
+        default=None, description="Only on a news day (news_day present); null otherwise."
+    )
 
 
 class AuthoredPanel(Panel):
@@ -7799,14 +7806,17 @@ def generate_scene(
         if epreuve:
             context[EPREUVE_KEY] = epreuve
         reviews: list[dict] = []
-        try:
-            draft, usage = _approved(
-                DIRECTOR,
+        # WP-167: every second generated day takes a fresh headline (app/services/news_day.py).
+        news = news_day.prepare(db, user, context)
+
+        def direct():
+            return _approved(
+                news_day.director_prompt(DIRECTOR, context),  # WP-167: DIRECTOR on an ordinary day
                 _prompt_payload(context),
                 SceneDraft,
                 # The validator closes over the *unfiltered* context: it needs the lexicon,
                 # and the coverage it writes back must not leak into the retry's prompt.
-                lambda p: _validate_scene(p, context),
+                news_day.validator(lambda p: _validate_scene(p, context), context),  # WP-167
                 db=db,
                 user=user,
                 candidates=dual_draft_candidates(context),
@@ -7814,6 +7824,16 @@ def generate_scene(
                 story_review=_season_story_review(context, reviews),
                 digest=lambda p: scene_digest(p, context),
             )
+
+        try:
+            try:
+                draft, usage = direct()
+            except StoryUnavailable as exc:
+                # WP-167: a refused news day is an ordinary generated day, never the fallback.
+                if news is None:
+                    raise
+                news = news_day.skip(db, user, context, news, exc)
+                draft, usage = direct()
         finally:
             # A lost day's readings are the metric too.
             _record_story_reviews(db, user, context, reviews)
@@ -7830,6 +7850,7 @@ def generate_scene(
         brief = _brief(draft, context, usage=usage)
         if season_day:
             brief.story_context["season"] = season_day
+        news_day.mark_brief(brief, context, draft, news)  # WP-167: it counts; the news, credit, plate
         return brief
     except StoryUnavailable as exc:
         return ContentUnavailable(reason=str(exc)[:100])
@@ -8362,6 +8383,9 @@ def bind_journey(
             **scene.script_payload,
             TUTOIEMENT_KEY: {"character_id": str(asking), "state": "asked"},
         }
+    # WP-167: a generated day counts toward the news cadence; a news day gets its credit
+    # and its own plate (painted after the commit, never waited for).
+    news_day.on_bind(db, user=user, brief=brief, scene=scene, thread=thread, tentpole=tentpole)
     _record_cost(
         db,
         user,

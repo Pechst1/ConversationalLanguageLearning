@@ -143,6 +143,7 @@ def public_scene(scene, names: dict[str, str] | None = None):
         }
         for p in panels
     ]
+    from app.services.news_day import public_credit
     from app.services.story_page import episode_page
 
     return {
@@ -160,6 +161,8 @@ def public_scene(scene, names: dict[str, str] | None = None):
         "panels": public_panels,
         # WP-110: the finished day as one page, the learner's lines in it.
         "page": episode_page(scene, public_panels, names),
+        # WP-167: a news day's credit («D'après l'actualité du …»), else None.
+        "news": public_credit(scene),
         "resolution": {
             "text_fr": (scene.recap_payload or {}).get("resolution_fr"),
             "summary_native": (scene.recap_payload or {}).get("summary_native"),
