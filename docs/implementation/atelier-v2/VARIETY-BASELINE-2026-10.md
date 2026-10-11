@@ -50,7 +50,8 @@ pair and for same-band pairs.
 | b1-en-struggling | 15 (9) | 13% (0%) | 0 of 11 | 9 (6) | 2 × le_mistral | 2 over 2 pairs | 8 (8) | 0 | 0 | 6 | 8 |
 
 Across learners: tentpole days 37 % (18 pairs), generated days 81 % (27 pairs); same-band pairs
-tentpole 100 % (6), generated **100 %** (9). Same band, day 1 opens on the same sentence: **100 %**.
+tentpole 100 % (6), generated **100 %** (9). Same-band pairs opening day 1 on the same sentence:
+**100 %**. Pairs of lives staging the same season premise on a generated day N: **81 %**.
 
 ### Paid evidence (real model)
 
@@ -63,7 +64,9 @@ tentpole 100 % (6), generated **100 %** (9). Same band, day 1 opens on the same 
 | WP-149 B1 | 8 (5) | 50% (20%) | 1 of 4 | 2 (2) | 3 × le_mistral | 3 over 1 pair | 0 | 2 | 1 | 4 |
 
 Across learners: tentpole days 47 % (14 pairs), generated days 0 % (23 pairs); same-band pairs
-tentpole 100 % (6), generated 0 % (11). Same band, day 1 opens on the same sentence: **100 %**.
+tentpole 100 % (6), generated 0 % (11). Same-band pairs opening day 1 on the same sentence:
+**100 %**. Pairs of reads staging the same season premise on a generated day N: **60 %**. Generated
+days with no premise id (a day of the director's own): 8 of 27 in the five tabled reads.
 
 ### What the baseline says
 
@@ -91,3 +94,52 @@ tentpole 100 % (6), generated 0 % (11). Same band, day 1 opens on the same sente
 | WP-168 | places of a written season outside S1's 22 | 0 | owner decision 4: may move |
 
 The `repetition_budget` thresholds are the owner's call after reading this table (§3 decision 1).
+
+## After WP-166 (same lives, same length)
+
+### Walk lives (fake provider), 3 lives × 15 days, ~50 s
+
+| Learner | scenes (gen.) | Mistral share (gen.) | 5-day windows over the Mistral cap | places (gen.) | longest room run | repeated pairs | repeated openings (gen.) | repeated premises | repeated complications | text seen twice | borrowed plate |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| a1-de-fresh-average | 15 (9) | 20% (11%) | 0 of 11 | 9 (6) | 2 × le_mistral | 1 over 1 pairs | 8 (8) | 0 | 0 | 5 | 7 |
+| a1-de-fresh-strong | 15 (9) | 20% (11%) | 0 of 11 | 9 (5) | 4 × boulangerie | 2 over 2 pairs | 8 (8) | 0 | 0 | 5 | 9 |
+| b1-en-struggling | 15 (9) | 13% (0%) | 0 of 11 | 9 (5) | 4 × boulangerie | 3 over 3 pairs | 8 (8) | 0 | 0 | 6 | 9 |
+
+Pairs of lives staging the same season premise on a generated day N: **81 % → 18 %**. Across-learner
+text overlap, openings and day 1 did not move (37 %/81 % and 100 %).
+
+- **What moved, and why.** The brief now deals each gap's premises in a per-learner order. The fake
+  stages the first premise it is shown, as a model's first-item bias would, so learners stopped
+  staging the same premise on the same day. The wider decks also stop the premises running dry:
+  before, every life had two generated days in gap 2 with no premise left; after, none.
+- **What could not move.** The fake writes the same lines every day («Il pleut sur le canal.»,
+  «Tu as une minute ?») and cycles seven places. It reads neither the novelty memory nor the
+  place rule, so openings, text overlap and the Mistral share are the fake's own. The «4 ×
+  boulangerie» runs are a bottle chapter dealt by a thread id that is random per run: run-to-run
+  noise, not this change.
+- **Day 1 in the walk** is still the authored opening for everyone, by design: the walk runs with
+  the model off, and the authored opening is the fallback.
+
+### Real model (the paid check, US$0.199, `evidence/wp166-variety/`)
+
+| Number | Before (WP-136/WP-149 reads) | After (WP-166 check) |
+|---|---|---|
+| Same-band pairs opening day 1 on the same sentence | 100 % | **0 of 6** pairs among the four new openings |
+| Mistral share of generated days | 50–67 % per read | **1 of 4** (the gap's required moment, set there) |
+| Places on generated days | 1–3 per read | 3 in 4 days (the studio, the Mistral, the back room) |
+| Generated days of the director's own (no premise id) | 8 of 27 | 2 of 4 (both in gap 5, which has no required moment) |
+| Repeated premise ids | 1–2 per read | 0 |
+
+Four generated days and four openings are a sample, not a rate. The judgment of substance against
+wording is in `evidence/wp166-variety/README.md`. In short: the openings and the gap-5 days differ in
+situation, not only in wording; the cast's running gags (Marin's grandmother, Gus performing)
+repeat by design; and gap 1's days follow its required schedule.
+
+### Not done here
+
+- The `repetition_budget` walk check waits for the owner's thresholds.
+- `SHAPE_DECK` keeps its six cards. A second «letter» and «two_hander» would change every
+  learner's seeded chapter shapes, and the guards that check those shapes are another package's
+  risk.
+- A paid run of 6+ consecutive gap days would measure the place spread and the novelty memory
+  over a full gap. About US$0.30.

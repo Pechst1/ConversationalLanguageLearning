@@ -267,32 +267,30 @@ def cross_learner_overlap(
 
 
 def identical_openings_across(
-    lives: dict[str, list[dict]], *, kind: str, same_band: bool = False
+    lives: dict[str, list[dict]], *, kind: str, same_band: bool = False, field: str = "opening"
 ) -> float | None:
-    """The share of day numbers on which two or more lives (of one band, with
-    ``same_band``) opened on the same sentence."""
+    """The share of pairs of lives (of one band, with ``same_band``) that opened day N
+    on the same sentence — or, with ``field="premise_id"``, staged the same season
+    premise — over every day number both lives played as ``kind``."""
 
-    if same_band:
-        groups: dict[str, dict[str, list[dict]]] = {}
-        for name, life in lives.items():
-            groups.setdefault(_band(life), {})[name] = life
-        shares = [
-            identical_openings_across(group, kind=kind)
-            for group in groups.values()
-            if len(group) > 1
-        ]
-        shares = [share for share in shares if share is not None]
-        return round(sum(shares) / len(shares), 3) if shares else None
-    days: dict[int, list[str]] = {}
-    for life in lives.values():
-        for day in life:
-            if day.get("kind") == kind and day.get("opening"):
-                days.setdefault(int(day["day"]), []).append(normalise(day["opening"]))
-    shared = [number for number, openings in days.items() if len(openings) > 1]
-    if not shared:
-        return None
-    same = sum(1 for number in shared if len(set(days[number])) < len(days[number]))
-    return round(same / len(shared), 3)
+    same = pairs = 0
+    for one, two in combinations(sorted(lives), 2):
+        if same_band and _band(lives[one]) != _band(lives[two]):
+            continue
+        first = {
+            int(d["day"]): normalise(d.get(field))
+            for d in lives[one]
+            if d.get("kind") == kind and d.get(field)
+        }
+        second = {
+            int(d["day"]): normalise(d.get(field))
+            for d in lives[two]
+            if d.get("kind") == kind and d.get(field)
+        }
+        for number in set(first) & set(second):
+            pairs += 1
+            same += first[number] == second[number]
+    return round(same / pairs, 3) if pairs else None
 
 
 def report(lives: dict[str, list[dict]], *, own: dict[str, bool] | None = None) -> dict[str, Any]:
@@ -309,6 +307,9 @@ def report(lives: dict[str, list[dict]], *, own: dict[str, bool] | None = None) 
             ),
             "same_generated_opening_on_day_n": identical_openings_across(
                 lives, kind="generated", same_band=True
+            ),
+            "same_premise_on_day_n": identical_openings_across(
+                lives, kind="generated", field="premise_id"
             ),
         },
     }
@@ -427,7 +428,7 @@ PLACE_WORDS: dict[str, tuple[str, ...]] = {
         "chez odile",
         "upstairs flat",
     ),
-    "user_apartment": ("studio",),
+    "user_apartment": ("studio", "radiateur", "radiator", "sofa", "blanket"),
     "notaire": ("notaire", "notary", "vasseur"),
     "mairie": ("mairie", "town hall"),
     "marchand_office": ("gérance", "marchand's office"),
@@ -620,8 +621,10 @@ def markdown(result: dict[str, Any], *, title: str) -> str:
         f"{_fmt(across['generated']['mean'])} ({across['generated']['pairs']} pairs); same-band pairs — "
         f"tentpole days {_fmt(band['tentpole']['mean'])} ({band['tentpole']['pairs']}), generated days "
         f"{_fmt(band['generated']['mean'])} ({band['generated']['pairs']}). "
-        f"Same band, day 1 opens on the same sentence: {_fmt(across['same_first_day_opening'])}; "
-        f"a generated day N opens on the same sentence: {_fmt(across['same_generated_opening_on_day_n'])}.",
+        f"Same-band pairs opening day 1 on the same sentence: {_fmt(across['same_first_day_opening'])}; "
+        f"opening a generated day N on the same sentence: {_fmt(across['same_generated_opening_on_day_n'])}. "
+        f"Pairs of lives staging the same season premise on a generated day N: "
+        f"{_fmt(across['same_premise_on_day_n'])}.",
         "",
     ]
     return "\n".join(rows)

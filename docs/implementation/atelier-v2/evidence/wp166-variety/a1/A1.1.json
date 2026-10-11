@@ -1,0 +1,174 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.10442799999999999,
+  "calls": 29,
+  "cap": 0.2
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "La soupe au radiateur",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La soupe au radiateur mort",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Un pas vers la chaleur — complication",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La même chose ? (suite)",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La même chose ?",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: story critic refused g1.2 twice; accepted and logged (Show the open obstacle (the radiator repair tomorrow) still in play on the page and have someone acknowledge or deal with it so the complication is visibly present.)"
+ ],
+ "refusals": [
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "gendered_agreement",
+   "hint": "\"seul\" agrees with a gender the learner never gave. Say it without agreeing on them: \"ça te plaît\", \"tu as de la chance\", \"ça y est\" — or write the sentence about the food, the room or the other character instead.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "La soupe et la vérité",
+    "dramatic_question": "Peux-tu dire à Marin ce que tu ressens ici et maintenant ?",
+    "open_question": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement po…",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell Marin how you are, really.",
+    "objective_words": 6,
+    "panels": 4,
+    "premise_id": "soupe_de_marin"
+   }
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_critic_correctness",
+   "hint": "Honours choices: Do not contradict the season flags — the episode shows someone entering/being inside the apartment when the season requires nobody go inside Odile's flat before T2; rework to keep the door closed or make the visit happen in the stairwell or at the threshold. | Stakes: Make the personal importance clearer on the page (show why the learner needs warmth/comfort now — a visible shiver, a missed payment, or a failed heater test) so the reader feels why this matters today.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "Un voisin inquiet",
+    "dramatic_question": "Vas-tu accepter l'aide de Marin, ou vouloir rester seul ?",
+    "open_question": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement po…",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Tell Marin how you are in one short sentence.",
+    "objective_words": 9,
+    "panels": 4,
+    "premise_id": "soupe_de_marin"
+   }
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_required_moment",
+   "hint": "Today this gap stages «La même chose ?» (season_script.brief.today.required_premise): write that day, and set season_checklist.premise_id to 'la_meme_chose'.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Un pas vers la chaleur",
+    "dramatic_question": "Tu peux accepter l'aide de Marin sans te sentir redevable ?",
+    "open_question": "Tu peux accepter l'aide de Marin sans te sentir redevable ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Say yes or no to Marin when he offers to call the concierge.",
+    "objective_words": 13,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "story_critic_refused",
+   "hint": "Show the open obstacle (the radiator/concierge/minuterie issue) still in the way and have someone notice it or begin to deal with it on the page.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Un pas vers la chaleur",
+    "dramatic_question": "Tu peux accepter l'aide de Marin sans te sentir redevable ?",
+    "open_question": "Tu peux accepter l'aide de Marin sans te sentir redevable ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Choose your order and say why you are still here.",
+    "objective_words": 10,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "gendered_agreement": 1,
+  "story_critic_correctness": 1,
+  "season_required_moment": 1,
+  "story_critic_refused": 1
+ }
+}

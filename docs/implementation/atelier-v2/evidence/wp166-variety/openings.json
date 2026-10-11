@@ -1,0 +1,452 @@
+{
+ "spend": {
+  "usd": 0.009053,
+  "calls": 3,
+  "cap": 0.1
+ },
+ "openings": [
+  {
+   "band": "A1",
+   "language": "de",
+   "opening": {
+    "hour": "19:30",
+    "weather": "bruine",
+    "learner_doing": "arrives with a suitcase, an envelope and a key",
+    "arrival": {
+     "location_id": "gare_de_lest",
+     "visual": "Evening outside the station. Learner seen from behind on the wet pavement, suitcase at their side, an envelope tucked under one arm and a key in hand; station lights, taxis and blurred commuters; steam and reflections on cobbles; a streetlamp casts a warm halo.",
+     "caption_fr": "La bruine te trouve à 19:30 devant la gare de l'Est; tu tiens une valise, une enveloppe et une clé.",
+     "caption_native": "Der Nieselregen trifft dich um 19:30 vor dem Gare de l'Est; du hast einen Koffer, einen Umschlag und einen Schlüssel.",
+     "lines": []
+    },
+    "room": {
+     "location_id": "le_mistral",
+     "visual": "Interior of Le Mistral as the door opens. Learner seen from behind entering; warm amber light, steam from cups, rain-spattered window. Gus on a stool mid-anecdote, Marin at a small table reading aloud from a folded paper, Lila leaned on the counter smiling, Margaux behind the zinc pausing with a towel in her hand.",
+     "caption_fr": "Le Mistral t'accueille; il est 19:35, l'air est chaud.",
+     "caption_native": "Le Mistral empfängt dich; es ist 19:35, die Luft ist warm.",
+     "lines": [
+      {
+       "who": "augustin_de_roncourt",
+       "text_fr": "Hier je jouais dans la rue.",
+       "text_native": "Gestern spielte ich auf der Straße.",
+       "mood": "neutral"
+      },
+      {
+       "who": "marin_leveque",
+       "text_fr": "Ma grand-mère dit: ris si tu peux.",
+       "text_native": "Meine Großmutter sagt: Lach, wenn du kannst.",
+       "mood": "neutral"
+      },
+      {
+       "who": "lila_bonnet",
+       "text_fr": "Ah, scène improvisée ce soir?",
+       "text_native": "Ah, improvisierte Szene heute Abend?",
+       "mood": "neutral"
+      },
+      {
+       "who": "margaux_barman",
+       "text_fr": "Un verre rapide.",
+       "text_native": "Ein schnelles Glas.",
+       "mood": "neutral"
+      }
+     ]
+    },
+    "spark": {
+     "hour": "23:00",
+     "weather": "douceur",
+     "arrival_place": "gare_de_lest",
+     "arrival": "buying a metro ticket from a machine that only speaks French",
+     "room": "Marin reading his grandmother's horoscope aloud"
+    }
+   },
+   "usage": [
+    {
+     "stage": "FirstDayOpening",
+     "model": "gpt-5-mini",
+     "provider": "openai",
+     "tokens": 3234,
+     "cost_usd": 0.00371,
+     "seconds": 9.877
+    }
+   ],
+   "panels": [
+    {
+     "kind": "panel",
+     "id": "a.p1",
+     "visual": "Evening outside the station. Learner seen from behind on the wet pavement, suitcase at their side, an envelope tucked under one arm and a key in hand; station lights, taxis and blurred commuters; steam and reflections on cobbles; a streetlamp casts a warm halo.",
+     "location_id": "gare_de_lest",
+     "in_frame": [
+      "toi"
+     ],
+     "silence": false,
+     "flashback": false,
+     "diegetic": [],
+     "balloon": false,
+     "lines": [
+      {
+       "who": "caption",
+       "name": null,
+       "kind": "caption",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "La bruine te trouve à 19:30 devant la gare de l'Est; tu tiens une valise, une enveloppe et une clé.",
+       "text_native": "Der Nieselregen trifft dich um 19:30 vor dem Gare de l'Est; du hast einen Koffer, einen Umschlag und einen Schlüssel."
+      }
+     ],
+     "generated": true
+    },
+    {
+     "kind": "panel",
+     "id": "a.p2",
+     "visual": "Interior of Le Mistral as the door opens. Learner seen from behind entering; warm amber light, steam from cups, rain-spattered window. Gus on a stool mid-anecdote, Marin at a small table reading aloud from a folded paper, Lila leaned on the counter smiling, Margaux behind the zinc pausing with a towel in her hand.",
+     "location_id": "le_mistral",
+     "in_frame": [
+      "augustin_de_roncourt",
+      "lila_bonnet",
+      "margaux_barman",
+      "marin_leveque"
+     ],
+     "silence": false,
+     "flashback": false,
+     "diegetic": [],
+     "balloon": false,
+     "lines": [
+      {
+       "who": "augustin_de_roncourt",
+       "name": "Augustin « Gus » de Roncourt",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Hier je jouais dans la rue.",
+       "text_native": "Gestern spielte ich auf der Straße."
+      },
+      {
+       "who": "marin_leveque",
+       "name": "Marin Lévêque",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Ma grand-mère dit: ris si tu peux.",
+       "text_native": "Meine Großmutter sagt: Lach, wenn du kannst."
+      },
+      {
+       "who": "lila_bonnet",
+       "name": "Lila Bonnet",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Ah, scène improvisée ce soir?",
+       "text_native": "Ah, improvisierte Szene heute Abend?"
+      },
+      {
+       "who": "margaux_barman",
+       "name": "Margaux",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Un verre rapide.",
+       "text_native": "Ein schnelles Glas."
+      }
+     ],
+     "generated": true
+    }
+   ]
+  },
+  {
+   "band": "B1",
+   "language": "en",
+   "opening": {
+    "hour": "19:50",
+    "weather": "douceur",
+    "learner_doing": "arriving in Paris with a suitcase, an official envelope and an old key; pausing on the quai to photograph the red neon for someone at home",
+    "arrival": {
+     "location_id": "quai_de_valmy",
+     "visual": "The learner seen from behind on the quai, suitcase by their side, phone held up toward the red neon across the canal; wet cobbles reflecting the warm glow; streetlamps just lit; no people in frame except the learner; evening light soft and humid.",
+     "caption_fr": "Mercredi 11 novembre, 19:50, douceur. La lumière rouge du quai t'appelle; tu la captures pour quelqu'un.",
+     "caption_native": null,
+     "lines": []
+    },
+    "room": {
+     "location_id": "le_mistral",
+     "visual": "Interior of Le Mistral seen from the doorway as the learner enters (learner seen from behind in the threshold). The four regulars sit at the zinc and a corner table: augustin_de_roncourt is mid-gesture as if performing a trick, marin_leveque cradles a small bowl and listens kindly, lila_bonnet leans forward with a teasing smile, margaux_barman polishes a glass with few movements. Warm, yellow café light; steam from a bowl; rain-slick street visible through the open door.",
+     "caption_fr": "La douceur de la soirée trouve la salle; l'heure glisse en conversations.",
+     "caption_native": null,
+     "lines": [
+      {
+       "who": "augustin_de_roncourt",
+       "text_fr": "Je dis trois fromages que personne ne connaît, et je gagne la bouteille.",
+       "text_native": null,
+       "mood": "neutral"
+      },
+      {
+       "who": "marin_leveque",
+       "text_fr": "Ma grand-mère disait: un bon fromage guérit les confidences.",
+       "text_native": null,
+       "mood": "neutral"
+      },
+      {
+       "who": "lila_bonnet",
+       "text_fr": "Tu triches, Gus — tu manges un bout sous la table, j'ai vu.",
+       "text_native": null,
+       "mood": "neutral"
+      },
+      {
+       "who": "margaux_barman",
+       "text_fr": "Fais vite.",
+       "text_native": null,
+       "mood": "neutral"
+      }
+     ]
+    },
+    "spark": {
+     "hour": "19:50",
+     "weather": "douceur",
+     "arrival_place": "quai_de_valmy",
+     "arrival": "stopping to photograph the red neon for someone at home",
+     "room": "a game of who can name the most cheeses, Gus cheating"
+    }
+   },
+   "usage": [
+    {
+     "stage": "FirstDayOpening",
+     "model": "gpt-5-mini",
+     "provider": "openai",
+     "tokens": 2707,
+     "cost_usd": 0.002674,
+     "seconds": 6.823
+    }
+   ],
+   "panels": [
+    {
+     "kind": "panel",
+     "id": "a.p1",
+     "visual": "The learner seen from behind on the quai, suitcase by their side, phone held up toward the red neon across the canal; wet cobbles reflecting the warm glow; streetlamps just lit; no people in frame except the learner; evening light soft and humid.",
+     "location_id": "quai_de_valmy",
+     "in_frame": [
+      "toi"
+     ],
+     "silence": false,
+     "flashback": false,
+     "diegetic": [
+      "MISTRAL"
+     ],
+     "balloon": false,
+     "lines": [
+      {
+       "who": "caption",
+       "name": null,
+       "kind": "caption",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Mercredi 11 novembre, 19:50, douceur. La lumière rouge du quai t'appelle; tu la captures pour quelqu'un.",
+       "text_native": null
+      }
+     ],
+     "generated": true
+    },
+    {
+     "kind": "panel",
+     "id": "a.p2",
+     "visual": "Interior of Le Mistral seen from the doorway as the learner enters (learner seen from behind in the threshold). The four regulars sit at the zinc and a corner table: augustin_de_roncourt is mid-gesture as if performing a trick, marin_leveque cradles a small bowl and listens kindly, lila_bonnet leans forward with a teasing smile, margaux_barman polishes a glass with few movements. Warm, yellow café light; steam from a bowl; rain-slick street visible through the open door.",
+     "location_id": "le_mistral",
+     "in_frame": [
+      "augustin_de_roncourt",
+      "lila_bonnet",
+      "margaux_barman",
+      "marin_leveque"
+     ],
+     "silence": false,
+     "flashback": false,
+     "diegetic": [],
+     "balloon": false,
+     "lines": [
+      {
+       "who": "augustin_de_roncourt",
+       "name": "Augustin « Gus » de Roncourt",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Je dis trois fromages que personne ne connaît, et je gagne la bouteille.",
+       "text_native": null
+      },
+      {
+       "who": "marin_leveque",
+       "name": "Marin Lévêque",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Ma grand-mère disait: un bon fromage guérit les confidences.",
+       "text_native": null
+      },
+      {
+       "who": "lila_bonnet",
+       "name": "Lila Bonnet",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Tu triches, Gus — tu manges un bout sous la table, j'ai vu.",
+       "text_native": null
+      },
+      {
+       "who": "margaux_barman",
+       "name": "Margaux",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Fais vite.",
+       "text_native": null
+      }
+     ],
+     "generated": true
+    }
+   ]
+  },
+  {
+   "band": "C1",
+   "language": "de",
+   "opening": {
+    "hour": "18:10",
+    "weather": "pluie",
+    "learner_doing": "steigt aus der Metro bei Jacques-Bonsergent, zieht den Koffer die Treppe hoch und schützt das Kuvert vor den Tropfen",
+    "arrival": {
+     "location_id": "metro_platform",
+     "visual": "Learner seen from behind at the top of the metro stairs on the quai, suitcase in one hand and an envelope in the other; wind and rain blowing diagonally; sodium streetlights halo through wet air; no faces of the learner shown.",
+     "caption_fr": "La pluie te trouve en montant du métro Jacques‑Bonsergent : il est 18h10, vent et gouttes frappent ta valise.",
+     "caption_native": null,
+     "lines": []
+    },
+    "room": {
+     "location_id": "le_mistral",
+     "visual": "Interior of Le Mistral at dusk, learner seen from behind in the doorway; warm counter light contrasts with wet street outside; Gus (augustin_de_roncourt) in mid-performance on a small stool with a paper prop, Marin (marin_leveque) at the corner table stirring a bowl, Lila (lila_bonnet) perched on a chair with a smirk, Margaux (margaux_barman) polishing glasses behind the zinc, all in motion but none looking at the door.",
+     "caption_fr": "",
+     "caption_native": null,
+     "lines": [
+      {
+       "who": "augustin_de_roncourt",
+       "text_fr": "Si je dis que le duc avait tort, ça me donne des points d'originalité au quiz ?",
+       "text_native": null,
+       "mood": "neutral"
+      },
+      {
+       "who": "marin_leveque",
+       "text_fr": "Ma grand‑mère disait toujours : 'Un cerveau bien nourri, c'est moins de panique aux questions simples.'",
+       "text_native": null,
+       "mood": "neutral"
+      },
+      {
+       "who": "lila_bonnet",
+       "text_fr": "Tu joues la comédie pour masquer que tu as révisé en cachette, Gus.",
+       "text_native": null,
+       "mood": "neutral"
+      },
+      {
+       "who": "margaux_barman",
+       "text_fr": "Vingt et une. Et pas un mot de triche.",
+       "text_native": null,
+       "mood": "neutral"
+      }
+     ]
+    },
+    "spark": {
+     "hour": "18:10",
+     "weather": "pluie",
+     "arrival_place": "metro_platform",
+     "arrival": "climbing out of the metro at Jacques-Bonsergent into the wind",
+     "room": "a quiz night that only Margaux takes seriously"
+    }
+   },
+   "usage": [
+    {
+     "stage": "FirstDayOpening",
+     "model": "gpt-5-mini",
+     "provider": "openai",
+     "tokens": 2711,
+     "cost_usd": 0.002669,
+     "seconds": 10.27
+    }
+   ],
+   "panels": [
+    {
+     "kind": "panel",
+     "id": "a.p1",
+     "visual": "Learner seen from behind at the top of the metro stairs on the quai, suitcase in one hand and an envelope in the other; wind and rain blowing diagonally; sodium streetlights halo through wet air; no faces of the learner shown.",
+     "location_id": "metro_platform",
+     "in_frame": [
+      "toi"
+     ],
+     "silence": false,
+     "flashback": false,
+     "diegetic": [],
+     "balloon": false,
+     "lines": [
+      {
+       "who": "caption",
+       "name": null,
+       "kind": "caption",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "La pluie te trouve en montant du métro Jacques‑Bonsergent : il est 18h10, vent et gouttes frappent ta valise.",
+       "text_native": null
+      }
+     ],
+     "generated": true
+    },
+    {
+     "kind": "panel",
+     "id": "a.p2",
+     "visual": "Interior of Le Mistral at dusk, learner seen from behind in the doorway; warm counter light contrasts with wet street outside; Gus (augustin_de_roncourt) in mid-performance on a small stool with a paper prop, Marin (marin_leveque) at the corner table stirring a bowl, Lila (lila_bonnet) perched on a chair with a smirk, Margaux (margaux_barman) polishing glasses behind the zinc, all in motion but none looking at the door.",
+     "location_id": "le_mistral",
+     "in_frame": [
+      "augustin_de_roncourt",
+      "lila_bonnet",
+      "margaux_barman",
+      "marin_leveque"
+     ],
+     "silence": false,
+     "flashback": false,
+     "diegetic": [],
+     "balloon": false,
+     "lines": [
+      {
+       "who": "augustin_de_roncourt",
+       "name": "Augustin « Gus » de Roncourt",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Si je dis que le duc avait tort, ça me donne des points d'originalité au quiz ?",
+       "text_native": null
+      },
+      {
+       "who": "marin_leveque",
+       "name": "Marin Lévêque",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Ma grand‑mère disait toujours : 'Un cerveau bien nourri, c'est moins de panique aux questions simples.'",
+       "text_native": null
+      },
+      {
+       "who": "lila_bonnet",
+       "name": "Lila Bonnet",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Tu joues la comédie pour masquer que tu as révisé en cachette, Gus.",
+       "text_native": null
+      },
+      {
+       "who": "margaux_barman",
+       "name": "Margaux",
+       "kind": "speech",
+       "mood": "neutral",
+       "direction": null,
+       "text_fr": "Vingt et une. Et pas un mot de triche.",
+       "text_native": null
+      }
+     ],
+     "generated": true
+    }
+   ]
+  }
+ ]
+}
