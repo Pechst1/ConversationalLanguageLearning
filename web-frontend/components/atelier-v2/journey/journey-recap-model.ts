@@ -215,7 +215,7 @@ export function rewardView(
     facts,
     freezeNote: freezeUsed ? recapStatusCopy(language).freeze_used : null,
     words,
-    face: faceOf(recap, journey, language),
+    face: withoutTeaserLine(faceOf(recap, journey, language), partial ? null : teaser),
     // A keepsake is a completed day's; an early stop never shows one.
     keepsake: partial ? null : recap.keepsake ?? null,
     teaser: partial ? null : teaser,
@@ -225,6 +225,23 @@ export function rewardView(
     practiceHref: firstPractice?.practice_href ?? null,
     practiceLabelFr: firstPractice?.target.label_fr ?? null,
   };
+}
+
+/** Letters only, case-folded: «À suivre… » and «à suivre...» are the same line. */
+function sameLine(a: string, b: string): boolean {
+  const fold = (t: string) =>
+    t.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return fold(a) !== '' && fold(a) === fold(b);
+}
+
+/**
+ * The episode's closing line is often both the character's callback and
+ * tomorrow's teaser (day 1: «Deux clés pour la même porte. À suivre…»). Said
+ * once, under «Tomorrow»; the character's card keeps the face and the name.
+ */
+function withoutTeaserLine(face: RecapFace | null, teaser: RecapTeaser | null): RecapFace | null {
+  if (!face?.lineFr || !teaser?.text_fr || !sameLine(face.lineFr, teaser.text_fr)) return face;
+  return { ...face, lineFr: null };
 }
 
 /** «22 sept.» for the keepsake caption. `null` for an unreadable date. */

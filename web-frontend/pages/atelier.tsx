@@ -5532,7 +5532,10 @@ function AtelierStyles() {
       @media (max-width: 760px) {
         .atelier-page {
           background-image: none;
-          overflow-x: hidden;
+          /* clip, not hidden: hidden makes this a scroll container, and the home's
+             sticky tab bar then pins to a box that never scrolls — below the fold
+             on any phone shorter than the page (iPhone Safari, 2026-10-09). */
+          overflow-x: clip;
         }
         .spread {
           padding-left: 16px;

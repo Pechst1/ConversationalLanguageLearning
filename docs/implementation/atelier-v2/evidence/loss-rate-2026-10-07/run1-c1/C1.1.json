@@ -1,0 +1,425 @@
+{
+ "band": "C1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.25779900000000006,
+  "calls": 83,
+  "cap": 0.25
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "Romy et la petite enquête",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "L'enquête se resserre",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La lettre de Romy",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La clé d'Odile — lettre de Romy",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La lettre de Romy",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La clé d'Odile — réponse écrite",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le billet à déplacer",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le plan d'Odile",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La permission",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.1 twice; accepted and logged (Terminer la page par une action ou une parole du lecteur (ou une réaction claire) pour créer un changement visible — actuellement tout reste en suspens.; Montrer concrètement la conséquence immédiate du choix (par ex. Romy note ta position, promet de ne pas publier, ou annonce qu'elle ira vérifier s)",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.2 twice; accepted and logged (Make Gus use 'vous' (he still uses 'vous' until T3); revise his lines to respect his registered speech.; Ensure Margaux keeps very few words (she should remain terse) if any added lines are considered.)",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.4 twice; accepted and logged (Donne une différence visible à la fin de la page — montre la décision écrite (envoyée, signée ou refusée) ou un autre objet/situation déplacé pour créer un vrai changement.; Respecte la prémisse «le billet» : soit montre l'appel à la compagnie et le déplacement du billet, soit aligner la journée sur)"
+ ],
+ "refusals": [
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_register_vous",
+   "hint": "Romy says «tu» to the learner in this season, but here says «vous»: «C'est vous, l'héritage ?». Rewrite Romy's lines with tu (tu, toi, ton, ta): from someone who knows the learner, a «vous» reads as a stranger's. Keep the narration's address the same as theirs.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "La journaliste et la plaque",
+    "dramatic_question": "Que dira Romy si vous lui dites ce que vous pensez de Solvel et pourquoi vous êtes resté ?",
+    "open_question": "Ta grand-mère t'a laissé l'étage au-dessus du Mistral, et avec lui le feu qui a pris en dessous. Tu le gardes, tu le partages, ou tu le laisses filer ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Dites à Romy qui vous êtes et dites clairement ce que vous pensez de Solvel, en donnant au moins une raison courte.",
+    "objective_words": 22,
+    "panels": 5,
+    "premise_id": "romy_enquete"
+   }
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_register_vous",
+   "hint": "Romy says «tu» to the learner in this season, but here says «vous»: «C'est vous, l'héritage ? Et qu'est-ce que vous pensez de Solvel, franchement ?». Rewrite Romy's lines with tu (tu, toi, ton, ta): from someone who knows the learner, a «vous» reads as a stranger's. Keep the narration's address the same as theirs.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "La première impression",
+    "dramatic_question": "Que diras-tu au journaliste quand elle te demande ce que tu veux faire de l'héritage ?",
+    "open_question": "Ta grand-mère t'a laissé l'étage au-dessus du Mistral, et avec lui le feu qui a pris en dessous. Tu le gardes, tu le partages, ou tu le laisses filer ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Explique à Romy qui tu es et défends ta position sur Solvel en donnant au moins un argument concret et pourquoi cela compte pour toi.",
+    "objective_words": 25,
+    "panels": 5,
+    "premise_id": "romy_enquete"
+   }
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "story_critic_refused",
+   "hint": "Terminer la page par une action ou une parole du lecteur (ou une réaction claire) pour créer un changement visible — actuellement tout reste en suspens. | Montrer concrètement la conséquence immédiate du choix (par ex. Romy note ta position, promet de ne pas publier, ou annonce qu'elle ira vérifier sa source) pour rendre le tournant effectif.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "L'enquête de Romy",
+    "dramatic_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "open_question": "Ta grand-mère t'a laissé l'étage au-dessus du Mistral, et avec lui le feu qui a pris en dessous. Tu le gardes, tu le partages, ou tu le laisses filer ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Dis à Romy qui tu es et donne-lui ta position sur Solvel, en expliquant brièvement pourquoi tu restes ici et ce que tu crains si Solvel prend le quartier.",
+    "objective_words": 29,
+    "panels": 5,
+    "premise_id": "romy_enquete"
+   }
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "L'enquête de Romy",
+    "dramatic_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "open_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Acceptez ou refusez que Romy publie votre nom, et proposez une condition claire si vous demandez l'anonymat (où, comment, et pourquoi).",
+    "objective_words": 21,
+    "panels": 5,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "story_critic_refused",
+   "hint": "Make Gus use 'vous' (he still uses 'vous' until T3); revise his lines to respect his registered speech. | Ensure Margaux keeps very few words (she should remain terse) if any added lines are considered.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "L'enquête de Romy",
+    "dramatic_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "open_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Défends ta décision : dis si Romy peut publier le nom de la source ou non, donne une raison concrète et propose une condition précise si tu veux qu'elle enquêt…",
+    "objective_words": 34,
+    "panels": 5,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "position": "g1.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "story_critic_refused",
+   "hint": "Ajoute une action visible qui change l'état avant la fin de la page : montre la réponse du lecteur (même brève) ou un message envoyé conditionnel qui modifie la situation. | Termine la page par la conséquence immédiate de cette réponse (par exemple : Romy range son carnet et part ce soir, ou Romy range puis promet d'attendre) afin de concrétiser le «À suivre…».",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "L'enquête de Romy",
+    "dramatic_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "open_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Rédigez, en français, un court message adressé à Romy qui dit si elle peut publier le nom de la source ou non, motive votre choix (une phrase), et pose une con…",
+    "objective_words": 40,
+    "panels": 5,
+    "premise_id": "romy_enquete"
+   }
+  },
+  {
+   "position": "g1.4",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "setting_not_rotated",
+   "hint": "romy_tremblay at le_mistral has carried the last three situations. Choose another character or another location: unused characters ['lila_bonnet', 'marin_leveque', 'margaux_barman', 'landlord_marchand', 'mme_diallo', 'maitre_vasseur', 'bastien_roux'], unused locations ['user_apartment', 'marin_lila_flat', 'newsroom', 'ngo_office', 'marche_canal', 'buttes_chaumont', 'metro_platform', 'gus_loft', 'brocante', 'odile_flat', 'stairwell', 'mistral_back_room', 'quai_de_valmy', 'marchand_office', 'mairie', 'notaire', 'gare_de_lest', 'rue_de_lancry', 'boulangerie', 'ecole', 'toit'].",
+   "draft": {
+    "beat": "resolution",
+    "required_beat": [
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "L'enquête de Romy",
+    "dramatic_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "open_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Écris à Romy que tu refuses la publication du nom maintenant, propose une condition précise pour autoriser la publication plus tard, et explique brièvement pou…",
+    "objective_words": 33,
+    "panels": 5,
+    "premise_id": "le_billet"
+   }
+  },
+  {
+   "position": "g1.4",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "story_critic_refused",
+   "hint": "Donne une différence visible à la fin de la page — montre la décision écrite (envoyée, signée ou refusée) ou un autre objet/situation déplacé pour créer un vrai changement. | Respecte la prémisse «le billet» : soit montre l'appel à la compagnie et le déplacement du billet, soit aligner la journée sur la tâche écrite sans prétendre satisfaire la prémisse. | Montre la coach Lila qui complique l'appel (si tu keep the airline beat) — sa mauvaise aide doit être visible. | Ne laisse pas la page promettre que Romy «a ta décision écrite» si la scène n'inclut pas l'envoi ou la signature effective.",
+   "draft": {
+    "beat": "resolution",
+    "required_beat": [
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "L'enquête de Romy",
+    "dramatic_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "open_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Écris à Romy une réponse claire : dis si elle peut nommer la source maintenant ou seulement après vérification, propose une condition précise pour la protéger,…",
+    "objective_words": 34,
+    "panels": 5,
+    "premise_id": "le_billet"
+   }
+  },
+  {
+   "position": "g1.5",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_required_moment",
+   "hint": "Today this gap stages «Romy enquête» (season_script.brief.today.required_premise): write that day, and set season_checklist.premise_id to 'romy_enquete'.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Rester une nuit de plus ?",
+    "dramatic_question": "Si tu bouges ton billet, resteras-tu pour aider et prendre un risque social, ou partiras-tu comme prévu ?",
+    "open_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Appelle la compagnie aérienne, demande le report de ton billet et explique brièvement pourquoi tu dois rester; propose une date alternative et une condition si…",
+    "objective_words": 26,
+    "panels": 5,
+    "premise_id": "le_billet"
+   }
+  },
+  {
+   "position": "g1.5",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "stale_problem",
+   "hint": "A new chapter needs a new practical problem; \"romy_wants_identity_and_opinion\" was already played (['romy_wants_identity_and_opinion', 'romy_wants_identity_and_opinion', 'romy_wants_identity_and_opinion', 'romy_wants_identity_and_opinion']). Start from another arc's next stage or another open thread, in a different part of this life — or, if this problem is genuinely getting WORSE because of something that happened, bring it back once as an escalation by setting escalates_ref to the consequence or unpaid plant that made it worse: ['journey:3941be4f-3e99-4b27-88b9-a79f189fa190:story:branch:0',…",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Le choix au zinc",
+    "dramatic_question": "Vas-tu dire à Romy qui tu es et ce que tu veux qu'elle fasse de son enquête ?",
+    "open_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Dis à Romy qui tu es, donne ton avis sur Solvel et explique brièvement pourquoi tu restes ici et ce que tu crains si Solvel prend le quartier.",
+    "objective_words": 28,
+    "panels": 5,
+    "premise_id": "romy_enquete"
+   }
+  },
+  {
+   "position": "g1.5",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"tu\" while the character speaks to them as \"vous\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Donner la parole ?",
+    "dramatic_question": "Permettez-vous à Romy d'interviewer les habitués du Mistral, et à quelles conditions protégez-vous le groupe ?",
+    "open_question": "Romy veut une histoire propre : vas-tu lui donner un témoignage utile ou conserver le secret du quartier ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Dites à Romy si elle peut interviewer les habitués du Mistral, proposez une condition claire pour protéger le groupe, et expliquez brièvement pourquoi vous imp…",
+    "objective_words": 33,
+    "panels": 5,
+    "premise_id": "romy_enquete"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "story_critic_refused": 4,
+  "season_register_vous": 2,
+  "mixed_address_register": 2,
+  "setting_not_rotated": 1,
+  "season_required_moment": 1,
+  "stale_problem": 1
+ }
+}

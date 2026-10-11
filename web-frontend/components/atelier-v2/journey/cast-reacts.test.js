@@ -59,6 +59,19 @@ const EN = journeyCopy('en');
 const h = React.createElement;
 const read = (file) => fs.readFileSync(path.join(WEB_ROOT, file), 'utf8');
 
+// WP-116 phase 6: the drawn cast is the default. Assertions about the painted
+// portraits pin the painted set; each has its drawn counterpart beside it.
+const launchFlags = require(path.join(WEB_ROOT, 'launch-flags.json'));
+function withArtSet(value, fn) {
+  const before = launchFlags.artSet;
+  launchFlags.artSet = value;
+  try {
+    return fn();
+  } finally {
+    launchFlags.artSet = before;
+  }
+}
+
 // ===========================================================================
 // 1. Where the face lives
 // ===========================================================================
@@ -132,7 +145,7 @@ const graded = (verdict) => ({
   replySource: 'unknown',
 });
 
-test('the character line sits in the bubble beside their face, which never reacts to a verdict', () => {
+test('the character line sits in the bubble beside their face, which never reacts to a verdict', () => withArtSet('painted', () => {
   const idle = renderToStaticMarkup(h(steps.RespondStepView, respondProps(respondStep())));
   assert.match(idle, /class="av2-speech" data-mood="neutral"/);
   assert.match(idle, /av2-speech__bubble"><h2 class="av2-headline" lang="fr">Alors, vous prenez quoi\u202f\?<\/h2>/);
@@ -153,7 +166,21 @@ test('the character line sits in the bubble beside their face, which never react
   );
   assert.ok(stranger.includes('av2-speech'), 'a stranger still speaks in the bubble');
   assert.ok(!stranger.includes('.webp'), 'with the initial disc, never a borrowed face');
-});
+}));
+
+test('drawn: the speaker’s rig sits beside the bubble, neutral whatever the verdict', () => withArtSet('drawn', () => {
+  const idle = renderToStaticMarkup(h(steps.RespondStepView, respondProps(respondStep())));
+  assert.match(idle, /class="av2-speech" data-mood="neutral"/);
+  assert.equal(idle.split('data-cast="marin_leveque"').length - 1, 1, 'one drawn face for the speaker');
+  assert.match(idle, /data-cast="marin_leveque" data-mood="neutre"/);
+  assert.ok(!idle.includes('.webp'), 'no painted portrait in the drawn set');
+  const right = renderToStaticMarkup(h(steps.RespondStepView, respondProps(respondStep(), graded('correct'))));
+  assert.match(right, /data-cast="marin_leveque" data-mood="neutre"/);
+  const stranger = renderToStaticMarkup(
+    h(steps.RespondStepView, respondProps(respondStep({ character_id: 'clerk', character_name: 'Clerk' }))),
+  );
+  assert.ok(!stranger.includes('data-cast='), 'a stranger keeps the initial');
+}));
 
 test('a letter day keeps its subject headline and gets no bubble', () => {
   const html = renderToStaticMarkup(
@@ -227,11 +254,18 @@ test('the recap puts the mood in a chip beside the face and the callback line', 
     mood: { character_id: 'marin', character_name: 'Marin', mood: 1, shift: 'warmer' },
     story_outcome: { callback_fr: 'Marin garde votre table.' },
   };
-  const html = renderToStaticMarkup(h(JourneyRecap, { journey, recap, language: 'fr' }));
-  const face = html.slice(html.indexOf('av2-reward__face'));
+  const painted = withArtSet('painted', () => renderToStaticMarkup(h(JourneyRecap, { journey, recap, language: 'fr' })));
+  const face = painted.slice(painted.indexOf('av2-reward__face'));
   assert.ok(face.includes('portrait-happy.webp'));
   assert.match(face, /av2-reward__mood" data-mood="up"><span class="av2-chip">/);
   assert.ok(face.includes('Marin garde votre table.'));
+
+  const drawn = withArtSet('drawn', () => renderToStaticMarkup(h(JourneyRecap, { journey, recap, language: 'fr' })));
+  const drawnFace = drawn.slice(drawn.indexOf('av2-reward__face'));
+  assert.match(drawnFace, /data-cast="marin_leveque" data-mood="ravie"/, 'the drawn face is pleased too');
+  assert.ok(!drawnFace.includes('.webp'));
+  assert.match(drawnFace, /av2-reward__mood" data-mood="up"><span class="av2-chip">/);
+  assert.ok(drawnFace.includes('Marin garde votre table.'));
 });
 
 // ===========================================================================
@@ -290,13 +324,22 @@ test('a mould is hidden from assistive tech; placed words are selected tiles, re
 // ===========================================================================
 
 test('the envelope is shapes and tokens only, sealed with the sender’s ringed face', () => {
-  const html = renderToStaticMarkup(h(courrier.CrEnvelope, { senderId: 'marin_leveque', senderName: 'Marin' }));
+  const html = withArtSet('painted', () => renderToStaticMarkup(h(courrier.CrEnvelope, { senderId: 'marin_leveque', senderName: 'Marin' })));
   assert.match(html, /role="img" aria-label="Une lettre scellée, de Marin"/);
   assert.ok(html.includes('class="cr-env-body"') && html.includes('class="cr-env-flap"') && html.includes('class="cr-env-stamp"'));
   assert.ok(!/stroke/i.test(html.replace(/<style[\s\S]*?<\/style>/g, '')), 'no shape is outlined');
   assert.ok(html.includes('data-edge="char"') && html.includes('marin_leveque/portrait-neutral.webp'));
   const images = html.match(/<img /g) || [];
   assert.equal(images.length, 1, 'the only image is the sender’s face; the envelope is drawn');
+
+  // Drawn: the seal holds the sender's rig in the same ring; the envelope's own shapes stay unoutlined.
+  const drawn = withArtSet('drawn', () => renderToStaticMarkup(h(courrier.CrEnvelope, { senderId: 'marin_leveque', senderName: 'Marin' })));
+  const envelopeArt = drawn.slice(drawn.indexOf('<svg class="cr-env-art"'), drawn.indexOf('</svg>') + 6);
+  assert.ok(envelopeArt.includes('class="cr-env-body"') && !/stroke/i.test(envelopeArt), 'no envelope shape is outlined');
+  const seal = drawn.slice(drawn.indexOf('class="cr-env-seal"'));
+  assert.match(seal, /data-edge="char" data-art="drawn" style="[^"]*--av2-char:var\(--char-marin/, 'ringed in Marin’s accent');
+  assert.match(seal, /data-cast="marin_leveque" data-mood="neutre"/);
+  assert.ok(!/<img /.test(drawn), 'no painted image in the drawn set');
 
   const styles = renderToStaticMarkup(h(courrier.CrEnvelopeStyles));
   assert.ok(!/#[0-9a-f]{3,8}\b/i.test(styles), 'no hex colour: tokens only, so dark mode follows');

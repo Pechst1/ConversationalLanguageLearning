@@ -996,6 +996,13 @@ export interface paths {
          *     priced pilot-cost row (`app.services.transcription_cost`). Nothing here
          *     scores pronunciation — the transcript is graded as text, exactly like a
          *     typed answer.
+         *
+         *     WP-158: ``surface="story_reply"`` is a spoken answer to a story character.
+         *     It must name its journey and step; the flag, the ownership, the 30-second
+         *     cap and the per-turn cost ceiling are checked before any provider call
+         *     (`app.services.spoken_reply`), and the row is booked against the turn. The
+         *     transcript is returned, never submitted: the client sends it through the
+         *     same reply endpoint as a typed answer.
          */
         post: operations["transcribe_audio_api_v1_audio_transcribe_post"];
         delete?: never;
@@ -5991,6 +5998,8 @@ export interface components {
              * @default false
              */
             pending: boolean;
+            /** Repeat Line Fr */
+            repeat_line_fr: string | null;
             /**
              * Reply Source
              * @default none
@@ -6265,6 +6274,10 @@ export interface components {
              * Format: binary
              */
             file: string;
+            /** Journey Id */
+            journey_id?: string | null;
+            /** Step Id */
+            step_id?: string | null;
             /**
              * Surface
              * @default unknown
@@ -10729,6 +10742,11 @@ export interface components {
             objective_native: string;
             /** Repair Allowed */
             repair_allowed: boolean;
+            /**
+             * Spoken Reply
+             * @default false
+             */
+            spoken_reply: boolean;
             /** Targets */
             targets: components["schemas"]["TargetRef"][];
             /** Thread */
@@ -22299,6 +22317,8 @@ export interface operations {
             query?: {
                 /** @description Optional card direction filter; defaults to the learner's stored direction */
                 direction?: string | null;
+                /** @description WP-154: the word drill's own deck. `session` serves the rest of the batch dealt today (a new one once it is answered); `more` appends the «Encore N mots» continuation. */
+                drill?: string | null;
                 due_limit?: number;
                 feuilleton_scene_id?: string | null;
                 fragile_limit?: number;

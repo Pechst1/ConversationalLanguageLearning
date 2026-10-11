@@ -237,6 +237,9 @@ export type LexiqueCopy = {
   done_aria: string;
   done_label: string;
   done_title: string;
+  /** «5 more minutes» opened a deck with nothing due: nothing was cleared. */
+  encore_empty_title: string;
+  encore_empty_body: string;
   returning: string;
   refresh: string;
   // the conjugation drill (vocabulary/conjugation.tsx)
@@ -476,6 +479,8 @@ const EN: LexiqueCopy = {
   done_aria: 'End of the review',
   done_label: 'Spaced review',
   done_title: 'Deck cleared',
+  encore_empty_title: 'Nothing to review yet',
+  encore_empty_body: 'Today’s words come back for review in a day or two. The story goes on tomorrow.',
   returning: 'Going back…',
   refresh: 'Refresh',
   conj_head_title: 'Cahier · Conjugation · L’Atelier',
@@ -713,6 +718,8 @@ const DE: LexiqueCopy = {
   done_aria: 'Ende der Wiederholung',
   done_label: 'Verteilte Wiederholung',
   done_title: 'Stapel geschafft',
+  encore_empty_title: 'Noch nichts zu wiederholen',
+  encore_empty_body: 'Die Wörter von heute kommen in ein, zwei Tagen zur Wiederholung zurück. Die Geschichte geht morgen weiter.',
   returning: 'Zurück…',
   refresh: 'Aktualisieren',
   conj_head_title: 'Cahier · Konjugation · L’Atelier',
@@ -950,6 +957,8 @@ const FR: LexiqueCopy = {
   done_aria: 'Fin de la révision',
   done_label: 'Révision espacée',
   done_title: 'Paquet vidé',
+  encore_empty_title: 'Rien à revoir pour l’instant',
+  encore_empty_body: 'Les mots d’aujourd’hui reviendront en révision d’ici un jour ou deux. L’histoire continue demain.',
   returning: 'Retour…',
   refresh: 'Actualiser',
   conj_head_title: 'Le Cahier · Conjugaison · L’Atelier',

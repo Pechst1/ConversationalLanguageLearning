@@ -115,7 +115,7 @@ from app.db.models.session import (
     WordInteraction,
 )
 from app.db.models.streak_day import StreakDay
-from app.db.models.vocabulary import UserDailyWordSlate
+from app.db.models.vocabulary import UserDailyWordSlate, VocabularyDrillBatch
 from app.main import create_app
 from app.utils.cache import cache_backend
 
@@ -273,6 +273,7 @@ def db_engine():
             UserErrorConcept.__table__,
             UserVocabularyProgress.__table__,
             UserDailyWordSlate.__table__,
+            VocabularyDrillBatch.__table__,
             ReviewLog.__table__,
             LearningSession.__table__,
             ConversationMessage.__table__,
@@ -299,6 +300,7 @@ def db_engine():
                 ConversationMessage.__table__,
                 LearningSession.__table__,
                 ReviewLog.__table__,
+                VocabularyDrillBatch.__table__,
                 UserDailyWordSlate.__table__,
                 UserVocabularyProgress.__table__,
                 AnalyticsSnapshot.__table__,

@@ -16,6 +16,9 @@ Two guards stand behind that brief:
   no spoiler. «Episodes without meaningful change are refused»: a refusal gets ONE
   retry with the critic's words; a second refusal is accepted and logged
   (``journey_story_critic_override``) — a learner never loses a day to the critic.
+  WP-149: that holds for *storytelling* refusals only. A refusal that names a
+  correctness defect (the register canon, the flags, a spoiler —
+  ``canon_guards.review_class``) is never served; the day falls to the re-read.
 """
 
 from __future__ import annotations
@@ -143,6 +146,16 @@ Score each rubric item true or false:
   it, a relationship ignores what the learner chose.
 - obstacle_faced: when today.open_obstacle is set (yesterday's complication), the page
   shows it still in the way and someone deals with it, visibly. True when it is null.
+  The learner's task counts: a page whose learner_turn.task asks the learner to deal
+  with the obstacle faces it.
+The page is not the whole day (learner_turn). It ends where the learner answers: the
+learner never has a line on the page, and their reply, the character's answer and the
+day's ending come after the last panel. learner_turn.planned_change is the change that
+exchange is planned to make. Judge meaningful_change and value_turn on the page PLUS
+that planned exchange: a page that sets up a concrete decision the learner's reply
+settles (the ticket moved or kept, the letter answered or not) is a change. Never ask
+for the learner's reply, words or decision to appear on the page; refuse only when even
+the planned exchange would leave the day as it began.
 Write change_summary as «before → after» in one sentence. issues: one short sentence per
 failed item, written as an instruction for a rewrite. accepted is true only when
 meaningful_change, in_character, honours_choices and obstacle_faced are true and
@@ -211,8 +224,42 @@ def _facts(gap: Gap, flags: dict[str, Any]) -> list[str]:
     return facts
 
 
+def upcoming_reveals(season: Season, gap_id: str) -> list[Forbidden]:
+    """WP-155: the reveals of every tentpole still ahead of this gap (T5's Berlin for
+    gaps 1–4). They belong with the tentpole that owns them, not copied gap by gap."""
+
+    index = next((i for i, seg in enumerate(season.segments) if seg.id == gap_id), None)
+    if index is None:
+        return []
+    return [
+        row
+        for seg in season.segments[index + 1 :]
+        if seg.kind == "tentpole" and seg.id in season.tentpoles
+        for row in season.tentpoles[seg.id].reveals
+    ]
+
+
+def _all_rows(gap: Gap, season: Season) -> list[Forbidden]:
+    return [*season.global_must_not, *gap.must_not, *upcoming_reveals(season, gap.id)]
+
+
 def _must_not(gap: Gap, season: Season, flags: dict[str, Any]) -> list[Forbidden]:
-    return [row for row in [*season.global_must_not, *gap.must_not] if not (row.unless and holds(row.unless, flags))]
+    return [row for row in _all_rows(gap, season) if not (row.unless and holds(row.unless, flags))]
+
+
+def rows_by_id(season: Season, gap_id: str, ids: list[str]) -> list[Forbidden]:
+    """The forbidden rows a turn was given by id (``story.season_turn.must_not``)."""
+
+    gap = season.gaps.get(gap_id)
+    rows = {row.id: row for row in (_all_rows(gap, season) if gap else season.global_must_not)}
+    return [rows[row_id] for row_id in ids if row_id in rows]
+
+
+def must_not_rows(season: Season, gap_id: str, flags: dict[str, Any]) -> list[Forbidden]:
+    """Today's forbidden reveals for a gap (global, the gap's own, the tentpoles ahead)."""
+
+    gap = season.gaps.get(gap_id)
+    return _must_not(gap, season, flags) if gap is not None else []
 
 
 #: T-2: how a generated day is built at each band. The scene guard enforces the
@@ -354,14 +401,24 @@ def forbidden_hits(season: Season, gap_id: str, texts: list[str], *, flags: dict
     gap = season.gaps.get(gap_id)
     if gap is None:
         return []
+    return pattern_hits(_must_not(gap, season, flags), texts)
+
+
+def pattern_hits(rows: list[Forbidden], texts: list[str]) -> list[tuple[str, str]]:
+    """``(row id, matched text)`` per row that matches; a word one row already caught
+    (a gap's own «Berlin» row, then T5's reveal) is named once."""
+
     hits: list[tuple[str, str]] = []
-    for row in _must_not(gap, season, flags):
+    seen: set[str] = set()
+    for row in rows:
         for pattern in row.patterns:
             regex = re.compile(pattern, re.IGNORECASE)
             for text in texts:
                 match = regex.search(str(text or ""))
                 if match:
-                    hits.append((row.id, match.group(0)))
+                    if match.group(0).casefold() not in seen:
+                        seen.add(match.group(0).casefold())
+                        hits.append((row.id, match.group(0)))
                     break
             else:
                 continue
@@ -371,7 +428,7 @@ def forbidden_hits(season: Season, gap_id: str, texts: list[str], *, flags: dict
 
 def forbidden_hint(season: Season, gap_id: str, hits: list[tuple[str, str]]) -> str:
     gap = season.gaps.get(gap_id)
-    rows = {row.id: row.text for row in [*season.global_must_not, *(gap.must_not if gap else [])]}
+    rows = {row.id: row.text for row in (_all_rows(gap, season) if gap else season.global_must_not)}
     parts = [f"«{text}» breaks a rule of the season ({rows.get(key, key)})" for key, text in hits]
     return "; ".join(parts) + ". Rewrite the day without it: hint at most, never reveal."
 
@@ -408,6 +465,26 @@ def critic_payload(brief: dict[str, Any], draft: dict[str, Any]) -> dict[str, An
                 "season_checklist",
             )
         },
+        # WP-149 §B.3: the page with its learner-turn structure. The WP-136 read had
+        # the critic refuse pages that end on the learner's task for showing «no
+        # visible change» — five of its ten refusals asked for the learner's own reply
+        # on the page, which the learner never has. The change comes after the page.
+        "learner_turn": learner_turn(draft),
+    }
+
+
+def learner_turn(draft: dict[str, Any]) -> dict[str, Any]:
+    """What happens after the last panel: the learner's task, whom they answer, and
+    the change the director planned that exchange to make (its checklist)."""
+
+    checklist = draft.get("season_checklist") or {}
+    return {
+        "page_ends_on_learner_turn": True,
+        "task": draft.get("objective_native"),
+        "answers": draft.get("character_id"),
+        "character_asks_fr": draft.get("opening_line_fr"),
+        "turn_want": checklist.get("turn_want") or None,
+        "planned_change": checklist.get("change_after") or None,
     }
 
 

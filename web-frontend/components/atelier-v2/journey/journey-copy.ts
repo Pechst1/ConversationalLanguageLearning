@@ -228,7 +228,17 @@ export type JourneyCopyKey =
   | 'radio_text_show'
   | 'radio_text_hide'
   | 'radio_task_label'
-  | 'radio_task_question';
+  | 'radio_task_question'
+  // WP-158 «Parler» in the story reply, and the one line to repeat after it.
+  | 'spoken_listening'
+  | 'spoken_confirm'
+  | 'spoken_confirm_countdown'
+  | 'spoken_sent'
+  | 'spoken_ceiling'
+  | 'spoken_too_long'
+  | 'repeat_title'
+  | 'repeat_hint'
+  | 'repeat_listen';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -420,6 +430,15 @@ const EN: CopyTable = {
   radio_text_hide: 'Hide the text',
   radio_task_label: 'Your listening question',
   radio_task_question: 'How does it end?',
+  spoken_listening: 'Listening — {seconds} s left',
+  spoken_confirm: 'Is that right?',
+  spoken_confirm_countdown: 'Sending in {seconds} s. Touch the text to correct it first.',
+  spoken_sent: 'Sent as you said it.',
+  spoken_ceiling: 'This turn has used its spoken attempts. Your turn is still open — type your reply.',
+  spoken_too_long: 'That was longer than thirty seconds. Your turn is still open — try a shorter answer.',
+  repeat_title: 'One line to say aloud',
+  repeat_hint: 'Listen, then say it once out loud.',
+  repeat_listen: 'Listen',
 };
 
 const DE: CopyTable = {
@@ -610,6 +629,15 @@ const DE: CopyTable = {
   radio_text_hide: 'Text verbergen',
   radio_task_label: 'Deine Hörfrage',
   radio_task_question: 'Wie geht es aus?',
+  spoken_listening: 'Ich höre zu — noch {seconds} s',
+  spoken_confirm: 'Stimmt das?',
+  spoken_confirm_countdown: 'Wird in {seconds} s gesendet. Tippe auf den Text, um ihn vorher zu korrigieren.',
+  spoken_sent: 'So gesendet, wie du es gesagt hast.',
+  spoken_ceiling: 'Für diesen Zug sind die gesprochenen Versuche aufgebraucht. Du bist noch dran — schreib deine Antwort.',
+  spoken_too_long: 'Das war länger als dreißig Sekunden. Du bist noch dran — versuch es kürzer.',
+  repeat_title: 'Ein Satz zum Nachsprechen',
+  repeat_hint: 'Anhören, dann einmal laut sagen.',
+  repeat_listen: 'Anhören',
 };
 
 const FR: CopyTable = {
@@ -800,6 +828,15 @@ const FR: CopyTable = {
   radio_text_hide: 'Masquer le texte',
   radio_task_label: 'Votre question d’écoute',
   radio_task_question: 'Comment ça finit ?',
+  spoken_listening: 'Je vous écoute — encore {seconds} s',
+  spoken_confirm: 'C’est bien ça ?',
+  spoken_confirm_countdown: 'Envoi dans {seconds} s. Touchez le texte pour le corriger avant.',
+  spoken_sent: 'Envoyé tel que vous l’avez dit.',
+  spoken_ceiling: 'Ce tour a épuisé ses essais à voix haute. C’est toujours votre tour — répondez par écrit.',
+  spoken_too_long: 'C’était plus long que trente secondes. C’est toujours votre tour — essayez plus court.',
+  repeat_title: 'Une phrase à redire',
+  repeat_hint: 'Écoutez-la, puis dites-la une fois à voix haute.',
+  repeat_listen: 'Écouter',
 };
 
 const TABLES: Record<ControlLanguage, CopyTable> = { en: EN, de: DE, fr: FR };

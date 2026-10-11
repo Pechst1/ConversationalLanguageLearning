@@ -79,3 +79,76 @@
 .cast-rig.cast-face .cast-rig__idle {
   animation: none;
 }
+
+/* WP-143 «One stage, one light» (components/cast/PanelStage.tsx, lib/stage-grade.ts).
+   The colours below are the plate's, set by the stage as custom properties; nothing
+   here is a token. Each rig is drawn through the stage's SVG filter (grade + rim). */
+.cast-stage__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* fill framing: whole figures (the full crop, 200 × 420). */
+.cast-stage__figure[data-crop='full'] {
+  aspect-ratio: 200 / 420;
+}
+
+/* The cast shadow: the figure's own silhouette, in the plate's shadow tone, thrown
+   away from the plate's light. */
+.cast-stage[data-lit] .cast-stage__figure > .cast-rig,
+.cast-stage[data-lit] .cast-stage__figure--you .cast-rig {
+  filter: drop-shadow(var(--stage-shadow-x, 4px) var(--stage-shadow-y, 3px) 5px var(--stage-shadow, transparent));
+  transition: filter 0.32s ease-out;
+}
+
+/* The contact shadow: where the figure meets the ground (or the frame's bottom edge). */
+.cast-stage[data-lit] .cast-stage__figure::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 8%;
+  right: 8%;
+  bottom: -3%;
+  height: 9%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--stage-contact, transparent), transparent);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.cast-stage[data-lit] .cast-stage__figure[data-crop='full']::before {
+  bottom: -2%;
+  height: 4.5%;
+  left: 14%;
+  right: 14%;
+}
+
+/* The paper: one grain over plate and cast alike, as strong as the plate's own texture
+   (procedural noise, rasterised once; overlay keeps the mean tone). */
+.cast-stage__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: var(--stage-grain, 0.16);
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  transition: opacity 0.32s ease-out;
+}
+
+/* Depth of field: the plate behind the speakers, a touch soft. The plate is the stage's
+   sibling (the reader's and the Revue's <img>); a pending plate keeps its own filter. */
+:where(*):has(> .cast-stage[data-dof]) > img {
+  filter: blur(0.6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cast-stage[data-lit] .cast-stage__figure > .cast-rig,
+  .cast-stage[data-lit] .cast-stage__figure--you .cast-rig,
+  .cast-stage__grain {
+    transition: none;
+  }
+}

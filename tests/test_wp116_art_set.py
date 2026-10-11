@@ -10,7 +10,7 @@ from app.services import panel_art, serial_notifications
 REPO = Path(__file__).resolve().parents[1]
 
 
-def test_pushes_use_the_painted_face_by_default_and_the_drawn_png_when_drawn(monkeypatch):
+def test_pushes_use_the_painted_face_when_painted_and_the_drawn_png_when_drawn(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_ART_SET", "painted")
     assert serial_notifications.portrait_path("marin", "happy") == "/assets/serial/characters/marin_leveque/portrait-happy.webp"
     monkeypatch.setattr(settings, "ATELIER_ART_SET", "drawn")
@@ -22,6 +22,13 @@ def test_pushes_use_the_painted_face_by_default_and_the_drawn_png_when_drawn(mon
             drawn = serial_notifications.portrait_path(key, face)
             assert (REPO / "web-frontend/public" / drawn.lstrip("/")).exists(), drawn
     assert serial_notifications.portrait_path("bastien", "happy") is None
+
+
+def test_the_drawn_set_is_the_default_and_painted_stays_a_setting():
+    """WP-116 phase 6 (owner 2026-10-08): drawn by default; phase 7 (removing painted) is separate."""
+    from app.config import Settings
+
+    assert Settings.model_fields["ATELIER_ART_SET"].default == "drawn"
 
 
 def test_drawn_set_switches_paid_panel_drawing_off(monkeypatch):

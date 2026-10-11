@@ -1,0 +1,314 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "spend": null,
+ "weaves": [
+  {
+   "unit": "Le plus-que-parfait : le passé du passé",
+   "title": "La dispute (0)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le plus-que-parfait : le passé du passé",
+   "title": "La dispute (1)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Raconter : imparfait, passé composé, plus-que-parfait",
+   "title": "Chez le notaire (2)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Raconter : imparfait, passé composé, plus-que-parfait",
+   "title": "Chez le notaire (3)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le conditionnel présent : formes et emplois",
+   "title": "Vous (4)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le conditionnel présent : formes et emplois",
+   "title": "Vous (5)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Si + présent, futur : conditions réelles",
+   "title": "Jour 6 (6)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Si + présent, futur : conditions réelles",
+   "title": "Jour 7 (7)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Si + imparfait, conditionnel : conditions imaginées",
+   "title": "Jour 8 (8)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Si + imparfait, conditionnel : conditions imaginées",
+   "title": "Jour 9 (9)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Si + imparfait, conditionnel : conditions imaginées",
+   "title": "Jour 11 (11)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  }
+ ],
+ "failures": [],
+ "refusals": [
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Le plus-que-parfait : le passé du passé») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Quand Léa est arrivée, ses amis étaient déjà partis.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "two_hander",
+    "chapter_title_fr": "Entre-deux 0",
+    "dramatic_question": "Comment organiser cette exposition ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "margaux_barman"
+    ],
+    "objective_native": "Offer your help for the exhibition, name the part you would take on, and settle when you could start.",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": "la_dispute"
+   }
+  },
+  {
+   "position": "g4.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Raconter : imparfait, passé composé, plus-que-parfait») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Il pleuvait quand je suis sorti, et j'avais oublié mon parapluie.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; marin_leveque is this rule's coach: give marin_leveque one of those lines.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "two_hander",
+    "chapter_title_fr": "Entre-deux 1",
+    "dramatic_question": "Qui gardera le chat pendant le week-end ?",
+    "open_question": "Qui gardera le chat pendant le week-end ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "marin_leveque"
+    ],
+    "objective_native": "Ask what the bike costs, bargain politely about its worn tyres, and agree on a fair sum before leaving.",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": "chez_le_notaire"
+   }
+  },
+  {
+   "position": "g4.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Le conditionnel présent : formes et emplois») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Je voudrais bien partir, mais ce serait trop cher.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "resolution",
+    "required_beat": [
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "two_hander",
+    "chapter_title_fr": "Entre-deux 1",
+    "dramatic_question": "Qui gardera le chat pendant le week-end ?",
+    "open_question": "Qui gardera le chat pendant le week-end ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "romy_tremblay"
+    ],
+    "objective_native": "Say whether you will come to Friday's games night, justify your answer, and react to the pressure to change your mind.",
+    "objective_words": 21,
+    "panels": 4,
+    "premise_id": "vous"
+   }
+  },
+  {
+   "position": "g4.4",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Si + présent, futur : conditions réelles») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «S'il fait beau samedi, nous irons à la plage.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; lila_bonnet is this rule's coach: give lila_bonnet one of those lines.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 6",
+    "dramatic_question": "Les poubelles seront-elles descendues à temps ?",
+    "open_question": "Qui gardera le chat pendant le week-end ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet"
+    ],
+    "objective_native": "Accept or decline looking after the cat this weekend, give a convincing reason, and offer an alternative arrangement.",
+    "objective_words": 18,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.5",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Si + imparfait, conditionnel : conditions imaginées») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Si j'étais toi, je prendrais ce poste.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 7",
+    "dramatic_question": "Que devient le chien perdu de la boulangerie ?",
+    "open_question": "Que devient le chien perdu de la boulangerie ?",
+    "character_id": "augustin_de_roncourt",
+    "speakers": [
+     "augustin_de_roncourt"
+    ],
+    "objective_native": "Describe the lost dog in detail, say where you last saw it, and convince someone sceptical to help you search.",
+    "objective_words": 20,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "repeated_situation",
+   "hint": "this premise repeats \"Le four du café est en panne le jour du marché.\". Do not reword it: invent a different communicative need. Objectives already used: ['Propose another time for the market morning and defend it against the objection that Saturday suits everybody better.', 'Explain where the misdelivered parcel went, admit your part in the mix-up, and propose how to put things right.', 'Question a neighbour about the flooded cellar, find out who is responsible, and suggest what everyone should do next.', 'Negotiate a time for taking down the bins, explain your constraints, and reach a compr…",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 7",
+    "dramatic_question": "Que devient le chien perdu de la boulangerie ?",
+    "open_question": "Que devient le chien perdu de la boulangerie ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "margaux_barman"
+    ],
+    "objective_native": "Propose another time for the market morning and defend it against the objection that Saturday suits everybody better.",
+    "objective_words": 18,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Si + imparfait, conditionnel : conditions imaginées») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Si j'étais toi, je prendrais ce poste.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; lila_bonnet is this rule's coach: give lila_bonnet one of those lines.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 7",
+    "dramatic_question": "Que devient le chien perdu de la boulangerie ?",
+    "open_question": "Que devient le chien perdu de la boulangerie ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet"
+    ],
+    "objective_native": "Ask what the bike costs, bargain politely about its worn tyres, and agree on a fair sum before leaving.",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "repeated_situation",
+   "hint": "this premise repeats \"Le facteur a livré un colis pour quelqu'un d'autre.\". Do not reword it: invent a different communicative need. Objectives already used: ['Propose another time for the market morning and defend it against the objection that Saturday suits everybody better.', 'Explain where the misdelivered parcel went, admit your part in the mix-up, and propose how to put things right.', 'Question a neighbour about the flooded cellar, find out who is responsible, and suggest what everyone should do next.', 'Negotiate a time for taking down the bins, explain your constraints, and reach a c…",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 7",
+    "dramatic_question": "Que devient le chien perdu de la boulangerie ?",
+    "open_question": "Que devient le chien perdu de la boulangerie ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "marin_leveque"
+    ],
+    "objective_native": "Explain where the misdelivered parcel went, admit your part in the mix-up, and propose how to put things right.",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": null
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "grammar_not_woven": 6,
+  "repeated_situation": 2
+ }
+}

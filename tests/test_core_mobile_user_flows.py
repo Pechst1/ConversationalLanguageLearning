@@ -140,7 +140,8 @@ def test_atelier_is_the_daily_session_and_review_handoff_center() -> None:
     assert "aria-label={t.progress_aria}" in vocabulary_review
     assert "progress_aria: 'Progression de la révision'" in lexique_copy
     assert "VocabularyReviewContinuation" in vocabulary_review
-    assert "{t.done_title}" in vocabulary_review
+    # The empty encore deck has its own title (2026-10-09); a cleared deck keeps «Paquet vidé».
+    assert "nothingDue ? t.encore_empty_title : t.done_title" in vocabulary_review
     assert "done_title: 'Paquet vidé'" in lexique_copy
     assert "Vocabulary review" not in vocabulary_review + lexique_copy
     assert "onReturn" in vocabulary_review

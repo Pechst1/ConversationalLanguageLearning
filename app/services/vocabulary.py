@@ -96,8 +96,36 @@ class VocabularyService:
                 stmt = stmt.where(VocabularyWord.language == language)
             word = self.db.scalars(stmt.limit(1)).first()
         if not word:
+            word = self._lemma_row(value, language)
+        if not word:
             raise VocabularyNotFoundError("Vocabulary word not found")
         return word
+
+    def _lemma_row(self, value: str, language: str | None) -> VocabularyWord | None:
+        """An inflected form the catalogue has no row for («venez», «étais») is the
+        lemma's word (owner decision 2026-10-08: a word kept at its form is the
+        lemma's card, the form is context). The curated form table first, then the
+        lemma candidates (spaCy, cached), the first one the catalogue has."""
+
+        if language and not str(language).lower().startswith("fr"):
+            return None
+        try:
+            from app.services.lexical_coverage import default_resolver, fold, load_lexicon
+
+            key = fold(value)
+            ordered = [load_lexicon().forms.get(key), *default_resolver().candidates(key)]
+        except Exception:  # pragma: no cover - a broken pipeline is a miss, not an error
+            return None
+        candidates = [c for c in dict.fromkeys(ordered) if c and c != value and len(c) > 1]
+        if not candidates or " " in value:
+            return None
+        stmt = select(VocabularyWord).where(func.lower(VocabularyWord.word).in_(candidates))
+        if language:
+            stmt = stmt.where(VocabularyWord.language == language)
+        rows: dict[str, VocabularyWord] = {}
+        for row in self.db.scalars(stmt.order_by(VocabularyWord.id)):
+            rows.setdefault(str(row.word).lower(), row)
+        return next((rows[c] for c in candidates if c in rows), None)
 
 
 def _normalize(value: str) -> str:

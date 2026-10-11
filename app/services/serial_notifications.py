@@ -325,7 +325,7 @@ def drawn_art() -> bool:
 
     from app.config import settings
 
-    return str(getattr(settings, "ATELIER_ART_SET", "painted") or "").strip().lower() == "drawn"
+    return str(getattr(settings, "ATELIER_ART_SET", "drawn") or "").strip().lower() == "drawn"
 
 
 #: The drawn faces every cast member has (``portrait-<face>.webp``).

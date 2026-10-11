@@ -868,6 +868,9 @@ export interface VocabularyDueContextParams extends VocabularyRecommendationPara
   linked_word_ids?: number[] | string;
   mission_id?: string;
   feuilleton_scene_id?: string;
+  /** WP-154: the drill page's own deck — `session` serves the rest of the batch
+   *  dealt today, `more` appends the «Encore N mots» continuation to it. */
+  drill?: 'session' | 'more';
 }
 
 export type VocabularyWord = components['schemas']['VocabularyWordRead'];
@@ -3047,10 +3050,20 @@ class ApiService {
    * for the daily journey's default output). It is cost attribution only —
    * nothing about the transcription itself changes with it.
    */
-  async transcribeAudio(audioBlob: Blob, surface?: string): Promise<string> {
+  async transcribeAudio(
+    audioBlob: Blob,
+    surface?: string,
+    // WP-158: a spoken story reply names its turn, so the server can check the
+    // flag, the owner and the per-turn cost ceiling before transcribing.
+    context?: { journeyId: string; stepId: string },
+  ): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, audioUploadFilename(audioBlob));
     if (surface) formData.append('surface', surface);
+    if (context) {
+      formData.append('journey_id', context.journeyId);
+      formData.append('step_id', context.stepId);
+    }
 
     const response = await this.api.post<{ text: string }>('/audio/transcribe', formData, {
       headers: {

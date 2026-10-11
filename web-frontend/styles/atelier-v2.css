@@ -1896,6 +1896,25 @@
   box-shadow: none !important;
   background-color: var(--av2-card);
 }
+/* Mobile Safari (2026-10-09, iOS 26 simulator): two quick taps on «Next» or
+   «Send» zoomed the whole page, and a field under 16px («small» text setting)
+   zoomed on focus — and stayed zoomed after the keyboard closed. `manipulation`
+   ends double-tap zoom on controls only; pinch zoom stays. The 16px floor is for
+   iOS only (`-webkit-touch-callout` exists nowhere else); the shell already pins
+   the scale. */
+.av2 button,
+.av2 a,
+.av2 [role='button'],
+.av2 label {
+  touch-action: manipulation;
+}
+@supports (-webkit-touch-callout: none) {
+  .av2 input,
+  .av2 select,
+  .av2 textarea {
+    font-size: max(16px, 1em);
+  }
+}
 .av2 input:focus,
 .av2 select:focus,
 .av2 textarea:focus,

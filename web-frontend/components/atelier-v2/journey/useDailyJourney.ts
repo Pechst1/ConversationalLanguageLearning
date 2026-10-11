@@ -791,7 +791,12 @@ export function useDailyJourney(
 
   const retryLastAnswer = useCallback(async () => {
     const last = lastAttemptRef.current;
-    if (!last) return;
+    if (!last) {
+      // After a reload there is no answer to resend: the failure was the recovery's
+      // advance. Clearing the error lets it run again (review on #65).
+      if (mountedRef.current) setFeedback({ kind: 'idle' });
+      return;
+    }
     await performAttempt(last.journeyId, last.stepId, last.expectedRevision, last.input);
   }, [performAttempt]);
 
@@ -940,6 +945,33 @@ export function useDailyJourney(
       await finishSnapshot(advanced, 'complete');
     }
   }, [advance, feedback, finishSnapshot]);
+
+  // A current step the server already completed, with no verdict on screen: the
+  // learner answered and then reloaded, closed the app, or answered on another
+  // device before «Continue». The verdict and its «Continue» were local state, so
+  // the step re-rendered unanswerable — a second «Check» met «This scene moved
+  // on», whose «Continue» refreshed to the same step, for the rest of the day
+  // (iPhone + browser, 2026-10-09). Move on once, against this snapshot.
+  const resumedPastRef = useRef<string | null>(null);
+  useEffect(() => {
+    const step = currentStepOf(journey);
+    if (!journey || journey.status !== 'active' || !step || step.status !== 'completed') return;
+    // «reconciled» too: a step another device completed comes back with that
+    // notice, and a «Check» on it is refused (409) every time (two-device walk).
+    if ((feedback.kind !== 'idle' && feedback.kind !== 'reconciled') || busy) return;
+    const key = `${journey.id}:${step.id}:${journey.revision}`;
+    if (resumedPastRef.current === key) return;
+    resumedPastRef.current = key;
+    void continueJourney().finally(() => {
+      // Still on the same completed step: the advance failed (a transport error, a
+      // refusal). Forget the attempt so the next idle moment — the learner's
+      // «Retry», a refresh — tries again; the error on screen stops a hot loop.
+      const now = currentStepOf(journeyRef.current);
+      if (now && now.id === step.id && now.status === 'completed' && journeyRef.current?.revision === journey.revision) {
+        resumedPastRef.current = null;
+      }
+    });
+  }, [busy, continueJourney, feedback.kind, journey]);
 
   const pause = useCallback(async () => {
     const target = journey;

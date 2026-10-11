@@ -295,11 +295,11 @@ def keep_word(
         progress.provenance_ref = str(existing.id)
     if not progress.context:
         # WP-115a: the first meeting is the one a review brings back.
-        # WP-138: the form as printed, so a conjugated or plural keep finds its own
-        # line on the drill's «scene» rung (the lemma is not in it as written).
-        progress.context = met_context(
-            sentence=sentence, journey_id=journey_id, met={**(met or {}), "surface": surface}, now=now
-        )
+        progress.context = met_context(sentence=sentence, journey_id=journey_id, met=met, now=now)
+        # Owner decision 2026-10-08: the form the word had in the line («venez» for
+        # «venir») is context, not a new item — the scene card blanks it.
+        if surface:
+            progress.context = {**progress.context, "surface_fr": surface}
     db.flush()
     return KeptWord(
         word_id=int(word.id),
@@ -427,7 +427,15 @@ def catalogue_row_for(
     ).all()
     rows = [row for row in rows if not is_polluted_mission_word(row)]
     if not rows:
-        return None
+        # An inflected form the catalogue has no row for («venez») is the lemma's
+        # word (#59, owner decision 2026-10-08); its rows are ranked the same way.
+        from app.services.vocabulary import VocabularyService
+
+        lemma_row = VocabularyService(db)._lemma_row(value, language)
+        lemma = " ".join(str(getattr(lemma_row, "word", "") or "").split()).lower()
+        if not lemma or lemma == value:
+            return None
+        return catalogue_row_for(db, term=lemma, language=language, native=native)
     preferred = normalize_language(native)
 
     def rank(row: VocabularyWord) -> tuple[int, int, int, int]:

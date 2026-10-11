@@ -50,6 +50,8 @@ export type ReaderCopy = {
   art_missing: string;
   /** WP-137 C-5: the caption of a panel where nobody speaks (a beat on a detail). */
   silent_beat: string;
+  /** WP-144: the sheet that holds the lines a full-bleed panel had no room for. */
+  sheet_label: string;
   answer_sent: string;
   verdict_branch: string;
   verdict_ok: string;
@@ -134,6 +136,7 @@ const FR: ReaderCopy = {
   art_printing: 'L’illustration de cette planche est encore sous presse. Le texte est complet.',
   art_missing: 'Cette planche est parue sans illustration.',
   silent_beat: 'Un silence.',
+  sheet_label: 'Suite de la case',
   answer_sent: 'Votre réponse, déjà envoyée',
   verdict_branch: 'Choix pris en compte',
   verdict_ok: 'Acceptée',
@@ -203,6 +206,7 @@ const EN: ReaderCopy = {
   art_printing: 'This panel’s picture is still being drawn. The text is complete.',
   art_missing: 'This panel came out without a picture.',
   silent_beat: 'A moment of silence.',
+  sheet_label: 'More of this panel',
   answer_sent: 'Your answer, already sent',
   verdict_branch: 'Choice noted',
   verdict_ok: 'Accepted',
@@ -272,6 +276,7 @@ const DE: ReaderCopy = {
   art_printing: 'Das Bild zu dieser Szene wird noch gezeichnet. Der Text ist vollständig.',
   art_missing: 'Dieses Bild ist ohne Illustration erschienen.',
   silent_beat: 'Einen Moment lang Stille.',
+  sheet_label: 'Mehr aus diesem Bild',
   answer_sent: 'Deine Antwort, schon gesendet',
   verdict_branch: 'Wahl übernommen',
   verdict_ok: 'Angenommen',

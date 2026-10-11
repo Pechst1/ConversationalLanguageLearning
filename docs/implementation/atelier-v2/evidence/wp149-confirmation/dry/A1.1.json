@@ -1,0 +1,284 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": null,
+ "weaves": [
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Le billet (0)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Le billet (1)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "Le dîner raté (2)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "Le dîner raté (4)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "Je peux ? (5)",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Un, une, des : les articles indéfinis",
+   "title": "Je peux ? (6)",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Pour son anniversaire (7)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Pour son anniversaire (9)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  }
+ ],
+ "failures": [
+  "living_story: every SceneDraft attempt refused (dry_run_forced): dry_run_forced",
+  "daily_journey: season day lost (dry_run_forced); journey 658de0ea-3cc0-4669-804a-bd2c3404c3d4 re-reads t1.b",
+  "living_story: every SceneDraft attempt refused (dry_run_forced): dry_run_forced",
+  "daily_journey: season day lost (dry_run_forced, 2 in a row in g1); journey a3a5ee27-1668-4f94-aebb-571e7788ff25 serves the bridge g1.2"
+ ],
+ "refusals": [
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Je suis, tu es : les pronoms et être») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Je suis au café. Et toi, tu es où ?»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; margaux_barman is this rule's coach: give margaux_barman one of those lines.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 0",
+    "dramatic_question": "Comment organiser cette exposition ?",
+    "open_question": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement po…",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "margaux_barman"
+    ],
+    "objective_native": "Offer your help for the exhibition.",
+    "objective_words": 6,
+    "panels": 4,
+    "premise_id": "le_billet"
+   }
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.2",
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Il y a : ce qui existe ici») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Dans la rue, il y a une boulangerie et deux cafés.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 2",
+    "dramatic_question": "Faut-il vendre le vieux vélo du voisin ?",
+    "open_question": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement po…",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "marin_leveque"
+    ],
+    "objective_native": "Ask the price of the bike.",
+    "objective_words": 6,
+    "panels": 4,
+    "premise_id": "le_diner_rate"
+   }
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "canon_register",
+   "hint": "Gus says «vous» to the learner at this point of the season, but here says «tu»: «Tu en penses quoi ?». Rewrite Gus's lines with vous (vous, votre, vos), and the narration's address with them. The season decides when Gus moves to tu; a generated day never does.",
+   "draft": {
+    "beat": null,
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 3",
+    "dramatic_question": "Le colis perdu arrivera-t-il chez son destinataire ?",
+    "open_question": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement po…",
+    "character_id": "augustin_de_roncourt",
+    "speakers": [
+     "augustin_de_roncourt"
+    ],
+    "objective_native": "Explain where the parcel went.",
+    "objective_words": 5,
+    "panels": 4,
+    "premise_id": "le_diner_rate"
+   }
+  },
+  {
+   "position": "g2.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Un, une, des : les articles indéfinis») is said 1 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Il y a un croissant, une tarte et des macarons.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; margaux_barman is this rule's coach: give margaux_barman one of those lines.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 4",
+    "dramatic_question": "Qui viendra à la soirée jeux de vendredi ?",
+    "open_question": "Qui viendra à la soirée jeux de vendredi ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "margaux_barman"
+    ],
+    "objective_native": "Ask a neighbour about the flooded cellar.",
+    "objective_words": 7,
+    "panels": 4,
+    "premise_id": "je_peux"
+   }
+  },
+  {
+   "position": "g2.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Le, la, l', les : les articles définis») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «J'aime le thé, mais je déteste l'eau gazeuse et les sodas.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 4",
+    "dramatic_question": "Qui viendra à la soirée jeux de vendredi ?",
+    "open_question": "Qui viendra à la soirée jeux de vendredi ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "marin_leveque"
+    ],
+    "objective_native": "Agree a time for the bins.",
+    "objective_words": 6,
+    "panels": 4,
+    "premise_id": "pour_son_anniversaire"
+   }
+  },
+  {
+   "position": "g2.3",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "canon_register",
+   "hint": "Gus says «vous» to the learner at this point of the season, but here says «tu»: «Tu en penses quoi ?». Rewrite Gus's lines with vous (vous, votre, vos), and the narration's address with them. The season decides when Gus moves to tu; a generated day never does.",
+   "draft": {
+    "beat": null,
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "standard",
+    "chapter_title_fr": "Entre-deux 4",
+    "dramatic_question": "Qui viendra à la soirée jeux de vendredi ?",
+    "open_question": "Qui viendra à la soirée jeux de vendredi ?",
+    "character_id": "augustin_de_roncourt",
+    "speakers": [
+     "augustin_de_roncourt"
+    ],
+    "objective_native": "Describe the lost dog.",
+    "objective_words": 4,
+    "panels": 4,
+    "premise_id": "pour_son_anniversaire"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "dry_run_forced": 6,
+  "grammar_not_woven": 4,
+  "canon_register": 2
+ }
+}

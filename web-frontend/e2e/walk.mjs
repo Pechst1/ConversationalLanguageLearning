@@ -132,8 +132,19 @@ async function playDayInner(l, day) {
         + `WHERE user_id = '${l.userId}' AND context IS NULL`,
       );
     }
+    // The deck as the page receives it: rescue cards (words that don't stick) open
+    // it by design, then the story's lines — so «the first card» is not the question.
+    const deckResponse = walk.page
+      .waitForResponse((r) => r.url().includes('/vocabulary/due-context') && r.request().method() === 'GET', { timeout: 30000 })
+      .then((r) => r.json(), () => null);
     await walk.visit('/vocabulary/review', 'drill');
-    const rung = await walk.page.locator('.lx-card').first().getAttribute('data-mode').catch(() => null);
+    const deck = await deckResponse;
+    // Its own list: this check must not lean on another package's constant.
+    const keptDeckLists = ['due_words', 'fragile_words', 'linked_words', 'topic_compatible_words', 'new_words'];
+    const deckItems = deck ? keptDeckLists.flatMap((list) => deck[list] || []) : [];
+    const keptIdsOnDeck = new Set(walk.keptWordIds || []);
+    const keptCard = deckItems.find((item) => keptIdsOnDeck.has(item.word_id));
+    const rung = keptCard ? keptCard.ladder || null : null;
     const kept = walk.keptWords || [];
     const first = await walk.page.locator('.lx-card .lx-card__word').first().innerText().catch(() => '');
     // A word is kept only with a meaning in the learner's own language, and the core
@@ -146,10 +157,13 @@ async function playDayInner(l, day) {
       findings.check(
         'drill-brings-a-kept-word-back-on-its-line',
         rung === 'scene',
-        `the drill's first card («${first.replace(/\s+/g, ' ').trim().slice(0, 60)}») is on the «${rung}» rung; kept on the walk: ${kept.map((w) => `«${w}»`).join(', ')}`,
+        keptCard
+          ? `the kept word's card is on the «${rung}» rung, not its scene line; kept on the walk: ${kept.map((w) => `«${w}»`).join(', ')}`
+          : `no kept word on the drill's deck (${deckItems.length} cards; first «${first.replace(/\s+/g, ' ').trim().slice(0, 60)}»); kept on the walk: ${kept.map((w) => `«${w}»`).join(', ')}`,
         walk.where({ kind: 'drill' }),
       );
     }
+    await drillReloadKeepsTheBatch(l);
     await walk.visit('/settings?section=practice', 'settings');
     const caps = walk.page.locator('#st-reviews-label');
     const shown = await caps.count().then((n) => n > 0, () => false);
@@ -164,6 +178,71 @@ async function playDayInner(l, day) {
     await walk.visit('/graphic-novel', 'feuilleton');
   }
   timings.push({ label, day, seconds: +((Date.now() - d0) / 1000).toFixed(1) });
+}
+
+// WP-154: a reload mid-drill shows the rest of the batch the drill dealt, in the same
+// order — never new words in the slots of the cards already answered. The deck is read
+// off the page's own due-context responses (the page renders one card at a time); three
+// cards are answered through the page's own buttons.
+const DECK_LISTS = ['due_words', 'fragile_words', 'linked_words', 'topic_compatible_words', 'new_words'];
+
+async function drillReloadKeepsTheBatch(l) {
+  const { walk } = l;
+  const page = walk.page;
+  const where = walk.where({ kind: 'drill' });
+  const deckResponse = () => page.waitForResponse(
+    (r) => r.url().includes('/vocabulary/due-context') && r.request().method() === 'GET',
+    { timeout: 30000 },
+  );
+  const reload = async () => {
+    const waiting = deckResponse();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const response = await waiting;
+    await page.locator('.lx-card').first().waitFor({ timeout: 20000 }).catch(() => {});
+    await sleep(800);
+    return { url: response.url(), deck: await response.json() };
+  };
+  const ids = (deck) => Object.fromEntries(DECK_LISTS.map((name) => [name, (deck[name] || []).map((w) => w.word_id)]));
+  const word = () => page.locator('.lx-card .lx-card__word').first().innerText().then((t) => t.replace(/\s+/g, ' ').trim(), () => '');
+
+  const before = await reload();
+  findings.check('drill-asks-for-its-batch', /[?&]drill=session\b/.test(before.url), `the drill's deck request carries no drill=session: ${before.url.slice(0, 160)}`, where);
+  const dealt = ids(before.deck);
+  const size = DECK_LISTS.reduce((n, name) => n + dealt[name].length, 0);
+  if (size < 4) {
+    console.log(`[walk] ${l.label}: drill-reload check skipped, the deck holds ${size} cards`);
+    return;
+  }
+  const answered = [];
+  for (let i = 0; i < 3; i += 1) {
+    const filed = page.waitForRequest(
+      (r) => r.url().includes('/anki/review') && r.method() === 'POST',
+      { timeout: 20000 },
+    );
+    // A grade on an unturned card turns it; the second press files it (on a graded
+    // card the second press is its one «next» button).
+    await page.locator('.lx-review__foot .lx-rate').last().click();
+    await sleep(300);
+    await page.locator('.lx-review__foot .lx-rate').last().click();
+    const request = await filed;
+    answered.push(Number(JSON.parse(request.postData() || '{}').word_id));
+    await page.waitForResponse((r) => r.url().includes('/anki/review'), { timeout: 20000 }).catch(() => {});
+    await sleep(600);
+  }
+  const shownBefore = await word();
+  const after = await reload();
+  const kept = ids(after.deck);
+  const expected = Object.fromEntries(DECK_LISTS.map((name) => [name, dealt[name].filter((id) => !answered.includes(id))]));
+  const same = DECK_LISTS.every((name) => JSON.stringify(kept[name]) === JSON.stringify(expected[name]));
+  findings.check(
+    'drill-reload-keeps-the-batch',
+    same,
+    `answered ${answered.join(', ')}; expected ${JSON.stringify(expected)}, the reload served ${JSON.stringify(kept)}`,
+    where,
+  );
+  const shownAfter = await word();
+  findings.check('drill-reload-resumes-on-the-same-card', shownAfter === shownBefore, `before the reload «${shownBefore}», after «${shownAfter}»`, where);
+  await walk.shoot('drill-after-reload');
 }
 
 // WP-110: a whole episode reads as one page on a phone, with the learner's lines in it.
@@ -205,7 +284,9 @@ const SEASON_PAGES = [
 
 function seasonChecks(l) {
   for (const page of SEASON_PAGES) {
-    const where = (l.pages || []).filter((row) => row.text.includes(page.line)).map((row) => row.day);
+    // French print sets the apostrophe as ’ (lib/french-typography); the bible writes '.
+    const fold = (text) => text.replace(/[’ʼ]/g, "'");
+    const where = (l.pages || []).filter((row) => fold(row.text).includes(fold(page.line))).map((row) => row.day);
     findings.check(
       'season-tentpole-on-its-day',
       where.length >= 1 && where.every((day) => page.days.includes(day)) && new Set(where).size === 1,

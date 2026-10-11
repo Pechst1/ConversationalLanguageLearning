@@ -25,6 +25,9 @@ const HIGH_PUNCT_GLUED = /([A-Za-zÀ-ÖØ-öø-ÿŒœ])([!?;])/g;
 // A guillemet glued to its word: «Bonjour» → « Bonjour »
 const OPEN_QUOTE_GLUED = /«(?=[^\s ])/g;
 const CLOSE_QUOTE_GLUED = /([^\s ])»/g;
+// WP-144b: a typewriter apostrophe between two letters («d'Odile») is set as the
+// typographic one («d’Odile»), as French print does.
+const STRAIGHT_APOSTROPHE = /([A-Za-zÀ-ÖØ-öø-ÿŒœ])'(?=[A-Za-zÀ-ÖØ-öø-ÿŒœ])/g;
 
 /**
  * Put a narrow no-break space before « ; : ! ? » and inside « ». Non-strings
@@ -33,6 +36,7 @@ const CLOSE_QUOTE_GLUED = /([^\s ])»/g;
 export function frenchSpacing(text: string | null | undefined): string {
   if (typeof text !== 'string' || !text) return '';
   return text
+    .replace(STRAIGHT_APOSTROPHE, '$1’')
     .replace(SPACE_BEFORE_HIGH_PUNCT, `${NNBSP}$1`)
     .replace(HIGH_PUNCT_GLUED, `$1${NNBSP}$2`)
     .replace(SPACE_AFTER_OPEN_QUOTE, `«${NNBSP}`)

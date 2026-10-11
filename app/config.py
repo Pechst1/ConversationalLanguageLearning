@@ -357,7 +357,7 @@ class Settings(BaseSettings):
         description="Generate Feuilleton panel images through OpenAI. When false, deterministic SVG panels are used.",
     )
     ATELIER_ART_SET: str = Field(
-        "painted",
+        "drawn",
         description=(
             "WP-116: which art set shows the cast. 'painted' keeps the painted portraits and panel art; "
             "'drawn' uses the SVG rigs over the location plates, sends the drawn PNG faces in pushes, "
@@ -504,6 +504,40 @@ class Settings(BaseSettings):
             "read, no speech call is made, and the scene is read as text as before."
         ),
     )
+    # ---- WP-158: speaking inside the story (begin) ----------------------------
+    ATELIER_SPOKEN_REPLY_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-158: offer «Parler» beside the text field of a story reply. The learner "
+            "records up to 30 s, the recording is transcribed through POST "
+            "/audio/transcribe (surface story_reply) and the transcript is sent through "
+            "the same reply endpoint as a typed answer, so grading and the met-gate are "
+            "unchanged. Off: the story_reply surface is refused and nothing is offered."
+        ),
+    )
+    ATELIER_SPOKEN_REPLY_MAX_SECONDS: float = Field(
+        35.0,
+        description=(
+            "WP-158: the longest recording one spoken story turn may upload, in estimated "
+            "seconds (the client stops at 30 s; the margin absorbs container overhead)."
+        ),
+    )
+    ATELIER_SPOKEN_REPLY_MAX_USD_PER_TURN: float = Field(
+        0.012,
+        description=(
+            "WP-158: the cost ceiling of one story turn's transcriptions, estimated as "
+            "WP-27 prices them (about four 30 s recordings at whisper-1 rates). Above it "
+            "the upload is refused before any provider call and the turn stays typed."
+        ),
+    )
+    ATELIER_FAKE_TRANSCRIBER_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-158: transcribe with the deterministic fake transcriber instead of a "
+            "provider (dev stacks and tests only; refused in production)."
+        ),
+    )
+    # ---- WP-158 (end) ------------------------------------------------------------
     SERIAL_WORLD_ENABLED: bool = Field(
         False,
         description="Enable the serial Missions x Feuilleton spine. Defaults dark for staged rollout.",

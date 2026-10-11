@@ -97,6 +97,7 @@ function recallStep(extra: Partial<RecallStep['prompt']>): RecallStep {
 function respondPrompt(extra: Partial<RespondPrompt>): RespondPrompt {
   return {
     choices: [],
+    spoken_reply: false,
     turn_index: 1,
     max_turns: 3,
     repair_allowed: true,

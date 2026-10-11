@@ -2,6 +2,7 @@
  * WP-119 §8.3 · `hold: 'notebook'`, the first authored prop (WP-116 §12.3 tier 1): her right
  * hand leaves the camera and lifts a reporter's notebook to her chest; the camera hangs on its
  * strap in the left hand. Head, face, mouth and crops never change. */
+import React from 'react';
 import { circles, dots } from '../rig-kit';
 import type { RigDef, RigValues } from '../rig-kit';
 

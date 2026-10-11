@@ -61,7 +61,12 @@ from app.db.models.session import (
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
 from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
-from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
+from app.db.models.vocabulary import (
+    UserConjugationProgress,
+    VerbConjugation,
+    VocabularyDrillBatch,
+    VocabularyWord,
+)
 
 __all__ = [
     "RevueSession",
@@ -75,6 +80,7 @@ __all__ = [
     "StreakDay",
     "RefreshToken",
     "VocabularyWord",
+    "VocabularyDrillBatch",
     "VerbConjugation",
     "UserConjugationProgress",
     "UserVocabularyProgress",

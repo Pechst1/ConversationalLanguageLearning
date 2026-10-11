@@ -51,7 +51,10 @@ def test_a_kept_word_first_comes_back_in_its_own_line():
     kept = {"sentence_fr": "Tu as vu la serrure ?", "speaker_id": "margaux_barman", "line_key": "p3:l0"}
     first = card_ladder(_progress(reps=1, context=kept), WORD, level="A2")
     assert first["ladder"] == "scene"
-    assert first["scene_cue"] == {"sentence_fr": "Tu as vu la _____ ?", "speaker_id": "margaux_barman", "line_key": "p3:l0"}
+    assert first["scene_cue"] == {
+        "sentence_fr": "Tu as vu la _____ ?", "speaker_id": "margaux_barman", "line_key": "p3:l0",
+        "expected_fr": "serrure", "hint_fr": None,
+    }
     later = card_ladder(_progress(reps=3, stability=40.0, context=kept), WORD, level="A2")
     assert later["ladder"] == "cloze" and later["scene_cue"] is None, "from the third review: new contexts"
 
@@ -59,12 +62,16 @@ def test_a_kept_word_first_comes_back_in_its_own_line():
 def test_a_kept_conjugated_verb_comes_back_in_its_own_line():
     # WP-138: «vends» was tapped, the catalogue row is «vendre»; the line holds the former.
     verb = SimpleNamespace(word="vendre", example_sentence="")
-    kept = {"sentence_fr": "Je vends mon vélo demain.", "surface": "vends"}
+    kept = {"sentence_fr": "Je vends mon vélo demain.", "surface_fr": "vends"}
     card = card_ladder(_progress(reps=1, context=kept), verb, level="A1")
     assert card["ladder"] == "scene"
     assert card["scene_cue"]["sentence_fr"] == "Je _____ mon vélo demain."
-    older = {"sentence_fr": "Je vends mon vélo demain."}  # kept before the form was stored
-    assert card_ladder(_progress(reps=1, context=older), verb, level="A1")["ladder"] != "scene"
+    # Kept before the form was stored: #59's scene_form derives «vends» from the
+    # line itself, so an older keep comes back on its line too (it did not under #58).
+    older = {"sentence_fr": "Je vends mon vélo demain."}
+    again = card_ladder(_progress(reps=1, context=older), verb, level="A1")
+    assert again["ladder"] == "scene"
+    assert again["scene_cue"]["sentence_fr"] == "Je _____ mon vélo demain."
 
 
 def test_a_leech_changes_method_not_frequency():

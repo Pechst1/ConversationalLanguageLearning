@@ -1,0 +1,55 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "spend": null,
+ "weaves": [
+  {
+   "unit": "Le plus-que-parfait : le passé du passé",
+   "title": "La dispute (0)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le plus-que-parfait : le passé du passé",
+   "title": "La dispute (1)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  }
+ ],
+ "failures": [],
+ "refusals": [
+  {
+   "position": "g4.6",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Le plus-que-parfait : le passé du passé») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Quand Léa est arrivée, ses amis étaient déjà partis.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "Entre-deux 0",
+    "dramatic_question": "Comment organiser cette exposition ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "margaux_barman"
+    ],
+    "objective_native": "Offer your help for the exhibition, name the part you would take on, and settle when you could start.",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": "la_dispute"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "grammar_not_woven": 1
+ }
+}

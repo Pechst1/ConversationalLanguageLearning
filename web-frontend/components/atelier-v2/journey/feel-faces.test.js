@@ -61,6 +61,19 @@ const ui = require('@/components/atelier-v2/ui');
 
 const EN = journeyCopy('en');
 
+// WP-116 phase 6: the drawn cast is the default. Assertions about the painted
+// portraits pin the painted set; each has its drawn counterpart beside it.
+const launchFlags = require(path.join(WEB_ROOT, 'launch-flags.json'));
+function withArtSet(value, fn) {
+  const before = launchFlags.artSet;
+  launchFlags.artSet = value;
+  try {
+    return fn();
+  } finally {
+    launchFlags.artSet = before;
+  }
+}
+
 // --- the server's recipe, re-implemented independently -------------------
 const SALT = '0123456789abcdef0123456789abcdef';
 const sha = (text) => crypto.createHash('sha256').update(text, 'utf8').digest('hex');
@@ -346,10 +359,16 @@ test('the verdict band is focusable and carries the character’s reacting face'
         speaker: { id: 'marin', name: 'Marin' },
       }),
     );
-  const right = graded('correct');
+  const right = withArtSet('painted', () => graded('correct'));
   assert.ok(right.includes('tabindex="-1"'), 'the band can take focus for a screen reader');
   assert.ok(right.includes('marin_leveque/portrait-happy.webp'), 'pleased when it lands');
-  assert.ok(graded('wrong').includes('marin_leveque/portrait-cross.webp'), 'cross when it misses');
+  assert.ok(withArtSet('painted', () => graded('wrong')).includes('marin_leveque/portrait-cross.webp'), 'cross when it misses');
+  // Drawn: the rig reacts — pleased when it lands, surprised (never angry) when it misses.
+  const drawnRight = withArtSet('drawn', () => graded('correct'));
+  assert.ok(drawnRight.includes('tabindex="-1"'));
+  assert.match(drawnRight, /data-cast="marin_leveque" data-mood="ravie"/, 'pleased when it lands');
+  assert.match(withArtSet('drawn', () => graded('wrong')), /data-cast="marin_leveque" data-mood="surprise"/, 'surprised when it misses');
+  assert.ok(!drawnRight.includes('.webp'));
   const stranger = renderToStaticMarkup(
     React.createElement(steps.JourneyFeedbackView, {
       feedback: { kind: 'graded', verdict: 'correct', result: { character_reply_fr: null, correction: null }, replySource: 'unknown' },
@@ -361,6 +380,7 @@ test('the verdict band is focusable and carries the character’s reacting face'
     }),
   );
   assert.ok(!stranger.includes('portrait-'), 'nobody borrows a cast face');
+  assert.ok(!stranger.includes('data-cast='), 'nobody borrows a drawn face either');
 });
 
 // ===========================================================================
@@ -477,18 +497,22 @@ test('the scene line shows its speaker’s face; the byline disc shows faces too
       image_url: null,
     },
   };
-  const html = renderToStaticMarkup(
-    React.createElement(steps.SceneStepView, {
-      step: scene,
-      copy: EN,
-      busy: false,
-      onContinue() {},
-      speaker: journeySpeaker({ scenario: { character_id: 'margaux', character_name: 'Margaux' } }, scene),
-    }),
-  );
-  assert.ok(html.includes('margaux_barman/portrait-neutral.webp'));
-  const byline = renderToStaticMarkup(React.createElement(ui.Byline, { name: 'Marin' }));
-  assert.ok(byline.includes('marin_leveque/portrait-neutral.webp'));
+  const sceneView = () =>
+    renderToStaticMarkup(
+      React.createElement(steps.SceneStepView, {
+        step: scene,
+        copy: EN,
+        busy: false,
+        onContinue() {},
+        speaker: journeySpeaker({ scenario: { character_id: 'margaux', character_name: 'Margaux' } }, scene),
+      }),
+    );
+  const bylineView = () => renderToStaticMarkup(React.createElement(ui.Byline, { name: 'Marin' }));
+  assert.ok(withArtSet('painted', sceneView).includes('margaux_barman/portrait-neutral.webp'));
+  assert.ok(withArtSet('painted', bylineView).includes('marin_leveque/portrait-neutral.webp'));
+  // Drawn: the same two discs hold the rigs.
+  assert.match(withArtSet('drawn', sceneView), /data-cast="margaux_barman" data-mood="neutre"/);
+  assert.match(withArtSet('drawn', bylineView), /data-cast="marin_leveque" data-mood="neutre"/);
 
   // A letter day's speaker is the correspondent, not the scenario character.
   const respond = { kind: 'respond', prompt: { character_id: 'marin', character_name: 'Marin', letter: { correspondent_id: 'lila', correspondent_name: 'Lila' } } };

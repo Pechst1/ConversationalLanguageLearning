@@ -36,6 +36,11 @@ export interface CastRigProps {
   /** Accessible name; defaults to the character's name. Empty string hides it. */
   label?: string;
   className?: string;
+  /**
+   * WP-143 · the id of an SVG `<filter>` in the page (the stage's light: grade and
+   * rim, see PanelStage). Absent: the rig draws exactly as before (the discs).
+   */
+  filter?: string;
 }
 
 function prefersReducedMotion(): boolean {
@@ -81,6 +86,7 @@ export function CastRig({
   still = false,
   label,
   className,
+  filter,
 }: CastRigProps) {
   const rig = rigFor(id);
   const autoBlink = useAutoBlink(blink === undefined && !still && Boolean(rig) && !rig?.faceless);
@@ -114,7 +120,13 @@ export function CastRig({
       data-mouth={values.mouth || undefined}
       focusable="false"
     >
-      <Art v={values} />
+      {filter ? (
+        <g filter={`url(#${filter})`} data-stage-light="">
+          <Art v={values} />
+        </g>
+      ) : (
+        <Art v={values} />
+      )}
     </svg>
   );
 }

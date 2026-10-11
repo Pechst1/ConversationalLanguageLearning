@@ -13,6 +13,7 @@
  * The legs only show below 366; an outfit shorter than the coat adds trousers in the
  * legs' own #14285f so the figure has no gap between hem and knees.
  */
+import React from 'react';
 import type { ReactNode } from 'react';
 import { OUTFITS } from '../rig-kit';
 import type { Outfit, RigDef, RigValues } from '../rig-kit';

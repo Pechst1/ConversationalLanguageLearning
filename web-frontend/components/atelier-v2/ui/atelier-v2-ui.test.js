@@ -502,15 +502,34 @@ const h = React.createElement;
   assert.equal(ui.characterAccent(null), undefined);
   assert.equal(ui.characterAccent(''), undefined);
 
-  const portrait = render(h(ui.Portrait, { name: 'Marin' }));
+  // WP-116 phase 6: the drawn cast is the default; the painted portraits are pinned here.
+  const launchFlags = require(path.join(WEB_ROOT, 'launch-flags.json'));
+  const withArtSet = (value, fn) => {
+    const before = launchFlags.artSet;
+    launchFlags.artSet = value;
+    try {
+      return fn();
+    } finally {
+      launchFlags.artSet = before;
+    }
+  };
+  const portrait = withArtSet('painted', () => render(h(ui.Portrait, { name: 'Marin' })));
   assert.ok(portrait.includes('--av2-char'), 'the accent is applied as a token, not a hex');
   assert.ok(portrait.includes('aria-hidden="true"'), 'the avatar is decorative; the name is text');
   // WP-77: a drawn cast member shows their face; anyone else keeps the initial.
   assert.ok(portrait.includes('/assets/serial/characters/marin_leveque/portrait-neutral.webp'));
-  const cross = render(h(ui.Portrait, { name: 'Augustin « Gus » de Roncourt', mood: 'cross' }));
+  const cross = withArtSet('painted', () => render(h(ui.Portrait, { name: 'Augustin « Gus » de Roncourt', mood: 'cross' })));
   assert.ok(cross.includes('augustin_de_roncourt/portrait-cross.webp'), 'a full name resolves too');
-  const stranger = render(h(ui.Portrait, { name: 'Samira' }));
+  const stranger = withArtSet('painted', () => render(h(ui.Portrait, { name: 'Samira' })));
   assert.ok(stranger.includes('>S<') && !stranger.includes('<img'), 'the initial is drawn');
+
+  // Drawn: the same accent and the rig instead of the photo; a full name resolves; a stranger keeps the initial.
+  const drawn = withArtSet('drawn', () => render(h(ui.Portrait, { name: 'Marin' })));
+  assert.ok(drawn.includes('--av2-char') && drawn.includes('data-cast="marin_leveque"') && !drawn.includes('.webp'));
+  const drawnGus = withArtSet('drawn', () => render(h(ui.Portrait, { name: 'Augustin « Gus » de Roncourt', mood: 'cross' })));
+  assert.ok(drawnGus.includes('data-cast="augustin_de_roncourt"'), 'a full name resolves too');
+  const drawnStranger = withArtSet('drawn', () => render(h(ui.Portrait, { name: 'Samira' })));
+  assert.ok(drawnStranger.includes('>S<') && !drawnStranger.includes('data-cast='), 'the initial is drawn');
 }
 
 // ===========================================================================

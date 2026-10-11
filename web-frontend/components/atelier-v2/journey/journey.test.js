@@ -104,7 +104,9 @@ function escapeHtml(value) {
 }
 // WP-82: French content is rendered with a narrow no-break space (U+202F)
 // before « ; : ! ? »; the fixtures are written with ordinary spaces.
-const htmlHas = (html, text) => html.replace(/ /g, ' ').includes(escapeHtml(text));
+// WP-144b: French display text sets a typewriter apostrophe as ’; compare both sides with it folded.
+const foldApostrophe = (value) => value.replace(/&#x27;|&#39;|’/g, "'");
+const htmlHas = (html, text) => foldApostrophe(html.replace(/ /g, ' ')).includes(foldApostrophe(escapeHtml(text)));
 
 const state = require('./journey-state.ts');
 const episodeModel = require('./story-episode-model.ts');

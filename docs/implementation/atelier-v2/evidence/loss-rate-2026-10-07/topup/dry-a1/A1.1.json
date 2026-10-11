@@ -1,0 +1,55 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": null,
+ "weaves": [
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Le dîner raté (0)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "Le dîner raté (1)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  }
+ ],
+ "failures": [],
+ "refusals": [
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Je suis, tu es : les pronoms et être») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Je suis au café. Et toi, tu es où ?»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it; margaux_barman is this rule's coach: give margaux_barman one of those lines.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "Entre-deux 0",
+    "dramatic_question": "Comment organiser cette exposition ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "margaux_barman"
+    ],
+    "objective_native": "Offer your help for the exhibition.",
+    "objective_words": 6,
+    "panels": 4,
+    "premise_id": "le_diner_rate"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "grammar_not_woven": 1
+ }
+}

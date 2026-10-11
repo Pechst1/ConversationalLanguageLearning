@@ -38,6 +38,9 @@ def _png() -> bytes:
 @pytest.fixture
 def art(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "ATELIER_PANEL_ART_ENABLED", True)
+    # WP-116 phase 6: drawn is the default and draws the cast in the client; per-panel
+    # drawing is the painted set's pipeline, so these tests pin painted.
+    monkeypatch.setattr(settings, "ATELIER_ART_SET", "painted")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
     monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_STORAGE", "local")
     monkeypatch.setattr(settings, "GRAPHIC_NOVEL_LOCAL_IMAGE_DIR", str(tmp_path))
@@ -97,8 +100,22 @@ def test_flag_off_queues_nothing(assembled_client, db_session, journey_enabled, 
     assert art.queued == []
 
 
+def test_the_drawn_set_queues_nothing_and_keeps_the_plates(
+    assembled_client, db_session, journey_enabled, clock, provider, art, monkeypatch
+):
+    """WP-116 phase 6: under the drawn default the cast is drawn in the client, over the plate."""
+    monkeypatch.setattr(settings, "ATELIER_ART_SET", "drawn")
+    d = driver(assembled_client, db_session)
+    d.create()
+    episode = _episode(assembled_client, d)
+    assert {p["image_status"] for p in episode["panels"]} == {"setting_reference"}
+    assert all(p["image_url"] for p in episode["panels"]), "every panel shows its plate"
+    assert art.queued == [] and art.drawn == []
+
+
 def test_a_rolled_back_scene_is_never_drawn(db_session, monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_PANEL_ART_ENABLED", True)
+    monkeypatch.setattr(settings, "ATELIER_ART_SET", "painted")
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
     queued: list = []
     monkeypatch.setattr(panel_art, "dispatcher", queued.append)

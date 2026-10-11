@@ -71,6 +71,8 @@ const PANELS: Panel[] = [
     ],
     image_url: `${ART}/panel-1.webp`,
     image_status: 'panel_art',
+    // WP-116/144: the plate the drawn cast stands on (`atelier.artSet=drawn`).
+    plate_url: PLATE,
     alt_native: 'Margaux smiles behind the counter of a small Paris café.',
   },
   {
@@ -89,6 +91,8 @@ const PANELS: Panel[] = [
     ],
     image_url: `${ART}/panel-2.webp`,
     image_status: 'panel_art',
+    // WP-116/144: the plate the drawn cast stands on (`atelier.artSet=drawn`).
+    plate_url: PLATE,
     alt_native: 'The chalkboard menu above the coffee machine.',
   },
   {
@@ -102,6 +106,8 @@ const PANELS: Panel[] = [
     ],
     image_url: `${ART}/panel-3.webp`,
     image_status: 'panel_art',
+    // WP-116/144: the plate the drawn cast stands on (`atelier.artSet=drawn`).
+    plate_url: PLATE,
     alt_native: 'A man in a coat squeezes past the counter.',
   },
   {
@@ -113,6 +119,8 @@ const PANELS: Panel[] = [
     ],
     image_url: `${ART}/panel-4.webp`,
     image_status: 'panel_art',
+    // WP-116/144: the plate the drawn cast stands on (`atelier.artSet=drawn`).
+    plate_url: PLATE,
     alt_native: 'A cup of coffee on the zinc counter.',
   },
 ];

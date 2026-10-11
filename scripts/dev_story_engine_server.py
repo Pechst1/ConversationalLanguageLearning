@@ -66,6 +66,9 @@ def _guard_environment() -> None:
     # provider path (and every other LLM feature) switched off.
     os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
     os.environ.setdefault("APP_ENV", "development")
+    # WP-158: the provider keys are fake, so a spoken reply is transcribed by the
+    # deterministic fake transcriber rather than sent to Whisper with a dud key.
+    os.environ.setdefault("ATELIER_FAKE_TRANSCRIBER_ENABLED", "true")
 
 
 PREMISES = [

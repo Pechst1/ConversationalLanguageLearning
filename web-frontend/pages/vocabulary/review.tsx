@@ -15,6 +15,9 @@ import {
   gradedFormat,
   ladderCue,
   ladderRung,
+  lineAnswer,
+  linePrompt,
+  matchesLineForm,
   nextAgainQueue,
   type CardMode,
 } from '@/components/lexique/recall-ladder';
@@ -106,6 +109,9 @@ const MAX_SEGMENTS = 12;
 const SESSION_NEW_WORDS = 8;
 
 // Direction is resolved server-side from the learner's stored preference.
+// WP-154: `drill: 'session'` — the server keeps the batch it dealt for the
+// learner's app day, so a reload mid-deck shows the rest of that batch in the
+// same order, never new words in the answered cards' slots.
 const reviewQueueParams = {
   limit: 50,
   due_limit: 30,
@@ -113,6 +119,7 @@ const reviewQueueParams = {
   new_limit: SESSION_NEW_WORDS,
   topic_limit: 8,
   linked_limit: 8,
+  drill: 'session',
 } as const;
 
 // WP-131: «Encore N mots» — the rest of the day's allowance (Soutenu 18,
@@ -127,6 +134,8 @@ function moreWordsParams(n: number) {
     new_limit: words,
     topic_limit: 0,
     linked_limit: 0,
+    // WP-154: appended to the day's batch, so a reload resumes the continuation.
+    drill: 'more',
   } as const;
 }
 
@@ -477,6 +486,9 @@ function VocabularyReviewContinuation({
   const wordId = lastItem?.word_id || null;
   const word = lastItem ? queueFrench(lastItem) || queueWord(lastItem) : '';
   const ratingCopy = lastRating !== null ? ratingToneLabel(t, lastRating) : '';
+  // «5 more minutes» after the Seal on a day nothing is due yet (day 1): no card
+  // was answered, so «Deck cleared» would be a claim. Say what is true.
+  const nothingDue = !lastItem && isEncore();
 
   return (
     <>
@@ -484,7 +496,10 @@ function VocabularyReviewContinuation({
         <ShapeToken kind="done" size="lg" />
         <p className="av2-label">{t.done_label}</p>
         {/* the one Garamond-italic headline once the deck is empty */}
-        <h2 className="av2-headline av2-headline--screen">{t.done_title}</h2>
+        <h2 className="av2-headline av2-headline--screen">
+          {nothingDue ? t.encore_empty_title : t.done_title}
+        </h2>
+        {nothingDue && <p className="av2-body av2-body--lg">{t.encore_empty_body}</p>}
         {(word || ratingCopy) && (
           <p className="av2-body av2-body--lg">{[word, ratingCopy].filter(Boolean).join(' · ')}</p>
         )}
@@ -936,10 +951,15 @@ export default function VocabularyReviewPage() {
       : mode === 'cloze'
         ? clozePrompt(current)
         : mode === 'scene' || mode === 'rescue'
-          ? sceneOrRescueCue(current)?.sentence_fr || queueMeaning(current) || queueFrench(current)
+          ? linePrompt(sceneOrRescueCue(current)) || queueMeaning(current) || queueFrench(current)
           : queueWord(current)
     : '';
-  const answer = current ? (mode === 'recognition' ? queueTranslation(current) : queueFrench(current)) : '';
+  // Owner decision 2026-10-08: a line card is answered with the form in the line.
+  const answer = current
+    ? mode === 'recognition'
+      ? queueTranslation(current)
+      : lineAnswer(mode, sceneOrRescueCue(current), queueFrench(current))
+    : '';
   const french = current ? queueFrench(current) : '';
   const meaning = current ? queueMeaning(current) : '';
   const example = current ? queueExample(current) : '';
@@ -949,7 +969,10 @@ export default function VocabularyReviewPage() {
   const contextText = mode === 'audio'
     ? [meaning, example].filter(Boolean).join(' · ')
     : example || (current ? `${french} - ${meaning}` : '');
-  const typedMatches = normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
+  const typedMatches =
+    mode === 'scene' || mode === 'rescue'
+      ? matchesLineForm(normalizeAnswer(typedAnswer), normalizeAnswer(answer))
+      : normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
   const graded = mode !== 'recognition' && typedAnswer.trim().length > 0;
   const hint = current ? cardHint(t, current) : '';
   // WP-115b: the ladder's own cue on the scene and rescue rungs.

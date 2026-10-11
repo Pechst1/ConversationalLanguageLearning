@@ -1,0 +1,230 @@
+{
+ "band": "C1.1",
+ "outcome": "complete",
+ "spend": null,
+ "weaves": [
+  {
+   "unit": "Les verbes de perception + infinitif",
+   "title": "Le dîner raté (0)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Les verbes de perception + infinitif",
+   "title": "Le dîner raté (1)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Qui que, quoi que, où que + subjonctif",
+   "title": "Je peux ? (2)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Qui que, quoi que, où que + subjonctif",
+   "title": "Je peux ? (3)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "La concordance des temps à l'indicatif",
+   "title": "Pour son anniversaire (4)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "La concordance des temps à l'indicatif",
+   "title": "Pour son anniversaire (5)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Que + subjonctif en tête de phrase",
+   "title": "Jour 6 (6)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Que + subjonctif en tête de phrase",
+   "title": "Jour 7 (7)",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  }
+ ],
+ "failures": [
+  "living_story: every SceneDraft attempt refused (dry_run_forced): dry_run_forced",
+  "daily_journey: season day lost (dry_run_forced); journey 7bbbe8e0-fa49-45a0-9f7a-6cc4956ca610 re-reads t1.b",
+  "living_story: every SceneDraft attempt refused (dry_run_forced): dry_run_forced",
+  "daily_journey: season day lost (dry_run_forced, 2 in a row in g1); journey c8aa99cb-69ec-4be9-8f31-9e65276382ce serves the bridge g1.1"
+ ],
+ "refusals": [
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g1.1",
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "dry_run_forced",
+   "hint": ""
+  },
+  {
+   "position": "g2.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Les verbes de perception + infinitif») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Je les ai vus arriver, puis j'ai entendu claquer la porte.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "letter",
+    "chapter_title_fr": "Entre-deux 0",
+    "dramatic_question": "Comment organiser cette exposition ?",
+    "open_question": "Ta grand-mère t'a laissé l'étage au-dessus du Mistral, et avec lui le feu qui a pris en dessous. Tu le gardes, tu le partages, ou tu le laisses filer ?",
+    "character_id": "margaux_barman",
+    "speakers": [
+     "margaux_barman"
+    ],
+    "objective_native": "Offer your help for the exhibition, name the part you would take on, and settle when you could start.",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": "le_diner_rate"
+   }
+  },
+  {
+   "position": "g2.2",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Qui que, quoi que, où que + subjonctif») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Quoi que tu décides, où que tu partes, tu pourras compter sur moi.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "complication",
+    "required_beat": [
+     "complication"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Entre-deux 1",
+    "dramatic_question": "Qui gardera le chat pendant le week-end ?",
+    "open_question": "Qui gardera le chat pendant le week-end ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "marin_leveque"
+    ],
+    "objective_native": "Ask what the bike costs, bargain politely about its worn tyres, and agree on a fair sum before leaving.",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": "je_peux"
+   }
+  },
+  {
+   "position": "g2.3",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («La concordance des temps à l'indicatif») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Il ignorait que son frère était déjà parti et qu'il ne reviendrait pas.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Entre-deux 1",
+    "dramatic_question": "Qui gardera le chat pendant le week-end ?",
+    "open_question": "Qui gardera le chat pendant le week-end ?",
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "romy_tremblay"
+    ],
+    "objective_native": "Say whether you will come to Friday's games night, justify your answer, and react to the pressure to change your mind.",
+    "objective_words": 21,
+    "panels": 4,
+    "premise_id": "pour_son_anniversaire"
+   }
+  },
+  {
+   "position": "g2.4",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Que + subjonctif en tête de phrase») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Que la réunion ait été annulée, personne ne nous l'a dit.»); opening_line_fr must be a question whose natural answer needs that form, and suggested_response_fr must use it.",
+   "draft": {
+    "beat": "resolution",
+    "required_beat": [
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "letter",
+    "chapter_title_fr": "Entre-deux 1",
+    "dramatic_question": "Qui gardera le chat pendant le week-end ?",
+    "open_question": "Qui gardera le chat pendant le week-end ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet"
+    ],
+    "objective_native": "Accept or decline looking after the cat this weekend, give a convincing reason, and offer an alternative arrangement.",
+    "objective_words": 18,
+    "panels": 4,
+    "premise_id": null
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "dry_run_forced": 6,
+  "grammar_not_woven": 4
+ }
+}
