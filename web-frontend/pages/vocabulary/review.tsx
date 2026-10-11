@@ -486,6 +486,9 @@ function VocabularyReviewContinuation({
   const wordId = lastItem?.word_id || null;
   const word = lastItem ? queueFrench(lastItem) || queueWord(lastItem) : '';
   const ratingCopy = lastRating !== null ? ratingToneLabel(t, lastRating) : '';
+  // «5 more minutes» after the Seal on a day nothing is due yet (day 1): no card
+  // was answered, so «Deck cleared» would be a claim. Say what is true.
+  const nothingDue = !lastItem && isEncore();
 
   return (
     <>
@@ -493,7 +496,10 @@ function VocabularyReviewContinuation({
         <ShapeToken kind="done" size="lg" />
         <p className="av2-label">{t.done_label}</p>
         {/* the one Garamond-italic headline once the deck is empty */}
-        <h2 className="av2-headline av2-headline--screen">{t.done_title}</h2>
+        <h2 className="av2-headline av2-headline--screen">
+          {nothingDue ? t.encore_empty_title : t.done_title}
+        </h2>
+        {nothingDue && <p className="av2-body av2-body--lg">{t.encore_empty_body}</p>}
         {(word || ratingCopy) && (
           <p className="av2-body av2-body--lg">{[word, ratingCopy].filter(Boolean).join(' · ')}</p>
         )}

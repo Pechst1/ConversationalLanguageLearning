@@ -53,6 +53,7 @@
     "test:home": "node --test components/atelier-v2/home/home.test.js",
     "test:french-typography": "node --test lib/french-typography.test.js",
     "walk": "node e2e/walk.mjs",
+    "walk:reload": "node e2e/reload-boundaries.mjs",
     "types:generate": "node scripts/generate-api-types.mjs",
     "types:check": "node scripts/generate-api-types.mjs --check"
   },

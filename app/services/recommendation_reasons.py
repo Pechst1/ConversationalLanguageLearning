@@ -35,9 +35,11 @@ _REVIEW: dict[str, _Table] = {
         "de": "Ausgewählt, weil es zum Thema Ihrer Ausgabe passt.",
     },
     "new": {
-        "fr": "Choisi comme unique nouveau fil du jour.",
-        "en": "Chosen as today’s one new word.",
-        "de": "Ausgewählt als das eine neue Wort von heute.",
+        # The drill deals several new words a day (the pace allowance, WP-L6),
+        # so no card may call itself the day's only one.
+        "fr": "Choisi parmi les nouveaux mots du jour.",
+        "en": "Chosen as one of today’s new words.",
+        "de": "Ausgewählt als eines der neuen Wörter von heute.",
     },
 }
 _REVIEW["topic_compatible"] = _REVIEW["topic"]

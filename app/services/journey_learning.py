@@ -2423,13 +2423,103 @@ def build_correction(
     return candidate
 
 
-def validate_correction(correction: Correction | None, learner_text: str | None) -> bool:
-    """True when a proposed correction may be shown and may inform memory."""
+#: The learner speaking of themselves, then (up to two adverbs) the word that would
+#: agree with them: «je suis venu», «je me sens perdue», «j'étais prête».
+_SELF_AGREEMENT = re.compile(
+    r"\b(?:je\s+(?:ne\s+|n['’]\s*)?(?:suis|serai|serais|me\s+sens|me\s+suis)|j['’]\s*[ée]tais)"
+    r"(?:\s+(?:pas|déjà|très|bien|vraiment|un\s+peu|enfin|encore|tout|toute)){0,2}\s+([a-zà-ÿ]+)",
+    re.IGNORECASE,
+)
+#: -i/-u/-t/-s/-x forms that agree, as (masculine, feminine); -é/-ée need no list.
+_AGREEING_PAIRS: tuple[tuple[str, str], ...] = (
+    ("venu", "venue"), ("revenu", "revenue"), ("devenu", "devenue"), ("parti", "partie"),
+    ("sorti", "sortie"), ("assis", "assise"), ("perdu", "perdue"), ("déçu", "déçue"),
+    ("prêt", "prête"), ("content", "contente"), ("surpris", "surprise"), ("ravi", "ravie"),
+    ("seul", "seule"), ("sûr", "sûre"), ("heureux", "heureuse"), ("nerveux", "nerveuse"),
+    ("mort", "morte"),
+)
+_MASCULINE_FORMS = frozenset(m for m, _ in _AGREEING_PAIRS)
+_FEMININE_FORMS = frozenset(f for _, f in _AGREEING_PAIRS)
+_AGREEING_WORDS = _MASCULINE_FORMS | _FEMININE_FORMS
+_NOT_AGREEING = frozenset({"été", "né", "café", "côté"})
+
+
+def _agreement_gender(word: str) -> str | None:
+    """«masculine», «feminine», or None when ``word`` does not agree with the speaker."""
+
+    if word in _FEMININE_FORMS:
+        return "feminine"
+    if word in _MASCULINE_FORMS:
+        return "masculine"
+    if word in _NOT_AGREEING or len(word) <= 3:
+        return None
+    if word.endswith(("ée", "ées")):
+        return "feminine"
+    if word.endswith(("é", "és")):
+        return "masculine"
+    return None
+
+
+def _corrected_sentence(learner_text: str | None, correction: Correction) -> str | None:
+    """The learner's sentence with the span replaced: a correction may carry only its
+    span («là» → «venu»), and «venu» alone shows no «je suis» to agree with."""
+
+    text = str(learner_text or "")
+    span = str(correction.span_fr or "")
+    if not text or not span:
+        return None
+    at = text.lower().find(span.lower())
+    if at < 0:
+        return None
+    return text[:at] + str(correction.corrected_fr or "") + text[at + len(span):]
+
+
+def introduced_learner_gender(learner_text: str | None, corrected_fr: str | None) -> list[str]:
+    """Words a correction makes agree with a gender the learner never gave.
+
+    «je suis là pour l'appartement» → «je suis venu pour l'appartement» (live,
+    2026-10-09) speaks for a man. A form the learner wrote themselves stays theirs.
+    """
+
+    return [word for word, _gender in _introduced_agreements(learner_text, [corrected_fr])]
+
+
+def _introduced_agreements(learner_text: str | None, texts: Sequence[str | None]) -> list[tuple[str, str]]:
+    """``(word, gender)`` for each first-person agreement in ``texts`` the learner did
+    not write themselves."""
+
+    own = set(fold_for_comparison(learner_text).split())
+    hits: list[tuple[str, str]] = []
+    for text in texts:
+        for match in _SELF_AGREEMENT.finditer(text or ""):
+            word = match.group(1).lower()
+            gender = _agreement_gender(word)
+            if gender and fold_for_comparison(word) not in own and (word, gender) not in hits:
+                hits.append((word, gender))
+    return hits
+
+
+def validate_correction(
+    correction: Correction | None, learner_text: str | None, *, address: str | None = None
+) -> bool:
+    """True when a proposed correction may be shown and may inform memory.
+
+    ``address`` is the learner's ``address_preference``: a learner who chose
+    «masculine» or «feminine» may be corrected into an agreement of that gender
+    only; anyone else into none."""
 
     if correction is None:
         return False
     normalized = normalize_answer_text(learner_text)
     if not correction.is_valid_for(normalized):
+        return False
+    # The learner's gender is theirs to give: a rewrite that agrees for them in a
+    # gender they did not choose is not a correction of their French. Read in the
+    # whole sentence too — a span-only correction («là» → «venu») shows no subject.
+    introduced = _introduced_agreements(
+        learner_text, [correction.corrected_fr, _corrected_sentence(learner_text, correction)]
+    )
+    if any(gender != address for _word, gender in introduced):
         return False
     # A "correction" that only re-punctuates or re-accents the learner's own
     # words is a stylistic preference, not an error worth a punishment event.
@@ -2468,7 +2558,8 @@ def select_foreground_correction(
     "strict" preference is never silently downgraded to nothing.
     """
 
-    validated = [c for c in candidates if validate_correction(c, learner_text)]
+    address = getattr(user, "address_preference", None)
+    validated = [c for c in candidates if validate_correction(c, learner_text, address=address)]
     if not validated:
         return None, []
     validated.sort(key=lambda c: correction_relevance(c, targets), reverse=True)
@@ -3382,7 +3473,9 @@ def apply_learning_evidence(
     ):
         rebuilt = not attempted_answer(learner_text, correction.corrected_fr)
     if correction is not None and not rebuilt and validate_correction(
-        correction, learner_text if learner_text else correction.span_fr
+        correction,
+        learner_text if learner_text else correction.span_fr,
+        address=getattr(user, "address_preference", None),
     ):
         correction_key = evidence_source_key(
             journey_id=journey_id,

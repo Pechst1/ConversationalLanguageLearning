@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { GearIcon } from '@/components/atelier-v2/ui';
 
+import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { readLearnerLanguage } from '@/lib/learner-language';
 import {
   PHONE_PRODUCT_TABS,
@@ -65,6 +66,8 @@ export default function EditorialMasthead({
   const mobileSection = resolveProductSection(router.pathname) || productSectionFromMasthead(active);
   const mobileTitle = resolveProductTitle(mobileSection, router.pathname, learnerLanguage);
   const isSettingsActive = active === 'settings' || router.pathname === '/settings';
+  // The gear's word follows the learner's language too («Einstellungen», «Réglages»).
+  const settingsLabel = String(atelierChrome(learnerLanguage).settings || 'Settings');
 
   return (
     <header className={`app-masthead ${hideMobileHeader ? 'app-mobile-header-hidden' : ''} ${hideMobileTitle ? 'app-mobile-title-hidden' : ''} ${mobileAction ? 'app-has-mobile-action' : ''}`}>
@@ -76,7 +79,7 @@ export default function EditorialMasthead({
         <div className="app-mobile-title" aria-hidden="true">{mobileTitle}</div>
         <div className="app-mobile-action">
           {mobileAction}
-          <SettingsAffordance active={isSettingsActive} mobile />
+          <SettingsAffordance active={isSettingsActive} label={settingsLabel} mobile />
         </div>
         <div className="app-header-tools">
           <nav className="app-nav" aria-label="Primary">
@@ -99,7 +102,7 @@ export default function EditorialMasthead({
             )}
             {trailing && <span className="app-nav-trailing">{trailing}</span>}
           </nav>
-          <SettingsAffordance active={isSettingsActive} />
+          <SettingsAffordance active={isSettingsActive} label={settingsLabel} />
         </div>
       </div>
       {!hideMobileNav && (
@@ -343,17 +346,25 @@ function productSectionFromMasthead(active?: MastheadSection): ProductSection | 
   return 'atelier';
 }
 
-function SettingsAffordance({ active, mobile = false }: { active: boolean; mobile?: boolean }) {
+function SettingsAffordance({
+  active,
+  label,
+  mobile = false,
+}: {
+  active: boolean;
+  label: string;
+  mobile?: boolean;
+}) {
   return (
     <Link
       className={`app-settings-affordance ${active ? 'active' : ''}`}
       href="/settings"
-      aria-label="Settings"
+      aria-label={label}
       aria-current={active ? 'page' : undefined}
-      title="Settings"
+      title={label}
     >
       <GearIcon size={18} />
-      {!mobile && <span>Settings</span>}
+      {!mobile && <span>{label}</span>}
     </Link>
   );
 }

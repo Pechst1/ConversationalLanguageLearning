@@ -54,6 +54,9 @@ def _user(db_session, *, correction_level: str = "moderate") -> User:
         target_language="fr",
         proficiency_level="A2",
         grammar_correction_level=correction_level,
+        # «je suis allé» → «allée» below is a correction only for a learner who chose
+        # feminine forms; a neutral learner's gender is not corrected (2026-10-09).
+        address_preference="feminine",
     )
     db_session.add(user)
     db_session.flush()

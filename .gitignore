@@ -96,3 +96,4 @@ docs/design-reference/canvas/atelier-auth/atelier-ecrans-hors-systeme.html
 web-frontend/.next-walk*/
 web-frontend/e2e/out/
 tmp-walk/
+.dev-learners-*

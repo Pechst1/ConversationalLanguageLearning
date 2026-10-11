@@ -257,6 +257,20 @@ test('the level move: once, honest, with its evidence', () => {
   assert.doesNotMatch(textOf(render(day())), /Level/);
 });
 
+test('the closing line said once: the teaser keeps it, the face card drops the repeat', () => {
+  const line = 'Deux clés pour la même porte. À suivre…';
+  const repeat = day({
+    story_outcome: { callback_fr: 'Deux clés pour la même porte. À suivre...' },
+    teaser: { text_fr: line, character_id: 'gus', character_name: 'Gus', source: 'authored' },
+  });
+  const view = model.rewardView(repeat.journey, repeat.recap, 'en');
+  assert.equal(view.face.lineFr, null);
+  assert.equal(view.teaser.text_fr, line);
+  // A different callback stays on the card.
+  const own = day({ story_outcome: { callback_fr: 'Merci, à demain.' } });
+  assert.equal(model.rewardView(own.journey, own.recap, 'en').face.lineFr, 'Merci, à demain.');
+});
+
 test('a partial day: no seal, no keepsake, no teaser', () => {
   const { journey, recap } = day({ completion_kind: 'early' }, { status: 'ended_early' });
   const html = render({ journey, recap });

@@ -217,10 +217,10 @@ export function FeuilletonReader({
   useEffect(() => enterImmersiveSurface(), []);
   const rootRef = useRef<HTMLElement | null>(null);
   const swipeRef = useRef<{ x: number; y: number } | null>(null);
-  const firstRenderRef = useRef(true);
 
   const count = stages.length;
   const safeIndex = count ? Math.min(Math.max(index, 0), count - 1) : 0;
+  const shownIndexRef = useRef(safeIndex);
   const stage = count ? stages[safeIndex] : null;
   const isFirst = safeIndex <= 0;
   const isLast = safeIndex >= count - 1;
@@ -280,14 +280,17 @@ export function FeuilletonReader({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [count, forward, go, help, safeIndex]);
 
-  /* Bring the new panel into view without stealing focus from Suivant. */
+  /* Bring the new panel into view without stealing focus from Suivant — only
+     when its top has gone above the screen. Aligning a reader that is already
+     in view to the top scrolled the session's bar (the close button) away on
+     every panel. The last shown index, not a first-render flag: Strict Mode
+     runs the effect twice on mount, and the second run scrolled the first
+     panel by 74–103px. */
   useEffect(() => {
-    if (firstRenderRef.current) {
-      firstRenderRef.current = false;
-      return;
-    }
+    if (shownIndexRef.current === safeIndex) return;
+    shownIndexRef.current = safeIndex;
     const node = rootRef.current;
-    if (!node) return;
+    if (!node || node.getBoundingClientRect().top >= 0) return;
     node.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   }, [safeIndex]);
 

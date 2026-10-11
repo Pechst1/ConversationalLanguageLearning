@@ -132,8 +132,19 @@ async function playDayInner(l, day) {
         + `WHERE user_id = '${l.userId}' AND context IS NULL`,
       );
     }
+    // The deck as the page receives it: rescue cards (words that don't stick) open
+    // it by design, then the story's lines — so «the first card» is not the question.
+    const deckResponse = walk.page
+      .waitForResponse((r) => r.url().includes('/vocabulary/due-context') && r.request().method() === 'GET', { timeout: 30000 })
+      .then((r) => r.json(), () => null);
     await walk.visit('/vocabulary/review', 'drill');
-    const rung = await walk.page.locator('.lx-card').first().getAttribute('data-mode').catch(() => null);
+    const deck = await deckResponse;
+    // Its own list: this check must not lean on another package's constant.
+    const keptDeckLists = ['due_words', 'fragile_words', 'linked_words', 'topic_compatible_words', 'new_words'];
+    const deckItems = deck ? keptDeckLists.flatMap((list) => deck[list] || []) : [];
+    const keptIdsOnDeck = new Set(walk.keptWordIds || []);
+    const keptCard = deckItems.find((item) => keptIdsOnDeck.has(item.word_id));
+    const rung = keptCard ? keptCard.ladder || null : null;
     const kept = walk.keptWords || [];
     const first = await walk.page.locator('.lx-card .lx-card__word').first().innerText().catch(() => '');
     // A word is kept only with a meaning in the learner's own language, and the core
@@ -146,7 +157,9 @@ async function playDayInner(l, day) {
       findings.check(
         'drill-brings-a-kept-word-back-on-its-line',
         rung === 'scene',
-        `the drill's first card («${first.replace(/\s+/g, ' ').trim().slice(0, 60)}») is on the «${rung}» rung; kept on the walk: ${kept.map((w) => `«${w}»`).join(', ')}`,
+        keptCard
+          ? `the kept word's card is on the «${rung}» rung, not its scene line; kept on the walk: ${kept.map((w) => `«${w}»`).join(', ')}`
+          : `no kept word on the drill's deck (${deckItems.length} cards; first «${first.replace(/\s+/g, ' ').trim().slice(0, 60)}»); kept on the walk: ${kept.map((w) => `«${w}»`).join(', ')}`,
         walk.where({ kind: 'drill' }),
       );
     }
