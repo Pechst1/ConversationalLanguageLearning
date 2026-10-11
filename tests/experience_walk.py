@@ -1055,6 +1055,38 @@ def time_onboarding(day: dict[str, Any], cefr: str, quality: str) -> Clockwork:
     return clock
 
 
+def scene_meta(db: Session, journey_id: str | None) -> dict[str, Any]:
+    """WP-164: what the day's scene was, for the repetition report
+    (``scripts/variety_report.py``): its place, who spoke to the learner, its premise
+    and opening, the season premise and complication it claimed, and every line the
+    learner read. Read from the brief the day pinned; ``{}`` when there is none."""
+
+    if not journey_id:
+        return {}
+    from tests.test_season_one import _pinned_brief
+
+    story = (_pinned_brief(db, journey_id) or {}).get("story_context") or {}
+    draft = story.get("draft") or {}
+    if not draft:
+        return {}
+    checklist = draft.get("season_checklist") or {}
+    panels = draft.get("panels") or []
+    narration = [str(panel.get("narration_fr") or "").strip() for panel in panels]
+    lines = [str(line.get("text_fr") or "").strip() for panel in panels for line in panel.get("dialogue") or []]
+    return {
+        "kind": (story.get("season") or {}).get("kind") or "generated",
+        "location_id": draft.get("location_id"),
+        "character_id": draft.get("character_id"),
+        "title_fr": draft.get("title_fr"),
+        "premise_fr": draft.get("premise_fr"),
+        "opening_fr": next((text for text in narration if text), ""),
+        "premise_id": checklist.get("premise_id"),
+        "complication": checklist.get("complication") or "",
+        "small_moment_id": checklist.get("small_moment_id"),
+        "text_fr": [text for text in [draft.get("premise_fr"), *narration, *lines, draft.get("opening_line_fr")] if text],
+    }
+
+
 __all__ = [
     "LIFE_DAYS",
     "LIFE_QUALITIES",
@@ -1072,6 +1104,7 @@ __all__ = [
     "play_forge",
     "plays_forge",
     "register_as_onboarding",
+    "scene_meta",
     "season_cursor",
     "take_band_checks",
     "take_placement",

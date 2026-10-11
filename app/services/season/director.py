@@ -32,6 +32,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.services.season.clock import Position
 from app.services.season.flags import holds
 from app.services.season.format import Forbidden, Gap, Season
+from app.services.story_variety import INVENT_RULE, dealt_order, spark
 
 #: How many generated days a critic refusal may cost: one retry, then accept + log.
 CRITIC_RETRIES = 1
@@ -324,6 +325,18 @@ def gap_brief(
         if premise.id not in done and holds(premise.when, flags)
     ]
     moments = [moment for moment in gap.small_moments if moment.id not in used_moments(state)]
+    # WP-166: the decks are a spark dealt to this learner today, never a menu read in
+    # file order (a model takes the first item it is shown; every learner got it).
+    deal = f"{gap.id}:{day}"
+    premises = dealt_order(premises, seed, f"premises:{deal}")
+    moments = dealt_order(moments, seed, f"moments:{deal}")
+    sparked = spark(
+        [premise.model_dump(exclude={"when"}) for premise in premises if premise.id != required],
+        list(gap.complications),
+        [moment.model_dump() for moment in moments],
+        seed=seed,
+        salt=deal,
+    )
     index = next((i for i, seg in enumerate(season.segments) if seg.id == gap.id), None)
     following = season.segments[index + 1] if index is not None and index + 1 < len(season.segments) else None
     next_tentpole = season.tentpoles.get(following.id) if following else None
@@ -362,6 +375,9 @@ def gap_brief(
             "may_set": list(gap.sets_allowed),
             # WP-113: yesterday's complication, still in the way today.
             "open_obstacle": obstacle,
+            # WP-166: the director invents the day; the decks only spark it.
+            "spark": sparked,
+            "invent": INVENT_RULE,
         },
         "next_tentpole": {
             "id": next_tentpole.id,

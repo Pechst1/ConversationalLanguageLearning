@@ -45,13 +45,23 @@
         {"id": "soupe_de_marin", "owner": "marin_leveque", "text": "Soup in the learner's cold studio: the radiator dies, Marin arrives with soup and a hot-water bottle and does not leave until they've eaten."},
         {"id": "tu_de_gus", "owner": "augustin_de_roncourt", "text": "Gus's first accidental tu, followed by a panicked return to vous."},
         {"id": "romy_eteint", "owner": "romy_tremblay", "text": "Romy switching off her recorder when the learner looks uncomfortable."},
-        {"id": "succession_ferrand", "owner": "landlord_marchand", "text": "«La succession Ferrand» on the stairs."}
+        {"id": "succession_ferrand", "owner": "landlord_marchand", "text": "«La succession Ferrand» on the stairs."},
+        {"id": "cigale_recollee", "owner": "margaux_barman", "text": "The cicada comes loose from the key ring; Margaux slides a small pair of pliers across the zinc without a word."},
+        {"id": "regle_numero_un", "owner": "augustin_de_roncourt", "text": "Gus writing «Règle numéro un de La Méthode» on a paper napkin for the learner, then refusing to say what rule one is."},
+        {"id": "la_mouette", "owner": "marin_leveque", "text": "Marin quoting his grandmother's most absurd saying yet, then explaining the Breton word in it."},
+        {"id": "souper_diner", "owner": "romy_tremblay", "text": "Romy and Gus arguing whether the evening meal is «le souper» or «le dîner», and making the learner the referee."},
+        {"id": "sept_sur_vingt", "owner": "lila_bonnet", "text": "Lila grading the learner's first days on a napkin: «Sept sur vingt. Peut mieux faire.»"},
+        {"id": "deja_la_tradition", "owner": "mme_diallo", "text": "Mme Diallo saying «Une tradition pas trop cuite, c'est ça ?» before the learner has opened their mouth."}
       ],
       "complications": [
         "The radiator dies (canon).",
         "The notary needs a document from «là-bas».",
         "The price becomes gossip (only if s1.price_public).",
-        "Rain, every day."
+        "Rain, every day.",
+        "The short-let host announces a viewing of the studio tomorrow morning, at 8.",
+        "The learner's bank card is refused at the bakery.",
+        "The post office keeps Solvel's recorded letter only until Saturday.",
+        "The stairwell's minuterie dies, and the hall is dark all evening."
       ],
       "must_not": [
         {"id": "enter_flat", "text": "Anyone entering Odile's flat. The door was opened once and closed in T1; nobody goes in before T2.", "patterns": ["(entr\\w*|sommes|es|est) dans l'appartement d'odile", "on entre chez odile"]},
@@ -63,10 +73,13 @@
       ],
       "premises": [
         {"id": "le_billet", "title_fr": "Le billet", "text": "The learner must call the airline to move their ticket, in French, with Lila as a coach who keeps making it worse on purpose.", "change": "The ticket moves (to 2 December), and so does something in the learner.", "turn": "Explain to the agent why you are staying. The learner decides how honest to be.", "sets": ["user.return_ticket"]},
-        {"id": "romy_enquete", "title_fr": "Romy enquête", "text": "Romy interviews Margaux at the zinc («J'ai rien entendu»), then turns to the learner: «C'est vous, l'héritage ?»", "change": "The learner learns that Solvel has bought three cafés in the quartier this year, and Romy has a source she likes.", "turn": "Tell Romy who you are and what you think of Solvel, as much or as little as you want."},
-        {"id": "la_meme_chose", "title_fr": "La même chose ?", "text": "Margaux asks the learner's order for the third time. Gus insists your order says who you are. The learner chooses, and says why they're still here.", "change": "The learner's usual order exists. Gus announces that the learner is «un habitué», and it is not a joke.", "turn": "Choose your order, and say why you are still here.", "sets": ["user.usual_order"]},
-        {"id": "pain_avec_lila", "title_fr": "Une tradition pas trop cuite", "text": "The learner's first awkward morning with Lila at Mme Diallo's bakery. Lila orders for them, «une tradition pas trop cuite». Then she makes them order the second one themselves, and she pays for theirs without a word.", "change": "The baker knows the learner's face, and Lila has started looking after them.", "turn": "Order your own bread at the counter."},
-        {"id": "soupe_de_marin", "title_fr": "La soupe de Marin", "text": "The learner's radiator dies. Marin arrives with soup and a hot-water bottle and does not leave until they've eaten.", "change": "Someone knows where the learner lives.", "turn": "Tell Marin how you are, really, in the cold studio."}
+        {"id": "romy_enquete", "title_fr": "Romy enquête", "text": "Romy interviews Margaux at the zinc («J'ai rien entendu»), then turns to the learner: «C'est vous, l'héritage ?»", "change": "The learner learns that Solvel has bought three cafés in the quartier this year, and Romy has a source she likes.", "turn": "Tell Romy who you are and what you think of Solvel, as much or as little as you want.", "place": "le_mistral"},
+        {"id": "la_meme_chose", "title_fr": "La même chose ?", "text": "Margaux asks the learner's order for the third time. Gus insists your order says who you are. The learner chooses, and says why they're still here.", "change": "The learner's usual order exists. Gus announces that the learner is «un habitué», and it is not a joke.", "turn": "Choose your order, and say why you are still here.", "sets": ["user.usual_order"], "place": "le_mistral"},
+        {"id": "pain_avec_lila", "title_fr": "Une tradition pas trop cuite", "text": "The learner's first awkward morning with Lila at Mme Diallo's bakery. Lila orders for them, «une tradition pas trop cuite». Then she makes them order the second one themselves, and she pays for theirs without a word.", "change": "The baker knows the learner's face, and Lila has started looking after them.", "turn": "Order your own bread at the counter.", "place": "boulangerie"},
+        {"id": "soupe_de_marin", "title_fr": "La soupe de Marin", "text": "The learner's radiator dies. Marin arrives with soup and a hot-water bottle and does not leave until they've eaten.", "change": "Someone knows where the learner lives.", "turn": "Tell Marin how you are, really, in the cold studio.", "place": "user_apartment"},
+        {"id": "deux_guichets", "title_fr": "Deux guichets, pas d'ascenseur", "text": "The notary needs a document from «là-bas», and the mairie du 10e has two counters on two floors with no lift. Gus insists on coming «en interprète» and makes everything worse with his most theatrical vous; the clerk only answers the learner.", "change": "The succession has a file number, and the learner has done one French administrative thing alone.", "turn": "Ask the clerk for the form yourself, and say what it is for.", "place": "mairie"},
+        {"id": "le_recommande", "title_fr": "Le recommandé", "text": "A green-and-white slip in the hall's mailbox: a recorded letter from Solvel. M. Marchand, coming down the stairs with his ring of keys, sees the logo: «La succession Ferrand reçoit du courrier.» He waits for an answer, perfectly polite.", "change": "Marchand knows Solvel writes to the learner, and the learner knows the offer runs until 8 January.", "turn": "Tell M. Marchand, politely, what the letter is, or that it is your business.", "place": "stairwell"},
+        {"id": "le_marche_de_marin", "title_fr": "Le marché du canal", "text": "Marin takes the learner to the canal market for the fish of his soup, translating every Breton word he uses. A stallholder asks whether the learner is «la nouvelle tête du Mistral», and Marin, delighted, makes the learner answer.", "change": "The quartier has started to recognise the learner, and Marin has a new person to feed.", "turn": "Buy something at a stall yourself, and say who you are.", "place": "marche_canal"}
       ],
       "required": [
         {"premise": "romy_enquete", "from_day": 1, "by_day": 4},
@@ -110,13 +123,22 @@
         {"id": "polaroid_de_marin", "owner": "marin_leveque", "text": "Marin finding his own Polaroid and crying at it."},
         {"id": "mon_cher", "owner": "augustin_de_roncourt", "text": "Gus calling the learner «mon cher»."},
         {"id": "margaux_plafond", "owner": "margaux_barman", "text": "Margaux looking at the ceiling when the learner mentions upstairs, in a silent panel."},
-        {"id": "diallo_polaroid", "owner": "mme_diallo", "text": "Mme Diallo recognising herself in a Polaroid the learner brings her."}
+        {"id": "diallo_polaroid", "owner": "mme_diallo", "text": "Mme Diallo recognising herself in a Polaroid the learner brings her."},
+        {"id": "minuterie_de_marchand", "owner": "landlord_marchand", "text": "The stairwell light clicking off while Marchand is mid-sentence; he finishes the sentence in the dark."},
+        {"id": "tableur_final", "owner": "marin_leveque", "text": "Marin naming his spreadsheet «Mistral_v3_FINAL_vraiment»."},
+        {"id": "pas_encore", "owner": "lila_bonnet", "text": "Lila trying the cicada key in Odile's lock and saying «Pas encore» when the learner offers her a copy (if she has none)."},
+        {"id": "chiffre_de_camille", "owner": "camille_marchand", "text": "Camille correcting one of Gus's superlatives with an exact number."},
+        {"id": "un_char", "owner": "romy_tremblay", "text": "Romy calling a delivery van «un char» and the whole café correcting her at once."},
+        {"id": "verre_deja_sec", "owner": "margaux_barman", "text": "Margaux drying a glass that is already dry while the inventory is discussed at the zinc."}
       ],
       "complications": [
         "A water cut announced by the Gérance Marchand.",
         "Bastien Roux phoning the learner directly.",
         "Camille's inventory deadline.",
-        "The smoke alarm."
+        "The smoke alarm.",
+        "The flat's fuse trips every time the kettle and the radiator run together.",
+        "Camille needs the inventory signed by Friday, with photos of every room.",
+        "Gus's petition has Odile's name misspelt, on fifty copies already printed."
       ],
       "must_not": [
         {"id": "fire_origin", "text": "The fire's origin (it started upstairs, in Odile's kitchen).", "patterns": ["(feu|incendie).{0,80}(en haut|chez odile|au premier|cuisine d'odile|la poêle)", "poêle oubliée", "(parti|commencé) de chez odile"]},
@@ -127,9 +149,14 @@
         {"id": "gus_truth", "text": "Gus's truth (Créteil, his mother, no château).", "patterns": ["\\bcréteil\\b", "pas de château", "sa mère (servait|était serveuse)"]}
       ],
       "premises": [
-        {"id": "le_diner_rate", "title_fr": "Le dîner raté", "text": "The learner and Lila improvise dinner in Odile's kitchen. The omelette burns and the smoke alarm screams. Margaux comes up the stairs running, with the café's fire extinguisher, sees the omelette, and goes back down without a word. The reader has watched Margaux react too fast to smoke from this kitchen; nobody on the page remarks on it.", "change": "A private joke is born: «ne refais jamais l'omelette».", "turn": "The line that saves the evening (bible §7 gate 2): tenderness toward her («C'est le meilleur dîner raté de ma vie.») or complicity («On dit à Marin que c'était exprès.»).", "gate": 2},
+        {"id": "le_diner_rate", "title_fr": "Le dîner raté", "text": "The learner and Lila improvise dinner in Odile's kitchen. The omelette burns and the smoke alarm screams. Margaux comes up the stairs running, with the café's fire extinguisher, sees the omelette, and goes back down without a word. The reader has watched Margaux react too fast to smoke from this kitchen; nobody on the page remarks on it.", "change": "A private joke is born: «ne refais jamais l'omelette».", "turn": "The line that saves the evening (bible §7 gate 2): tenderness toward her («C'est le meilleur dîner raté de ma vie.») or complicity («On dit à Marin que c'était exprès.»).", "gate": 2, "place": "odile_flat"},
         {"id": "je_peux", "title_fr": "Je peux ?", "text": "Marin, holding the notebook page, asks whether he may use Odile's plan. He cannot ask without a grandmother's saying and three apologies.", "change": "The spreadsheet exists, with the learner's blessing, or without it but with their knowledge.", "turn": "Tell Marin whether he may use Odile's plan, and why."},
-        {"id": "pour_son_anniversaire", "title_fr": "Pour son anniversaire", "text": "It is Gus's birthday. Lila wants to give him his Polaroid at fifteen, framed. The learner decides with her: give it, keep it, or hide it. If given, Gus laughs too loudly and takes it home; the costume holds, and the reader sees his hands.", "change": "s1.gus_photo changes (shown, or given to Gus), or stays with Lila by choice.", "turn": "Decide with Lila what to do with Gus's photo, and say why.", "sets": ["s1.gus_photo"]}
+        {"id": "pour_son_anniversaire", "title_fr": "Pour son anniversaire", "text": "It is Gus's birthday. Lila wants to give him his Polaroid at fifteen, framed. The learner decides with her: give it, keep it, or hide it. If given, Gus laughs too loudly and takes it home; the costume holds, and the reader sees his hands.", "change": "s1.gus_photo changes (shown, or given to Gus), or stays with Lila by choice.", "turn": "Decide with Lila what to do with Gus's photo, and say why.", "sets": ["s1.gus_photo"]},
+        {"id": "les_legendes", "title_fr": "Les légendes", "text": "At Odile's table, Lila and the learner sort the Polaroid box and read Odile's captions aloud, guessing who is in each picture. Marin turns up in one at twenty with unforgivable hair, and he wants it back.", "change": "The learner knows one true, small thing about Odile they did not know, and a caption has become the group's new joke.", "turn": "Read a caption and say who you think it is, and why.", "place": "odile_flat"},
+        {"id": "le_brocanteur", "title_fr": "Le brocanteur", "text": "Camille's inventory needs values. Gus drags the learner and Odile's green lamp to the canal brocante «pour prouver qu'il vaut une fortune». The dealer offers twelve euros, and then, more interested, forty.", "change": "The learner has refused to sell the first object of the flat, or has sold it and regrets it by the hook.", "turn": "Refuse the offer or accept it, and say why.", "place": "brocante"},
+        {"id": "la_petition", "title_fr": "La pétition", "text": "Gus sets up a folding table with a tablecloth at the canal market and wants the learner to be the first signature on his petition, with something written in the «motif» box. Mme Diallo is second in the queue and waiting.", "change": "The petition has a first name on it, the learner's or Mme Diallo's.", "turn": "Decide whether you sign, and say what you would write as your reason.", "place": "marche_canal"},
+        {"id": "la_citation", "title_fr": "Une phrase pour Romy", "text": "At the newsroom, Romy shows the learner the wall map of the cafés Solvel has bought, red pins down the canal. Her draft has a hole where a quote should be, and she asks for one sentence she may print.", "change": "The learner's words are in Romy's draft, or explicitly not, and Romy respects either.", "turn": "Give Romy one sentence she may quote, or refuse and say why.", "place": "newsroom"},
+        {"id": "coupure_d_eau", "title_fr": "Coupure d'eau", "text": "The Gérance Marchand posts a notice: no water in the building tomorrow morning. Lila was going to paint, Marin was going to cook. The learner goes up to the second floor to ask M. Marchand to move it; he talks on the landing and keeps his door half closed behind him.", "change": "The cut moves by an hour, or does not, and Marchand has spoken to the learner as a neighbour for the first time.", "turn": "Ask M. Marchand, in your best vous, to move the water cut.", "place": "marchand_office"}
       ],
       "required": [
         {"premise": "le_diner_rate", "from_day": 2, "by_day": 5}
@@ -165,13 +192,22 @@
         {"id": "fiches_de_gus", "owner": "augustin_de_roncourt", "text": "Gus rehearsing on index cards."},
         {"id": "canapes", "owner": "marin_leveque", "text": "Marin testing canapés on the learner."},
         {"id": "pas_de_fete", "owner": "margaux_barman", "text": "Margaux saying «pas de fête» twice a day while buying garlands."},
-        {"id": "carte_de_marchand", "owner": "landlord_marchand", "text": "Marchand's handwriting on the reply card (only if s1.marchand_invited)."}
+        {"id": "carte_de_marchand", "owner": "landlord_marchand", "text": "Marchand's handwriting on the reply card (only if s1.marchand_invited)."},
+        {"id": "guirlande_droite", "owner": "margaux_barman", "text": "Margaux hanging a garland perfectly straight with a ruler, still saying «pas de fête»."},
+        {"id": "fiches_qui_tombent", "owner": "augustin_de_roncourt", "text": "Gus's index cards falling on the stairs; the learner picks one up and does not read it."},
+        {"id": "ordinateur_ferme", "owner": "lila_bonnet", "text": "Lila closing her laptop too quickly when the learner comes in, then offering tea too brightly."},
+        {"id": "oui_oui_redacteur", "owner": "romy_tremblay", "text": "Romy on the phone with her editor, saying «oui, oui» with her eyes closed."},
+        {"id": "gateau_promis", "owner": "mme_diallo", "text": "Mme Diallo promising a cake «pour les vingt-cinq ans» and refusing to be paid."},
+        {"id": "l_escabeau", "owner": "marin_leveque", "text": "Marin holding the ladder for Lila and reciting safety rules nobody asked for."}
       ],
       "complications": [
         "The stuck Polaroids (Lila: «Je les décolle samedi»).",
         "Gus and Marin almost discovering each other's ask.",
         "A letter from the insurer to Margaux, which she hides under the till.",
-        "A rain forecast."
+        "A rain forecast.",
+        "The café's oven breaks three days before the party; the canapés need another kitchen.",
+        "Gus's index cards go missing, and he suspects everyone.",
+        "The garlands are Christmas garlands, and Margaux hates Christmas garlands."
       ],
       "must_not": [
         {"id": "stuck_polaroids", "text": "Separating the stuck Polaroids.", "patterns": ["(décoll\\w+|sépar\\w+).{0,40}(polaro[iï]ds?|photos?) collées", "photos? collées.{0,40}(décoll\\w+|sépar\\w+)"]},
@@ -181,9 +217,13 @@
         {"id": "announcement", "text": "Any announcement (the petition or «Le Mistral à nous») made before the party.", "patterns": []}
       ],
       "premises": [
-        {"id": "sur_le_toit", "title_fr": "Sur le toit", "text": "Lila takes the learner up through the fifth-floor skylight to see the canal from the roof at night. M. Marchand's torch finds them: «La succession Ferrand n'a rien à faire sur mon toit.» The learner must talk their way down in their best vous while Lila giggles.", "change": "Marchand has met them both as a pair, and Lila now has a story she tells everyone.", "turn": "Talk your way down, politely, to M. Marchand."},
-        {"id": "au_milieu_du_mur", "title_fr": "Au milieu du mur", "text": "Lila asks which Polaroid goes in the centre of the wall. The learner chooses. The best choice is Odile at the zinc with her café crème, the one Margaux will unpin in T4.", "change": "The wall is ready, and so is its heart.", "turn": "Choose the photo for the centre, and say why."},
-        {"id": "deux_repetitions", "title_fr": "Deux répétitions", "text": "Gus rehearses his petition speech, and an hour later Marin rehearses his pitch, both to the learner.", "change": "The learner realises both will speak at the party.", "turn": "Tell one of them what you'll say, or refuse to."}
+        {"id": "sur_le_toit", "title_fr": "Sur le toit", "text": "Lila takes the learner up through the fifth-floor skylight to see the canal from the roof at night. M. Marchand's torch finds them: «La succession Ferrand n'a rien à faire sur mon toit.» The learner must talk their way down in their best vous while Lila giggles.", "change": "Marchand has met them both as a pair, and Lila now has a story she tells everyone.", "turn": "Talk your way down, politely, to M. Marchand.", "place": "toit"},
+        {"id": "au_milieu_du_mur", "title_fr": "Au milieu du mur", "text": "Lila asks which Polaroid goes in the centre of the wall. The learner chooses. The best choice is Odile at the zinc with her café crème, the one Margaux will unpin in T4.", "change": "The wall is ready, and so is its heart.", "turn": "Choose the photo for the centre, and say why.", "place": "le_mistral"},
+        {"id": "deux_repetitions", "title_fr": "Deux répétitions", "text": "Gus rehearses his petition speech, and an hour later Marin rehearses his pitch, both to the learner.", "change": "The learner realises both will speak at the party.", "turn": "Tell one of them what you'll say, or refuse to."},
+        {"id": "les_guirlandes", "title_fr": "Les guirlandes", "text": "Margaux hands the learner a twenty-euro note and a list of four words: «Guirlandes. Pas de fête.» At the canal market the only garlands are Christmas ones, and the stallholder wants to know exactly what kind of party it is.", "change": "The garlands exist, the wrong ones, and Margaux hangs them anyway.", "turn": "Explain to the stallholder what you need, even without the word you don't know.", "place": "marche_canal"},
+        {"id": "la_banderole", "title_fr": "La banderole", "text": "After school, in her empty classroom, Lila paints the banner «LE MISTRAL · 25 ANS · ON RESTE» on the floor between the little chairs. The learner holds the cloth flat. She stops before the last two words and asks whether «ON RESTE» is too much.", "change": "The banner is finished, and its last two words were partly the learner's choice.", "turn": "Tell Lila whether to keep «ON RESTE», and why.", "place": "ecole"},
+        {"id": "repondez_s_il_vous_plait", "title_fr": "Répondez s'il vous plaît", "text": "Gus is too proud to deliver his own invitation, so the learner carries it up to the Gérance. M. Marchand reads it with his glasses pushed down his nose, twice, and asks the learner what Gus «really» means by «en paix».", "change": "Marchand's reply card exists: «J'y serai. M.», or a polite nothing.", "turn": "Tell M. Marchand what the invitation means, as honestly as you can.", "when": {"s1.marchand_invited": true}, "place": "marchand_office"},
+        {"id": "douze_canapes", "title_fr": "Douze canapés", "text": "At Marin and Lila's flat, Marin tests twelve canapés on the learner, each with a grandmother's saying, and the party can only afford three. Lila keeps score on the fridge.", "change": "The party has a menu, and Marin has said, by accident, how much this party means to him.", "turn": "Choose three canapés and say why.", "place": "marin_lila_flat"}
       ],
       "required": [
         {"premise": "sur_le_toit", "from_day": 2, "by_day": 6}
@@ -225,12 +265,21 @@
         {"id": "vous_de_gus", "owner": "augustin_de_roncourt", "text": "Gus back on vous with the learner for a day, then slipping."},
         {"id": "abattant_leve", "owner": "margaux_barman", "text": "Margaux leaving the zinc's flap up."},
         {"id": "soupe_devant_la_porte", "owner": "marin_leveque", "text": "Marin's soup left at the learner's door without knocking."},
-        {"id": "carte_fermee", "owner": "romy_tremblay", "text": "Romy saying the memory card is «fermée»."}
+        {"id": "carte_fermee", "owner": "romy_tremblay", "text": "Romy saying the memory card is «fermée»."},
+        {"id": "salieres", "owner": "augustin_de_roncourt", "text": "Gus straightening every salt cellar in the café, twice."},
+        {"id": "telephone_face_cachee", "owner": "lila_bonnet", "text": "Lila's phone face down on the table, buzzing, unanswered."},
+        {"id": "deux_cremes", "owner": "margaux_barman", "text": "Margaux pouring two café crèmes and drinking neither."},
+        {"id": "pas_pire", "owner": "romy_tremblay", "text": "Romy saying the learner's French is «pas pire», and explaining that in Québec it is a compliment."},
+        {"id": "cles_recomptees", "owner": "landlord_marchand", "text": "Marchand counting his keys on the stairs and losing count when the learner says bonjour."},
+        {"id": "velo_de_camille", "owner": "camille_marchand", "text": "Camille's bike chained to the café's drainpipe, the helmet hanging from the handlebar, while Camille is at the notary's."}
       ],
       "complications": [
         "The insurer's second letter to Margaux.",
         "Solvel raising the pressure («valable jusqu'au 8 janvier»).",
-        "Camille meeting the learner at the notary's for Grand-père's claim: the first real disagreement."
+        "Camille meeting the learner at the notary's for Grand-père's claim: the first real disagreement.",
+        "A neighbour's post about «l'incendie du Mistral» on the quartier's group, with forty comments.",
+        "Lila's school calls a staff meeting on the evening everyone wanted to talk.",
+        "The notary's appointment moves to tomorrow, 8:30, across the canal."
       ],
       "must_not": [
         {"id": "berlin_revealed", "text": "Berlin revealed (T5 owns it). Only hints: her phone face down, an unanswered message.", "patterns": ["\\bberlin\\b", "künstlerhaus", "résidence d'artiste"]},
@@ -241,8 +290,12 @@
       ],
       "premises": [
         {"id": "la_dispute", "title_fr": "La dispute", "text": "The argument with Lila is about secrets. If Margaux kept the photo: she resents «encore un secret». If the photo went back on the wall: the learner blames her «remets-la au mur», because Margaux's insurer has called. The next morning comes the hesitant apology, from the learner or from her.", "change": "They have fought, and they are still here.", "turn": "The apology line, where what is expressed decides the gate (bible §7 gate 3): naming what she means («Je ne veux pas me disputer avec toi. Pas toi.») or naming the alliance («On est une équipe. Pardon.»).", "gate": 3},
-        {"id": "chez_le_notaire", "title_fr": "Chez le notaire", "text": "Maître Vasseur explains the debt. Camille is in the waiting room for Grand-père's claim against the estate. The learner and Camille disagree precisely, for the first time: «Je comprends. Je ne suis pas d'accord.»", "change": "The learner knows what the flat is worth to the fire, and Camille knows the learner won't just sign.", "turn": "Disagree with Camille, precisely and politely."},
-        {"id": "vous", "title_fr": "Vous", "text": "Gus uses vous with the learner. The learner has to get him back to tu without mentioning the party.", "change": "He slips at the end, «Tu… vous… tu veux un café ?», or he doesn't, and the next day says it first.", "turn": "Get Gus back to tu without mentioning the party."}
+        {"id": "chez_le_notaire", "title_fr": "Chez le notaire", "text": "Maître Vasseur explains the debt. Camille is in the waiting room for Grand-père's claim against the estate. The learner and Camille disagree precisely, for the first time: «Je comprends. Je ne suis pas d'accord.»", "change": "The learner knows what the flat is worth to the fire, and Camille knows the learner won't just sign.", "turn": "Disagree with Camille, precisely and politely.", "place": "notaire"},
+        {"id": "vous", "title_fr": "Vous", "text": "Gus uses vous with the learner. The learner has to get him back to tu without mentioning the party.", "change": "He slips at the end, «Tu… vous… tu veux un café ?», or he doesn't, and the next day says it first.", "turn": "Get Gus back to tu without mentioning the party."},
+        {"id": "c_est_vrai_pour_le_feu", "title_fr": "C'est vrai, pour le feu ?", "text": "At the bakery counter Mme Diallo asks the learner straight out: «C'est vrai, pour le feu ?» Two neighbours in the queue pretend to read the price list. What the quartier knows depends on where the photo went.", "change": "A neighbour has heard the story from the learner's mouth, and the learner has chosen what to protect.", "turn": "Answer Mme Diallo honestly without betraying Margaux.", "place": "boulangerie"},
+        {"id": "le_dossier_dans_la_poubelle", "title_fr": "Le dossier dans la poubelle", "text": "After hours at the NGO office, the learner finds Marin's co-op folder in the bin under the fern. Marin says it was a stupid idea and offers soup. The leek he uses as a pointer is still on the desk.", "change": "The folder is out of the bin, or Marin has chosen to leave it there and the learner has heard why.", "turn": "Convince Marin to take the folder back, or tell him why you won't.", "place": "ngo_office"},
+        {"id": "la_carte_est_fermee", "title_fr": "La carte est fermée", "text": "At the newsroom, Romy's editor wants the party footage. Romy has the memory card in her jacket and says it is «fermée». She asks the learner what they would do in her place, and means it.", "change": "Romy has decided what the card is, for now, and the learner knows she is protecting them.", "turn": "Tell Romy what you would do in her place.", "place": "newsroom"},
+        {"id": "jusqu_a_l_ecluse", "title_fr": "Jusqu'à l'écluse", "text": "For the first time anyone remembers, Margaux leaves the zinc during service and walks along the quai de Valmy to the lock. The learner follows. She says nothing for a long time, then two sentences in a row, which means something is wrong.", "change": "Margaux has let someone walk beside her.", "turn": "Say the one thing you want Margaux to hear, or choose to say nothing and stay.", "place": "quai_de_valmy"}
       ],
       "required": [
         {"premise": "la_dispute", "from_day": 2, "by_day": 5}
@@ -278,13 +331,21 @@
         {"id": "trop_de_far", "owner": "marin_leveque", "text": "Marin baking far too much."},
         {"id": "lettre_sous_la_caisse", "owner": "margaux_barman", "text": "Margaux putting the recorded letter under the till unopened."},
         {"id": "tuque", "owner": "romy_tremblay", "text": "Romy's tuque for the learner."},
-        {"id": "lit_de_camp", "owner": "landlord_marchand", "text": "The camp bed glimpsed again through the office door."}
+        {"id": "lit_de_camp", "owner": "landlord_marchand", "text": "The camp bed glimpsed again through the office door."},
+        {"id": "ruban_fragile", "owner": "lila_bonnet", "text": "Lila writing FRAGILE on tape and sticking it on Marin's back."},
+        {"id": "plus_de_superlatifs", "owner": "augustin_de_roncourt", "text": "Gus running out of superlatives for the first time and saying only «C'est bien.»"},
+        {"id": "radio_plus_fort", "owner": "margaux_barman", "text": "Margaux turning the radio up whenever Bastien's laser measure beeps."},
+        {"id": "kenavo", "owner": "marin_leveque", "text": "Marin teaching the learner «Kenavo» and refusing to say what it means today."},
+        {"id": "micro_coupe", "owner": "romy_tremblay", "text": "Romy cutting her own recorder off mid-sentence because the sentence was about Lila."},
+        {"id": "cordialement", "owner": "camille_marchand", "text": "Camille's email signature, «Cordialement, C. Marchand», read aloud by Gus with five different meanings."}
       ],
       "complications": [
         "The freight company wants the crate by the 22nd.",
         "Bastien in the café.",
         "The lease letter.",
-        "The insurer."
+        "The insurer.",
+        "The crate does not fit through the street door unless the door comes off its hinges.",
+        "Bastien leaves his card on every table, and Gus collects them all."
       ],
       "must_not": [
         {"id": "sundays", "text": "The Sundays or Marchand's account (T6).", "patterns": ["dimanches?\\b.{0,60}\\b(marchand|odile)", "\\b(marchand|odile)\\b.{0,60}\\bdimanches?\\b", "\\bbus 46\\b", "bois de vincennes", "venez vivre chez moi"]},
@@ -294,9 +355,13 @@
         {"id": "lila_stays", "text": "Any suggestion that Lila might stay.", "patterns": ["lila (reste|restera|ne part (plus|pas))", "(tu|elle) ne pars? plus"]}
       ],
       "premises": [
-        {"id": "dernier_jour_d_ecole", "title_fr": "Le dernier jour d'école", "text": "The learner helps Lila carry thirty paintings out of her classroom. A child asks «Tu vas où, toi, quand elle part ?».", "change": "The leaving is real, and it has a date on a child's drawing.", "turn": "Answer a seven-year-old honestly."},
-        {"id": "l_homme_au_beau_manteau", "title_fr": "L'homme au beau manteau", "text": "Bastien measures the back room during lunch service. Gus confronts him with escalating superlatives, and the learner has to stop Gus before he says something true.", "change": "Solvel's plan becomes concrete: a hotel lobby where the booth is.", "turn": "Stop Gus, and deal with Bastien."},
-        {"id": "trop_de_far_breton", "title_fr": "Trop de far breton", "text": "Marin has baked for a week and can't talk about Lila.", "change": "He says «Elle a raison de partir», and then cries at a train advert.", "turn": "Get one sentence out of him."}
+        {"id": "dernier_jour_d_ecole", "title_fr": "Le dernier jour d'école", "text": "The learner helps Lila carry thirty paintings out of her classroom. A child asks «Tu vas où, toi, quand elle part ?».", "change": "The leaving is real, and it has a date on a child's drawing.", "turn": "Answer a seven-year-old honestly.", "place": "ecole"},
+        {"id": "l_homme_au_beau_manteau", "title_fr": "L'homme au beau manteau", "text": "Bastien measures the back room during lunch service. Gus confronts him with escalating superlatives, and the learner has to stop Gus before he says something true.", "change": "Solvel's plan becomes concrete: a hotel lobby where the booth is.", "turn": "Stop Gus, and deal with Bastien.", "place": "mistral_back_room"},
+        {"id": "trop_de_far_breton", "title_fr": "Trop de far breton", "text": "Marin has baked for a week and can't talk about Lila.", "change": "He says «Elle a raison de partir», and then cries at a train advert.", "turn": "Get one sentence out of him.", "place": "marin_lila_flat"},
+        {"id": "la_caisse_dans_l_escalier", "title_fr": "La caisse dans l'escalier", "text": "The freight company wants Lila's crate by the 22nd. Gus and the learner carry it down from the first floor while Gus improvises a speech about «le patrimoine». Halfway down the minuterie goes out.", "change": "The crate is downstairs, and the leaving has a weight both of them carried.", "turn": "Guide Gus down the stairs in the dark.", "place": "stairwell"},
+        {"id": "la_tuque", "title_fr": "La tuque", "text": "Early morning at the Buttes-Chaumont, Romy films the last leaves for her Solvel story, which her editor wants by Christmas. She pulls a tuque over the learner's ears and asks the question nobody asks: «Toi, tu restes ?»", "change": "Romy has asked out loud what everyone avoids, and the learner has a tuque.", "turn": "Answer Romy: do you stay, and why?", "place": "buttes_chaumont"},
+        {"id": "le_guichet", "title_fr": "Le guichet", "text": "Lila wants to buy her train ticket at the counter of the gare de l'Est, not online, «pour que ce soit vrai». At the window she asks the learner to do the talking, because her voice will crack.", "change": "The ticket exists: 8 January, 9:55.", "turn": "Ask the agent for Lila's ticket.", "place": "gare_de_lest"},
+        {"id": "le_coin_du_tableau", "title_fr": "Le coin du tableau", "text": "In Odile's flat Lila paints the corner of her portrait and needs the learner to stand by the window in their heavy coat, from behind, without moving. She talks to keep them still.", "change": "The figure in the portrait's corner has the learner's coat.", "turn": "Tell Lila how you want to be painted, or ask her not to.", "place": "odile_flat"}
       ],
       "required": [],
       "sets_allowed": ["user.return_ticket"],
@@ -332,11 +397,22 @@
         {"id": "creme_pour_odile", "owner": "margaux_barman", "text": "Margaux's café crème for Odile's stool on Christmas Eve."},
         {"id": "cadeau_de_lila", "owner": "lila_bonnet", "text": "Lila's present to the learner: on the romance path, a small painting of the key ring with the cicada; on the friendship path, a painting of the omelette, smoke and all."},
         {"id": "fiche_de_gus", "owner": "augustin_de_roncourt", "text": "Gus's present: an index card engraved «Règle n°1 : rester»."},
-        {"id": "pere_de_marin", "owner": "marin_leveque", "text": "Marin's father phoning on Christmas Day, and Marin answering, for once."}
+        {"id": "pere_de_marin", "owner": "marin_leveque", "text": "Marin's father phoning on Christmas Day, and Marin answering, for once."},
+        {"id": "etoiles_en_papier", "owner": "lila_bonnet", "text": "Lila cutting paper stars for the long table and giving the crooked one to the learner."},
+        {"id": "candelabre", "owner": "augustin_de_roncourt", "text": "Gus arriving with his candelabra wrapped in newspaper: «un héritage», he says."},
+        {"id": "tupperware", "owner": "romy_tremblay", "text": "Romy's tourtière arriving in a plastic box labelled TOURTIÈRE in capitals."},
+        {"id": "pull_a_mouette", "owner": "marin_leveque", "text": "Marin's Christmas jumper with a seagull on it, «de ma grand-mère»."},
+        {"id": "radio_de_noel", "owner": "margaux_barman", "text": "Margaux switching off the Christmas songs, then switching them back on when nobody is looking."},
+        {"id": "buche_de_diallo", "owner": "mme_diallo", "text": "Mme Diallo's bûche with the café's name in icing, spelt wrong."},
+        {"id": "sms_de_camille", "owner": "camille_marchand", "text": "Camille's text: «Grand-père est chez moi. Joyeux Noël. C.»"}
       ],
       "complications": [
         "By plan: the bank (coop), Margaux's refusal (lease), or the glasses (last service).",
-        "Camille takes Grand-père home for Christmas, so the camp bed is empty."
+        "Camille takes Grand-père home for Christmas, so the camp bed is empty.",
+        "The café's boiler gives up on the 24th.",
+        "A power cut along the quai on Christmas Eve.",
+        "The bakery closes early on the 24th: no bread for the Réveillon.",
+        "Lila's suitcase is overweight, and she will not choose what to leave behind."
       ],
       "must_not": [
         {"id": "fatiguee", "text": "Margaux's «fatiguée» (T7 Day B).", "patterns": ["margaux.{0,80}fatiguée", "je suis fatiguée"]},
@@ -346,11 +422,14 @@
         {"id": "the_letter", "text": "Odile's letter.", "patterns": ["quand tu parleras français", "la lettre d'odile"]}
       ],
       "premises": [
-        {"id": "deux_croissants", "title_fr": "Deux croissants", "text": "Christmas morning: a paper bag at Odile's door with two croissants in it. The learner goes up to thank Marchand and finds the office empty, the camp bed stripped: Camille took him home. The learner leaves something in return, and chooses what.", "change": "The Sunday ritual has passed to the learner, whatever happens in T8.", "turn": "Choose what you leave for Marchand, and write the note."},
+        {"id": "deux_croissants", "title_fr": "Deux croissants", "text": "Christmas morning: a paper bag at Odile's door with two croissants in it. The learner goes up to thank Marchand and finds the office empty, the camp bed stripped: Camille took him home. The learner leaves something in return, and chooses what.", "change": "The Sunday ritual has passed to the learner, whatever happens in T8.", "turn": "Choose what you leave for Marchand, and write the note.", "place": "stairwell"},
         {"id": "le_cadeau", "title_fr": "Le cadeau", "text": "A present exchange with Lila on Christmas Eve, coloured by the path.", "change": "An object passes between them, and it will be in T8's platform panel.", "turn": "Say what the present means."},
         {"id": "cent_cinquante", "title_fr": "Cent cinquante", "text": "Canvass the quartier with Marin; Mme Diallo signs.", "change": "The member count climbs.", "turn": "Convince a neighbour to join.", "when": {"s1.plan": "coop"}},
-        {"id": "margaux_ne_repond_pas", "title_fr": "Margaux ne répond pas", "text": "Carry Marchand's note down the stairs to Margaux.", "change": "Margaux has read it, or refused to.", "turn": "Give Margaux the note and say something of your own.", "when": {"s1.plan": "lease"}},
-        {"id": "les_verres", "title_fr": "Les verres", "text": "Margaux gives each regular one glass, and the learner gets Odile's.", "change": "The café is being given away, glass by glass.", "turn": "Thank Margaux for the glass.", "when": {"s1.plan": "last_service"}}
+        {"id": "margaux_ne_repond_pas", "title_fr": "Margaux ne répond pas", "text": "Carry Marchand's note down the stairs to Margaux.", "change": "Margaux has read it, or refused to.", "turn": "Give Margaux the note and say something of your own.", "when": {"s1.plan": "lease"}, "place": "le_mistral"},
+        {"id": "les_verres", "title_fr": "Les verres", "text": "Margaux gives each regular one glass, and the learner gets Odile's.", "change": "The café is being given away, glass by glass.", "turn": "Thank Margaux for the glass.", "when": {"s1.plan": "last_service"}, "place": "le_mistral"},
+        {"id": "le_sapin", "title_fr": "Le sapin", "text": "Gus buys a Christmas tree far too big for Le Mistral and makes Marin and the learner carry it from the market along the quai de Valmy. It will not go through the café door.", "change": "The tree ends up somewhere nobody expected, and it was the learner's decision.", "turn": "Decide where the tree goes, and convince Gus.", "place": "quai_de_valmy"},
+        {"id": "souper_ou_diner", "title_fr": "Souper ou dîner", "text": "At Marin and Lila's flat, Romy's tourtière and Marin's far breton are at war over the Réveillon menu. They make the learner the referee, and both cheat.", "change": "The Réveillon has a menu with one dish from each side, and one from the learner.", "turn": "Settle the menu: choose, and say what you will bring.", "place": "marin_lila_flat"},
+        {"id": "dans_la_poche", "title_fr": "Dans la poche", "text": "At the little Christmas market in front of the mairie du 10e, Lila wants one last thing from Paris for her suitcase. Her rule: it has to fit in a coat pocket. She makes the learner choose.", "change": "Lila has one thing from Paris in her pocket, and the learner chose it.", "turn": "Help Lila choose, and say why that one.", "place": "mairie"}
       ],
       "required": [],
       "sets_allowed": [],
@@ -383,12 +462,21 @@
         {"id": "plantes_de_lila", "owner": "marin_leveque", "text": "Lila giving her plants to Marin."},
         {"id": "la_machine", "owner": "margaux_barman", "text": "Margaux teaching the learner the coffee machine."},
         {"id": "gus_mesure", "owner": "augustin_de_roncourt", "text": "Gus measuring the booth, for reasons he won't give."},
-        {"id": "residence", "owner": "landlord_marchand", "text": "Marchand visiting his new residence with Camille."}
+        {"id": "residence", "owner": "landlord_marchand", "text": "Marchand visiting his new residence with Camille."},
+        {"id": "pinceaux", "owner": "lila_bonnet", "text": "Lila washing her brushes in Odile's sink one last time, singing badly."},
+        {"id": "trop", "owner": "romy_tremblay", "text": "Romy reading the learner the last line of her piece and asking «Trop ?»."},
+        {"id": "boites_apres", "owner": "marin_leveque", "text": "Marin labelling soup boxes for the freezer: «après»."},
+        {"id": "apres_vous", "owner": "camille_marchand", "text": "Camille holding the café door for the learner: «Après vous.» «Non, après vous.»"},
+        {"id": "minuterie_tenue", "owner": "landlord_marchand", "text": "Marchand pressing the stairwell light for the learner and waiting below until they reach their floor."},
+        {"id": "sous_bock_date", "owner": "augustin_de_roncourt", "text": "Gus writing the date on a beer mat and filing it with his index cards."}
       ],
       "complications": [
         "Paperwork.",
         "A freight delay.",
-        "Snow warnings for the 8th, which come to nothing."
+        "Snow warnings for the 8th, which come to nothing.",
+        "The removal van is booked for the wrong day.",
+        "The notary's signing needs a witness, and Gus volunteers in his best suit.",
+        "A strike on line 5 the day before the 8th, and everyone's plans move by an hour."
       ],
       "must_not": [
         {"id": "the_letter", "text": "Finding Odile's letter (T8).", "patterns": ["quand tu parleras français", "la lettre d'odile"]},
@@ -397,9 +485,13 @@
         {"id": "lila_stays", "text": "Lila staying.", "patterns": ["lila (reste|restera|ne part (plus|pas))", "(tu|elle) ne pars? plus"]}
       ],
       "premises": [
-        {"id": "la_derniere_tradition", "title_fr": "La dernière tradition", "text": "The last bread with Lila. She asks the learner to keep going to Mme Diallo's, «pour moi».", "change": "The ritual is inherited.", "turn": "Promise, or say what you will do."},
-        {"id": "la_machine", "title_fr": "La machine", "text": "Margaux teaches the learner to make their own usual on the machine nobody touches. If the flat is sold, she teaches them anyway: «pour ailleurs».", "change": "The learner can serve themselves at Le Mistral.", "turn": "Tell Margaux what you're making, step by step."},
-        {"id": "ce_qu_on_donne", "title_fr": "Ce qu'on donne", "text": "Lila gives away her things and gives the learner one: on the romance path the ochre scarf; on the friendship path her terrible cactus.", "change": "Something of hers stays.", "turn": "Say what you'll do with it."}
+        {"id": "la_derniere_tradition", "title_fr": "La dernière tradition", "text": "The last bread with Lila. She asks the learner to keep going to Mme Diallo's, «pour moi».", "change": "The ritual is inherited.", "turn": "Promise, or say what you will do.", "place": "boulangerie"},
+        {"id": "la_machine", "title_fr": "La machine", "text": "Margaux teaches the learner to make their own usual on the machine nobody touches. If the flat is sold, she teaches them anyway: «pour ailleurs».", "change": "The learner can serve themselves at Le Mistral.", "turn": "Tell Margaux what you're making, step by step.", "place": "le_mistral"},
+        {"id": "ce_qu_on_donne", "title_fr": "Ce qu'on donne", "text": "Lila gives away her things and gives the learner one: on the romance path the ochre scarf; on the friendship path her terrible cactus.", "change": "Something of hers stays.", "turn": "Say what you'll do with it."},
+        {"id": "les_papiers", "title_fr": "Les papiers", "text": "Signing day at Maître Vasseur's, whatever the decision. Camille arrives by bike with one argument about a line of the paperwork, and the notary asks the learner to read the clause aloud before anyone signs.", "change": "The papers are signed, with one line the learner understood and argued over.", "turn": "Disagree with Camille about one line, precisely, or agree and say why.", "place": "notaire"},
+        {"id": "le_temple", "title_fr": "Le temple des Buttes", "text": "Lila wants to see Paris from the little temple at the Buttes-Chaumont one last time. Marin brings a thermos and pretends he is not counting last times. Each of them names a «first time without her».", "change": "The group has said out loud what happens after the 8th, and it sounded possible.", "turn": "Name one thing you will do for the first time here after she has gone.", "place": "buttes_chaumont"},
+        {"id": "la_banderole_de_gus", "title_fr": "Trois langues", "text": "At night, Gus borrows the floor of Marin's NGO office to paint a banner for the station. He wants something grandiose in three languages, Marin wants «Kenavo», and the learner holds the stencil.", "change": "The banner for the 8th has its words, and the learner chose them.", "turn": "Choose the banner's words and convince Gus, or Marin.", "place": "ngo_office"},
+        {"id": "sans_le_plan", "title_fr": "Sans le plan", "text": "On the platform at Jacques-Bonsergent, Lila teaches the learner to read the metro map «pour après», then the train is cancelled. She refuses to help: the learner must find another way home and explain it to her.", "change": "The learner can find their way across the city without her map.", "turn": "Tell Lila which way you will go, step by step.", "place": "metro_platform"}
       ],
       "required": [],
       "sets_allowed": ["user.return_ticket"],

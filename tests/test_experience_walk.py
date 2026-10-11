@@ -138,6 +138,8 @@ def live(client, db, monkeypatch, persona, quality, provider, *, days: int = lif
         transcript["names_met_before"] = sorted(met)
         # WP-124b: the season cursor after the day (the walk check reads it).
         today["season"] = life.season_cursor(db, email)
+        # WP-164: the scene's place, cast, premise and lines (scripts/variety_report.py).
+        today["scene"] = life.scene_meta(db, transcript.get("journey_id"))
         # WP-128: the plan's core estimate as Home, the plan and the ending carry it.
         today["time_budget"] = life.day_time_estimate(client, headers)
         # WP-126: the end-of-day transition — the offer surfaces right after the

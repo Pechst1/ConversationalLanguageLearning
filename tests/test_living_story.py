@@ -879,13 +879,16 @@ def test_three_scenes_with_one_pair_force_a_rotation():
     )
     with pytest.raises(engine.StoryUnavailable, match="setting_not_rotated"):
         engine._validate_scene(stuck, context)
-    # Changing either half of the pair is enough.
-    engine._validate_scene(
-        engine.SceneDraft.model_validate(
-            {**draft(context, 5), "character_id": "lila_bonnet", "location_id": "le_mistral"}
-        ),
-        context,
-    )
+    # Changing either half of the pair is enough for the rotation. WP-166: three Mistral
+    # days in a row also put the Mistral past its share (two days in five) — a soft hint,
+    # one retry and then served, never the hard rotation refusal.
+    with pytest.raises(engine.SoftRejection, match="place_spread"):
+        engine._validate_scene(
+            engine.SceneDraft.model_validate(
+                {**draft(context, 5), "character_id": "lila_bonnet", "location_id": "le_mistral"}
+            ),
+            context,
+        )
     engine._validate_scene(
         engine.SceneDraft.model_validate(
             {**draft(context, 5), "character_id": "romy_tremblay", "location_id": "marche_canal"}
