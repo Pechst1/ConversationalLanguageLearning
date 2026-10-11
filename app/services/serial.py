@@ -58,7 +58,7 @@ WORLD_BIBLE_S3_PATH = Path(__file__).resolve().parent.parent / "prompts" / "seri
 # for in a named interlude with a return date — never an unbounded one.
 AUTHORED_SEASON_PATHS: dict[int, Path] = {2: WORLD_BIBLE_S2_PATH, 3: WORLD_BIBLE_S3_PATH}
 # Keys of a season file that are directives to the merge, not world-bible content.
-SEASON_MERGE_DIRECTIVES = frozenset({"cast_updates", "cast_additions", "locations_fr"})
+SEASON_MERGE_DIRECTIVES = frozenset({"cast_updates", "cast_additions", "locations_fr", "setting_move"})
 
 
 def _compact(value: Any, max_length: int) -> str:
@@ -1592,11 +1592,13 @@ class SerialThreadService:
     ) -> dict[str, Any]:
         """Lay one season file over the world the life is already in (WP-63/WP-98).
 
-        Top-level keys replace; the cast, the places and the art are carried. Three
+        Top-level keys replace; the cast, the places and the art are carried. Four
         directives are applied instead of copied: ``cast_updates`` (per-character
         fields that change this season, e.g. a new secret), ``cast_additions`` (a
-        character who joins — never one already present) and ``locations_fr`` (the
-        French name of each place, filled where the carried setting lacks one).
+        character who joins — never one already present), ``locations_fr`` (the
+        French name of each place, filled where the carried setting lacks one) and
+        ``setting_move`` (WP-168: a written season's new city, genre and situation,
+        its new places, and who stayed behind — ``season.written_world``).
         """
 
         next_world = dict(current_world or {})
@@ -1612,12 +1614,19 @@ class SerialThreadService:
                 if isinstance(patch, dict):
                     member.update(patch)
         known = {str(member.get("id")) for member in cast}
+        added: list[str] = []
         for member in season_world.get("cast_additions") or []:
             if isinstance(member, dict) and member.get("id") and str(member["id"]) not in known:
                 cast.append(dict(member))
                 known.add(str(member["id"]))
+                added.append(str(member["id"]))
         if cast or "cast" in next_world:
             next_world["cast"] = cast
+        move = season_world.get("setting_move")
+        if isinstance(move, dict):
+            from app.services.season.written_world import apply_setting_move
+
+            next_world = apply_setting_move(next_world, move, next_season=next_season, added=added)
         names_fr = season_world.get("locations_fr") or {}
         setting = next_world.get("setting")
         if isinstance(names_fr, dict) and isinstance(setting, dict):

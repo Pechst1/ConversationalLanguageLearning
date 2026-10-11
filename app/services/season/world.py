@@ -221,18 +221,37 @@ def static_plate_path(location_id: str | None) -> Path | None:
     return path if path.is_file() else None
 
 
-def season_location_ids(season_id: str = "s1") -> set[str]:
-    return set(SEASON_ONE_LOCATIONS) if season_id == "s1" else set()
+def season_location_ids(season_id: str = "s1", *, world: dict[str, Any] | None = None) -> set[str]:
+    """The season's own places, plus (WP-168) the places a written season brought."""
+
+    from app.services.season.written_world import written_places
+
+    own = set(SEASON_ONE_LOCATIONS) if season_id == "s1" else set()
+    return own | {str(place["id"]) for place in written_places(world)}
 
 
-def plate_for(location_id: str | None) -> str | None:
+def plate_for(location_id: str | None, *, world: dict[str, Any] | None = None) -> str | None:
+    """The static plate of a place. WP-168: a place a written season brought (not in
+    the table above) opens on its stand-in, the plate of a season-1 place of its kind;
+    ``season.plates.plate_url_for`` / ``written_world.plate_url`` give the painted one."""
+
     row = SEASON_ONE_LOCATIONS.get(str(location_id or ""))
-    return f"/{row['plate']}" if row else None
+    if row:
+        return f"/{row['plate']}"
+    from app.services.season.written_world import is_written, place_row, stand_in_plate
+
+    place = place_row(world, location_id)
+    return stand_in_plate(place) if is_written(place) else None
 
 
-def location_name_fr(location_id: str | None) -> str:
+def location_name_fr(location_id: str | None, *, world: dict[str, Any] | None = None) -> str:
     row = SEASON_ONE_LOCATIONS.get(str(location_id or ""))
-    return str(row["name_fr"]) if row else str(location_id or "")
+    if row:
+        return str(row["name_fr"])
+    from app.services.season.written_world import place_row
+
+    place = place_row(world, location_id) or {}
+    return str(place.get("name_fr") or place.get("name") or location_id or "")
 
 
 # ---------------------------------------------------------------------------

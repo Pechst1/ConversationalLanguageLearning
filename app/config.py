@@ -563,11 +563,12 @@ class Settings(BaseSettings):
     )
     ATELIER_STORY_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
     ATELIER_SEASON_WRITER_ENABLED: bool = Field(
-        False,
+        True,
         description=(
             "WP-98: past the last authored season, draft the next season's arcs from the "
             "learner's own material (one director call, critic-gated). Off: a named "
-            "interlude with a return date, then a reprise season built without a model."
+            "interlude with a return date, then a reprise season built without a model. "
+            "WP-168: on by default; it only runs once a season has ended (about day 60)."
         ),
     )
     ATELIER_SEASON_SCRIPT: str = Field(

@@ -1,0 +1,38 @@
+{
+  "llm_usd": 0.062829,
+  "lives": {
+    "garder": {
+      "rolled": true,
+      "refused": null
+    },
+    "partager": {
+      "rolled": true,
+      "refused": null
+    },
+    "laisser_partir": {
+      "rolled": true,
+      "refused": null
+    }
+  },
+  "plates": {
+    "garder": {
+      "place": "quai_le_havre",
+      "url": "/media/graphic-novel/revue-plates/season-w-quai_le_havre-0fc7d6d3-283a52fe1e740800.webp",
+      "file": "plate-garder-quai_le_havre.webp",
+      "seconds": 31.4
+    },
+    "partager": {
+      "place": "quai_port",
+      "url": "/media/graphic-novel/revue-plates/season-w-quai_port-8904563f-e6c1845290230c1a.webp",
+      "file": "plate-partager-quai_port.webp",
+      "seconds": 33.1
+    },
+    "laisser_partir": {
+      "place": "harbour_phare_kermorvan",
+      "url": "/media/graphic-novel/revue-plates/season-w-harbour_phare_kermorvan-5cc8991c-1d19dfcd22fb0524.webp",
+      "file": "plate-laisser_partir-harbour_phare_kermorvan.webp",
+      "seconds": 28.8
+    }
+  },
+  "estimated_image_usd": 0.18
+}

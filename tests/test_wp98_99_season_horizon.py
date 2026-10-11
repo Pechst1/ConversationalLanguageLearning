@@ -341,8 +341,9 @@ def test_the_writer_drafts_season_four_from_this_life_or_names_the_interlude(
         assert thread.world_bible["season_number"] == 3
 
 
-def test_the_writer_is_off_by_default():
-    assert settings.model_fields["ATELIER_SEASON_WRITER_ENABLED"].default is False
+def test_the_writer_is_on_by_default():
+    # WP-168 (owner, 11 October): it only runs once a season has ended, so the risk is low.
+    assert settings.model_fields["ATELIER_SEASON_WRITER_ENABLED"].default is True
 
 
 # ---------------------------------------------------------------------------

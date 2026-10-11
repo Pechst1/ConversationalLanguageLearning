@@ -1,0 +1,652 @@
+{
+  "ending": "garder",
+  "rolled": true,
+  "seconds": 54.3,
+  "material": [
+    {
+      "id": "p:polaroid_port",
+      "kind": "plant",
+      "text_fr": "Dans le tiroir d'Odile, un Polaroid : un port, des bateaux, et « 1971 » au dos.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "b:peintre_l",
+      "kind": "branch",
+      "text_fr": "Vous avez promis à M. Marchand de retrouver le peintre « L. » avant son anniversaire.",
+      "character_id": "landlord_marchand"
+    },
+    {
+      "id": "c:carte_mistral",
+      "kind": "commitment",
+      "text_fr": "Aider Margaux à refaire la carte du Mistral avant le printemps.",
+      "character_id": "margaux_barman"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:marchand.sundays",
+      "kind": "flag",
+      "text_fr": "marchand.sundays = True",
+      "character_id": null
+    },
+    {
+      "id": "p:lettre_gus",
+      "kind": "plant",
+      "text_fr": "Gus a reçu une lettre d'un notaire, avec un timbre étranger, et il ne l'ouvre pas.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "b:documentaire",
+      "kind": "branch",
+      "text_fr": "Romy vous a demandé d'être la voix française de son documentaire radio.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = garder",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = keep",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "The learner kept Odile's flat above Le Mistral and lives there now.",
+      "Le Mistral is exactly as it was; Margaux runs it alone, on a nine-year lease.",
+      "M. Marchand left the building for a residence without stairs; Solvel owns his floors, he kept the café's walls.",
+      "Only four people know Odile's notebook page; Gus knows nothing of it.",
+      "The painting «Le Mistral sur le canal» is with the learner; its back reads «Pour Odile, qui part. — L., 1970» and «Toujours rue de Lancry. — L., 2021».",
+      "Marin has put his co-op folder in a drawer.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it.",
+      "M. Marchand comes to Sunday lunch at the learner's, by the 46 bus, as he did at Odile's.",
+      "Romy gave the learner the memory card with Margaux's admission, without a word."
+    ],
+    "closed_locations": []
+  },
+  "draft": {
+    "title_fr": "Le port d'Odile",
+    "logline": "After keeping Odile's flat in Paris, you honour a promise to her landlord and follow a Polaroid to a northern port; with Romy and Gus at your side, you dig into Odile's past, try to find the painter 'L.', and record a radio piece that starts to stitch two cities together.",
+    "logline_fr": "Vous partez au Havre pour garder votre promesse et chercher le peintre « L. ».",
+    "your_arc": "You travel from Paris to Le Havre to keep a promise to M. Marchand and to learn who Odile was; along the way you grow from guardian of a memory to the person who can tell its story.",
+    "first_episode_seed": "A tram, two suitcases, and the Polaroid pressed into your palm: you read Mr Marchand's note one more time on the train to Le Havre and call Romy to say, simply, «Je viens.»",
+    "arcs": [
+      {
+        "id": "retrouver_l",
+        "title_fr": "Retrouver L.",
+        "characters": [
+          "user",
+          "landlord_marchand",
+          "yann_letoile"
+        ],
+        "grounded_in": "b:peintre_l",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark_promesse",
+            "summary": "You honour the promise to Mr Marchand and take the train to Le Havre to look for painter L.; Yann L'Étoile meets you with a list of possible studios.",
+            "sets": {
+              "user.promised_marchand": true,
+              "yann.has_list": true
+            }
+          },
+          {
+            "id": "pressure_closed_doors",
+            "summary": "Studio doors are locked, leads run cold, and Yann's market instincts clash with your need for a story not a sale.",
+            "sets": {
+              "yann.found_lead": false,
+              "user.frustrated_search": true
+            }
+          },
+          {
+            "id": "tentpole_atelier",
+            "summary": "In a dusty atelier by the docks you find a canvas edge signed with an L. and a scrap of handwriting that mentions Rue de Lancry.",
+            "sets": {
+              "user.found_atelier": true,
+              "landlord_marchand.relieved": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "polaroid_and_memory",
+        "title_fr": "Le Polaroid d'Odile",
+        "characters": [
+          "user",
+          "romy_tremblay",
+          "marina_laporte"
+        ],
+        "grounded_in": "p:polaroid_port",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark_photo",
+            "summary": "The Polaroid's harbour image drives interviews at the café du port; Marina recognizes the quay and a boat in the photo.",
+            "sets": {
+              "user.sees_polaroid": true,
+              "marina.recognises_boat": true
+            }
+          },
+          {
+            "id": "pressure_local_memories",
+            "summary": "Local memories disagree: some say Odile was a brief visitor, others recall an infrequent friendship with a painter; Romy records them all.",
+            "sets": {
+              "romy.follows_story": true,
+              "user.collecting_memories": true
+            }
+          },
+          {
+            "id": "tentpole_connection",
+            "summary": "A fisherman shows you an old ledger with a name that matches the handwriting on the back of your painting and mentions a berth used in 1971.",
+            "sets": {
+              "user.connects_odile_port": true,
+              "marina.shares_memory": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "gus_opening",
+        "title_fr": "La lettre de Gus",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "romy_tremblay"
+        ],
+        "grounded_in": "p:lettre_gus",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark_letter_arrives",
+            "summary": "Augustin brings the sealed letter with a foreign stamp and asks you to come with him to open it; Romy insists on recording the moment.",
+            "sets": {
+              "augustin.received_letter": true,
+              "user.accompanies_gus": true
+            }
+          },
+          {
+            "id": "pressure_fear_of_secret",
+            "summary": "Augustin hesitates, fearing scandal or loss; Romy pushes gently while you try to keep everyone comfortable.",
+            "sets": {
+              "augustin.afraid": true,
+              "user.mediating": true
+            }
+          },
+          {
+            "id": "tentpole_reveal",
+            "summary": "When the letter is opened it contains a short note with an address and the name of a small gallery in Le Havre — a clue that sends the group to a new door.",
+            "sets": {
+              "augustin.opens_letter": true,
+              "user.learns_secret": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "voice_and_radio",
+        "title_fr": "La voix du documentaire",
+        "characters": [
+          "user",
+          "romy_tremblay",
+          "marin_leveque"
+        ],
+        "grounded_in": "b:documentaire",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark_record_request",
+            "summary": "Romy asks you to be the French voice for her documentary and you accept, agreeing to record segments in the port cafés and at the atelier.",
+            "sets": {
+              "user.asked_for_voice": true,
+              "romy.recording_plan": true
+            }
+          },
+          {
+            "id": "pressure_noise_and_doubt",
+            "summary": "Field recording is hard: wind, trains, and nerves make you doubt your voice, and Marin helps you find a steadier tone.",
+            "sets": {
+              "user.recording_struggle": true,
+              "marin.supports_user": true
+            }
+          },
+          {
+            "id": "tentpole_broadcast",
+            "summary": "The piece airs on a local station and someone from the gallery recognizes the voice and calls — the broadcast creates a bridge back to Paris and to new testimony.",
+            "sets": {
+              "romy.broadcasts": true,
+              "user.connected_by_radio": true
+            }
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "text": "Who exactly was Odile in Le Havre — visitor, lover, tenant, or friend? The archive and the docks each tell a different half of the truth.",
+        "text_fr": "Qui était Odile au Havre : visiteuse, amie, ou autre chose ?",
+        "grounded_in": "thread:s1:0"
+      },
+      {
+        "text": "The promise to Mr Marchand: will finding painter L. simply close a promise, or will it change what the painting means to you?",
+        "text_fr": "Trouver le peintre « L. » changera-t-il le sens du tableau ?",
+        "grounded_in": "b:peintre_l"
+      },
+      {
+        "text": "The Polaroid dated 1971: who took it and why was that year important to Odile? Someone in the harbour might know.",
+        "text_fr": "Qui a pris le Polaroid de 1971, et pourquoi cette date ?",
+        "grounded_in": "p:polaroid_port"
+      },
+      {
+        "text": "Gus's unopened foreign letter: does it concern money, a cousin, or a confession — and who mailed it?",
+        "text_fr": "Que contient la lettre étrangère de Gus ?",
+        "grounded_in": "p:lettre_gus"
+      }
+    ],
+    "setting": {
+      "city": "Le Havre",
+      "region": "Normandy, France",
+      "neighborhood": "the old port docks and modern Perret quarter — harbourfront, warehouses, low cliffs",
+      "genre": "gentle investigative road-trip",
+      "tone": "warm, small discoveries and salty wind; tender journalistics with moments of wry humor",
+      "situation": "You go to Le Havre to find the painter «L.» and to follow the Polaroid that belonged to Odile.",
+      "situation_fr": "Vous allez au Havre pour retrouver le peintre « L. » et suivre le Polaroid d'Odile.",
+      "why": "The season moves because of the promise in b:peintre_l: you promised M. Marchand to find the painter «L.», and the Polaroid (p:polaroid_port) points to a northern port — so you take the train to Le Havre to keep the promise and to follow Odile's trace.",
+      "grounded_in": "b:peintre_l",
+      "travelling_cast": [
+        "romy_tremblay",
+        "augustin_de_roncourt",
+        "marin_leveque"
+      ],
+      "keep_locations": [
+        "le_mistral",
+        "odile_flat"
+      ]
+    },
+    "places": [
+      {
+        "id": "quai_le_havre",
+        "name_fr": "Le quai du Havre",
+        "kind": "quay",
+        "description": "The wide stone quay where small freighters tie up and fishermen mend nets; conversations here start and stop with the tide and courier vans pass in the background.",
+        "brief": "Long stone quay, moored small freighters, stacked wooden crates; late afternoon light, low cloud, wet sheen on the stone."
+      },
+      {
+        "id": "studio_atelier_port",
+        "name_fr": "L'atelier du port",
+        "kind": "studio",
+        "description": "A dusty artist's studio in a converted warehouse near the docks — canvases, turpentine, a single skylight — the place you hope will hold traces of L.",
+        "brief": "High warehouse room, scattered canvases and easels, palette-stained table; a single square skylight, pale northern daylight, a bent metal lamp."
+      },
+      {
+        "id": "gare_du_havre",
+        "name_fr": "La gare du Havre",
+        "kind": "station",
+        "description": "The tidy station where you arrive and depart by train; benches, ticket machines, and cigarette breaks give space for quick decisions and long goodbyes.",
+        "brief": "Modern station façade, tiled hall, rows of wooden benches; overcast morning light through glass roof, a distant arrival board."
+      },
+      {
+        "id": "cafe_du_port",
+        "name_fr": "Le café du port",
+        "kind": "cafe",
+        "description": "A harbour café with chipped cups and a radio on the counter; local fishermen, a teenager doing homework, and a woman who remembers everyone are the heart here.",
+        "brief": "Small corner café, chipped porcelain cups, a radio on the counter; warm interior light against grey sky, a hand-painted chalk menu on the wall."
+      },
+      {
+        "id": "administration_archives",
+        "name_fr": "Les archives municipales",
+        "kind": "administration",
+        "description": "A municipal reading room and archive office where you can request old registrations, studio permits, and shipping manifests; quiet and bureaucratic in equal measure.",
+        "brief": "Long shelving rows, labelled boxes, a heavy wooden reading table; cool fluorescent light, a single window with grey sky, stamped paper edges."
+      }
+    ],
+    "new_characters": [
+      {
+        "id": "yann_letoile",
+        "name": "Yann L'Étoile",
+        "gender": "m",
+        "role": "Local art dealer and former friend of a handful of painters; he knows the networks and the prices and dislikes sentimental quests.",
+        "personality": "Practical, slightly theatrical, quick with a smile and a card but slow to reveal tenderness.",
+        "wants": "To put the right artist in the right room and to keep the market tidy.",
+        "speech_pattern": "Speaks in short, curated sentences, likes to gesture with his hands and name-drops studios and dealers.",
+        "register_with_user": "vous",
+        "grounded_in": "b:peintre_l",
+        "rig": {
+          "build": "slim",
+          "height": "medium",
+          "head": "oval",
+          "skin": "light",
+          "hair": "short",
+          "hair_colour": "dark_brown",
+          "facial_hair": "none",
+          "glasses": "round",
+          "top": "jacket",
+          "top_colour": "navy",
+          "bottom_colour": "ink",
+          "accessory": "scarf",
+          "accessory_colour": "ochre",
+          "idle": "nod"
+        }
+      },
+      {
+        "id": "marina_laporte",
+        "name": "Marina Laporte",
+        "gender": "f",
+        "role": "Barista at the café du port and the fisherman's granddaughter; she collects local stories and photographs washed up at the tide.",
+        "personality": "Open, steady, with an ear for the small truth and a laugh that arrives late.",
+        "wants": "To keep the café as a place for people to return to and to know the stories of the boats.",
+        "speech_pattern": "Warm, direct, uses small local expressions and names of fish; explains things with gestures toward the water.",
+        "register_with_user": "tu",
+        "grounded_in": "p:polaroid_port",
+        "rig": {
+          "build": "medium",
+          "height": "short",
+          "head": "round",
+          "skin": "warm",
+          "hair": "braids",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "jumper",
+          "top_colour": "olive",
+          "bottom_colour": "stone",
+          "accessory": "earrings",
+          "accessory_colour": "navy",
+          "idle": "bob"
+        }
+      }
+    ]
+  },
+  "review": {
+    "accepted": true,
+    "grows_from_material": true,
+    "fresh": true,
+    "issues": [
+      "Risk of revealing the identity of « L. »: canon rules explicitly say the answer who L. is belongs to the next authored season. The proposal's central arc aims to 'retrouver L.' and includes concrete atelier evidence; the writers must take care not to give a final, named identification of L. in this season.",
+      "Maintain Lila's absence: canon states Lila left for Berlin and 'is never in a Paris scene.' The proposal does not include Lila, which is correct — ensure she does not appear or return in any cameo or flashback that implies presence in Paris.",
+      "Gus and Odile's notebook: canon says 'Only four people know Odile's notebook page; Gus knows nothing of it.' The season uses Gus's foreign letter (allowed) but must avoid giving Gus knowledge of the notebook page or making him one of the four who know it.",
+      "Keep Le Mistral question closed: canon forbids reopening the café question. The proposal keeps Le Mistral and the flat as locations and treats this as a follow-on investigation; the writing must avoid re-litigating 'keep/change/let go' as an open conflict.",
+      "Register / relationship consistency for new characters: the world rule says the whole cast knows the learner (no stranger's vous). Yann L'Étoile is specified to use 'vous' with the learner while canon rules emphasize familiarity; clarify whether Yann is already known to the learner (so 'tu' would be expected) or deliberately a polite stranger — otherwise this conflicts with the established social rule.",
+      "Camille and the 'vous' switch: canon mandates Camille still uses 'vous' and that switching to 'tu' belongs to a later season. The proposal includes Marin and Romy assisting with recordings and scenes that could shift intimacy; the writers must ensure no scene forces or implies an early intime like Camille switching to 'tu'.",
+      "A2 learner-facing French: most seeds and stage summaries are clear and simple, but the season will need to keep language accessible (field-recording vocabulary, archival/administration terms) and avoid dense archival/legal jargon without support.",
+      "Continuity of 'who knows what' and timeline: the season introduces local archival leads, gallery clues, broadcast consequences and calls back to the Rue de Lancry painting back-label. Care must be taken that any new revelation about dates (1971 / 1970 / 2021) and testimonies does not contradict existing canon facts about the painting's back notes or Odile's known letters."
+    ]
+  },
+  "refused": null,
+  "details": null,
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 13461,
+      "cost_usd": 0.015803,
+      "seconds": 46.192
+    },
+    {
+      "stage": "SeasonReview",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 7021,
+      "cost_usd": 0.003967,
+      "seconds": 8.07
+    }
+  ],
+  "world": {
+    "season_number": 2,
+    "season_source": "written",
+    "world_bible_version": "le-havre-s2-written",
+    "title_fr": "Le port d'Odile",
+    "logline": "After keeping Odile's flat in Paris, you honour a promise to her landlord and follow a Polaroid to a northern port; with Romy and Gus at your side, you dig into Odile's past, try to find the painter 'L.', and record a radio piece that starts to stitch two cities together.",
+    "season_logline_fr": "Vous partez au Havre pour garder votre promesse et chercher le peintre « L. ».",
+    "setting": {
+      "city": "Le Havre",
+      "previous_city": "Paris",
+      "region": "Normandy, France",
+      "neighborhood": "the old port docks and modern Perret quarter — harbourfront, warehouses, low cliffs",
+      "genre": "gentle investigative road-trip",
+      "tone": "warm, small discoveries and salty wind; tender journalistics with moments of wry humor",
+      "situation": "You go to Le Havre to find the painter «L.» and to follow the Polaroid that belonged to Odile."
+    },
+    "places": [
+      {
+        "id": "quai_le_havre",
+        "name_fr": "Le quai du Havre",
+        "type": "quay",
+        "description": "The wide stone quay where small freighters tie up and fishermen mend nets; conversations here start and stop with the tide and courier vans pass in the background.",
+        "brief": "Long stone quay, moored small freighters, stacked wooden crates; late afternoon light, low cloud, wet sheen on the stone.",
+        "plate_id": "w-quai_le_havre-0fc7d6d3",
+        "stand_in": "quai_de_valmy"
+      },
+      {
+        "id": "studio_atelier_port",
+        "name_fr": "L'atelier du port",
+        "type": "studio",
+        "description": "A dusty artist's studio in a converted warehouse near the docks — canvases, turpentine, a single skylight — the place you hope will hold traces of L.",
+        "brief": "High warehouse room, scattered canvases and easels, palette-stained table; a single square skylight, pale northern daylight, a bent metal lamp.",
+        "plate_id": "w-studio_atelier_port-d539b767",
+        "stand_in": "newsroom"
+      },
+      {
+        "id": "gare_du_havre",
+        "name_fr": "La gare du Havre",
+        "type": "station",
+        "description": "The tidy station where you arrive and depart by train; benches, ticket machines, and cigarette breaks give space for quick decisions and long goodbyes.",
+        "brief": "Modern station façade, tiled hall, rows of wooden benches; overcast morning light through glass roof, a distant arrival board.",
+        "plate_id": "w-gare_du_havre-c5cf0ced",
+        "stand_in": "gare_de_lest"
+      },
+      {
+        "id": "cafe_du_port",
+        "name_fr": "Le café du port",
+        "type": "cafe",
+        "description": "A harbour café with chipped cups and a radio on the counter; local fishermen, a teenager doing homework, and a woman who remembers everyone are the heart here.",
+        "brief": "Small corner café, chipped porcelain cups, a radio on the counter; warm interior light against grey sky, a hand-painted chalk menu on the wall.",
+        "plate_id": "w-cafe_du_port-23324173",
+        "stand_in": "le_mistral"
+      },
+      {
+        "id": "administration_archives",
+        "name_fr": "Les archives municipales",
+        "type": "administration",
+        "description": "A municipal reading room and archive office where you can request old registrations, studio permits, and shipping manifests; quiet and bureaucratic in equal measure.",
+        "brief": "Long shelving rows, labelled boxes, a heavy wooden reading table; cool fluorescent light, a single window with grey sky, stamped paper edges.",
+        "plate_id": "w-administration_archives-e27287d7",
+        "stand_in": "mairie"
+      }
+    ],
+    "kept_places": [
+      "le_mistral",
+      "odile_flat"
+    ],
+    "new_characters": [
+      {
+        "id": "yann_letoile",
+        "name": "Yann L'Étoile",
+        "gender": "m",
+        "role": "Local art dealer and former friend of a handful of painters; he knows the networks and the prices and dislikes sentimental quests.",
+        "personality": "Practical, slightly theatrical, quick with a smile and a card but slow to reveal tenderness.",
+        "wants": "To put the right artist in the right room and to keep the market tidy.",
+        "speech_pattern": "Speaks in short, curated sentences, likes to gesture with his hands and name-drops studios and dealers.",
+        "register_with_user": "vous",
+        "grounded_in": "b:peintre_l",
+        "rig": {
+          "build": "slim",
+          "height": "medium",
+          "head": "oval",
+          "skin": "light",
+          "hair": "short",
+          "hair_colour": "dark_brown",
+          "facial_hair": "none",
+          "glasses": "round",
+          "top": "jacket",
+          "top_colour": "navy",
+          "bottom_colour": "ink",
+          "accessory": "scarf",
+          "accessory_colour": "ochre",
+          "idle": "nod"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "marina_laporte",
+        "name": "Marina Laporte",
+        "gender": "f",
+        "role": "Barista at the café du port and the fisherman's granddaughter; she collects local stories and photographs washed up at the tide.",
+        "personality": "Open, steady, with an ear for the small truth and a laugh that arrives late.",
+        "wants": "To keep the café as a place for people to return to and to know the stories of the boats.",
+        "speech_pattern": "Warm, direct, uses small local expressions and names of fish; explains things with gestures toward the water.",
+        "register_with_user": "tu",
+        "grounded_in": "p:polaroid_port",
+        "rig": {
+          "build": "medium",
+          "height": "short",
+          "head": "round",
+          "skin": "warm",
+          "hair": "braids",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "jumper",
+          "top_colour": "olive",
+          "bottom_colour": "stone",
+          "accessory": "earrings",
+          "accessory_colour": "navy",
+          "idle": "bob"
+        },
+        "written_season": 2
+      }
+    ],
+    "away": {
+      "lila_bonnet": "Stayed in Paris when the story moved to Le Havre: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "margaux_barman": "Stayed in Paris when the story moved to Le Havre: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "landlord_marchand": "Stayed in Paris when the story moved to Le Havre: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "camille_marchand": "Stayed in Paris when the story moved to Le Havre: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "mme_diallo": "Stayed in Paris when the story moved to Le Havre: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "maitre_vasseur": "Stayed in Paris when the story moved to Le Havre: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "bastien_roux": "Stayed in Paris when the story moved to Le Havre: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there."
+    },
+    "arcs": [
+      {
+        "id": "retrouver_l",
+        "title_fr": "Retrouver L.",
+        "characters": [
+          "user",
+          "landlord_marchand",
+          "yann_letoile"
+        ],
+        "grounded_in": "b:peintre_l",
+        "stages": [
+          "You honour the promise to Mr Marchand and take the train to Le Havre to look for painter L.; Yann L'Étoile meets you with a list of possible studios.",
+          "Studio doors are locked, leads run cold, and Yann's market instincts clash with your need for a story not a sale.",
+          "In a dusty atelier by the docks you find a canvas edge signed with an L. and a scrap of handwriting that mentions Rue de Lancry."
+        ]
+      },
+      {
+        "id": "polaroid_and_memory",
+        "title_fr": "Le Polaroid d'Odile",
+        "characters": [
+          "user",
+          "romy_tremblay",
+          "marina_laporte"
+        ],
+        "grounded_in": "p:polaroid_port",
+        "stages": [
+          "The Polaroid's harbour image drives interviews at the café du port; Marina recognizes the quay and a boat in the photo.",
+          "Local memories disagree: some say Odile was a brief visitor, others recall an infrequent friendship with a painter; Romy records them all.",
+          "A fisherman shows you an old ledger with a name that matches the handwriting on the back of your painting and mentions a berth used in 1971."
+        ]
+      },
+      {
+        "id": "gus_opening",
+        "title_fr": "La lettre de Gus",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "romy_tremblay"
+        ],
+        "grounded_in": "p:lettre_gus",
+        "stages": [
+          "Augustin brings the sealed letter with a foreign stamp and asks you to come with him to open it; Romy insists on recording the moment.",
+          "Augustin hesitates, fearing scandal or loss; Romy pushes gently while you try to keep everyone comfortable.",
+          "When the letter is opened it contains a short note with an address and the name of a small gallery in Le Havre — a clue that sends the group to a new door."
+        ]
+      },
+      {
+        "id": "voice_and_radio",
+        "title_fr": "La voix du documentaire",
+        "characters": [
+          "user",
+          "romy_tremblay",
+          "marin_leveque"
+        ],
+        "grounded_in": "b:documentaire",
+        "stages": [
+          "Romy asks you to be the French voice for her documentary and you accept, agreeing to record segments in the port cafés and at the atelier.",
+          "Field recording is hard: wind, trains, and nerves make you doubt your voice, and Marin helps you find a steadier tone.",
+          "The piece airs on a local station and someone from the gallery recognizes the voice and calls — the broadcast creates a bridge back to Paris and to new testimony."
+        ]
+      }
+    ],
+    "situation": {
+      "your_arc": "You travel from Paris to Le Havre to keep a promise to M. Marchand and to learn who Odile was; along the way you grow from guardian of a memory to the person who can tell its story.",
+      "open_threads": [
+        "Who exactly was Odile in Le Havre — visitor, lover, tenant, or friend? The archive and the docks each tell a different half of the truth.",
+        "The promise to Mr Marchand: will finding painter L. simply close a promise, or will it change what the painting means to you?",
+        "The Polaroid dated 1971: who took it and why was that year important to Odile? Someone in the harbour might know.",
+        "Gus's unopened foreign letter: does it concern money, a cousin, or a confession — and who mailed it?"
+      ],
+      "open_threads_fr": [
+        "Qui était Odile au Havre : visiteuse, amie, ou autre chose ?",
+        "Trouver le peintre « L. » changera-t-il le sens du tableau ?",
+        "Qui a pris le Polaroid de 1971, et pourquoi cette date ?",
+        "Que contient la lettre étrangère de Gus ?"
+      ],
+      "first_episode_seed": "A tram, two suitcases, and the Polaroid pressed into your palm: you read Mr Marchand's note one more time on the train to Le Havre and call Romy to say, simply, «Je viens.»"
+    }
+  },
+  "interlude": null
+}

@@ -1,0 +1,719 @@
+{
+  "ending": "laisser_partir",
+  "rolled": true,
+  "seconds": 68.8,
+  "material": [
+    {
+      "id": "p:carte_phare",
+      "kind": "plant",
+      "text_fr": "La carte postale de Margaux : un phare, et « Il y a du travail ici, si tu veux. »",
+      "character_id": "margaux_barman"
+    },
+    {
+      "id": "b:bateau_pere",
+      "kind": "branch",
+      "text_fr": "Marin vous a dit que son père cherche quelqu'un pour l'été, sur son bateau.",
+      "character_id": "marin_leveque"
+    },
+    {
+      "id": "c:photos_lila",
+      "kind": "commitment",
+      "text_fr": "Envoyer à Lila les photos du canal, chaque dimanche.",
+      "character_id": "lila_bonnet"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = laisser_partir",
+      "character_id": null
+    },
+    {
+      "id": "p:neon",
+      "kind": "plant",
+      "text_fr": "Romy a gardé le dernier néon du Mistral dans sa cave.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "b:camion_tableau",
+      "kind": "branch",
+      "text_fr": "Un voisin a vu le camion du brocanteur partir vers le sud avec le tableau.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = sell",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.lila_path",
+      "kind": "flag",
+      "text_fr": "s1.lila_path = open",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      },
+      {
+        "id": "margaux_barman",
+        "name": "Margaux",
+        "why": "Margaux has gone to Brittany, to Marin's father's, to see the sea."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "Le Mistral has closed: its neon went out on the last night. Never stage it as an open café.",
+      "Odile's flat is sold to Solvel; the learner kept only Odile's kitchen table.",
+      "Margaux has gone to Brittany, to Marin's father's, to see the sea; she writes postcards («Elle est grande.»).",
+      "Gus bought the booth's bench and keeps it in his loft.",
+      "The painting left with a second-hand dealer's van; it is somewhere in Paris.",
+      "Romy's photo essay on the last night is the best thing she has written; M. Marchand sent the learner a Christmas card.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it."
+    ],
+    "closed_locations": [
+      "le_mistral"
+    ]
+  },
+  "draft": {
+    "title_fr": "La carte et le phare",
+    "logline": "After Odile's flat and the café, a postcard from Margaux — 'there is work here, if you want' — pulls you to a small Finistère port where a missing painting, a fisher's offer, and Lila's Sundays of photos make you choose what you will keep and who you will be.",
+    "logline_fr": "Une carte de Margaux vous mène en Bretagne. Travail, tableau, et photos — que gardez-vous ?",
+    "your_arc": "You cross to a Finistère fishing town to keep a promise and to follow a clue in the painting; along the way you learn practical work, make uneasy new alliances, and accept friendship at a distance.",
+    "first_episode_seed": "A wet postcard arrives with a lighthouse on it and Margaux's line: «Il y a du travail ici, si tu veux.» You buy a ticket and call Marin; Romy says she'll come too.",
+    "arcs": [
+      {
+        "id": "arc_phare",
+        "title_fr": "La carte au phare",
+        "characters": [
+          "user",
+          "marin_leveque",
+          "romy_tremblay",
+          "mael_le_phare"
+        ],
+        "grounded_in": "p:carte_phare",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "A damp postcard from Margaux with a lighthouse picture arrives and you buy a ticket to Camaret-sur-Mer; Marin and Romy decide to come with you.",
+            "sets": {
+              "user.go_to_brittany": true,
+              "marin.will_travel": true,
+              "romy.will_travel": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "At the headland you find Margaux's cottage closed and the locals cautious; the postcard's simple offer feels suddenly large and you must explain who you are.",
+            "sets": {
+              "user.explains_intent": true,
+              "mael_le_phare.skeptical": true,
+              "marin.concerned": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "Maël shows you Margaux's note in the lighthouse log and a small work offer; it is real but ambiguous — the promise is neither a job contract nor a favor, just a place to be useful.",
+            "sets": {
+              "user.keep_promise": true,
+              "mael_le_phare.gives_clue": "work_offer_logged"
+            }
+          }
+        ]
+      },
+      {
+        "id": "arc_bateau",
+        "title_fr": "Le travail sur le bateau",
+        "characters": [
+          "user",
+          "marin_leveque",
+          "yann_le_guen"
+        ],
+        "grounded_in": "b:bateau_pere",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Yann offers you a season's job on his boat to 'see if you last a week' and you accept to prove you can do useful things.",
+            "sets": {
+              "user.asked_for_job": true,
+              "yann_le_guen.offered_job": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "The sea and the rhythm of the boat are harder than you thought; an argument between Yann and Marin about family and pride forces you to choose sides.",
+            "sets": {
+              "marin.angry_with_yann": true,
+              "user.doubts_skills": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "You fix a motor under time and weather pressure and earn a nod from Yann; the community counts you as someone who can be trusted with work.",
+            "sets": {
+              "yann_le_guen.hires_user": true,
+              "user.learns_boat_skills": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "arc_tableau",
+        "title_fr": "La piste du tableau",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "romy_tremblay",
+          "brigitte_lenoir"
+        ],
+        "grounded_in": "b:camion_tableau",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "A neighbour mentions a brocante van that left with a framed painting southwards; Augustin and Romy want to track it down and you go with them.",
+            "sets": {
+              "augustin.obsessed": true,
+              "romy.want_story": true,
+              "user.joins_search": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "Brigitte the brocante owner is evasive but remembers a buyer and gives a partial address; the trail splits and tempers rise about what should be recovered.",
+            "sets": {
+              "brigitte_lenoir.gives_partial": true,
+              "user.frustrated": true,
+              "romy.intensifies_inquiry": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "You and Romy find the painting in an old barn; taped behind it is a small fragment of Odile's handwriting — a clue, but not the answer everyone wants.",
+            "sets": {
+              "user.finds_fragment": "odile_note_fragment",
+              "romy.documents_discovery": true,
+              "augustin.consoled": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "arc_photos",
+        "title_fr": "Les photos pour Lila",
+        "characters": [
+          "user",
+          "romy_tremblay"
+        ],
+        "grounded_in": "c:photos_lila",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "You remember your commitment to send Lila canal photos on Sundays and start a new thread of postcards and pictures from the port, keeping the ritual alive.",
+            "sets": {
+              "user.sent_photos": true,
+              "user.maintains_commitment": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "Lila's replies slow and you feel the stretch between Berlin and here; Romy, watching, worries you are making a choice about someone else rather than yourself.",
+            "sets": {
+              "user.misses_lila": true,
+              "romy.advises_distance": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "You accept that friendship can survive distance; you make a small public gesture — a printed photo left at the market with a note — and feel steadier.",
+            "sets": {
+              "user.grows_open": true,
+              "user.accepts_distance": true
+            }
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "text": "The neon from Le Mistral is with Romy in her cave — could it be used to connect the past and this place, or is it just a relic?",
+        "text_fr": "Où est le néon du Mistral ?",
+        "grounded_in": "p:neon"
+      },
+      {
+        "text": "The second‑hand van took the painting south — who bought it and why did it travel to this coastal town?",
+        "text_fr": "Qui a acheté le tableau ?",
+        "grounded_in": "b:camion_tableau"
+      },
+      {
+        "text": "The Rue de Lancry window is still lit in the old season's notes — who lives there now and what did they see that night?",
+        "text_fr": "Qui habite la fenêtre allumée rue de Lancry ?",
+        "grounded_in": "thread:s1.open_question"
+      },
+      {
+        "text": "You keep sending Lila photos every Sunday — will she read them and answer, or will the ritual itself be the point?",
+        "text_fr": "Lila lit-elle mes photos ?",
+        "grounded_in": "c:photos_lila"
+      }
+    ],
+    "setting": {
+      "city": "Camaret-sur-Mer (Finistère, Bretagne)",
+      "region": "Finistère, France",
+      "neighborhood": "the small port, the headland and the village streets",
+      "genre": "coastal mystery / coming-of-work story",
+      "tone": "quiet, a little windy, practical tenderness — less satire, more close observation",
+      "situation": "You travel to a Breton port to answer Margaux's postcard, check a fisher's offer, and follow a lead on the missing painting.",
+      "situation_fr": "Vous allez en Bretagne pour la carte de Margaux et pour chercher le tableau.",
+      "why": "The material plant p:carte_phare is a postcard from Margaux offering work and an invitation; Margaux is in Brittany (canon) and her line pulls the learner to find what she meant and to keep a promise.",
+      "grounded_in": "p:carte_phare",
+      "travelling_cast": [
+        "marin_leveque",
+        "romy_tremblay",
+        "augustin_de_roncourt"
+      ],
+      "keep_locations": [
+        "odile_flat",
+        "rue_de_lancry"
+      ]
+    },
+    "places": [
+      {
+        "id": "port_camaret",
+        "name_fr": "Le port de Camaret",
+        "kind": "harbour",
+        "description": "Small working harbour where fish boats tie up, conversations happen on the quay, and people measure another's seriousness by how they step onto a deck.",
+        "brief": "stone quay with mooring rings, three small fishing boats, stacked lobster pots; cold morning light and wet cobblestones."
+      },
+      {
+        "id": "quai_phare",
+        "name_fr": "Le phare du Men",
+        "kind": "quay",
+        "description": "A windswept headland with a white lighthouse that is both object and witness; the postcard image came from here.",
+        "brief": "white tower on black rock, rusted iron rail, gull on a bollard; low overcast light, sea spray on the stones."
+      },
+      {
+        "id": "bateau_yann",
+        "name_fr": "Le bateau de Yann",
+        "kind": "boat",
+        "description": "A small wooden trawler with an oil-stained wheel and a tight, serious crew — the place where practical work and family history meet.",
+        "brief": "wooden wheel, coils of rope, diesel smell, patched canvas awning; warm cabin light through porthole at dusk."
+      },
+      {
+        "id": "brocante_remparts",
+        "name_fr": "La Brocante des Remparts",
+        "kind": "shop",
+        "description": "A dusty second‑hand shop near the ramparts where frames pile to the ceiling and the painting might have reappeared.",
+        "brief": "stacked gilt frames, leaning canvases, a brass bell on the counter, grey light through a grimy window."
+      },
+      {
+        "id": "maison_margaux",
+        "name_fr": "La maison de Margaux",
+        "kind": "home",
+        "description": "A stone cottage Margaux has been staying in; closed like a postcard's back but with a mantel where the card may have been left.",
+        "brief": "stone cottage with blue shutters, a small mantel with postcards, sea-weathered door; warm interior light in the evening."
+      }
+    ],
+    "new_characters": [
+      {
+        "id": "yann_le_guen",
+        "name": "Yann Le Guen",
+        "gender": "m",
+        "role": "Marin's father; a working fisher who needs a hand for the summer and runs a short, practical household on the boat.",
+        "personality": "quiet, skeptical at first, fiercely practical and proud; he judges by work more than words.",
+        "wants": "Someone who can take a real shift on the boat and whom he can trust at sea.",
+        "speech_pattern": "short sentences, often clipped; uses fishing terms and Breton place-names; speaks to the learner with cautious courtesy.",
+        "register_with_user": "vous",
+        "grounded_in": "b:bateau_pere",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "square",
+          "skin": "tan",
+          "hair": "short",
+          "hair_colour": "dark_brown",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "jacket",
+          "top_colour": "navy",
+          "bottom_colour": "stone",
+          "accessory": "cap",
+          "accessory_colour": "navy",
+          "idle": "sway"
+        }
+      },
+      {
+        "id": "brigitte_lenoir",
+        "name": "Brigitte Lenoir",
+        "gender": "f",
+        "role": "Owner of the brocante; she handled the van that took the painting south and remembers faces and small details.",
+        "personality": "gossipy but exacting, warm in the way of someone who sorts objects with care.",
+        "wants": "To catalogue her inventory properly and to be recognised as a small-town businesswoman.",
+        "speech_pattern": "long, descriptive sentences; she names makers and dates and insists on small facts.",
+        "register_with_user": "vous",
+        "grounded_in": "b:camion_tableau",
+        "rig": {
+          "build": "medium",
+          "height": "short",
+          "head": "round",
+          "skin": "warm",
+          "hair": "bob",
+          "hair_colour": "auburn",
+          "facial_hair": "none",
+          "glasses": "round",
+          "top": "jumper",
+          "top_colour": "ochre",
+          "bottom_colour": "charcoal",
+          "accessory": "earrings",
+          "accessory_colour": "brick",
+          "idle": "bob"
+        }
+      },
+      {
+        "id": "mael_le_phare",
+        "name": "Maël Le Phare",
+        "gender": "x",
+        "role": "Caretaker of the headland and lighthouse; he keeps small records of who comes and who goes and left Margaux a note when she moved in.",
+        "personality": "observant, slightly formal, fond of small rituals—tea at four, the logbook at night.",
+        "wants": "To keep the lighthouse as a human place and to pass on its small stories.",
+        "speech_pattern": "measured, almost ceremonial; uses nautical metaphors in everyday speech.",
+        "register_with_user": "vous",
+        "grounded_in": "p:carte_phare",
+        "rig": {
+          "build": "slim",
+          "height": "tall",
+          "head": "long",
+          "skin": "olive",
+          "hair": "wavy",
+          "hair_colour": "grey",
+          "facial_hair": "none",
+          "glasses": "square",
+          "top": "coat",
+          "top_colour": "slate",
+          "bottom_colour": "navy",
+          "accessory": "scarf",
+          "accessory_colour": "cream",
+          "idle": "nod"
+        }
+      }
+    ]
+  },
+  "review": {
+    "accepted": true,
+    "grows_from_material": true,
+    "fresh": true,
+    "issues": [
+      "All major moves are plausibly and directly pulled from the listed plants/branches/commitments: Margaux's postcard (p:carte_phare) motivates the trip to Brittany; Marin's father's offer (b:bateau_pere) motivates the boat arc; the brocante van (b:camion_tableau) motivates the painting chase; the weekly photo promise to Lila (c:photos_lila) is preserved. Good alignment.",
+      "Be careful not to re-open the café question. Canon says 'Le Mistral has closed' and 'The café question of season 1 is closed. Do not reopen it.' The proposal treats the neon and memory as relics (open thread about the neon) — keep any scenes strictly commemorative, never staging Le Mistral as an operating café.",
+      "Respect Lila's canon departure. Lila must remain in Berlin and off-stage; the proposal keeps her as a distant corresponded friend via the photo ritual, which fits the canon rule that she 'is never in a Paris scene.'",
+      "Margaux's presence must match canon: she is in Brittany (canon) and currently away; the season must not put her back in Paris or present her as an ongoing café-owner on site. The proposal's portrayal of her cottage as closed fits that constraint.",
+      "Tone and learner-facing language: the proposal's new registers (Yann, Maël, Brigitte) are set to 'vous' and to simple speech patterns, which is appropriate for A2-facing French. Ensure actual episode dialogue remains concrete, short sentences and high-frequency vocabulary to meet A2 needs.",
+      "Augustin and other Paris characters are listed among the travelling cast. That's allowed, but keep motivations explicit: any character who travels must have a motivating thread from material (Augustin's obsession is grounded in b:camion_tableau). Avoid gratuitous travel that isn't requested by a plant/branch/commitment.",
+      "Preserve the rule about the rue de Lancry question: do not reveal who 'L.' is. The proposal keeps the Rue de Lancry thread open; maintain that restriction in any discovered fragments.",
+      "Practical detail: the proposal will introduce several new proper nouns and technical vocabulary (fishing terms, brocante cataloguing, lighthouse log). To remain A2-appropriate, introduce and recycle these terms slowly, provide context, and favour actions over abstract exposition."
+    ]
+  },
+  "refused": null,
+  "details": null,
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 15801,
+      "cost_usd": 0.020323,
+      "seconds": 62.808
+    },
+    {
+      "stage": "SeasonReview",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 6872,
+      "cost_usd": 0.003326,
+      "seconds": 5.998
+    }
+  ],
+  "world": {
+    "season_number": 2,
+    "season_source": "written",
+    "world_bible_version": "camaret-sur-mer-finist-re-bretagne-s2-written",
+    "title_fr": "La carte et le phare",
+    "logline": "After Odile's flat and the café, a postcard from Margaux — 'there is work here, if you want' — pulls you to a small Finistère port where a missing painting, a fisher's offer, and Lila's Sundays of photos make you choose what you will keep and who you will be.",
+    "season_logline_fr": "Une carte de Margaux vous mène en Bretagne. Travail, tableau, et photos — que gardez-vous ?",
+    "setting": {
+      "city": "Camaret-sur-Mer (Finistère, Bretagne)",
+      "previous_city": "Paris",
+      "region": "Finistère, France",
+      "neighborhood": "the small port, the headland and the village streets",
+      "genre": "coastal mystery / coming-of-work story",
+      "tone": "quiet, a little windy, practical tenderness — less satire, more close observation",
+      "situation": "You travel to a Breton port to answer Margaux's postcard, check a fisher's offer, and follow a lead on the missing painting."
+    },
+    "places": [
+      {
+        "id": "port_camaret",
+        "name_fr": "Le port de Camaret",
+        "type": "harbour",
+        "description": "Small working harbour where fish boats tie up, conversations happen on the quay, and people measure another's seriousness by how they step onto a deck.",
+        "brief": "Le port de Camaret, Camaret-sur-Mer (Finistère, Bretagne): stone quay with mooring rings, three small fishing boats, stacked lobster pots; cold morning light and wet cobblestones.",
+        "plate_id": "w-port_camaret-b80a6aec",
+        "stand_in": "quai_de_valmy"
+      },
+      {
+        "id": "quai_phare",
+        "name_fr": "Le phare du Men",
+        "type": "quay",
+        "description": "A windswept headland with a white lighthouse that is both object and witness; the postcard image came from here.",
+        "brief": "Le phare du Men, Camaret-sur-Mer (Finistère, Bretagne): white tower on black rock, rusted iron rail, gull on a bollard; low overcast light, sea spray on the stones.",
+        "plate_id": "w-quai_phare-5617e96c",
+        "stand_in": "quai_de_valmy"
+      },
+      {
+        "id": "bateau_yann",
+        "name_fr": "Le bateau de Yann",
+        "type": "boat",
+        "description": "A small wooden trawler with an oil-stained wheel and a tight, serious crew — the place where practical work and family history meet.",
+        "brief": "Le bateau de Yann, Camaret-sur-Mer (Finistère, Bretagne): wooden wheel, coils of rope, diesel smell, patched canvas awning; warm cabin light through porthole at dusk.",
+        "plate_id": "w-bateau_yann-57513d27",
+        "stand_in": "quai_de_valmy"
+      },
+      {
+        "id": "brocante_remparts",
+        "name_fr": "La Brocante des Remparts",
+        "type": "shop",
+        "description": "A dusty second‑hand shop near the ramparts where frames pile to the ceiling and the painting might have reappeared.",
+        "brief": "La Brocante des Remparts, Camaret-sur-Mer (Finistère, Bretagne): stacked gilt frames, leaning canvases, a brass bell on the counter, grey light through a grimy window.",
+        "plate_id": "w-brocante_remparts-a1f66795",
+        "stand_in": "brocante"
+      },
+      {
+        "id": "maison_margaux",
+        "name_fr": "La maison de Margaux",
+        "type": "home",
+        "description": "A stone cottage Margaux has been staying in; closed like a postcard's back but with a mantel where the card may have been left.",
+        "brief": "La maison de Margaux, Camaret-sur-Mer (Finistère, Bretagne): stone cottage with blue shutters, a small mantel with postcards, sea-weathered door; warm interior light in the evening.",
+        "plate_id": "w-maison_margaux-9a2016cd",
+        "stand_in": "user_apartment"
+      }
+    ],
+    "kept_places": [
+      "odile_flat",
+      "rue_de_lancry"
+    ],
+    "new_characters": [
+      {
+        "id": "yann_le_guen",
+        "name": "Yann Le Guen",
+        "gender": "m",
+        "role": "Marin's father; a working fisher who needs a hand for the summer and runs a short, practical household on the boat.",
+        "personality": "quiet, skeptical at first, fiercely practical and proud; he judges by work more than words.",
+        "wants": "Someone who can take a real shift on the boat and whom he can trust at sea.",
+        "speech_pattern": "short sentences, often clipped; uses fishing terms and Breton place-names; speaks to the learner with cautious courtesy.",
+        "register_with_user": "vous",
+        "grounded_in": "b:bateau_pere",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "square",
+          "skin": "tan",
+          "hair": "short",
+          "hair_colour": "dark_brown",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "jacket",
+          "top_colour": "navy",
+          "bottom_colour": "stone",
+          "accessory": "cap",
+          "accessory_colour": "navy",
+          "idle": "sway"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "brigitte_lenoir",
+        "name": "Brigitte Lenoir",
+        "gender": "f",
+        "role": "Owner of the brocante; she handled the van that took the painting south and remembers faces and small details.",
+        "personality": "gossipy but exacting, warm in the way of someone who sorts objects with care.",
+        "wants": "To catalogue her inventory properly and to be recognised as a small-town businesswoman.",
+        "speech_pattern": "long, descriptive sentences; she names makers and dates and insists on small facts.",
+        "register_with_user": "vous",
+        "grounded_in": "b:camion_tableau",
+        "rig": {
+          "build": "medium",
+          "height": "short",
+          "head": "round",
+          "skin": "warm",
+          "hair": "bob",
+          "hair_colour": "auburn",
+          "facial_hair": "none",
+          "glasses": "round",
+          "top": "jumper",
+          "top_colour": "ochre",
+          "bottom_colour": "charcoal",
+          "accessory": "earrings",
+          "accessory_colour": "brick",
+          "idle": "bob"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "mael_le_phare",
+        "name": "Maël Le Phare",
+        "gender": "x",
+        "role": "Caretaker of the headland and lighthouse; he keeps small records of who comes and who goes and left Margaux a note when she moved in.",
+        "personality": "observant, slightly formal, fond of small rituals—tea at four, the logbook at night.",
+        "wants": "To keep the lighthouse as a human place and to pass on its small stories.",
+        "speech_pattern": "measured, almost ceremonial; uses nautical metaphors in everyday speech.",
+        "register_with_user": "vous",
+        "grounded_in": "p:carte_phare",
+        "rig": {
+          "build": "slim",
+          "height": "tall",
+          "head": "long",
+          "skin": "olive",
+          "hair": "wavy",
+          "hair_colour": "grey",
+          "facial_hair": "none",
+          "glasses": "square",
+          "top": "coat",
+          "top_colour": "slate",
+          "bottom_colour": "navy",
+          "accessory": "scarf",
+          "accessory_colour": "cream",
+          "idle": "nod"
+        },
+        "written_season": 2
+      }
+    ],
+    "away": {
+      "lila_bonnet": "Stayed in Paris when the story moved to Camaret-sur-Mer (Finistère, Bretagne): only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "margaux_barman": "Stayed in Paris when the story moved to Camaret-sur-Mer (Finistère, Bretagne): only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "landlord_marchand": "Stayed in Paris when the story moved to Camaret-sur-Mer (Finistère, Bretagne): only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "camille_marchand": "Stayed in Paris when the story moved to Camaret-sur-Mer (Finistère, Bretagne): only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "mme_diallo": "Stayed in Paris when the story moved to Camaret-sur-Mer (Finistère, Bretagne): only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "maitre_vasseur": "Stayed in Paris when the story moved to Camaret-sur-Mer (Finistère, Bretagne): only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "bastien_roux": "Stayed in Paris when the story moved to Camaret-sur-Mer (Finistère, Bretagne): only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there."
+    },
+    "arcs": [
+      {
+        "id": "arc_phare",
+        "title_fr": "La carte au phare",
+        "characters": [
+          "user",
+          "marin_leveque",
+          "romy_tremblay",
+          "mael_le_phare"
+        ],
+        "grounded_in": "p:carte_phare",
+        "stages": [
+          "A damp postcard from Margaux with a lighthouse picture arrives and you buy a ticket to Camaret-sur-Mer; Marin and Romy decide to come with you.",
+          "At the headland you find Margaux's cottage closed and the locals cautious; the postcard's simple offer feels suddenly large and you must explain who you are.",
+          "Maël shows you Margaux's note in the lighthouse log and a small work offer; it is real but ambiguous — the promise is neither a job contract nor a favor, just a place to be useful."
+        ]
+      },
+      {
+        "id": "arc_bateau",
+        "title_fr": "Le travail sur le bateau",
+        "characters": [
+          "user",
+          "marin_leveque",
+          "yann_le_guen"
+        ],
+        "grounded_in": "b:bateau_pere",
+        "stages": [
+          "Yann offers you a season's job on his boat to 'see if you last a week' and you accept to prove you can do useful things.",
+          "The sea and the rhythm of the boat are harder than you thought; an argument between Yann and Marin about family and pride forces you to choose sides.",
+          "You fix a motor under time and weather pressure and earn a nod from Yann; the community counts you as someone who can be trusted with work."
+        ]
+      },
+      {
+        "id": "arc_tableau",
+        "title_fr": "La piste du tableau",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "romy_tremblay",
+          "brigitte_lenoir"
+        ],
+        "grounded_in": "b:camion_tableau",
+        "stages": [
+          "A neighbour mentions a brocante van that left with a framed painting southwards; Augustin and Romy want to track it down and you go with them.",
+          "Brigitte the brocante owner is evasive but remembers a buyer and gives a partial address; the trail splits and tempers rise about what should be recovered.",
+          "You and Romy find the painting in an old barn; taped behind it is a small fragment of Odile's handwriting — a clue, but not the answer everyone wants."
+        ]
+      },
+      {
+        "id": "arc_photos",
+        "title_fr": "Les photos pour Lila",
+        "characters": [
+          "user",
+          "romy_tremblay"
+        ],
+        "grounded_in": "c:photos_lila",
+        "stages": [
+          "You remember your commitment to send Lila canal photos on Sundays and start a new thread of postcards and pictures from the port, keeping the ritual alive.",
+          "Lila's replies slow and you feel the stretch between Berlin and here; Romy, watching, worries you are making a choice about someone else rather than yourself.",
+          "You accept that friendship can survive distance; you make a small public gesture — a printed photo left at the market with a note — and feel steadier."
+        ]
+      }
+    ],
+    "situation": {
+      "your_arc": "You cross to a Finistère fishing town to keep a promise and to follow a clue in the painting; along the way you learn practical work, make uneasy new alliances, and accept friendship at a distance.",
+      "open_threads": [
+        "The neon from Le Mistral is with Romy in her cave — could it be used to connect the past and this place, or is it just a relic?",
+        "The second‑hand van took the painting south — who bought it and why did it travel to this coastal town?",
+        "The Rue de Lancry window is still lit in the old season's notes — who lives there now and what did they see that night?",
+        "You keep sending Lila photos every Sunday — will she read them and answer, or will the ritual itself be the point?"
+      ],
+      "open_threads_fr": [
+        "Où est le néon du Mistral ?",
+        "Qui a acheté le tableau ?",
+        "Qui habite la fenêtre allumée rue de Lancry ?",
+        "Lila lit-elle mes photos ?"
+      ],
+      "first_episode_seed": "A wet postcard arrives with a lighthouse on it and Margaux's line: «Il y a du travail ici, si tu veux.» You buy a ticket and call Marin; Romy says she'll come too."
+    }
+  },
+  "interlude": null
+}

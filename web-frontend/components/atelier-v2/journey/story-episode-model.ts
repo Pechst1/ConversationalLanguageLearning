@@ -27,6 +27,7 @@ import {
   type ReaderStage,
 } from '@/components/feuilleton/reader/panel-model';
 import { castIdFor, expressionForMood, isColdBeat, stageMoodFor, type StageMood } from '@/lib/cast-faces';
+import { generatedRigId, registerGeneratedRigs } from '@/components/cast/generated-cast';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 /**
@@ -176,8 +177,9 @@ function panelLines(panel: StoryPanel, episode?: StoryEpisode | null): ReaderLin
       // The visual accent stays keyed to the canonical id, so a renamed
       // character keeps its colour; the display name is only a fallback seed.
       character: readerCharacterKey(line.character_id) || readerCharacterKey(line.character_name) || '',
-      // WP-77: a face beside every line a drawn character speaks.
-      faceId: castIdFor(line.character_id, line.character_name),
+      // WP-77: a face beside every line a drawn character speaks. WP-168: a written
+      // season's new face has no painted portrait (never a cast member's by a shared surname).
+      faceId: generatedRigId(line.character_id) ? null : castIdFor(line.character_id, line.character_name),
       faceMood: storyMoodFor(episode, line.character_id, line as unknown as Record<string, unknown>),
       stageMood: storyStageMoodFor(episode, line.character_id, line as unknown as Record<string, unknown>),
       // WP-92: the day's rule in this line, for «Rayons X» (the focus unit only).
@@ -280,6 +282,8 @@ export function storyPanelAlt(panel: StoryPanel | null | undefined): string {
 /** The reader's stage list for one story-engine episode, in panel order. */
 export function buildStoryStages(episode: StoryEpisode | null | undefined): ReaderStage[] {
   if (!episode) return [];
+  // WP-168: a written season's new faces are drawn from the parameters the server sends.
+  registerGeneratedRigs(episode.cast_rigs);
   const page = storyPagePanels(episode);
   const panels: Array<StoryPanel & { movement?: string }> =
     page ?? [...(episode.panels || [])].sort((a, b) => a.index - b.index);
