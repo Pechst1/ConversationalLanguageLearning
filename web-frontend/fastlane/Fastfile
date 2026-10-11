@@ -64,6 +64,10 @@ def build_release_web_bundle
   if api.empty?
     UI.user_error!("Export NEXT_PUBLIC_API_BASE_URL=https://<api-host>/api/v1 before archiving.")
   end
+  # WP-138: the privacy policy's contact is build configuration (public repository).
+  unless ENV["NEXT_PUBLIC_LEGAL_CONTACT_EMAIL"].to_s.include?("@")
+    UI.user_error!("Export NEXT_PUBLIC_LEGAL_CONTACT_EMAIL=<operator address> before archiving.")
+  end
 
   with_env(RELEASE_WEB_ENV) do
     Dir.chdir(WEB_ROOT) do

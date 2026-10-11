@@ -196,7 +196,7 @@ def test_a_drawn_panel_writes_its_price_to_the_ledger(db_session: Session, art_o
 # ---------------------------------------------------------------------------
 
 
-def _start(monkeypatch, cohort: str) -> None:
+def _start(monkeypatch, cohort: str, *, legal_contact: str = "owner@example.org") -> None:
     from app.main import lifespan
 
     monkeypatch.setattr(settings, "APP_ENV", "production")
@@ -207,6 +207,7 @@ def _start(monkeypatch, cohort: str) -> None:
     monkeypatch.setattr(settings, "SCHEMA_GUARD_ENABLED", False)
     monkeypatch.setattr(settings, "ATELIER_DAILY_JOURNEY_ENABLED", True)
     monkeypatch.setattr(settings, "ATELIER_DAILY_JOURNEY_COHORT", cohort)
+    monkeypatch.setattr(settings, "LEGAL_CONTACT_EMAIL", legal_contact)
 
     async def run() -> None:
         async with lifespan(FastAPI()):
@@ -218,6 +219,13 @@ def _start(monkeypatch, cohort: str) -> None:
 def test_production_refuses_a_blank_cohort(monkeypatch) -> None:
     with pytest.raises(RuntimeError, match="ATELIER_DAILY_JOURNEY_COHORT"):
         _start(monkeypatch, "  ")
+
+
+def test_production_refuses_a_placeholder_legal_contact(monkeypatch) -> None:
+    """WP-138: the privacy policy never goes live naming «[contact e-mail]»."""
+
+    with pytest.raises(RuntimeError, match="LEGAL_CONTACT_EMAIL"):
+        _start(monkeypatch, "*", legal_contact="")
 
 
 @pytest.mark.parametrize("cohort", ["*", "none", "owner@example.com"])

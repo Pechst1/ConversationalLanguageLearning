@@ -93,7 +93,12 @@ def card_ladder(progress: Any, word: Any, *, level: str | None) -> dict[str, Any
     context = progress.context if isinstance(getattr(progress, "context", None), dict) else {}
     lemma = str(getattr(word, "word", "") or "")
     scene_line = str(context.get("sentence_fr") or "")
-    scene_blank = blank_word(scene_line, lemma) if scene_line else None
+    # WP-138: a kept «vends» blanks its line by the form as printed, not «vendre».
+    scene_blank = (
+        (blank_word(scene_line, lemma) or blank_word(scene_line, str(context.get("surface") or "")))
+        if scene_line
+        else None
+    )
     example_blank = blank_word(str(getattr(word, "example_sentence", "") or ""), lemma)
     leech = lapses >= LEECH_LAPSES
     out: dict[str, Any] = {

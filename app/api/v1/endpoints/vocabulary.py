@@ -1086,15 +1086,6 @@ class KeepWordRequest(BaseModel):
     line_key: str | None = Field(default=None, max_length=120)
 
 
-#: What the sheet says when a word cannot be kept. French: this is chrome.
-_KEEP_REFUSAL_FR = {
-    "empty_term": "Ce mot ne peut pas être gardé.",
-    "no_sentence": "Ce mot ne peut être gardé qu'avec sa phrase.",
-    "not_in_lexicon": "Ce mot n'est pas encore dans le lexique.",
-    "no_gloss_in_learner_language": "Pas encore de traduction dans votre langue pour ce mot.",
-}
-
-
 @router.post("/keep")
 def keep_vocabulary_word(
     payload: KeepWordRequest,
@@ -1107,7 +1098,7 @@ def keep_vocabulary_word(
     catalogue row is never written. Idempotent for the same word and sentence.
     """
 
-    from app.services.kept_words import KeepRefused, keep_word
+    from app.services.kept_words import KeepRefused, keep_refusal, keep_word
 
     try:
         kept = keep_word(
@@ -1125,12 +1116,11 @@ def keep_vocabulary_word(
         )
     except KeepRefused as exc:
         db.rollback()
+        # WP-138: a structured, permanent refusal — the code, ``retryable: false``,
+        # the French chrome line and the learner's own-language line.
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "code": exc.reason,
-                "message": _KEEP_REFUSAL_FR.get(exc.reason, _KEEP_REFUSAL_FR["empty_term"]),
-            },
+            detail=keep_refusal(exc.reason, getattr(current_user, "native_language", None)),
         ) from exc
     db.commit()
     return kept.as_public()
@@ -1146,16 +1136,30 @@ def lookup_vocabulary_word(
     """Lookup a vocabulary word by its surface form."""
 
     viewer_language = _viewer_language(viewer)
-    cache_key = build_cache_key(word=word.strip().lower(), language=language, gloss=viewer_language)
+    # WP-138: a signed-in reader looks the word up in the language they learn,
+    # through the same row choice as «Garder» (app/services/kept_words), so the
+    # meaning the sheet shows is the one a keep stores.
+    target = language or (
+        (getattr(viewer, "target_language", None) or "fr").strip() or "fr" if viewer is not None else None
+    )
+    cache_key = build_cache_key(
+        word=word.strip().lower(), language=language, target=target, gloss=viewer_language
+    )
     cached = cache_backend.get("vocabulary:lookup", cache_key)
     if cached is not None:
         return cached
 
-    service = VocabularyService(db)
-    try:
-        vocab_word = service.lookup_word(term=word, language=language)
-    except VocabularyNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    from app.services.kept_words import catalogue_row_for
+
+    vocab_word = (
+        catalogue_row_for(db, term=word, language=target, native=viewer_language) if target else None
+    )
+    if vocab_word is None:
+        service = VocabularyService(db)
+        try:
+            vocab_word = service.lookup_word(term=word, language=language)
+        except VocabularyNotFoundError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     payload = _word_payload(vocab_word, viewer_language)
     cache_backend.set("vocabulary:lookup", cache_key, payload, ttl_seconds=600)

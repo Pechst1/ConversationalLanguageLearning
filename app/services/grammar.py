@@ -87,6 +87,7 @@ def apply_grammar_evidence(
     )
     if decision is None:
         return None
+    previous_contact_at = progress.last_review
     progress.stability = decision.stability
     progress.difficulty = decision.difficulty
     progress.lapses = decision.lapses
@@ -101,7 +102,7 @@ def apply_grammar_evidence(
     # sees every observation that reaches the schedule.
     from app.services.concept_life import note_concept_evidence
 
-    note_concept_evidence(progress, evidence, now=now)
+    note_concept_evidence(progress, evidence, now=now, previous_contact_at=previous_contact_at)
     return decision
 
 

@@ -1,5 +1,33 @@
 # App assessment and proposed personal pilot — 6 October 2026
 
+> **Update 7 October 2026 (WP-138, branch `fix/1007-integration` on top of `release/rc-2026-10-06`).** Each point below was rechecked against the release candidate and fixed where it was still true:
+>
+> | Point | State on 7 October |
+> |---|---|
+> | 1 Release candidate | `release/rc-2026-10-06` exists, Ruff passes; this branch adds the fixes listed here. Pushing it is still the owner's call (E1-LANDING-PLAN). |
+> | 2 Failed day keeps the story | Season learners already got the WP-124 re-read/bridge path. A learner on a generated serial that had already started now gets an honest "unavailable, retry" rather than an unrelated scene. Authored scenes exist up to B1; B2/C1 get B1. |
+> | 3 Saved-word round trip | Fixed. Scene words no longer write a foreign gloss into the target-language column; lookup and keep share one row choice; refusals are structured (`code`, `retryable`) and localized. The walk syncs the core list and `keepAWord()` checks the save itself. Test: `tests/test_keep_word_round_trip.py`. |
+> | 4 Letter grading | Fixed. An unused grammar or repair target no longer becomes an erratum or a "partial" verdict (`_separate_target_practice`, prompt `mission-correction-v2`). |
+> | 5 Starting level | Already done: A1–C1 at signup, placement after day 1 or at any time from Settings. |
+> | 6 Config and access | `.env.prod.example` matches `render.yaml` (cohort included). `REGISTRATION_OPEN` / `REGISTRATION_ALLOWED_EMAILS` restrict sign-up; Render sets sign-up closed. APNs production on API and worker. The Compose API port is bound to localhost. |
+> | 7 Hosted verification | Owner action, not done. |
+> | Week-one 2 drill size | Intended: 8 per session plus «Encore N mots» (WP-131 owner decision 9). |
+> | Week-one 3 calibration | Already top-down (WP-127). |
+> | Week-one 4 held grammar | Fixed. "Held" needs an unaided spaced item at least 20 h after the previous contact with the rule. |
+> | Week-one 5 grammar review on milestone days | Already done (WP-129 tentpole review in context). |
+> | Week-one 6 Lila reaction | Already authored (WP-132A); a regression test was added. The epilogue is still open. |
+> | Next.js and dependencies | Next 15.5.27, next-auth 4.24.15, Capacitor 8.4.3, transitive patches via `npm audit fix`. Production audit 11 → 2: postcss bundled inside Next, fixed only in Next 16, build-time only. |
+> | Artwork on account deletion | Fixed: best-effort S3 and local purge of the user's scene artwork. |
+> | Walk French-only failures | Forge rule card now follows the Forge's language (product fix); Settings follows the native language by WP-46 (walk assertion fixed). |
+> | Legal contact e-mail | Now deployment configuration, because the repository is public: `LEGAL_CONTACT_EMAIL` (API) and `NEXT_PUBLIC_LEGAL_CONTACT_EMAIL` (native release build). Production start-up, the release check and the fastlane archive refuse the placeholder. |
+> | French-speaking learner keeps a word | Decided 7 October: French has no French translation, so the learner keeps the labelled fallback meaning the sheet showed (English, then German). |
+> | Failed day for a learner on a generated serial | Decided 7 October: an honest "unavailable, retry" is enough for the owner pilot (the owner is a season learner, who already gets the re-read and bridge). A replay of the last generated page is deferred until a serial learner joins. |
+> | Overall spend bound | `SERVICE_DAILY_SPEND_CAP_USD` (Render: 5.00/UTC day, API and worker) covers every learner and panel art. The OpenAI project budget remains the monthly backstop. |
+> | Journey cohort | Unchanged in `render.yaml` (`sync: false`). Setting it to `*`, now that the sign-up allowlist is the gate, is left to the owner. |
+> | Drill reload stability | Found 7 October: with the core list present, a reload deals new story words, not the rest of the batch. Follow-up task (needs the batch stored). |
+>
+> Checks on `fix/1007-integration`: frontend 924/924, `tsc` and lint pass (one existing notebook hook warning), Ruff passes. Backend full parallel run: 6,754 passed. Five to eight tests fail per run, and which ones changes from run to run. Every affected file passes on its own, and the release candidate shows the same kind of cross-file test pollution (E-2). The 12-minute browser walk was not rerun.
+
 **Assessment: a substantial, visually coherent app that needs a focused stabilization and deployment pass before a reliable personal production pilot.** Feature breadth is sufficient to start learning from daily use. The immediate priority is preserving story continuity, trustworthy grading, saved learning progress, and an appropriate level.
 
 This assessment covers the current working tree, including its existing uncommitted fixes. It does not establish what is deployed. No application source was changed, no real learner data was changed, and no paid AI or email calls were made for this review.

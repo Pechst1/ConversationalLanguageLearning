@@ -321,6 +321,11 @@ def prefetch_scene_for(
     guardrail = float(settings.PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD or 0.0)
     if guardrail > 0 and _weekly_spend_usd(db, user) >= guardrail:
         return "skipped_budget"
+    from app.services.spend_guard import service_budget_reached
+
+    if service_budget_reached(db):
+        # WP-138: the service-wide day is spent; a warm draft is not worth more.
+        return "skipped_budget"
 
     from app.services.journey_contracts import ContentUnavailable
     from app.services.living_story import generate_scene

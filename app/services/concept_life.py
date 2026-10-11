@@ -13,8 +13,11 @@ stores and reads them on the learner's progress row:
   model (``apply_grammar_evidence``), which calls :func:`note_concept_evidence`
   for every observation, so the life is kept whichever surface saw it.
 * **Tenue** — *held* is correct free use on two separate days at least seven
-  days apart, plus one correct spaced item (a Rappel format, not a reply) at
-  least fourteen days after the introduction. ``held_at`` is written the first
+  days apart, plus one correct, unaided spaced item (a Rappel format, not a
+  reply) at least fourteen days after the introduction *and* at least
+  :data:`HELD_SPACED_GAP_HOURS` hours after the learner's previous contact with
+  the unit (WP-138): elapsed time since the introduction is not retention, a
+  delayed recall is. ``held_at`` is written the first
   time that is true and never cleared: demotion stays invisible (WP-L7), a
   fragile held concept simply comes back through the scheduler.
 
@@ -47,6 +50,13 @@ NEW_CONCEPTS_PER_WEEK: dict[str, int] = {
 HELD_FREE_USE_GAP_DAYS = 7
 #: …and one correct spaced item at least this many days after the introduction.
 HELD_SPACED_AFTER_DAYS = 14
+#: …and that spaced item must be a *delayed* recall: answered at least this many
+#: hours after the learner last met the unit anywhere (WP-138, status plan
+#: 2026-10-06). An item right after a lesson, a Forge séance or a reply that used
+#: the form shows the rule is fresh, not that it was retained. Overnight, not
+#: longer: the Forge picker still brings a practising unit back daily (as a
+#: contrast partner), so a longer gap needs the picker to leave owed units alone.
+HELD_SPACED_GAP_HOURS = 20
 #: The intake window: a rolling week.
 INTAKE_WINDOW_DAYS = 7
 
@@ -98,15 +108,44 @@ def is_held(progress: Any) -> bool:
     return getattr(progress, "held_at", None) is not None or all(held_conditions(progress))
 
 
-def note_concept_evidence(progress: Any, evidence: Evidence, *, now: datetime) -> None:
+_UNSET: Any = object()
+
+
+def is_delayed_recall(previous_contact_at: datetime | None, *, now: datetime) -> bool:
+    """WP-138: was the unit left alone long enough for a success to show retention?
+
+    ``None`` (no recorded contact, e.g. a legacy row) does not block it: the
+    fourteen days since the introduction still apply.
+    """
+
+    previous = _aware(previous_contact_at)
+    if previous is None:
+        return True
+    return (_aware(now) or datetime.now(UTC)) - previous >= timedelta(hours=HELD_SPACED_GAP_HOURS)
+
+
+def note_concept_evidence(
+    progress: Any,
+    evidence: Evidence,
+    *,
+    now: datetime,
+    previous_contact_at: Any = _UNSET,
+) -> None:
     """Keep the concept's life up to date with one observation. Never commits.
 
     Called by ``apply_grammar_evidence`` for every observation it schedules,
     and by the journey for a same-day success it folds (the schedule moves
     once a day; the life still sees every use).
+
+    ``previous_contact_at`` is when the learner last met the unit *before* this
+    observation. Callers that have already stamped ``last_review`` with ``now``
+    pass the earlier value; everyone else leaves it out and the row's
+    ``last_review`` is read.
     """
 
     now = _aware(now) or datetime.now(UTC)
+    if previous_contact_at is _UNSET:
+        previous_contact_at = getattr(progress, "last_review", None)
     grade = grade_evidence(evidence)
     if getattr(progress, "introduced_at", None) is None:
         # First evidence on any surface introduces the unit. A row that
@@ -120,9 +159,16 @@ def note_concept_evidence(progress: Any, evidence: Evidence, *, now: datetime) -
         if getattr(progress, "free_use_first_at", None) is None:
             progress.free_use_first_at = now
         progress.free_use_last_at = now
-    elif evidence.format in SPACED_ITEM_FORMATS:
+    elif evidence.format in SPACED_ITEM_FORMATS and not evidence.assisted:
+        # WP-138: evidence, not elapsed time. Fourteen days since the
+        # introduction only opens the window; the success itself has to be an
+        # unaided recall after the unit was left alone (HELD_SPACED_GAP_HOURS).
         introduced = _aware(progress.introduced_at)
-        if introduced is not None and now - introduced >= timedelta(days=HELD_SPACED_AFTER_DAYS):
+        if (
+            introduced is not None
+            and now - introduced >= timedelta(days=HELD_SPACED_AFTER_DAYS)
+            and is_delayed_recall(previous_contact_at, now=now)
+        ):
             progress.spaced_success_at = now
     if getattr(progress, "held_at", None) is None and all(held_conditions(progress)):
         progress.held_at = now
@@ -320,7 +366,9 @@ def spaced_item_owed(progress: Any, *, now: datetime) -> bool:
     if getattr(progress, "spaced_success_at", None) is not None:
         return False
     now = _aware(now) or datetime.now(UTC)
-    return now - introduced >= timedelta(days=HELD_SPACED_AFTER_DAYS)
+    return now - introduced >= timedelta(days=HELD_SPACED_AFTER_DAYS) and is_delayed_recall(
+        getattr(progress, "last_review", None), now=now
+    )
 
 
 def held_opportunity(progress: Any | None, *, now: datetime) -> str | None:
@@ -550,6 +598,7 @@ def introducible(brief: dict[str, Any]) -> bool:
 __all__ = [
     "HELD_FREE_USE_GAP_DAYS",
     "HELD_SPACED_AFTER_DAYS",
+    "HELD_SPACED_GAP_HOURS",
     "MISSING_FIRST_FREE_USE",
     "MISSING_SECOND_FREE_USE",
     "MISSING_SPACED",
@@ -574,6 +623,7 @@ __all__ = [
     "introduction_for_today",
     "introducible",
     "is_free_use",
+    "is_delayed_recall",
     "is_held",
     "mark_introduced",
     "note_concept_evidence",

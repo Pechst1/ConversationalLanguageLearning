@@ -56,6 +56,17 @@ def test_a_kept_word_first_comes_back_in_its_own_line():
     assert later["ladder"] == "cloze" and later["scene_cue"] is None, "from the third review: new contexts"
 
 
+def test_a_kept_conjugated_verb_comes_back_in_its_own_line():
+    # WP-138: «vends» was tapped, the catalogue row is «vendre»; the line holds the former.
+    verb = SimpleNamespace(word="vendre", example_sentence="")
+    kept = {"sentence_fr": "Je vends mon vélo demain.", "surface": "vends"}
+    card = card_ladder(_progress(reps=1, context=kept), verb, level="A1")
+    assert card["ladder"] == "scene"
+    assert card["scene_cue"]["sentence_fr"] == "Je _____ mon vélo demain."
+    older = {"sentence_fr": "Je vends mon vélo demain."}  # kept before the form was stored
+    assert card_ladder(_progress(reps=1, context=older), verb, level="A1")["ladder"] != "scene"
+
+
 def test_a_leech_changes_method_not_frequency():
     rescued = card_ladder(_progress(reps=9, lapses=5), WORD, level="A2")
     assert rescued["leech"] is True and rescued["ladder"] == "rescue"
