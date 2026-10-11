@@ -27,6 +27,7 @@ import {
   type ReaderStage,
 } from '@/components/feuilleton/reader/panel-model';
 import { castIdFor, expressionForMood, isColdBeat, stageMoodFor, type StageMood } from '@/lib/cast-faces';
+import { registerGeneratedRigs } from '@/components/cast/generated-cast';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 /**
@@ -280,6 +281,8 @@ export function storyPanelAlt(panel: StoryPanel | null | undefined): string {
 /** The reader's stage list for one story-engine episode, in panel order. */
 export function buildStoryStages(episode: StoryEpisode | null | undefined): ReaderStage[] {
   if (!episode) return [];
+  // WP-168: a written season's new faces are drawn from the parameters the server sends.
+  registerGeneratedRigs(episode.cast_rigs);
   const page = storyPagePanels(episode);
   const panels: Array<StoryPanel & { movement?: string }> =
     page ?? [...(episode.panels || [])].sort((a, b) => a.index - b.index);

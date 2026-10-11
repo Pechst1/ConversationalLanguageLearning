@@ -486,3 +486,23 @@ test('WP-110: the ending step closes the finished page on «À suivre…»', () 
   assert.deepEqual(stages.map((stage) => stage.kind), ['panel', 'panel', 'panel', 'resolution']);
   assert.equal(stages[3].aSuivre, 'Demain, Camille.');
 });
+
+test('WP-168: an episode registers the written season\'s new faces for the stage', () => {
+  const { generatedRigId, generatedSpec } = require('../../cast/generated-cast.ts');
+  const stages = model.buildStoryStages({
+    ...episode,
+    panels: [{
+      id: 'p9', index: 0, narration_fr: 'Au port.',
+      dialogue: [{ character_id: 'awa_ndiaye', character_name: 'Awa Ndiaye', text_fr: 'Ton billet ?' }],
+      image_url: '/assets/serial/locations/le_mistral-counter.webp', image_status: 'setting_reference',
+      plate_url: '/assets/serial/locations/le_mistral-counter.webp',
+    }],
+    cast_rigs: [{ id: 'awa_ndiaye', name: 'Awa Ndiaye', rig: { hair: 'braids', skin: 'deeper' } }],
+  });
+  assert.equal(generatedRigId('awa_ndiaye'), 'awa_ndiaye');
+  assert.equal(generatedSpec('awa_ndiaye').rig.hair, 'braids');
+  const panel = stages.find((stage) => stage.kind === 'panel');
+  assert.deepEqual(panel.cast.map((member) => member.id), ['awa_ndiaye']);
+  // An episode without new faces registers nothing and still builds.
+  assert.ok(model.buildStoryStages({ ...episode, cast_rigs: null }).length > 0);
+});
