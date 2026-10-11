@@ -819,6 +819,14 @@ export function FeuilletonReaderStyles() {
         line-height: 1.45;
         color: var(--fr-ink);
       }
+      /* WP-167: a news day's credit — the small print under the close */
+      .av2 .fr-news-credit {
+        margin: 12px 0 0;
+        font-size: 0.8125rem;
+        line-height: 1.45;
+        color: var(--fr-muted);
+        overflow-wrap: anywhere;
+      }
 
       /* «Écouter d'abord», quiet, under the nav row */
       .av2 .fr-foot-link {

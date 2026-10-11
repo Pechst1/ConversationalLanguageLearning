@@ -323,6 +323,7 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       hookBeat: String(episode.resolution.summary_native || '').trim(),
       tasks: [],
       ...(episode.page?.a_suivre_fr ? { aSuivre: String(episode.page.a_suivre_fr).trim() } : {}),
+      ...(storyNewsCredit(episode) ? { newsCredit: storyNewsCredit(episode) } : {}),
     });
   }
   return stages;
@@ -1028,10 +1029,24 @@ export function storyStagesWithFinale(
   const panels = buildStoryStages(episode).filter((stage) => stage.kind === 'panel');
   // WP-110: a finished page closes on its «À suivre…».
   const aSuivre = String(episode?.page?.a_suivre_fr || '').trim();
+  const newsCredit = storyNewsCredit(episode);
   return [
     ...panels,
-    { ...finale, ordinal: panels.length + 1, ...(aSuivre && !finale.aSuivre ? { aSuivre } : {}) },
+    {
+      ...finale,
+      ordinal: panels.length + 1,
+      ...(aSuivre && !finale.aSuivre ? { aSuivre } : {}),
+      ...(newsCredit && !finale.newsCredit ? { newsCredit } : {}),
+    },
   ];
+}
+
+/**
+ * WP-167: the honest line a news day closes on («D'après l'actualité du 12 octobre :
+ * <titre> (<source>)»), or '' on every other day.
+ */
+export function storyNewsCredit(episode: StoryEpisode | null | undefined): string {
+  return String(episode?.news?.credit_fr || '').trim();
 }
 
 type JourneyLike = {

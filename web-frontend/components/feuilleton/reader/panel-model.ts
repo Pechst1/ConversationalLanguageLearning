@@ -134,6 +134,8 @@ export type ReaderResolutionStage = {
   finale?: ReaderFinale | null;
   /** WP-110: tomorrow's line, under «À suivre…». */
   aSuivre?: string;
+  /** WP-167: a news day's credit, «D'après l'actualité du 12 octobre : … (Le Monde)». */
+  newsCredit?: string;
 };
 
 export type ReaderStage = ReaderPanelStage | ReaderResolutionStage;

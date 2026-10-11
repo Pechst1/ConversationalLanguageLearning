@@ -1,0 +1,17 @@
+{
+ "days": [
+  {
+   "band": "A2.1",
+   "day": 10,
+   "title": "Le plan d'Odile",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-odile_flat-2026-10-11-story_6400ab7d9f1e498da827d94e3a297f3b-4a99944417ad2391.webp"
+  }
+ ],
+ "text_usd": 0.0248,
+ "calls": 4,
+ "plates": 1,
+ "plate_usd_estimated": 0.06,
+ "total_usd": 0.0848
+}

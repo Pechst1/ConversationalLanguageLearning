@@ -27,6 +27,9 @@ os.environ.setdefault("ATELIER_PANEL_ART_ENABLED", "false")
 # The art pipeline reads the key straight from `.env`, so the suite keeps painting off;
 # tests/test_wp165_* switch it on with the image call replaced.
 os.environ.setdefault("ATELIER_SEASON_PLATES_ENABLED", "false")
+# WP-167: a news day reads live RSS feeds and asks the model to pick a headline; the
+# suite's scripted providers know neither. tests/test_wp167_* switch it on with stubs.
+os.environ.setdefault("ATELIER_NEWS_DAY_ENABLED", "false")
 # WP-75: a learner's first day is authored (the café, the cast, two quick
 # recall items). The suite's existing journey tests are about the day the
 # rotation / story engine makes, so they keep that premise; tests/test_wp75_*

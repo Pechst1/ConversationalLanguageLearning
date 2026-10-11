@@ -69,6 +69,9 @@ def _guard_environment() -> None:
     # WP-158: the provider keys are fake, so a spoken reply is transcribed by the
     # deterministic fake transcriber rather than sent to Whisper with a dud key.
     os.environ.setdefault("ATELIER_FAKE_TRANSCRIBER_ENABLED", "true")
+    # WP-167: the fake director cannot enact a headline and the keys are fake (no plate);
+    # a news day would only add live RSS reads to a deterministic walk. Opt in with =true.
+    os.environ.setdefault("ATELIER_NEWS_DAY_ENABLED", "false")
 
 
 PREMISES = [

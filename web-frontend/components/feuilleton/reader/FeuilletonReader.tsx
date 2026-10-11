@@ -1147,6 +1147,7 @@ function FinaleBody({
               </p>
             </div>
           )}
+          <NewsCredit stage={stage} />
           {extra}
         </>
       )}
@@ -1154,14 +1155,25 @@ function FinaleBody({
   );
 }
 
+/** WP-167: a news day's credit under the close — small, honest, never a headline. */
+function NewsCredit({ stage }: { stage: Extract<ReaderStage, { kind: 'resolution' }> }) {
+  if (!stage.newsCredit) return null;
+  return (
+    <p className="fr-news-credit" lang="fr" data-news-credit="true">
+      {frenchSpacing(stage.newsCredit)}
+    </p>
+  );
+}
+
 function ResolutionBody({ stage, t }: { stage: Extract<ReaderStage, { kind: 'resolution' }>; t: ReaderCopy }) {
-  if (!stage.hookQuestion && !stage.hookBeat && !stage.aSuivre) return null;
+  if (!stage.hookQuestion && !stage.hookBeat && !stage.aSuivre) return <NewsCredit stage={stage} />;
   if (!stage.aSuivre) {
     return (
       <div className="fr-notice" data-char={stage.character || undefined}>
         <p className="fr-eyebrow">{t.to_follow}</p>
         {stage.hookQuestion && <h2>{stage.hookQuestion}</h2>}
         {stage.hookBeat && <p>{stage.hookBeat}</p>}
+        <NewsCredit stage={stage} />
       </div>
     );
   }
@@ -1174,6 +1186,7 @@ function ResolutionBody({ stage, t }: { stage: Extract<ReaderStage, { kind: 'res
       <p className="fr-a-suivre" lang="fr" data-a-suivre="true">
         {frenchSpacing(stage.aSuivre)}
       </p>
+      <NewsCredit stage={stage} />
     </div>
   );
 }

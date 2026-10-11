@@ -1,0 +1,16 @@
+{
+ "days": [
+  {
+   "band": "A2.1",
+   "day": 6,
+   "title": "La même chose ?",
+   "news": false,
+   "skipped": "news_unused"
+  }
+ ],
+ "text_usd": 0.035,
+ "calls": 5,
+ "plates": 0,
+ "plate_usd_estimated": 0.0,
+ "total_usd": 0.035
+}

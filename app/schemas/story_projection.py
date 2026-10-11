@@ -95,6 +95,16 @@ class StoryPageRead(ProjectionModel):
     a_suivre_fr: str | None = None
 
 
+class StoryNewsCreditRead(ProjectionModel):
+    """WP-167: a news day's honest credit, «D'après l'actualité du 12 octobre : … (Le Monde)»."""
+
+    credit_fr: str
+    title: str | None = None
+    source: str | None = None
+    url: str | None = None
+    published_on: str | None = None
+
+
 class StoryEpisodeRead(ProjectionModel):
     id: str
     scene_id: str
@@ -109,6 +119,8 @@ class StoryEpisodeRead(ProjectionModel):
     resolution: StoryResolutionRead | None
     grammar_focus: GrammarFocusRead | None
     page: StoryPageRead | None = None
+    #: WP-167: the headline a news day was made from; ``None`` on every other day.
+    news: StoryNewsCreditRead | None = None
 
 
 class StoryEpisodePageRead(ProjectionModel):
