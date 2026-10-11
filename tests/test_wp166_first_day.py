@@ -70,6 +70,22 @@ def test_a_good_opening_passes_the_guards_and_bad_ones_name_their_fault():
     assert any("forbidden reveal" in problem for problem in opening.problems(spoiler, band="A2"))
 
 
+def test_a_shape_slip_is_read_tolerantly_and_a_greeting_is_refused():
+    # The paid check of 2026-10-11 lost openings to «Gus» for an id, a 500-character
+    # direction and a null caption; and served Gus greeting the newcomer.
+    slipped = _parsed(
+        arrival={**GOOD["arrival"], "visual": "Fog. " * 120},
+        room={**GOOD["room"], "caption_fr": None, "lines": [{"who": "Gus", "text_fr": "Mesdames, messieurs !"}]},
+    )
+    assert slipped.room.lines[0].who == "augustin_de_roncourt"
+    assert len(slipped.arrival.visual) <= 480 and slipped.room.caption_fr == ""
+    assert opening.problems(slipped, band="A2") == []
+    greeted = _parsed(room={**GOOD["room"], "lines": [{"who": "augustin_de_roncourt", "text_fr": "Vous arrivez au meilleur moment."}]})
+    assert any("noticed the newcomer" in problem for problem in opening.problems(greeted, band="C1"))
+    long_caption = _parsed(arrival={**GOOD["arrival"], "caption_fr": " ".join(["mot"] * 30)})
+    assert any("the caption has 30 words" in problem for problem in opening.problems(long_caption, band="A1"))
+
+
 def test_the_opening_replaces_the_way_in_and_keeps_the_spine():
     page = _page()
     served = opening.apply_opening(page, GOOD)
