@@ -17,5 +17,5 @@ def test_prompt_keeps_the_no_people_style():
 
 
 def test_lookup_falls_back_to_the_static_plate_without_a_session():
-    assert plates.plate_url_for(None, "odile_flat", time_of_day="night") == "/assets/serial/locations/user_apartment.webp"
+    assert plates.plate_url_for(None, "odile_flat", time_of_day="night") == "/assets/serial/locations/odile_flat.webp"
     assert plates.plate_url_for(None, None) is None

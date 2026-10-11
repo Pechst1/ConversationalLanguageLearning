@@ -59,8 +59,10 @@ def test_a_panel_keeps_its_plate_when_a_drawing_replaces_it():
 
 def test_t1_opens_on_the_rainy_quai_seen_from_the_cafe_not_the_market():
     """2026-10-02: T1 P1 is night rain on the quai de Valmy; the market plate (a sunny
-    day with stalls) told the wrong story, on Home's card and on the first panel."""
+    day with stalls) told the wrong story, on Home's card and on the first panel.
+    WP-165: the quai has its own plate, painted at night in the rain."""
 
-    from app.services.season.world import plate_for
+    from app.services.season.world import place_light, plate_for
 
-    assert plate_for("quai_de_valmy") == "/assets/serial/locations/le_mistral-counter.webp"
+    assert plate_for("quai_de_valmy") == "/assets/serial/locations/quai_de_valmy.webp"
+    assert place_light("quai_de_valmy") == ("night", "rain")

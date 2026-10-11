@@ -19,6 +19,9 @@ COPY docs/serial-episode-tentpole-*.md docs/serial-season-finale.md /app/docs/
 # WP-88: panel art draws every face from these approved references; without
 # them app.services.panel_art keeps art off rather than draw strangers.
 COPY docs/design-reference/cast /app/docs/design-reference/cast
+# WP-165: a plate in another light or weather is painted as an edit of the place's own
+# plate, so the backend reads the committed plates too (about 6 MB).
+COPY web-frontend/public/assets/serial/locations /app/web-frontend/public/assets/serial/locations
 COPY docker/entrypoint.sh /app/docker/entrypoint.sh
 
 # WP-71: every install resolves against the tested pins in constraints.txt,

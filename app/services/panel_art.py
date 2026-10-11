@@ -472,8 +472,10 @@ def panel_job(
     for cid in cast:
         who = names.get(cid, cid)
         look = (looks.get(cid) or {}).get("canonical_descriptor") or ""
+        # WP-165: the reference keeps the face; the clothes follow the description, so
+        # an outfit can change by day once a scene names it.
         ref = (
-            f" (reference image {references.index(cid) + 1}: same face, hair and clothes)"
+            f" (reference image {references.index(cid) + 1}: same face and hair; clothes as described)"
             if cid in references
             else ""
         )

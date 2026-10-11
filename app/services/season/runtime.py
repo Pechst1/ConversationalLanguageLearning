@@ -442,10 +442,16 @@ def panel_images(page: dict[str, Any], scene_panels: list[dict[str, Any]]) -> li
     """Each scene panel's picture: its own location's plate (authored drawings are
     drawn once, offline, and replace these when they exist)."""
 
+    from app.services.season.plates import light_from_text
+
     images = []
+    # WP-165: the light the page's own direction names («Night rain on the quai de
+    # Valmy»), carried from panel to panel; ``bind_journey`` serves its variant.
+    light: dict[str, str] = {}
     for panel in scene_panels:
         location = panel.get("location_id") or page.get("location_id")
-        images.append({"panel_id": panel.get("id"), "image_url": plate_for(location), "location_id": location})
+        light = light_from_text(panel.get("visual"), light)
+        images.append({"panel_id": panel.get("id"), "image_url": plate_for(location), "location_id": location, **light})
     return images
 
 
