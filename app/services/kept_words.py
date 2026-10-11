@@ -427,7 +427,15 @@ def catalogue_row_for(
     ).all()
     rows = [row for row in rows if not is_polluted_mission_word(row)]
     if not rows:
-        return None
+        # An inflected form the catalogue has no row for («venez») is the lemma's
+        # word (#59, owner decision 2026-10-08); its rows are ranked the same way.
+        from app.services.vocabulary import VocabularyService
+
+        lemma_row = VocabularyService(db)._lemma_row(value, language)
+        lemma = " ".join(str(getattr(lemma_row, "word", "") or "").split()).lower()
+        if not lemma or lemma == value:
+            return None
+        return catalogue_row_for(db, term=lemma, language=language, native=native)
     preferred = normalize_language(native)
 
     def rank(row: VocabularyWord) -> tuple[int, int, int, int]:
