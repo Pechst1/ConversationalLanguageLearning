@@ -56,14 +56,13 @@ ENDING_FLAGS = {
 
 
 def finished_life(ending: str) -> dict:
-    """A life that played season 1 to its finale with this ending, carried into ``live``."""
+    """A life that played season 1 and its epilogue with this ending, carried into ``live``."""
 
     season = load_season("s1")
     played = []
+    # The whole calendar: the eight tentpoles, the gaps and the epilogue week (65 days).
     for row in nominal_calendar(season):
         played.append({**row, "flex": 0, "date": None, "event_id": f"x:{row['key']}"})
-        if row["segment"] == "t8" and row["day_in_segment"] == 2:
-            break
     live = {
         SEASON_KEY: {"id": "s1", "played": played, "flags": dict(ENDING_FLAGS[ending]), "signals": []},
         "season_index": 1,
@@ -215,7 +214,11 @@ def test_a_moved_season_merges_into_the_world(monkeypatch):
     quay = places["quai_du_vieux_port"]
     assert quay["plate_id"] == written_world.plate_id_for("quai_du_vieux_port", quay["brief"])
     assert quay["stand_in"] == "quai_de_valmy" and places["bar_le_cargo"]["stand_in"] == "le_mistral"
-    assert world["visual_design"]["locations"]["bar_le_cargo"]["canonical_descriptor"].startswith("a narrow dockers'")
+    # The painter's brief names the place and its city; the quay's already named Marseille.
+    assert world["visual_design"]["locations"]["bar_le_cargo"]["canonical_descriptor"].startswith(
+        "Le Cargo, Marseille: a narrow dockers'"
+    )
+    assert quay["brief"].startswith("the Vieux-Port quay in Marseille")
     # The director reads the new world: its logline, its places, who is here.
     assert world["logline"].startswith("The learner follows Odile's Polaroid to Marseille")
     cast = {member["id"]: member for member in world["cast"]}
@@ -395,6 +398,18 @@ def test_the_canon_guards_hold_in_a_moved_season(monkeypatch, change, reason):
     assert record["refused"] == reason and director.calls == ["SeasonDraft"]
 
 
+def test_a_relative_keeps_the_family_name(monkeypatch):
+    director = MovingDirector(lambda material: moving_draft(material, new_name="Yann Lévêque", new_id="yann_leveque"))
+    monkeypatch.setattr(engine, "_client", lambda: director)
+    record: dict = {}
+    written = season_writer.draft_next_season(
+        live=finished_life("partager"), world=season_world_bible("s1"), next_season=2, record=record
+    )
+    assert written and written["cast_additions"][0]["name"] == "Yann Lévêque", record.get("refused")
+    marin = next(row for row in director.payloads[0]["world"]["cast"] if row["id"] == "marin_leveque")
+    assert marin["name"] == "Marin Lévêque" and marin.get("contradiction"), "the writer reads the cast's facts"
+
+
 def test_margaux_cannot_travel_after_laisser_partir_and_the_closed_cafe_is_not_kept(monkeypatch):
     def draft(material):
         value = moving_draft(material, traveller="margaux_barman")
@@ -481,3 +496,12 @@ def test_the_merge_never_lets_a_new_face_replace_the_cast():
     merged = SerialThreadService.merge_season_world_bible(world, season, next_season=2)
     marin = next(member for member in merged["cast"] if member["id"] == "marin_leveque")
     assert marin["name"] == "Marin Lévêque" and "rig" not in marin
+
+
+def test_every_season_prompt_names_json():
+    """OpenAI's json_object mode refuses a request whose messages never say «json»: the
+    critic of WP-98 never did, so a written season could never pass its critic live."""
+
+    for prompt in (season_writer.SEASON_WRITER, season_writer.SEASON_CRITIC,
+                   season_writer.SEASON_WRITER_MOVING, season_writer.SEASON_CRITIC_MOVING):
+        assert "json" in prompt.lower()

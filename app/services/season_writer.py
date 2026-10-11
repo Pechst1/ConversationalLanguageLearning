@@ -309,7 +309,8 @@ Tone: warm, wry, one real feeling per arc. Return JSON matching the schema."""
 SEASON_CRITIC = """Independently check a proposed next season against the learner material it
 claims to grow from. Reject (accepted=false) when an arc or thread is not really about the
 material row it names, when it contradicts the cast, when the French is above A2 or
-unnatural, or when it merely repeats the previous season. List concrete issues."""
+unnatural, or when it merely repeats the previous season. List concrete issues. Return JSON
+matching the schema."""
 
 
 SEASON_WRITER_MOVING = """You are Atelier's season director. A learner has lived a whole season (or
@@ -318,8 +319,16 @@ several) of a French-learning serial. Write the NEXT season's spine — not scen
 This season MAY MOVE. You may change the city, the genre and the learner's situation,
 anywhere French is spoken: Marseille, Brussels, Montréal, Dakar, a ferry to Corsica, a
 vineyard in Burgundy, a radio station in Abidjan, a lighthouse in Brittany — invent, there
-is no list. You may also stay and change only the genre or the situation. Prefer the bold,
-specific, surprising choice that THIS learner's material makes inevitable over the safe one.
+is no list. The French-speaking world is wide (Europe, North and West Africa, the Americas,
+the Indian Ocean, the Pacific); a town near the old city is the timid choice unless the
+material names it. You may also stay and change only the genre or the situation. Prefer
+the bold, specific, surprising choice that THIS learner's material makes inevitable.
+
+Choose the genre on purpose (for instance a mystery, a workplace comedy, a romance, a
+coming-of-age story, a heist, a survival story, a satire) and make it unlike the previous
+season's. The previous season's open questions may stay in the background as threads;
+they need not be this season's spine, and a road trip that re-investigates them is the
+default to avoid.
 
 What may not change: the season grows from `material`, the rows of this learner's own life
 (unpaid plants, branches nobody picked up again, open promises, the season questions and
@@ -338,7 +347,8 @@ each with a reason in an arc; everyone else stays where they were and reaches th
 from afar. Add 1–3 `new_characters` who live in the new setting, each tied in `grounded_in`
 to a material row or a cast id, each with a `rig` (how they are drawn: choose from the
 enums, make them distinct from each other and from the cast). Their ids are slugs of their
-names; never reuse any word of a cast member's name.
+names; a first name is never a cast member's first name or surname. A cast member's
+relative keeps the family name and the family facts of `cast` (`origin`, `contradiction`).
 
 Places: 3–6 `places` where this season's scenes happen (when you stay, fewer new ones plus
 `keep_locations`). Each: a French slug id that starts with its kind word, a French name, a
@@ -367,9 +377,9 @@ question, new places or a real change of genre or situation, new people to meet,
 travelling cast with new goals. The previous premise re-run in new clothes is false.
 
 accepted: grows_from_material and fresh, no canon contradiction (a departed cast member on
-stage, a closed place kept, a canon fact contradicted), and natural A2 learner-facing
+stage, a closed place kept, a canon fact or a cast member's family contradicted), and natural A2 learner-facing
 French. A move to another city or a change of genre is welcome, never a problem in itself.
-List concrete issues."""
+List concrete issues. Return JSON matching the schema."""
 
 
 class SeasonRejected(ValueError):
@@ -418,8 +428,8 @@ _NAME_ALIASES = frozenset(
 
 
 def _cast_name_words(world: dict) -> set[str]:
-    """Every word of a cast member's id or name: a new face carrying one would be read
-    as theirs by the reader (their face, their voice), so it may not."""
+    """Every word of a cast member's id or name: a new face whose first word is one of
+    them would be read as theirs by the reader (their face, their voice)."""
 
     from app.services.season.written_world import _tokens
 
@@ -453,7 +463,7 @@ def validate_season(
 
     WP-168, under ``may_move``: the setting names its material row; nobody departed
     travels; kept places exist and are not closed; new places and new characters have
-    fresh slugs (a new face shares no word with a cast member's name, so it never gets
+    fresh slugs (a new face's first word is no cast member's name, so it never gets
     their face or their voice in the reader); a change of city brings at least two new
     places and three in all.
     """
@@ -473,9 +483,11 @@ def validate_season(
         for character in draft.new_characters:
             if not valid_slug(character.id) or character.id in reserved or character.id in new_ids:
                 raise SeasonRejected(f"new_character_id:{character.id}")
-            if set(_tokens(character.id)) & taken:
+            # The first word is what the reader and the voices go by (a relative may
+            # carry the family name: «Yann Lévêque», Marin's father).
+            if (_tokens(character.id) or [""])[0] in taken:
                 raise SeasonRejected(f"new_character_id:{character.id}")
-            if set(_tokens(character.name)) & taken:
+            if (_tokens(character.name) or [""])[0] in taken:
                 raise SeasonRejected(f"name_taken:{character.name}")
             new_ids.add(character.id)
         places = _place_ids(world)
@@ -535,17 +547,22 @@ def _setting_move(draft: SeasonDraft, *, number: int, world: dict) -> dict | Non
         return None
     setting = draft.setting
     current = world.get("setting") if isinstance(world.get("setting"), dict) else {}
+    city = str((setting.city if setting else None) or current.get("city") or "").strip()
     places = []
     for place in draft.places:
         kind = place_kind(place.kind, place.id, place.name_fr)
+        brief = " ".join(place.brief.split())
+        if city and city.lower() not in brief.lower():
+            # The painter needs the place and its city, not only its landmarks.
+            brief = f"{place.name_fr}, {city}: {brief}"
         row = {
             "id": place.id,
             "name": place.name_fr,
             "name_fr": place.name_fr,
             "type": kind,
             "description": place.description,
-            "brief": " ".join(place.brief.split()),
-            "plate_id": plate_id_for(place.id, place.brief),
+            "brief": brief,
+            "plate_id": plate_id_for(place.id, brief),
             "written_season": int(number),
         }
         row["stand_in"] = stand_in_location(row)
@@ -660,7 +677,8 @@ def season_file_from_draft(
 
 
 def _writer_payload(world: dict, *, next_season: int, material: list[dict], may_move: bool, canon: dict) -> dict:
-    keys = ("id", "name", "role", "wants", "gender") + (("away",) if may_move else ())
+    # A moved season meets the cast's families (Marin's father's boat): their facts travel.
+    keys = ("id", "name", "role", "wants", "gender") + (("origin", "contradiction", "away") if may_move else ())
     cast = [
         {key: member.get(key) for key in keys if member.get(key) is not None}
         for member in world.get("cast") or []
