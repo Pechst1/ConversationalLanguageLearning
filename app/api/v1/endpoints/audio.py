@@ -13,6 +13,7 @@ from app.config import settings
 from app.core.offload import off_event_loop
 from app.db.models.user import User
 from app.services import spoken_reply
+from app.services.audio_duration import audio_seconds
 from app.services.llm_service import LLMService, estimate_tts_cost_usd
 from app.services.pilot_events import PilotEventService
 from app.services.transcription_cost import record_transcription_cost
@@ -109,6 +110,9 @@ async def transcribe_audio(
         )
 
     logger.info("Received audio file: {} bytes", len(content))
+    # The length the container declares, so a recorder's bit rate cannot make a
+    # short answer «too long» or price it at four times its cost (2026-10-09).
+    measured_seconds = audio_seconds(content)
     story_upload: spoken_reply.StoryUpload | None = None
     if surface == spoken_reply.STORY_REPLY_SURFACE:
         try:
@@ -118,6 +122,8 @@ async def transcribe_audio(
                 journey_id=journey_id,
                 step_id=step_id,
                 byte_count=len(content),
+                content_type=file.content_type,
+                measured_seconds=measured_seconds,
             )
         except spoken_reply.SpokenReplyRefused as refused:
             raise HTTPException(
@@ -138,6 +144,7 @@ async def transcribe_audio(
             user_id=current_user.id,
             byte_count=len(content),
             content_type=file.content_type,
+            measured_seconds=measured_seconds,
             surface=surface,
             **(
                 {

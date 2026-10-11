@@ -40,6 +40,7 @@ from app.services.spoken_reply import (
     FakeTranscriber,
 )
 from app.services.transcription_cost import (
+    AAC_ASSUMED_BYTES_PER_SECOND,
     ASSUMED_BYTES_PER_SECOND,
     TRANSCRIPTION_EVENT_TYPE,
 )
@@ -103,20 +104,28 @@ def transcriber(api: TestClient) -> Generator[FakeTranscriber, None, None]:
         api.app.dependency_overrides.pop(get_llm_service, None)
 
 
-def _recording(text: str = SENTENCE, *, seconds: float = 6.0) -> bytes:
+def _recording(
+    text: str = SENTENCE, *, seconds: float = 6.0, rate: int = ASSUMED_BYTES_PER_SECOND
+) -> bytes:
     """A fake upload the fake transcriber hears as ``text``, padded to ``seconds``."""
 
     head = FAKE_TRANSCRIPT_MARKER + text.encode("utf-8")
-    return head + b"\x00" * max(0, int(seconds * ASSUMED_BYTES_PER_SECOND) - len(head))
+    return head + b"\x00" * max(0, int(seconds * rate) - len(head))
 
 
-def _speak(client: TestClient, driver: Driver, payload: bytes):
+def _speak(
+    client: TestClient,
+    driver: Driver,
+    payload: bytes,
+    *,
+    upload: tuple[str, str] = ("reply.webm", "audio/webm"),
+):
     step = driver.current()
     assert step is not None
     return client.post(
         "/api/v1/audio/transcribe",
         headers=driver.headers,
-        files={"file": ("reply.webm", payload, "audio/webm")},
+        files={"file": (upload[0], payload, upload[1])},
         data={"surface": STORY_REPLY_SURFACE, "journey_id": driver.id, "step_id": step["id"]},
     )
 
@@ -257,6 +266,29 @@ def test_a_recording_over_thirty_seconds_is_refused(
     assert response.status_code == 413
     assert response.json()["detail"]["code"] == "spoken_reply_too_long"
     assert transcriber.calls == 0
+
+
+def test_a_twenty_second_iphone_recording_is_not_read_as_too_long(
+    api: TestClient,
+    db_session: Session,
+    spoken_on: None,
+    transcriber: FakeTranscriber,
+) -> None:
+    """AAC in MP4 runs near 128 kbit/s whatever the recorder asks (2026-10-09):
+    sized at the Opus rate, a 9-second iPhone answer read as thirty-five seconds."""
+
+    driver = _at_reply(api, db_session, "aac")
+    aac = _recording(seconds=20, rate=AAC_ASSUMED_BYTES_PER_SECOND)
+    response = _speak(api, driver, aac, upload=("reply.mp4", "audio/mp4"))
+    assert response.status_code == 200, response.text
+    assert transcriber.calls == 1
+    (row,) = _turn_rows(db_session, driver.current()["id"])
+    assert row.payload["estimated_seconds"] == pytest.approx(20, abs=0.5)
+
+    long_aac = _recording(seconds=60, rate=AAC_ASSUMED_BYTES_PER_SECOND)
+    refused = _speak(api, driver, long_aac, upload=("reply.mp4", "audio/mp4;codecs=mp4a.40.2"))
+    assert refused.status_code == 413
+    assert refused.json()["detail"]["code"] == "spoken_reply_too_long"
 
 
 def test_another_learners_turn_cannot_be_spoken_into(
