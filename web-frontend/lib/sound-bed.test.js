@@ -273,6 +273,42 @@ test('no AudioContext before the gesture; the gesture resumes it and fades the b
   assert.equal(ctx.sources.length, 1);
 });
 
+test('a context the word steps already unlocked plays the bed as the scene opens', () => {
+  const ctx = fakeContext();
+  ctx.state = 'running';
+  let made = 0;
+  let enabled = true;
+  const deps = {
+    context: () => {
+      made += 1;
+      return ctx;
+    },
+    existing: () => ctx,
+    enabled: () => enabled,
+    hidden: () => false,
+    render: tinyRender,
+  };
+  const bed = new B.SoundBed(deps);
+  bed.open('cafe');
+  assert.equal(made, 0, 'opening never creates a context');
+  assert.equal(bed.snapshot().playing, 'cafe');
+  assert.equal(ctx.sources.length, 1);
+  // The first tap neither restarts it nor adds a loop.
+  bed.gesture();
+  assert.equal(ctx.sources.length, 1);
+
+  // A suspended context, or «Ambiance» off, still waits for the gesture.
+  const quiet = fakeContext();
+  quiet.state = 'suspended';
+  const waiting = new B.SoundBed({ ...deps, existing: () => quiet, context: () => quiet });
+  waiting.open('cafe');
+  assert.equal(waiting.snapshot().playing, null);
+  enabled = false;
+  const off = new B.SoundBed(deps);
+  off.open('metro');
+  assert.equal(off.snapshot().playing, null);
+});
+
 test('closed gates: no context, no sound', () => {
   for (const opts of [{ enabled: false }, { hidden: true }]) {
     const { bed, made } = makeBed(opts);
