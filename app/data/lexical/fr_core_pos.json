@@ -1,0 +1,8784 @@
+{
+ "version": "fr-core-pos-v1",
+ "provenance": "WP-84 (2026-09-24): part of speech and noun gender for every core-lexicon lemma the lexicon does not annotate itself, hand-classified in scripts/build_lexicon_pos.py (verbs by their infinitive ending once every noun, adjective, adverb and function word is listed). gender: m / f / mf (epicene: one form for both).",
+ "lemmas": {
+  "abandonner": {
+   "pos": "verb"
+  },
+  "abonnement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "aborder": {
+   "pos": "verb"
+  },
+  "aboutir": {
+   "pos": "verb"
+  },
+  "absence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "absolu": {
+   "pos": "adjective"
+  },
+  "absolument": {
+   "pos": "adverb"
+  },
+  "abstrait": {
+   "pos": "adjective"
+  },
+  "absurde": {
+   "pos": "adjective"
+  },
+  "abus": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "accent": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "acceptable": {
+   "pos": "adjective"
+  },
+  "accepter": {
+   "pos": "verb"
+  },
+  "accident": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "accompagner": {
+   "pos": "verb"
+  },
+  "accomplir": {
+   "pos": "verb"
+  },
+  "accord": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "accorder": {
+   "pos": "verb"
+  },
+  "accueillir": {
+   "pos": "verb"
+  },
+  "accuser": {
+   "pos": "verb"
+  },
+  "accès": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "acheter": {
+   "pos": "verb"
+  },
+  "acquérir": {
+   "pos": "verb"
+  },
+  "acteur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "actualité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "actuel": {
+   "pos": "adjective"
+  },
+  "actuellement": {
+   "pos": "adverb"
+  },
+  "adapter": {
+   "pos": "verb"
+  },
+  "addition": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "admettre": {
+   "pos": "verb"
+  },
+  "administration": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "admiration": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "admirer": {
+   "pos": "verb"
+  },
+  "adolescent": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "adorer": {
+   "pos": "verb"
+  },
+  "adresse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "adulte": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "affaiblir": {
+   "pos": "verb"
+  },
+  "affaire": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "affection": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "affirmer": {
+   "pos": "verb"
+  },
+  "affreux": {
+   "pos": "adjective"
+  },
+  "afin": {
+   "pos": "function"
+  },
+  "agacé": {
+   "pos": "adjective"
+  },
+  "agence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "agressif": {
+   "pos": "adjective"
+  },
+  "agricole": {
+   "pos": "adjective"
+  },
+  "agriculteur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "agriculture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "agréable": {
+   "pos": "adjective"
+  },
+  "aide": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "aider": {
+   "pos": "verb"
+  },
+  "ail": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ailleurs": {
+   "pos": "adverb"
+  },
+  "aimable": {
+   "pos": "adjective"
+  },
+  "aimer": {
+   "pos": "verb"
+  },
+  "ainsi": {
+   "pos": "adverb"
+  },
+  "air": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ajouter": {
+   "pos": "verb"
+  },
+  "alcool": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "allemand": {
+   "pos": "adjective"
+  },
+  "aller": {
+   "pos": "verb"
+  },
+  "allergie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "allocation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "allumer": {
+   "pos": "verb"
+  },
+  "alors": {
+   "pos": "adverb"
+  },
+  "ambigu": {
+   "pos": "adjective"
+  },
+  "ambitieux": {
+   "pos": "adjective"
+  },
+  "ambition": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "ambulance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "amende": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "amener": {
+   "pos": "verb"
+  },
+  "amitié": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "amour": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "amoureux": {
+   "pos": "adjective"
+  },
+  "amuser": {
+   "pos": "verb"
+  },
+  "améliorer": {
+   "pos": "verb"
+  },
+  "américain": {
+   "pos": "adjective"
+  },
+  "an": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "analyser": {
+   "pos": "verb"
+  },
+  "ancien": {
+   "pos": "adjective"
+  },
+  "anglais": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "angoisse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "animal": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "animateur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "annonce": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "annoncer": {
+   "pos": "verb"
+  },
+  "annuler": {
+   "pos": "verb"
+  },
+  "année": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "anxieux": {
+   "pos": "adjective"
+  },
+  "anxiété": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "août": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "apparaître": {
+   "pos": "verb"
+  },
+  "appareil": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "apparemment": {
+   "pos": "adverb"
+  },
+  "apparence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "appartenir": {
+   "pos": "verb"
+  },
+  "appeler": {
+   "pos": "verb"
+  },
+  "application": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "apporter": {
+   "pos": "verb"
+  },
+  "apprendre": {
+   "pos": "verb"
+  },
+  "apprentissage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "approfondi": {
+   "pos": "adjective"
+  },
+  "approuver": {
+   "pos": "verb"
+  },
+  "apprécier": {
+   "pos": "verb"
+  },
+  "après": {
+   "pos": "function"
+  },
+  "après-midi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "architecte": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "architecture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "argent": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "argument": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "argumenter": {
+   "pos": "verb"
+  },
+  "armoire": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "armée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "arriver": {
+   "pos": "verb"
+  },
+  "arrivée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "arrogant": {
+   "pos": "adjective"
+  },
+  "arroser": {
+   "pos": "verb"
+  },
+  "arrêt": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "arrêter": {
+   "pos": "verb"
+  },
+  "art": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "artificiel": {
+   "pos": "adjective"
+  },
+  "artisan": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "artiste": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "artistique": {
+   "pos": "adjective"
+  },
+  "ascenseur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "aspect": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "asseoir": {
+   "pos": "verb"
+  },
+  "assez": {
+   "pos": "adverb"
+  },
+  "assister": {
+   "pos": "verb"
+  },
+  "association": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "associer": {
+   "pos": "verb"
+  },
+  "assurance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "assurer": {
+   "pos": "verb"
+  },
+  "atelier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "atmosphère": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "attachement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "atteindre": {
+   "pos": "verb"
+  },
+  "attendre": {
+   "pos": "verb"
+  },
+  "attente": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "attentif": {
+   "pos": "adjective"
+  },
+  "attention": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "atterrir": {
+   "pos": "verb"
+  },
+  "attestation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "attitude": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "au": {
+   "pos": "function"
+  },
+  "au-delà": {
+   "pos": "adverb"
+  },
+  "au-dessus": {
+   "pos": "adverb"
+  },
+  "auberge": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "aucun": {
+   "pos": "function"
+  },
+  "auditeur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "augmentation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "augmenter": {
+   "pos": "verb"
+  },
+  "aujourd'hui": {
+   "pos": "adverb"
+  },
+  "auparavant": {
+   "pos": "adverb"
+  },
+  "auprès": {
+   "pos": "function"
+  },
+  "aussi": {
+   "pos": "adverb"
+  },
+  "aussitôt": {
+   "pos": "adverb"
+  },
+  "autant": {
+   "pos": "adverb"
+  },
+  "auteur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "autocar": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "automne": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "autonome": {
+   "pos": "adjective"
+  },
+  "autorisation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "autoriser": {
+   "pos": "verb"
+  },
+  "autoroute": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "autour": {
+   "pos": "adverb"
+  },
+  "autre": {
+   "pos": "function"
+  },
+  "autrefois": {
+   "pos": "adverb"
+  },
+  "autrement": {
+   "pos": "adverb"
+  },
+  "autres": {
+   "pos": "function"
+  },
+  "aux": {
+   "pos": "function"
+  },
+  "avant": {
+   "pos": "function"
+  },
+  "avantage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "avec": {
+   "pos": "function"
+  },
+  "avenir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "avion": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "avis": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "avocat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "avoir": {
+   "pos": "verb"
+  },
+  "avouer": {
+   "pos": "verb"
+  },
+  "avril": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bagage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bain": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "baisse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "baisser": {
+   "pos": "verb"
+  },
+  "balcon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ballon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "banal": {
+   "pos": "adjective"
+  },
+  "bancaire": {
+   "pos": "adjective"
+  },
+  "bande": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "banlieue": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "bas": {
+   "pos": "adjective"
+  },
+  "base": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "bateau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "battre": {
+   "pos": "verb"
+  },
+  "bavard": {
+   "pos": "adjective"
+  },
+  "bavarder": {
+   "pos": "verb"
+  },
+  "beau": {
+   "pos": "adjective"
+  },
+  "beau-père": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "beaucoup": {
+   "pos": "adverb"
+  },
+  "beauté": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "belge": {
+   "pos": "adjective"
+  },
+  "belle-mère": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "besoin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bien": {
+   "pos": "adverb"
+  },
+  "bientôt": {
+   "pos": "adverb"
+  },
+  "bienvenue": {
+   "pos": "interjection"
+  },
+  "bilingue": {
+   "pos": "adjective"
+  },
+  "biodiversité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "biologique": {
+   "pos": "adjective"
+  },
+  "bise": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "bizarre": {
+   "pos": "adjective"
+  },
+  "bière": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "blanc": {
+   "pos": "adjective"
+  },
+  "blesser": {
+   "pos": "verb"
+  },
+  "blessure": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "bleu": {
+   "pos": "adjective"
+  },
+  "blond": {
+   "pos": "adjective"
+  },
+  "boire": {
+   "pos": "verb"
+  },
+  "boisson": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "bol": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bon": {
+   "pos": "adjective"
+  },
+  "bonbon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bonheur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bonjour": {
+   "pos": "interjection"
+  },
+  "bonne": {
+   "pos": "adjective"
+  },
+  "bonsoir": {
+   "pos": "interjection"
+  },
+  "bouche": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "boucherie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "boulanger": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bouleversé": {
+   "pos": "adjective"
+  },
+  "bourse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "bout": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bouteille": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "boutique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "boîte": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "bras": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bref": {
+   "pos": "adverb"
+  },
+  "brosser": {
+   "pos": "verb"
+  },
+  "brouillard": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bruit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "brun": {
+   "pos": "adjective"
+  },
+  "brusquement": {
+   "pos": "adverb"
+  },
+  "brutal": {
+   "pos": "adjective"
+  },
+  "bruyant": {
+   "pos": "adjective"
+  },
+  "brûler": {
+   "pos": "verb"
+  },
+  "budget": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bus": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "but": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bâtiment": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bébé": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bénéfice": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bénéficier": {
+   "pos": "verb"
+  },
+  "bénévolat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "bénévole": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "bête": {
+   "pos": "adjective"
+  },
+  "bœuf": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "c'est-à-dire": {
+   "pos": "adverb"
+  },
+  "cabinet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cacher": {
+   "pos": "verb"
+  },
+  "cadeau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cadre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cahier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "caisse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "caissier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "calculer": {
+   "pos": "verb"
+  },
+  "calme": {
+   "pos": "adjective"
+  },
+  "camion": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "campagne": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "camping": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "canadien": {
+   "pos": "adjective"
+  },
+  "candidat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "candidature": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "canicule": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "capable": {
+   "pos": "adjective"
+  },
+  "capacité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "capital": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "car": {
+   "pos": "function"
+  },
+  "caractère": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "caractéristique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "carafe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "carbone": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "carburant": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "carrefour": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "carrière": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "carré": {
+   "pos": "adjective"
+  },
+  "carton": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cas": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "case": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "casserole": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "catastrophe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "cathédrale": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "cause": {
+   "pos": "function"
+  },
+  "causer": {
+   "pos": "verb"
+  },
+  "cave": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "ce": {
+   "pos": "function"
+  },
+  "ceci": {
+   "pos": "function"
+  },
+  "cela": {
+   "pos": "function"
+  },
+  "celle": {
+   "pos": "function"
+  },
+  "celles": {
+   "pos": "function"
+  },
+  "celui": {
+   "pos": "function"
+  },
+  "celui-là": {
+   "pos": "function"
+  },
+  "cent": {
+   "pos": "number"
+  },
+  "cent-un": {
+   "pos": "number"
+  },
+  "centaine": {
+   "pos": "number"
+  },
+  "centime": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "central": {
+   "pos": "adjective"
+  },
+  "centre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "centre-ville": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cependant": {
+   "pos": "function"
+  },
+  "cerise": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "certain": {
+   "pos": "adjective"
+  },
+  "certainement": {
+   "pos": "adverb"
+  },
+  "certes": {
+   "pos": "adverb"
+  },
+  "certificat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "certitude": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "ces": {
+   "pos": "function"
+  },
+  "cet": {
+   "pos": "function"
+  },
+  "cette": {
+   "pos": "function"
+  },
+  "ceux": {
+   "pos": "function"
+  },
+  "chacun": {
+   "pos": "function"
+  },
+  "chaleur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "champignon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "changer": {
+   "pos": "verb"
+  },
+  "chanter": {
+   "pos": "verb"
+  },
+  "chanteur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chantier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chapitre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chaque": {
+   "pos": "function"
+  },
+  "charbon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "charge": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "charger": {
+   "pos": "verb"
+  },
+  "charmant": {
+   "pos": "adjective"
+  },
+  "chasser": {
+   "pos": "verb"
+  },
+  "chaud": {
+   "pos": "adjective"
+  },
+  "chauffage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chauffer": {
+   "pos": "verb"
+  },
+  "chaussette": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "chaussure": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "chaîne": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "chef": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chemin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chemise": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "cher": {
+   "pos": "adjective"
+  },
+  "chercher": {
+   "pos": "verb"
+  },
+  "chercheur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cheval": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cheveu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chez": {
+   "pos": "function"
+  },
+  "chiffre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chimique": {
+   "pos": "adjective"
+  },
+  "chinois": {
+   "pos": "adjective"
+  },
+  "chirurgien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "choc": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "choisir": {
+   "pos": "verb"
+  },
+  "choix": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "choquant": {
+   "pos": "adjective"
+  },
+  "choquer": {
+   "pos": "verb"
+  },
+  "chose": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "château": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chèque": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chômage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "chômeur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ciel": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cinq": {
+   "pos": "number"
+  },
+  "cinq-cent": {
+   "pos": "number"
+  },
+  "cinq-cents": {
+   "pos": "number"
+  },
+  "cinq-mille": {
+   "pos": "number"
+  },
+  "cinquante": {
+   "pos": "number"
+  },
+  "cinquante-cinq": {
+   "pos": "number"
+  },
+  "cinquante-deux": {
+   "pos": "number"
+  },
+  "cinquante-et-un": {
+   "pos": "number"
+  },
+  "cinquante-huit": {
+   "pos": "number"
+  },
+  "cinquante-neuf": {
+   "pos": "number"
+  },
+  "cinquante-quatre": {
+   "pos": "number"
+  },
+  "cinquante-sept": {
+   "pos": "number"
+  },
+  "cinquante-six": {
+   "pos": "number"
+  },
+  "cinquante-trois": {
+   "pos": "number"
+  },
+  "cinquième": {
+   "pos": "number"
+  },
+  "circulation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "citer": {
+   "pos": "verb"
+  },
+  "citoyen": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "civilisation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "clair": {
+   "pos": "adjective"
+  },
+  "clairement": {
+   "pos": "adverb"
+  },
+  "classe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "classer": {
+   "pos": "verb"
+  },
+  "classique": {
+   "pos": "adjective"
+  },
+  "clavier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "client": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "clientèle": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "climat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "clinique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "cliquer": {
+   "pos": "verb"
+  },
+  "cochon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "code": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cohérent": {
+   "pos": "adjective"
+  },
+  "coiffeur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "coin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "colis": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "collaborer": {
+   "pos": "verb"
+  },
+  "collectif": {
+   "pos": "adjective"
+  },
+  "coller": {
+   "pos": "verb"
+  },
+  "collège": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "colocataire": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "colocation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "colère": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "combattre": {
+   "pos": "verb"
+  },
+  "combien": {
+   "pos": "function"
+  },
+  "commande": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "commander": {
+   "pos": "verb"
+  },
+  "comme": {
+   "pos": "adverb"
+  },
+  "commencer": {
+   "pos": "verb"
+  },
+  "comment": {
+   "pos": "function"
+  },
+  "commentaire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "commerce": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "commercial": {
+   "pos": "adjective"
+  },
+  "commerçant": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "commun": {
+   "pos": "adjective"
+  },
+  "communauté": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "communication": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "communiquer": {
+   "pos": "verb"
+  },
+  "comparaison": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "comparer": {
+   "pos": "verb"
+  },
+  "complet": {
+   "pos": "adjective"
+  },
+  "complexe": {
+   "pos": "adjective"
+  },
+  "compliment": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "compliqué": {
+   "pos": "adjective"
+  },
+  "complètement": {
+   "pos": "adverb"
+  },
+  "comportement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "comprendre": {
+   "pos": "verb"
+  },
+  "comprimé": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "compromis": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "comptable": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "compte": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "compter": {
+   "pos": "verb"
+  },
+  "compétence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "compétent": {
+   "pos": "adjective"
+  },
+  "comédie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "concept": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "concerner": {
+   "pos": "verb"
+  },
+  "conclure": {
+   "pos": "verb"
+  },
+  "conclusion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "concret": {
+   "pos": "adjective"
+  },
+  "concrètement": {
+   "pos": "adverb"
+  },
+  "concurrence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "condamner": {
+   "pos": "verb"
+  },
+  "condition": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "conduire": {
+   "pos": "verb"
+  },
+  "confiance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "confiant": {
+   "pos": "adjective"
+  },
+  "confirmer": {
+   "pos": "verb"
+  },
+  "conflit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "confortable": {
+   "pos": "adjective"
+  },
+  "confus": {
+   "pos": "adjective"
+  },
+  "confusion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "congé": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "connaissance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "connaître": {
+   "pos": "verb"
+  },
+  "connexion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "consacrer": {
+   "pos": "verb"
+  },
+  "conscience": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "conscient": {
+   "pos": "adjective"
+  },
+  "conseil": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "conseiller": {
+   "pos": "verb"
+  },
+  "conserver": {
+   "pos": "verb"
+  },
+  "considérable": {
+   "pos": "adjective"
+  },
+  "considérer": {
+   "pos": "verb"
+  },
+  "consister": {
+   "pos": "verb"
+  },
+  "consommateur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "consommation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "consommer": {
+   "pos": "verb"
+  },
+  "constamment": {
+   "pos": "adverb"
+  },
+  "constater": {
+   "pos": "verb"
+  },
+  "construction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "construire": {
+   "pos": "verb"
+  },
+  "consulter": {
+   "pos": "verb"
+  },
+  "conséquence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "contact": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "contemporain": {
+   "pos": "adjective"
+  },
+  "contenir": {
+   "pos": "verb"
+  },
+  "content": {
+   "pos": "adjective"
+  },
+  "contenu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "contester": {
+   "pos": "verb"
+  },
+  "contexte": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "continuer": {
+   "pos": "verb"
+  },
+  "contradictoire": {
+   "pos": "adjective"
+  },
+  "contrainte": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "contraire": {
+   "pos": "function"
+  },
+  "contraste": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "contrat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "contre": {
+   "pos": "function"
+  },
+  "contribuer": {
+   "pos": "verb"
+  },
+  "contrôler": {
+   "pos": "verb"
+  },
+  "convaincant": {
+   "pos": "adjective"
+  },
+  "convaincre": {
+   "pos": "verb"
+  },
+  "convenir": {
+   "pos": "verb"
+  },
+  "conviction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "copain": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "copie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "copier": {
+   "pos": "verb"
+  },
+  "corps": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "correct": {
+   "pos": "adjective"
+  },
+  "correspondance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "corriger": {
+   "pos": "verb"
+  },
+  "cou": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "coucher": {
+   "pos": "verb"
+  },
+  "couleur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "couloir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "coup": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "coupable": {
+   "pos": "adjective"
+  },
+  "couper": {
+   "pos": "verb"
+  },
+  "couple": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "courage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "courageux": {
+   "pos": "adjective"
+  },
+  "courant": {
+   "pos": "adjective"
+  },
+  "courir": {
+   "pos": "verb"
+  },
+  "courriel": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "courrier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cours": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "course": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "court": {
+   "pos": "adjective"
+  },
+  "couteau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "coutume": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "couvrir": {
+   "pos": "verb"
+  },
+  "coût": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "coûter": {
+   "pos": "verb"
+  },
+  "craindre": {
+   "pos": "verb"
+  },
+  "crayon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cri": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "crier": {
+   "pos": "verb"
+  },
+  "crime": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "crise": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "critique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "critiquer": {
+   "pos": "verb"
+  },
+  "critère": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "croire": {
+   "pos": "verb"
+  },
+  "croiser": {
+   "pos": "verb"
+  },
+  "croissance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "croyance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "cruel": {
+   "pos": "adjective"
+  },
+  "crème": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "création": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "créativité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "crédible": {
+   "pos": "adjective"
+  },
+  "crédit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "créer": {
+   "pos": "verb"
+  },
+  "cuillère": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "cuire": {
+   "pos": "verb"
+  },
+  "cuisiner": {
+   "pos": "verb"
+  },
+  "cuisinier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "culpabilité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "cultiver": {
+   "pos": "verb"
+  },
+  "culture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "culturel": {
+   "pos": "adjective"
+  },
+  "curieux": {
+   "pos": "adjective"
+  },
+  "curiosité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "céder": {
+   "pos": "verb"
+  },
+  "célibataire": {
+   "pos": "adjective"
+  },
+  "célébrité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "côte": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "côté": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "cœur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "d'abord": {
+   "pos": "adverb"
+  },
+  "d'accord": {
+   "pos": "adverb"
+  },
+  "d'ailleurs": {
+   "pos": "adverb"
+  },
+  "dame": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "danger": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dangereux": {
+   "pos": "adjective"
+  },
+  "dans": {
+   "pos": "function"
+  },
+  "danse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "danser": {
+   "pos": "verb"
+  },
+  "date": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "davantage": {
+   "pos": "adverb"
+  },
+  "de": {
+   "pos": "function"
+  },
+  "debout": {
+   "pos": "adverb"
+  },
+  "dedans": {
+   "pos": "adverb"
+  },
+  "degré": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dehors": {
+   "pos": "adverb"
+  },
+  "demain": {
+   "pos": "adverb"
+  },
+  "demande": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "demander": {
+   "pos": "verb"
+  },
+  "demi": {
+   "pos": "adjective"
+  },
+  "dent": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "dentiste": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "depuis": {
+   "pos": "function"
+  },
+  "dernier": {
+   "pos": "adjective"
+  },
+  "dernièrement": {
+   "pos": "adverb"
+  },
+  "derrière": {
+   "pos": "function"
+  },
+  "des": {
+   "pos": "function"
+  },
+  "descendre": {
+   "pos": "verb"
+  },
+  "dessert": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dessin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dessiner": {
+   "pos": "verb"
+  },
+  "dessous": {
+   "pos": "adverb"
+  },
+  "dessus": {
+   "pos": "adverb"
+  },
+  "destin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "destination": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "dette": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "deux": {
+   "pos": "number"
+  },
+  "deux-cent": {
+   "pos": "number"
+  },
+  "deux-cents": {
+   "pos": "number"
+  },
+  "deux-mille": {
+   "pos": "number"
+  },
+  "deuxième": {
+   "pos": "adjective"
+  },
+  "devant": {
+   "pos": "function"
+  },
+  "devenir": {
+   "pos": "verb"
+  },
+  "deviner": {
+   "pos": "verb"
+  },
+  "devoir": {
+   "pos": "verb"
+  },
+  "dialogue": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dictionnaire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "difficile": {
+   "pos": "adjective"
+  },
+  "difficilement": {
+   "pos": "adverb"
+  },
+  "diffuser": {
+   "pos": "verb"
+  },
+  "différence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "différent": {
+   "pos": "adjective"
+  },
+  "digne": {
+   "pos": "adjective"
+  },
+  "dignité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "dimanche": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "diminuer": {
+   "pos": "verb"
+  },
+  "diminution": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "diplôme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dire": {
+   "pos": "verb"
+  },
+  "direct": {
+   "pos": "adjective"
+  },
+  "directement": {
+   "pos": "adverb"
+  },
+  "directeur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "direction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "diriger": {
+   "pos": "verb"
+  },
+  "discret": {
+   "pos": "adjective"
+  },
+  "discrimination": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "discussion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "discuter": {
+   "pos": "verb"
+  },
+  "disparaître": {
+   "pos": "verb"
+  },
+  "disparition": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "disponible": {
+   "pos": "adjective"
+  },
+  "dispute": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "disputer": {
+   "pos": "verb"
+  },
+  "distinct": {
+   "pos": "adjective"
+  },
+  "distinguer": {
+   "pos": "verb"
+  },
+  "distraction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "distributeur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "divers": {
+   "pos": "adjective"
+  },
+  "divertissement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "divorce": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "divorcer": {
+   "pos": "verb"
+  },
+  "dix": {
+   "pos": "number"
+  },
+  "dix-huit": {
+   "pos": "number"
+  },
+  "dix-mille": {
+   "pos": "number"
+  },
+  "dix-neuf": {
+   "pos": "number"
+  },
+  "dix-sept": {
+   "pos": "number"
+  },
+  "dixième": {
+   "pos": "number"
+  },
+  "dizaine": {
+   "pos": "number"
+  },
+  "docteur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "document": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "doigt": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "domaine": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dominer": {
+   "pos": "verb"
+  },
+  "donc": {
+   "pos": "function"
+  },
+  "donner": {
+   "pos": "verb"
+  },
+  "donnée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "dont": {
+   "pos": "function"
+  },
+  "dormir": {
+   "pos": "verb"
+  },
+  "dorénavant": {
+   "pos": "adverb"
+  },
+  "dos": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "douane": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "double": {
+   "pos": "adjective"
+  },
+  "doubler": {
+   "pos": "verb"
+  },
+  "doucement": {
+   "pos": "adverb"
+  },
+  "douche": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "douleur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "doute": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "douter": {
+   "pos": "verb"
+  },
+  "doux": {
+   "pos": "adjective"
+  },
+  "douzaine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "douze": {
+   "pos": "number"
+  },
+  "doué": {
+   "pos": "adjective"
+  },
+  "drame": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "drogue": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "droit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "droite": {
+   "pos": "adjective"
+  },
+  "drôle": {
+   "pos": "adjective"
+  },
+  "du": {
+   "pos": "function"
+  },
+  "durable": {
+   "pos": "adjective"
+  },
+  "durant": {
+   "pos": "function"
+  },
+  "durer": {
+   "pos": "verb"
+  },
+  "durée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "dès": {
+   "pos": "function"
+  },
+  "débat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "débattre": {
+   "pos": "verb"
+  },
+  "début": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "décembre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "décevoir": {
+   "pos": "verb"
+  },
+  "déchet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "décider": {
+   "pos": "verb"
+  },
+  "décisif": {
+   "pos": "adjective"
+  },
+  "décision": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "déclaration": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "déclarer": {
+   "pos": "verb"
+  },
+  "déclencher": {
+   "pos": "verb"
+  },
+  "décoller": {
+   "pos": "verb"
+  },
+  "découverte": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "découvrir": {
+   "pos": "verb"
+  },
+  "décrire": {
+   "pos": "verb"
+  },
+  "décès": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "défaut": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "défendre": {
+   "pos": "verb"
+  },
+  "défi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "définir": {
+   "pos": "verb"
+  },
+  "définitif": {
+   "pos": "adjective"
+  },
+  "définition": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "déjeuner": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "déjà": {
+   "pos": "adverb"
+  },
+  "délai": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "délicieux": {
+   "pos": "adjective"
+  },
+  "démarche": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "démission": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "démocratie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "démocratique": {
+   "pos": "adjective"
+  },
+  "démontrer": {
+   "pos": "verb"
+  },
+  "déménagement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "déménager": {
+   "pos": "verb"
+  },
+  "dénoncer": {
+   "pos": "verb"
+  },
+  "départ": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dépasser": {
+   "pos": "verb"
+  },
+  "dépendre": {
+   "pos": "verb"
+  },
+  "dépense": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "dépenser": {
+   "pos": "verb"
+  },
+  "déposer": {
+   "pos": "verb"
+  },
+  "dépression": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "député": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "dépêcher": {
+   "pos": "verb"
+  },
+  "déranger": {
+   "pos": "verb"
+  },
+  "désaccord": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "désert": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "désespoir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "désir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "désirer": {
+   "pos": "verb"
+  },
+  "désolé": {
+   "pos": "adjective"
+  },
+  "désordre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "désormais": {
+   "pos": "adverb"
+  },
+  "détente": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "détester": {
+   "pos": "verb"
+  },
+  "détruire": {
+   "pos": "verb"
+  },
+  "développement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "développer": {
+   "pos": "verb"
+  },
+  "déçu": {
+   "pos": "adjective"
+  },
+  "dîner": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "effectivement": {
+   "pos": "adverb"
+  },
+  "effet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "efficace": {
+   "pos": "adjective"
+  },
+  "efforcer": {
+   "pos": "verb"
+  },
+  "effort": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "effrayant": {
+   "pos": "adjective"
+  },
+  "elle": {
+   "pos": "function"
+  },
+  "elles": {
+   "pos": "function"
+  },
+  "emballage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "embaucher": {
+   "pos": "verb"
+  },
+  "embouteillage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "embrasser": {
+   "pos": "verb"
+  },
+  "emmener": {
+   "pos": "verb"
+  },
+  "empathie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "emploi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "employer": {
+   "pos": "verb"
+  },
+  "employeur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "employé": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "emporter": {
+   "pos": "verb"
+  },
+  "emprunt": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "emprunter": {
+   "pos": "verb"
+  },
+  "empêcher": {
+   "pos": "verb"
+  },
+  "en": {
+   "pos": "adverb"
+  },
+  "en-effet": {
+   "pos": "adverb"
+  },
+  "enceinte": {
+   "pos": "adjective"
+  },
+  "enchanté": {
+   "pos": "adjective"
+  },
+  "encore": {
+   "pos": "adverb"
+  },
+  "encourager": {
+   "pos": "verb"
+  },
+  "endormir": {
+   "pos": "verb"
+  },
+  "enfance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "enfin": {
+   "pos": "adverb"
+  },
+  "enfuir": {
+   "pos": "verb"
+  },
+  "engagement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "engager": {
+   "pos": "verb"
+  },
+  "enjeu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "enlever": {
+   "pos": "verb"
+  },
+  "ennui": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ennuyer": {
+   "pos": "verb"
+  },
+  "ennuyeux": {
+   "pos": "adjective"
+  },
+  "enquête": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "enregistrer": {
+   "pos": "verb"
+  },
+  "enrhumé": {
+   "pos": "adjective"
+  },
+  "enseignement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "enseigner": {
+   "pos": "verb"
+  },
+  "ensemble": {
+   "pos": "adverb"
+  },
+  "ensoleillé": {
+   "pos": "adjective"
+  },
+  "ensuite": {
+   "pos": "adverb"
+  },
+  "entendre": {
+   "pos": "verb"
+  },
+  "enthousiasme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "entièrement": {
+   "pos": "adverb"
+  },
+  "entraîner": {
+   "pos": "verb"
+  },
+  "entre": {
+   "pos": "function"
+  },
+  "entreprendre": {
+   "pos": "verb"
+  },
+  "entreprise": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "entrer": {
+   "pos": "verb"
+  },
+  "entretenir": {
+   "pos": "verb"
+  },
+  "entretien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "entrée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "enveloppe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "envers": {
+   "pos": "function"
+  },
+  "envie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "environ": {
+   "pos": "adverb"
+  },
+  "environnement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "envisager": {
+   "pos": "verb"
+  },
+  "envoyer": {
+   "pos": "verb"
+  },
+  "erreur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "escalier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "espace": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "espagnol": {
+   "pos": "adjective"
+  },
+  "espoir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "esprit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "espèce": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "espérance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "espérer": {
+   "pos": "verb"
+  },
+  "essayer": {
+   "pos": "verb"
+  },
+  "essence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "essentiel": {
+   "pos": "adjective"
+  },
+  "essentiellement": {
+   "pos": "adverb"
+  },
+  "estimer": {
+   "pos": "verb"
+  },
+  "estomac": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "et": {
+   "pos": "function"
+  },
+  "euro": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "européen": {
+   "pos": "adjective"
+  },
+  "eux": {
+   "pos": "function"
+  },
+  "exact": {
+   "pos": "adjective"
+  },
+  "exactement": {
+   "pos": "adverb"
+  },
+  "examiner": {
+   "pos": "verb"
+  },
+  "excellent": {
+   "pos": "adjective"
+  },
+  "exception": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "exceptionnel": {
+   "pos": "adjective"
+  },
+  "excessif": {
+   "pos": "adjective"
+  },
+  "exclure": {
+   "pos": "verb"
+  },
+  "excursion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "excuser": {
+   "pos": "verb"
+  },
+  "excusez": {
+   "pos": "interjection"
+  },
+  "excusez-moi": {
+   "pos": "interjection"
+  },
+  "exemple": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "exercer": {
+   "pos": "verb"
+  },
+  "exercice": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "exigeant": {
+   "pos": "adjective"
+  },
+  "exigence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "exiger": {
+   "pos": "verb"
+  },
+  "existence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "expert": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "expliquer": {
+   "pos": "verb"
+  },
+  "exploiter": {
+   "pos": "verb"
+  },
+  "explorer": {
+   "pos": "verb"
+  },
+  "exportation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "expression": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "exprimer": {
+   "pos": "verb"
+  },
+  "expérience": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "externe": {
+   "pos": "adjective"
+  },
+  "extraordinaire": {
+   "pos": "adjective"
+  },
+  "extrême": {
+   "pos": "adjective"
+  },
+  "extrêmement": {
+   "pos": "adverb"
+  },
+  "fabriquer": {
+   "pos": "verb"
+  },
+  "facile": {
+   "pos": "adjective"
+  },
+  "facilement": {
+   "pos": "adverb"
+  },
+  "facteur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "facture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "facultatif": {
+   "pos": "adjective"
+  },
+  "faim": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "faire": {
+   "pos": "verb"
+  },
+  "fait": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "falloir": {
+   "pos": "verb"
+  },
+  "familial": {
+   "pos": "adjective"
+  },
+  "famille": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fantastique": {
+   "pos": "adjective"
+  },
+  "fascinant": {
+   "pos": "adjective"
+  },
+  "fatigue": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fatigué": {
+   "pos": "adjective"
+  },
+  "faute": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fauteuil": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "faux": {
+   "pos": "adjective"
+  },
+  "façon": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "femme": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fermer": {
+   "pos": "verb"
+  },
+  "fermé": {
+   "pos": "adjective"
+  },
+  "festival": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "feu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fiable": {
+   "pos": "adjective"
+  },
+  "fichier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fidèle": {
+   "pos": "adjective"
+  },
+  "fier": {
+   "pos": "adjective"
+  },
+  "fierté": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "file": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fille": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fils": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fin": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "final": {
+   "pos": "adjective"
+  },
+  "finalement": {
+   "pos": "adverb"
+  },
+  "finance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "financer": {
+   "pos": "verb"
+  },
+  "financier": {
+   "pos": "adjective"
+  },
+  "finir": {
+   "pos": "verb"
+  },
+  "fièvre": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fleur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fleuriste": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "fois": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fonctionnaire": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "fonctionnement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "foncé": {
+   "pos": "adjective"
+  },
+  "fond": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fondamental": {
+   "pos": "adjective"
+  },
+  "fondre": {
+   "pos": "verb"
+  },
+  "foot": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "football": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "force": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "forcément": {
+   "pos": "adverb"
+  },
+  "formalité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "formation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "forme": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "former": {
+   "pos": "verb"
+  },
+  "formidable": {
+   "pos": "adjective"
+  },
+  "formulaire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fort": {
+   "pos": "adjective"
+  },
+  "fortement": {
+   "pos": "adverb"
+  },
+  "fortune": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "forêt": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fou": {
+   "pos": "adjective"
+  },
+  "four": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fourchette": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fournir": {
+   "pos": "verb"
+  },
+  "fournisseur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fragile": {
+   "pos": "adjective"
+  },
+  "frais": {
+   "pos": "adjective"
+  },
+  "franchement": {
+   "pos": "adverb"
+  },
+  "franchir": {
+   "pos": "verb"
+  },
+  "français": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "frapper": {
+   "pos": "verb"
+  },
+  "frigo": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "frite": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "froid": {
+   "pos": "adjective"
+  },
+  "front": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "frontière": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "fruit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fréquemment": {
+   "pos": "adverb"
+  },
+  "fréquent": {
+   "pos": "adjective"
+  },
+  "fuir": {
+   "pos": "verb"
+  },
+  "fumer": {
+   "pos": "verb"
+  },
+  "futur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fâcher": {
+   "pos": "verb"
+  },
+  "fâché": {
+   "pos": "adjective"
+  },
+  "féliciter": {
+   "pos": "verb"
+  },
+  "férié": {
+   "pos": "adjective"
+  },
+  "février": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "fêter": {
+   "pos": "verb"
+  },
+  "gagner": {
+   "pos": "verb"
+  },
+  "galerie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "gant": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "garage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "garantir": {
+   "pos": "verb"
+  },
+  "garder": {
+   "pos": "verb"
+  },
+  "gardien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "garer": {
+   "pos": "verb"
+  },
+  "garçon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "gaspillage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "gaspiller": {
+   "pos": "verb"
+  },
+  "gauche": {
+   "pos": "adjective"
+  },
+  "gaz": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "genou": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "genre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "gens": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "gentil": {
+   "pos": "adjective"
+  },
+  "gentillesse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "geste": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "gestion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "glisser": {
+   "pos": "verb"
+  },
+  "global": {
+   "pos": "adjective"
+  },
+  "globalement": {
+   "pos": "adverb"
+  },
+  "gorge": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "gourmand": {
+   "pos": "adjective"
+  },
+  "gouvernement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "gouverner": {
+   "pos": "verb"
+  },
+  "goût": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "goûter": {
+   "pos": "verb"
+  },
+  "grammaire": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "gramme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "grand": {
+   "pos": "adjective"
+  },
+  "grand-mère": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "grand-parent": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "grand-père": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "grandir": {
+   "pos": "verb"
+  },
+  "gratitude": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "gratuit": {
+   "pos": "adjective"
+  },
+  "grave": {
+   "pos": "adjective"
+  },
+  "grenier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "grippe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "gris": {
+   "pos": "adjective"
+  },
+  "gros": {
+   "pos": "adjective"
+  },
+  "grossir": {
+   "pos": "verb"
+  },
+  "grâce": {
+   "pos": "function"
+  },
+  "grève": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "guerre": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "guichet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "guérir": {
+   "pos": "verb"
+  },
+  "guérison": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "génial": {
+   "pos": "adjective"
+  },
+  "général": {
+   "pos": "adjective"
+  },
+  "généralement": {
+   "pos": "adverb"
+  },
+  "généreux": {
+   "pos": "adjective"
+  },
+  "générosité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "géographie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "géographique": {
+   "pos": "adjective"
+  },
+  "gérer": {
+   "pos": "verb"
+  },
+  "gêner": {
+   "pos": "verb"
+  },
+  "habiller": {
+   "pos": "verb"
+  },
+  "habitant": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "habiter": {
+   "pos": "verb"
+  },
+  "habitude": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "habituel": {
+   "pos": "adjective"
+  },
+  "habituer": {
+   "pos": "verb"
+  },
+  "handicap": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "handicapé": {
+   "pos": "adjective"
+  },
+  "haricot": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "harmonie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "hasard": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "hausse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "haut": {
+   "pos": "adjective"
+  },
+  "heure": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "heureusement": {
+   "pos": "adverb"
+  },
+  "heureux": {
+   "pos": "adjective"
+  },
+  "hier": {
+   "pos": "adverb"
+  },
+  "historique": {
+   "pos": "adjective"
+  },
+  "hiver": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "homme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "honneur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "honnête": {
+   "pos": "adjective"
+  },
+  "honnêtement": {
+   "pos": "adverb"
+  },
+  "honte": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "honteux": {
+   "pos": "adjective"
+  },
+  "horaire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "horrible": {
+   "pos": "adjective"
+  },
+  "hors": {
+   "pos": "function"
+  },
+  "huile": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "huit": {
+   "pos": "number"
+  },
+  "huit-cent": {
+   "pos": "number"
+  },
+  "huit-cents": {
+   "pos": "number"
+  },
+  "huit-mille": {
+   "pos": "number"
+  },
+  "huitième": {
+   "pos": "number"
+  },
+  "humanité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "humble": {
+   "pos": "adjective"
+  },
+  "humeur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "hygiène": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "hypothèse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "hébergement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "héberger": {
+   "pos": "verb"
+  },
+  "hélas": {
+   "pos": "interjection"
+  },
+  "héritage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "hériter": {
+   "pos": "verb"
+  },
+  "héros": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "héroïne": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "hésitation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "hésiter": {
+   "pos": "verb"
+  },
+  "hôte": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ici": {
+   "pos": "adverb"
+  },
+  "identique": {
+   "pos": "adjective"
+  },
+  "identité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "idiot": {
+   "pos": "adjective"
+  },
+  "ignorer": {
+   "pos": "verb"
+  },
+  "il": {
+   "pos": "function"
+  },
+  "illusion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "illustrer": {
+   "pos": "verb"
+  },
+  "illégal": {
+   "pos": "adjective"
+  },
+  "ils": {
+   "pos": "function"
+  },
+  "image": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "imagination": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "imaginer": {
+   "pos": "verb"
+  },
+  "immense": {
+   "pos": "adjective"
+  },
+  "immigration": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "immigré": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "immédiatement": {
+   "pos": "adverb"
+  },
+  "impact": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "impatient": {
+   "pos": "adjective"
+  },
+  "impliquer": {
+   "pos": "verb"
+  },
+  "impoli": {
+   "pos": "adjective"
+  },
+  "importance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "important": {
+   "pos": "adjective"
+  },
+  "importation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "importer": {
+   "pos": "verb"
+  },
+  "imposer": {
+   "pos": "verb"
+  },
+  "impossible": {
+   "pos": "adjective"
+  },
+  "impression": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "impressionner": {
+   "pos": "verb"
+  },
+  "imprimante": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "imprimer": {
+   "pos": "verb"
+  },
+  "impôt": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "inacceptable": {
+   "pos": "adjective"
+  },
+  "incapable": {
+   "pos": "adjective"
+  },
+  "incendie": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "inclure": {
+   "pos": "verb"
+  },
+  "inconvénient": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "incroyable": {
+   "pos": "adjective"
+  },
+  "indiquer": {
+   "pos": "verb"
+  },
+  "indispensable": {
+   "pos": "adjective"
+  },
+  "individu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "individuel": {
+   "pos": "adjective"
+  },
+  "industrie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "industriel": {
+   "pos": "adjective"
+  },
+  "indépendant": {
+   "pos": "adjective"
+  },
+  "infection": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "infirmier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "inflation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "influence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "influencer": {
+   "pos": "verb"
+  },
+  "informaticien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "information": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "informer": {
+   "pos": "verb"
+  },
+  "ingrédient": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ingénieur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "initial": {
+   "pos": "adjective"
+  },
+  "initiative": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "injuste": {
+   "pos": "adjective"
+  },
+  "injustice": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "innocent": {
+   "pos": "adjective"
+  },
+  "innovation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "inondation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "inquiet": {
+   "pos": "adjective"
+  },
+  "inquiétant": {
+   "pos": "adjective"
+  },
+  "inquiéter": {
+   "pos": "verb"
+  },
+  "inquiétude": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "inscription": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "inscrire": {
+   "pos": "verb"
+  },
+  "insecte": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "insister": {
+   "pos": "verb"
+  },
+  "inspiration": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "installer": {
+   "pos": "verb"
+  },
+  "instant": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "institution": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "insuffisant": {
+   "pos": "adjective"
+  },
+  "intelligence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "intelligent": {
+   "pos": "adjective"
+  },
+  "interdiction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "interdire": {
+   "pos": "verb"
+  },
+  "international": {
+   "pos": "adjective"
+  },
+  "interne": {
+   "pos": "adjective"
+  },
+  "internet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "interprétation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "intervenir": {
+   "pos": "verb"
+  },
+  "intrigue": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "introduire": {
+   "pos": "verb"
+  },
+  "intégration": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "intégrer": {
+   "pos": "verb"
+  },
+  "intéressant": {
+   "pos": "adjective"
+  },
+  "intéresser": {
+   "pos": "verb"
+  },
+  "intérêt": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "inutile": {
+   "pos": "adjective"
+  },
+  "inventer": {
+   "pos": "verb"
+  },
+  "invention": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "inverse": {
+   "pos": "adjective"
+  },
+  "investir": {
+   "pos": "verb"
+  },
+  "investissement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "invitation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "inégal": {
+   "pos": "adjective"
+  },
+  "inégalité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "isolement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "italien": {
+   "pos": "adjective"
+  },
+  "jaloux": {
+   "pos": "adjective"
+  },
+  "jamais": {
+   "pos": "adverb"
+  },
+  "jambe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "jambon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "janvier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "japonais": {
+   "pos": "adjective"
+  },
+  "jaune": {
+   "pos": "adjective"
+  },
+  "je": {
+   "pos": "function"
+  },
+  "jeter": {
+   "pos": "verb"
+  },
+  "jeu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "jeudi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "jeune": {
+   "pos": "adjective"
+  },
+  "jeunesse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "joie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "joindre": {
+   "pos": "verb"
+  },
+  "joli": {
+   "pos": "adjective"
+  },
+  "joue": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "jouer": {
+   "pos": "verb"
+  },
+  "jour": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "journaliste": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "journée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "joyeux": {
+   "pos": "adjective"
+  },
+  "juge": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "juger": {
+   "pos": "verb"
+  },
+  "juillet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "juin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "jupe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "jurer": {
+   "pos": "verb"
+  },
+  "jus": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "jusque": {
+   "pos": "function"
+  },
+  "juste": {
+   "pos": "adjective"
+  },
+  "justement": {
+   "pos": "adverb"
+  },
+  "justice": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "justificatif": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "justifier": {
+   "pos": "verb"
+  },
+  "kilo": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "la": {
+   "pos": "function"
+  },
+  "laboratoire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "lac": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "laisser": {
+   "pos": "verb"
+  },
+  "langage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "langue": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "lapin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "large": {
+   "pos": "adjective"
+  },
+  "largement": {
+   "pos": "adverb"
+  },
+  "larme": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "laver": {
+   "pos": "verb"
+  },
+  "le": {
+   "pos": "function"
+  },
+  "lecteur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "lecture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "lendemain": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "lent": {
+   "pos": "adjective"
+  },
+  "lentement": {
+   "pos": "adverb"
+  },
+  "les": {
+   "pos": "function"
+  },
+  "lessive": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "leur": {
+   "pos": "function"
+  },
+  "leurs": {
+   "pos": "function"
+  },
+  "lever": {
+   "pos": "verb"
+  },
+  "leçon": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "liberté": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "libre": {
+   "pos": "adjective"
+  },
+  "licenciement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "licencier": {
+   "pos": "verb"
+  },
+  "lien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "lieu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "limite": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "limiter": {
+   "pos": "verb"
+  },
+  "lire": {
+   "pos": "verb"
+  },
+  "liste": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "litige": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "litre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "littéraire": {
+   "pos": "adjective"
+  },
+  "littérature": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "livrer": {
+   "pos": "verb"
+  },
+  "local": {
+   "pos": "adjective"
+  },
+  "locataire": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "location": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "logement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "loger": {
+   "pos": "verb"
+  },
+  "logiciel": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "logique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "loi": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "loin": {
+   "pos": "adverb"
+  },
+  "loisir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "long": {
+   "pos": "adjective"
+  },
+  "longtemps": {
+   "pos": "adverb"
+  },
+  "lors": {
+   "pos": "function"
+  },
+  "lorsque": {
+   "pos": "function"
+  },
+  "louer": {
+   "pos": "verb"
+  },
+  "lourd": {
+   "pos": "adjective"
+  },
+  "loyer": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "lui": {
+   "pos": "function"
+  },
+  "lumineux": {
+   "pos": "adjective"
+  },
+  "lumière": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "lundi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "lunette": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "lutter": {
+   "pos": "verb"
+  },
+  "lycée": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "là": {
+   "pos": "adverb"
+  },
+  "là-bas": {
+   "pos": "adverb"
+  },
+  "lèvre": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "légal": {
+   "pos": "adjective"
+  },
+  "léger": {
+   "pos": "adjective"
+  },
+  "légume": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "légèrement": {
+   "pos": "adverb"
+  },
+  "ma": {
+   "pos": "function"
+  },
+  "machine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "madame": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mademoiselle": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "magazine": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "magnifique": {
+   "pos": "adjective"
+  },
+  "mai": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "maigrir": {
+   "pos": "verb"
+  },
+  "main": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "maintenant": {
+   "pos": "adverb"
+  },
+  "maintenir": {
+   "pos": "verb"
+  },
+  "maire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mais": {
+   "pos": "function"
+  },
+  "maison": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "majeur": {
+   "pos": "adjective"
+  },
+  "majorité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mal": {
+   "pos": "adverb"
+  },
+  "malade": {
+   "pos": "adjective"
+  },
+  "maladie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "malaise": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "malentendu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "malgré": {
+   "pos": "function"
+  },
+  "malheur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "malheureusement": {
+   "pos": "adverb"
+  },
+  "malheureux": {
+   "pos": "adjective"
+  },
+  "maman": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "manger": {
+   "pos": "verb"
+  },
+  "manifestation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "manifester": {
+   "pos": "verb"
+  },
+  "manière": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "manque": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "manquer": {
+   "pos": "verb"
+  },
+  "marcher": {
+   "pos": "verb"
+  },
+  "mardi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mari": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mariage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "marier": {
+   "pos": "verb"
+  },
+  "marié": {
+   "pos": "adjective"
+  },
+  "marocain": {
+   "pos": "adjective"
+  },
+  "marque": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "marron": {
+   "pos": "adjective"
+  },
+  "mars": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mathématique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "matin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "matinée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "matière": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mauvais": {
+   "pos": "adjective"
+  },
+  "me": {
+   "pos": "function"
+  },
+  "menace": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "menacer": {
+   "pos": "verb"
+  },
+  "mensonge": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mental": {
+   "pos": "adjective"
+  },
+  "mentionner": {
+   "pos": "verb"
+  },
+  "mentir": {
+   "pos": "verb"
+  },
+  "menu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mer": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "merci": {
+   "pos": "interjection"
+  },
+  "mercredi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "merveilleux": {
+   "pos": "adjective"
+  },
+  "mes": {
+   "pos": "function"
+  },
+  "mesure": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mesurer": {
+   "pos": "verb"
+  },
+  "mettre": {
+   "pos": "verb"
+  },
+  "meuble": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "meublé": {
+   "pos": "adjective"
+  },
+  "midi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "miel": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mien": {
+   "pos": "function"
+  },
+  "mignon": {
+   "pos": "adjective"
+  },
+  "milieu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mille": {
+   "pos": "number"
+  },
+  "milliard": {
+   "pos": "number"
+  },
+  "million": {
+   "pos": "number"
+  },
+  "mince": {
+   "pos": "adjective"
+  },
+  "mineur": {
+   "pos": "adjective"
+  },
+  "ministre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "minorité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "minuit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "minute": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mission": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "moderne": {
+   "pos": "adjective"
+  },
+  "modeste": {
+   "pos": "adjective"
+  },
+  "modifier": {
+   "pos": "verb"
+  },
+  "modéré": {
+   "pos": "adjective"
+  },
+  "moi": {
+   "pos": "function"
+  },
+  "moins": {
+   "pos": "adverb"
+  },
+  "mois": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "moitié": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "moment": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mon": {
+   "pos": "function"
+  },
+  "monde": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mondial": {
+   "pos": "adjective"
+  },
+  "mondialisation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "monnaie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "monsieur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "montagne": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "montant": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "monter": {
+   "pos": "verb"
+  },
+  "montrer": {
+   "pos": "verb"
+  },
+  "monument": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "moquer": {
+   "pos": "verb"
+  },
+  "moral": {
+   "pos": "adjective"
+  },
+  "morale": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "morceau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mort": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mot": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "motivation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "moto": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mouillé": {
+   "pos": "adjective"
+  },
+  "mourir": {
+   "pos": "verb"
+  },
+  "mouton": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "moyen": {
+   "pos": "adjective"
+  },
+  "moyenne": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "multiple": {
+   "pos": "adjective"
+  },
+  "mur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "musicien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mutuel": {
+   "pos": "adjective"
+  },
+  "mystérieux": {
+   "pos": "adjective"
+  },
+  "mère": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mètre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mécanisme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "méchant": {
+   "pos": "adjective"
+  },
+  "médecin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "médecine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "média": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "médical": {
+   "pos": "adjective"
+  },
+  "médicament": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "méfiance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "méfiant": {
+   "pos": "adjective"
+  },
+  "méfier": {
+   "pos": "verb"
+  },
+  "mélanger": {
+   "pos": "verb"
+  },
+  "mémoire": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "mémoriser": {
+   "pos": "verb"
+  },
+  "ménage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "mériter": {
+   "pos": "verb"
+  },
+  "méthode": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "métier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "métro": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "météo": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "même": {
+   "pos": "function"
+  },
+  "mûr": {
+   "pos": "adjective"
+  },
+  "nager": {
+   "pos": "verb"
+  },
+  "naissance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "nappe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "narrateur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "nation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "national": {
+   "pos": "adjective"
+  },
+  "nationalité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "nature": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "naturel": {
+   "pos": "adjective"
+  },
+  "naître": {
+   "pos": "verb"
+  },
+  "ne": {
+   "pos": "adverb"
+  },
+  "neige": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "neiger": {
+   "pos": "verb"
+  },
+  "nerveux": {
+   "pos": "adjective"
+  },
+  "net": {
+   "pos": "adjective"
+  },
+  "nettement": {
+   "pos": "adverb"
+  },
+  "nettoyer": {
+   "pos": "verb"
+  },
+  "neuf": {
+   "pos": "number"
+  },
+  "neuf-cent": {
+   "pos": "number"
+  },
+  "neuf-cents": {
+   "pos": "number"
+  },
+  "neuf-mille": {
+   "pos": "number"
+  },
+  "neutre": {
+   "pos": "adjective"
+  },
+  "neuvième": {
+   "pos": "number"
+  },
+  "neveu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "nez": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ni": {
+   "pos": "function"
+  },
+  "nier": {
+   "pos": "verb"
+  },
+  "niveau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "nièce": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "noir": {
+   "pos": "adjective"
+  },
+  "nom": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "nombre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "non": {
+   "pos": "function"
+  },
+  "nord": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "normalement": {
+   "pos": "adverb"
+  },
+  "norme": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "nos": {
+   "pos": "function"
+  },
+  "nostalgie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "notamment": {
+   "pos": "adverb"
+  },
+  "note": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "noter": {
+   "pos": "verb"
+  },
+  "notion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "notre": {
+   "pos": "function"
+  },
+  "nourrir": {
+   "pos": "verb"
+  },
+  "nourriture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "nous": {
+   "pos": "function"
+  },
+  "nouveau": {
+   "pos": "adjective"
+  },
+  "nouvelle": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "novembre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "nuage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "nuageux": {
+   "pos": "adjective"
+  },
+  "nuance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "nuancé": {
+   "pos": "adjective"
+  },
+  "nucléaire": {
+   "pos": "adjective"
+  },
+  "nuit": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "nulle": {
+   "pos": "function"
+  },
+  "numérique": {
+   "pos": "adjective"
+  },
+  "numéro": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "néanmoins": {
+   "pos": "adverb"
+  },
+  "nécessaire": {
+   "pos": "adjective"
+  },
+  "négatif": {
+   "pos": "adjective"
+  },
+  "négliger": {
+   "pos": "verb"
+  },
+  "négociation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "négocier": {
+   "pos": "verb"
+  },
+  "nôtre": {
+   "pos": "function"
+  },
+  "objectif": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "obligation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "obligatoire": {
+   "pos": "adjective"
+  },
+  "obliger": {
+   "pos": "verb"
+  },
+  "observer": {
+   "pos": "verb"
+  },
+  "obstacle": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "obtenir": {
+   "pos": "verb"
+  },
+  "obéir": {
+   "pos": "verb"
+  },
+  "occasion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "occuper": {
+   "pos": "verb"
+  },
+  "occupé": {
+   "pos": "adjective"
+  },
+  "octobre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "océan": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "odeur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "officiel": {
+   "pos": "adjective"
+  },
+  "offre": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "offrir": {
+   "pos": "verb"
+  },
+  "oiseau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ombre": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "omelette": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "on": {
+   "pos": "function"
+  },
+  "oncle": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "onze": {
+   "pos": "number"
+  },
+  "opinion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "opportunité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "opposer": {
+   "pos": "verb"
+  },
+  "opposé": {
+   "pos": "adjective"
+  },
+  "optimiste": {
+   "pos": "adjective"
+  },
+  "opération": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "opérer": {
+   "pos": "verb"
+  },
+  "or": {
+   "pos": "function"
+  },
+  "orage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ordinaire": {
+   "pos": "adjective"
+  },
+  "ordonnance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "ordre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "oreille": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "organisation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "organiser": {
+   "pos": "verb"
+  },
+  "original": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "origine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "orthographe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "os": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "oser": {
+   "pos": "verb"
+  },
+  "ou": {
+   "pos": "function"
+  },
+  "oublier": {
+   "pos": "verb"
+  },
+  "ouest": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "oui": {
+   "pos": "interjection"
+  },
+  "outil": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "outre": {
+   "pos": "function"
+  },
+  "ouvert": {
+   "pos": "adjective"
+  },
+  "ouvrier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ouvrir": {
+   "pos": "verb"
+  },
+  "où": {
+   "pos": "function"
+  },
+  "pacifique": {
+   "pos": "adjective"
+  },
+  "page": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "paix": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "panier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "panne": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "panneau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pantalon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "papa": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "papier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "paquet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "par": {
+   "pos": "function"
+  },
+  "par-conséquent": {
+   "pos": "adverb"
+  },
+  "paraître": {
+   "pos": "verb"
+  },
+  "parce": {
+   "pos": "function"
+  },
+  "parcourir": {
+   "pos": "verb"
+  },
+  "pardon": {
+   "pos": "interjection"
+  },
+  "pardonner": {
+   "pos": "verb"
+  },
+  "pareil": {
+   "pos": "adjective"
+  },
+  "parent": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "paresseux": {
+   "pos": "adjective"
+  },
+  "parfait": {
+   "pos": "adjective"
+  },
+  "parfaitement": {
+   "pos": "adverb"
+  },
+  "parfois": {
+   "pos": "adverb"
+  },
+  "parler": {
+   "pos": "verb"
+  },
+  "parmi": {
+   "pos": "function"
+  },
+  "part": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "partager": {
+   "pos": "verb"
+  },
+  "parti": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "participer": {
+   "pos": "verb"
+  },
+  "particulier": {
+   "pos": "adjective"
+  },
+  "particulièrement": {
+   "pos": "adverb"
+  },
+  "partie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "partir": {
+   "pos": "verb"
+  },
+  "partout": {
+   "pos": "adverb"
+  },
+  "parvenir": {
+   "pos": "verb"
+  },
+  "pas": {
+   "pos": "adverb"
+  },
+  "passager": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "passeport": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "passer": {
+   "pos": "verb"
+  },
+  "passion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "passionnant": {
+   "pos": "adjective"
+  },
+  "passionner": {
+   "pos": "verb"
+  },
+  "passé": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "patience": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "patient": {
+   "pos": "adjective"
+  },
+  "patienter": {
+   "pos": "verb"
+  },
+  "patrimoine": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "patron": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pauvre": {
+   "pos": "adjective"
+  },
+  "pauvreté": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "payer": {
+   "pos": "verb"
+  },
+  "pays": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "paysage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "peau": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "peindre": {
+   "pos": "verb"
+  },
+  "peine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "peintre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "peinture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "pendant": {
+   "pos": "function"
+  },
+  "penser": {
+   "pos": "verb"
+  },
+  "pensée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "perdre": {
+   "pos": "verb"
+  },
+  "permanent": {
+   "pos": "adjective"
+  },
+  "permettre": {
+   "pos": "verb"
+  },
+  "permis": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "permission": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "personnage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "personnalité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "personne": {
+   "pos": "function"
+  },
+  "personnel": {
+   "pos": "adjective"
+  },
+  "personnellement": {
+   "pos": "adverb"
+  },
+  "perspective": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "persuader": {
+   "pos": "verb"
+  },
+  "pertinent": {
+   "pos": "adjective"
+  },
+  "peser": {
+   "pos": "verb"
+  },
+  "pessimiste": {
+   "pos": "adjective"
+  },
+  "petit": {
+   "pos": "adjective"
+  },
+  "petit-déjeuner": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "petit-fils": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "petite-fille": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "peu": {
+   "pos": "adverb"
+  },
+  "peur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "peut-être": {
+   "pos": "adverb"
+  },
+  "pharmacien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "phase": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "phrase": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "physique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "piano": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pied": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pièce": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "piéton": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "placard": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "place": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "plafond": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "plaindre": {
+   "pos": "verb"
+  },
+  "plainte": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "plaire": {
+   "pos": "verb"
+  },
+  "plaisir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "plan": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "plante": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "planter": {
+   "pos": "verb"
+  },
+  "planète": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "plastique": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "plat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "plein": {
+   "pos": "adjective"
+  },
+  "pleurer": {
+   "pos": "verb"
+  },
+  "pleuvoir": {
+   "pos": "verb"
+  },
+  "plier": {
+   "pos": "verb"
+  },
+  "pluie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "plus": {
+   "pos": "adverb"
+  },
+  "plusieurs": {
+   "pos": "function"
+  },
+  "plutôt": {
+   "pos": "adverb"
+  },
+  "pluvieux": {
+   "pos": "adjective"
+  },
+  "poids": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "point": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "point-de-vue": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pointure": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "poitrine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "poivre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "poli": {
+   "pos": "adjective"
+  },
+  "policier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "politesse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "politique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "polluer": {
+   "pos": "verb"
+  },
+  "pollution": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "polémique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "pompier": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pont": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "population": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "porc": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "port": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "portable": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "porter": {
+   "pos": "verb"
+  },
+  "portugais": {
+   "pos": "adjective"
+  },
+  "positif": {
+   "pos": "adjective"
+  },
+  "position": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "possibilité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "possible": {
+   "pos": "adjective"
+  },
+  "posséder": {
+   "pos": "verb"
+  },
+  "postal": {
+   "pos": "adjective"
+  },
+  "postuler": {
+   "pos": "verb"
+  },
+  "potentiel": {
+   "pos": "adjective"
+  },
+  "poubelle": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "poule": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "poulet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pour": {
+   "pos": "function"
+  },
+  "pourboire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pourcentage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pourquoi": {
+   "pos": "function"
+  },
+  "poursuivre": {
+   "pos": "verb"
+  },
+  "pourtant": {
+   "pos": "function"
+  },
+  "pousser": {
+   "pos": "verb"
+  },
+  "pouvoir": {
+   "pos": "verb"
+  },
+  "poème": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "poète": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "poésie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "poêle": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "pratique": {
+   "pos": "adjective"
+  },
+  "premier": {
+   "pos": "adjective"
+  },
+  "premièrement": {
+   "pos": "adverb"
+  },
+  "prendre": {
+   "pos": "verb"
+  },
+  "prescrire": {
+   "pos": "verb"
+  },
+  "presque": {
+   "pos": "adverb"
+  },
+  "presse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "pression": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "pressé": {
+   "pos": "adjective"
+  },
+  "preuve": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "prier": {
+   "pos": "verb"
+  },
+  "principal": {
+   "pos": "adjective"
+  },
+  "principalement": {
+   "pos": "adverb"
+  },
+  "principe": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "printemps": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "priorité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "prise": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "prison": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "privé": {
+   "pos": "adjective"
+  },
+  "prix": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "probable": {
+   "pos": "adjective"
+  },
+  "probablement": {
+   "pos": "adverb"
+  },
+  "processus": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "prochain": {
+   "pos": "adjective"
+  },
+  "prochainement": {
+   "pos": "adverb"
+  },
+  "proche": {
+   "pos": "adjective"
+  },
+  "procès": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "procédure": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "production": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "produire": {
+   "pos": "verb"
+  },
+  "produit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "profession": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "professionnel": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "profit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "profiter": {
+   "pos": "verb"
+  },
+  "profond": {
+   "pos": "adjective"
+  },
+  "programme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "progresser": {
+   "pos": "verb"
+  },
+  "progressif": {
+   "pos": "adjective"
+  },
+  "progressivement": {
+   "pos": "adverb"
+  },
+  "progrès": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "promener": {
+   "pos": "verb"
+  },
+  "promettre": {
+   "pos": "verb"
+  },
+  "promotion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "prononciation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "proportion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "proposer": {
+   "pos": "verb"
+  },
+  "proposition": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "propre": {
+   "pos": "adjective"
+  },
+  "propriété": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "protection": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "protester": {
+   "pos": "verb"
+  },
+  "protéger": {
+   "pos": "verb"
+  },
+  "prouver": {
+   "pos": "verb"
+  },
+  "provisoire": {
+   "pos": "adjective"
+  },
+  "provoquer": {
+   "pos": "verb"
+  },
+  "prudent": {
+   "pos": "adjective"
+  },
+  "près": {
+   "pos": "adverb"
+  },
+  "précaution": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "précis": {
+   "pos": "adjective"
+  },
+  "précisément": {
+   "pos": "adverb"
+  },
+  "précédent": {
+   "pos": "adjective"
+  },
+  "préfecture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "préférer": {
+   "pos": "verb"
+  },
+  "prénom": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "préparer": {
+   "pos": "verb"
+  },
+  "présence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "présent": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "présentateur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "présenter": {
+   "pos": "verb"
+  },
+  "préserver": {
+   "pos": "verb"
+  },
+  "président": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "prétendre": {
+   "pos": "verb"
+  },
+  "prévenir": {
+   "pos": "verb"
+  },
+  "prévention": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "prévoir": {
+   "pos": "verb"
+  },
+  "prêt": {
+   "pos": "adjective"
+  },
+  "prêter": {
+   "pos": "verb"
+  },
+  "psychologique": {
+   "pos": "adjective"
+  },
+  "public": {
+   "pos": "adjective"
+  },
+  "publication": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "publicité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "publier": {
+   "pos": "verb"
+  },
+  "puis": {
+   "pos": "adverb"
+  },
+  "puisque": {
+   "pos": "function"
+  },
+  "pull": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "punir": {
+   "pos": "verb"
+  },
+  "pâte": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "pâtisserie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "père": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "période": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "pétrole": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "pêche": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "pêcher": {
+   "pos": "verb"
+  },
+  "quai": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "qualité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "quand": {
+   "pos": "function"
+  },
+  "quant": {
+   "pos": "function"
+  },
+  "quantité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "quarante": {
+   "pos": "number"
+  },
+  "quarante-cinq": {
+   "pos": "number"
+  },
+  "quarante-deux": {
+   "pos": "number"
+  },
+  "quarante-et-un": {
+   "pos": "number"
+  },
+  "quarante-huit": {
+   "pos": "number"
+  },
+  "quarante-neuf": {
+   "pos": "number"
+  },
+  "quarante-quatre": {
+   "pos": "number"
+  },
+  "quarante-sept": {
+   "pos": "number"
+  },
+  "quarante-six": {
+   "pos": "number"
+  },
+  "quarante-trois": {
+   "pos": "number"
+  },
+  "quart": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "quatorze": {
+   "pos": "number"
+  },
+  "quatre": {
+   "pos": "number"
+  },
+  "quatre-cent": {
+   "pos": "number"
+  },
+  "quatre-cents": {
+   "pos": "number"
+  },
+  "quatre-mille": {
+   "pos": "number"
+  },
+  "quatre-vingt": {
+   "pos": "number"
+  },
+  "quatre-vingt-cinq": {
+   "pos": "number"
+  },
+  "quatre-vingt-deux": {
+   "pos": "number"
+  },
+  "quatre-vingt-dix": {
+   "pos": "number"
+  },
+  "quatre-vingt-dix-huit": {
+   "pos": "number"
+  },
+  "quatre-vingt-dix-neuf": {
+   "pos": "number"
+  },
+  "quatre-vingt-dix-sept": {
+   "pos": "number"
+  },
+  "quatre-vingt-douze": {
+   "pos": "number"
+  },
+  "quatre-vingt-huit": {
+   "pos": "number"
+  },
+  "quatre-vingt-neuf": {
+   "pos": "number"
+  },
+  "quatre-vingt-onze": {
+   "pos": "number"
+  },
+  "quatre-vingt-quatorze": {
+   "pos": "number"
+  },
+  "quatre-vingt-quatre": {
+   "pos": "number"
+  },
+  "quatre-vingt-quinze": {
+   "pos": "number"
+  },
+  "quatre-vingt-seize": {
+   "pos": "number"
+  },
+  "quatre-vingt-sept": {
+   "pos": "number"
+  },
+  "quatre-vingt-six": {
+   "pos": "number"
+  },
+  "quatre-vingt-treize": {
+   "pos": "number"
+  },
+  "quatre-vingt-trois": {
+   "pos": "number"
+  },
+  "quatre-vingt-un": {
+   "pos": "number"
+  },
+  "quatre-vingts": {
+   "pos": "number"
+  },
+  "quatrième": {
+   "pos": "number"
+  },
+  "que": {
+   "pos": "function"
+  },
+  "quel": {
+   "pos": "function"
+  },
+  "quelle": {
+   "pos": "function"
+  },
+  "quelles": {
+   "pos": "function"
+  },
+  "quelqu'un": {
+   "pos": "function"
+  },
+  "quelque": {
+   "pos": "function"
+  },
+  "quelquefois": {
+   "pos": "adverb"
+  },
+  "quelques": {
+   "pos": "function"
+  },
+  "quels": {
+   "pos": "function"
+  },
+  "queue": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "qui": {
+   "pos": "function"
+  },
+  "quinze": {
+   "pos": "number"
+  },
+  "quitter": {
+   "pos": "verb"
+  },
+  "quoi": {
+   "pos": "function"
+  },
+  "quoique": {
+   "pos": "function"
+  },
+  "quotidien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "racisme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "raconter": {
+   "pos": "verb"
+  },
+  "radical": {
+   "pos": "adjective"
+  },
+  "raisin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "raison": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "raisonnable": {
+   "pos": "adjective"
+  },
+  "raisonnement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ramasser": {
+   "pos": "verb"
+  },
+  "ranger": {
+   "pos": "verb"
+  },
+  "rapide": {
+   "pos": "adjective"
+  },
+  "rapidement": {
+   "pos": "adverb"
+  },
+  "rappeler": {
+   "pos": "verb"
+  },
+  "rapport": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "rare": {
+   "pos": "adjective"
+  },
+  "rarement": {
+   "pos": "adverb"
+  },
+  "rassurant": {
+   "pos": "adjective"
+  },
+  "rassurer": {
+   "pos": "verb"
+  },
+  "rater": {
+   "pos": "verb"
+  },
+  "rattraper": {
+   "pos": "verb"
+  },
+  "ravi": {
+   "pos": "adjective"
+  },
+  "rayon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "recette": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "recevoir": {
+   "pos": "verb"
+  },
+  "recherche": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rechercher": {
+   "pos": "verb"
+  },
+  "recommandation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "recommander": {
+   "pos": "verb"
+  },
+  "recommencer": {
+   "pos": "verb"
+  },
+  "reconnaissance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "reconnaissant": {
+   "pos": "adjective"
+  },
+  "reconnaître": {
+   "pos": "verb"
+  },
+  "recours": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "recrutement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "recruter": {
+   "pos": "verb"
+  },
+  "recyclage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "recycler": {
+   "pos": "verb"
+  },
+  "refroidir": {
+   "pos": "verb"
+  },
+  "refuser": {
+   "pos": "verb"
+  },
+  "regard": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "regarder": {
+   "pos": "verb"
+  },
+  "regretter": {
+   "pos": "verb"
+  },
+  "reine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rejoindre": {
+   "pos": "verb"
+  },
+  "relatif": {
+   "pos": "adjective"
+  },
+  "relation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "relativement": {
+   "pos": "adverb"
+  },
+  "relier": {
+   "pos": "verb"
+  },
+  "religieux": {
+   "pos": "adjective"
+  },
+  "religion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "relire": {
+   "pos": "verb"
+  },
+  "remarquable": {
+   "pos": "adjective"
+  },
+  "remarque": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "remarquer": {
+   "pos": "verb"
+  },
+  "remboursement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "rembourser": {
+   "pos": "verb"
+  },
+  "remercier": {
+   "pos": "verb"
+  },
+  "remettre": {
+   "pos": "verb"
+  },
+  "remplir": {
+   "pos": "verb"
+  },
+  "rencontre": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rencontrer": {
+   "pos": "verb"
+  },
+  "rendez-vous": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "rendre": {
+   "pos": "verb"
+  },
+  "rendre-visite": {
+   "pos": "verb"
+  },
+  "renforcer": {
+   "pos": "verb"
+  },
+  "renoncer": {
+   "pos": "verb"
+  },
+  "renouvelable": {
+   "pos": "adjective"
+  },
+  "renouveler": {
+   "pos": "verb"
+  },
+  "renseigner": {
+   "pos": "verb"
+  },
+  "rentrer": {
+   "pos": "verb"
+  },
+  "repas": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "repasser": {
+   "pos": "verb"
+  },
+  "reportage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "repos": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "reposer": {
+   "pos": "verb"
+  },
+  "reprendre": {
+   "pos": "verb"
+  },
+  "reproche": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "reprocher": {
+   "pos": "verb"
+  },
+  "représenter": {
+   "pos": "verb"
+  },
+  "respect": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "respecter": {
+   "pos": "verb"
+  },
+  "respirer": {
+   "pos": "verb"
+  },
+  "responsabilité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "responsable": {
+   "pos": "adjective"
+  },
+  "ressemblance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "ressembler": {
+   "pos": "verb"
+  },
+  "ressentir": {
+   "pos": "verb"
+  },
+  "ressource": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "restaurer": {
+   "pos": "verb"
+  },
+  "reste": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "rester": {
+   "pos": "verb"
+  },
+  "retard": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "retarder": {
+   "pos": "verb"
+  },
+  "retenir": {
+   "pos": "verb"
+  },
+  "retour": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "retourner": {
+   "pos": "verb"
+  },
+  "retraite": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "retraité": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "retrouver": {
+   "pos": "verb"
+  },
+  "revanche": {
+   "pos": "function"
+  },
+  "revendication": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "revendiquer": {
+   "pos": "verb"
+  },
+  "revenir": {
+   "pos": "verb"
+  },
+  "revenu": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "revoir": {
+   "pos": "interjection"
+  },
+  "rez-de-chaussée": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "rhume": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "riche": {
+   "pos": "adjective"
+  },
+  "richesse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rideau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ridicule": {
+   "pos": "adjective"
+  },
+  "rien": {
+   "pos": "adverb"
+  },
+  "rire": {
+   "pos": "verb"
+  },
+  "risque": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "risquer": {
+   "pos": "verb"
+  },
+  "rivière": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "robot": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "roi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "rond": {
+   "pos": "adjective"
+  },
+  "rose": {
+   "pos": "adjective"
+  },
+  "rouge": {
+   "pos": "adjective"
+  },
+  "rouler": {
+   "pos": "verb"
+  },
+  "route": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "routine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rubrique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rumeur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rupture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rural": {
+   "pos": "adjective"
+  },
+  "russe": {
+   "pos": "adjective"
+  },
+  "rythme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "règle": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "règlement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "réaction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réagir": {
+   "pos": "verb"
+  },
+  "réalisateur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "réaliser": {
+   "pos": "verb"
+  },
+  "réalité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "récemment": {
+   "pos": "adverb"
+  },
+  "récent": {
+   "pos": "adjective"
+  },
+  "réception": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réchauffement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "réchauffer": {
+   "pos": "verb"
+  },
+  "récit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "réclamation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réclamer": {
+   "pos": "verb"
+  },
+  "récompenser": {
+   "pos": "verb"
+  },
+  "réconciliation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "rédaction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réduction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réduire": {
+   "pos": "verb"
+  },
+  "réel": {
+   "pos": "adjective"
+  },
+  "réellement": {
+   "pos": "adverb"
+  },
+  "réflexion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réforme": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réfrigérateur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "réfugié": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "régional": {
+   "pos": "adjective"
+  },
+  "régulier": {
+   "pos": "adjective"
+  },
+  "régulièrement": {
+   "pos": "adverb"
+  },
+  "rénover": {
+   "pos": "verb"
+  },
+  "réparer": {
+   "pos": "verb"
+  },
+  "répondre": {
+   "pos": "verb"
+  },
+  "réponse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "république": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réputation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "répéter": {
+   "pos": "verb"
+  },
+  "réseau": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "réservation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réserver": {
+   "pos": "verb"
+  },
+  "résister": {
+   "pos": "verb"
+  },
+  "résoudre": {
+   "pos": "verb"
+  },
+  "résultat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "résulter": {
+   "pos": "verb"
+  },
+  "réussir": {
+   "pos": "verb"
+  },
+  "réussite": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "réveiller": {
+   "pos": "verb"
+  },
+  "réviser": {
+   "pos": "verb"
+  },
+  "révéler": {
+   "pos": "verb"
+  },
+  "rêve": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "rêver": {
+   "pos": "verb"
+  },
+  "s'il": {
+   "pos": "function"
+  },
+  "sa": {
+   "pos": "function"
+  },
+  "sage": {
+   "pos": "adjective"
+  },
+  "sagesse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "saison": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "salaire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "salarié": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sale": {
+   "pos": "adjective"
+  },
+  "salle": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "saluer": {
+   "pos": "verb"
+  },
+  "salut": {
+   "pos": "interjection"
+  },
+  "salé": {
+   "pos": "adjective"
+  },
+  "samedi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sanction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sang": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sans": {
+   "pos": "function"
+  },
+  "santé": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "satisfait": {
+   "pos": "adjective"
+  },
+  "sauce": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "saucisse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sauf": {
+   "pos": "function"
+  },
+  "saumon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sauter": {
+   "pos": "verb"
+  },
+  "sauver": {
+   "pos": "verb"
+  },
+  "savoir": {
+   "pos": "verb"
+  },
+  "scandale": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "scandaleux": {
+   "pos": "adjective"
+  },
+  "science": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "scientifique": {
+   "pos": "adjective"
+  },
+  "scène": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "se": {
+   "pos": "function"
+  },
+  "sec": {
+   "pos": "adjective"
+  },
+  "secondaire": {
+   "pos": "adjective"
+  },
+  "secret": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "secrétaire": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "secteur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "seize": {
+   "pos": "number"
+  },
+  "sel": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "selon": {
+   "pos": "function"
+  },
+  "semaine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "semblable": {
+   "pos": "adjective"
+  },
+  "sembler": {
+   "pos": "verb"
+  },
+  "sens": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sensibiliser": {
+   "pos": "verb"
+  },
+  "sensible": {
+   "pos": "adjective"
+  },
+  "sentiment": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sentir": {
+   "pos": "verb"
+  },
+  "sept": {
+   "pos": "number"
+  },
+  "sept-cent": {
+   "pos": "number"
+  },
+  "sept-cents": {
+   "pos": "number"
+  },
+  "sept-mille": {
+   "pos": "number"
+  },
+  "septembre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "septième": {
+   "pos": "number"
+  },
+  "service": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "serviette": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "servir": {
+   "pos": "verb"
+  },
+  "ses": {
+   "pos": "function"
+  },
+  "seul": {
+   "pos": "adjective"
+  },
+  "seulement": {
+   "pos": "adverb"
+  },
+  "si": {
+   "pos": "function"
+  },
+  "sien": {
+   "pos": "function"
+  },
+  "signaler": {
+   "pos": "verb"
+  },
+  "signature": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "signer": {
+   "pos": "verb"
+  },
+  "signification": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "signifier": {
+   "pos": "verb"
+  },
+  "silence": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "silencieux": {
+   "pos": "adjective"
+  },
+  "similaire": {
+   "pos": "adjective"
+  },
+  "simple": {
+   "pos": "adjective"
+  },
+  "simplement": {
+   "pos": "adverb"
+  },
+  "sincère": {
+   "pos": "adjective"
+  },
+  "sincèrement": {
+   "pos": "adverb"
+  },
+  "sinon": {
+   "pos": "function"
+  },
+  "sirop": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "site": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "situation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "six": {
+   "pos": "number"
+  },
+  "six-cent": {
+   "pos": "number"
+  },
+  "six-cents": {
+   "pos": "number"
+  },
+  "six-mille": {
+   "pos": "number"
+  },
+  "sixième": {
+   "pos": "number"
+  },
+  "siècle": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "siège": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ski": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sociable": {
+   "pos": "adjective"
+  },
+  "social": {
+   "pos": "adjective"
+  },
+  "société": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "soi": {
+   "pos": "function"
+  },
+  "soif": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "soigner": {
+   "pos": "verb"
+  },
+  "soin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "soir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "soirée": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "soixante": {
+   "pos": "number"
+  },
+  "soixante-cinq": {
+   "pos": "number"
+  },
+  "soixante-deux": {
+   "pos": "number"
+  },
+  "soixante-dix": {
+   "pos": "number"
+  },
+  "soixante-dix-huit": {
+   "pos": "number"
+  },
+  "soixante-dix-neuf": {
+   "pos": "number"
+  },
+  "soixante-dix-sept": {
+   "pos": "number"
+  },
+  "soixante-douze": {
+   "pos": "number"
+  },
+  "soixante-et-onze": {
+   "pos": "number"
+  },
+  "soixante-et-un": {
+   "pos": "number"
+  },
+  "soixante-huit": {
+   "pos": "number"
+  },
+  "soixante-neuf": {
+   "pos": "number"
+  },
+  "soixante-quatorze": {
+   "pos": "number"
+  },
+  "soixante-quatre": {
+   "pos": "number"
+  },
+  "soixante-quinze": {
+   "pos": "number"
+  },
+  "soixante-seize": {
+   "pos": "number"
+  },
+  "soixante-sept": {
+   "pos": "number"
+  },
+  "soixante-six": {
+   "pos": "number"
+  },
+  "soixante-treize": {
+   "pos": "number"
+  },
+  "soixante-trois": {
+   "pos": "number"
+  },
+  "sol": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "solaire": {
+   "pos": "adjective"
+  },
+  "soldat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "solde": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "soleil": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "solidarité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "solide": {
+   "pos": "adjective"
+  },
+  "solitaire": {
+   "pos": "adjective"
+  },
+  "solitude": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "solution": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sombre": {
+   "pos": "adjective"
+  },
+  "somme": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sommeil": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "son": {
+   "pos": "function"
+  },
+  "sondage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sonner": {
+   "pos": "verb"
+  },
+  "sort": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sorte": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sortie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sortir": {
+   "pos": "verb"
+  },
+  "souci": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "soudain": {
+   "pos": "adverb"
+  },
+  "souffrir": {
+   "pos": "verb"
+  },
+  "souhait": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "souhaiter": {
+   "pos": "verb"
+  },
+  "soulagé": {
+   "pos": "adjective"
+  },
+  "souligner": {
+   "pos": "verb"
+  },
+  "soumettre": {
+   "pos": "verb"
+  },
+  "source": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sourire": {
+   "pos": "verb"
+  },
+  "souris": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sous": {
+   "pos": "function"
+  },
+  "soutenir": {
+   "pos": "verb"
+  },
+  "souvenir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "souvent": {
+   "pos": "adverb"
+  },
+  "spectateur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sport": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sportif": {
+   "pos": "adjective"
+  },
+  "spécialiste": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "stable": {
+   "pos": "adjective"
+  },
+  "stage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "station": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "statistique": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "stratégie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "stress": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "stressé": {
+   "pos": "adjective"
+  },
+  "strict": {
+   "pos": "adjective"
+  },
+  "structure": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "studio": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "stupéfait": {
+   "pos": "adjective"
+  },
+  "style": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "subir": {
+   "pos": "verb"
+  },
+  "subjectif": {
+   "pos": "adjective"
+  },
+  "succès": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sucré": {
+   "pos": "adjective"
+  },
+  "sud": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "suffire": {
+   "pos": "verb"
+  },
+  "suffisamment": {
+   "pos": "adverb"
+  },
+  "suffisant": {
+   "pos": "adjective"
+  },
+  "suggestion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "suggérer": {
+   "pos": "verb"
+  },
+  "suisse": {
+   "pos": "adjective"
+  },
+  "suite": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "suivre": {
+   "pos": "verb"
+  },
+  "sujet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "super": {
+   "pos": "adjective"
+  },
+  "superficiel": {
+   "pos": "adjective"
+  },
+  "supporter": {
+   "pos": "verb"
+  },
+  "supposer": {
+   "pos": "verb"
+  },
+  "sur": {
+   "pos": "function"
+  },
+  "surmonter": {
+   "pos": "verb"
+  },
+  "surprenant": {
+   "pos": "adjective"
+  },
+  "surprendre": {
+   "pos": "verb"
+  },
+  "surprise": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "surtout": {
+   "pos": "adverb"
+  },
+  "surveiller": {
+   "pos": "verb"
+  },
+  "survie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "survivre": {
+   "pos": "verb"
+  },
+  "sympa": {
+   "pos": "adjective"
+  },
+  "sympathie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sympathique": {
+   "pos": "adjective"
+  },
+  "symptôme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "syndicat": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "système": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "sécher": {
+   "pos": "verb"
+  },
+  "sécheresse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sécurité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "séjour": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "séparation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "sérieux": {
+   "pos": "adjective"
+  },
+  "sévère": {
+   "pos": "adjective"
+  },
+  "sûr": {
+   "pos": "adjective"
+  },
+  "sûrement": {
+   "pos": "adverb"
+  },
+  "ta": {
+   "pos": "function"
+  },
+  "tabac": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "taille": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "talent": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tandis": {
+   "pos": "function"
+  },
+  "tant": {
+   "pos": "adverb"
+  },
+  "tante": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "taper": {
+   "pos": "verb"
+  },
+  "tapis": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tard": {
+   "pos": "adverb"
+  },
+  "tarif": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "taux": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "taxe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "taxi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "te": {
+   "pos": "function"
+  },
+  "technicien": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "technique": {
+   "pos": "adjective"
+  },
+  "technologie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "technologique": {
+   "pos": "adjective"
+  },
+  "tel": {
+   "pos": "adjective"
+  },
+  "tellement": {
+   "pos": "adverb"
+  },
+  "temporaire": {
+   "pos": "adjective"
+  },
+  "temps": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "température": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "tempête": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "tendance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "tendre": {
+   "pos": "adjective"
+  },
+  "tendresse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "tenir": {
+   "pos": "verb"
+  },
+  "tennis": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tension": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "tente": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "tenter": {
+   "pos": "verb"
+  },
+  "terminer": {
+   "pos": "verb"
+  },
+  "terrasse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "terre": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "terrible": {
+   "pos": "adjective"
+  },
+  "territoire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tes": {
+   "pos": "function"
+  },
+  "tester": {
+   "pos": "verb"
+  },
+  "thème": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "théorie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "ticket": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tien": {
+   "pos": "function"
+  },
+  "timbre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "timide": {
+   "pos": "adjective"
+  },
+  "tirer": {
+   "pos": "verb"
+  },
+  "tiroir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "titre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tiède": {
+   "pos": "adjective"
+  },
+  "toi": {
+   "pos": "function"
+  },
+  "toilette": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "toit": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tolérance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "tolérant": {
+   "pos": "adjective"
+  },
+  "tomber": {
+   "pos": "verb"
+  },
+  "ton": {
+   "pos": "function"
+  },
+  "tort": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "total": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "totalement": {
+   "pos": "adverb"
+  },
+  "touchant": {
+   "pos": "adjective"
+  },
+  "toujours": {
+   "pos": "adverb"
+  },
+  "tour": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tourisme": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "touriste": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "touristique": {
+   "pos": "adjective"
+  },
+  "tourner": {
+   "pos": "verb"
+  },
+  "tous": {
+   "pos": "function"
+  },
+  "tousser": {
+   "pos": "verb"
+  },
+  "tout": {
+   "pos": "function"
+  },
+  "toute": {
+   "pos": "function"
+  },
+  "toutefois": {
+   "pos": "adverb"
+  },
+  "toutes": {
+   "pos": "function"
+  },
+  "toux": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "toxique": {
+   "pos": "adjective"
+  },
+  "tradition": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "traditionnel": {
+   "pos": "adjective"
+  },
+  "traduction": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "traduire": {
+   "pos": "verb"
+  },
+  "tragédie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "trahir": {
+   "pos": "verb"
+  },
+  "train": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "traitement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "traiter": {
+   "pos": "verb"
+  },
+  "trajet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tram": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tranche": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "tranquille": {
+   "pos": "adjective"
+  },
+  "transformer": {
+   "pos": "verb"
+  },
+  "transition": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "transmettre": {
+   "pos": "verb"
+  },
+  "transport": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "travailler": {
+   "pos": "verb"
+  },
+  "travailleur": {
+   "pos": "adjective"
+  },
+  "travers": {
+   "pos": "function"
+  },
+  "traverser": {
+   "pos": "verb"
+  },
+  "treize": {
+   "pos": "number"
+  },
+  "trente": {
+   "pos": "number"
+  },
+  "trente-cinq": {
+   "pos": "number"
+  },
+  "trente-deux": {
+   "pos": "number"
+  },
+  "trente-et-un": {
+   "pos": "number"
+  },
+  "trente-huit": {
+   "pos": "number"
+  },
+  "trente-neuf": {
+   "pos": "number"
+  },
+  "trente-quatre": {
+   "pos": "number"
+  },
+  "trente-sept": {
+   "pos": "number"
+  },
+  "trente-six": {
+   "pos": "number"
+  },
+  "trente-trois": {
+   "pos": "number"
+  },
+  "tri": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tribunal": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "trier": {
+   "pos": "verb"
+  },
+  "triste": {
+   "pos": "adjective"
+  },
+  "tristesse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "trois": {
+   "pos": "number"
+  },
+  "trois-cent": {
+   "pos": "number"
+  },
+  "trois-cents": {
+   "pos": "number"
+  },
+  "trois-mille": {
+   "pos": "number"
+  },
+  "troisième": {
+   "pos": "number"
+  },
+  "tromper": {
+   "pos": "verb"
+  },
+  "trop": {
+   "pos": "adverb"
+  },
+  "trottoir": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "trouver": {
+   "pos": "verb"
+  },
+  "très": {
+   "pos": "adverb"
+  },
+  "tu": {
+   "pos": "function"
+  },
+  "tuer": {
+   "pos": "verb"
+  },
+  "type": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "typique": {
+   "pos": "adjective"
+  },
+  "tâche": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "télé": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "télécharger": {
+   "pos": "verb"
+  },
+  "téléphoner": {
+   "pos": "verb"
+  },
+  "téléspectateur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "télévision": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "témoignage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "témoin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "tête": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "têtu": {
+   "pos": "adjective"
+  },
+  "tôt": {
+   "pos": "adverb"
+  },
+  "un": {
+   "pos": "function"
+  },
+  "une": {
+   "pos": "function"
+  },
+  "union": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "unique": {
+   "pos": "adjective"
+  },
+  "univers": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "université": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "urbain": {
+   "pos": "adjective"
+  },
+  "urgence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "urgent": {
+   "pos": "adjective"
+  },
+  "usine": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "utile": {
+   "pos": "adjective"
+  },
+  "utiliser": {
+   "pos": "verb"
+  },
+  "vacances": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vaccin": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vache": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vaisselle": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "valeur": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "valider": {
+   "pos": "verb"
+  },
+  "valoir": {
+   "pos": "verb"
+  },
+  "varié": {
+   "pos": "adjective"
+  },
+  "vaste": {
+   "pos": "adjective"
+  },
+  "veille": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vendeur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vendre": {
+   "pos": "verb"
+  },
+  "vendredi": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "venir": {
+   "pos": "verb"
+  },
+  "vent": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ventre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vers": {
+   "pos": "function"
+  },
+  "verser": {
+   "pos": "verb"
+  },
+  "vert": {
+   "pos": "adjective"
+  },
+  "victime": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vide": {
+   "pos": "adjective"
+  },
+  "vider": {
+   "pos": "verb"
+  },
+  "vidéo": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vieillir": {
+   "pos": "verb"
+  },
+  "vieux": {
+   "pos": "adjective"
+  },
+  "village": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vingt": {
+   "pos": "number"
+  },
+  "vingt-cinq": {
+   "pos": "number"
+  },
+  "vingt-deux": {
+   "pos": "number"
+  },
+  "vingt-et-un": {
+   "pos": "number"
+  },
+  "vingt-huit": {
+   "pos": "number"
+  },
+  "vingt-neuf": {
+   "pos": "number"
+  },
+  "vingt-quatre": {
+   "pos": "number"
+  },
+  "vingt-sept": {
+   "pos": "number"
+  },
+  "vingt-six": {
+   "pos": "number"
+  },
+  "vingt-trois": {
+   "pos": "number"
+  },
+  "violence": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "violent": {
+   "pos": "adjective"
+  },
+  "violet": {
+   "pos": "adjective"
+  },
+  "virement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "virtuel": {
+   "pos": "adjective"
+  },
+  "virus": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vis-à-vis": {
+   "pos": "function"
+  },
+  "visa": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "visage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vision": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "visite": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "visiter": {
+   "pos": "verb"
+  },
+  "vite": {
+   "pos": "adverb"
+  },
+  "vitesse": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vivant": {
+   "pos": "adjective"
+  },
+  "vivre": {
+   "pos": "verb"
+  },
+  "vocabulaire": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "voici": {
+   "pos": "function"
+  },
+  "voie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "voilà": {
+   "pos": "function"
+  },
+  "voir": {
+   "pos": "verb"
+  },
+  "voire": {
+   "pos": "adverb"
+  },
+  "voisinage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "voix": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vol": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "voler": {
+   "pos": "verb"
+  },
+  "volet": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "volontiers": {
+   "pos": "adverb"
+  },
+  "volonté": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "volume": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vos": {
+   "pos": "function"
+  },
+  "vote": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "voter": {
+   "pos": "verb"
+  },
+  "votre": {
+   "pos": "function"
+  },
+  "vouloir": {
+   "pos": "verb"
+  },
+  "vous": {
+   "pos": "function"
+  },
+  "voyager": {
+   "pos": "verb"
+  },
+  "voyageur": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vrai": {
+   "pos": "adjective"
+  },
+  "vraiment": {
+   "pos": "adverb"
+  },
+  "vue": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "végétarien": {
+   "pos": "adjective"
+  },
+  "vérifier": {
+   "pos": "verb"
+  },
+  "vérité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "vêtement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "vôtre": {
+   "pos": "function"
+  },
+  "wagon": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "y": {
+   "pos": "adverb"
+  },
+  "yaourt": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "zéro": {
+   "pos": "number"
+  },
+  "à": {
+   "pos": "function"
+  },
+  "âge": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "ça": {
+   "pos": "function"
+  },
+  "échange": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "échanger": {
+   "pos": "verb"
+  },
+  "échapper": {
+   "pos": "verb"
+  },
+  "échec": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "échouer": {
+   "pos": "verb"
+  },
+  "échéance": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "éclairer": {
+   "pos": "verb"
+  },
+  "écologie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "écologique": {
+   "pos": "adjective"
+  },
+  "économie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "économique": {
+   "pos": "adjective"
+  },
+  "économiser": {
+   "pos": "verb"
+  },
+  "écouter": {
+   "pos": "verb"
+  },
+  "écran": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "écrire": {
+   "pos": "verb"
+  },
+  "écriture": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "écrivain": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "éducation": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "éduquer": {
+   "pos": "verb"
+  },
+  "égal": {
+   "pos": "adjective"
+  },
+  "également": {
+   "pos": "adverb"
+  },
+  "égalité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "égoïste": {
+   "pos": "adjective"
+  },
+  "élection": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "électricité": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "élever": {
+   "pos": "verb"
+  },
+  "élire": {
+   "pos": "verb"
+  },
+  "élève": {
+   "pos": "noun",
+   "gender": "mf"
+  },
+  "élégant": {
+   "pos": "adjective"
+  },
+  "élément": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "émotion": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "émouvant": {
+   "pos": "adjective"
+  },
+  "énergie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "énerver": {
+   "pos": "verb"
+  },
+  "énervé": {
+   "pos": "adjective"
+  },
+  "énorme": {
+   "pos": "adjective"
+  },
+  "énormément": {
+   "pos": "adverb"
+  },
+  "éolien": {
+   "pos": "adjective"
+  },
+  "épargne": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "épaule": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "épeler": {
+   "pos": "verb"
+  },
+  "épicerie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "épidémie": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "époque": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "épouser": {
+   "pos": "verb"
+  },
+  "époux": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "éprouver": {
+   "pos": "verb"
+  },
+  "équilibre": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "équipe": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "équitable": {
+   "pos": "adjective"
+  },
+  "établir": {
+   "pos": "verb"
+  },
+  "établissement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "étage": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "étagère": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "étape": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "état": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "éteindre": {
+   "pos": "verb"
+  },
+  "étonnant": {
+   "pos": "adjective"
+  },
+  "étonner": {
+   "pos": "verb"
+  },
+  "étrange": {
+   "pos": "adjective"
+  },
+  "étranger": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "étroit": {
+   "pos": "adjective"
+  },
+  "étude": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "étudier": {
+   "pos": "verb"
+  },
+  "été": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "évaluer": {
+   "pos": "verb"
+  },
+  "éventuel": {
+   "pos": "adjective"
+  },
+  "éventuellement": {
+   "pos": "adverb"
+  },
+  "évidemment": {
+   "pos": "adverb"
+  },
+  "évident": {
+   "pos": "adjective"
+  },
+  "éviter": {
+   "pos": "verb"
+  },
+  "évoluer": {
+   "pos": "verb"
+  },
+  "évolution": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "évoquer": {
+   "pos": "verb"
+  },
+  "événement": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "être": {
+   "pos": "verb"
+  },
+  "île": {
+   "pos": "noun",
+   "gender": "f"
+  },
+  "œil": {
+   "pos": "noun",
+   "gender": "m"
+  },
+  "œuvre": {
+   "pos": "noun",
+   "gender": "f"
+  }
+ }
+}

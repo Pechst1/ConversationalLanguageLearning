@@ -19,6 +19,7 @@ from app.schemas import (
     AnkiProgressSummary,
     AnkiWordProgressRead,
     CEFRProgressResponse,
+    LevelCheckpointResultRequest,
     ProgressDetail,
     QueueWord,
     ReviewRequest,
@@ -34,7 +35,7 @@ from app.schemas import (
     WeeklyDossierStats,
     WeeklyDossierThread,
 )
-from app.services.cefr_progress import CEFRProgressService
+from app.services.cefr_progress import CEFRProgressService, with_can_do_line, with_live_grammar
 from app.services.daily_words import DailyWordSlateService
 from app.services.progress import ProgressService, vocabulary_progress_is_due
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
@@ -50,7 +51,9 @@ def get_cefr_progress(
 ) -> CEFRProgressResponse:
     """Return the visible CEFR estimate and next-level forecast."""
 
-    return CEFRProgressResponse(**CEFRProgressService(db).current(current_user))
+    # WP-130 A: the band's grammar counts are read live, as the notebook reads them.
+    payload = with_live_grammar(db, current_user, CEFRProgressService(db).current(current_user))
+    return CEFRProgressResponse(**with_can_do_line(db, current_user, payload))
 
 
 @router.post("/cefr/recompute", response_model=CEFRProgressResponse)
@@ -61,7 +64,62 @@ def recompute_cefr_progress(
 ) -> CEFRProgressResponse:
     """Recompute and persist a CEFR estimate snapshot."""
 
-    return CEFRProgressResponse(**CEFRProgressService(db).recompute(current_user, source="api"))
+    payload = CEFRProgressService(db).recompute(current_user, source="api")
+    return CEFRProgressResponse(**with_can_do_line(db, current_user, payload))
+
+
+@router.get("/cefr/checkpoint")
+def get_level_checkpoint(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo),
+) -> dict:
+    """WP-L7 — the épreuve's state for the band in force, computed fresh.
+
+    The story engine's one question is ``checkpoint_ready``: stage the band's
+    finale-like épreuve episode now. Read-only (no row is written).
+    """
+
+    from app.services.level_checkpoint import current_checkpoint
+
+    return current_checkpoint(db, current_user)
+
+
+@router.post("/cefr/checkpoint", response_model=CEFRProgressResponse)
+def record_level_checkpoint(
+    *,
+    body: LevelCheckpointResultRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CEFRProgressResponse:
+    """WP-L7 — record the épreuve's result; a pass raises the level.
+
+    409 when the band is not the one in force, not ready, already closed, or a
+    failed épreuve is still inside its week of consolidation.
+    """
+
+    from app.services.level_checkpoint import CheckpointError, record_checkpoint_result
+
+    service = CEFRProgressService(db)
+    current = service.current(current_user)
+    if body.band != current.get("estimate"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "wrong_band", "message": f"The band in force is {current.get('estimate')}."},
+        )
+    evidence = dict(body.evidence or {})
+    if body.episode_id:
+        evidence["episode_id"] = body.episode_id
+    try:
+        record_checkpoint_result(db, current_user, band=body.band, passed=body.passed, evidence=evidence)
+    except CheckpointError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": error.code, "message": error.message},
+        ) from error
+    payload = service.recompute(current_user, source="checkpoint")
+    return CEFRProgressResponse(**with_can_do_line(db, current_user, payload))
 
 
 def _progress_due(progress: UserVocabularyProgress | None, now: datetime) -> bool:
@@ -228,6 +286,10 @@ def get_vocabulary_recommendations(
 
     if direction and direction not in {"fr_to_de", "de_to_fr"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid direction filter")
+    # WP-L6: new words come out of the learner's one daily intake pool.
+    from app.services.vocabulary_pace import vocabulary_pace_limit
+
+    new_limit, reserved_new = vocabulary_pace_limit(db, current_user, new_limit)
     service = ProgressService(db)
     recommendations = service.get_vocabulary_recommendations(
         user=current_user,
@@ -235,6 +297,7 @@ def get_vocabulary_recommendations(
         due_limit=due_limit,
         fragile_limit=fragile_limit,
         new_limit=new_limit,
+        exclude_new_word_ids=reserved_new,
         direction=direction,
         deck_name=deck_name,
         include_upcoming_days=include_upcoming_days,

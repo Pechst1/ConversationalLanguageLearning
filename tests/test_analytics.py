@@ -138,7 +138,11 @@ async def test_analytics_endpoints(async_client, db_session, french_vocabulary):
     assert streak_response.status_code == 200
     streak = streak_response.json()
     assert streak["longest_streak"] >= streak["current_streak"]
-    assert len(streak["calendar"]) >= 2
+    # WP-D5: the grid is the streak's own days, not LearningSession starts;
+    # sessions alone press nothing, and today is always on the grid.
+    assert streak["current_streak"] == 0
+    assert [day["state"] for day in streak["calendar"] if day["is_today"]] == ["today"]
+    assert all(day["state"] in {"today", "future"} for day in streak["calendar"])
 
     heatmap_response = await async_client.get("/api/v1/analytics/vocabulary", headers=headers)
     assert heatmap_response.status_code == 200

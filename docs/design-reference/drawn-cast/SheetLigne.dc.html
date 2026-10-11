@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Ligne claire</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&amp;family=Instrument+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1040px; height: 540px; box-sizing: border-box; padding: 32px 40px; display: flex; gap: 40px; background: #f1ece1; color: #14110d; font-family: 'Instrument Sans', system-ui, sans-serif">
+<div style="width: 400px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-family: 'EB Garamond', Georgia, serif; font-style: italic; font-weight: 400; font-size: 34px; line-height: 1.1">Ligne claire</h2>
+<div style="display: flex; gap: 12px; align-items: flex-end">
+<dc-import name="Margaux" look="ligne" mood="neutre" hold="verre" crop="full" w="190" hint-size="190px,399px"></dc-import>
+<dc-import name="Marin" look="ligne" mood="neutre" crop="full" w="190" hint-size="190px,399px"></dc-import>
+</div>
+</div>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px; padding-top: 8px">
+<div style="font-size: 12px; color: #6f6857">Margaux</div>
+<div style="display: flex; gap: 12px">
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+<div style="width: 96px; height: 96px; border-radius: 18px; overflow: hidden; background: #f8f3e8">
+<dc-import name="Margaux" look="ligne" mood="{{m.key}}" crop="head" w="96" hint-size="96px,96px"></dc-import>
+</div>
+<div style="font-size: 12px; color: #6f6857">{{m.label}}</div>
+</div>
+</sc-for>
+</div>
+<div style="font-size: 12px; color: #6f6857">Marin</div>
+<div style="display: flex; gap: 12px">
+<sc-for list="{{moodsM}}" as="m" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+<div style="width: 96px; height: 96px; border-radius: 18px; overflow: hidden; background: #f8f3e8">
+<dc-import name="Marin" look="ligne" mood="{{m.key}}" crop="head" w="96" hint-size="96px,96px"></dc-import>
+</div>
+<div style="font-size: 12px; color: #6f6857">{{m.label}}</div>
+</div>
+</sc-for>
+</div>
+<div style="font-size: 12px; color: #6f6857">Visèmes · Margaux</div>
+<div style="display: flex; gap: 10px">
+<sc-for list="{{visemes}}" as="v" hint-placeholder-count="6">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+<div style="width: 80px; height: 80px; border-radius: 16px; overflow: hidden; background: #f8f3e8">
+<dc-import name="Margaux" look="ligne" mood="neutre" mouth="{{v.key}}" crop="head" w="80" hint-size="80px,80px"></dc-import>
+</div>
+<div style="font-size: 12px; color: #6f6857">{{v.label}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":540}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      moods: [
+        { key: "neutre", label: "neutre" },
+        { key: "ravie", label: "ravie" },
+        { key: "surprise", label: "surprise" },
+        { key: "fachee", label: "fâchée" },
+        { key: "emue", label: "émue" },
+      ],
+      moodsM: [
+        { key: "neutre", label: "neutre" },
+        { key: "ravie", label: "ravi" },
+        { key: "surprise", label: "surpris" },
+        { key: "fachee", label: "fâché" },
+        { key: "emue", label: "ému" },
+      ],
+      visemes: [
+        { key: "rest", label: "repos" },
+        { key: "a", label: "a" },
+        { key: "o", label: "o · ou" },
+        { key: "e", label: "é · i" },
+        { key: "m", label: "m · b · p" },
+        { key: "f", label: "f · v" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

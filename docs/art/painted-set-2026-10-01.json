@@ -1,0 +1,355 @@
+{
+  "tag": "art-painted-2026-10-01",
+  "note": "The painted cast set kept for WP-116. Restore with scripts/art/art_set.py restore.",
+  "files": [
+    {
+      "path": "web-frontend/public/assets/serial/characters/augustin_de_roncourt/model-sheet.webp",
+      "bytes": 86692,
+      "sha256": "6dd52a383be1e7564c716501683edad2895583fe0048d564cc6024e141bd2999"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/augustin_de_roncourt/portrait-cross.webp",
+      "bytes": 17052,
+      "sha256": "d0caf4b1decf32a6b4d555fe3aa1f6db630b940fc74703ee8cea8088f159b523"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/augustin_de_roncourt/portrait-happy.webp",
+      "bytes": 17298,
+      "sha256": "d8038f95cba0655d2208579e7c70f22d23d06e17a35cfc8bb2d804864c734f39"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/augustin_de_roncourt/portrait-moved.webp",
+      "bytes": 17922,
+      "sha256": "0cc61bd9ee5d25efe9b2d5dd53add44ce9f1658e2cc390c5900e8fce5c3f21c5"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/augustin_de_roncourt/portrait-neutral.webp",
+      "bytes": 15702,
+      "sha256": "27e2c7a6bd74ce6477f14740df33821016b0aae8c6ac02baee3669b903da489f"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/landlord_marchand/model-sheet.webp",
+      "bytes": 105876,
+      "sha256": "c0bb17202853cdf089838fd5224ff085f4213bcc77607e7a26ee38f1216cbac4"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/landlord_marchand/portrait-cross.webp",
+      "bytes": 17658,
+      "sha256": "0a4b048a62e98756023c2790fae577db98724cdaddd43414770115fe86f71297"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/landlord_marchand/portrait-happy.webp",
+      "bytes": 15792,
+      "sha256": "404c6f5b73d5c7c3893dc11d332aa70a7b786f3519e984ad3de548dceb7cd1a9"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/landlord_marchand/portrait-moved.webp",
+      "bytes": 16072,
+      "sha256": "c7da6e2aa3214354e429e3446d1f5ed6691dc80ee7481fe621d560901e661acf"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/landlord_marchand/portrait-neutral.webp",
+      "bytes": 15220,
+      "sha256": "9a619563722d168959de7fc374a3acccff5eedf9adb5d60eddd931e01e0b894e"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/lila_bonnet/model-sheet.webp",
+      "bytes": 138464,
+      "sha256": "c2267f2f2662c08f6ffd3a379402bf329007d72534fe13c88b4e0ce0d857647b"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/lila_bonnet/portrait-cross.webp",
+      "bytes": 21970,
+      "sha256": "44b9118ab2046386edb4624412c23fb086b74c0b63ba8737ebab81b1e9ef69aa"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/lila_bonnet/portrait-happy.webp",
+      "bytes": 22966,
+      "sha256": "d9895ede43916973dacec9c6479d996b0621492e4f798ad09767d9bf97e45321"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/lila_bonnet/portrait-moved.webp",
+      "bytes": 22478,
+      "sha256": "5f8472a237e25edafde9f1a59e34f68d39fa328cd921bea12975c126e29ebbb9"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/lila_bonnet/portrait-neutral.webp",
+      "bytes": 21622,
+      "sha256": "df0989f8c838968ec52120b297d90e20561dcde00a2df80716ac911babdf4c3d"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/margaux_barman/model-sheet.webp",
+      "bytes": 118828,
+      "sha256": "cd52482c748c466631fd8febc717d77b1fbf96df46df133dacb4808e36dce83e"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/margaux_barman/portrait-cross.webp",
+      "bytes": 16274,
+      "sha256": "a45fac362ccffba0a5c3eee8feb2f90c5d7ba21a8f8a4d08d3abeffac51a7f24"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/margaux_barman/portrait-happy.webp",
+      "bytes": 17184,
+      "sha256": "23894d7a3e73c4cac963b33221e337973fafaee36fab493f82a0a4fdf597a2d8"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/margaux_barman/portrait-moved.webp",
+      "bytes": 16566,
+      "sha256": "9a3d10afdfbed43e9e3506fbfd61cd0984f765c35ce08f3c9db870115c5cdc0c"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/margaux_barman/portrait-neutral.webp",
+      "bytes": 17210,
+      "sha256": "a9ea97295337e2157b533a6cb511ad9f9b5330dd8d4974eb47f17bde2d8cee04"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/marin_leveque/model-sheet.webp",
+      "bytes": 151144,
+      "sha256": "cc6622183b2e86a50c741532ca1de72c78ebb5b794755dc00ab9ef5c164d81a5"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/marin_leveque/portrait-cross.webp",
+      "bytes": 21620,
+      "sha256": "7a3d65ee9da80046de1dd1e33866d4642f9726a545c2f5385ada4dd60fda17d7"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/marin_leveque/portrait-happy.webp",
+      "bytes": 21142,
+      "sha256": "7af783911c06ebb4b0822428c40a6a4361da196b263d5e50a929fb20f0547698"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/marin_leveque/portrait-moved.webp",
+      "bytes": 22560,
+      "sha256": "6215ec991c89618cd1ad6429ca0ad19877cfa20a07d4ee2d7fbcb5c32b054e8b"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/marin_leveque/portrait-neutral.webp",
+      "bytes": 18336,
+      "sha256": "d076126ff049dfd2e0cc2a30ff1835a91bf114f031c27a6dc3aa5fb15d7892f1"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/romy_tremblay/model-sheet.webp",
+      "bytes": 103916,
+      "sha256": "352bd34940204dfc8d7178623d3cb97542e4a866bdd1a6e527e2c2d9242489ec"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/romy_tremblay/portrait-cross.webp",
+      "bytes": 18476,
+      "sha256": "8b83bf572c97c056777077e6afa65e40be248e9d098320de7a978b6114f20041"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/romy_tremblay/portrait-happy.webp",
+      "bytes": 17946,
+      "sha256": "28bc0fce9711bc18a228d24a891aa2c6241c269921cc6925dda070baf36e3f5b"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/romy_tremblay/portrait-moved.webp",
+      "bytes": 18492,
+      "sha256": "7310b93a84986ef4328e46f0840040a07bdf0a5b2de4c50ae85b57382df42581"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/romy_tremblay/portrait-neutral.webp",
+      "bytes": 17098,
+      "sha256": "7ee0ec3b942a938acbb207cc14215e010897d8b3cf3dabb366f7cc6549e3615f"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/characters/user/model-sheet.webp",
+      "bytes": 90376,
+      "sha256": "41de881ca08b83190209b7c8438f6f5fbb5e16419aca505e72c4faf283cd0051"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/arrange_meeting/panel-1.webp",
+      "bytes": 346232,
+      "sha256": "3a351ca610920be8b5c13bd293de8a08f65f5d7a60be86efd51268b7fce4024e"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/arrange_meeting/panel-2.webp",
+      "bytes": 408184,
+      "sha256": "170be899a5631fce354165f3d3349ca820f3c74daf92a9282e7478c698914bc1"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/arrange_meeting/panel-3.webp",
+      "bytes": 371210,
+      "sha256": "01ddaee315309a6940d24ad7c0350e76aec9a5db98c8c32814b20c38a32083ca"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/arrange_meeting/panel-4.webp",
+      "bytes": 432648,
+      "sha256": "56ab41cb43cbe02ad2b0458ec06082425c32ed6c3ec1e409c2afe5aa90e8074d"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/explain_delay/panel-1.webp",
+      "bytes": 241112,
+      "sha256": "22bbd33547e7906fb20de3b675c910227fa47d44cc82ea0c04369ee9a4122827"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/explain_delay/panel-2.webp",
+      "bytes": 216566,
+      "sha256": "b2c0f486cf6d75bc297c802f42e3b8718553cf1502fa0a93301b43626dc548db"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/explain_delay/panel-3.webp",
+      "bytes": 291900,
+      "sha256": "262b7a3d74f78927585e369dceec2447deac1a2bab62670a6eb56832080efda7"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/explain_delay/panel-4.webp",
+      "bytes": 244084,
+      "sha256": "7d64717e9eef60e5f9667236783772deb4f1ba6ab11892755e39aff4ea555644"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/order_at_cafe/panel-1.webp",
+      "bytes": 272170,
+      "sha256": "0053e281ee69df306e7152c06dcb037ad2d68ca9b569c997b494b95659e59f18"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/order_at_cafe/panel-2.webp",
+      "bytes": 269898,
+      "sha256": "4c4d81507296dd93b8c66d8e327166b14ab93da9f680c06742f12013d801cd83"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/order_at_cafe/panel-3.webp",
+      "bytes": 336698,
+      "sha256": "ef7b1fd62921bda7be4f3caf50278acb389aa42cf2fc490991bc331f082e5ef8"
+    },
+    {
+      "path": "web-frontend/public/assets/serial/scenes/order_at_cafe/panel-4.webp",
+      "bytes": 289160,
+      "sha256": "54bc61280c318c95f2e217b6d83d5f8c17c323d1161ccfa8d4690262dbac367f"
+    },
+    {
+      "path": "docs/design-reference/cast/augustin_de_roncourt/cross.webp",
+      "bytes": 72174,
+      "sha256": "dedf0bf09ad301521d8a20c14e6d52ad075e1d6dc1d42e3a82f6ed3ed8e6d1bd"
+    },
+    {
+      "path": "docs/design-reference/cast/augustin_de_roncourt/happy.webp",
+      "bytes": 70430,
+      "sha256": "aad98aee5f8da983b6fa1f6eb77fb8c40c7681ab6ee4709be403adcb3e68ef32"
+    },
+    {
+      "path": "docs/design-reference/cast/augustin_de_roncourt/moved.webp",
+      "bytes": 76694,
+      "sha256": "c19d991f2e347b4bd78d991b221428dde12c7bf79b1a56fae9d271f5dde420b5"
+    },
+    {
+      "path": "docs/design-reference/cast/augustin_de_roncourt/reference.webp",
+      "bytes": 64332,
+      "sha256": "f8919550115231691dbfc7d5cea9b2f98e534e077161b26ca5cf6ee410cc04e7"
+    },
+    {
+      "path": "docs/design-reference/cast/landlord_marchand/cross.webp",
+      "bytes": 109482,
+      "sha256": "cbf46bf377a64b5db151d006e918ccc07aa3a0ad8957dfed4dc2eee337bef3bb"
+    },
+    {
+      "path": "docs/design-reference/cast/landlord_marchand/happy.webp",
+      "bytes": 98028,
+      "sha256": "15d60c049896861d0b44f8f5c095e38876e70bdb23886a45c25dfe5fd531682d"
+    },
+    {
+      "path": "docs/design-reference/cast/landlord_marchand/moved.webp",
+      "bytes": 102132,
+      "sha256": "616a80163752a67041cbad80cc6c20c09a5764d1ee1edbed391a4c2a86a07f06"
+    },
+    {
+      "path": "docs/design-reference/cast/landlord_marchand/reference.webp",
+      "bytes": 115584,
+      "sha256": "49612e3b5bba54786b1e138a43c4958cfc6c1eeb479d4b09afb35043de050c8d"
+    },
+    {
+      "path": "docs/design-reference/cast/lila_bonnet/cross.webp",
+      "bytes": 132522,
+      "sha256": "a4d751bb3a65359ba4e3fab94bdf3c30bde7cfc67ed57e3b2a0c11b20db0ced3"
+    },
+    {
+      "path": "docs/design-reference/cast/lila_bonnet/happy.webp",
+      "bytes": 153498,
+      "sha256": "b370cc9a88cf803cdab76a8608f5df0020a4abf483ad5d187b4aa51a1afb4946"
+    },
+    {
+      "path": "docs/design-reference/cast/lila_bonnet/moved.webp",
+      "bytes": 144148,
+      "sha256": "33a8de6cf340ca810caf752979ba7eb11c85f53e4bf4b0756c91fcdddd9d159f"
+    },
+    {
+      "path": "docs/design-reference/cast/lila_bonnet/reference.webp",
+      "bytes": 139208,
+      "sha256": "7c229d42520acf38a6329e9d1718ac8fcc24eb8cdce301006627dffba6e9530a"
+    },
+    {
+      "path": "docs/design-reference/cast/margaux_barman/cross.webp",
+      "bytes": 91612,
+      "sha256": "8dd34ff841f1f6f5c7a16944545c325854521f7c9f42814681313b4c34081502"
+    },
+    {
+      "path": "docs/design-reference/cast/margaux_barman/happy.webp",
+      "bytes": 93818,
+      "sha256": "838e211432bfc3519ed55247d653dbc777744101b1117bd055ee39d6f2f25315"
+    },
+    {
+      "path": "docs/design-reference/cast/margaux_barman/moved.webp",
+      "bytes": 93846,
+      "sha256": "e4fb250412723a765ae1fd8c9db7082615b9df76764781d39d14671fdc16c32d"
+    },
+    {
+      "path": "docs/design-reference/cast/margaux_barman/reference.webp",
+      "bytes": 108062,
+      "sha256": "b60d24e2bd010f6513acc9f0142960d49af72b039d6ac808a441dceeec35dac1"
+    },
+    {
+      "path": "docs/design-reference/cast/marin_leveque/cross.webp",
+      "bytes": 126646,
+      "sha256": "e7fe2cae8fde07245d35e5c661b3c60bca93ecad34da33f01cb740138926abaa"
+    },
+    {
+      "path": "docs/design-reference/cast/marin_leveque/happy.webp",
+      "bytes": 119932,
+      "sha256": "85eaac717cdf0f93cc0a955fefe9923329efe995ab4cc572f6ca91b2146b2c72"
+    },
+    {
+      "path": "docs/design-reference/cast/marin_leveque/moved.webp",
+      "bytes": 124258,
+      "sha256": "3f369865d4723911005f0cd0def9f5354474280ea66329a1a6ea9f164f4eb3d0"
+    },
+    {
+      "path": "docs/design-reference/cast/marin_leveque/reference.webp",
+      "bytes": 118312,
+      "sha256": "dc0ed3472400575476db8f4a2a61a3460c6384fb4dbf3be282e2d4c6f0e7ccf1"
+    },
+    {
+      "path": "docs/design-reference/cast/romy_tremblay/cross.webp",
+      "bytes": 113942,
+      "sha256": "f7198eddae4ff3e508df9b525ce44fe0ebd033b83db19c8aec381886b1496314"
+    },
+    {
+      "path": "docs/design-reference/cast/romy_tremblay/happy.webp",
+      "bytes": 124994,
+      "sha256": "2b2f796d54e8b0431fb496a06cc53cda66c13d4adb82beb392affdafc87fe7f1"
+    },
+    {
+      "path": "docs/design-reference/cast/romy_tremblay/moved.webp",
+      "bytes": 114492,
+      "sha256": "d2de7245ecfa598d9c65900c783ec9e69be8269822b8a3b1723a4847a52b0bf5"
+    },
+    {
+      "path": "docs/design-reference/cast/romy_tremblay/reference.webp",
+      "bytes": 138526,
+      "sha256": "e8ffb1c7cccb286c4b790b6cc4966bedfd7195d143492105a81de22be606de1d"
+    }
+  ],
+  "readers": [
+    "web-frontend/lib/onboarding-portraits.ts (portraitSrc)",
+    "web-frontend/lib/cast-faces.ts (faceSrcFor)",
+    "web-frontend/components/atelier-v2/ui/CastPortrait.tsx",
+    "web-frontend/components/atelier-v2/ui/Feedback.tsx (Portrait)",
+    "web-frontend/components/feuilleton/archive/Trombinoscope.tsx",
+    "web-frontend/pages/audio-session.tsx",
+    "web-frontend/pages/vocabulary/review.tsx",
+    "app/services/serial.py (_portrait_url)",
+    "app/services/serial_notifications.py (portrait_path)",
+    "app/services/panel_art.py (CAST_REFERENCES)",
+    "app/services/journey_content.py (authored_panels)",
+    "app/prompts/serial/world_bible_paris_v2.json (cast reference_images)"
+  ]
+}

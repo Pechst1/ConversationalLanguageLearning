@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
+from app.core.offload import off_event_loop
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
@@ -66,6 +67,7 @@ def _ensure_open(scene: GraphicNovelScene) -> None:
 
 
 @router.get("/today", response_model=GraphicNovelTodayResponse)
+@off_event_loop
 async def get_graphic_novel_today(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
@@ -81,6 +83,7 @@ async def get_graphic_novel_today(
 
 @router.post("/scenes", response_model=GraphicNovelSceneResponse)
 @router.post("/scenes/", response_model=GraphicNovelSceneResponse)
+@off_event_loop
 async def create_graphic_novel_scene(
     request: GraphicNovelCreateRequest,
     background_tasks: BackgroundTasks,
@@ -265,6 +268,7 @@ def submit_graphic_novel_attempt(
 
 
 @router.post("/scenes/{scene_id}/complete", response_model=GraphicNovelCompleteResponse)
+@off_event_loop
 async def complete_graphic_novel_scene(
     scene_id: UUID,
     db: Annotated[Session, Depends(get_db)],

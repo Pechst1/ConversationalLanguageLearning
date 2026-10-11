@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+    <title>Kiosque test — culture</title>
+    <link>https://kiosque.test/culture</link>
+    <item>
+      <title>Une grande exposition Matisse ouvre au Grand Palais</title>
+      <link>https://kiosque.test/culture/exposition-grand-palais.html</link>
+      <description>Le Grand Palais rouvre ses galeries avec cent vingt œuvres du peintre.</description>
+      <pubDate>Wed, 30 Sep 2026 09:00:00 +0200</pubDate>
+    </item>
+    <item>
+      <title>La Nuit blanche revient dans les rues de Paris</title>
+      <link>https://kiosque.test/culture/nuit-blanche-paris.html</link>
+      <description>Le festival d'art contemporain occupe la ville toute la nuit du samedi 3 octobre.</description>
+      <pubDate>Thu, 01 Oct 2026 10:15:00 +0200</pubDate>
+    </item>
+</channel></rss>

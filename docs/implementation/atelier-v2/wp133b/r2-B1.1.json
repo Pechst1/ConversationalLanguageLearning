@@ -1,0 +1,74 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.19785100000000005,
+  "calls": 52,
+  "cap": 0.6
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "Romy enquête",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Romy enquête",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La clé d'Odile — La condition",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La même chose ? — au zinc",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Romy — La question qui suit",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La clé d'Odile — Publiée ou pas ?",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La clé d'Odile — Romy revient",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.2 twice; accepted and logged (When an open_obstacle exists, show it still blocking tomorrow and someone visibly dealing with it — here, make Romy mention her source or ask permission, or have someone intervene so the notary/source complication is foregrounded.)",
+  "daily_journey: season day lost (resolution_repeats_turn); journey 839cf66b-e6d4-4787-b1d0-3bd04194350e re-reads t1.b",
+  "daily_journey: season day lost (resolution_repeats_turn, 2 in a row in g1); journey 62251368-d94e-4e77-a8c3-b105dc04e3ce serves the bridge g1.4",
+  "daily_journey: season day lost (chapter_not_advanced); journey d0793abb-a368-4e33-9bef-37e365ee1a5a re-reads t2.b"
+ ]
+}

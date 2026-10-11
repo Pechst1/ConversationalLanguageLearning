@@ -69,7 +69,6 @@ let previewFeuilletonSceneId = process.env.CAPTURE_FEUILLETON_SCENE_ID || '';
 let previewAccessToken = '';
 let previewSeedPayload = null;
 const atelierReadyExpression = "Boolean(document.querySelector('.atelier-edition-stage .ph, .atelier-edition-stage .current-panel, .atelier-edition-stage .spine'))";
-const atelierOnboardingExpression = "Boolean(document.querySelector('.serial-welcome-backdrop'))";
 const missionsReadyExpression = "Boolean(document.querySelector('.cr .cr-desk, .cr .cr-empty'))";
 
 const allFrames = [
@@ -80,17 +79,9 @@ const allFrames = [
     public: true,
   },
   {
-    name: 'atelier-onboarding',
-    route: '/atelier',
-    waitFor: atelierOnboardingExpression,
-    waitForTimeoutMs: 30000,
-  },
-  {
     name: 'atelier-home-active',
     route: '/atelier',
     waitFor: atelierReadyExpression,
-    action: dismissAtelierOnboardingIfPresent(),
-    afterActionWaitFor: "!document.querySelector('.serial-welcome-backdrop')",
   },
   {
     name: 'atelier-more-sheet',
@@ -141,9 +132,8 @@ const allFrames = [
     action: async (client) => {
       await runAction(client, clickFirst('.mission-nav .back-link'));
       await waitForExpression(client, "window.location.pathname === '/atelier' && Boolean(document.querySelector('.atelier-edition-stage .ph, .atelier-edition-stage .current-panel, .atelier-edition-stage .spine'))", 10000);
-      await runAction(client, dismissAtelierOnboardingIfPresent());
     },
-    afterActionWaitFor: "window.location.pathname === '/atelier' && !document.querySelector('.serial-welcome-backdrop') && Boolean(document.querySelector('.atelier-edition-stage .ph, .atelier-edition-stage .current-panel, .atelier-edition-stage .spine'))",
+    afterActionWaitFor: "window.location.pathname === '/atelier' && Boolean(document.querySelector('.atelier-edition-stage .ph, .atelier-edition-stage .current-panel, .atelier-edition-stage .spine'))",
     afterActionDelay: 1200,
   },
   {
@@ -764,24 +754,6 @@ function openAtelierSession() {
   `;
 }
 
-function dismissAtelierOnboardingIfPresent() {
-  return `
-    (async () => {
-      const modal = document.querySelector('.serial-welcome-backdrop');
-      if (!modal) return true;
-      const button = modal.querySelector('button');
-      if (!button) return false;
-      button.scrollIntoView({ block: 'center', inline: 'center' });
-      button.click();
-      for (let attempt = 0; attempt < 30; attempt += 1) {
-        if (!document.querySelector('.serial-welcome-backdrop')) return true;
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-      return false;
-    })()
-  `;
-}
-
 function openFeuilletonTaskOrLockedState() {
   return `
     (() => {
@@ -957,9 +929,6 @@ async function assertSmokeHealth(client, frame) {
         }
         if (/Unhandled Runtime Error|Application error|Hydration failed|TypeError:|ReferenceError:/i.test(text)) {
           errors.push('runtime error text visible');
-        }
-        if (${JSON.stringify(frame.name)} === 'atelier-home-active' && document.querySelector('.serial-welcome-backdrop')) {
-          errors.push('active Atelier capture is occluded by serial onboarding');
         }
         return errors;
       })()

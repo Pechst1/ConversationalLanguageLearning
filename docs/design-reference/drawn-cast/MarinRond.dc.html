@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Marin</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<svg viewBox="{{vb}}" width="{{pw}}" height="{{ph}}" style="display: block">
+<path d="M80,360 L80,390 M120,360 L120,390" fill="none" style="stroke: #4a4338; stroke-width: 20; stroke-linecap: round"></path>
+<ellipse cx="76" cy="400" rx="17" ry="8" fill="#14110d"></ellipse>
+<ellipse cx="124" cy="400" rx="17" ry="8" fill="#14110d"></ellipse>
+<path d="M44,262 Q48,232 76,228 L124,228 Q152,232 156,262 L170,338 Q172,366 144,368 L56,368 Q28,366 30,338 Z" fill="#2c6a5d"></path>
+<path d="{{cables}}" fill="#1f4f45"></path>
+<path d="M31,350 L169,350 Q168,366 144,368 L56,368 Q32,366 31,350 Z" fill="#1f4f45"></path>
+<path d="M74,226 Q100,242 126,226 L128,236 Q100,254 72,236 Z" fill="#1f4f45"></path>
+<path d="M82,238 Q88,262 100,268 Q112,262 118,238" fill="none" style="stroke: #4a3020; stroke-width: 1.8"></path>
+<path d="M97,266 C94,276 100,284 106,280 C103,278.5 100.5,274 101.5,268 Z" fill="#f8f3e8"></path>
+<path d="M152,262 Q172,300 164,334" fill="none" style="stroke: #2c6a5d; stroke-width: 22; stroke-linecap: round"></path>
+<circle cx="162" cy="345" r="12" fill="#9a6643"></circle>
+<path d="M48,262 Q28,296 38,320" fill="none" style="stroke: #2c6a5d; stroke-width: 22; stroke-linecap: round"></path>
+<path d="M38,320 Q54,310 64,296" fill="none" style="stroke: #2c6a5d; stroke-width: 18; stroke-linecap: round"></path>
+<path d="M50,266 L82,261 L87,303 L55,308 Z" fill="#1d3a8a"></path>
+<path d="M82,261 L86,262 L91,304 L87,303 Z" fill="#f8f3e8"></path>
+<path d="M54,272 L80,268 L80.5,272 L54.5,276 Z" fill="#f3c318"></path>
+<circle cx="73" cy="292" r="12" fill="#9a6643"></circle>
+<circle cx="62" cy="286" r="5.5" fill="#9a6643"></circle>
+<g transform="{{headT}}">
+<animateTransform attributeName="transform" type="translate" values="0 0; 0 -2.2; 0 0" dur="4.8s" repeatCount="indefinite" additive="sum"></animateTransform>
+<path d="{{curlsBack}}" fill="#1c1611"></path>
+<ellipse cx="-46" cy="0" rx="8.5" ry="11" fill="#9a6643"></ellipse>
+<ellipse cx="47" cy="0" rx="8.5" ry="11" fill="#9a6643"></ellipse>
+<path d="M-46,-14 C-46,-46 -24,-54 0,-54 C24,-54 46,-46 46,-14 C46,20 32,48 0,50 C-32,48 -46,20 -46,-14 Z" fill="#9a6643"></path>
+<path d="{{curlsFront}}" fill="#1c1611"></path>
+<path d="{{glints}}" fill="none" style="stroke: #c49a0a; stroke-width: 2.4; stroke-linecap: round"></path>
+<path display="{{eL.sD}}" d="{{eL.sclera}}" fill="#ffffff"></path>
+<path display="{{eL.sD}}" d="{{eL.pupil}}" fill="#14110d"></path>
+<path display="{{eL.sD}}" d="{{eL.glint}}" fill="#ffffff"></path>
+<path d="{{eL.lid}}" fill="#9a6643"></path>
+<path d="{{eL.lidLine}}" fill="none" style="stroke: #14110d; stroke-width: 2.4; stroke-linecap: round"></path>
+<path d="{{eL.arc}}" fill="none" style="stroke: #14110d; stroke-width: 4.5; stroke-linecap: round"></path>
+<path d="{{eL.tear}}" fill="#1d3a8a"></path>
+<path display="{{eR.sD}}" d="{{eR.sclera}}" fill="#ffffff"></path>
+<path display="{{eR.sD}}" d="{{eR.pupil}}" fill="#14110d"></path>
+<path display="{{eR.sD}}" d="{{eR.glint}}" fill="#ffffff"></path>
+<path d="{{eR.lid}}" fill="#9a6643"></path>
+<path d="{{eR.lidLine}}" fill="none" style="stroke: #14110d; stroke-width: 2.4; stroke-linecap: round"></path>
+<path d="{{eR.arc}}" fill="none" style="stroke: #14110d; stroke-width: 4.5; stroke-linecap: round"></path>
+<path d="{{eR.tear}}" fill="#1d3a8a"></path>
+<path d="{{browL}}" fill="none" style="stroke: #1c1611; stroke-width: 7; stroke-linecap: round"></path>
+<path d="{{browR}}" fill="none" style="stroke: #1c1611; stroke-width: 7; stroke-linecap: round"></path>
+<path d="M-46,-2 C-48,32 -26,60 0,62 C26,60 48,32 46,-2 C40,10 30,15 17,13 C8,9 -8,9 -17,13 C-30,15 -40,10 -46,-2 Z" fill="#1c1611"></path>
+<ellipse cx="-1" cy="33" rx="19" ry="12" fill="#9a6643"></ellipse>
+<g transform="translate(-5 -1) scale(2)">
+<path d="{{mouthD}}" fill="#14110d"></path>
+<path d="{{teethD}}" fill="#ffffff"></path>
+<path d="{{tongueD}}" fill="#d8321a"></path>
+</g>
+<path d="M-23,21 C-12,13 10,13 21,21 C10,24 -12,24 -23,21 Z" fill="#1c1611"></path>
+<path d="M0,0 C6,0 10,10 8,15 C6,19 -6,19 -8,15 C-10,10 -6,0 0,0 Z" fill="#774a2c"></path>
+</g>
+</svg>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mood":{"editor":"enum","options":["neutre","ravie","surprise","fachee","emue"],"default":"neutre"},"mouth":{"editor":"enum","options":["auto","rest","a","o","e","m","f"],"default":"auto"},"crop":{"editor":"enum","options":["full","bust","head"],"default":"full"},"w":{"editor":"int","default":200,"min":40,"max":800},"blink":{"editor":"boolean","default":false},"$preview":{"width":200,"height":420}}'>
+class Component extends DCLogic {
+  reye(c, f) {
+    const cx = c[0];
+    const cy = c[1];
+    const ell = (x, y, rx, ry) => `M${x - rx},${y} A${rx},${ry} 0 1 0 ${x + rx},${y} A${rx},${ry} 0 1 0 ${x - rx},${y} Z`;
+    const rx = f.rx;
+    const ry = f.ry;
+    const hw = rx + 3.5;
+    const top = cy - ry - 5;
+    const left = f.side < 0;
+    const o = { sD: "inline", sclera: ell(cx, cy, rx, ry), iris: "", pupil: "", glint: "", lid: "", lidLine: "", arc: "", tear: "" };
+    let px = cx + (f.dx || 0);
+    let py = cy + (f.dy || 0) + 1;
+    let r = f.pr;
+    const lidAt = (yl, yr, bow) => {
+      const mid = (yl + yr) / 2 - bow;
+      o.lid = `M${cx - hw},${top} L${cx + hw},${top} L${cx + hw},${yr} Q${cx},${mid} ${cx - hw},${yl} Z`;
+      const k = 3.5 / (2 * hw);
+      o.lidLine = `M${cx - rx},${yl + (yr - yl) * k} Q${cx},${mid} ${cx + rx},${yr - (yr - yl) * k}`;
+    };
+    const s = f.state;
+    if (s === "wide") { o.sclera = ell(cx, cy - 1, rx + 1, ry + 1.5); r = r - 1; py -= 1; }
+    if (s === "wry") lidAt(cy - ry * 0.28, cy - ry * 0.28, ry * 0.18);
+    if (s === "heavy") lidAt(cy + ry * 0.02, cy + ry * 0.02, ry * 0.12);
+    if (s === "level") lidAt(cy - ry * 0.34, cy - ry * 0.34, 0);
+    if (s === "cross") lidAt(left ? cy - ry * 0.62 : cy + ry * 0.08, left ? cy + ry * 0.08 : cy - ry * 0.62, 0);
+    if (s === "sad") {
+      lidAt(left ? cy - ry * 0.08 : cy - ry * 0.66, left ? cy - ry * 0.66 : cy - ry * 0.08, 0);
+      py += 2;
+      o.tear = `M${cx + (left ? -1 : 1) * rx * 0.85},${cy + ry * 0.7} c3,5 3,8 0,8 c-3,0 -3,-3 0,-8 Z`;
+    }
+    if (s === "happy") { o.sD = "none"; o.arc = `M${cx - rx},${cy + 3} Q${cx},${cy - ry * 0.75} ${cx + rx},${cy + 3}`; }
+    if (s === "shut") { o.sD = "none"; o.arc = `M${cx - rx},${cy + 1} Q${cx},${cy + ry * 0.5} ${cx + rx},${cy + 1}`; }
+    if (f.iris) { o.iris = ell(px, py, r, r); o.pupil = ell(px, py, r * 0.5, r * 0.5); }
+    else o.pupil = ell(px, py, r, r);
+    o.glint = ell(px + r * 0.4, py - r * 0.38, r * 0.33, r * 0.33);
+    return o;
+  }
+  mouth(key) {
+    const M = {
+      smirk: ["M-6,15 Q1,17.5 9,12.5 Q2,19.5 -6,15 Z"],
+      smile: ["M-6,14.5 Q2,19 10,14 Q2,21.5 -6,14.5 Z"],
+      soft: ["M-5,15 Q2,18 8,14.5 Q2,19.8 -5,15 Z"],
+      grin: ["M-8,13 Q2,15 11,12 Q9,23 1,23 Q-6,22 -8,13 Z", "M-6.6,13.5 Q2,15.4 9.8,12.7 L9.3,15.2 Q2,17.4 -6,15.6 Z", "M-3,20.5 Q1,18 5,20.5 Q3,23 1,23 Q-1,23 -3,20.5 Z"],
+      frown: ["M-6,17.5 Q2,13.5 9,17 Q2,16 -6,17.5 Z"],
+      wobble: ["M-6,17 Q-2,14.5 2,16.5 Q6,14.5 9,17 Q5,16.4 2,18 Q-2,16.4 -6,17 Z"],
+      o: ["M-1.2,16.5 A3.2,4.2 0 1 0 5.2,16.5 A3.2,4.2 0 1 0 -1.2,16.5 Z", "", "M0,18.6 Q2,17.4 4,18.6 Q3.2,20.4 2,20.5 Q0.8,20.4 0,18.6 Z"],
+      rest: ["M-6,15.5 Q2,16.5 9,14.5 Q2,18 -6,15.5 Z"],
+      a: ["M-6,13.5 Q2,12 9,13 Q8,22.5 2,22.5 Q-4.5,22 -6,13.5 Z", "M-5,13.6 Q2,12.4 8,13.2 L7.8,14.8 Q2,14.2 -4.8,15.2 Z", "M-2.5,20 Q2,18 6,20 Q5,22.3 2,22.4 Q-1,22.3 -2.5,20 Z"],
+      e: ["M-7.5,14 Q2,12.5 10.5,13.5 Q9,18.5 2,18.5 Q-5.5,18.2 -7.5,14 Z", "M-6.5,14 Q2,12.9 9.5,13.8 L9.2,15.4 Q2,14.8 -6.2,15.6 Z"],
+      m: ["M-6,15 Q2,14.2 9,14.4 L9,16.2 Q2,16.8 -6,16.6 Z"],
+      f: ["M-6,14 Q2,13 9,13.5 L9,15.8 Q2,16.4 -6,16.2 Z", "M-5.4,14 Q2,13.3 8.4,13.8 L8.4,15.2 Q2,15.4 -5.4,15.4 Z"],
+    };
+    const m = M[key] || M.rest;
+    return { d: m[0], teeth: m[1] || "", tongue: m[2] || "" };
+  }
+  renderVals() {
+    const p = this.props;
+    const mood = p.mood ?? "neutre";
+    const crop = p.crop ?? "full";
+    const w = Number(p.w ?? 200);
+    const blink = p.blink === true || p.blink === "true";
+    const VB = { full: [0, 0, 200, 420], bust: [10, 86, 180, 256], head: [26, 92, 148, 148] };
+    const v = VB[crop] || VB.full;
+    const tilt = { neutre: 4, ravie: -5, surprise: -2, fachee: 0, emue: 7 }[mood] ?? 0;
+    const EYES = { neutre: ["open", "open"], ravie: ["happy", "happy"], surprise: ["wide", "wide"], fachee: ["cross", "cross"], emue: ["sad", "sad"] };
+    const st = blink ? ["shut", "shut"] : EYES[mood] || EYES.neutre;
+    const BR = {
+      neutre: [[-30, -23, -19, -27, -8, -29], [10, -29, 21, -27, 32, -23]],
+      ravie: [[-30, -27, -19, -33, -8, -32], [10, -32, 21, -33, 32, -27]],
+      surprise: [[-30, -30, -19, -37, -8, -35], [10, -35, 21, -37, 32, -30]],
+      fachee: [[-30, -28, -19, -26, -8, -20], [10, -20, 21, -26, 32, -28]],
+      emue: [[-30, -20, -19, -24, -8, -33], [10, -33, 21, -24, 32, -20]],
+    };
+    const br = BR[mood] || BR.neutre;
+    const curve = (b) => `M${b[0]},${b[1]} Q${b[2]},${b[3]} ${b[4]},${b[5]}`;
+    const ell = (x, y, rx, ry) => `M${x - rx},${y} A${rx},${ry} 0 1 0 ${x + rx},${y} A${rx},${ry} 0 1 0 ${x - rx},${y} Z`;
+    const circles = (list) => list.map((c) => ell(c[0], c[1], c[2], c[2])).join(" ");
+    const pt = (c, r, deg) => `${(c[0] + r * Math.cos((deg * Math.PI) / 180)).toFixed(2)},${(c[1] + r * Math.sin((deg * Math.PI) / 180)).toFixed(2)}`;
+    const arcs = (list) => list.map((c) => { const r = c[2] * 0.62; return `M${pt(c, r, 205)} A${r.toFixed(2)},${r.toFixed(2)} 0 0 1 ${pt(c, r, 285)}`; }).join(" ");
+    let cables = "";
+    for (const x of [68, 100, 132]) {
+      for (let y = 246; y < 344; y += 12) {
+        cables += `M${x - 7},${y} L${x},${y + 7} L${x + 7},${y} L${x + 7},${y + 5} L${x},${y + 12} L${x - 7},${y + 5} Z `;
+      }
+    }
+    const back = [[-36, -38, 16], [-18, -54, 18], [4, -58, 18], [26, -50, 17], [40, -32, 14], [-46, -16, 12], [48, -14, 11], [-28, -48, 14], [14, -56, 16]];
+    const front = [[-28, -40, 10], [-11, -45, 11], [7, -46, 11], [24, -41, 10], [37, -32, 8]];
+    const key = p.mouth && p.mouth !== "auto" ? p.mouth : { neutre: "smile", ravie: "grin", surprise: "o", fachee: "frown", emue: "wobble" }[mood] || "smile";
+    const m = this.mouth(key);
+    const eye = { rx: 10, ry: 11.5, pr: 6.6, dx: -2 };
+    return {
+      vb: v.join(" "),
+      pw: w,
+      ph: Math.round((w * v[3]) / v[2]),
+      headT: `translate(100 172) rotate(${tilt})`,
+      cables,
+      curlsBack: circles(back),
+      curlsFront: circles(front),
+      glints: arcs(back.concat(front)),
+      eL: this.reye([-18, -6], { ...eye, state: st[0], side: -1 }),
+      eR: this.reye([19, -6], { ...eye, state: st[1], side: 1 }),
+      browL: curve(br[0]),
+      browR: curve(br[1]),
+      mouthD: m.d,
+      teethD: m.teeth,
+      tongueD: m.tongue,
+    };
+  }
+}
+</script>
+</body>
+</html>

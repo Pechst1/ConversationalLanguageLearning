@@ -1,0 +1,117 @@
+{
+  "id": "2026-w40-budget-2027",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "politics",
+  "title_fr": "Le projet de budget 2027 est présenté",
+  "summary_fr": "Le gouvernement a présenté son projet de budget pour 2027 le 1er octobre 2026. Il veut réduire le déficit public à 5 % du PIB. Pour les ménages, il prévoit notamment de ne pas revaloriser complètement les pensions de plus de 1 260 euros. L'Assemblée nationale et le Sénat doivent encore en débattre.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le gouvernement a présenté le projet de budget pour 2027 le 1er octobre ; il veut ramener le déficit public à 5 % du PIB.",
+      "quote": "Présenté jeudi 1er octobre par le Gouvernement, le projet de loi de finances pour 2027 est placé sous le signe de la réduction du déficit public ramené à 5 % du PIB",
+      "source_id": "w40_budget_lfpt",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le gouvernement propose que les pensions de plus de 1 260 euros ne suivent pas complètement l'inflation.",
+      "quote": "le gouvernement propose que les pensions supérieures à 1 260 euros, soit 85% du smic net, ne soient pas indexées intégralement sur l'inflation",
+      "source_id": "w40_budget_franceinfo",
+      "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+      "published_at": "2026-10-02",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "interpretation",
+      "fr": "Pour David Amiel, ministre des Comptes publics, ce budget doit « sauvegarder l'avenir » : réduire le déficit et continuer à investir pour les futures générations.",
+      "quote": "« Le projet de loi de finances pour 2027 repose sur un choix clair : sauvegarder l’avenir de notre pays, en réduisant le déficit public tout en continuant à investir pour les futures générations. »",
+      "source_id": "w40_budget_lfpt",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02",
+      "confidence": "reported",
+      "attributed_to": "David Amiel, ministre de l'Action et des Comptes publics"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site La finance pour tous, ce budget apporte aux particuliers plus de mauvaises nouvelles que de « coups de pouce ».",
+      "quote": "Le projet de loi de finances (PLF) 2027, qui prévoit 54 milliards d’euros d’économies, annonce plus de mauvaises nouvelles pour les particuliers que de « coups de pouce ».",
+      "source_id": "w40_budget_lfpt",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02",
+      "confidence": "reported",
+      "attributed_to": "La finance pour tous, site de l'Institut pour l'éducation financière du public"
+    }
+  ],
+  "entities": [
+    {
+      "name": "David Amiel",
+      "kind": "person",
+      "role": "ministre de l'Action et des Comptes publics"
+    },
+    {
+      "name": "Assemblée nationale",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Le texte peut encore changer : les sources ne disent pas ce que l'Assemblée nationale et le Sénat vont modifier.",
+    "Les sources ne disent pas de combien les pensions au-dessus de 1 260 euros seront revalorisées : le Parlement doit en débattre."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Ce que le budget changerait pour un retraité, un étudiant, une famille",
+      "purpose": "understand_change",
+      "participation": "none",
+      "guest_fit": "marin_leveque"
+    },
+    {
+      "id": "a2",
+      "fr": "Le ministre parle d'avenir, d'autres de mauvaises nouvelles : pourquoi ?",
+      "purpose": "explain_disagreement",
+      "participation": "none",
+      "guest_fit": "augustin_de_roncourt"
+    }
+  ],
+  "places": [
+    {
+      "id": "hemicycle_assemblee",
+      "name_fr": "L'hémicycle de l'Assemblée nationale",
+      "brief": "the empty semicircular chamber of the Assemblée nationale, red velvet benches in rising rows, polished wooden desks, a high glass ceiling, soft daylight",
+      "known": false,
+      "geo": {
+        "lat": 48.862,
+        "lon": 2.3185,
+        "precision": "exact",
+        "label_fr": "Assemblée nationale, Palais Bourbon"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-10-01/2026-12-20",
+    "relevant_until": "2026-12-31"
+  },
+  "sources": [
+    {
+      "id": "w40_budget_lfpt",
+      "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+      "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+      "published_at": "2026-10-02"
+    },
+    {
+      "id": "w40_budget_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+      "published_at": "2026-10-02"
+    }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "une calculatrice"
+}

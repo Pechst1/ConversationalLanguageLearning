@@ -27,6 +27,8 @@ from app.services.graphic_novel import (
 )
 from app.services.missions import MissionScheduler, serialize_mission
 from app.services.news_service import NewsService
+from app.services.revue import feuilleton_bridge
+from app.services.revue.evergreen import load_evergreens
 from app.services.serial import WORLD_BIBLE_PATH, SerialThreadService
 from app.services.serial_arc_planner import (
     INTERLUDE_BEATS,
@@ -115,8 +117,10 @@ def test_world_bible_world_reference_assets_exist():
     assert expected_characters.issubset(characters)
     for character_id in expected_characters:
         design = characters[character_id]
-        assert design["reference_images"] == [f"assets/serial/characters/{character_id}/model-sheet.webp"]
-        assert design["style_ref"] == f"assets/serial/characters/{character_id}/model-sheet.webp"
+        # WP-D8: the drawn cast is referenced by its approved portrait; the learner keeps a model sheet.
+        reference = "model-sheet" if character_id == "user" else "portrait-neutral"
+        assert design["reference_images"] == [f"assets/serial/characters/{character_id}/{reference}.webp"]
+        assert design["style_ref"] == f"assets/serial/characters/{character_id}/{reference}.webp"
         assert (public_root / design["style_ref"]).is_file()
     for location_id, references in expected_locations.items():
         assert locations[location_id]["reference_images"] == references
@@ -126,21 +130,9 @@ def test_world_bible_world_reference_assets_exist():
     assert (public_root / props["le_mistral_booth"]["reference_images"][0]).is_file()
 
 
-async def _fake_seed(self, interests=None, refresh=False):  # type: ignore[no-untyped-def]
-    return {
-        "mode": "serial_test_seed",
-        "title": "Le quartier parle d'une panne de chauffage",
-        "summary": "A local test seed routed through Romy.",
-        "source": "Serial test",
-        "items": [
-            {
-                "title": "Panne de chauffage dans le quartier",
-                "summary": "Les voisins s'organisent.",
-                "source": "Serial test",
-                "url": "",
-            }
-        ],
-    }
+def _fake_dossier(user, week=None, *, db=None):  # type: ignore[no-untyped-def]
+    """WP-119 phase 5: the feuilleton reads a dossier; tests pin the first evergreen."""
+    return load_evergreens()[0]
 
 
 def _callback_llm(content: str):
@@ -157,8 +149,10 @@ def test_feuilleton_news_summary_strips_feed_artifacts():
     }
     support = [{"title": "Personnes citées: autre liste. Les voisins réagissent.", "source": "Franceinfo"}]
 
-    summary = service._feuilleton_summary_fr(selected, support)
-    digest = service._format_feuilleton_seed_digest(selected, support, [])
+    # WP-119 phase 5: the summary/digest builders went with the daily feuilleton seed;
+    # the RSS-artifact cleaner they used is kept for revue.intake.
+    summary = service._clean_feuilleton_news_text(f"{selected['title']}. {selected['summary']}")
+    digest = " ".join(service._clean_feuilleton_news_text(item["title"]) for item in support)
 
     assert "sa colère" in summary
     assert "sacolère" not in summary
@@ -290,7 +284,7 @@ def test_existing_thread_syncs_locked_character_assets(db_session):
     }
     assert existing.world_bible["visual_design"]["status"] == "assets-locked-v2"
     assert existing.world_bible["visual_design"]["characters"]["romy_tremblay"]["reference_images"] == [
-        "assets/serial/characters/romy_tremblay/model-sheet.webp"
+        "assets/serial/characters/romy_tremblay/portrait-neutral.webp"
     ]
     assert existing.world_bible["visual_design"]["characters"]["user"]["reference_images"] == [
         "assets/serial/characters/user/model-sheet.webp"
@@ -942,7 +936,7 @@ def test_feuilleton_complete_endpoint_returns_next_serial_beat(client: TestClien
 
 
 def test_delayed_feuilleton_retries_without_duplicate_episode(db_session, monkeypatch):
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     user = _user(db_session, email="serial-delayed-retry@example.com")
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
@@ -1191,7 +1185,7 @@ def test_stale_generating_scene_with_readable_panels_is_published(db_session):
 
 
 def test_full_loop(db_session, monkeypatch):
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
     monkeypatch.setattr("app.services.graphic_novel.enqueue_serial_edition_notification", lambda *args, **kwargs: False)
     user = _user(db_session, email="serial-loop@example.com")
@@ -1289,7 +1283,7 @@ def test_mission_complete_endpoint_advances_serial_thread(client: TestClient, db
     monkeypatch.setattr(settings, "SERIAL_WORLD_ENABLED", True)
     monkeypatch.setattr(settings, "ATELIER_LLM_ENABLED", False)
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "")
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     monkeypatch.setattr(SerialThreadService, "_enqueue_next_beat", lambda self, thread_id: None)
     monkeypatch.setattr("app.services.graphic_novel.enqueue_serial_edition_notification", lambda *args, **kwargs: False)
     email = f"{uuid4()}@example.com"
@@ -1425,7 +1419,7 @@ def test_serial_archive_and_cast_endpoints(client: TestClient, db_session, monke
     assert cast.status_code == 200
     cast_rows = {row["id"]: row for row in cast.json()["cast"]}
     assert "marin_leveque" in cast_rows
-    assert cast_rows["marin_leveque"]["model_sheet_url"].endswith("/assets/serial/characters/marin_leveque/model-sheet.webp")
+    assert cast_rows["marin_leveque"]["model_sheet_url"].endswith("/assets/serial/characters/marin_leveque/portrait-neutral.webp")
     assert cast_rows["marin_leveque"]["relationship"]["register"] == "tu"
     assert cast_rows["marin_leveque"]["relationship"]["callbacks"] == ["la clé sous la pluie"]
     assert cast_rows["marin_leveque"]["episodes"][0]["href"] == "/serial/episode/0"
@@ -1673,7 +1667,7 @@ def _recovering_scene_factory(counter: dict[str, int]):
 
 
 def test_delayed_retry_beat_task_recovers_episode(db_session, monkeypatch):
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     user = _user(db_session, email="serial-beat-retry@example.com")
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
@@ -1706,7 +1700,7 @@ def test_delayed_retry_beat_task_recovers_episode(db_session, monkeypatch):
 
 
 def test_delayed_retry_beat_task_skips_generation_already_in_flight(db_session, monkeypatch):
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     user = _user(db_session, email="serial-beat-inflight@example.com")
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
@@ -1732,7 +1726,7 @@ def test_delayed_retry_beat_task_skips_generation_already_in_flight(db_session, 
 
 
 def test_delayed_retry_beat_task_stops_after_daily_budget(db_session, monkeypatch):
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     user = _user(db_session, email="serial-beat-budget@example.com")
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
@@ -1777,7 +1771,7 @@ def test_delayed_retry_beat_task_stops_after_daily_budget(db_session, monkeypatc
 
 
 def test_delayed_retry_beat_task_keeps_episode_retryable_after_failure(db_session, monkeypatch):
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     user = _user(db_session, email="serial-beat-failure@example.com")
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
@@ -1810,11 +1804,11 @@ def test_season_finale_without_next_season_enters_interlude(db_session, monkeypa
     thread = _run(service.get_or_create_thread(user))
     thread.current_episode_index = 96
     world = dict(thread.world_bible or {})
-    world["season_number"] = 2
+    world["season_number"] = 3
     thread.world_bible = world
     _complete_season_arcs(thread, episode_index=95)
     state = dict(thread.state or {})
-    state["season_number"] = 2
+    state["season_number"] = 3
     thread.state = state
     finale_payload = SerialArcPlanner(thread).plan_next_episode("see").model_dump(mode="json")
     assert finale_payload["season_finale"] is True
@@ -1872,7 +1866,7 @@ def test_season_finale_without_next_season_enters_interlude(db_session, monkeypa
     assert thread.state["season_complete"] is True
     assert thread.state["interlude_mode"] is True
     assert thread.state["interlude_since_episode"] == 97
-    assert thread.world_bible.get("season_number") == 2
+    assert thread.world_bible.get("season_number") == 3
 
     next_brief = SerialArcPlanner(thread).plan_next_episode("act").model_dump(mode="json")
     assert next_brief["interlude"] is True
@@ -1893,7 +1887,7 @@ def test_interlude_briefs_rotate_and_never_repeat_a_finale(db_session):
     thread.state = state
 
     beat_ids = []
-    for index in range(97, 103):
+    for index in range(97, 97 + 2 * len(INTERLUDE_BEATS)):
         thread.current_episode_index = index
         brief = SerialArcPlanner(thread).plan_next_episode("see" if index % 2 else "act").model_dump(mode="json")
         assert brief["interlude"] is True
@@ -1933,7 +1927,7 @@ def test_today_supersedes_incompatible_scene_on_unread_episode(db_session, monke
     """A pre-rebuild scene must never be handed out by today(): the reader answers
     409 for it and the learner was left on a spinner. The unread episode drops the
     stale scene and goes back to "available" so the next open recomposes it."""
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     user = _user(db_session, email="serial-supersede@example.com")
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
@@ -1984,7 +1978,7 @@ def test_today_supersedes_incompatible_scene_on_unread_episode(db_session, monke
 
 def test_today_keeps_incompatible_scene_on_completed_episode(db_session, monkeypatch):
     """History is history: a read episode keeps its old scene reference."""
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     user = _user(db_session, email="serial-supersede-done@example.com")
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))
@@ -2070,7 +2064,7 @@ def _legacy_scene(db_session, user, thread, *, episode_index: int, status: str, 
 
 
 def test_current_contract_scene_is_left_alone(db_session, monkeypatch):
-    monkeypatch.setattr(NewsService, "fetch_feuilleton_daily_seed", _fake_seed)
+    monkeypatch.setattr(feuilleton_bridge, "dossier_for_feuilleton", _fake_dossier)
     user = _user(db_session, email="serial-supersede-current@example.com")
     service = SerialThreadService(db_session)
     thread = _run(service.get_or_create_thread(user))

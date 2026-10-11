@@ -120,7 +120,9 @@ def test_unknown_word_detection_creates_progress(db_session):
         .first()
     )
     assert review_log is not None
-    assert review_log.rating == 3
+    # WP-115a: an unaided correct production is «Good» (2 on the 0-3 scale);
+    # «Easy» (3) needs the answer's speed and is not earned from a chat turn.
+    assert review_log.rating == 2
 
     interaction = (
         db_session.query(WordInteraction)

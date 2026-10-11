@@ -1,0 +1,335 @@
+/* ===========================================================================
+   WP-120 phase C · La Carte (components/carte/*, pages/carte.tsx).
+   Scoped under `.av2`; `--av2-*` tokens only — no new font, no new colour.
+   The drawings (public/assets/carte/*.svg) carry classes, never colours:
+   sea = paper, land = the card tint, borders = an ink hairline, the Seine in a
+   thin wash of the av2 blue. A Papier is a circle (its vignette); a season place
+   of «Mon quartier» is a square.
+   =========================================================================== */
+
+/* --- the page ------------------------------------------------------------ */
+.av2.carte-page {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--av2-paper);
+  width: 100%;
+  max-width: var(--phone-shell-max, 460px);
+  margin: 0 auto;
+}
+.av2 .carte-page__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 72px 6px 16px;
+}
+.av2 .carte-page__title {
+  margin: 0;
+  font-family: var(--av2-serif);
+  font-size: var(--av2-t-screen);
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--av2-ink);
+}
+.av2 .carte-page__body { display: flex; flex-direction: column; gap: 16px; padding: 8px 16px calc(var(--av2-safe-bottom) + 16px); min-width: 0; }
+.av2 .carte-page__mock { position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 20; margin: 0; pointer-events: none; opacity: 0.7; font-size: 0.6875rem; font-weight: 700; color: var(--av2-muted); }
+.av2 .carte-loading { display: flex; flex-direction: column; gap: 12px; }
+.av2 .carte-empty .av2-state { padding-top: 8px; padding-bottom: 8px; }
+
+/* --- the map --------------------------------------------------------------- */
+.av2 .carte { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.av2 .carte__bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; min-height: 44px; }
+.av2 .carte__where { min-width: 0; }
+.av2 .carte__level { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-title); line-height: 1.15; color: var(--av2-ink); }
+.av2 .carte__count { margin: 2px 0 0; font-size: var(--av2-t-meta); font-weight: 600; letter-spacing: 0.02em; color: var(--av2-muted); }
+.av2 .carte__tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.av2 .carte__france { cursor: pointer; }
+.av2 .carte__france svg { flex: none; }
+
+.av2 .carte__map {
+  position: relative;
+  width: 100%;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-paper);
+  box-shadow: inset 0 0 0 1px var(--av2-line);
+  animation: carte-in 0.22s ease-out both;
+}
+@keyframes carte-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .av2 .carte__map { animation: none; }
+}
+.av2 .carte__drawing { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.av2 .carte__drawing svg { display: block; width: 100%; height: 100%; }
+
+/* The drawing's classes (scripts/geo/build_carte.py). */
+.av2 .carte-land { fill: var(--av2-card); }
+.av2 .carte-land--paris { fill: var(--av2-line); }
+.av2 .carte-border { stroke: var(--av2-ink); stroke-opacity: 0.45; stroke-width: 0.75px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.av2 .carte-seine { stroke: var(--av2-blue); stroke-opacity: 0.32; }
+.av2 .carte-inset { fill: none; stroke: var(--av2-line-2); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.av2 .carte-label { fill: var(--av2-muted); font-family: var(--av2-serif); font-style: italic; font-size: 28px; }
+.av2 .carte-label--inset { font-size: 30px; }
+.av2 .carte-label--arr { font-family: var(--av2-sans); font-style: normal; font-weight: 600; font-size: 24px; fill-opacity: 0.7; }
+.av2 .carte[data-level='france'] .carte-label:not(.carte-label--inset) { display: none; }
+
+/* --- marks: pins, clusters, «Mon quartier» -------------------------------- */
+.av2 .carte__marks { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
+.av2 .carte__mark { position: absolute; z-index: 2; width: var(--av2-tap); height: var(--av2-tap); margin: calc(var(--av2-tap) / -2) 0 0 calc(var(--av2-tap) / -2); }
+.av2 .carte__mark > button {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.av2 .carte__mark > button:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: -4px; }
+.av2 .carte__mark > button > * { grid-area: 1 / 1; }
+.av2 .carte__mark--quartier { z-index: 1; width: 32px; height: 32px; margin: -16px 0 0 -16px; }
+
+
+.av2 .carte-pin__stamp { display: block; line-height: 0; filter: drop-shadow(0 1px 0 var(--av2-line-2)); }
+.av2 .carte-pin__plain {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--av2-ink);
+  box-shadow: 0 0 0 3px var(--av2-paper), 0 0 0 4px var(--av2-line-2);
+}
+/* Known to the city only: a dotted ring; a region: a wider one. */
+.av2 .carte-pin__ring { width: 46px; height: 46px; border-radius: 50%; border: 1.5px dotted var(--av2-ink); opacity: 0.7; pointer-events: none; }
+.av2 .carte-pin[data-precision='region'] .carte-pin__ring { width: 68px; height: 68px; }
+
+.av2 .carte-cluster > span {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-ink);
+  color: var(--av2-on-ink);
+  font-family: var(--av2-sans);
+  font-weight: 700;
+  font-size: var(--av2-t-label);
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 3px var(--av2-paper);
+}
+
+.av2 .carte-quartier::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  background: var(--av2-paper);
+  box-shadow: inset 0 0 0 2.5px var(--av2-ink);
+}
+.av2 .carte-quartier[data-count]:not([data-count='1'])::after { width: 15px; height: 15px; background: var(--av2-ink); box-shadow: 0 0 0 2px var(--av2-paper); }
+
+.av2 .carte__elsewhere { margin: 0; }
+.av2 .carte__elsewhere .av2-btn { padding-left: 0; padding-right: 0; }
+
+/* --- the card ------------------------------------------------------------ */
+.av2 .carte-card { display: flex; flex-direction: column; gap: 16px; padding-bottom: 4px; }
+.av2 .carte-card__stamp { display: flex; justify-content: center; }
+.av2 .carte-card__plate { height: 96px; border-radius: 12px; overflow: hidden; background: var(--av2-line); }
+.av2 .carte-card__plate img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.av2 .carte-card__part { display: flex; flex-direction: column; gap: 6px; }
+.av2 .carte-card__part .av2-label { margin: 0; }
+.av2 .carte-card__made { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-option); line-height: 1.3; color: var(--av2-ink); }
+.av2 .carte-yours { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.av2 .carte-yours sup { margin-left: 2px; font-family: var(--av2-sans); font-size: 0.6em; font-weight: 700; color: var(--av2-muted); }
+.av2 .carte-card__words { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.av2 .carte-word { min-height: 36px; font-family: var(--av2-serif); font-size: var(--av2-t-body); cursor: pointer; }
+.av2 .carte-card__actions { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+
+/* --- a cluster's list ------------------------------------------------------ */
+.av2 .carte-list { margin: 0; padding: 0 0 8px; list-style: none; }
+.av2 .carte-list__row {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--av2-tap);
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--av2-line);
+  background: transparent;
+  color: var(--av2-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.av2 .carte-list__row:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; }
+.av2 .carte-list__week { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .carte-list__headline { font-family: var(--av2-serif); font-size: var(--av2-t-rule); line-height: 1.25; }
+.av2 .carte-list__place { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+
+/* --- WP-120 phase D · the Relevé's badge (components/carte/CarteBadge.tsx) --- */
+.av2 .carte-badge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--av2-tap, 44px);
+  padding: 6px 14px 6px 10px;
+  border: 1px solid var(--av2-line);
+  border-radius: var(--av2-r-pill, 999px);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  text-decoration: none;
+  font-size: 14px;
+}
+.av2 .carte-badge:focus-visible {
+  outline: 2px solid var(--av2-focus);
+  outline-offset: 2px;
+}
+.av2 .carte-badge__france { flex: none; }
+/* The Relevé's other doors under the badge: the map's due words (WP-121 A.4), the
+   Correcteur's waiting draft (WP-122 §4). A plain underlined line, no new colour. */
+.av2 .nb-rv__door {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--av2-tap, 44px);
+  color: var(--av2-ink);
+  font-family: var(--av2-serif);
+  font-size: 16px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.av2 .nb-rv__door:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; }
+.av2 .carte-badge__name { font-family: var(--av2-serif); font-size: 16px; }
+.av2 .carte-badge__count {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--av2-ink);
+  color: var(--av2-paper);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===========================================================================
+   WP-121 · Le Palais de mémoire (due dots, «Réviser ici», CarteReview) and
+   La Relecture (CarteRelecture). Same tokens; no new font, no new colour.
+   =========================================================================== */
+
+/* --- the due dot: a small ink dot on the vignette's ring, never a number ---- */
+.av2 .carte-due-dot {
+  justify-self: end;
+  align-self: start;
+  width: 9px;
+  height: 9px;
+  margin: 5px 5px 0 0;
+  border-radius: 50%;
+  background: var(--av2-ink);
+  box-shadow: 0 0 0 2px var(--av2-paper);
+  animation: carte-due 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+.av2 .carte-cluster .carte-due-dot { margin: 0 -2px 0 0; }
+.av2 .carte-due-dot--inline { display: inline-block; margin: 0 8px 1px 0; vertical-align: middle; animation: none; }
+@keyframes carte-due {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .av2 .carte-due-dot { animation: none; }
+}
+
+/* --- the card's first row ---------------------------------------------------- */
+.av2 .carte-card__due { display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--av2-line); }
+.av2 .carte-card__due-line { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-option); line-height: 1.25; color: var(--av2-ink); }
+.av2 .carte-card__relecture .av2-btn { align-self: flex-start; padding-left: 0; padding-right: 0; }
+
+/* --- CarteReview: the plate full-bleed behind ---------------------------------- */
+.av2.carte-page--review { background: transparent; }
+.av2 .carte-review { position: relative; display: flex; flex-direction: column; gap: 14px; min-height: 70vh; }
+.av2 .carte-review__plate {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--av2-line);
+}
+.av2 .carte-review__plate img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.av2 .carte-review__plate::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, transparent 18%, var(--av2-paper) 62%);
+  opacity: 0.94;
+}
+.av2 .carte-review__plate-fallback { display: block; width: 100%; height: 100%; }
+.av2 .carte-review > :not(.carte-review__plate) { position: relative; z-index: 1; }
+.av2.carte-page--review .carte-page__body { position: relative; z-index: 1; }
+/* The page's head stays above the stage (the body is its own stacking context). */
+.av2.carte-page--review .carte-page__head { position: relative; z-index: 2; }
+.av2.carte-page--review .carte-page__title { padding: 2px 12px 4px; border-radius: var(--av2-r-pill); background: var(--av2-paper); }
+.av2 .carte-review__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: flex-start;
+  max-width: 100%;
+  margin-top: 16vh;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--av2-paper);
+}
+.av2 .carte-review__head .av2-label { margin: 0; }
+.av2 .carte-review__title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-title); line-height: 1.15; color: var(--av2-ink); }
+.av2 .carte-review__count { margin: 0; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); font-variant-numeric: tabular-nums; }
+.av2 .carte-review__voice { display: flex; align-items: flex-start; gap: 10px; margin: 0; }
+.av2 .carte-review__face { flex: none; line-height: 0; }
+.av2 .carte-review__said { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: 14px; background: var(--av2-card); box-shadow: inset 0 0 0 1px var(--av2-line); }
+.av2 .carte-review__said .av2-label { margin: 0; }
+.av2 .carte-review__said blockquote { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-body); line-height: 1.35; color: var(--av2-ink); }
+.av2 .carte-review__card { display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--av2-r-card); background: var(--av2-paper); box-shadow: inset 0 0 0 1px var(--av2-line); }
+.av2 .carte-review__ask { margin: 0; }
+.av2 .carte-review__verdict { margin: 0; font-weight: 700; color: var(--av2-ink); }
+.av2 .carte-review__verdict[data-verdict='correct'] { color: var(--av2-green); }
+.av2 .carte-review__verdict span { font-family: var(--av2-serif); font-weight: 400; }
+.av2 .carte-review__failed { margin: 0; color: var(--av2-red); }
+.av2 .carte-review__done { display: flex; flex-direction: column; gap: 12px; }
+.av2 .carte-review__done-title { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-title); font-weight: 500; color: var(--av2-ink); }
+.av2 .carte-review__done .av2-body { margin: 0; }
+.av2 .carte-review__words { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.av2 .carte-review__words li { display: flex; gap: 8px; align-items: baseline; font-family: var(--av2-serif); font-size: var(--av2-t-body); }
+.av2 .carte-review__words b { font-weight: 600; color: var(--av2-ink); }
+.av2 .carte-review__words span { color: var(--av2-muted); font-style: italic; }
+
+/* --- CarteRelecture ------------------------------------------------------------ */
+.av2 .carte-relecture { display: flex; flex-direction: column; gap: 14px; }
+.av2 .carte-relecture__band { height: 112px; border-radius: 12px; overflow: hidden; background: var(--av2-line); }
+.av2 .carte-relecture__band img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.av2 .carte-relecture__head { display: flex; flex-direction: column; gap: 4px; }
+.av2 .carte-relecture__head .av2-label { margin: 0; }
+.av2 .carte-relecture__title { margin: 0; font-family: var(--av2-serif); font-weight: 500; font-size: var(--av2-t-title); line-height: 1.15; color: var(--av2-ink); }
+.av2 .carte-relecture__question,
+.av2 .carte-relecture__romy { display: flex; align-items: flex-start; gap: 10px; margin: 0; }
+.av2 .carte-relecture__question blockquote,
+.av2 .carte-relecture__romy blockquote { margin: 0; padding: 10px 12px; border-radius: 14px; background: var(--av2-card); box-shadow: inset 0 0 0 1px var(--av2-line); font-family: var(--av2-serif); font-size: var(--av2-t-body); line-height: 1.35; color: var(--av2-ink); }
+.av2 .carte-relecture__question blockquote { font-style: italic; }
+.av2 .carte-relecture__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.av2 .carte-relecture__side { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 12px; border-radius: var(--av2-r-card); background: var(--av2-card); box-shadow: inset 0 0 0 1px var(--av2-line); min-width: 0; }
+.av2 .carte-relecture__side[data-side='now'] { box-shadow: inset 0 0 0 2px var(--av2-ink); }
+.av2 .carte-relecture__side .av2-label { margin: 0; }
+.av2 .carte-relecture__text { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink); overflow-wrap: anywhere; }
+/* Register: a dotted underline; grammar: a solid one. Each also says its word to a screen reader. */
+.av2 .carte-flag { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.av2 .carte-flag[data-flag='register'] { text-decoration-style: dotted; }
+@media (max-width: 359px) {
+  .av2 .carte-relecture__pair { grid-template-columns: 1fr; }
+}

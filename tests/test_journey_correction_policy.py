@@ -54,6 +54,9 @@ def _user(db_session, *, correction_level: str = "moderate") -> User:
         target_language="fr",
         proficiency_level="A2",
         grammar_correction_level=correction_level,
+        # «je suis allé» → «allée» below is a correction only for a learner who chose
+        # feminine forms; a neutral learner's gender is not corrected (2026-10-09).
+        address_preference="feminine",
     )
     db_session.add(user)
     db_session.flush()
@@ -659,3 +662,62 @@ def test_a_correction_quoting_the_recorded_answer_is_kept(db_session):
     errata = _errata(db_session, user)
     assert len(errata) == 1
     assert errata[0].correction == "Je voudrais"
+
+
+# --------------------------------------------------------------------------
+# 2026-09-19: legacy rows on the repair card
+# --------------------------------------------------------------------------
+
+
+def _legacy_row(db_session, user, **fields) -> UserError:
+    row = UserError(
+        user_id=user.id,
+        error_category="grammar",
+        error_pattern="llm_grammar",
+        review_mode="grammar",
+        state="open",
+        next_review_date=datetime.now(UTC) - timedelta(days=1),
+        **fields,
+    )
+    db_session.add(row)
+    db_session.commit()
+    return row
+
+
+def test_a_legacy_row_that_filed_the_wording_as_context_reads_it_as_the_task(db_session):
+    """Owner screenshot 2026-09-19: «Reprenez cette faute de grammaire : cette
+    erreur — Pourquoi : un conseils». The first corrector stored the learner's
+    wording in the context column and no explanation; the card must ask for
+    the repair of that wording, not present it as the reason."""
+
+    user = _user(db_session)
+    row = _legacy_row(db_session, user, correction="des conseils", context_snippet="un conseils")
+    task = ErrorMemoryService(db_session).build_review_task(user=user, error_id=row.id)
+    assert task is not None
+    assert task["learner_text"] == "un conseils"
+    assert task["prompt"].endswith(": un conseils")
+    assert task["why_wrong"] is None
+    assert "cette erreur" not in task["prompt"]
+
+
+def test_a_real_explanation_in_the_context_column_stays_the_reason(db_session):
+    user = _user(db_session)
+    row = _legacy_row(
+        db_session,
+        user,
+        correction="Que penses-tu ?",
+        context_snippet="Im Französischen ist die korrekte Wortstellung für direkte Fragen 'Que penses-tu ?'.",
+    )
+    task = ErrorMemoryService(db_session).build_review_task(user=user, error_id=row.id)
+    assert task is not None
+    assert task["learner_text"] == ""
+    assert task["why_wrong"].startswith("Im Französischen")
+
+
+def test_a_row_without_a_correction_is_not_due_for_repair(db_session):
+    user = _user(db_session)
+    gradable = _legacy_row(db_session, user, original_text="une homme", correction="un homme")
+    _legacy_row(db_session, user, original_text="une homme", correction=None)
+    _legacy_row(db_session, user, original_text="une homme", correction="   ")
+    due = ErrorMemoryService(db_session).due_error_records(user)
+    assert [row.id for row in due] == [gradable.id]

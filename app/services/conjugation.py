@@ -549,8 +549,17 @@ class ConjugationService:
         tense: str,
         rating: int,
         response_time_ms: int | None = None,
+        person: str | None = None,
+        answer_text: str | None = None,
     ) -> UserConjugationProgress:
-        """Apply an FSRS review to one verb x tense item."""
+        """Apply an FSRS review to one verb x tense item.
+
+        QA-CLOSE (owner decision a): with ``answer_text`` the form is graded here
+        (``answer_acceptance.judge`` against the table's form for ``person``): a
+        miss is «Again» whatever was pressed, a hit keeps the learner's grade (at
+        least «Hard»). The verdict is left on ``progress.last_verdict``. Without it,
+        the rating is the learner's own self-rating.
+        """
 
         if rating < 0 or rating > 3:
             raise ValueError("rating must be between 0 and 3")
@@ -558,6 +567,24 @@ class ConjugationService:
         normalized = normalize_lemma(lemma)
         if not normalized or tense not in CORE_TENSES:
             raise ValueError("unknown conjugation item")
+        verdict = None
+        if str(answer_text or "").strip():
+            from app.services.answer_acceptance import judge
+
+            table = self.table_for(normalized, tense)
+            forms = [row["form"] for row in table if not person or row["person"] == person]
+            if not forms:
+                raise ValueError("unknown conjugation person")
+            # «je suis allé» or «suis allé»: the subject pronoun is optional.
+            with_pronoun = [
+                f"j'{row['form']}" if pronoun == "je" and row["form"][:1].lower() in "aeiouyhéèêâîô" else f"{pronoun} {row['form']}"
+                for row in table
+                if row["form"] in forms and tense != "imperatif"
+                for pronoun in str(row["person"]).split("/")
+                if pronoun
+            ]
+            verdict = judge(answer_text, [*forms, *with_pronoun])
+            rating = max(rating, 1) if verdict.correct else 0
 
         progress = (
             self.db.query(UserConjugationProgress)
@@ -618,6 +645,7 @@ class ConjugationService:
         self.db.add(progress)
         self.db.commit()
         self.db.refresh(progress)
+        progress.last_verdict = verdict
         return progress
 
     @staticmethod

@@ -102,7 +102,10 @@ def test_round_trip_public_fixture_reserializes_identically() -> None:
 
     payload = _load("cafe_journey_created")["response"]
     model = JourneySnapshot.model_validate(payload)
-    assert model.model_dump(mode="json") == payload
+    # The fixtures are frozen; the contract grows additively (WP-49 added
+    # ``prompt.audio_available`` with a default). Fields the fixture never set are
+    # left out, so a dropped or renamed field still fails here.
+    assert model.model_dump(mode="json", exclude_unset=True) == payload
 
 
 def test_every_private_fixture_stays_out_of_the_public_directory() -> None:

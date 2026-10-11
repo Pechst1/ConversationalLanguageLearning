@@ -106,7 +106,9 @@ def test_grammar_notebook_list_and_detail_include_blueprint_progress_and_errata(
     items = list_response.json()
     item = next(row for row in items if row["id"] == concept.id)
     assert item["mastery"] == 6.0
-    assert item["state_label"] == "En cours"
+    # WP-130 A: the label is the unit's stage, the level's word («en route»).
+    assert item["state_label"] == "En route"
+    assert item["stage"] == "practising"
     assert item["due_errata_count"] == 1
     assert item["recent_errata_count"] == 1
     assert item["motif"]["style"] == "atelier_bauhaus_v1"
@@ -375,6 +377,9 @@ def test_notebook_notes_hide_review_provenance_and_survive_a_seance(client: Test
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}
     user = _user_from_token(db_session, token)
+    # The catalogue this test reads is its own: it used to be whatever an earlier
+    # test in the same process had left behind (E-2), and alone it found none.
+    FrenchCoreGrammarCatalog(db_session).ensure_catalog(archive_legacy=True)
 
     concept = (
         db_session.query(GrammarConcept)

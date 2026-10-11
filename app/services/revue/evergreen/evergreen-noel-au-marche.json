@@ -1,0 +1,115 @@
+{
+  "id": "evergreen-noel-au-marche",
+  "dossier_version": "revue-v1",
+  "week": "2026-W48",
+  "topic": "culture",
+  "title_fr": "Noël au marché, à Strasbourg",
+  "summary_fr": "En décembre, les marchés de Noël ouvrent dans beaucoup de villes. Celui de Strasbourg, le Christkindelsmärik, existe depuis 1570. Il attire chaque année des visiteurs de toute l'Europe et d'ailleurs.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le marché de Noël de Strasbourg, le Christkindelsmärik, existe depuis 1570.",
+      "quote": "En 1570, Strasbourg voit naître le Christkindelsmärik, un marché dédié à l’Enfant Jésus.",
+      "source_id": "noel_strasbourg",
+      "url": "https://noel.strasbourg.eu/notre-histoire",
+      "published_at": "2026-10-02",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché se tient toujours sur la place Broglie, son site historique, et aussi dans d'autres lieux de la ville.",
+      "quote": "le Christkindelsmärik se trouve toujours sur la vaste place Broglie (ancien marché-aux-Chevaux), considérée comme son site historique, auquel ont été ajoutés d’autres lieux de la ville",
+      "source_id": "noel_wikipedia",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Christkindelsm%C3%A4rik&oldid=237682752",
+      "published_at": "2026-07-09",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Entre 2010 et 2014, le marché a attiré près de 2 millions de visiteurs par an.",
+      "quote": "Entre 2010 et 2014, le marché de Noël attire près de 2 millions de visiteurs par an.",
+      "source_id": "noel_strasbourg",
+      "url": "https://noel.strasbourg.eu/notre-histoire",
+      "published_at": "2026-10-02",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la Ville de Strasbourg, le nom « Strasbourg Capitale de Noël », depuis 1992, confirme le prestige du marché en Europe.",
+      "quote": "En 1992, le marché de Noël prend une nouvelle dimension et devient Strasbourg Capitale de Noël. Cette appellation scelle son rayonnement européen et confirme son prestige culturel.",
+      "source_id": "noel_strasbourg",
+      "url": "https://noel.strasbourg.eu/notre-histoire",
+      "published_at": "2026-10-02",
+      "confidence": "reported",
+      "attributed_to": "la Ville de Strasbourg (site officiel Strasbourg Capitale de Noël)"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Strasbourg",
+      "kind": "place"
+    },
+    {
+      "name": "Place Broglie",
+      "kind": "place"
+    },
+    {
+      "name": "Ville de Strasbourg",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Les dates officielles de l'édition 2026 n'étaient pas encore annoncées par la ville début octobre 2026.",
+    "Les sources ne donnent pas de chiffre récent de visiteurs : celui de la ville porte sur 2010 à 2014."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Ce qu'on trouve dans un marché de Noël",
+      "purpose": "understand_change"
+    },
+    {
+      "id": "a2",
+      "fr": "Une tradition ou une attraction pour touristes ?",
+      "purpose": "explain_disagreement"
+    }
+  ],
+  "places": [
+    {
+      "id": "marche_noel_strasbourg",
+      "name_fr": "Le marché de Noël, place Broglie à Strasbourg",
+      "brief": "the Christkindelsmärik on the place Broglie in Strasbourg: wooden Christmas market chalets with snow-dusted roofs, garlands and warm lights, steaming mulled-wine pots, a tall decorated fir tree, half-timbered houses at dusk",
+      "known": false,
+      "geo": {
+        "lat": 48.5846,
+        "lon": 7.7487,
+        "precision": "exact",
+        "label_fr": "Marché de Noël, place Broglie, Strasbourg"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-11-27/2026-12-24",
+    "relevant_until": "2027-01-07"
+  },
+  "sources": [
+    {
+      "id": "noel_strasbourg",
+      "name": "Ville de Strasbourg, « Strasbourg Capitale de Noël » (noel.strasbourg.eu)",
+      "url": "https://noel.strasbourg.eu/notre-histoire",
+      "published_at": "2026-10-02"
+    },
+    {
+      "id": "noel_wikipedia",
+      "name": "Wikipédia, « Christkindelsmärik »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Christkindelsm%C3%A4rik&oldid=237682752",
+      "published_at": "2026-07-09"
+    }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "un sapin de Noël"
+}

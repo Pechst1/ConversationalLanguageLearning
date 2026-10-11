@@ -28,6 +28,11 @@ export type ChoiceOption = {
   /** French answer text. Rendered `lang="fr"` so it is spoken correctly. */
   textFr: string;
   state?: ChoiceState;
+  /**
+   * WP-78. A meaning card (listen-and-tap) is in the learner's language:
+   * `null` drops `lang="fr"`. Omitted means French, as before.
+   */
+  lang?: string | null;
 };
 
 export type ChoiceListProps = {
@@ -75,7 +80,7 @@ export function ChoiceList({
               disabled={disabled}
               onClick={() => onSelect(option.id)}
             >
-              <span lang="fr">{option.textFr}</span>
+              <span lang={option.lang === undefined ? 'fr' : option.lang ?? undefined}>{option.textFr}</span>
               <span className="av2-choice__dot" aria-hidden="true">
                 {state === 'correct' ? <CheckIcon size={13} /> : null}
                 {state === 'wrong' ? <RepairIcon size={13} /> : null}
@@ -104,6 +109,12 @@ export type WordTilesProps = {
   disabled?: boolean;
   onPlace: (id: string) => void;
   onRemoveLast: () => void;
+  /**
+   * WP-76: the assembled sentence, graded — on the device first, then by the
+   * server. Paired with a glyph and a hidden word, never colour alone.
+   */
+  verdict?: 'correct' | 'wrong' | null;
+  verdictLabel?: string;
 };
 
 export function WordTiles({
@@ -115,9 +126,11 @@ export function WordTiles({
   disabled = false,
   onPlace,
   onRemoveLast,
+  verdict = null,
+  verdictLabel,
 }: WordTilesProps) {
   const byId = new Map(options.map((option) => [option.id, option]));
-  const remaining = options.filter((option) => !placed.includes(option.id));
+  const sentence = placed.map((id) => byId.get(id)?.textFr ?? '').join(' ');
 
   return (
     <div className="av2-tiles">
@@ -127,27 +140,55 @@ export function WordTiles({
         className="av2-tiles__line"
         lang="fr"
         data-empty={placed.length === 0 ? 'true' : undefined}
+        data-verdict={verdict ?? undefined}
         aria-live="polite"
         aria-label={label}
       >
-        {placed.length === 0
-          ? emptyHint
-          : placed.map((id) => byId.get(id)?.textFr ?? '').join(' ')}
+        {placed.length === 0 ? (
+          emptyHint
+        ) : (
+          <>
+            {/* WP-D7: placed words are tiles in the selected style. The
+                sentence is read once, whole, from the hidden line. */}
+            <span className="av2-sr">{sentence}</span>
+            {placed.map((id) => (
+              <span key={id} className="av2-tile" data-state="placed" aria-hidden="true">
+                {byId.get(id)?.textFr ?? ''}
+              </span>
+            ))}
+          </>
+        )}
+        {verdict && (
+          <span className="av2-tiles__mark" aria-hidden="true">
+            {verdict === 'correct' ? <CheckIcon size={13} /> : <RepairIcon size={13} />}
+          </span>
+        )}
+        {verdict && verdictLabel && <span className="av2-sr">{verdictLabel}</span>}
       </p>
 
+      {/* WP-D7: a placed word leaves its mould — a dashed slot of the same
+          width, in the same place — so the bank never reflows. */}
       <div className="av2-tiles__bank">
-        {remaining.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className="av2-tile"
-            lang="fr"
-            disabled={disabled}
-            onClick={() => onPlace(option.id)}
-          >
-            {option.textFr}
-          </button>
-        ))}
+        {options.map((option) =>
+          placed.includes(option.id) ? (
+            <span key={option.id} className="av2-tile av2-tile--mould" data-state="mould" aria-hidden="true">
+              <span className="av2-tile__ghost" lang="fr">
+                {option.textFr}
+              </span>
+            </span>
+          ) : (
+            <button
+              key={option.id}
+              type="button"
+              className="av2-tile"
+              lang="fr"
+              disabled={disabled}
+              onClick={() => onPlace(option.id)}
+            >
+              {option.textFr}
+            </button>
+          ),
+        )}
       </div>
 
       {placed.length > 0 && !disabled && (
@@ -205,6 +246,10 @@ export function textAnswerField({
         ref={inputRef}
         className="av2-field__control"
         lang="fr"
+        // WP-76: French typed on an English keyboard must not be "corrected".
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
         rows={rows}
         value={value}
         disabled={disabled}

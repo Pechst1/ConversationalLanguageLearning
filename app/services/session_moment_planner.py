@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core.error_detection import ErrorDetectionResult
+from app.core.srs.memory import Evidence, EvidenceFormat, format_for_name
 from app.db.models.error import UserError
 from app.db.models.session import ConversationMessage, LearningSession, SessionLearningMoment
 from app.db.models.user import User
@@ -1064,6 +1065,13 @@ class SessionMomentPlanner:
                 score=score,
                 notes=str(check_result.get("feedback") or check_result.get("explanation") or ""),
                 source="moment",
+                # WP-L3: a moment is a posed exercise, not the learner's own
+                # line; its format sets the evidence weight.
+                evidence=Evidence(
+                    format_for_name(str(metadata.get("exercise_type") or ""))
+                    or EvidenceFormat.TRANSFORM,
+                    correct=score >= 5.0,
+                ),
             )
 
         return self._complete_moment(

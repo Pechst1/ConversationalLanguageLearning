@@ -5,6 +5,7 @@ import json
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -922,7 +923,9 @@ def test_atelier_today_does_not_count_future_due_at_later_today_as_due(
     assert response.json()["progress"]["vocabularyDue"] == 0
 
 
-def test_start_session_with_preferred_concept_keeps_full_atelier_set(client: TestClient, db_session):
+def test_start_session_with_preferred_concept_seats_it_first_in_the_forge(client: TestClient, db_session):
+    """WP-S3: the Cahier's rule is today's rule; the forge never pads the séance
+    with brand-new rules (at most one new rule a séance)."""
     token = _token(client)
     AtelierScheduler(db_session).ensure_catalog()
     _prime_core_exercise_sets(db_session)
@@ -937,7 +940,39 @@ def test_start_session_with_preferred_concept_keeps_full_atelier_set(client: Tes
     assert response.status_code == 201
     payload = response.json()
     assert payload["concepts"][0]["id"] == concept.id
-    assert len(payload["concepts"]) == 3
+    assert payload["forge"]["rules"][0] == {**payload["forge"]["rules"][0], "concept_id": concept.id, "role": "today"}
+    # A fresh learner: every other pick would be brand new, so the rule is alone.
+    assert len(payload["concepts"]) == 1
+    assert payload["forge"]["next"]["concept_id"] == concept.id
+
+
+@pytest.fixture
+def legacy_ladder(monkeypatch):
+    """The legacy ladder (adaptive lock, padded plan): WP-S3's forge switched off."""
+    from app.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "ATELIER_FORGE_ENABLED", False)
+
+
+def test_start_session_with_preferred_concept_seats_it_without_padding(client: TestClient, db_session, legacy_ladder):
+    token = _token(client)
+    AtelierScheduler(db_session).ensure_catalog()
+    _prime_core_exercise_sets(db_session)
+    concept = db_session.query(GrammarConcept).filter(GrammarConcept.external_id == "FR_A2_NEG_001").one()
+
+    response = client.post(
+        "/api/v1/atelier/sessions",
+        json={"preferred_concept_id": concept.id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["concepts"][0]["id"] == concept.id
+    # WP-S4: no pad to three from teaching order — a new learner has nothing
+    # due or in progress, so the chosen rule is the séance.
+    assert [item["id"] for item in payload["concepts"]] == [concept.id]
+    assert payload["quote"]["forge"]["reason"] == "preferred"
 
 
 def test_session_exercise_set_upgrades_unattempted_fallback_to_shared_llm_cache(db_session):
@@ -1265,6 +1300,13 @@ def test_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
     keyed = [attempt for attempt in attempts if attempt.round in {"recognize", "transform"}]
     open_answers = [attempt for attempt in attempts if attempt.round not in {"recognize", "transform"}]
     assert all(attempt.verdict == "correct" for attempt in keyed)
+    # WP-S1: no submit waited on the (failing) model; open answers came back
+    # with a provisional local verdict and a queued relecture.
+    assert correction_service.llm_service.calls == []
+    assert all(attempt.correction_payload["assessment_status"] == "provisional" for attempt in open_answers)
+    assert all(attempt.correction_payload["ai_review"]["status"] == "pending" for attempt in open_answers)
+    # The relecture fails: the open answers are then unchecked, never accepted.
+    open_answers = [correction_service.run_ai_review_for_attempt(attempt.id) for attempt in open_answers]
     assert all(attempt.verdict == "needs_review" and attempt.correction_payload["assessment_status"] == "unavailable" for attempt in open_answers)
     assert all(attempt.correction_payload["ai_review"]["status"] == "failed" for attempt in open_answers)
     assert all(not attempt.correction_payload.get("errata") for attempt in attempts)
@@ -1478,6 +1520,14 @@ def test_report_exercise_records_generation_event(client: TestClient, db_session
 
 def test_select_atelier_vocabulary_uses_curated_starter_for_new_user(db_session):
     user = _user(db_session)
+    # The words below are fr_to_de cards, so the learner is German-speaking. Left
+    # at the model default (English), the learner's own pair is fr_to_en, and the
+    # selector rightly prefers *any* word in the learner's pair over a starter in
+    # another pair: a frequent non-starter fr_to_en/unscoped word that an earlier
+    # test left in the shared database then outranked «venir», and this test
+    # failed only in some orders.
+    user.native_language = "de"
+    db_session.commit()
     db_session.add_all(
         [
             VocabularyWord(
@@ -1504,7 +1554,13 @@ def test_select_atelier_vocabulary_uses_curated_starter_for_new_user(db_session)
 
     vocabulary = select_atelier_vocabulary(db_session, user=user, limit=1)
 
-    assert vocabulary[0]["word"] == "venir"
+    # The suite shares one SQLite database for the whole run, so an earlier test may
+    # have left a starter word that outranks «venir». What this test pins is the rule:
+    # a curated starter word wins over the most frequent non-starter one.
+    from app.services.atelier import _ATELIER_STARTER_VOCABULARY
+
+    assert vocabulary[0]["word"] in _ATELIER_STARTER_VOCABULARY
+    assert vocabulary[0]["word"] != "abaisser"
     assert vocabulary[0]["bucket"] == "starter"
 
 
@@ -1983,6 +2039,8 @@ def test_transform_correction_uses_structured_llm_output(db_session):
         exercise_id="si-transform",
         prompt_payload=payload["transform"],
         answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le diner."}},
+        # WP-S1: the model reads a rewrite only in the background relecture.
+        force_llm=True,
     )
 
     assert result["corrected_answer"]["si-transform-1"].startswith("S'il arrive")
@@ -2044,7 +2102,9 @@ def test_negation_correction_names_article_change(db_session):
     assert "pas" in erratum["repair_hint"]
 
 
-def test_produce_saves_submission_without_certifying_missing_targets(db_session):
+def test_produce_saves_submission_without_certifying_missing_targets(db_session, monkeypatch):
+    # No relecture can run (no provider): the paragraph is saved unchecked.
+    monkeypatch.setattr(AtelierCorrectionService, "_can_schedule_ai_review", lambda self: False)
     user = _user(db_session)
     concepts = [_concept(db_session, "FR_B1_COND_001"), _concept(db_session, "FR_B1_TENSE_001"), _concept(db_session, "FR_A2_NEG_001")]
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id for concept in concepts])
@@ -2184,7 +2244,7 @@ def test_rule_hint_output_ladder_missing_target_is_not_recurring_erratum(db_sess
     assert result["errata"][0]["recurring"] is False
 
 
-def test_sentence_submit_uses_llm_correction_and_marks_review_complete(db_session):
+def test_sentence_submit_is_local_and_the_relecture_lands_async(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
@@ -2192,8 +2252,9 @@ def test_sentence_submit_uses_llm_correction_and_marks_review_complete(db_sessio
     db_session.commit()
     _attach_primed_exercise_set(db_session, session, concept)
     fake_llm = _FakeLLMService({"verdict": "accepted", "score_0_4": 4, "errata": []})
+    service = AtelierCorrectionService(db_session, llm_service=fake_llm)
 
-    attempt = AtelierCorrectionService(db_session, llm_service=fake_llm).submit_attempt(
+    attempt = service.submit_attempt(
         session=session,
         user=user,
         concept=concept,
@@ -2203,26 +2264,58 @@ def test_sentence_submit_uses_llm_correction_and_marks_review_complete(db_sessio
         answer_payload={"text": "Si je finis tôt, je t'appellerai."},
     )
 
+    # WP-S1: the submit returns a provisional local verdict; the model is not
+    # called on the request path.
+    assert fake_llm.calls == []
+    assert attempt.correction_payload["assessment_status"] == "provisional"
+    assert attempt.correction_payload["local_check"]["detector"] in {"hit", "miss"}
+    assert attempt.correction_payload["ai_review"]["status"] == "pending"
+    assert attempt.correction_payload["ai_review"]["auto_started"] is True
+    assert attempt.correction_payload["evidence_hold"] is True
+    assert service.should_auto_start_ai_review(attempt) is True
+
+    landed = service.run_ai_review_for_attempt(attempt.id)
+
     assert fake_llm.calls[0]["method"] == "generate_error_detection"
     llm_payload = json.loads(fake_llm.calls[0]["messages"][0]["content"])
     assert llm_payload["task"]["items"][0]["example_answer_note"].startswith("example only")
     assert "Do not use it as corrected_target" in " ".join(llm_payload["instructions"])
-    assert attempt.correction_payload["correction_debug"]["fallback_used"] is False
-    assert attempt.correction_payload["ai_review"]["status"] == "complete"
-    assert attempt.correction_payload["ai_review"]["auto_started"] is False
-    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
+    assert landed.correction_payload["correction_debug"]["fallback_used"] is False
+    assert landed.correction_payload["assessment_status"] == "checked"
+    assert landed.correction_payload["ai_review"]["status"] == "complete"
+    assert "evidence_hold" not in landed.correction_payload
+    assert landed.correction_payload["second_check"]["status"] == "complete"
+    assert service.should_auto_start_ai_review(landed) is False
 
 
-def test_transform_submit_uses_llm_correction_without_background_review(db_session):
+def test_transform_submit_is_keyed_and_the_relecture_only_explains(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
     db_session.add(session)
     db_session.commit()
     _prime_llm_exercise_set(db_session, concept)
-    fake_llm = _FakeLLMService({"verdict": "correct", "score_0_4": 4, "errata": []})
+    fake_llm = _FakeLLMService(
+        {
+            "verdict": "incorrect",
+            "score_0_4": 1,
+            "errata": [
+                {
+                    "display_label": "Si clause frame",
+                    "learner_text": "Quand il arrivera",
+                    "corrected_target": "S'il arrive",
+                    "why_wrong": "You changed the si frame into quand.",
+                    "repair_hint": "You keep si with the present.",
+                    "severity": 3,
+                    "recurring": True,
+                    "task_error_type": "si_present_result_form",
+                }
+            ],
+        }
+    )
+    service = AtelierCorrectionService(db_session, llm_service=fake_llm)
 
-    attempt = AtelierCorrectionService(db_session, llm_service=fake_llm).submit_attempt(
+    attempt = service.submit_attempt(
         session=session,
         user=user,
         concept=concept,
@@ -2232,10 +2325,22 @@ def test_transform_submit_uses_llm_correction_without_background_review(db_sessi
         answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le dîner."}},
     )
 
+    # The key grades the rewrite at once and names the difference; its
+    # evidence never waits (only free production's verdict can still change).
+    assert fake_llm.calls == []
+    assert attempt.verdict == "incorrect"
+    assert attempt.correction_payload["correction_debug"]["fallback_used"] is True
+    assert attempt.correction_payload["errata"][0]["diff"]
+    assert attempt.correction_payload["ai_review"]["status"] == "pending"
+    assert "evidence_hold" not in attempt.correction_payload
+
+    landed = service.run_ai_review_for_attempt(attempt.id)
+
     assert fake_llm.calls[0]["method"] == "generate_error_detection"
-    assert attempt.correction_payload["correction_debug"]["fallback_used"] is False
-    assert attempt.correction_payload["ai_review"]["status"] == "complete"
-    assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is False
+    assert landed.verdict == "incorrect"
+    assert landed.correction_payload["errata"][0]["why_wrong"] == "You changed the si frame into quand."
+    assert landed.correction_payload["corrected_answer"] == attempt.correction_payload["corrected_answer"]
+    assert landed.correction_payload["second_check"]["verdict_changed"] is False
 
 
 def test_recognize_submit_is_instant_and_queues_background_relecture_when_wrong(db_session):
@@ -2307,7 +2412,7 @@ def test_manual_ai_review_is_idempotent_for_not_applicable_pending_and_complete(
         round_name="transform",
         mode="rewrite",
         exercise_id="FR_B1_COND_001:transform",
-        answer_payload={"answers": {"si-transform-1": "Quand il arrivera, on commencera le dîner."}},
+        answer_payload={"answers": {"si-transform-1": "S'il arrive, on commencera le dîner."}},
     )
     assert attempt.correction_payload["ai_review"]["status"] == "not_applicable"
     service = AtelierCorrectionService(db_session, llm_service=_FakeLLMService({"verdict": "correct", "score_0_4": 4, "errata": []}))
@@ -2403,6 +2508,9 @@ def test_sentence_submit_ingests_lexical_gap_into_vocabulary(db_session):
         exercise_id="FR_B1_COND_001:sentence",
         answer_payload={"text": "Non, malheureusment la terrasse est (geschlossen)"},
     )
+    assert fake_llm.calls == []
+    # WP-S1: the gap is found by the relecture, which ingests it when it lands.
+    attempt = service.run_ai_review_for_attempt(attempt.id)
     correction = attempt.correction_payload
 
     # A foreign fallback word can never read as flawless.
@@ -2471,6 +2579,7 @@ def test_fully_french_sentence_submits_without_lexical_gaps(db_session):
         exercise_id="FR_B1_COND_001:sentence",
         answer_payload={"text": "Non, la terrasse est fermée ce matin."},
     )
+    attempt = service.run_ai_review_for_attempt(attempt.id)
     correction = attempt.correction_payload
     assert attempt.verdict == "accepted"
     assert correction.get("lexical_gaps") == []
@@ -2836,7 +2945,14 @@ def test_error_memory_repeats_same_pattern_without_duplicate_rows(db_session):
     assert row.lapses == 1
 
 
-def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_session):
+def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_session, monkeypatch):
+    from app.api.v1.endpoints import atelier as atelier_endpoints
+
+    # A relecture can be scheduled (a provider is configured); the queued job is
+    # recorded rather than run against a real model.
+    monkeypatch.setattr(AtelierCorrectionService, "_can_schedule_ai_review", lambda self: True)
+    queued_reviews: list = []
+    monkeypatch.setattr(atelier_endpoints, "run_atelier_ai_review", lambda attempt_id: queued_reviews.append(attempt_id))
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
@@ -2848,7 +2964,13 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     # the full 3-concept spread, covered by test_atelier_scheduler_full_spread_after_first_session.
     assert len(today.json()["concepts"]) == 1
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     assert started.status_code == 201
     data = started.json()
     session_id = data["session_id"]
@@ -2934,8 +3056,13 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
         },
     )
     assert writing.status_code == 200
-    assert writing.json()["verdict"] == "needs_review"
-    assert writing.json()["correction"]["assessment_status"] == "unavailable"
+    # WP-S1: the paragraph comes back at once with a provisional local check;
+    # the model's reading is queued, never awaited.
+    assert writing.json()["correction"]["assessment_status"] == "provisional"
+    assert writing.json()["correction"]["local_check"]["detector"] in {"hit", "miss", "unknown"}
+    assert writing.json()["ai_review"]["status"] == "pending"
+    assert writing.json()["correction"]["latency"]["local_ms"] >= 0
+    assert queued_reviews == [UUID(writing.json()["attempt_id"])]
     # An unchecked paragraph earns no success token, even if keywords match.
     assert writing.json()["minted_collectibles"] == []
 
@@ -3021,7 +3148,30 @@ def test_atelier_scheduler_uses_daily_budget_after_first_session(client: TestCli
 
     today_after = client.get("/api/v1/atelier/today", headers=headers)
     assert today_after.status_code == 200
-    assert len(today_after.json()["concepts"]) == 2
+    # WP-L6: a new learner is on Régulier (10 min), one six-minute concept.
+    assert len(today_after.json()["concepts"]) == 1
+
+    # The rhythm is the budget the drill reads: Soutenu (20 min) holds three —
+    # when there are three rules to hold (WP-S4: no padding from teaching
+    # order). Two due rules plus today's rule.
+    user = db_session.get(User, UUID(decode_token(token)["sub"]))
+    for external_id in ("FR_A2_NEG_001", "FR_B1_TENSE_001"):
+        db_session.add(
+            UserGrammarProgress(
+                user_id=user.id,
+                concept_id=_concept(db_session, external_id).id,
+                score=4.0,
+                reps=2,
+                introduced_at=datetime.now(UTC) - timedelta(days=9),
+                next_review=datetime.now(UTC) - timedelta(hours=2),
+            )
+        )
+    db_session.commit()
+    assert len(client.get("/api/v1/atelier/today", headers=headers).json()["concepts"]) == 1
+    patched = client.patch("/api/v1/users/me/settings", headers=headers, json={"rhythm": "soutenu"})
+    assert patched.status_code == 200, patched.text
+    today_soutenu = client.get("/api/v1/atelier/today", headers=headers)
+    assert len(today_soutenu.json()["concepts"]) == 3
 
 
 def test_atelier_item_scoped_attempt_advances_to_next_subexercise(client: TestClient, db_session):
@@ -3029,7 +3179,13 @@ def test_atelier_item_scoped_attempt_advances_to_next_subexercise(client: TestCl
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     assert started.status_code == 201
     data = started.json()
     session_id = data["session_id"]
@@ -3155,7 +3311,10 @@ def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClien
     wrong_payload = wrong_attempt.json()
     assert wrong_payload["verdict"] == "needs_repair"
     assert wrong_payload["is_correct"] is False
-    assert wrong_payload["erratum"]["state"] == "relearning"
+    # WP-24 lifecycle vocabulary: a failed repair is `repairing`, never a state
+    # that could be mistaken for "done".
+    assert wrong_payload["erratum"]["state"] == "repairing"
+    assert wrong_payload["erratum"]["mastered"] is False
     assert wrong_payload["erratum"]["metadata"]["review_attempts"][0]["answer_text"] == "en"
 
     repaired_attempt = client.post(
@@ -3170,7 +3329,10 @@ def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClien
     # Superseded 2026-09-04: the repair card's copy is publication French.
     assert repaired_payload["closure"]["label"] == "Corrigé · classé"
     assert repaired_payload["closure"]["next_review_date"]
-    assert repaired_payload["erratum"]["state"] == "review"
+    # One correct repair is one of the three spaced repairs mastery needs.
+    assert repaired_payload["erratum"]["state"] == "repairing"
+    assert repaired_payload["erratum"]["mastery_streak"] == 1
+    assert repaired_payload["erratum"]["mastery_target"] == 3
     assert len(repaired_payload["erratum"]["metadata"]["review_attempts"]) == 2
     assert repaired_payload["erratum"]["metadata"]["last_closure"]["label"] == "Corrigé · classé"
 
@@ -3265,13 +3427,19 @@ def test_measured_pace_needs_evidence_before_it_overrides_the_default(client: Te
     assert measured_seconds_per_drill(db_session, user) is None
 
 
-def test_two_clean_transforms_retire_the_rest_of_the_rung(client: TestClient, db_session):
+def test_two_clean_transforms_retire_the_rest_of_the_rung(client: TestClient, db_session, legacy_ladder):
     """Mastery must cost the learner fewer drills, not just a congratulation."""
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     assert started.status_code == 201
     data = started.json()
     session_id = data["session_id"]
@@ -3324,7 +3492,13 @@ def test_a_wrong_transform_forfeits_the_skip(client: TestClient, db_session):
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     data = started.json()
     session_id = data["session_id"]
     concept = data["concepts"][0]
@@ -3361,13 +3535,19 @@ def test_a_wrong_transform_forfeits_the_skip(client: TestClient, db_session):
 
 
 def test_both_rungs_can_be_retired_and_the_moment_reports_only_its_own_saving(
-    client: TestClient, db_session
+    client: TestClient, db_session, legacy_ladder
 ):
     token = _token(client)
     headers = {"Authorization": f"Bearer {token}"}
     _prime_core_exercise_sets(db_session)
 
-    started = client.post("/api/v1/atelier/sessions", headers=headers, json={})
+    # WP-S4: seat the primed rule explicitly. A bare start now goes through
+    # the forge picker (French rules only), which these drills do not test.
+    started = client.post(
+        "/api/v1/atelier/sessions",
+        headers=headers,
+        json={"preferred_concept_id": _concept(db_session, "FR_B1_COND_001").id},
+    )
     data = started.json()
     session_id = data["session_id"]
     concept = data["concepts"][0]
@@ -3563,3 +3743,47 @@ def test_phrase_of_day_publishes_the_corrected_line_not_the_typed_one(db_session
 
     attempt.correction_payload = {}
     assert AtelierSRSService._published_phrase_text(attempt).endswith("la propriete.")
+
+
+def test_recognize_feedback_speaks_the_learners_language_before_the_relecture(db_session):
+    """WP-56: the immediate deterministic line of the recognize round used to be
+    English for every learner («You chose `petit`; this item requires `petite`. French
+    nouns carry gender…») while the produce round and the recap were German. Now the
+    line itself follows `native_language`, with the rule's localized title standing
+    in for the English catalogue prose until the background relecture lands."""
+
+    from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization
+    from app.services.atelier import AtelierCorrectionService
+
+    concept = GrammarConcept(
+        external_id="FR_TEST_WP56", name="Gender and number basics", level="A1",
+        category="Agreement", subskill="gender_number", core_rule="French nouns carry gender and number.",
+    )
+    concept.localizations = [
+        GrammarConceptLocalization(locale="de", title="Genus und Numerus: Grundlagen"),
+        GrammarConceptLocalization(locale="fr", title="Genre et nombre : les bases"),
+    ]
+    item = {
+        "id": "focus", "prompt": "Une ___ table blanche.", "choices": ["petite", "petit"],
+        "correct_answer": "petite", "lesson_external_id": "FR_TEST_WP56",
+        "explanation": "French nouns carry gender and number; determiners and adjectives must match.",
+    }
+    service = AtelierCorrectionService(db_session)
+
+    service.explanation_language = "de"
+    erratum = service._recognize_erratum(concept, "fill", item, "petit", "petite")
+    assert erratum["why_wrong"].startswith("Du hast „petit“ gewählt; hier ist „petite“ nötig.")
+    assert "Genus und Numerus" in erratum["why_wrong"] and "French nouns" not in erratum["why_wrong"]
+    assert erratum["display_label"] == "Genus und Numerus: Grundlagen"
+
+    service.explanation_language = "en"
+    erratum = service._recognize_erratum(concept, "fill", item, "petit", "petite")
+    assert erratum["why_wrong"].startswith("You chose “petit”; this item needs “petite”.")
+    assert "French nouns carry gender" in erratum["why_wrong"]
+
+    service.explanation_language = "fr"
+    blank = service._fill_erratum(None, {"id": "b", "prompt": "___"}, "petit", "petite")
+    assert blank["why_wrong"] == "Vous avez choisi « petit », mais ce blanc demande « petite »."
+    classified = service._classify_erratum(None, {"id": "c", "prompt": "Une petite table"}, "À corriger", "Correct")
+    assert classified["display_label"] == "Classement"
+    assert "Vous avez classé" in classified["why_wrong"]

@@ -1,0 +1,76 @@
+/* ===========================================================================
+   WP-122 A · La Radio (components/radio/*, pages/radio.tsx).
+   Scoped under `.av2`; `--av2-*` tokens only — no new font, no new colour.
+   The plate is the Revue's band stage (styles/revue.css `.rv-stage`); the
+   progress is a hairline; the one press is the av2 3D primary.
+   =========================================================================== */
+
+.av2.radio-page {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--av2-paper);
+  width: 100%;
+  max-width: var(--phone-shell-max, 460px);
+  margin: 0 auto;
+}
+.av2 .radio-page__mock { position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 20; margin: 0; pointer-events: none; opacity: 0.7; font-size: 0.6875rem; font-weight: 700; color: var(--av2-muted); }
+.av2 .radio-loading { display: flex; flex-direction: column; gap: 14px; padding: calc(env(safe-area-inset-top, 0px) + 60px) 16px 16px; }
+.av2 .radio__close { display: flex; flex-direction: column; gap: 16px; padding: calc(env(safe-area-inset-top, 0px) + 40px) 16px calc(var(--av2-safe-bottom) + 16px); }
+
+.av2 .radio { display: flex; flex-direction: column; min-width: 0; padding-bottom: calc(var(--av2-safe-bottom) + 16px); }
+
+/* --- head --------------------------------------------------------------- */
+.av2 .radio__head { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 8px; }
+.av2 .radio__kicker { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--av2-muted); }
+
+/* --- deck: title, hairline, the press ------------------------------------- */
+.av2 .radio__deck { display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 4px; }
+.av2 .radio__title { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-title); font-weight: 500; line-height: 1.15; color: var(--av2-ink); }
+.av2 .radio__hairline { position: relative; height: 2px; background: var(--av2-line); border-radius: 1px; overflow: hidden; }
+.av2 .radio__hairline > span { position: absolute; inset: 0 auto 0 0; background: var(--av2-ink); transition: width 0.25s linear; }
+@media (prefers-reduced-motion: reduce) { .av2 .radio__hairline > span { transition: none; } }
+.av2 .radio__controls { display: flex; align-items: center; gap: 12px; }
+.av2 .radio__controls > .av2-btn:not(.av2-btn--inline) { flex: 1 1 auto; }
+.av2 .radio__read {
+  flex: none; min-height: var(--av2-tap); min-width: var(--av2-tap); padding: 0 14px; border: 0; background: none;
+  font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); color: var(--av2-ink);
+  text-decoration: underline; text-decoration-color: var(--av2-line-2, var(--av2-muted)); text-underline-offset: 4px; cursor: pointer;
+}
+.av2 .radio__hint { margin: 0; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-muted); }
+
+/* the press's glyph: the Bauhaus triangle turned forward is «play», two bars «pause» */
+.av2 .radio__glyph { display: inline-block; width: 14px; height: 14px; flex: none; }
+.av2 .radio__glyph[data-state='play'] { clip-path: polygon(10% 0, 100% 50%, 10% 100%); background: currentColor; }
+.av2 .radio__glyph[data-state='pause'] { background: linear-gradient(to right, currentColor 0 35%, transparent 35% 65%, currentColor 65% 100%); }
+
+/* --- transcript ------------------------------------------------------------ */
+.av2 .radio__section-title { margin: 0 0 8px; font-size: var(--av2-t-meta); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--av2-muted); }
+.av2 .radio__transcript { padding: 20px 16px 4px; animation: radio-in 0.24s ease-out both; }
+@keyframes radio-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .av2 .radio__transcript { animation: none; } }
+.av2 .radio__lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.av2 .radio__line { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.av2 .radio__speaker { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); overflow-wrap: anywhere; }
+.av2 .radio__line[data-role='guest'] .radio__speaker { color: var(--av2-blue); }
+.av2 .radio__text { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-rule); line-height: 1.45; color: var(--av2-ink); overflow-wrap: anywhere; }
+.av2 .radio__line[data-role='signoff'] .radio__text { font-style: italic; color: var(--av2-muted); }
+.av2 .radio__line[data-now] .radio__text { text-decoration: underline; text-decoration-color: var(--av2-yellow); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+.av2 .radio__mask {
+  display: inline-block; padding: 2px 10px; border-radius: var(--av2-r-pill); background: var(--av2-card);
+  box-shadow: inset 0 0 0 1px var(--av2-line); font-family: var(--av2-sans); font-style: italic; font-size: var(--av2-t-label); color: var(--av2-muted);
+}
+
+/* --- dictée ------------------------------------------------------------------ */
+.av2 .radio__dictee { display: flex; flex-direction: column; gap: 12px; padding: 24px 16px 0; }
+.av2 .radio__lead { margin: 0; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink); }
+.av2 .radio__count { color: var(--av2-muted); white-space: nowrap; }
+.av2 .radio__verdict { padding: 12px 14px; border-radius: var(--av2-r-card); background: var(--av2-tint-neutral); box-shadow: inset 0 0 0 1px var(--av2-line); }
+.av2 .radio__verdict[data-outcome='met'] { background: var(--av2-tint-correct); }
+.av2 .radio__verdict[data-outcome='not_yet'] { background: var(--av2-tint-wrong); }
+.av2 .radio__verdict p { margin: 0; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink); }
+.av2 .radio__said { margin-top: 6px !important; }
+.av2 .radio__said q { font-family: var(--av2-serif); font-size: var(--av2-t-option); quotes: '«\00a0' '\00a0»'; }
+.av2 .radio__foot { padding-top: 8px; }

@@ -1,0 +1,3510 @@
+{
+ "n": 5,
+ "dossier_id": "2026-w40-prix-de-l-arc-de-triomphe",
+ "level": "A2.1",
+ "native_language": "en",
+ "dossier": {
+  "id": "2026-w40-prix-de-l-arc-de-triomphe",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "sport",
+  "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+  "summary_fr": "Le Prix de l'Arc de Triomphe, la grande course de chevaux de l'automne, se court à ParisLongchamp le dimanche 4 octobre 2026. Seize chevaux venus de France, d'Irlande, d'Angleterre et du Japon sont au départ. Daryz, le gagnant de 2025, peut gagner une deuxième fois.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+    "quote": "Ils seront donc 16, ce dimanche à 16h05 sur la piste de ParisLongchamp à se disputer le Graal, le Qatar Prix de l’Arc de Triomphe.",
+    "source_id": "w40_arc_equidia",
+    "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+    "published_at": "2026-10-01",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+    "quote": "Ils vont galoper à plus de 60 km/h pendant un peu plus de 2 minutes sur 2.400 mètres pour décrocher le Graal des courses au galop",
+    "source_id": "w40_arc_afp",
+    "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+    "published_at": "2026-10-02",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "fact",
+    "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+    "quote": "Cette course inter-génération, parrainée par le Qatar, offre 5 millions d'euros d'allocation, dont plus de 2,8 millions au vainqueur.",
+    "source_id": "w40_arc_afp",
+    "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+    "published_at": "2026-10-02",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+    "quote": "La force du français Daryz : \"son accélération dévastatrice\", a commenté l'entraîneur Francis-Henry Graffard lors d'une conférence de presse.",
+    "source_id": "w40_arc_afp",
+    "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+    "published_at": "2026-10-02",
+    "confidence": "reported",
+    "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+   }
+  ],
+  "entities": [
+   {
+    "name": "ParisLongchamp",
+    "kind": "place",
+    "role": null
+   },
+   {
+    "name": "Daryz",
+    "kind": "other",
+    "role": "cheval, gagnant de l'Arc en 2025"
+   },
+   {
+    "name": "Francis-Henri Graffard",
+    "kind": "person",
+    "role": "entraîneur de Daryz"
+   }
+  ],
+  "uncertainties": [
+   "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+   "Selon leurs entourages, les chevaux japonais sont peut-être faits pour cette piste ; les sources ne le confirment pas."
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Qui peut gagner l'Arc, et pourquoi ?",
+    "purpose": "choose_angle",
+    "participation": "none",
+    "guest_fit": "augustin_de_roncourt"
+   },
+   {
+    "id": "a2",
+    "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+    "purpose": "prepare_dispatch",
+    "participation": "none",
+    "guest_fit": "augustin_de_roncourt"
+   }
+  ],
+  "places": [
+   {
+    "id": "hippodrome_longchamp",
+    "name_fr": "L'hippodrome de ParisLongchamp",
+    "brief": "the hippodrome ParisLongchamp in the bois de Boulogne: an empty racecourse in the west of Paris, a wide green turf track curving past a modern white grandstand, an old windmill near the start, autumn trees, soft afternoon light",
+    "known": false,
+    "geo": {
+     "lat": 48.8573,
+     "lon": 2.2338,
+     "precision": "exact",
+     "label_fr": "Hippodrome de ParisLongchamp"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-10-01/2026-10-04",
+   "relevant_until": "2026-10-18"
+  },
+  "sources": [
+   {
+    "id": "w40_arc_equidia",
+    "name": "Equidia",
+    "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+    "published_at": "2026-10-01"
+   },
+   {
+    "id": "w40_arc_afp",
+    "name": "AFP, sur actu.orange.fr",
+    "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+    "published_at": "2026-10-02"
+   }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "un fer à cheval"
+ },
+ "band": "A2",
+ "vocabulary": [
+  {
+   "fr": "le Qatar Prix de l'Arc de Triomphe",
+   "gloss": {
+    "en": "the Qatar Prix de l'Arc de Triomphe"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "la course",
+   "gloss": {
+    "en": "the race"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "les chevaux",
+   "gloss": {
+    "en": "the horses"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "le vainqueur",
+   "gloss": {
+    "en": "the winner"
+   },
+   "claim_id": "c3"
+  },
+  {
+   "fr": "la grande force",
+   "gloss": {
+    "en": "the great strength"
+   },
+   "claim_id": "c4"
+  }
+ ],
+ "target_use": {
+  "word": "le Qatar Prix de l'Arc de Triomphe",
+  "article_said": "la",
+  "intended": "incorrect",
+  "sentence": "Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T00:50:13.560839+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text"
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T00:50:21.747738+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Parfait. On prend l'angle «Qui peut gagner, et pourquoi ?». Seize partants (c1). La course fait 2 400 m, ~2 minutes à >60 km/h (c2). Dotation 5 M€, 2,8 M€ au vainqueur (c3). Daryz a une grande accélération d'après son entraîneur (c4).",
+      "translation": "Perfect. We take the angle “Who can win, and why?”. Sixteen runners (c1). The race is 2,400 m, ~2 minutes at >60 km/h (c2). Prize 5M€, 2.8M€ to the winner (c3). Daryz has strong acceleration, says his trainer (c4).",
+      "glosses": [
+       {
+        "fr": "la course",
+        "gloss": "the race",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "le vainqueur",
+        "gloss": "the winner",
+        "claim_id": "c3"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T00:50:21.747792+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+        "quote": "Ils seront donc 16, ce dimanche à 16h05 sur la piste de ParisLongchamp à se disputer le Graal, le Qatar Prix de l’Arc de Triomphe.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_arc_equidia",
+         "name": "Equidia",
+         "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+         "published_at": "2026-10-01"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+        "quote": "Ils vont galoper à plus de 60 km/h pendant un peu plus de 2 minutes sur 2.400 mètres pour décrocher le Graal des courses au galop",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_arc_afp",
+         "name": "AFP, sur actu.orange.fr",
+         "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+        "quote": "Cette course inter-génération, parrainée par le Qatar, offre 5 millions d'euros d'allocation, dont plus de 2,8 millions au vainqueur.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_arc_afp",
+         "name": "AFP, sur actu.orange.fr",
+         "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+        "quote": "La force du français Daryz : \"son accélération dévastatrice\", a commenté l'entraîneur Francis-Henry Graffard lors d'une conférence de presse.",
+        "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz",
+        "source": {
+         "id": "w40_arc_afp",
+         "name": "AFP, sur actu.orange.fr",
+         "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+         "published_at": "2026-10-02"
+        }
+       }
+      ]
+     },
+     {
+      "id": "6",
+      "seq": 6,
+      "at": "2026-10-03T00:50:21.747828+00:00",
+      "kind": "shift",
+      "reason": "angle",
+      "angle": {
+       "id": "a2",
+       "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux"
+      }
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le Qatar Prix de l'Arc de Triomphe",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la course",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "les chevaux",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le vainqueur",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la grande force",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "La course est longue ?",
+   "result": {
+    "items": [
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T00:50:21.761248+00:00",
+      "kind": "mine",
+      "text_fr": "La course est longue ?",
+      "mode": "text"
+     },
+     {
+      "id": "9",
+      "seq": 9,
+      "at": "2026-10-03T00:50:25.318613+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Non, pas très longue. 2 400 mètres. Un peu plus de deux minutes, à plus de 60 km/h d'après le dossier (c2).",
+      "translation": "No, not very long. 2,400 metres. Just over two minutes, at more than 60 km/h according to the file (c2).",
+      "glosses": [],
+      "reason": null
+     },
+     {
+      "id": "11",
+      "seq": 11,
+      "at": "2026-10-03T00:50:28.685401+00:00",
+      "kind": "guest",
+      "cast_id": "augustin_de_roncourt",
+      "text_fr": "Je m'intéresse à l'argent. La dotation est de 5 millions, 2,8 pour le vainqueur. Je sais toujours qui paie, croyez‑moi.",
+      "move": "enter",
+      "position": null,
+      "reason_fr": "Il y a de l'argent là-dedans. Je sais toujours qui paie, croyez-moi.",
+      "reason": null,
+      "glosses": [
+       {
+        "fr": "le vainqueur",
+        "gloss": "the winner",
+        "claim_id": "c3"
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le Qatar Prix de l'Arc de Triomphe",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la course",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "les chevaux",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le vainqueur",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la grande force",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "Qui va gagner ?",
+   "result": {
+    "items": [
+     {
+      "id": "14",
+      "seq": 14,
+      "at": "2026-10-03T00:50:30.772025+00:00",
+      "kind": "mine",
+      "text_fr": "Qui va gagner ?",
+      "mode": "text"
+     },
+     {
+      "id": "15",
+      "seq": 15,
+      "at": "2026-10-03T00:50:35.323502+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne disent pas qui va gagner (incertitude 0). Daryz a une grande accélération d'après son entraîneur (c4). Seize chevaux partent (c1). Veux‑tu que je formule une question pour le lecteur ?",
+      "translation": "The sources do not say who will win (uncertainty 0). Daryz has a great acceleration according to his trainer (c4). Sixteen horses are running (c1). Do you want me to write a question for the reader?",
+      "glosses": [
+       {
+        "fr": "les chevaux",
+        "gloss": "the horses",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "15.u",
+      "seq": 15,
+      "at": "2026-10-03T00:50:35.323502+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+     },
+     {
+      "id": "16",
+      "seq": 16,
+      "at": "2026-10-03T00:50:38.053426+00:00",
+      "kind": "guest",
+      "cast_id": "augustin_de_roncourt",
+      "text_fr": "Voulez‑vous que je vous montre comment regarder la vitesse, la dotation et Daryz pour choisir un favori ?",
+      "move": "follow_up",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le Qatar Prix de l'Arc de Triomphe",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la course",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "les chevaux",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le vainqueur",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la grande force",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "J'aime les chevaux, c'est beau. Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "19",
+      "seq": 19,
+      "at": "2026-10-03T00:50:38.063756+00:00",
+      "kind": "mine",
+      "text_fr": "J'aime les chevaux, c'est beau. Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important.",
+      "mode": "text"
+     },
+     {
+      "id": "20",
+      "seq": 20,
+      "at": "2026-10-03T00:50:43.552158+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Bien. L'Arc a seize chevaux (c1). La course fait 2 400 m, ~2 minutes à plus de 60 km/h (c2). Dotation 5 millions, 2,8 M pour le vainqueur (c3). Les sources ne disent pas qui va gagner (incertitude 0). Veux‑tu que je formule une question pour le lecteur ?",
+      "translation": "Okay. The Arc has sixteen horses (c1). The race is 2,400 m, about 2 minutes at over 60 km/h (c2). Prize money 5 million, 2.8M for the winner (c3). The sources do not say who will win (uncertainty 0). Do you want me to write a reader question?",
+      "glosses": [
+       {
+        "fr": "la course",
+        "gloss": "the race",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "les chevaux",
+        "gloss": "the horses",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "le vainqueur",
+        "gloss": "the winner",
+        "claim_id": "c3"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "20.u",
+      "seq": 20,
+      "at": "2026-10-03T00:50:43.552158+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+     },
+     {
+      "id": "21",
+      "seq": 21,
+      "at": "2026-10-03T00:50:46.825201+00:00",
+      "kind": "guest",
+      "cast_id": "augustin_de_roncourt",
+      "text_fr": "Voulez-vous que je vous montre comment repérer la vitesse, la dotation ou Daryz pour expliquer l'Arc à Margaux ?",
+      "move": "follow_up",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     },
+     {
+      "id": "22",
+      "seq": 22,
+      "at": "2026-10-03T00:50:46.825329+00:00",
+      "kind": "shift",
+      "reason": "angle",
+      "angle": {
+       "id": "a1",
+       "fr": "Qui peut gagner l'Arc, et pourquoi ?"
+      }
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "incorrect",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le Qatar Prix de l'Arc de Triomphe",
+       "outcome": "incorrect",
+       "capability_known": false
+      },
+      {
+       "fr": "la course",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "les chevaux",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le vainqueur",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la grande force",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "L'Arc réduit à 2 000 mètres"
+     },
+     {
+      "id": "h2",
+      "text_fr": "Daryz manque d'accélération"
+     },
+     {
+      "id": "h3",
+      "text_fr": "Seize chevaux au départ de l'Arc à ParisLongchamp"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Qui va gagner ?",
+    "uncertainty_fr": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+   }
+  ],
+  "intro": {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T00:50:56.542903+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "Qui va gagner ?",
+    "proposal_fr": "Qui va gagner ?",
+    "contribution": [
+     [
+      0,
+      13
+     ]
+    ],
+    "why_native": "Kept the original short A2 question — it's already simple and correct, so no change needed."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Qui va gagner ?",
+    "contribution": [
+     [
+      0,
+      13
+     ]
+    ],
+    "learner_fr": "Qui va gagner ?"
+   },
+   "line": {
+    "id": "29",
+    "seq": 29,
+    "at": "2026-10-03T00:50:58.769862+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je garde ta question dans le dossier.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "Qui va gagner ?",
+   "body_fr": [
+    "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+    "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+    "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération."
+   ],
+   "contribution": [
+    [
+     0,
+     13
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après Equidia et AFP, sur actu.orange.fr",
+   "sources": [
+    {
+     "id": "w40_arc_equidia",
+     "name": "Equidia",
+     "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+     "published_at": "2026-10-01"
+    },
+    {
+     "id": "w40_arc_afp",
+     "name": "AFP, sur actu.orange.fr",
+     "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "le Qatar Prix de l'Arc de Triomphe",
+     "gloss": "the Qatar Prix de l'Arc de Triomphe",
+     "claim_id": "c1",
+     "used": true
+    },
+    {
+     "fr": "la course",
+     "gloss": "the race",
+     "claim_id": "c2",
+     "used": true
+    },
+    {
+     "fr": "les chevaux",
+     "gloss": "the horses",
+     "claim_id": "c2",
+     "used": true
+    },
+    {
+     "fr": "le vainqueur",
+     "gloss": "the winner",
+     "claim_id": "c3",
+     "used": false
+    },
+    {
+     "fr": "la grande force",
+     "gloss": "the great strength",
+     "claim_id": "c4",
+     "used": false
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+     "quote": "Ils seront donc 16, ce dimanche à 16h05 sur la piste de ParisLongchamp à se disputer le Graal, le Qatar Prix de l’Arc de Triomphe.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_arc_equidia",
+      "name": "Equidia",
+      "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+      "published_at": "2026-10-01"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+     "quote": "Ils vont galoper à plus de 60 km/h pendant un peu plus de 2 minutes sur 2.400 mètres pour décrocher le Graal des courses au galop",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_arc_afp",
+      "name": "AFP, sur actu.orange.fr",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+     "quote": "Cette course inter-génération, parrainée par le Qatar, offre 5 millions d'euros d'allocation, dont plus de 2,8 millions au vainqueur.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_arc_afp",
+      "name": "AFP, sur actu.orange.fr",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+     "quote": "La force du français Daryz : \"son accélération dévastatrice\", a commenté l'entraîneur Francis-Henry Graffard lors d'une conférence de presse.",
+     "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz",
+     "source": {
+      "id": "w40_arc_afp",
+      "name": "AFP, sur actu.orange.fr",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "Qui va gagner ?",
+  "vignette": {
+   "id": "489ed518-d258-45e2-8161-0cbb5fcf44ef",
+   "session_id": "488bfa1f-fc95-4a8b-b47e-5a5ac83567f5",
+   "dossier_id": "2026-w40-prix-de-l-arc-de-triomphe",
+   "week": "2026-W40",
+   "place_label_fr": "L'hippodrome de ParisLongchamp",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"41\" r=\"18\" fill=\"#D8321A\"/><rect x=\"28\" y=\"57\" width=\"44\" height=\"13\" rx=\"3\" fill=\"#C2890F\"/><path d=\"M50 23L60 39L40 39Z\" fill=\"#F3C318\"/><ellipse cx=\"50\" cy=\"74\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"47\" cy=\"35\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+   "minted_at": "2026-10-03T00:51:02"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T00:50:13.555905+00:00",
+   "kind": "narration",
+   "text_fr": "L'hippodrome de ParisLongchamp."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T00:50:13.555905+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : ça se passe du 1er oct. au 4 oct.."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T00:50:13.555905+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment l'hippodrome de ParisLongchamp, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T00:50:13.555905+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je ne sais pas par quel bout prendre l'histoire : « Qui peut gagner l'Arc, et pourquoi ? ». Tu m'aides à choisir ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T00:50:13.555905+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "Le Prix de l'Arc de Triomphe, la grande course de chevaux de l'automne, se court à ParisLongchamp le dimanche 4 octobre 2026. Seize chevaux venus de France, d'Irlande, d'Angleterre et du Japon sont au départ. Daryz, le gagnant de 2025, peut gagner une deuxième fois."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T00:50:13.560839+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text"
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T00:50:21.747738+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Parfait. On prend l'angle «Qui peut gagner, et pourquoi ?». Seize partants (c1). La course fait 2 400 m, ~2 minutes à >60 km/h (c2). Dotation 5 M€, 2,8 M€ au vainqueur (c3). Daryz a une grande accélération d'après son entraîneur (c4).",
+   "translation": "Perfect. We take the angle “Who can win, and why?”. Sixteen runners (c1). The race is 2,400 m, ~2 minutes at >60 km/h (c2). Prize 5M€, 2.8M€ to the winner (c3). Daryz has strong acceleration, says his trainer (c4).",
+   "glosses": [
+    {
+     "fr": "la course",
+     "gloss": "the race",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "le vainqueur",
+     "gloss": "the winner",
+     "claim_id": "c3"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T00:50:21.747792+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+     "quote": "Ils seront donc 16, ce dimanche à 16h05 sur la piste de ParisLongchamp à se disputer le Graal, le Qatar Prix de l’Arc de Triomphe.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_arc_equidia",
+      "name": "Equidia",
+      "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+      "published_at": "2026-10-01"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+     "quote": "Ils vont galoper à plus de 60 km/h pendant un peu plus de 2 minutes sur 2.400 mètres pour décrocher le Graal des courses au galop",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_arc_afp",
+      "name": "AFP, sur actu.orange.fr",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+     "quote": "Cette course inter-génération, parrainée par le Qatar, offre 5 millions d'euros d'allocation, dont plus de 2,8 millions au vainqueur.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_arc_afp",
+      "name": "AFP, sur actu.orange.fr",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+     "quote": "La force du français Daryz : \"son accélération dévastatrice\", a commenté l'entraîneur Francis-Henry Graffard lors d'une conférence de presse.",
+     "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz",
+     "source": {
+      "id": "w40_arc_afp",
+      "name": "AFP, sur actu.orange.fr",
+      "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+      "published_at": "2026-10-02"
+     }
+    }
+   ]
+  },
+  {
+   "id": "6",
+   "seq": 6,
+   "at": "2026-10-03T00:50:21.747828+00:00",
+   "kind": "shift",
+   "reason": "angle",
+   "angle": {
+    "id": "a2",
+    "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux"
+   }
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T00:50:21.761248+00:00",
+   "kind": "mine",
+   "text_fr": "La course est longue ?",
+   "mode": "text"
+  },
+  {
+   "id": "9",
+   "seq": 9,
+   "at": "2026-10-03T00:50:25.318613+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Non, pas très longue. 2 400 mètres. Un peu plus de deux minutes, à plus de 60 km/h d'après le dossier (c2).",
+   "translation": "No, not very long. 2,400 metres. Just over two minutes, at more than 60 km/h according to the file (c2).",
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "11",
+   "seq": 11,
+   "at": "2026-10-03T00:50:28.685401+00:00",
+   "kind": "guest",
+   "cast_id": "augustin_de_roncourt",
+   "text_fr": "Je m'intéresse à l'argent. La dotation est de 5 millions, 2,8 pour le vainqueur. Je sais toujours qui paie, croyez‑moi.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Il y a de l'argent là-dedans. Je sais toujours qui paie, croyez-moi.",
+   "reason": null,
+   "glosses": [
+    {
+     "fr": "le vainqueur",
+     "gloss": "the winner",
+     "claim_id": "c3"
+    }
+   ]
+  },
+  {
+   "id": "14",
+   "seq": 14,
+   "at": "2026-10-03T00:50:30.772025+00:00",
+   "kind": "mine",
+   "text_fr": "Qui va gagner ?",
+   "mode": "text"
+  },
+  {
+   "id": "15",
+   "seq": 15,
+   "at": "2026-10-03T00:50:35.323502+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne disent pas qui va gagner (incertitude 0). Daryz a une grande accélération d'après son entraîneur (c4). Seize chevaux partent (c1). Veux‑tu que je formule une question pour le lecteur ?",
+   "translation": "The sources do not say who will win (uncertainty 0). Daryz has a great acceleration according to his trainer (c4). Sixteen horses are running (c1). Do you want me to write a question for the reader?",
+   "glosses": [
+    {
+     "fr": "les chevaux",
+     "gloss": "the horses",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "15.u",
+   "seq": 15,
+   "at": "2026-10-03T00:50:35.323502+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+  },
+  {
+   "id": "16",
+   "seq": 16,
+   "at": "2026-10-03T00:50:38.053426+00:00",
+   "kind": "guest",
+   "cast_id": "augustin_de_roncourt",
+   "text_fr": "Voulez‑vous que je vous montre comment regarder la vitesse, la dotation et Daryz pour choisir un favori ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "19",
+   "seq": 19,
+   "at": "2026-10-03T00:50:38.063756+00:00",
+   "kind": "mine",
+   "text_fr": "J'aime les chevaux, c'est beau. Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important.",
+   "mode": "text"
+  },
+  {
+   "id": "20",
+   "seq": 20,
+   "at": "2026-10-03T00:50:43.552158+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Bien. L'Arc a seize chevaux (c1). La course fait 2 400 m, ~2 minutes à plus de 60 km/h (c2). Dotation 5 millions, 2,8 M pour le vainqueur (c3). Les sources ne disent pas qui va gagner (incertitude 0). Veux‑tu que je formule une question pour le lecteur ?",
+   "translation": "Okay. The Arc has sixteen horses (c1). The race is 2,400 m, about 2 minutes at over 60 km/h (c2). Prize money 5 million, 2.8M for the winner (c3). The sources do not say who will win (uncertainty 0). Do you want me to write a reader question?",
+   "glosses": [
+    {
+     "fr": "la course",
+     "gloss": "the race",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "les chevaux",
+     "gloss": "the horses",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "le vainqueur",
+     "gloss": "the winner",
+     "claim_id": "c3"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "20.u",
+   "seq": 20,
+   "at": "2026-10-03T00:50:43.552158+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T00:50:46.825201+00:00",
+   "kind": "guest",
+   "cast_id": "augustin_de_roncourt",
+   "text_fr": "Voulez-vous que je vous montre comment repérer la vitesse, la dotation ou Daryz pour expliquer l'Arc à Margaux ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "22",
+   "seq": 22,
+   "at": "2026-10-03T00:50:46.825329+00:00",
+   "kind": "shift",
+   "reason": "angle",
+   "angle": {
+    "id": "a1",
+    "fr": "Qui peut gagner l'Arc, et pourquoi ?"
+   }
+  },
+  {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T00:50:56.542903+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "28",
+   "seq": 28,
+   "at": "2026-10-03T00:50:58.769846+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Qui va gagner ?",
+    "contribution": [
+     [
+      0,
+      13
+     ]
+    ],
+    "learner_fr": "Qui va gagner ?"
+   }
+  },
+  {
+   "id": "29",
+   "seq": 29,
+   "at": "2026-10-03T00:50:58.769862+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "30",
+   "seq": 30,
+   "at": "2026-10-03T00:51:02.975370+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je garde ta question dans le dossier.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "2026-w40-prix-de-l-arc-de-triomphe",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "2026-w40-prix-de-l-arc-de-triomphe",
+     "dossier_version": "revue-v1",
+     "week": "2026-W40",
+     "topic": "sport",
+     "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+     "summary_fr": "Le Prix de l'Arc de Triomphe, la grande course de chevaux de l'automne, se court à ParisLongchamp le dimanche 4 octobre 2026. Seize chevaux venus de France, d'Irlande, d'Angleterre et du Japon sont au départ. Daryz, le gagnant de 2025, peut gagner une deuxième fois.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+       "quote": "Ils seront donc 16, ce dimanche à 16h05 sur la piste de ParisLongchamp à se disputer le Graal, le Qatar Prix de l’Arc de Triomphe.",
+       "source_id": "w40_arc_equidia",
+       "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+       "published_at": "2026-10-01",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+       "quote": "Ils vont galoper à plus de 60 km/h pendant un peu plus de 2 minutes sur 2.400 mètres pour décrocher le Graal des courses au galop",
+       "source_id": "w40_arc_afp",
+       "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+       "published_at": "2026-10-02",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+       "quote": "Cette course inter-génération, parrainée par le Qatar, offre 5 millions d'euros d'allocation, dont plus de 2,8 millions au vainqueur.",
+       "source_id": "w40_arc_afp",
+       "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+       "published_at": "2026-10-02",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+       "quote": "La force du français Daryz : \"son accélération dévastatrice\", a commenté l'entraîneur Francis-Henry Graffard lors d'une conférence de presse.",
+       "source_id": "w40_arc_afp",
+       "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+       "published_at": "2026-10-02",
+       "confidence": "reported",
+       "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+      }
+     ],
+     "entities": [
+      {
+       "name": "ParisLongchamp",
+       "kind": "place",
+       "role": null
+      },
+      {
+       "name": "Daryz",
+       "kind": "other",
+       "role": "cheval, gagnant de l'Arc en 2025"
+      },
+      {
+       "name": "Francis-Henri Graffard",
+       "kind": "person",
+       "role": "entraîneur de Daryz"
+      }
+     ],
+     "uncertainties": [
+      "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+      "Selon leurs entourages, les chevaux japonais sont peut-être faits pour cette piste ; les sources ne le confirment pas."
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Qui peut gagner l'Arc, et pourquoi ?",
+       "purpose": "choose_angle",
+       "participation": "none",
+       "guest_fit": "augustin_de_roncourt"
+      },
+      {
+       "id": "a2",
+       "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+       "purpose": "prepare_dispatch",
+       "participation": "none",
+       "guest_fit": "augustin_de_roncourt"
+      }
+     ],
+     "places": [
+      {
+       "id": "hippodrome_longchamp",
+       "name_fr": "L'hippodrome de ParisLongchamp",
+       "brief": "the hippodrome ParisLongchamp in the bois de Boulogne: an empty racecourse in the west of Paris, a wide green turf track curving past a modern white grandstand, an old windmill near the start, autumn trees, soft afternoon light",
+       "known": false,
+       "geo": {
+        "lat": 48.8573,
+        "lon": 2.2338,
+        "precision": "exact",
+        "label_fr": "Hippodrome de ParisLongchamp"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-10-01/2026-10-04",
+      "relevant_until": "2026-10-18"
+     },
+     "sources": [
+      {
+       "id": "w40_arc_equidia",
+       "name": "Equidia",
+       "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+       "published_at": "2026-10-01"
+      },
+      {
+       "id": "w40_arc_afp",
+       "name": "AFP, sur actu.orange.fr",
+       "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+       "published_at": "2026-10-02"
+      }
+     ],
+     "evergreen": false,
+     "vignette_object_fr": "un fer à cheval"
+    },
+    "cost_usd": 0.002252
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "L'hippodrome de ParisLongchamp.",
+     "Romy est déjà là, son carnet à la main : ça se passe du 1er oct. au 4 oct.."
+    ],
+    "place_note": "Ce n'est pas vraiment l'hippodrome de ParisLongchamp, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je ne sais pas par quel bout prendre l'histoire : « Qui peut gagner l'Arc, et pourquoi ? ». Tu m'aides à choisir ?",
+    "summary_fr": "Le Prix de l'Arc de Triomphe, la grande course de chevaux de l'automne, se court à ParisLongchamp le dimanche 4 octobre 2026. Seize chevaux venus de France, d'Irlande, d'Angleterre et du Japon sont au départ. Daryz, le gagnant de 2025, peut gagner une deuxième fois."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Parfait. On prend l'angle «Qui peut gagner, et pourquoi ?». Seize partants (c1). La course fait 2 400 m, ~2 minutes à >60 km/h (c2). Dotation 5 M€, 2,8 M€ au vainqueur (c3). Daryz a une grande accélération d'après son entraîneur (c4).",
+    "translation": "Perfect. We take the angle “Who can win, and why?”. Sixteen runners (c1). The race is 2,400 m, ~2 minutes at >60 km/h (c2). Prize 5M€, 2.8M€ to the winner (c3). Daryz has strong acceleration, says his trainer (c4).",
+    "claims_cited": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": "On demande : Qui a la meilleure accélération et peut gagner ?",
+    "shift": "angle",
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001867
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "choice",
+   "payload": {
+    "kind": "angle",
+    "angle_id": "a2",
+    "reason": "learner_interest"
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le Qatar Prix de l'Arc de Triomphe",
+      "outcome": "unscored",
+      "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+      "capability_known": false
+     },
+     {
+      "fr": "la course",
+      "outcome": "unscored",
+      "capability_id": "revue.word:course",
+      "capability_known": false
+     },
+     {
+      "fr": "les chevaux",
+      "outcome": "unscored",
+      "capability_id": "revue.word:chevaux",
+      "capability_known": false
+     },
+     {
+      "fr": "le vainqueur",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vainqueur",
+      "capability_known": false
+     },
+     {
+      "fr": "la grande force",
+      "outcome": "unscored",
+      "capability_id": "revue.word:grande force",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "La course est longue ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Non, pas très longue. 2 400 mètres. Un peu plus de deux minutes, à plus de 60 km/h d'après le dossier (c2).",
+    "translation": "No, not very long. 2,400 metres. Just over two minutes, at more than 60 km/h according to the file (c2).",
+    "claims_cited": [
+     "c2"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": null,
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001165
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "guest_enter",
+   "payload": {
+    "id": "augustin_de_roncourt",
+    "reason_fr": "Il y a de l'argent là-dedans. Je sais toujours qui paie, croyez-moi.",
+    "reason": "there is money in it, and Gus always knows who is paying (Seize chevaux pour le Prix de l'Arc de Triomphe)",
+    "trigger": "guest_fit",
+    "word": null,
+    "turn_seq": 8
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "augustin_de_roncourt",
+    "text_fr": "Je m'intéresse à l'argent. La dotation est de 5 millions, 2,8 pour le vainqueur. Je sais toujours qui paie, croyez‑moi.",
+    "move": "enter",
+    "position": null,
+    "reason_fr": "Il y a de l'argent là-dedans. Je sais toujours qui paie, croyez-moi.",
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001049,
+    "turn_seq": 8
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "question_raised",
+   "payload": {
+    "text": "La course est longue ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 8,
+    "kept": false
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:course",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "la course"
+    ],
+    "words_used": [
+     "la course"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "le Qatar Prix de l'Arc de Triomphe",
+      "outcome": "unscored",
+      "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+      "capability_known": false
+     },
+     {
+      "fr": "la course",
+      "outcome": "unscored",
+      "capability_id": "revue.word:course",
+      "capability_known": false
+     },
+     {
+      "fr": "les chevaux",
+      "outcome": "unscored",
+      "capability_id": "revue.word:chevaux",
+      "capability_known": false
+     },
+     {
+      "fr": "le vainqueur",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vainqueur",
+      "capability_known": false
+     },
+     {
+      "fr": "la grande force",
+      "outcome": "unscored",
+      "capability_id": "revue.word:grande force",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000568,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 8
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Qui va gagner ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne disent pas qui va gagner (incertitude 0). Daryz a une grande accélération d'après son entraîneur (c4). Seize chevaux partent (c1). Veux‑tu que je formule une question pour le lecteur ?",
+    "translation": "The sources do not say who will win (uncertainty 0). Daryz has a great acceleration according to his trainer (c4). Sixteen horses are running (c1). Do you want me to write a question for the reader?",
+    "claims_cited": [
+     "c4",
+     "c1"
+    ],
+    "uncertainty_index": 0,
+    "uncertainty_text": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+    "proposes_question": "Veux‑tu que je formule une question pour le lecteur ?",
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001659
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "augustin_de_roncourt",
+    "text_fr": "Voulez‑vous que je vous montre comment regarder la vitesse, la dotation et Daryz pour choisir un favori ?",
+    "move": "follow_up",
+    "position": null,
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.00102,
+    "turn_seq": 14
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Qui va gagner ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+    "turn_seq": 14,
+    "kept": false
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le Qatar Prix de l'Arc de Triomphe",
+      "outcome": "unscored",
+      "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+      "capability_known": false
+     },
+     {
+      "fr": "la course",
+      "outcome": "unscored",
+      "capability_id": "revue.word:course",
+      "capability_known": false
+     },
+     {
+      "fr": "les chevaux",
+      "outcome": "unscored",
+      "capability_id": "revue.word:chevaux",
+      "capability_known": false
+     },
+     {
+      "fr": "le vainqueur",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vainqueur",
+      "capability_known": false
+     },
+     {
+      "fr": "la grande force",
+      "outcome": "unscored",
+      "capability_id": "revue.word:grande force",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 14
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "J'aime les chevaux, c'est beau. Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Bien. L'Arc a seize chevaux (c1). La course fait 2 400 m, ~2 minutes à plus de 60 km/h (c2). Dotation 5 millions, 2,8 M pour le vainqueur (c3). Les sources ne disent pas qui va gagner (incertitude 0). Veux‑tu que je formule une question pour le lecteur ?",
+    "translation": "Okay. The Arc has sixteen horses (c1). The race is 2,400 m, about 2 minutes at over 60 km/h (c2). Prize money 5 million, 2.8M for the winner (c3). The sources do not say who will win (uncertainty 0). Do you want me to write a reader question?",
+    "claims_cited": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "uncertainty_index": 0,
+    "uncertainty_text": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+    "proposes_question": "Veux‑tu que je formule une question pour le lecteur ?",
+    "shift": "angle",
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001784
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "augustin_de_roncourt",
+    "text_fr": "Voulez-vous que je vous montre comment repérer la vitesse, la dotation ou Daryz pour expliquer l'Arc à Margaux ?",
+    "move": "follow_up",
+    "position": null,
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001308,
+    "turn_seq": 19
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "choice",
+   "payload": {
+    "kind": "angle",
+    "angle_id": "a1",
+    "reason": "learner_interest"
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+    "outcome": "incorrect",
+    "capability_known": false,
+    "correct": false,
+    "words": [
+     "les chevaux"
+    ],
+    "words_used": [
+     "le Qatar Prix de l'Arc de Triomphe",
+     "les chevaux"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "le Qatar Prix de l'Arc de Triomphe",
+      "outcome": "incorrect",
+      "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+      "capability_known": false
+     },
+     {
+      "fr": "la course",
+      "outcome": "unscored",
+      "capability_id": "revue.word:course",
+      "capability_known": false
+     },
+     {
+      "fr": "les chevaux",
+      "outcome": "unscored",
+      "capability_id": "revue.word:chevaux",
+      "capability_known": false
+     },
+     {
+      "fr": "le vainqueur",
+      "outcome": "unscored",
+      "capability_id": "revue.word:vainqueur",
+      "capability_known": false
+     },
+     {
+      "fr": "la grande force",
+      "outcome": "unscored",
+      "capability_id": "revue.word:grande force",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.001049,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 19
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "L'Arc réduit à 2 000 mètres"
+      },
+      {
+       "id": "h2",
+       "text_fr": "Daryz manque d'accélération"
+      },
+      {
+       "id": "h3",
+       "text_fr": "Seize chevaux au départ de l'Arc à ParisLongchamp"
+      }
+     ],
+     "answer": "h3",
+     "supported_by": "c1",
+     "contradicted_by": {
+      "h1": "c2",
+      "h2": "c4"
+     }
+    },
+    "cost_usd": 0.001885
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "Qui va gagner ?",
+    "proposal_fr": "Qui va gagner ?",
+    "contribution": [
+     [
+      0,
+      13
+     ]
+    ],
+    "why_native": "Kept the original short A2 question — it's already simple and correct, so no change needed.",
+    "cost_usd": 0.000541
+   }
+  },
+  {
+   "seq": 28,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "Qui va gagner ?",
+    "contribution": [
+     [
+      0,
+      13
+     ]
+    ],
+    "learner_fr": "Qui va gagner ?"
+   }
+  },
+  {
+   "seq": 29,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 30,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je garde ta question dans le dossier.",
+    "cost_usd": 0.001291
+   }
+  },
+  {
+   "seq": 31,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je garde ta question dans le dossier.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "Qui va gagner ?",
+      "body_fr": [
+       "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+       "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+       "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération."
+      ],
+      "contribution": [
+       [
+        0,
+        13
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après Equidia et AFP, sur actu.orange.fr",
+      "sources": [
+       {
+        "id": "w40_arc_equidia",
+        "name": "Equidia",
+        "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+        "published_at": "2026-10-01"
+       },
+       {
+        "id": "w40_arc_afp",
+        "name": "AFP, sur actu.orange.fr",
+        "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+        "published_at": "2026-10-02"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "le Qatar Prix de l'Arc de Triomphe",
+        "gloss": "the Qatar Prix de l'Arc de Triomphe",
+        "claim_id": "c1",
+        "used": true
+       },
+       {
+        "fr": "la course",
+        "gloss": "the race",
+        "claim_id": "c2",
+        "used": true
+       },
+       {
+        "fr": "les chevaux",
+        "gloss": "the horses",
+        "claim_id": "c2",
+        "used": true
+       },
+       {
+        "fr": "le vainqueur",
+        "gloss": "the winner",
+        "claim_id": "c3",
+        "used": false
+       },
+       {
+        "fr": "la grande force",
+        "gloss": "the great strength",
+        "claim_id": "c4",
+        "used": false
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+        "quote": "Ils seront donc 16, ce dimanche à 16h05 sur la piste de ParisLongchamp à se disputer le Graal, le Qatar Prix de l’Arc de Triomphe.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_arc_equidia",
+         "name": "Equidia",
+         "url": "https://www.equidia.fr/articles/actualite/qatar-prix-de-larc-de-triomphe-les-partants-officiels-de-ledition-2026",
+         "published_at": "2026-10-01"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+        "quote": "Ils vont galoper à plus de 60 km/h pendant un peu plus de 2 minutes sur 2.400 mètres pour décrocher le Graal des courses au galop",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_arc_afp",
+         "name": "AFP, sur actu.orange.fr",
+         "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+        "quote": "Cette course inter-génération, parrainée par le Qatar, offre 5 millions d'euros d'allocation, dont plus de 2,8 millions au vainqueur.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_arc_afp",
+         "name": "AFP, sur actu.orange.fr",
+         "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+         "published_at": "2026-10-02"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+        "quote": "La force du français Daryz : \"son accélération dévastatrice\", a commenté l'entraîneur Francis-Henry Graffard lors d'une conférence de presse.",
+        "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz",
+        "source": {
+         "id": "w40_arc_afp",
+         "name": "AFP, sur actu.orange.fr",
+         "url": "https://actu.orange.fr/france/prix-de-l-arc-de-triomphe-seize-pretendants-au-sacre-mondial-du-galop-CNT000002sgFlv.html",
+         "published_at": "2026-10-02"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "Qui va gagner ?",
+     "vignette": {
+      "id": "489ed518-d258-45e2-8161-0cbb5fcf44ef",
+      "session_id": "488bfa1f-fc95-4a8b-b47e-5a5ac83567f5",
+      "dossier_id": "2026-w40-prix-de-l-arc-de-triomphe",
+      "week": "2026-W40",
+      "place_label_fr": "L'hippodrome de ParisLongchamp",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"41\" r=\"18\" fill=\"#D8321A\"/><rect x=\"28\" y=\"57\" width=\"44\" height=\"13\" rx=\"3\" fill=\"#C2890F\"/><path d=\"M50 23L60 39L40 39Z\" fill=\"#F3C318\"/><ellipse cx=\"50\" cy=\"74\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"47\" cy=\"35\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+      "minted_at": "2026-10-03T00:51:02"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le Qatar Prix de l'Arc de Triomphe",
+     "outcome": "unscored",
+     "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+     "capability_known": false
+    },
+    {
+     "fr": "la course",
+     "outcome": "unscored",
+     "capability_id": "revue.word:course",
+     "capability_known": false
+    },
+    {
+     "fr": "les chevaux",
+     "outcome": "unscored",
+     "capability_id": "revue.word:chevaux",
+     "capability_known": false
+    },
+    {
+     "fr": "le vainqueur",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vainqueur",
+     "capability_known": false
+    },
+    {
+     "fr": "la grande force",
+     "outcome": "unscored",
+     "capability_id": "revue.word:grande force",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:course",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "la course"
+   ],
+   "words_used": [
+    "la course"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "le Qatar Prix de l'Arc de Triomphe",
+     "outcome": "unscored",
+     "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+     "capability_known": false
+    },
+    {
+     "fr": "la course",
+     "outcome": "unscored",
+     "capability_id": "revue.word:course",
+     "capability_known": false
+    },
+    {
+     "fr": "les chevaux",
+     "outcome": "unscored",
+     "capability_id": "revue.word:chevaux",
+     "capability_known": false
+    },
+    {
+     "fr": "le vainqueur",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vainqueur",
+     "capability_known": false
+    },
+    {
+     "fr": "la grande force",
+     "outcome": "unscored",
+     "capability_id": "revue.word:grande force",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000568,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 8
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le Qatar Prix de l'Arc de Triomphe",
+     "outcome": "unscored",
+     "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+     "capability_known": false
+    },
+    {
+     "fr": "la course",
+     "outcome": "unscored",
+     "capability_id": "revue.word:course",
+     "capability_known": false
+    },
+    {
+     "fr": "les chevaux",
+     "outcome": "unscored",
+     "capability_id": "revue.word:chevaux",
+     "capability_known": false
+    },
+    {
+     "fr": "le vainqueur",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vainqueur",
+     "capability_known": false
+    },
+    {
+     "fr": "la grande force",
+     "outcome": "unscored",
+     "capability_id": "revue.word:grande force",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 14
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+   "outcome": "incorrect",
+   "capability_known": false,
+   "correct": false,
+   "words": [
+    "les chevaux"
+   ],
+   "words_used": [
+    "le Qatar Prix de l'Arc de Triomphe",
+    "les chevaux"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "le Qatar Prix de l'Arc de Triomphe",
+     "outcome": "incorrect",
+     "capability_id": "revue.word:qatar prix de l'arc de triomphe",
+     "capability_known": false
+    },
+    {
+     "fr": "la course",
+     "outcome": "unscored",
+     "capability_id": "revue.word:course",
+     "capability_known": false
+    },
+    {
+     "fr": "les chevaux",
+     "outcome": "unscored",
+     "capability_id": "revue.word:chevaux",
+     "capability_known": false
+    },
+    {
+     "fr": "le vainqueur",
+     "outcome": "unscored",
+     "capability_id": "revue.word:vainqueur",
+     "capability_known": false
+    },
+    {
+     "fr": "la grande force",
+     "outcome": "unscored",
+     "capability_id": "revue.word:grande force",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.001049,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 19
+  }
+ ],
+ "guest": [
+  {
+   "kind": "guest_enter",
+   "id": "augustin_de_roncourt",
+   "reason_fr": "Il y a de l'argent là-dedans. Je sais toujours qui paie, croyez-moi.",
+   "reason": "there is money in it, and Gus always knows who is paying (Seize chevaux pour le Prix de l'Arc de Triomphe)",
+   "trigger": "guest_fit",
+   "word": null,
+   "turn_seq": 8
+  },
+  {
+   "kind": "turn_guest",
+   "id": "augustin_de_roncourt",
+   "text_fr": "Je m'intéresse à l'argent. La dotation est de 5 millions, 2,8 pour le vainqueur. Je sais toujours qui paie, croyez‑moi.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Il y a de l'argent là-dedans. Je sais toujours qui paie, croyez-moi.",
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.001049,
+   "turn_seq": 8
+  },
+  {
+   "kind": "turn_guest",
+   "id": "augustin_de_roncourt",
+   "text_fr": "Voulez‑vous que je vous montre comment regarder la vitesse, la dotation et Daryz pour choisir un favori ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.00102,
+   "turn_seq": 14
+  },
+  {
+   "kind": "turn_guest",
+   "id": "augustin_de_roncourt",
+   "text_fr": "Voulez-vous que je vous montre comment repérer la vitesse, la dotation ou Daryz pour expliquer l'Arc à Margaux ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.001308,
+   "turn_seq": 19
+  }
+ ],
+ "cost_usd_state": 0.017438,
+ "cost_usd_provider": 0.017438,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 7.845,
+   "cost_usd": 0.002252,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05."
+     },
+     {
+      "id": "c2",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes."
+     },
+     {
+      "id": "c3",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération."
+     }
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "le Qatar Prix de l'Arc de Triomphe",
+      "gloss": "the Qatar Prix de l'Arc de Triomphe",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "la course",
+      "gloss": "the race",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "les chevaux",
+      "gloss": "the horses",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "le vainqueur",
+      "gloss": "the winner",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "la grande force",
+      "gloss": "the great strength",
+      "claim_id": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 8.184,
+   "cost_usd": 0.001867,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+      "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+     "Selon leurs entourages, les chevaux japonais sont peut-être faits pour cette piste ; les sources ne le confirment pas."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Qui peut gagner l'Arc, et pourquoi ?",
+     "purpose": "choose_angle"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Qui peut gagner l'Arc, et pourquoi ?",
+      "purpose": "choose_angle"
+     },
+     {
+      "id": "a2",
+      "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A2",
+    "max_words": 45,
+    "claims_shown": [],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "L'hippodrome de ParisLongchamp."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 1er oct. au 4 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment l'hippodrome de ParisLongchamp, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je ne sais pas par quel bout prendre l'histoire : « Qui peut gagner l'Arc, et pourquoi ? ». Tu m'aides à choisir ?"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Parfait. On prend l'angle «Qui peut gagner, et pourquoi ?». Seize partants (c1). La course fait 2 400 m, ~2 minutes à >60 km/h (c2). Dotation 5 M€, 2,8 M€ au vainqueur (c3). Daryz a une grande accélération d'après son entraîneur (c4).",
+    "translation": "Perfect. We take the angle “Who can win, and why?”. Sixteen runners (c1). The race is 2,400 m, ~2 minutes at >60 km/h (c2). Prize 5M€, 2.8M€ to the winner (c3). Daryz has strong acceleration, says his trainer (c4).",
+    "claims_cited": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": "On demande : Qui a la meilleure accélération et peut gagner ?",
+    "shift": "angle"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 3.551,
+   "cost_usd": 0.001165,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "La course est longue ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+      "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+     "Selon leurs entourages, les chevaux japonais sont peut-être faits pour cette piste ; les sources ne le confirment pas."
+    ],
+    "angle": {
+     "id": "a2",
+     "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+     "purpose": "prepare_dispatch"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Qui peut gagner l'Arc, et pourquoi ?",
+      "purpose": "choose_angle"
+     },
+     {
+      "id": "a2",
+      "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A2",
+    "max_words": 45,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 1er oct. au 4 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment l'hippodrome de ParisLongchamp, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je ne sais pas par quel bout prendre l'histoire : « Qui peut gagner l'Arc, et pourquoi ? ». Tu m'aides à choisir ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Parfait. On prend l'angle «Qui peut gagner, et pourquoi ?». Seize partants (c1). La course fait 2 400 m, ~2 minutes à >60 km/h (c2). Dotation 5 M€, 2,8 M€ au vainqueur (c3). Daryz a une grande accélération d'après son entraîneur (c4)."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3, c4"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Non, pas très longue. 2 400 mètres. Un peu plus de deux minutes, à plus de 60 km/h d'après le dossier (c2).",
+    "translation": "No, not very long. 2,400 metres. Just over two minutes, at more than 60 km/h according to the file (c2).",
+    "claims_cited": [
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 3.36,
+   "cost_usd": 0.001049,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "augustin_de_roncourt",
+    "name": "Augustin « Gus » de Roncourt",
+    "register": "vous",
+    "move": "enter",
+    "reason_fr": "Il y a de l'argent là-dedans. Je sais toujours qui paie, croyez-moi.",
+    "position": null,
+    "learner_text": "La course est longue ?",
+    "angle": {
+     "id": "a2",
+     "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+     "purpose": "prepare_dispatch"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+      "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A2",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Je ne sais pas par quel bout prendre l'histoire : « Qui peut gagner l'Arc, et pourquoi ? ». Tu m'aides à choisir ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Parfait. On prend l'angle «Qui peut gagner, et pourquoi ?». Seize partants (c1). La course fait 2 400 m, ~2 minutes à >60 km/h (c2). Dotation 5 M€, 2,8 M€ au vainqueur (c3). Daryz a une grande accélération d'après son entraîneur (c4)."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3, c4"
+     },
+     {
+      "who": "learner",
+      "text": "La course est longue ?"
+     },
+     {
+      "who": "romy",
+      "text": "Non, pas très longue. 2 400 mètres. Un peu plus de deux minutes, à plus de 60 km/h d'après le dossier (c2)."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "augustin_de_roncourt",
+     "name": "Augustin « Gus » de Roncourt",
+     "role": "Consultant («du conseil»), showman, inventor of «La Méthode». Wants Le Mistral kept exactly as it is: the zinc, the booth, the plaque. Says his great-grandfather laid the zinc.",
+     "personality": "Superlatives that grow («C'est magnifique. Non : c'est sublime.»). Index cards for every speech; they fall. «Au château» on Sundays. Straightens the salt cellars when upset. Always sits in the booth's corner seat.",
+     "register_with_user": "vous — theatrical, a weapon — until T3; tu after. Gap 1 may show one accidental tu followed by a panicked return to vous.",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Je m'intéresse à l'argent. La dotation est de 5 millions, 2,8 pour le vainqueur. Je sais toujours qui paie, croyez‑moi.",
+    "position": null,
+    "move": "enter"
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 2.074,
+   "cost_usd": 0.000568,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A2",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur."
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération."
+      }
+     ],
+     "target_words": [
+      "le Qatar Prix de l'Arc de Triomphe",
+      "la course",
+      "les chevaux",
+      "le vainqueur",
+      "la grande force"
+     ],
+     "addressee": "augustin_de_roncourt",
+     "expected_register": "vous",
+     "summary_fr": "Le Prix de l'Arc de Triomphe, la grande course de chevaux de l'automne, se court à ParisLongchamp le dimanche 4 octobre 2026. Seize chevaux venus de France, d'Irlande, d'Angleterre et du Japon sont au départ. Daryz, le gagnant de 2025, peut gagner une deuxième fois.",
+     "headline_words": null
+    },
+    "learner_text": "La course est longue ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "la course",
+      "outcome": "correct",
+      "quote": "La course"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.545,
+   "cost_usd": 0.001659,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Qui va gagner ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+      "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+     "Selon leurs entourages, les chevaux japonais sont peut-être faits pour cette piste ; les sources ne le confirment pas."
+    ],
+    "angle": {
+     "id": "a2",
+     "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+     "purpose": "prepare_dispatch"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Qui peut gagner l'Arc, et pourquoi ?",
+      "purpose": "choose_angle"
+     },
+     {
+      "id": "a2",
+      "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A2",
+    "max_words": 45,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Parfait. On prend l'angle «Qui peut gagner, et pourquoi ?». Seize partants (c1). La course fait 2 400 m, ~2 minutes à >60 km/h (c2). Dotation 5 M€, 2,8 M€ au vainqueur (c3). Daryz a une grande accélération d'après son entraîneur (c4)."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3, c4"
+     },
+     {
+      "who": "learner",
+      "text": "La course est longue ?"
+     },
+     {
+      "who": "romy",
+      "text": "Non, pas très longue. 2 400 mètres. Un peu plus de deux minutes, à plus de 60 km/h d'après le dossier (c2)."
+     },
+     {
+      "who": "augustin_de_roncourt",
+      "text": "Je m'intéresse à l'argent. La dotation est de 5 millions, 2,8 pour le vainqueur. Je sais toujours qui paie, croyez‑moi."
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": "augustin_de_roncourt",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne disent pas qui va gagner (incertitude 0). Daryz a une grande accélération d'après son entraîneur (c4). Seize chevaux partent (c1). Veux‑tu que je formule une question pour le lecteur ?",
+    "translation": "The sources do not say who will win (uncertainty 0). Daryz has a great acceleration according to his trainer (c4). Sixteen horses are running (c1). Do you want me to write a question for the reader?",
+    "claims_cited": [
+     "c4",
+     "c1"
+    ],
+    "uncertainty_cited": 0,
+    "proposes_question": "Veux‑tu que je formule une question pour le lecteur ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.717,
+   "cost_usd": 0.00102,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "augustin_de_roncourt",
+    "name": "Augustin « Gus » de Roncourt",
+    "register": "vous",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": null,
+    "learner_text": "Qui va gagner ?",
+    "angle": {
+     "id": "a2",
+     "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+     "purpose": "prepare_dispatch"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+      "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A2",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "learner",
+      "text": "La course est longue ?"
+     },
+     {
+      "who": "romy",
+      "text": "Non, pas très longue. 2 400 mètres. Un peu plus de deux minutes, à plus de 60 km/h d'après le dossier (c2)."
+     },
+     {
+      "who": "augustin_de_roncourt",
+      "text": "Je m'intéresse à l'argent. La dotation est de 5 millions, 2,8 pour le vainqueur. Je sais toujours qui paie, croyez‑moi."
+     },
+     {
+      "who": "learner",
+      "text": "Qui va gagner ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas qui va gagner (incertitude 0). Daryz a une grande accélération d'après son entraîneur (c4). Seize chevaux partent (c1). Veux‑tu que je formule une question pour le lecteur ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "augustin_de_roncourt",
+     "name": "Augustin « Gus » de Roncourt",
+     "role": "Consultant («du conseil»), showman, inventor of «La Méthode». Wants Le Mistral kept exactly as it is: the zinc, the booth, the plaque. Says his great-grandfather laid the zinc.",
+     "personality": "Superlatives that grow («C'est magnifique. Non : c'est sublime.»). Index cards for every speech; they fall. «Au château» on Sundays. Straightens the salt cellars when upset. Always sits in the booth's corner seat.",
+     "register_with_user": "vous — theatrical, a weapon — until T3; tu after. Gap 1 may show one accidental tu followed by a panicked return to vous.",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Voulez‑vous que je vous montre comment regarder la vitesse, la dotation et Daryz pour choisir un favori ?",
+    "position": null,
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 5.482,
+   "cost_usd": 0.001784,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "J'aime les chevaux, c'est beau. Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+      "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+     "Selon leurs entourages, les chevaux japonais sont peut-être faits pour cette piste ; les sources ne le confirment pas."
+    ],
+    "angle": {
+     "id": "a2",
+     "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+     "purpose": "prepare_dispatch"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Qui peut gagner l'Arc, et pourquoi ?",
+      "purpose": "choose_angle"
+     },
+     {
+      "id": "a2",
+      "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A2",
+    "max_words": 45,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "romy",
+      "text": "Non, pas très longue. 2 400 mètres. Un peu plus de deux minutes, à plus de 60 km/h d'après le dossier (c2)."
+     },
+     {
+      "who": "augustin_de_roncourt",
+      "text": "Je m'intéresse à l'argent. La dotation est de 5 millions, 2,8 pour le vainqueur. Je sais toujours qui paie, croyez‑moi."
+     },
+     {
+      "who": "learner",
+      "text": "Qui va gagner ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas qui va gagner (incertitude 0). Daryz a une grande accélération d'après son entraîneur (c4). Seize chevaux partent (c1). Veux‑tu que je formule une question pour le lecteur ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+     },
+     {
+      "who": "augustin_de_roncourt",
+      "text": "Voulez‑vous que je vous montre comment regarder la vitesse, la dotation et Daryz pour choisir un favori ?"
+     }
+    ],
+    "translation_language": "en",
+    "guest_on_stage": "augustin_de_roncourt",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Bien. L'Arc a seize chevaux (c1). La course fait 2 400 m, ~2 minutes à plus de 60 km/h (c2). Dotation 5 millions, 2,8 M pour le vainqueur (c3). Les sources ne disent pas qui va gagner (incertitude 0). Veux‑tu que je formule une question pour le lecteur ?",
+    "translation": "Okay. The Arc has sixteen horses (c1). The race is 2,400 m, about 2 minutes at over 60 km/h (c2). Prize money 5 million, 2.8M for the winner (c3). The sources do not say who will win (uncertainty 0). Do you want me to write a reader question?",
+    "claims_cited": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "uncertainty_cited": 0,
+    "proposes_question": "Veux‑tu que je formule une question pour le lecteur ?",
+    "shift": "angle"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 3.269,
+   "cost_usd": 0.001308,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "augustin_de_roncourt",
+    "name": "Augustin « Gus » de Roncourt",
+    "register": "vous",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": null,
+    "learner_text": "J'aime les chevaux, c'est beau. Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important.",
+    "angle": {
+     "id": "a2",
+     "fr": "Raconter la course à Margaux, qui n'a jamais vu de courses de chevaux",
+     "purpose": "prepare_dispatch"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération.",
+      "attributed_to": "Francis-Henri Graffard, entraîneur de Daryz"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A2",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas qui va gagner (incertitude 0). Daryz a une grande accélération d'après son entraîneur (c4). Seize chevaux partent (c1). Veux‑tu que je formule une question pour le lecteur ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+     },
+     {
+      "who": "augustin_de_roncourt",
+      "text": "Voulez‑vous que je vous montre comment regarder la vitesse, la dotation et Daryz pour choisir un favori ?"
+     },
+     {
+      "who": "learner",
+      "text": "J'aime les chevaux, c'est beau. Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important."
+     },
+     {
+      "who": "romy",
+      "text": "Bien. L'Arc a seize chevaux (c1). La course fait 2 400 m, ~2 minutes à plus de 60 km/h (c2). Dotation 5 millions, 2,8 M pour le vainqueur (c3). Les sources ne disent pas qui va gagner (incertitude 0). Veux‑tu que je formule une question pour le lecteur ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "augustin_de_roncourt",
+     "name": "Augustin « Gus » de Roncourt",
+     "role": "Consultant («du conseil»), showman, inventor of «La Méthode». Wants Le Mistral kept exactly as it is: the zinc, the booth, the plaque. Says his great-grandfather laid the zinc.",
+     "personality": "Superlatives that grow («C'est magnifique. Non : c'est sublime.»). Index cards for every speech; they fall. «Au château» on Sundays. Straightens the salt cellars when upset. Always sits in the booth's corner seat.",
+     "register_with_user": "vous — theatrical, a weapon — until T3; tu after. Gap 1 may show one accidental tu followed by a panicked return to vous.",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Voulez-vous que je vous montre comment repérer la vitesse, la dotation ou Daryz pour expliquer l'Arc à Margaux ?",
+    "position": null,
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.042,
+   "cost_usd": 0.001049,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A2",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur."
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération."
+      }
+     ],
+     "target_words": [
+      "le Qatar Prix de l'Arc de Triomphe",
+      "la course",
+      "les chevaux",
+      "le vainqueur",
+      "la grande force"
+     ],
+     "addressee": "augustin_de_roncourt",
+     "expected_register": "vous",
+     "summary_fr": "Le Prix de l'Arc de Triomphe, la grande course de chevaux de l'automne, se court à ParisLongchamp le dimanche 4 octobre 2026. Seize chevaux venus de France, d'Irlande, d'Angleterre et du Japon sont au départ. Daryz, le gagnant de 2025, peut gagner une deuxième fois.",
+     "headline_words": null
+    },
+    "learner_text": "J'aime les chevaux, c'est beau. Pour moi, la Qatar Prix de l'Arc de Triomphe, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le Qatar Prix de l'Arc de Triomphe",
+      "outcome": "incorrect",
+      "quote": "la Qatar Prix de l'Arc de Triomphe"
+     },
+     {
+      "fr": "les chevaux",
+      "outcome": "correct",
+      "quote": "les chevaux"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 6.652,
+   "cost_usd": 0.001885,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+    "angle": "Qui peut gagner l'Arc, et pourquoi ?",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération."
+     }
+    ],
+    "band": "A2"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "Seize chevaux au départ de l'Arc à ParisLongchamp",
+     "supported_by": "c1"
+    },
+    "distractors": [
+     {
+      "text_fr": "L'Arc réduit à 2 000 mètres",
+      "contradicted_by": "c2"
+     },
+     {
+      "text_fr": "Daryz manque d'accélération",
+      "contradicted_by": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 2.211,
+   "cost_usd": 0.000541,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "Qui va gagner ?",
+    "uncertainty": "Les sources ne disent pas qui va gagner : Daryz peut réussir le doublé, mais quinze autres chevaux sont au départ.",
+    "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+    "band": "A2",
+    "language": "en"
+   },
+   "response": {
+    "proposal_fr": "Qui va gagner ?",
+    "why_native": "Kept the original short A2 question — it's already simple and correct, so no change needed."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 4.177,
+   "cost_usd": 0.001291,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+    "summary_fr": "Le Prix de l'Arc de Triomphe, la grande course de chevaux de l'automne, se court à ParisLongchamp le dimanche 4 octobre 2026. Seize chevaux venus de France, d'Irlande, d'Angleterre et du Japon sont au départ. Daryz, le gagnant de 2025, peut gagner une deuxième fois.",
+    "angle": "Qui peut gagner l'Arc, et pourquoi ?",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "Qui va gagner ?",
+     "learner_fr": "Qui va gagner ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La course offre 5 millions d'euros, dont plus de 2,8 millions au vainqueur."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération."
+     }
+    ],
+    "open_question": "Qui va gagner ?",
+    "band": "A2"
+   },
+   "response": {
+    "romy_line_fr": "Je garde ta question dans le dossier.",
+    "headline_fr": "Qui va gagner ?",
+    "body_lines": [
+     "Seize chevaux courent le Qatar Prix de l'Arc de Triomphe à ParisLongchamp, le dimanche 4 octobre 2026 à 16 h 05.",
+     "La course fait 2 400 mètres : les chevaux galopent à plus de 60 km/h pendant un peu plus de deux minutes.",
+     "Pour son entraîneur, la grande force de Daryz, le gagnant de 2025, c'est son accélération."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 7.854
+  },
+  {
+   "step": "turn1",
+   "seconds": 8.199
+  },
+  {
+   "step": "turn2",
+   "seconds": 9.01
+  },
+  {
+   "step": "turn3",
+   "seconds": 7.292
+  },
+  {
+   "step": "turn4",
+   "seconds": 11.82
+  },
+  {
+   "step": "make_options",
+   "seconds": 6.665
+  },
+  {
+   "step": "make_propose",
+   "seconds": 2.22
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.007
+  },
+  {
+   "step": "close",
+   "seconds": 4.209
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini"
+ }
+}

@@ -1,0 +1,90 @@
+{
+  "wp": "WP-122 A «La Radio»",
+  "date": "2026-10-03",
+  "dossier_id": "evergreen-greve-transports",
+  "band": "A2",
+  "week": "2026-W40",
+  "tts_model": "gpt-4o-mini-tts",
+  "audio": "ready",
+  "estimated_seconds": 55.1,
+  "synthesized_lines": 6,
+  "cost_usd": 0.01416,
+  "synthesis_wall_seconds": 13.2,
+  "replay": {
+    "synthesized_lines": 0,
+    "cached_lines": 6,
+    "cost_usd": 0.0
+  },
+  "dictee_line_index": 1,
+  "lines": [
+    {
+      "index": 0,
+      "speaker": "romy_tremblay",
+      "voice": "nova",
+      "role": "lede",
+      "text_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+      "clip_url": "/api/v1/daily-journeys/line-audio/nova-e0736907b83e6e637f584bd136c1fd79",
+      "bytes": 263424,
+      "cache_key": "gpt-4o-mini-tts|2026-09-29.1|a2|b8f0a8",
+      "spoken_seconds": 16.464
+    },
+    {
+      "index": 1,
+      "speaker": "romy_tremblay",
+      "voice": "nova",
+      "role": "claim",
+      "text_fr": "Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.",
+      "clip_url": "/api/v1/daily-journeys/line-audio/nova-fdb5f6bb011b1510ca9f2ac512ecb222",
+      "bytes": 126720,
+      "cache_key": "gpt-4o-mini-tts|2026-09-29.1|a2|b8f0a8",
+      "spoken_seconds": 7.92
+    },
+    {
+      "index": 2,
+      "speaker": "romy_tremblay",
+      "voice": "nova",
+      "role": "claim",
+      "text_fr": "Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.",
+      "clip_url": "/api/v1/daily-journeys/line-audio/nova-a8615db4b20a525f71af7c92fa69c84c",
+      "bytes": 148992,
+      "cache_key": "gpt-4o-mini-tts|2026-09-29.1|a2|b8f0a8",
+      "spoken_seconds": 9.312
+    },
+    {
+      "index": 3,
+      "speaker": "romy_tremblay",
+      "voice": "nova",
+      "role": "claim",
+      "text_fr": "D'après les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.",
+      "clip_url": "/api/v1/daily-journeys/line-audio/nova-f09691a9923ecab9cf1a38529441d1fe",
+      "bytes": 109824,
+      "cache_key": "gpt-4o-mini-tts|2026-09-29.1|a2|b8f0a8",
+      "spoken_seconds": 6.864
+    },
+    {
+      "index": 4,
+      "speaker": "marin_leveque",
+      "voice": "onyx",
+      "role": "guest",
+      "text_fr": "À l'association, on aide les gens que ça touche. C'est concret, tu vois.",
+      "clip_url": "/api/v1/daily-journeys/line-audio/onyx-53ae0eab4f10aa722d9d5992cecd27fc",
+      "bytes": 80256,
+      "cache_key": "gpt-4o-mini-tts|2026-09-29.1|a2|149751",
+      "spoken_seconds": 5.016
+    },
+    {
+      "index": 5,
+      "speaker": "romy_tremblay",
+      "voice": "nova",
+      "role": "signoff",
+      "text_fr": "C'était Le Papier, semaine 40.",
+      "clip_url": "/api/v1/daily-journeys/line-audio/nova-23978e62c4ff8c0ce596dff95db19643",
+      "bytes": 50688,
+      "cache_key": "gpt-4o-mini-tts|2026-09-29.1|a2|b8f0a8",
+      "spoken_seconds": 3.168
+    }
+  ],
+  "note": "No audio in the repo: the clips lived in a throwaway in-memory database (urls are the learner's GET route). Spoken lengths measured with afinfo on the mp3 bytes; played = spoken + 5 × 0.6 s breaths + 1.5 s silent top.",
+  "spoken_seconds_total": 48.7,
+  "played_seconds_with_gaps": 53.2
+}

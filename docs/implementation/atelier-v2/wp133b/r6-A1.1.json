@@ -1,0 +1,27 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.19838,
+  "calls": 46,
+  "cap": 0.4
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "La dernière baguette",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "daily_journey: season day lost (chapter_not_advanced); journey a82b153f-764a-4d25-8c85-73a53c05f1e0 re-reads t5.b",
+  "daily_journey: season day lost (wrong_beat, 2 in a row in g5); journey 462677f1-8ab7-472c-b556-6bc20d6d1b20 serves the tentpole t6.a",
+  "daily_journey: season day lost (wrong_beat); journey b082ceee-1743-4384-b590-b6f508b4210a re-reads t6.b",
+  "daily_journey: season day lost (wrong_beat, 2 in a row in g6); journey 18924f14-437d-4b6b-b7bc-f96a5b5da199 serves the tentpole t7.a",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g7.1 twice; accepted and logged (Make the day's ending show a visible change (e.g. the learner actually promises, refuses, or performs an action) so the episode satisfies the season rule that every day ends different from how it began.; Include a clear value turn: show a hope meeting a setback or a relationship shift on the page (f)"
+ ]
+}

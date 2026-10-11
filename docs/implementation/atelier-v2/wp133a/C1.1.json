@@ -1,0 +1,53 @@
+{
+ "band": "C1.1",
+ "outcome": "complete",
+ "weaves": [
+  {
+   "unit": null,
+   "title": "Romy a une source",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La cassette de Romy",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La cassette et la condition",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La cassette — décision finale",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le billet",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.1 twice; accepted and logged (Donnez au moins un micro-tour — une information nouvelle ou un petit geste du personnage héritier — pour créer un vrai tournant vers le lecteur.; Concluez la page avec une différence visible (une phrase dite, un geste, une décision) au lieu de rester sur le silence ; sinon l'épisode refuse la règle )",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.5 twice; accepted and logged (Rendre la différence explicite et visible à la fin : montre clairement que le billet a été déplacé ou qu'un message confirmant la nouvelle date a été reçu.; Inclure et montrer l'obstacle ouvert (la menace de la presse) si elle existe aujourd'hui : quelqu'un doit évoquer le risque ou prendre une acti)",
+  "daily_journey: story engine failed (wrong_beat); journey f7b56d17-ed66-4a8a-a806-625774be849b serves authored order_at_cafe at B1"
+ ]
+}

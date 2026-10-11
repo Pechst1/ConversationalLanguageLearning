@@ -12,7 +12,6 @@ export type {
   DailyJourneyActions,
   DailyJourneyController,
   UseDailyJourneyOptions,
-  VoiceState,
 } from './useDailyJourney';
 
 export {

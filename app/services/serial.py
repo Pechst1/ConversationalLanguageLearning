@@ -27,7 +27,8 @@ from app.services.graphic_novel import (
 )
 from app.services.llm_service import LLMService
 from app.services.missions import MissionScheduler
-from app.services.news_service import NewsService
+from app.services.revue import feuilleton_bridge
+from app.services.revue.dossier import EditorialDossier
 from app.services.serial_arc_planner import (
     SEASON_FINALE_ARC_ID,
     SerialArcPlanner,
@@ -51,6 +52,13 @@ def _engine_version() -> str:
 WORLD_BIBLE_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v2.json"
 WORLD_BIBLE_V1_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_v1.json"
 WORLD_BIBLE_S2_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_s2.json"
+WORLD_BIBLE_S3_PATH = Path(__file__).resolve().parent.parent / "prompts" / "serial" / "world_bible_paris_s3.json"
+# WP-98: every authored season after the first, by number. A season with no file here
+# is either written by `season_writer` (behind ATELIER_SEASON_WRITER_ENABLED) or waited
+# for in a named interlude with a return date — never an unbounded one.
+AUTHORED_SEASON_PATHS: dict[int, Path] = {2: WORLD_BIBLE_S2_PATH, 3: WORLD_BIBLE_S3_PATH}
+# Keys of a season file that are directives to the merge, not world-bible content.
+SEASON_MERGE_DIRECTIVES = frozenset({"cast_updates", "cast_additions", "locations_fr"})
 
 
 def _compact(value: Any, max_length: int) -> str:
@@ -660,8 +668,11 @@ class SerialThreadService:
         # News is only fetched for episodes whose authored brief explicitly opts into a
         # news-led panel. Ordinary feuilleton episodes stay fully fictional.
         include_news_panel = bool(brief_payload.get("include_news_panel"))
+        dossier: EditorialDossier | None = None
         if include_news_panel:
-            thread.news_seed = await self._news_seed(thread.user)
+            # WP-119 phase 5: the week's editorial dossier, the same one La Revue reads.
+            dossier = self._feuilleton_dossier(thread.user)
+            thread.news_seed = self._seed_from_dossier(dossier)
             self.db.add(thread)
             self.db.commit()
         try:
@@ -671,7 +682,7 @@ class SerialThreadService:
                 mission_id=latest_mission.id if latest_mission else None,
                 serial_thread_id=thread.id,
                 episode_index=episode_index,
-                use_news=include_news_panel,
+                dossier=dossier,
                 panel_count=6,
                 story_quality="standard",
                 experience_mode="study",
@@ -848,6 +859,147 @@ class SerialThreadService:
             "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
         }
 
+    # -----------------------------------------------------------------
+    # WP-44 — the Feuilleton tab's season page
+    # -----------------------------------------------------------------
+
+    def season_page(self, user: User) -> dict[str, Any]:
+        """Everything the Feuilleton tab shows, read and never written.
+
+        This is a projection, not a controller. It opens no thread, starts no
+        beat, generates nothing and touches no story state: a learner who taps
+        the tab must not thereby advance their own story, and the season page
+        is exactly the screen someone opens out of curiosity. Where there is
+        nothing yet it says so — the empty state is the honest answer, not a
+        reason to manufacture an episode.
+
+        Numbers are the season's own: the Nth engine scene of this thread is
+        episode N, and the chapter number is how many chapters have been
+        retired plus the one that is open.
+        """
+
+        from app.services.living_story import ENGINE_VERSION_PREFIX, STATE_KEY
+
+        thread = self.db.scalars(
+            select(SerialThread)
+            .where(SerialThread.user_id == user.id, SerialThread.status == "active")
+            .order_by(SerialThread.created_at.desc())
+        ).first()
+        world = thread.world_bible if thread and isinstance(thread.world_bible, dict) else {}
+        state = thread.state if thread and isinstance(thread.state, dict) else {}
+        live = state.get(STATE_KEY) or {}
+        chapter = live.get("chapter") or {}
+
+        query = select(GraphicNovelScene).where(
+            GraphicNovelScene.user_id == user.id,
+            GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+        )
+        if thread:
+            query = query.where(GraphicNovelScene.serial_thread_id == thread.id)
+        scenes = list(
+            self.db.scalars(
+                query.order_by(GraphicNovelScene.created_at.asc(), GraphicNovelScene.id.asc())
+            )
+        )
+        numbers = {scene.id: index + 1 for index, scene in enumerate(scenes)}
+
+        read = [
+            self._season_episode_payload(scene, world, numbers[scene.id])
+            for scene in reversed(scenes)
+            if scene.status == "completed"
+        ]
+        today = next(
+            (
+                self._season_episode_payload(scene, world, numbers[scene.id])
+                for scene in reversed(scenes)
+                if scene.status not in {"completed", "abandoned", "superseded"}
+            ),
+            None,
+        )
+        commitments = [
+            {"id": str(item.get("id") or ""), "text_fr": str(item.get("text_fr") or "").strip()}
+            for item in (live.get("commitments") or [])
+            if isinstance(item, dict)
+            and item.get("status") == "open"
+            and str(item.get("text_fr") or "").strip()
+        ][:3]
+
+        # WP-63: the season's long questions, with the state this life has put them
+        # in. Additive and read-only, like everything else on this page: the text is
+        # the world bible's French line, the state is what the story actually played.
+        from app.services.living_story import threads_projection
+
+        threads = [
+            {"key": row["key"], "text_fr": row["text_fr"], "state": row["state"]}
+            for row in threads_projection(world, live)
+            if str(row.get("text_fr") or "").strip()
+        ]
+
+        return {
+            "thread_id": str(thread.id) if thread else None,
+            "season_number": _int_or(world.get("season_number"), 1),
+            "chapter": {
+                "number": len(live.get("resolved_chapter_questions") or []) + 1,
+                "title_fr": str(chapter.get("title_fr") or "").strip(),
+            }
+            if chapter
+            else None,
+            "today": today,
+            "commitments": commitments,
+            "threads": threads,
+            "read_episodes": read,
+        }
+
+    def _season_episode_payload(
+        self, scene: GraphicNovelScene, world: dict[str, Any], number: int
+    ) -> dict[str, Any]:
+        """One row of the season, from the scene the learner was actually served."""
+
+        panels = sorted(scene.panels or [], key=lambda item: item.panel_index)
+        art = next((panel.image_url for panel in panels if panel.image_url), None)
+        character = ""
+        for panel in panels:
+            for line in (panel.overlay_payload or {}).get("dialogue", []) or []:
+                identifier = str((line or {}).get("character_id") or "").strip()
+                if not identifier or identifier.lower() in {"toi", "you", "learner", "vous"}:
+                    continue
+                character = self._season_cast_name(world, identifier)
+                break
+            if character:
+                break
+        location_id = str((scene.script_payload or {}).get("location_id") or "").strip()
+        return {
+            "scene_id": str(scene.id),
+            "number": number,
+            "title_fr": scene.title,
+            "brief_fr": scene.brief or "",
+            "image_url": art,
+            "character": character,
+            "location": self._season_location_name(world, location_id),
+            "status": scene.status,
+        }
+
+    @staticmethod
+    def _season_cast_name(world: dict[str, Any], character_id: str) -> str:
+        for member in world.get("cast", []) or []:
+            if isinstance(member, dict) and str(member.get("id") or "") == character_id:
+                return str(member.get("name") or "").strip() or character_id
+        return character_id
+
+    @staticmethod
+    def _season_location_name(world: dict[str, Any], location_id: str) -> str:
+        if not location_id:
+            return ""
+        # WP-50: the learner reads the French name of a place, whatever the
+        # world-bible copy stored on this thread calls it.
+        from app.services.living_story import LOCATION_NAMES_FR, location_display_name
+
+        setting = world.get("setting") if isinstance(world.get("setting"), dict) else {}
+        for place in (setting or {}).get("recurring_locations", []) or []:
+            if isinstance(place, dict) and str(place.get("id") or "") == location_id:
+                return location_display_name(place) or location_id
+        return LOCATION_NAMES_FR.get(location_id) or location_id
+
     def episode_archive(self, thread: SerialThread) -> list[dict[str, Any]]:
         episodes = (
             self.db.query(SerialEpisode)
@@ -891,6 +1043,21 @@ class SerialThreadService:
         relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
         visual_characters = ((world.get("visual_design") or {}).get("characters") or {}) if isinstance(world.get("visual_design"), dict) else {}
         episodes_by_character = self._cast_episode_index(thread)
+        # WP-61: the living story keeps how each character feels about the learner on the
+        # same thread; the cast page is where the learner gets to read it.
+        living = (thread.state or {}).get("living_story")
+        moods = living.get("moods") if isinstance(living, dict) and isinstance(living.get("moods"), dict) else {}
+        # WP-97 «Les suites»: the engine's trust (which can fall), what each one
+        # knows about the learner, and the «tu» as the scene where it happened.
+        try:
+            from app.services.story_archive import cast_memory
+
+            memory = cast_memory(self.db, thread)
+        except Exception:  # pragma: no cover - the trombinoscope still renders
+            import logging
+
+            logging.getLogger(__name__).exception("serial: cast memory unreadable")
+            memory = {}
         rows: list[dict[str, Any]] = []
         for member in world.get("cast") or []:
             if not isinstance(member, dict) or not member.get("id"):
@@ -899,20 +1066,43 @@ class SerialThreadService:
             relationship = relationships.get(character_id, {})
             visual = visual_characters.get(character_id, {}) if isinstance(visual_characters, dict) else {}
             episodes = episodes_by_character.get(character_id, [])
+            feeling = moods.get(character_id) if isinstance(moods.get(character_id), dict) else None
             rows.append(
                 {
                     "id": character_id,
                     "name": member.get("name"),
                     "role": member.get("role"),
                     "dynamic_with_user": member.get("dynamic_with_user"),
-                    "model_sheet_url": f"/assets/serial/characters/{character_id}/model-sheet.webp",
+                    # WP-D8: the drawn cast shows its approved portrait; only the learner keeps a model sheet.
+                    # WP-98: a character added without art (`portrait_missing`, e.g.
+                    # season 3's Tiago) gets None, so the face falls back to initials.
+                    "model_sheet_url": _portrait_url(character_id, member),
                     "accent_colour": visual.get("accent_colour"),
+                    # WP-97. `trust` 0..5 (None until the engine has met them);
+                    # `known_about_you` [{text_fr, date, scene_id}], newest first;
+                    # `register` "tu"|"vous"; `tu_since` {date, scene_id}|None.
+                    "trust": (memory.get(character_id) or {}).get("trust"),
+                    "known_about_you": (memory.get(character_id) or {}).get("known_about_you") or [],
+                    "register": (memory.get(character_id) or {}).get("register")
+                    or ((relationship or {}).get("register") or "vous"),
+                    "tu_since": (memory.get(character_id) or {}).get("tu_since"),
                     "relationship": {
+                        # WP-97: DEPRECATED. The only-rising count is kept for old
+                        # clients (and still gates the legacy tu-switch); the one
+                        # relationship meter is now `trust` above.
                         "closeness": int((relationship or {}).get("closeness") or 0),
-                        "register": (relationship or {}).get("register") or "vous",
+                        "closeness_deprecated": True,
+                        # WP-97: the same four facts, where older clients look.
+                        "trust": (memory.get(character_id) or {}).get("trust"),
+                        "known_about_you": (memory.get(character_id) or {}).get("known_about_you") or [],
+                        "tu_since": (memory.get(character_id) or {}).get("tu_since"),
+                        "register": (memory.get(character_id) or {}).get("register")
+                        or ((relationship or {}).get("register") or "vous"),
                         "register_switch_episode": (relationship or {}).get("register_switch_episode"),
                         "last_summary": (relationship or {}).get("last_summary") or "",
                         "callbacks": (relationship or {}).get("callbacks") or [],
+                        # None until the character has been spoken to in the living story.
+                        "mood": max(-2, min(2, int(feeling.get("mood") or 0))) if feeling else None,
                     },
                     "episodes": episodes,
                 }
@@ -1124,18 +1314,31 @@ class SerialThreadService:
             relationship_context={"landlord_marchand": (thread.state or {}).get("relationships", {}).get("landlord_marchand", {})},
         )
 
-    async def _news_seed(self, user: User) -> dict[str, Any]:
-        interests = [item.strip() for item in (user.interests or "").split(",") if item.strip()]
+    def _feuilleton_dossier(self, user: User) -> EditorialDossier | None:
+        """The week's editorial dossier for this learner (WP-119 phase 5), or ``None``."""
+
         try:
-            return await NewsService().fetch_feuilleton_daily_seed(interests=interests, refresh=True)
-        except Exception:
-            return {
-                "mode": "serial_curated",
-                "title": "Paris parle de petites urgences quotidiennes",
-                "summary": "A curated town-texture seed for the serial episode.",
-                "source": "Atelier serial fallback",
-                "items": [],
-            }
+            return feuilleton_bridge.dossier_for_feuilleton(user, db=self.db)
+        except Exception as exc:  # noqa: BLE001 - the edition falls back to the curated seed
+            logger.bind(user_id=str(user.id)).warning("serial: no dossier for the feuilleton ({})", exc)
+            return None
+
+    @staticmethod
+    def _seed_from_dossier(dossier: EditorialDossier | None) -> dict[str, Any]:
+        """``thread.news_seed``: a JSON snapshot of the dossier, or the curated town texture."""
+
+        if dossier is not None:
+            return feuilleton_bridge.thread_seed(dossier)
+        return {
+            "mode": "serial_curated",
+            "title": "Paris parle de petites urgences quotidiennes",
+            "summary": "A curated town-texture seed for the serial episode.",
+            "source": "Atelier serial fallback",
+            "items": [],
+        }
+
+    async def _news_seed(self, user: User) -> dict[str, Any]:
+        return self._seed_from_dossier(self._feuilleton_dossier(user))
 
     def _current_episode(self, thread: SerialThread) -> SerialEpisode | None:
         return (
@@ -1365,15 +1568,66 @@ class SerialThreadService:
         return dict(thread.state or state)
 
     def _load_next_season_world_bible(self, *, current_world: dict[str, Any], next_season: int) -> dict[str, Any]:
-        if next_season != 2:
+        season_world = self.authored_season_world_bible(next_season)
+        if not season_world:
+            return {}
+        return self.merge_season_world_bible(current_world, season_world, next_season=next_season)
+
+    @staticmethod
+    def authored_season_world_bible(season: int) -> dict[str, Any]:
+        """The authored season file for ``season`` (2, 3, …), or ``{}`` when none exists."""
+
+        path = AUTHORED_SEASON_PATHS.get(int(season))
+        if path is None:
             return {}
         try:
-            season_world = json.loads(WORLD_BIBLE_S2_PATH.read_text(encoding="utf-8"))
+            loaded = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return {}
+        return loaded if isinstance(loaded, dict) else {}
+
+    @staticmethod
+    def merge_season_world_bible(
+        current_world: dict[str, Any], season_world: dict[str, Any], *, next_season: int
+    ) -> dict[str, Any]:
+        """Lay one season file over the world the life is already in (WP-63/WP-98).
+
+        Top-level keys replace; the cast, the places and the art are carried. Three
+        directives are applied instead of copied: ``cast_updates`` (per-character
+        fields that change this season, e.g. a new secret), ``cast_additions`` (a
+        character who joins — never one already present) and ``locations_fr`` (the
+        French name of each place, filled where the carried setting lacks one).
+        """
+
         next_world = dict(current_world or {})
         for key, value in season_world.items():
+            if key in SEASON_MERGE_DIRECTIVES:
+                continue
             next_world[key] = value
+        cast = [dict(member) for member in next_world.get("cast") or [] if isinstance(member, dict)]
+        updates = season_world.get("cast_updates") or {}
+        if isinstance(updates, dict):
+            for member in cast:
+                patch = updates.get(str(member.get("id")))
+                if isinstance(patch, dict):
+                    member.update(patch)
+        known = {str(member.get("id")) for member in cast}
+        for member in season_world.get("cast_additions") or []:
+            if isinstance(member, dict) and member.get("id") and str(member["id"]) not in known:
+                cast.append(dict(member))
+                known.add(str(member["id"]))
+        if cast or "cast" in next_world:
+            next_world["cast"] = cast
+        names_fr = season_world.get("locations_fr") or {}
+        setting = next_world.get("setting")
+        if isinstance(names_fr, dict) and isinstance(setting, dict):
+            places = []
+            for place in setting.get("recurring_locations") or []:
+                if isinstance(place, dict) and place.get("id") and not place.get("name_fr"):
+                    name = names_fr.get(str(place["id"]))
+                    place = {**place, **({"name_fr": name} if name else {})}
+                places.append(place)
+            next_world["setting"] = {**setting, "recurring_locations": places}
         next_world["season_number"] = next_season
         return next_world
 
@@ -1996,3 +2250,19 @@ class SerialThreadService:
 
 
 __all__ = ["SerialThreadService"]
+
+
+_WEB_PUBLIC = Path(__file__).resolve().parents[2] / "web-frontend" / "public"
+
+
+def _portrait_url(character_id: str, member: dict[str, Any]) -> str | None:
+    """The cast member's approved portrait, or None when there is no art for them."""
+
+    if character_id == "user":
+        return f"/assets/serial/characters/{character_id}/model-sheet.webp"
+    if member.get("portrait_missing"):
+        return None
+    relative = f"assets/serial/characters/{character_id}/portrait-neutral.webp"
+    if _WEB_PUBLIC.is_dir() and not (_WEB_PUBLIC / relative).is_file():
+        return None
+    return "/" + relative

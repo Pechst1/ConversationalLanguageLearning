@@ -138,6 +138,20 @@
   --phone-art-min-height: 240px;
 }
 
+/* A screen without the phone tab bar — the journey session hides it — keeps
+   only the safe area. Without this the session still reserved the bar's 64px:
+   the verdict sheet («Continue») floated 90px above the bottom over the step's
+   last control, with an empty strip beneath it (2026-10-09 walk). */
+.app-root:not(:has(.phone-product-nav)) {
+  --phone-bottom-nav-space: var(--phone-safe-bottom-space);
+}
+
+/* An embedded tab bar (the home's) is in the flow and pads its own safe area:
+   the route shell's reservation for a fixed bar was 82px of empty page under it. */
+.app-root:has(.phone-product-nav.embedded):not(:has(.phone-product-nav.fixed)) .app-route-shell {
+  padding-bottom: 0;
+}
+
 :root[data-phone-height="short"] {
   --phone-section-gap: 12px;
   --phone-card-gap: 10px;
@@ -213,16 +227,26 @@
    inert. 14.5/16/19px moves the rem-based --t-* scale by -9%/+19% — a real
    change at both ends, still short of a reflow (--t-display stays under 53px
    and the phone shell is width-, not type-, bound). */
+/* WP-83 — Dynamic Type. No fixed px root: the three steps are percentages of
+   the reader's own default size (14.5/16/19 at a 16 px default), so a browser
+   or OS text-size setting moves the whole rem scale with it. In the iOS shell
+   the medium step is the system's Dynamic Type body size itself. */
 :root[data-font-size="small"] {
-  font-size: 14.5px;
+  font-size: 90.625%;
 }
 
 :root[data-font-size="medium"] {
-  font-size: 16px;
+  font-size: 100%;
 }
 
 :root[data-font-size="large"] {
-  font-size: 19px;
+  font-size: 118.75%;
+}
+
+@supports (font: -apple-system-body) {
+  html.is-native:not([data-font-size="small"]):not([data-font-size="large"]) {
+    font: -apple-system-body;
+  }
 }
 
 html,
@@ -245,6 +269,20 @@ body {
   font-feature-settings: "kern" 1;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+}
+
+/* WP-83 — the one loader (RouteAuthGate): the av2 skeleton, clear of the
+   Dynamic Island and the side gutters. */
+.app-loading-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 720px;
+  min-height: 60vh;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 1.5rem) 1rem 1.5rem;
+  box-sizing: border-box;
 }
 
 .read-surface {
@@ -759,8 +797,10 @@ a {
    is added by Layout when Capacitor.isNativePlatform() is true. */
 html.is-native,
 html.is-native body {
-  /* Prevent horizontal rubber-band and accidental sideways scroll. */
-  overflow-x: hidden;
+  /* Prevent horizontal rubber-band and accidental sideways scroll. «clip», not
+     «hidden»: hidden on both html and body makes body a scroll container that
+     never scrolls, and every sticky bar (the tab bar, the verdict sheet) pins to it. */
+  overflow-x: clip;
   max-width: 100%;
   /* Kill the grey tap flash and the long-press text-selection callout. */
   -webkit-tap-highlight-color: transparent;

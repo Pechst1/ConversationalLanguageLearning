@@ -7,6 +7,10 @@
  * Kept free of React so it can be unit-tested with `node --test`.
  */
 
+// Relative, not `@/`: the reader's node tests load this model without the alias.
+import { castIdFor, type StageMood } from '../../../lib/cast-faces';
+import type { PortraitMood } from '../../../lib/onboarding-portraits';
+
 export type ReaderScene = {
   id: string;
   status?: string;
@@ -40,6 +44,31 @@ export type ReaderLine = {
   fr: string;
   en: string;
   character: string;
+  /**
+   * WP-77: the drawn cast member speaking (`lib/cast-faces` id), or absent for
+   * anyone without a face. Unlike `character` it is never guessed: an unknown
+   * speaker gets no face rather than someone else's.
+   */
+  faceId?: string | null;
+  /** WP-77: which face, from the story's live mood when sent (WP-D8 adds `moved`). */
+  faceMood?: PortraitMood;
+  /** WP-137 C-4: the drawn stage's face for the line (`cold` included), when it differs. */
+  stageMood?: StageMood;
+  /**
+   * WP-90/91: the line's audio key — `${panelId}:l${rawIndex}`, computed from the
+   * raw dialogue array exactly as `app/services/episode_audio.py` does — so a
+   * server clip and this line meet without negotiating an index.
+   */
+  audioKey?: string;
+  /** WP-91: the speaker's canonical id as the payload sent it (voice lookup). */
+  speakerId?: string | null;
+  /**
+   * WP-92 «Rayons X»: where the day's rule sits in `fr` (ranges into the
+   * trimmed line). Drawn only while the learner has the marks on.
+   */
+  marks?: Array<{ start: number; end: number }>;
+  /** WP-110: the learner's own line, drawn as the balloon in its panel. */
+  you?: boolean;
 };
 
 export type ReaderArtStatus = 'ready' | 'printing' | 'missing';
@@ -54,10 +83,44 @@ export type ReaderPanelStage = {
   beat: string;
   imageUrl: string;
   artStatus: ReaderArtStatus;
+  /**
+   * WP-90: the picture shown is the location plate standing in while the
+   * panel's own drawing is still on the press. Drawn as a blue-ink duotone with
+   * a folio ribbon; the drawing crossfades in when it lands.
+   */
+  artPending?: boolean;
+  /** WP-90: what the picture shows, one sentence (the learner's language when sent). */
+  imageAlt?: string;
   character: string;
   lines: ReaderLine[];
   caption: string;
   tasks: ReaderTask[];
+  /** WP-110: which movement of the page this panel is (act, turn, reaction, solve, ending). */
+  movement?: string;
+  /** WP-116: the location plate under the panel, for the drawn cast to stand on. */
+  plateUrl?: string;
+  /** WP-116: who stands on the plate in the drawn set (the panel's speakers). */
+  cast?: Array<{ id: string; mood?: StageMood | null; speaking?: boolean }>;
+  /**
+   * WP-137 C-5: a panel with no line and no narration (an authored silence, a
+   * beat on a detail). The reader gives it a caption and a slow pan, never a
+   * bare plate.
+   */
+  silent?: boolean;
+};
+
+/**
+ * WP-90: the «case finale» — the day's ending drawn as the reader's last panel
+ * (the red-triangle stage): its picture, the character's line with their face,
+ * and what happened, in the learner's language.
+ */
+export type ReaderFinale = {
+  imageUrl: string;
+  imageAlt: string;
+  line: ReaderLine | null;
+  summary: string;
+  /** The story lane is still writing the ending: the stage waits with a face. */
+  waiting: boolean;
 };
 
 export type ReaderResolutionStage = {
@@ -68,6 +131,9 @@ export type ReaderResolutionStage = {
   hookQuestion: string;
   hookBeat: string;
   tasks: ReaderTask[];
+  finale?: ReaderFinale | null;
+  /** WP-110: tomorrow's line, under «À suivre…». */
+  aSuivre?: string;
 };
 
 export type ReaderStage = ReaderPanelStage | ReaderResolutionStage;
@@ -135,12 +201,22 @@ export function shortSpeakerName(value: unknown): string {
   const nickname = raw.match(/[«"“']\s*([^»"”']+?)\s*[»"”']/);
   if (nickname) return nickname[1].trim();
   const cleaned = raw.replace(/\s+/g, ' ');
+  // Whole words, first names first: «Camille Marchand» is Camille, never the
+  // landlord whose surname she shares (QA-STORY 2026-10-03).
   const known: Array<[string, string]> = [
+    ['camille', 'Camille'], ['odile', 'Odile'],
     ['romane', 'Romy'], ['romy', 'Romy'], ['marin', 'Marin'], ['lila', 'Lila'],
     ['augustin', 'Gus'], ['gus', 'Gus'], ['margaux', 'Margaux'], ['marchand', 'M. Marchand'],
   ];
-  const lowered = cleaned.toLowerCase();
-  const match = known.find(([needle]) => lowered.includes(needle));
+  const words = new Set(
+    cleaned
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean),
+  );
+  const match = known.find(([needle]) => words.has(needle));
   if (match) return match[1];
   return cleaned.split(' ')[0];
 }
@@ -183,6 +259,7 @@ export function panelLines(panel: ReaderPanelSource): ReaderLine[] {
         fr: String(bubble.fr).trim(),
         en: String(bubble.en || '').trim(),
         character,
+        faceId: castIdFor(bubble.speaker_id, bubble.speaker),
       };
     });
 }
@@ -457,4 +534,24 @@ export function taskIsChoice(task: ReaderTask): boolean {
 
 export function taskIsClosed(task: ReaderTask): boolean {
   return task?.task_type === 'cloze' || taskIsChoice(task);
+}
+
+/* WP-90 (W4): the reader's head — one kicker, one title. The kicker is the
+   episode label (and place); when it says what the title says («Le feuilleton»
+   over «Le feuilleton») it is dropped rather than printed twice. */
+export function readerHeadParts({
+  episodeLabel,
+  location,
+  title,
+}: {
+  episodeLabel?: string | null;
+  location?: string | null;
+  title?: string | null;
+}): { eyebrow: string; title: string } {
+  const heading = String(title || '').trim() || String(episodeLabel || '').trim();
+  const same = (value: string) => normalizeReaderText(value) === normalizeReaderText(heading);
+  const parts = [episodeLabel, location]
+    .map((value) => String(value || '').trim())
+    .filter((value) => value && !same(value));
+  return { eyebrow: parts.join(' · '), title: heading };
 }

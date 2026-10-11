@@ -1,0 +1,3267 @@
+{
+ "n": 6,
+ "dossier_id": "2026-w40-prix-produits-frais",
+ "level": "A1.1",
+ "native_language": "de",
+ "dossier": {
+  "id": "2026-w40-prix-produits-frais",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "food",
+  "title_fr": "Les fruits et légumes coûtent plus cher",
+  "summary_fr": "Selon une première estimation de l'Insee publiée le 30 septembre 2026, les produits frais (fruits, légumes, poisson) coûtent 9,9 % plus cher qu'il y a un an. Pour toute l'alimentation, la hausse est plus faible : 1,5 %. Les chiffres définitifs arrivent le 15 octobre.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+    "quote": "Les produits frais affichent une hausse de 9,9 % sur un an en septembre. En août, leur progression se limitait encore à 5,9 %.",
+    "source_id": "w40_prix_abcbourse",
+    "url": "https://www.abcbourse.com/marches/newsContent/703405",
+    "published_at": "2026-09-30",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+    "quote": "Les prix alimentaires progressent désormais de 1,5 % sur un an, après 1,1 % en août.",
+    "source_id": "w40_prix_abcbourse",
+    "url": "https://www.abcbourse.com/marches/newsContent/703405",
+    "published_at": "2026-09-30",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "fact",
+    "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+    "quote": "Ceux de l’alimentation augmenteraient pour le troisième mois consécutif, une nouvelle fois tirés par ceux des produits frais.",
+    "source_id": "w40_prix_insee",
+    "url": "https://www.insee.fr/fr/statistiques/9056956",
+    "published_at": "2026-09-30",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+    "quote": "Une accélération alimentée avant tout par l'énergie et les produits frais.",
+    "source_id": "w40_prix_abcbourse",
+    "url": "https://www.abcbourse.com/marches/newsContent/703405",
+    "published_at": "2026-09-30",
+    "confidence": "reported",
+    "attributed_to": "ABC Bourse, site d'information économique"
+   }
+  ],
+  "entities": [
+   {
+    "name": "Insee",
+    "kind": "organisation",
+    "role": null
+   }
+  ],
+  "uncertainties": [
+   "Ces chiffres sont provisoires : les sources ne disent pas s'ils vont changer avec les résultats définitifs du 15 octobre.",
+   "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Ce que ça change au marché et dans le panier",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": "margaux_barman"
+   },
+   {
+    "id": "a2",
+    "fr": "Faire une liste de courses de saison avec un petit budget",
+    "purpose": "prepare_dispatch",
+    "participation": "none",
+    "guest_fit": "margaux_barman"
+   }
+  ],
+  "places": [
+   {
+    "id": "etal_fruits_legumes",
+    "name_fr": "Un étal de fruits et légumes au marché",
+    "brief": "a market stall of autumn fruit and vegetables under a striped awning, wooden crates of apples, pears, leeks and squash, small chalk price boards, morning light",
+    "known": false,
+    "geo": {
+     "lat": 48.8566,
+     "lon": 2.3522,
+     "precision": "city",
+     "label_fr": "Paris"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-09-30/2026-10-15",
+   "relevant_until": "2026-10-30"
+  },
+  "sources": [
+   {
+    "id": "w40_prix_abcbourse",
+    "name": "ABC Bourse",
+    "url": "https://www.abcbourse.com/marches/newsContent/703405",
+    "published_at": "2026-09-30"
+   },
+   {
+    "id": "w40_prix_insee",
+    "name": "Insee, Informations rapides n° 242",
+    "url": "https://www.insee.fr/fr/statistiques/9056956",
+    "published_at": "2026-09-30"
+   }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "un panier de légumes"
+ },
+ "band": "A1",
+ "vocabulary": [
+  {
+   "fr": "les produits frais",
+   "gloss": {
+    "de": "frische Produkte"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "l'Insee",
+   "gloss": {
+    "de": "INSEE (französisches Statistikamt)"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "toute l'alimentation",
+   "gloss": {
+    "de": "die gesamte Ernährung/die gesamten Lebensmittel"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "le troisième mois",
+   "gloss": {
+    "de": "der dritte Monat"
+   },
+   "claim_id": "c3"
+  },
+  {
+   "fr": "de l'énergie",
+   "gloss": {
+    "de": "Energie"
+   },
+   "claim_id": "c4"
+  }
+ ],
+ "target_use": {
+  "word": "le troisième mois",
+  "article_said": "le",
+  "intended": "correct",
+  "sentence": "Pour moi, le troisième mois, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T00:51:19.238526+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text"
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T00:51:27.391402+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Merci. D'après c1,c2,c3, les prix montent, surtout les produits frais. Je propose : «Quels fruits ou légumes ont le plus augmenté ?»",
+      "translation": "Danke. Laut c1,c2,c3 steigen die Preise, vor allem für frische Produkte. Ich schlage vor: «Welche Früchte oder Gemüse sind am meisten gestiegen?»",
+      "glosses": [
+       {
+        "fr": "les produits frais",
+        "gloss": "frische Produkte",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "4.u",
+      "seq": 4,
+      "at": "2026-10-03T00:51:27.391402+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T00:51:27.391457+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+        "quote": "Les produits frais affichent une hausse de 9,9 % sur un an en septembre. En août, leur progression se limitait encore à 5,9 %.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_prix_abcbourse",
+         "name": "ABC Bourse",
+         "url": "https://www.abcbourse.com/marches/newsContent/703405",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+        "quote": "Les prix alimentaires progressent désormais de 1,5 % sur un an, après 1,1 % en août.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_prix_abcbourse",
+         "name": "ABC Bourse",
+         "url": "https://www.abcbourse.com/marches/newsContent/703405",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+        "quote": "Ceux de l’alimentation augmenteraient pour le troisième mois consécutif, une nouvelle fois tirés par ceux des produits frais.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_prix_insee",
+         "name": "Insee, Informations rapides n° 242",
+         "url": "https://www.insee.fr/fr/statistiques/9056956",
+         "published_at": "2026-09-30"
+        }
+       }
+      ]
+     },
+     {
+      "id": "6",
+      "seq": 6,
+      "at": "2026-10-03T00:51:27.391512+00:00",
+      "kind": "shift",
+      "reason": "angle",
+      "angle": {
+       "id": "a2",
+       "fr": "Faire une liste de courses de saison avec un petit budget"
+      }
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les produits frais",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'Insee",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "toute l'alimentation",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le troisième mois",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "de l'énergie",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "Les fruits sont plus chers ?",
+   "result": {
+    "items": [
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T00:51:27.416853+00:00",
+      "kind": "mine",
+      "text_fr": "Les fruits sont plus chers ?",
+      "mode": "text"
+     },
+     {
+      "id": "9",
+      "seq": 9,
+      "at": "2026-10-03T00:51:31.926738+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Oui. D'après c1 et c3, les produits frais sont beaucoup plus chers (+9,9 %). Pour toute l'alimentation, +1,5 % (c2).",
+      "translation": "Ja. Laut c1 und c3 sind frische Produkte viel teurer (+9,9 %). Für alle Lebensmittel +1,5 % (c2).",
+      "glosses": [
+       {
+        "fr": "les produits frais",
+        "gloss": "frische Produkte",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "toute l'alimentation",
+        "gloss": "die gesamte Ernährung/die gesamten Lebensmittel",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "11",
+      "seq": 11,
+      "at": "2026-10-03T00:51:34.763408+00:00",
+      "kind": "guest",
+      "cast_id": "margaux_barman",
+      "text_fr": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui.",
+      "move": "enter",
+      "position": null,
+      "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les produits frais",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'Insee",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "toute l'alimentation",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le troisième mois",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "de l'énergie",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "Quels légumes sont plus chers ?",
+   "result": {
+    "items": [
+     {
+      "id": "14",
+      "seq": 14,
+      "at": "2026-10-03T00:51:34.772196+00:00",
+      "kind": "mine",
+      "text_fr": "Quels légumes sont plus chers ?",
+      "mode": "text"
+     },
+     {
+      "id": "15",
+      "seq": 15,
+      "at": "2026-10-03T00:51:40.330633+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne disent pas quels légumes ont le plus augmenté (incertitude 2). D'après c1 et c3, les produits frais augmentent beaucoup.",
+      "translation": "Die Quellen sagen nicht, welches Gemüse am meisten gestiegen ist (Unsicherheit 2). Laut c1 und c3 steigen frische Produkte stark.",
+      "glosses": [
+       {
+        "fr": "les produits frais",
+        "gloss": "frische Produkte",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "16",
+      "seq": 16,
+      "at": "2026-10-03T00:51:42.613402+00:00",
+      "kind": "guest",
+      "cast_id": "margaux_barman",
+      "text_fr": "Tu veux que je cherche lesquels ont monté ?",
+      "move": "follow_up",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     },
+     {
+      "id": "17",
+      "seq": 17,
+      "at": "2026-10-03T00:51:42.613505+00:00",
+      "kind": "shift",
+      "reason": "angle",
+      "angle": {
+       "id": "a1",
+       "fr": "Ce que ça change au marché et dans le panier"
+      }
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les produits frais",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'Insee",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "toute l'alimentation",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le troisième mois",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "de l'énergie",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "C'est difficile pour moi. Pour moi, le troisième mois, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "20",
+      "seq": 20,
+      "at": "2026-10-03T00:51:42.625561+00:00",
+      "kind": "mine",
+      "text_fr": "C'est difficile pour moi. Pour moi, le troisième mois, c'est important.",
+      "mode": "text"
+     },
+     {
+      "id": "21",
+      "seq": 21,
+      "at": "2026-10-03T00:51:47.072559+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Je sais. D'après c3, les prix montent pour le troisième mois de suite. Veux-tu que je rédige une question au lecteur sur quels légumes ont le plus augmenté (incert. 2) ?",
+      "translation": "Ich weiss. Laut c3 steigen die Preise nun schon drei Monate in Folge. Willst du, dass ich eine Leserfrage formuliere: Welche Gemüse sind am stärksten gestiegen (Unsicherheit 2)?",
+      "glosses": [
+       {
+        "fr": "le troisième mois",
+        "gloss": "der dritte Monat",
+        "claim_id": "c3"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "22",
+      "seq": 22,
+      "at": "2026-10-03T00:51:49.351801+00:00",
+      "kind": "guest",
+      "cast_id": "margaux_barman",
+      "text_fr": "Tu veux que je cherche quels légumes ont monté le plus ?",
+      "move": "follow_up",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les produits frais",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'Insee",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "toute l'alimentation",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le troisième mois",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "de l'énergie",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "headline_choice",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Les prix alimentaires n'ont pas augmenté"
+     },
+     {
+      "id": "h2",
+      "text_fr": "La hausse vient surtout des produits transformés"
+     },
+     {
+      "id": "h3",
+      "text_fr": "D'après l'Insee, les produits frais: +9,9 % en un an"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": null,
+    "uncertainty_fr": null
+   }
+  ],
+  "intro": {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T00:51:56.511939+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Il me faut un titre. Lequel colle aux faits ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "headline_choice",
+  "pick": {
+   "kind": "headline_choice",
+   "correct": true,
+   "answer_id": "h3",
+   "evidence": {
+    "claim_id": "c1",
+    "quote": "Les produits frais affichent une hausse de 9,9 % sur un an en septembre. En août, leur progression se limitait encore à 5,9 %.",
+    "source": {
+     "id": "w40_prix_abcbourse",
+     "name": "ABC Bourse",
+     "url": "https://www.abcbourse.com/marches/newsContent/703405",
+     "published_at": "2026-09-30"
+    }
+   },
+   "made": {
+    "kind": "headline_choice",
+    "text_fr": "D'après l'Insee, les produits frais: +9,9 % en un an",
+    "contribution": [
+     [
+      0,
+      52
+     ]
+    ],
+    "learner_fr": null
+   },
+   "line": {
+    "id": "28",
+    "seq": 28,
+    "at": "2026-10-03T00:51:56.518711+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "C'est noté. Ce titre-là tient debout.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je garde ton titre tel quel dans le dossier.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "D'après l'Insee, les produits frais: +9,9 % en un an",
+   "body_fr": [
+    "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+    "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+    "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais."
+   ],
+   "contribution": [
+    [
+     0,
+     52
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après ABC Bourse et Insee, Informations rapides n° 242",
+   "sources": [
+    {
+     "id": "w40_prix_abcbourse",
+     "name": "ABC Bourse",
+     "url": "https://www.abcbourse.com/marches/newsContent/703405",
+     "published_at": "2026-09-30"
+    },
+    {
+     "id": "w40_prix_insee",
+     "name": "Insee, Informations rapides n° 242",
+     "url": "https://www.insee.fr/fr/statistiques/9056956",
+     "published_at": "2026-09-30"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "les produits frais",
+     "gloss": "frische Produkte",
+     "claim_id": "c1",
+     "used": false
+    },
+    {
+     "fr": "l'Insee",
+     "gloss": "INSEE (französisches Statistikamt)",
+     "claim_id": "c1",
+     "used": false
+    },
+    {
+     "fr": "toute l'alimentation",
+     "gloss": "die gesamte Ernährung/die gesamten Lebensmittel",
+     "claim_id": "c2",
+     "used": false
+    },
+    {
+     "fr": "le troisième mois",
+     "gloss": "der dritte Monat",
+     "claim_id": "c3",
+     "used": true
+    },
+    {
+     "fr": "de l'énergie",
+     "gloss": "Energie",
+     "claim_id": "c4",
+     "used": false
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+     "quote": "Les produits frais affichent une hausse de 9,9 % sur un an en septembre. En août, leur progression se limitait encore à 5,9 %.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_prix_abcbourse",
+      "name": "ABC Bourse",
+      "url": "https://www.abcbourse.com/marches/newsContent/703405",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+     "quote": "Les prix alimentaires progressent désormais de 1,5 % sur un an, après 1,1 % en août.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_prix_abcbourse",
+      "name": "ABC Bourse",
+      "url": "https://www.abcbourse.com/marches/newsContent/703405",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+     "quote": "Ceux de l’alimentation augmenteraient pour le troisième mois consécutif, une nouvelle fois tirés par ceux des produits frais.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_prix_insee",
+      "name": "Insee, Informations rapides n° 242",
+      "url": "https://www.insee.fr/fr/statistiques/9056956",
+      "published_at": "2026-09-30"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": null,
+  "vignette": {
+   "id": "719dc5c8-0ccd-487b-a497-4c0f64bc00e4",
+   "session_id": "2ac8d371-8639-4cc6-82df-54048a3146c7",
+   "dossier_id": "2026-w40-prix-produits-frais",
+   "week": "2026-W40",
+   "place_label_fr": "Un étal de fruits et légumes au marché",
+   "ring": "headline",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"46\" r=\"19\" fill=\"#C2890F\"/><rect x=\"35\" y=\"62\" width=\"30\" height=\"10\" rx=\"3\" fill=\"#D8321A\"/><path d=\"M50 28L60 44L40 44Z\" fill=\"#D8321A\"/><ellipse cx=\"50\" cy=\"76\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"45\" cy=\"40\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Les fruits et légumes coûtent plus cher",
+   "minted_at": "2026-10-03T00:51:59"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T00:51:19.231699+00:00",
+   "kind": "narration",
+   "text_fr": "Un étal de fruits et légumes au marché."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T00:51:19.231699+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : ça se passe du 30 sept. au 15 oct.."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T00:51:19.231699+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment un étal de fruits et légumes au marché, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T00:51:19.231699+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que ça change au marché et dans le panier ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T00:51:19.231699+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "Selon une première estimation de l'Insee publiée le 30 septembre 2026, les produits frais (fruits, légumes, poisson) coûtent 9,9 % plus cher qu'il y a un an. Pour toute l'alimentation, la hausse est plus faible : 1,5 %. Les chiffres définitifs arrivent le 15 octobre."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T00:51:19.238526+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text"
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T00:51:27.391402+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Merci. D'après c1,c2,c3, les prix montent, surtout les produits frais. Je propose : «Quels fruits ou légumes ont le plus augmenté ?»",
+   "translation": "Danke. Laut c1,c2,c3 steigen die Preise, vor allem für frische Produkte. Ich schlage vor: «Welche Früchte oder Gemüse sind am meisten gestiegen?»",
+   "glosses": [
+    {
+     "fr": "les produits frais",
+     "gloss": "frische Produkte",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "4.u",
+   "seq": 4,
+   "at": "2026-10-03T00:51:27.391402+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T00:51:27.391457+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+     "quote": "Les produits frais affichent une hausse de 9,9 % sur un an en septembre. En août, leur progression se limitait encore à 5,9 %.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_prix_abcbourse",
+      "name": "ABC Bourse",
+      "url": "https://www.abcbourse.com/marches/newsContent/703405",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+     "quote": "Les prix alimentaires progressent désormais de 1,5 % sur un an, après 1,1 % en août.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_prix_abcbourse",
+      "name": "ABC Bourse",
+      "url": "https://www.abcbourse.com/marches/newsContent/703405",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+     "quote": "Ceux de l’alimentation augmenteraient pour le troisième mois consécutif, une nouvelle fois tirés par ceux des produits frais.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_prix_insee",
+      "name": "Insee, Informations rapides n° 242",
+      "url": "https://www.insee.fr/fr/statistiques/9056956",
+      "published_at": "2026-09-30"
+     }
+    }
+   ]
+  },
+  {
+   "id": "6",
+   "seq": 6,
+   "at": "2026-10-03T00:51:27.391512+00:00",
+   "kind": "shift",
+   "reason": "angle",
+   "angle": {
+    "id": "a2",
+    "fr": "Faire une liste de courses de saison avec un petit budget"
+   }
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T00:51:27.416853+00:00",
+   "kind": "mine",
+   "text_fr": "Les fruits sont plus chers ?",
+   "mode": "text"
+  },
+  {
+   "id": "9",
+   "seq": 9,
+   "at": "2026-10-03T00:51:31.926738+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Oui. D'après c1 et c3, les produits frais sont beaucoup plus chers (+9,9 %). Pour toute l'alimentation, +1,5 % (c2).",
+   "translation": "Ja. Laut c1 und c3 sind frische Produkte viel teurer (+9,9 %). Für alle Lebensmittel +1,5 % (c2).",
+   "glosses": [
+    {
+     "fr": "les produits frais",
+     "gloss": "frische Produkte",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "toute l'alimentation",
+     "gloss": "die gesamte Ernährung/die gesamten Lebensmittel",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "11",
+   "seq": 11,
+   "at": "2026-10-03T00:51:34.763408+00:00",
+   "kind": "guest",
+   "cast_id": "margaux_barman",
+   "text_fr": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "14",
+   "seq": 14,
+   "at": "2026-10-03T00:51:34.772196+00:00",
+   "kind": "mine",
+   "text_fr": "Quels légumes sont plus chers ?",
+   "mode": "text"
+  },
+  {
+   "id": "15",
+   "seq": 15,
+   "at": "2026-10-03T00:51:40.330633+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne disent pas quels légumes ont le plus augmenté (incertitude 2). D'après c1 et c3, les produits frais augmentent beaucoup.",
+   "translation": "Die Quellen sagen nicht, welches Gemüse am meisten gestiegen ist (Unsicherheit 2). Laut c1 und c3 steigen frische Produkte stark.",
+   "glosses": [
+    {
+     "fr": "les produits frais",
+     "gloss": "frische Produkte",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "16",
+   "seq": 16,
+   "at": "2026-10-03T00:51:42.613402+00:00",
+   "kind": "guest",
+   "cast_id": "margaux_barman",
+   "text_fr": "Tu veux que je cherche lesquels ont monté ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "17",
+   "seq": 17,
+   "at": "2026-10-03T00:51:42.613505+00:00",
+   "kind": "shift",
+   "reason": "angle",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce que ça change au marché et dans le panier"
+   }
+  },
+  {
+   "id": "20",
+   "seq": 20,
+   "at": "2026-10-03T00:51:42.625561+00:00",
+   "kind": "mine",
+   "text_fr": "C'est difficile pour moi. Pour moi, le troisième mois, c'est important.",
+   "mode": "text"
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T00:51:47.072559+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Je sais. D'après c3, les prix montent pour le troisième mois de suite. Veux-tu que je rédige une question au lecteur sur quels légumes ont le plus augmenté (incert. 2) ?",
+   "translation": "Ich weiss. Laut c3 steigen die Preise nun schon drei Monate in Folge. Willst du, dass ich eine Leserfrage formuliere: Welche Gemüse sind am stärksten gestiegen (Unsicherheit 2)?",
+   "glosses": [
+    {
+     "fr": "le troisième mois",
+     "gloss": "der dritte Monat",
+     "claim_id": "c3"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "22",
+   "seq": 22,
+   "at": "2026-10-03T00:51:49.351801+00:00",
+   "kind": "guest",
+   "cast_id": "margaux_barman",
+   "text_fr": "Tu veux que je cherche quels légumes ont monté le plus ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T00:51:56.511939+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Il me faut un titre. Lequel colle aux faits ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "27",
+   "seq": 27,
+   "at": "2026-10-03T00:51:56.518703+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "headline_choice",
+    "text_fr": "D'après l'Insee, les produits frais: +9,9 % en un an",
+    "contribution": [
+     [
+      0,
+      52
+     ]
+    ],
+    "learner_fr": null
+   }
+  },
+  {
+   "id": "28",
+   "seq": 28,
+   "at": "2026-10-03T00:51:56.518711+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "C'est noté. Ce titre-là tient debout.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "29",
+   "seq": 29,
+   "at": "2026-10-03T00:52:00.021925+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je garde ton titre tel quel dans le dossier.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "2026-w40-prix-produits-frais",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "2026-w40-prix-produits-frais",
+     "dossier_version": "revue-v1",
+     "week": "2026-W40",
+     "topic": "food",
+     "title_fr": "Les fruits et légumes coûtent plus cher",
+     "summary_fr": "Selon une première estimation de l'Insee publiée le 30 septembre 2026, les produits frais (fruits, légumes, poisson) coûtent 9,9 % plus cher qu'il y a un an. Pour toute l'alimentation, la hausse est plus faible : 1,5 %. Les chiffres définitifs arrivent le 15 octobre.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+       "quote": "Les produits frais affichent une hausse de 9,9 % sur un an en septembre. En août, leur progression se limitait encore à 5,9 %.",
+       "source_id": "w40_prix_abcbourse",
+       "url": "https://www.abcbourse.com/marches/newsContent/703405",
+       "published_at": "2026-09-30",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+       "quote": "Les prix alimentaires progressent désormais de 1,5 % sur un an, après 1,1 % en août.",
+       "source_id": "w40_prix_abcbourse",
+       "url": "https://www.abcbourse.com/marches/newsContent/703405",
+       "published_at": "2026-09-30",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+       "quote": "Ceux de l’alimentation augmenteraient pour le troisième mois consécutif, une nouvelle fois tirés par ceux des produits frais.",
+       "source_id": "w40_prix_insee",
+       "url": "https://www.insee.fr/fr/statistiques/9056956",
+       "published_at": "2026-09-30",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+       "quote": "Une accélération alimentée avant tout par l'énergie et les produits frais.",
+       "source_id": "w40_prix_abcbourse",
+       "url": "https://www.abcbourse.com/marches/newsContent/703405",
+       "published_at": "2026-09-30",
+       "confidence": "reported",
+       "attributed_to": "ABC Bourse, site d'information économique"
+      }
+     ],
+     "entities": [
+      {
+       "name": "Insee",
+       "kind": "organisation",
+       "role": null
+      }
+     ],
+     "uncertainties": [
+      "Ces chiffres sont provisoires : les sources ne disent pas s'ils vont changer avec les résultats définitifs du 15 octobre.",
+      "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Ce que ça change au marché et dans le panier",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": "margaux_barman"
+      },
+      {
+       "id": "a2",
+       "fr": "Faire une liste de courses de saison avec un petit budget",
+       "purpose": "prepare_dispatch",
+       "participation": "none",
+       "guest_fit": "margaux_barman"
+      }
+     ],
+     "places": [
+      {
+       "id": "etal_fruits_legumes",
+       "name_fr": "Un étal de fruits et légumes au marché",
+       "brief": "a market stall of autumn fruit and vegetables under a striped awning, wooden crates of apples, pears, leeks and squash, small chalk price boards, morning light",
+       "known": false,
+       "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-09-30/2026-10-15",
+      "relevant_until": "2026-10-30"
+     },
+     "sources": [
+      {
+       "id": "w40_prix_abcbourse",
+       "name": "ABC Bourse",
+       "url": "https://www.abcbourse.com/marches/newsContent/703405",
+       "published_at": "2026-09-30"
+      },
+      {
+       "id": "w40_prix_insee",
+       "name": "Insee, Informations rapides n° 242",
+       "url": "https://www.insee.fr/fr/statistiques/9056956",
+       "published_at": "2026-09-30"
+      }
+     ],
+     "evergreen": false,
+     "vignette_object_fr": "un panier de légumes"
+    },
+    "cost_usd": 0.002383
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "Un étal de fruits et légumes au marché.",
+     "Romy est déjà là, son carnet à la main : ça se passe du 30 sept. au 15 oct.."
+    ],
+    "place_note": "Ce n'est pas vraiment un étal de fruits et légumes au marché, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que ça change au marché et dans le panier ». Tu m'aides ?",
+    "summary_fr": "Selon une première estimation de l'Insee publiée le 30 septembre 2026, les produits frais (fruits, légumes, poisson) coûtent 9,9 % plus cher qu'il y a un an. Pour toute l'alimentation, la hausse est plus faible : 1,5 %. Les chiffres définitifs arrivent le 15 octobre."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Merci. D'après c1,c2,c3, les prix montent, surtout les produits frais. Je propose : «Quels fruits ou légumes ont le plus augmenté ?»",
+    "translation": "Danke. Laut c1,c2,c3 steigen die Preise, vor allem für frische Produkte. Ich schlage vor: «Welche Früchte oder Gemüse sind am meisten gestiegen?»",
+    "claims_cited": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "uncertainty_index": 1,
+    "uncertainty_text": "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté.",
+    "proposes_question": "Quels fruits ou légumes ont le plus augmenté ?",
+    "shift": "angle",
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.002062
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1",
+     "c2",
+     "c3"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "choice",
+   "payload": {
+    "kind": "angle",
+    "angle_id": "a2",
+    "reason": "learner_interest"
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les produits frais",
+      "outcome": "unscored",
+      "capability_id": "revue.word:produits frais",
+      "capability_known": false
+     },
+     {
+      "fr": "l'Insee",
+      "outcome": "unscored",
+      "capability_id": "revue.word:insee",
+      "capability_known": false
+     },
+     {
+      "fr": "toute l'alimentation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:toute l'alimentation",
+      "capability_known": false
+     },
+     {
+      "fr": "le troisième mois",
+      "outcome": "unscored",
+      "capability_id": "revue.word:troisieme mois",
+      "capability_known": false
+     },
+     {
+      "fr": "de l'énergie",
+      "outcome": "unscored",
+      "capability_id": "revue.word:de l'energie",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Les fruits sont plus chers ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Oui. D'après c1 et c3, les produits frais sont beaucoup plus chers (+9,9 %). Pour toute l'alimentation, +1,5 % (c2).",
+    "translation": "Ja. Laut c1 und c3 sind frische Produkte viel teurer (+9,9 %). Für alle Lebensmittel +1,5 % (c2).",
+    "claims_cited": [
+     "c1",
+     "c3",
+     "c2"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": null,
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001548
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "guest_enter",
+   "payload": {
+    "id": "margaux_barman",
+    "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+    "reason": "she runs the café counter and cares where what she serves comes from (Un étal de fruits et légumes au marché)",
+    "trigger": "guest_fit",
+    "word": null,
+    "turn_seq": 8
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "margaux_barman",
+    "text_fr": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui.",
+    "move": "enter",
+    "position": null,
+    "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.000981,
+    "turn_seq": 8
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Les fruits sont plus chers ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 8,
+    "kept": false
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les produits frais",
+      "outcome": "unscored",
+      "capability_id": "revue.word:produits frais",
+      "capability_known": false
+     },
+     {
+      "fr": "l'Insee",
+      "outcome": "unscored",
+      "capability_id": "revue.word:insee",
+      "capability_known": false
+     },
+     {
+      "fr": "toute l'alimentation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:toute l'alimentation",
+      "capability_known": false
+     },
+     {
+      "fr": "le troisième mois",
+      "outcome": "unscored",
+      "capability_id": "revue.word:troisieme mois",
+      "capability_known": false
+     },
+     {
+      "fr": "de l'énergie",
+      "outcome": "unscored",
+      "capability_id": "revue.word:de l'energie",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 8
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Quels légumes sont plus chers ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne disent pas quels légumes ont le plus augmenté (incertitude 2). D'après c1 et c3, les produits frais augmentent beaucoup.",
+    "translation": "Die Quellen sagen nicht, welches Gemüse am meisten gestiegen ist (Unsicherheit 2). Laut c1 und c3 steigen frische Produkte stark.",
+    "claims_cited": [
+     "c1",
+     "c3"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": "Veux-tu que je demande : «Quels légumes ont le plus augmenté ?»",
+    "shift": "angle",
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.00194
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "margaux_barman",
+    "text_fr": "Tu veux que je cherche lesquels ont monté ?",
+    "move": "follow_up",
+    "position": null,
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.000831,
+    "turn_seq": 14
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "choice",
+   "payload": {
+    "kind": "angle",
+    "angle_id": "a1",
+    "reason": "learner_interest"
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Quels légumes sont plus chers ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 14,
+    "kept": false
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les produits frais",
+      "outcome": "unscored",
+      "capability_id": "revue.word:produits frais",
+      "capability_known": false
+     },
+     {
+      "fr": "l'Insee",
+      "outcome": "unscored",
+      "capability_id": "revue.word:insee",
+      "capability_known": false
+     },
+     {
+      "fr": "toute l'alimentation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:toute l'alimentation",
+      "capability_known": false
+     },
+     {
+      "fr": "le troisième mois",
+      "outcome": "unscored",
+      "capability_id": "revue.word:troisieme mois",
+      "capability_known": false
+     },
+     {
+      "fr": "de l'énergie",
+      "outcome": "unscored",
+      "capability_id": "revue.word:de l'energie",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 14
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "C'est difficile pour moi. Pour moi, le troisième mois, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Je sais. D'après c3, les prix montent pour le troisième mois de suite. Veux-tu que je rédige une question au lecteur sur quels légumes ont le plus augmenté (incert. 2) ?",
+    "translation": "Ich weiss. Laut c3 steigen die Preise nun schon drei Monate in Folge. Willst du, dass ich eine Leserfrage formuliere: Welche Gemüse sind am stärksten gestiegen (Unsicherheit 2)?",
+    "claims_cited": [
+     "c3"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": "Quels légumes ont le plus augmenté ?",
+    "shift": "simplify",
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001717
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "margaux_barman",
+    "text_fr": "Tu veux que je cherche quels légumes ont monté le plus ?",
+    "move": "follow_up",
+    "position": null,
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.000846,
+    "turn_seq": 20
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:troisieme mois",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "le troisième mois"
+    ],
+    "words_used": [
+     "le troisième mois"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "les produits frais",
+      "outcome": "unscored",
+      "capability_id": "revue.word:produits frais",
+      "capability_known": false
+     },
+     {
+      "fr": "l'Insee",
+      "outcome": "unscored",
+      "capability_id": "revue.word:insee",
+      "capability_known": false
+     },
+     {
+      "fr": "toute l'alimentation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:toute l'alimentation",
+      "capability_known": false
+     },
+     {
+      "fr": "le troisième mois",
+      "outcome": "unscored",
+      "capability_id": "revue.word:troisieme mois",
+      "capability_known": false
+     },
+     {
+      "fr": "de l'énergie",
+      "outcome": "unscored",
+      "capability_id": "revue.word:de l'energie",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.001075,
+    "breakdown": true,
+    "lost": false,
+    "counts": true,
+    "turn_seq": 20
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "Les prix alimentaires n'ont pas augmenté"
+      },
+      {
+       "id": "h2",
+       "text_fr": "La hausse vient surtout des produits transformés"
+      },
+      {
+       "id": "h3",
+       "text_fr": "D'après l'Insee, les produits frais: +9,9 % en un an"
+      }
+     ],
+     "answer": "h3",
+     "supported_by": "c1",
+     "contradicted_by": {
+      "h1": "c2",
+      "h2": "c3"
+     }
+    },
+    "cost_usd": 0.00124
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Il me faut un titre. Lequel colle aux faits ?",
+    "recommended": "headline_choice"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "headline_choice"
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "artifact",
+   "payload": {
+    "kind": "headline_choice",
+    "text_fr": "D'après l'Insee, les produits frais: +9,9 % en un an",
+    "contribution": [
+     [
+      0,
+      52
+     ]
+    ],
+    "learner_fr": null,
+    "picked": "h3",
+    "correct": true
+   }
+  },
+  {
+   "seq": 28,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "C'est noté. Ce titre-là tient debout.",
+    "key": "headline_choice"
+   }
+  },
+  {
+   "seq": 29,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je garde ton titre tel quel dans le dossier.",
+    "cost_usd": 0.001066
+   }
+  },
+  {
+   "seq": 30,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je garde ton titre tel quel dans le dossier.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "D'après l'Insee, les produits frais: +9,9 % en un an",
+      "body_fr": [
+       "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+       "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+       "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais."
+      ],
+      "contribution": [
+       [
+        0,
+        52
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après ABC Bourse et Insee, Informations rapides n° 242",
+      "sources": [
+       {
+        "id": "w40_prix_abcbourse",
+        "name": "ABC Bourse",
+        "url": "https://www.abcbourse.com/marches/newsContent/703405",
+        "published_at": "2026-09-30"
+       },
+       {
+        "id": "w40_prix_insee",
+        "name": "Insee, Informations rapides n° 242",
+        "url": "https://www.insee.fr/fr/statistiques/9056956",
+        "published_at": "2026-09-30"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "les produits frais",
+        "gloss": "frische Produkte",
+        "claim_id": "c1",
+        "used": false
+       },
+       {
+        "fr": "l'Insee",
+        "gloss": "INSEE (französisches Statistikamt)",
+        "claim_id": "c1",
+        "used": false
+       },
+       {
+        "fr": "toute l'alimentation",
+        "gloss": "die gesamte Ernährung/die gesamten Lebensmittel",
+        "claim_id": "c2",
+        "used": false
+       },
+       {
+        "fr": "le troisième mois",
+        "gloss": "der dritte Monat",
+        "claim_id": "c3",
+        "used": true
+       },
+       {
+        "fr": "de l'énergie",
+        "gloss": "Energie",
+        "claim_id": "c4",
+        "used": false
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+        "quote": "Les produits frais affichent une hausse de 9,9 % sur un an en septembre. En août, leur progression se limitait encore à 5,9 %.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_prix_abcbourse",
+         "name": "ABC Bourse",
+         "url": "https://www.abcbourse.com/marches/newsContent/703405",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+        "quote": "Les prix alimentaires progressent désormais de 1,5 % sur un an, après 1,1 % en août.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_prix_abcbourse",
+         "name": "ABC Bourse",
+         "url": "https://www.abcbourse.com/marches/newsContent/703405",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+        "quote": "Ceux de l’alimentation augmenteraient pour le troisième mois consécutif, une nouvelle fois tirés par ceux des produits frais.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_prix_insee",
+         "name": "Insee, Informations rapides n° 242",
+         "url": "https://www.insee.fr/fr/statistiques/9056956",
+         "published_at": "2026-09-30"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": null,
+     "vignette": {
+      "id": "719dc5c8-0ccd-487b-a497-4c0f64bc00e4",
+      "session_id": "2ac8d371-8639-4cc6-82df-54048a3146c7",
+      "dossier_id": "2026-w40-prix-produits-frais",
+      "week": "2026-W40",
+      "place_label_fr": "Un étal de fruits et légumes au marché",
+      "ring": "headline",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"46\" r=\"19\" fill=\"#C2890F\"/><rect x=\"35\" y=\"62\" width=\"30\" height=\"10\" rx=\"3\" fill=\"#D8321A\"/><path d=\"M50 28L60 44L40 44Z\" fill=\"#D8321A\"/><ellipse cx=\"50\" cy=\"76\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"45\" cy=\"40\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Les fruits et légumes coûtent plus cher",
+      "minted_at": "2026-10-03T00:51:59"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les produits frais",
+     "outcome": "unscored",
+     "capability_id": "revue.word:produits frais",
+     "capability_known": false
+    },
+    {
+     "fr": "l'Insee",
+     "outcome": "unscored",
+     "capability_id": "revue.word:insee",
+     "capability_known": false
+    },
+    {
+     "fr": "toute l'alimentation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:toute l'alimentation",
+     "capability_known": false
+    },
+    {
+     "fr": "le troisième mois",
+     "outcome": "unscored",
+     "capability_id": "revue.word:troisieme mois",
+     "capability_known": false
+    },
+    {
+     "fr": "de l'énergie",
+     "outcome": "unscored",
+     "capability_id": "revue.word:de l'energie",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les produits frais",
+     "outcome": "unscored",
+     "capability_id": "revue.word:produits frais",
+     "capability_known": false
+    },
+    {
+     "fr": "l'Insee",
+     "outcome": "unscored",
+     "capability_id": "revue.word:insee",
+     "capability_known": false
+    },
+    {
+     "fr": "toute l'alimentation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:toute l'alimentation",
+     "capability_known": false
+    },
+    {
+     "fr": "le troisième mois",
+     "outcome": "unscored",
+     "capability_id": "revue.word:troisieme mois",
+     "capability_known": false
+    },
+    {
+     "fr": "de l'énergie",
+     "outcome": "unscored",
+     "capability_id": "revue.word:de l'energie",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 8
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les produits frais",
+     "outcome": "unscored",
+     "capability_id": "revue.word:produits frais",
+     "capability_known": false
+    },
+    {
+     "fr": "l'Insee",
+     "outcome": "unscored",
+     "capability_id": "revue.word:insee",
+     "capability_known": false
+    },
+    {
+     "fr": "toute l'alimentation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:toute l'alimentation",
+     "capability_known": false
+    },
+    {
+     "fr": "le troisième mois",
+     "outcome": "unscored",
+     "capability_id": "revue.word:troisieme mois",
+     "capability_known": false
+    },
+    {
+     "fr": "de l'énergie",
+     "outcome": "unscored",
+     "capability_id": "revue.word:de l'energie",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 14
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:troisieme mois",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "le troisième mois"
+   ],
+   "words_used": [
+    "le troisième mois"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "les produits frais",
+     "outcome": "unscored",
+     "capability_id": "revue.word:produits frais",
+     "capability_known": false
+    },
+    {
+     "fr": "l'Insee",
+     "outcome": "unscored",
+     "capability_id": "revue.word:insee",
+     "capability_known": false
+    },
+    {
+     "fr": "toute l'alimentation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:toute l'alimentation",
+     "capability_known": false
+    },
+    {
+     "fr": "le troisième mois",
+     "outcome": "unscored",
+     "capability_id": "revue.word:troisieme mois",
+     "capability_known": false
+    },
+    {
+     "fr": "de l'énergie",
+     "outcome": "unscored",
+     "capability_id": "revue.word:de l'energie",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.001075,
+   "breakdown": true,
+   "lost": false,
+   "counts": true,
+   "turn_seq": 20
+  }
+ ],
+ "guest": [
+  {
+   "kind": "guest_enter",
+   "id": "margaux_barman",
+   "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+   "reason": "she runs the café counter and cares where what she serves comes from (Un étal de fruits et légumes au marché)",
+   "trigger": "guest_fit",
+   "word": null,
+   "turn_seq": 8
+  },
+  {
+   "kind": "turn_guest",
+   "id": "margaux_barman",
+   "text_fr": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.000981,
+   "turn_seq": 8
+  },
+  {
+   "kind": "turn_guest",
+   "id": "margaux_barman",
+   "text_fr": "Tu veux que je cherche lesquels ont monté ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.000831,
+   "turn_seq": 14
+  },
+  {
+   "kind": "turn_guest",
+   "id": "margaux_barman",
+   "text_fr": "Tu veux que je cherche quels légumes ont monté le plus ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.000846,
+   "turn_seq": 20
+  }
+ ],
+ "cost_usd_state": 0.015689,
+ "cost_usd_provider": 0.015689,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 10.864,
+   "cost_usd": 0.002383,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %."
+     },
+     {
+      "id": "c2",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août."
+     },
+     {
+      "id": "c3",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais."
+     }
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "les produits frais",
+      "gloss": "frische Produkte",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "l'Insee",
+      "gloss": "INSEE (französisches Statistikamt)",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "toute l'alimentation",
+      "gloss": "die gesamte Ernährung/die gesamten Lebensmittel",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "le troisième mois",
+      "gloss": "der dritte Monat",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "de l'énergie",
+      "gloss": "Energie",
+      "claim_id": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 8.065,
+   "cost_usd": 0.002062,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+      "attributed_to": "ABC Bourse, site d'information économique"
+     }
+    ],
+    "uncertainties": [
+     "Ces chiffres sont provisoires : les sources ne disent pas s'ils vont changer avec les résultats définitifs du 15 octobre.",
+     "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que ça change au marché et dans le panier",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce que ça change au marché et dans le panier",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Faire une liste de courses de saison avec un petit budget",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Un étal de fruits et légumes au marché."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 30 sept. au 15 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment un étal de fruits et légumes au marché, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que ça change au marché et dans le panier ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Merci. D'après c1,c2,c3, les prix montent, surtout les produits frais. Je propose : «Quels fruits ou légumes ont le plus augmenté ?»",
+    "translation": "Danke. Laut c1,c2,c3 steigen die Preise, vor allem für frische Produkte. Ich schlage vor: «Welche Früchte oder Gemüse sind am meisten gestiegen?»",
+    "claims_cited": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "uncertainty_cited": 1,
+    "proposes_question": "Quels fruits ou légumes ont le plus augmenté ?",
+    "shift": "angle"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.506,
+   "cost_usd": 0.001548,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Les fruits sont plus chers ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+      "attributed_to": "ABC Bourse, site d'information économique"
+     }
+    ],
+    "uncertainties": [
+     "Ces chiffres sont provisoires : les sources ne disent pas s'ils vont changer avec les résultats définitifs du 15 octobre.",
+     "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+    ],
+    "angle": {
+     "id": "a2",
+     "fr": "Faire une liste de courses de saison avec un petit budget",
+     "purpose": "prepare_dispatch"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce que ça change au marché et dans le panier",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Faire une liste de courses de saison avec un petit budget",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "history": [
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment un étal de fruits et légumes au marché, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que ça change au marché et dans le panier ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. D'après c1,c2,c3, les prix montent, surtout les produits frais. Je propose : «Quels fruits ou légumes ont le plus augmenté ?»"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Oui. D'après c1 et c3, les produits frais sont beaucoup plus chers (+9,9 %). Pour toute l'alimentation, +1,5 % (c2).",
+    "translation": "Ja. Laut c1 und c3 sind frische Produkte viel teurer (+9,9 %). Für alle Lebensmittel +1,5 % (c2).",
+    "claims_cited": [
+     "c1",
+     "c3",
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.83,
+   "cost_usd": 0.000981,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "margaux_barman",
+    "name": "Margaux",
+    "register": "tu",
+    "move": "enter",
+    "reason_fr": "Ce que je sers au comptoir, ça vient de quelque part. Alors ça me regarde.",
+    "position": null,
+    "learner_text": "Les fruits sont plus chers ?",
+    "angle": {
+     "id": "a2",
+     "fr": "Faire une liste de courses de saison avec un petit budget",
+     "purpose": "prepare_dispatch"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+      "attributed_to": "ABC Bourse, site d'information économique"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "band": "A1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. D'après c1,c2,c3, les prix montent, surtout les produits frais. Je propose : «Quels fruits ou légumes ont le plus augmenté ?»"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3"
+     },
+     {
+      "who": "learner",
+      "text": "Les fruits sont plus chers ?"
+     },
+     {
+      "who": "romy",
+      "text": "Oui. D'après c1 et c3, les produits frais sont beaucoup plus chers (+9,9 %). Pour toute l'alimentation, +1,5 % (c2)."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "margaux_barman",
+     "name": "Margaux",
+     "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+     "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+     "register_with_user": "tu, at once — as she did with Odile",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui.",
+    "position": null,
+    "move": "enter"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 5.552,
+   "cost_usd": 0.00194,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Quels légumes sont plus chers ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+      "attributed_to": "ABC Bourse, site d'information économique"
+     }
+    ],
+    "uncertainties": [
+     "Ces chiffres sont provisoires : les sources ne disent pas s'ils vont changer avec les résultats définitifs du 15 octobre.",
+     "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+    ],
+    "angle": {
+     "id": "a2",
+     "fr": "Faire une liste de courses de saison avec un petit budget",
+     "purpose": "prepare_dispatch"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce que ça change au marché et dans le panier",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Faire une liste de courses de saison avec un petit budget",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "history": [
+     {
+      "who": "romy",
+      "text": "Merci. D'après c1,c2,c3, les prix montent, surtout les produits frais. Je propose : «Quels fruits ou légumes ont le plus augmenté ?»"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3"
+     },
+     {
+      "who": "learner",
+      "text": "Les fruits sont plus chers ?"
+     },
+     {
+      "who": "romy",
+      "text": "Oui. D'après c1 et c3, les produits frais sont beaucoup plus chers (+9,9 %). Pour toute l'alimentation, +1,5 % (c2)."
+     },
+     {
+      "who": "margaux_barman",
+      "text": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui."
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": "margaux_barman",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne disent pas quels légumes ont le plus augmenté (incertitude 2). D'après c1 et c3, les produits frais augmentent beaucoup.",
+    "translation": "Die Quellen sagen nicht, welches Gemüse am meisten gestiegen ist (Unsicherheit 2). Laut c1 und c3 steigen frische Produkte stark.",
+    "claims_cited": [
+     "c1",
+     "c3"
+    ],
+    "uncertainty_cited": 2,
+    "proposes_question": "Veux-tu que je demande : «Quels légumes ont le plus augmenté ?»",
+    "shift": "angle"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.275,
+   "cost_usd": 0.000831,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "margaux_barman",
+    "name": "Margaux",
+    "register": "tu",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": null,
+    "learner_text": "Quels légumes sont plus chers ?",
+    "angle": {
+     "id": "a2",
+     "fr": "Faire une liste de courses de saison avec un petit budget",
+     "purpose": "prepare_dispatch"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+      "attributed_to": "ABC Bourse, site d'information économique"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "band": "A1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3"
+     },
+     {
+      "who": "learner",
+      "text": "Les fruits sont plus chers ?"
+     },
+     {
+      "who": "romy",
+      "text": "Oui. D'après c1 et c3, les produits frais sont beaucoup plus chers (+9,9 %). Pour toute l'alimentation, +1,5 % (c2)."
+     },
+     {
+      "who": "margaux_barman",
+      "text": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui."
+     },
+     {
+      "who": "learner",
+      "text": "Quels légumes sont plus chers ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas quels légumes ont le plus augmenté (incertitude 2). D'après c1 et c3, les produits frais augmentent beaucoup."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "margaux_barman",
+     "name": "Margaux",
+     "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+     "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+     "register_with_user": "tu, at once — as she did with Odile",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Tu veux que je cherche lesquels ont monté ?",
+    "position": null,
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.44,
+   "cost_usd": 0.001717,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "C'est difficile pour moi. Pour moi, le troisième mois, c'est important.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+      "attributed_to": "ABC Bourse, site d'information économique"
+     }
+    ],
+    "uncertainties": [
+     "Ces chiffres sont provisoires : les sources ne disent pas s'ils vont changer avec les résultats définitifs du 15 octobre.",
+     "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que ça change au marché et dans le panier",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce que ça change au marché et dans le panier",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Faire une liste de courses de saison avec un petit budget",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A1",
+    "max_words": 30,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "history": [
+     {
+      "who": "learner",
+      "text": "Les fruits sont plus chers ?"
+     },
+     {
+      "who": "romy",
+      "text": "Oui. D'après c1 et c3, les produits frais sont beaucoup plus chers (+9,9 %). Pour toute l'alimentation, +1,5 % (c2)."
+     },
+     {
+      "who": "margaux_barman",
+      "text": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui."
+     },
+     {
+      "who": "learner",
+      "text": "Quels légumes sont plus chers ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas quels légumes ont le plus augmenté (incertitude 2). D'après c1 et c3, les produits frais augmentent beaucoup."
+     },
+     {
+      "who": "margaux_barman",
+      "text": "Tu veux que je cherche lesquels ont monté ?"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": "margaux_barman",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Je sais. D'après c3, les prix montent pour le troisième mois de suite. Veux-tu que je rédige une question au lecteur sur quels légumes ont le plus augmenté (incert. 2) ?",
+    "translation": "Ich weiss. Laut c3 steigen die Preise nun schon drei Monate in Folge. Willst du, dass ich eine Leserfrage formuliere: Welche Gemüse sind am stärksten gestiegen (Unsicherheit 2)?",
+    "claims_cited": [
+     "c3"
+    ],
+    "uncertainty_cited": 2,
+    "proposes_question": "Quels légumes ont le plus augmenté ?",
+    "shift": "simplify"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.272,
+   "cost_usd": 0.000846,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "margaux_barman",
+    "name": "Margaux",
+    "register": "tu",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": null,
+    "learner_text": "C'est difficile pour moi. Pour moi, le troisième mois, c'est important.",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que ça change au marché et dans le panier",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+      "attributed_to": "ABC Bourse, site d'information économique"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "band": "A1",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "margaux_barman",
+      "text": "Ce que je sers au comptoir vient de quelque part. Donc ça m'intéresse, oui."
+     },
+     {
+      "who": "learner",
+      "text": "Quels légumes sont plus chers ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne disent pas quels légumes ont le plus augmenté (incertitude 2). D'après c1 et c3, les produits frais augmentent beaucoup."
+     },
+     {
+      "who": "margaux_barman",
+      "text": "Tu veux que je cherche lesquels ont monté ?"
+     },
+     {
+      "who": "learner",
+      "text": "C'est difficile pour moi. Pour moi, le troisième mois, c'est important."
+     },
+     {
+      "who": "romy",
+      "text": "Je sais. D'après c3, les prix montent pour le troisième mois de suite. Veux-tu que je rédige une question au lecteur sur quels légumes ont le plus augmenté (incert. 2) ?"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "margaux_barman",
+     "name": "Margaux",
+     "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+     "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+     "register_with_user": "tu, at once — as she did with Odile",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Tu veux que je cherche quels légumes ont monté le plus ?",
+    "position": null,
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.347,
+   "cost_usd": 0.001075,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A1",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais."
+      }
+     ],
+     "target_words": [
+      "les produits frais",
+      "l'Insee",
+      "toute l'alimentation",
+      "le troisième mois",
+      "de l'énergie"
+     ],
+     "addressee": "margaux_barman",
+     "expected_register": "tu",
+     "summary_fr": "Selon une première estimation de l'Insee publiée le 30 septembre 2026, les produits frais (fruits, légumes, poisson) coûtent 9,9 % plus cher qu'il y a un an. Pour toute l'alimentation, la hausse est plus faible : 1,5 %. Les chiffres définitifs arrivent le 15 octobre.",
+     "headline_words": null
+    },
+    "learner_text": "C'est difficile pour moi. Pour moi, le troisième mois, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le troisième mois",
+      "outcome": "correct",
+      "quote": "le troisième mois"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 3.804,
+   "cost_usd": 0.00124,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Les fruits et légumes coûtent plus cher",
+    "angle": "Ce que ça change au marché et dans le panier",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais."
+     }
+    ],
+    "band": "A1"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "D'après l'Insee, les produits frais: +9,9 % en un an",
+     "supported_by": "c1"
+    },
+    "distractors": [
+     {
+      "text_fr": "Les prix alimentaires n'ont pas augmenté",
+      "contradicted_by": "c2"
+     },
+     {
+      "text_fr": "La hausse vient surtout des produits transformés",
+      "contradicted_by": "c3"
+     }
+    ]
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 3.392,
+   "cost_usd": 0.001066,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Les fruits et légumes coûtent plus cher",
+    "summary_fr": "Selon une première estimation de l'Insee publiée le 30 septembre 2026, les produits frais (fruits, légumes, poisson) coûtent 9,9 % plus cher qu'il y a un an. Pour toute l'alimentation, la hausse est plus faible : 1,5 %. Les chiffres définitifs arrivent le 15 octobre.",
+    "angle": "Ce que ça change au marché et dans le panier",
+    "artifact": {
+     "kind": "headline_choice",
+     "text_fr": "D'après l'Insee, les produits frais: +9,9 % en un an",
+     "learner_fr": null
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais."
+     }
+    ],
+    "open_question": null,
+    "band": "A1"
+   },
+   "response": {
+    "romy_line_fr": "Je garde ton titre tel quel dans le dossier.",
+    "headline_fr": "D'après l'Insee, les produits frais: +9,9 % en un an",
+    "body_lines": [
+     "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+     "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+     "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 10.999
+  },
+  {
+   "step": "turn1",
+   "seconds": 8.176
+  },
+  {
+   "step": "turn2",
+   "seconds": 7.356
+  },
+  {
+   "step": "turn3",
+   "seconds": 7.853
+  },
+  {
+   "step": "turn4",
+   "seconds": 10.079
+  },
+  {
+   "step": "make_options",
+   "seconds": 3.815
+  },
+  {
+   "step": "make_pick",
+   "seconds": 0.004
+  },
+  {
+   "step": "close",
+   "seconds": 3.51
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini"
+ }
+}

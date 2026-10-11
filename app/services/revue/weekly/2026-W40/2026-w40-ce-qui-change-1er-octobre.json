@@ -1,0 +1,110 @@
+{
+  "id": "2026-w40-ce-qui-change-1er-octobre",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "city",
+  "title_fr": "Gaz, carburant, santé : ce qui change au 1er octobre",
+  "summary_fr": "Comme chaque mois, des règles changent au 1er octobre 2026. Le prix repère du gaz augmente de 6,3 %, les franchises médicales coûtent plus cher sur l'année, et un nouveau chèque de 100 euros aide les personnes qui roulent beaucoup en voiture.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+      "quote": "il s'établira à 182,88 euros du mégawattheure (MWh) à compter du 1er octobre 2026, contre 172,05 euros en septembre. Soit une hausse de 6,3%.",
+      "source_id": "w40_octobre_franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+      "quote": "constateront ainsi \"une augmentation de 5,28 euros en moyenne sur les factures du mois d'octobre\"",
+      "source_id": "w40_octobre_franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+      "quote": "le gouvernement a annoncé fixer le plafond des franchises à 140 euros par an, contre 100 euros actuellement",
+      "source_id": "w40_octobre_franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30",
+      "confidence": "confirmed"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+      "quote": "cette mesure mise en place par le gouvernement pour faire face à la hausse des prix du carburant équivaut à \"40 centimes par litre de carburant pour deux mois en moyenne\", a estimé la porte-parole du gouvernement",
+      "source_id": "w40_octobre_franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30",
+      "confidence": "reported",
+      "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Maud Bregeon",
+      "kind": "person",
+      "role": "porte-parole du gouvernement et ministre déléguée à l'Énergie"
+    },
+    {
+      "name": "Commission de régulation de l'énergie",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+    "Les sources ne disent pas combien de temps le chèque pour les « grands rouleurs » sera prolongé après décembre."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Ce qui change sur la facture et chez le médecin",
+      "purpose": "understand_change",
+      "participation": "none",
+      "guest_fit": "landlord_marchand"
+    },
+    {
+      "id": "a2",
+      "fr": "Prévenir Margaux : trois changements à connaître ce mois-ci",
+      "purpose": "prepare_dispatch",
+      "participation": "none",
+      "guest_fit": "landlord_marchand"
+    }
+  ],
+  "places": [
+    {
+      "id": "cuisine_facture_gaz",
+      "name_fr": "Une petite cuisine, la facture de gaz sur la table",
+      "brief": "a small apartment kitchen with an old gas stove and a kettle, an open energy bill and a pen on the table, a calendar on the wall, grey morning light through the window",
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-10-01/2026-10-31",
+    "relevant_until": "2026-10-31"
+  },
+  "sources": [
+    {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+    }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "une page de calendrier"
+}

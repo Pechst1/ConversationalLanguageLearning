@@ -31,6 +31,8 @@ import ChapterCompletionModal from './ChapterCompletionModal';
 import ChapterGrammarPreview from './ChapterGrammarPreview';
 import apiService from '@/services/api';
 import { ChapterGrammarConcept } from '@/types/grammar';
+import { useChromeLanguage } from '@/lib/learner-language';
+import { bibliothequeCopy, fill } from './bibliotheque-copy';
 
 interface StorySessionLayoutProps {
   storyId: string;
@@ -46,6 +48,8 @@ export default function StorySessionLayout({
   chapter,
 }: StorySessionLayoutProps) {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const t = bibliothequeCopy(language);
   const { session, messages, sendMessage, suggested, isConnected, loading } = useLearningSession(sessionId);
   const { completeChapter, loading: completingChapter } = useCompleteChapter();
   const { checkGoals } = useCheckGoals();
@@ -156,13 +160,13 @@ export default function StorySessionLayout({
       <AtelierV2Root as="main" className="bib-session" aria-label={chapter.title}>
         <header className="bib-session__head">
           <IconAction
-            label="Quitter le chapitre"
+            label={t.leave_chapter}
             onClick={() => router.push(`/bibliotheque/${storyId}`)}
           >
             <ArrowLeftIcon size={18} />
           </IconAction>
           <div className="bib-session__title">
-            <p className="av2-label">Chapitre {chapterNumber}</p>
+            <p className="av2-label">{fill(t.chapter_n, { n: chapterNumber })}</p>
             <h1 className="av2-headline av2-headline--title">{chapter.title}</h1>
           </div>
         </header>
@@ -171,7 +175,7 @@ export default function StorySessionLayout({
           <NarrativeCard narrative={chapter.opening_narrative} />
         )}
 
-        <section className="bib-chat" aria-label="La conversation">
+        <section className="bib-chat" aria-label={t.conversation_aria}>
           <div className="bib-chat__feed" aria-live="polite">
             {messages.map((message) => (
               <div className="bib-turn" key={message.id} data-role={message.role}>
@@ -184,7 +188,7 @@ export default function StorySessionLayout({
 
                 {message.role === 'user' && message.errors && message.errors.errors.length > 0 && (
                   <div className="bib-note" data-tone="repair">
-                    <p className="av2-label">À reprendre</p>
+                    <p className="av2-label">{t.to_fix}</p>
                     {message.errors.errors.map((error, idx) => (
                       <p className="av2-body" key={idx}>
                         {error.message}
@@ -201,7 +205,7 @@ export default function StorySessionLayout({
                   && message.xp
                   && message.xp > 0 ? (
                   <div className="bib-note" data-tone="correct">
-                    <p className="av2-label">Rien à reprendre.</p>
+                    <p className="av2-label">{t.nothing_to_fix}</p>
                   </div>
                 ) : null}
               </div>
@@ -210,7 +214,7 @@ export default function StorySessionLayout({
             {loading && (
               <div className="bib-turn" data-role="assistant">
                 <div className="bib-bubble" data-role="assistant" aria-busy="true">
-                  <p className="av2-label">En train d’écrire…</p>
+                  <p className="av2-label">{t.typing}</p>
                 </div>
               </div>
             )}
@@ -218,7 +222,7 @@ export default function StorySessionLayout({
           </div>
 
           {suggested.length > 0 && (
-            <div className="bib-chips" aria-label="Mots suggérés">
+            <div className="bib-chips" aria-label={t.suggested_words}>
               {suggested.map((word) => (
                 <Chip
                   key={word.id}
@@ -233,7 +237,7 @@ export default function StorySessionLayout({
 
           <div className="av2-composer bib-composer">
             <label className="av2-field">
-              <span className="av2-field__label">Votre réponse, en français</span>
+              <span className="av2-field__label">{t.answer_label}</span>
               <textarea
                 className="av2-field__control"
                 value={draft}
@@ -244,13 +248,13 @@ export default function StorySessionLayout({
                     handleSend();
                   }
                 }}
-                placeholder="Écrivez en français…"
+                placeholder={t.answer_placeholder}
                 rows={3}
                 disabled={!isConnected || loading}
               />
             </label>
             <IconAction
-              label="Envoyer"
+              label={t.send}
               tone="action"
               pressable
               onClick={handleSend}
@@ -259,10 +263,10 @@ export default function StorySessionLayout({
               <SendIcon size={18} />
             </IconAction>
           </div>
-          <p className="av2-label">{isConnected ? 'En liaison' : 'Liaison en cours…'}</p>
+          <p className="av2-label">{isConnected ? t.connected : t.connecting}</p>
         </section>
 
-        <aside className="bib-session__aside" aria-label="Le suivi du chapitre">
+        <aside className="bib-session__aside" aria-label={t.aside_aria}>
           {(grammarConcepts && grammarConcepts.length > 0) || loadingGrammar ? (
             <ChapterGrammarPreview
               concepts={grammarConcepts || []}

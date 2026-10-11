@@ -1,0 +1,147 @@
+{
+ "version": "fr-core-lexicon-v3-authored",
+ "provenance": "L-1 (content program 2026-10-03): curation of the v2 base and the owner's frequency deck, plus B2/C1 lemmas authored for this repository from general knowledge of French (DELF/DALF B2-C1 themes: argumentation, law, economy, politics, science, environment, media, emotions and nuance, literary/soutenu verbs, familier). No dataset or word list was copied. Read by scripts/build_lexicon_v3.py.",
+ "remove_lemmas": {
+  "en-effet": "en effet",
+  "rendre-visite": "rendre visite à",
+  "point-de-vue": "point de vue",
+  "par-conséquent": "par conséquent",
+  "d'accord": "d'accord",
+  "d'ailleurs": "d'ailleurs"
+ },
+ "reband": {
+  "malgré": "A2.2",
+  "parmi": "A2.1",
+  "selon": "A2.1",
+  "dès": "A2.2",
+  "or": "A2.2",
+  "peur": "A1.2",
+  "doigt": "A1.2",
+  "sucre": "A1.2",
+  "beurre": "A1.2",
+  "avion": "A1.2",
+  "toit": "A2.1",
+  "valoir": "A2.2"
+ },
+ "deck_spelling": {
+  "silllage": "sillage",
+  "manoeuvre": "manœuvre"
+ },
+ "variant_forms": {
+  "clef": "clé"
+ },
+ "deck_skip": "soit est prévu perdu dit surpris réussi accompli subit venu vendu tiens exclu défini messieurs",
+ "deck_forms_as_lemmas": "meilleur mieux pire mise reprise combat crainte dirigeant bois conduite revue tenue garantie remise couvert faille atteinte assise suivi reçu acquis retenue venue écrit élu encourageant menaçant grandissant",
+ "pos_overrides": {
+  "meilleur": "adjective",
+  "mieux": "adverb",
+  "pire": "adjective",
+  "dirigeant": "noun",
+  "élu": "noun",
+  "ci": "function",
+  "etc": "adverb",
+  "lequel": "function",
+  "quelques-uns": "function"
+ },
+ "gender_overrides": {
+  "gens": "m",
+  "déchets": "m",
+  "dépens": "m",
+  "archives": "f",
+  "pourparlers": "m",
+  "mœurs": "f",
+  "félicitations": "f",
+  "médias": "m",
+  "alentours": "m",
+  "céréales": "f",
+  "dégâts": "m",
+  "mathématiques": "f",
+  "arbitre": "m",
+  "dirigeant": "m",
+  "élu": "m",
+  "écrit": "m"
+ },
+ "deck_band_overrides": {
+  "A1.2": "seconde kilomètre meilleur mieux texte inviter ci demi-heure bravo oh ah euh",
+  "A2.1": "groupe détail ligne membre objet activité changement parole endroit police conversation excuse test club poche joueur feuille guide invité enseignant informatique bouger casser fatiguer pause description collection étoile lune sable herbe cigarette jouet bouton avenue boulevard mairie carnet album caméra bar golf rock cirque bijou parfum chauffeur photographe photographier félicitations bienvenu calendrier région humain nombreux face action intérieur extérieur spécial faible toucher remplacer pire dommage électrique aventure balle amusant",
+  "A2.2": "dollar difficulté hein ouais ours eh oral lequel adresser dur ferme bois distance arrière célèbre achat capitale scolaire absent grec marchand continent portrait vallée fleuve colline hélicoptère pilote musical photographie tunnel magique maigre princesse pot chéri stupide banc masculin paire autobus danseur réveil attraper agenda gratuitement instituteur boucher assistant mode transporter",
+  "B1.1": "zone vente conférence cerveau visiteur cancer dieu automobile disque domicile drapeau horreur pierre foule trou lâcher serrer vingtaine quinzaine trentaine piste humour confort itinéraire costume blague vitre pneu ceinture singe loup rat cage cocktail micro tube boule goutte fumée humide adieu star ben etc",
+  "B1.2": "maître moteur version promesse surface chute uniforme trace secours incident briser faiblesse plonger véhicule chasse explosion cercle géant paysan barre record sauvage prêtre angle fermeture grimper tissu accessoire tournée amateur aîné métal palais affiche aile championnat mélange luxe voleur poignée panique poussière épisode médaille monstre légende temple liquide cimetière flamme ange sourd plaque pente briller coupe baiser aveugle voile manuel interview montée invisible superbe fiction cauchemar pénible décor vedette masque épais corde roue casque cabine statue ambiance façade fantôme chimie muet béton poudre alarme comédien avaler cloche sous-sol vitrine crâne gendarme score fiche tache coton boue merveille flèche orchestre baigner câble poumon fermier diamant poil fillette vieillard rocher coffre hall batterie foie caution nettoyage exprès chagrin oubli plaisanter filmer ponctuel croisière touche phare poing étiquette pile douceur trembler hurler chant athlète bulle réflexe gai immobile comique nocturne rigoler deuxièmement envelopper"
+ },
+ "deck_to_c1": "",
+ "register": {
+  "familier": "foutre ouais ben hein mec merde putain con cul boulot gueule flic gosse gamin connerie chier bordel bosser emmerder salaud rigoler crever truc gars carrément frigo pote job taf fric pognon bouquin machin bidule frangin frangine mioche toubib resto appart dico pinard pif bled pieu beauf plouc fringue clope bagnole bécane bouffe flemme galère baston boulette nana meuf tronche thune piaule taule môme prof ado bouffer piger kiffer flipper galérer glander râler engueuler chiper choper bousiller foirer marrer poireauter roupiller pioncer draguer cartonner déconner chialer goinfrer picoler ronchonner moche crevé naze dingue cinglé marrant rigolo débile chiant radin pingre fauché foutu vachement drôlement bof zut balader bobard pipeau trouille frousse dalle gaffe bringue nouba péter",
+  "soutenu": "jadis guère nullement aucunement quiconque hormis périr vêtir tâcher hâter pis songer dérober sombrer ériger autrui néant advenir incomber naguère nonobstant enquérir ourdir vilipender admonester haranguer opprobre apanage mansuétude derechef sitôt quérir"
+ },
+ "headwords": {
+  "asseoir": "s'asseoir",
+  "dépêcher": "se dépêcher",
+  "promener": "se promener"
+ },
+ "ipa_overrides": {
+  "main-d'œuvre": "mɛ̃.dœvʁ"
+ },
+ "atomic_apostrophe": "main-d'œuvre chef-d'œuvre trompe-l'œil",
+ "extra_forms": {
+  "laquelle": "lequel",
+  "lesquels": "lequel",
+  "lesquelles": "lequel",
+  "auquel": "lequel",
+  "auxquels": "lequel",
+  "auxquelles": "lequel",
+  "duquel": "lequel",
+  "desquels": "lequel",
+  "desquelles": "lequel"
+ },
+ "add_lemmas": {
+  "A1.2": {
+   "noun_m": "appétit noël",
+   "noun_f": "promenade baguette"
+  },
+  "A2.1": {
+   "noun_f": "natation randonnée",
+   "noun_m": "aller-retour éléphant bouquet chou melon"
+  },
+  "A2.2": {
+   "noun_m": "demi-tour"
+  },
+  "B1.2": {
+   "noun_m": "savon peigne dentifrice shampoing oreiller drap matelas robinet évier lavabo radiateur aspirateur balai marteau clou congélateur ongle menton poignet orteil talon muscle pansement thermomètre smartphone imprévu âne vase vinaigre poireau carreau lièvre cavalier dé habit pendule",
+   "noun_f": "brosse ampoule bougie éponge baignoire cafetière cheville cuisse hanche migraine nausée piqûre brûlure fracture trottinette cachette épée mousse cascade caravane pipe culotte nouille",
+   "adverb": "sur-le-champ"
+  },
+  "B2.1": {
+   "noun_m": "chargeur écouteur forfait identifiant navigateur téléchargement covoiturage télétravail confinement dépistage livret bail préavis carrelage jardinage bricolage tournevis repassage tablier tire-bouchon ouvre-boîte grille-pain mixeur vertige plâtre cil sourcil mollet nerf squelette rasoir maquillage tableur compost harcèlement algorithme seau interrupteur lave-linge lave-vaisselle micro-ondes récépissé guichetier stagiaire intérim apprenti subordonné planning échéancier mot-clé tabou inventaire lion coq taureau canard sapin collier moulin rouleau tambour linge bonnet bec nid prêt-à-porter velours cafard soulier nombril éclairage pic index arc forgeron rubis cadet tonneau paroisse compas dindon flan",
+   "noun_f": "notification messagerie pandémie mutuelle chaudière moquette perceuse pelle passoire seringue béquille entorse cicatrice bosse paupière veine sueur visioconférence copropriété hypothèque quittance procuration convocation prolongation dérogation reconversion polyvalence serpillière bouilloire puce mouche chèvre mule aiguille encre louche épingle grue ortie fesse anguille remorque trappe",
+   "noun_mf": "intérimaire",
+   "verb": "recharger débrancher sauvegarder pirater zapper covoiturer vacciner résilier facturer cotiser cracher remuer suer saigner balader dorer prêcher fouetter mâcher tâter ronger clouer desserrer renouer sous-titrer vibrer",
+   "adjective": "connecté sans-fil confiné allergique contagieux myope",
+   "adverb": "inversement pareillement consécutivement"
+  },
+  "B2.2": {
+   "noun_m": "contentieux plaignant prévenu inculpé huissier notaire greffier juré réquisitoire plaidoyer acquittement non-lieu pourvoi homicide cambriolage détournement recel blanchiment chantage racket casier alibi dédommagement avenant testament legs endettement surendettement créancier débiteur dividende krach marasme salariat patronat syndicalisme protectionnisme libéralisme sous-traitant prestataire grossiste détaillant négoce troc mécénat parrainage amortissement fisc barème devis acompte reliquat",
+   "noun_f": "jurisprudence relaxe récidive escroquerie contrefaçon diffamation calomnie injure contravention résiliation abrogation promulgation déontologie légalité illégalité impunité immunité déflation créance liquidation solvabilité insolvabilité trésorerie délocalisation nationalisation dérégulation régulation précarité flexibilité pénibilité indemnité fiscalité redevance mensualité facturation dévaluation disparité",
+   "verb": "incarcérer statuer légiférer abroger promulguer amender enfreindre transgresser contrevenir déroger outrepasser dédommager indemniser escroquer cambrioler extorquer soudoyer diffamer calomnier amortir subventionner fructifier spéculer délocaliser privatiser nationaliser réguler fusionner rentabiliser optimiser dévaluer stagner fluctuer plafonner endetter",
+   "adjective": "illicite licite illégitime frauduleux abusif passible punissable irrecevable recevable caduc contractuel statutaire anticonstitutionnel lucratif solvable insolvable endetté florissant prospère stagnant inflationniste patronal mondialisé"
+  },
+  "C1.1": {
+   "noun_m": "postulat présupposé corollaire sophisme syllogisme argumentaire contre-argument contresens non-sens truisme bien-fondé axiome dogme poncif amalgame raccourci prisme levier jalon aperçu quinquennat septennat hémicycle sénat remaniement électorat militantisme clivage contre-pouvoir totalitarisme autoritarisme despotisme fascisme nationalisme populisme extrémisme radicalisme intégrisme fanatisme communautarisme multiculturalisme pluralisme fédéralisme centralisme conservatisme progressisme féminisme sexisme antisémitisme colonialisme impérialisme patriotisme pacifisme activisme prototype brevet génome chromosome neurone microbe anticorps antibiotique pronostic atome électron oxygène hydrogène azote méthane solvant catalyseur laser télescope microscope capteur théorème paradigme dérèglement écosystème biotope habitat littoral reboisement déboisement braconnage pesticide engrais herbicide polluant aléa séisme cyclone ouragan éboulement journalisme éditorialiste chroniqueur démenti bandeau feuilleton lectorat auditoire internaute influenceur canular complotisme désarroi désenchantement ressentiment remords scrupule mal-être épanouissement accablement abattement émoi embarras dégoût dédain amour-propre narcissisme égoïsme altruisme engouement emballement ravissement émerveillement éblouissement apaisement réconfort sang-froid stoïcisme flegme tempérament penchant fantasme effroi agacement dessein écueil vecteur déclencheur pan socle pivot virage apogée paroxysme summum discrédit prestige ascendant favoritisme népotisme clientélisme laxisme décalage dysfonctionnement discernement euphémisme marbre pavé crépuscule chevet diapason créneau filigrane lest sceau maquis serpent cygne crabe contre-courant lèche-vitrines porte-à-faux contre-pied étau tollé amont unisson supplice émissaire blason bouc crible cran flanc",
+   "noun_f": "prémisse antithèse réfutation déduction induction corrélation causalité récurrence pertinence véracité vraisemblance plausibilité ambivalence équivoque digression acception connotation dénotation polysémie éloquence emphase litote hyperbole métaphore allégorie dialectique assertion allégation insinuation présomption conjecture approximation extrapolation généralisation gouvernance oligarchie monarchie géopolitique cohabitation alternance abstention désinformation laïcité fraternité mixité assimilation marginalisation stigmatisation inclusion émancipation insurrection persécution expérimentation méthodologie constante médiane molécule bactérie protéine enzyme hormone photosynthèse neurologie psychiatrie psychanalyse sociologie anthropologie ethnologie archéologie astronomie astrophysique biologie géologie climatologie robotique percée vulgarisation déforestation désertification érosion sobriété durabilité éolienne banquise fonte faune flore extinction prolifération surpopulation surconsommation intempérie crue tornade manchette investigation dépêche objectivité neutralité autocensure satire caricature parodie amertume rancune rancœur jalousie convoitise mélancolie lassitude morosité frayeur épouvante stupeur stupéfaction consternation indignation exaspération irritation contrariété pudeur timidité audace hardiesse témérité lâcheté bravoure vanité modestie humilité arrogance insolence impertinence désinvolture nonchalance bienveillance malveillance sollicitude connivence ingratitude loyauté défiance quiétude plénitude allégresse euphorie exaltation ferveur fougue véhémence entrave facette quintessence charnière décadence déchéance débâcle réprobation disgrâce renommée notoriété emprise mainmise hégémonie suprématie prépondérance primauté prérogative malversation outrance démesure modération tempérance circonspection parcimonie frugalité austérité complaisance indulgence clémence mansuétude magnanimité largesse avarice cupidité avidité pérennité longévité volatilité fluctuation oscillation périodicité simultanéité concomitance antériorité chronologie désuétude obsolescence vétusté carence méprise bévue maladresse araignée pilule pédale chandelle haleine enclume lisière sellette semelle semoule révérence tangente crémaillère rampe bride mare taupe carpe marmotte trompette mèche avant-garde charrue",
+   "noun_mf": "interprète protagoniste antagoniste",
+   "verb": "étayer corroborer infirmer réfuter nuancer pondérer relativiser objecter rétorquer présupposer sous-entendre inférer extrapoler catégoriser hiérarchiser conceptualiser théoriser problématiser alléguer arguer étoffer exemplifier expliciter élucider circonscrire délimiter occulter escamoter éluder esquiver exacerber attiser destituer briguer plébisciter cautionner persécuter opprimer émanciper marginaliser stigmatiser discriminer cohabiter fédérer polariser radicaliser endoctriner censurer quantifier calibrer modéliser simuler synthétiser breveter cloner diagnostiquer immuniser infecter invalider falsifier reboiser déboiser défricher irriguer fertiliser assainir dépolluer endiguer enrayer juguler pallier médiatiser relayer divulguer colporter polémiquer décrypter s'attrister s'indigner s'insurger s'offusquer s'impatienter s'apitoyer compatir culpabiliser réconforter consoler attendrir émerveiller éblouir exaspérer irriter agacer froisser vexer humilier accabler tourmenter angoisser épouvanter terrifier pétrifier stupéfier consterner envier convoiter jalouser dédaigner chérir pérenniser entériner avaliser endosser échoir impartir mandater habiliter accréditer homologuer certifier authentifier enclencher receler amalgamer juxtaposer superposer imbriquer agencer structurer échelonner ventiler cloisonner compartimenter segmenter fragmenter morceler scinder dissocier départager arbitrer parachever matérialiser hypothéquer saper fragiliser déstabiliser éroder pervertir dénaturer travestir altérer biaiser fausser truquer maquiller museler bâillonner accommoder affranchir atteler baliser déblayer découdre défrayer désamorcer ferrer frayer gloser pâtir pédaler pérorer rabattre rebattre ruer disserter deviser interjeter retordre graisser fouler épiloguer",
+   "adjective": "fallacieux spécieux tendancieux partial impartial incohérent paradoxal ambivalent univoque implicite sous-jacent intrinsèque extrinsèque causal hypothétique plausible vraisemblable invraisemblable irréfutable incontestable indéniable indiscutable discutable contestable probant concluant péremptoire catégorique dogmatique tranché manichéen simpliste réducteur caricatural laïque despotique populiste extrémiste réactionnaire souverainiste inclusif discriminatoire égalitaire paritaire empirique méthodique quantitatif qualitatif aléatoire probabiliste exponentiel linéaire nocif inoffensif viral bactérien immunitaire aigu bénin infectieux héréditaire congénital neurologique cognitif psychique somatique fossile biodégradable recyclable aride tempéré tropical polaire côtier fluvial aquatique endémique journalistique sensationnel diffamatoire mensonger romanesque lyrique épique burlesque grotesque baroque onirique allégorique métaphorique figuré littéral pictural mélodieux harmonieux dissonant rancunier mélancolique nostalgique morose blasé désabusé désemparé désorienté démuni accablé abattu poignant déchirant navrant affligeant consternant révoltant exaspérant agaçant irritant vexant humiliant embarrassant angoissant serein apaisé paisible envieux orgueilleux vaniteux insolent impertinent désinvolte nonchalant hautain dédaigneux méprisant bienveillant malveillant altruiste mesquin ombrageux lunatique impulsif posé pondéré téméraire intrépide lâche pudique complaisant obséquieux pérenne éphémère fugace obsolète vétuste désuet dépourvu loisible coi angulaire",
+   "adverb": "intrinsèquement indéniablement incontestablement paradoxalement implicitement objectivement subjectivement indubitablement foncièrement corrélativement conséquemment subséquemment éminemment inlassablement invariablement immanquablement inéluctablement inexorablement fatalement irrémédiablement sciemment intentionnellement fortuitement inopinément approximativement rigoureusement minutieusement scrupuleusement méticuleusement pêle-mêle",
+   "function": "excepté moyennant"
+  },
+  "C1.2": {
+   "noun_m": "pamphlet manifeste recueil dénouement épilogue prologue incipit lyrisme romantisme réalisme symbolisme surréalisme classicisme alexandrin sonnet quatrain pastiche plagiat mécène vernissage croquis sculpteur compositeur répertoire scénariste dramaturge figurant entracte chef-d'œuvre leurre subterfuge stratagème imbroglio quiproquo impair camouflet désaveu opprobre apanage passe-droit pot-de-vin copinage pote job taf fric pognon bouquin machin bidule frangin mioche toubib resto appart dico pinard pif bled pieu beauf plouc trac bobard pipeau lard vade-mecum compte-gouttes qui-vive trompe-l'œil merlan gardon oursin",
+   "noun_f": "péripétie fable épopée autobiographie biographie prose rime strophe métrique muse gravure palette teinte texture symphonie partition chorégraphie esquisse fresque gageure velléité lubie chimère utopie manigance machination conjuration cabale préséance prodigalité fringue frangine clope bagnole bécane bouffe flemme galère baston boulette nana meuf tronche thune piaule taule trouille frousse dalle gaffe bringue nouba",
+   "noun_mf": "môme prof ado trouble-fête",
+   "verb": "narrer dépeindre sculpter graver esquisser ébaucher peaufiner parfaire orchestrer plagier pasticher s'enquérir se_morfondre s'éprendre se_raviser s'évertuer s'enorgueillir s'arroger se_targuer s'adonner s'astreindre s'éterniser s'émousser s'estomper s'étioler s'amenuiser ourdir tramer fomenter aviver raviver exhaler humer effleurer frôler côtoyer arpenter errer flâner déambuler vagabonder contempler scruter épier dévisager toiser lorgner discerner pressentir présager augurer subodorer méditer rêvasser ressasser ruminer languir dépérir flétrir faner éclore bourgeonner poindre jaillir sourdre ruisseler scintiller étinceler miroiter chatoyer luire resplendir flamboyer vaciller chanceler tituber trébucher s'affaisser engloutir submerger chavirer fendre lacérer meurtrir assouvir rassasier étancher abreuver chuchoter balbutier bredouiller marmonner maugréer grommeler vociférer s'exclamer clamer déclamer haranguer invectiver apostropher sermonner admonester réprimander fustiger vilipender encenser glorifier acclamer ovationner bouffer piger kiffer flipper galérer glander râler engueuler chiper choper bousiller foirer se_marrer larguer plaquer poireauter roupiller pioncer bouquiner draguer cartonner déconner chialer se_goinfrer picoler ronchonner péter quérir",
+   "adjective": "fugitif ténu diaphane opaque limpide translucide blafard livide blême cramoisi écarlate vermeil ténébreux lugubre funeste morne terne maussade austère sobre ascétique fastueux somptueux luxueux opulent cossu frugal rudimentaire succinct laconique lapidaire prolixe verbeux disert loquace taciturne affable courtois revêche acariâtre bourru farouche altier vil abject ignoble infâme exécrable immonde sordide glauque poisseux visqueux rugueux soyeux velouté moelleux douillet feutré tamisé moche crevé naze dingue cinglé marrant rigolo débile chiant radin pingre fauché foutu chouette",
+   "adverb": "naguère sitôt incessamment furtivement subrepticement sournoisement insidieusement candidement naïvement hâtivement précipitamment promptement prestement posément paisiblement sereinement allègrement gaiement amèrement âprement ardemment passionnément éperdument farouchement obstinément opiniâtrement vaguement confusément obscurément sommairement succinctement vachement drôlement derechef cahin-caha clopin-clopant intra-muros extra-muros",
+   "function": "nonobstant",
+   "interjection": "bof ouf zut bah oups aïe hop"
+  }
+ }
+}

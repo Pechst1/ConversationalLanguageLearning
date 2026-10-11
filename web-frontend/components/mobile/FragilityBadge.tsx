@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { ShapeToken, type ShapeKind } from '@/components/atelier-v2/ui';
+import { ShapeToken, useControlLanguage, type ShapeKind } from '@/components/atelier-v2/ui';
+import { cahierCopy, type CahierCopy } from '@/components/cahiers/cahier-copy';
 
 /* The fragility badge, on the Claude design system (Atelier V2).
  *
@@ -10,7 +11,12 @@ import { ShapeToken, type ShapeKind } from '@/components/atelier-v2/ui';
  * the tracked mono caps became a paper chip carrying one Bauhaus shape token
  * next to the label. The label is always printed, so the shape never carries
  * the state alone. The chip is only styled inside an `.av2` scope; every
- * consumer (the Cahier's word sheet, the word biography) renders under one. */
+ * consumer (the Cahier's word sheet, the word biography) renders under one.
+ *
+ * WP-82: the label and reason are chrome. The server sends them in French; a
+ * learner whose chrome language is English or German reads the same state
+ * from the Cahier copy table (`fragility` group), keyed by the level — and by
+ * the French reason, where the server has two for one level. */
 
 export type FragilityLevel = 'new' | 'forming' | 'holding' | 'tender' | 'fraying' | 'due' | string;
 
@@ -40,11 +46,49 @@ function parseDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+type FragilityCopy = CahierCopy['fragility'];
+const FRENCH_FRAGILITY: FragilityCopy = cahierCopy('fr').fragility;
+const KNOWN_LEVELS = ['new', 'due', 'fraying', 'tender', 'holding', 'forming'] as const;
+type KnownLevel = (typeof KNOWN_LEVELS)[number];
+
+function knownLevel(level: unknown): KnownLevel | null {
+  return (KNOWN_LEVELS as readonly string[]).includes(String(level)) ? (level as KnownLevel) : null;
+}
+
+/* A server-sent (French) descriptor, restated in the chrome language. The
+ * reason is matched against the French column first, so «Pas encore révisé par
+ * vous.» and «Pas encore révisé.» keep their difference; an unknown level or
+ * an unknown reason keeps the server's words rather than guessing. */
+function localise(descriptor: FragilityDescriptor, language: unknown): FragilityDescriptor {
+  const t = cahierCopy(language).fragility;
+  if (t === FRENCH_FRAGILITY) return descriptor;
+  const level = knownLevel(descriptor.level);
+  if (!level) return descriptor;
+  const reasonKey = (Object.keys(FRENCH_FRAGILITY) as Array<keyof FragilityCopy>).find(
+    (key) => key.includes('_reason') &&FRENCH_FRAGILITY[key] === descriptor.reason,
+  );
+  return {
+    level: descriptor.level,
+    label: t[level],
+    reason: reasonKey ? t[reasonKey] : descriptor.reason ? t[`${level}_reason` as keyof FragilityCopy] : descriptor.reason,
+  };
+}
+
 // The client mirror of _fragility_for_progress in app/api/v1/endpoints/vocabulary.py:
-// same six levels, same French copy. Keep the two in step.
-export function fragilityLabel(progress?: FragilityInput | null, now = new Date()): FragilityDescriptor {
+// same six levels, same French copy (the French column of `fragility` in
+// cahier-copy.ts). Keep the two in step. `language` is the chrome language.
+export function fragilityLabel(
+  progress?: FragilityInput | null,
+  now = new Date(),
+  language: unknown = 'fr',
+): FragilityDescriptor {
+  return localise(frenchFragility(progress, now), language);
+}
+
+function frenchFragility(progress: FragilityInput | null | undefined, now: Date): FragilityDescriptor {
+  const f = FRENCH_FRAGILITY;
   if (!progress) {
-    return { level: 'new', label: 'Nouveau', reason: 'Pas encore révisé par vous.' };
+    return { level: 'new', label: f.new, reason: f.new_reason_unseen };
   }
 
   if (progress.fragility_label) {
@@ -64,10 +108,10 @@ export function fragilityLabel(progress?: FragilityInput | null, now = new Date(
   const retrievability = progress.retrievability;
 
   if (due && reps > 0) {
-    return { level: 'due', label: 'À revoir', reason: 'Prêt pour une reprise.' };
+    return { level: 'due', label: f.due, reason: f.due_reason };
   }
   if (lapses >= 3 || (typeof retrievability === 'number' && retrievability < 0.45)) {
-    return { level: 'fraying', label: 'Mémoire qui s’effrite', reason: 'Plusieurs oublis, ou un rappel estimé faible.' };
+    return { level: 'fraying', label: f.fraying, reason: f.fraying_reason };
   }
   if (
     phase === 'learn' ||
@@ -79,15 +123,15 @@ export function fragilityLabel(progress?: FragilityInput | null, now = new Date(
     lapses > 0 ||
     (typeof retrievability === 'number' && retrievability < 0.72)
   ) {
-    return { level: 'tender', label: 'Mémoire fragile', reason: 'Utile, mais encore facile à perdre.' };
+    return { level: 'tender', label: f.tender, reason: f.tender_reason };
   }
   if (state === 'mastered' || (progress.proficiency_score || 0) >= 90) {
-    return { level: 'holding', label: 'Tient', reason: 'Ce fil tient bien pour l’instant.' };
+    return { level: 'holding', label: f.holding, reason: f.holding_reason };
   }
   if (state === 'new' && reps === 0) {
-    return { level: 'new', label: 'Nouveau', reason: 'Pas encore révisé.' };
+    return { level: 'new', label: f.new, reason: f.new_reason };
   }
-  return { level: 'forming', label: 'En formation', reason: 'Le fil se dessine.' };
+  return { level: 'forming', label: f.forming, reason: f.forming_reason };
 }
 
 /* The design's four shapes, by what the state asks of the learner:
@@ -119,9 +163,11 @@ export interface FragilityBadgeProps extends React.HTMLAttributes<HTMLElement> {
 
 const FragilityBadge = React.forwardRef<HTMLElement, FragilityBadgeProps>(
   ({ progress, level, label, reason, compact = false, showReason = false, className, ...props }, ref) => {
-    const descriptor = progress ? fragilityLabel(progress) : {
+    // The chip renders under an `AtelierV2Root`; its language is the chrome language.
+    const language = useControlLanguage();
+    const descriptor = progress ? fragilityLabel(progress, new Date(), language) : {
       level: level || 'forming',
-      label: 'En formation',
+      label: cahierCopy(language).fragility.forming,
       reason: typeof reason === 'string' ? reason : null,
     };
     const resolvedLevel = level || descriptor.level || 'forming';

@@ -5,7 +5,7 @@ this learner walking into today, and is it actually safe to show?*
 
 Design rules this file exists to enforce:
 
-* **Authored first.** Every scenario family ships hand-written A1 and A2 French
+* **Authored first.** Every scenario family ships hand-written A1, A2 and B1 French
   content in ``app/data/journey_scenarios/<content_version>/``. That path costs
   nothing: no model call, no image call, no network. It is the path the
   end-to-end café journey runs on and the path every test exercises by default
@@ -35,8 +35,10 @@ Public entry points
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
+import unicodedata
 from dataclasses import dataclass, replace
 from datetime import date
 from functools import lru_cache
@@ -54,6 +56,7 @@ from app.db.models.user import User
 from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
     FALLBACK_CONTROL_LANGUAGE,
+    FIRST_DAY_KIND,
     JOURNEY_CONTENT_VERSION,
     MAX_RESPOND_TURNS,
     CapabilityKey,
@@ -82,6 +85,10 @@ JOURNEY_PROMPT_ROOT = APP_ROOT / "prompts" / "journey"
 #: The backend image does not ship ``web-frontend/public``; when the directory is
 #: absent the declared asset path is trusted, when it is present it is verified.
 MEDIA_PUBLIC_ROOT = REPO_ROOT / "web-frontend" / "public"
+
+#: An authored scene's page, when it has one, is as long as a story-engine page.
+MIN_AUTHORED_PANELS = 4
+MAX_AUTHORED_PANELS = 6
 
 JOURNEY_PROMPT_VERSION = "journey-prompt-v1"
 VARIATION_PROMPT_FILE = "scenario_variation_v1.json"
@@ -148,22 +155,17 @@ OFF_TOPIC_TERMS: dict[str, tuple[str, ...]] = {
     ),
 }
 
-#: Length envelopes per authored band. Anything above A2 reuses the A2 envelope,
-#: because the authored ceiling is A2.
+#: Length envelopes per authored band, including the short B1 fallback scenes.
 BAND_LIMITS: dict[str, dict[str, int]] = {
     "A1": {"setup_words": 28, "line_words": 16},
     "A2": {"setup_words": 40, "line_words": 24},
+    "B1": {"setup_words": 60, "line_words": 35},
 }
 
 _TU_MARKERS = re.compile(r"\b(tu|toi|te|ton|ta|tes)\b|\bt'", re.IGNORECASE)
 _VOUS_MARKERS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
 _OUTCOME_KEY = re.compile(r"^[a-z][a-z0-9_]*$")
 
-_LEVEL_NOTE_ABOVE: dict[str, str] = {
-    "en": "This scene is written at {band}, below your current level.",
-    "de": "Diese Szene ist auf {band} geschrieben, unter deinem aktuellen Niveau.",
-    "fr": "Cette scène est écrite au niveau {band}, en dessous de ton niveau actuel.",
-}
 _LEVEL_NOTE_BELOW: dict[str, str] = {
     "en": "This scene is written at {band}, a step above where you are.",
     "de": "Diese Szene ist auf {band} geschrieben, eine Stufe über deinem Niveau.",
@@ -364,13 +366,14 @@ def _select_variant(
 
     authored = sorted(by_band, key=_band_index)
     lowest, highest = authored[0], authored[-1]
+    if _band_index(band) >= _band_index("B1") and _band_index(highest) < _band_index("B1"):
+        return None, LevelFit(learner_band=band, content_band=band, is_exact=False)
     if _band_index(band) > _band_index(highest):
-        note = _LEVEL_NOTE_ABOVE.get(control_language, _LEVEL_NOTE_ABOVE["en"])
         return by_band[highest], LevelFit(
             learner_band=band,
             content_band=highest,
             is_exact=False,
-            note_native=note.format(band=highest),
+            note_native=None,
         )
     note = _LEVEL_NOTE_BELOW.get(control_language, _LEVEL_NOTE_BELOW["en"])
     return by_band[lowest], LevelFit(
@@ -538,7 +541,7 @@ def validate_scenario_brief(brief: ScenarioBrief, *, rules: ContentRules) -> lis
     if brief.image_url is not None and brief.image_url.startswith("data:"):
         problems.append("inline base64 image URLs are not allowed")
 
-    limits = BAND_LIMITS.get(brief.level_band, BAND_LIMITS["A2"])
+    limits = BAND_LIMITS.get(brief.level_band, BAND_LIMITS["B1"])
     for label, text in (
         ("title_fr", brief.title_fr),
         ("setup_fr", brief.setup_fr),
@@ -568,7 +571,26 @@ def validate_scenario_brief(brief: ScenarioBrief, *, rules: ContentRules) -> lis
         character_lines.append(
             (f"resolution_lines[{outcome_key}]", render_authored_text(line))
         )
-    for label, line in character_lines:
+    # The page (2026-09-25): the addressed character's panel lines are held to the
+    # scene's register like any of their lines; everyone's are held to the length.
+    panel_lines: list[tuple[str, str]] = []
+    if brief.panels and not MIN_AUTHORED_PANELS <= len(brief.panels) <= MAX_AUTHORED_PANELS:
+        problems.append(
+            f"the page has {len(brief.panels)} panels, outside "
+            f"{MIN_AUTHORED_PANELS}..{MAX_AUTHORED_PANELS}"
+        )
+    known_cast = _cast_names()
+    for panel in brief.panels:
+        for line in panel.get("dialogue") or []:
+            speaker = str(line.get("character_id") or "")
+            label = f"panels[{panel.get('index')}] {speaker}"
+            if known_cast and speaker not in known_cast:
+                problems.append(f"{label} is not in the world cast")
+            if speaker == brief.character_id:
+                character_lines.append((label, str(line.get("text_fr") or "")))
+            else:
+                panel_lines.append((label, str(line.get("text_fr") or "")))
+    for label, line in [*character_lines, *panel_lines]:
         if _words(line) > limits["line_words"]:
             problems.append(
                 f"{label} is {_words(line)} words, over the {brief.level_band} "
@@ -627,6 +649,8 @@ def validate_scenario_brief(brief: ScenarioBrief, *, rules: ContentRules) -> lis
         task.hint_native or "",
         *(render_authored_text(line) for line in brief.resolution_lines.values()),
         *(render_authored_text(text) for text in brief.resolution_summaries.values()),
+        *(str(panel.get("narration_fr") or "") for panel in brief.panels),
+        *(str(line.get("text_fr") or "") for panel in brief.panels for line in panel.get("dialogue") or []),
     ]
     for term in rules.forbidden_terms:
         for text in guarded:
@@ -1175,7 +1199,53 @@ def _build_authored_brief(
         estimated_seconds=int(variant.get("estimated_seconds") or DEFAULT_BUDGET_SECONDS),
         is_authored_fallback=bool(serial.is_fallback) if serial else True,
         control_language=control_language,
+        panels=authored_panels(variant, fallback_image_url=image_url),
     )
+
+
+@lru_cache(maxsize=1)
+def _cast_names() -> dict[str, str]:
+    from app.services.serial import SerialThreadService
+
+    world = SerialThreadService._load_world_bible()
+    return {
+        str(member.get("id")): str(member.get("name") or member.get("id"))
+        for member in world.get("cast") or []
+        if member.get("id")
+    }
+
+
+def authored_panels(variant: dict[str, Any], *, fallback_image_url: str | None) -> list[dict[str, Any]]:
+    """The variant's graphic-novel page, public shape. A panel whose drawing is not
+    on disk shows the scene's location plate instead — never a broken image."""
+
+    names = _cast_names()
+    panels: list[dict[str, Any]] = []
+    for index, raw in enumerate(variant.get("panels") or []):
+        if not isinstance(raw, dict):
+            continue
+        drawn = resolve_media_url(raw.get("image_asset"))
+        panels.append(
+            {
+                "id": f"authored-{index}",
+                "index": index,
+                "narration_fr": str(raw.get("narration_fr") or ""),
+                "dialogue": [
+                    {
+                        "character_id": str(line.get("character_id") or ""),
+                        "character_name": names.get(str(line.get("character_id") or "")),
+                        "text_fr": str(line.get("text_fr") or ""),
+                    }
+                    for line in raw.get("dialogue") or []
+                    if isinstance(line, dict) and line.get("text_fr")
+                ],
+                "image_url": drawn or fallback_image_url,
+                "image_status": "panel_art" if drawn else ("setting_reference" if fallback_image_url else "unavailable"),
+                # WP-116: the scenario's plate, under the drawn cast.
+                "plate_url": fallback_image_url,
+            }
+        )
+    return panels
 
 
 # --------------------------------------------------------------------------
@@ -1469,7 +1539,8 @@ def resolve_scenario_brief(
     """
 
     version = content_version or CURRENT_CONTENT_VERSION
-    control_language = normalize_control_language(user.native_language)
+    from app.services.chrome_language import user_chrome_language
+    control_language = user_chrome_language(user)
     spec = _load_scenario_spec(scenario_key, version)
     if spec is None:
         reason = (
@@ -1630,12 +1701,9 @@ def resolve_level_fit(*, user: User, brief: ScenarioBrief) -> LevelFit:
     control_language = normalize_control_language(user.native_language)
     if band == brief.level_band:
         return LevelFit(learner_band=band, content_band=brief.level_band, is_exact=True)
-    template = (
-        _LEVEL_NOTE_ABOVE
-        if _band_index(band) > _band_index(brief.level_band)
-        else _LEVEL_NOTE_BELOW
-    )
-    note = template.get(control_language, template["en"]).format(band=brief.level_band)
+    note = None
+    if _band_index(band) < _band_index(brief.level_band):
+        note = _LEVEL_NOTE_BELOW.get(control_language, _LEVEL_NOTE_BELOW["en"]).format(band=brief.level_band)
     return LevelFit(
         learner_band=band,
         content_band=brief.level_band,
@@ -1684,3 +1752,214 @@ def describe_available_scenario(db: Session, *, user: User, input_mode: InputMod
         return None
     from app.services.living_story import describe_next
     return describe_next(db, user=user, input_mode=input_mode)
+
+
+# --------------------------------------------------------------------------
+# WP-75 — the first day: authored, instant, and the cast on the doorstep
+# --------------------------------------------------------------------------
+
+#: A file beside the content-version directories, never a directory itself, so
+#: :func:`available_content_versions` never mistakes it for one.
+FIRST_DAY_DATA_PATH = SCENARIO_DATA_ROOT / "first_day_v1.json"
+#: The cast introduction is three faces, one short line each.
+CAST_INTRO_SIZE = 3
+CAST_LINE_MAX_WORDS = 8
+
+
+@lru_cache(maxsize=1)
+def _first_day_data() -> dict[str, Any]:
+    try:
+        loaded = json.loads(FIRST_DAY_DATA_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:  # pragma: no cover - shipped with the app
+        logger.error("first-day content unreadable: {}", exc)
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def first_day_scenario_key() -> str:
+    return str(_first_day_data().get("scenario_key") or SCENARIO_PRIORITY[0])
+
+
+def first_day_brief(
+    db: Session, *, user: User, input_mode: InputMode = InputMode.TEXT
+) -> ScenarioContextResult:
+    """The learner's first scene, for their band, with no model call.
+
+    The authored café at Le Mistral — the world bible's neutral ground, where
+    the friends the story engine takes over with on day 2 already gather.
+    ``allow_generation=False`` is the no-provider guarantee;
+    ``bind_serial=False`` keeps it out of the living story (it is not a
+    chapter and must not claim to be one); nothing to ground in a prior day
+    because there is none.
+    """
+
+    return resolve_scenario_brief(
+        db,
+        user=user,
+        scenario_key=first_day_scenario_key(),
+        input_mode=input_mode,
+        allow_generation=False,
+        bind_serial=False,
+        ground_in_prior_day=False,
+    )
+
+
+def _first_day_word(db: Session, *, surface: str, gloss: dict[str, str], pos: str | None):
+    """The catalogue row for one authored first-day word, created if missing.
+
+    The catalogue is shared, not the learner's: a row here claims nothing about
+    anyone's progress. Its glosses are authored with the scene, never generated
+    and never the learner's own text (the WP-74 rule).
+    """
+
+    from sqlalchemy import func, or_, select
+
+    from app.db.models.vocabulary import VocabularyWord
+
+    lowered = surface.strip().lower()
+    existing = db.scalars(
+        select(VocabularyWord)
+        .where(
+            VocabularyWord.language == "fr",
+            or_(
+                VocabularyWord.normalized_word == lowered,
+                func.lower(VocabularyWord.word) == lowered,
+            ),
+        )
+        .order_by(VocabularyWord.id.asc())
+        .limit(1)
+    ).first()
+    if existing is not None:
+        return existing
+    word = VocabularyWord(
+        language="fr",
+        word=surface,
+        normalized_word=lowered,
+        part_of_speech=pos,
+        english_translation=gloss.get("en") or None,
+        german_translation=gloss.get("de") or None,
+        difficulty_level=1,
+        topic_tags=["journey_first_day", "cafe"],
+        usage_notes="Mot de la première scène au Mistral.",
+    )
+    db.add(word)
+    db.flush([word])
+    return word
+
+
+def first_day_candidates(db: Session, *, user: User, brief: ScenarioBrief) -> list[Any]:
+    """The two words the first scene's reply needs, as recall candidates.
+
+    Every candidate is a real catalogue row (evidence lands on it like any
+    other), marked ``is_new`` with full scene relevance. A French-speaking
+    control language gets no gloss — the gloss would be the answer — which the
+    planner reads as "pose it as tiles, or not at all".
+    """
+
+    from app.services.journey_contracts import LearningCandidate, TargetKind, TargetRef
+
+    words = (_first_day_data().get("recall_words") or {}).get(str(brief.level_band)) or []
+    language = brief.control_language
+    candidates: list[Any] = []
+    for row in words:
+        if not isinstance(row, dict) or not row.get("word"):
+            continue
+        surface = str(row["word"])
+        gloss_map = {str(k): str(v) for k, v in (row.get("gloss") or {}).items()}
+        word = _first_day_word(
+            db, surface=surface, gloss=gloss_map, pos=row.get("part_of_speech")
+        )
+        gloss = gloss_map.get(language) or ""
+        if _fold(gloss) == _fold(surface):
+            gloss = ""
+        candidates.append(
+            LearningCandidate(
+                target=TargetRef(
+                    kind=TargetKind.VOCABULARY,
+                    id=str(word.id),
+                    label_fr=surface,
+                    label_native=gloss or None,
+                ),
+                priority_score=0.0,
+                due_since_days=0,
+                estimated_seconds=30,
+                is_new=True,
+                relevance=1.0,
+                source_item_type="vocab",
+                metadata={"word_id": word.id, "anchor": FIRST_DAY_KIND},
+            )
+        )
+    return candidates
+
+
+def first_day_cast_intro(native_language: str | None) -> list[dict[str, str]]:
+    """Three faces, one A1 line each, explained in the learner's language."""
+
+    language = normalize_control_language(native_language)
+    rows: list[dict[str, str]] = []
+    for row in _first_day_data().get("cast_intro") or []:
+        if not isinstance(row, dict):
+            continue
+        rows.append(
+            {
+                "character_id": str(row.get("character_id") or ""),
+                "name": str(row.get("name") or ""),
+                "role_native": _localized(row.get("role_native"), language),
+                "line_fr": str(row.get("line_fr") or ""),
+                "line_native": _localized(row.get("line_native"), language),
+            }
+        )
+    return rows[:CAST_INTRO_SIZE]
+
+
+# --------------------------------------------------------------------------
+# WP-75 / walk L9 — a character line must not be the learner's answer
+# --------------------------------------------------------------------------
+
+#: A character line this close to the reply the learner is asked to produce
+#: *is* the answer, printed above the task (walk L9: «Marin, tu vas demander à
+#: Lila ?» under Marin's name, the exact sentence the learner had to say).
+#: Lives here, not in the planner, because the planner is kept import-pure.
+SPOILER_SIMILARITY = 0.72
+_SPOILER_TOKEN = re.compile(r"[a-z0-9]+")
+
+
+def _spoiler_tokens(text: str | None) -> list[str]:
+    from app.services.journey_contracts import normalize_answer_text
+
+    folded = unicodedata.normalize("NFKD", normalize_answer_text(text).lower())
+    ascii_text = folded.encode("ascii", "ignore").decode("ascii")
+    return _SPOILER_TOKEN.findall(ascii_text)
+
+
+def line_spoils_reply(line: str | None, expected: str | None) -> bool:
+    """Does this character line say (nearly) what the learner must say?
+
+    Fuzzy on purpose: accents, punctuation, case and a vocative name must not
+    let the answer through. A line matches when its word sequence is close to
+    the expected reply's (``SequenceMatcher`` over tokens), or when it contains
+    the whole reply of three words or more. Short, content-free lines never
+    match: «Alors ?» cannot spoil anything.
+    """
+
+    said = _spoiler_tokens(line)
+    wanted = _spoiler_tokens(expected)
+    if len(said) < 3 or len(wanted) < 3:
+        return False
+    ratio = difflib.SequenceMatcher(a=said, b=wanted, autojunk=False).ratio()
+    if ratio >= SPOILER_SIMILARITY:
+        return True
+    return " ".join(wanted) in " ".join(said)
+
+
+__all__ += [
+    "SPOILER_SIMILARITY",
+    "line_spoils_reply",
+    "CAST_INTRO_SIZE",
+    "CAST_LINE_MAX_WORDS",
+    "FIRST_DAY_KIND",
+    "first_day_brief",
+    "first_day_candidates",
+    "first_day_cast_intro",
+    "first_day_scenario_key",
+]

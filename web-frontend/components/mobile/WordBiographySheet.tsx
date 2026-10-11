@@ -2,15 +2,26 @@ import React from 'react';
 import type { VocabularyBiography, VocabularyBiographyEvent, VocabularyBiographyExample } from '@/services/api';
 import { cn } from '@/lib/utils';
 import { learnerGloss } from '@/lib/glosses';
-import { AtelierV2Root, BottomSheet, Row, StateBlock, Surface } from '@/components/atelier-v2/ui';
-import { FragilityBadge } from './FragilityBadge';
+import { AtelierV2Root, BottomSheet, Row, ShapeToken, StateBlock, Surface, WordToken } from '@/components/atelier-v2/ui';
+import { frenchQuote } from '@/lib/french-typography';
+import { revisitRows } from '@/lib/word-revisits';
+import { cahierCopy, type CahierCopy } from '@/components/cahiers/cahier-copy';
+import { useChromeLanguage } from '@/lib/learner-language';
+import { FragilityBadge, fragilityLabel } from './FragilityBadge';
 
 /* The word biography, on the Claude design system (Atelier V2).
  *
  * One bottom sheet (handle, scrim, 28px radius, focus trap, Escape) from the
  * shared primitive; inside it the memory ledger as four paper tiles, the
  * examples as Garamond-italic quotes, and the timeline as the design's paper
- * rows. The payload shape and every French label are unchanged. */
+ * rows. The payload shape is unchanged.
+ *
+ * WP-82: the sheet's own words (ledger tiles, section heads, states, source
+ * kickers) are chrome, in the learner's chrome language from the Cahier copy
+ * table; the word, the examples and the timeline's labels are content. Place
+ * names (L’Atelier, Le Feuilleton, Le Lexique, Le Courrier…) stay French. */
+
+type BiographyCopy = CahierCopy['biography'];
 
 export interface WordBiographySheetProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   open: boolean;
@@ -21,11 +32,11 @@ export interface WordBiographySheetProps extends Omit<React.HTMLAttributes<HTMLD
   action?: React.ReactNode;
 }
 
-function formatThreadDate(value?: string | null) {
-  if (!value) return 'Sans date';
+function formatThreadDate(value: string | null | undefined, t: BiographyCopy, locale: string) {
+  if (!value) return t.no_date;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Sans date';
-  return new Intl.DateTimeFormat('fr-FR', {
+  if (Number.isNaN(date.getTime())) return t.no_date;
+  return new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -33,9 +44,9 @@ function formatThreadDate(value?: string | null) {
   }).format(date);
 }
 
-function formatNumber(value?: number | null) {
+function formatNumber(value: number | null | undefined, locale: string) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '0';
-  return new Intl.NumberFormat().format(value);
+  return new Intl.NumberFormat(locale).format(value);
 }
 
 // The server resolves which gloss this learner reads (app/services/glosses.py)
@@ -53,34 +64,66 @@ function translationFor(biography: VocabularyBiography) {
 // `source_type` is a storage key ("anki_deck", "graphic_novel"). It used to be
 // printed with its underscores swapped for spaces — a machine key on a
 // publication surface. Unknown keys print nothing rather than their internals.
-const SOURCE_LABELS: Record<string, string> = {
-  anki_deck: 'Paquet importé',
+// Place names are French in every language; the rest is read from the table.
+const PLACE_LABELS: Record<string, string> = {
   atelier: 'L’Atelier',
   atelier_attempt: 'L’Épreuve',
   conversation: 'Le Studio',
-  deck: 'Paquet',
-  errata: 'Errata',
-  fsrs: 'Révision',
   graphic_novel: 'Le Feuilleton',
   lexicon: 'Le Lexique',
-  mission: 'Missions',
-  pilot_capture: 'Capture pilote',
-  srs: 'Révision',
+  mission: 'Le Courrier',
+};
+const SOURCE_KEYS: Record<string, keyof BiographyCopy> = {
+  anki_deck: 'source_anki_deck',
+  deck: 'source_deck',
+  errata: 'source_errata',
+  fsrs: 'source_review',
+  pilot_capture: 'source_pilot_capture',
+  srs: 'source_review',
 };
 
-function eventKicker(event: VocabularyBiographyEvent) {
-  return SOURCE_LABELS[event.source_type] || '';
+function eventKicker(event: VocabularyBiographyEvent, t: BiographyCopy) {
+  const key = SOURCE_KEYS[event.source_type];
+  return PLACE_LABELS[event.source_type] || (key ? t[key] : '');
 }
 
-function ExampleList({ examples }: { examples: VocabularyBiographyExample[] }) {
+/* WP-93: the episodes that brought the word back — «Revu dans l’épisode du
+   12 sept.», newest first, three at most. The date is chrome (the learner's
+   locale); the episode's title is content and stays French. */
+function RevisitList({ biography, t, locale }: { biography: VocabularyBiography; t: BiographyCopy; locale: string }) {
+  const rows = revisitRows(biography.revisited_in, locale, t.revisited);
+  if (!rows.length) return null;
+  return (
+    <section className="lx-bio__section" aria-label={t.revisited_label}>
+      <p className="av2-label">{t.revisited_label}</p>
+      <ul className="lx-bio__revisits">
+        {rows.map((row) => (
+          <li key={row.key} className="lx-bio__revisit">
+            <ShapeToken kind="story" size="sm" />
+            <span className="lx-bio__revisit-text">
+              <span className="av2-body">{row.label}</span>
+              {row.title && (
+                <span className="av2-fr lx-bio__revisit-title" lang="fr">
+                  {frenchQuote(row.title)}
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ExampleList({ examples, t, locale }: { examples: VocabularyBiographyExample[]; t: BiographyCopy; locale: string }) {
   if (!examples.length) return null;
   return (
-    <section className="lx-bio__section" aria-label="Exemples">
-      <p className="av2-label">Exemples</p>
+    <section className="lx-bio__section" aria-label={t.examples}>
+      <p className="av2-label">{t.examples}</p>
       <div className="av2-stack">
         {examples.map((example, index) => (
           <Surface key={`${example.source}:${index}:${example.sentence}`} className="lx-bio__example">
-            <p className="av2-label">{example.source} · {formatThreadDate(example.occurred_at)}</p>
+            <p className="av2-label">{example.source} · {formatThreadDate(example.occurred_at, t, locale)}</p>
             <p className="av2-fr lx-bio__quote">« {example.sentence} »</p>
             {example.translation && <p className="av2-body">{example.translation}</p>}
           </Surface>
@@ -92,56 +135,74 @@ function ExampleList({ examples }: { examples: VocabularyBiographyExample[] }) {
 
 const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetProps>(
   ({ open, biography, loading = false, error, onClose, action, className, ...props }, ref) => {
+    const language = useChromeLanguage();
     if (!open) return null;
 
-    const title = biography?.word.word || 'Le fil du mot';
+    const copy = cahierCopy(language);
+    const t = copy.biography;
+    const locale = copy.cahier.locale;
+    const title = biography?.word.word || t.title_fallback;
     const description = biography
       ? `${translationFor(biography)} / ${biography.origin.label}`
-      : 'Ouverture…';
+      : t.opening;
 
     return (
-      <AtelierV2Root as="div" className={cn('word-biography-layer', className)}>
-        <BottomSheet open={open} title={title} eyebrow="L’histoire du mot" onClose={onClose}>
+      <AtelierV2Root as="div" language={language} className={cn('word-biography-layer', className)}>
+        <BottomSheet open={open} title={title} eyebrow={t.eyebrow} onClose={onClose}>
           <div ref={ref} className="word-biography lx-bio" {...props}>
             <div className="lx-bio__lead">
-              <p className="av2-body av2-body--lg">{description}</p>
+              <span className="lx-bio__word">
+                {/* WP-D6: the gender as the shape, the article inside. */}
+                {biography && (
+                  <WordToken
+                    word={biography.word.word}
+                    gender={biography.word.gender}
+                    partOfSpeech={biography.word.part_of_speech}
+                    state={biography.progress.fragility_level}
+                    size="lg"
+                  />
+                )}
+                <p className="av2-body av2-body--lg">{description}</p>
+              </span>
               {biography ? action || <FragilityBadge progress={biography.progress} compact /> : action}
             </div>
 
-            {loading && <StateBlock tone="loading" title="Ouverture de l’histoire…" />}
-            {error && <StateBlock tone="error" title="L’histoire est indisponible." body={error} />}
+            {loading && <StateBlock tone="loading" title={t.loading} />}
+            {error && <StateBlock tone="error" title={t.failed} body={error} />}
 
             {biography && (
               <>
-                <section className="lx-bio__ledger" aria-label="État de la mémoire">
-                  <Surface shape="tile"><span className="av2-label">État</span><strong>{biography.progress.fragility_label}</strong></Surface>
-                  <Surface shape="tile"><span className="av2-label">Vu</span><strong>{formatNumber(biography.progress.times_seen)}</strong></Surface>
-                  <Surface shape="tile"><span className="av2-label">Employé</span><strong>{formatNumber(biography.progress.times_used_correctly)}</strong></Surface>
-                  <Surface shape="tile"><span className="av2-label">Errata</span><strong>{formatNumber(biography.linked_errata_count)}</strong></Surface>
+                <section className="lx-bio__ledger" aria-label={t.ledger_label}>
+                  <Surface shape="tile"><span className="av2-label">{t.tile_state}</span><strong>{fragilityLabel(biography.progress, new Date(), language).label}</strong></Surface>
+                  <Surface shape="tile"><span className="av2-label">{t.tile_seen}</span><strong>{formatNumber(biography.progress.times_seen, locale)}</strong></Surface>
+                  <Surface shape="tile"><span className="av2-label">{t.tile_used}</span><strong>{formatNumber(biography.progress.times_used_correctly, locale)}</strong></Surface>
+                  <Surface shape="tile"><span className="av2-label">{t.tile_errata}</span><strong>{formatNumber(biography.linked_errata_count, locale)}</strong></Surface>
                 </section>
 
                 {biography.progress.fragility_reason && (
                   <FragilityBadge progress={biography.progress} showReason />
                 )}
 
-                <ExampleList examples={biography.examples} />
+                <ExampleList examples={biography.examples} t={t} locale={locale} />
 
-                <section className="lx-bio__section" aria-label="Le fil">
-                  <p className="av2-label">Le fil</p>
+                <RevisitList biography={biography} t={t} locale={locale} />
+
+                <section className="lx-bio__section" aria-label={t.thread}>
+                  <p className="av2-label">{t.thread}</p>
                   <div className="av2-stack lx-bio__thread">
                     {biography.timeline.map((event) => {
-                      const kicker = eventKicker(event);
+                      const kicker = eventKicker(event, t);
                       return (
                         <Row
                           key={event.id}
-                          eyebrow={[kicker, formatThreadDate(event.occurred_at)].filter(Boolean).join(' · ')}
+                          eyebrow={[kicker, formatThreadDate(event.occurred_at, t, locale)].filter(Boolean).join(' · ')}
                           title={event.label}
                           badge={event.description ? <span className="av2-body lx-bio__desc">{event.description}</span> : undefined}
                         />
                       );
                     })}
                     {biography.timeline.length === 0 && (
-                      <p className="av2-body">Ce mot n’a pas encore laissé de trace.</p>
+                      <p className="av2-body">{t.no_trace}</p>
                     )}
                   </div>
                 </section>
@@ -152,6 +213,7 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
         <style jsx global>{`
           .av2 .lx-bio { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
           .av2 .lx-bio__lead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+          .av2 .lx-bio__word { display: flex; align-items: center; gap: 12px; min-width: 0; }
           .av2 .lx-bio__lead a { color: var(--av2-ink); font-weight: 700; text-underline-offset: 3px; }
           .av2 .lx-bio__ledger { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
           .av2 .lx-bio__ledger strong { display: block; margin-top: 4px; font-size: var(--av2-t-body-lg); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
@@ -159,6 +221,11 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
           .av2 .lx-bio__example { display: flex; flex-direction: column; gap: 4px; }
           .av2 .lx-bio__quote { margin: 0; font-size: var(--av2-t-action); color: var(--av2-ink); }
           .av2 .lx-bio__desc { flex: 0 1 40%; text-align: right; }
+          .av2 .lx-bio__revisits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+          .av2 .lx-bio__revisit { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+          .av2 .lx-bio__revisit .av2-shape { flex: none; }
+          .av2 .lx-bio__revisit-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+          .av2 .lx-bio__revisit-title { color: var(--av2-ink-2); overflow-wrap: anywhere; }
           @media (min-width: 560px) {
             .av2 .lx-bio__ledger { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           }

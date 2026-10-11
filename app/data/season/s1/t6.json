@@ -1,0 +1,1374 @@
+{
+  "id": "t6",
+  "number": 6,
+  "title_fr": "L'autre côté",
+  "intent": "The page must make the learner like Marchand within four panels, through the camp bed, the Polaroid on his desk and the 46 bus, without him ever asking for sympathy. Camille is not a villain's assistant. Camille is right about the roof. The choice is the season's hardest: the same page consoles an old man and ruins the woman who protected your grandmother. There is no correct card.",
+  "state_in": [
+    "After T4 and T5. The fire's origin is public (`fire_photo = wall`) or known to thirty people who pretend otherwise (`margaux`). The estate is liable. Lila leaves on 8 January. Marin knows. The co-op folder is on their fridge.",
+    "From gap 5. Margaux has received a recorded letter: «fin du bail le 31 mars». Romy's editor wants the Solvel story. Lila's last day at school has happened. The notary has told you what «à concurrence de l'actif net» means: the fire's debt can take the flat, and no more than the flat."
+  ],
+  "flags_read": [
+    "s1.marchand_invited",
+    "s1.lied_to_marchand",
+    "s1.fire_photo",
+    "romy.footage",
+    "s1.berlin_told_how",
+    "s1.went_with_lila_to_marin",
+    "s1.lila_path",
+    "s1.camille_gender",
+    "s1.promised_to"
+  ],
+  "days": [
+    {
+      "day": "a",
+      "story_date_fr": "mardi 22 décembre",
+      "title_fr": "L'autre côté",
+      "location_id": "marchand_office",
+      "minutes": 8,
+      "can_do": {
+        "en": "Listen to someone's side of a story; say what you think about it; read a difficult note.",
+        "de": "Die Version einer Geschichte von jemand anderem anhören; sagen, was du davon hältst; eine schwierige Notiz lesen.",
+        "fr": "Écouter la version de quelqu'un ; dire ce qu'on en pense ; lire une note difficile."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "dimanches",
+          "lemma": "dimanche",
+          "gloss": {"en": "Sunday", "de": "Sonntag"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "demandé",
+          "lemma": "demander",
+          "gloss": {"en": "to ask", "de": "fragen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "réfléchir",
+          "lemma": "réfléchir",
+          "gloss": {"en": "to think it over", "de": "nachdenken"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "lendemain",
+          "lemma": "lendemain",
+          "gloss": {"en": "the next day", "de": "der nächste Tag"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "avait honte",
+          "lemma": "avoir honte",
+          "gloss": {"en": "to be ashamed", "de": "sich schämen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "toit",
+          "lemma": "toit",
+          "gloss": {"en": "roof", "de": "Dach"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "escaliers",
+          "lemma": "escalier",
+          "gloss": {"en": "stairs", "de": "Treppe"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "musée",
+          "lemma": "musée",
+          "gloss": {"en": "museum", "de": "Museum"},
+          "part_of_speech": "noun",
+          "gender": "m"
+        },
+        {
+          "surface_fr": "Je ne suis pas d'accord",
+          "lemma": "être d'accord",
+          "gloss": {"en": "to agree (I don't agree)", "de": "einverstanden sein (ich bin nicht einverstanden)"},
+          "part_of_speech": "verb"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "a.p1",
+          "visual": "The second-floor landing, evening. Camille opens a door marked «Gérance Marchand», wearing a bike helmet pushed back. Behind Camille, in the lamplight, we see an office: key boards, filing cabinets, and in the middle of it all a camp bed made with hospital corners.",
+          "location_id": "marchand_office",
+          "in_frame": ["camille_marchand"],
+          "diegetic": ["Gérance Marchand"],
+          "lines": [
+            {
+              "who": "caption",
+              "say": {
+                "a2": "Mardi soir. Camille a écrit : \"Mon grand-père veut vous parler. Sans les autres.\"",
+                "b1": "Mardi soir. Un message de Camille : \"Mon grand-père voudrait vous parler. Sans les autres.\"",
+                "native": {
+                  "en": "Tuesday evening. Camille wrote: \"My grandfather wants to talk to you. Without the others.\"",
+                  "de": "Dienstagabend. Camille hat geschrieben: \"Mein Großvater möchte mit Ihnen sprechen. Ohne die anderen.\""
+                }
+              }
+            },
+            {
+              "who": "camille_marchand",
+              "say": {
+                "a2": "Entrez. Il ne descend plus beaucoup.",
+                "b1": "Entrez. Il ne descend presque plus.",
+                "native": {
+                  "en": "Come in. He doesn't come downstairs much any more.",
+                  "de": "Kommen Sie herein. Er kommt nicht mehr oft nach unten."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p2",
+          "visual": "M. Marchand gets up from his desk with effort, in cardigan and scarf. He offers Toi the only chair. Camille sits on the camp bed, since there is nowhere else.",
+          "location_id": "marchand_office",
+          "in_frame": ["landlord_marchand", "camille_marchand", "toi"],
+          "lines": [
+            {
+              "who": "landlord_marchand",
+              "say": {
+                "a2": "Asseyez-vous, la succession Ferrand.",
+                "native": {"en": "Sit down, the Ferrand estate.", "de": "Setzen Sie sich, Nachlass Ferrand."}
+              }
+            },
+            {
+              "who": "landlord_marchand",
+              "say": {
+                "a2": "C'est une blague. Je fais des blagues, maintenant. Camille dit que c'est un mauvais signe.",
+                "native": {
+                  "en": "It's a joke. I make jokes now. Camille says it's a bad sign.",
+                  "de": "Das ist ein Witz. Ich mache jetzt Witze. Camille sagt, das sei ein schlechtes Zeichen."
+                }
+              }
+            },
+            {
+              "who": "camille_marchand",
+              "say": {
+                "a2": "C'est un très mauvais signe.",
+                "native": {"en": "It's a very bad sign.", "de": "Das ist ein sehr schlechtes Zeichen."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p3",
+          "visual": "The desk, close. Among the files is a Polaroid in a small frame: Odile and Marchand on a bench by the lake in the Bois de Vincennes, laughing, the photo taken at arm's length. The caption on the white border is in her hand: «Dimanche. M. rit. Enfin.»",
+          "location_id": "marchand_office",
+          "in_frame": ["odile", "landlord_marchand"],
+          "silence": true,
+          "diegetic": ["Dimanche. M. rit. Enfin."]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p4",
+          "visual": "Marchand sits back down, facing Toi, with his hands on the ring of keys. He speaks to the keys.",
+          "location_id": "marchand_office",
+          "in_frame": ["landlord_marchand", "toi"],
+          "lines": [
+            {
+              "who": "landlord_marchand",
+              "say": {
+                "a2": "Six ans. Tous les dimanches. Le bus 46, le bois de Vincennes, un poulet chez moi.",
+                "b1": "Six ans. Tous les dimanches. Le 46 jusqu'au bois de Vincennes, puis un poulet chez moi, au quatrième.",
+                "native": {
+                  "en": "Six years. Every Sunday. The 46 bus, the Bois de Vincennes, a chicken at my place.",
+                  "de": "Sechs Jahre. Jeden Sonntag. Der Bus 46, der Bois de Vincennes, ein Hähnchen bei mir."
+                }
+              }
+            },
+            {
+              "who": "landlord_marchand",
+              "say": {
+                "a2": "Le 13 mars, je lui ai demandé : \"Venez vivre chez moi.\" Elle a dit : \"Je vais réfléchir.\" Le lendemain, il y a eu le feu. Après, elle ne m'a plus parlé. Et elle est partie.",
+                "b1": "Le 13 mars, je lui ai demandé de venir vivre chez moi. Elle m'a répondu : \"Je vais réfléchir.\" Le lendemain, c'était le feu. Ensuite, elle m'a évité, et elle est partie.",
+                "native": {
+                  "en": "On 13 March I asked her: \"Come and live with me.\" She said: \"I'll think about it.\" The next day, there was the fire. After that she didn't speak to me any more. And she left.",
+                  "de": "Am 13. März habe ich sie gefragt: \"Ziehen Sie zu mir.\" Sie hat gesagt: \"Ich denke darüber nach.\" Am nächsten Tag gab es das Feuer. Danach hat sie nicht mehr mit mir gesprochen. Und sie ist gegangen."
+                }
+              }
+            },
+            {
+              "who": "landlord_marchand",
+              "when": {"s1.marchand_invited": true},
+              "say": {
+                "a2": "À votre fête, j'ai lu \"J'ai oublié\". Depuis, je dors mal.",
+                "native": {
+                  "en": "At your party, I read \"I forgot\". Since then, I sleep badly.",
+                  "de": "Auf Ihrem Fest habe ich \"Ich habe vergessen\" gelesen. Seitdem schlafe ich schlecht."
+                }
+              }
+            },
+            {
+              "who": "landlord_marchand",
+              "direction": "a glance at the camp bed",
+              "when": {"s1.marchand_invited": true},
+              "say": {
+                "a2": "Enfin. Encore plus mal.",
+                "native": {"en": "Well. Even worse.", "de": "Nun ja. Noch schlechter."}
+              }
+            },
+            {
+              "who": "landlord_marchand",
+              "when": {"s1.lied_to_marchand": true},
+              "say": {
+                "a2": "Vous m'avez dit qu'elle parlait de moi. Vous mentez gentiment, comme Margaux. Ce soir, je voudrais la vérité.",
+                "native": {
+                  "en": "You told me she spoke about me. You lie gently, like Margaux. Tonight, I would like the truth.",
+                  "de": "Sie haben mir gesagt, sie habe von mir gesprochen. Sie lügen sanft, wie Margaux. Heute Abend möchte ich die Wahrheit."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p5",
+          "visual": "Camille stands and takes a folder from a shelf: the roof and the façade, in numbers. Marchand looks away as though the numbers were indecent.",
+          "location_id": "marchand_office",
+          "in_frame": ["camille_marchand", "landlord_marchand"],
+          "lines": [
+            {
+              "who": "camille_marchand",
+              "say": {
+                "a2": "Le toit a des fuites. La façade : quatre cent mille euros. Mon grand-père ne peut plus monter chez lui. Il dort ici depuis juin.",
+                "b1": "Le toit fuit, la façade est à refaire : quatre cent mille euros. Mon grand-père ne peut plus monter les escaliers. Il dort dans ce bureau depuis juin.",
+                "native": {
+                  "en": "The roof leaks. The façade: four hundred thousand euros. My grandfather can no longer climb up to his own flat. He has slept here since June.",
+                  "de": "Das Dach ist undicht. Die Fassade: vierhunderttausend Euro. Mein Großvater kann nicht mehr zu sich nach oben steigen. Er schläft seit Juni hier."
+                }
+              }
+            },
+            {
+              "who": "camille_marchand",
+              "say": {
+                "a2": "Solvel, ce n'est pas l'ennemi. C'est une solution. Un immeuble, ce n'est pas un musée.",
+                "native": {
+                  "en": "Solvel isn't the enemy. It's a solution. A building isn't a museum.",
+                  "de": "Solvel ist nicht der Feind. Es ist eine Lösung. Ein Haus ist kein Museum."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "a.turn1",
+          "to": "landlord_marchand",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p6",
+            "visual": "Marchand looks at Toi over his glasses. The Polaroid is between Toi and him. Toi's balloon.",
+            "location_id": "marchand_office",
+            "in_frame": ["landlord_marchand", "toi"],
+            "lines": [
+              {
+                "who": "landlord_marchand",
+                "say": {
+                  "a2": "Pourquoi elle est partie ? Vous le savez, vous ?",
+                  "b1": "Vous le savez, vous, pourquoi elle est partie ?",
+                  "native": {"en": "Why did she leave? Do you know?", "de": "Warum ist sie gegangen? Wissen Sie es?"}
+                }
+              }
+            ],
+            "balloon": true
+          },
+          "task": {
+            "en": "Answer an old man's question honestly with what you know tonight. You know about the forgetting, and you don't yet know the rest.",
+            "de": "Beantworte die Frage eines alten Mannes ehrlich mit dem, was du heute Abend weißt. Du kennst das Vergessen, und den Rest kennst du noch nicht.",
+            "fr": "Réponds honnêtement à la question d'un vieil homme, avec ce que tu sais ce soir. Tu sais qu'elle oubliait ; le reste, tu ne le sais pas encore."
+          },
+          "listens_for": "An honest answer from what the learner knows tonight: that they do not know, that Odile was ill and forgot, that Marchand kept her photo, or Margaux's side.",
+          "fallback": "a",
+          "replies": [
+            {
+              "id": "a",
+              "label": "I don't know",
+              "means": "The learner says honestly that they do not know why Odile left.",
+              "examples": ["Je ne sais pas. Vraiment."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.a.r1",
+                  "lines": [
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Alors on est deux.",
+                        "native": {"en": "Then there are two of us.", "de": "Dann sind wir zu zweit."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "She was ill; she forgot",
+              "means": "The learner tells what they know: Odile was ill and forgot things.",
+              "examples": ["Elle était malade. Elle oubliait."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.b.r1",
+                  "lines": [
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Je sais, maintenant. Mais pourquoi elle ne m'a rien dit ? À moi ?",
+                        "b1": "Ça, je le sais, maintenant. Mais pourquoi ne m'a-t-elle rien dit, à moi ?",
+                        "native": {
+                          "en": "I know that now. But why didn't she tell me anything? Me?",
+                          "de": "Das weiß ich jetzt. Aber warum hat sie mir nichts gesagt? Mir?"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply that still says: not because of you, and you kept her photo, perhaps she did too.",
+              "examples": ["Pas à cause de vous. Je pense. Je sais pas… mais… vous avez gardé sa photo. Elle… aussi, peut-être ?"],
+              "clumsy": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.c.r1",
+                  "visual": "Marchand picks up the frame.",
+                  "location_id": "marchand_office",
+                  "in_frame": ["landlord_marchand"],
+                  "silence": true
+                },
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.c.r2",
+                  "lines": [
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Oui. Moi, j'ai gardé.",
+                        "native": {"en": "Yes. I kept it.", "de": "Ja. Ich habe es behalten."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "For Margaux",
+              "means": "The learner defends Margaux: asks whether Marchand wants to put her out.",
+              "examples": ["Et Margaux ? Vous voulez la mettre dehors."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn1.d.r1",
+                  "lines": [
+                    {
+                      "who": "landlord_marchand",
+                      "say": {
+                        "a2": "Margaux a menti. Je ne sais pas pourquoi. Je ne signe rien pour elle sans savoir.",
+                        "b1": "Margaux a menti, et je ne sais pas pourquoi. Tant que je ne le sais pas, je ne signe rien pour elle.",
+                        "native": {
+                          "en": "Margaux lied. I don't know why. I'm not signing anything for her without knowing.",
+                          "de": "Margaux hat gelogen. Ich weiß nicht, warum. Ohne es zu wissen, unterschreibe ich nichts für sie."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "a.turn2",
+          "to": "camille_marchand",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p7",
+            "visual": "Camille walks Toi back to the landing. The office door stays half-open behind them, with the old man under the lamp.",
+            "location_id": "stairwell",
+            "in_frame": ["camille_marchand", "toi", "landlord_marchand"],
+            "lines": [
+              {
+                "who": "camille_marchand",
+                "say": {
+                  "a2": "Vous croyez qu'on peut tout garder ? Les murs, les souvenirs, le zinc ?",
+                  "b1": "Vous croyez vraiment qu'on peut tout garder ? Les murs, les souvenirs, le zinc, tout ?",
+                  "native": {
+                    "en": "Do you think we can keep everything? The walls, the memories, the zinc?",
+                    "de": "Glauben Sie, man kann alles behalten? Die Mauern, die Erinnerungen, den Zinktresen?"
+                  }
+                }
+              }
+            ],
+            "balloon": true,
+            "note": "Exchange 2: Camille (disagreement, the season-2 seed)."
+          },
+          "task": {
+            "en": "Disagree with Camille, or don't. Camille respects an argument more than agreement.",
+            "de": "Widersprich Camille, oder nicht. Camille respektiert ein Argument mehr als Zustimmung.",
+            "fr": "Contredis Camille, ou pas. Camille respecte un argument plus qu'un accord."
+          },
+          "listens_for": "Whether the learner agrees or disagrees with Camille, and whether they give a reason (Camille respects an argument more than agreement).",
+          "fallback": "clumsy",
+          "sets": {"camille.disagreements": "+t6_tout_garder"},
+          "replies": [
+            {
+              "id": "not_all_to_solvel",
+              "label": "No, but not everything to Solvel",
+              "means": "The learner disagrees that everything can be kept, but refuses to sell everything to Solvel.",
+              "examples": ["Non. Mais pas tout vendre à Solvel."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn2.not_all_to_solvel.r1",
+                  "lines": [
+                    {
+                      "who": "camille_marchand",
+                      "say": {
+                        "a2": "Alors proposez mieux. Avant le 8 janvier.",
+                        "native": {
+                          "en": "Then propose something better. Before 8 January.",
+                          "de": "Dann machen Sie einen besseren Vorschlag. Vor dem 8. Januar."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "yes",
+              "label": "Yes",
+              "means": "The learner simply agrees that everything can be kept.",
+              "examples": ["Oui."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn2.yes.r1",
+                  "lines": [
+                    {
+                      "who": "camille_marchand",
+                      "say": {"a2": "Avec quel argent ?", "native": {"en": "With what money?", "de": "Mit welchem Geld?"}}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "chocolate",
+              "label": "The Wednesday chocolate",
+              "means": "The learner answers with a shared memory: Camille loved Le Mistral, the hot chocolate on Wednesdays.",
+              "examples": ["Vous aimiez le Mistral, avant. Le chocolat, le mercredi."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn2.chocolate.r1",
+                  "silence": true,
+                  "note": "Silence panel, as scripted."
+                },
+                {
+                  "kind": "panel",
+                  "id": "a.turn2.chocolate.r2",
+                  "lines": [
+                    {
+                      "who": "camille_marchand",
+                      "say": {
+                        "a2": "…Ce n'est pas un argument.",
+                        "native": {"en": "…That's not an argument.", "de": "…Das ist kein Argument."}
+                      }
+                    },
+                    {
+                      "who": "camille_marchand",
+                      "say": {
+                        "a2": "C'est un bon argument.",
+                        "native": {"en": "That's a good argument.", "de": "Das ist ein gutes Argument."}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "clumsy",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply: cannot keep everything, but does not want to throw things away.",
+              "examples": ["Je sais pas garder tout. Mais je veux pas… jeter. Vous comprenez ?"],
+              "clumsy": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "a.turn2.clumsy.r1",
+                  "lines": [
+                    {
+                      "who": "camille_marchand",
+                      "say": {
+                        "a2": "Je comprends. Je ne suis pas d'accord. Mais je comprends.",
+                        "native": {
+                          "en": "I understand. I don't agree. But I understand.",
+                          "de": "Ich verstehe. Ich bin nicht einverstanden. Aber ich verstehe."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p8",
+          "visual": "On the landing Marchand calls from inside without getting up. Camille and Toi both turn.",
+          "location_id": "stairwell",
+          "in_frame": ["landlord_marchand", "camille_marchand", "toi"],
+          "lines": [
+            {
+              "who": "landlord_marchand",
+              "direction": "off",
+              "say": {
+                "a2": "Demain à dix heures, chez le notaire, je signe avec Solvel. Mes étages. Et les murs du café.",
+                "b1": "Demain, dix heures, chez Maître Vasseur, je signe la promesse de vente. Mes étages, et les murs du café.",
+                "native": {
+                  "en": "Tomorrow at ten, at the notary's, I'm signing with Solvel. My floors. And the café's walls.",
+                  "de": "Morgen um zehn Uhr unterschreibe ich beim Notar mit Solvel. Meine Stockwerke. Und die Mauern des Cafés."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "a.p9",
+          "visual": "Odile's flat at 11 p.m., one lamp. Toi sits at her table with the black notebook, open past page 40, where the handwriting breaks. Toi's phone is propped against the Polaroid box, with Lila on a video call and packing tape on her wrist.",
+          "location_id": "odile_flat",
+          "in_frame": ["toi", "lila_bonnet"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "when": {"path": "romance"},
+              "say": {
+                "a2": "Lis. Doucement. Je suis là.",
+                "native": {"en": "Read. Slowly. I'm here.", "de": "Lies. Langsam. Ich bin da."}
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"path": ["friendship", "open"]},
+              "say": {
+                "a2": "On le lit ensemble. Lis, l'héritage.",
+                "native": {"en": "We'll read it together. Go on, l'héritage.", "de": "Wir lesen es zusammen. Lies, l'héritage."}
+              }
+            }
+          ]
+        },
+        {
+          "kind": "solve",
+          "id": "a.dechiffrer1",
+          "mechanic": "dechiffrer",
+          "prompt": {
+            "a2": "Pourquoi Odile n'a pas répondu à M. Marchand ?",
+            "native": {"en": "Why didn't Odile answer M. Marchand?", "de": "Warum hat Odile M. Marchand nicht geantwortet?"}
+          },
+          "task": {
+            "en": "Read the two notebook pages and find why Odile never answered M. Marchand.",
+            "de": "Lies die beiden Notizbuchseiten und finde heraus, warum Odile M. Marchand nie geantwortet hat.",
+            "fr": "Lis les deux pages du carnet et trouve pourquoi Odile n'a jamais répondu à M. Marchand."
+          },
+          "visual": "The two pages fill the screen in Odile's breaking hand.",
+          "document": {
+            "a2": "13 mars. M. m'a demandé de monter vivre chez lui. J'ai dit : je vais réfléchir. Je ne peux pas lui dire que j'oublie.\n\n15 mars. J'ai demandé à Margaux de mentir. C'est ma faute, pas la sienne. Si quelqu'un lit ça : ne la punissez pas.",
+            "native": {
+              "en": "13 March. M. asked me to move upstairs and live with him. I said: I'll think about it. I can't tell him that I forget.\n\n15 March. I asked Margaux to lie. It's my fault, not hers. If anyone reads this: don't punish her.",
+              "de": "13. März. M. hat mich gebeten, zu ihm hinaufzuziehen. Ich habe gesagt: Ich denke darüber nach. Ich kann ihm nicht sagen, dass ich vergesse.\n\n15. März. Ich habe Margaux gebeten zu lügen. Es ist meine Schuld, nicht ihre. Wenn jemand das liest: Bestraft sie nicht."
+            }
+          },
+          "options": [
+            {
+              "id": "q1_no_love",
+              "label": {"a2": "Elle ne l'aimait pas", "native": {"en": "She didn't love him", "de": "Sie liebte ihn nicht"}}
+            },
+            {
+              "id": "q1_forgot",
+              "label": {
+                "a2": "Elle oubliait, et elle avait honte",
+                "native": {"en": "She was forgetting, and she was ashamed", "de": "Sie vergaß, und sie schämte sich"}
+              },
+              "correct": true
+            },
+            {
+              "id": "q1_leave",
+              "label": {"a2": "Elle voulait partir", "native": {"en": "She wanted to leave", "de": "Sie wollte gehen"}}
+            }
+          ],
+          "nudge": [
+            {
+              "kind": "panel",
+              "id": "a.dechiffrer1.nudge",
+              "visual": "Lila reads the line aloud from the phone, slowly.",
+              "location_id": "odile_flat",
+              "in_frame": ["lila_bonnet", "toi"],
+              "note": "A wrong tap is never marked. Lila reads aloud the 13 March lines of the document; no new French line."
+            }
+          ],
+          "default": "q1_forgot"
+        },
+        {
+          "kind": "solve",
+          "id": "a.dechiffrer2",
+          "mechanic": "dechiffrer",
+          "when": {"band": "b1"},
+          "prompt": {
+            "a2": "D'après Odile, qui est responsable du mensonge ?",
+            "native": {
+              "en": "According to Odile, who is responsible for the lie?",
+              "de": "Laut Odile: Wer ist für die Lüge verantwortlich?"
+            }
+          },
+          "task": {
+            "en": "Read Odile's second page and say who she holds responsible for the lie.",
+            "de": "Lies Odiles zweite Seite und sag, wen sie für die Lüge verantwortlich macht.",
+            "fr": "Lis la deuxième page d'Odile et dis qui elle tient pour responsable du mensonge."
+          },
+          "visual": "The two pages fill the screen in Odile's breaking hand.",
+          "document": {
+            "a2": "13 mars. M. m'a demandé de monter vivre chez lui. J'ai dit : je vais réfléchir. Je ne peux pas lui dire que j'oublie.\n\n15 mars. J'ai demandé à Margaux de mentir. C'est ma faute, pas la sienne. Si quelqu'un lit ça : ne la punissez pas.",
+            "native": {
+              "en": "13 March. M. asked me to move upstairs and live with him. I said: I'll think about it. I can't tell him that I forget.\n\n15 March. I asked Margaux to lie. It's my fault, not hers. If anyone reads this: don't punish her.",
+              "de": "13. März. M. hat mich gebeten, zu ihm hinaufzuziehen. Ich habe gesagt: Ich denke darüber nach. Ich kann ihm nicht sagen, dass ich vergesse.\n\n15. März. Ich habe Margaux gebeten zu lügen. Es ist meine Schuld, nicht ihre. Wenn jemand das liest: Bestraft sie nicht."
+            }
+          },
+          "options": [
+            {"id": "q2_margaux", "label": {"a2": "Margaux"}},
+            {"id": "q2_odile", "label": {"a2": "Odile"}, "correct": true},
+            {"id": "q2_marchand", "label": {"a2": "Marchand"}}
+          ],
+          "nudge": [
+            {
+              "kind": "panel",
+              "id": "a.dechiffrer2.nudge",
+              "visual": "Lila reads the line aloud from the phone, slowly.",
+              "location_id": "odile_flat",
+              "in_frame": ["lila_bonnet", "toi"],
+              "note": "A wrong tap is never marked. Lila reads aloud the 15 March lines of the document; no new French line."
+            }
+          ],
+          "default": "q2_odile"
+        },
+        {
+          "kind": "hook",
+          "id": "a.hook",
+          "role": "midpoint",
+          "panel": {
+            "kind": "panel",
+            "id": "a.p10",
+            "visual": "The notebook closed under Toi's hand. On the phone, Lila's face, not speaking. Through the floor, the café below is dark.",
+            "location_id": "odile_flat",
+            "in_frame": ["toi", "lila_bonnet"],
+            "silence": true,
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Ce carnet peut consoler M. Marchand. Il peut aussi couler Margaux. Demain, dix heures. À suivre…",
+                  "b1": "Ces deux pages peuvent consoler un homme et couler une femme. Demain, dix heures. À suivre…",
+                  "native": {
+                    "en": "This notebook can console M. Marchand. It can also sink Margaux. Tomorrow, ten o'clock. To be continued…",
+                    "de": "Dieses Notizbuch kann Herrn Marchand trösten. Es kann aber auch Margaux ruinieren. Morgen, zehn Uhr. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "day": "b",
+      "story_date_fr": "mercredi 23 décembre",
+      "title_fr": "Dix heures",
+      "location_id": "le_mistral",
+      "minutes": 8,
+      "previously": [
+        {"ref": "a.p1", "label": "Le lit de camp."},
+        {"ref": "a.p3", "label": "Dimanche. M. rit. Enfin."},
+        {"ref": "a.p9", "label": "Ne la punissez pas."}
+      ],
+      "can_do": {
+        "en": "Explain a decision and its reasons to the people it affects.",
+        "de": "Eine Entscheidung und ihre Gründe den Menschen erklären, die sie betrifft.",
+        "fr": "Expliquer une décision et ses raisons aux personnes qu'elle concerne."
+      },
+      "lexicon": [
+        {
+          "surface_fr": "Montrer",
+          "lemma": "montrer",
+          "gloss": {"en": "to show", "de": "zeigen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "publie",
+          "lemma": "publier",
+          "gloss": {"en": "to publish", "de": "veröffentlichen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "garder",
+          "lemma": "garder",
+          "gloss": {"en": "to keep", "de": "behalten"},
+          "part_of_speech": "verb"
+        },
+        {"surface_fr": "à qui", "lemma": "à qui", "gloss": {"en": "to whom", "de": "wem"}, "part_of_speech": "phrase"},
+        {
+          "surface_fr": "punissez",
+          "lemma": "punir",
+          "gloss": {"en": "to punish", "de": "bestrafen"},
+          "part_of_speech": "verb"
+        },
+        {
+          "surface_fr": "la vérité",
+          "lemma": "vérité",
+          "gloss": {"en": "truth", "de": "Wahrheit"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        },
+        {
+          "surface_fr": "dix heures",
+          "lemma": "dix heures",
+          "gloss": {"en": "ten o'clock", "de": "zehn Uhr"},
+          "part_of_speech": "phrase"
+        },
+        {
+          "surface_fr": "promesse de vente",
+          "lemma": "promesse de vente",
+          "gloss": {"en": "sale agreement", "de": "Verkaufsversprechen (Kaufvorvertrag)"},
+          "part_of_speech": "noun",
+          "gender": "f"
+        }
+      ],
+      "movements": [
+        {
+          "kind": "panel",
+          "id": "b.p1",
+          "visual": "Le Mistral, 7:30 a.m., chairs still up on the tables. Margaux alone behind the zinc. Toi comes in with the notebook under Toi's arm. She recognises it before Toi is through the door.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman", "toi"],
+          "lines": [
+            {
+              "who": "margaux_barman",
+              "say": {"a2": "C'est son carnet.", "native": {"en": "It's her notebook.", "de": "Das ist ihr Notizbuch."}}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p2",
+          "visual": "Margaux across the zinc. Her hand lies flat beside the notebook, not touching it.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman"],
+          "lines": [
+            {
+              "who": "margaux_barman",
+              "say": {
+                "a2": "Ce carnet, c'est à elle. Pas à eux.",
+                "b1": "Ce carnet est à elle. Pas à Marchand, pas au journal. À elle.",
+                "native": {"en": "This notebook is hers. Not theirs.", "de": "Dieses Notizbuch gehört ihr. Nicht ihnen."}
+              }
+            },
+            {
+              "who": "margaux_barman",
+              "say": {
+                "a2": "Je savais pour le dimanche. J'ai toujours su.",
+                "b1": "Les dimanches, je les connaissais. Elle me racontait le poulet.",
+                "native": {
+                  "en": "I knew about the Sunday. I always knew.",
+                  "de": "Ich wusste von dem Sonntag. Ich habe es immer gewusst."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p3",
+          "visual": "Romy comes in with her camera bag and a tuque. She lays a small memory card on the zinc, next to the notebook.",
+          "location_id": "le_mistral",
+          "in_frame": ["romy_tremblay", "margaux_barman"],
+          "lines": [
+            {
+              "who": "romy_tremblay",
+              "say": {
+                "a2": "J'ai toujours la carte. La fête. Tout est dessus : la photo, Margaux, \"je le sais depuis le début\".",
+                "b1": "J'ai gardé la carte. Tout est dessus : la photo, Margaux qui dit \"je le sais depuis le premier soir\".",
+                "native": {
+                  "en": "I still have the card. The party. Everything's on it: the photo, Margaux, \"I've known since the beginning\".",
+                  "de": "Ich habe die Karte noch. Das Fest. Alles ist darauf: das Foto, Margaux, \"ich weiß es von Anfang an\"."
+                }
+              }
+            },
+            {
+              "who": "romy_tremblay",
+              "say": {
+                "a2": "Mon journal veut l'histoire de Solvel. Avec ça, c'est une grande histoire. Mais sans toi, je ne publie rien.",
+                "b1": "Ma rédaction veut l'histoire de Solvel. Avec ça, c'est une grande histoire. Sans ton accord, je ne publie rien. Voyons donc.",
+                "native": {
+                  "en": "My paper wants the Solvel story. With this, it's a big story. But without you, I'm not publishing anything.",
+                  "de": "Meine Zeitung will die Solvel-Geschichte. Damit ist es eine große Geschichte. Aber ohne dich veröffentliche ich nichts."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p4",
+          "visual": "Lila in the doorway, coat on, packing tape still on her wrist. She came to help carry things, and she stays.",
+          "location_id": "le_mistral",
+          "in_frame": ["lila_bonnet"],
+          "lines": [
+            {
+              "who": "lila_bonnet",
+              "when": {"s1.berlin_told_how": "discovered"},
+              "say": {
+                "a2": "Moi, je dis : plus de secrets. Je suis mal placée pour le dire. Je le dis quand même.",
+                "native": {
+                  "en": "Me, I say: no more secrets. I'm in no position to say it. I say it anyway.",
+                  "de": "Ich sage: keine Geheimnisse mehr. Ich bin nicht gerade die Richtige, das zu sagen. Ich sage es trotzdem."
+                }
+              }
+            },
+            {
+              "who": "lila_bonnet",
+              "when": {"s1.berlin_told_how": {"not": "discovered"}},
+              "say": {
+                "a2": "Plus de secrets, d'accord ? Mais c'est toi qui décides.",
+                "native": {
+                  "en": "No more secrets, all right? But you're the one who decides.",
+                  "de": "Keine Geheimnisse mehr, einverstanden? Aber du entscheidest."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.p5",
+          "visual": "The zinc from above: the notebook, Romy's memory card, Margaux's empty hand. The clock over the mirror reads 9:10.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman"],
+          "silence": true
+        },
+        {
+          "kind": "turn",
+          "id": "b.turn1",
+          "to": "margaux_barman",
+          "panel": {
+            "kind": "panel",
+            "id": "b.p6",
+            "visual": "The three of them waiting. Nobody says «alors». Margaux dries a dry glass. Toi's balloon.",
+            "location_id": "le_mistral",
+            "in_frame": ["margaux_barman", "romy_tremblay", "lila_bonnet", "toi"],
+            "balloon": true
+          },
+          "task": {
+            "en": "Say what you are going to do with Odile's pages, and why, to the woman they would expose and the friend who would publish them.",
+            "de": "Sag, was du mit Odiles Seiten machen wirst und warum – der Frau gegenüber, die sie bloßstellen würden, und der Freundin, die sie veröffentlichen würde.",
+            "fr": "Dis ce que tu vas faire des pages d'Odile, et pourquoi, à la femme qu'elles exposeraient et à l'amie qui les publierait."
+          },
+          "listens_for": "The learner's intent: show Marchand only, publish, or keep. The next choice card confirms it. Replies may be long or two words.",
+          "fallback": "d",
+          "replies": [
+            {
+              "id": "a",
+              "label": "Marchand only",
+              "means": "The learner wants to show the notebook to Marchand and to nobody else.",
+              "examples": ["Je veux montrer le carnet à Marchand. Seulement à lui."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.a.r1",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "say": {
+                        "a2": "Il va s'en servir contre moi.",
+                        "native": {"en": "He'll use it against me.", "de": "Er wird es gegen mich verwenden."}
+                      }
+                    }
+                  ],
+                  "balloon": true,
+                  "note": "You may answer; the answer is not graded."
+                },
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.a.r2",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "say": {"a2": "…Peut-être pas.", "native": {"en": "…Maybe not.", "de": "…Vielleicht nicht."}}
+                    }
+                  ],
+                  "note": "Margaux says this to any answer."
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "label": "Publish",
+              "means": "The learner wants Romy to publish the story.",
+              "examples": ["Romy, publie. Tout."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.b.r1",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "direction": "sets the glass down",
+                      "say": {
+                        "a2": "Alors fais-le. Mais ne me demande pas de sourire.",
+                        "native": {
+                          "en": "Then do it. But don't ask me to smile.",
+                          "de": "Dann mach es. Aber verlang nicht von mir, dass ich lächle."
+                        }
+                      }
+                    },
+                    {
+                      "who": "romy_tremblay",
+                      "say": {
+                        "a2": "Je ne publie pas \"tout\". Je publie juste.",
+                        "b1": "Pas \"tout\". Je publie ce qui est juste. Nuance.",
+                        "native": {
+                          "en": "I'm not publishing \"everything\". I publish what's fair.",
+                          "de": "Ich veröffentliche nicht \"alles\". Ich veröffentliche, was gerecht ist."
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "label": "Keep",
+              "means": "The learner keeps the notebook: it belongs to Odile.",
+              "examples": ["Je le garde. C'est à Odile."],
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.c.r1",
+                  "lines": [
+                    {"who": "margaux_barman", "say": {"a2": "Merci.", "native": {"en": "Thank you.", "de": "Danke."}}},
+                    {
+                      "who": "romy_tremblay",
+                      "say": {
+                        "a2": "Et Marchand signe à dix heures.",
+                        "native": {"en": "And Marchand signs at ten.", "de": "Und Marchand unterschreibt um zehn."}
+                      }
+                    },
+                    {"who": "margaux_barman", "say": {"a2": "Oui.", "native": {"en": "Yes.", "de": "Ja."}}}
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "label": "Clumsy but sincere",
+              "means": "A halting reply that wants Marchand less sad and Margaux not punished, and asks what to do.",
+              "examples": [
+                "Je veux… Marchand, moins triste. Margaux, pas punie. Odile dit : \"ne la punissez pas\". Je fais quoi ?"
+              ],
+              "clumsy": true,
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn1.d.r1",
+                  "lines": [
+                    {
+                      "who": "margaux_barman",
+                      "direction": "the longest look of the season",
+                      "say": {
+                        "a2": "Ce qu'elle a écrit. Tu le montres à quelqu'un qui peut l'entendre.",
+                        "b1": "Fais ce qu'elle a écrit. Montre-le à quelqu'un qui peut l'entendre.",
+                        "native": {
+                          "en": "What she wrote. You show it to someone who can hear it.",
+                          "de": "Was sie geschrieben hat. Du zeigst es jemandem, der es hören kann."
+                        }
+                      }
+                    }
+                  ],
+                  "note": "Margaux nudges toward «Marchand only» but does not decide for the learner. This is the only time in the season she asks anything of anyone."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "solve",
+          "id": "b.choix",
+          "mechanic": "choix",
+          "prompt": {
+            "a2": "Décide qui lit d'abord les pages d'Odile.",
+            "native": {"en": "Decide who reads Odile's pages first.", "de": "Entscheide, wer Odiles Seiten zuerst lesen darf."}
+          },
+          "task": {
+            "en": "Decide who reads Odile's pages first.",
+            "de": "Entscheide, wer Odiles Seiten zuerst lesen darf.",
+            "fr": "Décide qui lit d'abord les pages d'Odile."
+          },
+          "flag": "s1.evidence_shared",
+          "default": "marchand_only",
+          "options": [
+            {
+              "id": "marchand_only",
+              "label": {
+                "a2": "Montrer le carnet à M. Marchand, seul",
+                "native": {"en": "Show the notebook to M. Marchand, alone", "de": "Das Notizbuch nur Herrn Marchand zeigen"}
+              },
+              "subtitle": {
+                "a2": "Il saura pourquoi elle est partie. Margaux devra lui faire confiance.",
+                "native": {
+                  "en": "He will know why she left. Margaux will have to trust him.",
+                  "de": "Er wird wissen, warum sie gegangen ist. Margaux muss ihm vertrauen."
+                }
+              },
+              "sets": {"s1.evidence_shared": "marchand_only", "s1.plan": "lease", "marchand.knows_why": true}
+            },
+            {
+              "id": "public",
+              "label": {
+                "a2": "Le donner à Romy, avec la carte",
+                "native": {"en": "Give it to Romy, with the card", "de": "Es Romy geben, mit der Karte"}
+              },
+              "subtitle": {
+                "a2": "Tout le quartier saura tout. Margaux aussi sera exposée.",
+                "native": {
+                  "en": "The whole quartier will know everything. Margaux will be exposed too.",
+                  "de": "Das ganze Viertel wird alles wissen. Auch Margaux wird bloßgestellt."
+                }
+              },
+              "sets": {
+                "s1.evidence_shared": "public",
+                "romy.footage": "aired",
+                "s1.plan": "coop",
+                "marchand.knows_why": true,
+                "margaux.exposed_to_insurer": true
+              }
+            },
+            {
+              "id": "kept",
+              "label": {"a2": "Le garder", "native": {"en": "Keep it", "de": "Es behalten"}},
+              "subtitle": {
+                "a2": "Le secret d'Odile reste à toi. Marchand signe à dix heures.",
+                "native": {
+                  "en": "Odile's secret stays with you. Marchand signs at ten.",
+                  "de": "Odiles Geheimnis bleibt bei dir. Marchand unterschreibt um zehn."
+                }
+              },
+              "sets": {"s1.evidence_shared": "kept", "s1.plan": "last_service"}
+            }
+          ]
+        },
+        {
+          "kind": "turn",
+          "id": "b.turn2",
+          "to": "romy_tremblay",
+          "small": true,
+          "when": {"s1.evidence_shared": "kept"},
+          "panel": {
+            "kind": "panel",
+            "id": "b.p7",
+            "in_frame": ["romy_tremblay", "toi"],
+            "lines": [
+              {
+                "who": "romy_tremblay",
+                "say": {"a2": "Et la carte ?", "native": {"en": "And the card?", "de": "Und die Karte?"}}
+              }
+            ],
+            "balloon": true,
+            "note": "If kept: the learner's line decides what happens to the memory card."
+          },
+          "task": {
+            "en": "Tell Romy what to do with the memory card.",
+            "de": "Sag Romy, was sie mit der Speicherkarte tun soll.",
+            "fr": "Dis à Romy ce qu'elle doit faire de la carte."
+          },
+          "listens_for": "Whether the learner wants the memory card deleted or kept.",
+          "fallback": "keep",
+          "replies": [
+            {
+              "id": "delete",
+              "label": "Delete it",
+              "means": "The learner tells Romy to delete the footage.",
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn2.delete.r1",
+                  "visual": "She does.",
+                  "location_id": "le_mistral",
+                  "in_frame": ["romy_tremblay", "toi"],
+                  "lines": [
+                    {
+                      "who": "romy_tremblay",
+                      "say": {
+                        "a2": "Je l'efface. Devant toi.",
+                        "native": {"en": "I'm deleting it. In front of you.", "de": "Ich lösche sie. Vor deinen Augen."}
+                      }
+                    }
+                  ]
+                }
+              ],
+              "sets": {"romy.footage": "deleted"}
+            },
+            {
+              "id": "keep",
+              "label": "Keep it",
+              "means": "The learner lets Romy keep the footage.",
+              "beats": [
+                {
+                  "kind": "panel",
+                  "id": "b.turn2.keep.r1",
+                  "lines": [
+                    {
+                      "who": "romy_tremblay",
+                      "say": {
+                        "a2": "Je la garde. Fermée.",
+                        "native": {"en": "I'm keeping it. Closed.", "de": "Ich behalte sie. Verschlossen."}
+                      }
+                    }
+                  ]
+                }
+              ],
+              "sets": {"romy.footage": "kept"}
+            }
+          ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.r1.marchand_only",
+          "visual": "9:30, the office. Marchand sits on the camp bed reading the notebook, glasses pushed down his nose. Toi stands by the door. Camille watches him from the window.",
+          "location_id": "marchand_office",
+          "in_frame": ["landlord_marchand", "toi", "camille_marchand"],
+          "silence": true,
+          "when": {"s1.evidence_shared": "marchand_only"}
+        },
+        {
+          "kind": "panel",
+          "id": "b.r2.marchand_only",
+          "visual": "Close on his hand, flat on the page, over «Je ne peux pas lui dire que j'oublie.»",
+          "location_id": "marchand_office",
+          "in_frame": ["landlord_marchand"],
+          "silence": true,
+          "diegetic": ["Je ne peux pas lui dire que j'oublie."],
+          "when": {"s1.evidence_shared": "marchand_only"}
+        },
+        {
+          "kind": "panel",
+          "id": "b.r3.marchand_only",
+          "visual": "10:00, at the notary's. Maître Vasseur; Bastien Roux in his good coat with the pen held out; Camille; Marchand. Marchand puts the pen down on the table without uncapping it.",
+          "location_id": "notaire",
+          "in_frame": ["maitre_vasseur", "bastien_roux", "camille_marchand", "landlord_marchand"],
+          "lines": [
+            {
+              "who": "landlord_marchand",
+              "say": {"a2": "Pas aujourd'hui.", "native": {"en": "Not today.", "de": "Nicht heute."}}
+            },
+            {
+              "who": "bastien_roux",
+              "say": {
+                "a2": "Monsieur Marchand, l'offre finit le 8 janvier.",
+                "native": {
+                  "en": "Monsieur Marchand, the offer ends on 8 January.",
+                  "de": "Herr Marchand, das Angebot endet am 8. Januar."
+                }
+              }
+            },
+            {
+              "who": "landlord_marchand",
+              "say": {
+                "a2": "Moi aussi, un jour. Pas aujourd'hui.",
+                "native": {"en": "Me too, one day. Not today.", "de": "Ich auch, eines Tages. Nicht heute."}
+              }
+            },
+            {
+              "who": "landlord_marchand",
+              "direction": "to Camille",
+              "say": {
+                "a2": "Dis à Margaux que je veux lui parler. Du bail.",
+                "native": {
+                  "en": "Tell Margaux I want to speak to her. About the lease.",
+                  "de": "Sag Margaux, dass ich mit ihr sprechen möchte. Über den Mietvertrag."
+                }
+              }
+            }
+          ],
+          "when": {"s1.evidence_shared": "marchand_only"}
+        },
+        {
+          "kind": "panel",
+          "id": "b.r1.public",
+          "visual": "9:00. Romy's article on a phone screen: «Le feu du Mistral : une histoire de loyauté», with a still from the footage (Margaux's empty hands) and a quoted line: «Je ne peux pas lui dire que j'oublie.»",
+          "in_frame": ["margaux_barman"],
+          "diegetic": ["Le feu du Mistral : une histoire de loyauté", "Je ne peux pas lui dire que j'oublie."],
+          "when": {"s1.evidence_shared": "public"}
+        },
+        {
+          "kind": "panel",
+          "id": "b.r2.public",
+          "visual": "10:00, at the notary's. Bastien reads the article on his phone, and his face changes. Through the window, the pavement fills: Mme Diallo in her apron, Marin with a thermos, Gus with a hand-lettered placard reading «EN PAIX» (his own word from the invitation).",
+          "location_id": "notaire",
+          "in_frame": [
+            "bastien_roux",
+            "camille_marchand",
+            "landlord_marchand",
+            "mme_diallo",
+            "marin_leveque",
+            "augustin_de_roncourt"
+          ],
+          "diegetic": ["EN PAIX"],
+          "lines": [
+            {
+              "who": "camille_marchand",
+              "say": {"a2": "Grand-père…", "native": {"en": "Grandfather…", "de": "Großvater…"}}
+            },
+            {
+              "who": "landlord_marchand",
+              "direction": "reading the quote on Camille's phone, then putting the pen down",
+              "say": {
+                "a2": "Le 8 janvier, c'est dans seize jours. On a le temps de lire.",
+                "native": {
+                  "en": "8 January is in sixteen days. We have time to read.",
+                  "de": "Der 8. Januar ist in sechzehn Tagen. Wir haben Zeit zum Lesen."
+                }
+              }
+            }
+          ],
+          "when": {"s1.evidence_shared": "public"}
+        },
+        {
+          "kind": "panel",
+          "id": "b.r3.public",
+          "visual": "Le Mistral at 11:00. On the zinc, Margaux's phone rings and rings; the screen says «Assurance». She lets it ring and pours a coffee for Mme Diallo.",
+          "location_id": "le_mistral",
+          "in_frame": ["margaux_barman", "mme_diallo"],
+          "silence": true,
+          "diegetic": ["Assurance"],
+          "when": {"s1.evidence_shared": "public"},
+          "note": "s1.plan = coop. The quartier has turned up, which is the one thing Marin's plan needed. The cost is paid by Margaux, whose insurer now knows."
+        },
+        {
+          "kind": "panel",
+          "id": "b.r1.kept",
+          "visual": "10:00, at the notary's. The pen, the signature. Bastien shakes Marchand's hand. Camille looks out of the window at the pavement below, where Toi stands in the cold, having come and not gone in.",
+          "location_id": "notaire",
+          "in_frame": ["bastien_roux", "landlord_marchand", "camille_marchand", "toi"],
+          "when": {"s1.evidence_shared": "kept"}
+        },
+        {
+          "kind": "panel",
+          "id": "b.r2.kept",
+          "visual": "Odile's flat. The notebook goes back into the Polaroid box, under the bed.",
+          "location_id": "odile_flat",
+          "in_frame": ["toi"],
+          "silence": true,
+          "when": {"s1.evidence_shared": "kept"}
+        },
+        {
+          "kind": "hook",
+          "id": "b.suivre.marchand_only",
+          "role": "a_suivre",
+          "when": {"s1.evidence_shared": "marchand_only"},
+          "panel": {
+            "kind": "panel",
+            "id": "b.last.marchand_only",
+            "visual": "11:00. Marchand at the café door, hat in hand, not coming in. Margaux behind the zinc sees him. Neither moves.",
+            "location_id": "le_mistral",
+            "in_frame": ["landlord_marchand", "margaux_barman"],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Marchand veut parler à Margaux. Margaux n'a jamais demandé d'aide à personne. À suivre…",
+                  "b1": "Marchand est à la porte. Margaux n'a jamais rien demandé à personne. Ça va être long. À suivre…",
+                  "native": {
+                    "en": "Marchand wants to speak to Margaux. Margaux has never asked anyone for help. To be continued…",
+                    "de": "Marchand möchte mit Margaux sprechen. Margaux hat nie jemanden um Hilfe gebeten. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "hook",
+          "id": "b.suivre.public",
+          "role": "a_suivre",
+          "when": {"s1.evidence_shared": "public"},
+          "panel": {
+            "kind": "panel",
+            "id": "b.last.public",
+            "visual": "The quartier on the pavement outside Le Mistral in the dark at 5 p.m., more people than chairs. Marin, on a crate, holds up the co-op folder.",
+            "location_id": "le_mistral",
+            "in_frame": ["marin_leveque"],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Tout le quartier sait. L'assureur de Margaux aussi. Et Marin a un plan. À suivre…",
+                  "native": {
+                    "en": "The whole quartier knows. Margaux's insurer too. And Marin has a plan. To be continued…",
+                    "de": "Das ganze Viertel weiß Bescheid. Margauxs Versicherer auch. Und Marin hat einen Plan. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "hook",
+          "id": "b.suivre.kept",
+          "role": "a_suivre",
+          "when": {"s1.evidence_shared": "kept"},
+          "panel": {
+            "kind": "panel",
+            "id": "b.last.kept",
+            "visual": "Le Mistral's window. Margaux tapes up a small handwritten card: «Réveillon au Mistral. Venez tous. C'est peut-être le dernier.»",
+            "location_id": "le_mistral",
+            "in_frame": ["margaux_barman"],
+            "diegetic": ["Réveillon au Mistral. Venez tous. C'est peut-être le dernier."],
+            "lines": [
+              {
+                "who": "caption",
+                "say": {
+                  "a2": "Marchand a signé. Le Mistral a jusqu'au 31 mars. Ou moins. À suivre…",
+                  "native": {
+                    "en": "Marchand has signed. Le Mistral has until 31 March. Or less. To be continued…",
+                    "de": "Marchand hat unterschrieben. Das Mistral hat bis zum 31. März. Oder weniger. Fortsetzung folgt…"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "state_out": {},
+  "for_next_gap": [
+    "The plan forms, but it is not attempted before the Réveillon.",
+    "Margaux does not say «je suis fatiguée» before T7."
+  ]
+}

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
+from app.core.offload import off_event_loop
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
@@ -26,6 +27,7 @@ from app.schemas.missions import (
     MissionTurnRequest,
     MissionTurnResponse,
 )
+from app.services import story_correspondence as courrier
 from app.services.cefr_progress import CEFRProgressService
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.missions import (
@@ -36,6 +38,7 @@ from app.services.missions import (
     serialize_mission,
 )
 from app.services.serial import SerialThreadService
+from app.services.transcription_cost import record_transcription_cost
 
 router = APIRouter(prefix="/missions", tags=["missions"])
 MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -179,6 +182,7 @@ def _duplicate_turn(
 
 
 @router.get("/today", response_model=MissionTodayResponse)
+@off_event_loop
 async def get_missions_today(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_atelier_user)],
@@ -189,6 +193,7 @@ async def get_missions_today(
 
 @router.post("", response_model=MissionResponse)
 @router.post("/", response_model=MissionResponse)
+@off_event_loop
 async def create_mission(
     request: MissionCreateRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -218,9 +223,11 @@ async def create_mission(
 
 
 @router.post("/audio/transcribe")
+@off_event_loop
 async def transcribe_mission_audio(
     file: Annotated[UploadFile, File()],
     current_user: Annotated[User, Depends(get_atelier_user)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> dict[str, str]:
     """Transcribe mission voice input while keeping Atelier's demo-auth behavior."""
     if not current_user:
@@ -239,13 +246,21 @@ async def transcribe_mission_audio(
                 status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail="Audio file exceeds the 25 MB limit",
             )
-        return {
-            "text": LLMService().transcribe_audio(
-                content,
-                filename=file.filename,
-                content_type=file.content_type,
-            )
-        }
+        text = LLMService().transcribe_audio(
+            content,
+            filename=file.filename,
+            content_type=file.content_type,
+        )
+        # WP-70: this transcription was the one paid call with no ledger row.
+        record_transcription_cost(
+            db,
+            user_id=current_user.id,
+            byte_count=len(content),
+            content_type=file.content_type,
+            surface="mission",
+        )
+        db.commit()
+        return {"text": text}
     except HTTPException:
         raise
     except (LLMProviderError, ValueError) as exc:
@@ -262,6 +277,26 @@ async def transcribe_mission_audio(
         ) from exc
 
 
+def _with_live_thread_history(db: Session, user: User, mission: RealWorldMission, payload: dict) -> dict:
+    """Refresh the correspondent thread at read time (WP-64).
+
+    `serialize_mission` carries the history the letter was *written* with, which is
+    the right thing for a stored payload and the wrong thing for a page opened a
+    week later. The correspondent view reads this one.
+    """
+
+    correspondent_id = getattr(mission, "correspondent_id", None)
+    if not correspondent_id:
+        return payload
+    history = courrier.thread_history(
+        db, user=user, correspondent_id=correspondent_id, limit=3, exclude_mission_id=mission.id
+    )
+    payload["thread_history"] = history
+    if isinstance(payload.get("courrier"), dict):
+        payload["courrier"] = {**payload["courrier"], "thread_history": history}
+    return payload
+
+
 @router.get("/{mission_id}", response_model=MissionResponse)
 def get_mission(
     mission_id: UUID,
@@ -269,7 +304,8 @@ def get_mission(
     current_user: Annotated[User, Depends(get_atelier_user)],
 ) -> MissionResponse:
     mission = _mission_or_404(db, mission_id, current_user)
-    return MissionResponse(mission=serialize_mission(mission) or {})
+    payload = serialize_mission(mission) or {}
+    return MissionResponse(mission=_with_live_thread_history(db, current_user, mission, payload))
 
 
 @router.post("/{mission_id}/submit", response_model=MissionAttemptResponse)
@@ -471,6 +507,7 @@ def submit_mission_turn(
 
 
 @router.post("/{mission_id}/complete", response_model=MissionCompleteResponse)
+@off_event_loop
 async def complete_mission(
     mission_id: UUID,
     db: Annotated[Session, Depends(get_db)],
@@ -491,10 +528,16 @@ async def complete_mission(
 
 
 async def _advance_serial_thread(db: Session, mission: RealWorldMission) -> dict[str, Any] | None:
-    """Advance the serial story when a thread-linked mission completes.
+    """Advance the *legacy* serial story when a thread-linked mission completes.
 
     Resilient: if the next Feuilleton beat fails to generate, the thread index
     has already advanced, so /serial/today regenerates it lazily next load.
+
+    WP-64 note: the flag below no longer gates whether a finished letter reaches
+    the story. `MissionScheduler.complete` writes the event, the mood shift and the
+    commitments into `state["living_story"]` for any learner who has a living story,
+    flag or no flag. What `SERIAL_WORLD_ENABLED` still gates is this — the old
+    episode-index machinery of the authored serial.
     """
     if not settings.SERIAL_WORLD_ENABLED or not getattr(mission, "serial_thread_id", None):
         return None

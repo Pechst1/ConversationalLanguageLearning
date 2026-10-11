@@ -1,0 +1,291 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.201074,
+  "calls": 57,
+  "cap": 0.25
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "La dispute sur le toit",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le toit et la parole — scène 2",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La dispute qui colle",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La parole sur le toit — tournant",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le toit et la parole — résolution",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "living_story: every SceneDraft attempt refused (mixed_address_register): season_spoiler: «Berlin» breaks a rule of the season (Berlin revealed (T5 owns it). Only hints: her phone face down, an unanswered message.). Rewrite the day without it: hint at most, never reveal. | mixed_address_register: The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+  "daily_journey: season day lost (mixed_address_register); journey f36820fd-f120-48dc-b467-1defe5ada12f re-reads t4.b"
+ ],
+ "refusals": [
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_spoiler",
+   "hint": "«Berlin» breaks a rule of the season (Berlin revealed (T5 owns it). Only hints: her phone face down, an unanswered message.). Rewrite the day without it: hint at most, never reveal.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Le possible départ",
+    "dramatic_question": "Lila dira-t-elle qu'elle part pour Berlin, et à quelles conditions le groupe la laissera partir ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Donnez votre opinion sur la résidence de Lila et posez une condition claire qui vous convaincrait de la soutenir.",
+    "objective_words": 19,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Le train ou l'atelier ?",
+    "dramatic_question": "Lila dit-elle la vérité sur Berlin, et qui l'aide à choisir ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Donnez votre opinion : Lila doit-elle partir pour Berlin, et proposez une condition claire pour l'aider.",
+    "objective_words": 16,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Dire ou taire ?",
+    "dramatic_question": "Faut-il prévenir Margaux maintenant que la photo est visible, ou la protéger en gardant le silence ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Donnez votre opinion et justifiez-la : dites si vous préconisez de prévenir Margaux maintenant ou d'attendre, et pourquoi (au moins deux raisons courtes).",
+    "objective_words": 23,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Le conseil du zinc",
+    "dramatic_question": "Que veut la communauté : garder le Mistral, le transformer pour Lila, ou le laisser partir ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Exprimez votre opinion sur ce qu'il faut faire du Mistral, et donnez une raison précise qui montre votre choix.",
+    "objective_words": 19,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_spoiler",
+   "hint": "«Berlin» breaks a rule of the season (Berlin revealed (T5 owns it). Only hints: her phone face down, an unanswered message.). Rewrite the day without it: hint at most, never reveal.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Atelier ou départ",
+    "dramatic_question": "Peut-on convaincre Lila de rester ici si elle obtient un atelier, ou son départ pour Berlin est-il inévitable ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Donner ton opinion sur le choix de Lila et proposer une condition claire pour qu'elle reste parmi vous.",
+    "objective_words": 18,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Un projet ou un chèque ?",
+    "dramatic_question": "Peut-on sauver Le Mistral en collectif, ou faut-il accepter la vente et se protéger ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Donner votre opinion et la justifier : dire si vous soutenez la coopérative de Marin ou si vous acceptez la vente, et expliquer pourquoi en une raison concrète.",
+    "objective_words": 28,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "Une règle pour rester",
+    "dramatic_question": "Quelle condition accepteriez‑vous pour que Le Mistral reste une coopérative ?",
+    "open_question": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Proposez une condition concrète pour que Le Mistral devienne une coopérative, et expliquez pourquoi elle marcherait.",
+    "objective_words": 16,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g4.4",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "objective_too_thin",
+   "hint": "A B1 learner is not asked for one sentence. Ask for a move: a position with a reason, a counter-proposal with a condition, an objection answered — two or three sentences, at least 10 words of objective. \"Invite Lila à dire une chose précise maintenant et explique en une phrase pourquoi tu veux l'entendre, pour lui montrer que tu la protèges et que le groupe peut écouter.\" (30 words) is an A2 ask. Do not make an already-asked task bigger or smaller — a resized task is still a repeat. Change what the learner DOES instead: refuse politely, apologise, negotiate a condition, tell what happened, as…",
+   "draft": {
+    "beat": "turn",
+    "required_beat": [
+     "turn",
+     "resolution"
+    ],
+    "chapter_closed": false,
+    "shape": "ensemble",
+    "chapter_title_fr": "Le toit et la parole",
+    "dramatic_question": "Lila dira-t-elle pourquoi elle a fermé son téléphone, ou gardera-t-elle son secret ?",
+    "open_question": "Lila dira-t-elle pourquoi elle a fermé son téléphone, ou gardera-t-elle son secret ?",
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Invite Lila à dire une chose précise maintenant et explique en une phrase pourquoi tu veux l'entendre, pour lui montrer que tu la protèges et que le groupe peu…",
+    "objective_words": 30,
+    "panels": 5,
+    "premise_id": "la_dispute"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "mixed_address_register": 5,
+  "season_spoiler": 2,
+  "objective_too_thin": 1
+ }
+}

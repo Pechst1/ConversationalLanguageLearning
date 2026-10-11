@@ -1,0 +1,314 @@
+/* ===========================================================================
+   WP-119 · La Revue de Romy (components/revue/*).
+   Ported from the mockups' rv-* block (docs/design-reference/revue/*.html).
+   Scoped under `.av2`; `--av2-*` tokens only — no new font, no new colour.
+   Romy's accent is `--av2-blue` (the same blue as `--char-romy` in both themes).
+   =========================================================================== */
+
+/* --- the page ------------------------------------------------------------ */
+.av2.rv-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--av2-paper);
+  width: 100%;
+  max-width: var(--phone-shell-max, 460px);
+  margin: 0 auto;
+}
+.av2 .rv-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--av2-paper);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+}
+.av2 .rv-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 14px; padding: 14px var(--av2-gutter) 18px; min-width: 0; }
+.av2 .rv-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px var(--av2-gutter) calc(env(safe-area-inset-bottom, 0px) + 18px);
+  border-top: 1px solid var(--av2-line);
+  background: var(--av2-paper);
+}
+.av2 .rv-kicker { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.3; color: var(--av2-blue); }
+.av2 .rv-mock { align-self: flex-start; margin: 0 var(--av2-gutter); font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+
+/* --- RvSessionHead: close · five beats · the column ---------------------- */
+.av2 .rv-head { display: flex; align-items: center; gap: 12px; padding: 0 var(--av2-gutter) 10px; }
+.av2 .rv-head .av2-icon-btn { flex: none; }
+.av2 .rv-head__beats { display: flex; flex: 1 1 auto; gap: 4px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.av2 .rv-head__beats .av2-progress__segment { flex: 1 1 0; height: 10px; border-radius: 5px; }
+.av2 .rv-head__beats .av2-progress__segment[data-beat='pursue'] { flex-grow: 2; }
+
+/* --- RvColumn: the remaining room as a newspaper column, never a clock --- */
+.av2 .rv-col { position: relative; flex: none; display: inline-flex; align-items: center; gap: 7px; min-height: var(--av2-tap); min-width: var(--av2-tap); padding: 0 2px; border: 0; background: none; color: var(--av2-muted); font: 700 var(--av2-t-meta)/1 var(--av2-sans); cursor: pointer; }
+.av2 .rv-col__glyph { display: grid; grid-template-rows: repeat(7, 2px); gap: 2px; width: 16px; flex: none; }
+.av2 .rv-col__glyph i { display: block; height: 2px; border-radius: 1px; background: var(--av2-line-2); }
+.av2 .rv-col__glyph i:nth-child(odd) { width: 100%; }
+.av2 .rv-col__glyph i:nth-child(even) { width: 78%; }
+.av2 .rv-col__glyph i[data-used] { background: var(--av2-ink); }
+.av2 .rv-col[data-phase='bouclage'], .av2 .rv-col[data-phase='boucle'] { color: var(--av2-ink); }
+.av2 .rv-col[data-phase='bouclage'] .rv-col__glyph i[data-last] { background: var(--av2-red); }
+.av2 .rv-col__tip { position: absolute; top: 100%; right: 0; z-index: 12; width: max-content; max-width: 240px; margin-top: 4px; padding: 8px 12px; border-radius: 12px; background: var(--av2-ink); color: var(--av2-on-ink); font: 600 var(--av2-t-label)/1.35 var(--av2-sans); text-align: left; }
+
+/* --- RvStage: the plate with the drawn cast ------------------------------ */
+.av2 .rv-stage { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: var(--av2-card); flex: none; }
+.av2 .rv-stage[data-size='band'] { aspect-ratio: 390 / 168; border-bottom: 1px solid var(--av2-line); }
+.av2 .rv-stage[data-size='une'] { aspect-ratio: 16 / 9; }
+.av2 .rv-stage__plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.av2 .rv-stage[data-size='band'] .rv-stage__plate { object-position: 50% 62%; }
+.av2 .rv-stage[data-size='une'] .rv-stage__plate { object-position: 50% 55%; }
+.av2 .rv-stage__fallback { position: absolute; inset: 0; background: repeating-linear-gradient(135deg, var(--av2-line) 0 8px, var(--av2-card) 8px 16px); }
+.av2 .rv-stage .cast-stage { z-index: 2; }
+.av2 .rv-stage .cast-stage__figure[data-entering] { animation: rv-enter 0.26s ease-out both; }
+@keyframes rv-enter { from { transform: translateX(-20%); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .av2 .rv-stage .cast-stage__figure[data-entering] { animation: none; } }
+/* the reader's «sous presse» duotone, reused */
+.av2 .rv-stage[data-pending] .rv-stage__plate { filter: grayscale(1) contrast(1.08) brightness(1.06); }
+.av2 .rv-stage__ink { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: color-mix(in srgb, var(--av2-blue) 88%, var(--av2-blue-deep)); mix-blend-mode: screen; opacity: 0; }
+.av2 .rv-stage[data-pending] .rv-stage__ink { opacity: 1; }
+.av2 .rv-stage__folio { position: absolute; left: 12px; bottom: 12px; z-index: 6; display: inline-flex; align-items: center; gap: 7px; max-width: calc(100% - 24px);
+  padding: 5px 11px 5px 9px; border-radius: 999px; background: var(--av2-paper); color: var(--av2-ink); font: 700 var(--av2-t-meta)/1.3 var(--av2-sans);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--av2-blue-deep) 40%, transparent); }
+.av2 .rv-stage__folio::before { content: ''; width: 8px; height: 8px; flex: none; border-radius: 999px; background: var(--av2-blue); }
+.av2 .rv-stage-wrap[data-pinned] { position: sticky; top: var(--rv-top-h, 64px); z-index: 8; }
+
+/* --- the thread ---------------------------------------------------------- */
+.av2 .rv-thread { gap: 12px; }
+.av2 .rv-thread .av2-speech__bubble > .av2-headline { font-size: var(--av2-t-title); line-height: 1.2; }
+.av2 .rv-thread .av2-speech__bubble[data-long] > .av2-headline { font-size: var(--av2-t-option); line-height: 1.3; }
+.av2 .rv-narr { margin: 0; font-size: var(--av2-t-body); line-height: 1.5; color: var(--av2-ink-2); }
+.av2 .rv-thread__line + .rv-thread__line > .rv-narr { margin-top: -6px; }
+.av2 .rv-who { display: block; margin: 0 0 3px; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-blue); }
+.av2 .rv-line__tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.av2 .rv-translation { margin: 6px 0 0; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink-2); }
+.av2 .rv-chip { display: inline-flex; align-items: center; gap: 7px; min-height: var(--av2-tap); padding: 4px 12px; border: 0; border-radius: 999px;
+  background: var(--av2-paper); color: var(--av2-ink); font: 700 var(--av2-t-meta)/1 var(--av2-sans); cursor: pointer; }
+.av2 .rv-claim .rv-chip { background: var(--av2-paper); }
+.av2 .rv-chip .sq { width: 8px; height: 8px; border-radius: 2px; background: currentColor; }
+.av2 .rv-chip[aria-pressed='true'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+.av2 .rv-thread__mine { margin: 0; padding-right: 12px; border-right: 2px solid var(--av2-line-2); text-align: right; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.35; color: var(--av2-ink); }
+.av2 .rv-thread__mine[data-pending] { color: var(--av2-ink-2); }
+
+/* tap-to-gloss (the reader's fr-word, here) and the printed gloss (A1) */
+.av2 .rv-word { display: inline; margin: 0; padding: 0; border: 0; border-bottom: 1px dotted color-mix(in srgb, var(--av2-muted) 60%, transparent); border-radius: 3px;
+  background: none; color: inherit; font: inherit; line-height: inherit; text-align: inherit; cursor: pointer; }
+.av2 .rv-word[data-target] { border-bottom-color: var(--av2-yellow-deep); }
+.av2 .rv-word[data-open] { background: color-mix(in srgb, var(--av2-yellow) 34%, transparent); }
+.av2 ruby.rv-gloss { ruby-position: under; }
+.av2 ruby.rv-gloss rt { white-space: nowrap; text-align: center; font: 600 normal 0.6875rem/1.2 var(--av2-sans); color: var(--av2-ink-2); letter-spacing: 0; padding-top: 2px; }
+.av2 .rv-target { text-decoration: underline; text-decoration-color: var(--av2-yellow); text-decoration-thickness: 3px; text-underline-offset: 3px; }
+
+/* the read-aloud summary: the face is the play button */
+.av2 .rv-listen { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 14px 8px 8px; border: 0; border-radius: var(--av2-r-card);
+  background: var(--av2-card); color: var(--av2-ink); font: 600 var(--av2-t-body)/1.3 var(--av2-sans); text-align: left; box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line-2); cursor: pointer; }
+.av2 .rv-listen__play { position: relative; flex: none; display: inline-flex; }
+.av2 .rv-listen__play::after { content: ''; position: absolute; right: -3px; bottom: -3px; width: 18px; height: 18px; border-radius: 999px; background: var(--av2-ink); box-shadow: 0 0 0 2px var(--av2-card); }
+.av2 .rv-listen__play b { position: absolute; right: 2px; bottom: 1px; z-index: 2; width: 0; height: 0; border-left: 7px solid var(--av2-on-ink); border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; }
+.av2 .rv-listen[aria-pressed='true'] .rv-listen__play b { border: 0; width: 7px; height: 7px; right: 3.5px; bottom: 2.5px; background: var(--av2-on-ink); }
+.av2 .rv-listen__meta { display: block; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
+.av2 .rv-listen__wave { margin-left: auto; display: inline-flex; gap: 2px; align-items: center; }
+.av2 .rv-listen__wave i { width: 3px; border-radius: 2px; background: var(--av2-line-2); }
+.av2 .rv-summary { margin: 8px 0 0; padding: 0 4px; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.4; color: var(--av2-ink-2); }
+
+/* RvClaim: fact = solid ink rule; interpretation / forecast = dashed blue rule + attribution */
+.av2 .rv-claim { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 13px 15px 12px 17px; border-radius: var(--av2-r-card); background: var(--av2-card); }
+.av2 .rv-claim::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: var(--av2-ink); }
+.av2 .rv-claim[data-kind='interpretation']::before, .av2 .rv-claim[data-kind='forecast']::before { background: repeating-linear-gradient(to bottom, var(--av2-blue) 0 5px, transparent 5px 9px); }
+.av2 .rv-claim__kind { display: flex; align-items: center; gap: 7px; margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .rv-claim[data-kind='interpretation'] .rv-claim__kind, .av2 .rv-claim[data-kind='forecast'] .rv-claim__kind { color: var(--av2-blue); }
+.av2 .rv-claim__fr { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.38; color: var(--av2-ink); }
+.av2 .rv-claim__fr[data-band='b1'] { font-size: var(--av2-t-rule); }
+.av2 .rv-claim__by { margin: 0; font-size: var(--av2-t-label); line-height: 1.35; color: var(--av2-ink-2); }
+.av2 .rv-claims { display: flex; flex-direction: column; gap: 10px; }
+
+/* RvSourceLine */
+.av2 .rv-source { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; margin: 0; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
+.av2 .rv-source a { display: inline-flex; align-items: center; min-height: var(--av2-tap); color: var(--av2-ink-2); text-underline-offset: 3px; }
+.av2 .rv-source button { min-height: var(--av2-tap); padding: 0 2px; border: 0; background: none; color: var(--av2-ink-2); font: inherit; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+.av2 .rv-quote { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--av2-paper); font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink-2); }
+
+/* claims folded once the learner speaks */
+.av2 .rv-folded { display: inline-flex; align-items: center; gap: 8px; min-height: var(--av2-tap); padding: 0; border: 0; background: none; color: var(--av2-ink-2); font: 700 var(--av2-t-meta)/1.3 var(--av2-sans); text-align: left; cursor: pointer; }
+
+/* RvUncertainty: what the sources do not say (the outline surface = absence) */
+.av2 .rv-unknown { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--av2-r-card); border: 2px dashed var(--av2-line-2); }
+.av2 .rv-unknown__k { display: flex; align-items: center; gap: 7px; margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-ink-2); }
+.av2 .rv-unknown__k .rv-ring { width: 10px; height: 10px; flex: none; border-radius: 999px; border: 2px solid var(--av2-blue); }
+.av2 .rv-unknown__fr { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.3; color: var(--av2-ink); }
+
+/* RvShift: a hairline marker in the thread — no modal, no toast, no tint */
+.av2 .rv-shift { display: flex; align-items: center; gap: 10px; margin: 2px 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .rv-shift::before, .av2 .rv-shift::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--av2-line-2); }
+
+/* typing: «Romy cherche dans ses notes ···» */
+.av2 .rv-typing { display: flex; align-items: center; gap: 10px; }
+.av2 .rv-typing p { margin: 0; display: inline-flex; align-items: center; gap: 8px; color: var(--av2-muted); font-size: var(--av2-t-meta); font-weight: 600; }
+.av2 .rv-typing .rv-dots { display: inline-flex; gap: 3px; }
+.av2 .rv-typing .rv-dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.5; animation: rv-dot 1.2s infinite ease-in-out; }
+.av2 .rv-typing .rv-dots i:nth-child(2) { animation-delay: 0.15s; }
+.av2 .rv-typing .rv-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes rv-dot { 0%, 80%, 100% { opacity: 0.35; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .av2 .rv-typing .rv-dots i { animation: none; } }
+
+/* quick replies over the composer */
+.av2 .rv-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.av2 .rv-quick .av2-chip { font-weight: 600; }
+.av2 .rv-composer { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.av2 .rv-composer .av2-field { flex: 1 1 auto; min-width: 0; }
+.av2 .rv-composer .av2-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.av2 .rv-composer .av2-field__control { min-height: 3rem; resize: none; }
+
+/* RvMakePicker: ChoiceList with a sub-line and Romy's pick */
+.av2 .rv-make .av2-choice { flex-wrap: wrap; row-gap: 2px; align-items: flex-start; cursor: pointer; }
+.av2 .rv-make .av2-choice .av2-choice__dot { margin-top: 5px; order: -1; }
+.av2 .rv-make__t { flex: 1 1 0; min-width: 0; }
+.av2 .rv-make__sub { display: block; margin-top: 3px; font: 400 normal var(--av2-t-label)/1.35 var(--av2-sans); color: var(--av2-ink-2); }
+.av2 .rv-make__pick { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; font: 700 normal var(--av2-t-meta)/1 var(--av2-sans); color: var(--av2-blue); }
+.av2 .rv-evidence { margin: 3px 0 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
+.av2 .rv-evidence q { font-family: var(--av2-serif); font-style: italic; quotes: '« ' ' »'; }
+
+/* RvContribution: the learner's own words, kept (yellow = reward) + a word, never colour alone */
+.av2 .rv-yours { background: linear-gradient(transparent 62%, color-mix(in srgb, var(--av2-yellow) 70%, transparent) 62%); padding: 0 1px; }
+.av2 .rv-yours sup { font: 700 normal 0.625rem/1 var(--av2-sans); color: var(--av2-muted); margin-left: 2px; }
+
+/* RvQuestionDraft */
+.av2 .rv-draft { display: flex; flex-direction: column; gap: 10px; }
+.av2 .rv-draft__pane { padding: 12px 14px; border-radius: var(--av2-r-card); background: var(--av2-card); }
+.av2 .rv-draft__pane[data-who='you'] { background: transparent; border: 2px solid var(--av2-line); }
+.av2 .rv-draft__fr { margin: 4px 0 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.3; color: var(--av2-ink); }
+.av2 .rv-draft__why { margin: 8px 0 0; font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
+.av2 .rv-made { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: var(--av2-r-card); border: 2px solid var(--av2-line); }
+.av2 .rv-made__fr { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.3; color: var(--av2-ink); }
+
+/* RvDispatch: the clipping that closes the Revue */
+.av2 .rv-dispatch { display: flex; flex-direction: column; gap: 10px; padding: 18px 18px 16px; border-radius: var(--av2-r-hero); background: var(--av2-card); }
+.av2 .rv-dispatch__rule { height: 4px; border-top: 1px solid var(--av2-ink); border-bottom: 1px solid var(--av2-ink); }
+.av2 .rv-dispatch__hl { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: var(--av2-t-head); line-height: 1.1; color: var(--av2-ink); }
+.av2 .rv-dispatch__body { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.4; color: var(--av2-ink-2); }
+.av2 .rv-dispatch__by { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+.av2 .rv-colophon { margin: 4px 0 0; padding-top: 12px; border-top: 1px solid var(--av2-line-2); text-align: center; font: italic var(--av2-t-rule)/1.3 var(--av2-serif); color: var(--av2-ink-2); }
+.av2 .rv-kept { display: flex; flex-direction: column; gap: 10px; }
+.av2 .rv-kept__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.av2 .rv-kept__t { margin: 0; font: italic 500 var(--av2-t-title)/1.1 var(--av2-serif); color: var(--av2-ink); }
+.av2 .rv-kept__n { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .rv-kept__rows { display: flex; flex-direction: column; margin: 0; padding: 12px 16px; list-style: none; border-radius: var(--av2-r-card); background: var(--av2-card); }
+.av2 .rv-kept__row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--av2-line); }
+.av2 .rv-kept__row:first-child { border-top: 0; padding-top: 0; }
+.av2 .rv-kept__row:last-child { padding-bottom: 0; }
+.av2 .rv-kept__fr { flex: 1 1 auto; min-width: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); color: var(--av2-ink); }
+.av2 .rv-kept__de { flex: none; font-size: var(--av2-t-label); color: var(--av2-muted); }
+.av2 .rv-ended { margin: 0; font-size: var(--av2-t-label); font-weight: 700; color: var(--av2-ink-2); }
+
+/* --- La Une card (RvUneCard) and the chooser ----------------------------- */
+.av2 .rv-une { display: block; overflow: hidden; border-radius: var(--av2-r-hero); background: var(--av2-card); color: inherit; }
+.av2 .rv-une__body { display: flex; flex-direction: column; gap: 6px; padding: 14px 18px 16px; }
+.av2 .rv-une__folio { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.av2 .rv-une__folio .av2-label { margin: 0; }
+.av2 .rv-une__title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: var(--av2-t-title); line-height: 1.12; color: var(--av2-ink); }
+.av2 .rv-une__meta { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+.av2 .rv-une__meta .rv-dot { width: 3px; height: 3px; border-radius: 999px; background: var(--av2-muted); }
+.av2 .rv-une__other { align-self: flex-start; margin-left: -0.75rem; }
+.av2 .rv-une__press { margin-top: 14px; }
+.av2 .rv-une__filed { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; }
+.av2 .rv-une__filed-k { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-ink-2); }
+.av2 .rv-une__filed-hl { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: var(--av2-t-option); line-height: 1.25; color: var(--av2-ink); }
+.av2 .rv-une__colophon { margin: 0; font: italic var(--av2-t-body)/1.3 var(--av2-serif); color: var(--av2-ink-2); }
+.av2 .rv-alts { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--av2-line); }
+.av2 .rv-alt { display: flex; align-items: center; gap: 12px; width: 100%; min-height: var(--av2-tap); padding: 10px 0; border: 0; border-bottom: 1px solid var(--av2-line); background: none; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.av2 .rv-alt__t { flex: 1 1 auto; min-width: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.2; color: var(--av2-ink); }
+.av2 .rv-alt__m { display: block; margin-top: 2px; font: 600 normal var(--av2-t-meta)/1.3 var(--av2-sans); color: var(--av2-muted); }
+.av2 .rv-ask { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.av2 .rv-ask input.av2-field__control { min-height: var(--av2-tap); padding: 0.5rem 0.9rem; background: var(--av2-card); }
+.av2 .av2-sheet .rv-ask input.av2-field__control { background: var(--av2-card); }
+.av2 .rv-ask__mine { margin: 0; align-self: flex-end; padding-right: 12px; border-right: 2px solid var(--av2-line-2); font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); color: var(--av2-ink); }
+.av2 .rv-sheet { display: flex; flex-direction: column; gap: 12px; }
+.av2 .rv-chooser { display: flex; flex-direction: column; gap: 14px; }
+
+/* --- states --------------------------------------------------------------- */
+.av2 .rv-loading { display: flex; flex-direction: column; gap: 12px; }
+.av2 .rv-loading .rv-stage { aspect-ratio: 4 / 3; }
+.av2 .rv-nb { white-space: nowrap; }
+.av2 .rv-encounter { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.av2 .rv-mock { position: fixed; left: 50%; top: 0; transform: translateX(-50%); z-index: 20; margin: 0; pointer-events: none; opacity: 0.7; font-size: 0.6875rem; }
+.av2 .rv-make .av2-choice__dot { width: 18px; height: 18px; box-shadow: inset 0 0 0 2px var(--av2-ink); }
+.av2 .rv-make .av2-choice[data-state='selected'] .av2-choice__dot { box-shadow: none; }
+
+/* --- WP-120 · RvVignette: the stamp brought back from a Papier ------------
+   An authored frame around the dossier's pictogram. The ring is ink, blue or red
+   by what the learner made (headline · reader question · short report); the kept
+   mark is the reward yellow. The face is the paper ink in both themes: the
+   pictogram is printed in the seven inks, so it is shown on the paper it was
+   printed for (a print stays a print in dark mode, like the plates). ---------- */
+.av2 .rv-vignette { --rv-vignette-paper: #f1ece1; display: inline-flex; flex-direction: column; align-items: center; gap: 6px; margin: 0; min-width: 0; }
+.av2 .rv-vignette__stamp { display: block; flex: none; overflow: visible; }
+.av2 .rv-vignette__band { fill: var(--av2-ink); }
+.av2 .rv-vignette__inner { stroke: var(--av2-ink); stroke-width: 1; }
+.av2 .rv-vignette__week { fill: var(--av2-on-ink); font-family: var(--av2-sans); font-weight: 700; letter-spacing: 0.08em; }
+.av2 .rv-vignette[data-ring='question'] .rv-vignette__band { fill: var(--av2-blue); }
+.av2 .rv-vignette[data-ring='question'] .rv-vignette__inner { stroke: var(--av2-blue); }
+.av2 .rv-vignette[data-ring='question'] .rv-vignette__week { fill: var(--av2-on-blue); }
+.av2 .rv-vignette[data-ring='report'] .rv-vignette__band { fill: var(--av2-red); }
+.av2 .rv-vignette[data-ring='report'] .rv-vignette__inner { stroke: var(--av2-red); }
+.av2 .rv-vignette[data-ring='report'] .rv-vignette__week { fill: var(--av2-on-red); }
+.av2 .rv-vignette__face { fill: var(--rv-vignette-paper); }
+.av2 .rv-vignette--large .rv-vignette__week { font-size: 11px; }
+.av2 .rv-vignette--seal .rv-vignette__week { font-size: 13px; letter-spacing: 0; }
+.av2 .rv-vignette__kept { fill: var(--av2-yellow); stroke: var(--rv-vignette-paper); stroke-width: 1.5; }
+.av2 .rv-vignette__place { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--av2-serif); font-style: italic; line-height: 1.2; color: var(--av2-ink-2); text-align: center; }
+.av2 .rv-vignette--seal .rv-vignette__place { max-width: 88px; font-size: var(--av2-t-meta); }
+.av2 .rv-vignette--large .rv-vignette__place { max-width: 220px; font-size: var(--av2-t-body); white-space: normal; }
+.av2 .rv-vignette--stamping .rv-vignette__stamp { animation: rv-stamp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: 50% 50%; }
+@keyframes rv-stamp {
+  0% { transform: scale(1.35) rotate(-8deg); opacity: 0; }
+  70% { transform: scale(0.96) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .av2 .rv-vignette--stamping .rv-vignette__stamp { animation: none; } }
+
+/* --- WP-119 phase 2 · «Les invités» ---------------------------------------
+   The guest speaks in their own bubble: their face, their name in their
+   `--char-*` accent (globals' [data-char] sets `--accent`), a quiet tag. The
+   entrance pill is tinted 12 % from that accent on card (design §3.4 #guest).
+   No new colour: every tint is a mix of an existing token. ------------------ */
+.av2 .rv-entrance { margin: 0 0 8px; padding: 8px 14px; border-radius: 999px; background: color-mix(in srgb, var(--accent, var(--av2-ink)) 12%, var(--av2-card)); color: var(--av2-ink); font-size: var(--av2-t-label); line-height: 1.35; }
+.av2 .rv-entrance b { font-weight: 700; }
+.av2 .rv-entrance span[lang='fr'] { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); }
+.av2 .rv-guest .rv-who { color: var(--accent, var(--av2-ink)); }
+.av2 .rv-guest__tag { font-weight: 600; color: var(--av2-muted); }
+.av2 .rv-thread [data-kind='guest'] > .rv-shift { margin-top: 8px; }
+.av2 .rv-thread [data-kind='line'] > .av2-notice, .av2 .rv-thread [data-kind='guest'] > .av2-notice { margin-bottom: 8px; }
+
+/* headline_write: the field, the word count, the fact-fit band */
+.av2 .rv-write { display: flex; flex-direction: column; gap: 10px; }
+.av2 .rv-write .av2-field__control { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); }
+.av2 .rv-write__count { margin: -4px 0 0; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
+.av2 .rv-write__count[data-over] { color: var(--av2-ink); }
+
+/* short_report: thirty seconds out loud, then the transcript to check */
+.av2 .rv-report { display: flex; flex-direction: column; gap: 10px; }
+.av2 .rv-report__note { margin: 0; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+.av2 .rv-report__live { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--av2-r-card); background: var(--av2-card); }
+.av2 .rv-report__label { flex: none; font-size: var(--av2-t-label); font-weight: 700; color: var(--av2-ink); }
+.av2 .rv-report__bar { flex: 1 1 auto; height: 6px; overflow: hidden; border-radius: 3px; background: var(--av2-line); }
+.av2 .rv-report__bar i { display: block; height: 100%; width: 100%; border-radius: 3px; background: var(--av2-ink); transform-origin: left center; animation: rv-report-fill linear both; }
+@keyframes rv-report-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .av2 .rv-report__bar i { animation: none; transform: scaleX(1); opacity: 0.4; } }
+.av2 .rv-report__go { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.av2 .rv-report__go svg { flex: none; }
+
+/* the kept words the rubric found used correctly */
+.av2 .rv-kept__right { display: block; font: 600 normal var(--av2-t-meta)/1.3 var(--av2-sans); color: var(--av2-muted); }
+
+/* WP-120 · the vignette at the close, and in «Vos sceaux» */
+.av2 .rv-close-vignette { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0 2px; }
+.av2 .rv-close-vignette > .av2-label { margin: 0; }
+.av2 .rv-seal-vignettes { display: flex; flex-direction: column; gap: 10px; }
+.av2 .rv-seal-vignettes > .av2-label { margin: 0; }
+.av2 .rv-seal-vignettes ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 12px 8px; margin: 0; padding: 0; list-style: none; }
+.av2 .rv-seal-vignettes li { display: flex; justify-content: center; min-width: 0; }

@@ -1,0 +1,66 @@
+{
+ "band": "A2.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.23421199999999998,
+  "calls": 63,
+  "cap": 0.5
+ },
+ "weaves": [
+  {
+   "unit": "Le passé composé avec avoir : formes régulières et irrégulières",
+   "title": "La même chose ?",
+   "uses": 4,
+   "invited": true,
+   "countable": true,
+   "complies": true
+  },
+  {
+   "unit": "Les verbes pronominaux au passé composé : je me suis levé",
+   "title": "L'enquête de Romy",
+   "uses": 2,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, les : pronoms compléments",
+   "title": "La lettre du notaire",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Lui, leur : à lui, à elle, à eux",
+   "title": "La petite décision",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Lui, leur : à lui, à elle, à eux",
+   "title": "Le petit ordre — clôture",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Lui, leur : à lui, à elle, à eux",
+   "title": "Appel au comptoir",
+   "uses": 0,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  }
+ ],
+ "failures": [
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.1 twice; accepted and logged (Value turn missing — show a clear turn (a hope met by a setback, a secret revealed, or a small decision) in the page.; Meaningful change missing — have the learner actually say their order or else another visible change (someone starts calling you by a tu, an object moves, a decision is taken).)",
+  "daily_journey: season day lost (invalid_story_output); journey 0ea4fa44-93d1-4a12-885b-9f5156f9fb68 re-reads t1.b",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g1.4 twice; accepted and logged (Show Romy’s recording or its risk: make the open obstacle (Romy may use her recording tomorrow) visible and someone deal with it on the page.)"
+ ]
+}

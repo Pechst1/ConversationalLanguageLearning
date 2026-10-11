@@ -1,0 +1,63 @@
+{
+ "band": "A1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.26009000000000004,
+  "calls": 64,
+  "cap": 0.4
+ },
+ "weaves": [
+  {
+   "unit": "Je suis, tu es : les pronoms et être",
+   "title": "La même chose ? (première fois)",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Il y a : ce qui existe ici",
+   "title": "Le petit engagement",
+   "uses": 0,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "L'ardoise et le zinc",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Romy enquête au zinc",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "Romy a des nouvelles",
+   "uses": 1,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": "Le, la, l', les : les articles définis",
+   "title": "La question du lendemain",
+   "uses": 1,
+   "invited": false,
+   "countable": true,
+   "complies": false
+  }
+ ],
+ "failures": [
+  "daily_journey: season day lost (two_hander_crowded); journey 487ff3a7-350a-4e66-819a-5eea87937011 re-reads t1.b",
+  "daily_journey: season day lost (invalid_story_output); journey 5033fecd-cee0-4d27-96ca-0f42094fc04c re-reads t1.b"
+ ]
+}

@@ -13,6 +13,18 @@ function apiOrigin(): string {
   }
 }
 
+/* The serial's reference art (locations, model sheets, props) shipped as PNG
+   until 2026-09-04, when every file was re-encoded as WebP and the PNGs were
+   removed. A serial thread stores its own copy of the world bible, so a learner
+   whose thread predates that keeps being served ".png" paths that no longer
+   exist — every panel of their Feuilleton came up blank. Fold the legacy
+   extension here, where every surface resolves its art. */
+const LEGACY_SERIAL_PNG = /^(\/?assets\/serial\/[^?#]*)\.png(?=$|[?#])/i;
+
+export function normalizeLegacySerialAsset(url: string): string {
+  return url.replace(LEGACY_SERIAL_PNG, '$1.webp');
+}
+
 export function resolveMediaUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   const value = String(url).trim();
@@ -22,5 +34,5 @@ export function resolveMediaUrl(url: string | null | undefined): string | null {
     const origin = apiOrigin();
     return origin ? `${origin}${value}` : value;
   }
-  return value;
+  return normalizeLegacySerialAsset(value);
 }

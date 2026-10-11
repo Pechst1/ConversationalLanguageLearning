@@ -1,0 +1,3394 @@
+{
+ "n": 2,
+ "dossier_id": "2026-w40-ce-qui-change-1er-octobre",
+ "level": "A2.1",
+ "native_language": "de",
+ "dossier": {
+  "id": "2026-w40-ce-qui-change-1er-octobre",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "city",
+  "title_fr": "Gaz, carburant, santé : ce qui change au 1er octobre",
+  "summary_fr": "Comme chaque mois, des règles changent au 1er octobre 2026. Le prix repère du gaz augmente de 6,3 %, les franchises médicales coûtent plus cher sur l'année, et un nouveau chèque de 100 euros aide les personnes qui roulent beaucoup en voiture.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+    "quote": "il s'établira à 182,88 euros du mégawattheure (MWh) à compter du 1er octobre 2026, contre 172,05 euros en septembre. Soit une hausse de 6,3%.",
+    "source_id": "w40_octobre_franceinfo",
+    "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+    "published_at": "2026-09-30",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+    "quote": "constateront ainsi \"une augmentation de 5,28 euros en moyenne sur les factures du mois d'octobre\"",
+    "source_id": "w40_octobre_franceinfo",
+    "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+    "published_at": "2026-09-30",
+    "confidence": "reported",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "fact",
+    "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+    "quote": "le gouvernement a annoncé fixer le plafond des franchises à 140 euros par an, contre 100 euros actuellement",
+    "source_id": "w40_octobre_franceinfo",
+    "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+    "published_at": "2026-09-30",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+    "quote": "cette mesure mise en place par le gouvernement pour faire face à la hausse des prix du carburant équivaut à \"40 centimes par litre de carburant pour deux mois en moyenne\", a estimé la porte-parole du gouvernement",
+    "source_id": "w40_octobre_franceinfo",
+    "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+    "published_at": "2026-09-30",
+    "confidence": "reported",
+    "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+   }
+  ],
+  "entities": [
+   {
+    "name": "Maud Bregeon",
+    "kind": "person",
+    "role": "porte-parole du gouvernement et ministre déléguée à l'Énergie"
+   },
+   {
+    "name": "Commission de régulation de l'énergie",
+    "kind": "organisation",
+    "role": null
+   }
+  ],
+  "uncertainties": [
+   "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+   "Les sources ne disent pas combien de temps le chèque pour les « grands rouleurs » sera prolongé après décembre."
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Ce qui change sur la facture et chez le médecin",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": "landlord_marchand"
+   },
+   {
+    "id": "a2",
+    "fr": "Prévenir Margaux : trois changements à connaître ce mois-ci",
+    "purpose": "prepare_dispatch",
+    "participation": "none",
+    "guest_fit": "landlord_marchand"
+   }
+  ],
+  "places": [
+   {
+    "id": "cuisine_facture_gaz",
+    "name_fr": "Une petite cuisine, la facture de gaz sur la table",
+    "brief": "a small apartment kitchen with an old gas stove and a kettle, an open energy bill and a pen on the table, a calendar on the wall, grey morning light through the window",
+    "known": false,
+    "geo": {
+     "lat": 48.8566,
+     "lon": 2.3522,
+     "precision": "city",
+     "label_fr": "Paris"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-10-01/2026-10-31",
+   "relevant_until": "2026-10-31"
+  },
+  "sources": [
+   {
+    "id": "w40_octobre_franceinfo",
+    "name": "franceinfo",
+    "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+    "published_at": "2026-09-30"
+   }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "une page de calendrier"
+ },
+ "band": "A2",
+ "vocabulary": [
+  {
+   "fr": "le prix repère",
+   "gloss": {
+    "de": "Referenzpreis"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "le mégawattheure",
+   "gloss": {
+    "de": "Megawattstunde"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "la facture",
+   "gloss": {
+    "de": "Rechnung"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "le plafond",
+   "gloss": {
+    "de": "Obergrenze; Höchstbetrag"
+   },
+   "claim_id": "c3"
+  },
+  {
+   "fr": "le chèque de 100 euros",
+   "gloss": {
+    "de": "100‑Euro-Scheck"
+   },
+   "claim_id": "c4"
+  }
+ ],
+ "target_use": {
+  "word": "le prix repère",
+  "article_said": "la",
+  "intended": "incorrect",
+  "sentence": "Pour moi, la prix repère, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T00:47:29.291918+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text"
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T00:47:33.505998+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Merci. Voilà ce qui change : prix repère du gaz 182,88 €/MWh (+6,3 %) (c1). Pour offres indexées, facture +5,28 € en moyenne (c2). Plafond franchises médicales 100→140 € (c3). D'après le gouvernement, le chèque vaut ≈0,40 €/L (c4).",
+      "translation": "Danke. Das ändert sich: Richtpreis für Gas 182,88 €/MWh (+6,3 %) (c1). Bei indexierten Tarifen steigt die Rechnung um 5,28 € im Durchschnitt (c2). Höchstbetrag für Gesundheitsfranchisen 100→140 € (c3). Laut Regierung ist der Scheck ~0,40 €/L wert (c4).",
+      "glosses": [
+       {
+        "fr": "le prix repère",
+        "gloss": "Referenzpreis",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la facture",
+        "gloss": "Rechnung",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "le plafond",
+        "gloss": "Obergrenze; Höchstbetrag",
+        "claim_id": "c3"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T00:47:33.506046+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+        "quote": "il s'établira à 182,88 euros du mégawattheure (MWh) à compter du 1er octobre 2026, contre 172,05 euros en septembre. Soit une hausse de 6,3%.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_octobre_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+        "quote": "constateront ainsi \"une augmentation de 5,28 euros en moyenne sur les factures du mois d'octobre\"",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_octobre_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+        "quote": "le gouvernement a annoncé fixer le plafond des franchises à 140 euros par an, contre 100 euros actuellement",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_octobre_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+        "quote": "cette mesure mise en place par le gouvernement pour faire face à la hausse des prix du carburant équivaut à \"40 centimes par litre de carburant pour deux mois en moyenne\", a estimé la porte-parole du gouvernement",
+        "attributed_to": "Maud Bregeon, porte-parole du gouvernement",
+        "source": {
+         "id": "w40_octobre_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+         "published_at": "2026-09-30"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le prix repère",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le mégawattheure",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la facture",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le plafond",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le chèque de 100 euros",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "Le gaz coûte combien maintenant ?",
+   "result": {
+    "items": [
+     {
+      "id": "7",
+      "seq": 7,
+      "at": "2026-10-03T00:47:33.515082+00:00",
+      "kind": "mine",
+      "text_fr": "Le gaz coûte combien maintenant ?",
+      "mode": "text"
+     },
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T00:47:36.463006+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Le prix repère du gaz est 182,88 €/MWh (c1), hein. Pour les clients avec offre indexée, la facture d'octobre augmente de 5,28 € en moyenne (c2).",
+      "translation": "Der Referenzpreis für Gas liegt bei 182,88 €/MWh (c1), ja. Für Kund:innen mit indexiertem Tarif steigt die Oktoberrechnung im Durchschnitt um 5,28 € (c2).",
+      "glosses": [
+       {
+        "fr": "le prix repère",
+        "gloss": "Referenzpreis",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la facture",
+        "gloss": "Rechnung",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "10",
+      "seq": 10,
+      "at": "2026-10-03T00:47:39.514223+00:00",
+      "kind": "guest",
+      "cast_id": "landlord_marchand",
+      "text_fr": "Je gère des immeubles dans le dixième. L'augmentation du gaz et +5,28 € m'intéressent pour mes locataires, voyez-vous.",
+      "move": "enter",
+      "position": null,
+      "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le prix repère",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le mégawattheure",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la facture",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le plafond",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le chèque de 100 euros",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "Le prix du gaz va encore monter en novembre ?",
+   "result": {
+    "items": [
+     {
+      "id": "13",
+      "seq": 13,
+      "at": "2026-10-03T00:47:39.525668+00:00",
+      "kind": "mine",
+      "text_fr": "Le prix du gaz va encore monter en novembre ?",
+      "mode": "text"
+     },
+     {
+      "id": "14",
+      "seq": 14,
+      "at": "2026-10-03T00:47:43.030141+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Le prix repère est 182,88 €/MWh (c1). La facture d'octobre augmente en moyenne de 5,28 € (c2). Les sources ne disent pas si le prix montera en novembre (incertitude 0). Veux-tu que je formule la question pour un lecteur ?",
+      "translation": "Der Referenzpreis liegt bei 182,88 €/MWh (c1). Die Oktoberrechnung steigt im Mittel um 5,28 € (c2). Die Quellen sagen nicht, ob der Preis im November steigen wird (Ungewissheit 0). Soll ich die Frage für eine Leserin formulieren?",
+      "glosses": [
+       {
+        "fr": "le prix repère",
+        "gloss": "Referenzpreis",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la facture",
+        "gloss": "Rechnung",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "14.u",
+      "seq": 14,
+      "at": "2026-10-03T00:47:43.030141+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre."
+     },
+     {
+      "id": "15",
+      "seq": 15,
+      "at": "2026-10-03T00:47:45.547890+00:00",
+      "kind": "guest",
+      "cast_id": "landlord_marchand",
+      "text_fr": "Je m'occupe d'immeubles; j'ai des locataires. Cela m'inquiète si le gaz monte encore. Vous avez d'autres infos ?",
+      "move": "follow_up",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": []
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le prix repère",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le mégawattheure",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la facture",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le plafond",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le chèque de 100 euros",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok"
+    }
+   }
+  },
+  {
+   "learner": "Je trouve ça cher. Pour moi, la prix repère, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "18",
+      "seq": 18,
+      "at": "2026-10-03T00:47:45.560462+00:00",
+      "kind": "mine",
+      "text_fr": "Je trouve ça cher. Pour moi, la prix repère, c'est important.",
+      "mode": "text"
+     },
+     {
+      "id": "19",
+      "seq": 19,
+      "at": "2026-10-03T00:47:49.372540+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Le prix repère est 182,88 €/MWh (c1). Pour les clients indexés, la facture d'octobre augmente en moyenne de 5,28 € (c2). Tu veux que je formule une question pour un lecteur sur le coût du gaz ?",
+      "translation": "Der Referenzpreis liegt bei 182,88 €/MWh (c1). Für Kunden mit indexiertem Vertrag steigt die Oktober-Rechnung im Durchschnitt um 5,28 € (c2). Soll ich eine Leserfrage zum Gaskosten formulieren?",
+      "glosses": [
+       {
+        "fr": "le prix repère",
+        "gloss": "Referenzpreis",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "la facture",
+        "gloss": "Rechnung",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "20",
+      "seq": 20,
+      "at": "2026-10-03T00:47:51.967514+00:00",
+      "kind": "guest",
+      "cast_id": "landlord_marchand",
+      "text_fr": "Vous avez une offre indexée pour le gaz, ou c’est vos locataires qui paient la facture ?",
+      "move": "follow_up",
+      "position": null,
+      "reason_fr": null,
+      "reason": null,
+      "glosses": [
+       {
+        "fr": "la facture",
+        "gloss": "Rechnung",
+        "claim_id": "c2"
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "incorrect",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "le prix repère",
+       "outcome": "incorrect",
+       "capability_known": false
+      },
+      {
+       "fr": "le mégawattheure",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "la facture",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le plafond",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "le chèque de 100 euros",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "supported",
+     "register_note": "ok"
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Prix du gaz : repli à 172,05 €/MWh en octobre"
+     },
+     {
+      "id": "h2",
+      "text_fr": "Facture de gaz d'octobre : aucun surcoût pour les clients indexés"
+     },
+     {
+      "id": "h3",
+      "text_fr": "Franchises médicales : plafond porté à 140 € par an"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Le prix du gaz va encore monter en novembre ?",
+    "uncertainty_fr": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre."
+   }
+  ],
+  "intro": {
+   "id": "23",
+   "seq": 23,
+   "at": "2026-10-03T00:48:00.845716+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "Le prix du gaz va encore monter en novembre ?",
+    "proposal_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+    "contribution": [
+     [
+      0,
+      14
+     ],
+     [
+      23,
+      48
+     ]
+    ],
+    "why_native": "Hauptänderung: Zur korrekten Fragestellung wurde die Verb-Subjekt-Umkehr verwendet («va-t-il») statt Aussagesatz plus Fragezeichen."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+    "contribution": [
+     [
+      0,
+      14
+     ],
+     [
+      23,
+      48
+     ]
+    ],
+    "learner_fr": "Le prix du gaz va encore monter en novembre ?"
+   },
+   "line": {
+    "id": "27",
+    "seq": 27,
+    "at": "2026-10-03T00:48:03.699017+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je garde ta question telle quelle ; d'après le dossier, les sources sont muettes sur novembre.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+   "body_fr": [
+    "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+    "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+    "Le plafond des franchises médicales passe de 100 à 140 euros par an."
+   ],
+   "contribution": [
+    [
+     0,
+     14
+    ],
+    [
+     23,
+     48
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après franceinfo",
+   "sources": [
+    {
+     "id": "w40_octobre_franceinfo",
+     "name": "franceinfo",
+     "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+     "published_at": "2026-09-30"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "le prix repère",
+     "gloss": "Referenzpreis",
+     "claim_id": "c1",
+     "used": true
+    },
+    {
+     "fr": "le mégawattheure",
+     "gloss": "Megawattstunde",
+     "claim_id": "c1",
+     "used": false
+    },
+    {
+     "fr": "la facture",
+     "gloss": "Rechnung",
+     "claim_id": "c2",
+     "used": false
+    },
+    {
+     "fr": "le plafond",
+     "gloss": "Obergrenze; Höchstbetrag",
+     "claim_id": "c3",
+     "used": false
+    },
+    {
+     "fr": "le chèque de 100 euros",
+     "gloss": "100‑Euro-Scheck",
+     "claim_id": "c4",
+     "used": false
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+     "quote": "il s'établira à 182,88 euros du mégawattheure (MWh) à compter du 1er octobre 2026, contre 172,05 euros en septembre. Soit une hausse de 6,3%.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+     "quote": "constateront ainsi \"une augmentation de 5,28 euros en moyenne sur les factures du mois d'octobre\"",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+     "quote": "le gouvernement a annoncé fixer le plafond des franchises à 140 euros par an, contre 100 euros actuellement",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+     "quote": "cette mesure mise en place par le gouvernement pour faire face à la hausse des prix du carburant équivaut à \"40 centimes par litre de carburant pour deux mois en moyenne\", a estimé la porte-parole du gouvernement",
+     "attributed_to": "Maud Bregeon, porte-parole du gouvernement",
+     "source": {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+  "vignette": {
+   "id": "678d4411-8829-4cd7-80c5-f56faa6f051f",
+   "session_id": "7f886b61-8d36-4a65-8ff9-772f4e4cd5ef",
+   "dossier_id": "2026-w40-ce-qui-change-1er-octobre",
+   "week": "2026-W40",
+   "place_label_fr": "Une petite cuisine, la facture de gaz sur la table",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"22\" fill=\"#F3C318\"/><rect x=\"37\" y=\"56\" width=\"26\" height=\"14\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#D8321A\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"47\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "Gaz, carburant, santé : ce qui change au 1er octobre",
+   "minted_at": "2026-10-03T00:48:08"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T00:47:29.284918+00:00",
+   "kind": "narration",
+   "text_fr": "Une petite cuisine, la facture de gaz sur la table."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T00:47:29.284918+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : ça se passe du 1er oct. au 31 oct.."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T00:47:29.284918+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment une petite cuisine, la facture de gaz sur la table, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "la facture",
+     "gloss": "Rechnung",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T00:47:29.284918+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change sur la facture et chez le médecin ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "la facture",
+     "gloss": "Rechnung",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T00:47:29.284918+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "Comme chaque mois, des règles changent au 1er octobre 2026. Le prix repère du gaz augmente de 6,3 %, les franchises médicales coûtent plus cher sur l'année, et un nouveau chèque de 100 euros aide les personnes qui roulent beaucoup en voiture."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T00:47:29.291918+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text"
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T00:47:33.505998+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Merci. Voilà ce qui change : prix repère du gaz 182,88 €/MWh (+6,3 %) (c1). Pour offres indexées, facture +5,28 € en moyenne (c2). Plafond franchises médicales 100→140 € (c3). D'après le gouvernement, le chèque vaut ≈0,40 €/L (c4).",
+   "translation": "Danke. Das ändert sich: Richtpreis für Gas 182,88 €/MWh (+6,3 %) (c1). Bei indexierten Tarifen steigt die Rechnung um 5,28 € im Durchschnitt (c2). Höchstbetrag für Gesundheitsfranchisen 100→140 € (c3). Laut Regierung ist der Scheck ~0,40 €/L wert (c4).",
+   "glosses": [
+    {
+     "fr": "le prix repère",
+     "gloss": "Referenzpreis",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la facture",
+     "gloss": "Rechnung",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "le plafond",
+     "gloss": "Obergrenze; Höchstbetrag",
+     "claim_id": "c3"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T00:47:33.506046+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+     "quote": "il s'établira à 182,88 euros du mégawattheure (MWh) à compter du 1er octobre 2026, contre 172,05 euros en septembre. Soit une hausse de 6,3%.",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+     "quote": "constateront ainsi \"une augmentation de 5,28 euros en moyenne sur les factures du mois d'octobre\"",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+     "quote": "le gouvernement a annoncé fixer le plafond des franchises à 140 euros par an, contre 100 euros actuellement",
+     "attributed_to": null,
+     "source": {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+     "quote": "cette mesure mise en place par le gouvernement pour faire face à la hausse des prix du carburant équivaut à \"40 centimes par litre de carburant pour deux mois en moyenne\", a estimé la porte-parole du gouvernement",
+     "attributed_to": "Maud Bregeon, porte-parole du gouvernement",
+     "source": {
+      "id": "w40_octobre_franceinfo",
+      "name": "franceinfo",
+      "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+      "published_at": "2026-09-30"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-03T00:47:33.515082+00:00",
+   "kind": "mine",
+   "text_fr": "Le gaz coûte combien maintenant ?",
+   "mode": "text"
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T00:47:36.463006+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Le prix repère du gaz est 182,88 €/MWh (c1), hein. Pour les clients avec offre indexée, la facture d'octobre augmente de 5,28 € en moyenne (c2).",
+   "translation": "Der Referenzpreis für Gas liegt bei 182,88 €/MWh (c1), ja. Für Kund:innen mit indexiertem Tarif steigt die Oktoberrechnung im Durchschnitt um 5,28 € (c2).",
+   "glosses": [
+    {
+     "fr": "le prix repère",
+     "gloss": "Referenzpreis",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la facture",
+     "gloss": "Rechnung",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "10",
+   "seq": 10,
+   "at": "2026-10-03T00:47:39.514223+00:00",
+   "kind": "guest",
+   "cast_id": "landlord_marchand",
+   "text_fr": "Je gère des immeubles dans le dixième. L'augmentation du gaz et +5,28 € m'intéressent pour mes locataires, voyez-vous.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "13",
+   "seq": 13,
+   "at": "2026-10-03T00:47:39.525668+00:00",
+   "kind": "mine",
+   "text_fr": "Le prix du gaz va encore monter en novembre ?",
+   "mode": "text"
+  },
+  {
+   "id": "14",
+   "seq": 14,
+   "at": "2026-10-03T00:47:43.030141+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Le prix repère est 182,88 €/MWh (c1). La facture d'octobre augmente en moyenne de 5,28 € (c2). Les sources ne disent pas si le prix montera en novembre (incertitude 0). Veux-tu que je formule la question pour un lecteur ?",
+   "translation": "Der Referenzpreis liegt bei 182,88 €/MWh (c1). Die Oktoberrechnung steigt im Mittel um 5,28 € (c2). Die Quellen sagen nicht, ob der Preis im November steigen wird (Ungewissheit 0). Soll ich die Frage für eine Leserin formulieren?",
+   "glosses": [
+    {
+     "fr": "le prix repère",
+     "gloss": "Referenzpreis",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la facture",
+     "gloss": "Rechnung",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "14.u",
+   "seq": 14,
+   "at": "2026-10-03T00:47:43.030141+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre."
+  },
+  {
+   "id": "15",
+   "seq": 15,
+   "at": "2026-10-03T00:47:45.547890+00:00",
+   "kind": "guest",
+   "cast_id": "landlord_marchand",
+   "text_fr": "Je m'occupe d'immeubles; j'ai des locataires. Cela m'inquiète si le gaz monte encore. Vous avez d'autres infos ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": []
+  },
+  {
+   "id": "18",
+   "seq": 18,
+   "at": "2026-10-03T00:47:45.560462+00:00",
+   "kind": "mine",
+   "text_fr": "Je trouve ça cher. Pour moi, la prix repère, c'est important.",
+   "mode": "text"
+  },
+  {
+   "id": "19",
+   "seq": 19,
+   "at": "2026-10-03T00:47:49.372540+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Le prix repère est 182,88 €/MWh (c1). Pour les clients indexés, la facture d'octobre augmente en moyenne de 5,28 € (c2). Tu veux que je formule une question pour un lecteur sur le coût du gaz ?",
+   "translation": "Der Referenzpreis liegt bei 182,88 €/MWh (c1). Für Kunden mit indexiertem Vertrag steigt die Oktober-Rechnung im Durchschnitt um 5,28 € (c2). Soll ich eine Leserfrage zum Gaskosten formulieren?",
+   "glosses": [
+    {
+     "fr": "le prix repère",
+     "gloss": "Referenzpreis",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la facture",
+     "gloss": "Rechnung",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "20",
+   "seq": 20,
+   "at": "2026-10-03T00:47:51.967514+00:00",
+   "kind": "guest",
+   "cast_id": "landlord_marchand",
+   "text_fr": "Vous avez une offre indexée pour le gaz, ou c’est vos locataires qui paient la facture ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "glosses": [
+    {
+     "fr": "la facture",
+     "gloss": "Rechnung",
+     "claim_id": "c2"
+    }
+   ]
+  },
+  {
+   "id": "23",
+   "seq": 23,
+   "at": "2026-10-03T00:48:00.845716+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "26",
+   "seq": 26,
+   "at": "2026-10-03T00:48:03.698999+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+    "contribution": [
+     [
+      0,
+      14
+     ],
+     [
+      23,
+      48
+     ]
+    ],
+    "learner_fr": "Le prix du gaz va encore monter en novembre ?"
+   }
+  },
+  {
+   "id": "27",
+   "seq": 27,
+   "at": "2026-10-03T00:48:03.699017+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "28",
+   "seq": 28,
+   "at": "2026-10-03T00:48:08.075894+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je garde ta question telle quelle ; d'après le dossier, les sources sont muettes sur novembre.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "2026-w40-ce-qui-change-1er-octobre",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "2026-w40-ce-qui-change-1er-octobre",
+     "dossier_version": "revue-v1",
+     "week": "2026-W40",
+     "topic": "city",
+     "title_fr": "Gaz, carburant, santé : ce qui change au 1er octobre",
+     "summary_fr": "Comme chaque mois, des règles changent au 1er octobre 2026. Le prix repère du gaz augmente de 6,3 %, les franchises médicales coûtent plus cher sur l'année, et un nouveau chèque de 100 euros aide les personnes qui roulent beaucoup en voiture.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+       "quote": "il s'établira à 182,88 euros du mégawattheure (MWh) à compter du 1er octobre 2026, contre 172,05 euros en septembre. Soit une hausse de 6,3%.",
+       "source_id": "w40_octobre_franceinfo",
+       "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+       "published_at": "2026-09-30",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+       "quote": "constateront ainsi \"une augmentation de 5,28 euros en moyenne sur les factures du mois d'octobre\"",
+       "source_id": "w40_octobre_franceinfo",
+       "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+       "published_at": "2026-09-30",
+       "confidence": "reported",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+       "quote": "le gouvernement a annoncé fixer le plafond des franchises à 140 euros par an, contre 100 euros actuellement",
+       "source_id": "w40_octobre_franceinfo",
+       "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+       "published_at": "2026-09-30",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+       "quote": "cette mesure mise en place par le gouvernement pour faire face à la hausse des prix du carburant équivaut à \"40 centimes par litre de carburant pour deux mois en moyenne\", a estimé la porte-parole du gouvernement",
+       "source_id": "w40_octobre_franceinfo",
+       "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+       "published_at": "2026-09-30",
+       "confidence": "reported",
+       "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+      }
+     ],
+     "entities": [
+      {
+       "name": "Maud Bregeon",
+       "kind": "person",
+       "role": "porte-parole du gouvernement et ministre déléguée à l'Énergie"
+      },
+      {
+       "name": "Commission de régulation de l'énergie",
+       "kind": "organisation",
+       "role": null
+      }
+     ],
+     "uncertainties": [
+      "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+      "Les sources ne disent pas combien de temps le chèque pour les « grands rouleurs » sera prolongé après décembre."
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Ce qui change sur la facture et chez le médecin",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": "landlord_marchand"
+      },
+      {
+       "id": "a2",
+       "fr": "Prévenir Margaux : trois changements à connaître ce mois-ci",
+       "purpose": "prepare_dispatch",
+       "participation": "none",
+       "guest_fit": "landlord_marchand"
+      }
+     ],
+     "places": [
+      {
+       "id": "cuisine_facture_gaz",
+       "name_fr": "Une petite cuisine, la facture de gaz sur la table",
+       "brief": "a small apartment kitchen with an old gas stove and a kettle, an open energy bill and a pen on the table, a calendar on the wall, grey morning light through the window",
+       "known": false,
+       "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-10-01/2026-10-31",
+      "relevant_until": "2026-10-31"
+     },
+     "sources": [
+      {
+       "id": "w40_octobre_franceinfo",
+       "name": "franceinfo",
+       "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+       "published_at": "2026-09-30"
+      }
+     ],
+     "evergreen": false,
+     "vignette_object_fr": "une page de calendrier"
+    },
+    "cost_usd": 0.001618
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "Une petite cuisine, la facture de gaz sur la table.",
+     "Romy est déjà là, son carnet à la main : ça se passe du 1er oct. au 31 oct.."
+    ],
+    "place_note": "Ce n'est pas vraiment une petite cuisine, la facture de gaz sur la table, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change sur la facture et chez le médecin ». Tu m'aides ?",
+    "summary_fr": "Comme chaque mois, des règles changent au 1er octobre 2026. Le prix repère du gaz augmente de 6,3 %, les franchises médicales coûtent plus cher sur l'année, et un nouveau chèque de 100 euros aide les personnes qui roulent beaucoup en voiture."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Merci. Voilà ce qui change : prix repère du gaz 182,88 €/MWh (+6,3 %) (c1). Pour offres indexées, facture +5,28 € en moyenne (c2). Plafond franchises médicales 100→140 € (c3). D'après le gouvernement, le chèque vaut ≈0,40 €/L (c4).",
+    "translation": "Danke. Das ändert sich: Richtpreis für Gas 182,88 €/MWh (+6,3 %) (c1). Bei indexierten Tarifen steigt die Rechnung um 5,28 € im Durchschnitt (c2). Höchstbetrag für Gesundheitsfranchisen 100→140 € (c3). Laut Regierung ist der Scheck ~0,40 €/L wert (c4).",
+    "claims_cited": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": "Veux-tu que je formule une question pour les lecteurs ?",
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001745
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le prix repère",
+      "outcome": "unscored",
+      "capability_id": "revue.word:prix repere",
+      "capability_known": false
+     },
+     {
+      "fr": "le mégawattheure",
+      "outcome": "unscored",
+      "capability_id": "revue.word:megawattheure",
+      "capability_known": false
+     },
+     {
+      "fr": "la facture",
+      "outcome": "unscored",
+      "capability_id": "revue.word:facture",
+      "capability_known": false
+     },
+     {
+      "fr": "le plafond",
+      "outcome": "unscored",
+      "capability_id": "revue.word:plafond",
+      "capability_known": false
+     },
+     {
+      "fr": "le chèque de 100 euros",
+      "outcome": "unscored",
+      "capability_id": "revue.word:cheque de 100 euros",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Le gaz coûte combien maintenant ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Le prix repère du gaz est 182,88 €/MWh (c1), hein. Pour les clients avec offre indexée, la facture d'octobre augmente de 5,28 € en moyenne (c2).",
+    "translation": "Der Referenzpreis für Gas liegt bei 182,88 €/MWh (c1), ja. Für Kund:innen mit indexiertem Tarif steigt die Oktoberrechnung im Durchschnitt um 5,28 € (c2).",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": null,
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001092
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "guest_enter",
+   "payload": {
+    "id": "landlord_marchand",
+    "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+    "reason": "he manages buildings in the 10e and anything about Une petite cuisine, la facture de gaz sur la table touches his business",
+    "trigger": "guest_fit",
+    "word": null,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "landlord_marchand",
+    "text_fr": "Je gère des immeubles dans le dixième. L'augmentation du gaz et +5,28 € m'intéressent pour mes locataires, voyez-vous.",
+    "move": "enter",
+    "position": null,
+    "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001164,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Le gaz coûte combien maintenant ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 7,
+    "kept": false
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le prix repère",
+      "outcome": "unscored",
+      "capability_id": "revue.word:prix repere",
+      "capability_known": false
+     },
+     {
+      "fr": "le mégawattheure",
+      "outcome": "unscored",
+      "capability_id": "revue.word:megawattheure",
+      "capability_known": false
+     },
+     {
+      "fr": "la facture",
+      "outcome": "unscored",
+      "capability_id": "revue.word:facture",
+      "capability_known": false
+     },
+     {
+      "fr": "le plafond",
+      "outcome": "unscored",
+      "capability_id": "revue.word:plafond",
+      "capability_known": false
+     },
+     {
+      "fr": "le chèque de 100 euros",
+      "outcome": "unscored",
+      "capability_id": "revue.word:cheque de 100 euros",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Le prix du gaz va encore monter en novembre ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Le prix repère est 182,88 €/MWh (c1). La facture d'octobre augmente en moyenne de 5,28 € (c2). Les sources ne disent pas si le prix montera en novembre (incertitude 0). Veux-tu que je formule la question pour un lecteur ?",
+    "translation": "Der Referenzpreis liegt bei 182,88 €/MWh (c1). Die Oktoberrechnung steigt im Mittel um 5,28 € (c2). Die Quellen sagen nicht, ob der Preis im November steigen wird (Ungewissheit 0). Soll ich die Frage für eine Leserin formulieren?",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_index": 0,
+    "uncertainty_text": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+    "proposes_question": "Veux-tu que je demande «Le prix repère du gaz va-t-il augmenter en novembre ?»",
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001341
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "landlord_marchand",
+    "text_fr": "Je m'occupe d'immeubles; j'ai des locataires. Cela m'inquiète si le gaz monte encore. Vous avez d'autres infos ?",
+    "move": "follow_up",
+    "position": null,
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.000906,
+    "turn_seq": 13
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Le prix du gaz va encore monter en novembre ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+    "turn_seq": 13,
+    "kept": false
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "le prix repère",
+      "outcome": "unscored",
+      "capability_id": "revue.word:prix repere",
+      "capability_known": false
+     },
+     {
+      "fr": "le mégawattheure",
+      "outcome": "unscored",
+      "capability_id": "revue.word:megawattheure",
+      "capability_known": false
+     },
+     {
+      "fr": "la facture",
+      "outcome": "unscored",
+      "capability_id": "revue.word:facture",
+      "capability_known": false
+     },
+     {
+      "fr": "le plafond",
+      "outcome": "unscored",
+      "capability_id": "revue.word:plafond",
+      "capability_known": false
+     },
+     {
+      "fr": "le chèque de 100 euros",
+      "outcome": "unscored",
+      "capability_id": "revue.word:cheque de 100 euros",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 13
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Je trouve ça cher. Pour moi, la prix repère, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Le prix repère est 182,88 €/MWh (c1). Pour les clients indexés, la facture d'octobre augmente en moyenne de 5,28 € (c2). Tu veux que je formule une question pour un lecteur sur le coût du gaz ?",
+    "translation": "Der Referenzpreis liegt bei 182,88 €/MWh (c1). Für Kunden mit indexiertem Vertrag steigt die Oktober-Rechnung im Durchschnitt um 5,28 € (c2). Soll ich eine Leserfrage zum Gaskosten formulieren?",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "proposes_question": "Comment le prix repère à 182,88 €/MWh va-t-il affecter ma facture ?",
+    "shift": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.001566
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "landlord_marchand",
+    "text_fr": "Vous avez une offre indexée pour le gaz, ou c’est vos locataires qui paient la facture ?",
+    "move": "follow_up",
+    "position": null,
+    "reason_fr": null,
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "cost_usd": 0.000893,
+    "turn_seq": 18
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:prix repere",
+    "outcome": "incorrect",
+    "capability_known": false,
+    "correct": false,
+    "words": [],
+    "words_used": [
+     "le prix repère"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "le prix repère",
+      "outcome": "incorrect",
+      "capability_id": "revue.word:prix repere",
+      "capability_known": false
+     },
+     {
+      "fr": "le mégawattheure",
+      "outcome": "unscored",
+      "capability_id": "revue.word:megawattheure",
+      "capability_known": false
+     },
+     {
+      "fr": "la facture",
+      "outcome": "unscored",
+      "capability_id": "revue.word:facture",
+      "capability_known": false
+     },
+     {
+      "fr": "le plafond",
+      "outcome": "unscored",
+      "capability_id": "revue.word:plafond",
+      "capability_known": false
+     },
+     {
+      "fr": "le chèque de 100 euros",
+      "outcome": "unscored",
+      "capability_id": "revue.word:cheque de 100 euros",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "supported",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000829,
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 18
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "Prix du gaz : repli à 172,05 €/MWh en octobre"
+      },
+      {
+       "id": "h2",
+       "text_fr": "Facture de gaz d'octobre : aucun surcoût pour les clients indexés"
+      },
+      {
+       "id": "h3",
+       "text_fr": "Franchises médicales : plafond porté à 140 € par an"
+      }
+     ],
+     "answer": "h3",
+     "supported_by": "c3",
+     "contradicted_by": {
+      "h1": "c1",
+      "h2": "c2"
+     }
+    },
+    "cost_usd": 0.001365
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "Le prix du gaz va encore monter en novembre ?",
+    "proposal_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+    "contribution": [
+     [
+      0,
+      14
+     ],
+     [
+      23,
+      48
+     ]
+    ],
+    "why_native": "Hauptänderung: Zur korrekten Fragestellung wurde die Verb-Subjekt-Umkehr verwendet («va-t-il») statt Aussagesatz plus Fragezeichen.",
+    "cost_usd": 0.000586
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+    "contribution": [
+     [
+      0,
+      14
+     ],
+     [
+      23,
+      48
+     ]
+    ],
+    "learner_fr": "Le prix du gaz va encore monter en novembre ?"
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 28,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je garde ta question telle quelle ; d'après le dossier, les sources sont muettes sur novembre.",
+    "cost_usd": 0.001203
+   }
+  },
+  {
+   "seq": 29,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je garde ta question telle quelle ; d'après le dossier, les sources sont muettes sur novembre.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+      "body_fr": [
+       "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+       "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+       "Le plafond des franchises médicales passe de 100 à 140 euros par an."
+      ],
+      "contribution": [
+       [
+        0,
+        14
+       ],
+       [
+        23,
+        48
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après franceinfo",
+      "sources": [
+       {
+        "id": "w40_octobre_franceinfo",
+        "name": "franceinfo",
+        "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+        "published_at": "2026-09-30"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "le prix repère",
+        "gloss": "Referenzpreis",
+        "claim_id": "c1",
+        "used": true
+       },
+       {
+        "fr": "le mégawattheure",
+        "gloss": "Megawattstunde",
+        "claim_id": "c1",
+        "used": false
+       },
+       {
+        "fr": "la facture",
+        "gloss": "Rechnung",
+        "claim_id": "c2",
+        "used": false
+       },
+       {
+        "fr": "le plafond",
+        "gloss": "Obergrenze; Höchstbetrag",
+        "claim_id": "c3",
+        "used": false
+       },
+       {
+        "fr": "le chèque de 100 euros",
+        "gloss": "100‑Euro-Scheck",
+        "claim_id": "c4",
+        "used": false
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+        "quote": "il s'établira à 182,88 euros du mégawattheure (MWh) à compter du 1er octobre 2026, contre 172,05 euros en septembre. Soit une hausse de 6,3%.",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_octobre_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+        "quote": "constateront ainsi \"une augmentation de 5,28 euros en moyenne sur les factures du mois d'octobre\"",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_octobre_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+        "quote": "le gouvernement a annoncé fixer le plafond des franchises à 140 euros par an, contre 100 euros actuellement",
+        "attributed_to": null,
+        "source": {
+         "id": "w40_octobre_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+         "published_at": "2026-09-30"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+        "quote": "cette mesure mise en place par le gouvernement pour faire face à la hausse des prix du carburant équivaut à \"40 centimes par litre de carburant pour deux mois en moyenne\", a estimé la porte-parole du gouvernement",
+        "attributed_to": "Maud Bregeon, porte-parole du gouvernement",
+        "source": {
+         "id": "w40_octobre_franceinfo",
+         "name": "franceinfo",
+         "url": "https://www.franceinfo.fr/france/aides-pour-les-carburants-prix-du-gaz-remboursement-des-medicaments-ce-qui-change-au-1er-octobre_8214359.html",
+         "published_at": "2026-09-30"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+     "vignette": {
+      "id": "678d4411-8829-4cd7-80c5-f56faa6f051f",
+      "session_id": "7f886b61-8d36-4a65-8ff9-772f4e4cd5ef",
+      "dossier_id": "2026-w40-ce-qui-change-1er-octobre",
+      "week": "2026-W40",
+      "place_label_fr": "Une petite cuisine, la facture de gaz sur la table",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"22\" fill=\"#F3C318\"/><rect x=\"37\" y=\"56\" width=\"26\" height=\"14\" rx=\"3\" fill=\"#1D3A8A\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#D8321A\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"47\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "Gaz, carburant, santé : ce qui change au 1er octobre",
+      "minted_at": "2026-10-03T00:48:08"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le prix repère",
+     "outcome": "unscored",
+     "capability_id": "revue.word:prix repere",
+     "capability_known": false
+    },
+    {
+     "fr": "le mégawattheure",
+     "outcome": "unscored",
+     "capability_id": "revue.word:megawattheure",
+     "capability_known": false
+    },
+    {
+     "fr": "la facture",
+     "outcome": "unscored",
+     "capability_id": "revue.word:facture",
+     "capability_known": false
+    },
+    {
+     "fr": "le plafond",
+     "outcome": "unscored",
+     "capability_id": "revue.word:plafond",
+     "capability_known": false
+    },
+    {
+     "fr": "le chèque de 100 euros",
+     "outcome": "unscored",
+     "capability_id": "revue.word:cheque de 100 euros",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le prix repère",
+     "outcome": "unscored",
+     "capability_id": "revue.word:prix repere",
+     "capability_known": false
+    },
+    {
+     "fr": "le mégawattheure",
+     "outcome": "unscored",
+     "capability_id": "revue.word:megawattheure",
+     "capability_known": false
+    },
+    {
+     "fr": "la facture",
+     "outcome": "unscored",
+     "capability_id": "revue.word:facture",
+     "capability_known": false
+    },
+    {
+     "fr": "le plafond",
+     "outcome": "unscored",
+     "capability_id": "revue.word:plafond",
+     "capability_known": false
+    },
+    {
+     "fr": "le chèque de 100 euros",
+     "outcome": "unscored",
+     "capability_id": "revue.word:cheque de 100 euros",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 7
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "le prix repère",
+     "outcome": "unscored",
+     "capability_id": "revue.word:prix repere",
+     "capability_known": false
+    },
+    {
+     "fr": "le mégawattheure",
+     "outcome": "unscored",
+     "capability_id": "revue.word:megawattheure",
+     "capability_known": false
+    },
+    {
+     "fr": "la facture",
+     "outcome": "unscored",
+     "capability_id": "revue.word:facture",
+     "capability_known": false
+    },
+    {
+     "fr": "le plafond",
+     "outcome": "unscored",
+     "capability_id": "revue.word:plafond",
+     "capability_known": false
+    },
+    {
+     "fr": "le chèque de 100 euros",
+     "outcome": "unscored",
+     "capability_id": "revue.word:cheque de 100 euros",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 13
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:prix repere",
+   "outcome": "incorrect",
+   "capability_known": false,
+   "correct": false,
+   "words": [],
+   "words_used": [
+    "le prix repère"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "le prix repère",
+     "outcome": "incorrect",
+     "capability_id": "revue.word:prix repere",
+     "capability_known": false
+    },
+    {
+     "fr": "le mégawattheure",
+     "outcome": "unscored",
+     "capability_id": "revue.word:megawattheure",
+     "capability_known": false
+    },
+    {
+     "fr": "la facture",
+     "outcome": "unscored",
+     "capability_id": "revue.word:facture",
+     "capability_known": false
+    },
+    {
+     "fr": "le plafond",
+     "outcome": "unscored",
+     "capability_id": "revue.word:plafond",
+     "capability_known": false
+    },
+    {
+     "fr": "le chèque de 100 euros",
+     "outcome": "unscored",
+     "capability_id": "revue.word:cheque de 100 euros",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000829,
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 18
+  }
+ ],
+ "guest": [
+  {
+   "kind": "guest_enter",
+   "id": "landlord_marchand",
+   "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+   "reason": "he manages buildings in the 10e and anything about Une petite cuisine, la facture de gaz sur la table touches his business",
+   "trigger": "guest_fit",
+   "word": null,
+   "turn_seq": 7
+  },
+  {
+   "kind": "turn_guest",
+   "id": "landlord_marchand",
+   "text_fr": "Je gère des immeubles dans le dixième. L'augmentation du gaz et +5,28 € m'intéressent pour mes locataires, voyez-vous.",
+   "move": "enter",
+   "position": null,
+   "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.001164,
+   "turn_seq": 7
+  },
+  {
+   "kind": "turn_guest",
+   "id": "landlord_marchand",
+   "text_fr": "Je m'occupe d'immeubles; j'ai des locataires. Cela m'inquiète si le gaz monte encore. Vous avez d'autres infos ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.000906,
+   "turn_seq": 13
+  },
+  {
+   "kind": "turn_guest",
+   "id": "landlord_marchand",
+   "text_fr": "Vous avez une offre indexée pour le gaz, ou c’est vos locataires qui paient la facture ?",
+   "move": "follow_up",
+   "position": null,
+   "reason_fr": null,
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "cost_usd": 0.000893,
+   "turn_seq": 18
+  }
+ ],
+ "cost_usd_state": 0.014308,
+ "cost_usd_provider": 0.014308,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 5.555,
+   "cost_usd": 0.001618,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %."
+     },
+     {
+      "id": "c2",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne."
+     },
+     {
+      "id": "c3",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an."
+     },
+     {
+      "id": "c4",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois."
+     }
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "le prix repère",
+      "gloss": "Referenzpreis",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "le mégawattheure",
+      "gloss": "Megawattstunde",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "la facture",
+      "gloss": "Rechnung",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "le plafond",
+      "gloss": "Obergrenze; Höchstbetrag",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "le chèque de 100 euros",
+      "gloss": "100‑Euro-Scheck",
+      "claim_id": "c4"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.208,
+   "cost_usd": 0.001745,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+      "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+     "Les sources ne disent pas combien de temps le chèque pour les « grands rouleurs » sera prolongé après décembre."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change sur la facture et chez le médecin",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce qui change sur la facture et chez le médecin",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Prévenir Margaux : trois changements à connaître ce mois-ci",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A2",
+    "max_words": 45,
+    "claims_shown": [],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Une petite cuisine, la facture de gaz sur la table."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 1er oct. au 31 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une petite cuisine, la facture de gaz sur la table, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change sur la facture et chez le médecin ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Merci. Voilà ce qui change : prix repère du gaz 182,88 €/MWh (+6,3 %) (c1). Pour offres indexées, facture +5,28 € en moyenne (c2). Plafond franchises médicales 100→140 € (c3). D'après le gouvernement, le chèque vaut ≈0,40 €/L (c4).",
+    "translation": "Danke. Das ändert sich: Richtpreis für Gas 182,88 €/MWh (+6,3 %) (c1). Bei indexierten Tarifen steigt die Rechnung um 5,28 € im Durchschnitt (c2). Höchstbetrag für Gesundheitsfranchisen 100→140 € (c3). Laut Regierung ist der Scheck ~0,40 €/L wert (c4).",
+    "claims_cited": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": "Veux-tu que je formule une question pour les lecteurs ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 2.943,
+   "cost_usd": 0.001092,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Le gaz coûte combien maintenant ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+      "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+     "Les sources ne disent pas combien de temps le chèque pour les « grands rouleurs » sera prolongé après décembre."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change sur la facture et chez le médecin",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce qui change sur la facture et chez le médecin",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Prévenir Margaux : trois changements à connaître ce mois-ci",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A2",
+    "max_words": 45,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 1er oct. au 31 oct.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une petite cuisine, la facture de gaz sur la table, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change sur la facture et chez le médecin ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Voilà ce qui change : prix repère du gaz 182,88 €/MWh (+6,3 %) (c1). Pour offres indexées, facture +5,28 € en moyenne (c2). Plafond franchises médicales 100→140 € (c3). D'après le gouvernement, le chèque vaut ≈0,40 €/L (c4)."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3, c4"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Le prix repère du gaz est 182,88 €/MWh (c1), hein. Pour les clients avec offre indexée, la facture d'octobre augmente de 5,28 € en moyenne (c2).",
+    "translation": "Der Referenzpreis für Gas liegt bei 182,88 €/MWh (c1), ja. Für Kund:innen mit indexiertem Tarif steigt die Oktoberrechnung im Durchschnitt um 5,28 € (c2).",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 3.045,
+   "cost_usd": 0.001164,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "landlord_marchand",
+    "name": "M. Marchand",
+    "register": "vous",
+    "move": "enter",
+    "reason_fr": "Je gère des immeubles dans le dixième. Tout cela me concerne, voyez-vous.",
+    "position": null,
+    "learner_text": "Le gaz coûte combien maintenant ?",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change sur la facture et chez le médecin",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+      "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A2",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce qui change sur la facture et chez le médecin ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Voilà ce qui change : prix repère du gaz 182,88 €/MWh (+6,3 %) (c1). Pour offres indexées, facture +5,28 € en moyenne (c2). Plafond franchises médicales 100→140 € (c3). D'après le gouvernement, le chèque vaut ≈0,40 €/L (c4)."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3, c4"
+     },
+     {
+      "who": "learner",
+      "text": "Le gaz coûte combien maintenant ?"
+     },
+     {
+      "who": "romy",
+      "text": "Le prix repère du gaz est 182,88 €/MWh (c1), hein. Pour les clients avec offre indexée, la facture d'octobre augmente de 5,28 € en moyenne (c2)."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "landlord_marchand",
+     "name": "M. Marchand",
+     "role": "Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).",
+     "personality": "Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.",
+     "register_with_user": "vous, always",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Je gère des immeubles dans le dixième. L'augmentation du gaz et +5,28 € m'intéressent pour mes locataires, voyez-vous.",
+    "position": null,
+    "move": "enter"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 3.498,
+   "cost_usd": 0.001341,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Le prix du gaz va encore monter en novembre ?",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+      "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+     "Les sources ne disent pas combien de temps le chèque pour les « grands rouleurs » sera prolongé après décembre."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change sur la facture et chez le médecin",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce qui change sur la facture et chez le médecin",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Prévenir Margaux : trois changements à connaître ce mois-ci",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A2",
+    "max_words": 45,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Merci. Voilà ce qui change : prix repère du gaz 182,88 €/MWh (+6,3 %) (c1). Pour offres indexées, facture +5,28 € en moyenne (c2). Plafond franchises médicales 100→140 € (c3). D'après le gouvernement, le chèque vaut ≈0,40 €/L (c4)."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c1, c2, c3, c4"
+     },
+     {
+      "who": "learner",
+      "text": "Le gaz coûte combien maintenant ?"
+     },
+     {
+      "who": "romy",
+      "text": "Le prix repère du gaz est 182,88 €/MWh (c1), hein. Pour les clients avec offre indexée, la facture d'octobre augmente de 5,28 € en moyenne (c2)."
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Je gère des immeubles dans le dixième. L'augmentation du gaz et +5,28 € m'intéressent pour mes locataires, voyez-vous."
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": "landlord_marchand",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Le prix repère est 182,88 €/MWh (c1). La facture d'octobre augmente en moyenne de 5,28 € (c2). Les sources ne disent pas si le prix montera en novembre (incertitude 0). Veux-tu que je formule la question pour un lecteur ?",
+    "translation": "Der Referenzpreis liegt bei 182,88 €/MWh (c1). Die Oktoberrechnung steigt im Mittel um 5,28 € (c2). Die Quellen sagen nicht, ob der Preis im November steigen wird (Ungewissheit 0). Soll ich die Frage für eine Leserin formulieren?",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_cited": 0,
+    "proposes_question": "Veux-tu que je demande «Le prix repère du gaz va-t-il augmenter en novembre ?»",
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.511,
+   "cost_usd": 0.000906,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "landlord_marchand",
+    "name": "M. Marchand",
+    "register": "vous",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": null,
+    "learner_text": "Le prix du gaz va encore monter en novembre ?",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change sur la facture et chez le médecin",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+      "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A2",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "learner",
+      "text": "Le gaz coûte combien maintenant ?"
+     },
+     {
+      "who": "romy",
+      "text": "Le prix repère du gaz est 182,88 €/MWh (c1), hein. Pour les clients avec offre indexée, la facture d'octobre augmente de 5,28 € en moyenne (c2)."
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Je gère des immeubles dans le dixième. L'augmentation du gaz et +5,28 € m'intéressent pour mes locataires, voyez-vous."
+     },
+     {
+      "who": "learner",
+      "text": "Le prix du gaz va encore monter en novembre ?"
+     },
+     {
+      "who": "romy",
+      "text": "Le prix repère est 182,88 €/MWh (c1). La facture d'octobre augmente en moyenne de 5,28 € (c2). Les sources ne disent pas si le prix montera en novembre (incertitude 0). Veux-tu que je formule la question pour un lecteur ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "landlord_marchand",
+     "name": "M. Marchand",
+     "role": "Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).",
+     "personality": "Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.",
+     "register_with_user": "vous, always",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Je m'occupe d'immeubles; j'ai des locataires. Cela m'inquiète si le gaz monte encore. Vous avez d'autres infos ?",
+    "position": null,
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 3.805,
+   "cost_usd": 0.001566,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Je trouve ça cher. Pour moi, la prix repère, c'est important.",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+      "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+     }
+    ],
+    "uncertainties": [
+     "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+     "Les sources ne disent pas combien de temps le chèque pour les « grands rouleurs » sera prolongé après décembre."
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change sur la facture et chez le médecin",
+     "purpose": "understand_change"
+    },
+    "angles": [
+     {
+      "id": "a1",
+      "fr": "Ce qui change sur la facture et chez le médecin",
+      "purpose": "understand_change"
+     },
+     {
+      "id": "a2",
+      "fr": "Prévenir Margaux : trois changements à connaître ce mois-ci",
+      "purpose": "prepare_dispatch"
+     }
+    ],
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "simplify_on_breakdown": true,
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "band": "A2",
+    "max_words": 45,
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "history": [
+     {
+      "who": "romy",
+      "text": "Le prix repère du gaz est 182,88 €/MWh (c1), hein. Pour les clients avec offre indexée, la facture d'octobre augmente de 5,28 € en moyenne (c2)."
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Je gère des immeubles dans le dixième. L'augmentation du gaz et +5,28 € m'intéressent pour mes locataires, voyez-vous."
+     },
+     {
+      "who": "learner",
+      "text": "Le prix du gaz va encore monter en novembre ?"
+     },
+     {
+      "who": "romy",
+      "text": "Le prix repère est 182,88 €/MWh (c1). La facture d'octobre augmente en moyenne de 5,28 € (c2). Les sources ne disent pas si le prix montera en novembre (incertitude 0). Veux-tu que je formule la question pour un lecteur ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre."
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Je m'occupe d'immeubles; j'ai des locataires. Cela m'inquiète si le gaz monte encore. Vous avez d'autres infos ?"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": "landlord_marchand",
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Le prix repère est 182,88 €/MWh (c1). Pour les clients indexés, la facture d'octobre augmente en moyenne de 5,28 € (c2). Tu veux que je formule une question pour un lecteur sur le coût du gaz ?",
+    "translation": "Der Referenzpreis liegt bei 182,88 €/MWh (c1). Für Kunden mit indexiertem Vertrag steigt die Oktober-Rechnung im Durchschnitt um 5,28 € (c2). Soll ich eine Leserfrage zum Gaskosten formulieren?",
+    "claims_cited": [
+     "c1",
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": "Comment le prix repère à 182,88 €/MWh va-t-il affecter ma facture ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 2.584,
+   "cost_usd": 0.000893,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "landlord_marchand",
+    "name": "M. Marchand",
+    "register": "vous",
+    "move": "follow_up",
+    "reason_fr": null,
+    "position": null,
+    "learner_text": "Je trouve ça cher. Pour moi, la prix repère, c'est important.",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce qui change sur la facture et chez le médecin",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois.",
+      "attributed_to": "Maud Bregeon, porte-parole du gouvernement"
+     }
+    ],
+    "claims_shown": [
+     "c1",
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A2",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "learner",
+      "text": "Le prix du gaz va encore monter en novembre ?"
+     },
+     {
+      "who": "romy",
+      "text": "Le prix repère est 182,88 €/MWh (c1). La facture d'octobre augmente en moyenne de 5,28 € (c2). Les sources ne disent pas si le prix montera en novembre (incertitude 0). Veux-tu que je formule la question pour un lecteur ?"
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre."
+     },
+     {
+      "who": "landlord_marchand",
+      "text": "Je m'occupe d'immeubles; j'ai des locataires. Cela m'inquiète si le gaz monte encore. Vous avez d'autres infos ?"
+     },
+     {
+      "who": "learner",
+      "text": "Je trouve ça cher. Pour moi, la prix repère, c'est important."
+     },
+     {
+      "who": "romy",
+      "text": "Le prix repère est 182,88 €/MWh (c1). Pour les clients indexés, la facture d'octobre augmente en moyenne de 5,28 € (c2). Tu veux que je formule une question pour un lecteur sur le coût du gaz ?"
+     }
+    ],
+    "knowledge": {
+     "cast_id": "landlord_marchand",
+     "name": "M. Marchand",
+     "role": "Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).",
+     "personality": "Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.",
+     "register_with_user": "vous, always",
+     "register": "vous",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Vous avez une offre indexée pour le gaz, ou c’est vos locataires qui paient la facture ?",
+    "position": null,
+    "move": "follow_up"
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 2.869,
+   "cost_usd": 0.000829,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A2",
+     "claims_shown": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %."
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an."
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois."
+      }
+     ],
+     "target_words": [
+      "le prix repère",
+      "le mégawattheure",
+      "la facture",
+      "le plafond",
+      "le chèque de 100 euros"
+     ],
+     "addressee": "landlord_marchand",
+     "expected_register": "vous",
+     "summary_fr": "Comme chaque mois, des règles changent au 1er octobre 2026. Le prix repère du gaz augmente de 6,3 %, les franchises médicales coûtent plus cher sur l'année, et un nouveau chèque de 100 euros aide les personnes qui roulent beaucoup en voiture.",
+     "headline_words": null
+    },
+    "learner_text": "Je trouve ça cher. Pour moi, la prix repère, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "le prix repère",
+      "outcome": "incorrect",
+      "quote": "la prix repère"
+     }
+    ],
+    "fact_fit": "supported",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 5.982,
+   "cost_usd": 0.001365,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "Gaz, carburant, santé : ce qui change au 1er octobre",
+    "angle": "Ce qui change sur la facture et chez le médecin",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois."
+     }
+    ],
+    "band": "A2"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "Franchises médicales : plafond porté à 140 € par an",
+     "supported_by": "c3"
+    },
+    "distractors": [
+     {
+      "text_fr": "Prix du gaz : repli à 172,05 €/MWh en octobre",
+      "contradicted_by": "c1"
+     },
+     {
+      "text_fr": "Facture de gaz d'octobre : aucun surcoût pour les clients indexés",
+      "contradicted_by": "c2"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 2.837,
+   "cost_usd": 0.000586,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "Le prix du gaz va encore monter en novembre ?",
+    "uncertainty": "Les sources ne disent pas si le prix repère du gaz va encore monter en novembre.",
+    "title_fr": "Gaz, carburant, santé : ce qui change au 1er octobre",
+    "band": "A2",
+    "language": "de"
+   },
+   "response": {
+    "proposal_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+    "why_native": "Hauptänderung: Zur korrekten Fragestellung wurde die Verb-Subjekt-Umkehr verwendet («va-t-il») statt Aussagesatz plus Fragezeichen."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 4.336,
+   "cost_usd": 0.001203,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "Gaz, carburant, santé : ce qui change au 1er octobre",
+    "summary_fr": "Comme chaque mois, des règles changent au 1er octobre 2026. Le prix repère du gaz augmente de 6,3 %, les franchises médicales coûtent plus cher sur l'année, et un nouveau chèque de 100 euros aide les personnes qui roulent beaucoup en voiture.",
+    "angle": "Ce qui change sur la facture et chez le médecin",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "Le prix du gaz va-t-il encore monter en novembre ?",
+     "learner_fr": "Le prix du gaz va encore monter en novembre ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Le plafond des franchises médicales passe de 100 à 140 euros par an."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour la porte-parole du gouvernement, le chèque de 100 euros pour les « grands rouleurs » vaut environ 40 centimes par litre de carburant pendant deux mois."
+     }
+    ],
+    "open_question": "Le prix du gaz va encore monter en novembre ?",
+    "band": "A2"
+   },
+   "response": {
+    "romy_line_fr": "Je garde ta question telle quelle ; d'après le dossier, les sources sont muettes sur novembre.",
+    "headline_fr": "Le prix du gaz va encore monter en novembre ?",
+    "body_lines": [
+     "Au 1er octobre 2026, le prix repère du gaz passe à 182,88 euros le mégawattheure, contre 172,05 euros en septembre : une hausse de 6,3 %.",
+     "Pour les clients qui ont une offre indexée, la facture de gaz d'octobre augmente de 5,28 euros en moyenne.",
+     "Le plafond des franchises médicales passe de 100 à 140 euros par an."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 5.567
+  },
+  {
+   "step": "turn1",
+   "seconds": 4.222
+  },
+  {
+   "step": "turn2",
+   "seconds": 6.01
+  },
+  {
+   "step": "turn3",
+   "seconds": 6.035
+  },
+  {
+   "step": "turn4",
+   "seconds": 9.296
+  },
+  {
+   "step": "make_options",
+   "seconds": 5.996
+  },
+  {
+   "step": "make_propose",
+   "seconds": 2.846
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.005
+  },
+  {
+   "step": "close",
+   "seconds": 4.384
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini"
+ }
+}

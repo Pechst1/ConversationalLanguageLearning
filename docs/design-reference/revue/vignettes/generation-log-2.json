@@ -1,0 +1,75 @@
+{
+  "prompt_version": "pictogram-v1",
+  "provider": "openai-pictogram",
+  "results": [
+    {
+      "dossier_id": "evergreen-bac",
+      "topic": "culture",
+      "object_fr_old": "une copie d'examen et un stylo",
+      "object_fr_new": "un stylo-plume posé sur une feuille",
+      "outcome": "first",
+      "row_object_fr": "un stylo-plume posé sur une feuille",
+      "bytes": 404,
+      "tries": [
+        {
+          "told": [],
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-fete-de-la-musique",
+      "topic": "culture",
+      "object_fr_old": "une guitare",
+      "object_fr_new": "une guitare acoustique vue de face",
+      "outcome": "first",
+      "row_object_fr": "une guitare acoustique vue de face",
+      "bytes": 554,
+      "tries": [
+        {
+          "told": [],
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-tour-de-france",
+      "topic": "sport",
+      "object_fr_old": "un maillot jaune",
+      "object_fr_new": "un maillot à manches courtes, jaune, vu de face",
+      "outcome": "first",
+      "row_object_fr": "un maillot à manches courtes, jaune, vu de face",
+      "bytes": 278,
+      "tries": [
+        {
+          "told": [],
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    },
+    {
+      "dossier_id": "evergreen-quatorze-juillet",
+      "topic": "culture",
+      "object_fr_old": "un feu d'artifice",
+      "object_fr_new": "trois fusées de feu d'artifice en éventail",
+      "outcome": "first",
+      "row_object_fr": "trois fusées de feu d'artifice en éventail",
+      "bytes": 620,
+      "tries": [
+        {
+          "told": [],
+          "ok": true,
+          "errors": [],
+          "snapped": []
+        }
+      ]
+    }
+  ],
+  "spent_usd": 0.0118
+}

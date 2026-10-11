@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import html
 import re
-from datetime import UTC, date, datetime
 from urllib.parse import quote_plus
 
 import httpx
@@ -13,7 +12,19 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.services.revue.policy import SENSITIVE_TERMS
 from app.utils.cache import build_cache_key, cache_backend
+
+#: WP-119 phase 5: the two entry points left from the pre-Revue news path. Legacy — no new
+#: callers; new consumers read an ``EditorialDossier`` (``app.services.revue``). Behaviour is
+#: unchanged until their callers move.
+#: - ``NewsService.fetch_news_context`` — ``app/api/v1/endpoints/sessions.py``,
+#:   ``app/services/auto_context_service.py`` (and ``fetch_news_digest``, which wraps it).
+#: - ``NewsService.fetch_france_context`` — ``app/services/missions.py`` (mission source snapshot).
+LEGACY_ENTRY_POINTS: dict[str, tuple[str, ...]] = {
+    "fetch_news_context": ("app/api/v1/endpoints/sessions.py", "app/services/auto_context_service.py"),
+    "fetch_france_context": ("app/services/missions.py",),
+}
 
 
 class NewsService:
@@ -32,6 +43,8 @@ class NewsService:
             "url": "https://www.lemonde.fr/rss/une.xml",
             "region_tags": ["france", "paris"],
             "topic_tags": ["society", "politics", "culture"],
+            # WP-119 §12.3: teasers and open articles fetch; paywalled pages give the chapô only.
+            "fetch_policy": "allows",
         },
         {
             "id": "rfi_france",
@@ -39,6 +52,8 @@ class NewsService:
             "url": "https://www.rfi.fr/fr/france/rss",
             "region_tags": ["france"],
             "topic_tags": ["society", "politics"],
+            # WP-119 §12.3: articles fetch; robots.txt allows /fr/.
+            "fetch_policy": "allows",
         },
         {
             "id": "france24_france",
@@ -46,6 +61,8 @@ class NewsService:
             "url": "https://www.france24.com/fr/france/rss",
             "region_tags": ["france"],
             "topic_tags": ["society", "politics"],
+            # WP-119 §12.3: robots.txt and bot wall refuse article fetches (WP-119 §12.3): RSS only.
+            "fetch_policy": "refuses",
         },
         {
             "id": "franceinfo_france",
@@ -53,6 +70,61 @@ class NewsService:
             "url": "https://www.francetvinfo.fr/france.rss",
             "region_tags": ["france", "paris"],
             "topic_tags": ["society", "daily_life"],
+            # WP-119 §12.3: articles fetch.
+            "fetch_policy": "allows",
+        },
+        # WP-119 phase 3 «Le kiosque» (§4.1): culture, gastronomy and sport feeds for the
+        # weekly intake's topic spread. ``fetch_policy``: may the intake fetch the article page
+        # (robots.txt is still checked on every fetch)? "refuses" = build from the RSS teaser.
+        {
+            "id": "franceinfo_culture",
+            "name": "Franceinfo",
+            "url": "https://www.francetvinfo.fr/culture.rss",
+            "region_tags": ["france", "paris"],
+            "topic_tags": ["culture"],
+            "fetch_policy": "allows",
+        },
+        {
+            "id": "franceinfo_sports",
+            "name": "Franceinfo",
+            "url": "https://www.francetvinfo.fr/sports.rss",
+            "region_tags": ["france"],
+            "topic_tags": ["sport"],
+            "fetch_policy": "allows",
+        },
+        {
+            "id": "le_monde_culture",
+            "name": "Le Monde",
+            "url": "https://www.lemonde.fr/culture/rss_full.xml",
+            "region_tags": ["france", "paris"],
+            "topic_tags": ["culture"],
+            # Teasers fetch; paywalled pages give the chapô only.
+            "fetch_policy": "allows",
+        },
+        {
+            "id": "le_monde_gastronomie",
+            "name": "Le Monde",
+            "url": "https://www.lemonde.fr/gastronomie/rss_full.xml",
+            "region_tags": ["france"],
+            "topic_tags": ["food"],
+            "fetch_policy": "allows",
+        },
+        {
+            "id": "rfi_culture",
+            "name": "RFI",
+            "url": "https://www.rfi.fr/fr/culture/rss",
+            "region_tags": ["france"],
+            "topic_tags": ["culture"],
+            "fetch_policy": "allows",
+        },
+        {
+            "id": "lequipe_une",
+            "name": "L'Équipe",
+            "url": "https://dwh.lequipe.fr/api/edito/rss?path=/",
+            "region_tags": ["france"],
+            "topic_tags": ["sport"],
+            # WP-119 §12.3: live pages refuse bots; RSS teaser only.
+            "fetch_policy": "refuses",
         },
     ]
     FEUILLETON_SATIRE_SOURCE_REGISTRY = [
@@ -65,25 +137,7 @@ class NewsService:
             "source_type": "satire_reference",
         },
     ]
-    FEUILLETON_SENSITIVE_TERMS = (
-        "abus",
-        "agression sexuelle",
-        "assassinat",
-        "attentat",
-        "décès",
-        "disparition",
-        "fusillade",
-        "guerre",
-        "meurtre",
-        "mort ",
-        "mortel",
-        "otage",
-        "pédocriminalité",
-        "suicide",
-        "terrorisme",
-        "viol ",
-        "violence conjugale",
-    )
+    FEUILLETON_SENSITIVE_TERMS = SENSITIVE_TERMS
     FEUILLETON_COMIC_TERMS = (
         "annonce",
         "assemblée",
@@ -145,6 +199,9 @@ class NewsService:
         limit: int = 3,
     ) -> dict[str, object]:
         """
+        Legacy (WP-119 phase 5, see ``LEGACY_ENTRY_POINTS``): called by
+        endpoints/sessions.py and auto_context_service.py only.
+
         Return live content context:
         {
           "digest": str | None,
@@ -194,7 +251,10 @@ class NewsService:
         limit: int = 3,
         prefer_paris: bool = True,
     ) -> dict[str, object]:
-        """Return a France-specific, attributed source snapshot for missions."""
+        """Return a France-specific, attributed source snapshot for missions.
+
+        Legacy (WP-119 phase 5, see ``LEGACY_ENTRY_POINTS``): called by missions.py only.
+        """
         normalized_interests = self._normalize_interests(interests)
         cache_key = build_cache_key(
             interests=normalized_interests,
@@ -277,202 +337,7 @@ class NewsService:
         cache_backend.set("news:france-context", cache_key, payload, ttl_seconds=self.FRANCE_CONTEXT_TTL_SECONDS)
         return payload
 
-    async def fetch_feuilleton_daily_seed(
-        self,
-        interests: list[str] | None = None,
-        *,
-        refresh: bool = False,
-        today: str | None = None,
-        limit: int = 12,
-    ) -> dict[str, object]:
-        """Return the editorial news seed shared by all Feuilletons for one day."""
-        seed_date = today or date.today().isoformat()
-        normalized_interests = self._normalize_interests(interests)
-        factual_source_ids = [source["id"] for source in self.FRANCE_SOURCE_REGISTRY]
-        satire_source_ids = [source["id"] for source in self.FEUILLETON_SATIRE_SOURCE_REGISTRY]
-        cache_key = build_cache_key(
-            date=seed_date,
-            interests=normalized_interests,
-            source_ids=factual_source_ids,
-            satire_source_ids=satire_source_ids,
-            seed_version=self.FEUILLETON_DAILY_SEED_VERSION,
-        )
-        if not refresh:
-            cached = cache_backend.get("news:feuilleton-daily-seed", cache_key)
-            if cached:
-                cached["cache_status"] = "hit"
-                return cached
-
-        items: list[dict[str, object]] = []
-        for source in self.FRANCE_SOURCE_REGISTRY:
-            try:
-                source_items = await self._fetch_rss_items(
-                    source["url"],
-                    source_hint=source["name"],
-                    language="fr",
-                    limit=limit,
-                )
-            except Exception as exc:
-                logger.debug("Feuilleton seed feed fetch failed", source=source["id"], error=str(exc))
-                continue
-
-            for item in source_items:
-                blob = f"{item.get('title', '')} {item.get('summary', '')}"
-                if not self._looks_like_language(blob, "fr"):
-                    continue
-                enriched: dict[str, object] = {
-                    **item,
-                    "source_id": source["id"],
-                    "source": item.get("source") or source["name"],
-                    "source_type": "daily_news_seed",
-                    "region_tags": source.get("region_tags", []),
-                    "topic_tags": source.get("topic_tags", []),
-                    "language_confidence": "high",
-                }
-                enriched["named_people"] = self._extract_named_people(enriched)
-                if self._is_sensitive_for_feuilleton(enriched):
-                    continue
-                items.append(enriched)
-
-        satire_refs = await self._fetch_feuilleton_satire_references(limit=4)
-        candidates = self._dedupe_items(items)
-        if normalized_interests:
-            candidates.sort(
-                key=lambda item: self._score_feuilleton_item(item, normalized_interests),
-                reverse=True,
-            )
-        clusters = self._cluster_feuilleton_items(candidates[: max(limit * 2, 12)])
-
-        selected: dict[str, object] | None = None
-        supporting_items: list[dict[str, object]] = []
-        if clusters:
-            top_cluster = clusters[0]
-            cluster_items = top_cluster.get("items") or []
-            if cluster_items:
-                selected = cluster_items[0]
-                supporting_items = cluster_items[1:4]
-
-        if not selected and candidates:
-            selected = candidates[0]
-            supporting_items = candidates[1:4]
-
-        if not selected:
-            payload = self._curated_feuilleton_seed(
-                seed_date=seed_date,
-                normalized_interests=normalized_interests,
-                satire_refs=satire_refs,
-            )
-            cache_backend.set(
-                "news:feuilleton-daily-seed",
-                cache_key,
-                payload,
-                ttl_seconds=self.FEUILLETON_DAILY_SEED_TTL_SECONDS,
-            )
-            return payload
-
-        selected = self._clean_feuilleton_seed_item(selected)
-        supporting_items = [self._clean_feuilleton_seed_item(item) for item in supporting_items]
-        named_people = selected.get("named_people") or []
-        title = str(selected.get("title") or "L'actualité française du jour")
-        summary = str(selected.get("summary") or "")
-        payload = {
-            "mode": "feuilleton_daily_seed",
-            "date": seed_date,
-            "seed_version": self.FEUILLETON_DAILY_SEED_VERSION,
-            "title": title,
-            "title_fr": title,
-            "summary": summary,
-            "summary_fr": self._feuilleton_summary_fr(selected, supporting_items),
-            "source": selected.get("source") or "Source française",
-            "url": selected.get("url") or "",
-            "items": [selected, *supporting_items],
-            "supporting_items": supporting_items,
-            "satire_reference_items": satire_refs,
-            "named_people": named_people,
-            "digest": self._format_feuilleton_seed_digest(selected, supporting_items, satire_refs),
-            "source_policy": (
-                "Daily Feuilleton seed: French factual RSS for the topic; "
-                "satirical feeds only as tone references, not as factual sources."
-            ),
-            "content_depth": "rss_title_summary_plus_supporting_headlines",
-            "article_fetch_policy": "No full article scraping in v1; store title, summary, source, URL and fetched timestamp.",
-            "fetched_at": datetime.now(UTC).isoformat(),
-            "cache_status": "refreshed" if refresh else "miss",
-        }
-        cache_backend.set(
-            "news:feuilleton-daily-seed",
-            cache_key,
-            payload,
-            ttl_seconds=self.FEUILLETON_DAILY_SEED_TTL_SECONDS,
-        )
-        return payload
-
-    async def _fetch_feuilleton_satire_references(self, limit: int = 4) -> list[dict[str, object]]:
-        references: list[dict[str, object]] = []
-        for source in self.FEUILLETON_SATIRE_SOURCE_REGISTRY:
-            try:
-                source_items = await self._fetch_rss_items(
-                    source["url"],
-                    source_hint=source["name"],
-                    language="fr",
-                    limit=limit,
-                )
-            except Exception as exc:
-                logger.debug("Feuilleton satire reference fetch failed", source=source["id"], error=str(exc))
-                continue
-            for item in source_items:
-                blob = f"{item.get('title', '')} {item.get('summary', '')}"
-                if not self._looks_like_language(blob, "fr"):
-                    continue
-                references.append(
-                    {
-                        **item,
-                        "source_id": source["id"],
-                        "source": item.get("source") or source["name"],
-                        "source_type": "satire_reference",
-                        "topic_tags": source.get("topic_tags", []),
-                        "usage": "tone_reference_only",
-                    }
-                )
-                if len(references) >= limit:
-                    return references
-        return references[:limit]
-
-    def _curated_feuilleton_seed(
-        self,
-        *,
-        seed_date: str,
-        normalized_interests: list[str],
-        satire_refs: list[dict[str, object]],
-    ) -> dict[str, object]:
-        title = "Une petite annonce française devient un grand rituel"
-        summary = (
-            "Faute de flux disponible, l'édition part d'une scène publique française: "
-            "une annonce ordinaire devient une procédure collective beaucoup trop sérieuse."
-        )
-        return {
-            "mode": "feuilleton_curated_seed",
-            "date": seed_date,
-            "seed_version": self.FEUILLETON_DAILY_SEED_VERSION,
-            "title": title,
-            "title_fr": title,
-            "summary": summary,
-            "summary_fr": summary,
-            "source": "Atelier",
-            "url": "",
-            "items": [],
-            "supporting_items": [],
-            "satire_reference_items": satire_refs,
-            "named_people": [],
-            "interests": normalized_interests,
-            "digest": summary,
-            "source_policy": "Curated fallback because live French RSS sources were unavailable.",
-            "content_depth": "curated_prompt",
-            "article_fetch_policy": "No live article fetched.",
-            "fetched_at": datetime.now(UTC).isoformat(),
-            "cache_status": "curated",
-        }
-
+    # kept for revue.intake (WP-119 phase 5 removed the daily feuilleton seed; §2 keeps this)
     def _dedupe_items(self, items: list[dict[str, object]]) -> list[dict[str, object]]:
         deduped: list[dict[str, object]] = []
         seen: set[tuple[str, str]] = set()
@@ -487,10 +352,12 @@ class NewsService:
             deduped.append(item)
         return deduped
 
+    # kept for revue.intake (WP-119 phase 5 removed the daily feuilleton seed; §2 keeps this)
     def _is_sensitive_for_feuilleton(self, item: dict[str, object]) -> bool:
         text = f"{item.get('title', '')} {item.get('summary', '')}".lower()
         return any(term in text for term in self.FEUILLETON_SENSITIVE_TERMS)
 
+    # kept for revue.intake (WP-119 phase 5 removed the daily feuilleton seed; §2 keeps this)
     def _extract_named_people(self, item: dict[str, object]) -> list[str]:
         text = f"{item.get('title', '')} {item.get('summary', '')}"
         matches = re.findall(
@@ -524,12 +391,14 @@ class NewsService:
                 break
         return people
 
+    # kept for revue.intake (WP-119 phase 5 removed the daily feuilleton seed; §2 keeps this)
     def _clean_feuilleton_seed_item(self, item: dict[str, object]) -> dict[str, object]:
         cleaned = dict(item)
         cleaned["title"] = self._clean_feuilleton_news_text(cleaned.get("title"))
         cleaned["summary"] = self._clean_feuilleton_news_text(cleaned.get("summary"))
         return cleaned
 
+    # kept for revue.intake (WP-119 phase 5 removed the daily feuilleton seed; §2 keeps this)
     def _clean_feuilleton_news_text(self, value: object) -> str:
         text = self._clean_text(str(value or ""))
         if not text:
@@ -541,6 +410,7 @@ class NewsService:
         text = re.sub(r"\s+", " ", text)
         return text.strip(" .;:")
 
+    # kept: _cluster_feuilleton_items scores with it; taste belongs to the consumer (§2.7)
     def _score_feuilleton_item(self, item: dict[str, object], interests: list[str]) -> int:
         text = f"{item.get('title', '')} {item.get('summary', '')}".lower()
         score = 5
@@ -554,6 +424,7 @@ class NewsService:
             score += 1
         return score
 
+    # kept for revue.intake (WP-119 phase 5 removed the daily feuilleton seed; §2 keeps this)
     def _cluster_feuilleton_items(self, items: list[dict[str, object]]) -> list[dict[str, object]]:
         clusters: dict[str, list[dict[str, object]]] = {}
         for item in items:
@@ -568,6 +439,7 @@ class NewsService:
         ranked.sort(key=lambda cluster: int(cluster["score"]), reverse=True)
         return ranked
 
+    # kept for revue.intake (WP-119 phase 5 removed the daily feuilleton seed; §2 keeps this)
     def _feuilleton_cluster_key(self, item: dict[str, object]) -> str:
         named_people = item.get("named_people") or []
         if named_people:
@@ -581,47 +453,6 @@ class NewsService:
             and token not in {"france", "français", "française", "depuis", "après", "avant"}
         ]
         return " ".join(tokens[:3]) or str(item.get("source_id") or "misc")
-
-    def _feuilleton_summary_fr(
-        self,
-        selected: dict[str, object],
-        supporting_items: list[dict[str, object]],
-    ) -> str:
-        title = self._clean_feuilleton_news_text(selected.get("title"))
-        summary = self._clean_feuilleton_news_text(selected.get("summary"))
-        support = ""
-        if supporting_items:
-            outlets = ", ".join(
-                str(item.get("source") or "source française")
-                for item in supporting_items[:2]
-            )
-            support = f" Le sujet apparaît aussi dans {outlets}."
-        if summary and summary.lower() != title.lower():
-            return f"{title}. {summary}{support}".strip()
-        return f"{title}.{support}".strip()
-
-    def _format_feuilleton_seed_digest(
-        self,
-        selected: dict[str, object],
-        supporting_items: list[dict[str, object]],
-        satire_refs: list[dict[str, object]],
-    ) -> str:
-        lines = [
-            "Sujet du jour:",
-            f"- {selected.get('title', 'Actualité française')} ({selected.get('source', 'source française')})",
-        ]
-        summary = self._clean_feuilleton_news_text(selected.get("summary"))
-        if summary:
-            lines.append(f"Résumé: {summary}")
-        if supporting_items:
-            lines.append("Échos:")
-            for item in supporting_items[:3]:
-                lines.append(f"- {self._clean_feuilleton_news_text(item.get('title'))} ({item.get('source')})")
-        if satire_refs:
-            lines.append("Références satiriques récentes (ton seulement, pas faits):")
-            for item in satire_refs[:3]:
-                lines.append(f"- {item.get('title')} ({item.get('source')})")
-        return "\n".join(lines)
 
     def _normalize_language(self, language: str | None) -> str:
         if not language:

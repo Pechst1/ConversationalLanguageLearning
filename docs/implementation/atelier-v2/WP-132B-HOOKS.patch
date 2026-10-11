@@ -1,0 +1,169 @@
+diff --git a/app/services/living_story.py b/app/services/living_story.py
+index ba92486..061b632 100644
+--- a/app/services/living_story.py
++++ b/app/services/living_story.py
+@@ -6931,6 +6931,14 @@ def generate_scene(
+             if authored is not None:
+                 return authored
+             logger.error("living_story: tentpole %s could not be served", season_today.pos.key)
++        if season_today is not None and season_today.pos.finished:
++            # WP-132B: a season that ends without an epilogue ends on one authored
++            # archive day (no model call); then the continuation.
++            from app.services.season.epilogue import season_end_brief
++
++            authored = season_end_brief(season_today, context)
++            if authored is not None:
++                return authored
+         errata = due_errata(db, user)
+         # Director-only (WP-24 §5, the quality half of the mistake loop). Added
+         # here rather than inside ``story_context`` so the actor's turn payload,
+diff --git a/app/services/season/format.py b/app/services/season/format.py
+index 5dfeaad..4cf2cbd 100644
+--- a/app/services/season/format.py
++++ b/app/services/season/format.py
+@@ -775,6 +775,10 @@ def load_season(season_id: str, *, root: Path | None = None) -> Season:
+             "global_must_not": [Forbidden.model_validate(row) for row in gaps_file.get("global_must_not") or []],
+         }
+     )
++    # WP-132B: the authored epilogue week after the finale, when the season has a whole one.
++    from app.services.season.epilogue import attach_epilogue
++
++    season = attach_epilogue(season, folder, levels=levels, tasks=tasks)
+     problems = validate_season(season)
+     if problems:
+         raise SeasonFormatError(f"season {season_id}: " + "; ".join(problems[:12]))
+diff --git a/app/services/season/runtime.py b/app/services/season/runtime.py
+index b096008..6b1d66d 100644
+--- a/app/services/season/runtime.py
++++ b/app/services/season/runtime.py
+@@ -31,8 +31,9 @@ from functools import lru_cache
+ from typing import Any
+ 
+ from app.config import settings
+-from app.services.season.clock import SEASON_KEY, Position, position, record_played
++from app.services.season.clock import SEASON_KEY, Position, record_played
+ from app.services.season.director import gap_brief
++from app.services.season.epilogue import after_settle, context_extra, position_for, season_finished
+ from app.services.season.flags import (
+     add_signal,
+     apply_sets,
+@@ -157,7 +158,7 @@ def today_for(live: dict | None, *, user: Any, seed: str, now: Any = None) -> To
+     state = dict((live or {}).get(SEASON_KEY) or {"id": season_id})
+     state.setdefault("id", season_id)
+     local = learner_date(user, now)
+-    pos = position(season, state, today=local)
++    pos = position_for(season, state, today=local)
+     return Today(
+         season=season,
+         pos=pos,
+@@ -191,6 +192,8 @@ def context_block(today: Today | None) -> dict[str, Any] | None:
+             seed=today.seed,
+             band=today.band,
+         )
++    # WP-132B: after the finale, what this life's ending leaves the continuation.
++    block.update(context_extra(today))
+     return block
+ 
+ 
+@@ -578,7 +581,7 @@ def season_script_finished(live: dict | None) -> bool:
+         season = load_season(str(state["id"]))
+     except Exception:  # noqa: BLE001 - an unreadable season is not a finished one
+         return False
+-    return position(season, state, today=None).finished
++    return season_finished(season, state)
+ 
+ 
+ def tentpole_annotation(season_id: str, key: str) -> dict[str, Any]:
+@@ -1037,6 +1040,9 @@ def settle(
+         state = record_played(state, pos, date_iso=date_iso, event_id=event_id)
+     live = dict(live)
+     live[SEASON_KEY] = state
++    # WP-132B: the archive day or the epilogue's last page closes the season; a
++    # finished season's ending is carried into the life the continuation reads.
++    live = after_settle(live, season_ctx, date_iso=date_iso, event_id=event_id)
+     if relationships is not None:
+         _apply_registers(season, state, relationships)
+     return live
+diff --git a/tests/test_season_one.py b/tests/test_season_one.py
+index 2c058b1..b581b0b 100644
+--- a/tests/test_season_one.py
++++ b/tests/test_season_one.py
+@@ -71,12 +71,21 @@ REPO = SEASON_ROOT.parents[2]
+ # ---------------------------------------------------------------------------
+ 
+ 
++def _epilogue_keys() -> list[str]:
++    """WP-132B: the authored epilogue week's day keys (``e1.a`` …), [] without one."""
++
++    from app.services.season.epilogue import epilogue_ids
++
++    return [f"{segment}.{day}" for segment in epilogue_ids(load_season("s1")) for day in ("a", "b")]
++
++
+ def test_season_one_loads_whole_and_holds_together():
+     season = load_season("s1")
+-    assert season.total_days == 59
+-    assert sum(1 for seg in season.segments if seg.kind == "tentpole") == 8
++    epilogue = _epilogue_keys()
++    assert season.total_days == 59 + len(epilogue)
++    assert sum(1 for seg in season.segments if seg.kind == "tentpole") == 8 + len(epilogue) // 2
+     assert sum(seg.days for seg in season.segments if seg.kind == "gap") == 43
+-    assert set(season.tentpoles) == set(BIBLES)
++    assert set(season.tentpoles) == set(BIBLES) | {key.split(".")[0] for key in epilogue}
+     assert set(season.gaps) == {f"g{n}" for n in range(1, 8)}
+ 
+ 
+@@ -143,8 +152,9 @@ def _play_calendar(start: date, *, skip_every: int = 0) -> list[dict]:
+ def test_the_season_is_59_days_give_or_take_a_weekend_and_tentpoles_are_two_days(start):
+     log = _play_calendar(start)
+     tentpole_days = [row for row in log if row["kind"] == "tentpole"]
+-    assert len(tentpole_days) == 16
+-    assert 59 - 7 <= len(log) <= 59 + 7
++    epilogue = len(_epilogue_keys())
++    assert len(tentpole_days) == 16 + epilogue
++    assert 59 + epilogue - 7 <= len(log) <= 59 + epilogue + 7
+     for index, row in enumerate(log):
+         if row["kind"] == "tentpole" and row["day_in_segment"] == 1:
+             follow = log[index + 1]
+@@ -184,7 +194,7 @@ def test_a_gap_whose_last_day_is_a_weekend_day_ends_early():
+ 
+ def test_a_skipped_real_day_is_not_a_story_day():
+     log = _play_calendar(date(2026, 11, 11), skip_every=3)
+-    assert sum(1 for row in log if row["kind"] == "tentpole") == 16
++    assert sum(1 for row in log if row["kind"] == "tentpole") == 16 + len(_epilogue_keys())
+     days = [row["season_day"] for row in log]
+     assert days == list(range(1, len(days) + 1)), "the season counts the learner's days, not the calendar's"
+ 
+@@ -576,9 +586,9 @@ def test_a_whole_season_plays_its_tentpoles_on_their_days(assembled_client, db_s
+             break
+     keys = [row["key"] for row in days]
+     tentpoles = [row for row in days if row["kind"] == "tentpole"]
+-    assert len(tentpoles) == 16, " ".join(str(k) for k in keys)
++    assert len(tentpoles) == 16 + len(_epilogue_keys()), " ".join(str(k) for k in keys)
+     assert all(row["director_calls"] == 0 and row["page"] for row in tentpoles), "a tentpole is served as written"
+-    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")]
++    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")] + _epilogue_keys()
+     gaps = [row for row in days if row["kind"] == "gap"]
+     assert 43 - 7 <= len(gaps) <= 43 + 7
+     assert all(row["director_calls"] >= 1 for row in gaps)
+@@ -639,7 +649,7 @@ def test_a_whole_season_with_le_papier_once_a_week_on_gap_days(assembled_client,
+         ).finished:
+             break
+     tentpoles = [row for row in days if row["kind"] == "tentpole"]
+-    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")]
++    assert [row["key"] for row in tentpoles] == [f"t{n}.{d}" for n in range(1, 9) for d in ("a", "b")] + _epilogue_keys()
+     assert all(row["page"] and row["shape"] != "revue" for row in tentpoles), "a tentpole is never a Papier day"
+     papier = [row for row in days if row["shape"] == "revue"]
+     assert papier and all(row["kind"] == "gap" for row in papier)
+@@ -650,7 +660,10 @@ def test_a_whole_season_with_le_papier_once_a_week_on_gap_days(assembled_client,
+     for week, rows in weeks.items():
+         dealt = [row for row in rows if row["shape"] == "revue"]
+         assert len(dealt) <= 1, f"{week}: {len(dealt)} Papier days"
+-        if len(rows) == 7 and any(row["kind"] == "gap" for row in rows):
++        # The Papier is dealt on or after a seeded weekday (Monday … Friday), never on
++        # an authored day: a full week owes one when a gap day falls on a Friday or
++        # later (WP-132B: the finale and the epilogue are eight authored days in a row).
++        if len(rows) == 7 and any(row["kind"] == "gap" and row["date"].weekday() >= 4 for row in rows):
+             assert len(dealt) == 1, f"{week}: a full week with gap days and no Papier day"
+     gaps = [row for row in days if row["kind"] == "gap"]
+     assert 43 - 7 <= len(gaps) <= 43 + 7

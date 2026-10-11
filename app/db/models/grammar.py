@@ -23,6 +23,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
+from app.db.models._clock import app_now
 
 if TYPE_CHECKING:
     from app.db.models.user import User
@@ -104,11 +105,33 @@ class UserGrammarProgress(Base):
     last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     next_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # WP-L3: the FSRS-style memory the vocabulary scheduler already keeps
+    # (`app.core.srs.memory`). `score`/`state` stay for display and CEFR counts.
+    stability: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
+    difficulty: Mapped[float] = mapped_column(Float, default=5.0, server_default="5", nullable=False)
+    lapses: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
+    # WP-L4: the concept's life (`app.services.concept_life`). When the learner
+    # met it (the Règle), the first and latest correct free use in a reply, the
+    # latest correct spaced item at least 14 days after the introduction, and
+    # when it was first held («Tenue»). Nullable, no backfill.
+    introduced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    free_use_first_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    free_use_last_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    spaced_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    held_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # WP-S3 (La Forge, `app.services.forge`): the rung the rule stands on in the
+    # forge's staircase (0 recognise … 5 free use; NULL = never forged), and when
+    # the learner passed its «Épreuve de la règle» (test-out → held at once).
+    forge_rung: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tested_out_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), default=app_now, server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True), default=app_now, server_default=func.now(), onupdate=app_now, nullable=False
     )
 
     # Relationships

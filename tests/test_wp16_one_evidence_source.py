@@ -14,7 +14,7 @@ untouched by this package; the policy lives in the WP-05 adapters.
 """
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
@@ -40,6 +40,7 @@ from app.services.journey_learning import (
     journey_credited_today,
     record_daily_practice_streak,
 )
+from app.services.streak import local_today
 from app.services.vocabulary_credit import VocabularyCreditService
 
 # --------------------------------------------------------------------------
@@ -324,7 +325,9 @@ def test_yesterdays_journey_credit_does_not_fold_todays_practice(db_session):
         .one()
     )
     payload = dict(moment.prompt_payload or {})
-    payload["observed_on"] = (date.today() - timedelta(days=1)).isoformat()
+    # `journey_credited_today` compares against the UTC date, not the host's
+    # local one (a day ahead just after local midnight).
+    payload["observed_on"] = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
     moment.prompt_payload = payload
     db_session.add(moment)
     db_session.flush()
@@ -351,12 +354,15 @@ def test_yesterdays_journey_credit_does_not_fold_todays_practice(db_session):
 def test_journey_then_drill_loop_moves_the_streak_once(db_session):
     user = _user(db_session)
     user.grammar_streak_days = 4
-    user.grammar_last_review_date = date.today() - timedelta(days=1)
+    # The streak's day is the learner's local day (`streak.local_today`), which
+    # need not be the host's `date.today()` — CI runs in UTC.
+    today = local_today(user)
+    user.grammar_last_review_date = today - timedelta(days=1)
     db_session.flush()
 
     # The journey finishing marks the day.
     assert record_daily_practice_streak(db_session, user) == 5
-    assert user.grammar_last_review_date == date.today()
+    assert user.grammar_last_review_date == today
 
     # «Plus de pratique» afterwards is the same day: the legacy rule
     # (`AtelierService._update_streak`) short-circuits on the same marker, and
@@ -370,7 +376,7 @@ def test_a_broken_streak_restarts_at_one(db_session):
     user = _user(db_session)
     user.grammar_streak_days = 9
     user.grammar_longest_streak = 9
-    user.grammar_last_review_date = date.today() - timedelta(days=3)
+    user.grammar_last_review_date = local_today(user) - timedelta(days=3)
     db_session.flush()
 
     assert record_daily_practice_streak(db_session, user) == 1
@@ -381,12 +387,11 @@ def test_a_broken_streak_restarts_at_one(db_session):
 # 5. The «Plus de pratique» entry names a concept, never "today"
 # --------------------------------------------------------------------------
 
-def test_the_practice_href_seats_the_learners_own_due_concept(db_session):
-    """`get_due_concepts` yields (concept, progress) pairs — unpack them.
+def test_the_practice_href_seats_todays_rule_from_the_forge_picker(db_session):
+    """WP-S4: «Plus de pratique» is keyed by La Forge's one picker.
 
-    Regression: the first version read `.id` off the tuple and silently
-    produced the bare `/atelier?mode=practice`, which drops the learner into a
-    generic drill set instead of the rule the scheduler thinks is fragile.
+    The rule the learner met today is today's rule — the same one the forge
+    and the day's Règle work on — never a generic drill set.
     """
 
     from app.services.daily_journey import DailyJourneyService
@@ -397,6 +402,7 @@ def test_the_practice_href_seats_the_learners_own_due_concept(db_session):
         user_id=user.id, concept_id=concept.id
     )
     progress.state = "ausbaufähig"
+    progress.introduced_at = datetime.now(UTC) - timedelta(minutes=5)
     progress.next_review = datetime.now(UTC) - timedelta(days=2)
     db_session.flush()
 
@@ -404,8 +410,37 @@ def test_the_practice_href_seats_the_learners_own_due_concept(db_session):
     assert service._practice_href(user) == f"/atelier?mode=practice&concept={concept.id}"
 
 
+def test_practice_entry_skips_archived_due_concepts(db_session):
+    from app.services.daily_journey import DailyJourneyService
+
+    # The suite shares one SQLite database for the whole run: concepts committed by
+    # earlier tests would otherwise be the «active» one. Nothing here commits, so
+    # this is rolled back with the session.
+    db_session.query(GrammarConcept).update({"active": False})
+    user = _user(db_session)
+    archived = _concept(db_session)
+    archived.active = False
+    progress = GrammarService(db_session).get_or_create_progress(
+        user_id=user.id, concept_id=archived.id
+    )
+    progress.introduced_at = datetime.now(UTC) - timedelta(minutes=1)
+    progress.next_review = datetime.now(UTC) - timedelta(days=10)
+    active = _concept(db_session)
+    active_progress = GrammarService(db_session).get_or_create_progress(
+        user_id=user.id, concept_id=active.id
+    )
+    active_progress.next_review = datetime.now(UTC) - timedelta(days=1)
+    db_session.flush()
+
+    service = DailyJourneyService(db_session, adapters=None)
+    assert service._practice_href(user) == f"/atelier?mode=practice&concept={active.id}"
+    active.active = False
+    db_session.flush()
+    assert service._practice_href(user) == "/atelier?mode=practice"
+
+
 def test_the_practice_href_falls_back_to_the_bare_entry(db_session, monkeypatch):
-    from app.services import daily_journey as daily_journey_module
+    from app.services import forge_picker
     from app.services.daily_journey import DailyJourneyService
 
     user = _user(db_session)
@@ -413,9 +448,7 @@ def test_the_practice_href_falls_back_to_the_bare_entry(db_session, monkeypatch)
     def boom(*args, **kwargs):
         raise RuntimeError("scheduler down")
 
-    monkeypatch.setattr(
-        daily_journey_module.GrammarService, "get_due_concepts", boom, raising=True
-    )
+    monkeypatch.setattr(forge_picker, "forge_plan", boom, raising=True)
     service = DailyJourneyService(db_session, adapters=None)
     assert service._practice_href(user) == "/atelier?mode=practice"
 

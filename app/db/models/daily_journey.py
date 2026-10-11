@@ -198,6 +198,12 @@ class DailyJourneyStep(Base):
 
     turn_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     turns_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: WP-L9: when the step became the learner's current step. With
+    #: ``completed_at`` it bounds the step's wall time; active time is still
+    #: ``measure_journey_duration``'s (pauses and idle excluded).
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

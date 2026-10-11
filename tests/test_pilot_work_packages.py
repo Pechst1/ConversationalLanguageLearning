@@ -260,20 +260,34 @@ def test_pilot_frontend_contracts_are_pinned():
     assert "clearPilotResilience()" in auth
     assert "recordClientError" in app_shell
     assert "unhandledrejection" in app_shell
-    assert "L’administration" in settings
-    assert "Receive this edition on this device" not in settings
+    # WP-46: the page <title> comes from the copy table, in the learner's own
+    # language. The French artboard title is pinned where it now lives.
+    assert "{copy.page_title}" in settings
+    assert "L’administration · Réglages" in _source("lib/settings-copy.ts")
 
     # The card direction is derived from the langue d'appui, never hardcoded to
     # the German pair — an English native could not save this page at all while
     # it posted their stored fr_to_en into a German-only schema.
-    assert "vocabDirectionOptions(settings.nativeLanguage)" in settings
+    # WP-46 added the copy table as a second argument; the langue d'appui is
+    # still what the options are derived from.
+    assert "vocabDirectionOptions(settings.nativeLanguage, copy)" in settings
     assert '<option value="fr_to_de">Français → allemand</option>' not in settings
     # Heading and button read the same words in the profile blocks, so the page
     # text showed "Modifier l’adresse" / "Modifier le mot de passe" twice each.
-    assert settings.count("Modifier l’adresse") == 1
-    assert settings.count("Modifier le mot de passe") == 1
-    assert "Enregistrer la nouvelle adresse" in settings
-    assert "Enregistrer le nouveau mot de passe" in settings
+    # The words are in the copy table now; the distinction is pinned there, and
+    # the page is pinned on using the two different keys.
+    settings_copy = _source("lib/settings-copy.ts")
+    assert settings.count("copy.row_change_email}") == 1
+    assert settings.count("copy.row_change_password}") == 1
+    assert settings.count("copy.action_save_email}") == 1
+    assert settings.count("copy.action_save_password}") == 1
+    for label in (
+        "Change your address", "Adresse ändern", "Modifier l’adresse",
+        "Change your password", "Passwort ändern", "Modifier le mot de passe",
+        "Save the new address", "Neue Adresse speichern", "Enregistrer la nouvelle adresse",
+        "Save the new password", "Neues Passwort speichern", "Enregistrer le nouveau mot de passe",
+    ):
+        assert label in settings_copy, label
     # "Durée habituelle d'une séance" was a slider that no save ever sent and no
     # load ever read; the time budget above it is the real setting.
     assert "preferredSessionLength" not in settings
@@ -302,7 +316,23 @@ def test_auth_pages_speak_one_language_and_wear_the_soft_pill():
     # learner's native_language is unknown before they have an account, so there
     # is no personal control language to honour here — only the publication's
     # own voice. English chrome on the way in was the island, not the rule.
-    assert "Votre première édition" in signup
+    # WP-75 (2026-09-22): sign-up explains itself in the learner's language
+    # (en/de/fr, guessed from the browser, switchable) from one copy table;
+    # the navigation labels stay French.
+    # 2026-09-24: the buttons are chrome too — the one-language rule reads a
+    # newcomer as a beginner, so they follow the same detected language.
+    assert "SIGNUP_COPY[language]" in signup
+    assert "SIGNUP_NAV[language]" in signup
+    assert "{nav.submit}" in signup
+    # 2026-09-24: sign-in and password reset follow the same detected language
+    # from one copy table (lib/auth-copy.ts, en/de/fr complete).
+    auth_copy = _source("lib/auth-copy.ts")
+    for page in (signin, forgot):
+        assert "useOnboardingLanguage()" in page
+        assert "from '@/lib/auth-copy'" in page
+        assert "Mot de passe oublié" not in page
+    for phrase in ("Mot de passe oublié", "Forgot your password?", "Passwort vergessen?"):
+        assert phrase in auth_copy
     for english_island in (
         "Your first edition",
         "Start with the essentials",
@@ -314,7 +344,8 @@ def test_auth_pages_speak_one_language_and_wear_the_soft_pill():
         assert english_island not in signup
 
     # Endonyms carry their own accents.
-    assert "'Français'" in signup and "'Francais'" not in signup
+    locale = _source("lib/onboarding-locale.ts")
+    assert "'Français'" in locale and "'Francais'" not in locale
 
     # Owner's soft-button direction, now inherited rather than restated: these
     # screens use the design system's own Action, whose radius is

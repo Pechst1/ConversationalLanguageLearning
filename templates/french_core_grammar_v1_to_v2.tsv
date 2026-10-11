@@ -1,0 +1,55 @@
+v1_external_id	v2_external_ids	note
+FR_A1_NOUN_001	FR2_A11_UN_UNE | FR2_A11_ADJ_AGREEMENT	split: gender taught with un/une; agreement with adjectives
+FR_A1_ART_001	FR2_A11_LE_LA	same scope
+FR_A1_ART_002	FR2_A11_UN_UNE	same scope (merges with FR_A1_NOUN_001)
+FR_A1_ART_003	FR2_A11_PARTITIVE | FR2_A12_QUANTITIES	split: partitive, then quantities with de
+FR_A1_DET_001	FR2_A11_POSSESSIVES	same scope
+FR_A1_DET_002	FR2_A12_DEMONSTRATIVES	moved to A1.2
+FR_A1_PRON_001	FR2_A11_ETRE | FR2_A12_STRESSED_PRONOUNS	split: subject pronouns come with être; stressed pronouns added
+FR_A1_VERB_001	FR2_A11_ER_VERBS | FR2_A11_ETRE | FR2_A11_AVOIR | FR2_A11_ALLER_VENIR | FR2_A11_FAIRE_PRENDRE | FR2_A12_MODALS | FR2_A12_IR_RE_VERBS	split: «present tense core verbs» becomes seven units; -er verbs carry the progress
+FR_A1_NEG_001	FR2_A11_NEGATION	now includes pas de
+FR_A1_SYN_001	FR2_A11_QUESTIONS | FR2_A11_QUESTION_WORDS | FR2_A21_INVERSION	split: yes/no questions, question words, inversion (A2.1)
+FR_A1_ADJ_001	FR2_A11_ADJ_AGREEMENT | FR2_A22_ADJ_SPECIAL	split: bel/nouvel/vieil moved to A2.2
+FR_A1_VERB_002	FR2_A12_FUTUR_PROCHE	moved to A1.2
+FR_A2_PRON_001	FR2_A21_COD | FR2_A21_COI | FR2_A22_PRONOUN_POSITION	split: le/la/les, lui/leur, position
+FR_A2_PRON_002	FR2_A21_Y_PLACE | FR2_A21_EN_QUANTITY	split: y for places, en for quantities
+FR_A2_NEG_001	FR2_A11_NEGATION	moved to A1.1 and merged with ne…pas (due diligence §2.3)
+FR_A2_TENSE_001	FR2_A21_PC_AVOIR | FR2_A12_PC_CHUNKS | FR2_A21_PC_NEGATION	split: A1.2 chunks, A2.1 full forms, negation in compound tenses
+FR_A2_TENSE_002	FR2_A21_PC_ETRE | FR2_A21_PC_PRONOMINAL	split: movement verbs, pronominal verbs
+FR_A2_VERB_001	FR2_A12_PRONOMINAL | FR2_A21_PC_PRONOMINAL	moved: present to A1.2, passé composé stays A2.1
+FR_A2_TENSE_003	FR2_A22_IMPARFAIT	same scope
+FR_A2_TENSE_004	FR2_A22_IMP_VS_PC	one concept (merges with FR_B1_TENSE_001; due diligence §2.3)
+FR_A2_ADJ_001	FR2_A21_COMPARATIVE | FR2_A21_SUPERLATIVE | FR2_A22_MEILLEUR_MIEUX	split
+FR_A2_REL_001	FR2_A22_RELATIVE_QUI_QUE | FR2_A22_RELATIVE_OU	split
+FR_A2_PREP_001	FR2_A21_TIME_PREPOSITIONS	same scope (il y a, depuis, pendant, dans)
+FR_A2_VERB_002	FR2_A22_IMPERATIVE_PRONOUNS | FR2_A12_IMPERATIVE	split: the bare imperative moved to A1.2
+FR_B1_COND_001	FR2_B11_SI_TYPE1	same scope
+FR_B1_COND_002	FR2_B11_SI_TYPE2	same scope
+FR_B1_TENSE_002	FR2_A22_FUTUR_SIMPLE | FR2_A22_FUTUR_IRREGULAR	moved to A2.2 (due diligence §2.3) and split
+FR_B1_COND_003	FR2_B11_CONDITIONAL | FR2_A21_POLITE_CONDITIONAL | FR2_A11_JE_VOUDRAIS	split: je voudrais A1.1, politeness A2.1, all forms B1.1
+FR_B1_TENSE_001	FR2_A22_IMP_VS_PC | FR2_B11_NARRATION	one concept, two stages (merges with FR_A2_TENSE_004)
+FR_B1_PRON_001	FR2_B11_DOUBLE_PRONOUNS | FR2_B21_DOUBLE_PRONOUNS_COMPOUND	split
+FR_B1_PRON_002	FR2_B11_Y_EN_VERBS	same scope
+FR_B1_REL_001	FR2_B11_DONT	same scope
+FR_B1_SYN_001	FR2_A22_REPORTED_PRESENT | FR2_B12_REPORTED_PAST | FR2_B11_INDIRECT_QUESTIONS	split: present reporting A2.2, past reporting B1.2, indirect questions B1.1
+FR_B1_VERB_001	FR2_B12_SUBJ_FORM | FR2_B12_SUBJ_IRREGULAR | FR2_B12_SUBJ_NECESSITY | FR2_B12_SUBJ_WILL	split: forms first, then triggers
+FR_B1_VERB_002	FR2_B12_GERUND	same scope
+FR_B1_AGR_001	FR2_B11_PP_AGREEMENT_AVOIR | FR2_A21_PC_ETRE	agreement with être moved into A2.1 PC with être
+FR_B2_SUBJ_001	FR2_B21_SUBJ_EMOTION | FR2_B12_SUBJ_WILL | FR2_B21_SUBJ_DOUBT	split: will B1.2, emotion and doubt B2.1
+FR_B2_SUBJ_002	FR2_B21_INDIC_SUBJ | FR2_B12_OPINION_SUBJ	split: opinion under negation B1.2
+FR_B2_TENSE_001	FR2_B11_PLUS_QUE_PARFAIT	moved to B1.1 (due diligence §2.3)
+FR_B2_COND_001	FR2_B21_CONDITIONAL_PAST	same scope
+FR_B2_TENSE_002	FR2_B21_FUTUR_ANTERIEUR	same scope
+FR_B2_COND_002	FR2_B21_SI_TYPE3 | FR2_B22_SI_MIXED	split
+FR_B2_SYN_001	FR2_B12_PASSIVE | FR2_B21_PASSIVE_TENSES | FR2_B21_PRONOMINAL_PASSIVE	intro moved to B1.2 (due diligence §2.3), nuance stays B2.1
+FR_B2_VERB_001	FR2_B21_CAUSATIVE | FR2_B21_SE_FAIRE_LAISSER	split
+FR_B2_CONN_001	FR2_B21_CONCESSION | FR2_B21_CONCESSION_SUBJ | FR2_B12_OPPOSITION	split
+FR_B2_REL_001	FR2_B12_RELATIVE_PREPOSITION | FR2_B21_RELATIVE_QUOI	split: lequel/auquel moved to B1.2
+FR_B2_PRON_001	FR2_B21_DOUBLE_PRONOUNS_COMPOUND	same scope
+FR_B2_SYN_002	FR2_B22_FORMAL_INVERSION	same scope
+FR_C1_SYN_001	FR2_B22_NE_EXPLETIF	C1 is outside v2 (A1–B2): nearest unit, moved to B2.2
+FR_C1_NEG_001	FR2_B11_NEG_NI_AUCUN	C1 is outside v2: nearest negation unit (literary ne…point/guère not in v2)
+FR_C1_TENSE_001	FR2_B22_REPORTED_SEQUENCE	C1 is outside v2: nearest unit
+FR_C1_SYN_002	FR2_B21_PASSIVE_TENSES | FR2_B21_PRONOMINAL_PASSIVE	C1 is outside v2: nearest units
+FR_C1_VERB_001	FR2_B21_PARTICIPE_PRESENT	C1 is outside v2: nearest unit
+FR_C1_CONN_001	FR2_B22_ARGUMENT	C1 is outside v2: nearest unit

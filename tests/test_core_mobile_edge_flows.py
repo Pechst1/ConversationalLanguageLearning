@@ -27,14 +27,17 @@ def test_atelier_recovers_from_offline_empty_and_unfinished_states() -> None:
     assert "setActiveSessionReady(true)" in atelier
     assert "const canStart = activeSessionReady && (hasActiveSession || concepts.length > 0)" in atelier
     assert "const seanceDisabled = loading || (!hasActiveSession && !canStart)" in atelier
-    assert "toast('Cet exercice est déjà classé.')" in atelier
+    # WP-82/83: said inline in the session, in the chrome language.
+    assert "say(pageCopy.say_already_done)" in atelier
     # Finish gate lives on the L'Épreuve topbar (EpTopbar finishDisabled prop).
     # It only blocks filing an *empty* edition: a session with classed drills can
     # always be closed early, behind one confirm, because that work is already
     # banked server-side (see tests/test_atelier_honest_edition.py).
     assert "finishDisabled={submitting || completedDrills < 1}" in atelier
     assert "partial={completedDrills < total}" in atelier
-    assert "La séance n’a pas pu être terminée." in atelier
+    assert "say(pageCopy.say_finish_failed, 'alert')" in atelier
+    copy = read(WEB / "components" / "epreuve" / "epreuve-copy.ts")
+    assert "say_finish_failed: 'La séance n’a pas pu être terminée.'" in copy
 
 
 def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish() -> None:
@@ -42,14 +45,18 @@ def test_lean_mission_blocks_empty_messages_and_requires_one_reply_before_finish
 
     assert "const text = reply.trim()" in missions
     assert "if (!mission || !text || submitting || completed) return" in missions
-    # Le Courrier is a French publication surface: the send-failure toast speaks it too.
-    assert "Le message n’est pas parti." in missions
+    # WP-82: the send-failure toast is chrome — the copy table carries it, in
+    # French for a B1+ learner and in the learner's language below that.
+    assert "toast.error(t.toast_send_failed)" in missions
+    copy = read(WEB / "components" / "courrier" / "courrier-copy.ts")
+    assert "toast_send_failed: 'Le message n’est pas parti.'" in copy
     assert "const canSend = reply.trim().length > 0 && !submitting && !completed" in missions
     # "Le Courrier" composer: submit gated by canSend, Terminer gated by interaction.
     assert "canSubmit={canSend}" in missions
     assert "canFinish={interactionReady}" in missions
     assert "finishing={completing}" in missions
-    assert "finishLabel=\"Terminer\"" in missions
+    # The finish label defaults to the chrome table's «Terminer» / «Finish».
+    assert "finish: 'Terminer'" in copy
     # The situation frame + the character opening both carry a translate assist.
     assert "translate={translateFrame}" in missions
     assert "apiService.translateToEnglish(openingMessage)" in missions
@@ -73,7 +80,8 @@ def test_mission_deep_links_preserve_thread_context_and_clear_stale_state() -> N
 
 
 def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> None:
-    feuilleton = read(WEB / "pages" / "graphic-novel.tsx")
+    # WP-82: the page's words are read from its copy table.
+    feuilleton = read(WEB / "pages" / "graphic-novel.tsx") + read(WEB / "components" / "feuilleton" / "feuilleton-copy.ts")
 
     assert "setScene(next?.active_scene || next?.available_scene || null)" in feuilleton
     assert "autoCreateContextRef.current === contextSceneKey" in feuilleton
@@ -117,6 +125,9 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
     chapter_page = read(WEB / "pages" / "bibliotheque" / "[storyId]" / "chapter" / "[chapterId].tsx")
     chapter_progress = read(WEB / "components" / "stories" / "ChapterProgressCard.tsx")
     chapter_timeline = read(WEB / "components" / "stories" / "ChapterTimeline.tsx")
+    # WP-82: the chrome moved into the one-language copy table; the French
+    # column keeps the wording pinned here, and each page reads its key.
+    copy = read(WEB / "components" / "stories" / "bibliotheque-copy.ts")
 
     assert "apiService.get<Story[]>('/stories')" in stories
     assert "useStoryDetail(resolvedStoryId)" in story_detail
@@ -124,26 +135,31 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
     assert "const [storyList, setStoryList] = useState(stories)" in stories
     assert "setStoryList([])" in stories
     # An empty shelf says so and offers the import, rather than showing nothing.
-    assert "L’étagère est encore vide." in stories
-    assert "Importer un premier livre" in stories
+    assert "shelf_empty_title: 'L’étagère est encore vide.'" in copy
+    assert "shelf_empty_action: 'Importer un premier livre'" in copy
+    assert "title={t.shelf_empty_title}" in stories
+    assert "label: t.shelf_empty_action" in stories
     # A locked text is inert and reads as locked; it is no longer an <a href="#">.
     assert "disabled={isLocked}" in stories
     assert "/bibliotheque/${story.id}" in stories
 
-    assert "Ouverture du texte…" in story_detail
-    assert "Ce texte est introuvable." in story_detail
+    assert "text_opening: 'Ouverture du texte…'" in copy and "{t.text_opening}" in story_detail
+    assert "text_not_found: 'Ce texte est introuvable.'" in copy and "title={t.text_not_found}" in story_detail
     assert "disabled={!user_progress?.current_chapter_id}" in story_detail
-    assert "Ouverture…" in story_detail
-    assert "Ouverture du chapitre…" in chapter_page
-    assert "Ouverture de la séance…" in chapter_page
+    assert "opening: 'Ouverture…'" in copy and "pendingLabel={t.opening}" in story_detail
+    assert "chapter_opening: 'Ouverture du chapitre…'" in copy
+    assert "session_opening: 'Ouverture de la séance…'" in copy
+    assert "{loadingChapter ? t.chapter_opening : t.session_opening}" in chapter_page
     assert "throw new Error('Failed to create session')" in chapter_page
-    assert "Ce chapitre est introuvable." in chapter_page
-    assert "Retour au texte" in chapter_page
+    assert "chapter_not_found: 'Ce chapitre est introuvable.'" in copy and "title={t.chapter_not_found}" in chapter_page
+    assert "back_to_text: 'Retour au texte'" in copy and "label: t.back_to_text" in chapter_page
 
     assert "disabled={!canComplete}" in chapter_progress
     assert "pending={loading}" in chapter_progress
-    assert "Encore quelques objectifs à atteindre" in chapter_progress
-    assert "Atteignez au moins" in chapter_progress
+    assert "goals_missing: 'Encore quelques objectifs à atteindre'" in copy
+    assert "reach_goals_many: 'Atteignez au moins {n} objectifs pour le clore.'" in copy
+    assert "{canComplete ? t.finish_chapter : t.goals_missing}" in chapter_progress
+    assert "t.reach_goals_one : t.reach_goals_many" in chapter_progress
     assert "is_locked" in chapter_timeline
     assert "<LockIcon size={14} />" in chapter_timeline
     assert "Chapitre en cours" in chapter_timeline
@@ -151,29 +167,77 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
 
 def test_settings_safety_edges_for_account_and_device_actions() -> None:
     settings = read(WEB / "pages" / "settings.tsx")
+    copy = read(WEB / "lib" / "settings-copy.ts")
     api = read(WEB / "services" / "api.ts")
 
     assert "await api.getSettings()" in settings
     assert "persistVisualSettings(loadedTheme, loadedFontSize)" in settings
     assert "await api.updateSettings(payload)" in settings
     assert "settingsLoadError" in settings
-    assert "Rechargez le dossier avant de classer les modifications." in settings
-    assert "Votre dossier n’a pas pu être chargé." in settings
+
+    # Superseded 2026-09-17 (WP-46): Réglages is the administrative surface
+    # and reads in the learner's *native* language, so these sentences moved out
+    # of the page and into lib/settings-copy.ts. The safety edge is unchanged
+    # and is pinned in two halves: the page still reaches the sentence, and the
+    # sentence still exists in all three languages.
+    for key in (
+        "copy.save_blocked",
+        ".load_error_body",
+        "copy.save_failed",
+        "copy.save_failed_fields",
+        "copy.confirm_delete_account",
+        "copy.delete_account_failed",
+        "copy.password_incomplete",
+        "copy.confirm_signout_all",
+    ):
+        assert key in settings, key
     # Superseded 2026-09-04: the save failure used to be one unconditional
     # generic line, which is how a rejected default_vocab_direction (422 on
     # every save for English natives) stayed invisible. The generic sentence is
     # still the fallback; a 422 now names the fields the API refused.
-    assert "'Les modifications n’ont pas pu être classées.'," in settings
-    assert "Les modifications n’ont pas pu être classées : ${rejected.join(', ')}." in settings
+    assert "`${copy.save_failed_fields} ${rejected.join(', ')}.`" in settings
+    assert ": copy.save_failed," in settings
 
-    assert "confirm('Supprimer définitivement ce compte" in settings
+    for sentence in (
+        # save_blocked
+        "Reload the file before filing your changes.",
+        "Laden Sie die Akte neu, bevor Sie Ihre Änderungen ablegen.",
+        "Rechargez le dossier avant de classer les modifications.",
+        # load_error_body
+        "Your file could not be loaded.",
+        "Ihre Akte konnte nicht geladen werden.",
+        "Votre dossier n’a pas pu être chargé.",
+        # save_failed
+        "The changes could not be filed.",
+        "Die Änderungen konnten nicht abgelegt werden.",
+        "Les modifications n’ont pas pu être classées.",
+        # confirm_delete_account
+        "Permanently delete this account and all its data?",
+        "Dieses Konto und alle seine Daten endgültig löschen?",
+        "Supprimer définitivement ce compte et toutes ses données ?",
+        # delete_account_failed
+        "The account could not be deleted.",
+        "Das Konto konnte nicht gelöscht werden.",
+        "Le compte n’a pas pu être supprimé.",
+        # password_incomplete
+        "a new password of at least 8 characters",
+        "ein neues Passwort mit mindestens 8 Zeichen",
+        "un nouveau mot de passe d’au moins 8 caractères",
+        # confirm_signout_all
+        "Close every session, including this one?",
+        "Alle Sitzungen schließen, auch diese?",
+        "Fermer toutes les sessions, y compris celle-ci ?",
+    ):
+        assert sentence in copy, sentence
+
+    # The irreversible actions are still behind the confirm() call sites.
+    assert "confirm(copy.confirm_delete_account, { confirmLabel: copy.confirm_delete_account_label })" in settings
+    assert "confirm(copy.confirm_signout_all)" in settings
     assert "await api.deleteAccount()" in settings
     assert "await appSignOut({ callbackUrl: '/' })" in settings
-    assert "setSaveMessage('Le compte n’a pas pu être supprimé. Réessayez.')" in settings
+    assert "setSaveMessage(copy.delete_account_failed)" in settings
     assert "passwordForm.newPassword.length < 8" in settings
-    assert "Saisissez votre mot de passe actuel et un nouveau mot de passe d’au moins 8 caractères." in settings
     assert "await appSignOut({ callbackUrl: '/auth/signin' })" in settings
-    assert "confirm('Fermer toutes les sessions, y compris celle-ci ?')" in settings
     assert "await api.signOutAllDevices()" in settings
     assert "await api.exportUserData()" in settings
 

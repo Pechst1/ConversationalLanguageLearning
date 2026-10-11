@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" role="img" aria-label="L’Atelier">
+  <!-- WP-72: the masthead mark (components/atelier-v2/ui/Shapes.tsx AtelierMark),
+       with the av2 light-theme colours baked in. Source of the app icon and the
+       launch screen: python3 web-frontend/scripts/generate-app-icons.py -->
+  <rect x="0" y="0" width="11" height="11" rx="2" fill="#14110d"/>
+  <circle cx="22" cy="6" r="6" fill="#1d3a8a"/>
+  <rect x="0" y="17" width="11" height="11" rx="2" fill="#f3c318"/>
+  <path d="M17 28L23 16L28 28H17Z" fill="#d8321a"/>
+</svg>

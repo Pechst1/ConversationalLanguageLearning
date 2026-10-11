@@ -80,6 +80,10 @@ def _resolve_authenticated_user(token: str | None, db: Session) -> User:
     token_auth_version = int(token_data.av or 0)
     if token_auth_version != int(user.auth_version or 0):
         raise credentials_exception
+    # WP-73: crash reports carry the learner's id (never email or name).
+    from app.core.observability import set_sentry_user
+
+    set_sentry_user(user.id)
     return user
 
 

@@ -1,0 +1,5 @@
+/* WP-72 — Berechtigungsdialoge und Name auf dem Home-Bildschirm, Deutsch. */
+"CFBundleDisplayName" = "L’Atelier";
+"NSCameraUsageDescription" = "L’Atelier nutzt die Kamera, wenn Sie im Courrier ein Dokument fotografieren, damit es gelesen und zu einer Übung wird.";
+"NSMicrophoneUsageDescription" = "L’Atelier nutzt das Mikrofon, wenn Sie laut antworten. Die Aufnahme wird transkribiert und danach verworfen.";
+"NSPhotoLibraryUsageDescription" = "L’Atelier öffnet Ihre Fotos, wenn Sie ein Dokument für den Courrier auswählen. Nur das gewählte Foto wird zum Lesen gesendet.";

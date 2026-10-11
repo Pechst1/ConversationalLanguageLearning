@@ -49,7 +49,6 @@ from app.db.models.pilot_event import PilotEvent
 from app.services.journey_contracts import (
     CAPABILITY_RUBRIC_VERSION,
     AssistanceLevel,
-    CapabilityKey,
     EvidenceKind,
     HelpKind,
     InputMode,
@@ -100,6 +99,8 @@ IDLE_CEILING_MIN_SECONDS = 60
 IDLE_CEILING_MAX_SECONDS = 240
 #: How much slower than the plan a genuinely engaged learner may be.
 IDLE_CEILING_FACTOR = 3
+#: WP-S4: how much longer than planned a folded forge block may take.
+FORGE_CEILING_FACTOR = 2
 
 
 # --------------------------------------------------------------------------
@@ -145,6 +146,30 @@ def _enum_of(*allowed: str):
         return text
 
     return check
+
+
+def _scenario_key(value: Any) -> str:
+    """The **authored scenarios**, not every member of :class:`CapabilityKey`.
+
+    WP-37 appended ``register`` to that enum as a *dimension* of a respond turn:
+    it has no brief, no plan and no evidence of its own, so it can never be a
+    journey's ``scenario_key``. Validating against the enum only *accepted*
+    more, which is why WP-37 could leave it — but a vocabulary that accepts a
+    value nothing writes stops being a vocabulary. The catalogue is
+    ``journey_content.SCENARIO_PRIORITY``, and it stays three.
+
+    Imported on first use rather than at module scope: ``journey_content`` pulls
+    the whole generation stack (the LLM service, the serial reader), and
+    telemetry must stay cheap to import — ``pilot_events`` imports this module
+    lazily for exactly that reason.
+    """
+
+    from app.services.journey_content import SCENARIO_PRIORITY
+
+    text = str(value)
+    if text not in {str(key) for key in SCENARIO_PRIORITY}:
+        raise _Rejected("not an authored scenario")
+    return text
 
 
 def _int_between(low: int, high: int):
@@ -229,7 +254,8 @@ _FIELD_RULES: dict[str, Any] = {
     "cost_usd": _float_between(0.0, 1000.0),
     "cost_known": _bool,
     # closed vocabularies
-    "scenario_key": _enum_of(*[str(key) for key in CapabilityKey]),
+    # ``register`` is a dimension, never a scenario — see ``_scenario_key``.
+    "scenario_key": _scenario_key,
     "step_kind": _enum_of(*[str(kind) for kind in StepKind]),
     "step_status": _enum_of(*[str(status) for status in StepStatus]),
     "journey_status": _enum_of(*[str(status) for status in JourneyStatus]),
@@ -271,6 +297,8 @@ _FIELD_RULES: dict[str, Any] = {
     "budget_seconds": _int_between(0, 86_400),
     "estimated_seconds": _int_between(0, 86_400),
     "estimated_active_seconds": _int_between(0, 86_400),
+    # WP-128: the core the rhythm budgets, and whether the story alone is longer.
+    "estimated_core_seconds": _int_between(0, 86_400),
     "provider_wait_ms": _float_between(0.0, float(_ONE_DAY_MS)),
     "retry_after_seconds": _int_between(0, 86_400),
     # booleans
@@ -279,6 +307,7 @@ _FIELD_RULES: dict[str, Any] = {
     "retry_allowed": _bool,
     "authored_fallback": _bool,
     "voice_available": _bool,
+    "longer_day": _bool,
     # day attribution
     "local_date": _local_date,
     "timezone": _timezone_name,
@@ -521,8 +550,22 @@ def journey_event_metadata(journey: Any, **extra: Any) -> dict[str, Any]:
             value = scenario.get(key)
             if value and key not in metadata:
                 metadata[key] = value
+    # WP-128: the core estimate travels with every event, so a pilot day can be
+    # read back as «planned core» against «measured active».
+    budget = _time_budget_of(journey)
+    if budget:
+        metadata["estimated_core_seconds"] = int(budget["core_seconds"])
+        metadata["longer_day"] = bool(budget.get("longer_day"))
     metadata.update(extra)
     return metadata
+
+
+def _time_budget_of(journey: Any) -> dict[str, Any] | None:
+    selection = getattr(journey, "plan_selection", None)
+    stored = selection.get("time_budget") if isinstance(selection, dict) else None
+    if isinstance(stored, dict) and isinstance(stored.get("core_seconds"), int):
+        return stored
+    return None
 
 
 def record_generation_fallback(
@@ -719,6 +762,15 @@ def _aware(value: datetime | None) -> datetime | None:
 
 def _segment_ceiling(payload: dict[str, Any]) -> int:
     estimate = payload.get("estimated_seconds")
+    if (
+        payload.get("step_kind") == str(StepKind.FORGE)
+        and isinstance(estimate, (int, float))
+        and not isinstance(estimate, bool)
+        and estimate > 0
+    ):
+        # WP-S4: a folded forge block is minutes of work away from the journey
+        # screen; its segment may run to twice the block before it is idle.
+        return max(IDLE_CEILING_MIN_SECONDS, int(estimate) * FORGE_CEILING_FACTOR)
     if isinstance(estimate, (int, float)) and not isinstance(estimate, bool) and estimate > 0:
         scaled = int(estimate) * IDLE_CEILING_FACTOR
         return max(IDLE_CEILING_MIN_SECONDS, min(IDLE_CEILING_MAX_SECONDS, scaled))
@@ -913,6 +965,59 @@ def measure_journey_duration(
     )
 
 
+def forge_after_day_seconds(db: Session, *, journey_id: UUID | str) -> int:
+    """WP-S4: the after-day forge minutes that belong to this journey's day.
+
+    Léger and Régulier forge after the day (the Home chip or the recap), so
+    that time never passes through the journey's events. It is read from the
+    séance ledger instead: forge blocks (``quote_payload.forge``) not folded
+    into a step, completed on the journey's local date after the journey was
+    finished. Each is its wall time, capped at :data:`FORGE_CEILING_FACTOR`
+    times its planned length — the same «slower than planned is still work,
+    much slower is away» rule the journey's own segments follow. A folded
+    block (Soutenu, Intensif) is already inside the journey's forge step.
+    """
+
+    from app.db.models.atelier import AtelierSession
+    from app.db.models.daily_journey import DailyJourney
+
+    try:
+        identifier = UUID(str(journey_id))
+    except (TypeError, ValueError):
+        return 0
+    journey = db.get(DailyJourney, identifier)
+    finished_at = _aware(getattr(journey, "completed_at", None)) if journey is not None else None
+    if journey is None or finished_at is None:
+        return 0
+    try:
+        zone = ZoneInfo(str(journey.timezone or FALLBACK_TIMEZONE))
+    except (ZoneInfoNotFoundError, ValueError):
+        zone = ZoneInfo(FALLBACK_TIMEZONE)
+    rows = (
+        db.query(AtelierSession)
+        .filter(
+            AtelierSession.user_id == journey.user_id,
+            AtelierSession.status == "completed",
+            AtelierSession.completed_at.isnot(None),
+            AtelierSession.completed_at >= finished_at,
+        )
+        .all()
+    )
+    total = 0
+    for session in rows:
+        forge = (session.quote_payload or {}).get("forge") if isinstance(session.quote_payload, dict) else None
+        if not isinstance(forge, dict) or forge.get("journey_step_id"):
+            continue
+        started = _aware(session.started_at)
+        completed = _aware(session.completed_at)
+        if started is None or completed is None or completed.astimezone(zone).date() != journey.local_date:
+            continue
+        budget = forge.get("budget_seconds")
+        ceiling = int(budget) * FORGE_CEILING_FACTOR if isinstance(budget, int) and budget > 0 else IDLE_CEILING_DEFAULT_SECONDS
+        total += int(min(max(0.0, (completed - max(started, finished_at)).total_seconds()), ceiling))
+    return total
+
+
 def measure_journey_active_seconds(
     db: Session,
     *,
@@ -922,6 +1027,177 @@ def measure_journey_active_seconds(
     """``JourneyRecap.active_seconds``: measured, or ``None`` when unmeasurable."""
 
     return measure_journey_duration(db, journey_id=journey_id, until=until).active_seconds
+
+
+# --------------------------------------------------------------------------
+# WP-128 — the estimate against the measurement
+# --------------------------------------------------------------------------
+
+
+def estimate_row(journey: Any, measurement: JourneyDuration) -> dict[str, Any]:
+    """One day's planned core against its measured active time.
+
+    The estimate is the plan's own core (``plan_selection["time_budget"]``; the
+    whole plan's for a day planned before WP-128). The measurement is
+    :func:`measure_journey_duration`'s: pauses and idle stretches excluded,
+    provider waiting reported beside it, never inside it. ``error_share`` is
+    ``(measured − estimated) / estimated`` — positive when the day ran longer
+    than promised — and ``None`` when either side is missing. Never the reverse
+    feed: a measurement is compared with the estimate, never replaced by it.
+    """
+
+    budget = _time_budget_of(journey) or {}
+    estimate = int(budget.get("core_seconds") or getattr(journey, "estimated_active_seconds", 0) or 0)
+    measured = measurement.active_seconds
+    error = (
+        round((measured - estimate) / float(estimate), 4)
+        if measured is not None and estimate > 0
+        else None
+    )
+    return {
+        "journey_id": str(getattr(journey, "id", "")),
+        "local_date": str(getattr(journey, "local_date", "") or ""),
+        "level_band": getattr(journey, "level_band", None),
+        "budget_seconds": int(getattr(journey, "budget_seconds", 0) or 0),
+        "estimated_core_seconds": estimate or None,
+        "estimated_active_seconds": int(getattr(journey, "estimated_active_seconds", 0) or 0) or None,
+        "measured_active_seconds": measured,
+        "provider_wait_seconds": round(measurement.provider_wait_seconds, 3),
+        "idle_excluded_seconds": measurement.idle_excluded_seconds,
+        "away_excluded_seconds": measurement.away_excluded_seconds,
+        "longer_day": bool(budget.get("longer_day")),
+        "error_share": error,
+    }
+
+
+def estimate_vs_measured(db: Session, *, journey_id: UUID | str) -> dict[str, Any] | None:
+    """WP-128: :func:`estimate_row` for one stored journey, or ``None``."""
+
+    from app.db.models.daily_journey import DailyJourney
+
+    try:
+        journey = db.get(DailyJourney, UUID(str(journey_id)))
+    except (TypeError, ValueError):
+        return None
+    if journey is None:
+        return None
+    return estimate_row(journey, measure_journey_duration(db, journey_id=journey.id))
+
+
+def _estimate_row_for(
+    db: Session, journey_id: str, measurement: JourneyDuration
+) -> dict[str, Any] | None:
+    from app.db.models.daily_journey import DailyJourney
+
+    try:
+        journey = db.get(DailyJourney, UUID(str(journey_id)))
+    except (TypeError, ValueError):
+        return None
+    return estimate_row(journey, measurement) if journey is not None else None
+
+
+def _estimate_error_section(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Per band: how far the measured days fell from their planned core."""
+
+    by_band: dict[str, list[float]] = defaultdict(list)
+    for row in rows:
+        if row["error_share"] is not None and not row["longer_day"]:
+            by_band[str(row.get("level_band") or "unknown")[:2]].append(row["error_share"])
+
+    def summary(errors: list[float]) -> dict[str, Any]:
+        ordered = sorted(errors)
+        absolute = sorted(abs(value) for value in errors)
+
+        def at(values: list[float], fraction: float) -> float | None:
+            if not values:
+                return None
+            return round(values[max(0, min(len(values) - 1, int(round(fraction * (len(values) - 1)))))], 4)
+
+        return {
+            "days": len(errors),
+            "median_error_share": at(ordered, 0.5),
+            "median_abs_error_share": at(absolute, 0.5),
+            "p90_abs_error_share": at(absolute, 0.9),
+            "over_by_20_percent": sum(1 for value in errors if value > 0.2),
+        }
+
+    return {
+        "denominator": len(rows),
+        "longer_days": sum(1 for row in rows if row["longer_day"]),
+        "by_band": {band: summary(errors) for band, errors in sorted(by_band.items())},
+        "note": "measured active vs the plan's core; idle, away and provider waits excluded",
+    }
+
+
+# --------------------------------------------------------------------------
+# WP-L6 — the learner's measured pace, for the planner
+# --------------------------------------------------------------------------
+
+#: The planner is fed the measured pace once this many days are measured
+#: (WORK-PACKAGES-2026-09-23-learning WP-L6); before that it plans on priors.
+MIN_MEASURED_PACE_DAYS = 3
+#: How far back the pace looks: the learner's last two weeks of finished days.
+PACE_LOOKBACK_JOURNEYS = 14
+
+
+@dataclass(frozen=True, slots=True)
+class MeasuredPace:
+    """How the learner's measured days compare with what was planned.
+
+    ``step_multiplier`` is the median of *measured active seconds / planned
+    seconds* over completed days — 1.2 means this learner takes a fifth longer
+    than the priors. The planner clamps it (``STEP_MULTIPLIER_BOUNDS``) and
+    applies it to what the learner *does*; reading keeps the prior pace until a
+    per-token measurement exists.
+    """
+
+    days: int
+    step_multiplier: float
+    samples: int
+
+
+def measured_pace(
+    db: Session,
+    *,
+    user_id: UUID | str,
+    exclude_journey_id: UUID | str | None = None,
+    lookback: int = PACE_LOOKBACK_JOURNEYS,
+) -> MeasuredPace:
+    """The learner's measured pace over their last completed days.
+
+    A day ended early is left out: it measures a part of the plan against the
+    whole plan's estimate. An unmeasurable day is left out too — never
+    replaced by its estimate.
+    """
+
+    from app.db.models.daily_journey import DailyJourney
+
+    query = db.query(DailyJourney).filter(
+        DailyJourney.user_id == UUID(str(user_id)),
+        DailyJourney.status == str(JourneyStatus.COMPLETED),
+        DailyJourney.estimated_active_seconds > 0,
+    )
+    if exclude_journey_id is not None:
+        query = query.filter(DailyJourney.id != UUID(str(exclude_journey_id)))
+    rows = query.order_by(DailyJourney.local_date.desc()).limit(max(1, lookback)).all()
+    ratios: list[float] = []
+    days: set[date] = set()
+    for journey in rows:
+        active = measure_journey_duration(db, journey_id=journey.id).active_seconds
+        if not active:
+            continue
+        ratios.append(active / float(journey.estimated_active_seconds))
+        days.add(journey.local_date)
+    if not ratios:
+        return MeasuredPace(days=0, step_multiplier=1.0, samples=0)
+    ordered = sorted(ratios)
+    middle = len(ordered) // 2
+    median = (
+        ordered[middle]
+        if len(ordered) % 2
+        else (ordered[middle - 1] + ordered[middle]) / 2.0
+    )
+    return MeasuredPace(days=len(days), step_multiplier=round(median, 4), samples=len(ratios))
 
 
 # --------------------------------------------------------------------------
@@ -955,6 +1231,35 @@ def _event_local_date(event: PilotEvent) -> tuple[date | None, bool]:
         except (ZoneInfoNotFoundError, ValueError, KeyError):
             pass
     return moment.astimezone(ZoneInfo(FALLBACK_TIMEZONE)).date(), False
+
+
+def _rhythm_order(name: str) -> tuple[int, str]:
+    from app.services.journey_rhythm import RHYTHMS
+
+    return (RHYTHMS.index(name) if name in RHYTHMS else len(RHYTHMS), name)  # type: ignore[arg-type]
+
+
+def _rhythms_for(db: Session, journey_ids: list[str]) -> dict[str, str]:
+    """WP-L9: each journey's rhythm, read from the budget it was planned for."""
+
+    from app.db.models.daily_journey import DailyJourney
+    from app.services.journey_rhythm import rhythm_for_budget
+
+    identifiers: list[UUID] = []
+    for value in journey_ids:
+        try:
+            identifiers.append(UUID(str(value)))
+        except (TypeError, ValueError):
+            continue
+    if not identifiers:
+        return {}
+    with db.no_autoflush:
+        rows = (
+            db.query(DailyJourney.id, DailyJourney.budget_seconds)
+            .filter(DailyJourney.id.in_(identifiers))
+            .all()
+        )
+    return {str(journey_id): rhythm_for_budget(budget) for journey_id, budget in rows}
 
 
 def _capability_rollup(db: Session, learner_ids: set[str]) -> dict[str, Any]:
@@ -1134,15 +1439,34 @@ def journey_daily_rollup(
     away_total = 0
     idle_total = 0
     preparation_total = 0.0
-    for journey_id in sorted(
+    finished_ids = sorted(
         journeys_by_name[str(JourneyEventName.COMPLETED)]
         | journeys_by_name[str(JourneyEventName.ENDED_EARLY)]
-    ):
+    )
+    rhythm_by_journey = _rhythms_for(db, finished_ids)
+    durations_by_rhythm: dict[str, list[int]] = defaultdict(list)
+    #: WP-S4: the day's measured time — the journey plus its after-day forge.
+    day_durations_by_rhythm: dict[str, list[int]] = defaultdict(list)
+    unmeasurable_by_rhythm: Counter[str] = Counter()
+    estimate_rows: list[dict[str, Any]] = []
+    completed_ids = journeys_by_name[str(JourneyEventName.COMPLETED)]
+    for journey_id in finished_ids:
         measurement = measure_journey_duration(db, journey_id=journey_id)
+        if journey_id in completed_ids:
+            # WP-128: a day ended early measures part of a plan; it is left out.
+            row = _estimate_row_for(db, journey_id, measurement)
+            if row is not None:
+                estimate_rows.append(row)
+        rhythm = rhythm_by_journey.get(journey_id, "unknown")
         if measurement.active_seconds is None:
             unmeasurable += 1
+            unmeasurable_by_rhythm[rhythm] += 1
         else:
             durations.append(measurement.active_seconds)
+            durations_by_rhythm[rhythm].append(measurement.active_seconds)
+            day_durations_by_rhythm[rhythm].append(
+                measurement.active_seconds + forge_after_day_seconds(db, journey_id=journey_id)
+            )
         idle_total += measurement.idle_excluded_seconds
         away_total += measurement.away_excluded_seconds
         preparation_total += measurement.preparation_wait_seconds
@@ -1213,8 +1537,28 @@ def journey_daily_rollup(
             },
             "idle_excluded_seconds": idle_total,
             "away_excluded_seconds": away_total,
+            # WP-L9: the real session length per rhythm, so «Régulier is 8–10
+            # minutes» is measured rather than asserted.
+            "by_rhythm": {
+                rhythm: {
+                    "measured": len(durations_by_rhythm.get(rhythm, [])),
+                    "unmeasurable": unmeasurable_by_rhythm.get(rhythm, 0),
+                    "p50_seconds": _percentile(durations_by_rhythm.get(rhythm, []), 0.5),
+                    "p90_seconds": _percentile(durations_by_rhythm.get(rhythm, []), 0.9),
+                    # WP-S4: with the after-day forge (Léger, Régulier); a
+                    # folded forge is already inside the journey's own time.
+                    "p50_day_seconds": _percentile(day_durations_by_rhythm.get(rhythm, []), 0.5),
+                    "p90_day_seconds": _percentile(day_durations_by_rhythm.get(rhythm, []), 0.9),
+                }
+                for rhythm in sorted(
+                    set(durations_by_rhythm) | set(unmeasurable_by_rhythm),
+                    key=_rhythm_order,
+                )
+            },
             "note": "server-measured; client timings are diagnostic and excluded",
         },
+        # WP-128: the planned core against the measured day, per band.
+        "estimate_error": _estimate_error_section(estimate_rows),
         "provider_wait": {
             "events_with_measurement": len(provider_waits_ms),
             "events_without_measurement": len(events) - len(provider_waits_ms),
@@ -1322,10 +1666,30 @@ def format_journey_digest(section: dict[str, Any]) -> list[str]:
             f"p90 {seconds['p90']} · max {seconds['max']} "
             f"[idle excluded {duration['idle_excluded_seconds']}s, away {duration['away_excluded_seconds']}s]"
         )
+        by_rhythm = duration.get("by_rhythm") or {}
+        if by_rhythm:
+            lines.append(
+                "    By rhythm: "
+                + " · ".join(
+                    f"{name} n={row['measured']} p50 {row['p50_seconds']} p90 {row['p90_seconds']}"
+                    for name, row in by_rhythm.items()
+                )
+            )
     else:
         lines.append(
             f"  Active seconds: none measurable "
             f"({duration['unmeasurable']}/{duration['denominator']} finished journeys); reported as unknown, not zero"
+        )
+    estimate = section.get("estimate_error") or {}
+    if estimate.get("by_band"):
+        lines.append(
+            f"  Estimate vs measured (n={estimate['denominator']} completed, "
+            f"{estimate['longer_days']} longer days left out): "
+            + " · ".join(
+                f"{band} n={row['days']} median {pct(row['median_error_share'])} "
+                f"|p90| {pct(row['p90_abs_error_share'])} over+20% {row['over_by_20_percent']}"
+                for band, row in estimate["by_band"].items()
+            )
         )
     measured_events = provider["events_with_measurement"]
     all_events = measured_events + provider["events_without_measurement"]
@@ -1362,6 +1726,8 @@ __all__ = [
     "JOURNEY_EVENT_SCHEMA_VERSION",
     "MIN_DIGEST_SAMPLE",
     "JourneyDuration",
+    "MIN_MEASURED_PACE_DAYS",
+    "MeasuredPace",
     "ProviderWait",
     "dedup_key",
     "format_journey_digest",
@@ -1369,7 +1735,10 @@ __all__ = [
     "journey_event_metadata",
     "journey_events_for",
     "measure_journey_active_seconds",
+    "estimate_row",
+    "estimate_vs_measured",
     "measure_journey_duration",
+    "measured_pace",
     "provider_timer",
     "record_generation_fallback",
     "record_journey_event",

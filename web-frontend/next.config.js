@@ -17,12 +17,20 @@ const isStoryFeatureVisible = Boolean(launchFlags.storyFeatureVisible);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // E-3: the walk harness runs its own dev server beside the owner's; a separate
+  // build directory keeps the two from overwriting each other's manifests.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
-  swcMinify: true,
+  // Next 15 removed `swcMinify` (SWC minification is always on).
   output: isNativeStaticExport ? 'export' : undefined,
   trailingSlash: isNativeStaticExport,
   images: {
-    domains: ['localhost', 'api.example.com'],
+    // Next 15 deprecates `images.domains`; these patterns allow exactly the
+    // same hosts (any protocol, port and path, as `domains` did).
+    remotePatterns: [
+      { hostname: 'localhost' },
+      { hostname: 'api.example.com' },
+    ],
     unoptimized: isNativeStaticExport,
   },
   // API_URL is passed through only when it is actually set. It used to be
@@ -60,10 +68,10 @@ if (!isNativeStaticExport) {
           },
         ]
       : []),
-    {
+    ...(process.env.NODE_ENV !== 'production' ? [{
       source: '/anki-connect',
       destination: 'http://127.0.0.1:8765',
-    },
+    }] : []),
   ];
 
   nextConfig.redirects = async () => [

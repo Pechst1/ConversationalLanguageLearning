@@ -1,0 +1,3407 @@
+{
+ "n": 10,
+ "dossier_id": "evergreen-rentree",
+ "level": "A2.1",
+ "native_language": "de",
+ "dossier": {
+  "id": "evergreen-rentree",
+  "dossier_version": "revue-v1",
+  "week": "2026-W35",
+  "topic": "culture",
+  "title_fr": "La rentrée des classes",
+  "summary_fr": "Début septembre, les élèves retournent à l'école. Pour les familles, la rentrée a aussi un coût : fournitures, vêtements, cantine. Une aide de l'État, l'allocation de rentrée scolaire, est versée en août à une partie des familles.",
+  "claims": [
+   {
+    "id": "c1",
+    "kind": "fact",
+    "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+    "quote": "Rentrée des élèves Mardi 1er septembre 2026 Jeudi 3 septembre 2026",
+    "source_id": "rentree_sp_calendrier",
+    "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+    "published_at": "2025-10-24",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c2",
+    "kind": "fact",
+    "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+    "quote": "L'allocation de rentrée scolaire (ARS) est versée sous condition de ressources aux familles ayant des enfants âgés de 6 à 18 ans",
+    "source_id": "rentree_sp_ars",
+    "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+    "published_at": "2026-04-03",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c3",
+    "kind": "fact",
+    "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+    "quote": "426,87 € par enfant âgé de 6 à 10 ans, contre 423,48 € précédemment",
+    "source_id": "rentree_sp_ars",
+    "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+    "published_at": "2026-04-03",
+    "confidence": "confirmed",
+    "attributed_to": null
+   },
+   {
+    "id": "c4",
+    "kind": "interpretation",
+    "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+    "quote": "la Confédération syndicale des familles constate en 2016 une hausse réelle des dépenses réalisées par les familles bien supérieure du coût de la rentrée par rapport aux années précédentes",
+    "source_id": "rentree_wikipedia",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+    "published_at": "2025-11-16",
+    "confidence": "reported",
+    "attributed_to": "la Confédération syndicale des familles (constat de 2016)"
+   }
+  ],
+  "entities": [
+   {
+    "name": "Caisse d'allocations familiales (Caf)",
+    "kind": "organisation",
+    "role": null
+   },
+   {
+    "name": "Confédération syndicale des familles",
+    "kind": "organisation",
+    "role": null
+   }
+  ],
+  "uncertainties": [
+   {
+    "id": "u1",
+    "fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+   },
+   {
+    "id": "u2",
+    "fr": "Le montant de l'allocation pour la rentrée 2027 n'est pas encore connu."
+   }
+  ],
+  "angles": [
+   {
+    "id": "a1",
+    "fr": "Ce que la rentrée change pour une famille",
+    "purpose": "understand_change",
+    "participation": "none",
+    "guest_fit": null
+   },
+   {
+    "id": "a2",
+    "fr": "La rentrée coûte-t-elle de plus en plus cher ?",
+    "purpose": "explain_disagreement",
+    "participation": "none",
+    "guest_fit": null
+   }
+  ],
+  "places": [
+   {
+    "id": "cour_ecole_rentree",
+    "name_fr": "Une cour d'école à Paris, début septembre",
+    "brief": "a school courtyard with plane trees, a chalked hopscotch on the asphalt, a closed green gate, early September morning light",
+    "known": false,
+    "geo": {
+     "lat": 48.8566,
+     "lon": 2.3522,
+     "precision": "city",
+     "label_fr": "Paris"
+    }
+   }
+  ],
+  "time_scope": {
+   "happening": "2026-08-24/2026-09-13",
+   "relevant_until": "2026-09-30"
+  },
+  "sources": [
+   {
+    "id": "rentree_sp_calendrier",
+    "name": "Service Public (service-public.gouv.fr)",
+    "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+    "published_at": "2025-10-24"
+   },
+   {
+    "id": "rentree_sp_ars",
+    "name": "Service Public (service-public.gouv.fr)",
+    "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+    "published_at": "2026-04-03"
+   },
+   {
+    "id": "rentree_wikipedia",
+    "name": "Wikipédia, « Rentrée scolaire »",
+    "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+    "published_at": "2025-11-16"
+   }
+  ],
+  "evergreen": true,
+  "vignette_object_fr": "un cartable"
+ },
+ "band": "A2",
+ "vocabulary": [
+  {
+   "fr": "les familles",
+   "gloss": {
+    "de": "die Familien"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "les enfants",
+   "gloss": {
+    "de": "die Kinder"
+   },
+   "claim_id": "c2"
+  },
+  {
+   "fr": "les euros",
+   "gloss": {
+    "de": "die Euro (Währung)"
+   },
+   "claim_id": "c3"
+  },
+  {
+   "fr": "la rentrée",
+   "gloss": {
+    "de": "der Schulbeginn"
+   },
+   "claim_id": "c1"
+  },
+  {
+   "fr": "l'allocation",
+   "gloss": {
+    "de": "die Beihilfe, der Zuschuss"
+   },
+   "claim_id": "c2"
+  }
+ ],
+ "target_use": {
+  "word": "la rentrée",
+  "article_said": "la",
+  "intended": "correct",
+  "sentence": "Pour moi, la rentrée, c'est important."
+ },
+ "turns": [
+  {
+   "learner": "D'accord, je t'aide.",
+   "result": {
+    "items": [
+     {
+      "id": "3",
+      "seq": 3,
+      "at": "2026-10-03T01:56:09.468738+00:00",
+      "kind": "mine",
+      "text_fr": "D'accord, je t'aide.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "4",
+      "seq": 4,
+      "at": "2026-10-03T01:56:14.130752+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Bien. D'après Service Public, pour la rentrée 2026 l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans.",
+      "translation": "Gut. Laut Service Public beträgt die Beihilfe für den Schulstart 2026 für ein Kind von 6 bis 10 Jahren 426,87 Euro.",
+      "glosses": [
+       {
+        "fr": "les euros",
+        "gloss": "die Euro (Währung)",
+        "claim_id": "c3"
+       },
+       {
+        "fr": "la rentrée",
+        "gloss": "der Schulbeginn",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "l'allocation",
+        "gloss": "die Beihilfe, der Zuschuss",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "5",
+      "seq": 5,
+      "at": "2026-10-03T01:56:14.130804+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+        "quote": "426,87 € par enfant âgé de 6 à 10 ans, contre 423,48 € précédemment",
+        "attributed_to": null,
+        "source": {
+         "id": "rentree_sp_ars",
+         "name": "Service Public (service-public.gouv.fr)",
+         "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+         "published_at": "2026-04-03"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "facts",
+    "room": {
+     "used": 0,
+     "phase": "open",
+     "remaining_turns": 13
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les familles",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les enfants",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les euros",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la rentrée",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'allocation",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "L'allocation, c'est combien ?",
+   "result": {
+    "items": [
+     {
+      "id": "7",
+      "seq": 7,
+      "at": "2026-10-03T01:56:14.143026+00:00",
+      "kind": "mine",
+      "text_fr": "L'allocation, c'est combien ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "8",
+      "seq": 8,
+      "at": "2026-10-03T01:56:20.173862+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "426,87 euros pour un enfant de 6 à 10 ans. Je l’ai déjà dit pour la rentrée 2026. D’après Service Public, l’allocation est versée sous condition de ressources aux familles avec des enfants de 6 à 18 ans.",
+      "translation": "426,87 Euro für ein Kind von 6 bis 10 Jahren. Ich habe das bereits für das Schuljahr 2026 gesagt. Laut Service Public wird die Beihilfe abhängig vom Einkommen an Familien mit Kindern von 6 bis 18 Jahren gezahlt.",
+      "glosses": [
+       {
+        "fr": "les familles",
+        "gloss": "die Familien",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "les enfants",
+        "gloss": "die Kinder",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "les euros",
+        "gloss": "die Euro (Währung)",
+        "claim_id": "c3"
+       },
+       {
+        "fr": "la rentrée",
+        "gloss": "der Schulbeginn",
+        "claim_id": "c1"
+       },
+       {
+        "fr": "l'allocation",
+        "gloss": "die Beihilfe, der Zuschuss",
+        "claim_id": "c2"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "9",
+      "seq": 9,
+      "at": "2026-10-03T01:56:20.173913+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+        "quote": "L'allocation de rentrée scolaire (ARS) est versée sous condition de ressources aux familles ayant des enfants âgés de 6 à 18 ans",
+        "attributed_to": null,
+        "source": {
+         "id": "rentree_sp_ars",
+         "name": "Service Public (service-public.gouv.fr)",
+         "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+         "published_at": "2026-04-03"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 12
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les familles",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les enfants",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les euros",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la rentrée",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'allocation",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Combien coûte une rentrée pour une famille en 2026 ?",
+   "result": {
+    "items": [
+     {
+      "id": "12",
+      "seq": 12,
+      "at": "2026-10-03T01:56:20.183429+00:00",
+      "kind": "mine",
+      "text_fr": "Combien coûte une rentrée pour une famille en 2026 ?",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "13",
+      "seq": 13,
+      "at": "2026-10-03T01:56:25.019391+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Les sources ne le disent pas. D'après la Confédération syndicale des familles, les dépenses de rentrée ont beaucoup augmenté par rapport aux années précédentes (constat de 2016).",
+      "translation": "Die Quellen sagen das nicht. Laut der Confédération syndicale des familles sind die Ausgaben für den Schulbeginn viel stärker gestiegen als in den vorigen Jahren (Feststellung von 2016).",
+      "glosses": [
+       {
+        "fr": "les familles",
+        "gloss": "die Familien",
+        "claim_id": "c2"
+       },
+       {
+        "fr": "la rentrée",
+        "gloss": "der Schulbeginn",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "13.u",
+      "seq": 13,
+      "at": "2026-10-03T01:56:25.019391+00:00",
+      "kind": "uncertainty",
+      "text_fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+     },
+     {
+      "id": "14",
+      "seq": 14,
+      "at": "2026-10-03T01:56:25.019445+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+        "quote": "la Confédération syndicale des familles constate en 2016 une hausse réelle des dépenses réalisées par les familles bien supérieure du coût de la rentrée par rapport aux années précédentes",
+        "attributed_to": "la Confédération syndicale des familles (constat de 2016)",
+        "source": {
+         "id": "rentree_wikipedia",
+         "name": "Wikipédia, « Rentrée scolaire »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+         "published_at": "2025-11-16"
+        }
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 1,
+     "phase": "open",
+     "remaining_turns": 11
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "On formule la question",
+      "send_fr": "On formule la question ensemble ?"
+     },
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "correct",
+     "capability_known": true,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les familles",
+       "outcome": "correct",
+       "capability_known": true
+      },
+      {
+       "fr": "les enfants",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les euros",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la rentrée",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'allocation",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "not_applicable",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  },
+  {
+   "learner": "Pour moi, l'école coûte trop cher. Pour moi, la rentrée, c'est important.",
+   "result": {
+    "items": [
+     {
+      "id": "17",
+      "seq": 17,
+      "at": "2026-10-03T01:56:25.030376+00:00",
+      "kind": "mine",
+      "text_fr": "Pour moi, l'école coûte trop cher. Pour moi, la rentrée, c'est important.",
+      "mode": "text",
+      "register_note": null
+     },
+     {
+      "id": "18",
+      "seq": 18,
+      "at": "2026-10-03T01:56:29.635144+00:00",
+      "kind": "line",
+      "speaker": "romy_tremblay",
+      "role": "reply",
+      "text_fr": "Tu as raison, l’école peut coûter cher. D’après Service Public, la rentrée des élèves a lieu le 1er septembre en métropole et le 3 septembre en Corse.",
+      "translation": "Du hast recht, die Schule kann teuer sein. Laut Service Public beginnt das Schuljahr am 1. September in der Métropole und am 3. September auf Korsika.",
+      "glosses": [
+       {
+        "fr": "la rentrée",
+        "gloss": "der Schulbeginn",
+        "claim_id": "c1"
+       }
+      ],
+      "reason": null
+     },
+     {
+      "id": "19",
+      "seq": 19,
+      "at": "2026-10-03T01:56:29.635200+00:00",
+      "kind": "claims",
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+        "quote": "Rentrée des élèves Mardi 1er septembre 2026 Jeudi 3 septembre 2026",
+        "attributed_to": null,
+        "source": {
+         "id": "rentree_sp_calendrier",
+         "name": "Service Public (service-public.gouv.fr)",
+         "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+         "published_at": "2025-10-24"
+        }
+       }
+      ]
+     },
+     {
+      "id": "21",
+      "seq": 21,
+      "at": "2026-10-03T01:56:29.635229+00:00",
+      "kind": "guest",
+      "cast_id": "lila_bonnet",
+      "text_fr": "Pour : la rentrée change la vie d'une famille, mes élèves m'ont posé la question en classe et je veux leur répondre juste.",
+      "move": "enter",
+      "position": "for",
+      "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+      "reason": null,
+      "glosses": [
+       {
+        "fr": "la rentrée",
+        "gloss": "der Schulbeginn",
+        "claim_id": "c1"
+       }
+      ]
+     }
+    ],
+    "beat": "pursue",
+    "room": {
+     "used": 2,
+     "phase": "open",
+     "remaining_turns": 10
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "quick_replies": [
+     {
+      "label": "Plus",
+      "send_fr": "Dis-m'en plus."
+     }
+    ],
+    "steer_to_make": false,
+    "evidence": {
+     "outcome": "unscored",
+     "capability_known": false,
+     "grader": "revue-rubric-v1",
+     "words": [
+      {
+       "fr": "les familles",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les enfants",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "les euros",
+       "outcome": "unscored",
+       "capability_known": true
+      },
+      {
+       "fr": "la rentrée",
+       "outcome": "unscored",
+       "capability_known": false
+      },
+      {
+       "fr": "l'allocation",
+       "outcome": "unscored",
+       "capability_known": false
+      }
+     ],
+     "fact_fit": "supported",
+     "register_note": "ok",
+     "pending": false
+    }
+   }
+  }
+ ],
+ "make_offer": {
+  "recommended": "reader_question",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "Une allocation de rentrée pour les familles ayant des enfants de six à dix‑huit ans"
+     },
+     {
+      "id": "h2",
+      "text_fr": "La rentrée en métropole est fixée au 2 septembre"
+     },
+     {
+      "id": "h3",
+      "text_fr": "L'allocation pour les six à dix ans a diminué cette année"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "uncertainty_fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+   }
+  ],
+  "intro": {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T01:56:35.008313+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make": {
+  "option": "reader_question",
+  "propose": {
+   "kind": "reader_question",
+   "draft": {
+    "learner_fr": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "proposal_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+    "contribution": [
+     [
+      0,
+      13
+     ],
+     [
+      17,
+      24
+     ],
+     [
+      37,
+      56
+     ]
+    ],
+    "why_native": "Ich habe «une rentrée» durch «la rentrée des classes» ersetzt, damit klar ist, worauf sich die Frage bezieht."
+   }
+  },
+  "send": {
+   "kind": "reader_question",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+    "contribution": [
+     [
+      0,
+      13
+     ],
+     [
+      17,
+      24
+     ],
+     [
+      37,
+      56
+     ]
+    ],
+    "learner_fr": "Combien coûte une rentrée pour une famille en 2026 ?"
+   },
+   "line": {
+    "id": "29",
+    "seq": 29,
+    "at": "2026-10-03T01:56:37.271745+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  }
+ },
+ "closing": {
+  "romy_line_fr": "Je prends ta question : je vérifie les montants de l'allocation et la date de versement, hein.",
+  "dispatch": {
+   "kicker_fr": "Le Papier de Romy · semaine 40",
+   "headline_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+   "body_fr": [
+    "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+    "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+    "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+   ],
+   "contribution": [
+    [
+     0,
+     13
+    ],
+    [
+     17,
+     24
+    ],
+    [
+     37,
+     56
+    ]
+   ],
+   "byline_fr": "Romy Tremblay, avec toi · d'après Service Public (service-public.gouv.fr) et Wikipédia, « Rentrée scolaire »",
+   "sources": [
+    {
+     "id": "rentree_sp_calendrier",
+     "name": "Service Public (service-public.gouv.fr)",
+     "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+     "published_at": "2025-10-24"
+    },
+    {
+     "id": "rentree_sp_ars",
+     "name": "Service Public (service-public.gouv.fr)",
+     "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+     "published_at": "2026-04-03"
+    },
+    {
+     "id": "rentree_wikipedia",
+     "name": "Wikipédia, « Rentrée scolaire »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+     "published_at": "2025-11-16"
+    }
+   ]
+  },
+  "kept": {
+   "words": [
+    {
+     "fr": "les familles",
+     "gloss": "die Familien",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "correct"
+    },
+    {
+     "fr": "les enfants",
+     "gloss": "die Kinder",
+     "claim_id": "c2",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "les euros",
+     "gloss": "die Euro (Währung)",
+     "claim_id": "c3",
+     "used": false,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "la rentrée",
+     "gloss": "der Schulbeginn",
+     "claim_id": "c1",
+     "used": true,
+     "outcome": "unscored"
+    },
+    {
+     "fr": "l'allocation",
+     "gloss": "die Beihilfe, der Zuschuss",
+     "claim_id": "c2",
+     "used": true,
+     "outcome": "unscored"
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+     "quote": "Rentrée des élèves Mardi 1er septembre 2026 Jeudi 3 septembre 2026",
+     "attributed_to": null,
+     "source": {
+      "id": "rentree_sp_calendrier",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+      "published_at": "2025-10-24"
+     }
+    },
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+     "quote": "L'allocation de rentrée scolaire (ARS) est versée sous condition de ressources aux familles ayant des enfants âgés de 6 à 18 ans",
+     "attributed_to": null,
+     "source": {
+      "id": "rentree_sp_ars",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+      "published_at": "2026-04-03"
+     }
+    },
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+     "quote": "426,87 € par enfant âgé de 6 à 10 ans, contre 423,48 € précédemment",
+     "attributed_to": null,
+     "source": {
+      "id": "rentree_sp_ars",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+      "published_at": "2026-04-03"
+     }
+    },
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+     "quote": "la Confédération syndicale des familles constate en 2016 une hausse réelle des dépenses réalisées par les familles bien supérieure du coût de la rentrée par rapport aux années précédentes",
+     "attributed_to": "la Confédération syndicale des familles (constat de 2016)",
+     "source": {
+      "id": "rentree_wikipedia",
+      "name": "Wikipédia, « Rentrée scolaire »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+      "published_at": "2025-11-16"
+     }
+    }
+   ]
+  },
+  "question_kept_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+  "vignette": {
+   "id": "1eab0fe6-9494-4a31-ad90-cf50e08536e5",
+   "session_id": "a4845d9a-1fa3-45d5-bc2d-3e48feb2f2fb",
+   "dossier_id": "evergreen-rentree",
+   "week": "2026-W40",
+   "place_label_fr": "Une cour d'école à Paris, début septembre",
+   "ring": "question",
+   "kept_contribution": true,
+   "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"22\" fill=\"#C2890F\"/><rect x=\"29\" y=\"56\" width=\"42\" height=\"8\" rx=\"3\" fill=\"#2C6A5D\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"45\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+   "headline_fr": "La rentrée des classes",
+   "minted_at": "2026-10-03T01:56:41"
+  },
+  "colophon_fr": "La suite la semaine prochaine."
+ },
+ "thread": [
+  {
+   "id": "2.n0",
+   "seq": 2,
+   "at": "2026-10-03T01:56:09.462315+00:00",
+   "kind": "narration",
+   "text_fr": "Une cour d'école à Paris, début septembre."
+  },
+  {
+   "id": "2.n1",
+   "seq": 2,
+   "at": "2026-10-03T01:56:09.462315+00:00",
+   "kind": "narration",
+   "text_fr": "Romy est déjà là, son carnet à la main : ça se passe du 24 août au 13 sept.."
+  },
+  {
+   "id": "2.p",
+   "seq": 2,
+   "at": "2026-10-03T01:56:09.462315+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "place_note",
+   "text_fr": "Ce n'est pas vraiment une cour d'école à Paris, début septembre, hein… mais on fait comme si.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "2",
+   "seq": 2,
+   "at": "2026-10-03T01:56:09.462315+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "purpose",
+   "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que la rentrée change pour une famille ». Tu m'aides ?",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "la rentrée",
+     "gloss": "der Schulbeginn",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "2.s",
+   "seq": 2,
+   "at": "2026-10-03T01:56:09.462315+00:00",
+   "kind": "summary",
+   "speaker": "romy_tremblay",
+   "text_fr": "Début septembre, les élèves retournent à l'école. Pour les familles, la rentrée a aussi un coût : fournitures, vêtements, cantine. Une aide de l'État, l'allocation de rentrée scolaire, est versée en août à une partie des familles."
+  },
+  {
+   "id": "3",
+   "seq": 3,
+   "at": "2026-10-03T01:56:09.468738+00:00",
+   "kind": "mine",
+   "text_fr": "D'accord, je t'aide.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "4",
+   "seq": 4,
+   "at": "2026-10-03T01:56:14.130752+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Bien. D'après Service Public, pour la rentrée 2026 l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans.",
+   "translation": "Gut. Laut Service Public beträgt die Beihilfe für den Schulstart 2026 für ein Kind von 6 bis 10 Jahren 426,87 Euro.",
+   "glosses": [
+    {
+     "fr": "les euros",
+     "gloss": "die Euro (Währung)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la rentrée",
+     "gloss": "der Schulbeginn",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'allocation",
+     "gloss": "die Beihilfe, der Zuschuss",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-03T01:56:14.130804+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+     "quote": "426,87 € par enfant âgé de 6 à 10 ans, contre 423,48 € précédemment",
+     "attributed_to": null,
+     "source": {
+      "id": "rentree_sp_ars",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+      "published_at": "2026-04-03"
+     }
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-03T01:56:14.143026+00:00",
+   "kind": "mine",
+   "text_fr": "L'allocation, c'est combien ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-03T01:56:20.173862+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "426,87 euros pour un enfant de 6 à 10 ans. Je l’ai déjà dit pour la rentrée 2026. D’après Service Public, l’allocation est versée sous condition de ressources aux familles avec des enfants de 6 à 18 ans.",
+   "translation": "426,87 Euro für ein Kind von 6 bis 10 Jahren. Ich habe das bereits für das Schuljahr 2026 gesagt. Laut Service Public wird die Beihilfe abhängig vom Einkommen an Familien mit Kindern von 6 bis 18 Jahren gezahlt.",
+   "glosses": [
+    {
+     "fr": "les familles",
+     "gloss": "die Familien",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "les enfants",
+     "gloss": "die Kinder",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "les euros",
+     "gloss": "die Euro (Währung)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la rentrée",
+     "gloss": "der Schulbeginn",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'allocation",
+     "gloss": "die Beihilfe, der Zuschuss",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "9",
+   "seq": 9,
+   "at": "2026-10-03T01:56:20.173913+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c2",
+     "kind": "fact",
+     "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+     "quote": "L'allocation de rentrée scolaire (ARS) est versée sous condition de ressources aux familles ayant des enfants âgés de 6 à 18 ans",
+     "attributed_to": null,
+     "source": {
+      "id": "rentree_sp_ars",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+      "published_at": "2026-04-03"
+     }
+    }
+   ]
+  },
+  {
+   "id": "12",
+   "seq": 12,
+   "at": "2026-10-03T01:56:20.183429+00:00",
+   "kind": "mine",
+   "text_fr": "Combien coûte une rentrée pour une famille en 2026 ?",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "13",
+   "seq": 13,
+   "at": "2026-10-03T01:56:25.019391+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Les sources ne le disent pas. D'après la Confédération syndicale des familles, les dépenses de rentrée ont beaucoup augmenté par rapport aux années précédentes (constat de 2016).",
+   "translation": "Die Quellen sagen das nicht. Laut der Confédération syndicale des familles sind die Ausgaben für den Schulbeginn viel stärker gestiegen als in den vorigen Jahren (Feststellung von 2016).",
+   "glosses": [
+    {
+     "fr": "les familles",
+     "gloss": "die Familien",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "la rentrée",
+     "gloss": "der Schulbeginn",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "13.u",
+   "seq": 13,
+   "at": "2026-10-03T01:56:25.019391+00:00",
+   "kind": "uncertainty",
+   "text_fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+  },
+  {
+   "id": "14",
+   "seq": 14,
+   "at": "2026-10-03T01:56:25.019445+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c4",
+     "kind": "interpretation",
+     "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+     "quote": "la Confédération syndicale des familles constate en 2016 une hausse réelle des dépenses réalisées par les familles bien supérieure du coût de la rentrée par rapport aux années précédentes",
+     "attributed_to": "la Confédération syndicale des familles (constat de 2016)",
+     "source": {
+      "id": "rentree_wikipedia",
+      "name": "Wikipédia, « Rentrée scolaire »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+      "published_at": "2025-11-16"
+     }
+    }
+   ]
+  },
+  {
+   "id": "17",
+   "seq": 17,
+   "at": "2026-10-03T01:56:25.030376+00:00",
+   "kind": "mine",
+   "text_fr": "Pour moi, l'école coûte trop cher. Pour moi, la rentrée, c'est important.",
+   "mode": "text",
+   "register_note": null
+  },
+  {
+   "id": "18",
+   "seq": 18,
+   "at": "2026-10-03T01:56:29.635144+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "reply",
+   "text_fr": "Tu as raison, l’école peut coûter cher. D’après Service Public, la rentrée des élèves a lieu le 1er septembre en métropole et le 3 septembre en Corse.",
+   "translation": "Du hast recht, die Schule kann teuer sein. Laut Service Public beginnt das Schuljahr am 1. September in der Métropole und am 3. September auf Korsika.",
+   "glosses": [
+    {
+     "fr": "la rentrée",
+     "gloss": "der Schulbeginn",
+     "claim_id": "c1"
+    }
+   ],
+   "reason": null
+  },
+  {
+   "id": "19",
+   "seq": 19,
+   "at": "2026-10-03T01:56:29.635200+00:00",
+   "kind": "claims",
+   "claims": [
+    {
+     "id": "c1",
+     "kind": "fact",
+     "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+     "quote": "Rentrée des élèves Mardi 1er septembre 2026 Jeudi 3 septembre 2026",
+     "attributed_to": null,
+     "source": {
+      "id": "rentree_sp_calendrier",
+      "name": "Service Public (service-public.gouv.fr)",
+      "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+      "published_at": "2025-10-24"
+     }
+    }
+   ]
+  },
+  {
+   "id": "21",
+   "seq": 21,
+   "at": "2026-10-03T01:56:29.635229+00:00",
+   "kind": "guest",
+   "cast_id": "lila_bonnet",
+   "text_fr": "Pour : la rentrée change la vie d'une famille, mes élèves m'ont posé la question en classe et je veux leur répondre juste.",
+   "move": "enter",
+   "position": "for",
+   "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+   "reason": null,
+   "glosses": [
+    {
+     "fr": "la rentrée",
+     "gloss": "der Schulbeginn",
+     "claim_id": "c1"
+    }
+   ]
+  },
+  {
+   "id": "25",
+   "seq": 25,
+   "at": "2026-10-03T01:56:35.008313+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "28",
+   "seq": 28,
+   "at": "2026-10-03T01:56:37.271729+00:00",
+   "kind": "made",
+   "made": {
+    "kind": "reader_question",
+    "text_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+    "contribution": [
+     [
+      0,
+      13
+     ],
+     [
+      17,
+      24
+     ],
+     [
+      37,
+      56
+     ]
+    ],
+    "learner_fr": "Combien coûte une rentrée pour une famille en 2026 ?"
+   }
+  },
+  {
+   "id": "29",
+   "seq": 29,
+   "at": "2026-10-03T01:56:37.271745+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Partie pour la rédaction.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  {
+   "id": "30",
+   "seq": 30,
+   "at": "2026-10-03T01:56:41.710153+00:00",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "close",
+   "text_fr": "Je prends ta question : je vérifie les montants de l'allocation et la date de versement, hein.",
+   "translation": null,
+   "glosses": [
+    {
+     "fr": "l'allocation",
+     "gloss": "die Beihilfe, der Zuschuss",
+     "claim_id": "c2"
+    }
+   ],
+   "reason": null
+  }
+ ],
+ "events": [
+  {
+   "seq": 1,
+   "kind": "choice",
+   "payload": {
+    "kind": "dossier",
+    "dossier_id": "evergreen-rentree",
+    "chosen_by": "learner",
+    "free_request": null,
+    "snapshot": {
+     "id": "evergreen-rentree",
+     "dossier_version": "revue-v1",
+     "week": "2026-W35",
+     "topic": "culture",
+     "title_fr": "La rentrée des classes",
+     "summary_fr": "Début septembre, les élèves retournent à l'école. Pour les familles, la rentrée a aussi un coût : fournitures, vêtements, cantine. Une aide de l'État, l'allocation de rentrée scolaire, est versée en août à une partie des familles.",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+       "quote": "Rentrée des élèves Mardi 1er septembre 2026 Jeudi 3 septembre 2026",
+       "source_id": "rentree_sp_calendrier",
+       "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+       "published_at": "2025-10-24",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+       "quote": "L'allocation de rentrée scolaire (ARS) est versée sous condition de ressources aux familles ayant des enfants âgés de 6 à 18 ans",
+       "source_id": "rentree_sp_ars",
+       "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+       "published_at": "2026-04-03",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+       "quote": "426,87 € par enfant âgé de 6 à 10 ans, contre 423,48 € précédemment",
+       "source_id": "rentree_sp_ars",
+       "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+       "published_at": "2026-04-03",
+       "confidence": "confirmed",
+       "attributed_to": null
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+       "quote": "la Confédération syndicale des familles constate en 2016 une hausse réelle des dépenses réalisées par les familles bien supérieure du coût de la rentrée par rapport aux années précédentes",
+       "source_id": "rentree_wikipedia",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+       "published_at": "2025-11-16",
+       "confidence": "reported",
+       "attributed_to": "la Confédération syndicale des familles (constat de 2016)"
+      }
+     ],
+     "entities": [
+      {
+       "name": "Caisse d'allocations familiales (Caf)",
+       "kind": "organisation",
+       "role": null
+      },
+      {
+       "name": "Confédération syndicale des familles",
+       "kind": "organisation",
+       "role": null
+      }
+     ],
+     "uncertainties": [
+      {
+       "id": "u1",
+       "fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+      },
+      {
+       "id": "u2",
+       "fr": "Le montant de l'allocation pour la rentrée 2027 n'est pas encore connu."
+      }
+     ],
+     "angles": [
+      {
+       "id": "a1",
+       "fr": "Ce que la rentrée change pour une famille",
+       "purpose": "understand_change",
+       "participation": "none",
+       "guest_fit": null
+      },
+      {
+       "id": "a2",
+       "fr": "La rentrée coûte-t-elle de plus en plus cher ?",
+       "purpose": "explain_disagreement",
+       "participation": "none",
+       "guest_fit": null
+      }
+     ],
+     "places": [
+      {
+       "id": "cour_ecole_rentree",
+       "name_fr": "Une cour d'école à Paris, début septembre",
+       "brief": "a school courtyard with plane trees, a chalked hopscotch on the asphalt, a closed green gate, early September morning light",
+       "known": false,
+       "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+       }
+      }
+     ],
+     "time_scope": {
+      "happening": "2026-08-24/2026-09-13",
+      "relevant_until": "2026-09-30"
+     },
+     "sources": [
+      {
+       "id": "rentree_sp_calendrier",
+       "name": "Service Public (service-public.gouv.fr)",
+       "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+       "published_at": "2025-10-24"
+      },
+      {
+       "id": "rentree_sp_ars",
+       "name": "Service Public (service-public.gouv.fr)",
+       "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+       "published_at": "2026-04-03"
+      },
+      {
+       "id": "rentree_wikipedia",
+       "name": "Wikipédia, « Rentrée scolaire »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+       "published_at": "2025-11-16"
+      }
+     ],
+     "evergreen": true,
+     "vignette_object_fr": "un cartable"
+    },
+    "cost_usd": 0.002688,
+    "prompt_version": "revue-vocabulary-v2"
+   }
+  },
+  {
+   "seq": 2,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "arrive",
+    "role": "purpose",
+    "narration": [
+     "Une cour d'école à Paris, début septembre.",
+     "Romy est déjà là, son carnet à la main : ça se passe du 24 août au 13 sept.."
+    ],
+    "place_note": "Ce n'est pas vraiment une cour d'école à Paris, début septembre, hein… mais on fait comme si.",
+    "request_miss": null,
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que la rentrée change pour une famille ». Tu m'aides ?",
+    "summary_fr": "Début septembre, les élèves retournent à l'école. Pour les familles, la rentrée a aussi un coût : fournitures, vêtements, cantine. Une aide de l'État, l'allocation de rentrée scolaire, est versée en août à une partie des familles."
+   }
+  },
+  {
+   "seq": 3,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 4,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "facts",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Bien. D'après Service Public, pour la rentrée 2026 l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans.",
+    "translation": "Gut. Laut Service Public beträgt die Beihilfe für den Schulstart 2026 für ein Kind von 6 bis 10 Jahren 426,87 Euro.",
+    "claims_cited": [
+     "c3"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001527,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 4.658
+   }
+  },
+  {
+   "seq": 5,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c3"
+    ]
+   }
+  },
+  {
+   "seq": 6,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les familles",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_FAMILY",
+      "capability_known": true
+     },
+     {
+      "fr": "les enfants",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_FAMILY",
+      "capability_known": true
+     },
+     {
+      "fr": "les euros",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_ORDER_CAFE",
+      "capability_known": true
+     },
+     {
+      "fr": "la rentrée",
+      "outcome": "unscored",
+      "capability_id": "revue.word:rentree",
+      "capability_known": false
+     },
+     {
+      "fr": "l'allocation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:allocation",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 3
+   }
+  },
+  {
+   "seq": 7,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "L'allocation, c'est combien ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 8,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "426,87 euros pour un enfant de 6 à 10 ans. Je l’ai déjà dit pour la rentrée 2026. D’après Service Public, l’allocation est versée sous condition de ressources aux familles avec des enfants de 6 à 18 ans.",
+    "translation": "426,87 Euro für ein Kind von 6 bis 10 Jahren. Ich habe das bereits für das Schuljahr 2026 gesagt. Laut Service Public wird die Beihilfe abhängig vom Einkommen an Familien mit Kindern von 6 bis 18 Jahren gezahlt.",
+    "claims_cited": [
+     "c2"
+    ],
+    "claims_restated": [
+     "c3"
+    ],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001879,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 6.027
+   }
+  },
+  {
+   "seq": 9,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c2"
+    ]
+   }
+  },
+  {
+   "seq": 10,
+   "kind": "question_raised",
+   "payload": {
+    "text": "L'allocation, c'est combien ?",
+    "answerable": true,
+    "uncertainty_text": null,
+    "turn_seq": 7,
+    "kept": false
+   }
+  },
+  {
+   "seq": 11,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.conversation",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": null,
+    "words": [],
+    "words_used": [],
+    "word_outcomes": [
+     {
+      "fr": "les familles",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_FAMILY",
+      "capability_known": true
+     },
+     {
+      "fr": "les enfants",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_FAMILY",
+      "capability_known": true
+     },
+     {
+      "fr": "les euros",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_ORDER_CAFE",
+      "capability_known": true
+     },
+     {
+      "fr": "la rentrée",
+      "outcome": "unscored",
+      "capability_id": "revue.word:rentree",
+      "capability_known": false
+     },
+     {
+      "fr": "l'allocation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:allocation",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": false,
+    "cost_usd": 0.0,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 7
+   }
+  },
+  {
+   "seq": 12,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 13,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Les sources ne le disent pas. D'après la Confédération syndicale des familles, les dépenses de rentrée ont beaucoup augmenté par rapport aux années précédentes (constat de 2016).",
+    "translation": "Die Quellen sagen das nicht. Laut der Confédération syndicale des familles sind die Ausgaben für den Schulbeginn viel stärker gestiegen als in den vorigen Jahren (Feststellung von 2016).",
+    "claims_cited": [
+     "c4"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": "u1",
+    "uncertainty_index": 0,
+    "uncertainty_text": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016.",
+    "uncertainty_matched": false,
+    "proposes_question": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001836,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 4.831
+   }
+  },
+  {
+   "seq": 14,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c4"
+    ]
+   }
+  },
+  {
+   "seq": 15,
+   "kind": "question_raised",
+   "payload": {
+    "text": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "answerable": false,
+    "uncertainty_text": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016.",
+    "turn_seq": 12,
+    "kept": false
+   }
+  },
+  {
+   "seq": 16,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "CD_A11_FAMILY",
+    "outcome": "correct",
+    "capability_known": true,
+    "correct": true,
+    "words": [
+     "les familles",
+     "la rentrée"
+    ],
+    "words_used": [
+     "les familles",
+     "la rentrée"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "les familles",
+      "outcome": "correct",
+      "capability_id": "CD_A11_FAMILY",
+      "capability_known": true
+     },
+     {
+      "fr": "les enfants",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_FAMILY",
+      "capability_known": true
+     },
+     {
+      "fr": "les euros",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_ORDER_CAFE",
+      "capability_known": true
+     },
+     {
+      "fr": "la rentrée",
+      "outcome": "unscored",
+      "capability_id": "revue.word:rentree",
+      "capability_known": false
+     },
+     {
+      "fr": "l'allocation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:allocation",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000852,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 12
+   }
+  },
+  {
+   "seq": 17,
+   "kind": "turn_learner",
+   "payload": {
+    "text_fr": "Pour moi, l'école coûte trop cher. Pour moi, la rentrée, c'est important.",
+    "mode": "text",
+    "client_turn_id": null
+   }
+  },
+  {
+   "seq": 18,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "pursue",
+    "role": "reply",
+    "reason": null,
+    "text_fr": "Tu as raison, l’école peut coûter cher. D’après Service Public, la rentrée des élèves a lieu le 1er septembre en métropole et le 3 septembre en Corse.",
+    "translation": "Du hast recht, die Schule kann teuer sein. Laut Service Public beginnt das Schuljahr am 1. September in der Métropole und am 3. September auf Korsika.",
+    "claims_cited": [
+     "c1"
+    ],
+    "claims_restated": [],
+    "uncertainty_id": null,
+    "uncertainty_index": null,
+    "uncertainty_text": null,
+    "uncertainty_matched": false,
+    "proposes_question": null,
+    "shift": null,
+    "shift_refused": null,
+    "attempts": 1,
+    "refused": [],
+    "repaired": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001797,
+    "prompt_version": "revue-reply-v2",
+    "seconds": 4.593
+   }
+  },
+  {
+   "seq": 19,
+   "kind": "claim_shown",
+   "payload": {
+    "claim_ids": [
+     "c1"
+    ]
+   }
+  },
+  {
+   "seq": 20,
+   "kind": "guest_enter",
+   "payload": {
+    "id": "lila_bonnet",
+    "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+    "reason": "her pupils asked her about it in class (La rentrée des classes)",
+    "trigger": "topic_words",
+    "word": "ecole",
+    "turn_seq": 17
+   }
+  },
+  {
+   "seq": 21,
+   "kind": "turn_guest",
+   "payload": {
+    "id": "lila_bonnet",
+    "text_fr": "Pour : la rentrée change la vie d'une famille, mes élèves m'ont posé la question en classe et je veux leur répondre juste.",
+    "move": "enter",
+    "position": "for",
+    "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+    "reason": null,
+    "attempts": 1,
+    "refused": [],
+    "regenerated_for": [],
+    "cost_usd": 0.001336,
+    "prompt_version": "revue-guest-v2",
+    "seconds": 3.528,
+    "turn_seq": 17
+   }
+  },
+  {
+   "seq": 22,
+   "kind": "guest_position",
+   "payload": {
+    "id": "lila_bonnet",
+    "position": "for",
+    "previous": null,
+    "turn_seq": 17
+   }
+  },
+  {
+   "seq": 23,
+   "kind": "evidence",
+   "payload": {
+    "rubric_version": "revue-rubric-v1",
+    "capability_id": "revue.word:rentree",
+    "outcome": "unscored",
+    "capability_known": false,
+    "correct": true,
+    "words": [
+     "la rentrée"
+    ],
+    "words_used": [
+     "la rentrée"
+    ],
+    "word_outcomes": [
+     {
+      "fr": "les familles",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_FAMILY",
+      "capability_known": true
+     },
+     {
+      "fr": "les enfants",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_FAMILY",
+      "capability_known": true
+     },
+     {
+      "fr": "les euros",
+      "outcome": "unscored",
+      "capability_id": "CD_A11_ORDER_CAFE",
+      "capability_known": true
+     },
+     {
+      "fr": "la rentrée",
+      "outcome": "unscored",
+      "capability_id": "revue.word:rentree",
+      "capability_known": false
+     },
+     {
+      "fr": "l'allocation",
+      "outcome": "unscored",
+      "capability_id": "revue.word:allocation",
+      "capability_known": false
+     }
+    ],
+    "fact_fit": "supported",
+    "register": "ok",
+    "band_fit": "at",
+    "scorer": "revue-rubric-critic",
+    "scored": true,
+    "cost_usd": 0.000686,
+    "prompt_version": "revue-critic-v1",
+    "breakdown": false,
+    "lost": false,
+    "counts": false,
+    "turn_seq": 17
+   }
+  },
+  {
+   "seq": 24,
+   "kind": "choice",
+   "payload": {
+    "kind": "headline_exercise",
+    "dropped": false,
+    "exercise": {
+     "format": "choice",
+     "options": [
+      {
+       "id": "h1",
+       "text_fr": "Une allocation de rentrée pour les familles ayant des enfants de six à dix‑huit ans"
+      },
+      {
+       "id": "h2",
+       "text_fr": "La rentrée en métropole est fixée au 2 septembre"
+      },
+      {
+       "id": "h3",
+       "text_fr": "L'allocation pour les six à dix ans a diminué cette année"
+      }
+     ],
+     "answer": "h1",
+     "supported_by": "c2",
+     "contradicted_by": {
+      "h2": "c1",
+      "h3": "c3"
+     }
+    },
+    "cost_usd": 0.00183,
+    "prompt_version": "revue-headline-v2"
+   }
+  },
+  {
+   "seq": 25,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_intro",
+    "text_fr": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
+    "recommended": "reader_question"
+   }
+  },
+  {
+   "seq": 26,
+   "kind": "choice",
+   "payload": {
+    "kind": "make",
+    "option": "reader_question"
+   }
+  },
+  {
+   "seq": 27,
+   "kind": "choice",
+   "payload": {
+    "kind": "question_draft",
+    "learner_fr": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "proposal_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+    "contribution": [
+     [
+      0,
+      13
+     ],
+     [
+      17,
+      24
+     ],
+     [
+      37,
+      56
+     ]
+    ],
+    "why_native": "Ich habe «une rentrée» durch «la rentrée des classes» ersetzt, damit klar ist, worauf sich die Frage bezieht.",
+    "cost_usd": 0.000632,
+    "prompt_version": "revue-question-v2"
+   }
+  },
+  {
+   "seq": 28,
+   "kind": "artifact",
+   "payload": {
+    "kind": "reader_question",
+    "text_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+    "contribution": [
+     [
+      0,
+      13
+     ],
+     [
+      17,
+      24
+     ],
+     [
+      37,
+      56
+     ]
+    ],
+    "learner_fr": "Combien coûte une rentrée pour une famille en 2026 ?"
+   }
+  },
+  {
+   "seq": 29,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "make",
+    "role": "make_done",
+    "text_fr": "Partie pour la rédaction.",
+    "key": "reader_question"
+   }
+  },
+  {
+   "seq": 30,
+   "kind": "turn_romy",
+   "payload": {
+    "beat": "close",
+    "role": "close",
+    "text_fr": "Je prends ta question : je vérifie les montants de l'allocation et la date de versement, hein.",
+    "cost_usd": 0.001537,
+    "prompt_version": "revue-close-v2",
+    "refused": [],
+    "regenerated_for": []
+   }
+  },
+  {
+   "seq": 31,
+   "kind": "closed",
+   "payload": {
+    "closing": {
+     "romy_line_fr": "Je prends ta question : je vérifie les montants de l'allocation et la date de versement, hein.",
+     "dispatch": {
+      "kicker_fr": "Le Papier de Romy · semaine 40",
+      "headline_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+      "body_fr": [
+       "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+       "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+       "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+      ],
+      "contribution": [
+       [
+        0,
+        13
+       ],
+       [
+        17,
+        24
+       ],
+       [
+        37,
+        56
+       ]
+      ],
+      "byline_fr": "Romy Tremblay, avec toi · d'après Service Public (service-public.gouv.fr) et Wikipédia, « Rentrée scolaire »",
+      "sources": [
+       {
+        "id": "rentree_sp_calendrier",
+        "name": "Service Public (service-public.gouv.fr)",
+        "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+        "published_at": "2025-10-24"
+       },
+       {
+        "id": "rentree_sp_ars",
+        "name": "Service Public (service-public.gouv.fr)",
+        "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+        "published_at": "2026-04-03"
+       },
+       {
+        "id": "rentree_wikipedia",
+        "name": "Wikipédia, « Rentrée scolaire »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+        "published_at": "2025-11-16"
+       }
+      ]
+     },
+     "kept": {
+      "words": [
+       {
+        "fr": "les familles",
+        "gloss": "die Familien",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "correct"
+       },
+       {
+        "fr": "les enfants",
+        "gloss": "die Kinder",
+        "claim_id": "c2",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "les euros",
+        "gloss": "die Euro (Währung)",
+        "claim_id": "c3",
+        "used": false,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "la rentrée",
+        "gloss": "der Schulbeginn",
+        "claim_id": "c1",
+        "used": true,
+        "outcome": "unscored"
+       },
+       {
+        "fr": "l'allocation",
+        "gloss": "die Beihilfe, der Zuschuss",
+        "claim_id": "c2",
+        "used": true,
+        "outcome": "unscored"
+       }
+      ],
+      "claims": [
+       {
+        "id": "c1",
+        "kind": "fact",
+        "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+        "quote": "Rentrée des élèves Mardi 1er septembre 2026 Jeudi 3 septembre 2026",
+        "attributed_to": null,
+        "source": {
+         "id": "rentree_sp_calendrier",
+         "name": "Service Public (service-public.gouv.fr)",
+         "url": "https://www.service-public.gouv.fr/particuliers/actualites/A18563",
+         "published_at": "2025-10-24"
+        }
+       },
+       {
+        "id": "c2",
+        "kind": "fact",
+        "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+        "quote": "L'allocation de rentrée scolaire (ARS) est versée sous condition de ressources aux familles ayant des enfants âgés de 6 à 18 ans",
+        "attributed_to": null,
+        "source": {
+         "id": "rentree_sp_ars",
+         "name": "Service Public (service-public.gouv.fr)",
+         "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+         "published_at": "2026-04-03"
+        }
+       },
+       {
+        "id": "c3",
+        "kind": "fact",
+        "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+        "quote": "426,87 € par enfant âgé de 6 à 10 ans, contre 423,48 € précédemment",
+        "attributed_to": null,
+        "source": {
+         "id": "rentree_sp_ars",
+         "name": "Service Public (service-public.gouv.fr)",
+         "url": "https://www.service-public.gouv.fr/particuliers/actualites/A16342",
+         "published_at": "2026-04-03"
+        }
+       },
+       {
+        "id": "c4",
+        "kind": "interpretation",
+        "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+        "quote": "la Confédération syndicale des familles constate en 2016 une hausse réelle des dépenses réalisées par les familles bien supérieure du coût de la rentrée par rapport aux années précédentes",
+        "attributed_to": "la Confédération syndicale des familles (constat de 2016)",
+        "source": {
+         "id": "rentree_wikipedia",
+         "name": "Wikipédia, « Rentrée scolaire »",
+         "url": "https://fr.wikipedia.org/w/index.php?title=Rentr%C3%A9e_scolaire&oldid=230701892",
+         "published_at": "2025-11-16"
+        }
+       }
+      ]
+     },
+     "question_kept_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+     "vignette": {
+      "id": "1eab0fe6-9494-4a31-ad90-cf50e08536e5",
+      "session_id": "a4845d9a-1fa3-45d5-bc2d-3e48feb2f2fb",
+      "dossier_id": "evergreen-rentree",
+      "week": "2026-W40",
+      "place_label_fr": "Une cour d'école à Paris, début septembre",
+      "ring": "question",
+      "kept_contribution": true,
+      "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"40\" r=\"22\" fill=\"#C2890F\"/><rect x=\"29\" y=\"56\" width=\"42\" height=\"8\" rx=\"3\" fill=\"#2C6A5D\"/><path d=\"M50 22L60 38L40 38Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"73\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"45\" cy=\"34\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+      "headline_fr": "La rentrée des classes",
+      "minted_at": "2026-10-03T01:56:41"
+     },
+     "colophon_fr": "La suite la semaine prochaine."
+    }
+   }
+  }
+ ],
+ "evidence": [
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les familles",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_FAMILY",
+     "capability_known": true
+    },
+    {
+     "fr": "les enfants",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_FAMILY",
+     "capability_known": true
+    },
+    {
+     "fr": "les euros",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_ORDER_CAFE",
+     "capability_known": true
+    },
+    {
+     "fr": "la rentrée",
+     "outcome": "unscored",
+     "capability_id": "revue.word:rentree",
+     "capability_known": false
+    },
+    {
+     "fr": "l'allocation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:allocation",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 3
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.conversation",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": null,
+   "words": [],
+   "words_used": [],
+   "word_outcomes": [
+    {
+     "fr": "les familles",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_FAMILY",
+     "capability_known": true
+    },
+    {
+     "fr": "les enfants",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_FAMILY",
+     "capability_known": true
+    },
+    {
+     "fr": "les euros",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_ORDER_CAFE",
+     "capability_known": true
+    },
+    {
+     "fr": "la rentrée",
+     "outcome": "unscored",
+     "capability_id": "revue.word:rentree",
+     "capability_known": false
+    },
+    {
+     "fr": "l'allocation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:allocation",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": false,
+   "cost_usd": 0.0,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 7
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "CD_A11_FAMILY",
+   "outcome": "correct",
+   "capability_known": true,
+   "correct": true,
+   "words": [
+    "les familles",
+    "la rentrée"
+   ],
+   "words_used": [
+    "les familles",
+    "la rentrée"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "les familles",
+     "outcome": "correct",
+     "capability_id": "CD_A11_FAMILY",
+     "capability_known": true
+    },
+    {
+     "fr": "les enfants",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_FAMILY",
+     "capability_known": true
+    },
+    {
+     "fr": "les euros",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_ORDER_CAFE",
+     "capability_known": true
+    },
+    {
+     "fr": "la rentrée",
+     "outcome": "unscored",
+     "capability_id": "revue.word:rentree",
+     "capability_known": false
+    },
+    {
+     "fr": "l'allocation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:allocation",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000852,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 12
+  },
+  {
+   "rubric_version": "revue-rubric-v1",
+   "capability_id": "revue.word:rentree",
+   "outcome": "unscored",
+   "capability_known": false,
+   "correct": true,
+   "words": [
+    "la rentrée"
+   ],
+   "words_used": [
+    "la rentrée"
+   ],
+   "word_outcomes": [
+    {
+     "fr": "les familles",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_FAMILY",
+     "capability_known": true
+    },
+    {
+     "fr": "les enfants",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_FAMILY",
+     "capability_known": true
+    },
+    {
+     "fr": "les euros",
+     "outcome": "unscored",
+     "capability_id": "CD_A11_ORDER_CAFE",
+     "capability_known": true
+    },
+    {
+     "fr": "la rentrée",
+     "outcome": "unscored",
+     "capability_id": "revue.word:rentree",
+     "capability_known": false
+    },
+    {
+     "fr": "l'allocation",
+     "outcome": "unscored",
+     "capability_id": "revue.word:allocation",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register": "ok",
+   "band_fit": "at",
+   "scorer": "revue-rubric-critic",
+   "scored": true,
+   "cost_usd": 0.000686,
+   "prompt_version": "revue-critic-v1",
+   "breakdown": false,
+   "lost": false,
+   "counts": false,
+   "turn_seq": 17
+  }
+ ],
+ "guest": [
+  {
+   "kind": "guest_enter",
+   "id": "lila_bonnet",
+   "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+   "reason": "her pupils asked her about it in class (La rentrée des classes)",
+   "trigger": "topic_words",
+   "word": "ecole",
+   "turn_seq": 17
+  },
+  {
+   "kind": "turn_guest",
+   "id": "lila_bonnet",
+   "text_fr": "Pour : la rentrée change la vie d'une famille, mes élèves m'ont posé la question en classe et je veux leur répondre juste.",
+   "move": "enter",
+   "position": "for",
+   "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+   "reason": null,
+   "attempts": 1,
+   "refused": [],
+   "regenerated_for": [],
+   "cost_usd": 0.001336,
+   "prompt_version": "revue-guest-v2",
+   "seconds": 3.528,
+   "turn_seq": 17
+  },
+  {
+   "kind": "guest_position",
+   "id": "lila_bonnet",
+   "position": "for",
+   "previous": null,
+   "turn_seq": 17
+  }
+ ],
+ "cost_usd_state": 0.0166,
+ "cost_usd_provider": 0.0166,
+ "calls": [
+  {
+   "label": "vocabulary",
+   "seconds": 10.323,
+   "started": 346.492,
+   "cost_usd": 0.002688,
+   "error": null,
+   "payload": {
+    "claims": [
+     {
+      "id": "c1",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse."
+     },
+     {
+      "id": "c2",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans."
+     },
+     {
+      "id": "c3",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+     },
+     {
+      "id": "c4",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016)."
+     }
+    ],
+    "prefer": [
+     "les familles",
+     "les enfants",
+     "euros"
+    ]
+   },
+   "response": {
+    "items": [
+     {
+      "fr": "la rentrée",
+      "gloss": "der Schulbeginn",
+      "claim_id": "c1"
+     },
+     {
+      "fr": "l'allocation",
+      "gloss": "die Beihilfe, der Zuschuss",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "les familles",
+      "gloss": "die Familien",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "les enfants",
+      "gloss": "die Kinder",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "les euros",
+      "gloss": "die Euro (Währung)",
+      "claim_id": "c3"
+     }
+    ]
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.657,
+   "started": 356.83,
+   "cost_usd": 0.001527,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "D'accord, je t'aide.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+      "attributed_to": null,
+      "source": "Service Public (service-public.gouv.fr)"
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+      "attributed_to": null,
+      "source": "Service Public (service-public.gouv.fr)"
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+      "attributed_to": null,
+      "source": "Service Public (service-public.gouv.fr)"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+      "attributed_to": "la Confédération syndicale des familles (constat de 2016)",
+      "source": "Wikipédia, « Rentrée scolaire »"
+     }
+    ],
+    "claims_already_said": [],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+     },
+     {
+      "id": "u2",
+      "fr": "Le montant de l'allocation pour la rentrée 2027 n'est pas encore connu."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que la rentrée change pour une famille",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "La rentrée coûte-t-elle de plus en plus cher ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "A2",
+    "max_words": 45,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Une cour d'école à Paris, début septembre."
+     },
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 24 août au 13 sept.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une cour d'école à Paris, début septembre, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que la rentrée change pour une famille ». Tu m'aides ?"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Bien. D'après Service Public, pour la rentrée 2026 l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans.",
+    "translation": "Gut. Laut Service Public beträgt die Beihilfe für den Schulstart 2026 für ein Kind von 6 bis 10 Jahren 426,87 Euro.",
+    "claims_cited": [
+     "c3"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 6.026,
+   "started": 361.504,
+   "cost_usd": 0.001879,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "L'allocation, c'est combien ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+      "attributed_to": null,
+      "source": "Service Public (service-public.gouv.fr)"
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+      "attributed_to": null,
+      "source": "Service Public (service-public.gouv.fr)"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+      "attributed_to": "la Confédération syndicale des familles (constat de 2016)",
+      "source": "Wikipédia, « Rentrée scolaire »"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c3",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+     },
+     {
+      "id": "u2",
+      "fr": "Le montant de l'allocation pour la rentrée 2027 n'est pas encore connu."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que la rentrée change pour une famille",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "La rentrée coûte-t-elle de plus en plus cher ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "A2",
+    "max_words": 45,
+    "history": [
+     {
+      "who": "narrator",
+      "text": "Romy est déjà là, son carnet à la main : ça se passe du 24 août au 13 sept.."
+     },
+     {
+      "who": "romy",
+      "text": "Ce n'est pas vraiment une cour d'école à Paris, début septembre, hein… mais on fait comme si."
+     },
+     {
+      "who": "romy",
+      "text": "Je dois expliquer ça à mes lecteurs de Montréal : « Ce que la rentrée change pour une famille ». Tu m'aides ?"
+     },
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Bien. D'après Service Public, pour la rentrée 2026 l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c3"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "426,87 euros pour un enfant de 6 à 10 ans. Je l’ai déjà dit pour la rentrée 2026. D’après Service Public, l’allocation est versée sous condition de ressources aux familles avec des enfants de 6 à 18 ans.",
+    "translation": "426,87 Euro für ein Kind von 6 bis 10 Jahren. Ich habe das bereits für das Schuljahr 2026 gesagt. Laut Service Public wird die Beihilfe abhängig vom Einkommen an Familien mit Kindern von 6 bis 18 Jahren gezahlt.",
+    "claims_cited": [
+     "c3",
+     "c2"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 3.162,
+   "started": 367.541,
+   "cost_usd": 0.000852,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A2",
+     "claims_shown": [
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+      }
+     ],
+     "target_words": [
+      "les familles",
+      "les enfants",
+      "les euros",
+      "la rentrée",
+      "l'allocation"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "Début septembre, les élèves retournent à l'école. Pour les familles, la rentrée a aussi un coût : fournitures, vêtements, cantine. Une aide de l'État, l'allocation de rentrée scolaire, est versée en août à une partie des familles.",
+     "headline_words": null
+    },
+    "learner_text": "Combien coûte une rentrée pour une famille en 2026 ?"
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "les familles",
+      "outcome": "correct",
+      "quote": "une famille"
+     },
+     {
+      "fr": "la rentrée",
+      "outcome": "correct",
+      "quote": "une rentrée"
+     }
+    ],
+    "fact_fit": "not_applicable",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.83,
+   "started": 367.546,
+   "cost_usd": 0.001836,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+      "attributed_to": null,
+      "source": "Service Public (service-public.gouv.fr)"
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+      "attributed_to": "la Confédération syndicale des familles (constat de 2016)",
+      "source": "Wikipédia, « Rentrée scolaire »"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c2",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans."
+     },
+     {
+      "id": "c3",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+     },
+     {
+      "id": "u2",
+      "fr": "Le montant de l'allocation pour la rentrée 2027 n'est pas encore connu."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que la rentrée change pour une famille",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "La rentrée coûte-t-elle de plus en plus cher ?"
+    },
+    "angle_changed": false,
+    "question_proposed": false,
+    "band": "A2",
+    "max_words": 45,
+    "history": [
+     {
+      "who": "learner",
+      "text": "D'accord, je t'aide."
+     },
+     {
+      "who": "romy",
+      "text": "Bien. D'après Service Public, pour la rentrée 2026 l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c3"
+     },
+     {
+      "who": "learner",
+      "text": "L'allocation, c'est combien ?"
+     },
+     {
+      "who": "romy",
+      "text": "426,87 euros pour un enfant de 6 à 10 ans. Je l’ai déjà dit pour la rentrée 2026. D’après Service Public, l’allocation est versée sous condition de ressources aux familles avec des enfants de 6 à 18 ans."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c2"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Les sources ne le disent pas. D'après la Confédération syndicale des familles, les dépenses de rentrée ont beaucoup augmenté par rapport aux années précédentes (constat de 2016).",
+    "translation": "Die Quellen sagen das nicht. Laut der Confédération syndicale des familles sind die Ausgaben für den Schulbeginn viel stärker gestiegen als in den vorigen Jahren (Feststellung von 2016).",
+    "claims_cited": [
+     "c4"
+    ],
+    "uncertainty_cited": "u1",
+    "proposes_question": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "shift": null
+   }
+  },
+  {
+   "label": "critic",
+   "seconds": 2.616,
+   "started": 372.388,
+   "cost_usd": 0.000686,
+   "error": null,
+   "payload": {
+    "rubric": {
+     "rubric_id": "revue-rubric-v1",
+     "kind": "respond",
+     "band": "A2",
+     "claims_shown": [
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans."
+      },
+      {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+      },
+      {
+       "id": "c4",
+       "kind": "interpretation",
+       "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016)."
+      }
+     ],
+     "target_words": [
+      "les familles",
+      "les enfants",
+      "les euros",
+      "la rentrée",
+      "l'allocation"
+     ],
+     "addressee": "romy_tremblay",
+     "expected_register": "tu",
+     "summary_fr": "Début septembre, les élèves retournent à l'école. Pour les familles, la rentrée a aussi un coût : fournitures, vêtements, cantine. Une aide de l'État, l'allocation de rentrée scolaire, est versée en août à une partie des familles.",
+     "headline_words": null
+    },
+    "learner_text": "Pour moi, l'école coûte trop cher. Pour moi, la rentrée, c'est important."
+   },
+   "response": {
+    "words": [
+     {
+      "fr": "la rentrée",
+      "outcome": "correct",
+      "quote": "la rentrée, c'est important."
+     }
+    ],
+    "fact_fit": "supported",
+    "register": "ok",
+    "band_fit": "at"
+   }
+  },
+  {
+   "label": "guest",
+   "seconds": 3.528,
+   "started": 372.399,
+   "cost_usd": 0.001336,
+   "error": null,
+   "payload": {
+    "task": "guest",
+    "cast_id": "lila_bonnet",
+    "name": "Lila Bonnet",
+    "voice": {
+     "role": "Teaches a CE1 class (Wednesdays off) and paints.",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»)."
+    },
+    "register": "tu",
+    "move": "enter",
+    "reason_fr": "Mes élèves m'ont posé la question en classe. Je veux leur répondre juste.",
+    "position": null,
+    "learner_text": "Pour moi, l'école coûte trop cher. Pour moi, la rentrée, c'est important.",
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que la rentrée change pour une famille",
+     "purpose": "understand_change"
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+      "attributed_to": null
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+      "attributed_to": null
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant.",
+      "attributed_to": null
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016).",
+      "attributed_to": "la Confédération syndicale des familles (constat de 2016)"
+     }
+    ],
+    "claims_shown": [
+     "c2",
+     "c3",
+     "c4"
+    ],
+    "band": "A2",
+    "max_words": 25,
+    "history": [
+     {
+      "who": "claims_shown",
+      "text": "c2"
+     },
+     {
+      "who": "learner",
+      "text": "Combien coûte une rentrée pour une famille en 2026 ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas. D'après la Confédération syndicale des familles, les dépenses de rentrée ont beaucoup augmenté par rapport aux années précédentes (constat de 2016)."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c4"
+     },
+     {
+      "who": "learner",
+      "text": "Pour moi, l'école coûte trop cher. Pour moi, la rentrée, c'est important."
+     }
+    ],
+    "knowledge": {
+     "cast_id": "lila_bonnet",
+     "name": "Lila Bonnet",
+     "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
+     "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "line_fr": "Pour : la rentrée change la vie d'une famille, mes élèves m'ont posé la question en classe et je veux leur répondre juste.",
+    "position": "for",
+    "move": "enter"
+   }
+  },
+  {
+   "label": "reply",
+   "seconds": 4.593,
+   "started": 372.399,
+   "cost_usd": 0.001797,
+   "error": null,
+   "payload": {
+    "task": "reply",
+    "learner_text": "Pour moi, l'école coûte trop cher. Pour moi, la rentrée, c'est important.",
+    "who_is_who": {
+     "tu": "the learner",
+     "romy": "Romy, the journalist",
+     "guest_on_stage": null
+    },
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+      "attributed_to": null,
+      "source": "Service Public (service-public.gouv.fr)"
+     }
+    ],
+    "claims_already_said": [
+     {
+      "id": "c2",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans."
+     },
+     {
+      "id": "c3",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+     },
+     {
+      "id": "c4",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016)."
+     }
+    ],
+    "uncertainties": [
+     {
+      "id": "u1",
+      "fr": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+     },
+     {
+      "id": "u2",
+      "fr": "Le montant de l'allocation pour la rentrée 2027 n'est pas encore connu."
+     }
+    ],
+    "angle": {
+     "id": "a1",
+     "fr": "Ce que la rentrée change pour une famille",
+     "purpose": "understand_change"
+    },
+    "other_angle": {
+     "id": "a2",
+     "fr": "La rentrée coûte-t-elle de plus en plus cher ?"
+    },
+    "angle_changed": false,
+    "question_proposed": true,
+    "band": "A2",
+    "max_words": 45,
+    "history": [
+     {
+      "who": "romy",
+      "text": "426,87 euros pour un enfant de 6 à 10 ans. Je l’ai déjà dit pour la rentrée 2026. D’après Service Public, l’allocation est versée sous condition de ressources aux familles avec des enfants de 6 à 18 ans."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c2"
+     },
+     {
+      "who": "learner",
+      "text": "Combien coûte une rentrée pour une famille en 2026 ?"
+     },
+     {
+      "who": "romy",
+      "text": "Les sources ne le disent pas. D'après la Confédération syndicale des familles, les dépenses de rentrée ont beaucoup augmenté par rapport aux années précédentes (constat de 2016)."
+     },
+     {
+      "who": "uncertainty_named",
+      "text": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016."
+     },
+     {
+      "who": "claims_shown",
+      "text": "c4"
+     }
+    ],
+    "translation_language": "de",
+    "guest_on_stage": null,
+    "knowledge": {
+     "cast_id": "romy_tremblay",
+     "name": "Romy Tremblay",
+     "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+     "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+     "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+     "register": "tu",
+     "trust": null,
+     "tu_since": null,
+     "known_about_learner": [],
+     "memories": []
+    }
+   },
+   "response": {
+    "reply_fr": "Tu as raison, l’école peut coûter cher. D’après Service Public, la rentrée des élèves a lieu le 1er septembre en métropole et le 3 septembre en Corse.",
+    "translation": "Du hast recht, die Schule kann teuer sein. Laut Service Public beginnt das Schuljahr am 1. September in der Métropole und am 3. September auf Korsika.",
+    "claims_cited": [
+     "c1"
+    ],
+    "uncertainty_cited": null,
+    "proposes_question": null,
+    "shift": null
+   }
+  },
+  {
+   "label": "headline",
+   "seconds": 5.355,
+   "started": 377.007,
+   "cost_usd": 0.00183,
+   "error": null,
+   "payload": {
+    "task": "headline",
+    "title_fr": "La rentrée des classes",
+    "angle": "Ce que la rentrée change pour une famille",
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016)."
+     }
+    ],
+    "band": "A2"
+   },
+   "response": {
+    "answer": {
+     "text_fr": "Une allocation de rentrée pour les familles ayant des enfants de six à dix‑huit ans",
+     "supported_by": "c2"
+    },
+    "distractors": [
+     {
+      "text_fr": "La rentrée en métropole est fixée au 2 septembre",
+      "contradicted_by": "c1"
+     },
+     {
+      "text_fr": "L'allocation pour les six à dix ans a diminué cette année",
+      "contradicted_by": "c3"
+     }
+    ]
+   }
+  },
+  {
+   "label": "question",
+   "seconds": 2.243,
+   "started": 382.369,
+   "cost_usd": 0.000632,
+   "error": null,
+   "payload": {
+    "task": "question",
+    "learner_text": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "uncertainty": "Les sources ne disent pas combien coûte une rentrée en 2026 pour une famille : le chiffre cité date de 2016.",
+    "title_fr": "La rentrée des classes",
+    "band": "A2",
+    "language": "de"
+   },
+   "response": {
+    "proposal_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+    "why_native": "Ich habe «une rentrée» durch «la rentrée des classes» ersetzt, damit klar ist, worauf sich die Frage bezieht."
+   }
+  },
+  {
+   "label": "close",
+   "seconds": 4.4,
+   "started": 384.633,
+   "cost_usd": 0.001537,
+   "error": null,
+   "payload": {
+    "task": "close",
+    "title_fr": "La rentrée des classes",
+    "summary_fr": "Début septembre, les élèves retournent à l'école. Pour les familles, la rentrée a aussi un coût : fournitures, vêtements, cantine. Une aide de l'État, l'allocation de rentrée scolaire, est versée en août à une partie des familles.",
+    "angle": "Ce que la rentrée change pour une famille",
+    "artifact": {
+     "kind": "reader_question",
+     "text_fr": "Combien coûte la rentrée des classes pour une famille en 2026 ?",
+     "learner_fr": "Combien coûte une rentrée pour une famille en 2026 ?"
+    },
+    "claims_shown": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse."
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans."
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon la Confédération syndicale des familles, les dépenses de rentrée des familles ont augmenté bien plus vite que les années précédentes (constat de 2016)."
+     }
+    ],
+    "open_question": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "band": "A2"
+   },
+   "response": {
+    "romy_line_fr": "Je prends ta question : je vérifie les montants de l'allocation et la date de versement, hein.",
+    "headline_fr": "Combien coûte une rentrée pour une famille en 2026 ?",
+    "body_lines": [
+     "En 2026, la rentrée des élèves a lieu le 1er septembre en métropole, et le 3 septembre en Corse.",
+     "L'allocation de rentrée scolaire est versée, sous condition de ressources, aux familles qui ont des enfants de 6 à 18 ans.",
+     "Pour la rentrée 2026, l'allocation est de 426,87 euros pour un enfant de 6 à 10 ans, contre 423,48 euros avant."
+    ]
+   }
+  }
+ ],
+ "timings": [
+  {
+   "step": "start",
+   "seconds": 10.336
+  },
+  {
+   "step": "turn1",
+   "seconds": 4.673
+  },
+  {
+   "step": "turn2",
+   "seconds": 6.04
+  },
+  {
+   "step": "turn3",
+   "seconds": 4.846
+  },
+  {
+   "step": "turn4",
+   "seconds": 4.619
+  },
+  {
+   "step": "make_options",
+   "seconds": 5.363
+  },
+  {
+   "step": "make_propose",
+   "seconds": 2.259
+  },
+  {
+   "step": "make_send",
+   "seconds": 0.004
+  },
+  {
+   "step": "close",
+   "seconds": 4.448
+  }
+ ],
+ "prompt_versions": {
+  "rubric": "revue-rubric-v1",
+  "provider": "openai-revue",
+  "model": "gpt-5-mini",
+  "reply": "revue-reply-v2",
+  "guest": "revue-guest-v2",
+  "close": "revue-close-v2",
+  "question": "revue-question-v2",
+  "vocabulary": "revue-vocabulary-v2",
+  "headline": "revue-headline-v2",
+  "critic": "revue-critic-v1"
+ }
+}

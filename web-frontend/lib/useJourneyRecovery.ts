@@ -231,6 +231,10 @@ export function useJourneyRecovery(source: JourneyRecoverySource): JourneyRecove
   const saveDraft = useCallback(
     (stepId: string, text: string) => {
       if (!stepId) return;
+      // One debounced slot: a write for a DIFFERENT key (WP-89 keeps the
+      // respond thread beside the turn's draft) lands the queued one first
+      // instead of silently replacing it.
+      if (flushRef.current && flushRef.current.stepId !== stepId) flushDraft();
       flushRef.current = { stepId, text };
       setHasUnsentDraft(text.trim().length > 0);
       if (typeof window === 'undefined') {

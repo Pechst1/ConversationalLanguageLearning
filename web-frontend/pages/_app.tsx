@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import type { AppProps } from 'next/app';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RouteAuthGate from '@/components/auth/RouteAuthGate';
@@ -14,15 +14,27 @@ import {
   suppressResumeRedirectOnce,
   syncAccountScope,
 } from '@/lib/pilot-resilience';
-import { resolveResumeHref } from '@/lib/journey-resume';
+import { resolveLaunchResumeHref } from '@/lib/journey-resume';
 import { installKeyboardFocusGuard, installKeyboardInsets } from '@/lib/journey-lifecycle';
 import { isNativePlatform } from '@/lib/native-platform';
+import { initObservability, isSignedInForObservability, setObservabilityUser } from '@/lib/observability';
 import '@/styles/globals.css';
 // Atelier V2 design system (WP-01). Next only permits a global stylesheet to be
 // imported from _app, so it is loaded here rather than from the components that
 // use it. Everything in the file is scoped under `.av2` or is an @font-face, so
 // a page that never renders <AtelierV2Root> is unaffected by its presence.
 import '@/styles/atelier-v2.css';
+import '@/styles/atelier-v2-voices.css';
+// WP-116: the drawn cast's motion (idle loops, blinks), all stoppable by reduced motion.
+import '@/styles/cast-rig.css';
+// WP-119: La Revue de Romy (components/revue), scoped under `.av2`.
+import '@/styles/revue.css';
+// WP-120: La Carte (components/carte), scoped under `.av2`.
+import '@/styles/carte.css';
+// WP-122 B: Le Correcteur (components/correcteur), scoped under `.av2`.
+import '@/styles/correcteur.css';
+// WP-122 A: La Radio (components/radio), scoped under `.av2`.
+import '@/styles/radio.css';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -59,6 +71,14 @@ function AppLifecycle() {
     if (session.status === 'loading') return;
     syncAccountScope(accountScopeKey(identity));
   }, [identity, session.status]);
+
+  // WP-73: error tracking knows the learner by id only, and crash reports
+  // choose the signed-out intake while there is no session.
+  const userId = session.data?.user?.id || '';
+  useEffect(() => {
+    if (session.status === 'loading') return;
+    setObservabilityUser(userId || null);
+  }, [userId, session.status]);
 
   useEffect(() => installKeyboardInsets(), []);
   useEffect(() => installKeyboardFocusGuard(), []);
@@ -107,30 +127,52 @@ export default function App({
     };
   }, [router]);
 
+  // The resume guess is taken once per app launch, at the first ready route,
+  // and never again: a later in-app navigation (the Home tab, a link into
+  // Réglages) is always the learner's own choice.
+  const launchResumeDecidedRef = useRef(false);
   useEffect(() => {
-    if (!router.isReady || !isNativePlatform()) return;
-    if (!['/', '/atelier'].includes(router.pathname)) return;
+    if (!router.isReady || launchResumeDecidedRef.current) return;
+    launchResumeDecidedRef.current = true;
+    if (!isNativePlatform()) return;
     // A deep link that just claimed this navigation outranks the stored guess.
     if (consumeResumeSuppression()) return;
     // WP-20 (WP-19 defect D-1): an open V2 journey outranks the stored legacy
     // practice session, which is what used to win here and land a cold start in
-    // the wrong Séance. `resolveResumeHref` falls back to the stored activity
-    // unchanged whenever no journey is open.
-    const href = resolveResumeHref();
+    // the wrong Séance. `resolveLaunchResumeHref` only answers for a bare launch
+    // on `/` or `/atelier`, read from the real URL (a static host that falls
+    // back to index.html reports `/` for a load of `/settings`), so a direct
+    // visit to Réglages, the Dossier or the Cahier is never taken over.
+    const launchUrl = `${window.location.pathname}${window.location.search}`;
+    const href = resolveLaunchResumeHref(launchUrl);
     if (href && href !== router.asPath) void router.replace(href);
   }, [router]);
+
+  useEffect(() => {
+    // WP-73: Sentry loads lazily and only when NEXT_PUBLIC_SENTRY_DSN is set.
+    void initObservability();
+  }, []);
 
   useEffect(() => {
     let sent = false;
     const report = (message: string, stack?: string) => {
       if (sent) return;
       sent = true;
-      void apiService.recordClientError({
+      const body = {
         message: message.slice(0, 1000),
-        stack: stack?.slice(0, 12000),
+        stack: stack?.slice(0, 8000),
         route: window.location.pathname,
         source: isNativePlatform() ? 'capacitor' : 'web',
-      }).catch(() => undefined);
+      };
+      // WP-73: before sign-in (onboarding, placement, sign-in itself) the authed
+      // intake would answer 401, so those crashes go to the signed-out door.
+      const request = isSignedInForObservability()
+        ? apiService.recordClientError(body)
+        : apiService.post('/analytics/client-error/anonymous', body, {
+          skipAuth: true,
+          suppressGlobalError: true,
+        } as Parameters<typeof apiService.post>[2]);
+      void request.catch(() => undefined);
       window.setTimeout(() => { sent = false; }, 5000);
     };
     const onError = (event: ErrorEvent) => report(event.message || 'Unhandled client error', event.error?.stack);
@@ -152,7 +194,6 @@ export default function App({
       <QueryClientProvider client={queryClient}>
         <Head>
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-          <meta name="theme-color" content="#f1ece1" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-title" content="Atelier" />
           <meta name="apple-mobile-web-app-status-bar-style" content="default" />

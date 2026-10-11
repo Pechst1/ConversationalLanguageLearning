@@ -13,6 +13,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
+from app.db.models._clock import app_now
 
 if TYPE_CHECKING:
     from app.db.models.grammar import GrammarConcept
@@ -96,6 +97,9 @@ class AtelierExerciseSet(Base):
     validation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     retirement_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: WP-S2: the learner band a shared LLM pool set was generated for
+    #: (A1, A2, …); ``None`` for per-session and legacy sets.
+    pool_band: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     concept: Mapped[GrammarConcept] = relationship("GrammarConcept")
@@ -221,7 +225,7 @@ class AtelierAttempt(Base):
     correction_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     verdict: Mapped[str] = mapped_column(String(30), default="needs_review", nullable=False)
     score_0_4: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=app_now, server_default=func.now(), nullable=False)
 
     session: Mapped[AtelierSession] = relationship("AtelierSession", back_populates="attempts")
     user: Mapped[User] = relationship("User")
@@ -241,3 +245,31 @@ __all__ = [
     "AtelierLanguagePack",
     "AtelierSession",
 ]
+
+
+class AtelierServedItem(Base):
+    """WP-S2: one exercise sentence served to a learner (La Forge's variety guarantee).
+
+    The item bank never serves a learner the same sentence twice within
+    seven days: every sentence of a séance's exercise set is recorded here by
+    its fingerprint (case-, accent- and punctuation-folded) when the set is
+    built, and the next build excludes what the learner saw in the window.
+    """
+
+    __tablename__ = "atelier_served_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    atelier_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("atelier_sessions.id", ondelete="SET NULL"), nullable=True
+    )
+    fingerprint: Mapped[str] = mapped_column(String(40), nullable=False)
+    unit: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    served_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("ix_atelier_served_items_user_served", "user_id", "served_at"),
+        Index("ix_atelier_served_items_user_fingerprint", "user_id", "fingerprint"),
+    )

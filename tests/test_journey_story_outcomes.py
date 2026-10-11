@@ -688,3 +688,20 @@ def test_the_canonical_effect_key_is_exposed_for_callers(db_session):
     assert jc.story_outcome_source_key(journey_id) == effect_source_key(
         journey_id=journey_id, effect="story_outcome"
     )
+
+
+def test_cast_payload_carries_the_living_story_mood():
+    """WP-61: the cast page reads how a character feels; silence before any exchange."""
+    from types import SimpleNamespace
+
+    from app.services.serial import SerialThreadService
+
+    service = SerialThreadService.__new__(SerialThreadService)
+    service._cast_episode_index = lambda thread: {}
+    thread = SimpleNamespace(
+        world_bible={"cast": [{"id": "romy", "name": "Romy"}, {"id": "marin", "name": "Marin"}]},
+        state={"living_story": {"moods": {"romy": {"mood": -1, "trust": 1}}}},
+    )
+    rows = {row["id"]: row for row in service.cast_payload(thread)}
+    assert rows["romy"]["relationship"]["mood"] == -1
+    assert rows["marin"]["relationship"]["mood"] is None

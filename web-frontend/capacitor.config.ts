@@ -4,7 +4,8 @@ const serverUrl = process.env.CAPACITOR_SERVER_URL;
 
 const config: CapacitorConfig = {
   appId: 'com.pixellab.feuilleton',
-  appName: 'Feuilleton',
+  // WP-72: one name everywhere — Info.plist CFBundleDisplayName and InfoPlist.strings agree.
+  appName: 'L’Atelier',
   webDir: process.env.CAPACITOR_WEB_DIR || 'out',
   plugins: {
     PushNotifications: {

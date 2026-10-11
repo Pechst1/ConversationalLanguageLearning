@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -17,6 +16,18 @@ from app.db.models.session import LearningSession
 from app.db.models.user import User
 from app.services.progress import ProgressService
 from app.utils.cache import cache_backend
+
+
+def acquired_word_count(db: Session, *, user: User, now: datetime | None = None) -> int:
+    """The one honest «mots acquis»: words this learner's FSRS rows say are nailed.
+
+    Same definition the Dossier prints as «acquis par vos révisions»
+    (``lexical_coverage.nailed_lemmas`` → ``KnownWordSet.nailed_count``).
+    """
+
+    from app.services.lexical_coverage import nailed_lemmas
+
+    return len(nailed_lemmas(db, user=user, now=now))
 
 
 def _duration_expr() -> Any:
@@ -39,12 +50,6 @@ def _coerce_day(value: Any) -> date:
 
 def _iso_day(value: Any) -> str:
     return _coerce_day(value).isoformat()
-
-
-@dataclass(slots=True)
-class StreakStats:
-    current: int
-    longest: int
 
 
 class AnalyticsService:
@@ -94,7 +99,10 @@ class AnalyticsService:
             .all()
         )
         state_totals = {state: int(count or 0) for state, count in state_counts}
-        words_mastered = state_totals.get("mastered", 0)
+        # WP-74 — «Mots acquis» used to count state == "mastered", which the
+        # scheduler never writes: it was 0 for everyone while the Dossier showed a
+        # real number. Both surfaces now read the same function.
+        words_mastered = acquired_word_count(self.db, user=user)
         words_learning = sum(
             count
             for state, count in state_totals.items()
@@ -114,7 +122,11 @@ class AnalyticsService:
         )
         due_week = int(upcoming or 0)
 
-        streaks = self._calculate_streaks(user.id)
+        # WP-D5: the one streak (local day, relâche, checked on read), not a
+        # count of LearningSession start dates in UTC.
+        from app.services.streak import read_streak
+
+        streak_state = read_streak(user)
 
         summary = {
             "sessions_completed": total_sessions,
@@ -123,8 +135,8 @@ class AnalyticsService:
             "xp_earned": total_xp,
             "total_xp": total_xp,
             "accuracy_rate": avg_accuracy,
-            "current_streak": streaks.current,
-            "longest_streak": streaks.longest,
+            "current_streak": streak_state.days,
+            "longest_streak": max(streak_state.longest, streak_state.days),
             "words_learning": words_learning,
             "words_mastered": words_mastered,
             "reviews_due_today": due_today,
@@ -205,40 +217,16 @@ class AnalyticsService:
         return payload
 
     def get_streak_info(self, *, user: User, window_days: int = 90) -> dict[str, Any]:
-        """Return streak counts and calendar data for heatmaps."""
+        """The streak number and its calendar, from the same rows (WP-D5).
 
-        key = f"{user.id}:{window_days}"
-        cached = cache_backend.get("analytics:streak", key)
-        if cached is not None:
-            return cached
+        Not cached: the number must be the one Home printed a second ago, and
+        a settled «jour de relâche» is written on this read.
+        """
 
-        now = datetime.now(UTC)
-        window_start = now - timedelta(days=window_days - 1)
+        from app.services.streak_calendar import streak_calendar
 
-        calendar_rows = (
-            self.db.query(
-                func.date(LearningSession.started_at).label("day"),
-                func.count(LearningSession.id).label("count"),
-            )
-            .filter(LearningSession.user_id == user.id)
-            .filter(LearningSession.started_at >= window_start)
-            .group_by(func.date(LearningSession.started_at))
-            .order_by(func.date(LearningSession.started_at))
-            .all()
-        )
-
-        streaks = self._calculate_streaks(user.id)
-        calendar = [
-            {"date": _iso_day(row.day), "completed": int(row.count or 0)}
-            for row in calendar_rows
-            if row.day is not None
-        ]
-        payload = {
-            "current_streak": streaks.current,
-            "longest_streak": streaks.longest,
-            "calendar": calendar,
-        }
-        cache_backend.set("analytics:streak", key, payload, ttl_seconds=900)
+        payload = streak_calendar(self.db, user, window_days=window_days)
+        self.db.commit()
         return payload
 
     def get_vocabulary_heatmap(self, *, user: User) -> dict[str, Any]:
@@ -459,37 +447,6 @@ class AnalyticsService:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    def _calculate_streaks(self, user_id: uuid.UUID) -> StreakStats:
-        dates = (
-            self.db.query(func.date(LearningSession.started_at))
-            .filter(LearningSession.user_id == user_id)
-            .filter(LearningSession.started_at.isnot(None))
-            .distinct()
-            .all()
-        )
-        day_set = {_coerce_day(row[0]) for row in dates if row[0] is not None}
-        if not day_set:
-            return StreakStats(current=0, longest=0)
-
-        today = datetime.now(UTC).date()
-        current = 0
-        check_day = today
-        while check_day in day_set:
-            current += 1
-            check_day -= timedelta(days=1)
-
-        sorted_days = sorted(day_set)
-        longest = 1
-        streak = 1
-        for previous, current_day in zip(sorted_days, sorted_days[1:], strict=False):
-            if current_day - previous == timedelta(days=1):
-                streak += 1
-            else:
-                longest = max(longest, streak)
-                streak = 1
-        longest = max(longest, streak)
-        return StreakStats(current=current, longest=longest)
-
     def _reviews_on_day(self, user_id: uuid.UUID, snapshot_day: date) -> int:
         count = (
             self.db.query(func.count(ReviewLog.id))

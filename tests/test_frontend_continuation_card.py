@@ -36,17 +36,25 @@ def test_vocabulary_review_done_state_offers_context_handoffs() -> None:
     assert "onReturn" in source
     assert "onRefresh" in source
     assert "href={`/vocabulary?word=${wordId}`}" in source
-    assert "Actualiser" in source
+    # WP-82: the refresh label lives in the Lexique copy table (chrome language).
+    assert "{t.refresh}" in source
+    lexique_copy = read(ROOT / "web-frontend" / "components" / "lexique" / "lexique-copy.ts")
+    assert "refresh: 'Actualiser'" in lexique_copy
 
 
 def test_mission_completion_routes_to_new_moment_and_home() -> None:
     source = read(MISSIONS_PAGE)
 
     # The resolved dossier ("Le Courrier") offers: next act (serial) / a fresh
-    # correspondence / back to La Une — per the design brief §6.
-    assert "resolutionCredit(mission" in source
-    assert "Nouveau courrier" in source
-    assert "Retour à la Une" in source
+    # correspondence / back to La Une — per the design brief §6. WP-82: the
+    # labels are chrome and live in the copy table; Appendix A folded the
+    # credit rows into the one seal.
+    copy = read(ROOT / "web-frontend" / "components" / "courrier" / "courrier-copy.ts")
+    assert "<CrSeal" in source
+    assert "new_courrier: 'Nouveau courrier'" in copy
+    assert "{t.new_courrier}</CrGhost>" in source
+    assert "back_home: 'Retour à la Une'" in copy
+    assert "{t.back_home}</CrGhost>" in source
     assert "routeForMissionSerialBeat(completedNextSerial)" in source
     assert "createSeededMission({" in source
     assert "minted_collectibles" in source
@@ -54,16 +62,19 @@ def test_mission_completion_routes_to_new_moment_and_home() -> None:
 
 def test_feuilleton_post_scene_uses_journal_continuation_primitives() -> None:
     source = read(FEUILLETON_PAGE)
+    copy = read(ROOT / "web-frontend" / "components" / "feuilleton" / "feuilleton-copy.ts")
 
     # Reader rebuild: the post-scene furniture (completion card with counters,
     # lexical summary, two-beat continuation, duplicate complete row) collapsed
     # into one FeuilletonEnd — the filed stamp plus a single next action.
     assert "function FeuilletonEnd" in source
     assert "<FeuilletonEnd" in source
-    assert "Classé{number}" in source
+    assert "{t.filed_state}{number}" in source
+    assert "filed_state: 'Classé'" in copy
     assert "function FeuilletonContinuationCard" not in source
-    assert "Agir dans Le Courrier" in source
-    assert "Lire le prochain épisode" in source
+    assert "next_courrier: 'Agir dans Le Courrier'" in copy
+    assert "next_episode: 'Lire le prochain épisode'" in copy
+    assert "label: t.next_courrier" in source and "label: t.next_episode" in source
     assert "nextBeatIsMission" in source
     assert "routeWithQuery('/missions', missionPairs)" in source
     assert "routeWithQuery('/graphic-novel', readerPairs)" in source
@@ -83,7 +94,7 @@ def test_atelier_recap_continues_session_into_context() -> None:
     assert "<EpSeal" in source
     assert "<EpHandoff" in source
     assert "session_id: result.session_id" in source
-    assert "aria-label=\"Fermer l’épreuve\"" in source
+    assert "aria-label={t.recap_close}" in source
 
 
 def test_serial_world_design_surfaces_are_integrated() -> None:
@@ -96,11 +107,17 @@ def test_serial_world_design_surfaces_are_integrated() -> None:
     assert "const isSerialAct = Boolean(mission?.serial_thread_id || seed.serialThreadId)" in missions
     # A serial act flips the desk furniture to the blue "Le Feuilleton · Acte N"
     # kicker and stamps "Acte bouclé" on resolution.
-    assert "Le Feuilleton · Acte" in missions
-    assert "Acte bouclé" in missions
+    copy = read(ROOT / "web-frontend" / "components" / "courrier" / "courrier-copy.ts")
+    assert "feuilleton_act: 'Le Feuilleton · Acte {n}'" in copy
+    assert "crFill(t.feuilleton_act, { n: actNumber })" in missions
+    assert "seal_act_done: 'Acte bouclé'" in copy
+    assert "isSerialAct ? t.seal_act_done : t.seal_resolved" in missions
     # Claude design: the cliffhanger is the paged reader's resolution stage.
     reader = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "FeuilletonReader.tsx")
-    assert 'className="fr-eyebrow">À suivre' in reader
+    # WP-82: the kicker is chrome, so it reads from the reader's copy table.
+    assert 'className="fr-eyebrow">{t.to_follow}' in reader
+    reader_copy = read(ROOT / "web-frontend" / "components" / "feuilleton" / "reader" / "reader-copy.ts")
+    assert "to_follow: 'À suivre'" in reader_copy
     assert "<FeuilletonReader" in feuilleton
     assert "--char-romy: #1d3a8a" in globals_css
     assert "[data-char=\"marchand\"]" in globals_css

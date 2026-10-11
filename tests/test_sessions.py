@@ -565,7 +565,7 @@ def test_session_moment_endpoints_submit_skip_and_history_reconstruction(
         .filter(ReviewLog.progress_id == recognized_progress.id)
         .one()
         .rating
-        == 2
+        == 1  # WP-115a: recognition earns «Hard»
     )
 
     pending_skip = SessionLearningMoment(

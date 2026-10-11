@@ -1,0 +1,70 @@
+/**
+ * WP-78 — pure helpers for the practice day's quick formats.
+ *
+ * Kept apart from the renderers so the node tests can drive them without a
+ * DOM: which cards are French and which are meanings, when a matching grid is
+ * finished, whether a listen-and-tap item can actually be heard, and how many
+ * graded interactions a day holds.
+ */
+
+import type { JourneySnapshot, RecallOption, RecallPrompt } from '@/types/daily-journey';
+
+import { heardSource } from './dictation-model';
+
+/** The two columns of a matching item, in the order the server laid them out. */
+export function matchCards(options: readonly RecallOption[]): {
+  fr: RecallOption[];
+  native: RecallOption[];
+} {
+  return {
+    fr: options.filter((option) => option.side !== 'native'),
+    native: options.filter((option) => option.side === 'native'),
+  };
+}
+
+/** Every French card is in a settled pair. */
+export function pairsComplete(settled: readonly string[], frCount: number): boolean {
+  return frCount > 0 && settled.length >= frCount * 2;
+}
+
+/**
+ * A listen-and-tap item is heard only when the server sent a clip. Without
+ * one it is read-and-tap: the phrase is printed and nothing speaks of audio.
+ * WP-91: the clip is usually the journey's authenticated line audio
+ * (`HeardLine` fetches it); a path the app cannot play counts as no clip.
+ */
+export function listenTapHasAudio(prompt: Pick<RecallPrompt, 'task_type' | 'audio_url'>): boolean {
+  return prompt.task_type === 'listen_tap' && heardSource(prompt.audio_url).kind !== 'none';
+}
+
+/** Cards whose text is in the learner's language are not marked `lang="fr"`. */
+export function optionLang(option: Pick<RecallOption, 'side'>): string | undefined {
+  return option.side === 'native' ? undefined : 'fr';
+}
+
+/** Recall steps that are not skipped, plus the reply: what the learner answers today. */
+export function gradedInteractions(journey: Pick<JourneySnapshot, 'steps'> | null): number {
+  if (!journey) return 0;
+  return journey.steps.filter(
+    (step) => step.kind === 'respond' || (step.kind === 'recall' && step.status !== 'skipped'),
+  ).length;
+}
+
+/** The first scene step — no longer always `steps[0]` on a practice day. */
+export function firstSceneStepId(journey: Pick<JourneySnapshot, 'steps'> | null): string | null {
+  return journey?.steps.find((step) => step.kind === 'scene')?.id ?? null;
+}
+
+/**
+ * WP-86. «Qui a dit ça ?» cards: who each option names, and their face. A card
+ * with no `character_id` still renders (by name, with an initial disc).
+ */
+export function whoSaidCards(
+  options: readonly RecallOption[],
+): Array<{ id: string; name: string; characterId: string }> {
+  return options.map((option) => ({
+    id: option.id,
+    name: option.text_fr,
+    characterId: option.character_id || option.text_fr,
+  }));
+}

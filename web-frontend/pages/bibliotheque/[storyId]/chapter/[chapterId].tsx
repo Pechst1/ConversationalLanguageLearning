@@ -15,10 +15,14 @@ import { useRouter } from 'next/router';
 import StorySessionLayout from '@/components/stories/StorySessionLayout';
 import { AtelierV2Root, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
 import { useChapter, useStartChapterSession } from '@/hooks/useStories';
+import { bibliothequeCopy } from '@/components/stories/bibliotheque-copy';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
+import { useChromeLanguage } from '@/lib/learner-language';
 
 export default function BibliothequeChapterPage() {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const t = bibliothequeCopy(language);
   const { storyId, chapterId } = router.query;
 
   const resolvedStoryId = STORY_FEATURE_VISIBLE && typeof storyId === 'string' ? storyId : null;
@@ -69,7 +73,7 @@ export default function BibliothequeChapterPage() {
       <Head>
         <title>La bibliothèque · L’Atelier</title>
       </Head>
-      <AtelierV2Root as="main" className="bib-gate" aria-label="Ouverture du chapitre">
+      <AtelierV2Root as="main" className="bib-gate" aria-label={t.gate_aria}>
         {children}
       </AtelierV2Root>
       <style jsx global>{`
@@ -98,10 +102,10 @@ export default function BibliothequeChapterPage() {
       return gate(
         <StateBlock
           tone="error"
-          title="La séance n’a pas pu s’ouvrir."
+          title={t.session_failed}
           body={error}
           action={{
-            label: 'Retour au texte',
+            label: t.back_to_text,
             onSelect: () => router.push(`/bibliotheque/${storyId}`),
           }}
         />,
@@ -110,7 +114,7 @@ export default function BibliothequeChapterPage() {
     return gate(
       <div aria-busy="true" aria-live="polite">
         <span className="bib-sr">
-          {loadingChapter ? 'Ouverture du chapitre…' : 'Ouverture de la séance…'}
+          {loadingChapter ? t.chapter_opening : t.session_opening}
         </span>
         <Skeleton height={120} radius={24} />
       </div>,
@@ -122,10 +126,10 @@ export default function BibliothequeChapterPage() {
     return gate(
       <StateBlock
         tone="error"
-        title="Ce chapitre est introuvable."
-        body={error || 'Il a peut-être été retiré du texte.'}
+        title={t.chapter_not_found}
+        body={error || t.chapter_removed}
         action={{
-          label: 'Retour au texte',
+          label: t.back_to_text,
           onSelect: () => router.push(`/bibliotheque/${storyId}`),
         }}
       />,

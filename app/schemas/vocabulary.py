@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class VocabularyWordRead(BaseModel):
@@ -35,6 +35,15 @@ class VocabularyWordRead(BaseModel):
     translation_language: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def _lexicon_grammar(self) -> VocabularyWordRead:
+        # WP-84: a French noun with no stored gender reads it from the core
+        # lexicon, so every Lexique noun and the word sheet show le / la.
+        from app.services.lexicon_grammar import word_grammar
+
+        self.part_of_speech, self.gender = word_grammar(self)
+        return self
 
 
 class VocabularyListResponse(BaseModel):
@@ -103,6 +112,15 @@ class VocabularyBiographyEvent(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class VocabularyBiographyRevisit(BaseModel):
+    """WP-93 «revu dans l'épisode du 12»: a story page that brought the word back."""
+
+    #: ``YYYY-MM-DD``, the learner's local day of the journey the page was written for.
+    date: str
+    scene_title_fr: str
+    scene_id: str | None = None
+
+
 class VocabularyBiographyResponse(BaseModel):
     """A compact, resilient biography for a vocabulary word."""
 
@@ -113,6 +131,9 @@ class VocabularyBiographyResponse(BaseModel):
     linked_errata_count: int = 0
     context_event_count: int = 0
     timeline: list[VocabularyBiographyEvent] = Field(default_factory=list)
+    #: WP-93: story-engine pages whose director recycled or placed this word
+    #: (``script_payload.recycled_lemmas`` / ``placed_lemmas``), newest first.
+    revisited_in: list[VocabularyBiographyRevisit] = Field(default_factory=list)
 
 
 class DailyWordEntry(BaseModel):
@@ -125,6 +146,10 @@ class DailyWordEntry(BaseModel):
     example_sentence: str | None = None
     example_translation: str | None = None
     anchor: str | None = None
+    # Read live from the catalogue row on every request (not frozen into the
+    # day's persisted slate), so a gender backfill shows the same day. WP-D6.
+    part_of_speech: str | None = None
+    gender: str | None = None
     stamps: dict[str, str | None] = Field(default_factory=dict)
     triple: bool = False
 
@@ -145,6 +170,10 @@ class ConjugationReviewRequest(BaseModel):
     tense: str = Field(min_length=1, max_length=80)
     rating: int = Field(ge=0, le=3)
     response_time_ms: int | None = Field(None, ge=0)
+    #: QA-CLOSE (owner decision a): the person asked and what the learner typed —
+    #: graded on the server. Without ``answer_text`` the rating is a self-rating.
+    person: str | None = Field(None, max_length=20)
+    answer_text: str | None = Field(None, max_length=160)
 
 
 class ConjugationReviewResponse(BaseModel):
@@ -157,3 +186,7 @@ class ConjugationReviewResponse(BaseModel):
     reps: int
     lapses: int
     next_review: datetime | None = None
+    #: QA-CLOSE: the server's verdict on ``answer_text`` (``None`` for a self-rating).
+    correct: bool | None = None
+    expected: str | None = None
+    note_native: str | None = None

@@ -1,0 +1,3417 @@
+{
+  "lines": {
+    "72e7dd4ec5eb": {
+      "a1": "La boulangère donne la monnaie… sans un mot, Marin !",
+      "b2": "La boulangère m'a rendu la monnaie sans desserrer les dents. Sans un mot, Marin ! Depuis samedi, on me traite comme un pestiféré.",
+      "c1": "La boulangère m'a rendu ma monnaie sans un mot. Sans un mot, Marin ! Depuis samedi, je suis au ban du quartier.",
+      "a1_native": {
+        "en": "The baker hands over the change… without a word, Marin!",
+        "de": "Die Bäckerin gibt das Wechselgeld raus… ohne ein Wort, Marin!"
+      }
+    },
+    "a6d244f971e9": {
+      "a1": "C'est un signe, non ?",
+      "b2": "C'est peut-être un signe, qui sait.",
+      "c1": "Ça, mon vieux, c'est peut-être un signe.",
+      "a1_native": {
+        "en": "It's a sign, isn't it?",
+        "de": "Das ist ein Zeichen, oder?"
+      }
+    },
+    "80e90e18d121": {
+      "a1": "Un signe de quoi ?",
+      "b2": "Un signe de quoi, je te prie ?",
+      "c1": "Un signe de quoi, au juste ?",
+      "a1_native": {
+        "en": "A sign of what?",
+        "de": "Ein Zeichen wofür?"
+      }
+    },
+    "f86e28830740": {
+      "a1": "Je ne sais pas encore.",
+      "b2": "Je ne sais pas encore. Ça viendra.",
+      "c1": "Aucune idée. Pas encore.",
+      "a1_native": {
+        "en": "I don't know yet.",
+        "de": "Ich weiß es noch nicht."
+      }
+    },
+    "3cc077f4bf52": {
+      "a1": "Vous fermez.",
+      "b2": "C'est vous qui fermez ce soir.",
+      "c1": "Vous fermerez.",
+      "a1_native": {
+        "en": "You lock up.",
+        "de": "Ihr schließt ab."
+      }
+    },
+    "b78bf87eeb7b": {
+      "a1": "Reste. Deux minutes.",
+      "b2": "Reste un peu. Deux minutes.",
+      "c1": "Reste. Deux minutes, pas plus.",
+      "a1_native": {
+        "en": "Stay. Two minutes.",
+        "de": "Bleib. Zwei Minuten."
+      }
+    },
+    "7627a605de25": {
+      "a1": "Madame Bonnet, nous avons une bonne nouvelle pour vous. Vous pouvez travailler un an à Berlin. Vous commencez le 9 janvier. Vous avez une salle et de l'argent. Vous répondez avant le 15 décembre, s'il vous plaît.",
+      "b2": "Madame Bonnet, nous avons le plaisir de vous proposer une résidence d'un an à Berlin, atelier et bourse compris, à compter du 9 janvier. Nous vous saurions gré de bien vouloir confirmer votre venue avant le 15 décembre.",
+      "c1": "Madame, nous avons l'honneur de vous informer que votre candidature a été retenue pour une résidence d'un an à Berlin, atelier et bourse inclus, à compter du 9 janvier. Nous vous prions de bien vouloir nous confirmer votre acceptation avant le 15 décembre.",
+      "a1_native": {
+        "en": "Madame Bonnet, we have good news for you. You can work in Berlin for one year. You start on 9 January. You get a room and money. Please reply before 15 December.",
+        "de": "Frau Bonnet, wir haben eine gute Nachricht für Sie. Sie können ein Jahr in Berlin arbeiten. Sie fangen am 9. Januar an. Sie bekommen einen Raum und Geld. Bitte antworten Sie vor dem 15. Dezember."
+      }
+    },
+    "a86065506e50": {
+      "a1": "Je vais dire oui. Toi, tu sais. Marin, non.",
+      "b2": "Je compte accepter. Tu es la première personne à qui j'en parle — même Marin n'est pas au courant.",
+      "c1": "Je vais accepter. Tu es la première personne à qui je le dis. Marin lui-même n'en sait rien.",
+      "a1_native": {
+        "en": "I'm going to say yes. You know. Marin doesn't.",
+        "de": "Ich werde Ja sagen. Du weißt es. Marin nicht."
+      }
+    },
+    "350f8d0e9ff2": {
+      "a1": "Dis une chose vraie. Pas une chose gentille.",
+      "b2": "Dis-moi quelque chose de vrai. Pas quelque chose de gentil, hein.",
+      "c1": "Dis-moi un truc vrai. Pas un truc pour me faire plaisir.",
+      "a1_native": {
+        "en": "Say something true. Not something nice.",
+        "de": "Sag etwas Wahres. Nichts Nettes."
+      }
+    },
+    "2890903b70b4": {
+      "a1": "Tu dis ça vite.",
+      "b2": "Tu dis ça bien vite. Essaie encore.",
+      "c1": "Ça sort un peu trop facilement, ça. Recommence.",
+      "a1_native": {
+        "en": "You say that quickly.",
+        "de": "Das sagst du schnell."
+      }
+    },
+    "b66489b2ea34": {
+      "a1": "Trop vite. Encore une fois ?",
+      "b2": "Beaucoup trop vite. On recommence ?",
+      "c1": "Trop vite. Tu me la refais ?",
+      "a1_native": {
+        "en": "Too quickly. One more time?",
+        "de": "Zu schnell. Noch einmal?"
+      }
+    },
+    "54e94a1ee6a7": {
+      "a1": "D'accord. Merci.",
+      "b2": "D'accord. Merci, vraiment.",
+      "c1": "Bon. Merci.",
+      "a1_native": {
+        "en": "All right. Thanks.",
+        "de": "In Ordnung. Danke."
+      }
+    },
+    "937c48e1c110": {
+      "a1": "Voilà. Ça, c'est vrai.",
+      "b2": "Voilà. Ça, au moins, c'est vrai.",
+      "c1": "Voilà. Ça, ça sonne vrai.",
+      "a1_native": {
+        "en": "There. That one is true.",
+        "de": "So. Das ist wahr."
+      }
+    },
+    "15574de19c50": {
+      "a1": "Je pars quand même. Je crois.",
+      "b2": "Je vais partir quand même. Enfin, je crois.",
+      "c1": "Je pars quand même. Enfin… je crois.",
+      "a1_native": {
+        "en": "I'm going anyway. I think.",
+        "de": "Ich gehe trotzdem. Glaube ich."
+      }
+    },
+    "003466a4fc70": {
+      "a1": "Moi aussi, je veux rester ici. Alors je dois partir.",
+      "b2": "Moi non plus, je n'ai aucune envie de partir d'ici. C'est justement pour ça qu'il faut que je parte.",
+      "c1": "Moi non plus, je n'ai pas envie de quitter cet endroit. C'est bien pour ça qu'il le faut.",
+      "a1_native": {
+        "en": "I want to stay here too. So I have to leave.",
+        "de": "Ich will auch hierbleiben. Deshalb muss ich gehen."
+      }
+    },
+    "586b82f39579": {
+      "a1": "Oui. Les deux. C'est ma phrase.",
+      "b2": "Ce n'est pas bête du tout. C'est exactement ma phrase. Ça fait un mois que je la cherche.",
+      "c1": "Pas bête du tout. C'est ma phrase, mot pour mot. Un mois que je cours après.",
+      "a1_native": {
+        "en": "Yes. Both. That's my sentence.",
+        "de": "Ja. Beides. Das ist mein Satz."
+      }
+    },
+    "81f4b15cafb4": {
+      "a1": "Voilà. Toujours Marin ! Ma question est pour toi.",
+      "b2": "Et voilà. Tout le monde pense d'abord à Marin. C'est à toi que je pose la question.",
+      "c1": "Et voilà. Tout le monde pense à Marin en premier. Moi, c'est à toi que je posais la question.",
+      "a1_native": {
+        "en": "There it is. Always Marin! My question is for you.",
+        "de": "Da haben wir's. Immer Marin! Meine Frage ist an dich."
+      }
+    },
+    "147f1fa071ec": {
+      "a1": "Viens. Tu vas voir une chose.",
+      "b2": "Viens. Il y a quelque chose que je dois te montrer.",
+      "c1": "Viens. J'ai quelque chose à te montrer.",
+      "a1_native": {
+        "en": "Come. You're going to see something.",
+        "de": "Komm. Du wirst etwas sehen."
+      }
+    },
+    "7bd9e60b5e52": {
+      "a1": "Dans la petite salle, Lila cache une chose. À suivre…",
+      "b2": "Dans l'arrière-salle, sous un drap, Lila dissimule quelque chose depuis des mois. À suivre…",
+      "c1": "Dans l'arrière-salle, sous un drap, ce que Lila tient caché depuis des mois. À suivre…",
+      "a1_native": {
+        "en": "In the little back room, Lila is hiding something. To be continued…",
+        "de": "Im kleinen Hinterzimmer versteckt Lila etwas. Fortsetzung folgt…"
+      }
+    },
+    "35053acb60aa": {
+      "a1": "Là. C'est toi. De dos. Pas encore de visage.",
+      "b2": "Là, dans le coin, c'est toi. De dos. Ton visage, je ne l'ai pas encore trouvé.",
+      "c1": "Là, dans le coin : toi. De dos. Ton visage, je ne l'ai pas encore attrapé.",
+      "a1_native": {
+        "en": "There. That's you. From behind. No face yet.",
+        "de": "Da. Das bist du. Von hinten. Noch kein Gesicht."
+      }
+    },
+    "c572c28b39b3": {
+      "a1": "De loin, je peux trouver ton visage ?",
+      "b2": "Tu crois qu'on peut trouver un visage… de loin ?",
+      "c1": "Tu crois qu'un visage, ça se trouve de loin ?",
+      "a1_native": {
+        "en": "Can I find your face from far away?",
+        "de": "Kann ich dein Gesicht aus der Ferne finden?"
+      }
+    },
+    "0ec29553bed4": {
+      "a1": "Je finis à Berlin. Toi, tu envoies des photos !",
+      "b2": "Je le finirai à Berlin. Tu m'enverras des photos de toi — les plus ridicules possible, s'il te plaît.",
+      "c1": "Je le terminerai à Berlin. Tu m'enverras des photos de toi. Des photos ridicules, j'insiste.",
+      "a1_native": {
+        "en": "I'll finish it in Berlin. You send photos!",
+        "de": "Ich male es in Berlin fertig. Du schickst Fotos!"
+      }
+    },
+    "f1ff6463335f": {
+      "a1": "C'est une demande ? Ou un ordre ?",
+      "b2": "C'est une invitation ou un ordre, au juste ?",
+      "c1": "C'est une invitation ou un ordre, ça ?",
+      "a1_native": {
+        "en": "Is that a request? Or an order?",
+        "de": "Ist das eine Bitte? Oder ein Befehl?"
+      }
+    },
+    "5e729ae03dd5": {
+      "a1": "Peut-être. Ou de loin, je vois bien ton visage.",
+      "b2": "Peut-être. Ou peut-être que je te vois mieux avec un peu de distance.",
+      "c1": "Peut-être. À moins que je ne te voie mieux de loin.",
+      "a1_native": {
+        "en": "Maybe. Or from far away I see your face clearly.",
+        "de": "Vielleicht. Oder aus der Ferne sehe ich dein Gesicht gut."
+      }
+    },
+    "ed5ba274a2bc": {
+      "a1": "Non, non. Moi, je peins le vrai.",
+      "b2": "Impossible. Moi, je peins la vérité, rien d'autre.",
+      "c1": "Hors de question. Moi, je peins ce qui est.",
+      "a1_native": {
+        "en": "No, no. I paint what's true.",
+        "de": "Nein, nein. Ich male, was wahr ist."
+      }
+    },
+    "4214c7a1010b": {
+      "a1": "Marin doit savoir. Ce soir. Tu viens avec moi ?",
+      "b2": "Il faut que je le dise à Marin. Ce soir. Tu viens avec moi ?",
+      "c1": "Il faut que Marin le sache. Ce soir. Tu m'accompagnes ?",
+      "a1_native": {
+        "en": "Marin has to know. Tonight. Are you coming with me?",
+        "de": "Marin muss es wissen. Heute Abend. Kommst du mit?"
+      }
+    },
+    "b7e90ca4288c": {
+      "a1": "Oui, je viens",
+      "b2": "Oui, je viens avec toi",
+      "c1": "Oui, je t'accompagne",
+      "a1_native": {
+        "en": "Yes, I'm coming",
+        "de": "Ja, ich komme mit"
+      }
+    },
+    "82380811a7e7": {
+      "a1": "Marin va comprendre : toi, tu sais déjà.",
+      "b2": "Marin saura que tu étais au courant.",
+      "c1": "Marin comprendra que tu savais.",
+      "a1_native": {
+        "en": "Marin will realise that you already know.",
+        "de": "Marin wird merken: Du weißt es schon."
+      }
+    },
+    "8697021e7405": {
+      "a1": "Non. C'est à toi de parler.",
+      "b2": "Non. C'est à toi de le faire.",
+      "c1": "Non. Ça, c'est à toi.",
+      "a1_native": {
+        "en": "No. It's up to you to tell him.",
+        "de": "Nein. Du musst es ihm sagen."
+      }
+    },
+    "6c604c8d1d28": {
+      "a1": "Lila parle seule à Marin.",
+      "b2": "Lila y va seule.",
+      "c1": "Lila y va sans toi.",
+      "a1_native": {
+        "en": "Lila talks to Marin alone.",
+        "de": "Lila spricht allein mit Marin."
+      }
+    },
+    "460a6d67b6d9": {
+      "a1": "Pas maintenant.",
+      "b2": "Pas tout de suite.",
+      "c1": "Pas maintenant.",
+      "a1_native": {
+        "en": "Not now.",
+        "de": "Nicht jetzt."
+      }
+    },
+    "c75d8f1fc2ff": {
+      "a1": "Mais pas jamais.",
+      "b2": "Mais ce n'est pas jamais.",
+      "c1": "Mais pas jamais.",
+      "a1_native": {
+        "en": "But not never.",
+        "de": "Aber nicht nie."
+      }
+    },
+    "a4765ad629ed": {
+      "a1": "\"C'est un signe, ça !\"",
+      "b2": "\"Ça, c'est un signe !\"",
+      "c1": "\"Si ça, c'est pas un signe !\"",
+      "a1_native": {
+        "en": "\"That's a sign, that is!\"",
+        "de": "„Das ist ein Zeichen!“"
+      }
+    },
+    "144da6f9e3a5": {
+      "a1": "Il va pleurer. Et faire une crêpe pour moi.",
+      "b2": "Il va pleurer. Il va pleurer, et ensuite il va me faire une crêpe.",
+      "c1": "Il va pleurer. Pleurer, et me faire une crêpe dans la foulée.",
+      "a1_native": {
+        "en": "He's going to cry. And make a crêpe for me.",
+        "de": "Er wird weinen. Und mir einen Crêpe machen."
+      }
+    },
+    "b861b9c18b19": {
+      "a1": "Ah, vous voilà ! Regarde, Lila : pour toi !",
+      "b2": "Vous tombez à pic ! Regarde un peu ce que je t'ai préparé, Lila !",
+      "c1": "Pile au bon moment ! Regarde-moi ce que je t'ai fait, Lila !",
+      "a1_native": {
+        "en": "Ah, there you are! Look, Lila: for you!",
+        "de": "Ah, da seid ihr ja! Schau, Lila: für dich!"
+      }
+    },
+    "5adac5506dd6": {
+      "a1": "Marin fait une place pour Lila. Lila part. À suivre…",
+      "b2": "Marin a réservé une place à Lila. Dans trois semaines, cette place sera vide. À suivre…",
+      "c1": "Marin a fait une place à Lila. Dans trois semaines, elle restera vide. À suivre…",
+      "a1_native": {
+        "en": "Marin makes a place for Lila. Lila is leaving. To be continued…",
+        "de": "Marin schafft einen Platz für Lila. Lila geht weg. Fortsetzung folgt…"
+      }
+    },
+    "cc2e97875daa": {
+      "a1": "Deux heures. Tu ne dors pas. En haut, une lumière.",
+      "b2": "Deux heures du matin. Impossible de fermer l'œil. Là-haut, quelqu'un a laissé la lumière allumée.",
+      "c1": "Deux heures du matin, et le sommeil ne vient pas. Là-haut, la lumière est restée allumée.",
+      "a1_native": {
+        "en": "Two in the morning. You can't sleep. Upstairs, a light.",
+        "de": "Zwei Uhr nachts. Du schläfst nicht. Oben ein Licht."
+      }
+    },
+    "c24f138e296b": {
+      "a1": "Quel est ce message ?",
+      "b2": "De quoi s'agit-il, au juste, dans ce message ? Tout ce qui est vrai.",
+      "c1": "Que dit-il vraiment, ce message ? Tout ce qui est vrai.",
+      "a1_native": {
+        "en": "What is this message?",
+        "de": "Was ist das für eine Nachricht?"
+      }
+    },
+    "f5af9dc19076": {
+      "a1": "À toi —\nViens voir mon travail. Demain, il va dans la caisse.\nPardon pour l'autre soir. «Encore un secret !», je dis. Moi aussi, j'ai un secret.\nJe pars le 8 janvier. Je vais à Berlin. Toi, tu dois savoir avant les autres, et je",
+      "b2": "À toi —\nPasse voir la toile avant qu'on ne l'emballe demain.\nPardon pour l'autre soir, pour mon «encore un secret». J'étais bien mal placée pour te le reprocher : moi aussi, j'en garde un.\nJe pars le 8 janvier, pour Berlin. Je tenais à te le dire avant tous les autres, et je",
+      "c1": "À toi —\nPasse voir la toile avant qu'elle parte en caisse demain.\nPardon pour l'autre soir, pour mon «encore un secret». C'était l'hôpital qui se moque de la charité : moi aussi, j'en garde un.\nJe pars le 8 janvier, à Berlin. Je voulais que tu l'apprennes avant tout le monde, et je",
+      "a1_native": {
+        "en": "To you —\nCome and see my work. Tomorrow it goes in the crate.\nSorry about the other night. \"Another secret!\", I said. I have a secret too.\nI'm leaving on 8 January. I'm going to Berlin. You have to know before the others, and I",
+        "de": "An dich —\nKomm und sieh dir meine Arbeit an. Morgen kommt sie in die Kiste.\nEntschuldige wegen neulich Abend. „Noch ein Geheimnis!“, habe ich gesagt. Ich habe auch ein Geheimnis.\nIch gehe am 8. Januar weg. Ich gehe nach Berlin. Du musst es vor den anderen wissen, und ich"
+      }
+    },
+    "b664b589f1e7": {
+      "a1": "Une invitation",
+      "b2": "Une invitation",
+      "c1": "Une invitation",
+      "a1_native": {
+        "en": "An invitation",
+        "de": "Eine Einladung"
+      }
+    },
+    "d32b447e8bbc": {
+      "a1": "Pardon",
+      "b2": "Des excuses",
+      "c1": "Des excuses",
+      "a1_native": {
+        "en": "Sorry",
+        "de": "Entschuldigung"
+      }
+    },
+    "d97f46b4744a": {
+      "a1": "Au revoir pour toujours",
+      "b2": "Un adieu",
+      "c1": "Un adieu",
+      "a1_native": {
+        "en": "Goodbye for ever",
+        "de": "Abschied für immer"
+      }
+    },
+    "0428959cb2b9": {
+      "a1": "Une carte pas finie. Lila à la porte. À suivre…",
+      "b2": "Deux cafés, une carte inachevée, et Lila sur le seuil. À suivre…",
+      "c1": "Deux cafés, une carte laissée en suspens, et Lila sur le pas de la porte. À suivre…",
+      "a1_native": {
+        "en": "An unfinished card. Lila at the door. To be continued…",
+        "de": "Eine unfertige Karte. Lila in der Tür. Fortsetzung folgt…"
+      }
+    },
+    "2b4ddbeecd73": {
+      "a1": "Tu sais, maintenant.",
+      "b2": "Tu l'as lue.",
+      "c1": "Tu l'as lue, donc.",
+      "a1_native": {
+        "en": "Now you know.",
+        "de": "Jetzt weißt du es."
+      }
+    },
+    "a6438086ac58": {
+      "a1": "Allez. Parle. Tu es en colère ?",
+      "b2": "Vas-y. Dispute-toi avec moi. Tu en as parfaitement le droit.",
+      "c1": "Vas-y, engueule-moi. Tu es dans ton droit.",
+      "a1_native": {
+        "en": "Go on. Talk. Are you angry?",
+        "de": "Los. Sag was. Bist du wütend?"
+      }
+    },
+    "9ef7d57f0285": {
+      "a1": "Bon. Au moins, l'invitation marche.",
+      "b2": "Bon. Au moins, l'invitation a marché.",
+      "c1": "Bon. L'invitation, au moins, a fait son effet.",
+      "a1_native": {
+        "en": "Well. At least the invitation works.",
+        "de": "Na ja. Wenigstens die Einladung funktioniert."
+      }
+    },
+    "481f5662181c": {
+      "a1": "Oui. Je demande pardon. Et le reste aussi.",
+      "b2": "Oui. C'étaient des excuses. Et tout le reste aussi.",
+      "c1": "Oui, c'étaient des excuses. Et le reste avec.",
+      "a1_native": {
+        "en": "Yes. I'm saying sorry. And the rest too.",
+        "de": "Ja. Ich bitte um Entschuldigung. Und der Rest auch."
+      }
+    },
+    "5041027072c3": {
+      "a1": "Après. Toujours après.",
+      "b2": "Après. Ici, c'est toujours après.",
+      "c1": "Après. Ici, on dit toujours tout après coup.",
+      "a1_native": {
+        "en": "Afterwards. Always afterwards.",
+        "de": "Danach. Immer danach."
+      }
+    },
+    "11160c2eee96": {
+      "a1": "Comme toi, avec la photo.",
+      "b2": "Comme toi, avec la photo.",
+      "c1": "Comme toi avec la photo, d'ailleurs.",
+      "a1_native": {
+        "en": "Like you, with the photo.",
+        "de": "Wie du, mit dem Foto."
+      }
+    },
+    "a20462b9d170": {
+      "a1": "Pardon. Ce n'est pas juste.",
+      "b2": "Pardon. C'était bas, ça.",
+      "c1": "Pardon. Ça, c'était un coup bas.",
+      "a1_native": {
+        "en": "Sorry. That's not fair.",
+        "de": "Entschuldige. Das ist nicht fair."
+      }
+    },
+    "06a693960ce8": {
+      "a1": "Non. Pas comme ça. Crie un peu, au moins !",
+      "b2": "Non. Pas comme ça. Engueule-moi si tu veux, mais pas ça.",
+      "c1": "Non, pas comme ça. Crie-moi dessus, à la limite, mais pas ça.",
+      "a1_native": {
+        "en": "No. Not like that. At least shout a little!",
+        "de": "Nein. Nicht so. Schrei wenigstens ein bisschen!"
+      }
+    },
+    "54a3258f5dcd": {
+      "a1": "C'est les trois. Tu lis bien. Moi, j'écris mal.",
+      "b2": "C'est les trois à la fois : invitation, excuses, adieu. Tu as très bien lu. C'est moi qui ne sais pas écrire ce genre de chose.",
+      "c1": "Les trois à la fois. Tu as lu juste. C'est moi qui n'ai jamais su écrire ces choses-là.",
+      "a1_native": {
+        "en": "It's all three. You read well. I'm the one who writes badly.",
+        "de": "Es ist alles drei. Du liest gut. Ich schreibe schlecht."
+      }
+    },
+    "f497746a8168": {
+      "a1": "Je sais. Six cartes, et pas de fin.",
+      "b2": "Je sais. J'ai recommencé cette carte six fois, sans jamais réussir à finir la phrase.",
+      "c1": "Je sais. Six fois, je l'ai recommencée, cette carte. La phrase n'a jamais voulu se finir.",
+      "a1_native": {
+        "en": "I know. Six cards, and no ending.",
+        "de": "Ich weiß. Sechs Karten, und kein Ende."
+      }
+    },
+    "3f71a7244b1f": {
+      "a1": "C'est toi. De dos. Pas encore de visage.",
+      "b2": "C'est toi. De dos. Ton visage, je ne l'ai toujours pas trouvé.",
+      "c1": "C'est toi, de dos. Ton visage m'échappe encore.",
+      "a1_native": {
+        "en": "That's you. From behind. No face yet.",
+        "de": "Das bist du. Von hinten. Noch kein Gesicht."
+      }
+    },
+    "e9a6c2329e1c": {
+      "a1": "Pas de visage. Je ne veux pas finir, peut-être.",
+      "b2": "Je n'arrive pas à trouver ton visage. Peut-être que je n'ai pas envie de le finir.",
+      "c1": "Ton visage me résiste. Ou alors c'est moi qui ne veux pas le finir.",
+      "a1_native": {
+        "en": "No face. Maybe I don't want to finish.",
+        "de": "Kein Gesicht. Vielleicht will ich nicht fertig werden."
+      }
+    },
+    "be3f688051e7": {
+      "a1": "Ton visage, je fais ça à Berlin. Oh là là.",
+      "b2": "Ton visage, je le ferai à Berlin. De mémoire. Ça va être une catastrophe.",
+      "c1": "Ton visage, je le ferai à Berlin, de mémoire. Une catastrophe annoncée.",
+      "a1_native": {
+        "en": "Your face, I'll do that in Berlin. Oh dear.",
+        "de": "Dein Gesicht mache ich in Berlin. Oje."
+      }
+    },
+    "28f15313a94f": {
+      "a1": "Ici, on s'aime. On se retient. Margaux. Moi. Et toi…",
+      "b2": "Ici, on s'aime beaucoup, mais on se retient tout autant. Margaux a retenu Odile avec un mensonge. Moi, je me retiens avec Marin. Et toi…",
+      "c1": "Ici, on s'aime à condition de se retenir. Margaux a retenu Odile par un mensonge. Moi, je me retiens à cause de Marin. Et toi…",
+      "a1_native": {
+        "en": "Here, we love each other. We hold back. Margaux. Me. And you…",
+        "de": "Hier lieben wir uns. Wir halten uns zurück. Margaux. Ich. Und du…"
+      }
+    },
+    "b723cbac0913": {
+      "a1": "…toi, avec cet appartement, tu retiens les autres.",
+      "b2": "…toi, tu retiens tout le monde avec cet appartement. Sans même le vouloir.",
+      "c1": "…toi, avec cet appartement, tu nous retiens tous. Sans le vouloir.",
+      "a1_native": {
+        "en": "…you, with this flat, you hold the others back.",
+        "de": "…du, mit dieser Wohnung hältst du die anderen zurück."
+      }
+    },
+    "f3cc4b06b81e": {
+      "a1": "Oui. Les deux. C'est ça, le problème.",
+      "b2": "Oui. Les deux à la fois. C'est bien ça, le problème.",
+      "c1": "Oui. Les deux. Tout le problème est là.",
+      "a1_native": {
+        "en": "Yes. Both. That's the problem.",
+        "de": "Ja. Beides. Das ist das Problem."
+      }
+    },
+    "66118be1d1a3": {
+      "a1": "La nuit, je n'aime pas avoir raison.",
+      "b2": "Je déteste avoir raison en pleine nuit.",
+      "c1": "J'ai horreur d'avoir raison à deux heures du matin.",
+      "a1_native": {
+        "en": "At night, I don't like being right.",
+        "de": "Nachts habe ich nicht gern recht."
+      }
+    },
+    "de1d17f4f224": {
+      "a1": "Un peu. Je pars quand même. Mais je suis triste.",
+      "b2": "Un peu. Pas assez pour que je reste. Trop pour que je parte l'esprit tranquille.",
+      "c1": "Un peu. Pas assez pour me retenir. Trop pour que je parte le cœur léger.",
+      "a1_native": {
+        "en": "A little. I'm leaving anyway. But I'm sad.",
+        "de": "Ein bisschen. Ich gehe trotzdem. Aber ich bin traurig."
+      }
+    },
+    "f6a419786bc6": {
+      "a1": "Marin doit savoir. Demain matin. Tu viens avec moi ?",
+      "b2": "Il faut le dire à Marin. Demain matin. Tu viens avec moi ?",
+      "c1": "Il faut que Marin le sache. Demain matin. Tu m'accompagnes ?",
+      "a1_native": {
+        "en": "Marin has to know. Tomorrow morning. Are you coming with me?",
+        "de": "Marin muss es wissen. Morgen früh. Kommst du mit?"
+      }
+    },
+    "63444099ee8a": {
+      "a1": "Une chose. Quand je pars, pas d'omelette. Jamais !",
+      "b2": "Promets-moi une chose. Quand je serai partie, tu ne referas jamais cette omelette. Jamais.",
+      "c1": "Promets-moi un truc. Une fois que je serai partie, tu ne t'avises plus jamais de refaire l'omelette.",
+      "a1_native": {
+        "en": "One thing. When I'm gone, no omelette. Never!",
+        "de": "Eins noch. Wenn ich weg bin: kein Omelett. Nie!"
+      }
+    },
+    "e0ba25ad9e75": {
+      "a1": "Tu rentres ? J'ai une surprise. Pour le Mistral !",
+      "b2": "Tu rentres bientôt ? J'ai une surprise pour toi. Pour le Mistral !",
+      "c1": "Tu rentres quand ? Surprise pour toi ! Pour le Mistral !",
+      "a1_native": {
+        "en": "Are you coming home? I have a surprise. For Le Mistral!",
+        "de": "Kommst du nach Hause? Ich habe eine Überraschung. Für das Mistral!"
+      }
+    },
+    "c4f3154b7d8f": {
+      "a1": "Marin a une surprise. Lila a une caisse. À suivre…",
+      "b2": "Marin prépare une surprise pour Lila. Lila, elle, a fait sa caisse pour Berlin. À suivre…",
+      "c1": "Marin mijote une surprise pour Lila. Lila, elle, a bouclé sa caisse pour Berlin. À suivre…",
+      "a1_native": {
+        "en": "Marin has a surprise. Lila has a crate. To be continued…",
+        "de": "Marin hat eine Überraschung. Lila hat eine Kiste. Fortsetzung folgt…"
+      }
+    },
+    "16ed8862e4ab": {
+      "a1": "Camille : «Grand-père veut parler avec vous. Sans les autres.»",
+      "b2": "Mardi soir. Un message de Camille : «Mon grand-père aimerait vous parler. Seul à seul.»",
+      "c1": "Mardi soir, un message de Camille : «Mon grand-père souhaiterait vous voir. En tête à tête.»",
+      "a1_native": {
+        "en": "Camille: \"Grandfather wants to talk with you. Without the others.\"",
+        "de": "Camille: „Großvater möchte mit Ihnen sprechen. Ohne die anderen.“"
+      }
+    },
+    "d807120b34a5": {
+      "a1": "Entrez. Il ne descend pas beaucoup.",
+      "b2": "Entrez. Il ne descend pratiquement plus.",
+      "c1": "Entrez. Il ne descend pour ainsi dire plus.",
+      "a1_native": {
+        "en": "Come in. He doesn't come down much.",
+        "de": "Kommen Sie herein. Er kommt nicht oft nach unten."
+      }
+    },
+    "149d9373bf3f": {
+      "a1": "Bonsoir, la famille Ferrand. Une chaise ?",
+      "b2": "Asseyez-vous donc, la succession Ferrand.",
+      "c1": "Prenez place, la succession Ferrand.",
+      "a1_native": {
+        "en": "Good evening, Ferrand family. A chair?",
+        "de": "Guten Abend, Familie Ferrand. Einen Stuhl?"
+      }
+    },
+    "fe40a5bbbacf": {
+      "a1": "Je fais des blagues, maintenant. Camille dit : pas bon.",
+      "b2": "C'est une plaisanterie. Je fais de l'humour, maintenant. D'après Camille, c'est mauvais signe.",
+      "c1": "C'est une plaisanterie. Je me suis mis à l'humour. Camille y voit un mauvais présage.",
+      "a1_native": {
+        "en": "I make jokes now. Camille says: not good.",
+        "de": "Ich mache jetzt Witze. Camille sagt: nicht gut."
+      }
+    },
+    "510cdf355fb7": {
+      "a1": "Pas bon du tout.",
+      "b2": "C'est même très mauvais signe.",
+      "c1": "Un très mauvais présage, oui.",
+      "a1_native": {
+        "en": "Not good at all.",
+        "de": "Gar nicht gut."
+      }
+    },
+    "5fcbaf1ac265": {
+      "a1": "Six ans. Le dimanche, bus 46, parc, poulet chez moi.",
+      "b2": "Six ans. Tous les dimanches. Le 46 jusqu'au bois de Vincennes, puis un poulet chez moi, au quatrième.",
+      "c1": "Six ans. Tous les dimanches que Dieu fait. Le 46 jusqu'au bois de Vincennes, et un poulet chez moi, au quatrième.",
+      "a1_native": {
+        "en": "Six years. On Sundays: the 46 bus, the park, chicken at my place.",
+        "de": "Sechs Jahre. Sonntags: Bus 46, der Park, Hähnchen bei mir."
+      }
+    },
+    "0e5076066e57": {
+      "a1": "Le 13 mars, je dis : «Odile, venez vivre chez moi.» Elle dit : «Je ne sais pas. Je vais voir.» Le jour d'après, il y a le feu. Après, elle ne parle pas avec moi. Et elle part.",
+      "b2": "Le 13 mars, je lui ai proposé de venir vivre chez moi. Elle m'a répondu : «Je vais réfléchir.» Le lendemain, il y a eu l'incendie. Ensuite, elle m'a fui, puis elle est partie.",
+      "c1": "Le 13 mars, je lui ai demandé de venir s'installer chez moi. «Je vais réfléchir», m'a-t-elle dit. Le lendemain, l'incendie. Après quoi elle m'a soigneusement évité, et elle est partie.",
+      "a1_native": {
+        "en": "On 13 March, I said: \"Odile, come and live with me.\" She said: \"I don't know. I'll see.\" The next day, there was the fire. After that, she didn't talk to me. And she left.",
+        "de": "Am 13. März sage ich: „Odile, ziehen Sie zu mir.“ Sie sagt: „Ich weiß nicht. Ich überlege es mir.“ Am Tag danach gibt es das Feuer. Danach spricht sie nicht mehr mit mir. Und sie geht."
+      }
+    },
+    "30bb3aef1d26": {
+      "a1": "À votre fête, je lis «J'oublie». Maintenant, je dors mal.",
+      "b2": "À votre fête, j'ai lu «J'ai oublié». Depuis, je dors mal.",
+      "c1": "À votre fête, j'ai lu «J'ai oublié». Je n'en dors plus.",
+      "a1_native": {
+        "en": "At your party, I read \"I forget\". Now I sleep badly.",
+        "de": "Auf Ihrem Fest habe ich „Ich vergesse“ gelesen. Jetzt schlafe ich schlecht."
+      }
+    },
+    "0bdd94ad233e": {
+      "a1": "Bon. Très, très mal.",
+      "b2": "Enfin… encore plus mal qu'avant.",
+      "c1": "Enfin, plus mal encore.",
+      "a1_native": {
+        "en": "Well. Very, very badly.",
+        "de": "Na ja. Sehr, sehr schlecht."
+      }
+    },
+    "e9dfa8df4148": {
+      "a1": "Vous mentez, comme Margaux. Ce soir, je veux le vrai.",
+      "b2": "Vous m'avez dit qu'elle parlait de moi. Vous mentez avec gentillesse, comme Margaux. Ce soir, j'aimerais la vérité.",
+      "c1": "Vous m'avez assuré qu'elle parlait de moi. Vous mentez avec tact, comme Margaux. Ce soir, je voudrais la vérité, toute nue.",
+      "a1_native": {
+        "en": "You lie, like Margaux. Tonight, I want the truth.",
+        "de": "Sie lügen, wie Margaux. Heute Abend will ich die Wahrheit."
+      }
+    },
+    "3ca57babc96b": {
+      "a1": "Il y a de l'eau dans la maison. Et la façade ! Pour tout, c'est quatre cent mille euros. Mon grand-père ne peut pas monter chez lui. Alors, en juin, il descend. Maintenant, il dort ici, en bas.",
+      "b2": "Le toit fuit et la façade est à refaire : quatre cent mille euros. Mon grand-père n'arrive plus à monter les escaliers. Il dort dans ce bureau depuis juin.",
+      "c1": "Le toit prend l'eau, la façade est à reprendre : quatre cent mille euros. Mon grand-père ne monte plus chez lui ; il dort dans ce bureau depuis juin.",
+      "a1_native": {
+        "en": "There's water coming into the building. And the façade! For everything, it's four hundred thousand euros. My grandfather can't climb up to his flat. So in June he moved down. Now he sleeps here, downstairs.",
+        "de": "Es kommt Wasser ins Haus. Und die Fassade! Für alles sind es vierhunderttausend Euro. Mein Großvater kann nicht zu sich nach oben steigen. Also ist er im Juni nach unten gezogen. Jetzt schläft er hier unten."
+      }
+    },
+    "e40bdd88f90f": {
+      "a1": "Solvel, c'est une solution. Une maison n'est pas un musée.",
+      "b2": "Solvel n'est pas l'ennemi. C'est une solution. Un immeuble, ce n'est pas un musée.",
+      "c1": "Solvel n'est pas l'ennemi, c'est une issue. Un immeuble n'a pas vocation à devenir un musée.",
+      "a1_native": {
+        "en": "Solvel is a solution. A building isn't a museum.",
+        "de": "Solvel ist eine Lösung. Ein Haus ist kein Museum."
+      }
+    },
+    "69c4759cb0aa": {
+      "a1": "Pourquoi elle part ? Vous savez, vous ?",
+      "b2": "Vous le savez, vous, pourquoi elle est partie ?",
+      "c1": "Et vous, vous savez pourquoi elle est partie ?",
+      "a1_native": {
+        "en": "Why did she leave? Do you know?",
+        "de": "Warum ist sie gegangen? Wissen Sie es?"
+      }
+    },
+    "f657abcc49e8": {
+      "a1": "Alors on est deux.",
+      "b2": "Alors nous sommes deux.",
+      "c1": "Nous voilà deux, alors.",
+      "a1_native": {
+        "en": "Then there are two of us.",
+        "de": "Dann sind wir zu zweit."
+      }
+    },
+    "6591da237f7b": {
+      "a1": "Je sais, maintenant. Mais pourquoi pas un mot ?",
+      "b2": "Ça, je le sais, maintenant. Mais pourquoi ne m'a-t-elle rien dit, à moi ?",
+      "c1": "Cela, je le sais désormais. Mais pourquoi ne m'avoir rien dit, à moi ?",
+      "a1_native": {
+        "en": "I know, now. But why not a word?",
+        "de": "Jetzt weiß ich es. Aber warum kein Wort?"
+      }
+    },
+    "3cfe74d7df34": {
+      "a1": "Oui. Moi, je garde la photo.",
+      "b2": "Oui. Moi, je l'ai gardée.",
+      "c1": "Oui. Moi, je l'ai gardée.",
+      "a1_native": {
+        "en": "Yes. I've kept the photo.",
+        "de": "Ja. Ich habe das Foto behalten."
+      }
+    },
+    "9d7f1e24ef1d": {
+      "a1": "Margaux ne dit pas le vrai. Je ne signe pas.",
+      "b2": "Margaux a menti, et je ne sais pas pourquoi. Tant que je ne le saurai pas, je ne signerai rien pour elle.",
+      "c1": "Margaux a menti, j'ignore pourquoi. Tant que je ne le saurai pas, je ne signe rien en sa faveur.",
+      "a1_native": {
+        "en": "Margaux isn't telling the truth. I'm not signing.",
+        "de": "Margaux sagt nicht die Wahrheit. Ich unterschreibe nicht."
+      }
+    },
+    "8856da3bfac3": {
+      "a1": "On peut tout garder ? Le café, tout ?",
+      "b2": "Vous croyez vraiment qu'on peut tout garder ? Les murs, les souvenirs, le zinc, tout ?",
+      "c1": "Vous croyez sérieusement qu'on peut tout garder ? Les murs, les souvenirs, le zinc ?",
+      "a1_native": {
+        "en": "Can we keep everything? The café, everything?",
+        "de": "Kann man alles behalten? Das Café, alles?"
+      }
+    },
+    "1f8b6dfccae9": {
+      "a1": "Alors, votre idée ? Avant le 8 janvier.",
+      "b2": "Alors proposez mieux. Et avant le 8 janvier.",
+      "c1": "Alors faites une meilleure proposition. D'ici le 8 janvier.",
+      "a1_native": {
+        "en": "Then what's your idea? Before 8 January.",
+        "de": "Dann, was ist Ihre Idee? Vor dem 8. Januar."
+      }
+    },
+    "fe7a4796696b": {
+      "a1": "Avec quel argent ?",
+      "b2": "Et avec quel argent ?",
+      "c1": "Avec quel argent, au juste ?",
+      "a1_native": {
+        "en": "With what money?",
+        "de": "Mit welchem Geld?"
+      }
+    },
+    "d2a3b14d2b58": {
+      "a1": "…Ce n'est pas une raison.",
+      "b2": "…Ce n'est pas un argument.",
+      "c1": "…Ça ne constitue pas un argument.",
+      "a1_native": {
+        "en": "…That's not a reason.",
+        "de": "…Das ist kein Grund."
+      }
+    },
+    "ab8659e369ba": {
+      "a1": "C'est une bonne raison.",
+      "b2": "C'est même un bon argument.",
+      "c1": "C'est un argument, cela dit.",
+      "a1_native": {
+        "en": "It's a good reason.",
+        "de": "Das ist ein guter Grund."
+      }
+    },
+    "5abd1443ff87": {
+      "a1": "Je comprends. Je ne suis pas d'accord. Mais je comprends.",
+      "b2": "Je comprends. Je ne suis pas d'accord, mais je comprends.",
+      "c1": "Je comprends. Je ne partage pas votre avis, mais je comprends.",
+      "a1_native": {
+        "en": "I understand. I don't agree. But I understand.",
+        "de": "Ich verstehe. Ich bin nicht einverstanden. Aber ich verstehe."
+      }
+    },
+    "84364c778c1b": {
+      "a1": "Demain, dix heures, je signe avec Solvel. Le café aussi.",
+      "b2": "Demain, à dix heures, chez Maître Vasseur, je signe la promesse de vente avec Solvel. Mes étages, et les murs du café.",
+      "c1": "Demain, dix heures, chez Maître Vasseur, je signe la promesse de vente avec Solvel. Mes étages, et les murs du café avec.",
+      "a1_native": {
+        "en": "Tomorrow, ten o'clock, I sign with Solvel. The café too.",
+        "de": "Morgen um zehn unterschreibe ich mit Solvel. Das Café auch."
+      }
+    },
+    "866ce47b6f67": {
+      "a1": "Lis. Pas vite. Je suis là.",
+      "b2": "Lis. Doucement. Je suis là.",
+      "c1": "Lis. Prends ton temps. Je suis là.",
+      "a1_native": {
+        "en": "Read. Not fast. I'm here.",
+        "de": "Lies. Nicht schnell. Ich bin da."
+      }
+    },
+    "a4ebe955c9d7": {
+      "a1": "On lit ensemble. Allez, lis, l'héritage.",
+      "b2": "On va le lire ensemble. Vas-y, l'héritage, lis.",
+      "c1": "On le lit à deux. Vas-y, l'héritage.",
+      "a1_native": {
+        "en": "We'll read together. Go on, read, l'héritage.",
+        "de": "Wir lesen zusammen. Los, lies, l'héritage."
+      }
+    },
+    "59fc0ff0ec97": {
+      "a1": "Odile ne répond pas à M. Marchand. Pourquoi ?",
+      "b2": "Pourquoi Odile n'a-t-elle jamais répondu à M. Marchand ?",
+      "c1": "Pourquoi Odile a-t-elle laissé M. Marchand sans réponse ?",
+      "a1_native": {
+        "en": "Odile doesn't answer M. Marchand. Why?",
+        "de": "Odile antwortet M. Marchand nicht. Warum?"
+      }
+    },
+    "e6003100d0ff": {
+      "a1": "13 mars. M. dit : «Venez vivre chez moi.» Je dis : «Je vais voir.» Mais je ne peux pas dire à M. : «J'oublie.»\n\n15 mars. Margaux ne dit pas le vrai, pour moi. Mais c'est moi, je demande ça. C'est moi, pas Margaux. Vous lisez ça ? Alors, Margaux n'est pas responsable.",
+      "b2": "13 mars. M. m'a proposé de venir vivre chez lui, en haut. J'ai répondu que j'allais réfléchir. Comment lui avouer que j'oublie ?\n\n15 mars. J'ai demandé à Margaux de mentir pour moi. C'est ma faute, pas la sienne. Si quelqu'un lit ces lignes : qu'on ne la punisse pas.",
+      "c1": "13 mars. M. m'a demandé de monter vivre chez lui. J'ai répondu que j'allais y réfléchir. Je ne peux pas lui avouer que la mémoire me lâche.\n\n15 mars. J'ai demandé à Margaux de mentir. La faute m'en revient, pas à elle. Qui que vous soyez, vous qui lisez ceci : ne la punissez pas.",
+      "a1_native": {
+        "en": "13 March. M. says: \"Come and live with me.\" I say: \"I'll see.\" But I can't tell M.: \"I forget.\"\n\n15 March. Margaux doesn't tell the truth, for me. But it's me, I ask her to. It's me, not Margaux. Are you reading this? Then Margaux is not responsible.",
+        "de": "13. März. M. sagt: „Ziehen Sie zu mir.“ Ich sage: „Ich überlege es mir.“ Aber ich kann M. nicht sagen: „Ich vergesse.“\n\n15. März. Margaux sagt nicht die Wahrheit, für mich. Aber ich bin es, ich bitte sie darum. Ich, nicht Margaux. Lesen Sie das? Dann ist Margaux nicht verantwortlich."
+      }
+    },
+    "9c25c3d46fbe": {
+      "a1": "Elle n'aime pas M. Marchand",
+      "b2": "Elle ne l'aimait pas",
+      "c1": "Elle ne l'aimait pas",
+      "a1_native": {
+        "en": "She doesn't love M. Marchand",
+        "de": "Sie liebt M. Marchand nicht"
+      }
+    },
+    "1daa13416a6c": {
+      "a1": "Elle oublie, et elle a honte",
+      "b2": "Elle perdait la mémoire, et elle en avait honte",
+      "c1": "Sa mémoire flanchait, et elle en avait honte",
+      "a1_native": {
+        "en": "She forgets, and she is ashamed",
+        "de": "Sie vergisst, und sie schämt sich"
+      }
+    },
+    "ab0524299b9a": {
+      "a1": "Elle veut partir",
+      "b2": "Elle avait envie de partir",
+      "c1": "Elle voulait s'en aller",
+      "a1_native": {
+        "en": "She wants to leave",
+        "de": "Sie will weggehen"
+      }
+    },
+    "3afeb299012d": {
+      "a1": "Pour Odile, qui est responsable ?",
+      "b2": "Selon Odile, qui porte la responsabilité du mensonge ?",
+      "c1": "Aux yeux d'Odile, à qui incombe le mensonge ?",
+      "a1_native": {
+        "en": "According to Odile, who is responsible?",
+        "de": "Wer ist laut Odile verantwortlich?"
+      }
+    },
+    "25fc6510c869": {
+      "a1": "Odile",
+      "b2": "Odile",
+      "c1": "Odile",
+      "a1_native": {
+        "en": "Odile",
+        "de": "Odile"
+      }
+    },
+    "3e82aed5d0b6": {
+      "a1": "Marchand",
+      "b2": "Marchand",
+      "c1": "Marchand",
+      "a1_native": {
+        "en": "Marchand",
+        "de": "Marchand"
+      }
+    },
+    "30c7e9ee5e83": {
+      "a1": "Deux pages. Bon pour Marchand. Mauvais pour Margaux. À suivre…",
+      "b2": "Ce carnet pourrait consoler M. Marchand… et faire couler Margaux. Demain, dix heures. À suivre…",
+      "c1": "Deux pages qui peuvent consoler un homme et couler une femme. Demain, dix heures. À suivre…",
+      "a1_native": {
+        "en": "Two pages. Good for Marchand. Bad for Margaux. To be continued…",
+        "de": "Zwei Seiten. Gut für Marchand. Schlecht für Margaux. Fortsetzung folgt…"
+      }
+    },
+    "d2b65b522c87": {
+      "a1": "C'est le cahier d'Odile.",
+      "b2": "C'est son carnet.",
+      "c1": "C'est son carnet à elle.",
+      "a1_native": {
+        "en": "It's Odile's notebook.",
+        "de": "Das ist Odiles Notizbuch."
+      }
+    },
+    "695399b23fd9": {
+      "a1": "Le cahier est à Odile. Pas aux autres.",
+      "b2": "Ce carnet est à elle. Pas à Marchand, pas au journal. À elle.",
+      "c1": "Ce carnet lui appartient. Ni à Marchand, ni à la presse. À elle.",
+      "a1_native": {
+        "en": "The notebook is Odile's. Not the others'.",
+        "de": "Das Notizbuch gehört Odile. Nicht den anderen."
+      }
+    },
+    "597f7db9f311": {
+      "a1": "Les dimanches ? Je sais, oui. Toujours.",
+      "b2": "Les dimanches, j'étais au courant. Je l'ai toujours su : elle me racontait le poulet.",
+      "c1": "Les dimanches, je savais. J'ai toujours su. Elle me racontait le poulet.",
+      "a1_native": {
+        "en": "The Sundays? I know, yes. Always have.",
+        "de": "Die Sonntage? Ich weiß, ja. Schon immer."
+      }
+    },
+    "2d454b351f25": {
+      "a1": "J'ai encore la carte de la fête. La photo, Margaux…",
+      "b2": "J'ai gardé la carte de la fête. Tout est dessus : la photo, Margaux qui dit «je le sais depuis le premier soir».",
+      "c1": "La carte de la fête, je l'ai toujours. Tout y est : la photo, Margaux et son «je le sais depuis le premier soir».",
+      "a1_native": {
+        "en": "I still have the card from the party. The photo, Margaux…",
+        "de": "Ich habe die Karte vom Fest noch. Das Foto, Margaux…"
+      }
+    },
+    "1876edfeedf0": {
+      "a1": "Avec ça, c'est une grande histoire. Mais toi, tu choisis.",
+      "b2": "Ma rédaction veut l'histoire de Solvel. Avec ça, c'est une sacrée histoire. Mais sans ton accord, je ne publie rien. Voyons donc.",
+      "c1": "Ma rédaction veut l'affaire Solvel. Avec ça, j'ai un vrai scoop. Mais sans ton feu vert, je ne publie rien. Voyons donc.",
+      "a1_native": {
+        "en": "With this, it's a big story. But you decide.",
+        "de": "Damit ist es eine große Geschichte. Aber du entscheidest."
+      }
+    },
+    "b1a72d076436": {
+      "a1": "Moi, je dis : plus de secrets. Oui, moi.",
+      "b2": "Moi, je dis : plus de secrets. Je suis bien mal placée pour le dire, mais je le dis quand même.",
+      "c1": "Moi, je dis : fini les secrets. C'est l'hôpital qui se moque de la charité, je sais. Je le dis quand même.",
+      "a1_native": {
+        "en": "I say: no more secrets. Yes, me of all people.",
+        "de": "Ich sage: keine Geheimnisse mehr. Ja, ausgerechnet ich."
+      }
+    },
+    "5a2138778318": {
+      "a1": "Plus de secrets, d'accord ? Mais toi, tu choisis.",
+      "b2": "Plus de secrets, d'accord ? Mais c'est à toi de décider.",
+      "c1": "Fini les secrets, d'accord ? Mais la décision t'appartient.",
+      "a1_native": {
+        "en": "No more secrets, all right? But you decide.",
+        "de": "Keine Geheimnisse mehr, einverstanden? Aber du entscheidest."
+      }
+    },
+    "272d6e063097": {
+      "a1": "Il va utiliser ça contre moi.",
+      "b2": "Il va s'en servir contre moi.",
+      "c1": "Il va s'en servir contre moi, tu verras.",
+      "a1_native": {
+        "en": "He's going to use it against me.",
+        "de": "Er wird es gegen mich verwenden."
+      }
+    },
+    "cfd07ac4d79f": {
+      "a1": "…Peut-être pas.",
+      "b2": "…Peut-être pas, après tout.",
+      "c1": "…Quoique. Peut-être pas.",
+      "a1_native": {
+        "en": "…Maybe not.",
+        "de": "…Vielleicht nicht."
+      }
+    },
+    "30c581b2713c": {
+      "a1": "Alors fais ça. Mais je ne vais pas sourire.",
+      "b2": "Alors fais-le. Mais ne me demande pas de sourire.",
+      "c1": "Alors vas-y. Mais ne compte pas sur moi pour sourire.",
+      "a1_native": {
+        "en": "Then do it. But I'm not going to smile.",
+        "de": "Dann mach es. Aber ich werde nicht lächeln."
+      }
+    },
+    "cd6d8e3e6505": {
+      "a1": "Pas «tout». Moi, je publie le vrai.",
+      "b2": "Je ne publie pas «tout». Je publie ce qui est juste. Nuance.",
+      "c1": "Pas «tout», non. Je publie ce qui est juste. Nuance.",
+      "a1_native": {
+        "en": "Not \"everything\". I publish what's true.",
+        "de": "Nicht „alles“. Ich veröffentliche, was wahr ist."
+      }
+    },
+    "146bf029ff5c": {
+      "a1": "Merci.",
+      "b2": "Merci.",
+      "c1": "Merci.",
+      "a1_native": {
+        "en": "Thank you.",
+        "de": "Danke."
+      }
+    },
+    "1f26c4798394": {
+      "a1": "Et Marchand signe à dix heures.",
+      "b2": "Et pendant ce temps, Marchand signe à dix heures.",
+      "c1": "N'empêche que Marchand signe à dix heures.",
+      "a1_native": {
+        "en": "And Marchand signs at ten.",
+        "de": "Und Marchand unterschreibt um zehn."
+      }
+    },
+    "649f35d9b70a": {
+      "a1": "Ses mots. Tu montres ça à un homme triste.",
+      "b2": "Fais ce qu'elle a écrit. Montre-le à quelqu'un qui est capable de l'entendre.",
+      "c1": "Ce qu'elle a écrit, montre-le à quelqu'un qui saura l'entendre.",
+      "a1_native": {
+        "en": "Her words. You show them to a sad man.",
+        "de": "Ihre Worte. Du zeigst sie einem traurigen Mann."
+      }
+    },
+    "ba1f59a98f4d": {
+      "a1": "Les pages d'Odile : qui lit avant les autres ?",
+      "b2": "Décide qui sera le premier à lire les pages d'Odile.",
+      "c1": "À toi de décider entre quelles mains les pages d'Odile tombent en premier.",
+      "a1_native": {
+        "en": "Odile's pages: who reads them before the others?",
+        "de": "Odiles Seiten: Wer liest sie vor den anderen?"
+      }
+    },
+    "3b1a7c9e335e": {
+      "a1": "Montrer le cahier à M. Marchand, seul",
+      "b2": "Montrer le carnet à M. Marchand, en privé",
+      "c1": "Montrer le carnet à M. Marchand, et à lui seul",
+      "a1_native": {
+        "en": "Show the notebook to M. Marchand, alone",
+        "de": "Das Notizbuch nur Herrn Marchand zeigen"
+      }
+    },
+    "abe83f189675": {
+      "a1": "Il va comprendre. Et Margaux doit avoir confiance en lui.",
+      "b2": "Il saura enfin pourquoi elle est partie. Margaux devra lui faire confiance.",
+      "c1": "Il saura pourquoi elle est partie. Margaux, elle, n'aura plus qu'à lui faire confiance.",
+      "a1_native": {
+        "en": "He will understand. And Margaux has to trust him.",
+        "de": "Er wird es verstehen. Und Margaux muss ihm vertrauen."
+      }
+    },
+    "6613bb581c2e": {
+      "a1": "Donner le cahier à Romy, avec la carte",
+      "b2": "Le confier à Romy, avec la carte",
+      "c1": "Le remettre à Romy, carte comprise",
+      "a1_native": {
+        "en": "Give the notebook to Romy, with the card",
+        "de": "Das Notizbuch Romy geben, mit der Karte"
+      }
+    },
+    "3ccca5cc16a8": {
+      "a1": "Le quartier va tout savoir. Pas bon pour Margaux.",
+      "b2": "Tout le quartier saura tout. Margaux aussi se retrouvera exposée.",
+      "c1": "Le quartier entier saura tout. Margaux sera exposée, elle aussi.",
+      "a1_native": {
+        "en": "The quartier will know everything. Not good for Margaux.",
+        "de": "Das Viertel wird alles wissen. Nicht gut für Margaux."
+      }
+    },
+    "4ded5a3581ef": {
+      "a1": "Garder le cahier",
+      "b2": "Le garder pour toi",
+      "c1": "Le garder par-devers toi",
+      "a1_native": {
+        "en": "Keep the notebook",
+        "de": "Das Notizbuch behalten"
+      }
+    },
+    "bcb20a233582": {
+      "a1": "Tu gardes le cahier. Marchand dit oui à dix heures.",
+      "b2": "Le secret d'Odile reste entre tes mains. Marchand signe à dix heures.",
+      "c1": "Le secret d'Odile reste avec toi. Et Marchand signe à dix heures.",
+      "a1_native": {
+        "en": "You keep the notebook. Marchand says yes at ten.",
+        "de": "Du behältst das Notizbuch. Marchand sagt um zehn Ja."
+      }
+    },
+    "b44ed37ca18f": {
+      "a1": "Et la carte ?",
+      "b2": "Et la carte, alors ?",
+      "c1": "Et la carte, j'en fais quoi ?",
+      "a1_native": {
+        "en": "And the card?",
+        "de": "Und die Karte?"
+      }
+    },
+    "ee5adcd36e3f": {
+      "a1": "J'efface la carte. Devant toi.",
+      "b2": "Je l'efface. Là, devant toi.",
+      "c1": "Je l'efface. Sous tes yeux.",
+      "a1_native": {
+        "en": "I'm wiping the card. In front of you.",
+        "de": "Ich lösche die Karte. Vor deinen Augen."
+      }
+    },
+    "04e62e8d5203": {
+      "a1": "Je garde la carte. Pour moi seule.",
+      "b2": "Je la garde. Sous clé.",
+      "c1": "Je la garde. Sous clé.",
+      "a1_native": {
+        "en": "I'm keeping the card. Just for me.",
+        "de": "Ich behalte die Karte. Nur für mich."
+      }
+    },
+    "0a2745ab6cc8": {
+      "a1": "Pas aujourd'hui.",
+      "b2": "Pas aujourd'hui.",
+      "c1": "Pas aujourd'hui.",
+      "a1_native": {
+        "en": "Not today.",
+        "de": "Nicht heute."
+      }
+    },
+    "a96eb4e8bd67": {
+      "a1": "Monsieur Marchand, l'offre finit le 8 janvier.",
+      "b2": "Monsieur Marchand, je vous rappelle que l'offre expire le 8 janvier.",
+      "c1": "Monsieur Marchand, je me permets de vous rappeler que l'offre court jusqu'au 8 janvier.",
+      "a1_native": {
+        "en": "Monsieur Marchand, the offer ends on 8 January.",
+        "de": "Herr Marchand, das Angebot endet am 8. Januar."
+      }
+    },
+    "1f9fa72be992": {
+      "a1": "Moi aussi, un jour. Pas aujourd'hui.",
+      "b2": "Moi aussi, un jour. Mais pas aujourd'hui.",
+      "c1": "Moi aussi, un de ces jours. Pas aujourd'hui.",
+      "a1_native": {
+        "en": "Me too, one day. Not today.",
+        "de": "Ich auch, eines Tages. Nicht heute."
+      }
+    },
+    "2868a7a47acc": {
+      "a1": "Dis à Margaux : je veux parler. Du bail.",
+      "b2": "Dis à Margaux que je souhaite lui parler. Du bail.",
+      "c1": "Dis à Margaux que j'aimerais m'entretenir avec elle. Au sujet du bail.",
+      "a1_native": {
+        "en": "Tell Margaux: I want to talk. About the lease.",
+        "de": "Sag Margaux: Ich will reden. Über den Mietvertrag."
+      }
+    },
+    "a397dccc050f": {
+      "a1": "Grand-père…",
+      "b2": "Grand-père…",
+      "c1": "Grand-père…",
+      "a1_native": {
+        "en": "Grandfather…",
+        "de": "Großvater…"
+      }
+    },
+    "bfa1951bce9b": {
+      "a1": "Le 8 janvier ? Seize jours. On a le temps.",
+      "b2": "Le 8 janvier, c'est dans seize jours. Nous avons le temps de lire.",
+      "c1": "Le 8 janvier, c'est dans seize jours. On a tout le temps de lire.",
+      "a1_native": {
+        "en": "8 January? Sixteen days. We have time.",
+        "de": "Der 8. Januar? Sechzehn Tage. Wir haben Zeit."
+      }
+    },
+    "befabc8162b1": {
+      "a1": "Marchand veut parler. Margaux ne demande pas d'aide. À suivre…",
+      "b2": "Marchand veut parler à Margaux. Et Margaux n'a jamais demandé d'aide à personne. À suivre…",
+      "c1": "Marchand veut voir Margaux. Margaux, qui n'a jamais rien demandé à personne. À suivre…",
+      "a1_native": {
+        "en": "Marchand wants to talk. Margaux doesn't ask for help. To be continued…",
+        "de": "Marchand will reden. Margaux bittet nicht um Hilfe. Fortsetzung folgt…"
+      }
+    },
+    "6e55b9963beb": {
+      "a1": "Le quartier sait. Et Marin a une idée. À suivre…",
+      "b2": "Tout le quartier est au courant. L'assureur de Margaux aussi. Et Marin a un plan. À suivre…",
+      "c1": "Tout le quartier est au parfum, l'assureur de Margaux compris. Et Marin a un plan. À suivre…",
+      "a1_native": {
+        "en": "The quartier knows. And Marin has an idea. To be continued…",
+        "de": "Das Viertel weiß es. Und Marin hat eine Idee. Fortsetzung folgt…"
+      }
+    },
+    "e52216a240c6": {
+      "a1": "Marchand signe. Le Mistral ferme fin mars. À suivre…",
+      "b2": "Marchand a signé. Le Mistral a jusqu'au 31 mars. Peut-être moins. À suivre…",
+      "c1": "Marchand a signé. Le Mistral a jusqu'au 31 mars, si ce n'est moins. À suivre…",
+      "a1_native": {
+        "en": "Marchand signs. Le Mistral closes at the end of March. To be continued…",
+        "de": "Marchand unterschreibt. Das Mistral schließt Ende März. Fortsetzung folgt…"
+      }
+    },
+    "ad1377d9be07": {
+      "a1": "31 décembre. Grande fête au Mistral. La dernière ?",
+      "b2": "Le 31 décembre. Le Mistral fête le réveillon, et tout le monde fait comme si ce n'était pas le dernier.",
+      "c1": "31 décembre. Le Mistral fait son réveillon, et chacun fait mine de croire que ce n'est pas le dernier.",
+      "a1_native": {
+        "en": "31 December. A big party at Le Mistral. The last one?",
+        "de": "31. Dezember. Großes Fest im Mistral. Das letzte?"
+      }
+    },
+    "f74e59664690": {
+      "a1": "Chez nous, le souper, c'est le soir !",
+      "b2": "Chez nous, au Québec, le souper, c'est le soir !",
+      "c1": "Chez nous, le souper, ça se prend le soir, voyons !",
+      "a1_native": {
+        "en": "Back home, le souper is in the evening!",
+        "de": "Bei uns ist le souper am Abend!"
+      }
+    },
+    "d4035948f018": {
+      "a1": "Et le dîner ?",
+      "b2": "Et le dîner, alors, c'est quand ?",
+      "c1": "Et le dîner, dans tout ça ?",
+      "a1_native": {
+        "en": "And le dîner?",
+        "de": "Und le dîner?"
+      }
+    },
+    "9561278c02a9": {
+      "a1": "Le midi !",
+      "b2": "Le midi, bien sûr !",
+      "c1": "À midi, pardi !",
+      "a1_native": {
+        "en": "At noon!",
+        "de": "Mittags!"
+      }
+    },
+    "5441502b606a": {
+      "a1": "Et le déjeuner ?",
+      "b2": "Et le déjeuner, alors ?",
+      "c1": "Et le déjeuner, je n'ose pas demander ?",
+      "a1_native": {
+        "en": "And le déjeuner?",
+        "de": "Und le déjeuner?"
+      }
+    },
+    "e540fa2cfaf4": {
+      "a1": "Le matin, voyons !",
+      "b2": "Le matin, voyons donc !",
+      "c1": "Le matin, voyons donc ! C'est pas compliqué !",
+      "a1_native": {
+        "en": "In the morning, come on!",
+        "de": "Am Morgen, also wirklich!"
+      }
+    },
+    "89f8e5104a7c": {
+      "a1": "Mes amis ! Une idée : on mange.",
+      "b2": "Je propose que nous passions à table. Tout simplement.",
+      "c1": "Je suggère que l'on mange, tout bonnement.",
+      "a1_native": {
+        "en": "My friends! An idea: we eat.",
+        "de": "Meine Freunde! Eine Idee: Wir essen."
+      }
+    },
+    "e9badce76b28": {
+      "a1": "Bonsoir. Gus et moi, amis ? En septembre, non !",
+      "b2": "Bonsoir. On m'a invité. Enfin… c'est Gus qui m'a invité. Vu d'où l'on part, c'est déjà un petit miracle.",
+      "c1": "Bonsoir. On m'a convié. Gus, pour être exact. Ce qui, vu nos débuts, tient du miracle.",
+      "a1_native": {
+        "en": "Good evening. Gus and me, friends? In September, no!",
+        "de": "Guten Abend. Gus und ich, Freunde? Im September nicht!"
+      }
+    },
+    "f786333f7751": {
+      "a1": "Vous ? Toujours pas mon ami. Mais c'est la fête.",
+      "b2": "Vous ne m'êtes toujours pas sympathique. Mais c'est le réveillon.",
+      "c1": "Je ne vous porte toujours pas dans mon cœur. Mais c'est le réveillon.",
+      "a1_native": {
+        "en": "You? Still not my friend. But tonight we celebrate.",
+        "de": "Sie? Immer noch nicht mein Freund. Aber heute wird gefeiert."
+      }
+    },
+    "1eb1ed055854": {
+      "a1": "Neuf ans. Toujours le même loyer. Solvel achète mes appartements. Le café, non : il reste à moi. Avec votre loyer, je paie ma maison de vieux. Ce n'est pas un cadeau. C'est bon pour moi aussi.",
+      "b2": "Un bail de neuf ans, au même loyer. Je vends mes étages à Solvel, mais je garde les murs du café. Votre loyer paiera ma résidence. Ce n'est pas de la charité, c'est un calcul.",
+      "c1": "Un bail de neuf ans, loyer inchangé. Je cède mes étages à Solvel, mais les murs du café, je les garde. Votre loyer financera ma maison de retraite. N'y voyez aucune charité : c'est un calcul.",
+      "a1_native": {
+        "en": "Nine years. Always the same rent. Solvel is buying my flats. Not the café: it stays mine. With your rent, I pay for my old people's home. It isn't a gift. It's good for me too.",
+        "de": "Neun Jahre. Immer dieselbe Miete. Solvel kauft meine Wohnungen. Das Café nicht: Es bleibt meins. Mit Ihrer Miete bezahle ich mein Altersheim. Das ist kein Geschenk. Es ist auch gut für mich."
+      }
+    },
+    "76a5660bd460": {
+      "a1": "Parlez avec elle. Nous ? Elle n'écoute pas.",
+      "b2": "Parlez-lui, vous. Avec nous, elle fait la sourde oreille.",
+      "c1": "Parlez-lui, vous. Nous, elle ne nous écoute même pas.",
+      "a1_native": {
+        "en": "Talk to her. Us? She doesn't listen.",
+        "de": "Sprechen Sie mit ihr. Uns? Sie hört nicht zu."
+      }
+    },
+    "eaa9e8d3c1a8": {
+      "a1": "Margaux doit dire oui au bail. Parle avec elle.",
+      "b2": "Convaincs Margaux d'accepter le bail.",
+      "c1": "Amène Margaux à accepter le bail.",
+      "a1_native": {
+        "en": "Margaux has to say yes to the lease. Talk to her.",
+        "de": "Margaux muss Ja zum Mietvertrag sagen. Sprich mit ihr."
+      }
+    },
+    "576d02638653": {
+      "a1": "Trois ans, il dit : «Margaux travaille mal.»",
+      "b2": "Ça fait trois ans qu'il me traite de négligente, et il faudrait que je signe ?",
+      "c1": "Trois ans qu'il me fait passer pour une négligente, et je devrais signer ?",
+      "a1_native": {
+        "en": "For three years he's been saying: 'Margaux works badly.'",
+        "de": "Drei Jahre lang sagt er: „Margaux arbeitet schlecht.“"
+      }
+    },
+    "6636f183a044": {
+      "a1": "Je suis seule, et ça va.",
+      "b2": "Je n'ai jamais eu besoin de personne. Ce n'est pas ce soir que ça va commencer.",
+      "c1": "Je me suis toujours débrouillée seule. Ce n'est pas ce soir que ça va changer.",
+      "a1_native": {
+        "en": "I'm alone, and that's fine.",
+        "de": "Ich bin allein, und das ist okay."
+      }
+    },
+    "7fa2ba1a47eb": {
+      "a1": "Neuf ans de plus. Seule. Tu comprends ?",
+      "b2": "Neuf ans de plus, seule derrière ce zinc. Tu te rends compte de ce que tu me demandes ?",
+      "c1": "Neuf ans de plus, seule derrière ce zinc. Tu mesures ce que tu me demandes, là ?",
+      "a1_native": {
+        "en": "Nine more years. Alone. Do you understand?",
+        "de": "Neun Jahre mehr. Allein. Verstehst du?"
+      }
+    },
+    "20410bc50dd5": {
+      "a1": "\"Une personne protège toi.\"",
+      "b2": "\"Quelqu'un protège toi.\"",
+      "c1": "\"Quelqu'un protège toi.\"",
+      "a1_native": {
+        "en": "\"A person protect you.\"",
+        "de": "„Eine Person beschützt dich.“"
+      }
+    },
+    "5c280dc1298b": {
+      "a1": "C'est très mal dit.",
+      "b2": "C'est vraiment très mal dit.",
+      "c1": "C'est on ne peut plus mal dit.",
+      "a1_native": {
+        "en": "That's very badly put.",
+        "de": "Das ist sehr schlecht gesagt."
+      }
+    },
+    "676aeef3fdf5": {
+      "a1": "Je vais voir. Demain.",
+      "b2": "Je vais y réfléchir. Demain.",
+      "c1": "Je vais y réfléchir. Demain.",
+      "a1_native": {
+        "en": "I'll see. Tomorrow.",
+        "de": "Ich schau mal. Morgen."
+      }
+    },
+    "d172eb4ebf15": {
+      "a1": "Margaux choisit",
+      "b2": "Laisser le choix à Margaux",
+      "c1": "S'en remettre à Margaux",
+      "a1_native": {
+        "en": "Margaux decides",
+        "de": "Margaux entscheidet"
+      }
+    },
+    "51f848412fa7": {
+      "a1": "187 ! Encore 13. À 200, c'est un signe !",
+      "b2": "Cent quatre-vingt-sept sociétaires ! Il en manque treize. Si on passe minuit à deux cents, ce sera un signe.",
+      "c1": "Cent quatre-vingt-sept sociétaires ! Plus que treize. Si on franchit minuit à deux cents, c'est un signe, je te dis.",
+      "a1_native": {
+        "en": "187! Thirteen more. At 200, it's a sign!",
+        "de": "187! Noch 13. Bei 200 ist das ein Zeichen!"
+      }
+    },
+    "bec6e320c571": {
+      "a1": "Cent quatre-vingt-sept… Comme le papier de Gus, non ?",
+      "b2": "Cent quatre-vingt-sept… Ce n'est pas le nombre de signatures sur la pétition de Gus ?",
+      "c1": "Cent quatre-vingt-sept… C'est pas le chiffre de la pétition à Gus, ça ?",
+      "a1_native": {
+        "en": "One hundred and eighty-seven… Like on Gus's paper, right?",
+        "de": "Hundertsiebenundachtzig… Wie auf dem Papier von Gus, oder?"
+      }
+    },
+    "e4a52f10039f": {
+      "a1": "Gus doit venir dans la coop. Parle avec lui.",
+      "b2": "Convaincs Gus de rejoindre la coopérative.",
+      "c1": "Rallie Gus à la coopérative.",
+      "a1_native": {
+        "en": "Gus has to join the co-op. Talk to him.",
+        "de": "Gus soll bei der Genossenschaft mitmachen. Sprich mit ihm."
+      }
+    },
+    "233ae4bde75c": {
+      "a1": "Ils vont mettre la banquette derrière.",
+      "b2": "Ils vont déplacer la banquette. Au fond. Comme un vulgaire meuble.",
+      "c1": "Ils vont reléguer la banquette au fond. Comme un meuble quelconque.",
+      "a1_native": {
+        "en": "They're going to put the bench seat at the back.",
+        "de": "Sie stellen die Sitzbank nach hinten."
+      }
+    },
+    "90272d450419": {
+      "a1": "Après, ce n'est pas le Mistral. C'est un restaurant.",
+      "b2": "Ce ne sera plus le Mistral. Ce sera une cantine avec des sociétaires.",
+      "c1": "Ce ne sera plus le Mistral. Une cantine, voilà ce que ce sera.",
+      "a1_native": {
+        "en": "Afterwards, it isn't Le Mistral. It's a restaurant.",
+        "de": "Danach ist es nicht das Mistral. Es ist ein Restaurant."
+      }
+    },
+    "9bd334871632": {
+      "a1": "Tu ne sais pas tout.",
+      "b2": "Il y a des choses que tu ignores, sur cette banquette.",
+      "c1": "Il y a des choses que tu ignores, au sujet de cette banquette.",
+      "a1_native": {
+        "en": "You don't know everything.",
+        "de": "Du weißt nicht alles."
+      }
+    },
+    "190ff32e9b15": {
+      "a1": "C'est une très mauvaise raison.",
+      "b2": "C'est un argument épouvantable.",
+      "c1": "C'est un argument proprement épouvantable.",
+      "a1_native": {
+        "en": "That's a very bad reason.",
+        "de": "Das ist ein sehr schlechter Grund."
+      }
+    },
+    "358c0e473193": {
+      "a1": "Je signe.",
+      "b2": "Soit. Je signe.",
+      "c1": "Je signe.",
+      "a1_native": {
+        "en": "I'll sign.",
+        "de": "Ich unterschreibe."
+      }
+    },
+    "3bcf1a4318e6": {
+      "a1": "Mesdames, messieurs ! Augustin… de Créteil… dit oui !",
+      "b2": "Mesdames, messieurs ! Augustin de… Créteil… a l'honneur de signer !",
+      "c1": "Mesdames et messieurs ! Augustin de… Créteil… a l'insigne honneur de signer !",
+      "a1_native": {
+        "en": "Ladies and gentlemen! Augustin… of Créteil… says yes!",
+        "de": "Meine Damen und Herren! Augustin… aus Créteil… sagt Ja!"
+      }
+    },
+    "c45eede98188": {
+      "a1": "On laisse Gus.",
+      "b2": "Laisser Gus tranquille",
+      "c1": "Laisser Gus en paix",
+      "a1_native": {
+        "en": "Leave Gus be.",
+        "de": "Gus lassen."
+      }
+    },
+    "3160996e95be": {
+      "a1": "Ma mère travaille ici. Petit, je fais mes devoirs là.",
+      "b2": "Ma mère servait les cafés ici. Moi, je faisais mes devoirs à cette table : c'était sa table de pause.",
+      "c1": "Ma mère servait les cafés ici. Moi, je faisais mes devoirs à cette table-là. C'était sa table de pause.",
+      "a1_native": {
+        "en": "My mother worked here. As a boy, I did my homework there.",
+        "de": "Meine Mutter hat hier gearbeitet. Als Kind habe ich dort meine Hausaufgaben gemacht."
+      }
+    },
+    "e52a9bb3f936": {
+      "a1": "Pas de château. Il y a ça.",
+      "b2": "Il n'y a jamais eu de château. Il y a cette banquette, c'est tout.",
+      "c1": "De château, il n'y en a jamais eu. Il y a cette banquette.",
+      "a1_native": {
+        "en": "There's no château. There's this.",
+        "de": "Es gibt kein Schloss. Es gibt das hier."
+      }
+    },
+    "ca0da91d7b16": {
+      "a1": "Le 8 janvier, je reste ici. Avec une chaîne !",
+      "b2": "Le 8 janvier, je m'enchaîne au zinc. Solvel devra me sortir de force.",
+      "c1": "Le 8 janvier, je m'enchaîne au zinc. Solvel n'aura qu'à me sortir à bras-le-corps.",
+      "a1_native": {
+        "en": "On 8 January, I'm staying here. With a chain!",
+        "de": "Am 8. Januar bleibe ich hier. Mit einer Kette!"
+      }
+    },
+    "817c160ef2ba": {
+      "a1": "Pas à mon café.",
+      "b2": "Pas à mon zinc, en tout cas.",
+      "c1": "Pas à mon zinc, merci bien.",
+      "a1_native": {
+        "en": "Not in my café.",
+        "de": "Nicht in meinem Café."
+      }
+    },
+    "9c468605b89c": {
+      "a1": "Et toi, tu viens ? On a deux chaînes.",
+      "b2": "Et toi, tu viens avec moi ? On a deux chaînes.",
+      "c1": "Toi, tu m'accompagnes ? J'ai prévu deux chaînes.",
+      "a1_native": {
+        "en": "And you, are you coming? We've got two chains.",
+        "de": "Und du, kommst du mit? Wir haben zwei Ketten."
+      }
+    },
+    "c76a80b85157": {
+      "a1": "Margaux choisit, pas Gus. Parle avec Gus.",
+      "b2": "Convaincs Gus de laisser le choix à Margaux.",
+      "c1": "Amène Gus à s'en remettre à Margaux.",
+      "a1_native": {
+        "en": "Margaux decides, not Gus. Talk to Gus.",
+        "de": "Margaux entscheidet, nicht Gus. Sprich mit Gus."
+      }
+    },
+    "536aa3e4fa01": {
+      "a1": "On attend ? Alors on perd tout.",
+      "b2": "Si on ne fait rien, on perd tout.",
+      "c1": "Si on reste les bras croisés, on perd tout.",
+      "a1_native": {
+        "en": "We just wait? Then we lose everything.",
+        "de": "Wir warten nur? Dann verlieren wir alles."
+      }
+    },
+    "fb35849cad25": {
+      "a1": "Margaux ne dit pas : «Je veux ça.»",
+      "b2": "Margaux ne dit jamais ce qu'elle veut.",
+      "c1": "Margaux ne dit jamais ce qu'elle veut, elle.",
+      "a1_native": {
+        "en": "Margaux doesn't say: 'I want this.'",
+        "de": "Margaux sagt nicht: „Ich will das.“"
+      }
+    },
+    "d03d47163cf5": {
+      "a1": "Et moi ? Le soir, je vais où ?",
+      "b2": "Et moi, je vais où, le soir ?",
+      "c1": "Et moi, où est-ce que j'irai, le soir ?",
+      "a1_native": {
+        "en": "And me? In the evening, where do I go?",
+        "de": "Und ich? Wohin gehe ich abends?"
+      }
+    },
+    "a1e7b40095a0": {
+      "a1": "Un autre café.",
+      "b2": "Un autre zinc.",
+      "c1": "Un autre zinc.",
+      "a1_native": {
+        "en": "Another café.",
+        "de": "Ein anderes Café."
+      }
+    },
+    "4837f6c7a537": {
+      "a1": "Mais en zinc, s'il te plaît.",
+      "b2": "Il faut qu'il soit en zinc. C'est tout ce que je demande.",
+      "c1": "Pourvu qu'il soit en zinc. Je n'en demande pas plus.",
+      "a1_native": {
+        "en": "But with a zinc counter, please.",
+        "de": "Aber mit Zinktresen, bitte."
+      }
+    },
+    "bf0f5dfd08fb": {
+      "a1": "Dix ! Neuf ! Huit !…",
+      "b2": "Dix ! Neuf ! Huit !…",
+      "c1": "Dix ! Neuf ! Huit !…",
+      "a1_native": {
+        "en": "Ten! Nine! Eight!…",
+        "de": "Zehn! Neun! Acht!…"
+      }
+    },
+    "ad8d314b9972": {
+      "a1": "Bonne année !",
+      "b2": "Bonne année !",
+      "c1": "Bonne année !",
+      "a1_native": {
+        "en": "Happy New Year!",
+        "de": "Frohes neues Jahr!"
+      }
+    },
+    "ae67c56dc880": {
+      "a1": "Bonne année, l'héritage.",
+      "b2": "Bonne année, l'héritage.",
+      "c1": "Bonne année, l'héritage.",
+      "a1_native": {
+        "en": "Happy New Year, l'héritage.",
+        "de": "Frohes neues Jahr, l'héritage."
+      }
+    },
+    "25562c3add30": {
+      "a1": "Ce n'est pas bête.",
+      "b2": "Ce n'est pas bête du tout.",
+      "c1": "C'est loin d'être bête.",
+      "a1_native": {
+        "en": "It's not silly.",
+        "de": "Das ist nicht dumm."
+      }
+    },
+    "2ec106b237bc": {
+      "a1": "Une semaine. C'est déjà beaucoup.",
+      "b2": "Une semaine. C'est déjà beaucoup.",
+      "c1": "Une semaine. C'est déjà pas mal.",
+      "a1_native": {
+        "en": "A week. That's already a lot.",
+        "de": "Eine Woche. Das ist schon viel."
+      }
+    },
+    "bc7c9f629386": {
+      "a1": "Bonne année quand même.",
+      "b2": "Bonne année quand même.",
+      "c1": "Bonne année quand même.",
+      "a1_native": {
+        "en": "Happy New Year all the same.",
+        "de": "Frohes neues Jahr trotzdem."
+      }
+    },
+    "f837e3bf6bb6": {
+      "a1": "Trois choses, d'accord ? Un : on dit le vrai. Deux : tu ne fais pas d'omelette. Jamais. Trois : tu trouves une chose ? Tu appelles… moi ! Avant les autres.",
+      "b2": "On se fait trois promesses. Un : plus de secrets. Deux : tu ne refais jamais l'omelette. Trois : c'est moi que tu appelles en premier, quand tu trouves quelque chose.",
+      "c1": "Trois serments. Un : fini les secrets. Deux : l'omelette, tu n'y touches plus jamais. Trois : le jour où tu trouves quelque chose, c'est moi que tu appelles en premier.",
+      "a1_native": {
+        "en": "Three things, OK? One: we tell the truth. Two: you don't make omelettes. Ever. Three: you find something? You call… me! Before the others.",
+        "de": "Drei Dinge, okay? Eins: Wir sagen die Wahrheit. Zwei: Du machst kein Omelett. Nie. Drei: Du findest etwas? Du rufst… mich an! Vor den anderen."
+      }
+    },
+    "af29188a8ea6": {
+      "a1": "Quatre. D'accord. Oui.",
+      "b2": "Quatre. D'accord. Signé.",
+      "c1": "Quatre. Marché conclu. Signé.",
+      "a1_native": {
+        "en": "Four. All right. Yes.",
+        "de": "Vier. Abgemacht. Ja."
+      }
+    },
+    "d5e2ec7d3942": {
+      "a1": "Quatre. Je reviens. Pour moi.",
+      "b2": "Quatre. Je reviendrai. Pour moi.",
+      "c1": "Quatre. Je reviendrai. Pour moi.",
+      "a1_native": {
+        "en": "Four. I'm coming back. For me.",
+        "de": "Vier. Ich komme zurück. Für mich."
+      }
+    },
+    "968ce3125d63": {
+      "a1": "Et un peu pour toi.",
+      "b2": "Et un petit peu pour toi.",
+      "c1": "Et un tout petit peu pour toi.",
+      "a1_native": {
+        "en": "And a little for you.",
+        "de": "Und ein bisschen für dich."
+      }
+    },
+    "b3d518e3bebc": {
+      "a1": "Demain matin. Huit heures. Viens. Sans les autres.",
+      "b2": "Demain matin, huit heures. Viens. Sans les autres.",
+      "c1": "Demain, huit heures. Viens. Sans les autres.",
+      "a1_native": {
+        "en": "Tomorrow morning. Eight o'clock. Come. Without the others.",
+        "de": "Morgen früh. Acht Uhr. Komm. Ohne die anderen."
+      }
+    },
+    "1573af9bbc5a": {
+      "a1": "Margaux veut parler avec toi. C'est nouveau ! À suivre…",
+      "b2": "Margaux veut te parler. Margaux, qui ne parle jamais. À suivre…",
+      "c1": "Margaux veut te parler. Margaux, qui ne se confie jamais. À suivre…",
+      "a1_native": {
+        "en": "Margaux wants to talk to you. That's new! To be continued…",
+        "de": "Margaux will mit dir sprechen. Das ist neu! Fortsetzung folgt…"
+      }
+    },
+    "e71a7b7f63dd": {
+      "a1": "Pour toi. Comme toujours.",
+      "b2": "La même chose que d'habitude.",
+      "c1": "Comme d'hab.",
+      "a1_native": {
+        "en": "For you. As always.",
+        "de": "Für dich. Wie immer."
+      }
+    },
+    "aeb16379861f": {
+      "a1": "Je suis fatiguée.",
+      "b2": "Je suis fatiguée.",
+      "c1": "Je suis lasse.",
+      "a1_native": {
+        "en": "I'm tired.",
+        "de": "Ich bin müde."
+      }
+    },
+    "77136aa02b8b": {
+      "a1": "Vingt-cinq ans. Je veux voir la mer. Pas encore vieille.",
+      "b2": "Vingt-cinq ans derrière ce zinc. J'aimerais voir la mer avant d'être vieille. Enfin… plus vieille.",
+      "c1": "Vingt-cinq ans derrière ce zinc. Je voudrais voir la mer avant d'être vieille. Enfin… plus vieille.",
+      "a1_native": {
+        "en": "Twenty-five years. I want to see the sea. Not old yet.",
+        "de": "Fünfundzwanzig Jahre. Ich will das Meer sehen. Noch nicht alt."
+      }
+    },
+    "00b852d975fe": {
+      "a1": "C'est signé. Neuf ans. Pour vous, pour Odile. C'est long.",
+      "b2": "J'ai signé. Neuf ans. Pour vous, pour elle. C'est long, neuf ans.",
+      "c1": "J'ai signé. Neuf ans. Pour vous, pour elle. Ça fait long, neuf ans.",
+      "a1_native": {
+        "en": "It's signed. Nine years. For you all, for Odile. That's long.",
+        "de": "Es ist unterschrieben. Neun Jahre. Für euch, für Odile. Das ist lang."
+      }
+    },
+    "94fed309738d": {
+      "a1": "Je signe ? Alors je reste ici neuf ans. Je ne signe pas ? Alors je suis libre, moi. Mais vous, vous perdez le Mistral. Voilà le problème. Tu comprends ?",
+      "b2": "Si je signe, j'en prends pour neuf ans. Si je ne signe pas, je suis libre. Et vous, vous perdez le Mistral.",
+      "c1": "Si je signe, j'en reprends pour neuf ans. Si je refuse, je suis libre — et vous, vous perdez le Mistral.",
+      "a1_native": {
+        "en": "I sign? Then I stay here nine years. I don't sign? Then I'm free. But you all lose Le Mistral. That's the problem. Do you understand?",
+        "de": "Ich unterschreibe? Dann bleibe ich neun Jahre hier. Ich unterschreibe nicht? Dann bin ich frei. Aber ihr verliert das Mistral. Das ist das Problem. Verstehst du?"
+      }
+    },
+    "6395164367ca": {
+      "a1": "Avec la coop, je ne suis pas seule. C'est bien. Mais le café n'est pas à moi. Il est à nous. Et «nous»… pour moi, c'est très difficile. Je ne suis pas comme ça.",
+      "b2": "Avec la coop, je ne serai plus seule. Mais ce ne sera plus mon bar. Ce sera notre bar. Et «notre», je ne sais pas faire.",
+      "c1": "Avec la coop, je ne serai plus seule, c'est vrai. Mais ce ne sera plus mon bar : ce sera le nôtre. Et «le nôtre», je n'ai jamais su faire.",
+      "a1_native": {
+        "en": "With the co-op, I'm not alone. That's good. But the café isn't mine. It's ours. And 'us'… for me, that's very hard. I'm not like that.",
+        "de": "Mit der Genossenschaft bin ich nicht allein. Das ist gut. Aber das Café gehört nicht mir. Es gehört uns. Und „uns“… das ist für mich sehr schwer. So bin ich nicht."
+      }
+    },
+    "39b83f4c0edd": {
+      "a1": "Marchand part, Solvel achète. Et moi ? Solvel donne de l'argent. Je pars avant. Je ferme le 7. Et toi ? Solvel achète ton appartement ? Alors tu paies le feu, et c'est fini. Propre.",
+      "b2": "Marchand vend. Solvel me paie pour que je parte plus tôt. Je peux fermer le 7. Si tu vends, tu paies l'incendie, et tout se termine… proprement.",
+      "c1": "Marchand vend. Solvel me paie pour que je débarrasse le plancher plus tôt. Je peux fermer le 7. Si tu vends, tu règles l'incendie, et tout se termine… proprement.",
+      "a1_native": {
+        "en": "Marchand is leaving, Solvel is buying. And me? Solvel gives me money. I leave early. I close on the 7th. And you? Solvel buys your flat? Then you pay for the fire, and it's over. Clean.",
+        "de": "Marchand geht, Solvel kauft. Und ich? Solvel gibt mir Geld. Ich gehe früher. Ich schließe am 7. Und du? Solvel kauft deine Wohnung? Dann bezahlst du das Feuer, und es ist vorbei. Sauber."
+      }
+    },
+    "3f29db971452": {
+      "a1": "Ton appartement décide tout. Je ne demande pas. Tu choisis.",
+      "b2": "Ton appartement, c'est la dernière pièce du puzzle. Je ne te demande rien. C'est toi qui choisis.",
+      "c1": "Ton appartement, c'est la dernière pièce du puzzle. Je ne te demande rien. À toi de choisir.",
+      "a1_native": {
+        "en": "Your flat decides everything. I'm not asking. You choose.",
+        "de": "Deine Wohnung entscheidet alles. Ich verlange nichts. Du entscheidest."
+      }
+    },
+    "07c18f99db8c": {
+      "a1": "Je sais. C'est ça, le problème.",
+      "b2": "Je sais. C'est bien ça, le problème.",
+      "c1": "Je sais. Tout le problème est là.",
+      "a1_native": {
+        "en": "I know. That's the problem.",
+        "de": "Ich weiß. Das ist das Problem."
+      }
+    },
+    "8f1c4f67d720": {
+      "a1": "Tu parles comme Lila.",
+      "b2": "Tu parles comme Lila, maintenant.",
+      "c1": "On dirait Lila.",
+      "a1_native": {
+        "en": "You talk like Lila.",
+        "de": "Du redest wie Lila."
+      }
+    },
+    "ba098f98fe91": {
+      "a1": "C'est trop. C'est bien.",
+      "b2": "C'est trop. Et c'est bien.",
+      "c1": "C'est trop. C'est très bien comme ça.",
+      "a1_native": {
+        "en": "It's too much. It's good.",
+        "de": "Das ist zu viel. Das ist gut."
+      }
+    },
+    "3f3da59f6ccd": {
+      "a1": "Choisis quand même.",
+      "b2": "Choisis quand même.",
+      "c1": "Il faut quand même que tu choisisses.",
+      "a1_native": {
+        "en": "Choose all the same.",
+        "de": "Entscheide trotzdem."
+      }
+    },
+    "9c54b679ce35": {
+      "a1": "Vingt-cinq ans, et pas une question comme ça.",
+      "b2": "Ça fait vingt-cinq ans que personne ne m'a demandé ça.",
+      "c1": "Vingt-cinq ans que personne ne m'avait posé la question.",
+      "a1_native": {
+        "en": "Twenty-five years, and not one question like that.",
+        "de": "Fünfundzwanzig Jahre, und keine einzige Frage wie diese."
+      }
+    },
+    "9b2365f3acb3": {
+      "a1": "La mer.",
+      "b2": "La mer.",
+      "c1": "La mer.",
+      "a1_native": {
+        "en": "The sea.",
+        "de": "Das Meer."
+      }
+    },
+    "13021a8fbe5f": {
+      "a1": "L'appartement d'Odile ? Tu choisis.",
+      "b2": "Décide de ce que devient l'appartement d'Odile.",
+      "c1": "Tranche : qu'advient-il de l'appartement d'Odile ?",
+      "a1_native": {
+        "en": "Odile's flat? You choose.",
+        "de": "Odiles Wohnung? Du entscheidest."
+      }
+    },
+    "c8b1cf7cc15a": {
+      "a1": "Garder l'appartement",
+      "b2": "Garder l'appartement",
+      "c1": "Garder l'appartement",
+      "a1_native": {
+        "en": "Keep the flat",
+        "de": "Die Wohnung behalten"
+      }
+    },
+    "977cf385a384": {
+      "a1": "Tu habites en haut. Marchand part. Le café reste.",
+      "b2": "Tu habites au-dessus du Mistral. Marchand quitte son immeuble pour que rien ne change.",
+      "c1": "Tu vis au-dessus du Mistral. Marchand quitte son immeuble pour que rien ne bouge.",
+      "a1_native": {
+        "en": "You live upstairs. Marchand leaves. The café stays.",
+        "de": "Du wohnst oben. Marchand zieht aus. Das Café bleibt."
+      }
+    },
+    "61415fc74762": {
+      "a1": "Tu habites en haut. Mais le café ferme.",
+      "b2": "Tu habites au-dessus d'un café qui ferme.",
+      "c1": "Tu vis au-dessus d'un café qui ferme ses portes.",
+      "a1_native": {
+        "en": "You live upstairs. But the café closes.",
+        "de": "Du wohnst oben. Aber das Café schließt."
+      }
+    },
+    "d9515fe85eb3": {
+      "a1": "La coop achète",
+      "b2": "Le vendre à la coopérative",
+      "c1": "Le céder à la coop",
+      "a1_native": {
+        "en": "The co-op buys it",
+        "de": "Die Genossenschaft kauft sie"
+      }
+    },
+    "971a83a18221": {
+      "a1": "L'appartement est à la coop. Ce n'est pas chez toi.",
+      "b2": "L'appartement devient l'atelier de tous. Là-haut, tu n'es plus chez toi.",
+      "c1": "L'appartement devient l'atelier commun. Là-haut, tu n'es plus chez toi.",
+      "a1_native": {
+        "en": "The flat belongs to the co-op. It isn't your home.",
+        "de": "Die Wohnung gehört der Genossenschaft. Sie ist nicht dein Zuhause."
+      }
+    },
+    "f171214a2d84": {
+      "a1": "Solvel achète",
+      "b2": "Le vendre à Solvel",
+      "c1": "Le céder à Solvel",
+      "a1_native": {
+        "en": "Solvel buys it",
+        "de": "Solvel kauft sie"
+      }
+    },
+    "3e55320e6a2e": {
+      "a1": "Tu paies le feu. Margaux, libre. Café fermé le 7.",
+      "b2": "Tu règles l'incendie. Margaux est libre. Le Mistral ferme le 7 janvier.",
+      "c1": "Tu règles la note de l'incendie. Margaux est libre. Le Mistral baisse le rideau le 7 janvier.",
+      "a1_native": {
+        "en": "You pay for the fire. Margaux, free. Café closed on the 7th.",
+        "de": "Du bezahlst das Feuer. Margaux: frei. Café zu am 7."
+      }
+    },
+    "2bc78905284b": {
+      "a1": "On… C'est gagné ? C'est perdu ?",
+      "b2": "On a… On a gagné ? Ou on a perdu ?",
+      "c1": "Alors… on a gagné ? On a perdu ?",
+      "a1_native": {
+        "en": "Did we… Did we win? Did we lose?",
+        "de": "Haben wir… gewonnen? Verloren?"
+      }
+    },
+    "0095a336c29f": {
+      "a1": "Mon cher, surtout, trop de vin.",
+      "b2": "Mon cher, surtout, on a trop bu.",
+      "c1": "Mon cher, nous avons surtout trop bu.",
+      "a1_native": {
+        "en": "My dear fellow: mostly, too much wine.",
+        "de": "Mein Lieber: vor allem zu viel Wein."
+      }
+    },
+    "76089cfb4d19": {
+      "a1": "Le 8, Lila part. Solvel veut une réponse. À suivre…",
+      "b2": "Dans sept jours : le train de Lila, la fin de l'offre de Solvel, et tout le reste. À suivre…",
+      "c1": "Dans sept jours : le train de Lila, l'échéance de Solvel, et tout ce qui n'a pas encore été dit. À suivre…",
+      "a1_native": {
+        "en": "On the 8th, Lila leaves. Solvel wants an answer. To be continued…",
+        "de": "Am 8. reist Lila ab. Solvel will eine Antwort. Fortsetzung folgt…"
+      }
+    },
+    "846b912ba82d": {
+      "a1": "En haut ? En bas ?",
+      "b2": "Plus haut ? Plus bas ?",
+      "c1": "Un poil plus haut ? Plus bas ?",
+      "a1_native": {
+        "en": "Up? Down?",
+        "de": "Höher? Tiefer?"
+      }
+    },
+    "0601bc0de903": {
+      "a1": "Un peu à gauche.",
+      "b2": "Plus droit, surtout.",
+      "c1": "Droit, surtout. Droit.",
+      "a1_native": {
+        "en": "A bit to the left.",
+        "de": "Ein bisschen nach links."
+      }
+    },
+    "52e98b09c2fc": {
+      "a1": "Un café ?",
+      "b2": "Un café ?",
+      "c1": "Je vous sers un café ?",
+      "a1_native": {
+        "en": "A coffee?",
+        "de": "Einen Kaffee?"
+      }
+    },
+    "c6b096c28a53": {
+      "a1": "…Un café au lait.",
+      "b2": "…Un crème.",
+      "c1": "…Un crème.",
+      "a1_native": {
+        "en": "…A café au lait.",
+        "de": "…Einen Milchkaffee."
+      }
+    },
+    "978988f81fc6": {
+      "a1": "Et vous ? Vous restez ?",
+      "b2": "Et vous ? Vous restez ?",
+      "c1": "Et vous ? Vous comptez rester ?",
+      "a1_native": {
+        "en": "And you? Are you staying?",
+        "de": "Und Sie? Bleiben Sie?"
+      }
+    },
+    "b5bd7a9eb78e": {
+      "a1": "Fermez bien la fenêtre de la cuisine. Elle ferme mal.",
+      "b2": "Alors fermez bien la fenêtre de la cuisine. Elle ferme mal, elle a toujours mal fermé.",
+      "c1": "Dans ce cas, fermez bien la fenêtre de la cuisine. Elle ferme mal ; elle a toujours mal fermé.",
+      "a1_native": {
+        "en": "Close the kitchen window properly. It doesn't close well.",
+        "de": "Schließen Sie das Küchenfenster gut. Es schließt schlecht."
+      }
+    },
+    "66e45f5ae64c": {
+      "a1": "Odile aussi, au début. Après, c'était quatorze ans ici.",
+      "b2": "Elle non plus, elle ne savait pas. Elle est restée quatorze ans.",
+      "c1": "Elle non plus n'en savait rien. Elle est restée quatorze ans.",
+      "a1_native": {
+        "en": "Odile too, at first. Then it was fourteen years here.",
+        "de": "Odile auch, am Anfang. Danach waren es vierzehn Jahre hier."
+      }
+    },
+    "758af3f54ef2": {
+      "a1": "Dimanche… On va voir. Il y a le bus 46.",
+      "b2": "Le dimanche… On verra bien. Il y a toujours le 46.",
+      "c1": "Le dimanche… On verra. Le 46 passe toujours.",
+      "a1_native": {
+        "en": "Sunday… We'll see. There's the 46 bus.",
+        "de": "Sonntag… Mal sehen. Es gibt den Bus 46."
+      }
+    },
+    "e915eaf4423e": {
+      "a1": "Non. L'escalier est difficile pour moi.",
+      "b2": "Non. Je pars à cause de l'escalier.",
+      "c1": "Non. Je pars à cause de l'escalier, voilà tout.",
+      "a1_native": {
+        "en": "No. The stairs are hard for me.",
+        "de": "Nein. Die Treppe ist schwer für mich."
+      }
+    },
+    "f692459a4ffa": {
+      "a1": "Et vous aussi, un peu. Pas de problème.",
+      "b2": "Et un peu à cause de vous, aussi. Ce n'est pas grave.",
+      "c1": "Et un peu à cause de vous, je l'avoue. Ce n'est pas bien grave.",
+      "a1_native": {
+        "en": "And you too, a little. It's fine.",
+        "de": "Und Sie auch, ein bisschen. Kein Problem."
+      }
+    },
+    "bf55472669fc": {
+      "a1": "Au Mistral ! Toujours le même !",
+      "b2": "À ce qui ne change pas !",
+      "c1": "À tout ce qui ne change pas !",
+      "a1_native": {
+        "en": "To Le Mistral! Always the same!",
+        "de": "Aufs Mistral! Immer dasselbe!"
+      }
+    },
+    "3fdadec6daac": {
+      "a1": "Tout change, Gus.",
+      "b2": "Tout change, Gus. C'est juste plus lent ici.",
+      "c1": "Tout change, Gus. Ici, ça prend juste son temps.",
+      "a1_native": {
+        "en": "Everything changes, Gus.",
+        "de": "Alles ändert sich, Gus."
+      }
+    },
+    "77793b234cee": {
+      "a1": "Lis pour moi. Tout. Pas vite.",
+      "b2": "Lis-le-moi. Tout. Lentement.",
+      "c1": "Lis-le-moi. En entier. Lentement.",
+      "a1_native": {
+        "en": "Read it out for me. All of it. Not fast.",
+        "de": "Lies es mir vor. Alles. Nicht schnell."
+      }
+    },
+    "0b086f0f0b4f": {
+      "a1": "L'autre ? Cherche derrière le tableau du Mistral.",
+      "b2": "Pour l'autre, regarde bien derrière le tableau du Mistral.",
+      "c1": "Pour l'autre, regarde derrière le tableau du Mistral.",
+      "a1_native": {
+        "en": "The other one? Look behind the painting of Le Mistral.",
+        "de": "Das andere? Such hinter dem Gemälde des Mistral."
+      }
+    },
+    "f966740679ba": {
+      "a1": "Le tableau ? En bas. Demain, Lila part. À suivre…",
+      "b2": "Le tableau est juste en dessous. Et demain matin, Lila s'en va. À suivre…",
+      "c1": "Le tableau est juste en dessous. Demain matin, Lila s'en va. À suivre…",
+      "a1_native": {
+        "en": "The painting? Downstairs. Tomorrow, Lila leaves. To be continued…",
+        "de": "Das Gemälde? Unten. Morgen reist Lila ab. Fortsetzung folgt…"
+      }
+    },
+    "516eb2a219ea": {
+      "a1": "Rue de Lancry… C'est très près.",
+      "b2": "Rue de Lancry. C'est à deux cents mètres d'ici.",
+      "c1": "Rue de Lancry… À deux cents mètres d'ici.",
+      "a1_native": {
+        "en": "Rue de Lancry… It's very close.",
+        "de": "Rue de Lancry… Das ist ganz nah."
+      }
+    },
+    "60bf88e96f49": {
+      "a1": "Ça… Ça, c'est nouveau pour moi.",
+      "b2": "Je ne savais pas. Ça, je ne le savais pas.",
+      "c1": "Ça, je l'ignorais. Ça, vraiment, je l'ignorais.",
+      "a1_native": {
+        "en": "That… That's news to me.",
+        "de": "Das… Das ist neu für mich."
+      }
+    },
+    "8341bf028a37": {
+      "a1": "Tu as l'appartement. Et l'autre ? Pas loin. À suivre…",
+      "b2": "Tu as gardé l'appartement. Mais Odile a laissé quelqu'un derrière elle, à deux cents mètres d'ici. À suivre…",
+      "c1": "Tu as gardé l'appartement. Mais Odile a laissé quelqu'un, à deux cents mètres de là. À suivre…",
+      "a1_native": {
+        "en": "You have the flat. And the other one? Not far. To be continued…",
+        "de": "Du hast die Wohnung. Und das andere? Nicht weit. Fortsetzung folgt…"
+      }
+    },
+    "dde2f8273c33": {
+      "a1": "Du poisson ! Ma grand-mère dit toujours…",
+      "b2": "Soupe de poisson ! La recette de ma grand-mère ! Elle disait toujours…",
+      "c1": "Soupe de poisson ! Recette de ma grand-mère ! Comme elle disait toujours…",
+      "a1_native": {
+        "en": "Fish! My grandmother always says…",
+        "de": "Fisch! Meine Großmutter sagt immer…"
+      }
+    },
+    "25eb78b831c2": {
+      "a1": "Allez, Marin.",
+      "b2": "Avance, Marin.",
+      "c1": "Abrège, Marin.",
+      "a1_native": {
+        "en": "Come on, Marin.",
+        "de": "Los, Marin."
+      }
+    },
+    "9ca1a9e6d111": {
+      "a1": "La banquette est nouvelle. Orange.",
+      "b2": "Ils ont retapissé la banquette. En orange.",
+      "c1": "Ils ont retapissé la banquette. En orange, s'il vous plaît.",
+      "a1_native": {
+        "en": "The bench is new. Orange.",
+        "de": "Die Bank ist neu. Orange."
+      }
+    },
+    "e17c27502930": {
+      "a1": "C'est la couleur des crêpes.",
+      "b2": "C'est couleur sarrasin.",
+      "c1": "C'est couleur sarrasin, voyons.",
+      "a1_native": {
+        "en": "It's the colour of crêpes.",
+        "de": "Das ist die Farbe von Crêpes."
+      }
+    },
+    "f01529927972": {
+      "a1": "Alors. Où est ma place, maintenant ?",
+      "b2": "Alors, dis-moi. Où est ma place, maintenant ?",
+      "c1": "Alors. Tu me dis où je m'assieds, désormais ?",
+      "a1_native": {
+        "en": "So. Where is my place now?",
+        "de": "Also. Wo ist jetzt mein Platz?"
+      }
+    },
+    "20861f1234a7": {
+      "a1": "\"Avec nous.\" Très original.",
+      "b2": "\"Avec nous.\" Quelle banalité.",
+      "c1": "\"Avec nous.\" Quelle platitude.",
+      "a1_native": {
+        "en": "\"With us.\" Very original.",
+        "de": "„Mit uns.“ Sehr originell."
+      }
+    },
+    "dcf6528977fc": {
+      "a1": "…Merci.",
+      "b2": "…Merci.",
+      "c1": "…Merci.",
+      "a1_native": {
+        "en": "…Thank you.",
+        "de": "…Danke."
+      }
+    },
+    "42b792f27f81": {
+      "a1": "Pas sur mon zinc.",
+      "b2": "Pas sur mon zinc.",
+      "c1": "Pas sur mon zinc, non.",
+      "a1_native": {
+        "en": "Not on my zinc.",
+        "de": "Nicht auf meinem Tresen."
+      }
+    },
+    "f643b83256da": {
+      "a1": "Je comprends. C'est très mal dit.",
+      "b2": "Je comprends. C'est affreusement mal dit.",
+      "c1": "Je comprends. C'est atrocement mal dit.",
+      "a1_native": {
+        "en": "I understand. That's very badly put.",
+        "de": "Ich verstehe. Das ist sehr schlecht gesagt."
+      }
+    },
+    "0bf0e640ee04": {
+      "a1": "Répète.",
+      "b2": "Répète.",
+      "c1": "Redis-le.",
+      "a1_native": {
+        "en": "Say it again.",
+        "de": "Sag es noch einmal."
+      }
+    },
+    "6dd525a7866b": {
+      "a1": "Là-bas. Oui. La table de ma mère.",
+      "b2": "Au fond. Oui. C'était sa table de pause.",
+      "c1": "Au fond. Oui. C'était sa table de pause.",
+      "a1_native": {
+        "en": "Over there. Yes. My mother's table.",
+        "de": "Dort hinten. Ja. Der Tisch meiner Mutter."
+      }
+    },
+    "b51b9b6dd765": {
+      "a1": "C'est derrière le feu ! Oh là là !",
+      "b2": "Elle l'a caché derrière le feu. Si ça, ce n'est pas un signe…",
+      "c1": "Elle l'a caché derrière l'incendie. Si ça, c'est pas un signe…",
+      "a1_native": {
+        "en": "It was behind the fire! Oh my!",
+        "de": "Es war hinter dem Feuer! Oh là là!"
+      }
+    },
+    "e8871db0db04": {
+      "a1": "Lis. Et après, on cherche.",
+      "b2": "Lis. Ensuite, on part à la recherche de ce tableau.",
+      "c1": "Lis. Et après, on se met en quête de ce tableau.",
+      "a1_native": {
+        "en": "Read. And then we search.",
+        "de": "Lies. Und danach suchen wir."
+      }
+    },
+    "c67e50b134f1": {
+      "b2": "Derrière le tableau du Mistral… Sauf que le tableau n'est plus au mur depuis les travaux. Et demain matin, Lila s'en va. À suivre…",
+      "c1": "Derrière le tableau du Mistral… Encore faut-il le trouver : il a quitté le mur depuis les travaux. Et demain matin, Lila s'en va. À suivre…",
+      "a1": "Où est le tableau ? Demain, Lila part. À suivre…",
+      "a1_native": {
+        "en": "Where is the painting? Tomorrow, Lila leaves. To be continued…",
+        "de": "Wo ist das Gemälde? Morgen reist Lila ab. Fortsetzung folgt…"
+      }
+    },
+    "7bf9299ef32f": {
+      "a1": "Où est le tableau ?",
+      "b2": "Où est passé le tableau ?",
+      "c1": "Où il est passé, le tableau ?",
+      "a1_native": {
+        "en": "Where is the painting?",
+        "de": "Wo ist das Gemälde?"
+      }
+    },
+    "07f080c05873": {
+      "a1": "Quel tableau ?",
+      "b2": "Quel tableau ?",
+      "c1": "Un tableau ? Quel tableau ?",
+      "a1_native": {
+        "en": "What painting?",
+        "de": "Welches Gemälde?"
+      }
+    },
+    "28c036ae190d": {
+      "a1": "Maman ? Un monsieur L., rue de Lancry ?",
+      "b2": "Maman ? … Est-ce que tu connais un certain L. ? Rue de Lancry ?",
+      "c1": "Maman ? … Un certain L., ça te dit quelque chose ? Rue de Lancry ?",
+      "a1_native": {
+        "en": "Mum? A Monsieur L., rue de Lancry?",
+        "de": "Mama? Ein Herr L., Rue de Lancry?"
+      }
+    },
+    "d864179a1b2c": {
+      "a1": "Tu dis tout. Gus ne dit pas tout. À suivre…",
+      "b2": "Tu as tout partagé. Gus, lui, garde encore un secret. À suivre…",
+      "c1": "Toi, tu as tout mis sur la table. Gus, lui, ment encore par réflexe. À suivre…",
+      "a1_native": {
+        "en": "You tell everything. Gus doesn't tell everything. To be continued…",
+        "de": "Du sagst alles. Gus sagt nicht alles. Fortsetzung folgt…"
+      }
+    },
+    "d8538aa0b55f": {
+      "a1": "Dernier jour. Les chaises, les tableaux : tout part.",
+      "b2": "Dernier jour. Tout s'en va : les chaises, les verres, les tableaux.",
+      "c1": "Dernier jour. On vide tout : les chaises, les verres, les tableaux.",
+      "a1_native": {
+        "en": "Last day. The chairs, the paintings: everything goes.",
+        "de": "Letzter Tag. Die Stühle, die Gemälde: alles geht."
+      }
+    },
+    "4e0fc687f0a1": {
+      "a1": "La banquette. Combien ?",
+      "b2": "La banquette. Combien en voulez-vous ?",
+      "c1": "La banquette. Combien ?",
+      "a1_native": {
+        "en": "The bench. How much?",
+        "de": "Die Bank. Wie viel?"
+      }
+    },
+    "c30d0a424caf": {
+      "a1": "Deux cents.",
+      "b2": "Deux cents.",
+      "c1": "Deux cents.",
+      "a1_native": {
+        "en": "Two hundred.",
+        "de": "Zweihundert."
+      }
+    },
+    "fcbb83b85f86": {
+      "a1": "Je suis Augustin de Roncourt.",
+      "b2": "Je suis Augustin de Roncourt, monsieur.",
+      "c1": "Vous parlez à Augustin de Roncourt.",
+      "a1_native": {
+        "en": "I am Augustin de Roncourt.",
+        "de": "Ich bin Augustin de Roncourt."
+      }
+    },
+    "bfae83f78d2c": {
+      "a1": "Deux cent cinquante.",
+      "b2": "Deux cent cinquante.",
+      "c1": "Deux cent cinquante.",
+      "a1_native": {
+        "en": "Two hundred and fifty.",
+        "de": "Zweihundertfünfzig."
+      }
+    },
+    "5f7087eb84ba": {
+      "a1": "La même chose ?",
+      "b2": "La même chose ?",
+      "c1": "Comme d'habitude ?",
+      "a1_native": {
+        "en": "The same again?",
+        "de": "Dasselbe?"
+      }
+    },
+    "d715cec5ea7a": {
+      "a1": "Tu fermes ?",
+      "b2": "C'est toi qui fermes.",
+      "c1": "C'est toi qui fermes, ce soir.",
+      "a1_native": {
+        "en": "Will you lock up?",
+        "de": "Schließt du ab?"
+      }
+    },
+    "fc736a43422f": {
+      "a1": "Dis une belle chose. Pour la fin.",
+      "b2": "Dis-moi quelque chose de bien. Pour finir.",
+      "c1": "Dis-moi un truc bien. Pour la route.",
+      "a1_native": {
+        "en": "Say something nice. For the end.",
+        "de": "Sag etwas Schönes. Zum Schluss."
+      }
+    },
+    "ec888ddc2bd3": {
+      "a1": "Tout, c'est beaucoup. Je prends.",
+      "b2": "Tout, c'est beaucoup. Je prends quand même.",
+      "c1": "Tout, c'est beaucoup. Je prends.",
+      "a1_native": {
+        "en": "Everything is a lot. I'll take it.",
+        "de": "Alles, das ist viel. Ich nehme es."
+      }
+    },
+    "d878741e7720": {
+      "a1": "Oui. Chez le père de Marin, en Bretagne. J'ai peur.",
+      "b2": "Oui. Marin m'a donné une adresse, chez son père, en Bretagne. J'ai peur.",
+      "c1": "Oui. Marin m'a refilé une adresse : chez son père, en Bretagne. J'ai la trouille.",
+      "a1_native": {
+        "en": "Yes. At Marin's father's, in Brittany. I'm scared.",
+        "de": "Ja. Bei Marins Vater, in der Bretagne. Ich habe Angst."
+      }
+    },
+    "023020ff8739": {
+      "a1": "Alors, chez toi, maintenant, on parle français.",
+      "b2": "Alors maintenant, chez toi, on parle français.",
+      "c1": "Alors désormais, chez toi, on parle français.",
+      "a1_native": {
+        "en": "So, at your place now, we speak French.",
+        "de": "Also, bei dir zu Hause spricht man jetzt Französisch."
+      }
+    },
+    "193d78229a23": {
+      "a1": "On ne peut pas ? Non. On choisit. C'est bien.",
+      "b2": "On n'a pas pu ? Non : on a choisi. Ce n'est pas pareil.",
+      "c1": "On n'a pas pu ? Non : on a choisi. Nuance.",
+      "a1_native": {
+        "en": "We can't? No. We choose. That's good.",
+        "de": "Wir können nicht? Nein. Wir entscheiden. Das ist gut."
+      }
+    },
+    "9ffb4c9bb284": {
+      "a1": "Lis. Moi, j'ai la table.",
+      "b2": "Lis. Je tiens la table.",
+      "c1": "Lis. Je tiens la table.",
+      "a1_native": {
+        "en": "Read. I've got the table.",
+        "de": "Lies. Ich habe den Tisch."
+      }
+    },
+    "786b8186a47d": {
+      "b2": "Le tableau est parti cet après-midi, dans une camionnette. Demain matin, c'est le tour de Lila. À suivre…",
+      "c1": "Le tableau a filé cet après-midi. Demain matin, c'est au tour de Lila. À suivre…",
+      "a1": "Le tableau ? Parti. Demain, Lila part aussi. À suivre…",
+      "a1_native": {
+        "en": "The painting? Gone. Tomorrow, Lila leaves too. To be continued…",
+        "de": "Das Gemälde? Weg. Morgen reist auch Lila ab. Fortsetzung folgt…"
+      }
+    },
+    "8e602e11c952": {
+      "a1": "Ah ! Il peint d'en haut. De la fenêtre d'Odile.",
+      "b2": "La lumière est fausse parce qu'il a peint d'en haut. Depuis la fenêtre d'Odile.",
+      "c1": "Voilà pourquoi la lumière est fausse : il a peint d'en haut. De la fenêtre d'Odile.",
+      "a1_native": {
+        "en": "Ah! He painted from above. From Odile's window.",
+        "de": "Ah! Er hat von oben gemalt. Von Odiles Fenster aus."
+      }
+    },
+    "ec2584be279c": {
+      "b2": "En 1970, quelqu'un a peint le Mistral depuis chez Odile. Aujourd'hui, le tableau est quelque part dans Paris. Le peintre aussi, peut-être. À suivre…",
+      "c1": "En 1970, quelqu'un a peint le Mistral depuis chez Odile. Le tableau roule aujourd'hui quelque part dans Paris. Son auteur aussi, qui sait. À suivre…",
+      "a1": "En 1970, un homme fait un tableau du Mistral. Il est chez Odile, en haut, à la fenêtre. Aujourd'hui, le tableau est dans Paris. Mais où ? Et l'homme ? Il est aussi dans Paris, non ? À suivre…",
+      "a1_native": {
+        "en": "In 1970, a man painted Le Mistral. He was at Odile's, upstairs, at the window. Today, the painting is in Paris. But where? And the man? Is he in Paris too? To be continued…",
+        "de": "1970 hat ein Mann den Mistral gemalt. Er war bei Odile, oben, am Fenster. Heute ist das Gemälde in Paris. Aber wo? Und der Mann? Ist er auch in Paris? Fortsetzung folgt…"
+      }
+    },
+    "6f849482423a": {
+      "a1": "Odile demande quoi ?",
+      "b2": "Qu'est-ce qu'elle te demande ?",
+      "c1": "Que te demande-t-elle, au juste ?",
+      "a1_native": {
+        "en": "What is Odile asking?",
+        "de": "Worum bittet Odile?"
+      }
+    },
+    "5aaec44a205e": {
+      "a1": "Pour toi. Tu parles français, maintenant.\n\nAvec toi, je ne parle pas de Paris. Pardon. Paris est trop grand pour l'autre langue.\n\nIci, je suis heureuse deux fois : à vingt ans, et à soixante ans. Entre les deux, je suis ta grand-mère. C'est bien aussi. C'est une autre chose.\n\nMaintenant, j'oublie. Alors j'écris.\n\nÀ Paris, je laisse deux choses : cet appartement, et une personne. L'appartement ? Tu habites là.\n\nL'autre ? Cherche derrière le tableau du Mistral.\n\nOdile",
+      "b2": "Pour toi. Pour le jour où tu parleras français.\n\nParis, je n'en ai jamais parlé avec toi, et je t'en demande pardon. Paris était trop grand pour l'autre langue : il débordait de partout.\n\nIci, j'ai été heureuse deux fois : à vingt ans, et à soixante. Entre les deux, j'ai été ta grand-mère, et ce n'était pas moins bien. C'était autre chose.\n\nAujourd'hui, j'oublie. Alors j'écris, tant que je le peux encore.\n\nÀ Paris, j'ai laissé deux choses : cet appartement, et quelqu'un. L'appartement, tu l'as trouvé, puisque tu lis ces lignes.\n\nPour l'autre, regarde bien derrière le tableau du Mistral.\n\nOdile",
+      "c1": "Pour toi. Le jour où tu parleras français.\n\nJe ne t'ai jamais parlé de Paris ; pardonne-moi. Paris était trop grand pour l'autre langue, il ne s'y laissait pas traduire.\n\nIci, j'ai été heureuse deux fois : à vingt ans, et à soixante. Entre les deux, j'ai été ta grand-mère, et ce n'était pas moindre. C'était autre chose.\n\nÀ présent, la mémoire me fuit. Alors j'écris.\n\nJ'ai laissé deux choses à Paris : cet appartement, et quelqu'un. L'appartement, tu l'as trouvé, puisque tu me lis.\n\nPour l'autre, regarde derrière le tableau du Mistral.\n\nOdile",
+      "a1_native": {
+        "en": "For you. You speak French now.\n\nWith you, I don't talk about Paris. I'm sorry. Paris is too big for the other language.\n\nHere, I was happy twice: at twenty, and at sixty. In between, I was your grandmother. That's good too. It's something else.\n\nNow I forget. So I write.\n\nIn Paris, I leave two things: this flat, and a person. The flat? You live there.\n\nThe other one? Look behind the painting of Le Mistral.\n\nOdile",
+        "de": "Für dich. Du sprichst jetzt Französisch.\n\nMit dir spreche ich nicht über Paris. Verzeih. Paris ist zu groß für die andere Sprache.\n\nHier war ich zweimal glücklich: mit zwanzig und mit sechzig. Dazwischen war ich deine Großmutter. Das ist auch gut. Es ist etwas anderes.\n\nJetzt vergesse ich. Also schreibe ich.\n\nIn Paris lasse ich zwei Dinge zurück: diese Wohnung und einen Menschen. Die Wohnung? Du wohnst dort.\n\nDas andere? Such hinter dem Gemälde des Mistral.\n\nOdile"
+      }
+    },
+    "1708fb4dcf7c": {
+      "a1": "Solvel achète l'appartement",
+      "b2": "Vendre l'appartement",
+      "c1": "Mettre l'appartement en vente",
+      "a1_native": {
+        "en": "Solvel buys the flat",
+        "de": "Solvel kauft die Wohnung"
+      }
+    },
+    "e753dc614591": {
+      "a1": "Chercher derrière le tableau",
+      "b2": "Chercher derrière le tableau",
+      "c1": "Aller voir derrière le tableau",
+      "a1_native": {
+        "en": "Look behind the painting",
+        "de": "Hinter dem Gemälde suchen"
+      }
+    },
+    "53de40c66765": {
+      "a1": "Parler avec Margaux",
+      "b2": "Parler à Margaux",
+      "c1": "En parler à Margaux",
+      "a1_native": {
+        "en": "Talk to Margaux",
+        "de": "Mit Margaux sprechen"
+      }
+    },
+    "141d81b2825a": {
+      "a1": "On reste ici. Toi, tu pars. C'est clair, non ?",
+      "b2": "On reste ici, et toi, tu pars. Le message est clair, non ?",
+      "c1": "Nous, on reste ; toi, tu pars. Le message est limpide, non ?",
+      "a1_native": {
+        "en": "We're staying here. You're leaving. That's clear, isn't it?",
+        "de": "Wir bleiben hier. Du gehst. Das ist doch klar, oder?"
+      }
+    },
+    "9bb4f14b67ff": {
+      "a1": "C'est très mauvais. Mais c'est à moi !",
+      "b2": "C'est affreux. Je le garde.",
+      "c1": "C'est d'une laideur… Je le garde.",
+      "a1_native": {
+        "en": "It's very bad. But it's mine!",
+        "de": "Das ist sehr schlecht. Aber es gehört mir!"
+      }
+    },
+    "b5ffea6bcdf0": {
+      "a1": "Alors. Une dernière chose vraie ?",
+      "b2": "Alors. Une dernière chose vraie ?",
+      "c1": "Alors. Une dernière vérité ?",
+      "a1_native": {
+        "en": "So. One last true thing?",
+        "de": "Also. Noch etwas Wahres, zum Schluss?"
+      }
+    },
+    "0d153ae2d86d": {
+      "a1": "Oui. Beaucoup. Alors je pars maintenant.",
+      "b2": "Oui. Beaucoup. C'est justement pour ça que je pars maintenant.",
+      "c1": "Oui. Énormément. C'est bien pour ça que je pars maintenant.",
+      "a1_native": {
+        "en": "Yes. A lot. So I'm leaving now.",
+        "de": "Ja. Sehr. Darum gehe ich jetzt."
+      }
+    },
+    "d95bde6bf4ef": {
+      "a1": "Je sais. Je suis super.",
+      "b2": "Évidemment. Je suis géniale.",
+      "c1": "Ça va de soi. Je suis géniale.",
+      "a1_native": {
+        "en": "I know. I'm great.",
+        "de": "Ich weiß. Ich bin super."
+      }
+    },
+    "10c89edfe4d8": {
+      "a1": "«Pour moi.» Ça, c'est très beau.",
+      "b2": "\"Pour moi.\" C'est la meilleure de toutes.",
+      "c1": "\"Pour moi.\" Celle-là, c'est la meilleure.",
+      "a1_native": {
+        "en": "\"For me.\" That one is very beautiful.",
+        "de": "„Für mich.“ Das ist sehr schön."
+      }
+    },
+    "4dac3259e351": {
+      "a1": "Tu parles comme Marin, maintenant. Oh non !",
+      "b2": "Tu parles comme Marin, maintenant. C'est grave.",
+      "c1": "Tu parles comme Marin, maintenant. C'est grave, docteur ?",
+      "a1_native": {
+        "en": "You talk like Marin now. Oh no!",
+        "de": "Du redest jetzt wie Marin. Oh nein!"
+      }
+    },
+    "2bffc1c296b9": {
+      "a1": "La clé reste avec moi. Et moi, je reviens.",
+      "b2": "Je la garde. Pour pouvoir revenir.",
+      "c1": "Je la garde. Pour avoir une raison de revenir.",
+      "a1_native": {
+        "en": "The key stays with me. And I'm coming back.",
+        "de": "Der Schlüssel bleibt bei mir. Und ich komme zurück."
+      }
+    },
+    "804fd718b1e9": {
+      "a1": "On ne promet pas. On écrit.",
+      "b2": "On ne se promet rien. On s'écrit.",
+      "c1": "On ne se promet rien. On s'écrit, c'est tout.",
+      "a1_native": {
+        "en": "We don't promise. We write.",
+        "de": "Wir versprechen nichts. Wir schreiben uns."
+      }
+    },
+    "41fc688a2eed": {
+      "a1": "Ton visage ? Je finis quand je reviens.",
+      "b2": "Ton visage, je le finirai quand je te reverrai.",
+      "c1": "Ton visage, je le finirai le jour où je te reverrai.",
+      "a1_native": {
+        "en": "Your face? I'll finish it when I come back.",
+        "de": "Dein Gesicht? Ich male es fertig, wenn ich zurückkomme."
+      }
+    },
+    "f7b75aa904d7": {
+      "a1": "Voilà la clé. Quand je reviens, c'est à moi.",
+      "b2": "Je te la rends. Tu me la redonneras à mon retour.",
+      "c1": "Je te la rends. Tu me la rendras à mon retour.",
+      "a1_native": {
+        "en": "Here's the key. When I come back, it's mine.",
+        "de": "Hier ist der Schlüssel. Wenn ich zurückkomme, gehört er mir."
+      }
+    },
+    "d880e30d0cd5": {
+      "a1": "Toi, tu finis le portrait. Pas beau ? Super.",
+      "b2": "Le coin du portrait. Finis-le, toi. Ça va être moche. Parfait.",
+      "c1": "Le coin du portrait. C'est toi qui le finis. Ce sera moche. Parfait.",
+      "a1_native": {
+        "en": "You finish the portrait. Not pretty? Great.",
+        "de": "Du malst das Porträt fertig. Nicht schön? Super."
+      }
+    },
+    "98bae4d50e4f": {
+      "a1": "Vous et moi ? Souvent pas d'accord.",
+      "b2": "On n'est pas d'accord sur grand-chose, vous et moi.",
+      "c1": "On n'est d'accord sur pas grand-chose, vous et moi.",
+      "a1_native": {
+        "en": "You and me? Often not in agreement.",
+        "de": "Sie und ich? Oft nicht einer Meinung."
+      }
+    },
+    "7814dc147b67": {
+      "a1": "Bien. À bientôt, et pas d'accord !",
+      "b2": "Bien. À la prochaine dispute, alors.",
+      "c1": "Bien. À la prochaine prise de bec.",
+      "a1_native": {
+        "en": "Good. See you soon, and still disagreeing!",
+        "de": "Gut. Bis bald, und uneinig!"
+      }
+    }
+  },
+  "examples": {
+    "t5:va.a.turn1:a": {
+      "a1": [
+        "C'est super ! Tu pars !",
+        "Berlin ! C'est génial !"
+      ],
+      "b2": [
+        "Mais c'est génial ! Il faut absolument que tu y ailles !",
+        "Fonce ! Une occasion pareille, ça ne se refuse pas."
+      ],
+      "c1": [
+        "Mais c'est formidable ! Tu ne vas quand même pas laisser passer ça !",
+        "Fonce, voyons. Ça ne se refuse pas, une chose pareille."
+      ]
+    },
+    "t5:va.a.turn1:b": {
+      "a1": [
+        "Je ne veux pas. Reste ici.",
+        "Ne pars pas, s'il te plaît."
+      ],
+      "b2": [
+        "Je n'ai pas envie que tu partes.",
+        "Franchement ? Je préférerais que tu restes."
+      ],
+      "c1": [
+        "Je ne veux pas que tu t'en ailles, voilà.",
+        "Tu veux la vérité ? J'aimerais mieux que tu restes."
+      ]
+    },
+    "t5:va.a.turn1:c": {
+      "a1": [
+        "Toi ici… et Berlin. Les deux.",
+        "Je veux… toi ici. Et Berlin."
+      ],
+      "b2": [
+        "J'aimerais que tu restes… et en même temps, je veux Berlin pour toi. C'est bête.",
+        "Les deux, en fait : toi ici, et Berlin pour toi. Ça n'a pas de sens."
+      ],
+      "c1": [
+        "Je te veux ici… et je te veux à Berlin. Les deux. C'est idiot, hein ?",
+        "Je voudrais que tu restes, et que tu partes. Ça ne tient pas debout, je sais."
+      ]
+    },
+    "t5:va.a.turn1:d": {
+      "a1": [
+        "Et Marin ? Le café ?",
+        "Et Marin, alors ?"
+      ],
+      "b2": [
+        "Et Marin, alors ? Et le Mistral ?",
+        "Mais qu'est-ce que va devenir le Mistral, sans toi ? Et Marin ?"
+      ],
+      "c1": [
+        "Et Marin, dans tout ça ? Et le Mistral ?",
+        "Tu as pensé à Marin ? Au Mistral ?"
+      ]
+    },
+    "t5:va.b.turn2:come_back": {
+      "a1": [
+        "Reviens. Finis le tableau ici.",
+        "Tu reviens le finir ?"
+      ],
+      "b2": [
+        "Reviens le terminer ici, alors.",
+        "Promets-moi de revenir le finir."
+      ],
+      "c1": [
+        "Eh bien reviens le finir, ce portrait.",
+        "Tu n'auras qu'à revenir le terminer."
+      ]
+    },
+    "t5:va.b.turn2:be_here": {
+      "a1": [
+        "Non. Tu dois être ici.",
+        "Non. Le tableau, c'est ici."
+      ],
+      "b2": [
+        "Non. Pour ce portrait, il faut que tu sois là.",
+        "Je ne crois pas. Il faut être ici pour le finir."
+      ],
+      "c1": [
+        "Non. Ce portrait-là, il faut être là pour le faire.",
+        "De loin ? Non. Il a besoin que tu sois ici."
+      ]
+    },
+    "t5:va.b.turn2:joke": {
+      "a1": [
+        "D'accord. Mais fais-moi beau !",
+        "Fais-moi très joli, alors !"
+      ],
+      "b2": [
+        "D'accord, mais tu m'arranges un peu, hein ?",
+        "Alors fais-moi plus beau que nature !"
+      ],
+      "c1": [
+        "Soit. Mais tu me flattes un peu, hein.",
+        "Tant que tu m'embellis, je signe."
+      ]
+    },
+    "t5:vb.b.turn1:a": {
+      "a1": [
+        "Tu dis ça quand ?",
+        "Et moi ? Quand ?"
+      ],
+      "b2": [
+        "Tu comptais me le dire quand, au juste ?",
+        "Et tu allais me l'annoncer quand ?"
+      ],
+      "c1": [
+        "Tu comptais m'en parler quand, au juste ?",
+        "Et moi, j'étais censé l'apprendre quand ?"
+      ]
+    },
+    "t5:vb.b.turn1:b": {
+      "a1": [
+        "OK. Bon voyage.",
+        "D'accord. Bonne route."
+      ],
+      "b2": [
+        "Très bien. Bon voyage, alors.",
+        "D'accord. Je te souhaite un bon voyage."
+      ],
+      "c1": [
+        "Bon. Ben, bon voyage.",
+        "Soit. Bonne route, alors."
+      ]
+    },
+    "t5:vb.b.turn1:c": {
+      "a1": [
+        "Au revoir ? Ou pardon ?",
+        "Pardon, oui. Au revoir, non."
+      ],
+      "b2": [
+        "Ta carte… c'est un adieu ou des excuses ? Je ne veux pas d'adieu.",
+        "Je n'arrive pas à savoir si c'est un adieu. J'espère que non."
+      ],
+      "c1": [
+        "J'ai lu ta carte. Adieu, ou pardon ? Je n'en sais rien… mais pas adieu.",
+        "Ta carte, je ne sais pas comment la prendre. Tant que ce n'est pas un adieu…"
+      ]
+    },
+    "t5:vb.b.turn1:d": {
+      "a1": [
+        "Super pour toi. Mais dis-moi !",
+        "C'est bien. Mais tu peux parler."
+      ],
+      "b2": [
+        "Je suis heureux pour toi, mais tu aurais pu me le dire.",
+        "C'est une super nouvelle. Tu aurais quand même pu m'en parler."
+      ],
+      "c1": [
+        "Je suis ravie pour toi. Mais tu aurais pu me le dire, quand même.",
+        "Bravo, sincèrement. Tu aurais juste pu m'en toucher un mot."
+      ]
+    },
+    "t5:vb.b.turn2:on_saide": {
+      "a1": [
+        "Non. On s'aide.",
+        "Non. Ici, on s'aide."
+      ],
+      "b2": [
+        "Non, on ne se retient pas : on s'aide.",
+        "Je ne suis pas d'accord. On s'entraide, c'est différent."
+      ],
+      "c1": [
+        "Non. On ne se retient pas, on se soutient.",
+        "Pas du tout. On s'épaule, nuance."
+      ]
+    },
+    "t5:vb.b.turn2:tu_as_raison": {
+      "a1": [
+        "Peut-être. Tu as raison.",
+        "Oui. C'est vrai."
+      ],
+      "b2": [
+        "Peut-être bien que tu as raison.",
+        "Oui… tu n'as sans doute pas tort."
+      ],
+      "c1": [
+        "Il se peut que tu aies raison.",
+        "Tu n'as pas tort, malheureusement."
+      ]
+    },
+    "t5:vb.b.turn2:et_moi": {
+      "a1": [
+        "Et moi, je te retiens ?",
+        "Moi aussi, je te retiens ?"
+      ],
+      "b2": [
+        "Et moi ? Est-ce que je te retiens, moi aussi ?",
+        "Et moi, dans tout ça ? Je te retiens ?"
+      ],
+      "c1": [
+        "Et moi ? C'est moi qui te retiens ?",
+        "Et moi, alors… je te retiens, moi aussi ?"
+      ]
+    },
+    "t5:vn.b.turn1:a": {
+      "a1": [
+        "Tu dis ça quand ?",
+        "Et moi ? Quand ?"
+      ],
+      "b2": [
+        "Tu comptais me le dire quand, au juste ?",
+        "Et tu allais me l'annoncer quand ?"
+      ],
+      "c1": [
+        "Tu comptais m'en parler quand, au juste ?",
+        "Et moi, j'étais censé l'apprendre quand ?"
+      ]
+    },
+    "t5:vn.b.turn1:b": {
+      "a1": [
+        "OK. Bon voyage.",
+        "D'accord. Bonne route."
+      ],
+      "b2": [
+        "Très bien. Bon voyage, alors.",
+        "D'accord. Je te souhaite un bon voyage."
+      ],
+      "c1": [
+        "Bon. Ben, bon voyage.",
+        "Soit. Bonne route, alors."
+      ]
+    },
+    "t5:vn.b.turn1:c": {
+      "a1": [
+        "Au revoir ? Ou pardon ?",
+        "Pardon, oui. Au revoir, non."
+      ],
+      "b2": [
+        "Ta carte… c'est un adieu ou des excuses ? Je ne veux pas d'adieu.",
+        "Je n'arrive pas à savoir si c'est un adieu. J'espère que non."
+      ],
+      "c1": [
+        "J'ai lu ta carte. Adieu, ou pardon ? Je n'en sais rien… mais pas adieu.",
+        "Ta carte, je ne sais pas comment la prendre. Tant que ce n'est pas un adieu…"
+      ]
+    },
+    "t5:vn.b.turn1:d": {
+      "a1": [
+        "Super pour toi. Mais dis-moi !",
+        "C'est bien. Mais tu peux parler."
+      ],
+      "b2": [
+        "Je suis heureux pour toi, mais tu aurais pu me le dire.",
+        "C'est une super nouvelle. Tu aurais quand même pu m'en parler."
+      ],
+      "c1": [
+        "Je suis ravie pour toi. Mais tu aurais pu me le dire, quand même.",
+        "Bravo, sincèrement. Tu aurais juste pu m'en toucher un mot."
+      ]
+    },
+    "t5:vn.b.turn2:on_saide": {
+      "a1": [
+        "Non. On s'aide.",
+        "Non. Ici, on s'aide."
+      ],
+      "b2": [
+        "Non, on ne se retient pas : on s'aide.",
+        "Je ne suis pas d'accord. On s'entraide, c'est différent."
+      ],
+      "c1": [
+        "Non. On ne se retient pas, on se soutient.",
+        "Pas du tout. On s'épaule, nuance."
+      ]
+    },
+    "t5:vn.b.turn2:tu_as_raison": {
+      "a1": [
+        "Peut-être. Tu as raison.",
+        "Oui. C'est vrai."
+      ],
+      "b2": [
+        "Peut-être bien que tu as raison.",
+        "Oui… tu n'as sans doute pas tort."
+      ],
+      "c1": [
+        "Il se peut que tu aies raison.",
+        "Tu n'as pas tort, malheureusement."
+      ]
+    },
+    "t5:vn.b.turn2:et_moi": {
+      "a1": [
+        "Et moi, je te retiens ?",
+        "Moi aussi, je te retiens ?"
+      ],
+      "b2": [
+        "Et moi ? Est-ce que je te retiens, moi aussi ?",
+        "Et moi, dans tout ça ? Je te retiens ?"
+      ],
+      "c1": [
+        "Et moi ? C'est moi qui te retiens ?",
+        "Et moi, alors… je te retiens, moi aussi ?"
+      ]
+    },
+    "t6:a.turn1:a": {
+      "a1": [
+        "Je ne sais pas. Vraiment.",
+        "Pourquoi ? Je ne sais pas."
+      ],
+      "b2": [
+        "Je ne sais pas, honnêtement. Je me pose la même question.",
+        "Franchement, je n'en sais rien."
+      ],
+      "c1": [
+        "Je n'en sais rien, je vous assure.",
+        "Honnêtement ? Je l'ignore tout autant que vous."
+      ]
+    },
+    "t6:a.turn1:b": {
+      "a1": [
+        "Elle est malade. Elle oublie.",
+        "Odile oublie. Elle est malade."
+      ],
+      "b2": [
+        "Elle était malade. Elle commençait à oublier.",
+        "Elle perdait la mémoire, voilà pourquoi."
+      ],
+      "c1": [
+        "Elle était malade : la mémoire lui faisait défaut.",
+        "Sa mémoire flanchait. Elle ne voulait pas que vous le sachiez."
+      ]
+    },
+    "t6:a.turn1:c": {
+      "a1": [
+        "Pas vous. Et la photo… ?",
+        "Pas à cause de vous."
+      ],
+      "b2": [
+        "Ce n'est pas à cause de vous, je crois… Vous avez gardé sa photo. Elle aussi, peut-être ?",
+        "Pas vous, non… Enfin, je ne sais pas. Elle a peut-être gardé la vôtre."
+      ],
+      "c1": [
+        "Vous n'y êtes pour rien, je crois… Vous avez gardé sa photo. Peut-être qu'elle aussi ?",
+        "Ce n'est pas vous… enfin, je ne crois pas. Elle gardait peut-être votre photo, elle aussi."
+      ]
+    },
+    "t6:a.turn1:d": {
+      "a1": [
+        "Et Margaux ? Elle part ?",
+        "Et Margaux ? Elle reste ?"
+      ],
+      "b2": [
+        "Et Margaux ? Vous voulez la mettre à la porte ?",
+        "Et Margaux, dans tout ça ? Vous comptez la mettre dehors ?"
+      ],
+      "c1": [
+        "Et Margaux ? Vous comptez la mettre à la rue ?",
+        "Et Margaux, alors ? C'est elle que vous voulez voir partir ?"
+      ]
+    },
+    "t6:a.turn2:not_all_to_solvel": {
+      "a1": [
+        "Non. Mais pas tout à Solvel.",
+        "Pas tout. Mais pas Solvel."
+      ],
+      "b2": [
+        "Non, pas tout. Mais ce n'est pas une raison pour tout vendre à Solvel.",
+        "Tout garder, non. Tout brader à Solvel, non plus."
+      ],
+      "c1": [
+        "Pas tout, non. Mais de là à tout céder à Solvel…",
+        "On ne peut pas tout garder, soit. Ce n'est pas une raison pour tout lâcher à Solvel."
+      ]
+    },
+    "t6:a.turn2:yes": {
+      "a1": [
+        "Oui.",
+        "Oui, on peut."
+      ],
+      "b2": [
+        "Oui, je le crois.",
+        "Oui. Je pense que c'est possible."
+      ],
+      "c1": [
+        "Oui, j'y crois.",
+        "Oui. Pourquoi pas ?"
+      ]
+    },
+    "t6:a.turn2:chocolate": {
+      "a1": [
+        "Le chocolat, le mercredi !",
+        "Vous aimez le café, avant."
+      ],
+      "b2": [
+        "Vous adoriez le Mistral, avant. Le chocolat chaud, le mercredi.",
+        "Souvenez-vous : le chocolat du mercredi, au Mistral."
+      ],
+      "c1": [
+        "Vous adoriez le Mistral, autrefois. Le chocolat chaud du mercredi.",
+        "Et le chocolat du mercredi, vous l'avez oublié ?"
+      ]
+    },
+    "t6:a.turn2:clumsy": {
+      "a1": [
+        "Pas tout. Mais… pas jeter.",
+        "Garder tout, non. Jeter, non."
+      ],
+      "b2": [
+        "On ne peut pas tout garder… mais je ne veux pas tout jeter. Vous comprenez ?",
+        "Tout garder, je ne sais pas… mais jeter, non plus."
+      ],
+      "c1": [
+        "On ne peut pas tout garder, je sais… mais tout jeter, non. Vous voyez ?",
+        "Je ne sais pas si on peut tout garder… mais je ne veux rien jeter."
+      ]
+    },
+    "t6:b.turn1:a": {
+      "a1": [
+        "Pour Marchand. Pas les autres.",
+        "Marchand lit. Seulement lui."
+      ],
+      "b2": [
+        "Je veux montrer le carnet à Marchand, et à personne d'autre.",
+        "Ce carnet, c'est à Marchand de le lire. À lui seul."
+      ],
+      "c1": [
+        "Ce carnet, je le montre à Marchand, et à lui seul.",
+        "Marchand doit le lire. Personne d'autre."
+      ]
+    },
+    "t6:b.turn1:b": {
+      "a1": [
+        "Romy, publie. Tout.",
+        "Romy, tu publies tout."
+      ],
+      "b2": [
+        "Romy, publie tout. Les gens ont le droit de savoir.",
+        "Vas-y, Romy. Publie l'histoire."
+      ],
+      "c1": [
+        "Romy, publie. Tout, sans rien retrancher.",
+        "Que tout sorte. Vas-y, Romy."
+      ]
+    },
+    "t6:b.turn1:c": {
+      "a1": [
+        "Je garde. C'est à Odile.",
+        "Non. C'est le livre d'Odile."
+      ],
+      "b2": [
+        "Je le garde. Ce carnet appartient à Odile.",
+        "Personne ne le lira. C'est à Odile."
+      ],
+      "c1": [
+        "Je le garde. Il n'appartient qu'à Odile.",
+        "Ce carnet reste avec moi. C'est le sien."
+      ]
+    },
+    "t6:b.turn1:d": {
+      "a1": [
+        "Marchand, moins triste. Margaux, pas punie…",
+        "Je fais quoi ?"
+      ],
+      "b2": [
+        "Je voudrais que Marchand soit moins triste… et que Margaux ne soit pas punie. Je fais quoi ?",
+        "Odile a écrit : «ne la punissez pas». Comment faire, alors ?"
+      ],
+      "c1": [
+        "J'aimerais consoler Marchand sans que Margaux trinque. Odile l'a écrit : «ne la punissez pas». Comment on fait ?",
+        "Je voudrais… que Marchand aille mieux, et qu'on épargne Margaux. Je fais quoi, moi ?"
+      ]
+    },
+    "t6:b.turn2:delete": {
+      "a1": [
+        "Supprime, s'il te plaît.",
+        "Non. Pas de carte."
+      ],
+      "b2": [
+        "Efface-la, s'il te plaît.",
+        "Supprime-la. Je préfère."
+      ],
+      "c1": [
+        "Efface-la. Je préfère.",
+        "Supprime-moi ça, tu veux ?"
+      ]
+    },
+    "t6:b.turn2:keep": {
+      "a1": [
+        "Tu gardes. C'est bon.",
+        "D'accord. Garde la carte."
+      ],
+      "b2": [
+        "Garde-la, mais n'en fais rien.",
+        "Tu peux la garder. Je te fais confiance."
+      ],
+      "c1": [
+        "Garde-la. Je te fais confiance.",
+        "Garde-la sous le coude. Mais sous clé."
+      ]
+    },
+    "t7:a.convaincre.lease:lands": {
+      "a1": [
+        "Odile veut ça. Margaux reste.",
+        "Tu n'es pas seule, Margaux."
+      ],
+      "b2": [
+        "Odile le voulait : «oui, si Margaux reste». Et lui aussi l'aimait.",
+        "Accepter de l'aide, ce n'est pas la demander. Tu n'es pas seule."
+      ],
+      "c1": [
+        "Tu as protégé Odile pendant trois ans. Laisse quelqu'un te protéger, pour une fois.",
+        "Accepter, ce n'est pas mendier. Et tu n'es pas seule : on est là."
+      ]
+    },
+    "t7:a.convaincre.coop:lands": {
+      "a1": [
+        "La banquette ? Non. C'est toi.",
+        "Ta mère est contente, Gus."
+      ],
+      "b2": [
+        "La banquette, ce n'est pas le tissu, Gus. C'est toi.",
+        "Si tu dis non, c'est Solvel qui gagne, et la banquette finit à la déchetterie."
+      ],
+      "c1": [
+        "Ta mère serait fière de toi, Gus. Et la table de pause, on la garde.",
+        "Si tu refuses, Solvel gagne, et ta banquette part à la benne."
+      ]
+    },
+    "t7:a.convaincre.last_service:lands": {
+      "a1": [
+        "Margaux choisit. Pas nous.",
+        "Le soir, viens chez moi !"
+      ],
+      "b2": [
+        "C'est à Margaux de choisir, pas à nous.",
+        "On ne perd pas les gens, Gus. On perd un bar, c'est tout."
+      ],
+      "c1": [
+        "La décision revient à Margaux. Demande-lui, pour une fois.",
+        "On ne perd pas les gens, juste un bar. Et le soir, tu viendras chez nous."
+      ]
+    },
+    "t7:a.turn1:confession": {
+      "a1": [
+        "Je veux… toi. Une semaine.",
+        "Toi. C'est toi. C'est bête."
+      ],
+      "b2": [
+        "Je ne veux pas une bonne année. C'est toi que je veux, même pour une semaine.",
+        "C'est bête, mais… c'est toi que je veux."
+      ],
+      "c1": [
+        "Une bonne année, je m'en fiche. C'est toi que je veux. Même pour une semaine.",
+        "C'est idiot, je sais… mais c'est toi."
+      ]
+    },
+    "t7:a.turn1:feeling": {
+      "a1": [
+        "Je suis bien avec toi.",
+        "Reste avec moi ce soir."
+      ],
+      "b2": [
+        "Je suis bien, là, avec toi.",
+        "J'aimerais que cette nuit ne finisse pas."
+      ],
+      "c1": [
+        "Je suis bien, là, avec toi. C'est tout.",
+        "Si seulement cette nuit pouvait durer."
+      ]
+    },
+    "t7:a.turn1:let_pass": {
+      "a1": [
+        "Bonne année, Lila !",
+        "Bonne année à toi aussi."
+      ],
+      "b2": [
+        "Bonne année à toi aussi, Lila !",
+        "Bonne année ! Belle fête, non ?"
+      ],
+      "c1": [
+        "Bonne année à toi aussi !",
+        "Bonne année ! Quelle soirée, hein ?"
+      ]
+    },
+    "t7:a.turn1:pact": {
+      "a1": [
+        "Toi et moi : une équipe.",
+        "Amis. Toujours. Promis."
+      ],
+      "b2": [
+        "Toi et moi, on forme une équipe. Quoi qu'il arrive.",
+        "On se fait une promesse ? Amis, quoi qu'il arrive."
+      ],
+      "c1": [
+        "Toi et moi, c'est à la vie, à la mort.",
+        "Faisons un pacte : on se serre les coudes, quoi qu'il arrive."
+      ]
+    },
+    "t7:a.turn2:fourth": {
+      "a1": [
+        "Quatre : tu dors bien.",
+        "Quatre : une carte par mois."
+      ],
+      "b2": [
+        "Quatre : tu m'envoies une photo de Berlin chaque semaine.",
+        "Quatre : tu ne m'oublies pas."
+      ],
+      "c1": [
+        "Quatre : tu m'écris, même deux lignes.",
+        "Quatre : tu ne te laisses pas engloutir par Berlin."
+      ]
+    },
+    "t7:a.turn2:fourth_clumsy": {
+      "a1": [
+        "Quatre : tu reviens. Pour toi.",
+        "Tu reviens. Pas pour moi."
+      ],
+      "b2": [
+        "Quatre : tu reviens. Pas pour moi… pour le Mistral. Pour toi.",
+        "Quatre… tu reviens. Pas pour moi, hein. Pour toi."
+      ],
+      "c1": [
+        "Quatre : tu reviens. Pas pour moi — pour le Mistral, pour toi.",
+        "Quatre… que tu reviennes. Pas pour moi. Pour toi, surtout."
+      ]
+    },
+    "t7:b.turn1:a": {
+      "a1": [
+        "Reste. On a besoin de toi.",
+        "Reste, s'il te plaît."
+      ],
+      "b2": [
+        "Reste. On a besoin de toi, ici.",
+        "Ne pars pas. Sans toi, le Mistral n'existe pas."
+      ],
+      "c1": [
+        "Reste. On ne s'en sortira pas sans toi.",
+        "Ne pars pas. Le Mistral, c'est toi."
+      ]
+    },
+    "t7:b.turn1:b": {
+      "a1": [
+        "Va voir la mer.",
+        "Pars. La mer, c'est bien."
+      ],
+      "b2": [
+        "Va voir la mer, Margaux. Tu l'as bien mérité.",
+        "Pars. Va voir la mer avant qu'il ne soit trop tard."
+      ],
+      "c1": [
+        "Va voir la mer. Tu l'as amplement mérité.",
+        "Pars, Margaux. La mer t'attend depuis vingt-cinq ans."
+      ]
+    },
+    "t7:b.turn1:c": {
+      "a1": [
+        "Le café. Toi, libre. Trop ?",
+        "Je veux tout. C'est trop ?"
+      ],
+      "b2": [
+        "Je voudrais tout à la fois : le Mistral, toi libre, Odile heureuse. C'est trop ?",
+        "Je veux le Mistral… et que tu sois libre. C'est trop demander ?"
+      ],
+      "c1": [
+        "Je voudrais le beurre et l'argent du beurre : le Mistral, ta liberté, Odile en paix. C'est trop ?",
+        "Le Mistral, toi libre, Odile contente… je demande trop, hein ?"
+      ]
+    },
+    "t7:b.turn1:d": {
+      "a1": [
+        "Et toi, tu veux quoi ?",
+        "Margaux, tu veux quoi ?"
+      ],
+      "b2": [
+        "Et toi, qu'est-ce que tu veux, vraiment ?",
+        "Et toi, dans tout ça, tu as envie de quoi ?"
+      ],
+      "c1": [
+        "Et toi, au fond, qu'est-ce que tu veux ?",
+        "Personne ne te l'a jamais demandé : toi, tu veux quoi ?"
+      ]
+    },
+    "t8:e1.a.turn1:a": {
+      "a1": [
+        "Oui. J'habite en haut.",
+        "Je reste. Ici, c'est chez moi."
+      ],
+      "b2": [
+        "Oui, je reste. J'habite au-dessus, maintenant.",
+        "Je reste. C'est chez moi, là-haut, désormais."
+      ],
+      "c1": [
+        "Oui. J'habite là-haut, maintenant.",
+        "Je reste. Je suis chez moi, à présent."
+      ]
+    },
+    "t8:e1.a.turn1:b": {
+      "a1": [
+        "Je ne sais pas.",
+        "Peut-être. Je ne sais pas."
+      ],
+      "b2": [
+        "Je ne sais pas encore.",
+        "Honnêtement, je n'en sais rien."
+      ],
+      "c1": [
+        "Je n'en sais rien, à vrai dire.",
+        "Je ne suis pas encore fixé."
+      ]
+    },
+    "t8:e1.a.turn1:c": {
+      "a1": [
+        "Je reste. Pour moi. Et vous.",
+        "Vous venez le dimanche ?"
+      ],
+      "b2": [
+        "Je reste… pour moi. Et un peu pour vous. Vous viendrez le dimanche ?",
+        "Pour elle ? Non, pour moi. Vous passerez le dimanche ?"
+      ],
+      "c1": [
+        "Je reste… pour moi, surtout. Et un peu pour vous. Vous viendrez, le dimanche ?",
+        "Pour elle ? Non. Pour moi. Et vous, le dimanche, vous passerez ?"
+      ]
+    },
+    "t8:e1.a.turn1:d": {
+      "a1": [
+        "Pardon. Vous partez. C'est nous.",
+        "Pardon, monsieur Marchand."
+      ],
+      "b2": [
+        "Pardon. Vous partez à cause de nous.",
+        "Je suis désolé : c'est à cause de nous que vous partez."
+      ],
+      "c1": [
+        "Pardon. C'est à cause de nous que vous partez.",
+        "Je m'en veux. Vous partez par notre faute."
+      ]
+    },
+    "t8:e2.a.turn1:a": {
+      "a1": [
+        "Ici. Avec nous.",
+        "Avec nous, Gus."
+      ],
+      "b2": [
+        "Ici, avec nous.",
+        "Ta place ? Avec nous, évidemment."
+      ],
+      "c1": [
+        "Ici, parmi nous.",
+        "Avec nous, voyons. Où d'autre ?"
+      ]
+    },
+    "t8:e2.a.turn1:b": {
+      "a1": [
+        "Au zinc, comme toujours.",
+        "Au bar, Gus."
+      ],
+      "b2": [
+        "Au zinc, comme d'habitude.",
+        "Ta place, c'est au zinc. Comme toujours."
+      ],
+      "c1": [
+        "Accoudé au zinc, comme toujours.",
+        "Au zinc, pardi. Comme d'habitude."
+      ]
+    },
+    "t8:e2.a.turn1:c": {
+      "a1": [
+        "Ta place… c'est toi.",
+        "Pas la banquette. Toi."
+      ],
+      "b2": [
+        "Ta place, ce n'est pas la banquette… c'est toi. Tu es la place.",
+        "La banquette, non… c'est toi, ta place. Tu vois ?"
+      ],
+      "c1": [
+        "Ta place, ce n'est pas la banquette. C'est toi. Enfin… tu me comprends.",
+        "La place, c'est toi, Gus. Pas le cuir."
+      ]
+    },
+    "t8:e2.a.turn1:d": {
+      "a1": [
+        "La banquette ? Ta mère ?",
+        "Au fond. Ta mère, là ?"
+      ],
+      "b2": [
+        "La banquette est au fond. Ta mère travaillait là, non ?",
+        "Là, au fond. C'est là que ta mère faisait sa pause ?"
+      ],
+      "c1": [
+        "Au fond, là, la banquette. C'était la table de ta mère, non ?",
+        "La banquette est au fond. Ta mère y faisait sa pause, je me trompe ?"
+      ]
+    },
+    "t8:e3.a.turn1:a": {
+      "a1": [
+        "Merci pour tout.",
+        "Merci, Margaux. Pour tout."
+      ],
+      "b2": [
+        "Merci pour tout, Margaux.",
+        "Merci. Pour tout ce que tu as fait."
+      ],
+      "c1": [
+        "Merci pour tout. Vraiment.",
+        "Merci, Margaux. Pour tout, et le reste."
+      ]
+    },
+    "t8:e3.a.turn1:b": {
+      "a1": [
+        "Tu vas voir la mer.",
+        "La mer, Margaux !"
+      ],
+      "b2": [
+        "Tu vas enfin voir la mer.",
+        "Maintenant, tu vas pouvoir voir la mer."
+      ],
+      "c1": [
+        "Tu vas enfin voir la mer.",
+        "La mer t'attend, Margaux."
+      ]
+    },
+    "t8:e3.a.turn1:c": {
+      "a1": [
+        "Le Mistral, c'est ma maison.",
+        "Ici, ma maison en français."
+      ],
+      "b2": [
+        "Ici, j'ai appris… Le Mistral, c'est ma première maison en français.",
+        "Le Mistral, c'est la première maison que j'ai eue en français."
+      ],
+      "c1": [
+        "Le Mistral, c'est ma première maison en français. Voilà.",
+        "Ici, j'ai… Le Mistral, c'est là que j'ai habité ma langue."
+      ]
+    },
+    "t8:e3.a.turn1:d": {
+      "a1": [
+        "Pardon. Le café ferme.",
+        "Pardon, Margaux. Pas de café."
+      ],
+      "b2": [
+        "Pardon. On n'a pas réussi à le garder.",
+        "Je suis désolé qu'on n'ait pas pu garder le café."
+      ],
+      "c1": [
+        "Pardon. On n'a pas su le garder.",
+        "Je m'en veux qu'on n'ait pas pu sauver le café."
+      ]
+    },
+    "t8:platform.turn:any": {
+      "a1": [
+        "Tu vas me manquer.",
+        "Bon voyage, Lila !"
+      ],
+      "b2": [
+        "Tu vas me manquer, tu sais.",
+        "Écris-moi dès que tu arrives."
+      ],
+      "c1": [
+        "Tu vas me manquer, tu n'as pas idée.",
+        "File, avant que je te retienne."
+      ]
+    },
+    "t8:platform.turn:clumsy": {
+      "a1": [
+        "Merci… pour la clé. Pour moi.",
+        "Merci. Pour tout. Pour moi."
+      ],
+      "b2": [
+        "Merci… pour… je ne sais pas. Pour la clé. Pour moi.",
+        "Merci pour tout. Pour la clé… et pour moi."
+      ],
+      "c1": [
+        "Merci… pour la clé. Et pour moi, je crois.",
+        "Merci… je ne sais pas comment le dire. Pour la clé. Pour moi."
+      ]
+    },
+    "t8:camille.turn:any": {
+      "a1": [
+        "Non, pas d'accord !",
+        "Oui. Mais c'est bien."
+      ],
+      "b2": [
+        "C'est vrai. Mais c'est ce qui rend les choses intéressantes.",
+        "Sur rien, ou presque. À la prochaine !"
+      ],
+      "c1": [
+        "C'est ce qui fait le sel de nos échanges.",
+        "Je ne suis pas d'accord. Vous voyez ?"
+      ]
+    }
+  }
+}

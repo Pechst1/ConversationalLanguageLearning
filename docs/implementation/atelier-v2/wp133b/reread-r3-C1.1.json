@@ -1,0 +1,44 @@
+{
+ "band": "C1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.245069,
+  "calls": 68,
+  "cap": 0.4
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "La note de Marin",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Un compromis sur la table",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La promesse du premier jour",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "daily_journey: season day lost (objective_too_thin); journey 23e6cd23-fb90-47cf-951e-0c30ee00cdc3 re-reads t1.b",
+  "daily_journey: season day lost (invalid_story_output, 2 in a row in g1); journey 7008ee5d-355c-4cee-90c7-4e19fca15341 serves the bridge g1.1",
+  "daily_journey: season day lost (wrong_beat); journey d44721ff-96ef-4108-8a02-cc89595eccdf re-reads t2.b",
+  "living_story: the retry the story critic bought failed (objective_too_thin); serving the refused draft",
+  "living_story: story critic refused g2.2 twice; accepted and logged (Faites finir la page sur un changement visible : montrez la parole du joueur acceptée ou refusée (par ex. vous donnez une condition, ou Marin range la page et se lève pour partir).)",
+  "living_story: the retry the story critic bought failed (story_critic_refused); serving the refused draft",
+  "living_story: story critic refused g2.3 twice; accepted and logged (meaningful_change: Show a visible difference by the end of the page (the learner's answer, a signed note, or a concrete alternative accepted) so the day doesn't end unchanged.; value_turn: Make the turn explicit on the page — have the learner's stance shift something (Marin relaxes or reacts to a ye)"
+ ]
+}

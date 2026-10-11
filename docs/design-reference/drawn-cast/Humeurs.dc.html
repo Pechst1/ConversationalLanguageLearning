@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Humeurs</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&amp;family=Instrument+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 680px; height: 900px; box-sizing: border-box; padding: 28px 40px; display: flex; flex-direction: column; gap: 8px; background: #f1ece1; color: #14110d; font-family: 'Instrument Sans', system-ui, sans-serif">
+<h2 style="margin: 0 0 4px; font-family: 'EB Garamond', Georgia, serif; font-style: italic; font-weight: 400; font-size: 30px; line-height: 1.1">Cinq humeurs chacun</h2>
+<div style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: #6f6857">
+<div style="width: 110px"></div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; text-align: center">{{m.label}}</div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">Margaux</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="MargauxRond" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">Lila</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="Lila" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">Gus</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="Gus" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">Marin</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="MarinRond" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">Romy</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="Romy" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">M. Marchand</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="Marchand" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">Camille (f)</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="Camille" variant="f" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">Camille (m)</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="Camille" variant="m" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 110px; font-size: 13px">Odile</div>
+<sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+<div style="width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: #f8f3e8"><dc-import name="Odile" mood="{{m.key}}" crop="head" w="84" hint-size="84px,84px"></dc-import></div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":680,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      moods: [
+        { key: "neutre", label: "neutre" },
+        { key: "ravie", label: "ravi·e" },
+        { key: "surprise", label: "surpris·e" },
+        { key: "fachee", label: "fâché·e" },
+        { key: "emue", label: "ému·e" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -6,6 +6,7 @@ const {
   buildDayProgress,
   dayProgressStorageKey,
   dayQueryString,
+  journeyBecause,
   legacyResumeEntry,
   resolveJourneyNext,
   resolveLegacyRecommendedNext,
@@ -609,5 +610,44 @@ const unavailableWithSession = resolveRecommendedNext(today, null, startableProg
 }));
 assert.equal(unavailableWithSession.kind, 'journey_unavailable');
 assert.equal(unavailableWithSession.fallback.kind, 'start_session');
+
+// ---------------------------------------------------------------------------
+// WP-24 / WP-28 — the because-line
+// ---------------------------------------------------------------------------
+
+const erratum = {
+  kind: 'erratum',
+  reason: 'erratum:2f9c',
+  label: 'l’accord du participe passé',
+  example: 'une homme → un homme',
+};
+
+// Nothing on the envelope, nothing to print.
+assert.equal(journeyBecause(null), null);
+assert.equal(journeyBecause(undefined), null);
+assert.equal(journeyBecause(envelope()), null);
+// The capability off means Home is byte-for-byte what it was before WP-24.
+assert.equal(journeyBecause(envelope({ enabled: false, because: erratum })), null);
+
+assert.deepEqual(journeyBecause(envelope({ because: erratum })), {
+  kind: 'erratum',
+  reason: 'erratum:2f9c',
+  label: 'l’accord du participe passé',
+  example: 'une homme → un homme',
+});
+
+// Only half the example was recorded: the line still prints, without it.
+assert.equal(
+  journeyBecause(envelope({ because: { ...erratum, example: null } })).example,
+  null,
+);
+assert.equal(
+  journeyBecause(envelope({ because: { ...erratum, example: '   ' } })).example,
+  null,
+);
+// A kind this build has no French for prints nothing rather than guessing, and
+// a reason with no label is not a sentence anyone can read.
+assert.equal(journeyBecause(envelope({ because: { ...erratum, kind: 'chapter' } })), null);
+assert.equal(journeyBecause(envelope({ because: { ...erratum, label: '' } })), null);
 
 console.log('atelier-next resolver tests passed');

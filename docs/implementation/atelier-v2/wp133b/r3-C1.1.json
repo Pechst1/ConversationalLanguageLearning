@@ -1,0 +1,44 @@
+{
+ "band": "C1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.22008599999999998,
+  "calls": 65,
+  "cap": 0.6
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "Le cadeau",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "La fuite de Gus",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  },
+  {
+   "unit": null,
+   "title": "Le Polaroid — la gorge serrée",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "daily_journey: season day lost (mixed_address_register); journey 4e1e526d-4fe2-48d0-a998-8d31f5d326cc re-reads t1.b",
+  "daily_journey: season day lost (unknown_panel_character, 2 in a row in g1); journey 907e10ec-c925-4113-b0a3-3cacbaa86ec5 serves the bridge g1.1",
+  "living_story: the retry the story critic bought failed (chapter_not_advanced); serving the refused draft",
+  "living_story: story critic refused g2.1 twice; accepted and logged (Ajoute une conséquence visible en fin de page : la journée doit finir avec quelque chose de différent de son début (par ex. la photo remise à Gus, cachée dans la poche de quelqu’un, ou déplacée sur le mur).)",
+  "living_story: the retry the story critic bought failed (unknown_panel_character); serving the refused draft",
+  "living_story: story critic refused g2.2 twice; accepted and logged (Show the open obstacle: the proposal must make clear someone notices the photo left on the table or the street (and someone tries to secure it) so tomorrow's complication (someone else can seize the photo) is visibly still in play and addressed today.; Make the learner's turn clearer in the panels: )",
+  "daily_journey: season day lost (unknown_panel_character); journey 188c2f44-65aa-4863-bbab-fecea7af2adb re-reads t2.b"
+ ]
+}

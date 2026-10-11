@@ -1,0 +1,2882 @@
+{
+  "id": "s1-epilogue",
+  "title_fr": "La semaine d'après",
+  "intent": "Content program D8: the authored epilogue week after T8. Three two-day pages, played in order after T8 B (Sat 9 – Fri 15 January). Each finale branch keeps its own consequences: the painting is with you (garder), hidden by Gus (partager) or sold to an old gentleman (laisser_partir); Lila writes from Berlin; Camille still says vous; Marchand's Sundays continue when they were offered. Every branch converges on the same open door, the rue de Lancry, and the season's open question («Who is L.?») is left for the next authored season.",
+  "segments": [
+    {
+      "id": "e1",
+      "kind": "tentpole",
+      "days": 2,
+      "story_dates": "sam. 9 – dim. 10 janv."
+    },
+    {
+      "id": "e2",
+      "kind": "tentpole",
+      "days": 2,
+      "story_dates": "mar. 12 – mer. 13 janv."
+    },
+    {
+      "id": "e3",
+      "kind": "tentpole",
+      "days": 2,
+      "story_dates": "jeu. 14 – ven. 15 janv."
+    }
+  ],
+  "flags": [
+    {
+      "id": "user.stays",
+      "values": [
+        "stays",
+        "leaves_and_returns",
+        "undecided"
+      ],
+      "default": null,
+      "set_where": "Epilogue E3 B (the return ticket)",
+      "read_where": "Continuation",
+      "effect": "Whether the learner stays in Paris after the season."
+    }
+  ],
+  "pages": [
+    {
+      "id": "e1",
+      "number": 9,
+      "title_fr": "Le premier matin",
+      "intent": "The first days after the train: each ending's new morning, the painting's place, and Lila's first message from Berlin.",
+      "flags_read": [
+        "s1.ending",
+        "s1.painting",
+        "marchand.sundays",
+        "s1.lila_path"
+      ],
+      "days": [
+        {
+          "day": "a",
+          "variant": "garder",
+          "when": {
+            "s1.ending": "garder"
+          },
+          "story_date_fr": "samedi 9 janvier",
+          "title_fr": "Le premier matin",
+          "location_id": "odile_flat",
+          "minutes": 6,
+          "can_do": {
+            "en": "Say what you will do next, in a few simple words.",
+            "de": "In einfachen Worten sagen, was du als Nächstes tust.",
+            "fr": "Dire ce qu'on va faire ensuite, en quelques mots simples."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "tableau",
+              "lemma": "tableau",
+              "gloss": {
+                "en": "painting",
+                "de": "Gemälde"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            },
+            {
+              "surface_fr": "fenêtre",
+              "lemma": "fenêtre",
+              "gloss": {
+                "en": "window",
+                "de": "Fenster"
+              },
+              "part_of_speech": "noun",
+              "gender": "f"
+            },
+            {
+              "surface_fr": "en haut",
+              "lemma": "en haut",
+              "gloss": {
+                "en": "upstairs",
+                "de": "oben"
+              },
+              "part_of_speech": "phrase"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep1.a.g.p1",
+              "visual": "Morning in Odile's flat, now Toi's. The kitchen window stands open a finger's width: it does not close. The painting «Le Mistral sur le canal» leans against the wall with its back to the room, both inscriptions legible.",
+              "location_id": "odile_flat",
+              "in_frame": [
+                "toi"
+              ],
+              "silence": true,
+              "diegetic": [
+                "Pour Odile, qui part. — L., 1970",
+                "Toujours rue de Lancry. — L., 2021"
+              ]
+            },
+            {
+              "kind": "panel",
+              "id": "ep1.a.g.p2",
+              "visual": "Downstairs, Le Mistral, exactly as it always was. Gus polishes the new brass plaque by the door with his sleeve. Margaux behind the zinc.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "augustin_de_roncourt",
+                "margaux_barman"
+              ],
+              "diegetic": [
+                "LE MISTRAL · DEPUIS 1951"
+              ],
+              "lines": [
+                {
+                  "who": "augustin_de_roncourt",
+                  "say": {
+                    "a2": "Règle numéro un : on ne touche pas à la plaque.",
+                    "native": {
+                      "en": "Rule number one: nobody touches the plaque.",
+                      "de": "Regel Nummer eins: Niemand fasst das Schild an."
+                    }
+                  },
+                  "mood": "happy"
+                },
+                {
+                  "who": "margaux_barman",
+                  "say": {
+                    "a2": "La même chose ?",
+                    "native": {
+                      "en": "The usual?",
+                      "de": "Das Übliche?"
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ]
+            },
+            {
+              "kind": "turn",
+              "id": "ep1.a.g.turn",
+              "to": "margaux_barman",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.a.g.p3",
+                "visual": "Margaux sets a café crème on the zinc in front of Toi, then dries a glass that is already dry.",
+                "location_id": "le_mistral",
+                "in_frame": [
+                  "margaux_barman",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "margaux_barman",
+                    "say": {
+                      "a2": "Alors. Le tableau. Tu en fais quoi ?",
+                      "native": {
+                        "en": "So. The painting. What are you doing with it?",
+                        "de": "Also. Das Bild. Was machst du damit?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Tell Margaux what you will do with the painting: hang it upstairs, or go to the rue de Lancry.",
+                "de": "Sag Margaux, was du mit dem Bild machst: es oben aufhängen oder in die Rue de Lancry gehen.",
+                "fr": "Dis à Margaux ce que tu vas faire du tableau : l'accrocher en haut, ou aller rue de Lancry."
+              },
+              "listens_for": "What the learner will do with the painting: hang it upstairs, look for the rue de Lancry, or a halting reply about looking for the person who signed it.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "Hang it upstairs",
+                  "means": "The learner will keep the painting upstairs, in the flat.",
+                  "examples": [
+                    "Je le garde en haut, chez moi."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.g.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "margaux_barman",
+                          "say": {
+                            "a2": "En haut, la lumière est juste.",
+                            "native": {
+                              "en": "Upstairs, the light is right.",
+                              "de": "Oben stimmt das Licht."
+                            }
+                          },
+                          "mood": "neutral",
+                          "direction": "the barely-visible smile"
+                        }
+                      ],
+                      "note": "Lila's running line, «la lumière est fausse», answered: it was painted from upstairs."
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "Go to the rue de Lancry",
+                  "means": "The learner will go to the rue de Lancry, the address on the back of the painting.",
+                  "examples": [
+                    "Je vais aller rue de Lancry."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.g.turn.b.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "margaux_barman",
+                          "say": {
+                            "a2": "Pas aujourd'hui. Aujourd'hui, tu bois ton café.",
+                            "native": {
+                              "en": "Not today. Today you drink your coffee.",
+                              "de": "Nicht heute. Heute trinkst du deinen Kaffee."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting reply: the learner wants to find the person who signed «L.».",
+                  "examples": [
+                    "Je cherche… le L. ? La personne. Je sais pas."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.g.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "margaux_barman",
+                          "say": {
+                            "a2": "Quelqu'un de très vieux, maintenant. Va doucement.",
+                            "native": {
+                              "en": "Someone very old, by now. Go gently.",
+                              "de": "Jemand sehr Altes, inzwischen. Geh behutsam vor."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "b"
+            },
+            {
+              "kind": "hook",
+              "id": "ep1.a.g.hook",
+              "role": "midpoint",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.a.g.hook.p",
+                "visual": "Evening. Toi's phone lights up on the table: a message from Lila, with a photo of a grey canal under rain, in Berlin.",
+                "in_frame": [
+                  "toi"
+                ],
+                "diegetic": [
+                  "Lila"
+                ],
+                "lines": [
+                  {
+                    "who": "sms",
+                    "say": {
+                      "a2": "Berlin : il pleut. Comme à Paris. Et toi, ça va ?",
+                      "native": {
+                        "en": "Berlin: it's raining. Like in Paris. And you, how are you?",
+                        "de": "Berlin: Es regnet. Wie in Paris. Und dir, geht's gut?"
+                      }
+                    },
+                    "mood": "neutral"
+                  },
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Le premier matin sans Lila. À suivre…",
+                      "native": {
+                        "en": "The first morning without Lila. To be continued…",
+                        "de": "Der erste Morgen ohne Lila. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "day": "a",
+          "variant": "partager",
+          "when": {
+            "s1.ending": "partager"
+          },
+          "story_date_fr": "samedi 9 janvier",
+          "title_fr": "Le premier matin",
+          "location_id": "le_mistral",
+          "minutes": 6,
+          "can_do": {
+            "en": "Ask someone a direct question, kindly.",
+            "de": "Jemandem freundlich eine direkte Frage stellen.",
+            "fr": "Poser une question directe, gentiment."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "tableau",
+              "lemma": "tableau",
+              "gloss": {
+                "en": "painting",
+                "de": "Gemälde"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            },
+            {
+              "surface_fr": "mère",
+              "lemma": "mère",
+              "gloss": {
+                "en": "mother",
+                "de": "Mutter"
+              },
+              "part_of_speech": "noun",
+              "gender": "f"
+            },
+            {
+              "surface_fr": "cacher",
+              "lemma": "cacher",
+              "gloss": {
+                "en": "to hide",
+                "de": "verstecken"
+              },
+              "part_of_speech": "verb"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep1.a.p.p1",
+              "visual": "Saturday morning at the co-op Mistral. Long tables, neighbours with bowls. From the ceiling, the noise of a children's painting class in the workshop upstairs, Odile's old flat. Marin, in an apron, looks up.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "marin_leveque"
+              ],
+              "lines": [
+                {
+                  "who": "marin_leveque",
+                  "say": {
+                    "a2": "Atelier peinture. Ils ont six ans. Ils peignent les murs.",
+                    "native": {
+                      "en": "Painting class. They're six. They're painting the walls.",
+                      "de": "Malkurs. Sie sind sechs. Sie bemalen die Wände."
+                    }
+                  },
+                  "mood": "happy"
+                }
+              ]
+            },
+            {
+              "kind": "panel",
+              "id": "ep1.a.p.p2",
+              "visual": "The nail above the zinc, empty. A paler rectangle on the wall where the painting hung for fifty years.",
+              "location_id": "le_mistral",
+              "silence": true
+            },
+            {
+              "kind": "turn",
+              "id": "ep1.a.p.turn",
+              "to": "augustin_de_roncourt",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.a.p.p3",
+                "visual": "Gus at a long table between two strangers, in his best suit, reading the same page of the newspaper for the third time. He feels Toi's look.",
+                "location_id": "le_mistral",
+                "in_frame": [
+                  "augustin_de_roncourt",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "augustin_de_roncourt",
+                    "say": {
+                      "a2": "Tu me regardes comme un policier. Qu'est-ce qu'il y a ?",
+                      "native": {
+                        "en": "You're looking at me like a policeman. What is it?",
+                        "de": "Du schaust mich an wie ein Polizist. Was ist los?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Ask Gus about the painting that disappeared from above the zinc.",
+                "de": "Frag Gus nach dem Bild, das über der Theke verschwunden ist.",
+                "fr": "Demande à Gus où est le tableau qui a disparu au-dessus du zinc."
+              },
+              "listens_for": "The learner asks Gus about the painting: directly, through his mother who worked here, or in a halting way that says it belongs to nobody.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "Where is the painting?",
+                  "means": "The learner asks Gus directly where the painting is.",
+                  "examples": [
+                    "Gus, où est le tableau ?"
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.p.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "augustin_de_roncourt",
+                          "say": {
+                            "a2": "Quel tableau ? Ah, ce tableau. Aucune idée.",
+                            "native": {
+                              "en": "What painting? Oh, that painting. No idea.",
+                              "de": "Welches Bild? Ach, das Bild. Keine Ahnung."
+                            }
+                          },
+                          "mood": "neutral",
+                          "direction": "straightening the salt cellars"
+                        }
+                      ],
+                      "note": "He straightens the salt cellars when upset (bible §4). He is lying by reflex."
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "Your mother worked here",
+                  "means": "The learner asks gently, through Gus's mother, who waited tables here and may know something.",
+                  "examples": [
+                    "Ta mère travaillait ici. Elle connaît le tableau ?"
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.p.turn.b.r1",
+                      "visual": "Gus's «vulnerable» expression.",
+                      "in_frame": [
+                        "augustin_de_roncourt"
+                      ],
+                      "lines": [
+                        {
+                          "who": "augustin_de_roncourt",
+                          "say": {
+                            "a2": "Ma mère connaît tout le monde. C'est son problème.",
+                            "native": {
+                              "en": "My mother knows everybody. That's her problem.",
+                              "de": "Meine Mutter kennt alle. Das ist ihr Problem."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting reply: the painting belongs neither to Gus nor to the learner.",
+                  "examples": [
+                    "Gus… le tableau… il est pas à toi. Et pas à moi."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.p.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "augustin_de_roncourt",
+                          "say": {
+                            "a2": "C'est très mal dit. Et c'est vrai.",
+                            "native": {
+                              "en": "That's very badly put. And it's true.",
+                              "de": "Das ist sehr schlecht gesagt. Und es stimmt."
+                            }
+                          },
+                          "mood": "neutral",
+                          "direction": "beat"
+                        }
+                      ]
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "a"
+            },
+            {
+              "kind": "hook",
+              "id": "ep1.a.p.hook",
+              "role": "midpoint",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.a.p.hook.p",
+                "visual": "Evening. Toi's phone lights up on the table: a message from Lila, with a photo of a grey canal under rain, in Berlin.",
+                "in_frame": [
+                  "toi"
+                ],
+                "diegetic": [
+                  "Lila"
+                ],
+                "lines": [
+                  {
+                    "who": "sms",
+                    "say": {
+                      "a2": "Berlin : il pleut. Comme à Paris. Et toi, ça va ?",
+                      "native": {
+                        "en": "Berlin: it's raining. Like in Paris. And you, how are you?",
+                        "de": "Berlin: Es regnet. Wie in Paris. Und dir, geht's gut?"
+                      }
+                    },
+                    "mood": "neutral"
+                  },
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Le premier matin sans Lila. À suivre…",
+                      "native": {
+                        "en": "The first morning without Lila. To be continued…",
+                        "de": "Der erste Morgen ohne Lila. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "day": "a",
+          "variant": "laisser_partir",
+          "when": {
+            "s1.ending": "laisser_partir"
+          },
+          "story_date_fr": "samedi 9 janvier",
+          "title_fr": "Le premier matin",
+          "location_id": "quai_de_valmy",
+          "minutes": 6,
+          "can_do": {
+            "en": "Say what you will do now, or that you don't know yet.",
+            "de": "Sagen, was du jetzt tust, oder dass du es noch nicht weißt.",
+            "fr": "Dire ce qu'on va faire maintenant, ou qu'on ne sait pas encore."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "soupe",
+              "lemma": "soupe",
+              "gloss": {
+                "en": "soup",
+                "de": "Suppe"
+              },
+              "part_of_speech": "noun",
+              "gender": "f"
+            },
+            {
+              "surface_fr": "fermé",
+              "lemma": "fermer",
+              "gloss": {
+                "en": "closed",
+                "de": "geschlossen"
+              },
+              "part_of_speech": "verb"
+            },
+            {
+              "surface_fr": "chercher",
+              "lemma": "chercher",
+              "gloss": {
+                "en": "to look for",
+                "de": "suchen"
+              },
+              "part_of_speech": "verb"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep1.a.l.p1",
+              "visual": "Saturday morning on the quai de Valmy. Le Mistral's shutter is down. The neon letters lie stacked on the pavement, M-I-S-T-R-A-L, waiting for a Solvel van.",
+              "location_id": "quai_de_valmy",
+              "silence": true
+            },
+            {
+              "kind": "panel",
+              "id": "ep1.a.l.p2",
+              "visual": "Toi's short-let studio, the cold radiator. Marin at the door with a pot of soup held in both hands, as he held the ladder.",
+              "location_id": "user_apartment",
+              "in_frame": [
+                "marin_leveque",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "marin_leveque",
+                  "say": {
+                    "a2": "Bon. Qui veut une soupe ?",
+                    "native": {
+                      "en": "Right. Who wants soup?",
+                      "de": "Gut. Wer will eine Suppe?"
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ]
+            },
+            {
+              "kind": "turn",
+              "id": "ep1.a.l.turn",
+              "to": "marin_leveque",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.a.l.p3",
+                "visual": "Two bowls on the small table. Marin does not touch his.",
+                "location_id": "user_apartment",
+                "in_frame": [
+                  "marin_leveque",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "marin_leveque",
+                    "say": {
+                      "a2": "Le café est fermé. Lila est partie. Et toi, tu fais quoi ?",
+                      "native": {
+                        "en": "The café is closed. Lila has gone. And you, what are you doing?",
+                        "de": "Das Café ist zu. Lila ist weg. Und du, was machst du?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Tell Marin what you will do now that the café is closed and the painting is gone.",
+                "de": "Sag Marin, was du jetzt tust, wo das Café zu und das Bild weg ist.",
+                "fr": "Dis à Marin ce que tu vas faire, maintenant que le café est fermé et que le tableau est parti."
+              },
+              "listens_for": "What the learner will do now: look for the painting, not know yet, or a halting reply about where Le Mistral is now.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "Look for the painting",
+                  "means": "The learner will look for the painting that left with the dealer's van.",
+                  "examples": [
+                    "Je vais chercher le tableau."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.l.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "marin_leveque",
+                          "say": {
+                            "a2": "C'est un signe. Je viens avec toi.",
+                            "native": {
+                              "en": "That's a sign. I'm coming with you.",
+                              "de": "Das ist ein Zeichen. Ich komme mit."
+                            }
+                          },
+                          "mood": "happy"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "I don't know",
+                  "means": "The learner does not know yet.",
+                  "examples": [
+                    "Je ne sais pas."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.l.turn.b.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "marin_leveque",
+                          "say": {
+                            "a2": "Moi non plus. Alors on mange.",
+                            "native": {
+                              "en": "Me neither. So we eat.",
+                              "de": "Ich auch nicht. Also essen wir."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting reply: Le Mistral is not finished, it is somewhere else now.",
+                  "examples": [
+                    "Le Mistral… il est fini ? Non. Il est… ailleurs."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.a.l.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "marin_leveque",
+                          "say": {
+                            "a2": "Arrête. Je pleure dans ma soupe.",
+                            "native": {
+                              "en": "Stop it. I'm crying into my soup.",
+                              "de": "Hör auf. Ich weine in meine Suppe."
+                            }
+                          },
+                          "mood": "moved"
+                        }
+                      ],
+                      "note": "Marin cries at adverts, and at the neon (bible §4, ending 3)."
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "b"
+            },
+            {
+              "kind": "hook",
+              "id": "ep1.a.l.hook",
+              "role": "midpoint",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.a.l.hook.p",
+                "visual": "Evening. Toi's phone lights up on the table: a message from Lila, with a photo of a grey canal under rain, in Berlin.",
+                "in_frame": [
+                  "toi"
+                ],
+                "diegetic": [
+                  "Lila"
+                ],
+                "lines": [
+                  {
+                    "who": "sms",
+                    "say": {
+                      "a2": "Berlin : il pleut. Comme à Paris. Et toi, ça va ?",
+                      "native": {
+                        "en": "Berlin: it's raining. Like in Paris. And you, how are you?",
+                        "de": "Berlin: Es regnet. Wie in Paris. Und dir, geht's gut?"
+                      }
+                    },
+                    "mood": "neutral"
+                  },
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Le premier matin sans Lila. À suivre…",
+                      "native": {
+                        "en": "The first morning without Lila. To be continued…",
+                        "de": "Der erste Morgen ohne Lila. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "day": "b",
+          "story_date_fr": "dimanche 10 janvier",
+          "title_fr": "Le dimanche",
+          "location_id": "quai_de_valmy",
+          "minutes": 6,
+          "previously": [],
+          "can_do": {
+            "en": "Write a short message to a friend who has moved away.",
+            "de": "Einer Freundin, die weggezogen ist, eine kurze Nachricht schreiben.",
+            "fr": "Écrire un court message à une amie partie loin."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "croissants",
+              "lemma": "croissant",
+              "gloss": {
+                "en": "croissant",
+                "de": "Croissant"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            },
+            {
+              "surface_fr": "raconte",
+              "lemma": "raconter",
+              "gloss": {
+                "en": "to tell",
+                "de": "erzählen"
+              },
+              "part_of_speech": "verb"
+            },
+            {
+              "surface_fr": "manques",
+              "lemma": "manquer",
+              "gloss": {
+                "en": "to miss (someone)",
+                "de": "fehlen"
+              },
+              "part_of_speech": "verb"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep1.b.p1",
+              "visual": "Sunday, eleven o'clock. M. Marchand at the top of Odile's stairs, out of breath, a paper bag with two croissants. Behind him, through the stairwell window, a 46 bus pulls away.",
+              "location_id": "stairwell",
+              "in_frame": [
+                "landlord_marchand",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "landlord_marchand",
+                  "say": {
+                    "a2": "Le bus 46. Deux croissants. L'escalier, toujours le même.",
+                    "native": {
+                      "en": "The 46 bus. Two croissants. The stairs, still the same.",
+                      "de": "Der Bus 46. Zwei Croissants. Die Treppe, immer noch dieselbe."
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ],
+              "when": {
+                "s1.ending": "garder",
+                "marchand.sundays": true
+              },
+              "note": "The Sunday lunches pass from Odile to her grandchild (T8, ending 1, reply c)."
+            },
+            {
+              "kind": "panel",
+              "id": "ep1.b.p2",
+              "visual": "Sunday morning at the window of Odile's flat, the canal below. On the sill, a croissant bag from Mme Diallo's, for one.",
+              "location_id": "odile_flat",
+              "in_frame": [
+                "toi"
+              ],
+              "silence": true,
+              "when": {
+                "s1.ending": "garder",
+                "marchand.sundays": {
+                  "not": true
+                }
+              }
+            },
+            {
+              "kind": "panel",
+              "id": "ep1.b.p3",
+              "visual": "The co-op Mistral on Sunday: Romy spreads a newspaper over a long table, her article on page three. Neighbours read over her shoulder.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "romy_tremblay",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "romy_tremblay",
+                  "say": {
+                    "a2": "Page trois. Et ils veulent une suite. Je capote.",
+                    "native": {
+                      "en": "Page three. And they want a follow-up. I'm freaking out.",
+                      "de": "Seite drei. Und sie wollen eine Fortsetzung. Ich dreh durch."
+                    }
+                  },
+                  "mood": "happy"
+                }
+              ],
+              "when": {
+                "s1.ending": "partager"
+              },
+              "note": "Romy's article earns her the Paris contract (T8, ending 2)."
+            },
+            {
+              "kind": "panel",
+              "id": "ep1.b.p4",
+              "visual": "Toi's studio, Sunday. A postcard on the doormat: the sea in Brittany, very blue. Three words in Margaux's hand.",
+              "location_id": "user_apartment",
+              "in_frame": [
+                "toi"
+              ],
+              "diegetic": [
+                "Elle est grande."
+              ],
+              "lines": [
+                {
+                  "who": "card",
+                  "say": {
+                    "a2": "Elle est grande. — M.",
+                    "native": {
+                      "en": "It's big. — M.",
+                      "de": "Es ist groß. — M."
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ],
+              "when": {
+                "s1.ending": "laisser_partir"
+              },
+              "note": "Bible 08, ending 3: Margaux sends a postcard of the sea with three words."
+            },
+            {
+              "kind": "turn",
+              "id": "ep1.b.turn",
+              "to": "lila_bonnet",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.b.p5",
+                "visual": "Toi's phone, the message thread with Lila. Her new message, and the three dots of someone waiting for an answer.",
+                "in_frame": [
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "sms",
+                    "say": {
+                      "a2": "Alors ? Le tableau ? Raconte. Tout.",
+                      "native": {
+                        "en": "So? The painting? Tell me. Everything.",
+                        "de": "Und? Das Bild? Erzähl. Alles."
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Write back to Lila: tell her about the painting, or tell her something true.",
+                "de": "Schreib Lila zurück: Erzähl ihr von dem Bild, oder sag ihr etwas Wahres.",
+                "fr": "Réponds à Lila : raconte-lui le tableau, ou dis-lui une chose vraie."
+              },
+              "listens_for": "The learner's message to Lila: news of the painting and the first days, that they miss her, or a halting, sincere message.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "News of the painting",
+                  "means": "The learner gives Lila news: the painting, the café, the first days.",
+                  "examples": [
+                    "Le tableau ? C'est une longue histoire. Le café va bien."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.b.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "sms",
+                          "say": {
+                            "a2": "Je savais. La lumière est fausse. Je le dis depuis le début.",
+                            "native": {
+                              "en": "I knew it. The light is wrong. I've said so from the start.",
+                              "de": "Ich wusste es. Das Licht stimmt nicht. Sag ich doch von Anfang an."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "You miss me",
+                  "means": "The learner says they miss Lila.",
+                  "examples": [
+                    "Tu me manques."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.b.turn.b.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "sms",
+                          "say": {
+                            "a2": "Toi aussi. Ne le dis pas à Marin.",
+                            "native": {
+                              "en": "You too. Don't tell Marin.",
+                              "de": "Du mir auch. Sag's nicht Marin."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ],
+                      "when": {
+                        "path": "romance"
+                      }
+                    },
+                    {
+                      "kind": "panel",
+                      "id": "ep1.b.turn.b.r2",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "sms",
+                          "say": {
+                            "a2": "Déjà ? C'est le premier dimanche. Sept sur vingt.",
+                            "native": {
+                              "en": "Already? It's the first Sunday. Seven out of twenty.",
+                              "de": "Schon? Es ist der erste Sonntag. Sieben von zwanzig."
+                            }
+                          },
+                          "mood": "happy"
+                        }
+                      ],
+                      "when": {
+                        "path": {
+                          "not": "romance"
+                        }
+                      },
+                      "note": "Lila grades everyone's life decisions like homework (bible §4)."
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting, sincere message: the learner writes as best they can that it is strange without her.",
+                  "examples": [
+                    "Ici c'est… bizarre. Pas toi. Le canal est… pareil. Moi non."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep1.b.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "sms",
+                          "say": {
+                            "a2": "C'est le plus beau texto de ma vie. Il y a quatre fautes.",
+                            "native": {
+                              "en": "It's the most beautiful text of my life. There are four mistakes.",
+                              "de": "Das ist die schönste SMS meines Lebens. Es sind vier Fehler drin."
+                            }
+                          },
+                          "mood": "moved"
+                        }
+                      ]
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "a"
+            },
+            {
+              "kind": "hook",
+              "id": "ep1.b.hook.g",
+              "role": "a_suivre",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.b.hook.g.p",
+                "visual": "Night. The painting on the wall upstairs, the right way round at last, under the lamp.",
+                "location_id": "odile_flat",
+                "lines": [
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Derrière le tableau : rue de Lancry. C'est à deux cents mètres. À suivre…",
+                      "native": {
+                        "en": "Behind the painting: rue de Lancry. It's two hundred metres away. To be continued…",
+                        "de": "Hinter dem Bild: Rue de Lancry. Das ist zweihundert Meter weit weg. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              },
+              "when": {
+                "s1.ending": "garder"
+              }
+            },
+            {
+              "kind": "hook",
+              "id": "ep1.b.hook.p",
+              "role": "a_suivre",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.b.hook.p.p",
+                "visual": "Night. Gus's loft. The painting leans face to the wall. Gus sits on the floor in front of it, phone in hand, not calling.",
+                "location_id": "gus_loft",
+                "in_frame": [
+                  "augustin_de_roncourt"
+                ],
+                "lines": [
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Gus garde le tableau. Et sa mère sait quelque chose. À suivre…",
+                      "native": {
+                        "en": "Gus is keeping the painting. And his mother knows something. To be continued…",
+                        "de": "Gus behält das Bild. Und seine Mutter weiß etwas. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              },
+              "when": {
+                "s1.ending": "partager"
+              }
+            },
+            {
+              "kind": "hook",
+              "id": "ep1.b.hook.l",
+              "role": "a_suivre",
+              "panel": {
+                "kind": "panel",
+                "id": "ep1.b.hook.l.p",
+                "visual": "Night. The brocante under the arches of the canal, its iron shutter down. Through the bars, the chairs of Le Mistral, stacked, with price tags.",
+                "location_id": "brocante",
+                "lines": [
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Les chaises du Mistral sont à la brocante. Et le tableau ? À suivre…",
+                      "native": {
+                        "en": "Le Mistral's chairs are at the second-hand shop. And the painting? To be continued…",
+                        "de": "Die Stühle vom Mistral sind beim Trödler. Und das Bild? Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              },
+              "when": {
+                "s1.ending": "laisser_partir"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e2",
+      "number": 9,
+      "title_fr": "Rue de Lancry",
+      "intent": "Three doors to one street: the back of the painting (garder), Gus's mother (partager), the dealer (laisser_partir); then Marchand's registered letter brings everyone to the rue de Lancry, and Camille disagrees.",
+      "flags_read": [
+        "s1.ending",
+        "s1.painting"
+      ],
+      "days": [
+        {
+          "day": "a",
+          "variant": "garder",
+          "when": {
+            "s1.ending": "garder"
+          },
+          "story_date_fr": "mardi 12 janvier",
+          "title_fr": "Rue de Lancry",
+          "location_id": "rue_de_lancry",
+          "minutes": 6,
+          "can_do": {
+            "en": "Say who you are looking for.",
+            "de": "Sagen, wen du suchst.",
+            "fr": "Dire qui on cherche."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "étage",
+              "lemma": "étage",
+              "gloss": {
+                "en": "floor (storey)",
+                "de": "Stockwerk"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            },
+            {
+              "surface_fr": "peintre",
+              "lemma": "peintre",
+              "gloss": {
+                "en": "painter",
+                "de": "Maler"
+              },
+              "part_of_speech": "noun"
+            },
+            {
+              "surface_fr": "cherche",
+              "lemma": "chercher",
+              "gloss": {
+                "en": "to look for",
+                "de": "suchen"
+              },
+              "part_of_speech": "verb"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep2.a.g.p1",
+              "visual": "Rue de Lancry, late afternoon. Toi with the painting wrapped in a café tea towel under one arm. An old building, a heavy green door, an intercom with twelve names. None of them begins with L.",
+              "location_id": "rue_de_lancry",
+              "in_frame": [
+                "toi"
+              ],
+              "silence": true
+            },
+            {
+              "kind": "panel",
+              "id": "ep2.a.g.p2",
+              "visual": "The green door opens: Mme Diallo, the baker, comes out with an empty bread basket on her hip. She studies Toi, and the tea towel, with great suspicion.",
+              "location_id": "rue_de_lancry",
+              "in_frame": [
+                "mme_diallo",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "mme_diallo",
+                  "say": {
+                    "a2": "C'est un tableau volé, ça ?",
+                    "native": {
+                      "en": "Is that a stolen painting?",
+                      "de": "Ist das ein gestohlenes Bild?"
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ],
+              "note": "Mme Diallo delivers bread in the street; nobody says to whom."
+            },
+            {
+              "kind": "turn",
+              "id": "ep2.a.g.turn",
+              "to": "mme_diallo",
+              "panel": {
+                "kind": "panel",
+                "id": "ep2.a.g.p3",
+                "visual": "Mme Diallo shifts the basket to her other hip and does not move from the door.",
+                "location_id": "rue_de_lancry",
+                "in_frame": [
+                  "mme_diallo",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "mme_diallo",
+                    "say": {
+                      "a2": "Vous cherchez qui ?",
+                      "native": {
+                        "en": "Who are you looking for?",
+                        "de": "Wen suchen Sie?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Tell Mme Diallo who you are looking for in this building.",
+                "de": "Sag Mme Diallo, wen du in diesem Haus suchst.",
+                "fr": "Dis à Mme Diallo qui tu cherches dans cet immeuble."
+              },
+              "listens_for": "Who the learner is looking for: a painter, someone who signs «L.», or a halting reply about their grandmother.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "A painter",
+                  "means": "The learner is looking for a painter.",
+                  "examples": [
+                    "Je cherche un peintre."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.g.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "mme_diallo",
+                          "say": {
+                            "a2": "Au troisième, la porte est pleine de peinture.",
+                            "native": {
+                              "en": "On the third floor, the door is covered in paint.",
+                              "de": "Im dritten Stock ist die Tür voller Farbe."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "Someone who signs «L.»",
+                  "means": "The learner is looking for someone who signs with the letter L.",
+                  "examples": [
+                    "Je cherche quelqu'un. Il signe \"L.\"."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.g.turn.b.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "mme_diallo",
+                          "say": {
+                            "a2": "L. ? Ce n'est pas un nom, ça. C'est une lettre.",
+                            "native": {
+                              "en": "L.? That's not a name. That's a letter.",
+                              "de": "L.? Das ist kein Name. Das ist ein Buchstabe."
+                            }
+                          },
+                          "mood": "happy"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting reply: the learner is looking for someone their grandmother knew.",
+                  "examples": [
+                    "Je cherche… un ami de mon grand-mère… de ma grand-mère."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.g.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "mme_diallo",
+                          "say": {
+                            "a2": "Votre grand-mère ? Elle habitait le quartier ?",
+                            "native": {
+                              "en": "Your grandmother? Did she live in the quartier?",
+                              "de": "Ihre Großmutter? Hat sie im Viertel gewohnt?"
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.g.turn.c.r2",
+                      "visual": "Toi does not answer. Mme Diallo looks at the tea towel, then up at the building, and holds the green door open a moment longer than she needs to.",
+                      "in_frame": [
+                        "mme_diallo",
+                        "toi"
+                      ],
+                      "silence": true
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "a"
+            },
+            {
+              "kind": "hook",
+              "id": "ep2.a.g.hook",
+              "role": "midpoint",
+              "panel": {
+                "kind": "panel",
+                "id": "ep2.a.g.hook.p",
+                "visual": "From the street, looking up: on the third floor, a hand closes a window. Behind the glass, for a moment, the shape of an easel.",
+                "location_id": "rue_de_lancry",
+                "lines": [
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Au troisième, quelqu'un ferme la fenêtre. À suivre…",
+                      "native": {
+                        "en": "On the third floor, someone closes the window. To be continued…",
+                        "de": "Im dritten Stock schließt jemand das Fenster. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "day": "a",
+          "variant": "partager",
+          "when": {
+            "s1.ending": "partager"
+          },
+          "story_date_fr": "mardi 12 janvier",
+          "title_fr": "Rue de Lancry",
+          "location_id": "odile_flat",
+          "minutes": 6,
+          "can_do": {
+            "en": "Ask someone again, and get an answer.",
+            "de": "Noch einmal nachfragen und eine Antwort bekommen.",
+            "fr": "Redemander à quelqu'un, et obtenir une réponse."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "étage",
+              "lemma": "étage",
+              "gloss": {
+                "en": "floor (storey)",
+                "de": "Stockwerk"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            },
+            {
+              "surface_fr": "peintre",
+              "lemma": "peintre",
+              "gloss": {
+                "en": "painter",
+                "de": "Maler"
+              },
+              "part_of_speech": "noun"
+            },
+            {
+              "surface_fr": "cherche",
+              "lemma": "chercher",
+              "gloss": {
+                "en": "to look for",
+                "de": "suchen"
+              },
+              "part_of_speech": "verb"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep2.a.p.p1",
+              "visual": "Evening, the co-op's first members' meeting in the workshop, Odile's old flat. Children's paintings drying on a line. Marin chairs with a bell. Gus arrives late with an index card; it falls.",
+              "location_id": "odile_flat",
+              "in_frame": [
+                "marin_leveque",
+                "augustin_de_roncourt",
+                "margaux_barman"
+              ],
+              "lines": [
+                {
+                  "who": "marin_leveque",
+                  "say": {
+                    "a2": "Point numéro un : le tableau du Mistral. Qui sait où il est ?",
+                    "native": {
+                      "en": "Item number one: the Mistral painting. Who knows where it is?",
+                      "de": "Punkt eins: das Bild vom Mistral. Wer weiß, wo es ist?"
+                    }
+                  },
+                  "mood": "neutral"
+                },
+                {
+                  "who": "margaux_barman",
+                  "say": {
+                    "a2": "J'ai rien entendu.",
+                    "native": {
+                      "en": "I didn't hear anything.",
+                      "de": "Ich hab nichts gehört."
+                    }
+                  },
+                  "mood": "neutral",
+                  "direction": "drying a dry glass"
+                }
+              ]
+            },
+            {
+              "kind": "panel",
+              "id": "ep2.a.p.p2",
+              "visual": "Everyone looks at Gus. Gus looks at the ceiling.",
+              "location_id": "odile_flat",
+              "in_frame": [
+                "augustin_de_roncourt"
+              ],
+              "silence": true
+            },
+            {
+              "kind": "turn",
+              "id": "ep2.a.p.turn",
+              "to": "augustin_de_roncourt",
+              "panel": {
+                "kind": "panel",
+                "id": "ep2.a.p.p3",
+                "visual": "Gus picks up his fallen index card very slowly, to gain time.",
+                "location_id": "odile_flat",
+                "in_frame": [
+                  "augustin_de_roncourt",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "augustin_de_roncourt",
+                    "say": {
+                      "a2": "Pourquoi tout le monde me regarde ?",
+                      "native": {
+                        "en": "Why is everybody looking at me?",
+                        "de": "Warum schauen mich alle an?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Ask Gus again about the painting, in front of everyone, or gently.",
+                "de": "Frag Gus noch einmal nach dem Bild, vor allen oder sanft.",
+                "fr": "Redemande à Gus où est le tableau, devant tout le monde, ou doucement."
+              },
+              "listens_for": "The learner asks Gus again: an accusation in front of everyone, a gentle question, or a halting one.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "In front of everyone",
+                  "means": "The learner says plainly, in front of everyone, that Gus has the painting.",
+                  "examples": [
+                    "Gus, tu as le tableau. Tout le monde le sait."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.p.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "augustin_de_roncourt",
+                          "say": {
+                            "a2": "Je n'ai pas de tableau. Mais ma mère dit : rue de Lancry.",
+                            "native": {
+                              "en": "I don't have a painting. But my mother says: rue de Lancry.",
+                              "de": "Ich habe kein Bild. Aber meine Mutter sagt: Rue de Lancry."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ],
+                      "note": "He lies about the painting and, in the same breath, gives the address he read on its back. The painting stays with Gus (s1.painting = with_gus)."
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "Gently",
+                  "means": "The learner asks gently, without accusing him.",
+                  "examples": [
+                    "Gus, s'il te plaît. Tu sais quelque chose ?"
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.p.turn.b.r1",
+                      "visual": "Gus's «vulnerable» expression.",
+                      "in_frame": [
+                        "augustin_de_roncourt"
+                      ],
+                      "lines": [
+                        {
+                          "who": "augustin_de_roncourt",
+                          "say": {
+                            "a2": "Ma mère a servi ici. Elle dit : rue de Lancry. C'est tout.",
+                            "native": {
+                              "en": "My mother worked here. She says: rue de Lancry. That's all.",
+                              "de": "Meine Mutter hat hier bedient. Sie sagt: Rue de Lancry. Das ist alles."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting reply: the learner says it is not about the painting, it is about Odile.",
+                  "examples": [
+                    "C'est pas… le tableau. C'est Odile. Tu comprends ?"
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.p.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "augustin_de_roncourt",
+                          "say": {
+                            "a2": "Je comprends. C'est très mal dit.",
+                            "native": {
+                              "en": "I understand. That's very badly put.",
+                              "de": "Ich verstehe. Das ist sehr schlecht gesagt."
+                            }
+                          },
+                          "mood": "neutral",
+                          "direction": "beat"
+                        },
+                        {
+                          "who": "augustin_de_roncourt",
+                          "say": {
+                            "a2": "Rue de Lancry. Ma mère. Ne demande rien.",
+                            "native": {
+                              "en": "Rue de Lancry. My mother. Don't ask.",
+                              "de": "Rue de Lancry. Meine Mutter. Frag nicht."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "b"
+            },
+            {
+              "kind": "hook",
+              "id": "ep2.a.p.hook",
+              "role": "midpoint",
+              "panel": {
+                "kind": "panel",
+                "id": "ep2.a.p.hook.p",
+                "visual": "Marin rings his bell. Nobody listens. Margaux, alone, writes «rue de Lancry» on a beer mat and slides it to Toi across the table.",
+                "location_id": "odile_flat",
+                "in_frame": [
+                  "margaux_barman",
+                  "toi"
+                ],
+                "diegetic": [
+                  "rue de Lancry"
+                ],
+                "lines": [
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Gus n'a pas de tableau. Mais il a une adresse. À suivre…",
+                      "native": {
+                        "en": "Gus has no painting. But he has an address. To be continued…",
+                        "de": "Gus hat kein Bild. Aber er hat eine Adresse. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "day": "a",
+          "variant": "laisser_partir",
+          "when": {
+            "s1.ending": "laisser_partir"
+          },
+          "story_date_fr": "mardi 12 janvier",
+          "title_fr": "La brocante",
+          "location_id": "brocante",
+          "minutes": 6,
+          "can_do": {
+            "en": "Say what you will do after bad news.",
+            "de": "Nach einer schlechten Nachricht sagen, was du tust.",
+            "fr": "Dire ce qu'on va faire après une mauvaise nouvelle."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "étage",
+              "lemma": "étage",
+              "gloss": {
+                "en": "floor (storey)",
+                "de": "Stockwerk"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            },
+            {
+              "surface_fr": "peintre",
+              "lemma": "peintre",
+              "gloss": {
+                "en": "painter",
+                "de": "Maler"
+              },
+              "part_of_speech": "noun"
+            },
+            {
+              "surface_fr": "cherche",
+              "lemma": "chercher",
+              "gloss": {
+                "en": "to look for",
+                "de": "suchen"
+              },
+              "part_of_speech": "verb"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep2.a.l.p1",
+              "visual": "The brocante under the arches. Le Mistral's chairs with price tags. The booth's bench is gone (Gus bought it). The dealer reads a newspaper behind a till that is older than he is. Marin touches a chair as if it might bite.",
+              "location_id": "brocante",
+              "in_frame": [
+                "dealer",
+                "marin_leveque",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "dealer",
+                  "say": {
+                    "a2": "Les chaises du Mistral ? Vingt euros. Pour vous, vingt-cinq.",
+                    "native": {
+                      "en": "Le Mistral's chairs? Twenty euros. For you, twenty-five.",
+                      "de": "Die Stühle vom Mistral? Zwanzig Euro. Für Sie fünfundzwanzig."
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ]
+            },
+            {
+              "kind": "panel",
+              "id": "ep2.a.l.p2",
+              "visual": "Toi at the till, pointing at the bare wall behind it. The dealer does not lower his newspaper.",
+              "location_id": "brocante",
+              "in_frame": [
+                "dealer",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "toi",
+                  "say": {
+                    "a2": "Et le tableau ?",
+                    "native": {
+                      "en": "And the painting?",
+                      "de": "Und das Bild?"
+                    }
+                  },
+                  "mood": "neutral"
+                },
+                {
+                  "who": "dealer",
+                  "say": {
+                    "a2": "Vendu. Samedi matin. À un vieux monsieur.",
+                    "native": {
+                      "en": "Sold. Saturday morning. To an old gentleman.",
+                      "de": "Verkauft. Samstagmorgen. An einen alten Herrn."
+                    }
+                  },
+                  "mood": "neutral"
+                },
+                {
+                  "who": "dealer",
+                  "say": {
+                    "a2": "Je ne demande pas les noms. Les gens paient, ils partent.",
+                    "native": {
+                      "en": "I don't ask for names. People pay, they leave.",
+                      "de": "Ich frage nicht nach Namen. Die Leute zahlen, sie gehen."
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ]
+            },
+            {
+              "kind": "turn",
+              "id": "ep2.a.l.turn",
+              "to": "marin_leveque",
+              "panel": {
+                "kind": "panel",
+                "id": "ep2.a.l.p3",
+                "visual": "Marin, a Mistral chair in his arms like a child, looks at Toi.",
+                "location_id": "brocante",
+                "in_frame": [
+                  "marin_leveque",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "marin_leveque",
+                    "say": {
+                      "a2": "Un vieux monsieur. Pas de nom. Et maintenant ?",
+                      "native": {
+                        "en": "An old gentleman. No name. And now?",
+                        "de": "Ein alter Herr. Kein Name. Und jetzt?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Tell Marin what you do now: look for the old gentleman, or let the painting go.",
+                "de": "Sag Marin, was du jetzt tust: den alten Herrn suchen oder das Bild gehen lassen.",
+                "fr": "Dis à Marin ce que tu fais maintenant : chercher le vieux monsieur, ou laisser partir le tableau."
+              },
+              "listens_for": "What the learner does now: look for the old gentleman, let the painting go, or a halting reply that the painting is with someone now.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "Look for him",
+                  "means": "The learner will look for the old gentleman who bought the painting.",
+                  "examples": [
+                    "On cherche le vieux monsieur."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.l.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "marin_leveque",
+                          "say": {
+                            "a2": "Un vieux monsieur dans Paris. Facile. Il y en a deux millions.",
+                            "native": {
+                              "en": "An old gentleman in Paris. Easy. There are two million of them.",
+                              "de": "Ein alter Herr in Paris. Leicht. Davon gibt es zwei Millionen."
+                            }
+                          },
+                          "mood": "happy"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "Let it go",
+                  "means": "The learner lets the painting go: it is gone, that is how it is.",
+                  "examples": [
+                    "Il est parti. C'est comme ça."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.l.turn.b.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "marin_leveque",
+                          "say": {
+                            "a2": "Alors moi, je prends une chaise. Vingt-cinq euros. C'est un signe.",
+                            "native": {
+                              "en": "Then I'm taking a chair. Twenty-five euros. That's a sign.",
+                              "de": "Dann nehme ich einen Stuhl. Fünfundzwanzig Euro. Das ist ein Zeichen."
+                            }
+                          },
+                          "mood": "happy"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting reply: the painting is with someone now, maybe that is good.",
+                  "examples": [
+                    "Le tableau… il est avec quelqu'un. C'est bien… non ?"
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.a.l.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "marin_leveque",
+                          "say": {
+                            "a2": "Tu as raison. Il n'est pas perdu. Il est ailleurs.",
+                            "native": {
+                              "en": "You're right. It isn't lost. It's somewhere else.",
+                              "de": "Du hast recht. Es ist nicht verloren. Es ist woanders."
+                            }
+                          },
+                          "mood": "moved"
+                        }
+                      ]
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "a",
+              "after": [
+                {
+                  "kind": "panel",
+                  "id": "ep2.a.l.after",
+                  "visual": "Behind them, the dealer lowers his newspaper for the first time.",
+                  "in_frame": [
+                    "dealer"
+                  ],
+                  "lines": [
+                    {
+                      "who": "dealer",
+                      "say": {
+                        "a2": "Il a regardé le dos du tableau. Longtemps.",
+                        "native": {
+                          "en": "He looked at the back of the painting. For a long time.",
+                          "de": "Er hat sich die Rückseite des Bildes angesehen. Lange."
+                        }
+                      },
+                      "mood": "neutral"
+                    }
+                  ],
+                  "note": "The one detail the dealer gives. It does not say who L. is."
+                }
+              ]
+            },
+            {
+              "kind": "hook",
+              "id": "ep2.a.l.hook",
+              "role": "midpoint",
+              "panel": {
+                "kind": "panel",
+                "id": "ep2.a.l.hook.p",
+                "visual": "Outside on the quai, Marin carries one Mistral chair on his head through the rain.",
+                "location_id": "quai_de_valmy",
+                "in_frame": [
+                  "marin_leveque",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Le tableau est quelque part dans Paris. Chez un vieux monsieur. À suivre…",
+                      "native": {
+                        "en": "The painting is somewhere in Paris. With an old gentleman. To be continued…",
+                        "de": "Das Bild ist irgendwo in Paris. Bei einem alten Herrn. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "day": "b",
+          "story_date_fr": "mercredi 13 janvier",
+          "title_fr": "La lettre recommandée",
+          "location_id": "quai_de_valmy",
+          "minutes": 6,
+          "previously": [],
+          "can_do": {
+            "en": "Disagree politely and say what you will do.",
+            "de": "Höflich widersprechen und sagen, was du tun wirst.",
+            "fr": "Exprimer poliment un désaccord et dire ce qu'on va faire."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "lettre",
+              "lemma": "lettre",
+              "gloss": {
+                "en": "letter",
+                "de": "Brief"
+              },
+              "part_of_speech": "noun",
+              "gender": "f"
+            },
+            {
+              "surface_fr": "dimanche",
+              "lemma": "dimanche",
+              "gloss": {
+                "en": "Sunday",
+                "de": "Sonntag"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            },
+            {
+              "surface_fr": "d'accord",
+              "lemma": "d'accord",
+              "gloss": {
+                "en": "agreed, OK",
+                "de": "einverstanden"
+              },
+              "part_of_speech": "phrase"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep2.b.p1",
+              "visual": "Wednesday, the quai de Valmy in a fine rain. Camille arrives by bike, helmet under one arm, slightly rained on, and holds out a white envelope with the green slip of a registered letter.",
+              "location_id": "quai_de_valmy",
+              "in_frame": [
+                "camille_marchand",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "camille_marchand",
+                  "say": {
+                    "a2": "De la part de mon grand-père. Il écrit en recommandé. Même à vous.",
+                    "native": {
+                      "en": "From my grandfather. He writes by registered post. Even to you.",
+                      "de": "Von meinem Großvater. Er schreibt per Einschreiben. Sogar Ihnen."
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ],
+              "note": "Marchand turns grief into procedure (bible §4)."
+            },
+            {
+              "kind": "panel",
+              "id": "ep2.b.p2",
+              "visual": "The letter, on the office's headed paper, in a careful old hand.",
+              "location_id": "quai_de_valmy",
+              "diegetic": [
+                "Gérance Marchand"
+              ],
+              "lines": [
+                {
+                  "who": "letter",
+                  "say": {
+                    "a2": "Le dimanche, Odile prenait toujours le même chemin, par la rue de Lancry. Elle ne m'a jamais dit pourquoi. Je ne lui ai jamais demandé. M. Marchand",
+                    "native": {
+                      "en": "On Sundays, Odile always took the same way, by the rue de Lancry. She never told me why. I never asked her. M. Marchand",
+                      "de": "Sonntags nahm Odile immer denselben Weg, durch die Rue de Lancry. Sie hat mir nie gesagt, warum. Ich habe sie nie gefragt. M. Marchand"
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ]
+            },
+            {
+              "kind": "panel",
+              "id": "ep2.b.p3",
+              "visual": "Toi folds the letter. The rain thickens. Camille does not leave.",
+              "location_id": "quai_de_valmy",
+              "in_frame": [
+                "camille_marchand",
+                "toi"
+              ],
+              "silence": true
+            },
+            {
+              "kind": "turn",
+              "id": "ep2.b.turn",
+              "to": "camille_marchand",
+              "panel": {
+                "kind": "panel",
+                "id": "ep2.b.p4",
+                "visual": "Camille, helmet dripping, with the precise look of someone about to correct a number.",
+                "location_id": "quai_de_valmy",
+                "in_frame": [
+                  "camille_marchand",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "camille_marchand",
+                    "say": {
+                      "a2": "Et vous allez faire quoi, avec ça ?",
+                      "native": {
+                        "en": "And what are you going to do with that?",
+                        "de": "Und was werden Sie damit machen?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Tell Camille what you will do with this letter: follow Odile's Sunday road, or leave the past alone.",
+                "de": "Sag Camille, was du mit diesem Brief machst: Odiles Sonntagsweg folgen oder die Vergangenheit ruhen lassen.",
+                "fr": "Dis à Camille ce que tu vas faire de cette lettre : suivre le chemin du dimanche d'Odile, ou laisser le passé tranquille."
+              },
+              "listens_for": "What the learner will do with the letter: follow Odile's road to the rue de Lancry, leave the past alone, or a halting reply.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "Follow her road",
+                  "means": "The learner will follow Odile's Sunday road to the rue de Lancry.",
+                  "examples": [
+                    "Dimanche, je prends le même chemin. Rue de Lancry."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.b.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "camille_marchand",
+                          "say": {
+                            "a2": "Sans plan ? Je ne suis pas d'accord.",
+                            "native": {
+                              "en": "Without a plan? I don't agree.",
+                              "de": "Ohne Plan? Da bin ich nicht einverstanden."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "Leave it alone",
+                  "means": "The learner will leave the past alone: it was Odile's secret.",
+                  "examples": [
+                    "Rien. C'est son secret. Pas le mien."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.b.turn.b.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "camille_marchand",
+                          "say": {
+                            "a2": "Je comprends. Je ne suis toujours pas d'accord.",
+                            "native": {
+                              "en": "I understand. I still don't agree.",
+                              "de": "Ich verstehe. Ich bin trotzdem nicht einverstanden."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting reply: the learner does not know, but wants to know what Odile saw on that street.",
+                  "examples": [
+                    "Je sais pas. Je veux… voir. Ce qu'elle voit. Le dimanche."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep2.b.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "camille_marchand",
+                          "say": {
+                            "a2": "C'est confus. Mais c'est clair.",
+                            "native": {
+                              "en": "That's muddled. But it's clear.",
+                              "de": "Das ist wirr. Aber es ist klar."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "a",
+              "after": [
+                {
+                  "kind": "panel",
+                  "id": "ep2.b.after",
+                  "visual": "Camille puts the helmet back on and gets on the bike.",
+                  "in_frame": [
+                    "camille_marchand"
+                  ],
+                  "lines": [
+                    {
+                      "who": "camille_marchand",
+                      "say": {
+                        "a2": "À la prochaine dispute.",
+                        "native": {
+                          "en": "Until the next argument.",
+                          "de": "Bis zum nächsten Streit."
+                        }
+                      },
+                      "mood": "neutral"
+                    }
+                  ],
+                  "note": "Camille's T8 line. Still vous; the switch to tu belongs to a later season."
+                }
+              ]
+            },
+            {
+              "kind": "hook",
+              "id": "ep2.b.hook",
+              "role": "a_suivre",
+              "panel": {
+                "kind": "panel",
+                "id": "ep2.b.hook.p",
+                "visual": "Night. Toi's window. On the sill, the registered letter, and the green slip.",
+                "in_frame": [
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Tous les dimanches, Odile passait par la rue de Lancry. Pourquoi ? À suivre…",
+                      "native": {
+                        "en": "Every Sunday, Odile walked by the rue de Lancry. Why? To be continued…",
+                        "de": "Jeden Sonntag ging Odile durch die Rue de Lancry. Warum? Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e3",
+      "number": 9,
+      "title_fr": "Le billet",
+      "intent": "One week after: the group where each ending left it, Romy's question with the camera off, Marin's father on the phone, and the return ticket Toi has moved all season.",
+      "flags_read": [
+        "s1.ending",
+        "user.return_ticket"
+      ],
+      "state_out": {},
+      "days": [
+        {
+          "day": "a",
+          "story_date_fr": "jeudi 14 janvier",
+          "title_fr": "La vraie histoire",
+          "location_id": "le_mistral",
+          "minutes": 6,
+          "can_do": {
+            "en": "Say in one or two sentences what a time in your life meant to you.",
+            "de": "In ein, zwei Sätzen sagen, was dir eine Zeit in deinem Leben bedeutet hat.",
+            "fr": "Dire en une ou deux phrases ce qu'une période de sa vie a représenté."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "histoire",
+              "lemma": "histoire",
+              "gloss": {
+                "en": "story",
+                "de": "Geschichte"
+              },
+              "part_of_speech": "noun",
+              "gender": "f"
+            },
+            {
+              "surface_fr": "vraie",
+              "lemma": "vrai",
+              "gloss": {
+                "en": "true, real",
+                "de": "wahr, echt"
+              },
+              "part_of_speech": "adjective"
+            },
+            {
+              "surface_fr": "père",
+              "lemma": "père",
+              "gloss": {
+                "en": "father",
+                "de": "Vater"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep3.a.p1",
+              "visual": "Thursday evening, one week after. The group around the booth, exactly where it has always been. Gus stands, glass raised.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "augustin_de_roncourt",
+                "marin_leveque",
+                "romy_tremblay",
+                "margaux_barman",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "augustin_de_roncourt",
+                  "say": {
+                    "a2": "Une semaine ! Et rien n'a changé. C'est sublime.",
+                    "native": {
+                      "en": "One week! And nothing has changed. It's sublime.",
+                      "de": "Eine Woche! Und nichts hat sich verändert. Es ist großartig."
+                    }
+                  },
+                  "mood": "happy"
+                }
+              ],
+              "when": {
+                "s1.ending": "garder"
+              }
+            },
+            {
+              "kind": "panel",
+              "id": "ep3.a.p2",
+              "visual": "Thursday evening at the co-op Mistral, after the members have gone home. The group at the end of a long table, under the framed Polaroid wall. Gus has his own chair now: the booth's corner seat, moved here.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "augustin_de_roncourt",
+                "marin_leveque",
+                "romy_tremblay",
+                "margaux_barman",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "augustin_de_roncourt",
+                  "say": {
+                    "a2": "Tu m'as coûté une banquette. Je te pardonne. Un peu.",
+                    "native": {
+                      "en": "You cost me a booth. I forgive you. A little.",
+                      "de": "Du hast mich eine Sitzbank gekostet. Ich verzeihe dir. Ein bisschen."
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ],
+              "when": {
+                "s1.ending": "partager"
+              }
+            },
+            {
+              "kind": "panel",
+              "id": "ep3.a.p3",
+              "visual": "Thursday evening at Gus's «château», the loft. The Mistral's bench stands against the wall: the first true thing in the room. The group squeezed onto it, Marin's soup on their knees.",
+              "location_id": "gus_loft",
+              "in_frame": [
+                "augustin_de_roncourt",
+                "marin_leveque",
+                "romy_tremblay",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "augustin_de_roncourt",
+                  "say": {
+                    "a2": "Bienvenue au château. La banquette est d'époque. Moi aussi.",
+                    "native": {
+                      "en": "Welcome to the château. The bench is a period piece. So am I.",
+                      "de": "Willkommen im Schloss. Die Bank ist ein Original. Ich auch."
+                    }
+                  },
+                  "mood": "happy"
+                }
+              ],
+              "when": {
+                "s1.ending": "laisser_partir"
+              }
+            },
+            {
+              "kind": "turn",
+              "id": "ep3.a.turn",
+              "to": "romy_tremblay",
+              "panel": {
+                "kind": "panel",
+                "id": "ep3.a.p4",
+                "visual": "Romy switches off her camera in front of Toi, so that Toi can see her do it, and puts it face down.",
+                "in_frame": [
+                  "romy_tremblay",
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "romy_tremblay",
+                    "say": {
+                      "a2": "Pas pour un article. Pour moi. C'est quoi, la vraie histoire ?",
+                      "native": {
+                        "en": "Not for an article. For me. What's the real story?",
+                        "de": "Nicht für einen Artikel. Für mich. Was ist die wahre Geschichte?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true,
+                "note": "«C'est quoi, la vraie histoire ?» is Romy's line (bible §4). The camera switched off is her small moment."
+              },
+              "task": {
+                "en": "Tell Romy, in one or two sentences, what these weeks in Paris were really about for you.",
+                "de": "Sag Romy in ein, zwei Sätzen, worum es dir in diesen Wochen in Paris wirklich ging.",
+                "fr": "Dis à Romy, en une ou deux phrases, ce que ces semaines à Paris ont vraiment été pour toi."
+              },
+              "listens_for": "The learner's own account of the season: it was about Odile, about the group of friends, or a halting, sincere sentence about speaking French.",
+              "replies": [
+                {
+                  "id": "a",
+                  "label": "Odile",
+                  "means": "For the learner it was about Odile: getting to know their grandmother.",
+                  "examples": [
+                    "C'est l'histoire d'Odile. Je la connais, maintenant."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep3.a.turn.a.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "romy_tremblay",
+                          "say": {
+                            "a2": "Tu la connais mieux que nous. C'est pas pire.",
+                            "native": {
+                              "en": "You know her better than we do. Not bad at all.",
+                              "de": "Du kennst sie besser als wir. Gar nicht schlecht."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ],
+                      "note": "«C'est pas pire»: Québec praise (bible §4)."
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "label": "You, the group",
+                  "means": "For the learner it was about the group, the friends they found here.",
+                  "examples": [
+                    "C'est vous. Le groupe. Les amis."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep3.a.turn.b.r1",
+                      "visual": "Romy picks the camera up, does not switch it on, puts it down again.",
+                      "in_frame": [
+                        "romy_tremblay"
+                      ],
+                      "lines": [
+                        {
+                          "who": "romy_tremblay",
+                          "say": {
+                            "a2": "Voyons donc. Tu vas me faire pleurer, là.",
+                            "native": {
+                              "en": "Come on. You're going to make me cry.",
+                              "de": "Ach komm. Du bringst mich noch zum Weinen."
+                            }
+                          },
+                          "mood": "moved"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting, sincere sentence: the learner speaks French now, and that is the story.",
+                  "examples": [
+                    "L'histoire… c'est ça. Je parle. En français. Avec vous."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep3.a.turn.c.r1",
+                      "visual": "A silence around the table. Margaux, who has not said a word all evening, pours one more glass, for Odile's stool.",
+                      "in_frame": [
+                        "margaux_barman"
+                      ],
+                      "silence": true,
+                      "when": {
+                        "s1.ending": {
+                          "not": "laisser_partir"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "panel",
+                      "id": "ep3.a.turn.c.r1l",
+                      "visual": "A silence on the bench. Gus pours one more glass and sets it at the empty end of the bench, where nobody sits.",
+                      "in_frame": [
+                        "augustin_de_roncourt"
+                      ],
+                      "silence": true,
+                      "when": {
+                        "s1.ending": "laisser_partir"
+                      }
+                    },
+                    {
+                      "kind": "panel",
+                      "id": "ep3.a.turn.c.r2",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "romy_tremblay",
+                          "say": {
+                            "a2": "Ça, c'est la vraie histoire. Je ne l'écris pas.",
+                            "native": {
+                              "en": "That's the real story. I won't write it.",
+                              "de": "Das ist die wahre Geschichte. Die schreibe ich nicht."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ]
+                    }
+                  ],
+                  "clumsy": true
+                }
+              ],
+              "fallback": "b"
+            },
+            {
+              "kind": "hook",
+              "id": "ep3.a.hook",
+              "role": "midpoint",
+              "panel": {
+                "kind": "panel",
+                "id": "ep3.a.hook.p",
+                "visual": "Marin's phone vibrates on the table: «Papa». Everyone goes quiet. Marin answers, then goes pale.",
+                "in_frame": [
+                  "marin_leveque"
+                ],
+                "diegetic": [
+                  "Papa"
+                ],
+                "lines": [
+                  {
+                    "who": "marin_leveque",
+                    "say": {
+                      "a2": "Papa ? … Tu viens à Paris ? Quand ?",
+                      "native": {
+                        "en": "Dad? … You're coming to Paris? When?",
+                        "de": "Papa? … Du kommst nach Paris? Wann?"
+                      }
+                    },
+                    "mood": "neutral"
+                  },
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Le père de Marin vient à Paris. À suivre…",
+                      "native": {
+                        "en": "Marin's father is coming to Paris. To be continued…",
+                        "de": "Marins Vater kommt nach Paris. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "note": "Bible §10, season 2 doors: Marin's father comes to Paris."
+              }
+            }
+          ]
+        },
+        {
+          "day": "b",
+          "story_date_fr": "vendredi 15 janvier",
+          "title_fr": "Le billet",
+          "location_id": "quai_de_valmy",
+          "minutes": 6,
+          "previously": [
+            {
+              "ref": "ep3.a.p4",
+              "label": "La vraie histoire"
+            }
+          ],
+          "can_do": {
+            "en": "Say whether you are staying or leaving, and why, in a few words.",
+            "de": "In wenigen Worten sagen, ob du bleibst oder gehst, und warum.",
+            "fr": "Dire en quelques mots si on reste ou si on part, et pourquoi."
+          },
+          "lexicon": [
+            {
+              "surface_fr": "billet",
+              "lemma": "billet",
+              "gloss": {
+                "en": "ticket",
+                "de": "Fahrkarte"
+              },
+              "part_of_speech": "noun",
+              "gender": "m"
+            },
+            {
+              "surface_fr": "rester",
+              "lemma": "rester",
+              "gloss": {
+                "en": "to stay",
+                "de": "bleiben"
+              },
+              "part_of_speech": "verb"
+            },
+            {
+              "surface_fr": "revenir",
+              "lemma": "revenir",
+              "gloss": {
+                "en": "to come back",
+                "de": "zurückkommen"
+              },
+              "part_of_speech": "verb"
+            }
+          ],
+          "movements": [
+            {
+              "kind": "panel",
+              "id": "ep3.b.p1",
+              "visual": "Friday morning. Toi's phone on the pillow, an automatic reminder lighting the screen.",
+              "in_frame": [
+                "toi"
+              ],
+              "diegetic": [
+                "Rappel : votre billet retour, aujourd'hui, 18 h 12."
+              ],
+              "lines": [
+                {
+                  "who": "sms",
+                  "say": {
+                    "a2": "Rappel : votre billet retour, aujourd'hui, 18 h 12.",
+                    "native": {
+                      "en": "Reminder: your return ticket, today, 6:12 p.m.",
+                      "de": "Erinnerung: Ihre Rückfahrkarte, heute, 18:12 Uhr."
+                    }
+                  },
+                  "mood": "neutral"
+                }
+              ],
+              "note": "user.return_ticket: the ticket Toi has moved all season (gaps 1, 3, 5, 7)."
+            },
+            {
+              "kind": "panel",
+              "id": "ep3.b.p2",
+              "visual": "The quai de Valmy, morning light on the canal. Toi on the iron footbridge, the ticket on the phone, the city waking up.",
+              "location_id": "quai_de_valmy",
+              "in_frame": [
+                "toi"
+              ],
+              "silence": true
+            },
+            {
+              "kind": "turn",
+              "id": "ep3.b.turn",
+              "to": "lila_bonnet",
+              "panel": {
+                "kind": "panel",
+                "id": "ep3.b.p3",
+                "visual": "The phone buzzes in Toi's hand: Lila, who has remembered the date.",
+                "in_frame": [
+                  "toi"
+                ],
+                "lines": [
+                  {
+                    "who": "sms",
+                    "say": {
+                      "a2": "C'est aujourd'hui, ton billet. Tu le prends ?",
+                      "native": {
+                        "en": "It's today, your ticket. Are you taking it?",
+                        "de": "Heute ist deine Fahrkarte dran. Nimmst du den Zug?"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "balloon": true
+              },
+              "task": {
+                "en": "Tell Lila whether you are staying in Paris or taking your train, and why.",
+                "de": "Sag Lila, ob du in Paris bleibst oder deinen Zug nimmst, und warum.",
+                "fr": "Dis à Lila si tu restes à Paris ou si tu prends ton train, et pourquoi."
+              },
+              "listens_for": "Whether the learner stays in Paris, leaves for now and will come back, or does not know yet.",
+              "replies": [
+                {
+                  "id": "stay",
+                  "label": "I'm staying",
+                  "means": "The learner is staying in Paris: no train today.",
+                  "examples": [
+                    "Je reste. Le billet, c'est fini."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep3.b.turn.stay.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "sms",
+                          "say": {
+                            "a2": "Bien. Quelqu'un doit garder le quartier. Dix-huit sur vingt.",
+                            "native": {
+                              "en": "Good. Someone has to look after the quartier. Eighteen out of twenty.",
+                              "de": "Gut. Irgendwer muss auf das Viertel aufpassen. Achtzehn von zwanzig."
+                            }
+                          },
+                          "mood": "happy"
+                        }
+                      ]
+                    }
+                  ],
+                  "sets": {
+                    "user.return_ticket": "cancelled",
+                    "user.stays": "stays"
+                  }
+                },
+                {
+                  "id": "leave",
+                  "label": "I'm going, and coming back",
+                  "means": "The learner takes the train today, and will come back.",
+                  "examples": [
+                    "Je pars ce soir. Mais je reviens."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep3.b.turn.leave.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "sms",
+                          "say": {
+                            "a2": "Alors on se voit en mars. À Paris, ou ici.",
+                            "native": {
+                              "en": "Then we'll see each other in March. In Paris, or here.",
+                              "de": "Dann sehen wir uns im März. In Paris oder hier."
+                            }
+                          },
+                          "mood": "neutral"
+                        }
+                      ],
+                      "note": "Bible §10: Lila in Berlin, a visit is possible in March."
+                    }
+                  ],
+                  "sets": {
+                    "user.stays": "leaves_and_returns"
+                  }
+                },
+                {
+                  "id": "c",
+                  "label": "Clumsy but sincere",
+                  "means": "A halting reply: the learner does not know yet, or says it in a broken but true way.",
+                  "examples": [
+                    "Je sais pas… Le billet est là. Moi aussi, je suis là. Pour l'instant."
+                  ],
+                  "beats": [
+                    {
+                      "kind": "panel",
+                      "id": "ep3.b.turn.c.r1",
+                      "visual": "",
+                      "lines": [
+                        {
+                          "who": "sms",
+                          "say": {
+                            "a2": "\"Moi aussi, je suis là.\" C'est la meilleure réponse.",
+                            "native": {
+                              "en": "\"I'm here too.\" That's the best answer.",
+                              "de": "„Ich bin auch da.“ Das ist die beste Antwort."
+                            }
+                          },
+                          "mood": "moved"
+                        }
+                      ]
+                    }
+                  ],
+                  "clumsy": true,
+                  "sets": {
+                    "user.stays": "undecided"
+                  }
+                }
+              ],
+              "fallback": "c"
+            },
+            {
+              "kind": "panel",
+              "id": "ep3.b.p4",
+              "visual": "Evening. Odile's flat: the painting on the wall, under the lamp. The kitchen window, open a finger's width.",
+              "location_id": "odile_flat",
+              "silence": true,
+              "when": {
+                "s1.ending": "garder"
+              }
+            },
+            {
+              "kind": "panel",
+              "id": "ep3.b.p5",
+              "visual": "Evening. Gus's loft. Gus, alone, turns the painting round to face the room for the first time, and sits down in front of it on the Mistral's old corner seat.",
+              "location_id": "gus_loft",
+              "in_frame": [
+                "augustin_de_roncourt"
+              ],
+              "silence": true,
+              "when": {
+                "s1.ending": "partager"
+              }
+            },
+            {
+              "kind": "panel",
+              "id": "ep3.b.p6",
+              "visual": "Evening. The bare nail above the zinc of the closed Mistral, seen through the shutter's slats.",
+              "location_id": "le_mistral",
+              "silence": true,
+              "when": {
+                "s1.ending": "laisser_partir"
+              }
+            },
+            {
+              "kind": "hook",
+              "id": "ep3.b.hook",
+              "role": "a_suivre",
+              "panel": {
+                "kind": "panel",
+                "id": "ep3.b.hook.p",
+                "visual": "Night. Rue de Lancry, seen from the street: one lit window on the third floor, an easel, a shape that does not move. The camera does not go closer.",
+                "location_id": "rue_de_lancry",
+                "lines": [
+                  {
+                    "who": "caption",
+                    "say": {
+                      "a2": "Rue de Lancry, au troisième, une fenêtre est encore allumée. À suivre…",
+                      "native": {
+                        "en": "Rue de Lancry, on the third floor, one window is still lit. To be continued…",
+                        "de": "Rue de Lancry, im dritten Stock, brennt noch ein Fenster. Fortsetzung folgt…"
+                      }
+                    },
+                    "mood": "neutral"
+                  }
+                ],
+                "note": "The season ends where season 2 begins: the answer to «L.» belongs to the next authored season."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

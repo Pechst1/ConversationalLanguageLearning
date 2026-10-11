@@ -1,6 +1,8 @@
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 
+import { pushDeepLink } from './push-deep-link';
+
 export function nativePushIsAvailable(): boolean {
   return process.env.NEXT_PUBLIC_NATIVE_PUSH_ENABLED === 'true'
     && Capacitor.isNativePlatform()
@@ -61,10 +63,11 @@ export async function listenForNativePushActions(
   const handle = await PushNotifications.addListener(
     'pushNotificationActionPerformed',
     ({ notification }) => {
-      const route = notification?.data?.route;
-      if (typeof route === 'string' && route.startsWith('/')) {
-        navigate(route, notification?.data || {});
-      }
+      // WP-99: a Dépêche opens today's scene, a letter or a deadline opens
+      // that letter — the route table lives in `push-deep-link.ts`.
+      const data = (notification?.data || {}) as Record<string, unknown>;
+      const route = pushDeepLink(data);
+      if (route) navigate(route, data);
     },
   );
   return () => handle.remove();

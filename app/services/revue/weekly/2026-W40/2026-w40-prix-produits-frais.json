@@ -1,0 +1,111 @@
+{
+  "id": "2026-w40-prix-produits-frais",
+  "dossier_version": "revue-v1",
+  "week": "2026-W40",
+  "topic": "food",
+  "title_fr": "Les fruits et légumes coûtent plus cher",
+  "summary_fr": "Selon une première estimation de l'Insee publiée le 30 septembre 2026, les produits frais (fruits, légumes, poisson) coûtent 9,9 % plus cher qu'il y a un an. Pour toute l'alimentation, la hausse est plus faible : 1,5 %. Les chiffres définitifs arrivent le 15 octobre.",
+  "claims": [
+    {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Selon l'Insee, les produits frais coûtent 9,9 % plus cher en septembre 2026 qu'un an plus tôt ; en août, la hausse était de 5,9 %.",
+      "quote": "Les produits frais affichent une hausse de 9,9 % sur un an en septembre. En août, leur progression se limitait encore à 5,9 %.",
+      "source_id": "w40_prix_abcbourse",
+      "url": "https://www.abcbourse.com/marches/newsContent/703405",
+      "published_at": "2026-09-30",
+      "confidence": "reported"
+    },
+    {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Pour toute l'alimentation, les prix montent moins vite : 1,5 % sur un an, après 1,1 % en août.",
+      "quote": "Les prix alimentaires progressent désormais de 1,5 % sur un an, après 1,1 % en août.",
+      "source_id": "w40_prix_abcbourse",
+      "url": "https://www.abcbourse.com/marches/newsContent/703405",
+      "published_at": "2026-09-30",
+      "confidence": "reported"
+    },
+    {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "Les prix de l'alimentation augmentent pour le troisième mois de suite, surtout à cause des produits frais.",
+      "quote": "Ceux de l’alimentation augmenteraient pour le troisième mois consécutif, une nouvelle fois tirés par ceux des produits frais.",
+      "source_id": "w40_prix_insee",
+      "url": "https://www.insee.fr/fr/statistiques/9056956",
+      "published_at": "2026-09-30",
+      "confidence": "reported"
+    },
+    {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Pour le site ABC Bourse, la hausse des prix vient avant tout de l'énergie et des produits frais.",
+      "quote": "Une accélération alimentée avant tout par l'énergie et les produits frais.",
+      "source_id": "w40_prix_abcbourse",
+      "url": "https://www.abcbourse.com/marches/newsContent/703405",
+      "published_at": "2026-09-30",
+      "confidence": "reported",
+      "attributed_to": "ABC Bourse, site d'information économique"
+    }
+  ],
+  "entities": [
+    {
+      "name": "Insee",
+      "kind": "organisation"
+    }
+  ],
+  "uncertainties": [
+    "Ces chiffres sont provisoires : les sources ne disent pas s'ils vont changer avec les résultats définitifs du 15 octobre.",
+    "Les sources ne disent pas quels fruits ou quels légumes ont le plus augmenté."
+  ],
+  "angles": [
+    {
+      "id": "a1",
+      "fr": "Ce que ça change au marché et dans le panier",
+      "purpose": "understand_change",
+      "participation": "none",
+      "guest_fit": "margaux_barman"
+    },
+    {
+      "id": "a2",
+      "fr": "Faire une liste de courses de saison avec un petit budget",
+      "purpose": "prepare_dispatch",
+      "participation": "none",
+      "guest_fit": "margaux_barman"
+    }
+  ],
+  "places": [
+    {
+      "id": "etal_fruits_legumes",
+      "name_fr": "Un étal de fruits et légumes au marché",
+      "brief": "a market stall of autumn fruit and vegetables under a striped awning, wooden crates of apples, pears, leeks and squash, small chalk price boards, morning light",
+      "known": false,
+      "geo": {
+        "lat": 48.8566,
+        "lon": 2.3522,
+        "precision": "city",
+        "label_fr": "Paris"
+      }
+    }
+  ],
+  "time_scope": {
+    "happening": "2026-09-30/2026-10-15",
+    "relevant_until": "2026-10-30"
+  },
+  "sources": [
+    {
+      "id": "w40_prix_abcbourse",
+      "name": "ABC Bourse",
+      "url": "https://www.abcbourse.com/marches/newsContent/703405",
+      "published_at": "2026-09-30"
+    },
+    {
+      "id": "w40_prix_insee",
+      "name": "Insee, Informations rapides n° 242",
+      "url": "https://www.insee.fr/fr/statistiques/9056956",
+      "published_at": "2026-09-30"
+    }
+  ],
+  "evergreen": false,
+  "vignette_object_fr": "un panier de légumes"
+}

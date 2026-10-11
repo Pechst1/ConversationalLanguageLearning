@@ -8,6 +8,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
+from app.db.models._clock import app_now
 
 
 class LearningSession(Base):
@@ -118,7 +119,7 @@ class WordInteraction(Base):
     response_time_ms = Column(Integer)
     was_suggested = Column(Boolean, default=False)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now())
 
     session = relationship("LearningSession", back_populates="interactions")
     message = relationship("ConversationMessage")

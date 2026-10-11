@@ -59,21 +59,28 @@ def test_partial_finish_confirms_once_and_says_so():
     topbar = _source("components/epreuve/Epreuve.tsx")
     assert "partial = false" in topbar
     assert "if (partial && !confirming)" in topbar
-    assert "Clore ici ?" in topbar
+    # WP-82: the confirm and the early-close line follow the chrome language.
+    assert "{confirming ? t.finish_confirm : t.finish}" in topbar
+    copy = _source("components/epreuve/epreuve-copy.ts")
+    assert "finish_confirm: 'Arrêter ici ?'" in copy and "finish_confirm: 'Stop here?'" in copy
     recap = _source("pages/atelier.tsx")
-    assert "Édition close en avance" in recap
+    assert "? t.recap_early" in recap
+    assert "recap_early: 'Terminée en avance : tout compte.'" in copy
 
 
 def test_prescription_quotes_the_estimate_not_the_budget():
     page = _source("pages/atelier.tsx")
     # The headline minutes must not be the learner's daily-goal setting.
     assert "const prescribedMinutes = Math.max(1, Number(remainingMinutes || sessionMins || 8));" in page
-    # WP-16 / D-0: the overrun clause belongs to La Une's own 3D-press action.
-    # With the daily journey on screen that action is the journey's, so the
-    # clause is suppressed with it — see `journeyOwnsPrimary` in atelier.tsx.
-    assert "overrunMinutes={journeyOwnsPrimary ? null : overBudgetMinutes}" in page
+    # 2026-09-24: the «Plus long que les N minutes demandées» clause compared
+    # the estimate with the pre-rhythm daily goal (a stored 15 no control sets
+    # any more) and flashed on journey learners' Home while it loaded. The
+    # rhythm sizes the day server-side and WP-81's Home says one thing, so the
+    # clause is gone; the headline minutes above are still the honest estimate.
+    assert "overrunMinutes" not in page
+    assert "overBudgetMinutes" not in page
     home = _source("components/atelier-v2/home/HomeScreen.tsx")
-    assert "Plus long que les {overrunMinutes} minutes" in home
+    assert "Plus long que les {overrunMinutes} minutes" not in home
 
 
 def test_planned_drills_come_from_the_server_plan():
@@ -85,7 +92,10 @@ def test_planned_drills_come_from_the_server_plan():
 def test_lock_copy_reports_the_drills_it_actually_retired():
     epreuve = _source("components/epreuve/Epreuve.tsx")
     assert "retired = 0" in epreuve
-    assert "retiré" in epreuve
+    assert "fill(count === 1 ? t.lock_retired_one : t.lock_retired_many, { n: count })" in epreuve
+    copy = _source("components/epreuve/epreuve-copy.ts")
+    assert "lock_retired_many: '{n} exercices en moins aujourd’hui.'" in copy
+    assert "le concept se ferme en avance" not in copy
     # It must not claim a closed concept when only one rung was retired.
     assert "le concept se ferme en avance" not in epreuve
     page = _source("pages/atelier.tsx")
@@ -101,7 +111,8 @@ def test_studio_is_reachable_from_the_day_plan():
     assert "if (!progress.studioDone && progress.studioSuggested)" in plan
     assert "void router.push('/audio-session');" in page
     # It also has to be offered where the learner just finished speaking practice.
-    assert "Ouvrir le studio" in page
+    assert "if (action.kind === 'studio') return { action: t.next_studio };" in page
+    assert "next_studio: 'Ouvrir le studio'" in _source("components/epreuve/epreuve-copy.ts")
     # The day's one action names speaking when the studio is prescribed.
     assert "studioIsPrescribed ? 'Parler'" in page
 
@@ -296,19 +307,27 @@ def test_le_releve_is_french_and_learner_scoped():
     raw = _source("components/releve/Releve.tsx")
     # The file documents the English dashboard it replaces; only shipped code counts.
     releve = re.sub(r"/\*.*?\*/", "", raw, flags=re.S)
+    # WP-82: the chrome lives in the copy table (learner's language up to A2,
+    # French from B1); the French table keeps the publication furniture.
+    copy = _source("components/releve/releve-copy.ts")
+    french = copy[copy.index("const FR"):copy.index("const EN")]
 
     # French publication furniture, one section head each.
-    assert "Le Relevé" in releve
-    assert 't="Le cours"' in releve
-    assert 't="Le registre"' in releve
-    assert 't="La collection"' in releve
+    assert "Le Relevé" in french
+    assert "cours_title: 'Le cours'" in french
+    assert "registre_title: 'Le registre'" in french
+    assert "collection_title: 'La collection'" in french
+    for head in ("cours_title", "registre_title", "collection_title"):
+        assert f"t={{copy.{head}}}" in releve, head
+    assert "useChromeLanguage()" in releve
     # The honest empty state, not a scoreboard with nothing on it.
-    assert "Rien d’accroché encore" in releve
-    assert "La collection commence avec la première édition bouclée." in releve
+    assert "Rien d’accroché encore" in french
+    assert "La collection commence avec la première édition bouclée." in french
 
     # The English dashboard vocabulary must not come back.
     for banned in ("Anki Sync", "XP Earned", "No Achievements Yet", "Connect to local Anki"):
         assert banned not in releve, banned
+        assert banned not in copy, banned
 
     # Learner-scoped endpoints only: no global `vocabulary_words` dump.
     for banned_call in ("getAnkiProgress", "getAnkiSummary", "api.getVocabulary("):

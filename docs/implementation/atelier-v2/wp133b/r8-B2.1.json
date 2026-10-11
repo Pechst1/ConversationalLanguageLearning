@@ -1,0 +1,23 @@
+{
+ "band": "B2.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.11921300000000003,
+  "calls": 43,
+  "cap": 0.5
+ },
+ "weaves": [
+  {
+   "unit": null,
+   "title": "La fenêtre allumée",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [
+  "daily_journey: season day lost (invalid_story_output); journey 16886816-8315-42cc-925f-40745287f798 re-reads t7.b",
+  "daily_journey: season day lost (mixed_address_register, 2 in a row in g7); journey db4a3daf-a9a1-4081-b8a2-16ea40df194d serves the tentpole t8.a"
+ ]
+}

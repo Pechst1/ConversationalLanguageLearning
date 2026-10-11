@@ -18,15 +18,22 @@
 
 import type {
   AssistanceLevel,
+  AttemptInput,
   AttemptResult,
   ControlLanguage,
+  DayShape,
   JourneyErrorCode,
   JourneyErrorDetail,
   JourneyRecap,
   JourneySnapshot,
   PublicStep,
+  RecallFormat,
+  RecallPrompt,
+  ResolutionPrompt,
+  RespondLetter,
   RespondPrompt,
   ScenarioDescriptor,
+  ScenePrompt,
   StepKind,
   TaskOutcome,
   TodayEnvelope,
@@ -44,7 +51,7 @@ export type JourneyPhase =
   | { kind: 'disabled'; envelope: TodayEnvelope | null }
   /** Enabled, nothing open: today's scenario can be started (or nothing is offered). */
   | { kind: 'offer'; envelope: TodayEnvelope; scenario: ScenarioDescriptor | null }
-  | { kind: 'preparing'; journey: JourneySnapshot; retryAfterSeconds: number }
+  | { kind: 'preparing'; journey: JourneySnapshot; retryAfterSeconds: number; retryAllowed: boolean }
   | {
       kind: 'unavailable';
       journey: JourneySnapshot;
@@ -99,6 +106,18 @@ export type JourneyFeedback =
       result: AttemptResult;
       replySource: ReplyProvenance;
     }
+  /**
+   * WP-76: the same graded result, staged. The character's reply is typing in
+   * on the respond step and the verdict card is held back until it has — words
+   * first, judgement second. Always followed by `graded` for the same result
+   * (`lib/journey-reply-reveal.ts`); inputs stay locked exactly as in `graded`.
+   */
+  | {
+      kind: 'replying';
+      verdict: Exclude<AttemptVerdict, 'unscored'>;
+      result: AttemptResult;
+      replySource: ReplyProvenance;
+    }
   /** `pending: true` — retryable grading, `task_outcome: 'unscored'`. */
   | { kind: 'unscored'; message: string; result: AttemptResult }
   /** A 409 that was refetched and reconciled. The learner lost nothing. */
@@ -132,6 +151,9 @@ export function phaseFromJourney(
         kind: 'preparing',
         journey,
         retryAfterSeconds: journey.retry?.after_seconds ?? 3,
+        // WP-69: the server says whether POST /retry may run. A live claim
+        // answers 202 without generating, so the button can always ask.
+        retryAllowed: journey.retry?.allowed ?? false,
       };
     case 'unavailable':
       return {
@@ -289,6 +311,34 @@ export function attemptVerdict(
 }
 
 /**
+ * WP-89 (W7): which verdict line the band says. «Correct, with help» only when
+ * help was really used; a `partially_met` answer given without help is a
+ * partial result («Nearly…»), never credited to help the learner never asked
+ * for. The tone stays the verdict's; only the words are chosen here.
+ */
+export type VerdictTitleKey = 'correct' | 'supported' | 'nearly' | 'wrong';
+
+export function verdictTitleKey(
+  verdict: Exclude<AttemptVerdict, 'unscored'>,
+  assistance: AssistanceLevel | null | undefined,
+): VerdictTitleKey {
+  if (verdict === 'supported') {
+    return assistance && assistance !== 'none' ? 'supported' : 'nearly';
+  }
+  return verdict;
+}
+
+/**
+ * QA-STORY 2026-10-03: whether a graded step says «Correct» / «Wrong» at all. A
+ * story reply (the respond step) is routed on what the learner meant and never
+ * graded: no verdict word, no tick, no «… smiles at you» — the scene's own lines
+ * are the answer, and a slip is the margin correction alone.
+ */
+export function showsVerdict(stepKind: string | null | undefined): boolean {
+  return stepKind !== 'respond';
+}
+
+/**
  * `AttemptResult.reply_source` was ratified additively as contract revision 2 on
  * 2026-09-05. It is read structurally rather than off the type, because a server
  * built before that revision omits the field entirely — that case must resolve to
@@ -314,6 +364,55 @@ export function feedbackFromAttempt(result: AttemptResult): JourneyFeedback {
     return { kind: 'unscored', message: 'still_grading', result };
   }
   return { kind: 'graded', verdict, result, replySource: replySourceOf(result) };
+}
+
+/** WP-76: the staged twin of a `graded` feedback (reply on screen, verdict held). */
+export function replyingOf(feedback: JourneyFeedback): JourneyFeedback {
+  return feedback.kind === 'graded' ? { ...feedback, kind: 'replying' } : feedback;
+}
+
+/** A turn that is answered — graded, or staged on its way to graded. */
+export function feedbackIsAnswered(feedback: JourneyFeedback): boolean {
+  return feedback.kind === 'graded' || feedback.kind === 'replying';
+}
+
+// ---------------------------------------------------------------------------
+// WP-76 — the header counts steps, never a clock
+// ---------------------------------------------------------------------------
+
+/**
+ * The 1-based position of the step actually on screen, or null when there is
+ * none. Counting finished steps instead advances the header the instant an
+ * answer is graded, while the graded step is still the one being read.
+ */
+export function stepPositionOnScreen(journey: JourneySnapshot | null): number | null {
+  if (!journey?.current_step_id) return null;
+  const index = journey.steps.findIndex((step) => step.id === journey.current_step_id);
+  return index < 0 ? null : index + 1;
+}
+
+/**
+ * «Étape 2 sur 3» and nothing else.
+ *
+ * The header used to append the plan's remaining estimate («3 min restant»).
+ * That number drops by a whole step's estimate the moment a turn is graded, so
+ * after a 12 s wait for the reply it read «45 s restant»: the server's wait,
+ * billed to the learner. A countdown also adds pressure while someone is
+ * composing French and helps no decision mid-scene. The estimate stays where it
+ * helps choose — on the Today card, before starting — and the header shows
+ * where the learner is, which nothing but the learner's own «Continuer» moves.
+ */
+export function journeyHeaderCaption(
+  journey: JourneySnapshot | null,
+  stepOf: (position: number, total: number) => string,
+): string | undefined {
+  if (!journey || journey.steps.length === 0) return undefined;
+  const total = journey.steps.length;
+  const done = journey.steps.filter(
+    (step) => step.status === 'completed' || step.status === 'skipped',
+  ).length;
+  const position = stepPositionOnScreen(journey) ?? Math.min(done + 1, total);
+  return stepOf(position, total);
 }
 
 // ---------------------------------------------------------------------------
@@ -376,6 +475,135 @@ export function answerIsBlank(text: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// WP-66 — day shapes and the three formats brought in from the Séance
+// ---------------------------------------------------------------------------
+
+/**
+ * Which kind of day this is.
+ *
+ * A server built before WP-66 sends no `day_shape` at all, and that is a
+ * standard day — which is exactly what it was. An unknown shape is returned
+ * verbatim rather than flattened, so a client can *report* a day it does not
+ * have chrome for while still rendering the steps it was sent.
+ */
+export function dayShapeOf(journey: JourneySnapshot | null): DayShape {
+  const raw = journey?.day_shape;
+  return typeof raw === 'string' && raw.trim() ? raw : 'standard';
+}
+
+/**
+ * How one recall format is answered.
+ *
+ * The three formats WP-66 brought in reuse the renderers that already exist,
+ * so they reuse their input modes too: this is the one table that says so, and
+ * both the renderer and the request builder read it. A format this client has
+ * never heard of is treated as written text, which is the mode every server
+ * accepts for any step.
+ */
+export function recallAnswerMode(
+  format: RecallFormat | string,
+): 'choice' | 'tiles' | 'text' {
+  if (format === 'choice' || format === 'classify' || format === 'listen_tap') return 'choice';
+  // WP-86: «Qui a dit ça ?» is a pick among faces.
+  if (format === 'who_said') return 'choice';
+  // WP-78: an unscramble is tiles; a matching item sends the pairs it made,
+  // in order, as consecutive `[fr, native]` tile ids.
+  if (format === 'tiles' || format === 'word_bank' || format === 'unscramble') return 'tiles';
+  if (format === 'match_pairs') return 'tiles';
+  return 'text';
+}
+
+/** Is this format answered by picking a chip/option rather than by writing? */
+export function recallIsPicked(format: RecallFormat | string): boolean {
+  return recallAnswerMode(format) !== 'text';
+}
+
+/**
+ * The attempt body for a recall step, or `null` when nothing was answered.
+ *
+ * Keeping this beside `recallAnswerMode` is the point: a renderer that adds a
+ * format without teaching this function how it is sent would post a blank
+ * answer, and a blank answer costs the learner a turn.
+ */
+export function recallAttempt(
+  prompt: RecallPrompt,
+  answer: { choice: string | null; tiles: string[]; text: string },
+): AttemptInput | null {
+  switch (recallAnswerMode(prompt.task_type)) {
+    case 'choice':
+      return answer.choice ? { mode: 'choice', option_id: answer.choice } : null;
+    case 'tiles':
+      return answer.tiles.length ? { mode: 'tiles', tile_ids: answer.tiles } : null;
+    default:
+      return answerIsBlank(answer.text) ? null : { mode: 'text', text: answer.text };
+  }
+}
+
+/**
+ * A word bank shows chips the answer does not use; tiles show only the answer's
+ * own words. The learner has to be able to tell, so the renderer says so —
+ * and only when it is true of *this* step.
+ */
+export function wordBankHasSpareChips(prompt: RecallPrompt): boolean {
+  return prompt.task_type === 'word_bank' && prompt.options.length > 0;
+}
+
+/** «Écouter d'abord», dealt by the planner rather than chosen by the learner. */
+export function sceneOpensOnAudio(prompt: ScenePrompt | null | undefined): boolean {
+  return Boolean(prompt?.listen_first && prompt?.audio_available);
+}
+
+/**
+ * The Courrier letter this respond step answers, or `null`.
+ *
+ * Half a letter is never shown. A letter block with no sender, no body or no
+ * objective would replace the character's line and the day's objective with
+ * blanks — the learner would be told to answer nothing, in a scene that had
+ * stopped talking. When any of the three is missing the step falls back to the
+ * ordinary respond chrome it was built from, which is always complete.
+ *
+ * This is also the one place that reads `prompt.letter`, so a server that sends
+ * a letter this client cannot render is a standard turn rather than an empty
+ * page.
+ */
+export function letterOf(prompt: RespondPrompt | null | undefined): RespondLetter | null {
+  const letter = prompt?.letter ?? null;
+  if (!letter) return null;
+  const name = (letter.correspondent_name ?? '').trim();
+  const body = (letter.body_fr ?? '').trim();
+  const objective = (letter.objective_native ?? '').trim();
+  if (!name || !body || !objective) return null;
+  return letter;
+}
+
+/**
+ * The register verdict to print under the ending, or `null`.
+ *
+ * `null` covers two different silences and deliberately flattens them, because
+ * they render the same way: a server that predates WP-66, and a conversation
+ * where register was *not evaluated*. Neither is a pass and neither is a
+ * failure, so neither is a line.
+ *
+ * Half a verdict is never shown: without the French line there is nothing to
+ * explain, so the reason is dropped with it.
+ */
+export function registerNoteOf(
+  prompt: ResolutionPrompt | null | undefined,
+): { lineFr: string; reasonNative: string | null } | null {
+  const lineFr = (prompt?.register_note_fr ?? '').trim();
+  if (!lineFr) return null;
+  const reason = (prompt?.register_reason_native ?? '').trim();
+  return { lineFr, reasonNative: reason || null };
+}
+
+/** The chapter recap a «jour de reprise» ends on, or `null`. */
+export function chapterRecapOf(
+  prompt: ResolutionPrompt | null | undefined,
+): string | null {
+  return (prompt?.chapter_recap_fr ?? '').trim() || null;
+}
+
+// ---------------------------------------------------------------------------
 // Recap
 // ---------------------------------------------------------------------------
 
@@ -412,4 +640,27 @@ export function recapView(recap: JourneyRecap | null): RecapView | null {
         ? recap.active_seconds
         : null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// WP-87 — the resolution waits honestly for the story lane
+// ---------------------------------------------------------------------------
+
+/** How often the resolution step re-reads the journey while its ending is written. */
+export const STORY_POLL_MS = 1_000;
+/**
+ * Bounded: the server heals a dead lane with the authored ending after ~15 s
+ * unclaimed or ~90 s running, so two minutes of polls always see an ending.
+ */
+export const STORY_POLL_LIMIT = 120;
+
+/** Is this step a resolution whose ending the story lane is still writing? */
+export function resolutionAwaitsStory(step: PublicStep | null | undefined): boolean {
+  return Boolean(step && step.kind === 'resolution' && step.prompt.story_pending === true);
+}
+
+/** The id of the journey to poll, or `null` when nothing is being written. */
+export function storyPollTarget(journey: JourneySnapshot | null | undefined): string | null {
+  if (!journey || (journey.status !== 'active' && journey.status !== 'paused')) return null;
+  return resolutionAwaitsStory(currentStepOf(journey)) ? journey.id : null;
 }

@@ -31,6 +31,14 @@
         "modalities": [],
         "latest_qualifying_on": null,
         "evidence": []
+      },
+      {
+        "capability_key": "register",
+        "title_native": "Speak to the right person the right way",
+        "state": "not_tried",
+        "modalities": [],
+        "latest_qualifying_on": null,
+        "evidence": []
       }
     ]
   }

@@ -32,6 +32,12 @@ from app.services.journey_contracts import (
 )
 from app.services.llm_service import LLMResult
 
+#: The scenario families the catalogue publishes. WP-37 put
+#: `CapabilityKey.REGISTER` on the enum — a *dimension* of a respond turn, with
+#: no scenario, no brief and no ending of its own — so the enum is no longer the
+#: family list and these tests iterate the production tuple instead.
+SCENARIO_FAMILIES = jc_content.SCENARIO_PRIORITY
+
 
 @pytest.fixture(autouse=True)
 def _clear_content_cache():
@@ -143,7 +149,9 @@ def test_a_turn_past_the_budget_is_not_consumed_and_asks_for_no_repair(db_sessio
 def test_a_partial_first_turn_asks_for_another_turn(db_session):
     user = _user(db_session)
     brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
-    result = _evaluate(db_session, user, brief, "Un café, s'il vous plaît.")
+    # WP-89: with « bonjour » said, so the opening greeting nudge (which now
+    # *replaces* the line) is not what this test is about.
+    result = _evaluate(db_session, user, brief, "Bonjour, un café, s'il vous plaît.")
     assert result.outcome is TaskOutcome.PARTIALLY_MET
     assert result.needs_repair is True
     assert result.consequence is None
@@ -321,7 +329,7 @@ def test_a_scene_fact_conflict_is_corrected_rather_than_granted(db_session):
 
 def test_every_proposed_outcome_key_is_declared_by_the_brief(db_session):
     user = _user(db_session)
-    for key in CapabilityKey:
+    for key in SCENARIO_FAMILIES:
         brief = _brief(db_session, user, key)
         allowed = set(brief.response_task.allowed_outcomes)
         assert allowed
@@ -861,7 +869,7 @@ def test_the_history_shape_the_state_machine_persists_is_understood(db_session):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("scenario_key", list(CapabilityKey))
+@pytest.mark.parametrize("scenario_key", list(SCENARIO_FAMILIES))
 @pytest.mark.parametrize("band", ["A1", "A2"])
 def test_every_authored_suggested_response_satisfies_its_own_objective(
     db_session, scenario_key: CapabilityKey, band: str
@@ -939,7 +947,7 @@ def test_an_ending_with_no_identifiable_choice_names_none(db_session) -> None:
     """No learner text, no invented detail — and never a raw template."""
 
     user = _user(db_session)
-    for key in CapabilityKey:
+    for key in SCENARIO_FAMILIES:
         brief = _brief(db_session, user, key)
         for outcome in brief.response_task.allowed_outcomes:
             for text in (
@@ -1041,8 +1049,9 @@ def test_a_refusal_of_one_drink_promotes_the_drink_that_was_asked_for(db_session
 
     user = _user(db_session)
     brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    # « Bonjour » said: WP-89's opening greeting nudge replaces the line otherwise.
     result = _evaluate(
-        db_session, user, brief, "Non merci, pas de café. Un thé, s'il vous plaît."
+        db_session, user, brief, "Bonjour. Non merci, pas de café. Un thé, s'il vous plaît."
     )
 
     # One of the two required intents (the place) is still missing, so this is
@@ -1056,7 +1065,7 @@ def test_a_refusal_of_one_drink_promotes_the_drink_that_was_asked_for(db_session
         brief,
         "Au comptoir.",
         turn_index=1,
-        history=[{"learner": "Non merci, pas de café. Un thé, s'il vous plaît."}],
+        history=[{"learner": "Bonjour. Non merci, pas de café. Un thé, s'il vous plaît."}],
     )
     assert follow_up.outcome is TaskOutcome.MET
     assert follow_up.consequence is not None
@@ -1332,3 +1341,71 @@ def test_a_model_cannot_reverse_a_choice_made_on_an_earlier_turn(
     assert result.consequence is not None
     assert result.consequence.outcome_key == "meeting_saturday_market"
     assert jc.reply_source(result) == "authored"
+
+
+# --------------------------------------------------------------------------
+# A semantic second opinion (2026-09-25): the keywords only know their list
+# --------------------------------------------------------------------------
+
+_UNLISTED = "Je prendrais bien une boisson chaude, dehors sous l'auvent."
+
+
+def test_a_model_raises_a_keyword_miss_on_the_learners_own_words(db_session, _model_enabled):
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    stub = _model_enabled(
+        [
+            '{"outcome": "met", "evidence_quotes": ["une boisson chaude", "dehors sous l\'auvent"]}',
+            '{"reply_fr": "Une boisson chaude en terrasse, je vous apporte ça."}',
+        ]
+    )
+
+    result = _evaluate(db_session, user, brief, _UNLISTED)
+
+    assert stub.calls == 2, "one grade, one reply"
+    assert result.outcome is TaskOutcome.MET
+    assert result.consequence is not None, "a success ending, not the neutral one"
+
+
+def test_a_model_success_without_the_learners_words_is_ignored(db_session, _model_enabled):
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    invented = '{"outcome": "met", "evidence_quotes": ["un café en terrasse"]}'
+    _model_enabled([invented, RuntimeError("no reply"), RuntimeError("no reply")])
+
+    result = _evaluate(db_session, user, brief, _UNLISTED)
+
+    assert result.outcome is not TaskOutcome.MET
+
+
+def test_a_keyword_pass_asks_no_second_opinion(db_session, _model_enabled):
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    stub = _model_enabled(['{"reply_fr": "Un thé en terrasse, tout de suite.", "outcome_key": "served_at_terrace"}'])
+
+    result = _evaluate(db_session, user, brief, "Un thé en terrasse.")
+
+    assert stub.calls == 1, "a met turn is never re-graded: the model may only raise"
+    assert result.outcome is TaskOutcome.MET
+
+
+def test_a_table_the_scene_does_not_offer_is_asked_about_not_served(db_session):
+    """E2E walk 2026-09-26: "près de la fenêtre" came back as "D'accord, au comptoir"."""
+
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(db_session, user, brief, "Je voudrais un grand crème, près de la fenêtre.")
+
+    assert result.needs_repair and result.consequence is None
+    assert "comptoir" not in result.character_reply_fr.split("?")[0].split(".")[0]
+    assert "La salle est pleine" in result.character_reply_fr
+    assert result.character_reply_fr.startswith("Un grand crème")
+
+
+def test_la_bas_names_no_place(db_session):
+    user = _user(db_session)
+    brief = _brief(db_session, user, CapabilityKey.ORDER_AT_CAFE)
+    result = _evaluate(db_session, user, brief, "Bonjour, un café, là-bas s'il vous plaît.")
+
+    assert result.needs_repair and result.consequence is None
+    assert "Là-bas ?" in result.character_reply_fr

@@ -1,0 +1,98 @@
+name: Browser walk
+
+# E-3. A scripted 7-day walk in a real browser (375x812, light/dark, en/de/fr) against a
+# throwaway database and the fake story provider — no paid call. The screenshots and a
+# contact sheet are attached as an artifact; a nightly run keeps the last 7 walks.
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * *'
+
+concurrency:
+  group: walk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  walk:
+    name: Walk · 7 days × en/de/fr
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      # The harness creates and drops its own atelier_walk_<timestamp> database here.
+      WALK_PG_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      WALK_PYTHON: python
+      SECRET_KEY: ci-secret-key
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install backend
+        run: |
+          python -m pip install --upgrade pip
+          # Editable (-e): `app` must be the checkout under test. A plain install
+          # puts a wheel in site-packages without the package data (the season
+          # world, prompts, word lists), and every `python scripts/…` imports
+          # that copy, not this one.
+          pip install -c constraints.txt -e .[dev]
+          python -m spacy download fr_core_news_sm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web-frontend/package-lock.json
+
+      - name: Install frontend and the browser
+        working-directory: web-frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Walk
+        id: walk
+        working-directory: web-frontend
+        run: npm run walk -- --out e2e/out/ci
+
+      - name: Summary
+        if: always()
+        working-directory: web-frontend
+        run: |
+          python - <<'PY'
+          import json, os
+          path = "e2e/out/ci/report.json"
+          if not os.path.exists(path):
+              raise SystemExit("no walk report")
+          d = json.load(open(path))
+          lines = [f"### Browser walk\n", f"{d['meta']}\n", f"{d['shots']} screens; {len(d['failures'])} failed assertions\n"]
+          for row in d["summary"]:
+              lines.append(f"- {'FAIL' if row['fail'] else 'ok'} `{row['id']}`: {row['pass']} pass, {row['fail']} fail")
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("\n".join(lines) + "\n")
+          PY
+
+      - name: Upload screenshots and contact sheet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: walk-${{ github.event_name == 'schedule' && 'nightly' || 'pr' }}-${{ github.run_number }}
+          path: web-frontend/e2e/out/ci
+          # A nightly walk is kept for 7 days = the last 7 walks.
+          retention-days: ${{ github.event_name == 'schedule' && 7 || 14 }}
+          if-no-files-found: warn

@@ -9,17 +9,17 @@
     "era": "present day",
     "tone": "warm, wry, romantic, lightly satirical — comedy that hides real feeling",
     "recurring_locations": [
-      { "id": "le_mistral", "name": "Le Mistral", "type": "café-bar", "description": "A narrow corner café-bar with a worn zinc counter near the Canal. The group's headquarters — their booth in the back is unofficially theirs. Open late, smells of coffee and rain.", "use": "home base — but NOT every episode; the anchor, not the default" },
-      { "id": "user_apartment", "name": "Your apartment", "type": "home", "description": "A sixth-floor walk-up studio with a temperamental radiator and a view of zinc rooftops. The arrival point of the whole story." },
-      { "id": "marin_lila_flat", "name": "Marin & Lila's flat", "type": "home", "description": "A cramped, art-covered two-room flat near République, always full of people and casserole." },
-      { "id": "newsroom", "name": "Romy's newsroom", "type": "workplace", "description": "A glass-walled open-plan TV/online newsroom, screens everywhere — the diegetic gateway for the daily news seed." },
-      { "id": "ngo_office", "name": "Marin's NGO office", "type": "workplace", "description": "A cluttered environmental-NGO office with protest posters and dying plants Marin keeps reviving." },
-      { "id": "marche_canal", "name": "The Canal market", "type": "outdoor", "description": "An open-air market along the Canal Saint-Martin — fishmongers, cheese stalls, haggling, Sunday crowds." },
-      { "id": "buttes_chaumont", "name": "Parc des Buttes-Chaumont", "type": "outdoor", "description": "Hilly park with a cliff-top folly; where the group goes to walk off a drama or have the real conversation." },
-      { "id": "metro_platform", "name": "Métro / platform", "type": "transit", "description": "Late-night platforms, last trains, missed connections — Paris in motion." },
-      { "id": "gus_loft", "name": "Gus's 'château'", "type": "home", "description": "An aggressively styled bachelor loft Gus passes off as ancestral. (The real address is in Créteil.)" },
-      { "id": "brocante", "name": "A flea market / brocante", "type": "outdoor", "description": "Weekend brocante stalls — antiques, junk, and exactly the wrong gift." },
-      { "id": "office_admin", "name": "An admin office", "type": "institutional", "description": "Préfecture / bank / town hall — the bureaucratic 'vous' battlegrounds where real-world Missions bite." }
+      { "id": "le_mistral", "name": "Le Mistral", "name_fr": "Le Mistral", "type": "café-bar", "description": "A narrow corner café-bar with a worn zinc counter near the Canal. The group's headquarters — their booth in the back is unofficially theirs. Open late, smells of coffee and rain.", "use": "home base — but NOT every episode; the anchor, not the default" },
+      { "id": "user_apartment", "name": "Your apartment", "name_fr": "Votre appartement", "type": "home", "description": "A sixth-floor walk-up studio with a temperamental radiator and a view of zinc rooftops. The arrival point of the whole story." },
+      { "id": "marin_lila_flat", "name": "Marin & Lila's flat", "name_fr": "L’appartement de Marin et Lila", "type": "home", "description": "A cramped, art-covered two-room flat near République, always full of people and casserole." },
+      { "id": "newsroom", "name": "Romy's newsroom", "name_fr": "La rédaction de Romy", "type": "workplace", "description": "A glass-walled open-plan TV/online newsroom, screens everywhere — the diegetic gateway for the daily news seed." },
+      { "id": "ngo_office", "name": "Marin's NGO office", "name_fr": "Le bureau de l’ONG de Marin", "type": "workplace", "description": "A cluttered environmental-NGO office with protest posters and dying plants Marin keeps reviving." },
+      { "id": "marche_canal", "name": "The Canal market", "name_fr": "Le marché du canal", "type": "outdoor", "description": "An open-air market along the Canal Saint-Martin — fishmongers, cheese stalls, haggling, Sunday crowds." },
+      { "id": "buttes_chaumont", "name": "Parc des Buttes-Chaumont", "name_fr": "Le parc des Buttes-Chaumont", "type": "outdoor", "description": "Hilly park with a cliff-top folly; where the group goes to walk off a drama or have the real conversation." },
+      { "id": "metro_platform", "name": "Métro / platform", "name_fr": "Le quai du métro", "type": "transit", "description": "Late-night platforms, last trains, missed connections — Paris in motion." },
+      { "id": "gus_loft", "name": "Gus's 'château'", "name_fr": "Le « château » de Gus", "type": "home", "description": "An aggressively styled bachelor loft Gus passes off as ancestral. (The real address is in Créteil.)" },
+      { "id": "brocante", "name": "A flea market / brocante", "name_fr": "La brocante", "type": "outdoor", "description": "Weekend brocante stalls — antiques, junk, and exactly the wrong gift." },
+      { "id": "office_admin", "name": "An admin office", "name_fr": "Un bureau administratif", "type": "institutional", "description": "Préfecture / bank / town hall — the bureaucratic 'vous' battlegrounds where real-world Missions bite." }
     ]
   },
 

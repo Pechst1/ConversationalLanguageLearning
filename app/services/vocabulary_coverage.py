@@ -626,6 +626,14 @@ def inferred_part_of_speech(word: VocabularyWord) -> str:
     if explicit:
         return explicit
 
+    # WP-84: the core lexicon's own part of speech (every lemma through B1)
+    # before the suffix guess, which printed «frère», «hiver», «notre» as verbs.
+    from app.services.lexicon_grammar import lexicon_pos
+
+    lexical = normalize_pos_tag(lexicon_pos(surface))
+    if lexical:
+        return lexical
+
     return heuristic_part_of_speech(word)
 
 

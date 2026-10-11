@@ -25,14 +25,15 @@ def test_mobile_capture_defaults_to_project_screenshot_folder_and_seeded_account
     assert "mobile: !desktopLike" in source
 
 
-def test_mobile_capture_splits_onboarding_from_active_atelier_and_checks_smoke() -> None:
+def test_mobile_capture_shows_the_active_atelier_and_checks_smoke() -> None:
     source = read_web("scripts/capture-mobile-states.mjs")
 
-    assert "name: 'atelier-onboarding'" in source
-    assert "waitFor: atelierOnboardingExpression" in source
+    # 2026-10-03: the serial welcome modal is gone from /atelier (the daily journey
+    # owns Today), so there is no onboarding frame to capture and nothing to dismiss.
     assert "name: 'atelier-home-active'" in source
-    assert "dismissAtelierOnboardingIfPresent()" in source
-    assert "active Atelier capture is occluded by serial onboarding" in source
+    assert "serial-welcome-backdrop" not in source
+    assert "name: 'atelier-onboarding'" not in source
+    assert "SerialWelcomeModal" not in read_web("pages/atelier.tsx")
     assert "duplicate editorial masthead" in source
     assert ".missions-page .mission-error" not in source
     assert "CAPTURE_SKIP_SMOKE_ASSERTIONS" in source
@@ -53,7 +54,8 @@ def test_polish_fixes_keep_confusing_surfaces_hidden() -> None:
     feedback = read_web("components/feedback/FeedbackWidget.tsx")
     feuilleton = read_web("pages/graphic-novel.tsx")
     settings = read_web("pages/settings.tsx")
-    cast = read_web("pages/serial/cast.tsx")
+    # WP-96: the cast lives in «Le trombinoscope».
+    cast = read_web("components/feuilleton/archive/Trombinoscope.tsx")
 
     # WP-20 D-9: the feedback control speaks the av2 system — a 44px
     # `IconAction`, not the 36px neo-brutal box it used to be — and it stands
@@ -64,7 +66,9 @@ def test_polish_fixes_keep_confusing_surfaces_hidden() -> None:
     assert ">{'!'}</button>" not in feedback
     assert "scene && !scene.serial_thread_id" in feuilleton
     # Soft-button pass: CTA labels are sentence case (text-transform removed).
-    assert "Composer la première scène" in feuilleton
+    assert "compose_first: 'Composer la première scène'" in read_web("components/feuilleton/feuilleton-copy.ts")
+    assert "{t.compose_first}" in feuilleton
     assert "break-all" in settings
-    assert "Private model sheet" in cast
+    # WP-82: the sheet line is chrome in the copy table («Fiche privée»).
+    assert "mode === 'avatar' ? t.sheet_avatar : t.sheet_pov" in cast
     assert "Model sheet asset" not in cast

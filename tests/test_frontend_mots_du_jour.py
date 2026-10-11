@@ -32,8 +32,14 @@ def test_mots_du_jour_component_uses_tokens_and_triple_stamps() -> None:
     source = MOTS_DU_JOUR.read_text(encoding="utf-8")
     for stamp in ("'lu'", "'retrouve'", "'place'"):
         assert stamp in source
-    assert "Le Lexique" in source
-    assert "Triplé" in source
+    # WP-82: the labels and stamps are chrome, read from the Lexique copy
+    # table in the chrome language; the place name stays «Lexique».
+    copy = (ROOT / "web-frontend" / "components" / "lexique" / "lexique-copy.ts").read_text(encoding="utf-8")
+    assert "{t.mdj_label}" in source
+    assert "mdj_label: 'Le Lexique · les mots du jour'" in copy
+    assert "mdj_label: 'Lexique · words of the day'" in copy
+    assert "{t.stamp_triple}" in source
+    assert "stamp_triple: 'Triplé'" in copy
     assert "var(--av2-serif)" in source
     assert "if (words.length === 0) return null" in source
 

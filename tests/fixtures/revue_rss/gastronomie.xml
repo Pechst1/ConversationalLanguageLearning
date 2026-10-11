@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+    <title>Kiosque test — gastronomie</title>
+    <link>https://kiosque.test/gastronomie</link>
+    <item>
+      <title>Les vendanges se terminent en Bourgogne</title>
+      <link>https://kiosque.test/gastronomie/vendanges-bourgogne.html</link>
+      <description>Dans la Côte-d'Or, les vignerons rentrent les derniers raisins d'une récolte précoce.</description>
+      <pubDate>Tue, 29 Sep 2026 07:30:00 +0200</pubDate>
+    </item>
+</channel></rss>

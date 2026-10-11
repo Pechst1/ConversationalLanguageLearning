@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Exercice, le café crème</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&amp;family=Instrument+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding: 20px 20px 28px; display: flex; flex-direction: column; gap: 14px; background: #f1ece1; color: #14110d; font-family: 'Instrument Sans', system-ui, sans-serif; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 12px">
+<div style="flex-grow: 1; height: 8px; border-radius: 999px; background: #e8e0cf; overflow: hidden">
+<div style="width: 38%; height: 100%; border-radius: 999px; background: #d8321a"></div>
+</div>
+<span style="font-size: 12px; color: #6f6857">3 / 8</span>
+</div>
+<h1 style="margin: 0; font-family: 'EB Garamond', Georgia, serif; font-style: italic; font-weight: 400; font-size: 30px; line-height: 1.15">Qu'est-ce que Margaux pose devant toi ?</h1>
+<div style="position: relative; height: 320px; flex-shrink: 0; border-radius: 22px; overflow: hidden; background: #14285f">
+<img src="/_blob/1d775a1d15fc8c01a36d04c67b2f008d" alt="Le Mistral, le zinc" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: 18% 50%">
+<button type="button" aria-label="Réécouter Margaux" onClick="{{replay}}" style="position: absolute; left: {{mOff}}px; bottom: 0; display: block; margin: 0; padding: 0; border: 0; background: transparent; line-height: 0; cursor: pointer">
+<sc-if value="{{flat}}" hint-placeholder-val="{{true}}">
+<dc-import name="Margaux" look="{{look}}" mood="{{mood}}" mouth="{{mouth}}" blink="{{blink}}" hold="tasse" crop="bust" w="200" hint-size="200px,338px"></dc-import>
+</sc-if>
+<sc-if value="{{rond}}" hint-placeholder-val="{{false}}">
+<dc-import name="MargauxRond" mood="{{mood}}" mouth="{{mouth}}" blink="{{blink}}" hold="tasse" crop="bust" w="236" hint-size="236px,336px"></dc-import>
+</sc-if>
+</button>
+<svg width="170" height="150" viewBox="0 0 170 150" aria-hidden="true" style="position: absolute; right: 0; bottom: 0; display: block">
+<path d="M30,150 C34,96 64,62 112,52 C134,48 156,50 170,54 L170,150 Z" fill="#5b5346"></path>
+<path d="M60,150 C66,112 88,86 118,76 L124,150 Z" fill="#4a4338"></path>
+<path d="M96,58 C108,30 140,22 170,26 L170,56 C150,50 128,50 108,60 Z" fill="#3f392f"></path>
+<path d="M104,62 C118,54 142,52 170,56 L170,66 C146,62 124,64 110,72 Z" fill="#9c2411"></path>
+</svg>
+<sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: {{tagX}}px; top: {{tagY}}px; padding: 6px 12px; border-radius: 999px; background: #f3c318; color: #14110d; font-family: 'EB Garamond', Georgia, serif; font-style: italic; font-size: 17px; box-shadow: 0 3px 0 #c49a0a">un café crème</div>
+</sc-if>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; min-height: 56px">
+<sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 12px; color: #6f6857">Margaux</div>
+<div style="font-family: 'EB Garamond', Georgia, serif; font-size: 22px; line-height: 1.25">«&#8239;Elle prenait ça.&#8239;»</div>
+</sc-if>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{opts}}" as="o" hint-placeholder-count="3">
+<button type="button" onClick="{{o.pick}}" style="width: 100%; text-align: left; padding: 12px 16px; border: 0; border-radius: 16px; font-family: 'EB Garamond', Georgia, serif; font-size: 20px; line-height: 1.2; color: #14110d; cursor: pointer; background: {{o.bg}}; box-shadow: 0 3px 0 {{o.edge}}">{{o.text}}</button>
+</sc-for>
+</div>
+<sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+<button type="button" style="height: 52px; flex-shrink: 0; border: 0; border-radius: 16px; background: #d8321a; color: #ffffff; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 17px; font-weight: 600; box-shadow: 0 5px 0 #9c2411; cursor: pointer">Continuer</button>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"look":{"editor":"enum","options":["affiche","ligne","rond"],"default":"rond"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(...a) {
+    super(...a);
+    this.state = { picked: null, wrong: null, talking: false, step: 0, blink: false };
+  }
+  componentDidMount() {
+    this.bl = setInterval(() => {
+      this.setState({ blink: true });
+      setTimeout(() => this.setState({ blink: false }), 140);
+    }, 3600);
+  }
+  componentWillUnmount() {
+    clearInterval(this.bl);
+    clearInterval(this.tk);
+    clearTimeout(this.wt);
+  }
+  seq() {
+    return ["e", "rest", "m", "e", "rest", "e", "rest", "a", "rest"];
+  }
+  say() {
+    const seq = this.seq();
+    clearInterval(this.tk);
+    let i = 0;
+    this.setState({ talking: true, step: 0 });
+    this.tk = setInterval(() => {
+      i += 1;
+      if (i >= seq.length) {
+        clearInterval(this.tk);
+        this.setState({ talking: false, step: 0 });
+      } else {
+        this.setState({ step: i });
+      }
+    }, 120);
+  }
+  renderVals() {
+    const look = this.props.look ?? "rond";
+    const s = this.state;
+    const done = s.picked === "creme";
+    const rond = look === "rond";
+    const opts = [
+      { id: "creme", text: "un café crème" },
+      { id: "vin", text: "un verre de vin" },
+      { id: "cle", text: "une clé" },
+    ].map((o) => {
+      const right = done && o.id === "creme";
+      const bad = s.wrong === o.id;
+      return {
+        id: o.id,
+        text: o.text,
+        bg: right ? "#e3efe9" : bad ? "#f7e1dc" : "#f8f3e8",
+        edge: right ? "#2c6a5d" : bad ? "#d8321a" : "#e8e0cf",
+        pick: () => {
+          if (this.state.picked) return;
+          if (o.id === "creme") {
+            clearTimeout(this.wt);
+            this.setState({ picked: "creme", wrong: null });
+            setTimeout(() => this.say(), 300);
+          } else {
+            clearTimeout(this.wt);
+            this.setState({ wrong: o.id });
+            this.wt = setTimeout(() => this.setState({ wrong: null }), 1600);
+          }
+        },
+      };
+    });
+    return {
+      look,
+      flat: !rond,
+      rond,
+      mood: done ? "emue" : s.wrong ? "surprise" : "neutre",
+      mouth: s.talking ? this.seq()[s.step] : "auto",
+      blink: s.blink && !s.talking,
+      opts,
+      done,
+      mOff: rond ? -10 : 0,
+      tagX: rond ? 138 : 136,
+      tagY: rond ? 250 : 176,
+      replay: () => {
+        if (this.state.picked && !this.state.talking) this.say();
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

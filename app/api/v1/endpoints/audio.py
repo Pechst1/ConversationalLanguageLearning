@@ -1,17 +1,56 @@
 """Audio transcription and TTS endpoints."""
+from contextlib import suppress
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from loguru import logger
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_llm_service
+from app.api.deps import get_current_user, get_db, get_llm_service
+from app.config import settings
+from app.core.offload import off_event_loop
 from app.db.models.user import User
-from app.services.llm_service import LLMService
+from app.services import spoken_reply
+from app.services.audio_duration import audio_seconds
+from app.services.llm_service import LLMService, estimate_tts_cost_usd
+from app.services.pilot_events import PilotEventService
+from app.services.transcription_cost import record_transcription_cost
 
 router = APIRouter()
 MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024
+
+#: WP-70: the pilot-ledger event for ``POST /audio/speak``. It had no cost row at
+#: all, so the daily spend cap could not see it.
+SPEECH_EVENT_TYPE = "audio_speech"
+_DEFAULT_TTS_MODEL = {"openai": "tts-1-hd", "elevenlabs": "eleven_turbo_v2_5"}
+
+
+def _record_speech_cost(db: Session, *, user_id, text: str, provider: str | None) -> None:  # type: ignore[no-untyped-def]
+    """One estimated cost row per synthesized line; telemetry never costs the audio."""
+
+    resolved = (provider or settings.TTS_PROVIDER or "openai").lower()
+    model = _DEFAULT_TTS_MODEL.get(resolved, resolved)
+    try:
+        PilotEventService(db).record(
+            SPEECH_EVENT_TYPE,
+            user_id=user_id,
+            entity_type="speech",
+            payload={
+                "provider": resolved,
+                "model": model,
+                "chars": len(text),
+                "estimated": True,
+                "cost_basis": f"chars·{model}",
+            },
+            cost_usd=estimate_tts_cost_usd(model, len(text)),
+        )
+        db.commit()
+    except Exception:  # pragma: no cover - defensive
+        logger.warning("Speech cost row could not be written")
+        with suppress(Exception):
+            db.rollback()
 
 
 class TTSRequest(BaseModel):
@@ -22,12 +61,31 @@ class TTSRequest(BaseModel):
 
 
 @router.post("/transcribe")
+@off_event_loop
 async def transcribe_audio(
     file: Annotated[UploadFile, File()],
     llm_service: Annotated[LLMService, Depends(get_llm_service)],
     current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    surface: Annotated[str, Form()] = "unknown",
+    journey_id: Annotated[str | None, Form()] = None,
+    step_id: Annotated[str | None, Form()] = None,
 ) -> dict[str, str]:
-    """Transcribe an audio file to text."""
+    """Transcribe an audio file to text.
+
+    WP-27 made speaking the daily journey's default output, so this is a paid
+    endpoint on the learner's main path: every successful call writes one
+    priced pilot-cost row (`app.services.transcription_cost`). Nothing here
+    scores pronunciation — the transcript is graded as text, exactly like a
+    typed answer.
+
+    WP-158: ``surface="story_reply"`` is a spoken answer to a story character.
+    It must name its journey and step; the flag, the ownership, the 30-second
+    cap and the per-turn cost ceiling are checked before any provider call
+    (`app.services.spoken_reply`), and the row is booked against the turn. The
+    transcript is returned, never submitted: the client sends it through the
+    same reply endpoint as a typed answer.
+    """
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Must be audio.")
     
@@ -52,12 +110,53 @@ async def transcribe_audio(
         )
 
     logger.info("Received audio file: {} bytes", len(content))
+    # The length the container declares, so a recorder's bit rate cannot make a
+    # short answer «too long» or price it at four times its cost (2026-10-09).
+    measured_seconds = audio_seconds(content)
+    story_upload: spoken_reply.StoryUpload | None = None
+    if surface == spoken_reply.STORY_REPLY_SURFACE:
+        try:
+            story_upload = spoken_reply.authorize_story_upload(
+                db,
+                user_id=current_user.id,
+                journey_id=journey_id,
+                step_id=step_id,
+                byte_count=len(content),
+                content_type=file.content_type,
+                measured_seconds=measured_seconds,
+            )
+        except spoken_reply.SpokenReplyRefused as refused:
+            raise HTTPException(
+                status_code=refused.status_code, detail=refused.detail()
+            ) from refused
+    if spoken_reply.fake_transcriber_active():
+        # WP-158: dev stacks with fake provider keys hear a deterministic transcript.
+        llm_service = spoken_reply.FakeTranscriber()  # type: ignore[assignment]
     try:
         text = llm_service.transcribe_audio(
             content,
             filename=file.filename,
             content_type=file.content_type,
         )
+        # After the call, so a failed request is not billed on the ledger.
+        record_transcription_cost(
+            db,
+            user_id=current_user.id,
+            byte_count=len(content),
+            content_type=file.content_type,
+            measured_seconds=measured_seconds,
+            surface=surface,
+            **(
+                {
+                    "entity_type": spoken_reply.TURN_ENTITY_TYPE,
+                    "entity_id": story_upload.entity_id,
+                    "extra": story_upload.ledger_fields(),
+                }
+                if story_upload is not None
+                else {}
+            ),
+        )
+        db.commit()
         return {"text": text}
     except Exception as exc:
         logger.exception("Audio transcription failed")
@@ -68,10 +167,12 @@ async def transcribe_audio(
 
 
 @router.post("/speak")
+@off_event_loop
 async def text_to_speech(
     request: TTSRequest,
     llm_service: Annotated[LLMService, Depends(get_llm_service)],
     current_user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
 ) -> Response:
     """Convert text to speech audio."""
     try:
@@ -79,6 +180,10 @@ async def text_to_speech(
             text=request.text,
             voice=request.voice,
             provider=request.provider,
+        )
+        # After the call, so a failed synthesis is not billed.
+        _record_speech_cost(
+            db, user_id=current_user.id, text=request.text, provider=request.provider
         )
         return Response(
             content=audio_bytes,

@@ -115,3 +115,61 @@ export function resolveResumeHref(
   if (journey) return journey.href;
   return readResumeActivity(storage)?.href ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Where a resume may redirect at all (2026-09-24 walkthrough)
+// ---------------------------------------------------------------------------
+
+/**
+ * The only URLs a bare app launch opens on: the root and Home. Anything else —
+ * `/settings`, `/dossier`, `/notebook`, `/missions?…` — is a destination the
+ * learner (or a link) chose, and a resume guess must never replace it.
+ */
+const LAUNCH_PATHS: readonly string[] = ['/', '/atelier'];
+
+function normalizeLaunchPath(pathname: string): string {
+  let path = pathname || '/';
+  // A static export may be served as `/atelier.html` or `/index.html`.
+  path = path.replace(/\/index(\.html)?$/, '/').replace(/\.html$/, '');
+  if (path.length > 1) path = path.replace(/\/+$/, '');
+  return path || '/';
+}
+
+/**
+ * True when `launchUrl` — the URL the app was actually opened at, read from
+ * `window.location`, not from the router — is a bare launch that a resume may
+ * take over.
+ *
+ * The router's `pathname` is not enough: a static host that falls back to
+ * `index.html` for an unknown path reports `/` for a load of `/settings`, which
+ * is how a direct visit to Réglages used to be hijacked into the running
+ * journey. A query string also counts as a choice (`?view=journey`,
+ * `?mode=practice`, `?section=…`), so only the bare route resumes.
+ */
+export function launchMayResume(launchUrl: string | null | undefined): boolean {
+  if (typeof launchUrl !== 'string' || !launchUrl.startsWith('/')) return false;
+  const [pathAndQuery] = launchUrl.split('#');
+  const queryAt = pathAndQuery.indexOf('?');
+  const pathname = queryAt >= 0 ? pathAndQuery.slice(0, queryAt) : pathAndQuery;
+  const query = queryAt >= 0 ? pathAndQuery.slice(queryAt + 1) : '';
+  if (query.trim()) return false;
+  return LAUNCH_PATHS.indexOf(normalizeLaunchPath(pathname)) >= 0;
+}
+
+/**
+ * The href a cold start should land on, given where it was opened — or `null`
+ * to leave the learner exactly where they asked to be.
+ *
+ * `_app` calls this once per app launch, never on a later in-app navigation:
+ * tapping Home while a journey is open shows Home.
+ */
+export function resolveLaunchResumeHref(
+  launchUrl: string | null | undefined,
+  now: Date = new Date(),
+  storage?: StorageLike | null,
+): string | null {
+  if (!launchMayResume(launchUrl)) return null;
+  const href = resolveResumeHref(now, storage);
+  if (!href || href === launchUrl) return null;
+  return href;
+}

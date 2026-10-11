@@ -28,7 +28,7 @@ def _user(db_session) -> User:
     return user
 
 
-def test_daily_context_selects_exactly_three_srs_concepts(db_session) -> None:
+def test_daily_context_follows_the_forge_picker_without_padding(db_session) -> None:
     user = _user(db_session)
     AtelierScheduler(db_session).ensure_catalog()
     cond = db_session.query(GrammarConcept).filter(GrammarConcept.external_id == "FR_B1_COND_001").one()
@@ -62,10 +62,11 @@ def test_daily_context_selects_exactly_three_srs_concepts(db_session) -> None:
 
     context = ExerciseGenerationService(db_session).build_daily_context(user=user)
 
-    assert len(context.concepts) == 3
+    # WP-S4: the one picker, no pad to three from teaching order.
     assert context.concepts[0]["id"] == cond.id
-    assert context.concepts[0]["role"] == "errata"
-    assert any(item["id"] == tense.id and item["role"] == "fragile" for item in context.concepts)
+    assert context.concepts[0]["role"] == "today", "a due erratum makes its rule today's"
+    assert len(context.concepts) == 2
+    assert any(item["id"] == tense.id and item["role"] == "due" for item in context.concepts)
     assert str(cond.id) in context.concept_blueprints
     assert context.due_errata[0]["concept_id"] == cond.id
 

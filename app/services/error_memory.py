@@ -7,11 +7,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.error_concepts import get_concept_for_category, get_concept_for_pattern
+from app.core.srs import memory
+from app.core.srs.memory import Evidence, EvidenceFormat, MemoryState
 from app.db.models.atelier import AtelierAttempt
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.grammar import GrammarConcept
@@ -33,8 +35,120 @@ def _slug(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "_", _normalize(value)).strip("_") or "unknown"
 
 
+def review_answer_repairs(answer: str, target: str, original: str = "") -> bool:
+    """EXERCISE-QA: does a retyped answer repair the erratum?
+
+    The shared contract (``answer_acceptance.judge``): typography never counts.
+    When the erratum *was* an accent («probleme» → «problème») the accent is the
+    whole point and is graded strictly; retyping the error no longer files it as
+    repaired. A correction of two or more words also counts inside a longer
+    answer, on word boundaries (never as a bare substring).
+    """
+
+    from app.services.answer_acceptance import fold_all, fold_typography, judge, strip_accents
+
+    if not fold_all(answer) or not fold_all(target):
+        return False
+    accent_erratum = bool(original) and strip_accents(fold_typography(original)) == strip_accents(
+        fold_typography(target)
+    ) and fold_typography(original) != fold_typography(target)
+    policy = "strict" if accent_erratum else "lenient"
+    if judge(answer, [target], accents=policy, typo=not accent_erratum).correct:
+        return True
+    wanted = fold_typography(target).split()
+    words = fold_typography(answer).split()
+    if len(wanted) < 2:
+        return False
+    for start in range(len(words) - len(wanted) + 1):
+        window = " ".join(words[start : start + len(wanted)])
+        if judge(window, [target], accents=policy, typo=False).correct:
+            return True
+    return False
+
+
 def _normalize_review_answer(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", _normalize(value)).strip()
+
+
+#: Words whose swap, insertion or removal is a determiner choice (WP-L1): a
+#: correction that changes only these is about articles and determiners.
+_DETERMINER_TOKENS = frozenset(
+    {
+        "le", "la", "les", "l", "un", "une", "des", "du", "de", "d", "au", "aux",
+        "ce", "cet", "cette", "ces", "mon", "ma", "mes", "ton", "ta", "tes",
+        "son", "sa", "ses", "notre", "nos", "votre", "vos", "leur", "leurs",
+    }
+)
+
+
+#: WP-24 lifecycle. Three states, and every legacy label folds onto one of them.
+#:
+#: ``open``       recorded, never repaired since it was last made.
+#: ``repairing``  repaired at least once, not yet proven; a recurrence lands here.
+#: ``mastered``   MASTERY_REQUIRED_REPAIRS spaced correct repairs, no recurrence
+#:                in between. The only state that leaves the errata queue.
+ERROR_STATE_OPEN = "open"
+ERROR_STATE_REPAIRING = "repairing"
+ERROR_STATE_MASTERED = "mastered"
+ERROR_STATES = (ERROR_STATE_OPEN, ERROR_STATE_REPAIRING, ERROR_STATE_MASTERED)
+
+#: Rows written before WP-24 carry the FSRS-ish vocabulary. They are read, not
+#: rewritten: a migration relabels what exists and this map covers anything that
+#: escaped it (a replica lagging, a fixture, a row a rollback restored).
+_LEGACY_STATES = {
+    "new": ERROR_STATE_OPEN,
+    "learning": ERROR_STATE_OPEN,
+    "relearning": ERROR_STATE_REPAIRING,
+    # "review" is a *scheduled* row, not a proven one. Mapping it to mastered
+    # would retire errata the learner never repaired.
+    "review": ERROR_STATE_REPAIRING,
+}
+
+#: Spaced correct repairs required before an erratum is retired. Spaced means
+#: on distinct days: three repairs in one sitting prove recall, not retention.
+MASTERY_REQUIRED_REPAIRS = 3
+
+
+def erratum_repair_evidence(*, rating: int, repaired: bool) -> Evidence:
+    """A typed repair card: rewrite your own wrong line into the right one.
+
+    ``rating`` is the 0–4 grade the card (or a legacy caller) gives. A correct
+    repair is transform-level evidence; a 3 is a repair with help, a 4 without.
+    """
+
+    rating = max(0, min(4, int(rating)))
+    if repaired and rating >= 3:
+        return Evidence(EvidenceFormat.TRANSFORM, correct=True, assisted=rating < 4)
+    if rating >= 3:
+        # Right, but not a repair of the learner's line: recognition.
+        return Evidence(EvidenceFormat.RECOGNISE, correct=True)
+    # A failed repair is the learner writing the mistake again: an error in
+    # production, which is a lapse (back tomorrow, as WP-24 already had it).
+    return Evidence(EvidenceFormat.PRODUCE, correct=False)
+
+
+def erratum_memory_state(error: UserError) -> MemoryState:
+    """The erratum's memory; rows from the SM-2 era read their last interval."""
+
+    stability = float(error.stability or 0.0)
+    reps = int(error.reps or 0)
+    if reps > 0 and stability <= 0.0:
+        stability = float(max(1, int(error.scheduled_days or 1)))
+    return MemoryState(
+        stability=stability,
+        difficulty=float(error.difficulty or memory.DEFAULT_DIFFICULTY),
+        reps=reps,
+        lapses=int(error.lapses or 0),
+    )
+
+
+def normalize_error_state(value: Any) -> str:
+    """The lifecycle state of a row, whichever vocabulary it was written in."""
+
+    text = str(value or "").strip().lower()
+    if text in ERROR_STATES:
+        return text
+    return _LEGACY_STATES.get(text, ERROR_STATE_OPEN)
 
 
 def _severity_to_int(value: Any) -> int:
@@ -104,8 +218,17 @@ class ErrorMemoryService:
         now = datetime.now(UTC)
         query = (
             self.db.query(UserError)
-            .filter(UserError.user_id == user.id, UserError.state != "mastered")
+            .filter(
+                UserError.user_id == user.id,
+                # NULL-safe: `state != 'mastered'` alone drops every row whose
+                # state was never written, which is most of the legacy table.
+                or_(UserError.state.is_(None), UserError.state != ERROR_STATE_MASTERED),
+            )
             .filter((UserError.next_review_date.is_(None)) | (UserError.next_review_date <= now))
+            # A row without a stored correction has no target answer: it can never
+            # be graded right, so it must never come up for repair (legacy rows
+            # from the first corrector hold only an explanation).
+            .filter(UserError.correction.isnot(None), func.trim(UserError.correction) != "")
         )
         if review_modes:
             query = query.filter(UserError.review_mode.in_(review_modes))
@@ -275,6 +398,25 @@ class ErrorMemoryService:
             .filter(UserError.user_id == user.id, UserError.memory_key == memory_key)
             .first()
         )
+        if existing is None and concept_id:
+            # WP-L1: journey errata used to be keyed without a concept. The same
+            # mistake, now recognised as a concept's, reopens that row (and
+            # adopts the concept, keeping its key) instead of starting a second
+            # one beside it.
+            legacy_key = self._memory_key(
+                category=category,
+                task_type=task_type,
+                display_label=display_label,
+                concept_id=None,
+                linked_word_id=linked_word.id if linked_word else None,
+            )
+            existing = (
+                self.db.query(UserError)
+                .filter(UserError.user_id == user.id, UserError.memory_key == legacy_key)
+                .first()
+            )
+            if existing is not None:
+                memory_key = legacy_key
         now = datetime.now(UTC)
         next_review = self._next_review(now=now, severity=severity, repeated=bool(existing), source_type=source_type)
         metadata = {
@@ -305,8 +447,17 @@ class ErrorMemoryService:
             existing.linked_word_id = linked_word.id if linked_word else existing.linked_word_id
             existing.error_metadata = metadata
             existing.next_review_date = next_review
-            existing.state = "relearning"
-            existing.difficulty = min(10.0, (existing.difficulty or 5.0) + 0.4)
+            # A recurrence reopens the erratum, whatever it had reached. The
+            # mastery evidence is destroyed rather than paused: three spaced
+            # repairs that were followed by the same mistake did not prove it.
+            existing.state = ERROR_STATE_REPAIRING
+            existing.mastery_streak = 0
+            existing.mastered_at = None
+            # WP-L3: a recurrence is a lapse in the one memory model. The
+            # lapse itself was counted just above.
+            collapsed = memory.collapse(erratum_memory_state(existing))
+            existing.stability = collapsed.stability
+            existing.difficulty = collapsed.difficulty
             existing.updated_at = now
             self._update_error_concept(user=user, task_type=task_type, category=category)
             return self._serialize_update(existing, action="repeated")
@@ -333,7 +484,9 @@ class ErrorMemoryService:
             linked_word_id=linked_word.id if linked_word else None,
             error_metadata=metadata,
             next_review_date=next_review,
-            state="new",
+            state=ERROR_STATE_OPEN,
+            mastery_streak=0,
+            ease_factor=2.5,
         )
         self.db.add(record)
         self.db.flush([record])
@@ -375,21 +528,89 @@ class ErrorMemoryService:
         error.updated_at = now
         self.db.add(error)
 
-    def review_error(self, *, user: User, error_id: UUID, rating: int, repaired: bool) -> UserError | None:
+    def review_error(
+        self,
+        *,
+        user: User,
+        error_id: UUID,
+        rating: int = 0,
+        repaired: bool = False,
+        now: datetime | None = None,
+        evidence: Evidence | None = None,
+    ) -> UserError | None:
+        """Grade one repair, schedule the next one, and retire the erratum if it is done.
+
+        WP-L3: scheduled by the one memory model (`app.core.srs.memory`), the
+        FSRS-style stability/difficulty the vocabulary and grammar use.
+        ``evidence`` says what the repair proved; without it ``rating`` (0–4)
+        and ``repaired`` are read as a typed repair card (a transform). The
+        mastery exit is unchanged:
+
+        * a correct repair on a **new day** advances ``mastery_streak``;
+        * a second correct repair on the **same day** re-schedules but does not
+          advance it — retention is measured across nights, not sittings;
+        * ``MASTERY_REQUIRED_REPAIRS`` advances retire the row (``mastered``),
+          which is the only state ``due_error_records`` refuses to hand back;
+        * anything else puts the row in ``repairing`` and resets the streak.
+        """
+
         error = self.db.query(UserError).filter(UserError.id == error_id, UserError.user_id == user.id).first()
         if not error:
             return None
-        now = datetime.now(UTC)
-        if repaired and rating >= 3:
-            delay_days = 14 if rating == 4 else 7
-            error.state = "review"
+        now = now or datetime.now(UTC)
+        if evidence is None:
+            evidence = erratum_repair_evidence(rating=rating, repaired=repaired)
+        decision = memory.review(erratum_memory_state(error), evidence, now=now)
+        if decision is None:
+            return error
+        succeeded = bool(repaired) and decision.grade.is_success
+        error.elapsed_days = self._elapsed_days(error, now)
+        error.stability = decision.stability
+        error.difficulty = decision.difficulty
+        error.scheduled_days = decision.interval_days
+        error.reps = decision.reps
+        error.lapses = decision.lapses
+
+        if succeeded:
+            spaced = self._is_new_day(error.last_correct_date, now)
+            if spaced:
+                error.mastery_streak = int(error.mastery_streak or 0) + 1
+            error.last_correct_date = now
+            if int(error.mastery_streak or 0) >= MASTERY_REQUIRED_REPAIRS:
+                error.state = ERROR_STATE_MASTERED
+                error.mastered_at = now
+            else:
+                error.state = ERROR_STATE_REPAIRING
+                error.mastered_at = None
         else:
-            delay_days = 1
-            error.state = "relearning"
-        error.mark_review(now, now + timedelta(days=delay_days), rating)
+            error.state = ERROR_STATE_REPAIRING
+            error.mastery_streak = 0
+            error.mastered_at = None
+
+        error.last_review_date = now
+        error.next_review_date = decision.due_at
         error.updated_at = now
         self.db.add(error)
         return error
+
+    @staticmethod
+    def _is_new_day(previous: datetime | None, now: datetime) -> bool:
+        """Is this repair on a later day than the last accepted one?"""
+
+        if previous is None:
+            return True
+        if previous.tzinfo is None:
+            previous = previous.replace(tzinfo=UTC)
+        return previous.astimezone(UTC).date() < now.astimezone(UTC).date()
+
+    @staticmethod
+    def _elapsed_days(error: UserError, now: datetime) -> int:
+        last = error.last_review_date
+        if last is None:
+            return 0
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=UTC)
+        return max(0, (now.astimezone(UTC) - last.astimezone(UTC)).days)
 
     def build_review_task(self, *, user: User, error_id: UUID) -> dict[str, Any] | None:
         error = self.db.query(UserError).filter(UserError.id == error_id, UserError.user_id == user.id).first()
@@ -411,10 +632,7 @@ class ErrorMemoryService:
         target = str(error.correction or "").strip()
         answer = str(answer_text or "").strip()
         answer_norm = _normalize_review_answer(answer)
-        target_norm = _normalize_review_answer(target)
-        is_correct = bool(answer_norm and target_norm) and (
-            answer_norm == target_norm or (len(target_norm.split()) >= 2 and target_norm in answer_norm)
-        )
+        is_correct = review_answer_repairs(answer, target, str(error.original_text or ""))
         score = 4 if is_correct else (2 if answer_norm else 1)
         reviewed = self.review_error(user=user, error_id=error.id, rating=score, repaired=is_correct)
         if not reviewed:
@@ -436,12 +654,22 @@ class ErrorMemoryService:
         metadata["last_review_task"] = self._review_task_payload(reviewed)
         closure = None
         if is_correct:
+            mastered = normalize_error_state(reviewed.state) == ERROR_STATE_MASTERED
             closure = {
-                "label": "Corrigé · classé",
-                "detail": "Cet erratum quitte le jour et revient à sa prochaine date de contrôle.",
+                # Publication French, sentence case: the card prints it verbatim.
+                "label": "Corrigé · acquis" if mastered else "Corrigé · classé",
+                "detail": (
+                    "Trois reprises justes, à des jours différents : cet erratum "
+                    "quitte le relevé."
+                    if mastered
+                    else "Cet erratum quitte le jour et revient à sa prochaine date de contrôle."
+                ),
                 "filed_at": submitted_at.isoformat(),
                 "next_review_date": reviewed.next_review_date.isoformat() if reviewed.next_review_date else None,
-                "state": reviewed.state or "review",
+                "state": normalize_error_state(reviewed.state),
+                "mastered": mastered,
+                "mastery_streak": int(reviewed.mastery_streak or 0),
+                "mastery_target": MASTERY_REQUIRED_REPAIRS,
             }
             closure_events = list(metadata.get("closure_events") or [])
             closure_events.append(closure)
@@ -477,6 +705,13 @@ class ErrorMemoryService:
         the whole exercise a copy for anyone reading the response.
         """
         learner = error.original_text or ""
+        why_wrong = error.why_wrong or error.context_snippet
+        if not learner and not error.why_wrong and _reads_as_learner_wording(error.context_snippet):
+            # The first corrector filed the learner's wording in the context
+            # column and no explanation at all. Shown as "Pourquoi : un conseils"
+            # it is nonsense; shown as the wording to repair it is the task.
+            learner = str(error.context_snippet or "").strip()
+            why_wrong = None
         review_mode = error.review_mode or "grammar"
         copy = self.REVIEW_MODE_COPY.get(review_mode, self.REVIEW_MODE_COPY["grammar"])
         subject = learner or error.display_label or "cette erreur"
@@ -494,7 +729,7 @@ class ErrorMemoryService:
             "prompt": f"{copy['prompt']} {subject}",
             "placeholder": copy["placeholder"],
             "learner_text": learner,
-            "why_wrong": error.why_wrong or error.context_snippet,
+            "why_wrong": why_wrong,
             "repair_hint": error.repair_hint,
             "occurrences": error.occurrences or 1,
             "lapses": error.lapses or 0,
@@ -505,9 +740,12 @@ class ErrorMemoryService:
         # Publication French, and « guillemets » rather than markdown backticks —
         # the card prints this verbatim.
         if is_correct:
+            if normalize_error_state(error.state) == ERROR_STATE_MASTERED:
+                return "Juste, et pour la troisième fois : cet erratum est acquis, il quitte le relevé."
+            remaining = max(0, MASTERY_REQUIRED_REPAIRS - int(error.mastery_streak or 0))
             if error.review_mode == "vocabulary":
-                return "Juste. Ce mot repart en révision."
-            return "Juste. Cet erratum est reprogrammé pour un contrôle plus tard."
+                return f"Juste. Ce mot repart en révision ; encore {remaining} reprise(s) justes et il est acquis."
+            return f"Juste. Encore {remaining} reprise(s) justes, à des jours différents, et cet erratum est acquis."
         if error.review_mode == "vocabulary":
             return f"Pas encore. La forme visée est « {error.correction} » ; revoyez le sens et reprenez-la bientôt."
         return f"Pas encore. La forme visée est « {error.correction} » ; l’erratum reste à reprendre."
@@ -647,27 +885,53 @@ class ErrorMemoryService:
             )
             self.db.add(user_concept)
 
+    def infer_concept_id_for_correction(
+        self, *, learner_text: str | None, corrected_text: str | None, note: str | None = None
+    ) -> int | None:
+        """The grammar concept a free-text correction is about, or ``None``.
+
+        WP-L1: journey corrections carry no error code, only the learner's span,
+        the corrected span and a short note. They go through the same inference
+        as ``record_detected_error``; the note supplies the family words, and a
+        change that only touches determiners names that family itself (the
+        note may be in German, or say nothing about grammar at all).
+        """
+
+        marker = str(note or "")
+        before = _normalize_review_answer(learner_text).split()
+        after = _normalize_review_answer(corrected_text).split()
+        changed = set(before) ^ set(after)
+        if changed and changed <= _DETERMINER_TOKENS:
+            marker = f"determiner {marker}"
+        return self._infer_grammar_concept_id(code=marker, category="grammar")
+
     def _infer_grammar_concept_id(self, *, code: str, category: str) -> int | None:
         marker = _normalize(f"{code} {category}")
         profile = infer_grammar_profile(task_text=marker)
         terms = profile_search_terms(profile.key)
         if terms:
             filters = []
+            identity_filters = []
             for term in terms:
                 like = f"%{term}%"
-                filters.extend(
-                    [
-                        GrammarConcept.external_id.ilike(like),
-                        GrammarConcept.category.ilike(like),
-                        GrammarConcept.subskill.ilike(like),
-                        GrammarConcept.name.ilike(like),
-                        GrammarConcept.core_rule.ilike(like),
-                    ]
-                )
+                identity = [
+                    GrammarConcept.external_id.ilike(like),
+                    GrammarConcept.category.ilike(like),
+                    GrammarConcept.subskill.ilike(like),
+                    GrammarConcept.name.ilike(like),
+                ]
+                identity_filters.extend(identity)
+                filters.extend([*identity, GrammarConcept.core_rule.ilike(like)])
             concept = (
                 self.db.query(GrammarConcept)
                 .filter(GrammarConcept.active.is_(True), or_(*filters))
-                .order_by(GrammarConcept.difficulty_order.asc(), GrammarConcept.id.asc())
+                # A concept that *is* the family outranks one whose rule text
+                # merely mentions it («Gender and number» cites articles).
+                .order_by(
+                    case((or_(*identity_filters), 0), else_=1),
+                    GrammarConcept.difficulty_order.asc(),
+                    GrammarConcept.id.asc(),
+                )
                 .first()
             )
             return concept.id if concept else None
@@ -712,6 +976,15 @@ class ErrorMemoryService:
         return str(erratum.get("error_category") or "grammar").lower()
 
 
+def _reads_as_learner_wording(text: str | None) -> bool:
+    """A short phrase with no sentence punctuation: wording, not an explanation."""
+
+    value = " ".join(str(text or "").split())
+    if not value or len(value.split()) > 8:
+        return False
+    return not any(mark in value for mark in (". ", ": ", " : ", "->", "→", "\n")) and value[-1] not in ".!?"
+
+
 def serialize_error_memory(error: UserError, *, language: Any = None) -> dict[str, Any]:
     """The stored erratum as a payload. `language` is the learner's native code:
     the stored halves were already authored in it, but the last-resort labels
@@ -747,9 +1020,30 @@ def serialize_error_memory(error: UserError, *, language: Any = None) -> dict[st
         "last_review_date": error.last_review_date.isoformat() if error.last_review_date else None,
         "occurrences": error.occurrences or 1,
         "lapses": error.lapses or 0,
-        "state": error.state or "new",
+        "state": normalize_error_state(error.state),
+        # The stored label as well, so an operator reading a payload can see a
+        # legacy row for what it is instead of wondering why it was relabelled.
+        "stored_state": error.state or None,
+        "mastery_streak": int(error.mastery_streak or 0),
+        "mastery_target": MASTERY_REQUIRED_REPAIRS,
+        "mastered": normalize_error_state(error.state) == ERROR_STATE_MASTERED,
+        "mastered_at": error.mastered_at.isoformat() if error.mastered_at else None,
+        "interval_days": int(error.scheduled_days or 0),
+        "ease_factor": round(float(error.ease_factor or 2.5), 3),
+        "stability": round(float(error.stability or 0.0), 3),
         "metadata": error.error_metadata or {},
     }
 
 
-__all__ = ["ErrorMemoryService", "serialize_error_memory"]
+__all__ = [
+    "ERROR_STATES",
+    "ERROR_STATE_MASTERED",
+    "ERROR_STATE_OPEN",
+    "ERROR_STATE_REPAIRING",
+    "MASTERY_REQUIRED_REPAIRS",
+    "ErrorMemoryService",
+    "erratum_memory_state",
+    "erratum_repair_evidence",
+    "normalize_error_state",
+    "serialize_error_memory",
+]

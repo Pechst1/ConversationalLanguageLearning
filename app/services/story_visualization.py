@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -58,8 +59,13 @@ class StoryVisualizationService:
     CACHE_TTL_SECONDS = 86400 * 7  # 1 week cache
     DEFAULT_STYLE = "whimsical"
     
-    def __init__(self, db: Session) -> None:
+    IMAGE_MODEL = "dall-e-3"
+    COST_EVENT_TYPE = "story_image_cost"
+
+    def __init__(self, db: Session, *, user_id: Any = None) -> None:
         self.db = db
+        # WP-74 — who pays for the image, so the spend guard sees it.
+        self.user_id = user_id
         self.api_key = settings.OPENAI_API_KEY
         self._client: httpx.AsyncClient | None = None
     
@@ -314,7 +320,7 @@ No text or letters in the image, just the artwork."""
         response = await self.client.post(
             "https://api.openai.com/v1/images/generations",
             json={
-                "model": "dall-e-3",
+                "model": self.IMAGE_MODEL,
                 "prompt": prompt,
                 "n": 1,
                 "size": size,
@@ -324,8 +330,27 @@ No text or letters in the image, just the artwork."""
         
         response.raise_for_status()
         data = response.json()
-        
+        self._record_image_cost(size=size)
         return data["data"][0]["url"]
+
+    def _record_image_cost(self, *, size: str) -> None:
+        """WP-74 — a generated image is money: it lands on the PilotEvent ledger."""
+
+        try:
+            from app.services.llm_service import estimate_image_cost_usd
+            from app.services.pilot_events import PilotEventService
+
+            PilotEventService(self.db).record(
+                self.COST_EVENT_TYPE,
+                user_id=self.user_id,
+                entity_type="story_image",
+                payload={"model": self.IMAGE_MODEL, "size": size, "images": 1},
+                cost_usd=estimate_image_cost_usd(self.IMAGE_MODEL, 1),
+            )
+            self.db.commit()
+        except Exception:  # pragma: no cover - the ledger never costs the image
+            logger.warning("Story image cost row could not be written")
+            self.db.rollback()
     
     def _get_cache_key(self, scene_id: str, style: str | None, include_avatar: bool) -> str:
         """Generate a cache key for a scene visualization."""

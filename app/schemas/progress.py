@@ -109,16 +109,72 @@ class CEFRProgressResponse(BaseModel):
 
     version: str
     estimate: str
+    #: WP-25. "declared" = the learner said so and nothing has verified it;
+    #: "placement" = a graded five-minute placement; "measured" = in-app work.
+    #: Absent from the response schema until WP-25, which meant Le Releve's
+    #: unverified branch could never fire -- the field was computed and dropped.
+    estimate_source: str | None = None
+    declared_level: str | None = None
+    placement: dict[str, Any] | None = None
     computed_estimate: str | None = None
     target: str
     next_level: str | None = None
     daily_minutes: int | None = None
+    rhythm: str | None = None
     signals: dict[str, Any] = Field(default_factory=dict)
+    #: WP-L7: the performance gates (no longer promotion thresholds).
     thresholds: dict[str, dict[str, float]] = Field(default_factory=dict)
     breakdown: dict[str, Any] = Field(default_factory=dict)
+    #: WP-L7: «A1.1 · 60 %», the band's coverage and its épreuve.
+    level_label: str | None = None
+    coverage: dict[str, Any] | None = None
+    checkpoint: dict[str, Any] | None = None
+    release_floor: str | None = None
+    #: WP-L8: an estimate (``status`` "prior" before 7 active days, "available" measured).
     forecast: dict[str, Any] | None = None
+    rhythm_priors: dict[str, Any] | None = None
     today_delta: dict[str, Any] = Field(default_factory=dict)
     generated_at: str | None = None
+    #: WP-95: Home's level line — the band's next can-do, and how many are pressed.
+    next_can_do: dict[str, Any] | None = None
+    can_dos_stamped: int | None = None
+    can_dos_total: int | None = None
+
+
+class CarnetCanDo(BaseModel):
+    id: str
+    title_fr: str | None = None
+    title_native: str | None = None
+    stamped_at: str | None = None
+    #: scene | epreuve | authored
+    source: str | None = None
+    scene_id: str | None = None
+    scene_title_fr: str | None = None
+    character_id: str | None = None
+    quote_fr: str | None = None
+
+
+class CarnetBand(BaseModel):
+    band: str
+    title_native: str
+    can_dos: list[CarnetCanDo] = Field(default_factory=list)
+
+
+class CarnetResponse(BaseModel):
+    """WP-95 «Le Carnet» — ``GET /api/v1/can-dos``."""
+
+    current_band: str | None = None
+    bands: list[CarnetBand] = Field(default_factory=list)
+
+
+class LevelCheckpointResultRequest(BaseModel):
+    """WP-L7: the story engine reports the band's épreuve."""
+
+    band: str = Field(pattern=r"^(A1\.1|A1\.2|A2\.1|A2\.2|B1\.1|B1\.2|B2\.1|B2\.2)$")
+    passed: bool
+    episode_id: str | None = Field(default=None, max_length=80)
+    #: Free-form grading detail (can-dos met, concept evidence), kept on the row.
+    evidence: dict[str, Any] | None = None
 
 
 class VocabularyRecommendationTranslations(BaseModel):
@@ -155,6 +211,9 @@ class VocabularyRecommendationItem(BaseModel):
     is_new: bool = False
     deck_name: str | None = None
     part_of_speech: str | None = None
+    # Stored noun gender ("m" / "f"), or None when the catalogue does not know
+    # it. The Lexique draws it as a shape (WP-D6); nothing is guessed here.
+    gender: str | None = None
     topic_tags: list[str] = Field(default_factory=list)
     # The server already resolves which gloss this learner should read
     # (app/services/glosses.py). The response model used to drop those two
@@ -166,6 +225,12 @@ class VocabularyRecommendationItem(BaseModel):
     translations: VocabularyRecommendationTranslations
     example_sentence: str | None = None
     example_translation: str | None = None
+    #: WP-115b — the recall ladder: recognition | production | audio | cloze, or
+    #: ``scene`` (the word's own line, first two reviews) / ``rescue`` (a leech).
+    ladder: str | None = None
+    scene_cue: dict[str, Any] | None = None
+    leech: bool = False
+    rescue_cue: dict[str, Any] | None = None
     recommendation_reason: dict[str, Any] | None = None
     episodic_anchor: dict[str, Any] | None = None
 
@@ -210,6 +275,11 @@ class VocabularyDueContextResponse(BaseModel):
     topic_compatible_words: list[VocabularyRecommendationItem]
     linked_words: list[VocabularyRecommendationItem]
     algorithm: str = "fsrs_retrievability_v1"
+    #: WP-131: new words the day's allowance still holds after this deck (the
+    #: rhythm's quota, throttled, minus today's introductions and the journey's
+    #: share). The drill offers them as an explicit «Encore N mots» continuation.
+    #: ``None`` when not read (a review-only «Encore» deck, a demo account).
+    new_words_left_today: int | None = None
 
 
 class VocabularyMasteryMapCell(BaseModel):

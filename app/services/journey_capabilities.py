@@ -9,6 +9,10 @@ The callables named in ``docs/implementation/atelier-v2/CONTRACTS.md`` §6:
   of a second, simplified one of its own.
 * :func:`mint_journey_keepsake` adds one source-unique collectible to the
   existing Atelier reward path when a daily journey is genuinely completed.
+* :func:`build_register_summary` (WP-33) answers the same ladder for one more
+  dimension — did the learner address the counterpart the way the counterpart
+  addresses them? — from the turns already stored, through the same
+  ``_summarize``. One rubric, four dimensions.
 
 Neither commits: the daily-journey state machine owns the transaction.
 
@@ -33,7 +37,7 @@ Two ratified decisions from ``STATUS.md`` are load-bearing here:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -43,6 +47,7 @@ from sqlalchemy.orm import Session
 from app.db.models.atelier import AtelierCollectible
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.user import User
+from app.services import pragmatics
 from app.services.atelier_rewards import DAILY_JOURNEY_SOURCE_KIND, AtelierRewardService
 from app.services.journey_contracts import (
     CAPABILITY_RUBRIC_VERSION,
@@ -62,6 +67,7 @@ from app.services.journey_contracts import (
     normalize_control_language,
 )
 from app.services.journey_learning import JourneyEvidenceRecord, read_journey_evidence
+from app.services.learner_copy import learner_text
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +85,20 @@ MAX_EVIDENCE_PER_CAPABILITY = 10
 #: CONTRACTS §8: two independent uses must be at least a day apart.
 REPEAT_USE_MIN_SEPARATION = timedelta(hours=24)
 
-_CAPABILITY_ORDER: tuple[CapabilityKey, ...] = tuple(CapabilityKey)
+#: The scenario objectives: the keys a journey's evidence is *grouped by*.
+#:
+#: WP-37. Until the register dimension reached the wire this was
+#: ``tuple(CapabilityKey)``, which was the same list. It is not any more:
+#: ``CapabilityKey.REGISTER`` names a dimension re-read from those same turns,
+#: not a fourth scenario, and it has no evidence of its own to read, no title in
+#: ``_TITLES`` and no context sentence in ``_CONTEXTS``. Grouping by it would
+#: ask the evidence reader for a scenario nothing writes and summarise it twice.
+_SCENARIO_KEYS: tuple[CapabilityKey, ...] = tuple(
+    key for key in CapabilityKey if key.value != "register"
+)
+
+#: Kept under its established name: every caller means "the scenario keys".
+_CAPABILITY_ORDER: tuple[CapabilityKey, ...] = _SCENARIO_KEYS
 
 _TITLES: dict[str, dict[CapabilityKey, str]] = {
     "en": {
@@ -151,6 +170,23 @@ _SUCCESSFUL_PRODUCTION = frozenset(
     {EvidenceKind.PRODUCED_SUPPORTED, EvidenceKind.PRODUCED_INDEPENDENT}
 )
 
+# --------------------------------------------------------------------------
+# WP-33 — the `register` dimension
+#
+# It is graded by `_summarize` like every other dimension, so there is exactly
+# one rubric. What is *not* settled yet is the wire contract: `CapabilityKey`
+# lists the three scenario keys, and `schemas/daily_journey.py` validates
+# against it. Until that enum gains the member — a one-line change owned by the
+# integration pass, written out in WP-33-REGISTER.md — the dimension travels
+# through `build_register_summary` and stays off the wire list, because a key
+# pydantic has never heard of would turn the finish recap into a 500.
+# --------------------------------------------------------------------------
+
+#: The real enum member as soon as it exists; the plain string until then.
+_REGISTER_KEY: CapabilityKey | str = getattr(CapabilityKey, "REGISTER", "register")
+#: Whether the wire contract can carry it yet.
+_REGISTER_IS_CONTRACTED = isinstance(_REGISTER_KEY, CapabilityKey)
+
 
 # --------------------------------------------------------------------------
 # Internal view types
@@ -163,6 +199,12 @@ class _StepContext:
     journey_id: UUID
     location_name: str | None
     character_name: str | None
+    #: WP-33. What the learner wrote in this step's turns, and the register the
+    #: counterpart used toward them. Both come from records that already exist —
+    #: the register dimension adds no column and no writer.
+    learner_texts: tuple[str, ...] = ()
+    expected_register: str | None = None
+    level_band: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,7 +215,7 @@ class _Opportunity:
     that used two words is one opportunity to order a coffee, not two.
     """
 
-    capability_key: CapabilityKey
+    capability_key: CapabilityKey | str
     journey_id: UUID
     step_id: UUID
     observed_on: date
@@ -181,6 +223,13 @@ class _Opportunity:
     modality: InputMode
     independent: bool
     context_native: str
+    #: WP-33. ``register_evaluated`` is false whenever nothing observable
+    #: happened — no declared or demonstrated counterpart register, or a turn
+    #: that addressed nobody. It is never a quiet pass.
+    register_evaluated: bool = False
+    register_respected: bool = False
+    register_expected: str | None = None
+    character_native: str | None = None
 
 
 # --------------------------------------------------------------------------
@@ -219,17 +268,99 @@ def build_capability_summary(
     by_capability, unknown_keys = _capability_opportunities(
         db, user=user, language=language
     )
+    capabilities = [
+        _summarize(
+            capability_key=key,
+            language=language,
+            opportunities=by_capability[key],
+            has_unknown_history=key in unknown_keys,
+        )
+        for key in _CAPABILITY_ORDER
+    ]
+    if _REGISTER_IS_CONTRACTED:
+        # WP-33: one more dimension, scored by the function above and therefore
+        # by the same rubric — never a second one. It joins the wire list only
+        # once ``CapabilityKey`` carries the member, because
+        # ``schemas/daily_journey.py`` validates against that enum and a key it
+        # has never heard of would turn the recap into a 500. The one-line
+        # enum addition is written out in WP-33-REGISTER.md under "Hooks owed";
+        # until it lands, ``build_register_summary`` is the way to read this.
+        capabilities.append(_register_summary(by_capability, language=language))
     return CapabilityProgressView(
         rubric_version=CAPABILITY_RUBRIC_VERSION,
-        capabilities=[
-            _summarize(
-                capability_key=key,
-                language=language,
-                opportunities=by_capability[key],
-                has_unknown_history=key in unknown_keys,
-            )
-            for key in _CAPABILITY_ORDER
-        ],
+        capabilities=capabilities,
+    )
+
+
+def build_register_summary(
+    db: Session, *, user: User, control_language: str = "en"
+) -> CapabilitySummary:
+    """The `register` dimension on its own, for callers the enum has not reached.
+
+    Same opportunities, same ladder, same repeat arithmetic as
+    :func:`build_capability_summary`. Reading register through a second scoring
+    path is exactly the mistake CONTRACTS §8 records — two rubrics disagreeing
+    about one journey — so there is only ever this one.
+    """
+
+    language = normalize_control_language(control_language)
+    by_capability, _unknown = _capability_opportunities(db, user=user, language=language)
+    return _register_summary(by_capability, language=language)
+
+
+def _register_summary(
+    by_capability: dict[CapabilityKey, list[_Opportunity]],
+    *,
+    language: ControlLanguage,
+) -> CapabilitySummary:
+    """Every respond turn re-read as one question: right person, right words?
+
+    An opportunity counts as independent for this dimension when it was already
+    independent *and* the register held. A turn that addressed nobody is not
+    counted at all — with none to count, the state is ``unknown``, which the
+    frontend prints as «non évalué» rather than as a pass.
+    """
+
+    every: list[_Opportunity] = [item for items in by_capability.values() for item in items]
+    evaluated = [
+        replace(
+            item,
+            capability_key=_REGISTER_KEY,
+            independent=item.independent and item.register_respected,
+            context_native=_register_context_line(item, language=language),
+        )
+        for item in every
+        if item.register_evaluated
+    ]
+    return _summarize(
+        capability_key=_REGISTER_KEY,
+        language=language,
+        opportunities=evaluated,
+        # Turns happened but none of them exercised register: reportable, and
+        # reportable as unknown.
+        has_unknown_history=bool(every) and not evaluated,
+        title_native=learner_text("capability.register_title", language),
+    )
+
+
+def _register_context_line(item: _Opportunity, *, language: ControlLanguage) -> str:
+    """Evidence prose for one register observation.
+
+    The detailed form is used only when the journey recorded both the register
+    and the character, exactly as ``_context_line`` does for the scenario
+    dimensions — a context sentence never names a person or a register the
+    records do not carry. It says nothing about how anything was pronounced:
+    the evidence is text either way (CONTRACTS §8, WP-27).
+    """
+
+    detailed = bool(item.register_expected and item.character_native)
+    kind = "with" if detailed else "bare"
+    slip = "" if item.register_respected else "slip_"
+    return learner_text(
+        f"capability.register_context_{slip}{kind}",
+        language,
+        register=item.register_expected or "",
+        character=item.character_native or "",
     )
 
 
@@ -265,6 +396,102 @@ def build_journey_capability_evidence(
             for item in sorted(mine, key=_sort_key, reverse=True)
         )
     return views
+
+
+@dataclass(frozen=True, slots=True)
+class RegisterLine:
+    """WP-66. The register verdict for one journey, ready to be shown.
+
+    ``line_fr`` is one French sentence — the app's chrome language, beside the
+    French ending it sits under. ``reason_native`` says *why* in the learner's
+    own language, and is ``None`` when it would only repeat the French line
+    (a learner whose control language is already French).
+    """
+
+    line_fr: str
+    reason_native: str | None
+    respected: bool
+
+
+#: ``register_expected -> pragmatics copy key``. The explanation a slip gets is
+#: the same sentence the live corrector would have shown for it, so the recap
+#: and the correction can never say different things about one conversation.
+_REGISTER_SLIP_COPY: dict[str, str] = {
+    "vous": "pragmatics.register_use_vous",
+    "tu": "pragmatics.register_use_tu",
+}
+
+
+def build_journey_register_line(
+    db: Session,
+    *,
+    user: User,
+    journey_id: UUID,
+    control_language: str = "en",
+) -> RegisterLine | None:
+    """What this one journey showed about register, or ``None``.
+
+    WP-33 graded this dimension and WP-66 is what finally shows it: until now it
+    was scored on every respond turn and never printed anywhere, which is the
+    phantom-loop mistake in miniature.
+
+    ``None`` means *not evaluated* — no declared or demonstrated counterpart
+    register, or a conversation that addressed nobody. That is never dressed up
+    as a pass and never as a failure: the resolution step simply carries no
+    register line, exactly as it did before this package.
+
+    Reads through the same :func:`_capability_opportunities` and the same
+    ``_register_verdict`` as :func:`build_register_summary`. There is one
+    rubric; this is a projection of it, not a second opinion.
+    """
+
+    language = normalize_control_language(control_language)
+    try:
+        by_capability, _unknown = _capability_opportunities(
+            db, user=user, language=language
+        )
+    except Exception:  # pragma: no cover - a recap line is never worth the day
+        logger.exception("journey_register_line_unavailable")
+        return None
+
+    mine = [
+        item
+        for items in by_capability.values()
+        for item in items
+        if item.journey_id == journey_id and item.register_evaluated
+    ]
+    if not mine:
+        return None
+    # One conversation, one verdict: a slip anywhere in the exchange is the
+    # verdict, exactly as `_register_verdict` decides it per step.
+    respected = all(item.register_respected for item in mine)
+    item = next((row for row in mine if not row.register_respected), mine[0])
+
+    line_fr = _register_context_line(replace(item, register_respected=respected), language="fr")
+    if respected:
+        reason = _register_context_line(
+            replace(item, register_respected=True), language=language
+        )
+    else:
+        copy_key = _REGISTER_SLIP_COPY.get(
+            str(item.register_expected or ""), "pragmatics.register_mixed"
+        )
+        if item.character_native or copy_key == "pragmatics.register_mixed":
+            # EXPERIENCE-REVIEW 2026-10-04: the template was printed unformatted —
+            # a B2 learner read «{counterpart} vous vouvoie. {reason}».
+            reason = " ".join(
+                learner_text(
+                    copy_key, language, counterpart=item.character_native or "", reason=""
+                ).split()
+            )
+        else:
+            # No name recorded: the context line has a form that names nobody.
+            reason = _register_context_line(item, language=language)
+    reason = (reason or "").strip() or None
+    if reason and reason == line_fr:
+        # French chrome plus the same sentence twice is not an explanation.
+        reason = None
+    return RegisterLine(line_fr=line_fr, reason_native=reason, respected=respected)
 
 
 def _capability_opportunities(
@@ -341,12 +568,16 @@ def _capability_key_of(record: JourneyEvidenceRecord) -> CapabilityKey | None:
     café session reportable as *unknown* rather than invisible.
     """
 
-    if record.capability_key is not None:
-        return record.capability_key
-    try:
-        return CapabilityKey(str(record.scenario_key))
-    except (TypeError, ValueError):
-        return None
+    key = record.capability_key
+    if key is None:
+        try:
+            key = CapabilityKey(str(record.scenario_key))
+        except (TypeError, ValueError):
+            return None
+    # WP-37: `register` is a dimension, not a scenario. Nothing writes evidence
+    # under it, and a record that somehow carried it would be grouped under a
+    # key `_SCENARIO_KEYS` does not hold.
+    return key if key in _SCENARIO_KEYS else None
 
 
 def _collapse_turn(
@@ -400,7 +631,10 @@ def _collapse_turn(
             record.observed_on,
         ),
     )
+    evaluated, respected = _register_verdict(context)
     return _Opportunity(
+        register_expected=context.expected_register,
+        character_native=(context.character_name or "").strip() or None,
         capability_key=capability_key,
         journey_id=journey_id,
         step_id=step_id,
@@ -412,7 +646,36 @@ def _collapse_turn(
         context_native=_context_line(
             capability_key=capability_key, language=language, context=context
         ),
+        register_evaluated=evaluated,
+        register_respected=respected,
     )
+
+
+def _register_verdict(context: _StepContext) -> tuple[bool, bool]:
+    """``(evaluated, respected)`` for one respond step's whole exchange.
+
+    Every learner line in the step is assessed with the same deterministic
+    detectors the grader used live (``app.services.pragmatics``), so the
+    dimension and the correction the learner saw can never disagree. One slip
+    anywhere in the exchange makes the turn a slip: a scene is one
+    conversation, and getting it right after being told is what the *next*
+    journey is for.
+    """
+
+    evaluated = False
+    respected = True
+    for text in context.learner_texts:
+        assessment = pragmatics.assess_register(
+            text,
+            expected_register=context.expected_register,
+            level_band=context.level_band,
+        )
+        if not assessment.evaluated:
+            continue
+        evaluated = True
+        if not assessment.respected:
+            respected = False
+    return evaluated, evaluated and respected
 
 
 def _context_line(
@@ -488,10 +751,11 @@ def _evidence_view(
 
 def _summarize(
     *,
-    capability_key: CapabilityKey,
+    capability_key: CapabilityKey | str,
     language: ControlLanguage,
     opportunities: list[_Opportunity],
     has_unknown_history: bool,
+    title_native: str | None = None,
 ) -> CapabilitySummary:
     independent = [item for item in opportunities if item.independent]
     supported = [item for item in opportunities if not item.independent]
@@ -531,7 +795,8 @@ def _summarize(
 
     return CapabilitySummary(
         capability_key=capability_key,
-        title_native=_TITLES.get(language, _TITLES["en"])[capability_key],
+        title_native=title_native
+        or _TITLES.get(language, _TITLES["en"])[capability_key],
         state=state,
         modalities=modalities,
         latest_qualifying_on=latest_qualifying_on,
@@ -561,6 +826,10 @@ def _respond_step_context(
                 DailyJourneyStep.id,
                 DailyJourney.id,
                 DailyJourney.scenario_snapshot,
+                DailyJourneyStep.private_task,
+                DailyJourneyStep.public_prompt,
+                DailyJourney.content_version,
+                DailyJourney.level_band,
             )
             .join(DailyJourney, DailyJourneyStep.journey_id == DailyJourney.id)
             .filter(
@@ -570,14 +839,77 @@ def _respond_step_context(
             )
             .all()
         )
-        for step_id, journey_id, snapshot in rows:
+        for (
+            step_id,
+            journey_id,
+            snapshot,
+            private_task,
+            public_prompt,
+            content_version,
+            level_band,
+        ) in rows:
             payload = snapshot if isinstance(snapshot, dict) else {}
+            learner_texts, character_texts = _turn_texts(private_task, public_prompt)
             resolved[step_id] = _StepContext(
                 journey_id=journey_id,
                 location_name=payload.get("location_name"),
                 character_name=payload.get("character_name"),
+                learner_texts=learner_texts,
+                expected_register=_expected_register(
+                    scenario_key=payload.get("scenario_key"),
+                    content_version=content_version,
+                    character_texts=character_texts,
+                ),
+                level_band=str(level_band) if level_band else None,
             )
     return resolved
+
+
+def _turn_texts(private_task: Any, public_prompt: Any) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """``(learner lines, counterpart lines)`` of one respond step, oldest first.
+
+    WP-02 already persists the exchange as ``private_task["turns"]``; this reads
+    it and derives nothing else from it. Evaluator material never leaves this
+    module — only a boolean about register does.
+    """
+
+    private = private_task if isinstance(private_task, dict) else {}
+    prompt = public_prompt if isinstance(public_prompt, dict) else {}
+    learner: list[str] = []
+    character: list[str] = []
+    opening = prompt.get("character_line_fr")
+    if isinstance(opening, str) and opening.strip():
+        character.append(opening)
+    for entry in private.get("turns") or []:
+        if not isinstance(entry, dict):
+            continue
+        for key, bucket in (("learner", learner), ("character", character)):
+            value = entry.get(key)
+            if isinstance(value, str) and value.strip():
+                bucket.append(value)
+    return tuple(learner), tuple(character)
+
+
+def _expected_register(
+    *, scenario_key: Any, content_version: Any, character_texts: tuple[str, ...]
+) -> str | None:
+    """The register the counterpart used with this learner, in *this* journey.
+
+    What the character actually said comes first: a generated scene may reuse an
+    authored scenario key and still tutoie the learner, and the evidence of the
+    scene outranks the declaration about it. The authored
+    ``counterpart_register`` is the fallback, and ``None`` — no declaration, no
+    unambiguous demonstration — is reported as "non évalué".
+    """
+
+    observed = pragmatics.counterpart_register(list(character_texts))
+    if observed is not None:
+        return observed
+    declared = pragmatics.declared_counterpart_register(
+        str(scenario_key) if scenario_key else None,
+        content_version=str(content_version) if content_version else None,
+    )
+    return declared.expected if declared is not None else None
 
 
 # --------------------------------------------------------------------------
@@ -671,8 +1003,11 @@ __all__ = [
     "KEEPSAKE_EFFECT",
     "MAX_EVIDENCE_PER_CAPABILITY",
     "REPEAT_USE_MIN_SEPARATION",
+    "RegisterLine",
     "build_capability_summary",
     "build_journey_capability_evidence",
+    "build_journey_register_line",
+    "build_register_summary",
     "journey_keepsake",
     "mint_journey_keepsake",
 ]

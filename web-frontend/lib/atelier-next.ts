@@ -1,5 +1,5 @@
 import type { AtelierSessionStart, AtelierToday } from '@/services/api';
-import type { ScenarioKey, TodayEnvelope } from '@/types/daily-journey';
+import type { JourneyBecause, ScenarioKey, TodayEnvelope } from '@/types/daily-journey';
 import { STORY_FEATURE_VISIBLE } from './launch-flags';
 
 export const REVIEW_THRESHOLD = 1;
@@ -80,6 +80,14 @@ export type RecommendedAction = LegacyRecommendedAction | JourneyRecommendedActi
  */
 export const PRACTICE_LABEL = 'Plus de pratique';
 
+/** WP-82: the drill loop's name in a chrome language (same words as the recap's `more_practice`). */
+export function practiceLabel(language: unknown): string {
+  const base = typeof language === 'string' ? language.trim().toLowerCase().slice(0, 2) : 'en';
+  if (base === 'fr') return PRACTICE_LABEL;
+  if (base === 'de') return 'Mehr üben';
+  return 'More practice';
+}
+
 export type PracticeEntry = {
   label: string;
   href: string;
@@ -126,6 +134,82 @@ export function resolvePracticeEntry(
     return { label: PRACTICE_LABEL, href: envelope.practice_href, conceptId: null };
   }
   return { label: PRACTICE_LABEL, href: practiceHref(), conceptId: null };
+}
+
+/**
+ * WP-S4 — «La Forge» (owner decision 1): the entry's name in a chrome
+ * language. «Forge today's rule» / «Forger la règle du jour» / «Regel des
+ * Tages schmieden».
+ */
+export function forgeLabel(language: unknown): string {
+  const base = typeof language === 'string' ? language.trim().toLowerCase().slice(0, 2) : 'en';
+  if (base === 'fr') return 'Forger la règle du jour';
+  if (base === 'de') return 'Regel des Tages schmieden';
+  return 'Forge today’s rule';
+}
+
+/** «Forge · 5 min» — the entry's length, in minutes, never under one. */
+export function forgeMinutes(budgetSeconds: unknown): number {
+  const seconds = Number(budgetSeconds);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 5;
+}
+
+/** `/atelier?mode=forge[&concept=<id>]` — La Forge's one entry (the server's spelling). */
+export function forgeHref(conceptId?: string | number | null): string {
+  const id = conceptId === null || conceptId === undefined ? '' : String(conceptId).trim();
+  return id ? `/atelier?mode=forge&concept=${encodeURIComponent(id)}` : '/atelier?mode=forge';
+}
+
+export type ForgeHomeEntry = {
+  label: string;
+  href: string;
+  minutes: number;
+  conceptId: number | null;
+};
+
+/**
+ * WP-S4 / owner decision 3: «Forge today's rule» after the day, on Léger and
+ * Régulier. `null` with the capability off, on an older server that sends no
+ * `forge`, and on Soutenu/Intensif (`folded`): there the forge is a step of
+ * the day itself, and «More practice» stays the after-day entry.
+ */
+export function resolveForgeEntry(
+  envelope: TodayEnvelope | null | undefined,
+  language: unknown = 'en',
+): ForgeHomeEntry | null {
+  if (!envelope || envelope.enabled !== true) return null;
+  const forge = envelope.forge;
+  if (!forge || forge.folded) return null;
+  return {
+    label: forgeLabel(language),
+    href: forge.href || forgeHref(forge.concept_id),
+    minutes: forgeMinutes(forge.budget_seconds),
+    conceptId: forge.concept_id ?? null,
+  };
+}
+
+/**
+ * WP-24's because-line, as Home may print it.
+ *
+ * Returns `null` with the capability off, with no line on the envelope, or for
+ * a kind this build does not know how to write French for — an unexplained
+ * scene is better than an invented explanation. Nothing is composed here: the
+ * server names the mistake, `HomeScreen` writes the sentence.
+ */
+export function journeyBecause(
+  envelope: TodayEnvelope | null | undefined,
+): JourneyBecause | null {
+  if (!envelope || envelope.enabled !== true) return null;
+  const because = envelope.because;
+  if (!because || because.kind !== 'erratum') return null;
+  const label = String(because.label || '').trim();
+  if (!label) return null;
+  return {
+    kind: because.kind,
+    reason: because.reason || null,
+    label,
+    example: String(because.example || '').trim() || null,
+  };
 }
 
 

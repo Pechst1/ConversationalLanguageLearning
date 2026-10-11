@@ -1,0 +1,157 @@
+{
+ "id": "fb0b07cd-9a4e-4fdc-967e-e3fc62b41731",
+ "scene_id": "fb0b07cd-9a4e-4fdc-967e-e3fc62b41731",
+ "serial_thread_id": "fc5971e1-7836-4413-bdfb-a6b8a80abe15",
+ "serial_episode_id": "a54ef0c6-72fc-4fda-bb82-81e2a8d32d10",
+ "journey_id": "9a6aaf6c-0b71-41a5-8134-cca1a713b298",
+ "title_fr": "Le mauvais accueil",
+ "status": "available",
+ "chapter": {
+  "id": "375822ca-6016-4754-9c2e-cfe43a0cf162",
+  "shape": "ensemble",
+  "finale": false,
+  "title_fr": "Le mauvais accueil",
+  "interlude": false,
+  "letter_beat": null
+ },
+ "panel_index": 0,
+ "grammar_focus": null,
+ "panels": [
+  {
+   "id": "88afeac4-3a1d-49cc-bed4-f2d218fdd724",
+   "index": 0,
+   "narration_fr": "Il pleut. Tu as une valise, une lettre, une clé.",
+   "alt_native": null,
+   "dialogue": [],
+   "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "image_status": "setting_reference",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp"
+  },
+  {
+   "id": "e0372eb4-9118-43e8-998f-970f35804f48",
+   "index": 1,
+   "narration_fr": "",
+   "alt_native": null,
+   "dialogue": [
+    {
+     "mood": "happy",
+     "text_fr": "…Et il dit : \"Augustin, vous êtes trop élégant !\"",
+     "text_native": "…Und er sagt: \"Augustin, Sie sind zu elegant!\"",
+     "character_id": "augustin_de_roncourt",
+     "character_name": "Augustin « Gus » de Roncourt"
+    },
+    {
+     "mood": "neutral",
+     "text_fr": "Il dit ça ?",
+     "text_native": "Das sagt er?",
+     "character_id": "marin_leveque",
+     "character_name": "Marin Lévêque"
+    },
+    {
+     "mood": "cold",
+     "text_fr": "Non.",
+     "text_native": "Nein.",
+     "character_id": "lila_bonnet",
+     "character_name": "Lila Bonnet"
+    }
+   ],
+   "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "image_status": "setting_reference",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp"
+  },
+  {
+   "id": "d97959a5-a26b-4909-8632-4ec69c65479c",
+   "index": 2,
+   "narration_fr": "",
+   "alt_native": null,
+   "dialogue": [],
+   "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "image_status": "setting_reference",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp"
+  },
+  {
+   "id": "dce10818-7eb0-4d8d-abf2-3b5f4d082d1f",
+   "index": 3,
+   "narration_fr": "",
+   "alt_native": null,
+   "dialogue": [
+    {
+     "mood": "cold",
+     "text_fr": "Ah ! Vous voilà. Vous venez pour M. Marchand ?",
+     "text_native": "Ah! Da sind Sie ja. Sie kommen für Herrn Marchand?",
+     "character_id": "augustin_de_roncourt",
+     "character_name": "Augustin « Gus » de Roncourt"
+    },
+    {
+     "mood": "neutral",
+     "text_fr": "C'est qui ?",
+     "text_native": "Wer ist das?",
+     "character_id": "marin_leveque",
+     "character_name": "Marin Lévêque"
+    },
+    {
+     "mood": "cold",
+     "text_fr": "La personne de la vente.",
+     "text_native": "Die Person vom Verkauf.",
+     "character_id": "lila_bonnet",
+     "character_name": "Lila Bonnet"
+    }
+   ],
+   "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "image_status": "setting_reference",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp"
+  },
+  {
+   "id": "b8b70f63-ae28-4575-a329-0274502a13c0",
+   "index": 4,
+   "narration_fr": "",
+   "alt_native": null,
+   "dialogue": [
+    {
+     "mood": "neutral",
+     "text_fr": "Prenez une chaise.",
+     "text_native": "Nehmen Sie Platz.",
+     "character_id": "marin_leveque",
+     "character_name": "Marin Lévêque"
+    },
+    {
+     "mood": "moved",
+     "text_fr": "Vous allez vendre l'appartement d'Odile ? À Solvel ?",
+     "text_native": "Sie verkaufen Odiles Wohnung? An Solvel?",
+     "character_id": "marin_leveque",
+     "character_name": "Marin Lévêque"
+    },
+    {
+     "mood": "neutral",
+     "text_fr": "Regarde ses chaussures, Marin. Ce n'est pas Solvel.",
+     "text_native": "Schau dir die Schuhe an, Marin. Das ist nicht Solvel.",
+     "character_id": "lila_bonnet",
+     "character_name": "Lila Bonnet"
+    }
+   ],
+   "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "image_status": "setting_reference",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp"
+  },
+  {
+   "id": "b703ca4b-88ba-4f5f-b2ac-395a06ccd964",
+   "index": 5,
+   "narration_fr": "",
+   "alt_native": null,
+   "dialogue": [
+    {
+     "mood": "cold",
+     "text_fr": "Alors ? C'est qui, vous ? Et pourquoi ici ?",
+     "text_native": "Also? Wer sind Sie? Und warum sind Sie hier?",
+     "character_id": "augustin_de_roncourt",
+     "character_name": "Augustin « Gus » de Roncourt"
+    }
+   ],
+   "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "image_status": "setting_reference",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp"
+  }
+ ],
+ "page": null,
+ "resolution": null
+}

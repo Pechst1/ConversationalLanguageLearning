@@ -97,7 +97,10 @@ def test_a_missing_or_broken_file_falls_back_to_the_heuristic(tmp_path, monkeypa
     monkeypatch.setattr(vocabulary_coverage, "POS_OVERRIDES_PATH", broken)
     reload_pos_overrides()
     assert pos_overrides() == {}
-    assert inferred_part_of_speech(word("plaisir")) == "verb"
+    # WP-84: the core lexicon still knows «plaisir»; a word outside it falls
+    # through to the suffix guess.
+    assert inferred_part_of_speech(word("plaisir")) == "noun"
+    assert inferred_part_of_speech(word("bidulir")) == "verb"
 
     monkeypatch.setattr(vocabulary_coverage, "POS_OVERRIDES_PATH", tmp_path / "missing.json")
     reload_pos_overrides()

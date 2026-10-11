@@ -29,6 +29,9 @@ from app.db.models.daily_journey import (
     DailyJourneyMutation,
     DailyJourneyStep,
 )
+from app.db.models.error import UserError
+from app.db.models.mission import RealWorldMission
+from app.db.models.serial import SerialThread
 from app.db.models.session import LearningSession
 from app.db.models.user import RefreshToken, User
 from app.main import create_app
@@ -74,6 +77,13 @@ def harness(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Generator[Harness, Non
         DailyJourney.__table__,
         DailyJourneyStep.__table__,
         DailyJourneyMutation.__table__,
+        # WP-99: the create path now reads the story thread (interlude) besides
+        # errata and the Courrier; missing tables made those best-effort reads
+        # fail inside their savepoints, which on SQLite turned the request's
+        # later write into a stale-snapshot «database is locked».
+        SerialThread.__table__,
+        UserError.__table__,
+        RealWorldMission.__table__,
     ]
     Base.metadata.create_all(bind=engine, tables=tables)
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)

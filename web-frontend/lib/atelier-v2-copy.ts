@@ -105,13 +105,40 @@ export type AtelierCopyKey =
   | 'empty_body'
   | 'error_title'
   | 'artwork_unavailable'
-  | 'artwork_decorative';
+  | 'artwork_decorative'
+  // WP-81 / WP-82 — Home's own status words (the day, the streak, one chip)
+  | 'home_label'
+  | 'home_plan'
+  | 'home_part_done'
+  | 'home_part_active'
+  | 'home_part_todo'
+  | 'home_streak_first'
+  | 'home_streak_days'
+  | 'home_streak_done'
+  | 'home_streak_seals'
+  | 'home_level_aria'
+  | 'home_consolidating'
+  | 'home_letter'
+  | 'home_words_one'
+  | 'home_practice'
+  | 'home_practice_aria'
+  | 'home_words_many'
+  | 'home_letter_aria'
+  | 'home_review_one'
+  | 'home_review_many'
+  | 'home_phrase'
+  | 'home_art_press'
+  | 'home_art_late'
+  | 'home_art_soon'
+  | 'home_day_settled'
+  | 'home_seance_settled_aria'
+  | 'home_because';
 
 type Table = Record<AtelierCopyKey, string>;
 
 const EN: Table = {
   nav_atelier: 'Atelier',
-  nav_missions: 'Missions',
+  nav_missions: 'Courrier',
   nav_serial: 'Serial',
   nav_notebook: 'Notebook',
   nav_label: 'Sections',
@@ -171,11 +198,37 @@ const EN: Table = {
   error_title: 'Something went wrong',
   artwork_unavailable: 'Illustration unavailable',
   artwork_decorative: '',
+  home_label: 'Atelier · today',
+  home_plan: 'Today’s plan',
+  home_part_done: 'done',
+  home_part_active: 'in progress',
+  home_part_todo: 'to come',
+  home_streak_first: 'day one',
+  home_streak_days: 'days',
+  home_streak_done: 'day done',
+  home_streak_seals: 'your seals',
+  home_level_aria: 'Your level: {band}, {percent} % of the way through',
+  home_consolidating: 'This week, we consolidate.',
+  home_letter: 'New letter',
+  home_letter_aria: 'A letter is waiting',
+  home_words_one: '1 word',
+  home_practice: 'More practice',
+  home_practice_aria: 'More practice on today’s rules',
+  home_words_many: '{n} words',
+  home_review_one: 'Review 1 word',
+  home_review_many: 'Review {n} words',
+  home_phrase: 'Yesterday’s sentence',
+  home_art_press: 'Illustration at the printer’s',
+  home_art_late: 'Illustration delayed — the text is ready anyway',
+  home_art_soon: 'Illustration to come',
+  home_day_settled: 'Day done',
+  home_seance_settled_aria: 'Séance — day done',
+  home_because: 'This scene picks up a mistake you made: {label}',
 };
 
 const DE: Table = {
   nav_atelier: 'Atelier',
-  nav_missions: 'Missionen',
+  nav_missions: 'Courrier',
   nav_serial: 'Feuilleton',
   nav_notebook: 'Heft',
   nav_label: 'Bereiche',
@@ -235,11 +288,37 @@ const DE: Table = {
   error_title: 'Etwas ist schiefgelaufen',
   artwork_unavailable: 'Illustration nicht verfügbar',
   artwork_decorative: '',
+  home_label: 'Atelier · heute',
+  home_plan: 'Der Plan für heute',
+  home_part_done: 'erledigt',
+  home_part_active: 'läuft',
+  home_part_todo: 'kommt noch',
+  home_streak_first: 'erster Tag',
+  home_streak_days: 'Tage',
+  home_streak_done: 'Tag geschafft',
+  home_streak_seals: 'Ihre Siegel',
+  home_level_aria: 'Ihr Niveau: {band}, zu {percent} % geschafft',
+  home_consolidating: 'Diese Woche festigen wir.',
+  home_letter: 'Neuer Brief',
+  home_letter_aria: 'Ein Brief wartet auf Sie',
+  home_words_one: '1 Wort',
+  home_practice: 'Mehr üben',
+  home_practice_aria: 'Mehr üben mit den Regeln von heute',
+  home_words_many: '{n} Wörter',
+  home_review_one: '1 Wort wiederholen',
+  home_review_many: '{n} Wörter wiederholen',
+  home_phrase: 'Der Satz von gestern',
+  home_art_press: 'Illustration im Druck',
+  home_art_late: 'Illustration verspätet — der Text ist trotzdem da',
+  home_art_soon: 'Illustration folgt',
+  home_day_settled: 'Tag geschafft',
+  home_seance_settled_aria: 'Séance — Tag geschafft',
+  home_because: 'Diese Szene greift einen notierten Fehler auf: {label}',
 };
 
 const FR: Table = {
   nav_atelier: 'Atelier',
-  nav_missions: 'Missions',
+  nav_missions: 'Courrier',
   nav_serial: 'Feuilleton',
   nav_notebook: 'Cahier',
   nav_label: 'Sections',
@@ -299,6 +378,32 @@ const FR: Table = {
   error_title: 'Un problème est survenu',
   artwork_unavailable: 'Illustration indisponible',
   artwork_decorative: '',
+  home_label: 'Atelier · La Une',
+  home_plan: 'Le plan du jour',
+  home_part_done: 'fait',
+  home_part_active: 'en cours',
+  home_part_todo: 'à venir',
+  home_streak_first: '1ᵉʳ jour',
+  home_streak_days: 'jours de suite',
+  home_streak_done: 'journée bouclée',
+  home_streak_seals: 'vos sceaux',
+  home_level_aria: 'Votre niveau : {band}, parcouru à {percent} %',
+  home_consolidating: 'Cette semaine, on consolide.',
+  home_letter: 'Nouvelle lettre',
+  home_letter_aria: 'Une lettre vous attend',
+  home_words_one: '1 mot',
+  home_practice: 'Plus de pratique',
+  home_practice_aria: 'Plus de pratique sur les règles du jour',
+  home_words_many: '{n} mots',
+  home_review_one: 'Réviser 1 mot',
+  home_review_many: 'Réviser {n} mots',
+  home_phrase: 'La phrase d’hier',
+  home_art_press: 'Illustration sous presse',
+  home_art_late: 'Illustration retardée — le texte, lui, n’attend pas',
+  home_art_soon: 'Illustration à paraître',
+  home_day_settled: 'Journée bouclée',
+  home_seance_settled_aria: 'Séance — journée bouclée',
+  home_because: 'Cette scène reprend une faute notée\u00a0: {label}',
 };
 
 const TABLES: Record<ControlLanguage, Table> = { en: EN, de: DE, fr: FR };
@@ -306,9 +411,29 @@ const TABLES: Record<ControlLanguage, Table> = { en: EN, de: DE, fr: FR };
 /** The merged table a renderer receives: journey contract keys plus V2 chrome. */
 export type AtelierCopy = JourneyCopy & Table;
 
+/**
+ * WP-82 — the one language rule (`lib/language-rule.ts`). Only the navigation
+ * labels — the names of places — are French on every control language. Every
+ * other key follows the language the caller resolved: the learner's own up to
+ * A2, French from B1 (`chromeLanguage(control, level)`). This supersedes
+ * WP-51's list, which also kept buttons French and so put French buttons
+ * under German or English status lines.
+ */
+export const V2_CHROME_KEYS: readonly AtelierCopyKey[] = [
+  'nav_atelier',
+  'nav_missions',
+  'nav_serial',
+  'nav_notebook',
+  'nav_label',
+];
+
+const V2_CHROME_FR: Partial<Table> = Object.fromEntries(
+  V2_CHROME_KEYS.map((key) => [key, FR[key]]),
+) as Partial<Table>;
+
 const MERGED: Record<ControlLanguage, AtelierCopy> = {
-  en: { ...journeyCopy('en'), ...EN },
-  de: { ...journeyCopy('de'), ...DE },
+  en: { ...journeyCopy('en'), ...EN, ...V2_CHROME_FR },
+  de: { ...journeyCopy('de'), ...DE, ...V2_CHROME_FR },
   fr: { ...journeyCopy('fr'), ...FR },
 };
 
@@ -327,7 +452,7 @@ export function stepOfLabel(copy: AtelierCopy, index: number, total: number): st
 
 /** The V2-only chrome table, for a surface that does not need the journey keys. */
 export function atelierChrome(language: unknown): Table {
-  return TABLES[normalizeControlLanguage(language)];
+  return { ...TABLES[normalizeControlLanguage(language)], ...V2_CHROME_FR };
 }
 
 export default atelierCopy;

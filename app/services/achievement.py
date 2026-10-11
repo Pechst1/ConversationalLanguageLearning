@@ -1,35 +1,147 @@
-"""Achievement service for gamification and learner motivation."""
+"""Achievements — a small, honest set tied to the story (WP-79).
+
+Before WP-79, 19 of the 20 achievements could not be earned: they read
+``total_xp`` (never written by the V2 app), a vocabulary state ``mastered``
+(never written), ``LearningSession.accuracy_rate`` (never written),
+``review_champion`` had no check at all, the grammar ones hung off an endpoint
+no screen calls, and the seed script was never run on deploy.
+
+The catalogue below replaces them. Every entry is measured from a row the app
+really writes, and each one is reachable by a test learner
+(``tests/test_wp79_achievements.py``):
+
+=====================  =====================================================
+measure                source
+=====================  =====================================================
+``scenes``             ``DailyJourney`` rows finished as ``completed``
+``streak``             the practice streak's record (WP-80 writes it)
+``letters``            Courrier letters answered (``RealWorldMission`` done)
+``words``              the learner's own Lexique rows (``UserVocabularyProgress``)
+``chapters``           chapters the living story closed (its chronicle)
+=====================  =====================================================
+
+No XP is awarded: nothing on screen spends or shows it, and a number that only
+grows is not a reward. Retired keys stay in the table (their rows are history)
+but are never listed or unlocked again.
+
+The catalogue seeds itself: :meth:`AchievementService.ensure_catalogue` is an
+idempotent upsert run before any read or check, so a fresh deploy has the set
+without anyone remembering ``scripts/seed_achievements.py``.
+"""
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import and_, func
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models.achievement import Achievement, UserAchievement
-from app.db.models.progress import UserVocabularyProgress
-from app.db.models.session import LearningSession
 from app.db.models.user import User
-from app.utils.cache import build_cache_key, cache_backend
 
-AchievementCategory = Literal["streak", "vocabulary", "xp", "session", "accuracy"]
+AchievementCategory = Literal["story", "streak", "courrier", "vocabulary"]
+Measure = Literal["scenes", "streak", "letters", "words", "chapters"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class AchievementDefinition:
-    """Template for defining achievements."""
+    """One achievement: what it is called and what earns it."""
 
     key: str
     name: str
     description: str
-    category: AchievementCategory
+    category: str
     tier: str
-    xp_reward: int
+    xp_reward: int = 0
     icon_url: str | None = None
     unlock_criteria: dict[str, Any] | None = None
+    #: What is counted, and how many earn it. ``None`` for a definition seeded
+    #: by hand (tests); it is never unlocked automatically.
+    measure: Measure | None = None
+    target: int = 1
+
+
+#: The one catalogue. French: the Relevé is French, and so is the story.
+CATALOGUE: tuple[AchievementDefinition, ...] = (
+    AchievementDefinition(
+        key="first_scene",
+        name="Première scène",
+        description="La première journée bouclée.",
+        category="story",
+        tier="bronze",
+        measure="scenes",
+        target=1,
+    ),
+    AchievementDefinition(
+        key="scenes_10",
+        name="Dix scènes",
+        description="Dix journées bouclées.",
+        category="story",
+        tier="silver",
+        measure="scenes",
+        target=10,
+    ),
+    AchievementDefinition(
+        key="session_streak_3",
+        name="Trois jours de suite",
+        description="Trois jours d’affilée à l’Atelier.",
+        category="streak",
+        tier="bronze",
+        measure="streak",
+        target=3,
+    ),
+    AchievementDefinition(
+        key="session_streak_7",
+        name="Une semaine de suite",
+        description="Sept jours d’affilée à l’Atelier.",
+        category="streak",
+        tier="silver",
+        measure="streak",
+        target=7,
+    ),
+    AchievementDefinition(
+        key="session_streak_30",
+        name="Trente jours de suite",
+        description="Trente jours d’affilée à l’Atelier.",
+        category="streak",
+        tier="gold",
+        measure="streak",
+        target=30,
+    ),
+    AchievementDefinition(
+        key="first_letter",
+        name="Première lettre",
+        description="Une première réponse au Courrier.",
+        category="courrier",
+        tier="bronze",
+        measure="letters",
+        target=1,
+    ),
+    AchievementDefinition(
+        key="words_kept_50",
+        name="Cinquante mots gardés",
+        description="Cinquante mots dans votre Lexique.",
+        category="vocabulary",
+        tier="silver",
+        measure="words",
+        target=50,
+    ),
+    AchievementDefinition(
+        key="first_chapter",
+        name="Premier chapitre bouclé",
+        description="Le premier chapitre du feuilleton s’est refermé.",
+        category="story",
+        tier="silver",
+        measure="chapters",
+        target=1,
+    ),
+)
+CATALOGUE_KEYS: frozenset[str] = frozenset(item.key for item in CATALOGUE)
+_BY_KEY: dict[str, AchievementDefinition] = {item.key: item for item in CATALOGUE}
 
 
 @dataclass
@@ -53,398 +165,258 @@ class AchievementNotFoundError(ValueError):
     """Raised when an achievement cannot be located."""
 
 
+# ---------------------------------------------------------------------------
+# Measures — each one a count of rows the app really writes
+# ---------------------------------------------------------------------------
+
+
+def _scenes(db: Session, user: User) -> int:
+    from app.db.models.daily_journey import DailyJourney
+
+    return int(
+        db.scalar(
+            select(func.count(DailyJourney.id)).where(
+                DailyJourney.user_id == user.id, DailyJourney.status == "completed"
+            )
+        )
+        or 0
+    )
+
+
+def _streak(db: Session, user: User) -> int:
+    from app.services.streak import read_streak
+
+    try:
+        current = read_streak(user).days
+    except Exception:  # pragma: no cover - a bad timezone never costs a badge
+        current = 0
+    return max(
+        int(current or 0),
+        int(getattr(user, "grammar_longest_streak", 0) or 0),
+        int(getattr(user, "longest_streak", 0) or 0),
+    )
+
+
+def _letters(db: Session, user: User) -> int:
+    from app.db.models.mission import RealWorldMission
+
+    return int(
+        db.scalar(
+            select(func.count(RealWorldMission.id)).where(
+                RealWorldMission.user_id == user.id, RealWorldMission.status == "completed"
+            )
+        )
+        or 0
+    )
+
+
+def _words(db: Session, user: User) -> int:
+    from app.db.models.progress import UserVocabularyProgress
+
+    return int(
+        db.scalar(
+            select(func.count(UserVocabularyProgress.id)).where(
+                UserVocabularyProgress.user_id == user.id
+            )
+        )
+        or 0
+    )
+
+
+def _chapters(db: Session, user: User) -> int:
+    from app.db.models.serial import SerialThread
+
+    total = 0
+    for state in db.scalars(select(SerialThread.state).where(SerialThread.user_id == user.id)):
+        live = (state or {}).get("living_story") if isinstance(state, dict) else None
+        chronicle = (live or {}).get("chronicle") if isinstance(live, dict) else None
+        if isinstance(chronicle, list):
+            total += len(chronicle)
+    return total
+
+
+MEASURES = {
+    "scenes": _scenes,
+    "streak": _streak,
+    "letters": _letters,
+    "words": _words,
+    "chapters": _chapters,
+}
+
+
 class AchievementService:
-    """Manage achievement unlocks and progress tracking."""
+    """Seed, measure and unlock the catalogue."""
 
     def __init__(self, db: Session) -> None:
         self.db = db
 
     # ------------------------------------------------------------------
-    # Achievement definition helpers
+    # Catalogue
     # ------------------------------------------------------------------
-    def seed_achievements(self, definitions: list[AchievementDefinition]) -> None:
-        """Seed achievement templates into the database."""
+    def seed_achievements(self, definitions: Iterable[AchievementDefinition]) -> None:
+        """Upsert ``definitions`` and commit. Idempotent."""
 
+        if self._upsert(definitions):
+            self.db.commit()
+
+    def ensure_catalogue(self) -> None:
+        """The WP-79 catalogue is in the table — an upsert, safe on every call."""
+
+        if self._upsert(CATALOGUE):
+            self.db.commit()
+
+    def _upsert(self, definitions: Iterable[AchievementDefinition]) -> bool:
+        definitions = list(definitions)
+        keys = [item.key for item in definitions]
+        existing = {
+            row.achievement_key: row
+            for row in self.db.scalars(select(Achievement).where(Achievement.achievement_key.in_(keys)))
+        }
+        changed = False
         for defn in definitions:
-            existing = (
-                self.db.query(Achievement)
-                .filter(Achievement.achievement_key == defn.key)
-                .first()
-            )
-            if existing:
-                existing.name = defn.name
-                existing.description = defn.description
-                existing.tier = defn.tier
-                existing.xp_reward = defn.xp_reward
-                existing.icon_url = defn.icon_url
-            else:
-                achievement = Achievement(
-                    achievement_key=defn.key,
-                    name=defn.name,
-                    description=defn.description,
-                    tier=defn.tier,
-                    xp_reward=defn.xp_reward,
-                    icon_url=defn.icon_url,
-                )
-                self.db.add(achievement)
-        self.db.commit()
-        cache_backend.invalidate("achievements:list", key="all")
-        cache_backend.invalidate("achievements:user", prefix="")
+            fields = {
+                "name": defn.name,
+                "description": defn.description,
+                "tier": defn.tier,
+                "xp_reward": defn.xp_reward,
+                "icon_url": defn.icon_url,
+                "category": defn.category,
+                "trigger_type": defn.measure,
+                "trigger_value": defn.target if defn.measure else None,
+            }
+            row = existing.get(defn.key)
+            if row is None:
+                try:
+                    with self.db.begin_nested():
+                        self.db.add(Achievement(achievement_key=defn.key, **fields))
+                        self.db.flush()
+                except IntegrityError:  # a concurrent seeder won the insert
+                    pass
+                changed = True
+                continue
+            for name, value in fields.items():
+                if getattr(row, name) != value:
+                    setattr(row, name, value)
+                    changed = True
+        return changed
+
+    def _catalogue_rows(self) -> list[Achievement]:
+        self.ensure_catalogue()
+        order = {item.key: index for index, item in enumerate(CATALOGUE)}
+        rows = list(
+            self.db.scalars(select(Achievement).where(Achievement.achievement_key.in_(CATALOGUE_KEYS)))
+        )
+        return sorted(rows, key=lambda row: order.get(row.achievement_key, len(order)))
 
     def list_all_achievements(self) -> list[Achievement]:
-        """Return all achievement templates."""
+        """The catalogue, in its own order. Retired keys are never listed."""
 
-        cache_key = "all"
-        cached = cache_backend.get("achievements:list", cache_key)
-        if cached is not None:
-            return [Achievement(**item) for item in cached]
-
-        achievements = self.db.query(Achievement).order_by(Achievement.id).all()
-        payload = [
-            {
-                "id": a.id,
-                "achievement_key": a.achievement_key,
-                "name": a.name,
-                "description": a.description,
-                "tier": a.tier,
-                "xp_reward": a.xp_reward,
-                "icon_url": a.icon_url,
-            }
-            for a in achievements
-        ]
-        cache_backend.set("achievements:list", cache_key, payload, ttl_seconds=3600)
-        return achievements
+        return self._catalogue_rows()
 
     # ------------------------------------------------------------------
-    # User achievement tracking
+    # Progress
     # ------------------------------------------------------------------
+    def measures(self, user: User) -> dict[str, int]:
+        return {name: fn(self.db, user) for name, fn in MEASURES.items()}
+
     def get_user_achievements(
         self, user_id: uuid.UUID, *, include_locked: bool = False
     ) -> list[AchievementProgress]:
-        """Return user's achievement progress."""
-
-        cache_key = build_cache_key(user_id=str(user_id), include_locked=include_locked)
-        cached = cache_backend.get("achievements:user", cache_key)
-        if cached is not None:
-            items: list[AchievementProgress] = []
-            for item in cached:
-                unlocked_at = (
-                    datetime.fromisoformat(item["unlocked_at"])
-                    if item["unlocked_at"]
-                    else None
-                )
-                items.append(
-                    AchievementProgress(
-                        achievement_id=item["achievement_id"],
-                        achievement_key=item["achievement_key"],
-                        name=item["name"],
-                        description=item["description"],
-                        tier=item["tier"],
-                        xp_reward=item["xp_reward"],
-                        icon_url=item["icon_url"],
-                        current_progress=item["current_progress"],
-                        target_progress=item["target_progress"],
-                        completed=item["completed"],
-                        unlocked_at=unlocked_at,
-                    )
-                )
-            return items
-
-        query = (
-            self.db.query(UserAchievement, Achievement)
-            .join(Achievement, UserAchievement.achievement_id == Achievement.id)
-            .filter(UserAchievement.user_id == user_id)
-        )
-
-        if not include_locked:
-            query = query.filter(UserAchievement.completed.is_(True))
-
-        results = query.all()
-
-        progress_items: list[AchievementProgress] = []
-        for user_achievement, achievement in results:
-            target = self._calculate_target_progress(achievement.achievement_key)
-            progress_items.append(
-                AchievementProgress(
-                    achievement_id=achievement.id,
-                    achievement_key=achievement.achievement_key,
-                    name=achievement.name,
-                    description=achievement.description,
-                    tier=achievement.tier,
-                    xp_reward=achievement.xp_reward,
-                    icon_url=achievement.icon_url,
-                    current_progress=user_achievement.progress,
-                    target_progress=target,
-                    completed=user_achievement.completed,
-                    unlocked_at=
-                        user_achievement.unlocked_at if user_achievement.completed else None,
-                )
-            )
-
-        if include_locked:
-            all_achievements = self.list_all_achievements()
-            unlocked_ids = {item.achievement_id for item in progress_items}
-            for achievement in all_achievements:
-                if achievement.id in unlocked_ids:
-                    continue
-                target = self._calculate_target_progress(achievement.achievement_key)
-                progress_items.append(
-                    AchievementProgress(
-                        achievement_id=achievement.id,
-                        achievement_key=achievement.achievement_key,
-                        name=achievement.name,
-                        description=achievement.description,
-                        tier=achievement.tier,
-                        xp_reward=achievement.xp_reward,
-                        icon_url=achievement.icon_url,
-                        current_progress=0,
-                        target_progress=target,
-                        completed=False,
-                        unlocked_at=None,
-                    )
-                )
-
-        payload = [
-            {
-                "achievement_id": item.achievement_id,
-                "achievement_key": item.achievement_key,
-                "name": item.name,
-                "description": item.description,
-                "tier": item.tier,
-                "xp_reward": item.xp_reward,
-                "icon_url": item.icon_url,
-                "current_progress": item.current_progress,
-                "target_progress": item.target_progress,
-                "completed": item.completed,
-                "unlocked_at": item.unlocked_at.isoformat() if item.unlocked_at else None,
-            }
-            for item in progress_items
-        ]
-        cache_backend.set("achievements:user", cache_key, payload, ttl_seconds=300)
-        return progress_items
-
-    def _calculate_target_progress(self, achievement_key: str) -> int:
-        """Return the target progress value for an achievement."""
-
-        targets = {
-            "first_session": 1,
-            "session_streak_3": 3,
-            "session_streak_7": 7,
-            "session_streak_30": 30,
-            "vocabulary_learner": 50,
-            "vocabulary_expert": 200,
-            "vocabulary_master": 500,
-            "xp_bronze": 500,
-            "xp_silver": 2000,
-            "xp_gold": 5000,
-            "accuracy_perfectionist": 100,
-            "review_champion": 1000,
+        rows = self._catalogue_rows()
+        unlocked = {
+            ua.achievement_id: ua
+            for ua in self.db.scalars(select(UserAchievement).where(UserAchievement.user_id == user_id))
         }
-        return targets.get(achievement_key, 1)
-
-    # ------------------------------------------------------------------
-    # Achievement unlock logic
-    # ------------------------------------------------------------------
-    def check_and_unlock(self, *, user: User) -> list[Achievement]:
-        """Check all unlockable achievements and grant them to the user."""
-
-        newly_unlocked: list[Achievement] = []
-
-        checks = [
-            self._check_streak_achievements,
-            self._check_vocabulary_achievements,
-            self._check_xp_achievements,
-            self._check_session_achievements,
-            self._check_accuracy_achievements,
-        ]
-
-        for check_fn in checks:
-            unlocked = check_fn(user)
-            newly_unlocked.extend(unlocked)
-
-        if newly_unlocked:
-            self._invalidate_user_cache(user.id)
-
-        return newly_unlocked
-
-    def _check_streak_achievements(self, user: User) -> list[Achievement]:
-        """Check streak-based achievements."""
-
-        unlocked: list[Achievement] = []
-        streak_checks = [
-            ("session_streak_3", 3),
-            ("session_streak_7", 7),
-            ("session_streak_30", 30),
-        ]
-
-        for key, required_streak in streak_checks:
-            if user.current_streak >= required_streak:
-                achievement = self._try_unlock(user.id, key, user.current_streak)
-                if achievement:
-                    unlocked.append(achievement)
-
-        return unlocked
-
-    def _check_vocabulary_achievements(self, user: User) -> list[Achievement]:
-        """Check vocabulary mastery achievements."""
-
-        mastered_count = (
-            self.db.query(func.count(UserVocabularyProgress.id))
-            .filter(
-                UserVocabularyProgress.user_id == user.id,
-                UserVocabularyProgress.state == "mastered",
+        user = self.db.get(User, user_id) if include_locked else None
+        measured = self.measures(user) if user is not None else {}
+        items: list[AchievementProgress] = []
+        for row in rows:
+            defn = _BY_KEY[row.achievement_key]
+            held = unlocked.get(row.id)
+            completed = bool(held and held.completed)
+            if not completed and not include_locked:
+                continue
+            current = (
+                int(held.progress or defn.target)
+                if completed
+                else min(measured.get(defn.measure or "", 0), defn.target)
             )
-            .scalar()
-        )
-
-        unlocked: list[Achievement] = []
-        vocab_checks = [
-            ("vocabulary_learner", 50),
-            ("vocabulary_expert", 200),
-            ("vocabulary_master", 500),
-        ]
-
-        for key, required_count in vocab_checks:
-            if mastered_count >= required_count:
-                achievement = self._try_unlock(user.id, key, mastered_count)
-                if achievement:
-                    unlocked.append(achievement)
-
-        return unlocked
-
-    def _check_xp_achievements(self, user: User) -> list[Achievement]:
-        """Check XP milestone achievements."""
-
-        unlocked: list[Achievement] = []
-        xp_checks = [
-            ("xp_bronze", 500),
-            ("xp_silver", 2000),
-            ("xp_gold", 5000),
-        ]
-
-        for key, required_xp in xp_checks:
-            if user.total_xp >= required_xp:
-                achievement = self._try_unlock(user.id, key, user.total_xp)
-                if achievement:
-                    unlocked.append(achievement)
-
-        return unlocked
-
-    def _check_session_achievements(self, user: User) -> list[Achievement]:
-        """Check session completion achievements."""
-
-        session_count = (
-            self.db.query(func.count(LearningSession.id))
-            .filter(
-                LearningSession.user_id == user.id,
-                LearningSession.status == "completed",
-            )
-            .scalar()
-        )
-
-        if session_count >= 1:
-            achievement = self._try_unlock(user.id, "first_session", session_count)
-            if achievement:
-                return [achievement]
-
-        return []
-
-    def _check_accuracy_achievements(self, user: User) -> list[Achievement]:
-        """Check accuracy-based achievements."""
-
-        perfect_sessions = (
-            self.db.query(func.count(LearningSession.id))
-            .filter(
-                LearningSession.user_id == user.id,
-                LearningSession.accuracy_rate >= 0.95,
-                LearningSession.status == "completed",
-            )
-            .scalar()
-        )
-
-        if perfect_sessions >= 100:
-            achievement = self._try_unlock(
-                user.id, "accuracy_perfectionist", perfect_sessions
-            )
-            if achievement:
-                return [achievement]
-
-        return []
-
-    def _try_unlock(
-        self, user_id: uuid.UUID, achievement_key: str, current_progress: int
-    ) -> Achievement | None:
-        """Attempt to unlock an achievement for a user."""
-
-        achievement = (
-            self.db.query(Achievement)
-            .filter(Achievement.achievement_key == achievement_key)
-            .first()
-        )
-
-        if not achievement:
-            return None
-
-        existing = (
-            self.db.query(UserAchievement)
-            .filter(
-                and_(
-                    UserAchievement.user_id == user_id,
-                    UserAchievement.achievement_id == achievement.id,
-                    UserAchievement.completed.is_(True),
+            items.append(
+                AchievementProgress(
+                    achievement_id=row.id,
+                    achievement_key=row.achievement_key,
+                    name=row.name,
+                    description=row.description,
+                    tier=row.tier,
+                    xp_reward=row.xp_reward or 0,
+                    icon_url=row.icon_url,
+                    current_progress=current,
+                    target_progress=defn.target,
+                    completed=completed,
+                    unlocked_at=held.unlocked_at if completed else None,
                 )
             )
-            .first()
-        )
+        return items
 
-        if existing:
-            return None
+    # ------------------------------------------------------------------
+    # Unlock
+    # ------------------------------------------------------------------
+    def check_and_unlock(self, *, user: User, commit: bool = True) -> list[Achievement]:
+        """Unlock every catalogue entry the learner has earned. Idempotent."""
 
-        user_achievement = (
-            self.db.query(UserAchievement)
-            .filter(
-                and_(
-                    UserAchievement.user_id == user_id,
-                    UserAchievement.achievement_id == achievement.id,
+        rows = self._catalogue_rows()
+        held = {
+            ua.achievement_id: ua
+            for ua in self.db.scalars(select(UserAchievement).where(UserAchievement.user_id == user.id))
+        }
+        measured = self.measures(user)
+        newly: list[Achievement] = []
+        now = datetime.now(UTC)
+        for row in rows:
+            defn = _BY_KEY[row.achievement_key]
+            value = measured.get(defn.measure or "", 0)
+            existing = held.get(row.id)
+            if existing is not None and existing.completed:
+                continue
+            if defn.measure is None or value < defn.target:
+                continue
+            if existing is None:
+                self.db.add(
+                    UserAchievement(
+                        user_id=user.id,
+                        achievement_id=row.id,
+                        progress=value,
+                        completed=True,
+                        unlocked_at=now,
+                    )
                 )
-            )
-            .first()
-        )
+            else:
+                existing.progress = value
+                existing.completed = True
+                existing.unlocked_at = now
+            newly.append(row)
+        if newly:
+            if commit:
+                self.db.commit()
+            else:
+                self.db.flush()
+        return newly
 
-        if not user_achievement:
-            user_achievement = UserAchievement(
-                user_id=user_id,
-                achievement_id=achievement.id,
-                progress=current_progress,
-                completed=True,
-                unlocked_at=datetime.now(UTC),
-            )
-            self.db.add(user_achievement)
-        else:
-            user_achievement.progress = current_progress
-            user_achievement.completed = True
-            user_achievement.unlocked_at = datetime.now(UTC)
 
-        user = self.db.get(User, user_id)
-        if user:
-            user.total_xp += achievement.xp_reward
-
-        self.db.commit()
-        return achievement
-
-    def _invalidate_user_cache(self, user_id: uuid.UUID) -> None:
-        """Clear cached achievement data for a user."""
-
-        for include_locked in (False, True):
-            cache_backend.invalidate(
-                "achievements:user",
-                key=build_cache_key(user_id=str(user_id), include_locked=include_locked),
-            )
+def definition_for(key: str) -> AchievementDefinition:
+    try:
+        return _BY_KEY[key]
+    except KeyError as exc:
+        raise AchievementNotFoundError(key) from exc
 
 
 __all__ = [
+    "CATALOGUE",
+    "CATALOGUE_KEYS",
+    "MEASURES",
     "AchievementDefinition",
+    "AchievementNotFoundError",
     "AchievementProgress",
     "AchievementService",
-    "AchievementNotFoundError",
+    "definition_for",
 ]

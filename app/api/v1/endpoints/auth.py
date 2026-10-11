@@ -23,13 +23,15 @@ from app.services.auth import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
     InvalidPasswordResetTokenError,
+    RegistrationClosedError,
     handle_email_exists,
     handle_invalid_credentials,
+    handle_registration_closed,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 PASSWORD_RESET_REQUEST_MESSAGE = (  # noqa: S105 - response text, not a credential
-    "If an account exists for that email, a password reset link will be sent shortly."  # noqa: S105
+    "If an account exists for that email, a six-digit reset code will be sent shortly."  # noqa: S105
 )
 
 
@@ -42,6 +44,8 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserRea
         user = service.register_user(payload)
     except EmailAlreadyExistsError as exc:
         handle_email_exists(exc)
+    except RegistrationClosedError as exc:
+        handle_registration_closed(exc)
     return user
 
 
@@ -73,8 +77,9 @@ def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)) -
                     user_agent=request.headers.get("user-agent"),
                     ip_address=request.client.host if request.client else None,
                 )
-            except EmailAlreadyExistsError:
-                # If a user exists with a different password, still return 401
+            except (EmailAlreadyExistsError, RegistrationClosedError):
+                # If a user exists with a different password, or sign-up is
+                # closed to this email, still return 401
                 pass
         handle_invalid_credentials(exc)
 
@@ -84,13 +89,14 @@ def request_password_reset(
     payload: PasswordResetRequest,
     db: Session = Depends(get_db),
 ) -> PasswordResetRequestResponse:
-    """Request a one-time password reset link."""
+    """Email a six-digit reset code (plus a link where a public app URL exists)."""
 
     result = AuthService(db).request_password_reset(str(payload.email))
     return PasswordResetRequestResponse(
         message=PASSWORD_RESET_REQUEST_MESSAGE,
         reset_token=result.reset_token,
         reset_url=result.reset_url,
+        reset_code=result.reset_code,
     )
 
 
@@ -99,14 +105,24 @@ def confirm_password_reset(
     payload: PasswordResetConfirm,
     db: Session = Depends(get_db),
 ) -> None:
-    """Set a new password with a valid one-time reset token."""
+    """Set a new password with the emailed code (email + code) or a link token."""
 
+    service = AuthService(db)
     try:
-        AuthService(db).confirm_password_reset(payload.token, payload.new_password)
+        if payload.token:
+            service.confirm_password_reset(payload.token, payload.new_password)
+        else:
+            service.confirm_password_reset_code(
+                str(payload.email), payload.code or "", payload.new_password
+            )
     except InvalidPasswordResetTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired password reset link.",
+            detail=(
+                "Invalid or expired password reset link."
+                if payload.token
+                else "Invalid or expired password reset code."
+            ),
         ) from exc
 
 

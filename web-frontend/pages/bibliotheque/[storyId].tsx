@@ -27,10 +27,14 @@ import {
   StateBlock,
 } from '@/components/atelier-v2/ui';
 import { useStoryDetail, useStartStory } from '@/hooks/useStories';
+import { bibliothequeCopy, fill } from '@/components/stories/bibliotheque-copy';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
+import { useChromeLanguage } from '@/lib/learner-language';
 
 export default function BibliothequeStoryPage() {
   const router = useRouter();
+  const language = useChromeLanguage();
+  const t = bibliothequeCopy(language);
   const { storyId } = router.query;
   const resolvedStoryId = STORY_FEATURE_VISIBLE && typeof storyId === 'string' ? storyId : null;
 
@@ -68,9 +72,9 @@ export default function BibliothequeStoryPage() {
       <Head>
         <title>La bibliothèque · L’Atelier</title>
       </Head>
-      <AtelierV2Root as="main" className="bib-detail" aria-label="Un texte de la bibliothèque">
+      <AtelierV2Root as="main" className="bib-detail" aria-label={t.detail_aria}>
         <div className="bib-detail__nav">
-          <IconAction label="Retour à la bibliothèque" onClick={() => router.push('/bibliotheque')}>
+          <IconAction label={t.back_to_library} onClick={() => router.push('/bibliotheque')}>
             <ArrowLeftIcon size={18} />
           </IconAction>
           <p className="av2-label">La bibliothèque</p>
@@ -85,7 +89,7 @@ export default function BibliothequeStoryPage() {
   if (loading) {
     return shell(
       <div className="bib-skeleton" aria-busy="true" aria-live="polite">
-        <span className="bib-sr">Ouverture du texte…</span>
+        <span className="bib-sr">{t.text_opening}</span>
         <Skeleton height={180} radius={24} />
         <Skeleton height={96} radius={16} />
         <Skeleton height={64} radius={16} />
@@ -97,9 +101,9 @@ export default function BibliothequeStoryPage() {
     return shell(
       <StateBlock
         tone="error"
-        title="Ce texte est introuvable."
-        body={error || 'Il a peut-être été retiré de l’étagère.'}
-        action={{ label: 'Retour à la bibliothèque', onSelect: () => router.push('/bibliotheque') }}
+        title={t.text_not_found}
+        body={error || t.text_removed}
+        action={{ label: t.back_to_library, onSelect: () => router.push('/bibliotheque') }}
       />,
     );
   }
@@ -119,12 +123,12 @@ export default function BibliothequeStoryPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={story.cover_image_url} alt="" />
           ) : (
-            <span className="av2-body">La couverture de ce texte n’est pas encore parue.</span>
+            <span className="av2-body">{t.no_cover}</span>
           )}
         </div>
         <div className="bib-hero__body">
           <p className="av2-label">
-            {[level, `${totalChapters} chapitre${totalChapters === 1 ? '' : 's'}`,
+            {[level, fill(totalChapters === 1 ? t.chapter_count_one : t.chapter_count_many, { n: totalChapters }),
               story.estimated_duration_minutes ? `${story.estimated_duration_minutes} min` : null]
               .filter(Boolean)
               .join(' · ')}
@@ -132,14 +136,14 @@ export default function BibliothequeStoryPage() {
           {/* the one Garamond italic headline on this screen */}
           <h1 className="av2-headline av2-headline--display">{story.title}</h1>
           {story.author || story.source_author ? (
-            <p className="av2-body">De {story.author || story.source_author}</p>
+            <p className="av2-body">{fill(t.by_author, { author: story.author || story.source_author || '' })}</p>
           ) : null}
         </div>
       </section>
 
       {story.description && (
-        <section className="av2-surface bib-block" aria-label="À propos de ce texte">
-          <p className="av2-label">À propos de ce texte</p>
+        <section className="av2-surface bib-block" aria-label={t.about_text}>
+          <p className="av2-label">{t.about_text}</p>
           <p className="av2-body av2-body--lg">{story.description}</p>
           {themes.length > 0 && (
             <div className="bib-chips">
@@ -157,15 +161,15 @@ export default function BibliothequeStoryPage() {
         <StoryProgressOverview progress={user_progress} totalChapters={totalChapters} />
       )}
 
-      <section className="av2-surface bib-block" aria-label="Les chapitres">
+      <section className="av2-surface bib-block" aria-label={t.chapters}>
         <p className="av2-label">
           {isCompleted
-            ? 'Tous les chapitres sont lus.'
+            ? t.chapters_all_read
             : isStarted
-              ? 'Reprenez là où vous vous êtes arrêté.'
-              : 'Les chapitres s’ouvrent au fil de la lecture.'}
+              ? t.chapters_pick_up
+              : t.chapters_unlock}
         </p>
-        <h2 className="av2-headline av2-headline--title">Les chapitres</h2>
+        <h2 className="av2-headline av2-headline--title">{t.chapters}</h2>
         <ChapterTimeline
           chapters={chapters}
           currentChapterId={user_progress?.current_chapter_id || null}
@@ -175,7 +179,7 @@ export default function BibliothequeStoryPage() {
       <div className="bib-detail__foot">
         {isCompleted ? (
           <Action tone="secondary" onClick={() => router.push('/bibliotheque')} iconAfter={<ArrowRightIcon size={18} />}>
-            Retour à l’étagère
+            {t.back_to_shelf}
           </Action>
         ) : isStarted ? (
           /* the one tactile 3D press on this screen */
@@ -185,17 +189,17 @@ export default function BibliothequeStoryPage() {
             disabled={!user_progress?.current_chapter_id}
             iconAfter={<ArrowRightIcon size={18} />}
           >
-            Reprendre la lecture
+            {t.resume_reading}
           </Action>
         ) : (
           <Action
             tone="story"
             onClick={handleStartStory}
             pending={startingStory}
-            pendingLabel="Ouverture…"
+            pendingLabel={t.opening}
             iconAfter={<ArrowRightIcon size={18} />}
           >
-            Commencer la lecture
+            {t.start_reading}
           </Action>
         )}
       </div>

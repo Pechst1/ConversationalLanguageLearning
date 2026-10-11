@@ -1,4 +1,5 @@
 import { STORY_FEATURE_VISIBLE } from './launch-flags';
+import { resolveSettingsLanguage, settingsCopy } from './settings-copy';
 
 export type ProductSection = 'atelier' | 'missions' | 'feuilleton' | 'notebook';
 
@@ -18,10 +19,13 @@ const STORY_ROUTES: string[] = [
   '/bibliotheque/[storyId]/chapter/[chapterId]',
 ];
 
+// WP-109 (F-3): «La Une · Feuilleton · Courrier · Cahier» — the story is the second tab,
+// right beside the front page that headlines it.
 export const PHONE_PRODUCT_TABS: ProductTab[] = [
   {
     id: 'atelier',
-    label: 'Atelier',
+    // WP-109 «Une seule maison» (owner decision F-3): the day's front page.
+    label: 'La Une',
     href: '/atelier',
     icon: 'mark',
     activeRoutes: [
@@ -29,15 +33,6 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/audio-session',
       ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
       '/vocabulary/review',
-    ],
-  },
-  {
-    id: 'missions',
-    label: 'Missions',
-    href: '/missions',
-    icon: 'mission',
-    activeRoutes: [
-      '/missions',
     ],
   },
   {
@@ -54,6 +49,16 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
     ],
   },
   {
+    id: 'missions',
+    // WP-83: one name per place — the tab is the Courrier, as every screen calls it.
+    label: 'Courrier',
+    href: '/missions',
+    icon: 'mission',
+    activeRoutes: [
+      '/missions',
+    ],
+  },
+  {
     id: 'notebook',
     label: 'Cahier',
     href: '/notebook',
@@ -63,12 +68,17 @@ export const PHONE_PRODUCT_TABS: ProductTab[] = [
       '/grammar',
       '/vocabulary',
       '/vocabulary/conjugation',
+      '/eclair',
     ],
   },
 ];
 
 const OWN_SHELL_ROUTES = new Set([
   '/atelier',
+  '/revue',
+  '/carte',
+  '/correcteur',
+  '/radio',
   '/missions',
   '/graphic-novel',
   '/serial',
@@ -81,6 +91,12 @@ const OWN_SHELL_ROUTES = new Set([
   '/vocabulary/review',
   '/vocabulary/conjugation',
   '/audio-session',
+  // WP-S7: Éclair draws its own top bar (close, clock, score).
+  '/eclair',
+  // WP-72: the legal pages draw their own bar (back + language) and are read
+  // signed out, so no masthead.
+  '/privacy',
+  '/terms',
   ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
 ]);
 
@@ -92,10 +108,25 @@ export function resolveProductSection(pathname: string): ProductSection | undefi
   return PHONE_PRODUCT_TABS.find((item) => item.activeRoutes.includes(pathname))?.id;
 }
 
-export function resolveProductTitle(section: ProductSection | undefined, pathname: string) {
+/**
+ * The title the phone header prints for a route.
+ *
+ * Every product section is French chrome — Atelier, Missions, Feuilleton,
+ * Cahier, Bibliothèque — because the learner is reading a French publication.
+ * Réglages is the one exception the owner carved out (WP-46): it is the
+ * administrative surface, it follows the account's own `native_language`, and
+ * it had been the only title in the app still reading «Settings» for a German
+ * learner. `language` is the account's native language; with none known the
+ * settings copy table's own floor, English, applies.
+ */
+export function resolveProductTitle(
+  section: ProductSection | undefined,
+  pathname: string,
+  language?: unknown,
+) {
   if (STORY_FEATURE_VISIBLE && STORY_ROUTES.includes(pathname)) {
     return 'Bibliothèque';
   }
-  if (pathname === '/settings') return 'Settings';
-  return PHONE_PRODUCT_TABS.find((item) => item.id === section)?.label || 'Atelier';
+  if (pathname === '/settings') return settingsCopy(resolveSettingsLanguage(language)).page_label;
+  return PHONE_PRODUCT_TABS.find((item) => item.id === section)?.label || 'La Une';
 }
