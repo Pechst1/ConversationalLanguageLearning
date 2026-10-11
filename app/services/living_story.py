@@ -8410,6 +8410,25 @@ def bind_journey(
     )
 
 
+def _season_turn_must_not(season_day: dict, today) -> dict:
+    """WP-155: ``{season, gap, must_not: [{id, text}]}`` for a generated day's turn — the
+    texts the reply and ending lanes read, the ids their spoiler guard reads back."""
+
+    season_id = str(season_day.get("id") or "")
+    gap_id = str((season_day.get("position") or {}).get("segment") or "")
+    if not season_id or not gap_id:
+        return {}
+    try:
+        from app.services.season.director import must_not_rows
+        from app.services.season.format import load_season
+
+        rows = must_not_rows(load_season(season_id), gap_id, getattr(today, "flags", None) or {})
+    except Exception:  # noqa: BLE001 - a season that cannot load forbids nothing new here
+        logger.exception("living_story: no must_not rows for the turn (%s/%s)", season_id, gap_id)
+        return {}
+    return {"season": season_id, "gap": gap_id, "must_not": [{"id": row.id, "text": row.text} for row in rows]}
+
+
 def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_repair=None):
     context = story_context(db, user)
     if context["thread_id"] != scenario.serial_thread_id:
@@ -8456,6 +8475,9 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
         context["season_turn"] = {
             "may_set": list(season_day.get("may_set") or []),
             "gate": season_day.get("gate"),
+            # WP-155: the reveals today's gap forbids, for the reply and the ending as
+            # for the page (the lanes' guard reads them back by id).
+            **_season_turn_must_not(season_day, context.get(SEASON_TODAY_KEY)),
         }
     context["agendas"] = [
         row

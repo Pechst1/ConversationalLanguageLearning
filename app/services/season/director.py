@@ -224,8 +224,42 @@ def _facts(gap: Gap, flags: dict[str, Any]) -> list[str]:
     return facts
 
 
+def upcoming_reveals(season: Season, gap_id: str) -> list[Forbidden]:
+    """WP-155: the reveals of every tentpole still ahead of this gap (T5's Berlin for
+    gaps 1–4). They belong with the tentpole that owns them, not copied gap by gap."""
+
+    index = next((i for i, seg in enumerate(season.segments) if seg.id == gap_id), None)
+    if index is None:
+        return []
+    return [
+        row
+        for seg in season.segments[index + 1 :]
+        if seg.kind == "tentpole" and seg.id in season.tentpoles
+        for row in season.tentpoles[seg.id].reveals
+    ]
+
+
+def _all_rows(gap: Gap, season: Season) -> list[Forbidden]:
+    return [*season.global_must_not, *gap.must_not, *upcoming_reveals(season, gap.id)]
+
+
 def _must_not(gap: Gap, season: Season, flags: dict[str, Any]) -> list[Forbidden]:
-    return [row for row in [*season.global_must_not, *gap.must_not] if not (row.unless and holds(row.unless, flags))]
+    return [row for row in _all_rows(gap, season) if not (row.unless and holds(row.unless, flags))]
+
+
+def rows_by_id(season: Season, gap_id: str, ids: list[str]) -> list[Forbidden]:
+    """The forbidden rows a turn was given by id (``story.season_turn.must_not``)."""
+
+    gap = season.gaps.get(gap_id)
+    rows = {row.id: row for row in (_all_rows(gap, season) if gap else season.global_must_not)}
+    return [rows[row_id] for row_id in ids if row_id in rows]
+
+
+def must_not_rows(season: Season, gap_id: str, flags: dict[str, Any]) -> list[Forbidden]:
+    """Today's forbidden reveals for a gap (global, the gap's own, the tentpoles ahead)."""
+
+    gap = season.gaps.get(gap_id)
+    return _must_not(gap, season, flags) if gap is not None else []
 
 
 #: T-2: how a generated day is built at each band. The scene guard enforces the
@@ -367,14 +401,24 @@ def forbidden_hits(season: Season, gap_id: str, texts: list[str], *, flags: dict
     gap = season.gaps.get(gap_id)
     if gap is None:
         return []
+    return pattern_hits(_must_not(gap, season, flags), texts)
+
+
+def pattern_hits(rows: list[Forbidden], texts: list[str]) -> list[tuple[str, str]]:
+    """``(row id, matched text)`` per row that matches; a word one row already caught
+    (a gap's own «Berlin» row, then T5's reveal) is named once."""
+
     hits: list[tuple[str, str]] = []
-    for row in _must_not(gap, season, flags):
+    seen: set[str] = set()
+    for row in rows:
         for pattern in row.patterns:
             regex = re.compile(pattern, re.IGNORECASE)
             for text in texts:
                 match = regex.search(str(text or ""))
                 if match:
-                    hits.append((row.id, match.group(0)))
+                    if match.group(0).casefold() not in seen:
+                        seen.add(match.group(0).casefold())
+                        hits.append((row.id, match.group(0)))
                     break
             else:
                 continue
@@ -384,7 +428,7 @@ def forbidden_hits(season: Season, gap_id: str, texts: list[str], *, flags: dict
 
 def forbidden_hint(season: Season, gap_id: str, hits: list[tuple[str, str]]) -> str:
     gap = season.gaps.get(gap_id)
-    rows = {row.id: row.text for row in [*season.global_must_not, *(gap.must_not if gap else [])]}
+    rows = {row.id: row.text for row in (_all_rows(gap, season) if gap else season.global_must_not)}
     parts = [f"«{text}» breaks a rule of the season ({rows.get(key, key)})" for key, text in hits]
     return "; ".join(parts) + ". Rewrite the day without it: hint at most, never reveal."
 
