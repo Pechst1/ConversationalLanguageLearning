@@ -359,3 +359,15 @@ def test_a_refused_news_day_is_an_ordinary_generated_day_and_the_news_is_owed(as
     record.refuse_news = False
     owed = _day(d, provider, clock, db_session)
     assert owed["kind"] == "gap" and owed["news"], "the news is owed: the next generated day takes it"
+
+
+def test_a_small_learner_gets_the_small_news_task_and_the_news_outranks_the_spark():
+    from app.services import news_day as nd
+
+    base = "DIRECTOR. " + nd.NO_NEWS_SENTENCE
+    ordinary = nd.director_prompt(base, {"level": "A2"})
+    assert ordinary == base
+    small = nd.director_prompt(base, {"level": "A2.1", nd.CONTEXT_KEY: {"headline": {}}})
+    big = nd.director_prompt(base, {"level": "C1", nd.CONTEXT_KEY: {"headline": {}}})
+    assert nd.NEWS_OVER_SPARK in small and nd.NEWS_OVER_SPARK in big
+    assert nd.NEWS_DAY_SMALL in small and nd.NEWS_DAY_SMALL not in big

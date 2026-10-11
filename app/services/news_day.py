@@ -617,13 +617,33 @@ def prepare(db: Session, user: Any, context: dict) -> dict[str, Any] | None:
         return None
 
 
+#: On a news day the news outranks the WP-166 spark: the spark is colour, the news the day.
+NEWS_OVER_SPARK = """
+On a news day brief.spark (when present) is only colour: the news is what the day is
+about, and the spark may at most lend it a detail."""
+
+#: The integration read (11 October): at A2 the director twice staged the gap's required
+#: moment and dropped the news. Small learners get a small, unmissable news task.
+NEWS_DAY_SMALL = """
+LEVEL A1/A2 NEWS DAY. Keep the news small and impossible to miss: one short line where
+someone says the news in the simplest words («Il y a une grève des trains demain !»),
+and ONE consequence of it for the cast that today's scene turns on (the plan changes,
+someone cannot come, something is suddenly scarce). If brief.today.required_premise is
+set, that consequence is what sets the required moment off. The learner's task touches
+the consequence."""
+
+
 def director_prompt(base: str, context: dict) -> str:
     """The director's prompt for today: unchanged on an ordinary day; on a news day the
-    «no external news» sentence gives way and :data:`NEWS_DAY_RULES` follow."""
+    «no external news» sentence gives way and :data:`NEWS_DAY_RULES` follow, with the
+    news ranked over the spark and, at A1/A2, the small news task."""
 
     if not context.get(CONTEXT_KEY):
         return base
-    return base.replace(NO_NEWS_SENTENCE, NEWS_SENTENCE) + NEWS_DAY_RULES
+    prompt = base.replace(NO_NEWS_SENTENCE, NEWS_SENTENCE) + NEWS_DAY_RULES + NEWS_OVER_SPARK
+    if str(context.get("level") or "").strip().upper()[:2] in ("A1", "A2"):
+        prompt += NEWS_DAY_SMALL
+    return prompt
 
 
 def notes_gap(draft: Any) -> str | None:

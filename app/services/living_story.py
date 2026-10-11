@@ -531,6 +531,7 @@ class SceneDraft(StrictModel):
     def _weather(cls, value: Any) -> str | None:  # WP-165
         word = str(value or "").strip().casefold()
         return word if word in ("dry", "rain") else None
+
     # WP-167: on a news day only (``news_day`` in the payload), the director's notes —
     # the headline's mechanic, how the news enters, the day's people-free plate brief.
     news_day_notes: NewsDayNotes | None = Field(
@@ -6272,6 +6273,9 @@ def _validate_scene(draft: SceneDraft, context: dict):
     draft.suggested_response_fr = clean(draft.suggested_response_fr)
     draft.chapter.title_fr = clean(draft.chapter.title_fr)
     draft.chapter.dramatic_question = clean(draft.chapter.dramatic_question)
+    # The task line too: the WP-167 C1 read printed «monté·e» in objective_native.
+    if draft.objective_native:
+        draft.objective_native = clean(draft.objective_native)
     for panel in draft.panels:
         panel.narration_fr = clean(panel.narration_fr)
         for line in panel.dialogue:

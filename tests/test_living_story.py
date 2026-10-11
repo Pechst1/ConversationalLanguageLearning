@@ -805,6 +805,18 @@ def test_learner_address_is_enforced_deterministically(address, text, reason):
         assert proposal.opening_line_fr == text
 
 
+def test_the_task_line_loses_an_inclusive_dot_form_too():
+    """The WP-167 C1 read printed «monté·e» in objective_native: it is scrubbed like the rest."""
+    context = _scene_context(learner={"address": "neutral"})
+    base = draft(context, 0)
+    proposal = engine.SceneDraft.model_validate({**base, "objective_native": "Dire à Odile que tu es monté·e sur le toit."})
+    try:
+        engine._validate_scene(proposal, context)
+    except engine.StoryUnavailable:
+        pass  # another guard may refuse this fixture's objective; the scrub already ran
+    assert "·" not in proposal.objective_native
+
+
 def test_a_reply_that_recites_the_suggested_answer_is_rejected():
     """WP-14F L-3: the character handed over the answer key with no assistance recorded."""
     learner = "Je suis d'accord, je vais au marché demain."
