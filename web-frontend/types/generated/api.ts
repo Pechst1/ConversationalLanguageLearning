@@ -12514,6 +12514,8 @@ export interface components {
             /** Journey Id */
             journey_id: string | null;
             /** @default null */
+            news?: components["schemas"]["StoryNewsCreditRead"] | null;
+            /** @default null */
             page?: components["schemas"]["StoryPageRead"] | null;
             /** Panel Index */
             panel_index: number;
@@ -12585,6 +12587,34 @@ export interface components {
              * @default 0
              */
             xp_earned?: number;
+        };
+        /**
+         * StoryNewsCreditRead
+         * @description WP-167: a news day's honest credit, «D'après l'actualité du 12 octobre : … (Le Monde)».
+         */
+        StoryNewsCreditRead: {
+            /** Credit Fr */
+            credit_fr: string;
+            /**
+             * Published On
+             * @default null
+             */
+            published_on?: string | null;
+            /**
+             * Source
+             * @default null
+             */
+            source?: string | null;
+            /**
+             * Title
+             * @default null
+             */
+            title?: string | null;
+            /**
+             * Url
+             * @default null
+             */
+            url?: string | null;
         };
         /** StoryOutcome */
         StoryOutcome: {

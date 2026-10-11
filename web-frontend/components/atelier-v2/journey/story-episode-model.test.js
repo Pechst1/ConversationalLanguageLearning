@@ -486,3 +486,19 @@ test('WP-110: the ending step closes the finished page on «À suivre…»', () 
   assert.deepEqual(stages.map((stage) => stage.kind), ['panel', 'panel', 'panel', 'resolution']);
   assert.equal(stages[3].aSuivre, 'Demain, Camille.');
 });
+
+// ---------------------------------------------------------------------------
+// WP-167 — a news day closes on its credit
+// ---------------------------------------------------------------------------
+
+test('WP-167: a news day closes on «D’après l’actualité du …», an ordinary day on nothing', () => {
+  const credit = "D'après l'actualité du 12 octobre : Grève à la RATP (Franceinfo)";
+  const news = { ...finished, news: { credit_fr: credit, title: 'Grève à la RATP', source: 'Franceinfo' } };
+  assert.equal(model.storyNewsCredit(news), credit);
+  assert.equal(model.buildStoryStages(news).at(-1).newsCredit, credit, 'the replay close carries it');
+  const finale = model.storyFinaleStage('res-1', { character_line_fr: 'Deux clés.' }, { id: 'margaux', name: 'Margaux' });
+  assert.equal(model.storyStagesWithFinale(news, finale).at(-1).newsCredit, credit, 'the day’s own close carries it');
+  assert.equal(model.storyNewsCredit(finished), '');
+  assert.equal(model.buildStoryStages(finished).at(-1).newsCredit, undefined);
+  assert.equal(model.storyStagesWithFinale({ ...finished, news: null }, finale).at(-1).newsCredit, undefined);
+});
