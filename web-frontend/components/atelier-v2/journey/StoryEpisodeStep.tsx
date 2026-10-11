@@ -33,6 +33,7 @@ import {
   readPrecedemmentDismissed,
   writePrecedemmentDismissed,
 } from '@/components/feuilleton/archive/precedemment-model';
+import { scenePlace } from '@/lib/sound-bed';
 import { getStoryEpisodeForJourney, recordEpisodePrediction } from '@/services/daily-journey';
 import type { ControlLanguage, SceneStep, StoryEpisode } from '@/types/daily-journey';
 
@@ -50,6 +51,7 @@ import {
 } from './story-episode-model';
 import { getStoryEpisodeEntry, loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
 import { useEpisodeAudio } from './useEpisodeAudio';
+import { useSoundBed } from './useSoundBed';
 import { listenLabel, useStepVoice } from './useStepVoice';
 
 type Lookup = { kind: 'loading' } | { kind: 'none' } | { kind: 'episode'; episode: StoryEpisode };
@@ -64,6 +66,7 @@ export function StoryEpisodeStep({
   speaker = null,
   language = null,
   firstDay = false,
+  locationId = null,
 }: {
   journeyId: string;
   step: SceneStep;
@@ -77,6 +80,8 @@ export function StoryEpisodeStep({
   language?: ControlLanguage | null;
   /** WP-96: the learner's first day — there is no «Précédemment» yet. */
   firstDay?: boolean;
+  /** WP-145: the place the scene is set in (the journey scenario's `location_id`), for its sound bed. */
+  locationId?: string | null;
 }) {
   // Server rendering (and the node test harness) has no effects and no cache:
   // render the scene prompt straight away rather than a loading state that
@@ -138,6 +143,16 @@ export function StoryEpisodeStep({
   const audio = useEpisodeAudio({
     sceneId,
     enabled: placement === 'cycle' && lookup.kind === 'episode',
+  });
+
+  // WP-145 «Ambiance»: the place's sound bed under the scene, ducked while a
+  // line (or the listening-first recording) plays. Silent unless «Sons» and
+  // «Ambiance» are on, and nothing starts before the learner's first gesture.
+  const scenePanels = lookup.kind === 'episode' ? lookup.episode.panels : step.prompt.panels;
+  const firstPlate = (scenePanels ?? []).find((panel) => panel?.plate_url)?.plate_url ?? null;
+  useSoundBed({
+    place: scenePlace(locationId, firstPlate),
+    speaking: lineVoice.speakingKey !== null || audio.state.kind === 'playing',
   });
 
   const chooseMode = useCallback((enabled: boolean) => {
