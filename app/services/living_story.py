@@ -1874,7 +1874,13 @@ def location_display_name(location: dict | None) -> str:
     )
 
 
-def _locations(world: dict) -> list[dict]:
+#: WP-168: a written place's plate bookkeeping, which the director never needs to read.
+_PLATE_KEYS = ("brief", "plate_id", "stand_in", "written_season")
+
+
+def _locations(world: dict, db: Session | None = None) -> list[dict]:
+    from app.services.season import written_world
+
     setting = world.get("setting") or {}
     places = setting.get("recurring_locations", []) if isinstance(setting, dict) else []
     # The canonical visual design owns approved location/asset identifiers.
@@ -1892,7 +1898,17 @@ def _locations(world: dict) -> list[dict]:
             if isinstance(visuals, dict)
             else []
         )
-        result.append({**place, "image_url": "/" + refs[0].lstrip("/") if refs else None})
+        image = "/" + refs[0].lstrip("/") if refs else None
+        if image is None and written_world.is_written(place):
+            # WP-168: a place a written season brought — its painted plate, or the
+            # stand-in of its kind while the painter is still at work.
+            image, _ = written_world.plate_url(db, place)
+        result.append(
+            {
+                **{key: value for key, value in place.items() if key not in _PLATE_KEYS},
+                "image_url": image,
+            }
+        )
     return result
 
 
@@ -2155,8 +2171,9 @@ CAST_KEYS = (
 
 
 def _cast_projection(world: dict) -> list[dict]:
+    # WP-168: after a written season moved the story, who stayed behind says so.
     return [
-        {key: c.get(key) for key in CAST_KEYS}
+        {key: c.get(key) for key in CAST_KEYS} | ({"away": c["away"]} if c.get("away") else {})
         for c in world.get("cast", [])
         if c.get("id")
     ]
@@ -4226,6 +4243,11 @@ def roll_over_season(
     if archived:
         live["secrets_archive"] = archived
     thread.world_bible = following
+    if source == "written":
+        # WP-168: the new places open on stand-ins; their plates are painted meanwhile.
+        from app.services.season.written_world import schedule_painting, written_places
+
+        schedule_painting(db, written_places(following))
     live["season_index"] = season + 1
     live["seasons"] = [
         *(live.get("seasons") or []),
@@ -4624,6 +4646,34 @@ def _callback_grounded(text: str, ref: str | None, ledger: list[tuple[str, str]]
 SEASON_TODAY_KEY = "_season"
 
 
+def _after_a_written_season(block: dict | None, world: dict) -> dict | None:
+    """WP-168: once a written season runs on a finished scripted season's life, the
+    continuation's rules that kept every day in the s1 world (its city, «not a new
+    story») give way to the written season's own setting. The rest stays: the departed
+    cast, the ending's facts, «L.» never revealed."""
+
+    from app.services.season.epilogue import CARRIED_KEY
+
+    after = (block or {}).get(CARRIED_KEY)
+    if not isinstance(after, dict) or str(world.get("season_source") or "") != "written":
+        return block
+    setting = world.get("setting") if isinstance(world.get("setting"), dict) else {}
+    number = _int_or(world.get("season_number"), 2)
+    title = str(world.get("season_title_fr") or "")
+    rules = [
+        rule
+        for rule in after.get("rules") or []
+        if "not a new story" not in rule and "second season" not in rule
+    ]
+    rules.append(
+        f"Season {number}{f' «{title}»' if title else ''} is running, written from this life"
+        + (f" and set in {setting.get('city')}" if setting.get("city") else "")
+        + ": its setting, places and new faces are canon now; season 1's ending and facts still hold."
+    )
+    closed = [] if setting.get("moved_in_season") else list(after.get("closed_locations") or [])
+    return {**block, CARRIED_KEY: {**after, "rules": rules, "closed_locations": closed}}
+
+
 def story_context(db: Session, user: User, *, now: datetime | None = None) -> dict:
     from app.services.season import runtime as season_runtime
     from app.services.season.world import season_world_bible
@@ -4655,7 +4705,12 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
     current = SerialThreadService(db).current_episode(thread) if thread else None
     cast = _cast_projection(world)
     level = learner_level_band(user)
-    locations = _locations(world)
+    locations = _locations(world, db=db)
+    from app.services.season.written_world import ensure_painting, written_places
+
+    if written_places(world):
+        # WP-168: a written season's places still on their stand-ins are painted, lazily.
+        ensure_painting(db, world)
     cast = _cast_for_level(cast, level)
     recent = [
         {key: value for key, value in item.items() if key != "id"}
@@ -4708,7 +4763,7 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
             "name": _cast_names(world).get(asking, asking),
             "asked_scene_id": entry.get("scene_id") if entry.get("state") == "asked" else None,
         }
-    season_block = season_runtime.context_block(season_today)
+    season_block = _after_a_written_season(season_runtime.context_block(season_today), world)
     if season_block and season_block.get("brief"):
         # LOSS-RATE 2026-10-06: what the guards check on a generated day, written into
         # the brief the director is told outranks everything else.
@@ -8089,6 +8144,12 @@ def bind_journey(
             lines.append(payload)
         return lines
 
+    # WP-168: a written season's place keeps its plate id on the panel, so the reader
+    # gets the painted plate once it exists (``story_engine.panel_plate_url``).
+    from app.services.season.written_world import is_written, place_row
+
+    written_place = place_row(thread.world_bible if isinstance(thread.world_bible, dict) else {}, brief.location_id)
+    plate_id = written_place.get("plate_id") if is_written(written_place) else None
     for index, panel in enumerate(draft.panels):
         panel_image = (
             season_images[index].get("image_url")
@@ -8114,6 +8175,7 @@ def bind_journey(
                     "image_source": "setting_reference",
                     # WP-116: the plate stays known after a drawing replaces image_url.
                     "plate_url": panel_image,
+                    **({"plate_id": plate_id} if plate_id else {}),
                     "usage": brief.story_context["generation_usage"] if index == 0 else [],
                 },
             )
