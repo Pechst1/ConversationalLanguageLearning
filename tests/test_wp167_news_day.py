@@ -122,6 +122,9 @@ def test_the_feed_keeps_fresh_french_headlines_of_any_topic():
     assert titles[0].startswith("Le Premier ministre"), "politics is in (owner decision 3)"
     assert titles[1].startswith("Un meurtre"), "no topic filter: a grave story is news too"
     assert all(row["source"] == "Le Monde" and row["published_at"] for row in kept)
+    # The credit names the outlet, never an item's own <source> (RFI puts the photo credit there).
+    credited = xml.replace("<description>Le débat", "<source>© JF Paga</source><description>Le débat")
+    assert news_day.parse_feed({"id": "rfi_culture", "name": "RFI"}, credited, now=now)[0]["source"] == "RFI"
 
 
 def test_candidates_never_offer_a_headline_this_learner_already_had():
@@ -155,8 +158,10 @@ def test_the_director_prompt_changes_on_a_news_day_only():
 def test_the_plate_brief_is_an_empty_set():
     brief = news_day.plate_brief(
         "Le Mistral's zinc at dusk, a stack of unsold baguettes, a radio on the shelf, "
-        "a woman counting coins, a chalkboard reading «1,50 €», rain on the window. A dog sleeps."
+        "a woman counting coins, a chalkboard reading «1,50 €», rain on the window. A dog sleeps, "
+        "a café menu with 'La même chose ?' circled, the barman's empty stool"
     )
+    assert "La même chose" not in brief and "barman's" not in brief
     assert "baguettes" in brief and "rain on the window" in brief and "radio" in brief
     assert "woman" not in brief and "reading" not in brief and "dog" not in brief
 
