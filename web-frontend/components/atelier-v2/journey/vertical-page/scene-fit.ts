@@ -45,7 +45,9 @@ export function panelFitsVertical(stage: PanelLike): boolean {
   if (!speakers.length) return true;
   if (!stage.plateUrl) return false;
   const standing = new Set(stageMembers(stage.cast ?? []).filter((member) => rigFor(member.rigId)).map((member) => member.rigId));
-  return speakers.some((line) => {
+  // Every voice, not any: a speaker with no staged figure would have neither a face
+  // nor a portrait to anchor the balloon (the vertical page drops the portraits).
+  return speakers.every((line) => {
     const rigId = speakerRig(line);
     return Boolean(rigId && standing.has(rigId));
   });

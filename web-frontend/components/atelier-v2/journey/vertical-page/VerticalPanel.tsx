@@ -561,6 +561,9 @@ export function VerticalPanel({
               <PanelStage
                 members={members}
                 you={false}
+                // The plate is a sibling of .vp-cast, not of the stage: name it, or
+                // the stage finds no image and grades its light neutral (WP-143).
+                plateUrl={src || null}
                 talking={heard ? { id: heard.speakerId || heard.who, mouth: heardMouth } : null}
                 {...fillFraming}
               />

@@ -344,6 +344,21 @@ def test_a_gus_tu_draft_before_t3_is_blocked():
     engine._check_canon_register(_spoken(context, "margaux_barman", ("La même chose ?",), "Tu es où ?"), context)
 
 
+def test_a_tu_de_gus_moment_still_needs_its_return_to_vous():
+    """Naming the small moment is not a pass: the canon's «tu de Gus» is a slip and a
+    return to vous; a page where Gus only says tu is refused under that name too."""
+
+    context = _register_context()
+    moment = SimpleNamespace(small_moment_id="tu_de_gus")
+    only_tu = _spoken(context, "augustin_de_roncourt", ("Tu viens ce soir ?", "Tu es en retard."), "Tu prends quoi ?")
+    object.__setattr__(only_tu, "season_checklist", moment)
+    with pytest.raises(engine.StoryUnavailable, match="canon_register"):
+        engine._check_canon_register(only_tu, context)
+    slip = _spoken(context, "augustin_de_roncourt", ("Tu… pardon. Vous venez ce soir ?",), "Vous prenez quoi ?")
+    object.__setattr__(slip, "season_checklist", moment)
+    engine._check_canon_register(slip, context)
+
+
 def _letter_context(flags: dict, gap: str = "g1") -> dict:
     context = _register_context(flags)
     context["season_script"] = {"id": "s1", "brief": {"gap": {"id": gap}}}

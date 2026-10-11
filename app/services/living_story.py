@@ -5602,16 +5602,17 @@ def _check_canon_register(draft: SceneDraft, context: dict) -> None:
     after the critic asked twice for «Gus uses vous until T3». Read as that check reads:
     the addressed character's own lines and the opening line together; a passage that
     mixes both (the canon's «first accidental tu, followed by a panicked return to
-    vous») is not a refusal, nor is a day that stages one of ``_REGISTER_MOMENTS``.
+    vous») is not a refusal — which is all a day staging one of ``_REGISTER_MOMENTS``
+    needs.
     A «vous» character who is not the one addressed may say «tu» to someone else on
     the page, so only the critic judges their lines (a correctness refusal)."""
 
     registers = season_registers(context)
     if registers.get(draft.character_id) != "vous":
         return
-    checklist = draft.season_checklist
-    if checklist is not None and checklist.small_moment_id in _REGISTER_MOMENTS:
-        return
+    # A day staging one of ``_REGISTER_MOMENTS`` gets no blanket pass: the moment is
+    # a mixed page (an accidental tu, then vous), which the read below lets through;
+    # an all-«tu» page under its name is still the refusal (review on #59).
     lines = [
         text
         for text in [

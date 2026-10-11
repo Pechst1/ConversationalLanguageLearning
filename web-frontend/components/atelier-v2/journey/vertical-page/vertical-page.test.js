@@ -604,6 +604,18 @@ test('a scene with a voice but no figure for it falls back; a silent scene does 
   assert.equal(sceneFitsVertical([voice], 'drawn'), false);
 });
 
+test('a panel fits only when every voice in it has a figure (review on #59)', () => {
+  const { buildStoryStages } = require('../story-episode-model.ts');
+  const staged = buildStoryStages(DAY1).find(
+    (entry) => entry.kind === 'panel' && entry.lines.some((line) => !line.you && line.character !== 'toi'),
+  );
+  assert.ok(panelFitsVertical(staged), 'the drawn day-1 panel fits as it is');
+  // One more voice nobody on the stage can speak for: no face, and the vertical page
+  // has dropped the portraits, so the panel goes back to the list.
+  const partly = { ...staged, lines: [...staged.lines, { who: 'Quelqu’un', speakerId: 'stranger_x' }] };
+  assert.equal(panelFitsVertical(partly), false);
+});
+
 test('an elided form stays on the line of the word after it, with a typographic apostrophe', () => {
   const { TappableFrench, elisionGroups } = require('../../../feuilleton/reader/TappableFrench.tsx');
   const html = renderToStaticMarkup(
