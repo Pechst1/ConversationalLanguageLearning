@@ -137,7 +137,9 @@ async function playDayInner(l, day) {
       .then((r) => r.json(), () => null);
     await walk.visit('/vocabulary/review', 'drill');
     const deck = await deckResponse;
-    const deckItems = deck ? DECK_LISTS.flatMap((list) => deck[list] || []) : [];
+    // Its own list: this check must not lean on another package's constant.
+    const keptDeckLists = ['due_words', 'fragile_words', 'linked_words', 'topic_compatible_words', 'new_words'];
+    const deckItems = deck ? keptDeckLists.flatMap((list) => deck[list] || []) : [];
     const keptIdsOnDeck = new Set(walk.keptWordIds || []);
     const keptCard = deckItems.find((item) => keptIdsOnDeck.has(item.word_id));
     const rung = keptCard ? keptCard.ladder || null : null;
