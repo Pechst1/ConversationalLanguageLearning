@@ -125,7 +125,7 @@ still holds: the beat and the chapter, who may speak, the registers, the level, 
 season day the brief, with its must_not, its facts and its flags. On a season day the
 news is today's premise (season_checklist.premise_id "news") unless
 brief.today.required_premise is set: then stage that premise and let the news be what
-sets it off or what gets in its way. Fill news_day_notes: mechanic_fr (the mechanic as it
+sets it off or what gets in its way, visibly, on the page. Fill news_day_notes: mechanic_fr (the mechanic as it
 plays out today, one French sentence), entry_fr (how the news enters the page, one
 French sentence) and plate_brief, in English: the illustrator's EMPTY set for today's
 page, the place of the scene (location_id) as it looks TODAY because of the news. Name
@@ -221,7 +221,8 @@ def due(live: dict | None) -> bool:
 
 def blocked_reason(context: dict) -> str | None:
     """Days the director writes that are not the news's to take: a level check, the
-    serial's finale and interlude, a new season's premiere. They count all the same."""
+    serial's finale and interlude, a new season's premiere. They count all the same,
+    and the news is owed to the next one."""
 
     from app.services import living_story as engine
 
@@ -232,6 +233,9 @@ def blocked_reason(context: dict) -> str | None:
         return str(season.get("phase"))
     if season.get("premiere"):
         return "premiere"
+    # Not a gap's scheduled moment: the paid read of 11 October had C1 stage «Sur le
+    # toit» under that night's aurora (the news set it off), and A2 drop the news for
+    # «La même chose ?» — that page is not credited and the news is owed (mark_brief).
     return None
 
 
@@ -697,7 +701,11 @@ _LIVING = re.compile(
     r"customers?|clients?|waiters?|barman|barmaid|figures?|someone|somebody|everyone|"
     r"silhouettes?|passers?-by|pedestrians?|protesters?|players?|fans?|police(?:men|man)?|"
     r"officers?|journalists?|reporters?|minister|president|portraits?|faces?|animals?|"
-    r"dogs?|cats?|birds?|pigeons?|horses?)\b",
+    r"dogs?|cats?|birds?|pigeons?|horses?|"
+    # The director sometimes writes the brief in French (the C1 read did).
+    r"gens|personnes?|hommes?|femmes?|enfants?|foule|voisins?|voisines?|clients?|clientes?|"
+    r"serveurs?|serveuses?|passants?|manifestants?|joueurs?|supporters|policiers?|visages?|"
+    r"chiens?|chats?|oiseaux|pigeons?|chevaux)\b",
     re.IGNORECASE,
 )
 _READABLE = re.compile(
@@ -707,14 +715,35 @@ _READABLE = re.compile(
 )
 
 
-def plate_brief(text: Any) -> str:
+def _cast_words(context: dict | None) -> re.Pattern[str] | None:
+    """The cast's names (and their parts: «Gus», «Roncourt»): a clause naming one is a
+    person on the plate («a badge on Gus's sweater»)."""
+
+    words: set[str] = set()
+    for member in ((context or {}).get("world") or {}).get("cast") or []:
+        if not isinstance(member, dict):
+            continue
+        for value in (member.get("name"), member.get("id")):
+            for word in re.findall(r"[A-Za-zÀ-ÿ]+", str(value or "")):
+                if len(word) >= 3 and word.lower() not in {"des", "les", "the", "von"}:
+                    words.add(re.escape(word.lower()))
+    if not words:
+        return None
+    return re.compile(r"\b(" + "|".join(sorted(words)) + r")\b", re.IGNORECASE)
+
+
+def plate_brief(text: Any, context: dict | None = None) -> str:
     """The director's brief, people-free and text-free, or ``""`` when nothing is left."""
 
+    cast = _cast_words(context)
     clauses = re.split(r"[.;,]\s*|\s+-\s+|\s+—\s+", str(text or ""))
     kept = [
         clause.strip(" ,.;")
         for clause in clauses
-        if clause.strip(" ,.;") and not _LIVING.search(clause) and not _READABLE.search(clause)
+        if clause.strip(" ,.;")
+        and not _LIVING.search(clause)
+        and not _READABLE.search(clause)
+        and not (cast and cast.search(clause))
     ]
     return _cut(", ".join(kept), PLATE_BRIEF_CHARS)
 
@@ -730,11 +759,17 @@ def mark_brief(brief: Any, context: dict, draft: Any, news: dict[str, Any] | Non
     from app.services.season import plates
 
     marker: dict[str, Any] = {"generated": True, "news": None}
+    notes = getattr(draft, NOTES_FIELD, None)
+    if isinstance(news, dict) and news.get("headline") and not str(getattr(notes, "mechanic_fr", "") or "").strip():
+        # The page served is one whose director never said what it did with the news (a
+        # draft kept after the notes' one soft retry): it is not credited as a news day,
+        # and the news is owed to the next generated day (the A2 paid read, 11 October).
+        logger.warning("news_day: «{}» was not used by the page served; owed", news["headline"].get("title"))
+        news = {"skipped": "news_unused", "title": news["headline"].get("title")}
     if isinstance(news, dict) and news.get("headline"):
         headline = news["headline"]
-        notes = getattr(draft, NOTES_FIELD, None)
         location_id = str(getattr(draft, "location_id", "") or getattr(brief, "location_id", "") or "place")
-        text = plate_brief(getattr(notes, "plate_brief", ""))
+        text = plate_brief(getattr(notes, "plate_brief", ""), context)
         day = published_on(headline)
         marker["news"] = {
             "id": headline.get("id"),

@@ -66,6 +66,25 @@ def test_a_news_day_is_due_every_second_generated_day(monkeypatch):
     assert news_day.due(live(5)) is False
 
 
+def test_days_that_are_not_the_news_to_take_defer_it():
+    assert news_day.blocked_reason({}) is None
+    assert news_day.blocked_reason({engine.EPREUVE_KEY: {"band": "A2"}}) == "epreuve"
+    assert news_day.blocked_reason({"season": {"phase": "finale"}}) == "finale"
+    scheduled = {"season_script": {"brief": {"today": {"required_premise": {"id": "sur_le_toit"}}}}}
+    assert news_day.blocked_reason(scheduled) is None, "a scheduled moment can be set off by the news"
+
+
+def test_a_page_that_never_used_the_news_is_not_credited():
+    headline = _headlines()[0]
+    brief = SimpleNamespace(story_context={}, scenario_key="story_x", location_id="le_mistral", location_name="Le Mistral")
+    without = SimpleNamespace(location_id="le_mistral", news_day_notes=None)
+    news_day.mark_brief(brief, {}, without, {"headline": headline, "pick": {}})
+    assert brief.story_context[news_day.BRIEF_KEY] == {"generated": True, "news": None, "skipped": "news_unused"}
+    notes = news_day.NewsDayNotes(mechanic_fr="La grève vide le quai.", plate_brief="the zinc, a radio, rain")
+    news_day.mark_brief(brief, {}, SimpleNamespace(location_id="le_mistral", news_day_notes=notes), {"headline": headline, "pick": {}})
+    assert brief.story_context[news_day.BRIEF_KEY]["news"]["plate"]["brief"] == "the zinc, a radio, rain"
+
+
 def _bound(marker: dict | None, *, tentpole: bool = False, state: dict | None = None):
     brief = SimpleNamespace(story_context={news_day.BRIEF_KEY: marker} if marker is not None else {})
     scene = SimpleNamespace(id=uuid.uuid4(), script_payload={}, panels=[])
@@ -162,6 +181,13 @@ def test_the_plate_brief_is_an_empty_set():
         "a café menu with 'La même chose ?' circled, the barman's empty stool"
     )
     assert "La même chose" not in brief and "barman's" not in brief
+    cast = {"world": {"cast": [{"id": "augustin_de_roncourt", "name": "Augustin « Gus » de Roncourt"}]}}
+    french = news_day.plate_brief(
+        "toit de l'immeuble, une lucarne ouverte, une torche tenue par un homme âgé, a badge on Gus's sweater, "
+        "guirlandes repliées au sol, ciel vert des aurores",
+        cast,
+    )
+    assert french == "toit de l'immeuble, une lucarne ouverte, guirlandes repliées au sol, ciel vert des aurores"
     assert "baguettes" in brief and "rain on the window" in brief and "radio" in brief
     assert "woman" not in brief and "reading" not in brief and "dog" not in brief
 
