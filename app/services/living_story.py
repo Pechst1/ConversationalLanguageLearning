@@ -7800,9 +7800,11 @@ def generate_scene(
             # WP-111: a tentpole day is the owner-approved page, served as written —
             # instant, no model call. A page that cannot be served (a missing file, a
             # cast member the world lacks) falls through to the director, logged.
+            from app.services.season.opening import opening_page
             from app.services.season.runtime import tentpole_brief
 
-            authored = tentpole_brief(season_today, context)
+            # WP-166: day 1's way in, written for this learner (the authored one is the fallback).
+            authored = tentpole_brief(season_today, context, page=opening_page(db, user, season_today))
             if authored is not None:
                 return authored
             logger.error("living_story: tentpole %s could not be served", season_today.pos.key)
