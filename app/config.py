@@ -592,6 +592,37 @@ class Settings(BaseSettings):
             "voices (/radio, the La Une chip, GET /revue/radio/*). Needs REVUE_ENABLED too."
         ),
     )
+    # ---- WP-164..168: variety (owner 2026-10-11: the creative, non-deterministic variant) ----
+    ATELIER_SEASON_PLATES_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-165: the image model paints people-free plates (a place, a light, a weather, a "
+            "news day's own room) for the drawn cast to stand on (app/services/season/plates.py). "
+            "Needs an OpenAI key and durable storage (S3 in production). Off: the static plates."
+        ),
+    )
+    ATELIER_NEWS_DAY_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-167: every ATELIER_NEWS_DAY_EVERY-th generated day takes a fresh headline as its "
+            "premise (any topic) and gets its own freshly painted plate. Off: no news in the story."
+        ),
+    )
+    ATELIER_NEWS_DAY_EVERY: int = Field(2, ge=1, le=14)
+    ATELIER_VARIED_FIRST_DAY_ENABLED: bool = Field(
+        True,
+        description=(
+            "WP-166 (owner decision 2): the first day's opening is generated per learner around "
+            "the authored spine; the authored opening is the fallback."
+        ),
+    )
+    ATELIER_SEASON_WRITER_MAY_MOVE: bool = Field(
+        True,
+        description=(
+            "WP-168 (owner decision 4): a written season may change city, genre and the "
+            "learner's situation, anywhere French is spoken; new places get painted plates."
+        ),
+    )
     REVUE_PLATE_GENERATION_ENABLED: bool = Field(
         False,
         description=(
