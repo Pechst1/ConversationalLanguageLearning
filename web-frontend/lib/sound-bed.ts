@@ -78,9 +78,45 @@ export const PLACE_BEDS: Readonly<Record<string, BedId>> = {
   toit: 'wind',
 };
 
+/**
+ * WP-168 · a place a written season invented (`quai_du_vieux_port`, `gare_de_dakar`,
+ * `ferry_pont_superieur`) has no row above. Its id starts with the kind of place (the
+ * writer is told so), so its words say what it sounds like. First match wins; a place
+ * none of them names keeps the quiet default.
+ */
+export const BED_WORDS: ReadonlyArray<readonly [BedId, readonly string[]]> = [
+  ['metro', ['gare', 'metro', 'train', 'tram', 'station', 'aeroport', 'rer']],
+  ['canal', ['quai', 'port', 'canal', 'fleuve', 'riviere', 'ferry', 'bateau', 'peniche', 'plage', 'mer', 'lac', 'digue', 'phare', 'pont', 'marina']],
+  ['cafe', ['cafe', 'bar', 'bistrot', 'bistro', 'brasserie', 'restaurant', 'maquis', 'buvette', 'comptoir', 'cantine']],
+  ['market', ['marche', 'souk', 'halle', 'halles', 'foire', 'rue', 'place', 'boutique', 'epicerie', 'boulangerie', 'magasin', 'librairie', 'kiosque', 'brocante']],
+  ['stairwell', ['escalier', 'palier', 'couloir']],
+  ['office', ['bureau', 'mairie', 'ecole', 'classe', 'lycee', 'redaction', 'radio', 'banque', 'hopital', 'clinique', 'bibliotheque', 'mediatheque', 'universite', 'salle', 'agence', 'prefecture', 'notaire', 'tribunal']],
+  ['wind', ['parc', 'jardin', 'toit', 'terrasse', 'vigne', 'vignes', 'vignoble', 'colline', 'foret', 'champ', 'montagne', 'falaise', 'dune', 'sentier', 'route', 'balcon', 'verger', 'ferme', 'campagne']],
+  ['room', ['appartement', 'chambre', 'maison', 'loft', 'salon', 'studio', 'chez', 'atelier']],
+];
+
+function placeWords(place: string): string[] {
+  return place
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+/** The bed a place's words name, or null (WP-168: places no table lists). */
+export function bedFromWords(place: string | null | undefined): BedId | null {
+  const words = placeWords(String(place ?? ''));
+  if (!words.length) return null;
+  for (const [bed, names] of BED_WORDS) {
+    if (names.some((name) => words.includes(name))) return bed;
+  }
+  return null;
+}
+
 export function bedForPlace(place: string | null | undefined): BedId {
   const key = String(place ?? '').trim().toLowerCase();
-  return PLACE_BEDS[key] ?? DEFAULT_BED;
+  return PLACE_BEDS[key] ?? bedFromWords(key) ?? DEFAULT_BED;
 }
 
 /**
@@ -94,10 +130,17 @@ export function placeFromPlate(url: string | null | undefined): string | null {
   return match ? match[1].toLowerCase() : null;
 }
 
-/** The scene's place: its location id, else the place its plate shows. */
+/**
+ * The scene's place: its location id, else the place its plate shows. WP-168: a
+ * written season's place whose name says nothing we know of sounds like the place
+ * whose plate stands in for it (its kind's).
+ */
 export function scenePlace(locationId: string | null | undefined, plateUrl?: string | null): string | null {
   const id = String(locationId ?? '').trim();
-  return id || placeFromPlate(plateUrl);
+  if (!id) return placeFromPlate(plateUrl);
+  if (PLACE_BEDS[id.toLowerCase()] || bedFromWords(id)) return id;
+  const lender = placeFromPlate(plateUrl);
+  return lender && PLACE_BEDS[lender] ? lender : id;
 }
 
 // ---------------------------------------------------------------------------
