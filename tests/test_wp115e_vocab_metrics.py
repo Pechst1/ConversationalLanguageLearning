@@ -67,6 +67,10 @@ def test_the_pilot_splits_each_learners_words_in_two_stable_halves():
 def test_with_the_pilot_on_only_the_story_half_rides_the_story(db_session, monkeypatch):
     user = _make_user(db_session)
     words = [_make_due_word(db_session, user, f"le mot{n}", rank=950 + n) for n in range(8)]
+    # The arm hashes the (random) learner id with the word id, so one run in 256 dealt
+    # eight cahier-arm words and nothing could ride the story (WP-153, seed 153002).
+    while not any(pilot_arm(user.id, word.id) == "story" for word in words):
+        words.append(_make_due_word(db_session, user, f"le mot{len(words)}", rank=950 + len(words)))
     db_session.flush()
     for word in words:
         db_session.query(UserVocabularyProgress).filter_by(user_id=user.id, word_id=word.id).one().lapses = 3

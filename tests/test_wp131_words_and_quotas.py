@@ -393,7 +393,8 @@ def test_drill_first_and_journey_first_introduce_the_same_total(db_session: Sess
     assert totals == [18, 18]
 
 
-def test_two_tabs_and_a_reload_introduce_each_word_once(client: TestClient, db_session: Session) -> None:
+def test_two_tabs_and_a_reload_introduce_each_word_once(client: TestClient, db_session: Session, pinned_clock) -> None:
+    # Five requests read the learner's Paris «today»; pinned at noon UTC they share one day (WP-153).
     headers, user = _login(client, db_session, minutes=10)  # Régulier: drill room 6
     _supply(db_session, 30, "tabs")
     tab_a = _deck(client, headers, SESSION)
