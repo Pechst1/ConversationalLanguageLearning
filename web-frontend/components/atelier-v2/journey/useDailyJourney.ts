@@ -791,7 +791,12 @@ export function useDailyJourney(
 
   const retryLastAnswer = useCallback(async () => {
     const last = lastAttemptRef.current;
-    if (!last) return;
+    if (!last) {
+      // After a reload there is no answer to resend: the failure was the recovery's
+      // advance. Clearing the error lets it run again (review on #65).
+      if (mountedRef.current) setFeedback({ kind: 'idle' });
+      return;
+    }
     await performAttempt(last.journeyId, last.stepId, last.expectedRevision, last.input);
   }, [performAttempt]);
 
@@ -957,7 +962,15 @@ export function useDailyJourney(
     const key = `${journey.id}:${step.id}:${journey.revision}`;
     if (resumedPastRef.current === key) return;
     resumedPastRef.current = key;
-    void continueJourney();
+    void continueJourney().finally(() => {
+      // Still on the same completed step: the advance failed (a transport error, a
+      // refusal). Forget the attempt so the next idle moment — the learner's
+      // «Retry», a refresh — tries again; the error on screen stops a hot loop.
+      const now = currentStepOf(journeyRef.current);
+      if (now && now.id === step.id && now.status === 'completed' && journeyRef.current?.revision === journey.revision) {
+        resumedPastRef.current = null;
+      }
+    });
   }, [busy, continueJourney, feedback.kind, journey]);
 
   const pause = useCallback(async () => {
