@@ -487,6 +487,24 @@ class SceneDraft(StrictModel):
     # touched, the change before → after, the turn, the small moment, the hook).
     # Optional: a life that is not on a season never fills it.
     season_checklist: SeasonChecklist | None = None
+    # WP-165: the light and weather the page happens in; its place's plate is painted
+    # in them (app/services/season/plates.py). Closed sets: any other word is None.
+    time_of_day: Literal["morning", "day", "evening", "night"] | None = Field(
+        default=None, description="when the page happens: morning, day, evening or night"
+    )
+    weather: Literal["dry", "rain"] | None = Field(default=None, description="dry or rain")
+
+    @field_validator("time_of_day", mode="before")
+    @classmethod
+    def _time_of_day(cls, value: Any) -> str | None:  # WP-165
+        word = str(value or "").strip().casefold()
+        return word if word in ("morning", "day", "evening", "night") else None
+
+    @field_validator("weather", mode="before")
+    @classmethod
+    def _weather(cls, value: Any) -> str | None:  # WP-165
+        word = str(value or "").strip().casefold()
+        return word if word in ("dry", "rain") else None
 
 
 class AuthoredPanel(Panel):
@@ -632,6 +650,9 @@ learner walks into a moment already in motion. EXCEPTION: when chapter.shape is
 two_hander, NO other cast member has a dialogue line — the addressed character alone
 speaks, and the page gets its movement from gesture, place and narration instead.
 Change the camera from panel to panel.
+Set time_of_day (morning, day, evening or night) and weather (dry or rain) for the page:
+Paris from late autumn into winter, when dark comes early and rain is common. Choose what
+the story needs and let it change from day to day; the place is painted in that light.
 Create a communicative need absent from recent premises; reusing a skill is fine.
 Panels end at a real opportunity to respond. Never show the suggested learner answer
 in a panel. The private suggestion must actually satisfy the objective. Do not
@@ -6706,6 +6727,12 @@ def _validate_lexicon(draft: SceneDraft, context: dict) -> None:
         )
 
 
+def _own_plate(location_id: str | None) -> str | None:  # WP-165
+    from app.services.season.world import plate_for
+
+    return plate_for(location_id)
+
+
 def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBrief:
     character = next(c for c in context["world"]["cast"] if c["id"] == draft.character_id)
     location = next(c for c in context["world"]["locations"] if c["id"] == draft.location_id)
@@ -6721,7 +6748,8 @@ def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBr
         character_name=character["name"],
         location_id=draft.location_id,
         location_name=location_display_name(location) or draft.location_id,
-        image_url=location.get("image_url") or location.get("asset"),
+        # WP-165: the place's own plate first (a life's stored world bible may predate it).
+        image_url=_own_plate(draft.location_id) or location.get("image_url") or location.get("asset"),
         setup_fr=draft.premise_fr,
         setup_native=draft.setup_native,
         opening_line_fr=draft.opening_line_fr,
@@ -8089,11 +8117,25 @@ def bind_journey(
             lines.append(payload)
         return lines
 
+    from app.services.season import plates as season_plates  # WP-165
+
     for index, panel in enumerate(draft.panels):
-        panel_image = (
-            season_images[index].get("image_url")
-            if index < len(season_images) and season_images[index].get("image_url")
-            else brief.image_url
+        # WP-165: the place's own plate in the page's light and weather (an authored
+        # panel's from its own direction). A variant not painted yet is queued in the
+        # background and the base plate serves until it exists.
+        season_image = season_images[index] if index < len(season_images) else {}
+        plate_place = season_image.get("location_id") or brief.location_id
+        light = (
+            (season_image.get("time_of_day"), season_image.get("weather"))
+            if season_image
+            else (draft.time_of_day, draft.weather)
+        )
+        panel_image = season_plates.scene_plate_url(
+            db,
+            plate_place,
+            time_of_day=light[0],
+            weather=light[1],
+            fallback=season_image.get("image_url") or brief.image_url,
         )
         scene.panels.append(
             GraphicNovelPanel(
@@ -8114,6 +8156,8 @@ def bind_journey(
                     "image_source": "setting_reference",
                     # WP-116: the plate stays known after a drawing replaces image_url.
                     "plate_url": panel_image,
+                    # WP-165: where and in what light, so a read finds the variant once painted.
+                    **season_plates.plate_meta(plate_place, *light),
                     "usage": brief.story_context["generation_usage"] if index == 0 else [],
                 },
             )

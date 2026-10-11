@@ -84,11 +84,29 @@ def panel_image_status(panel) -> str:
     return "setting_reference"
 
 
+def _session_of(row) -> Session | None:
+    """The session a loaded row belongs to (``None`` for a detached or plain object)."""
+
+    from sqlalchemy.orm import object_session
+
+    try:
+        return object_session(row)
+    except Exception:  # noqa: BLE001 - not a mapped instance
+        return None
+
+
 def panel_plate_url(panel) -> str | None:
     """WP-116: the location plate under a panel. New panels keep it in their metadata
     when a drawing replaces ``image_url``; an undrawn panel's image is the plate."""
 
     meta = panel.generation_metadata or {}
+    if meta.get("plate_place_id"):
+        # WP-165: the plate painted in the page's light and weather, once it exists.
+        from app.services.season.plates import panel_variant_url
+
+        variant = panel_variant_url(_session_of(panel), meta)
+        if variant:
+            return variant
     if meta.get("plate_url"):
         return str(meta["plate_url"])
     if panel.image_url and meta.get("image_source") != "panel_art":

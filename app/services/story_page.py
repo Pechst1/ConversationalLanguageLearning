@@ -12,7 +12,8 @@ The six movements of the page, as rows the reader draws one after the other:
 6. «À suivre…» — ``a_suivre_fr``.
 
 Built only for a completed scene: before that the page would print reactions to
-lines the learner has not said. Pure: reads the scene's stored payload, no model.
+lines the learner has not said. Reads the scene's stored payload, no model; a plate in
+another light is looked up (never painted) in the scene's own session (WP-165).
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.services.season.page import option_by_id, reply_by_id
-from app.services.season.world import plate_for
+from app.services.season.plates import light_from_text, plate_url_for
 
 YOU = "toi"
 
@@ -58,14 +59,22 @@ def _narration(panel: dict[str, Any]) -> str:
 class _Tentpole:
     """Rows from a season page and the replies the learner's lines routed to."""
 
-    def __init__(self, names: dict[str, str], ending_fr: str):
+    def __init__(self, names: dict[str, str], ending_fr: str, db: Any = None):
         self.names = names
         self.ending_fr = ending_fr
         self.rows: list[dict[str, Any]] = []
         self.location: str | None = None
+        # WP-165: the light the page's direction names, carried on; the painted variant
+        # of the plate when there is one (``db`` finds it), else the place's own plate.
+        self.light: dict[str, str] = {}
+        self.db = db
+
+    def plate(self) -> str | None:
+        return plate_url_for(self.db, self.location, **self.light)
 
     def panel(self, panel: dict[str, Any], movement: str, *, you: str | None = None) -> None:
         self.location = panel.get("location_id") or self.location
+        self.light = light_from_text(panel.get("visual"), self.light)
         lines = [row for row in (_line(line, self.names) for line in panel.get("lines") or []) if row]
         if you:
             lines.append(
@@ -83,7 +92,7 @@ class _Tentpole:
         if movement == "ending" and narration.strip() == self.ending_fr:
             # The reader's «case finale» says the hook; the drawn ending does not repeat it.
             narration = ""
-        image = plate_for(self.location)
+        image = self.plate()
         self.rows.append(
             {
                 "id": f"{movement}:{panel.get('id')}:{len(self.rows)}",
@@ -137,7 +146,7 @@ class _Tentpole:
                     "you": True,
                 }
             )
-        image = plate_for(self.location)
+        image = self.plate()
         self.rows.append(
             {
                 "id": f"solve:{movement.get('id')}:{len(self.rows)}",
@@ -226,6 +235,15 @@ def _generated(scene_panels: list[dict[str, Any]], thread: dict[str, Any], names
     return rows
 
 
+def _session_of(scene: Any) -> Any:
+    from sqlalchemy.orm import object_session
+
+    try:
+        return object_session(scene)
+    except Exception:  # noqa: BLE001 - a plain object (tests, a detached row)
+        return None
+
+
 def episode_page(scene: Any, scene_panels: list[dict[str, Any]], names: dict[str, str]) -> dict[str, Any] | None:
     """The finished page of a completed scene, or None (not finished, or nothing to draw)."""
 
@@ -237,7 +255,7 @@ def episode_page(scene: Any, scene_panels: list[dict[str, Any]], names: dict[str
     season_page = payload.get("season_page")
     if isinstance(season_page, dict) and season_page.get("movements"):
         ending_fr = str(recap.get("resolution_fr") or "").strip()
-        rows = _Tentpole(names, ending_fr).build(season_page, payload.get("season_routing") or [])
+        rows = _Tentpole(names, ending_fr, _session_of(scene)).build(season_page, payload.get("season_routing") or [])
         # The tentpole's teaser is the hook the finale already says.
         return {"rows": rows, "a_suivre_fr": None if a_suivre == ending_fr else a_suivre}
     thread = payload.get("page_thread")
