@@ -33,6 +33,7 @@ current world by ``SerialThreadService.merge_season_world_bible``.
 from __future__ import annotations
 
 import logging
+import random
 import re
 import time
 from datetime import date, timedelta
@@ -51,6 +52,9 @@ logger = logging.getLogger(__name__)
 
 INTERLUDE_WAIT_DAYS = 14
 WRITER_BUDGET_SECONDS = 90
+#: A season that may move is longer to write and gets one retry with the refusal's reasons.
+MOVING_BUDGET_SECONDS = 160
+MOVING_ATTEMPTS = 2
 MATERIAL_LIMIT = 12
 REPRISE_ARCS = 5
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9_]{1,62}$")
@@ -166,6 +170,32 @@ def _cast_ids(world: dict) -> list[str]:
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _clip_long_text(cls, data: Any) -> Any:
+        """Prose past a field's limit is cut at a sentence or a word, not a lost season
+        (the 12 October rerun lost an Acadian season to a 301-character ``setting.why``)."""
+
+        if not isinstance(data, dict):
+            return data
+        clipped = dict(data)
+        for name, field in cls.model_fields.items():
+            value = clipped.get(name)
+            limit = next((m.max_length for m in field.metadata if getattr(m, "max_length", None)), None)
+            if isinstance(value, str) and limit and len(value) > limit:
+                clipped[name] = _clip_prose(value, limit)
+        return clipped
+
+
+def _clip_prose(text: str, limit: int) -> str:
+    cut = text[:limit]
+    for mark in (". ", "! ", "? ", "; "):
+        end = cut.rfind(mark)
+        if end >= limit // 2:
+            return cut[: end + 1].strip()
+    space = cut.rfind(" ")
+    return (cut[:space] if space >= limit // 2 else cut).rstrip(" ,;:")
+
 
 class StageDraft(_Strict):
     id: str = Field(min_length=2, max_length=40)
@@ -277,6 +307,35 @@ class SeasonDraft(_Strict):
     places: list[PlaceDraft] = Field(default_factory=list, max_length=6)
     new_characters: list[NewCharacterDraft] = Field(default_factory=list, max_length=3)
 
+    @model_validator(mode="after")
+    def _slug_new_ids(self) -> SeasonDraft:
+        """A slip in a new face's id («marie-jo_boudreau») is repaired, not a lost season:
+        the id becomes a slug and every arc that names it follows (the rerun of 12 October
+        lost its Acadian season to the hyphen)."""
+
+        renamed: dict[str, str] = {}
+        for character in self.new_characters:
+            slug = _slugify_id(character.id)
+            if slug and slug != character.id:
+                renamed[character.id] = slug
+                character.id = slug
+        if renamed:
+            for arc in self.arcs:
+                arc.characters = [renamed.get(cid, cid) for cid in arc.characters]
+        # The same repair for arc and place ids («arc:follow_the_polaroid» lost a season).
+        for row in (*self.arcs, *self.places):
+            slug = _slugify_id(row.id)
+            if slug and len(slug) >= 2:
+                row.id = slug
+        return self
+
+
+def _slugify_id(value: str) -> str:
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", str(value or "")).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"_+", "_", re.sub(r"[^a-z0-9_]+", "_", text)).strip("_")[:63]
+
 
 class SeasonReview(_Strict):
     accepted: bool
@@ -323,6 +382,10 @@ is no list. The French-speaking world is wide (Europe, North and West Africa, th
 the Indian Ocean, the Pacific); a town near the old city is the timid choice unless the
 material names it. You may also stay and change only the genre or the situation. Prefer
 the bold, specific, surprising choice that THIS learner's material makes inevitable.
+`previous_attempt_refused`, when present, is why your last draft was refused: answer every
+reason (keep its setting if only a thread was missing). `dare` is a place and a genre drawn at random for this call: weigh them seriously before
+your own idea, and take one or both whenever the material can carry them. The French coast
+and Paris are everyone's first idea; choose them only when the material names them.
 
 Choose the genre on purpose (for instance a mystery, a workplace comedy, a romance, a
 coming-of-age story, a heist, a survival story, a satire) and make it unlike the previous
@@ -676,6 +739,36 @@ def season_file_from_draft(
     return written
 
 
+#: The WP-168 dry run (11 October): 5 of 6 drafts went to the French coast and none left
+#: France. Each call now carries a dare, drawn at random (never seeded): one corner of the
+#: French-speaking world and one genre the writer must weigh before choosing its own.
+COMPASS_PLACES: tuple[str, ...] = (
+    "Montréal in a January cold snap", "a fishing village on the Gaspé Peninsula", "Moncton and Acadian Shediac",
+    "Brussels between the EU quarter and Matongé", "Liège in carnival week", "Geneva and its lake", "Lausanne's steep streets",
+    "Luxembourg City's ravines", "Aosta valley on the Italian side", "Dakar's Plateau and the Gorée ferry",
+    "Saint-Louis du Sénégal on its river island", "Abidjan's Plateau and Treichville", "Ouagadougou during FESPACO",
+    "Cotonou and the stilt village of Ganvié", "Lomé's grand market", "Kinshasa along the river", "Douala's port",
+    "Antananarivo's hills", "Saint-Denis de La Réunion under the volcano", "Port-Louis, Mauritius",
+    "Fort-de-France, Martinique", "Pointe-à-Pitre, Guadeloupe", "Cayenne and the Kourou launch base",
+    "Nouméa and a Kanak tribe up the coast", "Papeete and an atoll a boat ride away", "Saint-Pierre-et-Miquelon in fog",
+    "Port-au-Prince's hills", "Tunis medina and La Marsa", "Casablanca's art-deco centre", "Beirut's Achrafieh",
+    "a night train from Paris to Briançon", "a hospital in Lille", "Strasbourg's Christmas market", "a ski station in the Alps",
+    "a Corsican mountain village", "a vineyard harvest in Burgundy", "a Lyon bouchon kitchen", "Toulouse and the Airbus works",
+)
+COMPASS_GENRES: tuple[str, ...] = (
+    "a heist", "a mystery", "a workplace comedy", "a romance", "a coming-of-age story", "a survival story",
+    "a satire", "a ghost story", "a road movie", "a courtroom drama", "a family saga", "a sports season",
+    "a political campaign", "a cooking competition", "a music tour", "a quiet slice of life", "a thriller",
+)
+
+
+def compass() -> dict[str, str]:
+    """One dare for this call: a place and a genre, truly at random."""
+
+    draw = random.SystemRandom()
+    return {"place": draw.choice(COMPASS_PLACES), "genre": draw.choice(COMPASS_GENRES)}
+
+
 def _writer_payload(world: dict, *, next_season: int, material: list[dict], may_move: bool, canon: dict) -> dict:
     # A moved season meets the cast's families (Marin's father's boat): their facts travel.
     keys = ("id", "name", "role", "wants", "gender") + (("origin", "contradiction", "away") if may_move else ())
@@ -703,6 +796,7 @@ def _writer_payload(world: dict, *, next_season: int, material: list[dict], may_
         payload["world"]["previous_season_title_fr"] = world.get("season_title_fr")
         payload["canon"] = canon
         payload["may_move"] = True
+        payload["dare"] = compass()
     return payload
 
 
@@ -734,38 +828,61 @@ def draft_next_season(
     record["canon"] = canon
     usage: list[dict] = []
     record["usage"] = usage
-    deadline = time.monotonic() + WRITER_BUDGET_SECONDS
+    deadline = time.monotonic() + (MOVING_BUDGET_SECONDS if may_move else WRITER_BUDGET_SECONDS)
+    attempts = MOVING_ATTEMPTS if may_move else 1
     try:
-        draft, _ = engine._json_call(
-            SEASON_WRITER_MOVING if may_move else SEASON_WRITER,
-            payload,
-            SeasonDraft,
-            usage.append,
-            deadline=deadline,
-            max_tokens=12000 if may_move else 6000,
-            reasoning_effort="medium",
-            window=80 if may_move else 60,
-        )
-        record["draft"] = draft.model_dump(mode="json")
-        validate_season(
-            draft, material=material, cast_ids=_cast_ids(world), may_move=may_move, world=world, canon=canon
-        )
-        review, _ = engine._json_call(
-            SEASON_CRITIC_MOVING if may_move else SEASON_CRITIC,
-            {"source": payload, "proposal": draft.model_dump(mode="json")},
-            SeasonReview,
-            usage.append,
-            deadline=deadline,
-            max_tokens=4000 if may_move else None,
-        )
-        record["review"] = review.model_dump(mode="json")
-        if not review.passes:
+        for attempt in range(1, attempts + 1):
+            last = attempt == attempts
+            try:
+                draft, _ = engine._json_call(
+                    SEASON_WRITER_MOVING if may_move else SEASON_WRITER,
+                    payload,
+                    SeasonDraft,
+                    usage.append,
+                    deadline=deadline,
+                    max_tokens=12000 if may_move else 6000,
+                    reasoning_effort="medium",
+                    window=80 if may_move else 60,
+                )
+                record["draft"] = draft.model_dump(mode="json")
+                validate_season(
+                    draft, material=material, cast_ids=_cast_ids(world), may_move=may_move, world=world, canon=canon
+                )
+            except SeasonRejected as exc:
+                if last or time.monotonic() > deadline - 60:
+                    raise
+                # The gate's reason goes back to the writer, as a story day's guards do.
+                payload = {**payload, "previous_attempt_refused": {"reasons": [str(exc)]}}
+                record.setdefault("retries", []).append(str(exc))
+                continue
+            review, _ = engine._json_call(
+                SEASON_CRITIC_MOVING if may_move else SEASON_CRITIC,
+                {"source": payload, "proposal": draft.model_dump(mode="json")},
+                SeasonReview,
+                usage.append,
+                deadline=deadline,
+                max_tokens=4000 if may_move else None,
+            )
+            record["review"] = review.model_dump(mode="json")
+            if review.passes:
+                return season_file_from_draft(
+                    draft, number=int(next_season), source="written", may_move=may_move, world=world
+                )
             logger.info("season_writer: critic refused season %s: %s", next_season, review.issues[:3])
-            record["refused"] = "critic"
-            return None
-        return season_file_from_draft(
-            draft, number=int(next_season), source="written", may_move=may_move, world=world
-        )
+            if last or time.monotonic() > deadline - 60:
+                record["refused"] = "critic"
+                return None
+            # WP-168: one more draft that answers the critic, never the same season again.
+            payload = {
+                **payload,
+                "previous_attempt_refused": {
+                    "title_fr": draft.title_fr,
+                    "city": draft.setting.city if draft.setting else None,
+                    "reasons": review.issues[:6],
+                },
+            }
+            record.setdefault("retries", []).append("critic")
+        return None
     except (engine.StoryUnavailable, SeasonRejected) as exc:
         logger.info("season_writer: season %s not written (%s)", next_season, exc)
         record["refused"] = str(exc)

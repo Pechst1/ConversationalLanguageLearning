@@ -1,0 +1,467 @@
+{
+  "ending": "garder",
+  "rolled": false,
+  "seconds": 59.8,
+  "material": [
+    {
+      "id": "p:polaroid_port",
+      "kind": "plant",
+      "text_fr": "Dans le tiroir d'Odile, un Polaroid : un port, des bateaux, et « 1971 » au dos.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "b:peintre_l",
+      "kind": "branch",
+      "text_fr": "Vous avez promis à M. Marchand de retrouver le peintre « L. » avant son anniversaire.",
+      "character_id": "landlord_marchand"
+    },
+    {
+      "id": "c:carte_mistral",
+      "kind": "commitment",
+      "text_fr": "Aider Margaux à refaire la carte du Mistral avant le printemps.",
+      "character_id": "margaux_barman"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:marchand.sundays",
+      "kind": "flag",
+      "text_fr": "marchand.sundays = True",
+      "character_id": null
+    },
+    {
+      "id": "p:lettre_gus",
+      "kind": "plant",
+      "text_fr": "Gus a reçu une lettre d'un notaire, avec un timbre étranger, et il ne l'ouvre pas.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "b:documentaire",
+      "kind": "branch",
+      "text_fr": "Romy vous a demandé d'être la voix française de son documentaire radio.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = garder",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = keep",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "The learner kept Odile's flat above Le Mistral and lives there now.",
+      "Le Mistral is exactly as it was; Margaux runs it alone, on a nine-year lease.",
+      "M. Marchand left the building for a residence without stairs; Solvel owns his floors, he kept the café's walls.",
+      "Only four people know Odile's notebook page; Gus knows nothing of it.",
+      "The painting «Le Mistral sur le canal» is with the learner; its back reads «Pour Odile, qui part. — L., 1970» and «Toujours rue de Lancry. — L., 2021».",
+      "Marin has put his co-op folder in a drawer.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it.",
+      "M. Marchand comes to Sunday lunch at the learner's, by the 46 bus, as he did at Odile's.",
+      "Romy gave the learner the memory card with Margaux's admission, without a word."
+    ],
+    "closed_locations": []
+  },
+  "draft": {
+    "title_fr": "Le goût d'Odile",
+    "logline": "After finding a Polaroid of a 1971 port in Odile's things, the learner goes to Fort‑de‑France: to follow that image, to enter a local cooking competition that can fund a new menu for Le Mistral, and to help friends — while Romy records, Gus follows a foreign letter, and old family memories surface.",
+    "logline_fr": "Vous partez à Fort‑de‑France pour suivre un Polaroid d'Odile et pour un concours de cuisine.",
+    "your_arc": "You leave Paris to follow a photograph of Odile to Fort‑de‑France, learn local recipes, compete to help Le Mistral's menu, and through food and recordings you open a small family map of Odile without ever finding the secret name.",
+    "first_episode_seed": "You pull the Polaroid from Odile's drawer, show it to Romy and Gus in the café, and buy the plane ticket that night — Margaux writes a note asking you to bring back tastes for the new menu.",
+    "arcs": [
+      {
+        "id": "odile_port_discovery",
+        "title_fr": "Le port d'Odile",
+        "characters": [
+          "user",
+          "amelie_dubreuil",
+          "romy_tremblay"
+        ],
+        "grounded_in": "p:polaroid_port",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "The learner shows the Polaroid to Romy; Romy convinces the learner to fly to Fort‑de‑France to see if the quay in the photo can be matched and if anyone remembers Odile.",
+            "sets": {
+              "user.searches_odile": true,
+              "romy.committed_trip": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "At the harbour and with Amélie, small memories collide: names, a scarred dockhand, and objects that don't match Odile's Paris life, making the connection puzzling.",
+            "sets": {
+              "amelie.remembers_odile": true,
+              "user.confused": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "Amélie's albums reveal a photographed street name and a recipe card addressed to 'Odile' from the early 1970s — a clear link but not the 'L.' the learner seeks.",
+            "sets": {
+              "user.found_clue": true,
+              "amelie.shared_album": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "cooking_competition",
+        "title_fr": "Le goût du Mistral",
+        "characters": [
+          "user",
+          "chef_anais",
+          "margaux_barman"
+        ],
+        "grounded_in": "c:carte_mistral",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Margaux asks the learner to represent Le Mistral at a Martinique pop‑up contest to win funds and authentic dishes for the new menu; Anaïs invites the learner to train in her kitchen.",
+            "sets": {
+              "margaux.wants_menu_redo": true,
+              "user.competition": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "The learner struggles with new techniques and unfamiliar spices under Anaïs's strict coaching while Romy captures the practice for her documentary.",
+            "sets": {
+              "user.learns_recipe": true,
+              "chef_anais.strict": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "In the competition service the learner plates a dish inspired by Odile's recipe card and the market finds; the result wins a judged prize and the attention Margaux needs.",
+            "sets": {
+              "user.won_prize": true,
+              "margaux.received_funds": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "gus_letter",
+        "title_fr": "La lettre de Gus",
+        "characters": [
+          "augustin_de_roncourt",
+          "user",
+          "notaire_bertrand"
+        ],
+        "grounded_in": "p:lettre_gus",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Gus reveals the foreign‑stamped letter he wouldn't open and follows the learner to Martinique to have the local notary read the document.",
+            "sets": {
+              "gus.received_letter": true,
+              "user.supports_gus": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "The letter's language and legalese force Gus to confront old family ties and a decision about a small inherited parcel — but the paper is ambiguous.",
+            "sets": {
+              "gus.uncertain": true,
+              "notaire_bertrand.prepares_translation": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "The notary explains the letter: a modest land claim with sentimental value, not the dramatic inheritance Gus feared; Gus must choose whether to keep a connection or let it go.",
+            "sets": {
+              "gus.opened_letter": true,
+              "gus.inherited_land": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "romys_doc",
+        "title_fr": "La voix de Romy",
+        "characters": [
+          "romy_tremblay",
+          "user",
+          "chef_anais"
+        ],
+        "grounded_in": "b:documentaire",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Romy asks the learner to be the French voice and on‑site narrator for her documentary, capturing recipes, port sounds, and small interviews.",
+            "sets": {
+              "romy.benefits_from_user": true,
+              "user.narration_agreed": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "Field recordings surface contradictory memories about Odile — some recall her as an islander, others as a Parisian — and Romy worries about which story to air.",
+            "sets": {
+              "romy.conflicted": true,
+              "user.hears_conflict": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "Romy assembles a short radio segment that links the Polaroid and a market recipe, which airs and gives the learner a public thread back to Paris and to Margaux.",
+            "sets": {
+              "romy.aired_segment": true,
+              "user.narrated": true
+            }
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "text": "Who was Odile, and how does the port photograph fit into her life?",
+        "text_fr": "Qui était Odile, et pourquoi le Polaroid montre un port ?",
+        "grounded_in": "thread:s1:0"
+      },
+      {
+        "text": "Find the painter 'L.' before the landlord's birthday as promised.",
+        "text_fr": "Tu dois retrouver le peintre « L. » avant l'anniversaire du propriétaire.",
+        "grounded_in": "b:peintre_l"
+      },
+      {
+        "text": "Help Margaux remake Le Mistral's menu with the new recipes you bring back.",
+        "text_fr": "Aide Margaux à refaire la carte du Mistral avec mes recettes.",
+        "grounded_in": "c:carte_mistral"
+      },
+      {
+        "text": "What is in Gus's foreign-stamped letter and how will he choose to respond?",
+        "text_fr": "Que dit la lettre de Gus et que va‑t‑il décider ?",
+        "grounded_in": "p:lettre_gus"
+      }
+    ],
+    "setting": {
+      "city": "Fort-de-France",
+      "region": "Martinique, Antilles françaises",
+      "neighborhood": "Le front de mer, marché central et les rues anciennes du centre",
+      "genre": "cooking competition / culinary road-trip",
+      "tone": "vibrant, warm, a little nervous — island rhythms, close conversations, and clean stakes",
+      "situation": "You travel to Fort‑de‑France to follow a Polaroid of Odile and to enter a local cooking competition that can fund the menu for Le Mistral; Romy records a documentary and Gus chases a foreign letter.",
+      "situation_fr": "Vous allez à Fort‑de‑France pour chercher un indice sur Odile et pour participer à un concours de cuisine.",
+      "why": "grounded in p:polaroid_port — the Polaroid dated 1971 is a port scene that matches a street name Odile once wrote about; it pulls the learner to Fort‑de‑France to seek people and tastes who knew her, and the c:carte_mistral commitment makes a competitive trip urgent.",
+      "grounded_in": "p:polaroid_port",
+      "travelling_cast": [
+        "romy_tremblay",
+        "augustin_de_roncourt"
+      ],
+      "keep_locations": [
+        "le_mistral",
+        "odile_flat"
+      ]
+    },
+    "places": [
+      {
+        "id": "marche_central_fdf",
+        "name_fr": "Le marché central",
+        "kind": "market",
+        "description": "A crowded, fragrant central market where local vendors sell spices, fresh fish, fruits and street snacks; the learner goes here to collect flavours and recordings for Margaux's new menu and Romy's documentary.",
+        "brief": "Rows of wooden stalls, woven baskets of yellow bananas and oranges, hanging bunches of scallions and peppers; early golden light through open shutters; a dusting of bright spice powder on worn stone."
+      },
+      {
+        "id": "quai_port_fdf",
+        "name_fr": "Le quai du port",
+        "kind": "quay",
+        "description": "The harbour quay where small fishing boats and ferries lie at anchor; a place for the learner to match the Polaroid's view and to meet older sailors who remember 1971.",
+        "brief": "Low blue boats tied to rusted rings, a concrete jetty with chipped paint, an oil-sheen reflection of colourful hulls; late-afternoon light slanting across the water."
+      },
+      {
+        "id": "kitchen_cheffe_anais",
+        "name_fr": "La cuisine d'Anaïs",
+        "kind": "kitchen",
+        "description": "A lively open kitchen where Chef Anaïs runs the competition pop-up: tests, quick lessons, and a final service where the learner must plate a Martinican‑inspired dish.",
+        "brief": "A large metal workbench with steam rising from a pot, stacks of palm‑leaf plates, walls lined with hanging ladles and spice jars; warm, humid light from high windows."
+      },
+      {
+        "id": "home_maison_dubreuil",
+        "name_fr": "La maison des Dubreuil",
+        "kind": "home",
+        "description": "A compact family home inland where Amélie Dubreuil keeps old photographs and letters that may explain Odile's port image; intimate conversations and a slow, careful reveal occur here.",
+        "brief": "A low veranda with a faded sewing machine, a table cluttered with black‑and‑white photos and an enamel teapot, soft morning light over wooden shutters."
+      },
+      {
+        "id": "studio_prod",
+        "name_fr": "Le studio du tournage",
+        "kind": "studio",
+        "description": "A small recording studio used by Romy to compile field recordings and interviews for her radio documentary; a place for careful listening and the first draft of a broadcast segment.",
+        "brief": "A table with a recorder, headphones and a small mixing console, foam panels on the walls, late‑afternoon window light pooling on a script."
+      }
+    ],
+    "new_characters": [
+      {
+        "id": "amelie_dubreuil",
+        "name": "Amélie Dubreuil",
+        "gender": "f",
+        "role": "Cousin of Odile (or close family friend) who lives in Fort‑de‑France and keeps albums and small objects; she becomes the learner's informal guide to local memories.",
+        "personality": "Quiet, careful, generous with objects but cautious about words; remembers details and protects old wounds.",
+        "wants": "To keep family memories intact and to decide what to tell a visitor from Paris.",
+        "speech_pattern": "Speaks slowly, uses local expressions and small stories; often pauses to find the right word.",
+        "register_with_user": "vous",
+        "grounded_in": "p:polaroid_port",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "oval",
+          "skin": "tan",
+          "hair": "bun",
+          "hair_colour": "dark_brown",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "dress",
+          "top_colour": "ochre",
+          "bottom_colour": "stone",
+          "accessory": "earrings",
+          "accessory_colour": "navy",
+          "idle": "sway"
+        }
+      },
+      {
+        "id": "chef_anais",
+        "name": "Anaïs Fontaine",
+        "gender": "f",
+        "role": "Local chef and the face of the cooking competition; she runs lessons, sets the challenges, and becomes a strict but fair coach to the learner.",
+        "personality": "Brisk, theatrical in the kitchen, with a deep love for local ingredients and exacting standards.",
+        "wants": "To celebrate Martinican flavours on a national stage and to mentor a cook who respects the island's food history.",
+        "speech_pattern": "Rapid, commanding in instruction; uses culinary terms and playful encouragement.",
+        "register_with_user": "tu",
+        "grounded_in": "c:carte_mistral",
+        "rig": {
+          "build": "slim",
+          "height": "short",
+          "head": "round",
+          "skin": "warm",
+          "hair": "cropped",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "apron",
+          "top_colour": "red",
+          "bottom_colour": "navy",
+          "accessory": "cap",
+          "accessory_colour": "navy",
+          "idle": "bounce"
+        }
+      },
+      {
+        "id": "notaire_bertrand",
+        "name": "Bertrand Morel",
+        "gender": "m",
+        "role": "Local notary who contacts Gus about the foreign‑stamped letter and helps him understand the legal paper trail in Martinique.",
+        "personality": "Courteous, precise, quietly amused by Parisian dramas; professional and discreet.",
+        "wants": "To do his duty and to explain inheritance and land rules clearly.",
+        "speech_pattern": "Formal, clear, uses legal phrases but translates them gently.",
+        "register_with_user": "vous",
+        "grounded_in": "p:lettre_gus",
+        "rig": {
+          "build": "broad",
+          "height": "tall",
+          "head": "square",
+          "skin": "light",
+          "hair": "short",
+          "hair_colour": "grey",
+          "facial_hair": "moustache",
+          "glasses": "square",
+          "top": "jacket",
+          "top_colour": "charcoal",
+          "bottom_colour": "stone",
+          "accessory": "none",
+          "accessory_colour": "stone",
+          "idle": "nod"
+        }
+      }
+    ]
+  },
+  "review": {
+    "accepted": false,
+    "grows_from_material": false,
+    "fresh": true,
+    "issues": [
+      "Le fil «Retrouver le peintre ‘L.’ avant l'anniversaire du propriétaire» (b:peintre_l / thread grounded_in) n'est pas réellement poursuivi dans la proposition. Le material exige que cette promesse faite à M. Marchand soit motivée et qu'on la cherche ; la saison choisit de «ne jamais trouver» le nom, mais elle ne met pas en scène la recherche promise (et la contrainte temporelle — l'anniversaire — n'apparaît pas).",
+      "Plus généralement : la règle «every arc, every thread AND the setting itself grow from the material row each one names» n'est pas respectée pour au moins une thread ouverte (la recherche du peintre L.). Parce qu'une thread existante attend d'être tirée, l'omission fait échouer grows_from_material.",
+      "Attention au fil narratif «Qui était Odile?» : la proposition affirme qu'on n'obtient jamais le nom secret (ce qui respecte la règle selon le canon), mais il faut montrer explicitement que la recherche du peintre L. et les questions sur la rue de Lancry sont activement poursuivies et mises en échec — sinon la saison ressemble à un prélude qui ignore les promesses du matériel.",
+      "Langue/face-learner : la nouvelle situation (Martinique, accents locaux, expressions créoles, chefs qui s'expriment vite) risque de créer des passages difficiles pour des apprenants A2. Il faudra concevoir dialogues et écoutes avec un français clair, contrôlé et didactique (versions ralenties, répétitions, transcriptions) afin de rester «natural A2 learner-facing French».",
+      "Petit note pratique : la proposition fait beaucoup avec un déplacement lointain et des nouveaux personnages (Amélie, Anaïs, notaire); il faudra expliciter les liens motivant chaque personne à accompagner/le suivre (par ex. pourquoi Gus accepte de suivre la lettre jusqu'en Martinique), pour que chaque déplacement soit clairement tiré par un plant/branch du material."
+    ]
+  },
+  "refused": "critic",
+  "details": null,
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 14636,
+      "cost_usd": 0.01744,
+      "seconds": 52.755
+    },
+    {
+      "stage": "SeasonReview",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 7457,
+      "cost_usd": 0.00391,
+      "seconds": 7.088
+    }
+  ],
+  "world": null,
+  "interlude": {
+    "since": "2026-12-20",
+    "returns_on": "2027-01-03",
+    "reason_fr": "Entre deux saisons : l'histoire reprend le 3 janvier."
+  }
+}

@@ -336,7 +336,9 @@ def test_the_writer_drafts_season_four_from_this_life_or_names_the_interlude(
         assert engine.season_situation(world)["open_threads_fr"] == ["Le pain arrivera-t-il ?"] * 3
     else:
         # An invented premise is refused before the critic; a refused one is not used.
-        assert fake.calls == (["SeasonDraft"] if not ground else ["SeasonDraft", "SeasonReview"])
+        # WP-168: a season that may move gets one retry with the refusal's reasons.
+        attempts = season_writer.MOVING_ATTEMPTS if settings.ATELIER_SEASON_WRITER_MAY_MOVE else 1
+        assert fake.calls == (["SeasonDraft"] if not ground else ["SeasonDraft", "SeasonReview"]) * attempts
         assert live["interlude"]["returns_on"] == "2027-01-24"
         assert thread.world_bible["season_number"] == 3
 

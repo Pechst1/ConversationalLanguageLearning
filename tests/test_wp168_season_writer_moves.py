@@ -363,7 +363,7 @@ def test_a_move_with_no_material_behind_it_is_refused_before_the_critic(monkeypa
     director = MovingDirector(lambda material: moving_draft(material, setting_row="invented:sunny_south"))
     monkeypatch.setattr(engine, "_client", lambda: director)
     thread, live, rolled = roll(director)
-    assert rolled is False and director.calls == ["SeasonDraft"]
+    assert rolled is False and director.calls == ["SeasonDraft"] * season_writer.MOVING_ATTEMPTS
     assert thread.world_bible["setting"]["city"] == "Paris"
     assert live["interlude"]["returns_on"] == "2027-01-03"
 
@@ -376,9 +376,11 @@ def test_the_critic_judges_both_the_material_and_the_freshness(monkeypatch, grow
     world = season_world_bible("s1")
     live = finished_life("garder")
     assert season_writer.draft_next_season(live=live, world=world, next_season=2, record=record) is None
-    assert director.calls == ["SeasonDraft", "SeasonReview"] and record["refused"] == "critic"
+    assert director.calls == ["SeasonDraft", "SeasonReview"] * 2 and record["refused"] == "critic"
     assert record["review"]["grows_from_material"] is grows and record["review"]["fresh"] is fresh
     assert director.payloads[1]["proposal"]["setting"]["city"] == "Marseille", "the critic reads the move"
+    # The one retry answers the critic: its reasons travel with the second draft's payload.
+    assert director.payloads[2]["previous_attempt_refused"]["city"] == "Marseille"
 
 
 @pytest.mark.parametrize(
@@ -396,7 +398,8 @@ def test_the_canon_guards_hold_in_a_moved_season(monkeypatch, change, reason):
     assert season_writer.draft_next_season(
         live=finished_life("partager"), world=season_world_bible("s1"), next_season=2, record=record
     ) is None
-    assert record["refused"] == reason and director.calls == ["SeasonDraft"]
+    assert record["refused"] == reason and director.calls == ["SeasonDraft"] * season_writer.MOVING_ATTEMPTS
+    assert reason in director.payloads[1]["previous_attempt_refused"]["reasons"]
 
 
 def test_a_relative_keeps_the_family_name(monkeypatch):
@@ -506,3 +509,44 @@ def test_every_season_prompt_names_json():
     for prompt in (season_writer.SEASON_WRITER, season_writer.SEASON_CRITIC,
                    season_writer.SEASON_WRITER_MOVING, season_writer.SEASON_CRITIC_MOVING):
         assert "json" in prompt.lower()
+
+
+def test_a_moving_writer_gets_a_random_dare():
+    from app.services import season_writer as writer
+
+    dares = {tuple(writer.compass().values()) for _ in range(40)}
+    assert len(dares) > 5, "the dare is drawn at random, not seeded"
+    for place, genre in dares:
+        assert place in writer.COMPASS_PLACES and genre in writer.COMPASS_GENRES
+    assert "`dare`" in writer.SEASON_WRITER_MOVING
+
+
+def test_a_hyphenated_new_face_id_is_repaired_with_its_arcs():
+    from app.services import season_writer as writer
+
+    assert writer._slugify_id("Marie-Jo_Boudreau") == "marie_jo_boudreau"
+    assert writer._slugify_id("Zoé  N'Diaye") == "zoe_n_diaye"
+
+
+def test_prose_past_a_limit_is_clipped_not_refused():
+    from app.services import season_writer as writer
+
+    why = "Romy wants French voices for her documentary. " * 10
+    setting = writer.SettingDraft.model_validate(
+        {
+            "city": "Shediac",
+            "genre": "slice of life",
+            "situation": "A summer recording Acadian voices for Romy.",
+            "situation_fr": "Tu passes l'été en Acadie.",
+            "why": why,
+            "grounded_in": "promise:marchand",
+        }
+    )
+    assert len(setting.why) <= 300 and setting.why.endswith(".")
+    assert writer._clip_prose("one two three four five six", 12) == "one two"
+
+
+def test_a_colon_in_an_arc_id_is_repaired():
+    from app.services import season_writer as writer
+
+    assert writer._slugify_id("arc:follow_the_polaroid") == "arc_follow_the_polaroid"

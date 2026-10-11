@@ -1,0 +1,715 @@
+{
+  "ending": "garder",
+  "rolled": true,
+  "seconds": 58.8,
+  "material": [
+    {
+      "id": "p:polaroid_port",
+      "kind": "plant",
+      "text_fr": "Dans le tiroir d'Odile, un Polaroid : un port, des bateaux, et « 1971 » au dos.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "b:peintre_l",
+      "kind": "branch",
+      "text_fr": "Vous avez promis à M. Marchand de retrouver le peintre « L. » avant son anniversaire.",
+      "character_id": "landlord_marchand"
+    },
+    {
+      "id": "c:carte_mistral",
+      "kind": "commitment",
+      "text_fr": "Aider Margaux à refaire la carte du Mistral avant le printemps.",
+      "character_id": "margaux_barman"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:marchand.sundays",
+      "kind": "flag",
+      "text_fr": "marchand.sundays = True",
+      "character_id": null
+    },
+    {
+      "id": "p:lettre_gus",
+      "kind": "plant",
+      "text_fr": "Gus a reçu une lettre d'un notaire, avec un timbre étranger, et il ne l'ouvre pas.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "b:documentaire",
+      "kind": "branch",
+      "text_fr": "Romy vous a demandé d'être la voix française de son documentaire radio.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = garder",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = keep",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "The learner kept Odile's flat above Le Mistral and lives there now.",
+      "Le Mistral is exactly as it was; Margaux runs it alone, on a nine-year lease.",
+      "M. Marchand left the building for a residence without stairs; Solvel owns his floors, he kept the café's walls.",
+      "Only four people know Odile's notebook page; Gus knows nothing of it.",
+      "The painting «Le Mistral sur le canal» is with the learner; its back reads «Pour Odile, qui part. — L., 1970» and «Toujours rue de Lancry. — L., 2021».",
+      "Marin has put his co-op folder in a drawer.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it.",
+      "M. Marchand comes to Sunday lunch at the learner's, by the 46 bus, as he did at Odile's.",
+      "Romy gave the learner the memory card with Margaux's admission, without a word."
+    ],
+    "closed_locations": []
+  },
+  "draft": {
+    "title_fr": "Le goût d'Odile",
+    "logline": "After a Polaroid and a promise, the learner follows a trail from Paris to Papeete: they enter a Tahitian cooking competition to meet locals, help Romy record a radio documentary, and chase clues about the painter L. and Gus's mysterious foreign letter — all while deciding what Odile's life means to them.",
+    "logline_fr": "Vous partez à Papeete pour chercher L. et participer à un concours de cuisine.",
+    "your_arc": "You go because you promised to find the painter L.; the season is about turning a private promise into a public, messy search: you learn to ask strangers, to hold a friend's secrets, and to come home with a different sense of what 'keeping' someone means.",
+    "first_episode_seed": "You find the Polaroid of a sunlit port in Odile's drawer (1971) and remember your promise to M. Marchand to find the painter 'L.' Romy recognizes the harbour as Tahiti; at the same time Gus receives a letter with a foreign stamp. You decide to fly: Romy as recorder and Gus (reluctant) come with you; a local chef invites you to the island cooking contest that will open doors.",
+    "arcs": [
+      {
+        "id": "recherche_l",
+        "title_fr": "Chercher L.",
+        "characters": [
+          "user",
+          "romy_tremblay",
+          "mana_teiva"
+        ],
+        "grounded_in": "b:peintre_l",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "A Polaroid (1971) and the promise to M. Marchand send you to Papeete to look for the painter L.; Mana invites you into the competition as an access point.",
+            "sets": {
+              "user.commitment": "going",
+              "romy.interest": true,
+              "mana_teiva.invite": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "At the market and harbour the memories fragment: people remember an artist, but names shift and the trail cools.",
+            "sets": {
+              "user.frustration": "rising",
+              "mana_teiva.knows": "hesitant",
+              "tiare_manoa.remembers": true
+            }
+          },
+          {
+            "id": "payoff",
+            "summary": "A pensioner at the guesthouse recalls a nickname and points to a boat log — you gain a new clue that keeps the search alive without revealing L.'s identity.",
+            "sets": {
+              "user.clue_found": true,
+              "user.promise_kept": false,
+              "tiare_manoa.shared_memory": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "lettre_gus",
+        "title_fr": "La lettre",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "hikaru_tavita"
+        ],
+        "grounded_in": "p:lettre_gus",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Gus's unopened letter arrives with a foreign stamp and a postmark that points to French Polynesia, giving him a reason to come with you.",
+            "sets": {
+              "augustin_de_roncourt.anxiety": true,
+              "user.trust_in_gus": "tested",
+              "romy.interest": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "A small gallery owner (Hikaru) reads the name on the letter and finds only a traveler's reference number and a 1971 date — the lead seems archival and hard to follow.",
+            "sets": {
+              "hikaru_tavita.offer_help": true,
+              "augustin_de_roncourt.fear": "old_secret",
+              "user.patience": "tested"
+            }
+          },
+          {
+            "id": "payoff",
+            "summary": "Gus decides to open the letter in Papeete; it contains a postcard and a penciled line that points to a boat and a date, but not a name — Gus keeps part of the revelation to himself.",
+            "sets": {
+              "augustin_de_roncourt.opens_letter": true,
+              "user.knows_partial": true,
+              "hikaru_tavita.catalogued": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "documentaire",
+        "title_fr": "La voix de Romy",
+        "characters": [
+          "user",
+          "romy_tremblay",
+          "tiare_manoa"
+        ],
+        "grounded_in": "b:documentaire",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Romy asks you to be the French voice of her radio documentary; recording in market kitchens brings private memories about Odile into the open.",
+            "sets": {
+              "romy.recording": true,
+              "user.voice_confidence": "low",
+              "tiare_manoa.story_ready": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "Romy hears a recording that could change how friends see Odile; she hesitates to broadcast something that would hurt people back in Paris.",
+            "sets": {
+              "romy.moral_dilemma": true,
+              "user.responsibility": "growing",
+              "marin_leveque.concerned": true
+            }
+          },
+          {
+            "id": "payoff",
+            "summary": "Romy crafts a piece that honors Odile's wandering life without naming private betrayals; the documentary gives you a public image of Odile that helps you feel less alone.",
+            "sets": {
+              "romy.piece_broadcast": true,
+              "user.feels_understood": true,
+              "user.voice_confidence": "growing"
+            }
+          }
+        ]
+      },
+      {
+        "id": "choix_chez_odile",
+        "title_fr": "Rester ou partir",
+        "characters": [
+          "user",
+          "marin_leveque"
+        ],
+        "grounded_in": "thread:s1:0",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "The Polaroid and seaside conversations make you wonder who Odile was beyond Paris and whether her life included leaving for good.",
+            "sets": {
+              "user.home_torn": true,
+              "romy.supportive": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "Being far from the flat and in a bright new place, you feel the pull of adventure and the pull of the home you already kept.",
+            "sets": {
+              "user.longing": "split",
+              "marin_leveque.advice": "steady"
+            }
+          },
+          {
+            "id": "payoff",
+            "summary": "You return to Paris with a new picture of Odile's life — not answers to everything, but a feeling that keeping the flat was the right choice for now.",
+            "sets": {
+              "user.decision": "stay_in_paris",
+              "user.acceptance": true,
+              "user.curiosity": "renewed"
+            }
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "text": "Find the painter called 'L.' before M. Marchand's birthday; local nicknames, boat logs, and gallery notes may point the way.",
+        "text_fr": "Je dois trouver le peintre L. avant l'anniversaire de M. Marchand.",
+        "grounded_in": "b:peintre_l"
+      },
+      {
+        "text": "Open and decipher Gus's foreign-stamped letter: it contains a postcard and a coded note with a 1971 date.",
+        "text_fr": "La lettre de Gus a un timbre étranger; je dois l'ouvrir.",
+        "grounded_in": "p:lettre_gus"
+      },
+      {
+        "text": "Record Romy's documentary material in Tahiti without exposing friends back in Paris; choose what to say on air.",
+        "text_fr": "Je suis la voix française du documentaire de Romy.",
+        "grounded_in": "b:documentaire"
+      },
+      {
+        "text": "Who was Odile, and where did she go when she left Paris? The Polaroid and island stories give pieces but no final name.",
+        "text_fr": "Qui était Odile et où elle est partie ?",
+        "grounded_in": "thread:s1:0"
+      }
+    ],
+    "setting": {
+      "city": "Papeete",
+      "region": "Tahiti, French Polynesia",
+      "neighborhood": "the harbour, market and guesthouses near the foreshore",
+      "genre": "culinary competition + light mystery",
+      "tone": "sunny, tense, curious — reality-competition energy with intimate questions",
+      "situation": "You travel to Papeete to follow clues about the painter L., to keep your promise to M. Marchand, and you enter a local cooking competition to meet people who knew Odile.",
+      "situation_fr": "Vous allez à Papeete pour chercher L. et participer à un concours de cuisine.",
+      "why": "The material promise to M. Marchand (b:peintre_l) and a Polaroid of a port (p:polaroid_port) point to an overseas harbour; the promise forces you to go before his birthday and the Polaroid + Gus's foreign-stamped letter make Tahiti the plausible lead.",
+      "grounded_in": "b:peintre_l",
+      "travelling_cast": [
+        "romy_tremblay",
+        "augustin_de_roncourt"
+      ],
+      "keep_locations": [
+        "le_mistral",
+        "user_apartment"
+      ]
+    },
+    "places": [
+      {
+        "id": "marche_papeete",
+        "name_fr": "Le marché de Papeete",
+        "kind": "market",
+        "description": "A busy open-air market by the harbour where fishermen, produce sellers and artisans meet; characters ask questions, trade memories, and find small paper clues or old photos.",
+        "brief": "Rows of wooden stalls under woven sunshades; piles of papaya and taro, hanging fish, a string of coloured flags; warm early-morning light and wet, glinting stone floors."
+      },
+      {
+        "id": "harbour_papeete",
+        "name_fr": "Le port de Papeete",
+        "kind": "harbour",
+        "description": "The port where the Polaroid seems to have been taken — small boats, freight activity and a sleepy quay that holds local gossip and older travellers who might have known Odile or L.",
+        "brief": "A corrugated pier with moored pirogues, a concrete quay stained by salt, ropes and a faded sign with peeling paint; strong mid-morning sun and reflective water."
+      },
+      {
+        "id": "restaurant_arene",
+        "name_fr": "La cuisine-arène",
+        "kind": "restaurant",
+        "description": "A pop-up competition kitchen turned arena (open to the public) where contestants cook Tahitian dishes on camera; a place to meet food people who tell stories and to record Romy's sound bites.",
+        "brief": "A long stainless-steel counter under studio lights, plastic crates of fruit at the back, a scoreboard on the wall, late-afternoon golden light through high windows."
+      },
+      {
+        "id": "pension_nui",
+        "name_fr": "La pension Nui",
+        "kind": "home",
+        "description": "A modest guesthouse on a side street where old students, sailors and ex-pat artists sometimes live; it gives a private nook where an elderly witness can recall a nickname without naming L.",
+        "brief": "A narrow white house with a wooden veranda, a hammock tied to two posts, jars of dried fish on a shelf, dusk cooling the painted shutters."
+      },
+      {
+        "id": "plage_moorea",
+        "name_fr": "La plage de Moorea",
+        "kind": "beach",
+        "description": "An atoll a short boat ride away — quiet, with an older painter's colony vibe; a place for a decisive, sunlit conversation that reframes Odile's past without revealing L.'s identity.",
+        "brief": "Shallow turquoise lagoon, a leaning coconut palm, a small reef visible in transparent water; late-afternoon sun at slant, soft sand."
+      }
+    ],
+    "new_characters": [
+      {
+        "id": "mana_teiva",
+        "name": "Mana Teiva",
+        "gender": "f",
+        "role": "Local chef and producer of the island's popular cooking contest; she invites the learner to compete as a way to meet island storytellers.",
+        "personality": "Direct, warm, loves to teach; likes people who cook with memory.",
+        "wants": "To showcase Tahitian cooks and to discover the island stories behind recipes.",
+        "speech_pattern": "Clear French with Tahitian turns of phrase; she speaks firmly and punctuates sentences with small local words.",
+        "register_with_user": "vous",
+        "grounded_in": "p:polaroid_port",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "oval",
+          "skin": "tan",
+          "hair": "bun",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "apron",
+          "top_colour": "ochre",
+          "bottom_colour": "stone",
+          "accessory": "necklace",
+          "accessory_colour": "red",
+          "idle": "sway"
+        }
+      },
+      {
+        "id": "hikaru_tavita",
+        "name": "Hikaru Tavita",
+        "gender": "m",
+        "role": "Small gallery owner and restorer who occasionally handles older travel photographs and paintings and who recognizes the style on the back of the Mistral painting.",
+        "personality": "Careful, slightly theatrical, loves provenance stories; he follows paper trails.",
+        "wants": "To document the island's artistic exchanges and to make a small catalogue of visiting painters.",
+        "speech_pattern": "Measured French with a habit of naming colours and dates; precise and knowingly playful.",
+        "register_with_user": "vous",
+        "grounded_in": "p:lettre_gus",
+        "rig": {
+          "build": "slim",
+          "height": "tall",
+          "head": "long",
+          "skin": "olive",
+          "hair": "short",
+          "hair_colour": "dark_brown",
+          "facial_hair": "stubble",
+          "glasses": "square",
+          "top": "jacket",
+          "top_colour": "navy",
+          "bottom_colour": "slate",
+          "accessory": "earrings",
+          "accessory_colour": "cream",
+          "idle": "nod"
+        }
+      },
+      {
+        "id": "tiare_manoa",
+        "name": "Tiare Manoa",
+        "gender": "x",
+        "role": "Fisher and small-time seller of old photos and postcards at the market; remembers an artist who painted boats and who sometimes traded paintings for meals.",
+        "personality": "Practical, affectionate, speaks in anecdotes; loves to barter stories as much as goods.",
+        "wants": "To keep a small memory economy alive — photos, recipes, and names.",
+        "speech_pattern": "Informal French with island rhythm; quick, economical sentences.",
+        "register_with_user": "tu",
+        "grounded_in": "p:polaroid_port",
+        "rig": {
+          "build": "broad",
+          "height": "short",
+          "head": "round",
+          "skin": "deep",
+          "hair": "braids",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "shirt",
+          "top_colour": "sky",
+          "bottom_colour": "cream",
+          "accessory": "headwrap",
+          "accessory_colour": "yellow",
+          "idle": "bob"
+        }
+      }
+    ]
+  },
+  "review": {
+    "accepted": true,
+    "grows_from_material": true,
+    "fresh": true,
+    "issues": [
+      "Do not reveal the identity of « L. ». The canon explicitly reserves that answer for the next authored season; the proposal correctly promises not to reveal it, but this must be enforced in all payoff scenes.",
+      "Careful with Gus's new knowledge: canon says Gus knows nothing of Odile's notebook page. The season may show Gus learning archival facts or receiving a letter (p:lettre_gus) but must not retroactively make him aware of the notebook or its contents.",
+      "The Café question from season 1 is closed. The proposal keeps Le Mistral and the flat and does not reopen the save/change/leave debate — maintain that closure in all Paris scenes (no new sale-threat or co‑op arc).",
+      "Genre and location jump (Paris → Papeete, culinary competition) are strong and welcome for freshness, but they reduce time in the established Paris locations and with the familiar slice-of-life tone. Ensure the learner still has regular, explicit linguistic and social returns to Le Mistral / the apartment so A2 learners keep anchor vocabulary and recurring characters.",
+      "Register and dialect: island characters have Tahitian turns and different registers (tu/vous). The materials must scaffold these differences for A2 learners (glosses, repetition, simpler intermediary lines) so that comprehension stays learner-facing.",
+      "Practical timing: the promise to find L. before M. Marchand's birthday must remain a believable deadline in-story (travel time, logistics). The season should show the learner's motivation pulled from the material (b:peintre_l and p:polaroid_port) clearly in early episodes so the move to Tahiti feels demanded, not optional.",
+      "Romy's moral dilemma about what to broadcast (b:documentaire) is well-grounded but sensitive: avoid a forced public betrayal of friends. Keep Romy's reluctance and editorial care consistent with canon ('she does not want to publish the thing that breaks her friends').",
+      "Keep Lila absent from Paris scenes (canon: Lila left for Berlin and is never in Paris scenes). The proposal does not reintroduce her physically — maintain that constraint."
+    ]
+  },
+  "refused": null,
+  "details": null,
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 14646,
+      "cost_usd": 0.017396,
+      "seconds": 51.148
+    },
+    {
+      "stage": "SeasonReview",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 7574,
+      "cost_usd": 0.003969,
+      "seconds": 7.671
+    }
+  ],
+  "world": {
+    "season_number": 2,
+    "season_source": "written",
+    "world_bible_version": "papeete-s2-written",
+    "title_fr": "Le goût d'Odile",
+    "logline": "After a Polaroid and a promise, the learner follows a trail from Paris to Papeete: they enter a Tahitian cooking competition to meet locals, help Romy record a radio documentary, and chase clues about the painter L. and Gus's mysterious foreign letter — all while deciding what Odile's life means to them.",
+    "season_logline_fr": "Vous partez à Papeete pour chercher L. et participer à un concours de cuisine.",
+    "setting": {
+      "city": "Papeete",
+      "previous_city": "Paris",
+      "region": "Tahiti, French Polynesia",
+      "neighborhood": "the harbour, market and guesthouses near the foreshore",
+      "genre": "culinary competition + light mystery",
+      "tone": "sunny, tense, curious — reality-competition energy with intimate questions",
+      "situation": "You travel to Papeete to follow clues about the painter L., to keep your promise to M. Marchand, and you enter a local cooking competition to meet people who knew Odile."
+    },
+    "places": [
+      {
+        "id": "marche_papeete",
+        "name_fr": "Le marché de Papeete",
+        "type": "market",
+        "description": "A busy open-air market by the harbour where fishermen, produce sellers and artisans meet; characters ask questions, trade memories, and find small paper clues or old photos.",
+        "brief": "Le marché de Papeete, Papeete: Rows of wooden stalls under woven sunshades; piles of papaya and taro, hanging fish, a string of coloured flags; warm early-morning light and wet, glinting stone floors.",
+        "plate_id": "w-marche_papeete-dc1c9912",
+        "stand_in": "marche_canal"
+      },
+      {
+        "id": "harbour_papeete",
+        "name_fr": "Le port de Papeete",
+        "type": "harbour",
+        "description": "The port where the Polaroid seems to have been taken — small boats, freight activity and a sleepy quay that holds local gossip and older travellers who might have known Odile or L.",
+        "brief": "Le port de Papeete, Papeete: A corrugated pier with moored pirogues, a concrete quay stained by salt, ropes and a faded sign with peeling paint; strong mid-morning sun and reflective water.",
+        "plate_id": "w-harbour_papeete-fa14e53f",
+        "stand_in": "quai_de_valmy"
+      },
+      {
+        "id": "restaurant_arene",
+        "name_fr": "La cuisine-arène",
+        "type": "restaurant",
+        "description": "A pop-up competition kitchen turned arena (open to the public) where contestants cook Tahitian dishes on camera; a place to meet food people who tell stories and to record Romy's sound bites.",
+        "brief": "La cuisine-arène, Papeete: A long stainless-steel counter under studio lights, plastic crates of fruit at the back, a scoreboard on the wall, late-afternoon golden light through high windows.",
+        "plate_id": "w-restaurant_arene-fec2536c",
+        "stand_in": "mistral_back_room"
+      },
+      {
+        "id": "pension_nui",
+        "name_fr": "La pension Nui",
+        "type": "home",
+        "description": "A modest guesthouse on a side street where old students, sailors and ex-pat artists sometimes live; it gives a private nook where an elderly witness can recall a nickname without naming L.",
+        "brief": "La pension Nui, Papeete: A narrow white house with a wooden veranda, a hammock tied to two posts, jars of dried fish on a shelf, dusk cooling the painted shutters.",
+        "plate_id": "w-pension_nui-b9cc2d2d",
+        "stand_in": "user_apartment"
+      },
+      {
+        "id": "plage_moorea",
+        "name_fr": "La plage de Moorea",
+        "type": "beach",
+        "description": "An atoll a short boat ride away — quiet, with an older painter's colony vibe; a place for a decisive, sunlit conversation that reframes Odile's past without revealing L.'s identity.",
+        "brief": "La plage de Moorea, Papeete: Shallow turquoise lagoon, a leaning coconut palm, a small reef visible in transparent water; late-afternoon sun at slant, soft sand.",
+        "plate_id": "w-plage_moorea-c4629935",
+        "stand_in": "buttes_chaumont"
+      }
+    ],
+    "kept_places": [
+      "le_mistral",
+      "user_apartment"
+    ],
+    "new_characters": [
+      {
+        "id": "mana_teiva",
+        "name": "Mana Teiva",
+        "gender": "f",
+        "role": "Local chef and producer of the island's popular cooking contest; she invites the learner to compete as a way to meet island storytellers.",
+        "personality": "Direct, warm, loves to teach; likes people who cook with memory.",
+        "wants": "To showcase Tahitian cooks and to discover the island stories behind recipes.",
+        "speech_pattern": "Clear French with Tahitian turns of phrase; she speaks firmly and punctuates sentences with small local words.",
+        "register_with_user": "vous",
+        "grounded_in": "p:polaroid_port",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "oval",
+          "skin": "tan",
+          "hair": "bun",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "apron",
+          "top_colour": "ochre",
+          "bottom_colour": "stone",
+          "accessory": "necklace",
+          "accessory_colour": "red",
+          "idle": "sway"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "hikaru_tavita",
+        "name": "Hikaru Tavita",
+        "gender": "m",
+        "role": "Small gallery owner and restorer who occasionally handles older travel photographs and paintings and who recognizes the style on the back of the Mistral painting.",
+        "personality": "Careful, slightly theatrical, loves provenance stories; he follows paper trails.",
+        "wants": "To document the island's artistic exchanges and to make a small catalogue of visiting painters.",
+        "speech_pattern": "Measured French with a habit of naming colours and dates; precise and knowingly playful.",
+        "register_with_user": "vous",
+        "grounded_in": "p:lettre_gus",
+        "rig": {
+          "build": "slim",
+          "height": "tall",
+          "head": "long",
+          "skin": "olive",
+          "hair": "short",
+          "hair_colour": "dark_brown",
+          "facial_hair": "stubble",
+          "glasses": "square",
+          "top": "jacket",
+          "top_colour": "navy",
+          "bottom_colour": "slate",
+          "accessory": "earrings",
+          "accessory_colour": "cream",
+          "idle": "nod"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "tiare_manoa",
+        "name": "Tiare Manoa",
+        "gender": "x",
+        "role": "Fisher and small-time seller of old photos and postcards at the market; remembers an artist who painted boats and who sometimes traded paintings for meals.",
+        "personality": "Practical, affectionate, speaks in anecdotes; loves to barter stories as much as goods.",
+        "wants": "To keep a small memory economy alive — photos, recipes, and names.",
+        "speech_pattern": "Informal French with island rhythm; quick, economical sentences.",
+        "register_with_user": "tu",
+        "grounded_in": "p:polaroid_port",
+        "rig": {
+          "build": "broad",
+          "height": "short",
+          "head": "round",
+          "skin": "deep",
+          "hair": "braids",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "shirt",
+          "top_colour": "sky",
+          "bottom_colour": "cream",
+          "accessory": "headwrap",
+          "accessory_colour": "yellow",
+          "idle": "bob"
+        },
+        "written_season": 2
+      }
+    ],
+    "away": {
+      "lila_bonnet": "Stayed in Paris when the story moved to Papeete: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "marin_leveque": "Stayed in Paris when the story moved to Papeete: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "margaux_barman": "Stayed in Paris when the story moved to Papeete: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "landlord_marchand": "Stayed in Paris when the story moved to Papeete: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "camille_marchand": "Stayed in Paris when the story moved to Papeete: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "mme_diallo": "Stayed in Paris when the story moved to Papeete: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "maitre_vasseur": "Stayed in Paris when the story moved to Papeete: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "bastien_roux": "Stayed in Paris when the story moved to Papeete: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there."
+    },
+    "arcs": [
+      {
+        "id": "recherche_l",
+        "title_fr": "Chercher L.",
+        "characters": [
+          "user",
+          "romy_tremblay",
+          "mana_teiva"
+        ],
+        "grounded_in": "b:peintre_l",
+        "stages": [
+          "A Polaroid (1971) and the promise to M. Marchand send you to Papeete to look for the painter L.; Mana invites you into the competition as an access point.",
+          "At the market and harbour the memories fragment: people remember an artist, but names shift and the trail cools.",
+          "A pensioner at the guesthouse recalls a nickname and points to a boat log — you gain a new clue that keeps the search alive without revealing L.'s identity."
+        ]
+      },
+      {
+        "id": "lettre_gus",
+        "title_fr": "La lettre",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "hikaru_tavita"
+        ],
+        "grounded_in": "p:lettre_gus",
+        "stages": [
+          "Gus's unopened letter arrives with a foreign stamp and a postmark that points to French Polynesia, giving him a reason to come with you.",
+          "A small gallery owner (Hikaru) reads the name on the letter and finds only a traveler's reference number and a 1971 date — the lead seems archival and hard to follow.",
+          "Gus decides to open the letter in Papeete; it contains a postcard and a penciled line that points to a boat and a date, but not a name — Gus keeps part of the revelation to himself."
+        ]
+      },
+      {
+        "id": "documentaire",
+        "title_fr": "La voix de Romy",
+        "characters": [
+          "user",
+          "romy_tremblay",
+          "tiare_manoa"
+        ],
+        "grounded_in": "b:documentaire",
+        "stages": [
+          "Romy asks you to be the French voice of her radio documentary; recording in market kitchens brings private memories about Odile into the open.",
+          "Romy hears a recording that could change how friends see Odile; she hesitates to broadcast something that would hurt people back in Paris.",
+          "Romy crafts a piece that honors Odile's wandering life without naming private betrayals; the documentary gives you a public image of Odile that helps you feel less alone."
+        ]
+      },
+      {
+        "id": "choix_chez_odile",
+        "title_fr": "Rester ou partir",
+        "characters": [
+          "user",
+          "marin_leveque"
+        ],
+        "grounded_in": "thread:s1:0",
+        "stages": [
+          "The Polaroid and seaside conversations make you wonder who Odile was beyond Paris and whether her life included leaving for good.",
+          "Being far from the flat and in a bright new place, you feel the pull of adventure and the pull of the home you already kept.",
+          "You return to Paris with a new picture of Odile's life — not answers to everything, but a feeling that keeping the flat was the right choice for now."
+        ]
+      }
+    ],
+    "situation": {
+      "your_arc": "You go because you promised to find the painter L.; the season is about turning a private promise into a public, messy search: you learn to ask strangers, to hold a friend's secrets, and to come home with a different sense of what 'keeping' someone means.",
+      "open_threads": [
+        "Find the painter called 'L.' before M. Marchand's birthday; local nicknames, boat logs, and gallery notes may point the way.",
+        "Open and decipher Gus's foreign-stamped letter: it contains a postcard and a coded note with a 1971 date.",
+        "Record Romy's documentary material in Tahiti without exposing friends back in Paris; choose what to say on air.",
+        "Who was Odile, and where did she go when she left Paris? The Polaroid and island stories give pieces but no final name."
+      ],
+      "open_threads_fr": [
+        "Je dois trouver le peintre L. avant l'anniversaire de M. Marchand.",
+        "La lettre de Gus a un timbre étranger; je dois l'ouvrir.",
+        "Je suis la voix française du documentaire de Romy.",
+        "Qui était Odile et où elle est partie ?"
+      ],
+      "first_episode_seed": "You find the Polaroid of a sunlit port in Odile's drawer (1971) and remember your promise to M. Marchand to find the painter 'L.' Romy recognizes the harbour as Tahiti; at the same time Gus receives a letter with a foreign stamp. You decide to fly: Romy as recorder and Gus (reluctant) come with you; a local chef invites you to the island cooking contest that will open doors."
+    }
+  },
+  "interlude": null
+}
