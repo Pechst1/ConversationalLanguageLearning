@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import unicodedata
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -375,10 +376,25 @@ class SpacyResolver:
         return tuple(out)
 
 
-@lru_cache(maxsize=1)
-def default_resolver() -> LemmaResolver:
-    """spaCy when the model is installed, the curated table otherwise."""
+_RESOLVER_LOCK = threading.Lock()
 
+
+def default_resolver() -> LemmaResolver:
+    """spaCy when the model is installed, the curated table otherwise.
+
+    Loading the spaCy pipeline is the first generated day's largest cost (WP-153:
+    about 3 s of CPU, 7 s under a profiler). ``lru_cache`` alone does not stop five
+    concurrent first requests from each loading their own copy under the GIL, which
+    was most of the walk's 9–14 s silence; the lock makes the others wait for the
+    one load. :func:`app.services.warmup.warm_caches` loads it at start-up.
+    """
+
+    with _RESOLVER_LOCK:
+        return _load_default_resolver()
+
+
+@lru_cache(maxsize=1)
+def _load_default_resolver() -> LemmaResolver:
     try:
         import spacy
 

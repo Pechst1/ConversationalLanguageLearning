@@ -31,3 +31,20 @@ def test_refused_in_production(monkeypatch):
         test_clock.install()
     with pytest.raises(RuntimeError):
         test_clock.set_offset_days(1)
+
+
+def test_the_pinned_clock_holds_every_app_clock_at_noon_utc_and_lets_go(pinned_clock):
+    """WP-153: the suite's pinned clock (tests/conftest.py)."""
+    from app.db.models._clock import app_now
+    from app.services import streak
+
+    assert pinned_clock.hour == 12 and pinned_clock.tzinfo is not None
+    assert abs((app_now() - pinned_clock).total_seconds()) < 60
+    assert streak.datetime.now(dt.UTC).date() == pinned_clock.date()
+
+
+def test_after_the_pinned_clock_the_app_reads_the_real_clock_again():
+    from app.db.models._clock import app_now
+
+    assert abs((app_now() - dt.datetime.now(dt.UTC)).total_seconds()) < 5
+    assert test_clock._offset == dt.timedelta(0)
