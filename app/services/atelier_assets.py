@@ -6,6 +6,7 @@ import json
 import re
 from typing import Any
 
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from app.db.models.atelier import AtelierConceptBlueprint, AtelierLanguagePack
@@ -15,6 +16,9 @@ from app.services.grammar_feedback import infer_grammar_profile
 ATELIER_LANGUAGE_PACK_VERSION = "atelier-language-pack-v1"
 ATELIER_BLUEPRINT_VERSION = "atelier-blueprint-v2"
 ATELIER_BLUEPRINT_PROMPT_VERSION = "atelier-blueprint-template-v2"
+#: pg_advisory_xact_lock key for the language-pack and blueprint seed (any fixed 64-bit
+#: number, distinct from grammar_catalog.CATALOG_SEED_LOCK_KEY).
+BLUEPRINT_SEED_LOCK_KEY = 7_201_610_09
 BLUEPRINT_REQUIRED_KEYS = {
     "display_title",
     "pedagogy",
@@ -112,13 +116,43 @@ class AtelierAssetService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def ensure_language_pack(self, language_code: str = "fr") -> AtelierLanguagePack:
-        code = (language_code or "fr").lower()
-        pack = (
+    def _lock_seed(self) -> bool:
+        """Serialise a seed that has a row to insert, for the rest of this transaction.
+
+        Five first requests to /atelier/today on a fresh database each inserted the
+        same blueprints and four hit uq_atelier_concept_blueprint_version → 500 (WP-153,
+        the 8 October walk). Same rule as the grammar catalogue (3575306): only a
+        missing row takes the lock, and the caller re-reads after it, so a seeded
+        database never waits. The commit that writes the row releases the lock.
+        """
+        if self.db.get_bind().dialect.name != "postgresql":
+            return False
+        self.db.execute(sql_text("SELECT pg_advisory_xact_lock(:key)"), {"key": BLUEPRINT_SEED_LOCK_KEY})
+        return True
+
+    def _existing_language_pack(self, code: str) -> AtelierLanguagePack | None:
+        return (
             self.db.query(AtelierLanguagePack)
             .filter(AtelierLanguagePack.language_code == code, AtelierLanguagePack.version == ATELIER_LANGUAGE_PACK_VERSION)
             .first()
         )
+
+    def _existing_blueprint(self, concept_id: int, language: str) -> AtelierConceptBlueprint | None:
+        return (
+            self.db.query(AtelierConceptBlueprint)
+            .filter(
+                AtelierConceptBlueprint.concept_id == concept_id,
+                AtelierConceptBlueprint.language == language,
+                AtelierConceptBlueprint.asset_version == ATELIER_BLUEPRINT_VERSION,
+            )
+            .first()
+        )
+
+    def ensure_language_pack(self, language_code: str = "fr") -> AtelierLanguagePack:
+        code = (language_code or "fr").lower()
+        pack = self._existing_language_pack(code)
+        if pack is None and self._lock_seed():
+            pack = self._existing_language_pack(code)
         payload = self._language_pack_payload(code)
         metadata = {
             "model": "deterministic-asset-generator",
@@ -164,16 +198,12 @@ class AtelierAssetService:
 
     def ensure_concept_blueprint(self, concept: GrammarConcept) -> AtelierConceptBlueprint:
         language = (concept.language or "fr").lower()
-        existing = (
-            self.db.query(AtelierConceptBlueprint)
-            .filter(
-                AtelierConceptBlueprint.concept_id == concept.id,
-                AtelierConceptBlueprint.language == language,
-                AtelierConceptBlueprint.asset_version == ATELIER_BLUEPRINT_VERSION,
-            )
-            .first()
-        )
+        existing = self._existing_blueprint(concept.id, language)
         source_hash = _concept_source_hash(concept)
+        if existing and existing.source_hash == source_hash and self.validate_blueprint_payload(existing.payload):
+            return existing
+        if existing is None and self._lock_seed():
+            existing = self._existing_blueprint(concept.id, language)
         payload = self.generate_concept_blueprint_payload(concept)
         quality = self.blueprint_quality(payload)
         if not quality["valid"]:

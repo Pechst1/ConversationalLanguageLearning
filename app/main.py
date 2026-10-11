@@ -1,6 +1,7 @@
 """FastAPI application factory."""
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -77,6 +78,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         await run_startup_guard(app, app_env=settings.APP_ENV)
     # --- WP-69 schema guard (end) -----------------------------------------
+
+    # WP-153: the first generated day of a fresh process built the spaCy lemma
+    # pipeline, the core lexicon and the season files on a learner's request (9–14 s
+    # for five learners on the 7-day walk). They are pure caches: build them before
+    # the first request is served.
+    from app.services.warmup import warm_caches
+
+    await asyncio.to_thread(warm_caches)
 
     yield
 
