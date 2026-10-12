@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.services.journey_contracts import TaskOutcome
 from app.services.season import runtime
 from app.services.season.runtime import ASK_AGAIN, projected_turns
 from app.services.season.turns import (
@@ -133,3 +134,58 @@ def test_the_classifier_sees_register_band_and_each_reaction():
     assert payload["scene"]["band"] == "a2"
     assert all("reaction" in reply for reply in payload["replies"])
     assert any(reply["reaction"] for reply in payload["replies"])
+
+
+def test_a_question_back_is_asked_again_on_every_authored_page(offline_matcher):
+    """The walkthrough's day 2: «Qui êtes-vous ? Je ne connais pas Odile.» played
+    Camille's «"Pas encore" ?» — words the learner never wrote. Read by the matcher,
+    a reply that expresses no route is asked again on every page's first turn."""
+
+    from app.services.season.flags import effective_flags
+    from app.services.season.format import load_season
+    from app.services.season.page import resolve_day
+
+    season = load_season("s1")
+    checked = 0
+    for tentpole in season.tentpoles.values():
+        for day in tentpole.days:
+            page = resolve_day(season, tentpole.id, day.day, flags=effective_flags(season, {}, seed="x"), band="A2", language="en")
+            if page is None:
+                continue
+            scenario = _scenario(page)
+            turns = scenario.story_context[runtime.SEASON_CONTEXT_KEY]["turns"]
+            if not turns:
+                continue
+            turn = turns[0]
+            scenario.character_id = turn.get("to") or scenario.character_id
+            if turn.get("from_solve") or ((turn.get("gate") or turn.get("convince")) and not turn.get("ask_again")):
+                continue
+            if not turn.get("ask_again") and generic_ask_again_panel(turn) is None:
+                continue
+            evaluation = _say(scenario, "Qui êtes-vous ? Je ne connais pas cette personne.", [], 0)
+            # Either an authored route heard it (T1's Gus has a reply for «who are
+            # you?»), or the scene asks again — never the fallback in its place.
+            heard = evaluation.outcome is TaskOutcome.MET
+            assert heard or evaluation.route["reply"] == ASK_AGAIN, (
+                tentpole.id, day.day, turn.get("id"), evaluation.character_reply_fr
+            )
+            checked += 1
+    assert checked >= 8
+
+
+@pytest.fixture
+def offline_matcher(monkeypatch):
+    real = runtime.classify
+
+    def classify(db, user, **kwargs):
+        kwargs["use_model"] = False
+        return real(db, user, **kwargs)
+
+    monkeypatch.setattr(runtime, "classify", classify)
+    import app.services.living_story as engine
+    import app.services.story_lanes as lanes
+
+    monkeypatch.setattr(lanes, "margin_correction", lambda *a, **k: None)
+    monkeypatch.setattr(engine, "story_revision", lambda *a, **k: "rev")
+    runtime._ROUTE_CACHE.clear()
+    yield

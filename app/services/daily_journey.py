@@ -3550,15 +3550,28 @@ class DailyJourneyService:
         else:
             # STORY-ORIENTATION: the learner's first season page is preceded by
             # who they are, where, and who these people are.
-            from app.services.season.intro import is_first_season_day, season_intro
+            # The cast is met on the first page; the premise is repeated on the
+            # next few days, over their «Précédemment».
+            from app.services.season.intro import (
+                PREMISE_DAYS,
+                is_first_season_day,
+                season_day,
+                season_intro,
+            )
 
-            if is_first_season_day(result.story_context):
-                intro = season_intro(
+            day = season_day(result.story_context)
+            intro = (
+                season_intro(
                     ((result.story_context or {}).get("season") or {}).get("id"),
                     user_chrome_language(user),
                 )
-                if intro:
-                    fresh.plan_selection = {**dict(fresh.plan_selection or {}), SEASON_INTRO_KEY: intro}
+                if 1 <= day <= PREMISE_DAYS
+                else None
+            )
+            if intro:
+                if not is_first_season_day(result.story_context):
+                    intro = {**intro, "cast_intro": []}
+                fresh.plan_selection = {**dict(fresh.plan_selection or {}), SEASON_INTRO_KEY: intro}
         fresh.learning_session_id = getattr(session, "id", None)
         fresh.status = str(JourneyStatus.ACTIVE)
         fresh.started_at = _utcnow()

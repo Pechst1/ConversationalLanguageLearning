@@ -32,15 +32,30 @@ def _localized(value: Any, language: str) -> str:
     return str(value or "")
 
 
+#: The premise is repeated on the learner's first few season days: a new learner
+#: who skipped a day, or forgot, still reads who they are before the «Précédemment».
+PREMISE_DAYS = 3
+
+
+def season_day(story_context: dict[str, Any] | None) -> int:
+    """The learner's day of the season (1-based), or 0 off a season or on a reprise."""
+
+    season = (story_context or {}).get("season")
+    if not isinstance(season, dict) or season.get("reprise"):
+        return 0
+    position = season.get("position") if isinstance(season.get("position"), dict) else {}
+    try:
+        return int(position.get("season_day") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def is_first_season_day(story_context: dict[str, Any] | None) -> bool:
     """Is today the learner's first day of an authored season (its first page, not a
     reprise of it)?"""
 
-    season = (story_context or {}).get("season")
-    if not isinstance(season, dict) or season.get("kind") != "tentpole" or season.get("reprise"):
-        return False
-    position = season.get("position") if isinstance(season.get("position"), dict) else {}
-    return int(position.get("season_day") or 0) == 1
+    season = (story_context or {}).get("season") or {}
+    return season_day(story_context) == 1 and season.get("kind") == "tentpole"
 
 
 def season_intro(season_id: str | None, language: str) -> dict[str, Any] | None:

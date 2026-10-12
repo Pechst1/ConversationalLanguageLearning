@@ -178,8 +178,11 @@ export function Precedemment({
   language = null,
   onRead,
   journeyId = null,
+  premise = null,
 }: {
   lines: string[];
+  /** STORY-ORIENTATION: on a learner's first season days, who and where they are. */
+  premise?: string | null;
   language?: ControlLanguage | null;
   onRead: () => void;
   journeyId?: string | null;
@@ -194,6 +197,11 @@ export function Precedemment({
   );
   return (
     <section className="fa-previously" aria-label={t.previously_aria} data-precedemment="">
+      {premise && (
+        <p className="fa-previously__premise" lang={language ?? undefined}>
+          {premise}
+        </p>
+      )}
       <p className="av2-label">{t.previously}</p>
       <ul className="fa-previously__list">
         {lines.map((line, index) => (
