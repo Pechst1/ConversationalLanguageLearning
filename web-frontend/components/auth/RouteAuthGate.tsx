@@ -23,6 +23,7 @@ const PUBLIC_PATHNAMES = new Set([
   // `notFound` when NODE_ENV is production, so the route does not exist in a
   // production build and listing it here widens nothing.
   '/atelier-v2-gallery',
+  '/cameo-gallery',
 ]);
 
 const GUEST_ONLY_PATHNAMES = new Set([

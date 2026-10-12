@@ -48,6 +48,7 @@ import {
   useControlLanguage,
 } from '@/components/atelier-v2/ui';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { emitCameo } from '@/lib/cameo';
 import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
@@ -426,6 +427,10 @@ export function EpVerdict({
   coachMood?: PortraitMood;
 }) {
   const correct = tone === 'go';
+  // Les apparitions: every checked answer is a moment the cast may walk in on.
+  React.useEffect(() => {
+    emitCameo({ type: 'answer', correct, coachId: coach?.id ?? null });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="av2-feedback ep-verdict" data-tone={correct ? 'correct' : 'wrong'} data-coach={coach?.id || undefined} role="status" aria-live="polite">
       {coach ? (
@@ -753,6 +758,10 @@ export function EpBatStage({ sub, title }: { sub?: Node; title?: Node }) {
 /* ---------- recap · l'épreuve ---------- */
 /* The date alone: one headline per screen, and it is EpBatStage's. */
 export function EpRecapHead({ date }: { date: Node }) {
+  // Les apparitions: the end of a séance is a curtain call.
+  React.useEffect(() => {
+    emitCameo({ type: 'finale' });
+  }, []);
   return (
     <div className="ep-recap-head">
       <p className="av2-label ep-recap-head__date">{date}</p>
