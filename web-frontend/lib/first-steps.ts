@@ -334,11 +334,33 @@ const STICKER_PREFIX = 'atelier.firstStep.';
 const WALKTHROUGH_KEY = 'atelier.walkthroughSeen';
 const ROUTE_KEY = 'atelier.firstDayRoute';
 
+/** A store kept in memory for this page's life. */
+export function memoryStore(): KeyValueStore {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key) => (values.has(key) ? (values.get(key) as string) : null),
+    setItem: (key, value) => {
+      values.set(key, String(value));
+    },
+  };
+}
+
+let fallbackStore: KeyValueStore | null = null;
+
+/** This device's memory; when localStorage is missing or refuses writes (a private
+ * window, a full quota), an in-memory store for this page's life, so the first
+ * day's route still carries the learner from La Forge to the words. */
 export function deviceStore(): KeyValueStore | null {
+  if (typeof window === 'undefined') return null;
   try {
-    return typeof window === 'undefined' ? null : window.localStorage;
+    const storage = window.localStorage;
+    const probe = `${ROUTE_KEY}.probe`;
+    storage.setItem(probe, '1');
+    storage.removeItem(probe);
+    return storage;
   } catch {
-    return null;
+    fallbackStore = fallbackStore ?? memoryStore();
+    return fallbackStore;
   }
 }
 

@@ -275,12 +275,14 @@ export function JourneySession({
   }, [firstDay, localDate]);
   const showWalkthrough = firstDay && !walkthroughDone && atFirstScene;
   const dayFinished = phase.kind === 'finished';
+  // A day ended early is not the story done: the route ticks it only when completed.
+  const storyCompleted = dayFinished && journey?.status === 'completed';
   React.useEffect(() => {
-    if (!firstDay || !dayFinished || !localDate) return;
+    if (!firstDay || !storyCompleted || !localDate) return;
     const store = deviceStore();
     markRouteStage(store, 'story', localDate);
     setRouteStages(routeDone(store));
-  }, [firstDay, dayFinished, localDate]);
+  }, [firstDay, storyCompleted, localDate]);
 
   /* WP-98 / WP-99: before the day's first step, a returning learner reads
      «Pendant votre absence», and a new season opens on its front page. Each
@@ -394,7 +396,7 @@ export function JourneySession({
             <RvJourneyPapier language={chromeLanguage} onDone={() => setPapierDone(true)} />
           ) : (
             <>
-            {firstDay && dayFinished && firstDayRoute && (
+            {firstDay && storyCompleted && firstDayRoute && (
               <div className="journey-first-route">
                 <FirstDayRoute
                   language={chromeLanguage}
@@ -411,7 +413,7 @@ export function JourneySession({
               onExit={onExit}
               morePractice={morePractice}
               onPractice={onPractice}
-              forgeAfterDay={firstDay && firstDayRoute ? null : forgeAfterDay}
+              forgeAfterDay={firstDay && storyCompleted && firstDayRoute ? null : forgeAfterDay}
             />
             </>
           )}

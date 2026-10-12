@@ -107,7 +107,30 @@ test('the session shows the walkthrough before the cast, a sticker per step, and
   assert.match(source, /showWalkthrough && \(\s*<Walkthrough/);
   assert.match(source, /showCastIntro && !showWalkthrough/);
   assert.match(source, /<FirstStepSticker key=\{step\.kind\} stepKey=\{stickerFor\(step\.kind\)\}/);
-  assert.match(source, /firstDay && dayFinished && firstDayRoute/);
+  // A day ended early is not the story done (Codex review, #95).
+  assert.match(source, /const storyCompleted = dayFinished && journey\?\.status === 'completed'/);
+  assert.match(source, /firstDay && storyCompleted && firstDayRoute/);
   // The recap's own forge button would double the route's on the first day.
-  assert.match(source, /forgeAfterDay=\{firstDay && firstDayRoute \? null : forgeAfterDay\}/);
+  assert.match(source, /forgeAfterDay=\{firstDay && storyCompleted && firstDayRoute \? null : forgeAfterDay\}/);
+});
+
+test('without localStorage the device store keeps the route in memory for the page', () => {
+  const previous = global.window;
+  global.window = {
+    get localStorage() {
+      return { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); }, removeItem: () => {} };
+    },
+  };
+  try {
+    const store = steps.deviceStore();
+    assert.ok(store, 'a store, not null');
+    steps.beginFirstDay(store, '2026-10-12');
+    steps.markRouteStage(store, 'story', '2026-10-12');
+    steps.markRouteStage(steps.deviceStore(), 'forge', '2026-10-12');
+    assert.equal(steps.onFirstDay(steps.deviceStore(), '2026-10-12'), true);
+    assert.deepEqual(steps.routeDone(steps.deviceStore()), ['story', 'forge']);
+  } finally {
+    if (previous === undefined) delete global.window;
+    else global.window = previous;
+  }
 });

@@ -1081,7 +1081,8 @@ export default function AtelierPage() {
     if (!recap || !forge) return;
     markRouteStage(deviceStore(), 'forge', journey.journey?.local_date ?? localDateToday());
   }, [recap, forge, journey.journey?.local_date]);
-  const firstDayRouteOnHome = firstDayJourney && journey.phase.kind === 'finished' && firstDayDone !== null;
+  const firstDayRouteOnHome =
+    firstDayJourney && journey.phase.kind === 'finished' && journey.journey?.status === 'completed' && firstDayDone !== null;
   // WP-24: why today's scene is this scene. `null` unless the plan actually
   // kept a target that exists because of a recorded mistake.
   const becauseLine = useMemo(() => journeyBecause(journey.envelope), [journey.envelope]);
