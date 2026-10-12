@@ -617,6 +617,14 @@ class Settings(BaseSettings):
             "the authored spine; the authored opening is the fallback."
         ),
     )
+    ATELIER_SEASON_WRITER_BACKGROUND: bool = Field(
+        True,
+        description=(
+            "WP-168 follow-up: the season writer (60–95 s) runs on a worker thread, started "
+            "when the finale closes; the rollover adopts the drafted season without a model "
+            "call. Off: the writer runs inline on the request that ends the season."
+        ),
+    )
     ATELIER_SEASON_WRITER_MAY_MOVE: bool = Field(
         True,
         description=(

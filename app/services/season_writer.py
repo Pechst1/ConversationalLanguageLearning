@@ -32,11 +32,15 @@ current world by ``SerialThreadService.merge_season_world_bible``.
 
 from __future__ import annotations
 
+import copy
 import logging
 import random
 import re
+import threading
 import time
-from datetime import date, timedelta
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -1036,3 +1040,177 @@ def reprise_season(*, live: dict, world: dict, next_season: int, seed: str) -> d
         "character_agendas": {},
         "season_arcs": arcs,
     }
+
+
+# --- the writer in the background (WP-168 follow-up) ------------------------
+#
+# A drafted season takes 60–95 s, too long for a learner's request. The finale's
+# close calls :func:`request_draft`, a worker thread writes the season into
+# ``story_season_drafts``, and the rollover adopts a ``ready`` row
+# (:func:`ready_season`) without a model call. The worker never touches the
+# learner's story state. It works from a snapshot, so a story revision in flight
+# is never invalidated.
+
+#: A ``drafting`` row older than this is presumed lost (a restarted process) and drafted again.
+DRAFT_STALE_SECONDS = 20 * 60
+
+_DRAFT_LOCK = threading.Lock()
+_DRAFTS_IN_FLIGHT: set[tuple[str, int]] = set()
+_DRAFT_EXECUTOR: ThreadPoolExecutor | None = None
+
+
+@dataclass(frozen=True)
+class DraftJob:
+    bind: Any
+    thread_id: Any
+    user_id: Any
+    season: int
+    live: dict
+    world: dict
+
+
+def _draft_executor() -> ThreadPoolExecutor:
+    global _DRAFT_EXECUTOR
+    with _DRAFT_LOCK:
+        if _DRAFT_EXECUTOR is None:
+            _DRAFT_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="season-writer")
+        return _DRAFT_EXECUTOR
+
+
+def _draft_row(db: Any, thread_id: Any, season: int) -> Any:
+    from app.db.models.season_draft import StorySeasonDraft
+
+    try:
+        with db.begin_nested():  # a failed lookup must not poison the caller's transaction
+            return db.get(StorySeasonDraft, (thread_id, int(season)))
+    except Exception as exc:  # noqa: BLE001 - an old database without the table: no draft
+        logger.debug("season_writer: draft lookup failed (%s)", exc)
+        return None
+
+
+def ready_season(db: Any, thread_id: Any, season: int) -> dict | None:
+    """The season file the worker drafted for ``season``, or ``None`` if not ready."""
+
+    if db is None or thread_id is None:
+        return None
+    row = _draft_row(db, thread_id, season)
+    if row is None or row.status != "ready" or not isinstance(row.season_file, dict):
+        return None
+    return row.season_file
+
+
+def mark_adopted(db: Any, thread_id: Any, season: int) -> None:
+    row = _draft_row(db, thread_id, season)
+    if row is not None and row.status == "ready":
+        row.status = "adopted"
+
+
+def _fresh(row: Any) -> bool:
+    stamp = getattr(row, "updated_at", None) or getattr(row, "created_at", None)
+    if stamp is None:
+        return True
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - stamp).total_seconds() < DRAFT_STALE_SECONDS
+
+
+def request_draft(db: Any, thread: Any, live: dict, world: dict, *, next_season: int, user: Any = None) -> str:
+    """Start drafting ``next_season`` on the worker unless it is already under way or
+    done. Returns ``queued``, ``drafting``, ``ready``, ``adopted``, ``refused``,
+    ``failed`` or ``off``. Never blocks, never raises."""
+
+    from app.config import settings
+
+    thread_id = getattr(thread, "id", None)
+    if db is None or thread_id is None or not settings.ATELIER_SEASON_WRITER_ENABLED:
+        return "off"
+    row = _draft_row(db, thread_id, next_season)
+    if row is not None and (row.status != "drafting" or _fresh(row)):
+        return str(row.status)
+    key = (str(thread_id), int(next_season))
+    with _DRAFT_LOCK:
+        if key in _DRAFTS_IN_FLIGHT:
+            return "drafting"
+        _DRAFTS_IN_FLIGHT.add(key)
+    job = DraftJob(
+        bind=db.get_bind(),
+        thread_id=thread_id,
+        user_id=getattr(user, "id", None),
+        season=int(next_season),
+        live=copy.deepcopy(live),
+        world=copy.deepcopy(world),
+    )
+    try:
+        _draft_executor().submit(run_draft_job, job)
+    except Exception:  # pragma: no cover - a shut-down executor: the rollover falls back
+        with _DRAFT_LOCK:
+            _DRAFTS_IN_FLIGHT.discard(key)
+        logger.exception("season_writer: draft for season %s not queued", next_season)
+        return "failed"
+    logger.info("season_writer: season %s queued for thread %s", next_season, thread_id)
+    return "queued"
+
+
+def _save_draft(db: Any, job: DraftJob, *, status: str, season_file: dict | None, detail: dict) -> None:
+    from app.db.models.season_draft import StorySeasonDraft
+
+    row = db.get(StorySeasonDraft, (job.thread_id, job.season))
+    if row is None:
+        row = StorySeasonDraft(thread_id=job.thread_id, season=job.season)
+        db.add(row)
+    row.status = status
+    row.season_file = season_file
+    row.detail = detail
+    db.commit()
+
+
+def run_draft_job(job: DraftJob) -> str:
+    """Draft the season and keep it in ``story_season_drafts``. Returns the status
+    written (``ready``, ``refused``, ``failed``). Never raises."""
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.models.user import User
+
+    key = (str(job.thread_id), int(job.season))
+    factory = sessionmaker(bind=job.bind, autoflush=False, expire_on_commit=False)
+    status = "failed"
+    started = time.monotonic()
+    try:
+        with factory() as db:
+            try:
+                _save_draft(db, job, status="drafting", season_file=None, detail={})
+            except Exception:  # noqa: BLE001 - another process drafts it: theirs is the draft
+                db.rollback()
+                logger.info("season_writer: season %s already drafting elsewhere", job.season)
+                return "drafting"
+            user = db.get(User, job.user_id) if job.user_id else None
+            record: dict = {}
+            season_file = draft_next_season(
+                live=job.live, world=job.world, next_season=job.season, db=db, user=user, record=record
+            )
+            status = "ready" if season_file else "refused"
+            _save_draft(
+                db,
+                job,
+                status=status,
+                season_file=season_file,
+                detail={
+                    "refused": record.get("refused"),
+                    "retries": record.get("retries"),
+                    "seconds": round(time.monotonic() - started, 1),
+                },
+            )
+            logger.info("season_writer: season %s %s in %.0f s", job.season, status, time.monotonic() - started)
+    except Exception:  # noqa: BLE001 - the rollover falls back to the interlude and the reprise
+        logger.exception("season_writer: background draft of season %s failed", job.season)
+        try:
+            with factory() as db:
+                _save_draft(db, job, status="failed", season_file=None, detail={"error": True})
+        except Exception:  # noqa: BLE001
+            logger.exception("season_writer: could not record the failed draft")
+        status = "failed"
+    finally:
+        with _DRAFT_LOCK:
+            _DRAFTS_IN_FLIGHT.discard(key)
+    return status

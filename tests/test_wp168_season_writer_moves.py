@@ -550,3 +550,110 @@ def test_a_colon_in_an_arc_id_is_repaired():
     from app.services import season_writer as writer
 
     assert writer._slugify_id("arc:follow_the_polaroid") == "arc_follow_the_polaroid"
+
+
+# ---------------------------------------------------------------------------
+# The writer in the background: no model call on the learner's request
+# ---------------------------------------------------------------------------
+
+
+class _Inline:
+    """The worker pool, run synchronously so a test can read what it wrote."""
+
+    def __init__(self) -> None:
+        self.jobs: list = []
+
+    def submit(self, fn, job):
+        self.jobs.append(job)
+        return fn(job)
+
+
+@pytest.fixture()
+def draft_db(db_session: Session, db_engine) -> Generator[Session, None, None]:
+    from app.db.models.season_draft import StorySeasonDraft
+
+    created = not inspect(db_engine).has_table(StorySeasonDraft.__table__.name)
+    StorySeasonDraft.__table__.create(bind=db_engine, checkfirst=True)
+    yield db_session
+    db_session.rollback()
+    db_session.query(StorySeasonDraft).delete()
+    db_session.commit()
+    if created:
+        StorySeasonDraft.__table__.drop(bind=db_engine, checkfirst=True)
+
+
+@pytest.fixture()
+def background(monkeypatch, writer_on) -> _Inline:
+    pool = _Inline()
+    monkeypatch.setattr(settings, "ATELIER_SEASON_WRITER_BACKGROUND", True)
+    monkeypatch.setattr(season_writer, "_draft_executor", lambda: pool)
+    season_writer._DRAFTS_IN_FLIGHT.clear()
+    return pool
+
+
+def _thread(ending: str = "partager"):
+    import uuid
+
+    return SimpleNamespace(id=uuid.uuid4(), world_bible=season_world_bible("s1")), finished_life(ending)
+
+
+def test_the_finale_drafts_the_next_season_and_the_rollover_adopts_it_without_a_model_call(
+    monkeypatch, draft_db, background
+):
+    director = MovingDirector(moving_draft)
+    monkeypatch.setattr(engine, "_client", lambda: director)
+    thread, live = _thread()
+
+    # The finale's close: the worker drafts season 2 from a snapshot of this life.
+    assert engine.prefetch_next_season(draft_db, thread, live) == "queued"
+    assert director.calls == ["SeasonDraft", "SeasonReview"]
+    assert "archived_season" not in live, "the learner's own state is never written by the worker"
+    assert season_writer.ready_season(draft_db, thread.id, 2) is not None
+
+    # The interlude's close: adopted on the request, no model call.
+    director.calls.clear()
+    rolled = engine.roll_over_season(draft_db, thread, live, day=66, today="2026-12-20")
+    assert rolled is True and director.calls == []
+    assert thread.world_bible["season_number"] == 2 and thread.world_bible["setting"]["city"] == "Marseille"
+    assert live["season_premiere"]["source"] == "written"
+    assert season_writer.ready_season(draft_db, thread.id, 2) is None, "adopted once"
+    # Asking again changes nothing and starts nothing.
+    assert season_writer.request_draft(draft_db, thread, live, thread.world_bible, next_season=2) == "adopted"
+
+
+def test_with_nothing_drafted_the_request_names_the_interlude_and_the_worker_starts(
+    monkeypatch, draft_db, background
+):
+    director = MovingDirector(moving_draft)
+    monkeypatch.setattr(engine, "_client", lambda: director)
+    thread, live = _thread()
+    # The worker is slow: the request must not wait for it.
+    background.submit = lambda fn, job: background.jobs.append(job)
+
+    rolled = engine.roll_over_season(draft_db, thread, live, day=66, today="2026-12-20")
+    assert rolled is False and director.calls == [], "no model call on the learner's request"
+    assert live["interlude"]["returns_on"] == "2027-01-03" and len(background.jobs) == 1
+    # A second ask while it drafts does not queue it twice.
+    assert season_writer.request_draft(draft_db, thread, live, thread.world_bible, next_season=2) == "drafting"
+    assert len(background.jobs) == 1
+
+    # The worker finishes; the next interlude close adopts it before the return date.
+    assert season_writer.run_draft_job(background.jobs[0]) == "ready"
+    director.calls.clear()
+    rolled = engine.roll_over_season(draft_db, thread, live, day=69, today="2026-12-23")
+    assert rolled is True and director.calls == []
+    assert thread.world_bible["season_number"] == 2 and "interlude" not in live
+
+
+def test_a_refused_draft_leaves_the_promised_reprise(monkeypatch, draft_db, background):
+    director = MovingDirector(lambda material: moving_draft(material, setting_row="invented:sunny_south"))
+    monkeypatch.setattr(engine, "_client", lambda: director)
+    thread, live = _thread()
+    assert engine.prefetch_next_season(draft_db, thread, live) == "queued"
+    assert season_writer.request_draft(draft_db, thread, live, thread.world_bible, next_season=2) == "refused"
+
+    assert engine.roll_over_season(draft_db, thread, live, day=66, today="2026-12-20") is False
+    director.calls.clear()
+    # On the promised day the reprise begins, with no model call.
+    assert engine.roll_over_season(draft_db, thread, live, day=80, today="2027-01-03") is True
+    assert thread.world_bible["season_source"] == "reprise" and director.calls == []

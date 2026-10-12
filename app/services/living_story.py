@@ -7,6 +7,7 @@ There is deliberately no canned dialogue or authored-scene fallback here.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
@@ -4212,6 +4213,67 @@ def interlude_beat(seed: str, index: int, world: dict | None = None) -> dict:
 # --- escalation: a problem may come back exactly once ------------------------
 
 
+def _archive_season(live: dict, world: dict, season: int) -> None:
+    """Facts the finished season established outlive its arc counters, so a later
+    season's `entry_requires` can still read what this life has actually done.
+    Archived once per season: a named interlude asks again, it does not re-archive."""
+
+    if live.get("archived_season") == season:
+        return
+    live["world_flags"] = {
+        **(live.get("world_flags") or {}),
+        **arc_flags(list(world.get("season_arcs") or []), live.get("arc_progress") or {}),
+    }
+    live["threads_archive"] = [
+        *(live.get("threads_archive") or []),
+        *[
+            {"key": row["key"], "text_fr": row["text_fr"], "state": row["state"], "season": season}
+            for row in threads_projection(world, live)
+        ],
+    ][-20:]
+    live["archived_season"] = season
+
+
+def _writer_in_background(db: Session | None, thread: Any) -> bool:
+    """WP-168 follow-up: the season writer runs on a worker, never on the request."""
+
+    return bool(
+        settings.ATELIER_SEASON_WRITER_ENABLED
+        and settings.ATELIER_SEASON_WRITER_BACKGROUND
+        and db is not None
+        and getattr(thread, "id", None) is not None
+    )
+
+
+def _writer_needed(db: Session | None, world: dict, season: int) -> bool:
+    """No authored season follows this one, so the writer will be asked (D8: a scripted
+    season is followed by a written one, never by the old serial's season 2)."""
+
+    if world.get("season_script"):
+        return True
+    from app.services.serial import SerialThreadService
+
+    return not SerialThreadService(db)._load_next_season_world_bible(current_world=world, next_season=season + 1)
+
+
+def prefetch_next_season(db: Session | None, thread: Any, live: dict, *, user: User | None = None) -> str:
+    """At the finale's close, start drafting the next season on the worker, from what
+    the rollover will see (the season archived on a copy). By the time the interlude
+    ends, the season is usually ready, so no learner waits for the writer."""
+
+    from app.services import season_writer
+
+    if not _writer_in_background(db, thread):
+        return "off"
+    world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+    season = int(live.get("season_index") or _int_or(world.get("season_number"), 1))
+    if not _writer_needed(db, world, season):
+        return "authored"
+    snapshot = copy.deepcopy(live)
+    _archive_season(snapshot, world, season)
+    return season_writer.request_draft(db, thread, snapshot, world, next_season=season + 1, user=user)
+
+
 def roll_over_season(
     db: Session,
     thread: Any,
@@ -4244,24 +4306,16 @@ def roll_over_season(
     world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
     season = int(live.get("season_index") or _int_or(world.get("season_number"), 1))
     today_iso = _date_of(today) or _today().isoformat()
-    if live.get("archived_season") != season:
-        # Facts the finished season established outlive its arc counters, so a later
-        # season's `entry_requires` can still read what this life has actually done.
-        # Archived once per season: a named interlude asks again, it does not re-archive.
-        live["world_flags"] = {
-            **(live.get("world_flags") or {}),
-            **arc_flags(list(world.get("season_arcs") or []), live.get("arc_progress") or {}),
-        }
-        live["threads_archive"] = [
-            *(live.get("threads_archive") or []),
-            *[
-                {"key": row["key"], "text_fr": row["text_fr"], "state": row["state"], "season": season}
-                for row in threads_projection(world, live)
-            ],
-        ][-20:]
-        live["archived_season"] = season
+    _archive_season(live, world, season)
+    background = _writer_in_background(db, thread)
+    # WP-168 follow-up: a season the worker already drafted is adopted at once, even
+    # inside a named interlude (the return date is a promise of «at the latest»).
+    drafted = season_writer.ready_season(db, thread.id, season + 1) if background else None
     interlude = dict(live.get("interlude") or {})
-    if interlude.get("returns_on") and today_iso < str(interlude["returns_on"]):
+    if interlude.get("returns_on") and today_iso < str(interlude["returns_on"]) and not drafted:
+        if background and _writer_needed(db, world, season):
+            # A draft lost to a restarted process is asked for again; one under way is left alone.
+            season_writer.request_draft(db, thread, live, world, next_season=season + 1, user=user)
         live["season_stage"] = "interlude"
         return False
     service = SerialThreadService(db)
@@ -4275,12 +4329,21 @@ def roll_over_season(
     )
     source = "authored"
     if not following and settings.ATELIER_SEASON_WRITER_ENABLED:
-        written = season_writer.draft_next_season(
-            live=live, world=world, next_season=season + 1, db=db, user=user
-        )
+        if background:
+            # Never a model call on the learner's request: the drafted season, or the
+            # worker starts now and the interlude below covers the wait.
+            written = drafted
+            if not written:
+                season_writer.request_draft(db, thread, live, world, next_season=season + 1, user=user)
+        else:
+            written = season_writer.draft_next_season(
+                live=live, world=world, next_season=season + 1, db=db, user=user
+            )
         if written:
             following = service.merge_season_world_bible(world, written, next_season=season + 1)
             source = "written"
+            if background:
+                season_writer.mark_adopted(db, thread.id, season + 1)
     if not following and interlude.get("returns_on"):
         # The promised day has come and nothing was written: the story resumes anyway,
         # from what this life left open.
@@ -9530,6 +9593,9 @@ def settle_resolution(
         relationships=relationships,
     )
     state["relationships"] = relationships
+    if chapter_closing(chapter) and chapter.get("finale"):
+        # WP-168 follow-up: the next season is drafted while the interlude plays.
+        prefetch_next_season(db, thread, live, user=user)
     state[STATE_KEY] = live
     state["story_so_far"] = [*state.get("story_so_far", []), event["summary_fr"]][-40:]
     from app.services.serial import SerialThreadService
