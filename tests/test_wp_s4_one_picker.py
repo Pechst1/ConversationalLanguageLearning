@@ -609,3 +609,31 @@ def test_introduced_in_the_journey_forged_and_held(client: TestClient, db_sessio
     db_session.expire_all()
     coverage = (db_session.get(User, user.id).cefr_estimate_payload or {}).get("coverage") or {}
     assert coverage.get("units", {}).get("held", 0) >= 1, coverage
+
+
+def test_the_envelope_counts_todays_forge_blocks(
+    assembled_client: TestClient, journey_enabled: None, db_session: Session
+) -> None:
+    """CONTINUE (owner, 2026-10-12): Home's one Continue button moves from La Forge
+    to the words once a forge séance is finished today."""
+
+    email = f"wp-s4-blocks-{uuid.uuid4().hex[:8]}@example.com"
+    headers = register(assembled_client, email)
+
+    def blocks() -> int:
+        envelope = assembled_client.get("/api/v1/daily-journeys/today", headers=headers, params={"timezone": "UTC"}).json()
+        return envelope["forge"]["blocks_today"]
+
+    assert blocks() == 0
+    started = assembled_client.post(
+        "/api/v1/atelier/sessions", headers=headers, json={"origin": "after_day", "budget_seconds": 300}
+    )
+    assert started.status_code == 201, started.text
+    assert blocks() == 0, "a séance only started is not a block done"
+    done = assembled_client.post(f"/api/v1/atelier/sessions/{started.json()['session_id']}/complete", headers=headers)
+    assert done.status_code == 200, done.text
+    assert blocks() == 1
+    session = db_session.get(AtelierSession, uuid.UUID(started.json()["session_id"]))
+    session.completed_at = datetime.now(UTC) - timedelta(days=1, hours=1)
+    db_session.commit()
+    assert blocks() == 0, "yesterday's block does not count today"

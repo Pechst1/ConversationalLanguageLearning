@@ -1074,6 +1074,9 @@ class ForgeEntry(JourneyModel):
     concept_id: int | None = None
     budget_seconds: int
     folded: bool = False
+    #: CONTINUE (owner, 2026-10-12): forge séances finished on the learner's own
+    #: day, so Home's one Continue button moves on to the words once La Forge is done.
+    blocks_today: int = 0
 
 
 class HeadlineCastMember(JourneyModel):
