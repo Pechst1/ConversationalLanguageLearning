@@ -84,16 +84,16 @@ def test_grammar_and_vocabulary_pages_share_notebook_switch() -> None:
     grammar = read_web("pages/grammar.tsx")
     vocabulary = read_web("pages/vocabulary.tsx")
 
-    # The direct /grammar route carries the same Cahier head as /notebook, with
-    # the pill tabs as links to the sibling registers; the embedded view
-    # inherits the shell's tabs.
-    assert '<NotebookModeTabs active="grammar" hrefFor={standaloneHref} />' in grammar
-    assert "if (mode === 'vocabulary') return '/vocabulary';" in grammar
+    # Both direct routes wear the same Cahier head and tabs as /notebook, with
+    # the pill tabs as links to the sibling registers (walk 2026-10-12: /vocabulary
+    # used to carry its own «Le lexique» head and a French two-way switch).
+    shell = read_web("components/cahiers/CahierV2.tsx")
+    assert "export function cahierStandaloneHref" in shell
+    assert "if (mode === 'vocabulary') return '/vocabulary';" in shell
+    assert '<NotebookModeTabs active="grammar" library={STORY_FEATURE_VISIBLE} hrefFor={cahierStandaloneHref} />' in grammar
+    assert '<NotebookModeTabs active="vocabulary" library={STORY_FEATURE_VISIBLE} hrefFor={cahierStandaloneHref} />' in vocabulary
+    assert "LxMasthead" not in vocabulary
     assert "embedded" in grammar
-
-    assert 'route="Vocabulaire"' in vocabulary
-    assert 'xlink="Grammaire"' in vocabulary
-    assert 'xlinkHref="/grammar"' in vocabulary
     assert "embedded" in vocabulary
 
 
