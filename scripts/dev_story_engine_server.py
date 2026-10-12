@@ -310,6 +310,20 @@ class FakeStoryProvider:
         must_change = (context.get("variety") or {}).get("must_change") or {}
         if must_change.get("character_id") == character and must_change.get("location_id") == location:
             character = SEASON_CAST[(n + 1) % len(SEASON_CAST)]
+        # This page speaks «tu». ``n`` is shared by every learner of the walk, so under
+        # concurrency all three attempts of one day could land on Gus while he is still
+        # on «vous» (canon_register), and the day was lost: honour the brief's registers.
+        registers = (brief.get("address") or {}).get("registers") or {}
+        if registers.get(character) == "vous":
+            character = next(
+                (
+                    SEASON_CAST[(n + k) % len(SEASON_CAST)]
+                    for k in range(1, len(SEASON_CAST))
+                    if registers.get(SEASON_CAST[(n + k) % len(SEASON_CAST)]) != "vous"
+                    and SEASON_CAST[(n + k) % len(SEASON_CAST)] != must_change.get("character_id")
+                ),
+                character,
+            )
         text, objective, semantics, novelty = PREMISES[n % len(PREMISES)]
         retired = {str(q).casefold() for q in context.get("resolved_chapter_questions") or []}
         question = next(
