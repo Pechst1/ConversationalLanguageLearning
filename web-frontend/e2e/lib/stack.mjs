@@ -18,7 +18,9 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function canListen(port, host) {
   return new Promise((resolve) => {
     const srv = net.createServer();
-    srv.once('error', () => resolve(false));
+    // A host without IPv6 (some containers) cannot bind '::' at all: nothing can hold
+    // the port there, so it does not count against it.
+    srv.once('error', (e) => resolve(e.code === 'EAFNOSUPPORT' || e.code === 'EADDRNOTAVAIL'));
     srv.listen(port, host, () => srv.close(() => resolve(true)));
   });
 }
