@@ -188,6 +188,10 @@ import {
 } from '@/lib/revue-une';
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
+import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
+import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
+import { castIntroOf } from '@/components/atelier-v2/journey/CastIntro';
+import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
@@ -1059,6 +1063,25 @@ export default function AtelierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [journey.envelope],
   );
+  /* GENTLE-ONBOARDING: the learner's first day is the story, then La Forge,
+     then the words. Its route is drawn after the recap and on Home once the
+     story is done; La Forge opens at the server's forge href on every rhythm
+     (the first day folds nothing in). */
+  const firstDayJourney = castIntroOf(journey.journey).length > 0;
+  const firstDayForgeHref = forgeEntry?.href
+    ?? ((journey.envelope as { forge?: { href?: string | null } | null } | null)?.forge?.href || null);
+  const [firstDayDone, setFirstDayDone] = useState<RouteStage[] | null>(null);
+  useEffect(() => {
+    const store = deviceStore();
+    const localDate = journey.journey?.local_date ?? null;
+    setFirstDayDone(firstDayJourney && onFirstDay(store, localDate) ? routeDone(store) : null);
+  }, [firstDayJourney, journey.journey?.local_date, journey.phase.kind, view]);
+  // GENTLE-ONBOARDING: a forge séance finished on the first day ticks La Forge off.
+  useEffect(() => {
+    if (!recap || !forge) return;
+    markRouteStage(deviceStore(), 'forge', journey.journey?.local_date ?? localDateToday());
+  }, [recap, forge, journey.journey?.local_date]);
+  const firstDayRouteOnHome = firstDayJourney && journey.phase.kind === 'finished' && firstDayDone !== null;
   // WP-24: why today's scene is this scene. `null` unless the plan actually
   // kept a target that exists because of a recorded mistake.
   const becauseLine = useMemo(() => journeyBecause(journey.envelope), [journey.envelope]);
@@ -1952,6 +1975,10 @@ export default function AtelierPage() {
               label: forgeEntry.label,
               onSelect: () => { void router.push(forgeEntry.href); },
             } : null}
+            firstDayRoute={firstDayJourney ? {
+              forgeHref: firstDayForgeHref,
+              onNavigate: (href) => { void router.push(href); },
+            } : null}
           />
         ) : /* A capability that turns off mid-session falls back to Today, never
                into the legacy exercise view the learner did not ask for. */
@@ -1969,15 +1996,26 @@ export default function AtelierPage() {
               // masthead, instead of above the whole page.
               journeyCard={
                 journeyEntryVisible ? (
-                  <JourneyTodayCard
-                    controller={journey}
-                    onOpen={() => setView('journey')}
-                    onOpenLegacy={(href) => {
-                      // The old Atelier session is resumed on its own terms: the
-                      // journey never converts, replaces or completes it.
-                      void router.push(href);
-                    }}
-                  />
+                  <>
+                    <JourneyTodayCard
+                      controller={journey}
+                      onOpen={() => setView('journey')}
+                      onOpenLegacy={(href) => {
+                        // The old Atelier session is resumed on its own terms: the
+                        // journey never converts, replaces or completes it.
+                        void router.push(href);
+                      }}
+                    />
+                    {firstDayRouteOnHome && firstDayDone && (
+                      // GENTLE-ONBOARDING: the story is done; La Forge, then the words.
+                      <FirstDayRoute
+                        language={journeyChromeLanguage(journey)}
+                        done={firstDayDone.includes('story') ? firstDayDone : [...firstDayDone, 'story']}
+                        forgeHref={firstDayForgeHref}
+                        onNavigate={(href) => { void router.push(href); }}
+                      />
+                    )}
+                  </>
                 ) : null
               }
               today={today}
@@ -1995,6 +2033,8 @@ export default function AtelierPage() {
               practiceEntry={practiceEntry}
               // WP-S4: «Forge today's rule» after the day (Léger, Régulier).
               forgeEntry={forgeEntry}
+              // GENTLE-ONBOARDING: the first day's route replaces the after-day chip.
+              afterDayRoute={firstDayRouteOnHome}
               // WP-24: the erratum today's scene reprises, when there is one.
               becauseLine={becauseLine}
               // WP-D1: today's journey, drawn by the mark as the day's plan.
@@ -2032,6 +2072,12 @@ export default function AtelierPage() {
                     {practiceConceptTitle}
                   </p>
                 )}
+              </div>
+            )}
+            {/* GENTLE-ONBOARDING: the first forge séance says what La Forge is. */}
+            {forge && (
+              <div className="av2 atelier-first-sticker">
+                <FirstStepSticker stepKey="forge" language={pageChromeLanguage} />
               </div>
             )}
           <SessionView
@@ -2226,6 +2272,7 @@ function TodayView({
   onRetry,
   practiceEntry,
   forgeEntry = null,
+  afterDayRoute = false,
   becauseLine,
   dayJourney = null,
   journeyCard = null,
@@ -2256,6 +2303,8 @@ function TodayView({
    * done, the after-day chip is «Forge today's rule», not «More practice».
    */
   forgeEntry?: { label: string; href: string; minutes: number } | null;
+  /** GENTLE-ONBOARDING: the first day's route is on Home, so no after-day chip doubles it. */
+  afterDayRoute?: boolean;
   /**
    * WP-24 (wired by WP-28). The structured because payload from
    * `GET /atelier/today`; `HomeScreen` writes the French. `null` — the
@@ -2700,7 +2749,7 @@ function TodayView({
         // pratique») are one tap from Home again, not only from the recap.
         // WP-S4: on Léger and Régulier that entry is La Forge, «Forge today's
         // rule»; on Soutenu and Intensif the forge was part of the day.
-        ...(practiceEntry && homeDay && homeDay.total > 0 && homeDay.done >= homeDay.total
+        ...(practiceEntry && homeDay && homeDay.total > 0 && homeDay.done >= homeDay.total && !afterDayRoute
           ? [forgeEntry
             ? {
                 id: 'forge',

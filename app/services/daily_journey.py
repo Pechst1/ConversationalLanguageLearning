@@ -792,6 +792,16 @@ def _stored_cast_intro(journey: DailyJourney) -> list[dict[str, Any]] | None:
     return [dict(row) for row in rows if isinstance(row, dict)] or None
 
 
+def _is_opening_day(journey: DailyJourney | None) -> bool:
+    """GENTLE-ONBOARDING: is this the learner's very first day?
+
+    The authored café day (WP-75) and the first season page (STORY-ORIENTATION)
+    are the two first days; both are planned with a cast introduction.
+    """
+
+    return journey is not None and _stored_cast_intro(journey) is not None
+
+
 def _journey_input_mode(journey: DailyJourney) -> InputMode:
     """The mode a journey was created in: voice when its reply offered voice."""
 
@@ -1058,6 +1068,11 @@ class DailyJourneyService:
 
         forge_anchor = self._forge_anchor_id(user)
         forge_entry = self._forge_entry(user, anchor=forge_anchor) if enabled else None
+        if forge_entry is not None and forge_entry.folded and _is_opening_day(journey):
+            # GENTLE-ONBOARDING (owner, 2026-10-12): the first day is the story,
+            # then La Forge, then the words. The forge is never folded into the
+            # first day's story, so on every rhythm it is the after-day entry.
+            forge_entry = forge_entry.model_copy(update={"folded": False})
         # WP-99: what Home can say honestly — the absence, a premiere, an interlude.
         from app.services.journey_absence import story_frame_fields
 
@@ -3400,6 +3415,7 @@ class DailyJourneyService:
         # errata queue is holding. No provider call, no second content source.
         dice = self._day_shape_inputs(user, fresh, result, errata_count=len(errata))
         decision = choose_day_shape(dice)
+        from app.services.season.intro import is_first_season_day
         from app.services.season.runtime import is_tentpole, tentpole_units
 
         if is_tentpole(result.story_context):
@@ -3446,6 +3462,13 @@ class DailyJourneyService:
                 if first_day or is_tentpole(result.story_context)
                 else self._desk_for_today(user, fresh, dice, decision.shape)
             )
+            if first_day or is_first_season_day(result.story_context):
+                # GENTLE-ONBOARDING (owner, 2026-10-12): the learner's very first
+                # day is the story, then La Forge, then the words — so nothing is
+                # folded into it (no forge step, «Lecture», desk or page review),
+                # on the café first day and on the first season page alike. The
+                # page's own rule (#81) stays: it is part of the story day.
+                forge = reading = desk = page_review = None
             if not first_day:
                 # WP-121 A.4: a card kept in a Papier says where it was met.
                 candidates = self._with_place_lines(user, list(candidates))

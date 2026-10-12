@@ -64,6 +64,9 @@ import {
 } from '@/lib/pilot-resilience';
 import { useArtSet } from '@/lib/art-set';
 import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
+import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
+import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
+import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -651,6 +654,18 @@ export default function VocabularyReviewPage() {
     return [...main, ...again];
   }, [allItems, reviewedIds, againIds]);
   const current = remainingItems[0] || null;
+  /* GENTLE-ONBOARDING: an emptied deck on the first day ticks the words off,
+     the last stage of story → La Forge → words. `null` on any other day. */
+  const [firstDayDone, setFirstDayDone] = useState<RouteStage[] | null>(null);
+  const deckEmpty = !loading && !loadError && !current;
+  useEffect(() => {
+    if (!deckEmpty) return;
+    const store = deviceStore();
+    const localDate = localDateToday();
+    if (!onFirstDay(store, localDate)) return;
+    markRouteStage(store, 'words', localDate);
+    setFirstDayDone(routeDone(store));
+  }, [deckEmpty]);
   const currentSlateEntry = current ? slateById.get(current.word_id) || null : null;
   const completed = reviewedIds.size;
   const total = remainingItems.length + completed;
@@ -1079,6 +1094,16 @@ export default function VocabularyReviewPage() {
               />
             )}
 
+            {!loading && !loadError && !current && firstDayDone && (
+              // GENTLE-ONBOARDING: the words were the first day's last stage.
+              <FirstDayRoute
+                language={language}
+                done={firstDayDone}
+                forgeHref={null}
+                onNavigate={(href) => { void router.push(href); }}
+              />
+            )}
+
             {!loading && !loadError && !current && (
               <VocabularyReviewContinuation
                 lastItem={lastReviewedItem}
@@ -1093,6 +1118,8 @@ export default function VocabularyReviewPage() {
 
             {!loading && !loadError && current && (
               <>
+                {/* GENTLE-ONBOARDING: the first deck says what the Lexique is. */}
+                <FirstStepSticker stepKey="words" language={language} />
                 <div className="lx-review__kicker">
                   <p className="av2-label">{kicker}</p>
                   {direction && <span className="av2-label lx-review__direction">{direction}</span>}
