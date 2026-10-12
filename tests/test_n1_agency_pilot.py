@@ -177,3 +177,114 @@ def test_the_director_brief_carries_the_agreement_and_the_callback(pilot) -> Non
     brief = gap_brief(season, pos, flags=effective_flags(season, state, seed="x"), state=state, seed="x")
     assert brief["today"]["agreements"]
     assert brief["today"]["callback"]["id"] == "romy_notes_without_name"
+
+
+# ---------------------------------------------------------------------------
+# Every generated day: the writer proposes the contract, the code checks it
+# ---------------------------------------------------------------------------
+
+KEY_PROPOSAL = {
+    "speaker": "lila_bonnet",
+    "subjects": {"spare_key": "Whether Lila may keep a copy of the key to Odile's flat."},
+    "conditions": {"mornings_only": "Only in the mornings, before school.", "ask_first": "She texts before coming."},
+    "effects": [
+        {
+            "id": "lila_keeps_key",
+            "actions": ["accept"],
+            "subject": "spare_key",
+            "allowed_conditions": ["mornings_only", "ask_first"],
+            "outcome_en": "Lila has a copy of the key to Odile's flat.",
+            "alternative_en": "Lila can come when the learner is there instead.",
+        },
+        {
+            "id": "lila_no_key",
+            "actions": ["decline"],
+            "subject": "spare_key",
+            "outcome_en": "Lila has no key; she paints at her own flat.",
+        },
+    ],
+}
+
+KEY_DAY = {
+    "id": "s1",
+    "kind": "gap",
+    "position": {"segment": "g2", "day_in_segment": 1, "season_day": 12},
+    "checklist": {"premise_id": None, "learner_agency": KEY_PROPOSAL},
+}
+
+
+def test_the_writers_contract_is_checked_not_trusted(pilot) -> None:
+    contract = agency.generated_contract("s1", "g2", None, KEY_PROPOSAL)
+    assert contract is not None and contract.premise == "own"
+    assert [e.id for e in contract.effects] == ["lila_keeps_key", "lila_no_key"]
+
+    assert agency.generated_contract("s1", "g2", None, {**KEY_PROPOSAL, "speaker": "a_stranger"}) is None
+    assert agency.generated_contract("s1", "g2", None, "not a dict") is None
+    wrong = {
+        **KEY_PROPOSAL,
+        "effects": [
+            {**KEY_PROPOSAL["effects"][0], "allowed_conditions": ["mornings_only", "forever"]},
+            {**KEY_PROPOSAL["effects"][1], "actions": ["teleport"]},
+            {**KEY_PROPOSAL["effects"][1], "id": "Not A Slug"},
+        ],
+    }
+    checked = agency.generated_contract("s1", "g2", None, wrong)
+    assert [e.id for e in checked.effects] == ["lila_keeps_key"]
+    assert checked.effects[0].allowed_conditions == ["mornings_only"]
+    assert agency.generated_contract("s1", "g2", None, {**KEY_PROPOSAL, "effects": []}) is None
+
+
+def test_the_checklist_keeps_a_proposal_and_drops_junk() -> None:
+    from app.services.season.director import SeasonChecklist
+
+    assert SeasonChecklist.model_validate({"learner_agency": KEY_PROPOSAL}).learner_agency == KEY_PROPOSAL
+    assert SeasonChecklist.model_validate({"learner_agency": "lots"}).learner_agency is None
+
+
+def _settle_on(day: dict, details: dict, *, live: dict | None = None, event_id: str) -> dict:
+    after = settle(
+        live or {"season_script": {"id": "s1"}},
+        story_context={"season": day},
+        details={**details, "outcome": "met"},
+        event_id=event_id,
+        date_iso="2026-10-20",
+        day_index=12,
+    )
+    return after["season_script"]
+
+
+def test_any_generated_day_remembers_and_a_later_day_acts_on_it(pilot) -> None:
+    contract = agency.contract_for(KEY_DAY)
+    assert contract is not None and contract.speaker == "lila_bonnet"
+    turn = agency.agency_for_turn(contract)
+    assert agency.contract_from_turn(turn) == contract
+
+    text = "Oui, garde une clé, mais envoie-moi un message avant."
+    act = agency.VoiceAct(action="accept", subject="spare_key", conditions=["ask_first"],
+                          evidence_quotes=["garde une clé", "envoie-moi un message avant"])
+    details = {"learner_text": text, **agency.acts_for_details(contract, [act], text=text)}
+    assert details["agency_decisions"] == ["commit"]
+    state = _settle_on(KEY_DAY, details, event_id="g2-day1")
+
+    extras = agency.brief_extras("s1", "g2", 2, state=state, seed="s")
+    assert extras["agreements"] == [
+        "Lila has a copy of the key to Odile's flat. Limits the learner set: She texts before coming."
+    ]
+    callback = extras["callback"]
+    assert callback["character"] == "lila_bonnet"
+    assert callback["learner_words"] == ["garde une clé", "envoie-moi un message avant"]
+
+    # Staged the next day, it is not dealt again; the agreement still stands.
+    next_day = {**KEY_DAY, "position": {"segment": "g2", "day_in_segment": 2, "season_day": 13},
+                "checklist": {"premise_id": None}, "callback": callback}
+    state = _settle_on(next_day, {"learner_text": "Merci."}, live={"season_script": state}, event_id="g2-day2")
+    later = agency.brief_extras("s1", "g2", 3, state=state, seed="s")
+    assert "callback" not in later
+    assert later["agreements"]
+
+
+def test_the_writer_is_asked_for_a_contract_only_with_the_pilot_on(pilot, monkeypatch) -> None:
+    assert agency.brief_extras("s1", "g2", 1, state={}, seed="s") == {"learner_agency_rules": agency.AGENCY_RULES}
+    monkeypatch.setattr(settings, "SEASON_AGENCY_PILOT", False)
+    assert agency.brief_extras("s1", "g2", 1, state={}, seed="s") == {}
+    assert agency.contract_for(KEY_DAY) is None

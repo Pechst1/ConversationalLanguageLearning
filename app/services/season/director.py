@@ -57,6 +57,14 @@ class SeasonChecklist(BaseModel):
     #: for TOMORROW («Le radiateur est mort : pas de chauffage tant que Gus n'a pas
     #: la pièce»). Empty when no card was drawn.
     complication: str = Field(default="", max_length=240)
+    #: N1: what the learner may decide in today's turn (``season/agency.py`` checks it;
+    #: a proposal that does not hold is dropped, never the page).
+    learner_agency: dict[str, Any] | None = None
+
+    @field_validator("learner_agency", mode="before")
+    @classmethod
+    def _agency(cls, value: Any) -> Any:
+        return value if isinstance(value, dict) else None
 
     # LOSS-RATE 2026-10-06: the checklist is the director's own notes (the critic
     # and tomorrow's obstacle read them; the learner never does). A fifth thread

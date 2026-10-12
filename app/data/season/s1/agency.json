@@ -31,7 +31,8 @@
         "granted:no_name": "The learner let Romy use what they told her, but not their name.",
         "granted:off_record": "The learner told Romy things off the record: she may not write them down or publish them.",
         "granted:no_name+off_record": "The learner told Romy things off the record and without their name.",
-        "refused": "The learner did not want to talk to Romy for her article."
+        "refused": "The learner did not want to talk to Romy for her article.",
+        "tell": "The learner told Romy about themselves, without saying whether she may use it in her article."
       }
     }
   ],

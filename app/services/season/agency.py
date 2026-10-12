@@ -1,20 +1,25 @@
-"""N1 pilot — the consequence contract on one real generated day.
+"""N1 — what the learner decides on a generated day stays decided.
 
-The research brief (2026-10-12) asks for one gap where the learner's French
-changes something durable, before anything wider. This module connects
-:mod:`app.services.season.consequences` to the season, behind
-``SEASON_AGENCY_PILOT`` (off by default):
+Connects :mod:`app.services.season.consequences` to the season's generated
+days, behind ``SEASON_AGENCY_PILOT`` (off by default). Every generated day can
+carry a contract: what the learner may decide in its turn, under which limits.
+It comes from ``agency.json`` when the day stages an authored premise (gap 1's
+«Romy enquête», with its callbacks), and otherwise from the writer, who fills
+``season_checklist.learner_agency`` with the page; :func:`generated_contract`
+checks it deterministically and drops it (the day runs as before) when it
+does not hold.
 
-* **the turn** (:func:`agency_for_turn`) — on a generated day that stages a
-  premise with a contract in ``agency.json``, the voice lane is told what the
-  learner may decide there, and returns the acts it heard with verbatim quotes;
+* **the turn** (:func:`agency_for_turn`) — the voice lane is told what the
+  learner may decide, and returns the acts it heard with verbatim quotes;
 * **the release** (:func:`acts_for_details`) — before the reply is shown, the
   acts are checked against the contract (:func:`consequences.decide`) and stored
   on the turn's details with the learner's text, in the respond transaction;
 * **the settle** (:func:`settle_day`) — the day's settle commits them to
   ``state["agency"]`` (idempotent per day) and marks a staged callback played;
-* **the next day** (:func:`brief_extras`) — the director reads the standing
-  agreements and, when one is due, the callback that cites the learner's words.
+* **the next days** (:func:`brief_extras`) — the director reads the standing
+  agreements and, when one is due, a callback that cites the learner's words:
+  an authored storylet of the gap when one is due, else the oldest decision no
+  later day has acted on yet.
 
 Nothing here calls a model, and every failure leaves the day as it was before
 the pilot: an act that cannot be committed is logged and dropped.
@@ -23,6 +28,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from functools import lru_cache
 from typing import Any
 
@@ -48,6 +54,8 @@ from app.services.season.consequences import (
 logger = logging.getLogger(__name__)
 
 STATE_KEY = "agency"
+#: ``world.flags[NOTES_KEY][event_id]``: the line, the character and the gap of a commit.
+NOTES_KEY = "notes"
 
 
 class Contract(BaseModel):
@@ -58,7 +66,29 @@ class Contract(BaseModel):
     subjects: dict[str, str]
     conditions: dict[str, str] = Field(default_factory=dict)
     effects: list[EffectSpec]
+    #: Authored: the standing agreement per outcome («granted:no_name», «refused»).
     agreements: dict[str, str] = Field(default_factory=dict)
+    #: Generated: what becomes true per effect id.
+    outcomes: dict[str, str] = Field(default_factory=dict)
+
+    def note_for(self, event: Any) -> str:
+        """One English sentence for the director: what this committed event made true."""
+
+        if event.effect_id in self.outcomes:
+            line = self.outcomes[event.effect_id]
+        else:
+            if event.action in ("accept", "show"):
+                name = "granted" + (":" + "+".join(sorted(event.conditions)) if event.conditions else "")
+            elif event.action in ("decline", "withhold"):
+                name = "refused"
+            else:
+                name = event.action
+            line = self.agreements.get(name) or self.agreements.get(name.split(":")[0]) or ""
+            if line:
+                return line
+            line = f"The learner chose to {event.action} ({self.subjects.get(event.subject or '', event.subject)})."
+        limits = [self.conditions.get(c, c) for c in event.conditions]
+        return f"{line} Limits the learner set: {' '.join(limits)}" if limits else line
 
     def turn(self) -> TurnContract:
         return TurnContract(turn_id=f"{self.gap}.{self.premise}", speaker=self.speaker, effects=self.effects)
@@ -83,38 +113,116 @@ def load_agency(season_id: str) -> Agency:
     return Agency.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
 
+#: What the writer may propose for one day (``season_checklist.learner_agency``).
+MAX_SUBJECTS = 2
+MAX_CONDITIONS = 4
+MAX_EFFECTS = 4
+_SLUG = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+
+
+def _cast_ids(season_id: str) -> set[str]:
+    from app.services.season.format import load_season
+
+    return {member.id for member in load_season(season_id).cast}
+
+
+def generated_contract(season_id: str, gap: str, premise: str | None, raw: Any) -> Contract | None:
+    """The writer's ``learner_agency`` as a contract, or ``None`` when it does not hold.
+
+    Deterministic checks only: the speaker is in the cast; subjects, limits and
+    effect ids are short slugs; every effect uses the action vocabulary, one of
+    the day's subjects and only the day's limits, and says what becomes true
+    (``outcome_en``). Generated effects never disclose a fact: what a character
+    learns from an authored scene stays authored.
+    """
+
+    if not isinstance(raw, dict):
+        return None
+    try:
+        speaker = str(raw.get("speaker") or "").strip()
+        subjects = {
+            str(k).strip(): " ".join(str(v).split())[:200]
+            for k, v in dict(raw.get("subjects") or {}).items()
+            if _SLUG.match(str(k).strip()) and str(v).strip()
+        }
+        conditions = {
+            str(k).strip(): " ".join(str(v).split())[:200]
+            for k, v in dict(raw.get("conditions") or {}).items()
+            if _SLUG.match(str(k).strip()) and str(v).strip()
+        }
+        if speaker not in _cast_ids(season_id) or not subjects or len(subjects) > MAX_SUBJECTS:
+            return None
+        if len(conditions) > MAX_CONDITIONS:
+            return None
+        effects: list[EffectSpec] = []
+        outcomes: dict[str, str] = {}
+        for row in list(raw.get("effects") or [])[:MAX_EFFECTS]:
+            effect_id = str(row.get("id") or "").strip()
+            actions = [a for a in row.get("actions") or [] if a in ACTIONS]
+            subject = str(row.get("subject") or "").strip()
+            allowed = [c for c in row.get("allowed_conditions") or [] if c in conditions]
+            outcome = " ".join(str(row.get("outcome_en") or "").split())[:200]
+            if not _SLUG.match(effect_id) or effect_id in outcomes or not actions or subject not in subjects or not outcome:
+                continue
+            alternative = " ".join(str(row.get("alternative_en") or "").split())[:200] or None
+            effects.append(
+                EffectSpec(
+                    id=effect_id, actions=actions, subject=subject, allowed_conditions=allowed, alternative=alternative
+                )
+            )
+            outcomes[effect_id] = outcome
+    except Exception:  # noqa: BLE001 - a malformed proposal is no contract, never a lost day
+        logger.warning("agency: the writer's learner_agency does not parse")
+        return None
+    if not effects:
+        return None
+    return Contract(
+        season=season_id,
+        gap=gap,
+        premise=premise or "own",
+        speaker=speaker,
+        subjects=subjects,
+        conditions=conditions,
+        effects=effects,
+        outcomes=outcomes,
+    )
+
+
 def contract_for(season_day: dict | None) -> Contract | None:
-    """The contract of the premise a generated day staged, when the pilot is on."""
+    """The day's contract when the pilot is on: authored for its premise, else the writer's."""
 
     if not enabled() or not isinstance(season_day, dict) or season_day.get("kind") != "gap":
         return None
     gap = str((season_day.get("position") or {}).get("segment") or "")
-    premise = str((season_day.get("checklist") or {}).get("premise_id") or "")
-    if not gap or not premise or not season_day.get("id"):
+    checklist = season_day.get("checklist") or {}
+    premise = str(checklist.get("premise_id") or "")
+    season_id = str(season_day.get("id") or "")
+    if not gap or not season_id:
         return None
     try:
-        agency = load_agency(str(season_day["id"]))
+        agency = load_agency(season_id)
     except Exception:  # noqa: BLE001 - a broken pilot file never costs the day
-        logger.exception("agency: %s/agency.json could not be read", season_day.get("id"))
+        logger.exception("agency: %s/agency.json could not be read", season_id)
+        agency = Agency()
+    authored = next((row for row in agency.contracts if row.gap == gap and row.premise == premise), None)
+    if authored is not None:
+        return authored.model_copy(update={"season": season_id})
+    try:
+        return generated_contract(season_id, gap, premise or None, checklist.get("learner_agency"))
+    except Exception:  # noqa: BLE001
+        logger.exception("agency: no generated contract for %s", gap)
         return None
-    contract = next((row for row in agency.contracts if row.gap == gap and row.premise == premise), None)
-    return contract.model_copy(update={"season": str(season_day["id"])}) if contract is not None else None
 
 
 def contract_from_turn(turn_agency: dict | None) -> Contract | None:
-    """The contract an ``agency_for_turn`` block was built from."""
+    """The contract an ``agency_for_turn`` block carries."""
 
-    if not isinstance(turn_agency, dict):
+    if not isinstance(turn_agency, dict) or not isinstance(turn_agency.get("contract"), dict):
         return None
-    ref = turn_agency.get("contract") or {}
-    return contract_for(
-        {
-            "id": ref.get("season"),
-            "kind": "gap",
-            "position": {"segment": ref.get("gap")},
-            "checklist": {"premise_id": ref.get("premise")},
-        }
-    )
+    try:
+        return Contract.model_validate(turn_agency["contract"])
+    except Exception:  # noqa: BLE001
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +234,7 @@ def agency_for_turn(contract: Contract) -> dict[str, Any]:
     """What the voice lane reads (``story.season_turn.agency``)."""
 
     return {
-        "contract": {"season": contract.season, "gap": contract.gap, "premise": contract.premise},
+        "contract": contract.model_dump(mode="json"),
         "character": contract.speaker,
         "may_decide": [
             {
@@ -243,12 +351,23 @@ def settle_day(state: dict, season_ctx: dict, details: dict, *, event_id: str, e
                 continue
             try:
                 world = apply(world, decision.event, expected_version=world.version, learner_text=text)
-                changed = True
             except TransitionError as exc:
                 logger.warning("agency: act not committed (%s)", exc)
+                continue
+            notes = dict(world.flags.get(NOTES_KEY) or {})
+            notes.setdefault(
+                decision.event.event_id,
+                {"line": contract.note_for(decision.event), "character": contract.speaker, "gap": contract.gap},
+            )
+            world.flags[NOTES_KEY] = notes
+            changed = True
     callback = season_ctx.get("callback") or {}
     if engaged and callback.get("id") and callback["id"] not in world.played:
         world.played.append(str(callback["id"]))
+        world.flags["callbacks"] = [
+            *(world.flags.get("callbacks") or []),
+            {"id": callback["id"], "source_event": callback.get("source_event"), "event_id": event_id},
+        ]
         changed = True
     if changed:
         state = dict(state)
@@ -261,59 +380,109 @@ def settle_day(state: dict, season_ctx: dict, details: dict, *, event_id: str, e
 # ---------------------------------------------------------------------------
 
 
-def _agreement_lines(season_id: str, world: WorldState) -> list[str]:
-    agency = load_agency(season_id)
-    lines = []
-    for key, permission in world.permissions.items():
-        subject, recipient = key.split(">", 1)
-        contract = next(
-            (row for row in agency.contracts if row.speaker == recipient and subject in row.subjects), None
-        )
-        if contract is None:
+def _standing_lines(world: WorldState) -> list[str]:
+    """The latest note per permission (or per other act), oldest first, at most six."""
+
+    notes = world.flags.get(NOTES_KEY) or {}
+    latest: dict[str, str] = {}
+    for event in world.events:
+        note = notes.get(event.event_id)
+        if not note:
             continue
-        name = "granted" if permission.granted else "refused"
-        if permission.granted and permission.conditions:
-            name += ":" + "+".join(sorted(permission.conditions))
-        line = contract.agreements.get(name) or contract.agreements.get(name.split(":")[0])
-        if line:
-            lines.append(line)
-    return lines
+        key = f"{event.subject}>{event.recipient}" if event.action in ("accept", "show", "decline", "withhold", "revise") else event.event_id
+        latest.pop(key, None)
+        latest[key] = note["line"]
+    return list(latest.values())[-6:]
+
+
+def _authored_callback(agency: Agency, world: WorldState, gap_id: str, day: int, seed: str) -> dict | None:
+    library = [row for row in agency.storylets if row.gap == gap_id]
+    if not any(row.pays_off for row in library):
+        return None
+    library = [*library, Storylet(id="gap_as_planned", gap=gap_id, fallback=True)]
+    try:
+        chosen, _ = select(library, world, gap=gap_id, slot=f"{gap_id}.day{day}", seed=seed)
+    except TransitionError:
+        return None
+    source = callback_source(chosen, world) if not chosen.fallback else None
+    if source is None:
+        return None
+    return {
+        "id": chosen.id,
+        "character": (chosen.cast or [None])[0],
+        "instruction": chosen.instruction,
+        "learner_words": [row.text for row in source.evidence][:3],
+        "source_event": source.event_id,
+    }
+
+
+def _owed_callback(world: WorldState) -> dict | None:
+    """The oldest committed decision no later day has acted on yet."""
+
+    notes = world.flags.get(NOTES_KEY) or {}
+    acted_on = {
+        row.get("source_event") for row in world.flags.get("callbacks") or [] if isinstance(row, dict)
+    }
+    for event in world.events:
+        note = notes.get(event.event_id)
+        if not note or event.event_id in acted_on or f"cb_{event.event_id}" in world.played:
+            continue
+        return {
+            "id": f"cb_{event.event_id}",
+            "character": note.get("character"),
+            "instruction": (
+                f"Show that this still holds and that it changed something today, through the character: {note['line']}"
+            ),
+            "learner_words": [row.text for row in event.evidence][:3],
+            "source_event": event.event_id,
+        }
+    return None
+
+
+#: What the writer reads to fill ``season_checklist.learner_agency`` (pilot on only).
+AGENCY_RULES = {
+    "actions": list(ACTIONS),
+    "max_subjects": MAX_SUBJECTS,
+    "max_conditions": MAX_CONDITIONS,
+    "max_effects": MAX_EFFECTS,
+    "shape": {
+        "speaker": "cast id of the character the learner answers",
+        "subjects": {"snake_case_id": "what the decision is about, one English sentence"},
+        "conditions": {"snake_case_id": "a limit the learner may set that this character would honour"},
+        "effects": [
+            {
+                "id": "snake_case_id",
+                "actions": ["accept"],
+                "subject": "one of subjects",
+                "allowed_conditions": ["ids from conditions"],
+                "outcome_en": "what is true afterwards, one English sentence",
+                "alternative_en": "what the character offers instead of a limit they cannot honour, or null",
+            }
+        ],
+    },
+}
 
 
 def brief_extras(season_id: str, gap_id: str, day: int, *, state: dict | None, seed: str) -> dict[str, Any]:
-    """``{"agreements": [...], "callback": {...}}`` for the director's ``today``, or ``{}``."""
+    """``{"learner_agency_rules", "agreements", "callback"}`` for the director's ``today``,
+    or ``{}`` with the pilot off."""
 
     if not enabled():
         return {}
     world = world_of(state)
     if not world.events:
-        return {}
+        return {"learner_agency_rules": AGENCY_RULES}
     try:
         agency = load_agency(season_id)
     except Exception:  # noqa: BLE001
-        return {}
-    extras: dict[str, Any] = {}
-    lines = _agreement_lines(season_id, world)
+        agency = Agency()
+    extras: dict[str, Any] = {"learner_agency_rules": AGENCY_RULES}
+    lines = _standing_lines(world)
     if lines:
         extras["agreements"] = lines
-    library = [row for row in agency.storylets if row.gap == gap_id]
-    due = [row for row in library if row.pays_off]
-    if due:
-        # Only callbacks are dealt here; with none due, the day is the gap's own.
-        library = [*library, Storylet(id="gap_as_planned", gap=gap_id, fallback=True)]
-        try:
-            chosen, _ = select(library, world, gap=gap_id, slot=f"{gap_id}.day{day}", seed=seed)
-        except TransitionError:
-            chosen = None
-        source = callback_source(chosen, world) if chosen is not None and not chosen.fallback else None
-        if chosen is not None and source is not None:
-            extras["callback"] = {
-                "id": chosen.id,
-                "character": (chosen.cast or [None])[0],
-                "instruction": chosen.instruction,
-                "learner_words": [row.text for row in source.evidence][:3],
-                "source_event": source.event_id,
-            }
+    callback = _authored_callback(agency, world, gap_id, day, seed) or _owed_callback(world)
+    if callback is not None:
+        extras["callback"] = callback
     return extras
 
 
@@ -327,6 +496,7 @@ __all__ = [
     "brief_extras",
     "contract_for",
     "contract_from_turn",
+    "generated_contract",
     "enabled",
     "load_agency",
     "settle_day",
