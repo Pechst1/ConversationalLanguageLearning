@@ -27,6 +27,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
+from app.services.answer_acceptance import is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -794,7 +795,9 @@ learner already handles — lean on it; grammar_plan.avoid lists structures abov
 learner's level — do not use them. A plan never outranks the story: the form serves what
 the characters want to say. The examples show the form, never the line: do not copy one
 into the page; each character keeps their own tu or vous with the learner, and nobody
-re-introduces themselves to a learner they already know.
+re-introduces themselves to a learner they already know. grammar_plan and mots_a_placer
+are given to you; they are not output fields: never return them — what they ask for
+lives in the panels' dialogue, opening_line_fr and suggested_response_fr.
 CAN-DOS (what the learner can do in French). can_dos.options lists the can-dos of the
 learner's current sub-band, least practised first; can_dos.prefer names the ones this
 learner has not shown yet. Build the objective so that it genuinely exercises ONE of
@@ -2081,11 +2084,23 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
     }
 
 
-def _fingerprint(thread: SerialThread | None) -> str:
+#: Thread-state namespaces the story never reads, written by other surfaces while a
+#: day may be generating: the Courrier's chains, cooling and withheld notes
+#: (``story_correspondence.CORRESPONDENCE_KEY``). Agency pilot 2026-10-12 (B1): a
+#: letter refused as too hard on La Une moved the fingerprint, and an accepted day
+#: was lost to ``story_revision_conflict``. A finished letter still moves it: it
+#: writes the story's own keys.
+FINGERPRINT_IGNORED_STATE_KEYS = frozenset({"courrier"})
+
+
+def _fingerprint(thread: SerialThread | None, *, legacy: bool = False) -> str:
+    state = thread.state if thread else None
+    if thread and not legacy and isinstance(state, dict):
+        state = {key: value for key, value in state.items() if key not in FINGERPRINT_IGNORED_STATE_KEYS}
     value = (
         {
             "id": str(thread.id),
-            "state": thread.state,
+            "state": state,
             "index": thread.current_episode_index,
             "world": thread.world_bible,
         }
@@ -7964,7 +7979,8 @@ def _lock_context(db: Session, user: User, expected: str) -> SerialThread:
     # Lock the owner first to serialize initial thread creation as well as writes.
     db.execute(select(User.id).where(User.id == user.id).with_for_update())
     thread = _active_thread(db, user, lock=True)
-    if _fingerprint(thread) != expected:
+    # A context frozen before the Courrier keys were left out still matches once.
+    if expected not in (_fingerprint(thread), _fingerprint(thread, legacy=True)):
         raise StoryUnavailable("story_revision_conflict")
     from app.services.season import runtime as season_runtime
 
@@ -8720,6 +8736,9 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
         if gender_only_change(turn.correction_span_fr, turn.correction_fr):
             # The learner's gender is theirs to give (live read 2026-09-30).
             turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
+        elif is_preference_swap(turn.correction_span_fr, turn.correction_fr):
+            # Agency walk run 3: «sans mon nom» → «pas mon nom»; both are correct.
+            turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):
         raise StoryUnavailable(
@@ -8994,10 +9013,48 @@ _FALLBACK_SUMMARY = {
 }
 
 
-def fallback_turn(*, character_name: str | None, learner_text: str, language: str, reason: str) -> SemanticTurn:
-    """The authored ending used when the actor could not produce one (WP-58)."""
+#: Agency pilot run 2 (R2-5): the reply lane had answered («Ah, Paul — merci.») when the
+#: story lane fell back, and the stored summary said the character left *before*
+#: answering, quoting the very line that was answered.
+_FALLBACK_SUMMARY_ANSWERED = {
+    "en": "{name} answered you, then had to go; the rest of the scene stays open and picks up next time.",
+    "de": "{name} hat dir geantwortet und musste dann weg; der Rest der Szene bleibt offen und geht nächstes Mal weiter.",
+    "fr": "{name} a répondu, puis a dû partir ; la suite reste ouverte et la scène reprendra là.",
+}
+
+
+_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+
+
+def open_question_of(line: Any) -> str | None:
+    """The last question in a character's line (``opening_line_fr``), or ``None``."""
+
+    sentences = [part.strip() for part in _SENTENCE_END.split(str(line or "").strip()) if part.strip()]
+    question = next((part for part in reversed(sentences) if part.endswith("?")), None)
+    return question[:240] if question else None
+
+
+def fallback_turn(
+    *, character_name: str | None, learner_text: str, language: str, reason: str, answered: bool = False
+) -> SemanticTurn:
+    """The authored ending used when the actor could not produce one (WP-58).
+
+    ``answered``: the character's reply was already shown, so the ending never says
+    they left before answering."""
 
     name = (character_name or "").split(" « ")[0].split()[0] if character_name else "Quelqu’un"
+    if answered:
+        summary = _FALLBACK_SUMMARY_ANSWERED.get(language, _FALLBACK_SUMMARY_ANSWERED["en"]).format(name=name)
+        return SemanticTurn(
+            outcome="partially_met",
+            understood_intent=f"fallback:{reason}",
+            evidence_quotes=[learner_text[:300]] if learner_text.strip() else [],
+            reply_fr="Attends, on m’appelle — je reviens vers toi très vite, promis.",
+            needs_clarification=False,
+            resolution_fr=f"{name} doit partir. La conversation reprendra là où elle s’est arrêtée.",
+            summary_native=summary,
+            callback_fr=f"{name} a répondu, puis a dû partir.",
+        )
     summary = _FALLBACK_SUMMARY.get(language, _FALLBACK_SUMMARY["en"]).format(name=name)
     return SemanticTurn(
         outcome="partially_met",
@@ -9143,6 +9200,12 @@ def settle_resolution(
         "chapter_id": (live.get("chapter") or {}).get("id"),
         "date": _journey_date(journey),
     }
+    if turn.outcome != "met":
+        # R2-3: a scene left open keeps the question it asked, so a letter about it
+        # asks that question again instead of a generic «tu en penses quoi ?».
+        question = open_question_of(brief.story_context["draft"].get("opening_line_fr"))
+        if question:
+            event["open_question_fr"] = question
     live["events"] = [*live.get("events", []), event][-MAX_HISTORY:]
     # WP-62: the day this life is on. `events` is a rolling tail of forty, so it cannot
     # answer "how long ago"; this counter can, it is monotonic, and every ledger row

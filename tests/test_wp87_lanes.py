@@ -291,9 +291,13 @@ def test_a_failed_story_lane_gets_the_authored_ending_around_the_shown_reply(
     d.advance()
     shown = _resolution(d.journey)["prompt"]
     assert shown["story_pending"] is False
-    assert "doit partir avant de répondre" in shown["character_line_fr"]
+    # R2-5: the reply was shown, so the ending never says the character left before answering.
+    assert "doit partir" in shown["character_line_fr"]
+    assert "avant de répondre" not in shown["character_line_fr"]
     thread = engine._active_thread(db_session, SimpleNamespace(id=d.user_id))
     live = thread.state["living_story"]
+    stored = " ".join(str(e.get("summary_fr") or "") + str(e.get("callback_fr") or "") for e in live["events"])
+    assert "avant de répondre" not in stored and "before answering" not in stored
     assert not [c for c in live.get("commitments", []) if c.get("source_quote") == ANSWER], (
         "an authored ending invents no commitment"
     )
