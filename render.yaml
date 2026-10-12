@@ -142,10 +142,11 @@ services:
         value: low
       - key: SERIAL_WORLD_ENABLED
         value: "true"
+      # Owner 2026-10-12: on. It only draws once GRAPHIC_NOVEL_IMAGE_STORAGE=s3 and a
+      # bucket are set below (graphic_novel.image_generation_enabled); until then the
+      # panels stay the SVG fallback, so nothing lands on the container's disk.
       - key: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
-        # Keep the first pilot deterministic and bounded. Configure durable
-        # S3-compatible storage before enabling generated images.
-        value: "false"
+        value: "true"
       - key: ATELIER_LLM_ENABLED
         value: "true"
       # The V2 daily journey. The code default is now true, but the pilot's state
@@ -196,10 +197,9 @@ services:
       # --- Owner 2026-10-12: every product feature on (begin) ------------
       # Each switch still exists in app/config.py (default off there); this
       # manifest turns it on in production. Set one to "false" here to take a
-      # feature back out. Kept off on purpose: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
-      # (needs S3 storage below, or every drawing is lost at the next deploy) and
-      # VOCAB_STORY_PILOT_ENABLED (an A/B split that withholds half of each
-      # learner's words from the story, not a feature).
+      # feature back out. Kept off on purpose: VOCAB_STORY_PILOT_ENABLED (an A/B
+      # split that withholds half of each learner's words from the story, not a
+      # feature).
       - key: REVUE_ENABLED
         value: "true"
       - key: REVUE_RADIO_ENABLED
@@ -226,8 +226,8 @@ services:
       - key: SPEND_RESERVATIONS_ENABLED
         value: "true"
       # --- Owner 2026-10-12: every product feature on (end) --------------
-      # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
-      # dashboard to switch panel art on.
+      # Durable image storage (any S3-compatible bucket; docs/ops/image-storage.md
+      # sets up Cloudflare R2). Entered here on the API only: the worker inherits it.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE
         sync: false
       - key: GRAPHIC_NOVEL_IMAGE_S3_BUCKET
@@ -352,7 +352,7 @@ services:
       - key: SERIAL_WORLD_ENABLED
         value: "true"
       - key: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
-        value: "false"
+        value: "true"
       - key: ATELIER_LLM_ENABLED
         value: "true"
       # The V2 daily journey. The code default is now true, but the pilot's state
@@ -403,10 +403,9 @@ services:
       # --- Owner 2026-10-12: every product feature on (begin) ------------
       # Each switch still exists in app/config.py (default off there); this
       # manifest turns it on in production. Set one to "false" here to take a
-      # feature back out. Kept off on purpose: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
-      # (needs S3 storage below, or every drawing is lost at the next deploy) and
-      # VOCAB_STORY_PILOT_ENABLED (an A/B split that withholds half of each
-      # learner's words from the story, not a feature).
+      # feature back out. Kept off on purpose: VOCAB_STORY_PILOT_ENABLED (an A/B
+      # split that withholds half of each learner's words from the story, not a
+      # feature).
       - key: REVUE_ENABLED
         value: "true"
       - key: REVUE_RADIO_ENABLED
@@ -433,22 +432,21 @@ services:
       - key: SPEND_RESERVATIONS_ENABLED
         value: "true"
       # --- Owner 2026-10-12: every product feature on (end) --------------
-      # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
-      # dashboard to switch panel art on.
+      # Durable image storage: inherited from the API's dashboard values.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE
-        sync: false
+        fromService: {type: web, name: atelier-api, envVarKey: GRAPHIC_NOVEL_IMAGE_STORAGE}
       - key: GRAPHIC_NOVEL_IMAGE_S3_BUCKET
-        sync: false
+        fromService: {type: web, name: atelier-api, envVarKey: GRAPHIC_NOVEL_IMAGE_S3_BUCKET}
       - key: GRAPHIC_NOVEL_IMAGE_S3_REGION
-        sync: false
+        fromService: {type: web, name: atelier-api, envVarKey: GRAPHIC_NOVEL_IMAGE_S3_REGION}
       - key: GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL
-        sync: false
+        fromService: {type: web, name: atelier-api, envVarKey: GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL}
       - key: GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID
-        sync: false
+        fromService: {type: web, name: atelier-api, envVarKey: GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID}
       - key: GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY
-        sync: false
+        fromService: {type: web, name: atelier-api, envVarKey: GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY}
       - key: GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL
-        sync: false
+        fromService: {type: web, name: atelier-api, envVarKey: GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL}
       # Spend bounds read in the worker too (the journey prefetch beat skips a
       # learner at the weekly guardrail): inherited so a dashboard edit on the
       # API reaches both processes.
