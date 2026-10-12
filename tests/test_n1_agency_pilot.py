@@ -288,3 +288,61 @@ def test_the_writer_is_asked_for_a_contract_only_with_the_pilot_on(pilot, monkey
     monkeypatch.setattr(settings, "SEASON_AGENCY_PILOT", False)
     assert agency.brief_extras("s1", "g2", 1, state={}, seed="s") == {}
     assert agency.contract_for(KEY_DAY) is None
+
+
+#: The walk's g1.2 (12 Oct 2026): the writer staged another premise, wrote no
+#: learner_agency, and the turn asked exactly for the permission.
+CAMERA_DAY = {
+    "id": "s1",
+    "kind": "gap",
+    "position": {"segment": "g1", "day_in_segment": 2, "season_day": 5},
+    "checklist": {"premise_id": "la_meme_chose", "learner_agency": None,
+                  "turn_want": "Decide if you allow Romy to record you now or not"},
+}
+
+
+def test_a_day_the_writer_gave_no_contract_still_records_the_decision(pilot) -> None:
+    assert agency.contract_for(CAMERA_DAY) is None  # without the scene's character
+    contract = agency.contract_for(CAMERA_DAY, speaker="romy_tremblay")
+    assert contract is not None and contract.open_conditions
+    turn = agency.agency_for_turn(contract)
+    assert turn["conditions_open"] is True
+    assert agency.contract_for(CAMERA_DAY, speaker="nobody_in_the_cast") is None
+
+    text = "Non, pas de camera. Tu peux utiliser mon histoire, mais sans mon nom."
+    acts = [
+        agency.VoiceAct(action="decline", subject="request", evidence_quotes=["Non, pas de camera."]),
+        agency.VoiceAct(action="accept", subject="request", conditions=["Sans mon nom"],
+                        evidence_quotes=["Tu peux utiliser mon histoire, mais sans mon nom"]),
+    ]
+    details = {"learner_text": text, **agency.acts_for_details(contract, acts, text=text)}
+    assert details["agency_decisions"] == ["commit", "commit"]
+    state = _settle_on(CAMERA_DAY, details, event_id="g1-day2")
+
+    world = agency.world_of(state)
+    assert [event.action for event in world.events] == ["decline", "accept"]
+    assert world.events[1].conditions == ["sans_mon_nom"]
+    extras = agency.brief_extras("s1", "g1", 3, state=state, seed="s")
+    assert extras["agreements"][-1] == (
+        "The learner went along with what romy_tremblay asked: Decide if you allow Romy to record you now"
+        " or not Limits the learner set: sans mon nom (the learner's words:"
+        " «Tu peux utiliser mon histoire, mais sans mon nom»)"
+    )
+    assert extras["callback"]["learner_words"] == ["Non, pas de camera."]
+
+
+def test_the_ending_is_told_what_the_learner_decided() -> None:
+    voice = story_lanes.VoiceReply.model_validate(
+        {"reply_fr": "D'accord.", "understood_intent": "x", "needs_clarification": False, "acts": [
+            {"action": "decline", "evidence_quotes": ["pas de camera"]},
+            {"action": "accept", "evidence_quotes": [], "clarity": "clear"},
+            {"action": "accept", "evidence_quotes": ["peut-être"], "clarity": "ambiguous"},
+        ]}
+    )
+    tutor = story_lanes.TutorVerdict.model_validate({"outcome": "met", "evidence_quotes": ["pas de camera"]})
+    released = story_lanes.released_view(tutor, voice)
+    assert released["learner_decided"] == [
+        {"action": "decline", "conditions": [], "learner_words": ["pas de camera"]}
+    ]
+    voice.acts = []
+    assert "learner_decided" not in story_lanes.released_view(tutor, voice)

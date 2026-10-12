@@ -8495,7 +8495,7 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
         # N1 pilot: what the learner may decide on this premise (season/agency.py).
         from app.services.season.agency import agency_for_turn, contract_for
 
-        if (contract := contract_for(season_day)) is not None:
+        if (contract := contract_for(season_day, speaker=scenario.character_id)) is not None:
             context["season_turn"]["agency"] = agency_for_turn(contract)
     context["agendas"] = [
         row

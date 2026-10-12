@@ -70,6 +70,9 @@ class Contract(BaseModel):
     agreements: dict[str, str] = Field(default_factory=dict)
     #: Generated: what becomes true per effect id.
     outcomes: dict[str, str] = Field(default_factory=dict)
+    #: The open contract (:func:`open_contract`): any limit the learner sets in their
+    #: own words is honoured and recorded, not only the declared ones.
+    open_conditions: bool = False
 
     def note_for(self, event: Any) -> str:
         """One English sentence for the director: what this committed event made true."""
@@ -92,6 +95,24 @@ class Contract(BaseModel):
 
     def turn(self) -> TurnContract:
         return TurnContract(turn_id=f"{self.gap}.{self.premise}", speaker=self.speaker, effects=self.effects)
+
+    def widened(self, intent: Intent) -> Contract:
+        """An open contract that also honours the limits this intent set, each described
+        by the learner's own words. Any other contract is returned unchanged."""
+
+        new = [c for c in intent.conditions if c not in self.conditions and _SLUG.match(c)]
+        if not self.open_conditions or not new:
+            return self
+        quote = intent.evidence[0].text if intent.evidence else ""
+        conditions = dict(self.conditions)
+        for slug in new[: max(0, MAX_CONDITIONS - len(conditions))]:
+            words = slug.replace("_", " ")
+            conditions[slug] = f"{words} (the learner's words: «{quote}»)" if quote else words
+        effects = [
+            spec.model_copy(update={"allowed_conditions": sorted({*spec.allowed_conditions, *conditions})})
+            for spec in self.effects
+        ]
+        return self.model_copy(update={"conditions": conditions, "effects": effects})
 
 
 class Agency(BaseModel):
@@ -188,8 +209,41 @@ def generated_contract(season_id: str, gap: str, premise: str | None, raw: Any) 
     )
 
 
-def contract_for(season_day: dict | None) -> Contract | None:
-    """The day's contract when the pilot is on: authored for its premise, else the writer's."""
+#: Whatever today's turn asks, the learner may go along with it or refuse it.
+OPEN_AGREE = ("accept", "show", "tell", "promise")
+OPEN_REFUSE = ("decline", "withhold")
+
+
+def open_contract(season_id: str, gap: str, premise: str | None, speaker: str, asked: str) -> Contract | None:
+    """The contract of a generated day that has neither an authored nor a valid written
+    one: the learner may go along with what the character asks today, or refuse it,
+    under any limit they set in their own words. Built in code, so a decision is never
+    lost because the writer left ``learner_agency`` out (agency walk, 12 Oct 2026)."""
+
+    if speaker not in _cast_ids(season_id):
+        return None
+    asked = " ".join(str(asked or "").split())[:200] or "what the character asks of the learner today"
+    return Contract(
+        season=season_id,
+        gap=gap,
+        premise=premise or "open",
+        speaker=speaker,
+        subjects={"request": asked},
+        effects=[
+            EffectSpec(id="went_along", actions=list(OPEN_AGREE), subject="request"),
+            EffectSpec(id="refused", actions=list(OPEN_REFUSE), subject="request"),
+        ],
+        outcomes={
+            "went_along": f"The learner went along with what {speaker} asked: {asked}",
+            "refused": f"The learner refused what {speaker} asked: {asked}",
+        },
+        open_conditions=True,
+    )
+
+
+def contract_for(season_day: dict | None, *, speaker: str | None = None) -> Contract | None:
+    """The day's contract when the pilot is on: authored for its premise, else the
+    writer's, else (given the scene's ``speaker``) the open contract."""
 
     if not enabled() or not isinstance(season_day, dict) or season_day.get("kind") != "gap":
         return None
@@ -208,9 +262,12 @@ def contract_for(season_day: dict | None) -> Contract | None:
     if authored is not None:
         return authored.model_copy(update={"season": season_id})
     try:
-        return generated_contract(season_id, gap, premise or None, checklist.get("learner_agency"))
+        written = generated_contract(season_id, gap, premise or None, checklist.get("learner_agency"))
+        if written is not None or not speaker:
+            return written
+        return open_contract(season_id, gap, premise or None, speaker, str(checklist.get("turn_want") or ""))
     except Exception:  # noqa: BLE001
-        logger.exception("agency: no generated contract for %s", gap)
+        logger.exception("agency: no contract for %s", gap)
         return None
 
 
@@ -245,6 +302,7 @@ def agency_for_turn(contract: Contract) -> dict[str, Any]:
             for subject, about in contract.subjects.items()
         ],
         "conditions": dict(contract.conditions),
+        **({"conditions_open": True} if contract.open_conditions else {}),
         "if_condition_impossible": next((e.alternative for e in contract.effects if e.alternative), None),
     }
 
@@ -257,8 +315,10 @@ of agency.conditions when it matches; otherwise a short snake_case name of what 
 asked for), evidence_quotes exact verbatim quotes from learner_text or history[].learner.
 A learner who has not clearly agreed or refused has decided nothing: then clarity is
 ambiguous. Nothing about agency.may_decide in their words: acts is an empty list.
-reply_fr never accepts a limit that is not a key of agency.conditions; offer
-agency.if_condition_impossible instead. reply_fr never claims anything was written,
+reply_fr never accepts a limit that is not a key of agency.conditions, unless
+agency.conditions_open is true (then the character may honour a reasonable limit the
+learner sets, and keeps it); otherwise offer agency.if_condition_impossible instead.
+reply_fr never claims anything was written,
 sent or published."""
 
 
@@ -279,6 +339,12 @@ def agency_text(learner_text: str, history: list[dict] | None) -> str:
     return "\n".join([*[text for text in earlier if text], learner_text])
 
 
+def _slugged(name: str) -> str:
+    """«no name» or «No-Name» as the ``no_name`` the contract keys use."""
+
+    return re.sub(r"[^a-z0-9]+", "_", str(name).strip().lower()).strip("_")[:40]
+
+
 def _intent(act: VoiceAct, text: str) -> Intent | None:
     if act.action not in ACTIONS:
         return None
@@ -292,7 +358,7 @@ def _intent(act: VoiceAct, text: str) -> Intent | None:
     return Intent(
         action=act.action,  # type: ignore[arg-type]
         subject=act.subject,
-        conditions=[c.strip()[:40] for c in act.conditions if c.strip()],
+        conditions=[slug for c in act.conditions if (slug := _slugged(c))],
         evidence=evidence,
         clarity=clarity,  # type: ignore[arg-type]
     )
@@ -305,13 +371,16 @@ def acts_for_details(contract: Contract, acts: list[VoiceAct], *, text: str) -> 
 
     intents = [intent for act in acts if (intent := _intent(act, text)) is not None]
     decisions = [
-        decide(contract.turn(), intent, WorldState(), learner_text=text, source_turn="preview").kind
+        decide(contract.widened(intent).turn(), intent, WorldState(), learner_text=text, source_turn="preview").kind
         for intent in intents
     ]
     return {
         "season_acts": [intent.model_dump(mode="json") for intent in intents],
         "agency_text": text,
         "agency_decisions": decisions,
+        # The settle commits against this contract: an open one cannot be rebuilt
+        # from the season day alone (it needs the scene's character).
+        "agency_contract": contract.model_dump(mode="json"),
     }
 
 
@@ -337,6 +406,8 @@ def settle_day(state: dict, season_ctx: dict, details: dict, *, event_id: str, e
     world = world_of(state)
     changed = False
     contract = contract_for(season_ctx)
+    if contract is None and isinstance(details.get("agency_contract"), dict):
+        contract = contract_from_turn({"contract": details["agency_contract"]})
     text = str(details.get("agency_text") or details.get("learner_text") or "")
     if contract is not None and text:
         for index, raw in enumerate(details.get("season_acts") or []):
@@ -346,7 +417,8 @@ def settle_day(state: dict, season_ctx: dict, details: dict, *, event_id: str, e
                 logger.warning("agency: unreadable act dropped: %r", raw)
                 continue
             source = f"{event_id}:{index}"
-            decision = decide(contract.turn(), intent, world, learner_text=text, source_turn=source)
+            terms = contract.widened(intent)
+            decision = decide(terms.turn(), intent, world, learner_text=text, source_turn=source)
             if not isinstance(decision, Commit):
                 continue
             try:
@@ -357,7 +429,7 @@ def settle_day(state: dict, season_ctx: dict, details: dict, *, event_id: str, e
             notes = dict(world.flags.get(NOTES_KEY) or {})
             notes.setdefault(
                 decision.event.event_id,
-                {"line": contract.note_for(decision.event), "character": contract.speaker, "gap": contract.gap},
+                {"line": terms.note_for(decision.event), "character": terms.speaker, "gap": terms.gap},
             )
             world.flags[NOTES_KEY] = notes
             changed = True
