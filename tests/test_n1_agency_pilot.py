@@ -241,11 +241,11 @@ def test_the_checklist_keeps_a_proposal_and_drops_junk() -> None:
     assert SeasonChecklist.model_validate({"learner_agency": "lots"}).learner_agency is None
 
 
-def _settle_on(day: dict, details: dict, *, live: dict | None = None, event_id: str) -> dict:
+def _settle_on(day: dict, details: dict, *, live: dict | None = None, event_id: str, outcome: str = "met") -> dict:
     after = settle(
         live or {"season_script": {"id": "s1"}},
         story_context={"season": day},
-        details={**details, "outcome": "met"},
+        details={**details, "outcome": outcome},
         event_id=event_id,
         date_iso="2026-10-20",
         day_index=12,
@@ -277,7 +277,9 @@ def test_any_generated_day_remembers_and_a_later_day_acts_on_it(pilot) -> None:
     # Staged the next day, it is not dealt again; the agreement still stands.
     next_day = {**KEY_DAY, "position": {"segment": "g2", "day_in_segment": 2, "season_day": 13},
                 "checklist": {"premise_id": None}, "callback": callback}
-    state = _settle_on(next_day, {"learner_text": "Merci."}, live={"season_script": state}, event_id="g2-day2")
+    # Walk 5: even when the day's answer was not met, the page staged the callback.
+    state = _settle_on(next_day, {"learner_text": "Merci."}, live={"season_script": state}, event_id="g2-day2",
+                       outcome="not_met")
     later = agency.brief_extras("s1", "g2", 3, state=state, seed="s")
     assert "callback" not in later
     assert later["agreements"]
