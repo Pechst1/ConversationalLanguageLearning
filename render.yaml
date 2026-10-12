@@ -60,9 +60,11 @@ services:
       # production without it.
       - key: LEGAL_CONTACT_EMAIL
         sync: false
-      # WP-70: two workers fit the 512 MB starter plan (~184 MB each).
+      # One worker on the 512 MB starter plan: since WP-153 each worker loads the
+      # spaCy French pipeline at start-up (~450 MB resident with the app), and two
+      # were killed for memory on the first deploy. Raise it with the plan.
       - key: WEB_CONCURRENCY
-        value: "2"
+        value: "1"
       - key: USER_DAILY_SPEND_CAP_USD
         value: "0.50"
       # WP-138: the whole service's day (every learner, art included, UTC).
