@@ -473,6 +473,8 @@ def test_two_seeds_deal_different_first_letters(db_session, monkeypatch):
     """The catalogue order is gone: whose Courrier this is decides what arrives."""
 
     monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+    # The dice are also seeded on the ISO week: pin it, or the hands change every Monday.
+    monkeypatch.setattr(courrier, "iso_week_key", lambda moment=None: "2026-W38")
     sequences = {seed: _first_domains(db_session, seed) for seed in SEEDS}
 
     # Four learners, at least three different openings. With twelve domains and a
