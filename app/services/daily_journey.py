@@ -991,6 +991,20 @@ def _scene_page_texts(scene: Any) -> tuple[list[str], int]:
     return texts, len(panels)
 
 
+def _is_season_day(story_context: Any) -> bool:
+    """Is today's scene a season page (authored or generated), whose reply is the page's
+    own question?"""
+
+    if not isinstance(story_context, dict):
+        return False
+    from app.services.season.runtime import SEASON_CONTEXT_KEY
+
+    source = story_context.get("source")
+    return bool(story_context.get(SEASON_CONTEXT_KEY)) or bool(
+        isinstance(source, dict) and source.get("season_script")
+    )
+
+
 class _GenerationFailure(Exception):
     """Why a scene could not be turned into a playable day (WP-69).
 
@@ -3407,6 +3421,13 @@ class DailyJourneyService:
             # a short day or a listening day in its place.
             decision = DayShapeDecision(
                 shape=DEFAULT_DAY_SHAPE, reason="season_tentpole", eligible=decision.eligible
+            )
+        elif decision.shape is DayShape.LETTER and _is_season_day(result.story_context):
+            # Agency walk run 2 (R2-2): a generated season page ends on its own
+            # question («Romy attend ta réponse»). A letter in the reply's place asked
+            # something else, so the page's question had no answer field.
+            decision = DayShapeDecision(
+                shape=DEFAULT_DAY_SHAPE, reason="season_page_question", eligible=decision.eligible
             )
         try:
             if first_day:
