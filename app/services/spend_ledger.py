@@ -178,6 +178,9 @@ def reserve(
 def _close(db: Session, reservation_id: uuid.UUID, *, status: str, actual_usd: float | None) -> None:
     session = _own_session(db)
     try:
+        # Under the admission lock: a check reads recorded spend, then open holds, and
+        # a hold must not turn into recorded spend between those two reads.
+        _lock(session)
         values: dict[str, Any] = {"status": status, "closed_at": datetime.now(UTC)}
         if actual_usd is not None:
             values["actual_usd"] = max(0.0, float(actual_usd))

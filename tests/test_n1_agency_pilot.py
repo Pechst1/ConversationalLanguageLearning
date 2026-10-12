@@ -153,7 +153,8 @@ def test_a_staged_callback_is_played_once(pilot) -> None:
     assert extras["callback"]["id"] == "romy_keeps_it_off_record"
 
     next_day = {**ROMY_DAY, "position": {"segment": "g1", "day_in_segment": 2, "season_day": 4},
-                "checklist": {"premise_id": "la_meme_chose"}, "callback": extras["callback"]}
+                "checklist": {"premise_id": "la_meme_chose"}, "callback": extras["callback"],
+                "callback_staged": True}
     live = settle(
         {"season_script": state},
         story_context={"season": next_day},
@@ -277,9 +278,13 @@ def test_any_generated_day_remembers_and_a_later_day_acts_on_it(pilot) -> None:
     # Staged the next day, it is not dealt again; the agreement still stands.
     next_day = {**KEY_DAY, "position": {"segment": "g2", "day_in_segment": 2, "season_day": 13},
                 "checklist": {"premise_id": None}, "callback": callback}
-    # Walk 5: even when the day's answer was not met, the page staged the callback.
-    state = _settle_on(next_day, {"learner_text": "Merci."}, live={"season_script": state}, event_id="g2-day2",
-                       outcome="not_met")
+    # A page that left the callback out keeps it owed.
+    skipped = _settle_on({**next_day, "callback_staged": False}, {"learner_text": "Merci."},
+                         live={"season_script": state}, event_id="g2-day2")
+    assert agency.brief_extras("s1", "g2", 3, state=skipped, seed="s")["callback"]["id"] == callback["id"]
+    # Walk 5: a staged callback is played even when the day's answer was not met.
+    state = _settle_on({**next_day, "callback_staged": True}, {"learner_text": "Merci."},
+                       live={"season_script": state}, event_id="g2-day2", outcome="not_met")
     later = agency.brief_extras("s1", "g2", 3, state=state, seed="s")
     assert "callback" not in later
     assert later["agreements"]
@@ -399,3 +404,24 @@ def test_a_callback_to_what_the_learner_decided_is_this_lifes_past():
     assert not living_story._callback_grounded(invented, None, ledger)
     # No offered callback: nothing changes.
     assert living_story._names_agency_callback(staged, {"cast": context["cast"]}) is None
+
+
+def test_a_day_records_whether_its_page_claimed_the_offered_callback() -> None:
+    """Codex review on PR #82: a page that left the offered callback out must not
+    mark it played."""
+
+    from types import SimpleNamespace
+
+    from app.services import living_story
+
+    offered = {"id": "romy_notes_without_name", "source_event": "ev_1", "character": "romy"}
+    context = {"season_script": {"id": "s1", "brief": {"today": {"callback": offered}}}}
+
+    def day(callback_fr: str, ref: str | None) -> dict:
+        draft = SimpleNamespace(season_checklist=None, callback_fr=callback_fr, callback_ref=ref)
+        return living_story._season_gap_day(context, draft)
+
+    assert day("Romy montre ses notes.", "romy_notes_without_name")["callback_staged"] is True
+    assert day("Romy montre ses notes.", "ev_1")["callback_staged"] is True
+    assert day("", None)["callback_staged"] is False
+    assert day("Gus se souvient.", "cons_9")["callback_staged"] is False

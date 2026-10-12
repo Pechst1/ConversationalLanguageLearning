@@ -459,9 +459,10 @@ def settle_day(state: dict, season_ctx: dict, details: dict, *, event_id: str, e
             world.flags[NOTES_KEY] = notes
             changed = True
     callback = season_ctx.get("callback") or {}
-    # The page staged it whatever the learner answered (agency walk 5: a scene whose
-    # answer went astray left its callback unplayed and dealt it again the next day).
-    if callback.get("id") and callback["id"] not in world.played:
+    # Played when the accepted page claims it, whatever the learner answered (agency
+    # walk 5: a scene whose answer went astray left its staged callback unplayed). A
+    # page that left the callback out keeps it owed for a later day.
+    if callback.get("id") and season_ctx.get("callback_staged") and callback["id"] not in world.played:
         world.played.append(str(callback["id"]))
         world.flags["callbacks"] = [
             *(world.flags.get("callbacks") or []),

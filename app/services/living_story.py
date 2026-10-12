@@ -7934,8 +7934,17 @@ def _season_gap_day(context: dict, draft: SceneDraft) -> dict | None:
         "required_premise": required,
         "gate": gate if staged else today.get("gate"),
         "may_set": list(today.get("may_set") or []),
-        # N1 pilot: the callback this day was briefed to stage (settle marks it played).
-        **({"callback": today["callback"]} if isinstance(today.get("callback"), dict) else {}),
+        # N1 pilot: the callback this day was briefed to stage, and whether the accepted
+        # page claims it (settle marks it played only then).
+        **(
+            {
+                "callback": today["callback"],
+                "callback_staged": bool(draft.callback_fr)
+                and draft.callback_ref in {today["callback"].get("id"), today["callback"].get("source_event")},
+            }
+            if isinstance(today.get("callback"), dict)
+            else {}
+        ),
     }
 
 
