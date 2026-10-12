@@ -78,12 +78,7 @@ def test_day_one_says_where_you_are_and_reads_the_scene_first(assembled_client, 
     assert d.finish("complete").status_code == 200
     clock.advance(days=1)
     day_two = _play(d, provider, clock, "Odile, c'est ma grand-mère.")
-    # Day two repeats where the learner is (over its «Précédemment»), not the cast.
-    assert day_two["story_premise_native"] == day_one["story_premise_native"]
-    assert day_two["cast_intro"] is None
-    for _ in range(2):
-        later = _play(d, provider, clock, "Odile, c'est ma grand-mère.")
-    assert later["story_premise_native"] is None
+    assert day_two["story_premise_native"] is None and day_two["cast_intro"] is None
 
 
 def _plan(season: dict | None):

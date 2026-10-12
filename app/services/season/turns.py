@@ -399,12 +399,16 @@ def generic_ask_again_panel(turn: dict[str, Any]) -> dict[str, Any] | None:
     to the fallback as if the learner had said it."""
 
     addressee = str(turn.get("to") or "")
+    lines = [line for line in (turn.get("panel") or {}).get("lines") or [] if str(line.get("text_fr") or "").strip()]
     asked = [
         line
-        for line in (turn.get("panel") or {}).get("lines") or []
-        if str(line.get("who") or "") == addressee and line.get("kind") in ("speech", "all") and str(line.get("text_fr") or "").strip()
+        for line in lines
+        if str(line.get("who") or "") == addressee and line.get("kind") in ("speech", "all")
     ]
-    if not asked or not any("?" in str(line.get("text_fr")) for line in asked):
+    if not any("?" in str(line.get("text_fr")) for line in asked):
+        # A posed solve («Le choix») prints its question as a caption.
+        asked = [line for line in lines if line.get("kind") == "caption"]
+    if not addressee or not any("?" in str(line.get("text_fr")) for line in asked):
         return None
     question = next(line for line in reversed(asked) if "?" in str(line.get("text_fr")))
     text_native = str(question.get("text_native") or "").strip()

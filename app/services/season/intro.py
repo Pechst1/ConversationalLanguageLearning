@@ -32,11 +32,6 @@ def _localized(value: Any, language: str) -> str:
     return str(value or "")
 
 
-#: The premise is repeated on the learner's first few season days: a new learner
-#: who skipped a day, or forgot, still reads who they are before the «Précédemment».
-PREMISE_DAYS = 3
-
-
 def season_day(story_context: dict[str, Any] | None) -> int:
     """The learner's day of the season (1-based), or 0 off a season or on a reprise."""
 

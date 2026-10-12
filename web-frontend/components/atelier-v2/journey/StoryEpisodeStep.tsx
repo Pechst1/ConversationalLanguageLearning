@@ -65,7 +65,6 @@ export function StoryEpisodeStep({
   onExit,
   speaker = null,
   language = null,
-  premise = null,
   firstDay = false,
   locationId = null,
 }: {
@@ -79,8 +78,6 @@ export function StoryEpisodeStep({
   speaker?: JourneySpeaker | null;
   /** WP-82: the screen's chrome language, so the reader's buttons match `copy`. */
   language?: ControlLanguage | null;
-  /** STORY-ORIENTATION: who and where the learner is, over the «Précédemment». */
-  premise?: string | null;
   /** WP-96: the learner's first day — there is no «Précédemment» yet. */
   firstDay?: boolean;
   /** WP-145: the place the scene is set in (the journey scenario's `location_id`), for its sound bed. */
@@ -185,13 +182,7 @@ export function StoryEpisodeStep({
     return (
       <>
         <ArchiveStyles />
-        <Precedemment
-          lines={previously}
-          language={language}
-          onRead={readOn}
-          journeyId={journeyId}
-          premise={premise}
-        />
+        <Precedemment lines={previously} language={language} onRead={readOn} journeyId={journeyId} />
       </>
     );
   }

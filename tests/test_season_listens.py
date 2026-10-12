@@ -189,3 +189,28 @@ def offline_matcher(monkeypatch):
     monkeypatch.setattr(engine, "story_revision", lambda *a, **k: "rev")
     runtime._ROUTE_CACHE.clear()
     yield
+
+
+def test_a_question_back_on_a_posed_solve_is_asked_again_not_quoted(offline_matcher):
+    """Walk #78: «Qui êtes-vous ? Je ne connais pas Odile.» to Lila's «Tu me prêtes
+    une clé ?» played the fallback «"Pas encore" ?» — words the learner never wrote."""
+
+    from app.services.season.flags import effective_flags
+    from app.services.season.format import load_season
+    from app.services.season.page import resolve_day
+
+    season = load_season("s1")
+    page = resolve_day(season, "t2", "b", flags=effective_flags(season, {}, seed="x"), band="A2", language="de")
+    scenario = _scenario(page)
+    turns = scenario.story_context[runtime.SEASON_CONTEXT_KEY]["turns"]
+    index = next(i for i, turn in enumerate(turns) if turn["id"].startswith("b.key"))
+    turn = turns[index]
+    scenario.character_id = turn.get("to") or scenario.character_id
+    history: list[dict] = []
+    for exchange in range(index):
+        evaluation = _say(scenario, str(turns[exchange]["replies"][0]["examples"][0]), history, exchange)
+        _record(history, str(turns[exchange]["replies"][0]["examples"][0]), evaluation)
+    evaluation = _say(scenario, "Qui êtes-vous ? Je ne connais pas Odile.", history, index)
+    assert evaluation.route == {"turn": turn["id"], "reply": ASK_AGAIN}, evaluation.character_reply_fr
+    assert "Pas encore" not in evaluation.character_reply_fr
+    assert {card["id"] for card in evaluation.next_choices} == {"double", "pas_encore"}, "the cards stay"

@@ -412,7 +412,6 @@ export function JourneySession({
                   language={chromeLanguage}
                   // WP-96: the first journey (the cast is introduced) has no «Précédemment».
                   firstDay={castIntro.length > 0}
-                  premise={castIntro.length > 0 ? null : storyPremise.premise}
                   // WP-145: the scene's place, for its sound bed.
                   locationId={journey?.scenario?.location_id ?? null}
                 />

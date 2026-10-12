@@ -821,7 +821,11 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     if (
         carded is None
         and not choice.clear
-        and not turn.get("from_solve")
+        # A «convaincre» counts its own attempts; any other posed solve — a «choix»
+        # answered in free text rather than by its cards included — is asked again
+        # like a turn (walk #78: a question back played Lila's «"Pas encore" ?»
+        # as if the learner had said it).
+        and turn.get("from_solve") != "convaincre"
         and str(turn.get("id")) not in asked
         and (turn.get("ask_again") or not (turn.get("gate") or turn.get("convince")))
     ):
@@ -997,7 +1001,8 @@ def _ask_again_evaluation(
         turn_consumed=False,
         failure_reason="reply_source:authored_season",
         reply_lines=reaction_lines(beats, addressee=addressee),
-        next_choices=[],
+        # A «choix» asked again keeps its cards.
+        next_choices=choice_cards(turn) if turn.get("choice") else [],
         next_task_native=str(turn.get("task_native") or "") or None,
         route={"turn": str(turn.get("id")), "reply": ASK_AGAIN},
     )
