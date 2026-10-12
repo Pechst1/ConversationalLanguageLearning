@@ -68,6 +68,7 @@ const FR = {
   cast_failed: 'Le trombinoscope ne répond pas.',
   // ---- «Précédemment»
   previously: 'Précédemment',
+  premise: 'L’enjeu',
   previously_aria: 'Précédemment dans le feuilleton',
   read: 'Lire',
   // ---- the recap
@@ -125,6 +126,7 @@ const EN: ArchiveCopy = {
   known_none: '{name} doesn’t know anything about you yet.',
   cast_failed: 'The cast did not load.',
   previously: 'Previously',
+  premise: 'What it’s about',
   previously_aria: 'Previously in the story',
   read: 'Read',
   tome_finished: 'Season {n} is finished: it is bound as a volume.',
@@ -178,6 +180,7 @@ const DE: ArchiveCopy = {
   known_none: '{name} weiß noch nichts über dich.',
   cast_failed: 'Die Figuren konnten nicht geladen werden.',
   previously: 'Bisher',
+  premise: 'Worum es geht',
   previously_aria: 'Bisher in der Geschichte',
   read: 'Lesen',
   tome_finished: 'Staffel {n} ist abgeschlossen: Sie ist als Band gebunden.',

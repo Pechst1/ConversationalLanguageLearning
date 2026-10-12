@@ -1208,6 +1208,12 @@ def test_full_loop(db_session, monkeypatch):
     assert mission.source_snapshot["cold_open"]["paragraphs"]
     assert mission.prompt_payload["display_title"] == "Le radiateur"
     assert mission.prompt_payload["messenger"]["contact_name"] == "M. Marchand"
+    # WALK 2026-10-12: the Courrier prints the landlord's own frame and P.S.,
+    # never the generated letter's (a neighbour's «Elle n'est pas contente»).
+    slim = mission.prompt_payload["slim_payload"]
+    assert "radiateur" in slim["frame"]
+    assert slim["twist"] and "contente" not in slim["twist"]
+    assert slim["domain"] is None
     assert [objective["id"] for objective in mission.objectives[:4]] == [
         "intro_self",
         "describe_problem",

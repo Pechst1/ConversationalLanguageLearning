@@ -550,12 +550,17 @@ def introduction_for_today(
     *,
     now: datetime | None = None,
     control_language: str = "en",
+    units: list[str] | None = None,
 ) -> dict[str, Any] | None:
     """Today's new unit as a brief, or ``None`` (quota spent, nothing ready).
 
     Read-only: the unit is *introduced* only when the learner reads its rule
     (:func:`mark_introduced`), so a day that is planned and abandoned offers
     the same unit again tomorrow.
+
+    GRAMMAR-DAY-ONE (#81): ``units`` — the units today's authored page uses. When
+    given, only a unit the page itself uses is introduced (the scene's own rule,
+    practised on its own lines), the first such one in teaching order.
     """
 
     now = _aware(now) or datetime.now(UTC)
@@ -568,7 +573,19 @@ def introduction_for_today(
     # only the first one let a unit with too little to practise (a B1/C1 Essai
     # is built from ✗/✓ pairs) refuse its introduction every single day and hold
     # the learner's whole grammar track behind it.
-    picked = AtelierScheduler(db).next_new_concepts(user, limit=INTRODUCTION_LOOKAHEAD, language=language)
+    if units is not None:
+        wanted = {str(unit) for unit in units}
+        if not wanted:
+            return None
+        picked = [
+            concept
+            for concept in AtelierScheduler(db).next_new_concepts(
+                user, limit=SCENE_INTRODUCTION_LOOKAHEAD, language=language
+            )
+            if str(concept.external_id) in wanted
+        ][:INTRODUCTION_LOOKAHEAD]
+    else:
+        picked = AtelierScheduler(db).next_new_concepts(user, limit=INTRODUCTION_LOOKAHEAD, language=language)
     for concept in picked:
         brief = concept_brief(db, concept, control_language=control_language)
         if brief.get("rule_card") and brief.get("examples") and introducible(brief):
@@ -578,6 +595,8 @@ def introduction_for_today(
 
 #: How many units in line :func:`introduction_for_today` looks at.
 INTRODUCTION_LOOKAHEAD = 3
+#: How far in teaching order a page's own unit is looked for (#81).
+SCENE_INTRODUCTION_LOOKAHEAD = 12
 
 
 def introducible(brief: dict[str, Any]) -> bool:

@@ -1135,7 +1135,11 @@ class PlannedJourney:
         resolution_at = kinds.index(StepKind.RESOLUTION)
         if resolution_at != kinds.index(StepKind.RESPOND) + 1:
             raise ValueError("nothing may sit between the reply and the ending")
-        if any(kind not in (StepKind.RECALL, StepKind.DESK) for kind in body[resolution_at + 1 :]):
+        # (#81: an authored page's rule, with its guided items, may follow too.)
+        if any(
+            kind not in (StepKind.RECALL, StepKind.DESK, StepKind.RULE)
+            for kind in body[resolution_at + 1 :]
+        ):
             raise ValueError("only practice may follow the ending")
         # «Le bureau»: at most one desk a day, optional, after the ending.
         if kinds.count(StepKind.DESK) > 1:
@@ -1163,8 +1167,9 @@ class PlannedJourney:
             raise ValueError("nothing may sit between the scene and the reply")
         if kinds.count(StepKind.RULE) > 1:
             raise ValueError("a day introduces at most one rule")
-        if StepKind.RULE in kinds and not rule_at < scene_at:
-            raise ValueError("the rule card comes before the scene")
+        # GRAMMAR-DAY-ONE (#81): on an authored page the rule follows the ending.
+        if StepKind.RULE in kinds and not (rule_at < scene_at or rule_at > resolution_at):
+            raise ValueError("the rule card comes before the scene or after the ending")
         if kinds.count(StepKind.FORGE) > 1:
             raise ValueError("a day folds in at most one forge block")
         if StepKind.FORGE in kinds and not kinds.index(StepKind.FORGE) < scene_at:
@@ -1209,10 +1214,11 @@ class PlannedJourney:
             rule_at = kinds.index(StepKind.RULE) if StepKind.RULE in kinds else None
             if rule_at is None:
                 raise ValueError("a longer practice day is the story and its rule")
+            rule_block_end = scene_at if rule_at < scene_at else len(kinds)
             for index, kind in enumerate(kinds):
                 if kind in EXTENSION_STEP_KINDS:
                     raise ValueError("a longer day carries no extension")
-                if kind is StepKind.RECALL and not rule_at < index < scene_at:
+                if kind is StepKind.RECALL and not rule_at < index < rule_block_end:
                     raise ValueError("a longer day holds no practice beyond the rule's own items")
         elif total > self.budget_seconds:
             raise ValueError(f"estimate {total}s exceeds budget {self.budget_seconds}s")

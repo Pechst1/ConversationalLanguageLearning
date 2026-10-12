@@ -792,6 +792,16 @@ def _stored_cast_intro(journey: DailyJourney) -> list[dict[str, Any]] | None:
     return [dict(row) for row in rows if isinstance(row, dict)] or None
 
 
+def _is_opening_day(journey: DailyJourney | None) -> bool:
+    """GENTLE-ONBOARDING: is this the learner's very first day?
+
+    The authored café day (WP-75) and the first season page (STORY-ORIENTATION)
+    are the two first days; both are planned with a cast introduction.
+    """
+
+    return journey is not None and _stored_cast_intro(journey) is not None
+
+
 def _journey_input_mode(journey: DailyJourney) -> InputMode:
     """The mode a journey was created in: voice when its reply offered voice."""
 
@@ -991,6 +1001,20 @@ def _scene_page_texts(scene: Any) -> tuple[list[str], int]:
     return texts, len(panels)
 
 
+def _is_season_day(story_context: Any) -> bool:
+    """Is today's scene a season page (authored or generated), whose reply is the page's
+    own question?"""
+
+    if not isinstance(story_context, dict):
+        return False
+    from app.services.season.runtime import SEASON_CONTEXT_KEY
+
+    source = story_context.get("source")
+    return bool(story_context.get(SEASON_CONTEXT_KEY)) or bool(
+        isinstance(source, dict) and source.get("season_script")
+    )
+
+
 class _GenerationFailure(Exception):
     """Why a scene could not be turned into a playable day (WP-69).
 
@@ -1058,6 +1082,15 @@ class DailyJourneyService:
 
         forge_anchor = self._forge_anchor_id(user)
         forge_entry = self._forge_entry(user, anchor=forge_anchor) if enabled else None
+        if forge_entry is not None:
+            forge_entry = forge_entry.model_copy(
+                update={"blocks_today": self._forge_blocks_on(user, timezone_name, today)}
+            )
+        if forge_entry is not None and forge_entry.folded and _is_opening_day(journey):
+            # GENTLE-ONBOARDING (owner, 2026-10-12): the first day is the story,
+            # then La Forge, then the words. The forge is never folded into the
+            # first day's story, so on every rhythm it is the after-day entry.
+            forge_entry = forge_entry.model_copy(update={"folded": False})
         # WP-99: what Home can say honestly — the absence, a premiere, an interlude.
         from app.services.journey_absence import story_frame_fields
 
@@ -2326,16 +2359,21 @@ class DailyJourneyService:
 
         context = _journey_story_context(journey)
         if not context.get("scene_id"):
-            return {"previously_fr": None, "margin_notes": None}
+            return {"previously_fr": None, "premise_native": None, "margin_notes": None}
         from app.services.story_archive import scene_step_story_fields
 
-        return run_best_effort(
+        fields = run_best_effort(
             self.db,
             "daily_journey: précédemment and margin notes",
             lambda: scene_step_story_fields(self.db, journey),
-            default={"previously_fr": [], "margin_notes": []},
+            default={"previously_fr": [], "premise_native": None, "margin_notes": []},
             log=logger,
         )
+        # The learner's first season day opens on the season intro, which says the
+        # premise already (STORY-ORIENTATION): the scene does not say it twice.
+        if _stored_season_intro(journey).get("premise_native"):
+            fields = {**fields, "premise_native": None}
+        return fields
 
     def _epreuve_snapshot_fields(self, journey: DailyJourney) -> dict[str, Any]:
         from app.services.can_do import epreuve_snapshot_view, scene_script
@@ -2571,6 +2609,32 @@ class DailyJourneyService:
             budget_seconds=budget,
             folded=folded,
         )
+
+    def _forge_blocks_on(self, user: User, timezone_name: str, day: date) -> int:
+        """CONTINUE: forge séances the learner finished on ``day``, their own calendar day."""
+
+        from app.services.forge import FORGE_KEY
+
+        rows = self.db.execute(
+            select(AtelierSession.quote_payload, AtelierSession.completed_at)
+            .where(
+                AtelierSession.user_id == user.id,
+                AtelierSession.status == "completed",
+                AtelierSession.completed_at.is_not(None),
+                AtelierSession.completed_at >= _utcnow() - timedelta(days=2),
+            )
+            .order_by(AtelierSession.completed_at.desc())
+            .limit(20)
+        ).all()
+        zone = ZoneInfo(resolve_timezone(timezone_name))
+        count = 0
+        for payload, completed_at in rows:
+            if not isinstance(payload, dict) or not payload.get(FORGE_KEY):
+                continue
+            moment = completed_at if completed_at.tzinfo else completed_at.replace(tzinfo=UTC)
+            if moment.astimezone(zone).date() == day:
+                count += 1
+        return count
 
     def _legacy_resume(self, user: User) -> LegacyResume | None:
         stmt = (
@@ -3395,6 +3459,7 @@ class DailyJourneyService:
         # errata queue is holding. No provider call, no second content source.
         dice = self._day_shape_inputs(user, fresh, result, errata_count=len(errata))
         decision = choose_day_shape(dice)
+        from app.services.season.intro import is_first_season_day
         from app.services.season.runtime import is_tentpole, tentpole_units
 
         if is_tentpole(result.story_context):
@@ -3402,6 +3467,13 @@ class DailyJourneyService:
             # a short day or a listening day in its place.
             decision = DayShapeDecision(
                 shape=DEFAULT_DAY_SHAPE, reason="season_tentpole", eligible=decision.eligible
+            )
+        elif decision.shape is DayShape.LETTER and _is_season_day(result.story_context):
+            # Agency walk run 2 (R2-2): a generated season page ends on its own
+            # question («Romy attend ta réponse»). A letter in the reply's place asked
+            # something else, so the page's question had no answer field.
+            decision = DayShapeDecision(
+                shape=DEFAULT_DAY_SHAPE, reason="season_page_question", eligible=decision.eligible
             )
         try:
             if first_day:
@@ -3413,8 +3485,10 @@ class DailyJourneyService:
             else:
                 candidates = self._select_candidates(user, fresh, result)
             # T-1 (content program 2026-10-03, D7): a tentpole page is served as
-            # written, so a tentpole day introduces no new unit (the quota offers
-            # it again tomorrow); its rule review is a unit the page uses.
+            # written; its rule review is a unit the page uses. GRAMMAR-DAY-ONE
+            # (#81, owner 2026-10-12): grammar starts on day 1, so a tentpole day
+            # may introduce a new unit too — only one the page itself uses, so the
+            # rule is the scene's own and is practised on its lines.
             story_units = tentpole_units(result.story_context)
             # WP-124a: a reprise re-reads a page but is an ordinary practice day. It
             # introduces the day's unit like any other day; skipping it would hand
@@ -3422,7 +3496,9 @@ class DailyJourneyService:
             # failure would then repeat every day (the 2026-10-04 A1 walk lost 28 days).
             introduction = (
                 None
-                if first_day or (is_tentpole(result.story_context) and not _is_reprise(result))
+                if first_day
+                else self._introduction_for_today(user, result, units=story_units)
+                if is_tentpole(result.story_context) and not _is_reprise(result)
                 else self._introduction_for_today(user, result)
             )
             forge = None if first_day else self._forge_for_today(user, introduction, story_units)
@@ -3441,6 +3517,13 @@ class DailyJourneyService:
                 if first_day or is_tentpole(result.story_context)
                 else self._desk_for_today(user, fresh, dice, decision.shape)
             )
+            if first_day or is_first_season_day(result.story_context):
+                # GENTLE-ONBOARDING (owner, 2026-10-12): the learner's very first
+                # day is the story, then La Forge, then the words — so nothing is
+                # folded into it (no forge step, «Lecture», desk or page review),
+                # on the café first day and on the first season page alike. The
+                # page's own rule (#81) stays: it is part of the story day.
+                forge = reading = desk = page_review = None
             if not first_day:
                 # WP-121 A.4: a card kept in a Papier says where it was met.
                 candidates = self._with_place_lines(user, list(candidates))
@@ -4298,7 +4381,9 @@ class DailyJourneyService:
             )
         return select(self.db, **kwargs)
 
-    def _introduction_for_today(self, user: User, scenario: ScenarioBrief) -> Any:
+    def _introduction_for_today(
+        self, user: User, scenario: ScenarioBrief, *, units: list[str] | None = None
+    ) -> Any:
         """WP-L4: today's new grammar unit (a unit brief), or None.
 
         The rhythm's weekly quota and the one new-concept picker decide
@@ -4319,6 +4404,7 @@ class DailyJourneyService:
                 user,
                 now=_utcnow(),
                 control_language=str(scenario.control_language),
+                units=units,
             ),
             default=None,
             log=logger,

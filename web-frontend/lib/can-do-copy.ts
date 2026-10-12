@@ -133,10 +133,10 @@ const EN: Table = {
 
 const DE: Table = {
   special_kicker: 'Numéro spécial',
-  special_list: 'Heute zeigen Sie, was Sie können: {list}',
+  special_list: 'Heute zeigst du, was du kannst: {list}',
   next_step: 'Nächster Schritt: {can_do}',
   next_step_aria: 'Niveau {band}. Nächster Schritt: {can_do}. Carnet öffnen',
-  level_band_aria: 'Ihr Niveau: {band}',
+  level_band_aria: 'Dein Niveau: {band}',
   band_all_stamped: 'Ganz {band} ist gestempelt',
   epreuve_seal_top: 'Numéro spécial',
   epreuve_passed_title: '{band}, abgeschlossen',
@@ -147,13 +147,13 @@ const DE: Table = {
   epreuve_next: 'Die nächste Sonderausgabe: in 7 Tagen ({date})',
   carnet_name: 'Le Carnet',
   carnet_mode: 'Carnet',
-  carnet_lead: 'Was Sie auf Französisch können. Jede Zeile wird gestempelt, sobald die Geschichte es zeigt.',
+  carnet_lead: 'Was du auf Französisch kannst. Jede Zeile wird gestempelt, sobald die Geschichte es zeigt.',
   carnet_count: '{stamped} von {total} gestempelt',
   carnet_count_none: 'Noch nichts gestempelt',
   carnet_bands_label: 'Teilstufen',
   carnet_band_current: 'aktuell',
   carnet_band_locked: 'später',
-  carnet_band_locked_note: '{band} öffnet sich, wenn {previous} abgeschlossen ist. Das erwartet Sie dort.',
+  carnet_band_locked_note: '{band} öffnet sich, wenn {previous} abgeschlossen ist. Das erwartet dich dort.',
   carnet_unstamped: 'Noch nicht',
   carnet_stamped: 'Gestempelt',
   carnet_stamped_aria: 'Gestempelt am {date}',
@@ -162,11 +162,11 @@ const DE: Table = {
   carnet_source_authored: 'erster Tag',
   carnet_try: 'Im echten Leben ausprobieren',
   carnet_try_aria: 'Im echten Leben ausprobieren: {can_do} — öffnet Répétition',
-  carnet_empty: 'Das Carnet beginnt mit Ihrer ersten Szene.',
+  carnet_empty: 'Das Carnet beginnt mit deiner ersten Szene.',
   carnet_load_failed: 'Wir können das Carnet gerade nicht lesen.',
   carnet_retry: 'Erneut versuchen',
   dossier_carnet: 'Le Carnet',
-  dossier_carnet_hint: 'was Sie können, von der Geschichte gestempelt',
+  dossier_carnet_hint: 'was du kannst, von der Geschichte gestempelt',
 };
 
 const TABLES: Record<ControlLanguage, Table> = { en: EN, de: DE, fr: FR };

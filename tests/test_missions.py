@@ -1528,3 +1528,61 @@ def test_courrier_block_is_on_every_serialized_mission(client: TestClient, db_se
     # Nothing was written, so nothing was settled — and it says so plainly.
     assert complete.json()["mission"]["courrier"]["outcome"] == "missed"
     assert complete.json()["recap"]["branch_outcome"]["state"] == "needs_follow_up"
+
+
+def test_an_intonation_question_is_never_corrected_to_an_inversion(db_session):
+    """WALK 2026-10-12 (live model): «Vous êtes disponible jeudi matin ?» got two
+    "inversion required" notes, both saved as fixes. It is correct French."""
+
+    def _note(learner: str, corrected: str, why: str) -> dict:
+        return {
+            "display_label": "Question form",
+            "learner_text": learner,
+            "corrected_target": corrected,
+            "why_wrong": why,
+            "repair_hint": "Invert subject and verb.",
+            "severity": 1,
+            "recurring": False,
+            "task_error_type": "word_order",
+            "external_id": "",
+        }
+
+    class _InversionLLM:
+        def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+            return LLMResult(
+                provider="stub",
+                model="stub-correction",
+                content=json.dumps(
+                    {
+                        "verdict": "needs_revision",
+                        "score_0_4": 2,
+                        "corrected_answer": "Êtes-vous disponible jeudi matin ? Le radiateur est froid.",
+                        "objective_progress": [],
+                        "concept_hits": [],
+                        "missing_targets": [],
+                        "errata": [
+                            _note("Vous êtes disponible jeudi matin ?", "Êtes-vous disponible jeudi matin ?",
+                                  "Formal question requires inversion."),
+                            _note("vous êtes disponible", "êtes-vous disponible", "Use inversion in a formal question."),
+                            _note("Le radiateur est froide", "Le radiateur est froid", "radiateur is masculine."),
+                            _note("Le radiateur est froide", "Le radiateur est froid", "Agree froid with radiateur."),
+                        ],
+                        "vocabulary_links": [],
+                    }
+                ),
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0,
+                raw_response={},
+            )
+
+    user = User(id=uuid4(), email="mission-inversion@example.com", hashed_password="x", proficiency_level="A1")
+    correction = MissionCorrectionService(db_session, llm_service=_InversionLLM()).correct_submission(
+        user=user,
+        mission=_mission_for_correction(),
+        text="Vous êtes disponible jeudi matin ? Le radiateur est froide.",
+        mode="chat",
+    )
+
+    assert [item["corrected_target"] for item in correction["errata"]] == ["Le radiateur est froid"]

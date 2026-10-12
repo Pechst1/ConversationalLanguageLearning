@@ -302,7 +302,8 @@ try {
   stack = await startStack({ logDir: path.join(outDir, 'logs'), secret: SECRET, tokenMinutes });
   console.log(`[walk] stack up: api :${stack.apiPort}, web :${stack.webPort}, db ${stack.dbName} (migrate ${stack.migrateSeconds}s)`);
   // Warm the dev server's on-demand compiles so the first screenshots are not spinners.
-  browser = await chromium.launch();
+  // WALK_CHROMIUM: a preinstalled Chromium when Playwright's own download is not there.
+  browser = await chromium.launch(process.env.WALK_CHROMIUM ? { executablePath: process.env.WALK_CHROMIUM } : {});
   {
     const warm = await registerLearner({ api: stack.api, secret: SECRET, native: 'en', level: 'A1.1', tag: 'warm' });
     for (const route of ['/atelier', '/missions', '/graphic-novel', '/atelier?mode=forge']) {

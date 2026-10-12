@@ -213,7 +213,8 @@ def test_a_gendered_ending_falls_back_to_the_authored_one(
     d.advance()
     shown = _resolution(d.journey)["prompt"]
     assert "décidé" not in shown["character_line_fr"]
-    assert "doit partir avant de répondre" in shown["character_line_fr"]
+    assert "doit partir" in shown["character_line_fr"]
+    assert "avant de répondre" not in shown["character_line_fr"]
     _walk_to_end(d)
     assert d.finish("complete").status_code == 200
 

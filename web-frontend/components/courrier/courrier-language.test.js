@@ -319,7 +319,7 @@ test('the answered seal wears the correspondent’s face in the mood the letter 
   // A recap from before the number: read back from the French line.
   assert.equal(Corr.crMoodKey(Corr.crMoodValue(undefined, 'De bonne humeur avec vous.')), 'happy');
   assert.equal(Corr.crMoodKey(Corr.crMoodValue(undefined, 'Quelque chose d’autre')), null);
-  assert.equal(courrierCopy('de').seal_mood_happy, '{name} ist zufrieden mit Ihnen');
+  assert.equal(courrierCopy('de').seal_mood_happy, '{name} ist zufrieden mit dir');
 
   const shop = renderToStaticMarkup(h(AtelierV2Root, { language: 'en' }, h(Cr.CrSeal, {
     verdict: 'Answered',

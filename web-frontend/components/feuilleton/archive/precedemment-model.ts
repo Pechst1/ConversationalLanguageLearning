@@ -36,6 +36,17 @@ export function precedemmentView({
   return printed.length ? printed : null;
 }
 
+/**
+ * Walk 2026-10-12 (#77): the season's premise in the learner's language
+ * (`prompt.premise_native`), printed above the lines — and on the first day
+ * too, where there is no «before» but a new learner most needs to know who
+ * they are and what is at stake. `null` once read, or when the server sent none.
+ */
+export function premiseView({ premise, dismissed }: { premise: unknown; dismissed: boolean }): string | null {
+  if (dismissed || typeof premise !== 'string') return null;
+  return premise.trim() || null;
+}
+
 /** The per-scene memory key: a box read once stays read on a reload. */
 export function precedemmentKey(journeyId: string, stepId: string): string {
   return `atelier:precedemment:${journeyId}:${stepId}`;

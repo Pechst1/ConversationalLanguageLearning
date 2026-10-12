@@ -38,7 +38,7 @@ from app.services import concept_life, forge_picker
 from app.services import journey_planner as planner
 from app.services.grammar import GrammarService, apply_grammar_evidence
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog
-from app.services.journey_contracts import StepKind
+from app.services.journey_contracts import StepKind, TargetKind
 from app.services.journey_day_shapes import DayShapeInputs
 from app.services.journey_events import forge_after_day_seconds
 from tests.test_journey_end_to_end import (
@@ -375,6 +375,35 @@ def test_soutenu_and_intensif_fold_the_forge_into_the_scene_movement(db_session:
     )
 
 
+def test_an_authored_page_folds_no_forge_and_teaches_its_rule_after_the_ending(db_session: Session, v2) -> None:
+    """GRAMMAR-DAY-ONE (#81): the page's rule follows its ending, so no forge on
+    that unit comes before the scene, and the reply is priced without the unit."""
+
+    from app.services.daily_journey import DailyJourneyService
+
+    user = _learner(db_session, minutes=RHYTHM_MINUTES["soutenu"])
+    brief = concept_life.introduction_for_today(db_session, user, now=DAY0, control_language="en")
+    forge = DailyJourneyService(db_session, adapters=None)._forge_for_today(user, brief)
+    page = {"season": {"kind": "tentpole", "position": {"season_day": 1}}}
+    plan = planner.plan_journey(
+        scenario=_brief(story_context=page), candidates=[], budget_seconds=1200, practice=True,
+        dice=DayShapeInputs(user_id="forge-page", local_date=DAY0.date()),
+        introduction=brief, forge=forge,
+    )
+    plan.validate()
+    kinds = [step.kind for step in plan.steps]
+    assert StepKind.FORGE not in kinds, plan.rationale
+    assert kinds.index(StepKind.RESOLUTION) < kinds.index(StepKind.RULE), plan.rationale
+    respond = next(step for step in plan.steps if step.kind is StepKind.RESPOND)
+    assert not [t for t in respond.private_task.targets if t.kind is TargetKind.GRAMMAR]
+    unpriced = planner.plan_journey(
+        scenario=_brief(story_context=page), candidates=[], budget_seconds=1200, practice=True,
+        dice=DayShapeInputs(user_id="forge-page", local_date=DAY0.date()),
+    )
+    plain = next(step for step in unpriced.steps if step.kind is StepKind.RESPOND)
+    assert respond.estimated_seconds == plain.estimated_seconds, "the reply is not priced a unit sentence longer"
+
+
 @pytest.mark.parametrize("rhythm", ["leger", "regulier"])
 def test_leger_and_regulier_keep_the_forge_after_the_day(db_session: Session, v2, rhythm: str) -> None:
     from app.services.daily_journey import DailyJourneyService
@@ -580,3 +609,31 @@ def test_introduced_in_the_journey_forged_and_held(client: TestClient, db_sessio
     db_session.expire_all()
     coverage = (db_session.get(User, user.id).cefr_estimate_payload or {}).get("coverage") or {}
     assert coverage.get("units", {}).get("held", 0) >= 1, coverage
+
+
+def test_the_envelope_counts_todays_forge_blocks(
+    assembled_client: TestClient, journey_enabled: None, db_session: Session
+) -> None:
+    """CONTINUE (owner, 2026-10-12): Home's one Continue button moves from La Forge
+    to the words once a forge séance is finished today."""
+
+    email = f"wp-s4-blocks-{uuid.uuid4().hex[:8]}@example.com"
+    headers = register(assembled_client, email)
+
+    def blocks() -> int:
+        envelope = assembled_client.get("/api/v1/daily-journeys/today", headers=headers, params={"timezone": "UTC"}).json()
+        return envelope["forge"]["blocks_today"]
+
+    assert blocks() == 0
+    started = assembled_client.post(
+        "/api/v1/atelier/sessions", headers=headers, json={"origin": "after_day", "budget_seconds": 300}
+    )
+    assert started.status_code == 201, started.text
+    assert blocks() == 0, "a séance only started is not a block done"
+    done = assembled_client.post(f"/api/v1/atelier/sessions/{started.json()['session_id']}/complete", headers=headers)
+    assert done.status_code == 200, done.text
+    assert blocks() == 1
+    session = db_session.get(AtelierSession, uuid.UUID(started.json()["session_id"]))
+    session.completed_at = datetime.now(UTC) - timedelta(days=1, hours=1)
+    db_session.commit()
+    assert blocks() == 0, "yesterday's block does not count today"

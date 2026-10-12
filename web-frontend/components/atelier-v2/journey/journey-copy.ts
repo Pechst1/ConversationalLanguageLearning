@@ -212,6 +212,7 @@ export type JourneyCopyKey =
   | 'listen_unavailable_read'
   // WP-103 T3: a drill's header names the drill; a scene-cut item says where from.
   | 'drill_recall'
+  | 'drill_warmup'
   | 'drill_rule'
   | 'drill_forge'
   | 'drill_from_scene'
@@ -420,6 +421,7 @@ const EN: CopyTable = {
   dictation_placeholder: 'Write what you hear, in French',
   listen_unavailable_read: 'No sound right now — read the line instead.',
   drill_recall: 'Recall',
+  drill_warmup: 'Before the scene',
   drill_rule: 'Rule',
   drill_forge: 'La Forge',
   drill_from_scene: 'From the scene',
@@ -620,6 +622,7 @@ const DE: CopyTable = {
   dictation_placeholder: 'Schreib auf Französisch, was du hörst',
   listen_unavailable_read: 'Gerade kein Ton — lies den Satz stattdessen.',
   drill_recall: 'Wiederholung',
+  drill_warmup: 'Vor der Szene',
   drill_rule: 'Regel',
   drill_forge: 'La Forge',
   drill_from_scene: 'Aus der Szene',
@@ -820,6 +823,7 @@ const FR: CopyTable = {
   dictation_placeholder: 'Écrivez ce que vous entendez',
   listen_unavailable_read: 'Pas de son pour l’instant : lisez la phrase.',
   drill_recall: 'Rappel',
+  drill_warmup: 'Avant la scène',
   drill_rule: 'Règle',
   drill_forge: 'La Forge',
   drill_from_scene: 'Dans la scène',

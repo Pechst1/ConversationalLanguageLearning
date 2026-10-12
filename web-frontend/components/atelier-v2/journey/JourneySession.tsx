@@ -92,6 +92,19 @@ import { canDoCopy } from '@/lib/can-do-copy';
 import { epreuveOf } from '@/lib/can-dos';
 import type { DailyJourneyController } from './useDailyJourney';
 import { RvJourneyPapier } from '@/components/revue/RvJourneyPapier';
+import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
+import { Walkthrough } from '@/components/onboarding/Walkthrough';
+import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
+import {
+  beginFirstDay,
+  deviceStore,
+  markRouteStage,
+  rememberWalkthrough,
+  routeDone,
+  stickerFor,
+  walkthroughSeen,
+  type RouteStage,
+} from '@/lib/first-steps';
 import { isRevueDay } from '@/lib/revue-une';
 
 export type JourneySessionProps = {
@@ -117,6 +130,12 @@ export type JourneySessionProps = {
    * the recap's quiet practice button becomes the forge entry.
    */
   forgeAfterDay?: { label: string; onSelect: () => void } | null;
+  /**
+   * GENTLE-ONBOARDING: on the learner's first day the recap leads on to La
+   * Forge, then the words — «Forge today's rule» opens at `forgeHref` on
+   * every rhythm, since nothing was folded into the first day.
+   */
+  firstDayRoute?: { forgeHref: string | null; onNavigate: (href: string) => void } | null;
 };
 
 /**
@@ -155,6 +174,7 @@ export function JourneySession({
   onPractice,
   onForge,
   forgeAfterDay,
+  firstDayRoute,
 }: JourneySessionProps) {
   const openForge = (href: string) => {
     if (onForge) onForge(href);
@@ -232,13 +252,37 @@ export function JourneySession({
   React.useEffect(() => {
     setCastIntroDone(!journeyId || castIntroSeen(journeyId));
   }, [journeyId]);
-  const showCastIntro =
-    castIntro.length > 0 &&
-    !castIntroDone &&
+  const atFirstScene =
     phase.kind === 'session' &&
     step?.kind === 'scene' &&
     // WP-78: a practice day opens on warm-ups, so «the first scene», not steps[0].
     firstSceneStepId(journey) === step.id;
+  const showCastIntro = castIntro.length > 0 && !castIntroDone && atFirstScene;
+
+  /* GENTLE-ONBOARDING: the learner's first day (the one that meets the cast)
+     opens on the walkthrough — the app, the shapes, the progress row, the
+     day's route — before the cast intro. Once per device. The day's route
+     (story → La Forge → words) is remembered under the journey's date. */
+  const firstDay = castIntro.length > 0;
+  const localDate = journey?.local_date ?? null;
+  const [walkthroughDone, setWalkthroughDone] = React.useState(true);
+  const [routeStages, setRouteStages] = React.useState<RouteStage[]>([]);
+  React.useEffect(() => {
+    const store = deviceStore();
+    setWalkthroughDone(walkthroughSeen(store));
+    if (firstDay && localDate) beginFirstDay(store, localDate);
+    setRouteStages(routeDone(store));
+  }, [firstDay, localDate]);
+  const showWalkthrough = firstDay && !walkthroughDone && atFirstScene;
+  const dayFinished = phase.kind === 'finished';
+  // A day ended early is not the story done: the route ticks it only when completed.
+  const storyCompleted = dayFinished && journey?.status === 'completed';
+  React.useEffect(() => {
+    if (!firstDay || !storyCompleted || !localDate) return;
+    const store = deviceStore();
+    markRouteStage(store, 'story', localDate);
+    setRouteStages(routeDone(store));
+  }, [firstDay, storyCompleted, localDate]);
 
   /* WP-98 / WP-99: before the day's first step, a returning learner reads
      «Pendant votre absence», and a new season opens on its front page. Each
@@ -291,6 +335,7 @@ export function JourneySession({
         copy,
         location: journey.scenario.location_name,
         objective: journey.scenario.objective_native,
+        steps: journey.steps,
       })
     : '';
 
@@ -350,6 +395,17 @@ export function JourneySession({
           {showPapier ? (
             <RvJourneyPapier language={chromeLanguage} onDone={() => setPapierDone(true)} />
           ) : (
+            <>
+            {firstDay && storyCompleted && firstDayRoute && (
+              <div className="journey-first-route">
+                <FirstDayRoute
+                  language={chromeLanguage}
+                  done={routeStages.includes('story') ? routeStages : [...routeStages, 'story']}
+                  forgeHref={firstDayRoute.forgeHref}
+                  onNavigate={firstDayRoute.onNavigate}
+                />
+              </div>
+            )}
             <JourneyPhaseView
               phase={phase}
               controller={controller}
@@ -357,15 +413,25 @@ export function JourneySession({
               onExit={onExit}
               morePractice={morePractice}
               onPractice={onPractice}
-              forgeAfterDay={forgeAfterDay}
+              forgeAfterDay={firstDay && storyCompleted && firstDayRoute ? null : forgeAfterDay}
             />
+            </>
           )}
 
           {/* A paused journey shows its resume prompt alone, so the learner has
               exactly one action rather than a half-live step behind a notice. */}
           {phase.kind === 'session' && step && (
             <>
-              {showCastIntro && (
+              {showWalkthrough && (
+                <Walkthrough
+                  language={chromeLanguage}
+                  onDone={() => {
+                    rememberWalkthrough(deviceStore());
+                    setWalkthroughDone(true);
+                  }}
+                />
+              )}
+              {showCastIntro && !showWalkthrough && (
                 <CastIntro
                   cast={castIntro}
                   language={chromeLanguage}
@@ -396,8 +462,13 @@ export function JourneySession({
                   onContinue={() => finishPrelude('premiere')}
                 />
               )}
-              {!prelude && (
+              {!prelude && !showWalkthrough && (
               <>
+              {/* GENTLE-ONBOARDING: the first time a kind of step appears,
+                  one sticker above it says what it is. Never over the cast. */}
+              {!showCastIntro && (
+                <FirstStepSticker key={step.kind} stepKey={stickerFor(step.kind)} language={chromeLanguage} />
+              )}
               {step.kind === 'scene' && !showCastIntro && (
                 // Story-engine panels when the engine published them for this
                 // journey; the plain scene prompt otherwise (WP-14E).

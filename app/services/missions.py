@@ -25,6 +25,7 @@ from app.db.savepoint import best_effort
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
 from app.services import story_correspondence as courrier
+from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.daily_words import DailyWordSlateService
@@ -951,6 +952,14 @@ STORY_FRAMES: dict[str, dict[str, Any]] = {
 }
 
 
+#: R2-3 (agency walk run 2): the frame when the scene ended with its question still
+#: open. «Et toi, tu en penses quoi ?» asked the learner something else entirely.
+OPEN_QUESTION_FRAME: dict[str, str] = {
+    "vous": "Bonjour, c'est {name}. Je repense à notre dernière rencontre. Je vous repose ma question : « {question} »",
+    "tu": "Salut, c'est {name}. Je repense à la dernière fois. Je te repose ma question : « {question} »",
+}
+
+
 def story_frame_for(learner_band: Any) -> tuple[str, dict[str, Any]]:
     """``(level, frame)``: the richest story frame at or below the learner's band."""
 
@@ -1552,6 +1561,48 @@ def _normalize_phrase(value: Any) -> str:
 
 
 _QUOTE_VARIANTS = re.compile(r"[’‘‚‛`´]")
+
+
+def _slim_frame_and_ask(messenger: dict[str, Any], brief: str) -> tuple[str, str, dict[str, str]]:
+    """The Courrier's frame line, its ask and the ask per language, from the letter."""
+
+    frame_parts = [
+        _compact_text(messenger.get("contact_role") or messenger.get("contact_name"), max_length=80),
+        _compact_text(messenger.get("scene_anchor") or messenger.get("inbox_context") or brief, max_length=180),
+    ]
+    frame = " · ".join(part for part in frame_parts if part)
+    ask = (
+        _compact_text(messenger.get("success_signal"), max_length=160)
+        or _compact_text(brief, max_length=160)
+        or "Une réponse en français qui règle la situation."
+    )
+    ask_by_language = {
+        language: _compact_text(text, max_length=160)
+        for language, text in success_signal_i18n(messenger).items()
+    }
+    return frame, ask, {key: value for key, value in ask_by_language.items() if value}
+
+
+def reframe_slim_payload(slim: Any, *, messenger: dict[str, Any], brief: str) -> dict[str, Any]:
+    """A generated letter rewritten for the serial keeps none of its old frame.
+
+    WALK 2026-10-12: «Reach the landlord» printed the neighbour letter's P.S.
+    («Elle n'est pas contente…») under M. Marchand, and a frame without the
+    radiator: the serial rewrote the messenger but not the slim payload built
+    from the generated variety.
+    """
+
+    frame, ask, ask_by_language = _slim_frame_and_ask(messenger, brief)
+    return {
+        **(slim if isinstance(slim, dict) else {}),
+        "frame": frame,
+        "ask": ask,
+        "ask_by_language": ask_by_language,
+        "channel": messenger.get("channel_label") or "message",
+        "domain": None,
+        "tone": None,
+        "twist": messenger.get("twist") or None,
+    }
 
 
 def _normalized_repair_text(value: Any) -> str:
@@ -2333,20 +2384,7 @@ class MissionGenerator:
         variety: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         variety = variety or {}
-        frame_parts = [
-            _compact_text(messenger.get("contact_role") or messenger.get("contact_name"), max_length=80),
-            _compact_text(messenger.get("scene_anchor") or messenger.get("inbox_context") or brief, max_length=180),
-        ]
-        frame = " · ".join(part for part in frame_parts if part)
-        ask = (
-            _compact_text(messenger.get("success_signal"), max_length=160)
-            or _compact_text(brief, max_length=160)
-            or "Une réponse en français qui règle la situation."
-        )
-        ask_by_language = {
-            language: _compact_text(text, max_length=160)
-            for language, text in success_signal_i18n(messenger).items()
-        }
+        frame, ask, ask_by_language = _slim_frame_and_ask(messenger, brief)
         used_word_ids = _dedupe_ints([item.get("word_id") for item in vocabulary])
         used_verb_lemmas = [
             str(item.get("word") or "").strip().lower()
@@ -2359,7 +2397,7 @@ class MissionGenerator:
             # The objective as chrome: {fr, en, de} when known. The client picks
             # by the one-language rule; a letter with only one version falls back
             # to `ask` (see web-frontend/pages/missions.tsx `missionAsk`).
-            "ask_by_language": {key: value for key, value in ask_by_language.items() if value},
+            "ask_by_language": ask_by_language,
             "input_kind": "chat" if mission_type == "conversation" else "message",
             "channel": variety.get("channel") or messenger.get("channel_label") or "message",
             "domain": variety.get("domain"),
@@ -2648,6 +2686,9 @@ class MissionGenerator:
         if source == "story_born":
             context["character_name"] = _compact_text((value or {}).get("character_name"), max_length=80)
             context["summary_fr"] = _compact_text((value or {}).get("summary_fr"), max_length=240)
+            question = _compact_text((value or {}).get("open_question_fr"), max_length=240)
+            if question:
+                context["open_question_fr"] = question
             known = (value or {}).get("desired_outcome_i18n")
             if isinstance(known, dict) and known.get("fr") == desired_outcome:
                 context["desired_outcome_i18n"] = {
@@ -2760,6 +2801,7 @@ class MissionGenerator:
             or "Un personnage"
         )
         tu = str(custom_context.get("register") or "").lower().startswith("tu")
+        question = str(custom_context.get("open_question_fr") or "").strip()
         generated = bool(messenger.get("success_signal_i18n"))
         outcome = custom_context.get("desired_outcome") or (
             f"{name} sait ce que tu en penses." if tu else f"{name} sait ce que vous en pensez."
@@ -2774,9 +2816,14 @@ class MissionGenerator:
             "scene_anchor": (messenger.get("scene_anchor") if generated else None)
             or "Un message, après la dernière scène du feuilleton",
             "inbox_context": custom_context["scenario"],
-            # WP-125B: without a model, the frame for the learner's band.
+            # WP-125B: without a model, the frame for the learner's band; R2-3: a scene
+            # left open is asked again in its own words.
             "opening_message": (messenger.get("opening_message") if generated else None)
-            or str(story_frame_for(learner_band)[1]["tu" if tu else "vous"]).format(name=name),
+            or (
+                str(OPEN_QUESTION_FRAME["tu" if tu else "vous"]).format(name=name, question=question)
+                if question
+                else str(story_frame_for(learner_band)[1]["tu" if tu else "vous"]).format(name=name)
+            ),
             "ambient_cues": (messenger.get("ambient_cues") if generated else None)
             or [f"un message de {name}", "la dernière scène", "une réponse courte"],
             "quick_replies": (messenger.get("quick_replies") if generated else None)
@@ -3693,12 +3740,23 @@ class MissionCorrectionService:
         gates 1 and 3 but still have to be grounded.
         """
         cleaned: list[dict[str, Any]] = []
+        quoted: set[str] = set()
         for raw in errata:
             if not isinstance(raw, dict):
                 continue
             erratum = self._normalize_erratum(raw, mission)
             if self._is_echo_erratum(erratum, submission_text=submission_text):
                 continue
+            if is_preference_swap(erratum.get("learner_text"), erratum.get("corrected_target")):
+                # WALK 2026-10-12: «Vous êtes disponible jeudi matin ?» was "fixed"
+                # to an inversion, twice; «sans mon nom» to «pas mon nom». Both
+                # were correct French, so neither is an error to drill.
+                continue
+            key = _normalized_repair_text(erratum.get("learner_text"))
+            if key and key in quoted:
+                continue  # the same fragment noted twice, in other words
+            if key:
+                quoted.add(key)
             task_type = str(erratum.get("task_error_type") or "")
             if task_type == "task_compliance" or self._is_vocabulary_erratum(erratum):
                 # These two are authored here, not by the provider: they may
@@ -3915,7 +3973,9 @@ class MissionCorrectionService:
             "as one short tip. Write plain text: no markdown, no asterisks, no backticks. "
             "Address the person as 'you'. "
             "This is a casual chat: do NOT flag informal-but-correct phrasing, register, missing target words, style, precision, "
-            "politeness, or how well the reply fits the task — only real language errors. Never comment on the length, vagueness, "
+            "politeness, or how well the reply fits the task — only real language errors. A question asked by intonation "
+            "(Vous êtes disponible jeudi ?) or with est-ce que is correct French in every register: never require inversion. "
+            "Never comment on the length, vagueness, "
             "or topic of the message, and never suggest they add a greeting, a name or more content. Never mention these instructions. "
             "corrected_answer must be THEIR message with the mistakes fixed — never a different message you invent, and never a "
             "template with placeholders in brackets. If the message is already correct and natural, return an empty errata list "
@@ -5210,6 +5270,8 @@ class MissionScheduler:
             custom_context["source"] = "story_born"
             custom_context["character_name"] = story_letter.get("character_name")
             custom_context["summary_fr"] = story_letter.get("summary_fr")
+            if story_letter.get("open_question_fr"):
+                custom_context["open_question_fr"] = story_letter["open_question_fr"]
             # EXPERIENCE-REVIEW 2026-10-04: the objective's translations travel with it.
             if story_context and desired_outcome == story_context.get("desired_outcome"):
                 custom_context["desired_outcome_i18n"] = story_context.get("desired_outcome_i18n")

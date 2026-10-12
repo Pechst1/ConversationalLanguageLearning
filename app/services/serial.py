@@ -26,7 +26,7 @@ from app.services.graphic_novel import (
     scene_matches_current_contract,
 )
 from app.services.llm_service import LLMService
-from app.services.missions import MissionScheduler
+from app.services.missions import MissionScheduler, reframe_slim_payload
 from app.services.revue import feuilleton_bridge
 from app.services.revue.dossier import EditorialDossier
 from app.services.serial_arc_planner import (
@@ -35,6 +35,10 @@ from app.services.serial_arc_planner import (
     cefr_generation_profile,
 )
 from app.services.serial_notifications import enqueue_serial_edition_notification
+
+#: Bumped when episode 1's letter contract changes, so a letter already written
+#: under an older one is rewritten (2: the Courrier frame and P.S. are its own).
+EPISODE_ONE_CONTRACT_VERSION = 2
 
 
 def _is_engine_version(value) -> bool:
@@ -480,7 +484,12 @@ class SerialThreadService:
             "success_signal": messenger.get("success_signal") or "The addressee has a concrete next step and the story can move.",
             "quick_replies": format_payload.get("quick_replies") or messenger.get("quick_replies") or [],
             "opening_message": format_payload.get("opening_message") or messenger.get("opening_message") or prompt.get("conversation_opening"),
+            # The generated letter's P.S. belongs to another contact.
+            "twist": None,
         }
+        prompt["slim_payload"] = reframe_slim_payload(
+            prompt.get("slim_payload"), messenger=prompt["messenger"], brief=mission.brief or ""
+        )
         if mission_format == "email_formal":
             prompt["writing_title"] = format_payload.get("title") or "Formal email"
             prompt["writing_instruction"] = "Write the email with a subject, greeting, body, and closing."
@@ -501,7 +510,11 @@ class SerialThreadService:
         mission = self.db.get(RealWorldMission, episode.mission_id)
         if not mission:
             return
-        if (mission.prompt_payload or {}).get("serial_reference") == "episode-01-beat-a":
+        payload = mission.prompt_payload or {}
+        if (
+            payload.get("serial_reference") == "episode-01-beat-a"
+            and payload.get("serial_contract_version") == EPISODE_ONE_CONTRACT_VERSION
+        ):
             return
         self._apply_episode_one_mission_contract(mission)
 
@@ -568,6 +581,7 @@ class SerialThreadService:
         prompt.update(
             {
                 "serial_reference": "episode-01-beat-a",
+                "serial_contract_version": EPISODE_ONE_CONTRACT_VERSION,
                 "display_title": "Le radiateur",
                 "episode_title": "Episode 1 — Le radiateur",
                 "serial_beat": "act",
@@ -601,7 +615,8 @@ class SerialThreadService:
             "presence": "répond brièvement, surtout le soir",
             "time_label": "21:48",
             "thread_title": "M. Marchand · chauffage",
-            "scene_anchor": "Première nuit dans le studio, manteau encore sur les épaules",
+            "scene_anchor": "Première nuit dans le studio : le radiateur est froid, manteau encore sur les épaules",
+            "twist": "Le technicien peut venir le matin, pas l'après-midi.",
             "dispatch_note": "The reply only works if M. Marchand knows who you are, what is broken, and what you need.",
             "inbox_context": mission.brief,
             "opening_message": "M. Marchand est votre propriétaire. Il répond vite, mais seulement si le message est précis et formel.",
@@ -620,6 +635,9 @@ class SerialThreadService:
             ],
             "vocabulary_focus_terms": episode_vocabulary,
         }
+        prompt["slim_payload"] = reframe_slim_payload(
+            prompt.get("slim_payload"), messenger=prompt["messenger"], brief=mission.brief or ""
+        )
         mission.prompt_payload = prompt
         self.db.add(mission)
         self.db.commit()

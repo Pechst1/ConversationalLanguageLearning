@@ -954,6 +954,49 @@ def test_the_legacy_surface_cannot_complete_the_beat_while_the_journey_settles(
     assert thread_of(db_session, d).current_episode_index == 1
 
 
+def test_a_courrier_note_while_a_day_generates_does_not_lose_the_day(
+    assembled_client, db_session, journey_enabled, clock, provider
+):
+    """Agency pilot 2026-10-12 (B1): La Une refused a Courrier letter as too hard while
+    the day was generating; the note it wrote into the thread moved the fingerprint and
+    the accepted day was lost to ``story_revision_conflict``."""
+
+    from app.db.models.user import User
+    from app.services import story_correspondence as courrier
+
+    assert courrier.CORRESPONDENCE_KEY in engine.FINGERPRINT_IGNORED_STATE_KEYS
+    d = driver(assembled_client, db_session)
+    play_day(d, provider, answer="Je viens samedi.")
+    clock.advance(days=1)
+
+    user = db_session.get(User, d.user_id)
+    brief = engine.generate_scene(db_session, user=user, input_mode="text")
+    assert isinstance(brief, engine.ScenarioBrief)
+    courrier.note_withheld(db_session, user=user, kind="extra", reason="letter_too_hard")
+    db_session.flush()
+
+    journey = db_session.scalar(
+        select(DailyJourney)
+        .where(DailyJourney.user_id == d.user_id)
+        .order_by(DailyJourney.local_date.desc())
+    )
+    engine.bind_journey(db_session, user=user, journey=journey, brief=brief)
+    assert courrier.CORRESPONDENCE_KEY in (thread_of(db_session, d).state or {}), "the note is kept"
+
+
+def test_a_context_frozen_under_the_old_fingerprint_still_binds_once(db_session):
+    from app.db.models.serial import SerialThread
+
+    thread = SerialThread(state={"courrier": {"withheld": {}}, engine.STATE_KEY: {}}, world_bible={},
+                          current_episode_index=0, status="active")
+    thread.id = uuid.uuid4()
+    assert engine._fingerprint(thread) != engine._fingerprint(thread, legacy=True)
+    moved = SerialThread(state={**thread.state, "courrier": {"withheld": {"x": 1}}}, world_bible={},
+                         current_episode_index=0, status="active")
+    moved.id = thread.id
+    assert engine._fingerprint(moved) == engine._fingerprint(thread)
+
+
 def test_a_stale_generation_cannot_publish_over_newer_canon(
     assembled_client, db_session, journey_enabled, clock, provider
 ):

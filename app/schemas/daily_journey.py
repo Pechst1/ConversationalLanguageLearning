@@ -217,6 +217,9 @@ class ScenePrompt(JourneyModel):
     #: WP-96 «Précédemment»: up to three chronicle lines above an engine scene,
     #: read at projection time from the bound scene. ``None`` on authored days.
     previously_fr: list[str] | None = None
+    #: Walk 2026-10-12 (#77): the season's premise in the learner's language —
+    #: who they are and what is at stake. ``None`` off a scripted season.
+    premise_native: str | None = None
     #: WP-97: the margin notes this page prints. ``None`` on authored days.
     margin_notes: list[MarginNote] | None = None
 
@@ -1071,6 +1074,9 @@ class ForgeEntry(JourneyModel):
     concept_id: int | None = None
     budget_seconds: int
     folded: bool = False
+    #: CONTINUE (owner, 2026-10-12): forge séances finished on the learner's own
+    #: day, so Home's one Continue button moves on to the words once La Forge is done.
+    blocks_today: int = 0
 
 
 class HeadlineCastMember(JourneyModel):

@@ -549,7 +549,7 @@ const DE: CourrierCopy = {
   seal_resolved: 'Beantwortet',
   seal_act_done: 'Akt abgeschlossen',
   seal_numbers_aria: 'In Zahlen',
-  seal_mood_happy: '{name} ist zufrieden mit Ihnen',
+  seal_mood_happy: '{name} ist zufrieden mit dir',
   seal_mood_neutral: '{name} ist neutral',
   seal_mood_distant: '{name} ist etwas distanziert',
   seal_mood_cross: '{name} ist verärgert',

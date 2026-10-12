@@ -175,11 +175,14 @@ export function TrustMeter({ trust, language = null }: { trust: number | null; l
 
 export function Precedemment({
   lines,
+  premise = null,
   language = null,
   onRead,
   journeyId = null,
 }: {
   lines: string[];
+  /** Walk #77: who the learner is and what is at stake, in their language. */
+  premise?: string | null;
   language?: ControlLanguage | null;
   onRead: () => void;
   journeyId?: string | null;
@@ -194,7 +197,15 @@ export function Precedemment({
   );
   return (
     <section className="fa-previously" aria-label={t.previously_aria} data-precedemment="">
-      <p className="av2-label">{t.previously}</p>
+      {premise && (
+        <>
+          <p className="av2-label">{t.premise}</p>
+          <p className="av2-body fa-previously__premise" data-premise="">
+            {premise}
+          </p>
+        </>
+      )}
+      {lines.length > 0 && <p className="av2-label">{t.previously}</p>}
       <ul className="fa-previously__list">
         {lines.map((line, index) => (
           <li key={`${index}-${line}`}>
