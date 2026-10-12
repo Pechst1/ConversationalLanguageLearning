@@ -38,7 +38,7 @@ from app.services import concept_life, forge_picker
 from app.services import journey_planner as planner
 from app.services.grammar import GrammarService, apply_grammar_evidence
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog
-from app.services.journey_contracts import StepKind
+from app.services.journey_contracts import StepKind, TargetKind
 from app.services.journey_day_shapes import DayShapeInputs
 from app.services.journey_events import forge_after_day_seconds
 from tests.test_journey_end_to_end import (
@@ -373,6 +373,35 @@ def test_soutenu_and_intensif_fold_the_forge_into_the_scene_movement(db_session:
             "prompt": {**step.public_prompt, "href": "/atelier?mode=forge", "forged": False},
         }
     )
+
+
+def test_an_authored_page_folds_no_forge_and_teaches_its_rule_after_the_ending(db_session: Session, v2) -> None:
+    """GRAMMAR-DAY-ONE (#81): the page's rule follows its ending, so no forge on
+    that unit comes before the scene, and the reply is priced without the unit."""
+
+    from app.services.daily_journey import DailyJourneyService
+
+    user = _learner(db_session, minutes=RHYTHM_MINUTES["soutenu"])
+    brief = concept_life.introduction_for_today(db_session, user, now=DAY0, control_language="en")
+    forge = DailyJourneyService(db_session, adapters=None)._forge_for_today(user, brief)
+    page = {"season": {"kind": "tentpole", "position": {"season_day": 1}}}
+    plan = planner.plan_journey(
+        scenario=_brief(story_context=page), candidates=[], budget_seconds=1200, practice=True,
+        dice=DayShapeInputs(user_id="forge-page", local_date=DAY0.date()),
+        introduction=brief, forge=forge,
+    )
+    plan.validate()
+    kinds = [step.kind for step in plan.steps]
+    assert StepKind.FORGE not in kinds, plan.rationale
+    assert kinds.index(StepKind.RESOLUTION) < kinds.index(StepKind.RULE), plan.rationale
+    respond = next(step for step in plan.steps if step.kind is StepKind.RESPOND)
+    assert not [t for t in respond.private_task.targets if t.kind is TargetKind.GRAMMAR]
+    unpriced = planner.plan_journey(
+        scenario=_brief(story_context=page), candidates=[], budget_seconds=1200, practice=True,
+        dice=DayShapeInputs(user_id="forge-page", local_date=DAY0.date()),
+    )
+    plain = next(step for step in unpriced.steps if step.kind is StepKind.RESPOND)
+    assert respond.estimated_seconds == plain.estimated_seconds, "the reply is not priced a unit sentence longer"
 
 
 @pytest.mark.parametrize("rhythm", ["leger", "regulier"])
