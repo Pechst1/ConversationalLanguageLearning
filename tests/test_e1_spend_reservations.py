@@ -90,8 +90,10 @@ def test_an_abandoned_hold_turns_uncertain_and_keeps_counting(
 ) -> None:
     monkeypatch.setattr(settings, "SPEND_RESERVATION_STALE_SECONDS", 60)
     user, _ = _learner(db_session)
-    _spend(db_session, user, 0.47)
     now = datetime.now(UTC).replace(hour=12, minute=0, second=0, microsecond=0)
+    # Spent on the same learner day as the holds: at 22:00 UTC a spend stamped with
+    # the wall clock already falls on the next local day and the cap never trips.
+    _spend(db_session, user, 0.47, when=now - timedelta(minutes=20))
     old = spend_ledger.reserve(db_session, user, kind="test", now=now - timedelta(minutes=10))
 
     _refused(lambda: spend_ledger.reserve(db_session, user, kind="test", now=now))
