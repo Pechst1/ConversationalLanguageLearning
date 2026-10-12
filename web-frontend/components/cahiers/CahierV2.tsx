@@ -50,6 +50,14 @@ export function cahierModeLabel(copy: CahierCopy, mode: CahierMode): string {
   return copy.cahier[CAHIER_MODE_KEYS[mode]];
 }
 
+/* The direct /grammar and /vocabulary routes carry the same head as the
+ * /notebook shell; their pill tabs are links to the sibling registers. */
+export function cahierStandaloneHref(mode: CahierMode): string {
+  if (mode === 'grammar') return '/grammar';
+  if (mode === 'vocabulary') return '/vocabulary';
+  return `/notebook?mode=${mode}`;
+}
+
 /* ---------- head: kicker + the one headline + the segmented pill ---------- */
 export function CahierHead({
   kicker,

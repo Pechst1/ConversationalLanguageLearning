@@ -164,10 +164,11 @@ test('an A1 English learner reads the Lexique chrome in English', () => {
     assert.ok(!html.includes(escapeHtml(french)), `French chrome leaked for an A1 learner: ${french}`);
   }
   assert.ok(html.includes('4 to review'));
-  // Place names stay French: «Le lexique» is the screen's name, Grammaire /
-  // Vocabulaire the Cahier's own tabs.
-  assert.ok(html.includes('Le lexique'));
-  assert.ok(html.includes('Grammaire'));
+  // The page wears the Cahier's own head: «Le cahier» is the place's name and
+  // its tabs read in the learner's language, as on /notebook and /grammar.
+  assert.ok(html.includes('Le cahier'));
+  assert.ok(html.includes('>Rules<') && html.includes('>Words<'));
+  assert.ok(!html.includes('Grammaire'), 'no second French switch of its own');
 });
 
 test('an A2 German learner reads it in German', () => {
@@ -317,7 +318,9 @@ test('WP-83: the Lexique pages keep 320px, the tap floor and the theme tokens', 
   assert.ok(registre.includes('.av2 .lx-search__clear::after'));
   // One Garamond headline: the weekly dossier's title is set in sans.
   assert.ok(registre.includes('<h2 className="lx-dossier__title">'));
-  assert.equal((registre.match(/className="av2-headline av2-headline--/g) || []).length, 1);
+  // The page's one headline is the Cahier head's («Le cahier», CahierHead).
+  assert.equal((registre.match(/className="av2-headline av2-headline--/g) || []).length, 0);
+  assert.equal((registre.match(/<CahierHead\b/g) || []).length, 1);
   // Long French words break inside the card instead of widening the page.
   const review = fs.readFileSync(path.join(WEB_ROOT, 'pages/vocabulary/review.tsx'), 'utf8');
   assert.ok(/\.av2 \.lx-card__word \{[^}]*overflow-wrap: anywhere;/.test(review));

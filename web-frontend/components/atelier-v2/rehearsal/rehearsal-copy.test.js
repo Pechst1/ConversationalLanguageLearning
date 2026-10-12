@@ -73,7 +73,7 @@ test('the Répétition files read their chrome from the table', () => {
   assert.ok(stateSource.includes("from './rehearsal-copy'"));
   assert.ok(page.includes("from '@/components/atelier-v2/rehearsal/rehearsal-copy'"));
   for (const phrase of [
-    'Revenir à l’Atelier',
+    'Retour à La Une',
     'Répétez une vraie situation',
     'Préparer la répétition',
     'Plus tard',

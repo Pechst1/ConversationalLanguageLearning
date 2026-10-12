@@ -285,7 +285,7 @@ test('the page computes the chrome language once and hands it to its root', () =
   assert.ok(page.includes('atelierChrome(useControlLanguage())'));
   assert.ok(!page.includes('useLearnerLanguage'));
   // No French chrome literal is left inline in the JSX.
-  for (const phrase of ['Retour à l’Atelier</', 'Nouveau courrier</', 'Courrier passé</', 'Chargement du courrier', '>Bouclé<', 'rédige sa réponse']) {
+  for (const phrase of ['Retour à La Une</', 'Nouveau courrier</', 'Courrier passé</', 'Chargement du courrier', '>Bouclé<', 'rédige sa réponse']) {
     assert.ok(!page.includes(phrase), `inline French chrome: ${phrase}`);
   }
 });
