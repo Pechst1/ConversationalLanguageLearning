@@ -54,6 +54,12 @@ from app.services.season.consequences import (
 logger = logging.getLogger(__name__)
 
 STATE_KEY = "agency"
+#: What a turn stores for the settle (:func:`acts_for_details`).
+DETAIL_KEYS = ("season_acts", "agency_text", "agency_decisions", "agency_contract")
+#: The voice's actions that refuse; only these reach the ending lane.
+REFUSING = ("decline", "withhold")
+#: Only a grant carries limits: «oui, mais sans mon nom».
+LIMITABLE = ("accept", "show", "promise")
 #: ``world.flags[NOTES_KEY][event_id]``: the line, the character and the gap of a commit.
 NOTES_KEY = "notes"
 
@@ -310,9 +316,13 @@ def agency_for_turn(contract: Contract) -> dict[str, Any]:
 VOICE_ADDENDUM = """
 agency is present: what the learner may decide in this scene. acts lists what the
 learner's words actually decided about agency.may_decide, at most 3: action is one of
-that entry's actions, subject its subject, conditions the limits the learner set (a key
-of agency.conditions when it matches; otherwise a short snake_case name of what they
-asked for), evidence_quotes exact verbatim quotes from learner_text or history[].learner.
+that entry's actions, subject its subject, evidence_quotes exact verbatim quotes from
+learner_text or history[].learner. Letting the character use, do or keep something is
+accept; refusing it is decline; giving information is tell. conditions are only the
+limits the learner's own words set on an accept («mais sans mon nom»), each one in an
+evidence quote: a key of agency.conditions when it matches, otherwise a short snake_case
+name of what they asked for. Never copy agency.conditions the learner did not state: a
+plain answer sets no limit.
 A learner who has not clearly agreed or refused has decided nothing: then clarity is
 ambiguous. Nothing about agency.may_decide in their words: acts is an empty list.
 reply_fr never accepts a limit that is not a key of agency.conditions, unless
@@ -358,7 +368,9 @@ def _intent(act: VoiceAct, text: str) -> Intent | None:
     return Intent(
         action=act.action,  # type: ignore[arg-type]
         subject=act.subject,
-        conditions=[slug for c in act.conditions if (slug := _slugged(c))],
+        # A limit belongs to a grant: «c'est moi, Paul» tells, and sets none
+        # (second agency walk: the contract's limits copied onto a plain answer).
+        conditions=[slug for c in act.conditions if (slug := _slugged(c))] if act.action in LIMITABLE else [],
         evidence=evidence,
         clarity=clarity,  # type: ignore[arg-type]
     )

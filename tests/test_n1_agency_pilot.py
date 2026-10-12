@@ -331,18 +331,28 @@ def test_a_day_the_writer_gave_no_contract_still_records_the_decision(pilot) -> 
     assert extras["callback"]["learner_words"] == ["Non, pas de camera."]
 
 
-def test_the_ending_is_told_what_the_learner_decided() -> None:
+def test_the_ending_is_told_only_what_the_learner_refused_in_their_words() -> None:
     voice = story_lanes.VoiceReply.model_validate(
         {"reply_fr": "D'accord.", "understood_intent": "x", "needs_clarification": False, "acts": [
             {"action": "decline", "evidence_quotes": ["pas de camera"]},
-            {"action": "accept", "evidence_quotes": [], "clarity": "clear"},
-            {"action": "accept", "evidence_quotes": ["peut-être"], "clarity": "ambiguous"},
+            {"action": "accept", "conditions": ["no_name", "off_record"], "evidence_quotes": ["c'est moi, Paul"]},
+            {"action": "withhold", "evidence_quotes": ["peut-être"], "clarity": "ambiguous"},
         ]}
     )
     tutor = story_lanes.TutorVerdict.model_validate({"outcome": "met", "evidence_quotes": ["pas de camera"]})
     released = story_lanes.released_view(tutor, voice)
-    assert released["learner_decided"] == [
-        {"action": "decline", "conditions": [], "learner_words": ["pas de camera"]}
-    ]
+    assert released["learner_refused"] == ["pas de camera"]
+    assert "no_name" not in str(released), "an act's limits never reach the ending lane"
     voice.acts = []
-    assert "learner_decided" not in story_lanes.released_view(tutor, voice)
+    assert "learner_refused" not in story_lanes.released_view(tutor, voice)
+
+
+def test_a_plain_answer_sets_no_limit(pilot) -> None:
+    """Second agency walk: «Oui, c'est moi, Paul» heard as tell + the contract's two limits."""
+
+    contract = agency.contract_for(ROMY_DAY)
+    text = "Oui, c'est moi, Paul, le petit-fils d'Odile."
+    act = agency.VoiceAct(action="tell", subject="learner_account", conditions=["no_name", "off_record"],
+                          evidence_quotes=["Oui, c'est moi, Paul"])
+    details = agency.acts_for_details(contract, [act], text=text)
+    assert details["season_acts"][0]["conditions"] == []
