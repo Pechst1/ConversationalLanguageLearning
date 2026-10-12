@@ -289,12 +289,17 @@ class GraphicNovelImageStorage:
         except ImportError as exc:  # pragma: no cover - optional production dependency
             raise RuntimeError("boto3 is required when GRAPHIC_NOVEL_IMAGE_STORAGE=s3") from exc
 
+        from botocore.config import Config  # type: ignore[import-not-found]
+
         return boto3.client(
             "s3",
             region_name=settings.GRAPHIC_NOVEL_IMAGE_S3_REGION,
             endpoint_url=settings.GRAPHIC_NOVEL_IMAGE_S3_ENDPOINT_URL,
             aws_access_key_id=settings.GRAPHIC_NOVEL_IMAGE_S3_ACCESS_KEY_ID,
             aws_secret_access_key=settings.GRAPHIC_NOVEL_IMAGE_S3_SECRET_ACCESS_KEY,
+            # Newer boto3 adds checksum headers to every upload by default, which some
+            # S3-compatible stores (Cloudflare R2 among them) have refused; only when required.
+            config=Config(request_checksum_calculation="when_required", response_checksum_validation="when_required"),
         )
 
     def _store_local(self, *, key: str, image: DecodedImage) -> str:
