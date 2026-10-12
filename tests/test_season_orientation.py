@@ -79,6 +79,11 @@ def test_day_one_says_where_you_are_and_reads_the_scene_first(assembled_client, 
     clock.advance(days=1)
     day_two = _play(d, provider, clock, "Odile, c'est ma grand-mère.")
     assert day_two["story_premise_native"] is None and day_two["cast_intro"] is None
+    # Walk #77: from day 2 on, the scene's «Bisher» box carries the premise; on day 1
+    # the intro already said it, so the scene does not say it twice.
+    scene = lambda journey: next(step for step in journey["steps"] if step["kind"] == "scene")  # noqa: E731
+    assert scene(day_one)["prompt"]["premise_native"] is None
+    assert scene(day_two)["prompt"]["premise_native"]
 
 
 def _plan(season: dict | None):
