@@ -354,9 +354,11 @@ test('«Parler» is offered only when the build and the server both say so, on a
   assert.equal(model.spokenReplyOffered({ ...prompt, spoken_reply: undefined }, true), false, 'an older server');
   assert.equal(model.spokenReplyOffered({ ...prompt, choices: [{ id: 'a', label_fr: 'Oui' }] }, true), false);
   assert.equal(model.spokenReplyOffered({ ...prompt, letter: { subject_fr: 'x' } }, true), false);
-  assert.equal(launchFlags.spokenReply, false, 'the build ships it off');
+  assert.equal(launchFlags.spokenReply, true, 'the build ships it on (owner 2026-10-12)');
   memoryStorage.removeItem(SPOKEN_REPLY_STORAGE_KEY);
-  assert.equal(spokenReplyLaunched(), false);
+  assert.equal(spokenReplyLaunched(), true, 'no device override: the build default');
+  memoryStorage.setItem(SPOKEN_REPLY_STORAGE_KEY, 'off');
+  assert.equal(spokenReplyLaunched(), false, 'one device can switch it off');
   memoryStorage.setItem(SPOKEN_REPLY_STORAGE_KEY, 'on');
   assert.equal(spokenReplyLaunched(), true, 'one device can switch it on for the owner');
   memoryStorage.removeItem(SPOKEN_REPLY_STORAGE_KEY);

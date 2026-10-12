@@ -160,8 +160,12 @@ services:
       # study accounts appended to the same list. '*' means EVERYONE and 'none'
       # means nobody on purpose. WP-88: the API refuses to start in production
       # with this blank, because blank used to mean "nobody" silently.
+      #
+      # Owner 2026-10-12 ("turn everything on"): everyone gets the journey. '*'
+      # names no learner, so it is committed here; this value replaces any list
+      # typed in the dashboard on the next blueprint sync.
       - key: ATELIER_DAILY_JOURNEY_COHORT
-        sync: false
+        value: "*"
       # WP-88 (owner decision D-2): the characters speak. Clips are cached per
       # scene revision and priced on the pilot ledger (≈ US$0.02 per 1,000
       # characters, an estimate the row says so).
@@ -189,6 +193,39 @@ services:
       # the generated serial (D6).
       - key: ATELIER_SEASON_SCRIPT
         value: "s1"
+      # --- Owner 2026-10-12: every product feature on (begin) ------------
+      # Each switch still exists in app/config.py (default off there); this
+      # manifest turns it on in production. Set one to "false" here to take a
+      # feature back out. Kept off on purpose: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
+      # (needs S3 storage below, or every drawing is lost at the next deploy) and
+      # VOCAB_STORY_PILOT_ENABLED (an A/B split that withholds half of each
+      # learner's words from the story, not a feature).
+      - key: REVUE_ENABLED
+        value: "true"
+      - key: REVUE_RADIO_ENABLED
+        value: "true"
+      - key: REVUE_CORRECTEUR_ENABLED
+        value: "true"
+      # Refuses on its own (nearest known plate) until S3 storage is set.
+      - key: REVUE_PLATE_GENERATION_ENABLED
+        value: "true"
+      - key: ATELIER_SPOKEN_REPLY_ENABLED
+        value: "true"
+      - key: ATELIER_SEASON_WRITER_ENABLED
+        value: "true"
+      - key: FEUILLETON_AUDIO_ENABLED
+        value: "true"
+      - key: SERIAL_PHONE_CALL_MISSIONS_ENABLED
+        value: "true"
+      - key: ATELIER_POOL_BACKGROUND_TOPUP_ENABLED
+        value: "true"
+      # Switches from PRs not merged yet (#82): ignored until their code lands,
+      # then on from that deploy.
+      - key: SEASON_AGENCY_PILOT
+        value: "true"
+      - key: SPEND_RESERVATIONS_ENABLED
+        value: "true"
+      # --- Owner 2026-10-12: every product feature on (end) --------------
       # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
       # dashboard to switch panel art on.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE
@@ -330,8 +367,12 @@ services:
       # study accounts appended to the same list. '*' means EVERYONE and 'none'
       # means nobody on purpose. WP-88: the API refuses to start in production
       # with this blank, because blank used to mean "nobody" silently.
+      #
+      # Owner 2026-10-12 ("turn everything on"): everyone gets the journey. '*'
+      # names no learner, so it is committed here; this value replaces any list
+      # typed in the dashboard on the next blueprint sync.
       - key: ATELIER_DAILY_JOURNEY_COHORT
-        sync: false
+        value: "*"
       # WP-88 (owner decision D-2): the characters speak. Clips are cached per
       # scene revision and priced on the pilot ledger (≈ US$0.02 per 1,000
       # characters, an estimate the row says so).
@@ -359,6 +400,39 @@ services:
       # the generated serial (D6).
       - key: ATELIER_SEASON_SCRIPT
         value: "s1"
+      # --- Owner 2026-10-12: every product feature on (begin) ------------
+      # Each switch still exists in app/config.py (default off there); this
+      # manifest turns it on in production. Set one to "false" here to take a
+      # feature back out. Kept off on purpose: GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
+      # (needs S3 storage below, or every drawing is lost at the next deploy) and
+      # VOCAB_STORY_PILOT_ENABLED (an A/B split that withholds half of each
+      # learner's words from the story, not a feature).
+      - key: REVUE_ENABLED
+        value: "true"
+      - key: REVUE_RADIO_ENABLED
+        value: "true"
+      - key: REVUE_CORRECTEUR_ENABLED
+        value: "true"
+      # Refuses on its own (nearest known plate) until S3 storage is set.
+      - key: REVUE_PLATE_GENERATION_ENABLED
+        value: "true"
+      - key: ATELIER_SPOKEN_REPLY_ENABLED
+        value: "true"
+      - key: ATELIER_SEASON_WRITER_ENABLED
+        value: "true"
+      - key: FEUILLETON_AUDIO_ENABLED
+        value: "true"
+      - key: SERIAL_PHONE_CALL_MISSIONS_ENABLED
+        value: "true"
+      - key: ATELIER_POOL_BACKGROUND_TOPUP_ENABLED
+        value: "true"
+      # Switches from PRs not merged yet (#82): ignored until their code lands,
+      # then on from that deploy.
+      - key: SEASON_AGENCY_PILOT
+        value: "true"
+      - key: SPEND_RESERVATIONS_ENABLED
+        value: "true"
+      # --- Owner 2026-10-12: every product feature on (end) --------------
       # Set GRAPHIC_NOVEL_IMAGE_STORAGE=s3 plus the bucket and keys in the
       # dashboard to switch panel art on.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE

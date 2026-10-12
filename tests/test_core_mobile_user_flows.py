@@ -87,7 +87,7 @@ def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> N
     assert "'/missions'" in shell
     assert "'/graphic-novel'" in shell
     assert "'/vocabulary/review'" in shell
-    assert '"storyFeatureVisible": false' in flags
+    assert '"storyFeatureVisible": true' in flags  # owner 2026-10-12: every feature on
     assert "const STORY_ROUTES" in shell
     assert "...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : [])" in shell
     assert "STORY_FEATURE_VISIBLE && STORY_ROUTES.includes(pathname)" in shell

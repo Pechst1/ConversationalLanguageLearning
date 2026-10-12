@@ -37,11 +37,11 @@ def test_notebook_entry_remembers_last_mode() -> None:
     assert "rememberNotebookMode(nextMode)" in entry
 
 
-def test_notebook_switch_links_grammar_and_vocabulary_while_story_library_is_hidden() -> None:
+def test_notebook_switch_links_grammar_vocabulary_and_the_story_library() -> None:
     flags = read_web("launch-flags.json")
     switch = read_web("components/mobile/NotebookModeSwitch.tsx")
 
-    assert '"storyFeatureVisible": false' in flags
+    assert '"storyFeatureVisible": true' in flags  # owner 2026-10-12: every feature on
     assert "atelier:notebook-mode" in switch
     assert 'href="/grammar"' in switch
     assert 'href="/vocabulary"' in switch

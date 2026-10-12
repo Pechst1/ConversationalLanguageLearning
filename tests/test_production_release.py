@@ -67,9 +67,12 @@ def test_render_and_the_compose_template_agree_on_the_production_recipe():
 
     template = _env_template()
     api = _render_env("web")
-    for key in ("ATELIER_DAILY_JOURNEY_COHORT", "REGISTRATION_ALLOWED_EMAILS", "LEGAL_CONTACT_EMAIL", "SMTP_HOST", "SMTP_FROM_EMAIL"):
+    for key in ("REGISTRATION_ALLOWED_EMAILS", "LEGAL_CONTACT_EMAIL", "SMTP_HOST", "SMTP_FROM_EMAIL"):
         assert template.get(key), key
         assert api[key].get("sync") is False, key
+    # Owner 2026-10-12: the journey is everyone's, so the cohort is '*' in both
+    # files; '*' names no learner, so it is committed rather than typed in.
+    assert template["ATELIER_DAILY_JOURNEY_COHORT"] == "*"
     for key, item in api.items():
         if "value" in item and key in template:
             assert template[key].strip('"') == str(item["value"]), key

@@ -16,6 +16,7 @@ const {
   PRACTICE_LABEL,
   serialQueryString,
 } = require('./atelier-next.ts');
+const { STORY_FEATURE_VISIBLE } = require('./launch-flags.ts');
 
 const today = {
   concepts: [{ id: 42 }],
@@ -134,7 +135,17 @@ assert.deepEqual(
       feuilletonDone: false,
     },
   ),
-  { kind: 'feuilleton', query: '?concept_id=7&atelier_session_id=atelier-1' },
+  // The library is suggested only while the story feature is visible (launch-flags.json).
+  STORY_FEATURE_VISIBLE
+    ? {
+        kind: 'library',
+        bookId: 'book-1',
+        episodeIndex: 2,
+        href: '/notebook?mode=library&book=book-1&episode=2',
+        title: 'The letter',
+        bookTitle: 'Petit Test',
+      }
+    : { kind: 'feuilleton', query: '?concept_id=7&atelier_session_id=atelier-1' },
 );
 
 assert.deepEqual(
