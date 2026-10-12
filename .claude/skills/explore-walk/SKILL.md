@@ -46,18 +46,12 @@ Play day 1 completely (teaser → sign-up → day → recap → Home), then
 `/clock {"days":1}` and day 2, then day 7 if time allows. Open Feuilleton, Courrier
 and Cahier once each.
 
-## 3 · The rubric: ask on every screen
+## 3 · The rubric
 
-1. **Orientation.** Do I know where I am, who is speaking, who they are to me and why
-   I am here? Is every name introduced before it is used?
-2. **Task sense.** Do I understand what to do, can I do it with what I have been shown,
-   and does the task fit the scene it sits in? Does the label match (e.g. «review»
-   for a word I have never seen)?
-3. **Reaction.** When I write something, does the scene answer *what I wrote*? Does
-   anyone put words in my mouth? Do I learn whether my French was right and what the
-   right form is?
-4. **Consistency.** du/Sie, names, tone, language of the chrome, numbers that add up.
-5. **Flow.** A way forward, no dead end, no error, no wait without a sign of life.
+The questions are in `docs/ops/walk-rubric.md` (22, chosen by the owner; the app walk
+on the Mac scores the same ones). Ask the *pro Bildschirm* questions (1–11, 16–19) on
+every screen; ask the *pro Tag* questions (12–15, 20–22) at the end of each day.
+In this cloud walk question 19 is `n/a`, and question 4 is «fake» on the fake provider.
 
 Write a finding the moment you notice it, with `/note` (it ties the finding to the
 last screenshot):
@@ -74,7 +68,9 @@ drills, copy, layout, flow.
 
 1. Rank: severity first, then how early it hits (day 1 before day 7), then how small
    the fix is.
-2. Write `docs/ops/walks/<date>.md`: personas, one section per finding (what, where,
+2. Write `docs/ops/walks/<date>.md`: personas, the score table (each rubric question
+   1–5 per played day, the worst screen for per-screen questions, beside the last
+   walk's scores; every 1 or 2 has a finding), one section per finding (what, where,
    screenshot, expected, suspected cause with `file:line` when found), and the
    scripted walk's result.
 3. For each finding, search open issues labelled `walk-finding` for the same title
