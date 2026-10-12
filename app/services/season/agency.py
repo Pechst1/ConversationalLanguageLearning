@@ -83,6 +83,12 @@ class Contract(BaseModel):
     def note_for(self, event: Any) -> str:
         """One English sentence for the director: what this committed event made true."""
 
+        if self.open_conditions and event.effect_id in self.outcomes:
+            # Agency walk 4, 12 Oct 2026: the open contract's subject is the writer's
+            # private turn_want («The learner must want to say…»), which read as meta
+            # text in the brief. What the learner said is what the next day needs.
+            quote = event.evidence[0].text if event.evidence else ""
+            return f"{self.outcomes[event.effect_id]} In their words: «{quote}»" if quote else self.outcomes[event.effect_id]
         if event.effect_id in self.outcomes:
             line = self.outcomes[event.effect_id]
         else:
@@ -151,6 +157,13 @@ def _cast_ids(season_id: str) -> set[str]:
     from app.services.season.format import load_season
 
     return {member.id for member in load_season(season_id).cast}
+
+
+def _cast_name(season_id: str, member_id: str) -> str:
+    from app.services.season.format import load_season
+
+    member = next((row for row in load_season(season_id).cast if row.id == member_id), None)
+    return member.name.split(" ")[0] if member else member_id
 
 
 def generated_contract(season_id: str, gap: str, premise: str | None, raw: Any) -> Contract | None:
@@ -240,8 +253,8 @@ def open_contract(season_id: str, gap: str, premise: str | None, speaker: str, a
             EffectSpec(id="refused", actions=list(OPEN_REFUSE), subject="request"),
         ],
         outcomes={
-            "went_along": f"The learner went along with what {speaker} asked: {asked}",
-            "refused": f"The learner refused what {speaker} asked: {asked}",
+            "went_along": f"The learner went along with what {_cast_name(season_id, speaker)} asked of them.",
+            "refused": f"The learner refused what {_cast_name(season_id, speaker)} asked of them.",
         },
         open_conditions=True,
     )

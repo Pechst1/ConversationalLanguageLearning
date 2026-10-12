@@ -6394,7 +6394,9 @@ def _validate_scene(draft: SceneDraft, context: dict):
     # callback is by definition invented.
     if draft.callback_fr:
         ledger = _callback_ledger(context)
-        if not draft.callback_ref and not _callback_grounded(draft.callback_fr, None, ledger):
+        if not draft.callback_ref:
+            # Agency walk 4: the writer staged the offered callback and left the ref
+            # empty, so the scene's provenance never named it.
             draft.callback_ref = _names_agency_callback(draft.callback_fr, context)
         if not _callback_grounded(draft.callback_fr, draft.callback_ref, ledger):
             raise StoryUnavailable(

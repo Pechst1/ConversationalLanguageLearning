@@ -323,10 +323,11 @@ def test_a_day_the_writer_gave_no_contract_still_records_the_decision(pilot) -> 
     assert [event.action for event in world.events] == ["decline", "accept"]
     assert world.events[1].conditions == ["sans_mon_nom"]
     extras = agency.brief_extras("s1", "g1", 3, state=state, seed="s")
+    # Agency walk 4: the note says who asked and what the learner said, never the
+    # writer's private turn_want or a raw slug.
     assert extras["agreements"][-1] == (
-        "The learner went along with what romy_tremblay asked: Decide if you allow Romy to record you now"
-        " or not Limits the learner set: sans mon nom (the learner's words:"
-        " «Tu peux utiliser mon histoire, mais sans mon nom»)"
+        "The learner went along with what Romy asked of them."
+        " In their words: «Tu peux utiliser mon histoire, mais sans mon nom»"
     )
     assert extras["callback"]["learner_words"] == ["Non, pas de camera."]
 
@@ -385,6 +386,8 @@ def test_a_callback_to_what_the_learner_decided_is_this_lifes_past():
     ledger = living_story._callback_ledger(context)
     assert not living_story._callback_grounded(staged, None, ledger)
     ref = living_story._names_agency_callback(staged, context)
+    # The guard fills the ref in even when the text is grounded elsewhere (walk 4).
+    assert living_story._names_agency_callback("Romy sourit.", context) == "romy_notes_without_name"
     assert ref == "romy_notes_without_name"
     assert living_story._callback_grounded(staged, ref, ledger)
     assert living_story._callback_grounded(staged, "g1.1:accept:learner_account", ledger)
