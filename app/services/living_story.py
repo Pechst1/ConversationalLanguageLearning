@@ -9019,6 +9019,17 @@ _FALLBACK_SUMMARY_ANSWERED = {
 }
 
 
+_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+
+
+def open_question_of(line: Any) -> str | None:
+    """The last question in a character's line (``opening_line_fr``), or ``None``."""
+
+    sentences = [part.strip() for part in _SENTENCE_END.split(str(line or "").strip()) if part.strip()]
+    question = next((part for part in reversed(sentences) if part.endswith("?")), None)
+    return question[:240] if question else None
+
+
 def fallback_turn(
     *, character_name: str | None, learner_text: str, language: str, reason: str, answered: bool = False
 ) -> SemanticTurn:
@@ -9185,6 +9196,12 @@ def settle_resolution(
         "chapter_id": (live.get("chapter") or {}).get("id"),
         "date": _journey_date(journey),
     }
+    if turn.outcome != "met":
+        # R2-3: a scene left open keeps the question it asked, so a letter about it
+        # asks that question again instead of a generic «tu en penses quoi ?».
+        question = open_question_of(brief.story_context["draft"].get("opening_line_fr"))
+        if question:
+            event["open_question_fr"] = question
     live["events"] = [*live.get("events", []), event][-MAX_HISTORY:]
     # WP-62: the day this life is on. `events` is a rolling tail of forty, so it cannot
     # answer "how long ago"; this counter can, it is monotonic, and every ledger row

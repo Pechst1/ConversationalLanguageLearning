@@ -553,6 +553,35 @@ def test_a_story_letter_answered_this_week_is_not_written_again(db_session):
     assert raised.value.reason == "completed_recently"
 
 
+def test_a_letter_about_a_scene_left_open_asks_its_question_again(db_session, monkeypatch):
+    """Agency walk run 2 (R2-3): Romy's letter after a scene that ended on the fallback
+    asked «Et toi, tu en penses quoi ?», not the question the scene left open."""
+
+    from app.services.living_story import open_question_of
+
+    assert open_question_of("Bonjour ! Je prépare un article. Je peux utiliser ton histoire ?") == (
+        "Je peux utiliser ton histoire ?"
+    )
+    assert open_question_of("Merci, à demain.") is None
+
+    monkeypatch.setattr(courrier, "STORY_LETTER_PROBABILITY", 1.0)
+    user = _user(db_session, "A2")
+    thread = _season_thread(db_session, user)
+    _scene(db_session, thread, "scene:open", "Romy a répondu, puis a dû partir.")
+    live = thread.state[STATE_KEY]
+    live["events"][-1]["open_question_fr"] = "Je peux utiliser ton histoire ?"
+    thread.state = {**thread.state, STATE_KEY: live}
+    db_session.commit()
+    candidate = courrier.story_letter_candidate(db_session, user=user)
+    assert candidate and candidate["open_question_fr"] == "Je peux utiliser ton histoire ?"
+    assert "Je peux utiliser ton histoire ?" in courrier.story_letter_context(candidate)["scenario"]
+
+    mission = _letter(db_session, user, story_letter={**candidate, "register": "tu"})
+    opening = mission.prompt_payload["messenger"]["opening_message"]
+    assert "« Je peux utiliser ton histoire ? »" in opening
+    assert "tu en penses quoi" not in opening
+
+
 # ---------------------------------------------------------------------------
 # WP-125B proposal (owner-approved letter text)
 # ---------------------------------------------------------------------------
