@@ -121,6 +121,21 @@ def test_the_private_paraphrase_is_rewritten_never_to_le_apprenant():
     assert agreeing.understood_intent == "Learner said: «Je reste.»"
 
 
+
+def test_a_paraphrase_with_both_pronouns_becomes_the_learners_words():
+    """Agency pilot 2026-10-12 (B4): «qu'il/elle a faim» reached the story critic,
+    which refused it after release. No neutral pronoun exists: quote the learner."""
+
+    payload = _payload("J'ai faim.")
+    for intent in ("L'apprenant veut dire qu'il/elle a faim.", "Il ou elle a faim.", "Elle (il) a faim."):
+        voice = _voice("Moi aussi !", intent=intent)
+        lanes.validate_voice(voice, payload)
+        assert voice.understood_intent == "Learner said: «J'ai faim.»", intent
+    kept = _voice("Moi aussi !", intent="L'apprenant a faim ; Romy dit qu'elle aussi.")
+    lanes.validate_voice(kept, payload)
+    assert kept.understood_intent == "L'apprenant a faim ; Romy dit qu'elle aussi."
+
+
 def test_the_voice_reply_with_an_inclusive_form_is_refused_with_a_hint():
     payload = _payload("Oui, je viens.")
     for reply in ("Merci ! Tu t'es engagé·e, c'est beau.", "Tu es prêt(e) ? On y va.",

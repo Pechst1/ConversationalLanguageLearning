@@ -794,7 +794,9 @@ learner already handles — lean on it; grammar_plan.avoid lists structures abov
 learner's level — do not use them. A plan never outranks the story: the form serves what
 the characters want to say. The examples show the form, never the line: do not copy one
 into the page; each character keeps their own tu or vous with the learner, and nobody
-re-introduces themselves to a learner they already know.
+re-introduces themselves to a learner they already know. grammar_plan and mots_a_placer
+are given to you; they are not output fields: never return them — what they ask for
+lives in the panels' dialogue, opening_line_fr and suggested_response_fr.
 CAN-DOS (what the learner can do in French). can_dos.options lists the can-dos of the
 learner's current sub-band, least practised first; can_dos.prefer names the ones this
 learner has not shown yet. Build the objective so that it genuinely exercises ONE of
@@ -2081,11 +2083,23 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
     }
 
 
-def _fingerprint(thread: SerialThread | None) -> str:
+#: Thread-state namespaces the story never reads, written by other surfaces while a
+#: day may be generating: the Courrier's chains, cooling and withheld notes
+#: (``story_correspondence.CORRESPONDENCE_KEY``). Agency pilot 2026-10-12 (B1): a
+#: letter refused as too hard on La Une moved the fingerprint, and an accepted day
+#: was lost to ``story_revision_conflict``. A finished letter still moves it: it
+#: writes the story's own keys.
+FINGERPRINT_IGNORED_STATE_KEYS = frozenset({"courrier"})
+
+
+def _fingerprint(thread: SerialThread | None, *, legacy: bool = False) -> str:
+    state = thread.state if thread else None
+    if thread and not legacy and isinstance(state, dict):
+        state = {key: value for key, value in state.items() if key not in FINGERPRINT_IGNORED_STATE_KEYS}
     value = (
         {
             "id": str(thread.id),
-            "state": thread.state,
+            "state": state,
             "index": thread.current_episode_index,
             "world": thread.world_bible,
         }
@@ -7964,7 +7978,8 @@ def _lock_context(db: Session, user: User, expected: str) -> SerialThread:
     # Lock the owner first to serialize initial thread creation as well as writes.
     db.execute(select(User.id).where(User.id == user.id).with_for_update())
     thread = _active_thread(db, user, lock=True)
-    if _fingerprint(thread) != expected:
+    # A context frozen before the Courrier keys were left out still matches once.
+    if expected not in (_fingerprint(thread), _fingerprint(thread, legacy=True)):
         raise StoryUnavailable("story_revision_conflict")
     from app.services.season import runtime as season_runtime
 
