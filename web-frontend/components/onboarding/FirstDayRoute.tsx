@@ -4,8 +4,12 @@
  * one, but as second and third after the story»).
  *
  * Done stages are ticked, the next one carries the one primary action. Shown
- * on the first day only: after the day's recap, on Home, at the end of the
- * forge séance and at the end of the word cards.
+ * on the first day after the day's recap, at the end of the forge séance and
+ * at the end of the word cards.
+ *
+ * CONTINUE (owner, 2026-10-12): on Home it is every day's route, with a title
+ * of its own; once the three are done its one button keeps the learner going
+ * («more»), and the target the learning moves towards is drawn under it.
  */
 
 import React from 'react';
@@ -21,6 +25,9 @@ export function FirstDayRoute({
   forgeHref,
   wordsHref = FIRST_DAY_WORDS_HREF,
   onNavigate,
+  title,
+  more = null,
+  target = null,
 }: {
   language: string;
   done: readonly RouteStage[];
@@ -28,6 +35,12 @@ export function FirstDayRoute({
   forgeHref: string | null;
   wordsHref?: string;
   onNavigate: (href: string) => void;
+  /** The route's heading; the first day's by default. */
+  title?: string;
+  /** CONTINUE: once the three are done, the one button keeps going. */
+  more?: { href: string; label: string; hint: string | null } | null;
+  /** CONTINUE: the target the learning moves towards. */
+  target?: { goal: string; when: string | null; percent: number } | null;
 }) {
   const copy = firstStepsCopy(language).route;
   const next = nextRouteStage(done);
@@ -36,8 +49,13 @@ export function FirstDayRoute({
   const hint: Partial<Record<RouteStage, string>> = { forge: copy.forge_hint, words: copy.words_hint };
 
   return (
-    <section className="first-route" aria-label={copy.title} lang={language} data-first-day-route={next ?? 'done'}>
-      <p className="av2-label first-route__title">{copy.title}</p>
+    <section
+      className="first-route"
+      aria-label={title ?? copy.title}
+      lang={language}
+      data-first-day-route={next ?? (more ? 'more' : 'done')}
+    >
+      <p className="av2-label first-route__title">{title ?? copy.title}</p>
       <ol className="first-route__list">
         {ROUTE_STAGES.map((stage, position) => {
           const isDone = done.includes(stage);
@@ -58,9 +76,25 @@ export function FirstDayRoute({
         <Action tone="primary" onClick={() => onNavigate(nextHref)} iconAfter={<ArrowRightIcon size={18} />}>
           {next === 'forge' ? copy.next_forge : copy.next_words}
         </Action>
+      ) : !next && more ? (
+        <>
+          <Action tone="primary" onClick={() => onNavigate(more.href)} iconAfter={<ArrowRightIcon size={18} />}>
+            {more.label}
+          </Action>
+          {more.hint && <p className="first-route__hint first-route__more">{more.hint}</p>}
+        </>
       ) : !next ? (
         <p className="first-route__done">{copy.all_done}</p>
       ) : null}
+      {target && (
+        <div className="first-route__target" data-target="">
+          <span className="first-route__bar" aria-hidden="true">
+            <span style={{ width: `${Math.max(2, target.percent)}%` }} />
+          </span>
+          <p className="first-route__goal">{target.goal}</p>
+          {target.when && <p className="first-route__hint">{target.when}</p>}
+        </div>
+      )}
       <style jsx>{`
         .first-route {
           display: flex;
@@ -122,6 +156,36 @@ export function FirstDayRoute({
         .first-route__hint {
           font-size: var(--av2-t-meta);
           color: var(--av2-muted);
+        }
+        .first-route__more,
+        .first-route__goal {
+          margin: 0;
+        }
+        .first-route__goal {
+          font-weight: 700;
+        }
+        .first-route__target {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding-top: 12px;
+          border-top: 1px solid var(--av2-line);
+        }
+        .first-route__target p {
+          margin: 0;
+        }
+        .first-route__bar {
+          display: block;
+          height: 6px;
+          border-radius: 3px;
+          background: var(--av2-line);
+          overflow: hidden;
+        }
+        .first-route__bar > span {
+          display: block;
+          height: 100%;
+          border-radius: 3px;
+          background: var(--av2-blue);
         }
       `}</style>
     </section>

@@ -191,7 +191,8 @@ import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { castIntroOf } from '@/components/atelier-v2/journey/CastIntro';
-import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
+import { deviceStore, firstStepsCopy, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
+import { continueCopy, continuePlan, moreHint, targetLines, targetView, wordsDoneToday } from '@/lib/continue-learning';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
@@ -1080,9 +1081,54 @@ export default function AtelierPage() {
   useEffect(() => {
     if (!recap || !forge) return;
     markRouteStage(deviceStore(), 'forge', journey.journey?.local_date ?? localDateToday());
+    // CONTINUE: the envelope counts today's forge blocks; read it again so Home's
+    // one button moves on to the words.
+    void journey.actions.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recap, forge, journey.journey?.local_date]);
-  const firstDayRouteOnHome =
-    firstDayJourney && journey.phase.kind === 'finished' && journey.journey?.status === 'completed' && firstDayDone !== null;
+  /* CONTINUE (owner, 2026-10-12): Home's one button, every day — the story,
+     then La Forge, then the words, then «more» (another forge round), with the
+     target it all moves towards under it. Drawn once today's story is done; until
+     then the journey card's own press is that button. */
+  const storyCompleted = journey.phase.kind === 'finished' && journey.journey?.status === 'completed';
+  const [wordsDoneOnDevice, setWordsDoneOnDevice] = useState(false);
+  useEffect(() => {
+    setWordsDoneOnDevice(wordsDoneToday(deviceStore(), journey.journey?.local_date ?? localDateToday()));
+  }, [journey.journey?.local_date, view]);
+  const continueRoute = useMemo(() => {
+    if (!storyCompleted) return null;
+    const envelopeForge = (journey.envelope as {
+      forge?: { href?: string | null; folded?: boolean; blocks_today?: number } | null;
+    } | null)?.forge;
+    const plan = continuePlan({
+      storyDone: true,
+      forge: envelopeForge
+        ? {
+            href: firstDayJourney ? firstDayForgeHref : envelopeForge.href || null,
+            folded: firstDayJourney ? false : Boolean(envelopeForge.folded),
+            blocksToday: Number(envelopeForge.blocks_today || 0),
+          }
+        : null,
+      wordsDue: Number(dayProgress.vocabularyDue || 0),
+      wordsDoneToday: wordsDoneOnDevice,
+      firstDay: firstDayJourney,
+      routeDone: firstDayJourney ? firstDayDone ?? [] : [],
+      practiceHref: practiceEntry?.href ?? null,
+    });
+    const language = journeyChromeLanguage(journey);
+    const target = targetView(today?.cefr, language);
+    const lines = target ? targetLines(target, language) : null;
+    return {
+      plan,
+      title: firstDayJourney ? firstStepsCopy(language).route.title : continueCopy(language).today,
+      more: plan.next === 'more' && plan.href
+        ? { href: plan.href, label: continueCopy(language).more, hint: moreHint(target, language) }
+        : null,
+      target: target && lines ? { ...lines, percent: target.percent } : null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyCompleted, journey.envelope, firstDayJourney, firstDayForgeHref, firstDayDone, dayProgress.vocabularyDue, wordsDoneOnDevice, practiceEntry, today]);
+  const firstDayRouteOnHome = continueRoute !== null;
   // WP-24: why today's scene is this scene. `null` unless the plan actually
   // kept a target that exists because of a recorded mistake.
   const becauseLine = useMemo(() => journeyBecause(journey.envelope), [journey.envelope]);
@@ -2007,12 +2053,15 @@ export default function AtelierPage() {
                         void router.push(href);
                       }}
                     />
-                    {firstDayRouteOnHome && firstDayDone && (
-                      // GENTLE-ONBOARDING: the story is done; La Forge, then the words.
+                    {continueRoute && (
+                      // CONTINUE: the story is done; La Forge, the words, then more.
                       <FirstDayRoute
                         language={journeyChromeLanguage(journey)}
-                        done={firstDayDone.includes('story') ? firstDayDone : [...firstDayDone, 'story']}
-                        forgeHref={firstDayForgeHref}
+                        title={continueRoute.title}
+                        done={continueRoute.plan.done}
+                        forgeHref={continueRoute.plan.next === 'forge' ? continueRoute.plan.href : firstDayForgeHref}
+                        more={continueRoute.more}
+                        target={continueRoute.target}
                         onNavigate={(href) => { void router.push(href); }}
                       />
                     )}
@@ -2034,7 +2083,7 @@ export default function AtelierPage() {
               practiceEntry={practiceEntry}
               // WP-S4: «Forge today's rule» after the day (Léger, Régulier).
               forgeEntry={forgeEntry}
-              // GENTLE-ONBOARDING: the first day's route replaces the after-day chip.
+              // CONTINUE: the day's route carries La Forge and the words, so no chip doubles them.
               afterDayRoute={firstDayRouteOnHome}
               // WP-24: the erratum today's scene reprises, when there is one.
               becauseLine={becauseLine}
@@ -2304,7 +2353,7 @@ function TodayView({
    * done, the after-day chip is «Forge today's rule», not «More practice».
    */
   forgeEntry?: { label: string; href: string; minutes: number } | null;
-  /** GENTLE-ONBOARDING: the first day's route is on Home, so no after-day chip doubles it. */
+  /** GENTLE-ONBOARDING / CONTINUE: the day's route is on Home, so no forge or words chip doubles it. */
   afterDayRoute?: boolean;
   /**
    * WP-24 (wired by WP-28). The structured because payload from
@@ -2732,7 +2781,7 @@ function TodayView({
               shape: 'story' as const,
             }]
           : []),
-        ...(vocabularyReviewDue > 0
+        ...(vocabularyReviewDue > 0 && !afterDayRoute
           ? [{
               id: 'lexique',
               label: vocabularyReviewDue === 1

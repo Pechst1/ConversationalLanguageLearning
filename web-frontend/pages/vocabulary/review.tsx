@@ -67,6 +67,7 @@ import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
+import { markWordsDoneToday } from '@/lib/continue-learning';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -662,6 +663,8 @@ export default function VocabularyReviewPage() {
     if (!deckEmpty) return;
     const store = deviceStore();
     const localDate = localDateToday();
+    // CONTINUE: Home's one button moves past the words once the deck is done today.
+    markWordsDoneToday(store, localDate);
     if (!onFirstDay(store, localDate)) return;
     markRouteStage(store, 'words', localDate);
     setFirstDayDone(routeDone(store));

@@ -7815,6 +7815,11 @@ export interface components {
          *     Léger and Régulier (``folded`` false) get the forge as the after-day chip.
          */
         ForgeEntry: {
+            /**
+             * Blocks Today
+             * @default 0
+             */
+            blocks_today: number;
             /** Budget Seconds */
             budget_seconds: number;
             /** Concept Id */

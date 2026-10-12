@@ -1068,6 +1068,10 @@ class DailyJourneyService:
 
         forge_anchor = self._forge_anchor_id(user)
         forge_entry = self._forge_entry(user, anchor=forge_anchor) if enabled else None
+        if forge_entry is not None:
+            forge_entry = forge_entry.model_copy(
+                update={"blocks_today": self._forge_blocks_on(user, timezone_name, today)}
+            )
         if forge_entry is not None and forge_entry.folded and _is_opening_day(journey):
             # GENTLE-ONBOARDING (owner, 2026-10-12): the first day is the story,
             # then La Forge, then the words. The forge is never folded into the
@@ -2591,6 +2595,32 @@ class DailyJourneyService:
             budget_seconds=budget,
             folded=folded,
         )
+
+    def _forge_blocks_on(self, user: User, timezone_name: str, day: date) -> int:
+        """CONTINUE: forge séances the learner finished on ``day``, their own calendar day."""
+
+        from app.services.forge import FORGE_KEY
+
+        rows = self.db.execute(
+            select(AtelierSession.quote_payload, AtelierSession.completed_at)
+            .where(
+                AtelierSession.user_id == user.id,
+                AtelierSession.status == "completed",
+                AtelierSession.completed_at.is_not(None),
+                AtelierSession.completed_at >= _utcnow() - timedelta(days=2),
+            )
+            .order_by(AtelierSession.completed_at.desc())
+            .limit(20)
+        ).all()
+        zone = ZoneInfo(resolve_timezone(timezone_name))
+        count = 0
+        for payload, completed_at in rows:
+            if not isinstance(payload, dict) or not payload.get(FORGE_KEY):
+                continue
+            moment = completed_at if completed_at.tzinfo else completed_at.replace(tzinfo=UTC)
+            if moment.astimezone(zone).date() == day:
+                count += 1
+        return count
 
     def _legacy_resume(self, user: User) -> LegacyResume | None:
         stmt = (
