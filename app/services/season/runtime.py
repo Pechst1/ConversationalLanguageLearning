@@ -61,12 +61,16 @@ from app.services.season.turns import (
     CLASSIFIER,
     MATCH_THRESHOLD,
     ReplyChoice,
+    ack_panel,
     classifier_payload,
+    clean_ack,
     gate_signal,
+    generic_ask_again_panel,
     match_reply,
     reaction_native,
     reaction_text,
     reply_is_not_french,
+    turn_address,
 )
 from app.services.season.world import location_name_fr, plate_for
 
@@ -648,8 +652,19 @@ def _cache_key(scene_id: str, turn_id: str, text: str) -> tuple[str, str, str]:
     return (scene_id, turn_id, hashlib.sha256(" ".join(str(text).split()).casefold().encode()).hexdigest())
 
 
-def classify(db, user, *, scene_id: str, turn: dict[str, Any], text: str, history: list | None = None, use_model: bool = True) -> ReplyChoice:
-    """Which of the turn's replies the learner expressed (model, else matcher)."""
+def classify(
+    db,
+    user,
+    *,
+    scene_id: str,
+    turn: dict[str, Any],
+    text: str,
+    history: list | None = None,
+    use_model: bool = True,
+    band: str | None = None,
+) -> ReplyChoice:
+    """Which of the turn's replies the learner expressed (model, else matcher), and
+    the addressee's first line back to what the learner actually wrote (model only)."""
 
     key = _cache_key(scene_id, str(turn.get("id")), text)
     cached = _ROUTE_CACHE.get(key)
@@ -665,7 +680,7 @@ def classify(db, user, *, scene_id: str, turn: dict[str, Any], text: str, histor
         try:
             parsed, _ = engine._json_call(
                 CLASSIFIER,
-                classifier_payload(turn, text, history),
+                classifier_payload(turn, text, history, band=band),
                 ReplyChoice,
                 usage.append,
                 deadline=time.monotonic() + 20,
@@ -795,21 +810,32 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         return _ask_again_evaluation(
             db, user, scenario, task, answer, turn_index, assistance, history, turn, french_please=True
         )
+    band = str((season_ctx.get("page") or {}).get("band") or "") or None
     choice = carded or classify(
-        db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history, use_model=use_model
+        db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history, use_model=use_model, band=band
     )
+    # STORY-LISTENS 2026-10-12: the addressee first answers what the learner actually
+    # wrote (a name, a question, a joke), then the authored reaction plays. Only a
+    # model reading carries one; a card tap or the matcher plays the page as written.
+    ack = None if carded is not None else clean_ack(choice.ack_fr, learner_text=answer.text, address=turn_address(turn))
     if (
         carded is None
         and not choice.clear
         and not turn.get("from_solve")
         and str(turn.get("id")) not in asked
-        and turn.get("ask_again")
+        and (turn.get("ask_again") or not (turn.get("gate") or turn.get("convince")))
     ):
         # QA-STORY: the reply said none of what the turn is about (a name alone, a
         # greeting, another subject). The addressee asks once for the missing part;
         # nothing is assumed, nothing is spent. A second unclear reply takes the
-        # turn's fallback.
-        return _ask_again_evaluation(db, user, scenario, task, answer, turn_index, assistance, history, turn)
+        # turn's fallback. STORY-LISTENS: a turn with no authored «ask again» line
+        # asks its own question again rather than playing the fallback as if the
+        # learner had said it.
+        evaluation = _ask_again_evaluation(
+            db, user, scenario, task, answer, turn_index, assistance, history, turn, ack=ack
+        )
+        if evaluation is not None:
+            return evaluation
     reply = reply_by_id(turn, choice.reply_id)
     again = bool(reply.get("repeat_once") and answered.get(index, 0) >= 1)
     beats = list(reply.get("again") or []) if again and reply.get("again") else list(reply.get("beats") or [])
@@ -823,6 +849,8 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     # only what they set whatever is said (``_settle_tentpole``).
     planned = int(getattr(task, "max_turns", 0) or len(turns))
     closing = next_index >= len(turns) or int(turn_index) + 1 >= planned
+    if ack:
+        beats = [ack_panel(_named_turn(scenario, turn), ack), *beats]
     beats += list(turn.get("after") or []) if (not reply.get("repeat_once") or again) else []
     if closing:
         # Until WP-110 draws the page, the rest of the day is said here; the
@@ -923,10 +951,17 @@ def _named_turn(scenario, turn: dict[str, Any]) -> dict[str, Any]:
     return {**turn, "to_name": name} if name else turn
 
 
-def _ask_again_evaluation(db, user, scenario, task, answer, turn_index, assistance, history, turn, *, french_please=False):
+def _ask_again_evaluation(
+    db, user, scenario, task, answer, turn_index, assistance, history, turn, *, french_please=False, ack=None
+):
     from app.services.journey_contracts import ResponseEvaluation, TaskOutcome
     from app.services.season.page import translates
-    from app.services.season.turns import ask_again_panel, french_please_panel, reaction_lines
+    from app.services.season.turns import (
+        ask_again_panel,
+        french_please_panel,
+        learner_name,
+        reaction_lines,
+    )
     from app.services.story_lanes import margin_correction
 
     turn = _named_turn(scenario, turn)
@@ -936,6 +971,16 @@ def _ask_again_evaluation(db, user, scenario, task, answer, turn_index, assistan
         panel = french_please_panel(turn, native=language if translates(page.get("band"), language) else None)
     else:
         panel = ask_again_panel(turn, answer.text, not_names=_cast_names(scenario))
+        named = panel is not None and learner_name(answer.text, not_names=_cast_names(scenario)) is not None
+        if panel is None:
+            panel = generic_ask_again_panel(turn)
+            named = False
+        if panel is None:
+            return None  # no question to ask again: the turn's fallback plays
+        if ack and not named:
+            # The authored named line already greets a name; any other reaction to
+            # what was said comes first.
+            panel = {**panel, "lines": [*ack_panel(turn, ack)["lines"], *panel["lines"]]}
     addressee = str(scenario.character_id)
     beats = [panel] if panel else []
     correction = margin_correction(
