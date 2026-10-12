@@ -203,13 +203,13 @@ const EN: BandCheckCopy = {
 const DE: BandCheckCopy = {
   screen_aria: 'Wortschatz-Check',
   kicker: 'Wortschatz-Check · {band}',
-  intro_title: 'Kennen Sie diese Wörter schon?',
+  intro_title: 'Kennst du diese Wörter schon?',
   intro_lead:
-    '{n} Wörter aus Niveau {band}. Wählen Sie bei jedem die Bedeutung — oder „Weiß ich nicht“. Etwa zwei Minuten.',
+    '{n} Wörter aus Niveau {band}. Wähle bei jedem die Bedeutung — oder „Weiß ich nicht“. Etwa zwei Minuten.',
   intro_fine:
-    'Sie brauchen {needed} von {n}, um das Niveau zu bestätigen — eine Schwelle, die noch erprobt wird. Seine Wörter kommen dann nur noch zu einer kurzen Kontrolle zurück.',
+    'Du brauchst {needed} von {n}, um das Niveau zu bestätigen — eine Schwelle, die noch erprobt wird. Seine Wörter kommen dann nur noch zu einer kurzen Kontrolle zurück.',
   intro_top_down:
-    'Wir beginnen mit dem höchsten Niveau unter Ihrem. Ist es bestätigt, zählen die Niveaus darunter mit; sonst gehen wir ein Niveau tiefer. Höchstens zwei Checks pro Besuch.',
+    'Wir beginnen mit dem höchsten Niveau unter deinem. Ist es bestätigt, zählen die Niveaus darunter mit; sonst gehen wir ein Niveau tiefer. Höchstens zwei Checks pro Besuch.',
   bands_label: 'Niveaus zum Prüfen',
   credited_mark: 'bekannt',
   inferred_mark: 'abgeleitet',
@@ -231,9 +231,9 @@ const DE: BandCheckCopy = {
   passed_title_one: '1 Wort schon bekannt',
   passed_none_title: 'Niveau {band} bestätigt',
   passed_lead: 'Sie kommen in den nächsten Wochen zu einer kurzen Kontrolle zurück.',
-  passed_none_lead: 'Sie hatten alle seine Wörter schon in Ihren Karten.',
+  passed_none_lead: 'Du hattest alle seine Wörter schon in deinen Karten.',
   score_line: '{correct} von {total} erkannt.',
-  passed_missed_note: 'Die Wörter, die Sie nicht erkannt haben, bleiben im normalen Ablauf.',
+  passed_missed_note: 'Die Wörter, die du nicht erkannt hast, bleiben im normalen Ablauf.',
   failed_title: '{correct} von {total} erkannt',
   failed_lead:
     'Nicht ganz genug, um {band} auf einmal zu bestätigen — nötig waren {needed}. Diese Wörter kommen im normalen Ablauf, in ihrem Tempo; nichts geht verloren.',
@@ -242,23 +242,23 @@ const DE: BandCheckCopy = {
   next_down_lead: 'Ein Niveau tiefer: {band}.',
   passed_split: '{sampled} im Check erkannt, {inferred} aus dem Ergebnis abgeleitet.',
   inferred_note:
-    'Die abgeleiteten Wörter ({bands}) wurden nicht einzeln geprüft: Sie kommen zu einer kurzen Kontrolle zurück, und die, die Sie nicht kennen, gehen zurück in den normalen Ablauf.',
+    'Die abgeleiteten Wörter ({bands}) wurden nicht einzeln geprüft: Sie kommen zu einer kurzen Kontrolle zurück, und die, die du nicht kennst, gehen zurück in den normalen Ablauf.',
   paused_title: 'Genug für heute',
   paused_lead:
-    'Zwei Checks sind das Maximum für einen Besuch. Machen Sie an einem anderen Tag mit {band} weiter — was Sie gemacht haben, bleibt erhalten.',
+    'Zwei Checks sind das Maximum für einen Besuch. Mach an einem anderen Tag mit {band} weiter — was du gemacht hast, bleibt erhalten.',
   stop_here: 'Hier aufhören',
   back_lexique: 'Zurück zum Wortschatz',
   back_day: 'Weiter',
-  failed_open: 'Der Check konnte nicht geöffnet werden. Versuchen Sie es gleich noch einmal.',
-  failed_send: 'Ihre Antworten wurden nicht gesendet. Sie sind noch da — versuchen Sie es erneut.',
+  failed_open: 'Der Check konnte nicht geöffnet werden. Versuch es gleich noch einmal.',
+  failed_send: 'Deine Antworten wurden nicht gesendet. Sie sind noch da — versuch es erneut.',
   retry: 'Erneut versuchen',
   none_title: 'Nichts zu prüfen',
-  none_lead: 'Die Niveaus unter Ihrem sind schon bekannt.',
+  none_lead: 'Die Niveaus unter deinem sind schon bekannt.',
   entry_cta: 'Meinen Wortschatz prüfen (2 Min.)',
   entry_lead_placement:
-    'Einen Teil der Wörter aus den früheren Niveaus kennen Sie wahrscheinlich schon. Ein kurzer Check erspart Ihnen, sie neu zu lernen.',
-  entry_lead_lexique: 'Beginnen Sie mit {band}: Ein bestätigtes Niveau zählt für die darunter.',
-  entry_lead_resume: 'Ihr Check geht bei {band} weiter.',
+    'Einen Teil der Wörter aus den früheren Niveaus kennst du wahrscheinlich schon. Ein kurzer Check erspart dir, sie neu zu lernen.',
+  entry_lead_lexique: 'Beginne mit {band}: Ein bestätigtes Niveau zählt für die darunter.',
+  entry_lead_resume: 'Dein Check geht bei {band} weiter.',
 };
 
 const TABLES: Record<ControlLanguage, BandCheckCopy> = { en: EN, de: DE, fr: FR };

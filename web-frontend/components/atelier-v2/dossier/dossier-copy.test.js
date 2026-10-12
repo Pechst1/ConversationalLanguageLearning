@@ -46,7 +46,7 @@ test('the three tables are complete and fill the same placeholders', () => {
 
 test('A1 reads English, A2 German, B1 French', () => {
   assert.equal(dossierCopy(chromeLanguage('en', 'A1')).level_title, 'Your level');
-  assert.equal(dossierCopy(chromeLanguage('de', 'A2')).level_title, 'Ihr Niveau');
+  assert.equal(dossierCopy(chromeLanguage('de', 'A2')).level_title, 'Dein Niveau');
   assert.equal(dossierCopy(chromeLanguage('en', 'B1')).level_title, 'Votre niveau');
 });
 

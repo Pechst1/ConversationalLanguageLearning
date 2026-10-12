@@ -71,7 +71,7 @@ test('the special list line is in the chrome language, at most three, then «…
     'Aujourd’hui, montrez que vous savez : commander au café · demander un prix et payer',
   );
   assert.equal(m.specialListLine(CAN_DOS, 'en'), 'Today, show that you can: order at a café · ask a price and pay · introduce yourself · …');
-  assert.match(m.specialListLine(CAN_DOS.slice(0, 1), 'de'), /^Heute zeigen Sie, was Sie können: order at a café$/);
+  assert.match(m.specialListLine(CAN_DOS.slice(0, 1), 'de'), /^Heute zeigst du, was du kannst: order at a café$/);
   assert.equal(m.specialListLine([], 'fr'), null);
 });
 

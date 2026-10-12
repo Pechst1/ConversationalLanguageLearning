@@ -92,7 +92,7 @@ test('the journal helpers speak the table they are given, French by default', ()
   };
   assert.equal(cueLine(entry), 'Hier · Le Mistral · avec Augustin');
   assert.equal(cueLine(entry, cahierCopy('en').journal), 'Yesterday · Le Mistral · with Augustin');
-  assert.equal(recallLine(entry, cahierCopy('de').journal), 'Sie haben 1 von 3 Details wiedergefunden.');
+  assert.equal(recallLine(entry, cahierCopy('de').journal), 'Du hast 1 von 3 Details wiedergefunden.');
   assert.equal(correctionLine(entry), '2 choses à revoir.');
   assert.equal(correctionLine(entry, cahierCopy('en').journal), '2 things to review.');
 });

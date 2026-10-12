@@ -66,7 +66,7 @@ export const TASTE_ITEMS: TasteItem[] = [
     },
     task: {
       en: 'Say hello back.',
-      de: 'Grüßen Sie zurück.',
+      de: 'Grüß zurück.',
       fr: 'Répondez-lui.',
     },
     options: [
@@ -99,7 +99,7 @@ export const TASTE_ITEMS: TasteItem[] = [
     },
     task: {
       en: 'Order a coffee.',
-      de: 'Bestellen Sie einen Kaffee.',
+      de: 'Bestell einen Kaffee.',
       fr: 'Commandez un café.',
     },
     tiles: [
@@ -186,11 +186,11 @@ export const TASTE_COPY: Record<OnboardingLanguage, TasteCopy> = {
     correct: 'Richtig!',
     wrong: 'Nicht ganz. Noch einmal.',
     remove_tile: 'Letztes Wort entfernen',
-    tiles_hint: 'Tippen Sie die Wörter der Reihe nach an',
-    closing: 'Romy, Marin und Lila warten. Behalten Sie Ihre Geschichte.',
+    tiles_hint: 'Tippe die Wörter der Reihe nach an',
+    closing: 'Romy, Marin und Lila warten. Behalte deine Geschichte.',
     language: 'Sprache',
     status: { selected: 'ausgewählt', correct: 'richtig', wrong: 'falsch' },
-    options_label: 'Ihre Antwort',
+    options_label: 'Deine Antwort',
   },
   fr: {
     promise: 'Apprenez le français dans une histoire. La première scène prend une minute.',
@@ -236,9 +236,9 @@ export const TASTE_NAV: Record<OnboardingLanguage, TasteNav> = {
     start: 'Loslegen',
     have_account: 'Ich habe schon ein Konto',
     next: 'Weiter',
-    keep: 'Behalten Sie Ihre Geschichte',
+    keep: 'Behalte deine Geschichte',
     retry: 'Nochmal versuchen',
-    open_edition: 'Ihre Ausgabe öffnen',
+    open_edition: 'Deine Ausgabe öffnen',
   },
   fr: {
     start: 'Commencer',

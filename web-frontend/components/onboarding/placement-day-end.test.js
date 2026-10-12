@@ -73,7 +73,7 @@ test('the card: a secondary action to the placement and «not now», never a sec
 
 test('an open placement is offered for resuming', () => {
   const html = render('resume', 'de');
-  assert.ok(html.includes('Ihre Einstufung ist noch offen'));
+  assert.ok(html.includes('Deine Einstufung ist noch offen'));
   assert.ok(html.includes('Einstufung fortsetzen'));
 });
 
@@ -89,7 +89,7 @@ test('the card speaks the learner’s language only', () => {
   const de = render('offer', 'de');
   const en = render('offer', 'en');
   assert.ok(fr.includes('Et si l’on vérifiait votre niveau ?'));
-  assert.ok(de.includes('Sollen wir Ihr Niveau prüfen?'));
+  assert.ok(de.includes('Sollen wir dein Niveau prüfen?'));
   for (const english of ['Shall we', 'Not now', 'level check']) {
     assert.ok(!de.includes(english), `de: ${english}`);
     assert.ok(!fr.includes(english), `fr: ${english}`);

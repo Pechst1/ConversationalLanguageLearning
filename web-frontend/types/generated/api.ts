@@ -11974,6 +11974,8 @@ export interface components {
             objective_native: string;
             /** Panels */
             panels: components["schemas"]["ScenePanel"][] | null;
+            /** Premise Native */
+            premise_native: string | null;
             /** Previously Fr */
             previously_fr: string[] | null;
             /** Setup Fr */

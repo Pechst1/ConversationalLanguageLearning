@@ -2326,16 +2326,21 @@ class DailyJourneyService:
 
         context = _journey_story_context(journey)
         if not context.get("scene_id"):
-            return {"previously_fr": None, "margin_notes": None}
+            return {"previously_fr": None, "premise_native": None, "margin_notes": None}
         from app.services.story_archive import scene_step_story_fields
 
-        return run_best_effort(
+        fields = run_best_effort(
             self.db,
             "daily_journey: précédemment and margin notes",
             lambda: scene_step_story_fields(self.db, journey),
-            default={"previously_fr": [], "margin_notes": []},
+            default={"previously_fr": [], "premise_native": None, "margin_notes": []},
             log=logger,
         )
+        # The learner's first season day opens on the season intro, which says the
+        # premise already (STORY-ORIENTATION): the scene does not say it twice.
+        if _stored_season_intro(journey).get("premise_native"):
+            fields = {**fields, "premise_native": None}
+        return fields
 
     def _epreuve_snapshot_fields(self, journey: DailyJourney) -> dict[str, Any]:
         from app.services.can_do import epreuve_snapshot_view, scene_script

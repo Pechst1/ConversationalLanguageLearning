@@ -201,11 +201,11 @@ def test_settings_safety_edges_for_account_and_device_actions() -> None:
     for sentence in (
         # save_blocked
         "Reload the file before filing your changes.",
-        "Laden Sie die Akte neu, bevor Sie Ihre Änderungen ablegen.",
+        "Lade die Akte neu, bevor du deine Änderungen ablegst.",
         "Rechargez le dossier avant de classer les modifications.",
         # load_error_body
         "Your file could not be loaded.",
-        "Ihre Akte konnte nicht geladen werden.",
+        "Deine Akte konnte nicht geladen werden.",
         "Votre dossier n’a pas pu être chargé.",
         # save_failed
         "The changes could not be filed.",

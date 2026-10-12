@@ -291,6 +291,7 @@ export function JourneySession({
         copy,
         location: journey.scenario.location_name,
         objective: journey.scenario.objective_native,
+        steps: journey.steps,
       })
     : '';
 

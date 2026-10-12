@@ -30,6 +30,7 @@ import { ArchiveStyles } from '@/components/feuilleton/archive/ArchiveStyles';
 import { marginNotes as readMarginNotes } from '@/components/feuilleton/archive/archive-model';
 import {
   precedemmentView,
+  premiseView,
   readPrecedemmentDismissed,
   writePrecedemmentDismissed,
 } from '@/components/feuilleton/archive/precedemment-model';
@@ -115,6 +116,7 @@ export function StoryEpisodeStep({
     firstDay,
     dismissed: previouslyRead !== false,
   });
+  const premise = premiseView({ premise: step.prompt.premise_native, dismissed: previouslyRead !== false });
   const readOn = useCallback(() => {
     writePrecedemmentDismissed(journeyId, step.id);
     setPreviouslyRead(true);
@@ -178,11 +180,17 @@ export function StoryEpisodeStep({
     return <StateBlock tone="loading" title={copy.preparing_title} body={copy.preparing_body} />;
   }
 
-  if (previously) {
+  if (previously || premise) {
     return (
       <>
         <ArchiveStyles />
-        <Precedemment lines={previously} language={language} onRead={readOn} journeyId={journeyId} />
+        <Precedemment
+          lines={previously ?? []}
+          premise={premise}
+          language={language}
+          onRead={readOn}
+          journeyId={journeyId}
+        />
       </>
     );
   }

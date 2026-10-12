@@ -43,7 +43,7 @@ test('shown from three held rules, in the chrome language', () => {
   );
   assert.equal(
     rulesSpeedSentence(level(speed), 'de'),
-    'Ihre Regeln: 3 sitzen, im Median 17 Tage bis eine sitzt. Gemessen an Ihrer eigenen Übung.',
+    'Deine Regeln: 3 sitzen, im Median 17 Tage bis eine sitzt. Gemessen an deiner eigenen Übung.',
   );
   assert.match(rulesSpeedSentence(level({ ...speed, median_days_to_held: 1 }), 'en'), /a median of 1 day to/);
 });

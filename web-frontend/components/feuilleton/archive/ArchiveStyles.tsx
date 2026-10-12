@@ -292,6 +292,7 @@ export function ArchiveStyles() {
         background: var(--av2-card);
         border-top: 3px solid var(--av2-ink);
       }
+      .av2 .fa-previously__premise { margin: 0 0 6px; font-size: 16px; line-height: 1.45; }
       .av2 .fa-previously__list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
       .av2 .fa-previously__list .fr-line {
         margin: 0;

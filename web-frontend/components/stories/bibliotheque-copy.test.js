@@ -56,7 +56,7 @@ test('A1 reads English, A2 German, B1 French', () => {
   assert.equal(launeCopy(chromeLanguage('de', 'B2')).continue, 'Continuer');
   assert.equal(
     fill(bibliothequeCopy('de').reach_goals_many, { n: 2 }),
-    'Erreichen Sie mindestens 2 Ziele, um es abzuschließen.',
+    'Erreiche mindestens 2 Ziele, um es abzuschließen.',
   );
   assert.equal(fill(bibliothequeCopy('fr').shelf_count_many, { n: 3 }), '3 textes sur l’étagère');
 });

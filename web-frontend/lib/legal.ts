@@ -76,8 +76,8 @@ export const SIGNUP_CONSENT: Record<
     end: '.',
   },
   de: {
-    ai: 'Ihre Antworten und Ihre Stimme werden von OpenAI verarbeitet, um Sie zu korrigieren und zu antworten.',
-    accept: 'Mit dem Konto akzeptieren Sie die',
+    ai: 'Deine Antworten und deine Stimme werden von OpenAI verarbeitet, um dich zu korrigieren und dir zu antworten.',
+    accept: 'Mit dem Konto akzeptierst du die',
     terms: 'Nutzungsbedingungen',
     and: 'und die',
     privacy: 'Datenschutzerklärung',
