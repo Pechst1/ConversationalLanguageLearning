@@ -772,10 +772,20 @@ def _stored_day_shape(journey: DailyJourney) -> DayShape:
         return DEFAULT_DAY_SHAPE
 
 
-def _stored_cast_intro(journey: DailyJourney) -> list[dict[str, Any]] | None:
-    """WP-75: the cast introduction the first day was planned with, or ``None``."""
+#: STORY-ORIENTATION: ``plan_selection`` key of the season's own intro on the
+#: learner's first season day (``season.intro.season_intro``).
+SEASON_INTRO_KEY = "season_intro"
 
-    first_day = _mapping((journey.plan_selection or {}).get("first_day"))
+
+def _stored_season_intro(journey: DailyJourney) -> dict[str, Any]:
+    return _mapping((journey.plan_selection or {}).get(SEASON_INTRO_KEY))
+
+
+def _stored_cast_intro(journey: DailyJourney) -> list[dict[str, Any]] | None:
+    """WP-75: the cast introduction the first day was planned with, or ``None``.
+    STORY-ORIENTATION: on a learner's first season day, the season's own cast."""
+
+    first_day = _mapping((journey.plan_selection or {}).get("first_day")) or _stored_season_intro(journey)
     rows = first_day.get("cast_intro")
     if not isinstance(rows, list) or not rows:
         return None
@@ -2278,6 +2288,10 @@ class DailyJourneyService:
                 "day_shape": str(_stored_day_shape(journey)),
                 # WP-75: only the first day carries it; every other day, null.
                 "cast_intro": _stored_cast_intro(journey),
+                # STORY-ORIENTATION: where the learner is and what they do, on
+                # their first season day only.
+                "story_premise_native": _stored_season_intro(journey).get("premise_native") or None,
+                "story_how_native": _stored_season_intro(journey).get("how_native") or None,
                 # WP-80: the streak and the absence, read, never written here.
                 **streak_fields,
                 # WP-D4: the edition, once, so Home, the recap and the seal
@@ -3533,6 +3547,23 @@ class DailyJourneyService:
                     ),
                 },
             }
+        else:
+            # STORY-ORIENTATION: the learner's first season page is preceded by
+            # who they are, where, and who these people are.
+            # STORY-ORIENTATION: the learner's first season page is preceded by
+            # who they are, where, and who these people are.
+            from app.services.season.intro import is_first_season_day, season_intro
+
+            intro = (
+                season_intro(
+                    ((result.story_context or {}).get("season") or {}).get("id"),
+                    user_chrome_language(user),
+                )
+                if is_first_season_day(result.story_context)
+                else None
+            )
+            if intro:
+                fresh.plan_selection = {**dict(fresh.plan_selection or {}), SEASON_INTRO_KEY: intro}
         fresh.learning_session_id = getattr(session, "id", None)
         fresh.status = str(JourneyStatus.ACTIVE)
         fresh.started_at = _utcnow()

@@ -1005,6 +1005,10 @@ class JourneySnapshot(JourneyModel):
     #: (authored) day; ``None`` on every other day and on every journey
     #: planned before WP-75.
     cast_intro: list[CastIntroEntry] | None = None
+    #: STORY-ORIENTATION: on the learner's first season day, the situation (who
+    #: they are, where) and how to play, in their language. Null every other day.
+    story_premise_native: str | None = None
+    story_how_native: str | None = None
     #: WP-80. Additive; ``None`` only when the learner row is unreadable.
     streak: StreakView | None = None
     #: WP-80. Whole local days with no practice before this day. From 2, the
