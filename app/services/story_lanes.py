@@ -57,6 +57,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import settings
 from app.services import lane_guards
 from app.services import living_story as engine
+from app.services.answer_acceptance import is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -415,6 +416,9 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
             # «Je suis perdu» → «perdu(e)» (live read 2026-09-30): the learner's
             # gender is theirs to give; a gender-only "correction" is dropped.
             verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
+    if verdict.correction_fr and is_preference_swap(verdict.correction_span_fr, verdict.correction_fr):
+        # Agency walk run 3: «mais sans mon nom» → «mais pas mon nom». Both are correct.
+        verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
     if lane_guards.gender_form_hits(verdict.correction_fr or "") or lane_guards.gender_form_hits(
         verdict.correction_note_native or ""
     ):

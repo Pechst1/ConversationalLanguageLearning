@@ -27,6 +27,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
+from app.services.answer_acceptance import is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -8734,6 +8735,9 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
         turn.correction_fr = _scrub_paren_gender(turn.correction_fr)
         if gender_only_change(turn.correction_span_fr, turn.correction_fr):
             # The learner's gender is theirs to give (live read 2026-09-30).
+            turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
+        elif is_preference_swap(turn.correction_span_fr, turn.correction_fr):
+            # Agency walk run 3: «sans mon nom» → «pas mon nom»; both are correct.
             turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):

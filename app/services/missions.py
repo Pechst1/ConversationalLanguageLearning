@@ -25,7 +25,7 @@ from app.db.savepoint import best_effort
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
 from app.services import story_correspondence as courrier
-from app.services.answer_acceptance import fold_typography, question_variants
+from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.daily_words import DailyWordSlateService
@@ -1603,20 +1603,6 @@ def reframe_slim_payload(slim: Any, *, messenger: dict[str, Any], brief: str) ->
         "tone": None,
         "twist": messenger.get("twist") or None,
     }
-
-
-def _is_question_register_swap(learner: Any, corrected: Any) -> bool:
-    """The "fix" only moves a yes/no question to another register.
-
-    «Vous êtes disponible ?» ↔ «Êtes-vous disponible ?» ↔ «Est-ce que vous êtes
-    disponible ?» are all correct French; none is an error to drill.
-    """
-
-    left = fold_typography(learner).strip(" ?!.")
-    right = fold_typography(corrected).strip(" ?!.")
-    if not left or not right or left == right:
-        return False
-    return right in question_variants(left) or left in question_variants(right)
 
 
 def _normalized_repair_text(value: Any) -> str:
@@ -3761,9 +3747,10 @@ class MissionCorrectionService:
             erratum = self._normalize_erratum(raw, mission)
             if self._is_echo_erratum(erratum, submission_text=submission_text):
                 continue
-            if _is_question_register_swap(erratum.get("learner_text"), erratum.get("corrected_target")):
+            if is_preference_swap(erratum.get("learner_text"), erratum.get("corrected_target")):
                 # WALK 2026-10-12: «Vous êtes disponible jeudi matin ?» was "fixed"
-                # to an inversion, twice. An intonation question is correct French.
+                # to an inversion, twice; «sans mon nom» to «pas mon nom». Both
+                # were correct French, so neither is an error to drill.
                 continue
             key = _normalized_repair_text(erratum.get("learner_text"))
             if key and key in quoted:

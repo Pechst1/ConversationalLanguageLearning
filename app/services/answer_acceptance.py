@@ -686,3 +686,34 @@ def feedback_note(verdict: Verdict, language: str | None) -> str | None:
         expected_word=verdict.expected_word or verdict.expected or "",
         learner_word=verdict.learner_word or "",
     )
+
+
+#: Agency walk run 3 (2026-10-12): «mais sans mon nom» was "corrected" to «mais pas
+#: mon nom» and saved as a fix. Each pair is two correct ways to say the same thing
+#: where the learner wrote one; swapping one for the other is a preference, not a fix.
+EQUIVALENT_WORD_SWAPS: frozenset[frozenset[str]] = frozenset(
+    {
+        frozenset({"sans", "pas"}),
+    }
+)
+
+_SWAP_WORDS = re.compile(r"[\w']+")
+
+
+def is_preference_swap(learner: object, corrected: object) -> bool:
+    """A "correction" that changes nothing wrong: a yes/no question moved to another
+    register («Vous êtes disponible ?» → «Êtes-vous disponible ?»), or one word
+    swapped for its correct equivalent (:data:`EQUIVALENT_WORD_SWAPS`)."""
+
+    left = fold_typography(learner).strip(" ?!.")
+    right = fold_typography(corrected).strip(" ?!.")
+    if not left or not right or left.casefold() == right.casefold():
+        return False
+    if right in question_variants(left) or left in question_variants(right):
+        return True
+    a = _SWAP_WORDS.findall(left.casefold())
+    b = _SWAP_WORDS.findall(right.casefold())
+    if len(a) != len(b):
+        return False
+    changed = [frozenset({x, y}) for x, y in zip(a, b, strict=True) if x != y]
+    return len(changed) == 1 and changed[0] in EQUIVALENT_WORD_SWAPS
