@@ -65,6 +65,10 @@ export const SNAPSHOT_FN = () => {
 };
 
 export async function snapshot(page) {
+  // GENTLE-ONBOARDING: a learner reads a first-time note («Zum ersten Mal») and taps
+  // it away, so the note never reads as part of the question under it.
+  const note = page.locator('[data-first-step] .first-sticker__ok');
+  if (await note.count()) await note.first().click().catch(() => {});
   return page.evaluate(SNAPSHOT_FN);
 }
 

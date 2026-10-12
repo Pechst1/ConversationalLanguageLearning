@@ -188,6 +188,11 @@ import {
 } from '@/lib/revue-une';
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
+import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
+import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
+import { castIntroOf } from '@/components/atelier-v2/journey/CastIntro';
+import { deviceStore, firstStepsCopy, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
+import { continueCopy, continuePlan, moreHint, targetLines, targetView, wordsDoneToday } from '@/lib/continue-learning';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
@@ -1059,6 +1064,71 @@ export default function AtelierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [journey.envelope],
   );
+  /* GENTLE-ONBOARDING: the learner's first day is the story, then La Forge,
+     then the words. Its route is drawn after the recap and on Home once the
+     story is done; La Forge opens at the server's forge href on every rhythm
+     (the first day folds nothing in). */
+  const firstDayJourney = castIntroOf(journey.journey).length > 0;
+  const firstDayForgeHref = forgeEntry?.href
+    ?? ((journey.envelope as { forge?: { href?: string | null } | null } | null)?.forge?.href || null);
+  const [firstDayDone, setFirstDayDone] = useState<RouteStage[] | null>(null);
+  useEffect(() => {
+    const store = deviceStore();
+    const localDate = journey.journey?.local_date ?? null;
+    setFirstDayDone(firstDayJourney && onFirstDay(store, localDate) ? routeDone(store) : null);
+  }, [firstDayJourney, journey.journey?.local_date, journey.phase.kind, view]);
+  // GENTLE-ONBOARDING: a forge séance finished on the first day ticks La Forge off.
+  useEffect(() => {
+    if (!recap || !forge) return;
+    markRouteStage(deviceStore(), 'forge', journey.journey?.local_date ?? localDateToday());
+    // CONTINUE: the envelope counts today's forge blocks; read it again so Home's
+    // one button moves on to the words.
+    void journey.actions.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recap, forge, journey.journey?.local_date]);
+  /* CONTINUE (owner, 2026-10-12): Home's one button, every day — the story,
+     then La Forge, then the words, then «more» (another forge round), with the
+     target it all moves towards under it. Drawn once today's story is done; until
+     then the journey card's own press is that button. */
+  const storyCompleted = journey.phase.kind === 'finished' && journey.journey?.status === 'completed';
+  const [wordsDoneOnDevice, setWordsDoneOnDevice] = useState(false);
+  useEffect(() => {
+    setWordsDoneOnDevice(wordsDoneToday(deviceStore(), journey.journey?.local_date ?? localDateToday()));
+  }, [journey.journey?.local_date, view]);
+  const continueRoute = useMemo(() => {
+    if (!storyCompleted) return null;
+    const envelopeForge = (journey.envelope as {
+      forge?: { href?: string | null; folded?: boolean; blocks_today?: number } | null;
+    } | null)?.forge;
+    const plan = continuePlan({
+      storyDone: true,
+      forge: envelopeForge
+        ? {
+            href: firstDayJourney ? firstDayForgeHref : envelopeForge.href || null,
+            folded: firstDayJourney ? false : Boolean(envelopeForge.folded),
+            blocksToday: Number(envelopeForge.blocks_today || 0),
+          }
+        : null,
+      wordsDue: Number(dayProgress.vocabularyDue || 0),
+      wordsDoneToday: wordsDoneOnDevice,
+      firstDay: firstDayJourney,
+      routeDone: firstDayJourney ? firstDayDone ?? [] : [],
+      practiceHref: practiceEntry?.href ?? null,
+    });
+    const language = journeyChromeLanguage(journey);
+    const target = targetView(today?.cefr, language);
+    const lines = target ? targetLines(target, language) : null;
+    return {
+      plan,
+      title: firstDayJourney ? firstStepsCopy(language).route.title : continueCopy(language).today,
+      more: plan.next === 'more' && plan.href
+        ? { href: plan.href, label: continueCopy(language).more, hint: moreHint(target, language) }
+        : null,
+      target: target && lines ? { ...lines, percent: target.percent } : null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyCompleted, journey.envelope, firstDayJourney, firstDayForgeHref, firstDayDone, dayProgress.vocabularyDue, wordsDoneOnDevice, practiceEntry, today]);
+  const firstDayRouteOnHome = continueRoute !== null;
   // WP-24: why today's scene is this scene. `null` unless the plan actually
   // kept a target that exists because of a recorded mistake.
   const becauseLine = useMemo(() => journeyBecause(journey.envelope), [journey.envelope]);
@@ -1952,6 +2022,10 @@ export default function AtelierPage() {
               label: forgeEntry.label,
               onSelect: () => { void router.push(forgeEntry.href); },
             } : null}
+            firstDayRoute={firstDayJourney ? {
+              forgeHref: firstDayForgeHref,
+              onNavigate: (href) => { void router.push(href); },
+            } : null}
           />
         ) : /* A capability that turns off mid-session falls back to Today, never
                into the legacy exercise view the learner did not ask for. */
@@ -1969,15 +2043,29 @@ export default function AtelierPage() {
               // masthead, instead of above the whole page.
               journeyCard={
                 journeyEntryVisible ? (
-                  <JourneyTodayCard
-                    controller={journey}
-                    onOpen={() => setView('journey')}
-                    onOpenLegacy={(href) => {
-                      // The old Atelier session is resumed on its own terms: the
-                      // journey never converts, replaces or completes it.
-                      void router.push(href);
-                    }}
-                  />
+                  <>
+                    <JourneyTodayCard
+                      controller={journey}
+                      onOpen={() => setView('journey')}
+                      onOpenLegacy={(href) => {
+                        // The old Atelier session is resumed on its own terms: the
+                        // journey never converts, replaces or completes it.
+                        void router.push(href);
+                      }}
+                    />
+                    {continueRoute && (
+                      // CONTINUE: the story is done; La Forge, the words, then more.
+                      <FirstDayRoute
+                        language={journeyChromeLanguage(journey)}
+                        title={continueRoute.title}
+                        done={continueRoute.plan.done}
+                        forgeHref={continueRoute.plan.next === 'forge' ? continueRoute.plan.href : firstDayForgeHref}
+                        more={continueRoute.more}
+                        target={continueRoute.target}
+                        onNavigate={(href) => { void router.push(href); }}
+                      />
+                    )}
+                  </>
                 ) : null
               }
               today={today}
@@ -1995,6 +2083,8 @@ export default function AtelierPage() {
               practiceEntry={practiceEntry}
               // WP-S4: «Forge today's rule» after the day (Léger, Régulier).
               forgeEntry={forgeEntry}
+              // CONTINUE: the day's route carries La Forge and the words, so no chip doubles them.
+              afterDayRoute={firstDayRouteOnHome}
               // WP-24: the erratum today's scene reprises, when there is one.
               becauseLine={becauseLine}
               // WP-D1: today's journey, drawn by the mark as the day's plan.
@@ -2032,6 +2122,12 @@ export default function AtelierPage() {
                     {practiceConceptTitle}
                   </p>
                 )}
+              </div>
+            )}
+            {/* GENTLE-ONBOARDING: the first forge séance says what La Forge is. */}
+            {forge && (
+              <div className="av2 atelier-first-sticker">
+                <FirstStepSticker stepKey="forge" language={pageChromeLanguage} />
               </div>
             )}
           <SessionView
@@ -2226,6 +2322,7 @@ function TodayView({
   onRetry,
   practiceEntry,
   forgeEntry = null,
+  afterDayRoute = false,
   becauseLine,
   dayJourney = null,
   journeyCard = null,
@@ -2256,6 +2353,8 @@ function TodayView({
    * done, the after-day chip is «Forge today's rule», not «More practice».
    */
   forgeEntry?: { label: string; href: string; minutes: number } | null;
+  /** GENTLE-ONBOARDING / CONTINUE: the day's route is on Home, so no forge or words chip doubles it. */
+  afterDayRoute?: boolean;
   /**
    * WP-24 (wired by WP-28). The structured because payload from
    * `GET /atelier/today`; `HomeScreen` writes the French. `null` — the
@@ -2682,7 +2781,7 @@ function TodayView({
               shape: 'story' as const,
             }]
           : []),
-        ...(vocabularyReviewDue > 0
+        ...(vocabularyReviewDue > 0 && !afterDayRoute
           ? [{
               id: 'lexique',
               label: vocabularyReviewDue === 1
@@ -2700,7 +2799,7 @@ function TodayView({
         // pratique») are one tap from Home again, not only from the recap.
         // WP-S4: on Léger and Régulier that entry is La Forge, «Forge today's
         // rule»; on Soutenu and Intensif the forge was part of the day.
-        ...(practiceEntry && homeDay && homeDay.total > 0 && homeDay.done >= homeDay.total
+        ...(practiceEntry && homeDay && homeDay.total > 0 && homeDay.done >= homeDay.total && !afterDayRoute
           ? [forgeEntry
             ? {
                 id: 'forge',

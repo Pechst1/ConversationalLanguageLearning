@@ -118,6 +118,38 @@ def test_an_authored_page_is_read_before_anything_is_drilled():
     assert any(step.kind is StepKind.RECALL for step in plan.steps), "the drills come after the scene"
 
 
+@pytest.mark.parametrize("season_on", [False], ids=["one-actor"], indirect=True)
+def test_the_first_day_is_the_story_then_la_forge_then_the_words(assembled_client, db_session, journey_enabled, clock, season_on):  # noqa: F811
+    """GENTLE-ONBOARDING (owner, 2026-10-12): «la forge and vocab should also start
+    day one, but as second and third after the story». Even on Soutenu, whose days
+    fold La Forge into the story, the first day folds nothing in: the forge is the
+    after-day entry, and from day 2 the rhythm folds it as before."""
+
+    from app.db.models.user import User
+
+    provider = season_on
+    provider.routes = {"Odile, c'est ma grand-mère.": "a"}
+    email = f"s1-gentle-{uuid.uuid4()}@example.com"
+    headers = support.register(assembled_client, email, cefr="A2.1")
+    user = db_session.get(User, support.learner_id(db_session, email))
+    user.daily_goal_minutes = 20  # Soutenu: La Forge is folded into an ordinary day
+    db_session.commit()
+    d = support.Driver(assembled_client, headers, db=db_session)
+    d.create()
+    day_one = d.journey
+    assert day_one["cast_intro"], "the first day meets the cast"
+    kinds = [step["kind"] for step in day_one["steps"]]
+    assert not {"forge", "read", "desk"} & set(kinds), kinds
+    today = d.today()
+    assert today["forge"] and today["forge"]["folded"] is False, "La Forge follows the story on day 1"
+    assert today["forge"]["href"]
+    d.play(answer="Odile, c'est ma grand-mère.")
+    assert d.finish("complete").status_code == 200
+    clock.advance(days=1)
+    day_two_today = d.today()
+    assert day_two_today["forge"]["folded"] is True, "from day 2 the rhythm folds La Forge again"
+
+
 @pytest.fixture
 def catalogue_v2(monkeypatch, db_session):
     """The production catalogue (v2, FR2_* units), seeded; v1 is restored afterwards."""

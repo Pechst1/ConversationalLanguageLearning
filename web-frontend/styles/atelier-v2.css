@@ -514,6 +514,7 @@
 .av2 .av2-shape--dot { border-radius: 999px; }
 .av2 .av2-shape--sm { width: 8px; height: 8px; }
 .av2 .av2-shape--lg { width: 16px; height: 16px; border-radius: 4px; }
+.av2 .av2-shape--lg.av2-shape--circle { border-radius: 999px; }
 
 .av2 .av2-mark { display: block; flex: none; }
 
@@ -1941,6 +1942,9 @@
 }
 .av2.atelier-practice-strip p { margin: 0; }
 .av2.atelier-practice-strip .av2-headline { margin-top: 2px; }
+/* GENTLE-ONBOARDING: the first forge séance's sticker, above the séance. */
+.av2.atelier-first-sticker { max-width: 640px; margin: 0 auto; padding: 18px var(--av2-gutter, 16px) 0; }
+.av2.atelier-first-sticker:empty { display: none; }
 
 /* WP-16 / D-0: the recap's inline pointer into the drill loop. A quiet text
    control on the practised line, never a second primary. */
@@ -3644,3 +3648,6 @@
 }
 .av2 .ep-follow[data-outcome='open'] .ep-follow__quote { color: var(--av2-ink); }
 .av2 .ep-follow--line { padding: 12px 14px; }
+
+/* GENTLE-ONBOARDING: the first day's route above the day's recap. */
+.av2 .journey-first-route { margin-bottom: 18px; }
