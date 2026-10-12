@@ -216,10 +216,12 @@ export default function Releve() {
   }, [load]);
 
   /* The page draws after its data, so the browser's own jump to #carnet or
-     #sceaux (La Une's level line and streak) found nothing; jump once drawn. */
+     #sceaux (La Une's level line and streak) found nothing; jump once drawn.
+     An old `?mode=carnet` link means the Carnet too. */
   useEffect(() => {
     if (loading || typeof window === 'undefined') return;
-    const wanted = window.location.hash.replace(/^#/, '');
+    const legacyCarnet = new URLSearchParams(window.location.search).get('mode') === 'carnet';
+    const wanted = window.location.hash.replace(/^#/, '') || (legacyCarnet ? 'carnet' : '');
     if (wanted !== 'carnet' && wanted !== 'sceaux') return;
     document.getElementById(wanted)?.scrollIntoView?.({ block: 'start' });
   }, [loading]);
