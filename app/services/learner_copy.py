@@ -1021,7 +1021,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     # -- app/services/item_bank.py: WP-S2 La Forge item-bank instructions -----
     "forge.word_bank": {
         "en": "Build it. One word is extra.",
-        "de": "Bau den Satz. Ein Baustein wird nicht gebraucht.",
+        "de": "Bau den Satz. Ein Wort ist zu viel.",
         "fr": "Construisez la phrase. Un mot est en trop.",
     },
     "forge.word_bank_all": {
@@ -1041,7 +1041,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     },
     "forge.speak": {
         "en": "Say it in French.",
-        "de": "Sag es laut auf Französisch und prüfe dann die Transkription.",
+        "de": "Sag es auf Französisch.",
         "fr": "Dites-le en français.",
     },
     "forge.conversation": {
@@ -1240,6 +1240,18 @@ for _key, _row in LEARNER_COPY.items():
     if _english and _english not in _ENGLISH_INDEX:
         _ENGLISH_INDEX[_english] = _key
 del _key, _row, _english
+#: Text diet (2026-10-12): the forge instructions were shortened, but cached sets
+#: still carry the old English with no key. The old sentences stay findable here
+#: so those sets keep reaching German and French learners in their language.
+_ENGLISH_INDEX.update(
+    {
+        "Build the sentence. One chip is not needed.": "forge.word_bank",
+        "Build the sentence with the chips.": "forge.word_bank_all",
+        "Correct the sentence: fix the part that breaks today's rule. Keep the rest.": "forge.transform",
+        "Say it aloud in French, then check the transcript.": "forge.speak",
+        "Answer the message in French, with the rule of the day.": "forge.conversation",
+    }
+)
 
 
 def key_for_english(text: Any) -> str | None:
