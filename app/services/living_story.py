@@ -9009,10 +9009,37 @@ _FALLBACK_SUMMARY = {
 }
 
 
-def fallback_turn(*, character_name: str | None, learner_text: str, language: str, reason: str) -> SemanticTurn:
-    """The authored ending used when the actor could not produce one (WP-58)."""
+#: Agency pilot run 2 (R2-5): the reply lane had answered («Ah, Paul — merci.») when the
+#: story lane fell back, and the stored summary said the character left *before*
+#: answering, quoting the very line that was answered.
+_FALLBACK_SUMMARY_ANSWERED = {
+    "en": "{name} answered you, then had to go; the rest of the scene stays open and picks up next time.",
+    "de": "{name} hat dir geantwortet und musste dann weg; der Rest der Szene bleibt offen und geht nächstes Mal weiter.",
+    "fr": "{name} a répondu, puis a dû partir ; la suite reste ouverte et la scène reprendra là.",
+}
+
+
+def fallback_turn(
+    *, character_name: str | None, learner_text: str, language: str, reason: str, answered: bool = False
+) -> SemanticTurn:
+    """The authored ending used when the actor could not produce one (WP-58).
+
+    ``answered``: the character's reply was already shown, so the ending never says
+    they left before answering."""
 
     name = (character_name or "").split(" « ")[0].split()[0] if character_name else "Quelqu’un"
+    if answered:
+        summary = _FALLBACK_SUMMARY_ANSWERED.get(language, _FALLBACK_SUMMARY_ANSWERED["en"]).format(name=name)
+        return SemanticTurn(
+            outcome="partially_met",
+            understood_intent=f"fallback:{reason}",
+            evidence_quotes=[learner_text[:300]] if learner_text.strip() else [],
+            reply_fr="Attends, on m’appelle — je reviens vers toi très vite, promis.",
+            needs_clarification=False,
+            resolution_fr=f"{name} doit partir. La conversation reprendra là où elle s’est arrêtée.",
+            summary_native=summary,
+            callback_fr=f"{name} a répondu, puis a dû partir.",
+        )
     summary = _FALLBACK_SUMMARY.get(language, _FALLBACK_SUMMARY["en"]).format(name=name)
     return SemanticTurn(
         outcome="partially_met",

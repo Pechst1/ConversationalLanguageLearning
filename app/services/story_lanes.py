@@ -1247,6 +1247,8 @@ def fallback_story(lane: dict, *, character_name: str | None, language: str, rea
         learner_text=str(lane.get("learner_text") or ""),
         language=language,
         reason=reason,
+        # R2-5: the reply the learner read stands; the ending does not deny it.
+        answered=bool((voice.reply_fr or "").strip()),
     )
     return merged_turn(
         tutor,
