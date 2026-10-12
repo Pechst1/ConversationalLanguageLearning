@@ -72,7 +72,7 @@ import { journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { continuesConversation } from './respond-thread';
 import { stepHeaderLine } from './drill-frame';
-import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen } from './CastIntro';
+import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen, storyPremiseOf } from './CastIntro';
 import { firstSceneStepId } from './practice-formats';
 import { PushOptIn } from './PushOptIn';
 import { EntreTemps, SeasonPremiere } from './SeasonPages';
@@ -226,6 +226,7 @@ export function JourneySession({
   /* WP-75: the first journey meets the cast before its opening scene. Shown
      in place of that scene until «Continuer», remembered per journey. */
   const castIntro = castIntroOf(journey);
+  const storyPremise = storyPremiseOf(journey);
   const journeyId = journey?.id ?? '';
   const [castIntroDone, setCastIntroDone] = React.useState(true);
   React.useEffect(() => {
@@ -368,6 +369,8 @@ export function JourneySession({
                 <CastIntro
                   cast={castIntro}
                   language={chromeLanguage}
+                  premise={storyPremise.premise}
+                  how={storyPremise.how}
                   onContinue={() => {
                     rememberCastIntroSeen(journeyId);
                     setCastIntroDone(true);

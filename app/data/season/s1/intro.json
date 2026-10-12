@@ -1,0 +1,59 @@
+{
+  "_doc": "STORY-ORIENTATION 2026-10-12: what a learner reads before their first season page — who they are, where, who these people are, and what they do. Shown once, on the learner's first season day (T1 Day A), through the journey's cast intro. Nothing here may spoil a tentpole: the roles say only what the learner sees on the first night.",
+  "premise_native": {
+    "en": "You are in Paris for one week. Your grandmother Odile has left you a small flat above a café, Le Mistral. You have come to sign the papers and to sell it. Tonight, in the rain, you walk into the café with her key. The regulars knew her. They do not know you yet.",
+    "de": "Du bist für eine Woche in Paris. Deine Großmutter Odile hat dir eine kleine Wohnung über einem Café vererbt, dem Mistral. Du bist gekommen, um die Papiere zu unterschreiben und sie zu verkaufen. Heute Abend, im Regen, betrittst du mit ihrem Schlüssel das Café. Die Stammgäste kannten sie. Dich kennen sie noch nicht.",
+    "fr": "Tu es à Paris pour une semaine. Ta grand-mère Odile t'a laissé un petit appartement au-dessus d'un café, Le Mistral. Tu es là pour signer les papiers et le vendre. Ce soir, sous la pluie, tu entres dans le café avec sa clé. Les habitués la connaissaient. Toi, ils ne te connaissent pas encore."
+  },
+  "how_native": {
+    "en": "Read each scene, then answer the person speaking to you, in French and in your own words. Mistakes are fine: they react to what you mean.",
+    "de": "Lies jede Szene und antworte dann der Person, die mit dir spricht, auf Französisch und mit deinen eigenen Worten. Fehler sind okay: Sie reagieren auf das, was du meinst.",
+    "fr": "Lis chaque scène, puis réponds à la personne qui te parle, en français et avec tes mots. Les fautes ne font rien : on réagit à ce que tu veux dire."
+  },
+  "cast": [
+    {
+      "character_id": "margaux_barman",
+      "name": "Margaux",
+      "role_native": {
+        "en": "Runs Le Mistral. Says very little, sees everything.",
+        "de": "Führt das Mistral. Sagt wenig, sieht alles.",
+        "fr": "Tient Le Mistral. Parle peu, voit tout."
+      },
+      "line_fr": "Bonsoir.",
+      "line_native": {"en": "Good evening.", "de": "Guten Abend.", "fr": "Bonsoir."}
+    },
+    {
+      "character_id": "augustin_de_roncourt",
+      "name": "Gus",
+      "role_native": {
+        "en": "A regular. Theatrical, always in the middle of a story.",
+        "de": "Stammgast. Theatralisch, immer mitten in einer Geschichte.",
+        "fr": "Un habitué. Théâtral, toujours au milieu d'une histoire."
+      },
+      "line_fr": "Augustin de Roncourt. Enchanté.",
+      "line_native": {"en": "Augustin de Roncourt. Delighted.", "de": "Augustin de Roncourt. Sehr erfreut.", "fr": "Augustin de Roncourt. Enchanté."}
+    },
+    {
+      "character_id": "marin_leveque",
+      "name": "Marin",
+      "role_native": {
+        "en": "A regular. Kind, sentimental, feeds everyone.",
+        "de": "Stammgast. Herzlich, sentimental, kocht für alle.",
+        "fr": "Un habitué. Gentil, sentimental, il nourrit tout le monde."
+      },
+      "line_fr": "Tu as faim ?",
+      "line_native": {"en": "Are you hungry?", "de": "Hast du Hunger?", "fr": "Tu as faim ?"}
+    },
+    {
+      "character_id": "lila_bonnet",
+      "name": "Lila",
+      "role_native": {
+        "en": "A teacher and painter. Quick, and hard to impress.",
+        "de": "Lehrerin und Malerin. Schlagfertig und schwer zu beeindrucken.",
+        "fr": "Institutrice et peintre. Vive, et difficile à impressionner."
+      },
+      "line_fr": "Moi, c'est Lila. Et toi ?",
+      "line_native": {"en": "I'm Lila. And you?", "de": "Ich bin Lila. Und du?", "fr": "Moi, c'est Lila. Et toi ?"}
+    }
+  ]
+}

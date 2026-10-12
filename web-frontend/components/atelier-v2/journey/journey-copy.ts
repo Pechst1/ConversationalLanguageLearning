@@ -189,6 +189,8 @@ export type JourneyCopyKey =
   | 'letter_reply_label'
   // WP-82: the cast intro's heading, in the chrome language.
   | 'cast_title'
+  // STORY-ORIENTATION: the heading over the season's premise on day one.
+  | 'premise_title'
   // WP-89 «Le fil»: the respond step as one conversation. `exchange_of` is the
   // screen-reader text of the exchange tokens ({n}, {total}).
   | 'exchange_of'
@@ -401,6 +403,7 @@ const EN: CopyTable = {
   letter_task: 'Write your answer to this letter.',
   letter_reply_label: 'Your reply',
   cast_title: 'The characters',
+  premise_title: 'Where you are',
   exchange_of: 'Exchange {n} of {total}',
   thread_label: 'The conversation',
   thread_you: 'You',
@@ -600,6 +603,7 @@ const DE: CopyTable = {
   letter_task: 'Schreib deine Antwort auf diesen Brief.',
   letter_reply_label: 'Deine Antwort',
   cast_title: 'Die Figuren',
+  premise_title: 'Wo du bist',
   exchange_of: 'Austausch {n} von {total}',
   thread_label: 'Das Gespräch',
   thread_you: 'Du',
@@ -799,6 +803,7 @@ const FR: CopyTable = {
   letter_task: 'Écris ta réponse à cette lettre.',
   letter_reply_label: 'Votre réponse',
   cast_title: 'Les personnages',
+  premise_title: 'Où tu es',
   exchange_of: 'Échange {n} sur {total}',
   thread_label: 'La conversation',
   thread_you: 'Vous',
