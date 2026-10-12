@@ -415,6 +415,19 @@ test('«Précédemment» renders tappable French and one «Lire»', () => {
   assert.match(text(html), /Read$/);
 });
 
+test('walk #77 · «Bisher» opens with the premise in the learner\'s language, from day 1', () => {
+  const premise = 'Deine Großmutter hat dir hinterlassen, was über dem Mistral liegt.';
+  const html = decode(inRoot(h(marks.Precedemment, { lines: ['Deux clés pour la même porte.'], premise, language: 'de', onRead: () => {} })));
+  assert.match(text(html), /^Worum es geht Deine Großmutter/);
+  assert.match(text(html), /Bisher/);
+  const dayOne = decode(inRoot(h(marks.Precedemment, { lines: [], premise, language: 'de', onRead: () => {} })));
+  assert.match(text(dayOne), /Worum es geht/);
+  assert.doesNotMatch(text(dayOne), /Bisher/, 'no «before» on day 1');
+  assert.equal(prev.premiseView({ premise: '  ' + premise, dismissed: false }), premise);
+  assert.equal(prev.premiseView({ premise, dismissed: true }), null, 'read once');
+  assert.equal(prev.premiseView({ premise: null, dismissed: false }), null, 'an older server');
+});
+
 test('the recap: «Fin du chapitre» with the digest, «Tome N» pressed, the margin notes', () => {
   const journey = {
     id: 'j', contract_version: 1, revision: 1, status: 'completed', local_date: '2026-09-28', timezone: 'Europe/Paris',

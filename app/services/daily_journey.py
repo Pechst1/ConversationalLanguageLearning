@@ -2312,14 +2312,14 @@ class DailyJourneyService:
 
         context = _journey_story_context(journey)
         if not context.get("scene_id"):
-            return {"previously_fr": None, "margin_notes": None}
+            return {"previously_fr": None, "premise_native": None, "margin_notes": None}
         from app.services.story_archive import scene_step_story_fields
 
         return run_best_effort(
             self.db,
             "daily_journey: précédemment and margin notes",
             lambda: scene_step_story_fields(self.db, journey),
-            default={"previously_fr": [], "margin_notes": []},
+            default={"previously_fr": [], "premise_native": None, "margin_notes": []},
             log=logger,
         )
 

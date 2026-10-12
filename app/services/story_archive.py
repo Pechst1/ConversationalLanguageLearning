@@ -250,14 +250,55 @@ def scene_notes(db: Session, scene: GraphicNovelScene | None) -> list[dict[str, 
 
 
 def scene_step_story_fields(db: Session, journey: DailyJourney) -> dict[str, Any]:
-    """«Précédemment» and the margin notes for the journey's scene step prompt."""
+    """«Précédemment», the season's premise and the margin notes for the
+    journey's scene step prompt."""
 
     scene = _journey_scene(db, journey)
     payload = scene.script_payload if scene is not None else {}
     return {
         "previously_fr": previously_of(payload),
+        "premise_native": season_premise(db, scene, _journey_language(journey)),
         "margin_notes": scene_notes(db, scene),
     }
+
+
+def _journey_language(journey: DailyJourney) -> str:
+    """The chrome language the day was planned in (the scenario brief's), else ``en``."""
+
+    for step in journey.steps:
+        brief = (step.private_task or {}).get("scenario_brief")
+        if isinstance(brief, dict) and brief.get("control_language"):
+            return str(brief["control_language"])
+    return "en"
+
+
+def season_premise(db: Session, scene: GraphicNovelScene | None, language: str) -> str | None:
+    """Walk 2026-10-12 (#77): who the learner is and what is at stake, in their
+    language — the season's question («Deine Großmutter hat dir hinterlassen…»).
+
+    The «Précédemment» lines are French chronicle lines; a new learner read
+    «Deux clés pour la même porte. À suivre…» and still did not know who they
+    were or why they were in Solvel. ``None`` off a scripted season."""
+
+    if scene is None or not scene.serial_thread_id:
+        return None
+    thread = db.get(SerialThread, scene.serial_thread_id)
+    world = thread.world_bible if thread is not None and isinstance(thread.world_bible, dict) else {}
+    season_id = str(world.get("season_script") or "").strip()
+    if not season_id:
+        return None
+    from app.services.season.format import load_season
+
+    try:
+        question = load_season(season_id).question
+    except Exception:  # noqa: BLE001 — a premise is a courtesy, never a failure
+        logger.warning("story_archive: season %s has no readable question", season_id)
+        return None
+    if language == "fr":
+        text = question.b1 or question.a2
+    else:
+        text = question.native.get(language) or question.native.get("en") or ""
+    return _text(text, 400) or None
 
 
 def _live_of(thread: SerialThread | None) -> dict[str, Any]:
