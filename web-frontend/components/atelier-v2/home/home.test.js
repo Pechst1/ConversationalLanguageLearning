@@ -157,9 +157,9 @@ test('with the journey on, nothing but the day is drawn', () => {
 });
 
 const NEXT = {
-  fr: { band: 'A1.1', line: 'Prochaine étape : demander un prix et payer', ariaLabel: 'Niveau A1.1. Prochaine étape : demander un prix et payer. Ouvrir le Carnet', href: '/notebook?mode=carnet' },
-  en: { band: 'A1.1', line: 'Next step: ask a price and pay', ariaLabel: 'Level A1.1. Next step: ask a price and pay. Open the Carnet', href: '/notebook?mode=carnet' },
-  de: { band: 'A1.1', line: 'Nächster Schritt: ask a price and pay', ariaLabel: 'Niveau A1.1. Nächster Schritt: ask a price and pay. Carnet öffnen', href: '/notebook?mode=carnet' },
+  fr: { band: 'A1.1', line: 'Prochaine étape : demander un prix et payer', ariaLabel: 'Niveau A1.1. Prochaine étape : demander un prix et payer. Ouvrir le Carnet', href: '/notebook?mode=releve#carnet' },
+  en: { band: 'A1.1', line: 'Next step: ask a price and pay', ariaLabel: 'Level A1.1. Next step: ask a price and pay. Open the Carnet', href: '/notebook?mode=releve#carnet' },
+  de: { band: 'A1.1', line: 'Nächster Schritt: ask a price and pay', ariaLabel: 'Niveau A1.1. Nächster Schritt: ask a price and pay. Carnet öffnen', href: '/notebook?mode=releve#carnet' },
 };
 
 test('WP-95 / W12: the masthead shows the band and the next can-do, never a percentage', () => {
@@ -168,7 +168,7 @@ test('WP-95 / W12: the masthead shows the band and the next can-do, never a perc
     const text = visibleText(html);
     assert.doesNotMatch(text, /%/, `${language}: no percentage on Home`);
     assert.match(text, new RegExp(`A1\\.1 · ${NEXT[language].line}`), language);
-    assert.match(html, /<a class="av2-carnet__home-link"[^>]*href="\/notebook\?mode=carnet"/);
+    assert.match(html, /<a class="av2-carnet__home-link"[^>]*href="\/notebook\?mode=releve#carnet"/);
     const link = html.match(/<a [^>]*data-next-step=""[^>]*>([\s\S]*?)<\/a>/)[1];
     assert.ok(words(visibleText(link)).length <= 9, `${language}: the next step is one short line`);
     assert.match(html, /class="av2-home__kicker av2-home__level"/);

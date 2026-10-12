@@ -31,7 +31,7 @@ import { ArrowLeftIcon, Chip } from '@/components/atelier-v2/ui';
 
 import { useCahierCopy, type CahierCopy } from './cahier-copy';
 
-export type CahierMode = 'grammar' | 'vocabulary' | 'journal' | 'releve' | 'carnet' | 'library';
+export type CahierMode = 'grammar' | 'vocabulary' | 'journal' | 'releve' | 'library';
 
 /* WP-82 — the pill's labels are chrome, read from the Cahier copy table in the
    language of the surrounding `AtelierV2Root`. WP-30's «Journal» is the recap
@@ -41,7 +41,6 @@ const CAHIER_MODE_KEYS: Record<CahierMode, keyof CahierCopy['cahier']> = {
   vocabulary: 'mode_vocabulary',
   journal: 'mode_journal',
   releve: 'mode_releve',
-  carnet: 'mode_carnet',
   library: 'mode_library',
 };
 
@@ -95,9 +94,9 @@ export function NotebookModeTabs({
   hrefFor?: (mode: CahierMode) => string;
 }) {
   const copy = useCahierCopy();
-  // WP-95: «Carnet» sits beside «Relevé» — the ledger of what went wrong,
-  // then the ledger of what you can do.
-  const modes: CahierMode[] = ['grammar', 'vocabulary', 'journal', 'releve', 'carnet'];
+  // One progress place (owner, 2026-10-12): «Fortschritt» holds the level,
+  // the goal, the Carnet, the seals and the register; the Carnet is no tab.
+  const modes: CahierMode[] = ['grammar', 'vocabulary', 'journal', 'releve'];
   if (library) modes.push('library');
   return (
     <div className="nb-modes" role="tablist" aria-label={copy.cahier.modes_label}>
@@ -528,6 +527,8 @@ export function CahierStyles() {
       .av2 .nb-rv { display: flex; flex-direction: column; gap: 16px; }
       .av2 .nb-rv__sec { display: flex; flex-direction: column; gap: 10px; }
       .av2 .nb-rv__status { margin: 4px 0 0; }
+      .av2 .nb-rv__goal { margin: 8px 0 0; color: var(--av2-ink); }
+      .av2 .nb-rv__how { margin-top: 10px; text-decoration: none; }
       .av2 .nb-rv__tracks { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
       .av2 .nb-rv__track { display: grid; grid-template-columns: 3.25rem minmax(0, 1fr); align-items: center; gap: 10px; }
       .av2 .nb-rv__track > span { font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-ink-2); }

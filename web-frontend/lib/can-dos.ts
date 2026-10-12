@@ -239,7 +239,7 @@ export type NextStepView = {
   href: string;
 };
 
-export const CARNET_HREF = '/notebook?mode=carnet';
+export const CARNET_HREF = '/notebook?mode=releve#carnet';
 
 /** Reads `next_can_do` from the level payload (or its `coverage`), wherever the server put it. */
 export function nextCanDoOf(...sources: unknown[]): { next: NextCanDo | null; stamped: number | null; total: number | null } {

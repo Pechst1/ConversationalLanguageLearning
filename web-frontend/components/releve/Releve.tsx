@@ -1,4 +1,11 @@
-/* Atelier — "LE RELEVÉ" · the Cahier's third tab (the learner's own record).
+/* Atelier — «Fortschritt» (internal mode `releve`) · the Cahier's one progress place.
+ *
+ * Owner, 2026-10-12: progress lived in four places with numbers that did not
+ * agree (the Relevé, the Carnet tab, the Dossier, La Une's goal line). It is
+ * one tab now, top to bottom: the level and the goal from the band's coverage
+ * (the numbers La Une and the Dossier print), the Carnet (#carnet), the seals
+ * (#sceaux), what is in progress and due, the Papiers and the collection. The
+ * Dossier stays the page that explains and corrects those numbers.
  *
  * This replaces the parked /progress + /achievements pair inside the notebook.
  * Those pages were pre-journal English surfaces: an "Anki Sync" dashboard with a
@@ -8,7 +15,8 @@
  * scoped to the signed-in learner and maps to a named API field.
  *
  *   Vos sceaux     GET /analytics/streak     (WP-D5: the streak's own days, as seals)
- *   Le Cours       GET /progress/cefr            (the same payload La Une's LuCours reads)
+ *   Le Cours       GET /progress/cefr            (coverage: the same numbers as La Une and the Dossier)
+ *   Le Carnet      GET /can-dos                  (CarnetTab, WP-95)
  *   Le Registre    GET /analytics/summary        (UserVocabularyProgress rows for THIS user)
  *                  GET /grammar/summary          (UserGrammarProgress rows for THIS user)
  *   Le Papier      GET /revue/releve             (WP-119: the learner's filed Papiers, RvReleveSection)
@@ -22,9 +30,11 @@
  * only, both themes.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 
 import {
   Action,
+  ArrowRightIcon,
   Notice,
   ProgressRule,
   ShapeToken,
@@ -32,10 +42,12 @@ import {
   StateBlock,
   Surface,
 } from '@/components/atelier-v2/ui';
+import CarnetTab from '@/components/cahiers/CarnetTab';
 import { NbSectionHead } from '@/components/cahiers/CahierV2';
 import SealCollection from '@/components/releve/SealCollection';
 import { RvReleveSection } from '@/components/revue/RvReleveSection';
 import { fill, plural, releveCopy, type ReleveCopy } from '@/components/releve/releve-copy';
+import { targetLines, targetView } from '@/lib/continue-learning';
 import { stageWord, type VisibleStage } from '@/lib/grammar-stages';
 import { useChromeLanguage } from '@/lib/learner-language';
 import api, {
@@ -203,6 +215,15 @@ export default function Releve() {
     void load();
   }, [load]);
 
+  /* The page draws after its data, so the browser's own jump to #carnet or
+     #sceaux (La Une's level line and streak) found nothing; jump once drawn. */
+  useEffect(() => {
+    if (loading || typeof window === 'undefined') return;
+    const wanted = window.location.hash.replace(/^#/, '');
+    if (wanted !== 'carnet' && wanted !== 'sceaux') return;
+    document.getElementById(wanted)?.scrollIntoView?.({ block: 'start' });
+  }, [loading]);
+
   /* ---- Le Cours (GET /progress/cefr) ---- */
   const declared = cefr?.estimate_source === 'declared';
   /* WP-25. A placement is a measured prior, not a verdict: the learner's own
@@ -231,22 +252,27 @@ export default function Releve() {
   }, [cefr]);
   // WP-L8: the forecast is for the next sub-band, so the arrow points there.
   const nextLevel = cefr?.forecast?.target || cefr?.next_level || cefr?.target || null;
+  /* Fortschritt (owner, 2026-10-12: one place for progress): the gauges read
+     the band's coverage, the same numbers La Une's goal line and the Dossier
+     print, so no screen disagrees with another about words and rules. */
   const coursWords: [number, number] = [
-    Number(cefr?.breakdown?.vocabulary?.current || 0),
-    Number(cefr?.breakdown?.vocabulary?.target || 0),
+    Number(cefr?.coverage?.words?.known || 0),
+    Number(cefr?.coverage?.words?.required || 0),
   ];
   const coursRules: [number, number] = [
-    Number(cefr?.breakdown?.grammar?.current || 0),
-    Number(cefr?.breakdown?.grammar?.target || 0),
+    Number(cefr?.coverage?.units?.held || 0),
+    Number(cefr?.coverage?.units?.required || 0),
   ];
+  const goal = useMemo(() => {
+    const target = targetView(cefr, chromeLanguage);
+    return target ? targetLines(target, chromeLanguage) : null;
+  }, [cefr, chromeLanguage]);
 
   /* ---- Le Registre (GET /analytics/summary + GET /grammar/summary) ---- */
   const grammarCounts = useMemo(
     () => normalizedCounts((grammar as { stage_counts?: Record<string, number> } | null | undefined)?.stage_counts),
     [grammar],
   );
-  const grammarStarted = Number(grammar?.started || 0);
-  const grammarTotal = Number(grammar?.total_concepts || 0);
   const grammarBar = useMemo(
     () =>
       GRAMMAR_STAGE_TONES.map((state) => {
@@ -311,10 +337,7 @@ export default function Releve() {
 
   return (
     <div className="nb-rv">
-      {/* ---- Vos sceaux (WP-D5): the streak, reached from the Home streak ---- */}
-      <SealCollection />
-
-      {/* ---- Le Cours ---- */}
+      {/* ---- Le Cours: level, goal, words and rules, from one source ---- */}
       <section className="nb-rv__sec" aria-label={copy.cours_title}>
         {/* The level is the headline below; repeating it in the head would be
             the same number printed twice. */}
@@ -343,6 +366,13 @@ export default function Releve() {
             </p>
             {/* Gauges count what the Atelier has verified. Against a level it has
                 not tested they would read as "vous savez 0 mot", so they wait. */}
+            {/* The goal is La Une's line, word for word, so it shows whenever La Une shows it. */}
+            {goal && (
+              <p className="av2-body nb-rv__goal">
+                {goal.goal}
+                {goal.when ? `, ${goal.when}` : ''}
+              </p>
+            )}
             {!unverified && (coursWords[1] > 0 || coursRules[1] > 0) && (
               <div className="nb-rv__tracks">
                 {coursWords[1] > 0 && (
@@ -359,11 +389,25 @@ export default function Releve() {
                 )}
               </div>
             )}
+            <Link className="av2-row nb-rv__how" href="/dossier">
+              <span className="av2-row__main av2-label">{copy.cours_how}</span>
+              <ArrowRightIcon size={18} />
+            </Link>
           </Surface>
         )}
       </section>
 
-      {/* ---- Le Registre ---- */}
+      {/* ---- Le Carnet (WP-95): what the level means in practice ---- */}
+      <div id="carnet" className="nb-rv__sec">
+        <CarnetTab />
+      </div>
+
+      {/* ---- Vos sceaux (WP-D5): the streak, reached from the Home streak ---- */}
+      <SealCollection />
+
+      {/* ---- Le Registre ----
+          What is in progress and due today. The totals live in Le Cours
+          above, so they are not counted a second way here. */}
       <section className="nb-rv__sec" aria-label={copy.registre_title}>
         <NbSectionHead t={copy.registre_title} n={null} />
         {failed.stats && failed.grammar ? (
@@ -373,7 +417,6 @@ export default function Releve() {
             <div className="nb-lines">
               {stats ? (
                 <>
-                  <Line label={copy.words_mastered} value={String(stats.words_mastered)} />
                   <Line label={copy.words_learning} value={String(stats.words_learning)} />
                   <Line label={copy.words_due} value={String(stats.reviews_due_today)} />
                 </>
@@ -382,10 +425,6 @@ export default function Releve() {
               )}
               {grammar ? (
                 <>
-                  <Line
-                    label={copy.rules_started}
-                    value={grammarTotal ? `${grammarStarted} / ${grammarTotal}` : String(grammarStarted)}
-                  />
                   <Line label={copy.rules_due} value={String(grammar.due_today)} />
                 </>
               ) : (

@@ -3549,6 +3549,7 @@
   list-style: none;
 }
 .av2 .av2-carnet__bands::-webkit-scrollbar { display: none; }
+.av2 .av2-carnet__bands > li { flex: 0 0 auto; }
 .av2 .av2-carnet__band {
   display: inline-flex;
   align-items: center;
