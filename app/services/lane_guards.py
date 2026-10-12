@@ -303,11 +303,19 @@ _PRONOUN_PAIR = re.compile(
 )
 
 
+#: Only a masculine and a feminine form of the same person hedge a gender
+#: («elle ou elles» is a number, not a gender).
+_GENDER_PAIRS = frozenset(
+    frozenset(pair) for pair in (("il", "elle"), ("ils", "elles"), ("lui", "elle"), ("eux", "elles"))
+)
+
+
 def has_pronoun_pair(text: str) -> bool:
     """Does the text name the learner with both pronouns («il/elle», «il ou elle»)?"""
 
     return any(
-        len({word.casefold() for word in re.findall(r"[a-zà-ÿ]+", match.group(0), re.IGNORECASE)} - {"ou"}) > 1
+        frozenset(word.casefold() for word in re.findall(r"[a-zà-ÿ]+", match.group(0), re.IGNORECASE)) - {"ou"}
+        in _GENDER_PAIRS
         for match in _PRONOUN_PAIR.finditer(text or "")
     )
 

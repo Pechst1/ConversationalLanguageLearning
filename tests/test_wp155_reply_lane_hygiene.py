@@ -131,6 +131,7 @@ def test_a_paraphrase_with_both_pronouns_becomes_the_learners_words():
         voice = _voice("Moi aussi !", intent=intent)
         lanes.validate_voice(voice, payload)
         assert voice.understood_intent == "Learner said: «J'ai faim.»", intent
+    assert not lane_guards.has_pronoun_pair("L'apprenant demande si elle ou elles viennent.")
     kept = _voice("Moi aussi !", intent="L'apprenant a faim ; Romy dit qu'elle aussi.")
     lanes.validate_voice(kept, payload)
     assert kept.understood_intent == "L'apprenant a faim ; Romy dit qu'elle aussi."
