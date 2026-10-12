@@ -256,10 +256,31 @@ def test_manifest_switches_audio_and_art_on_and_leaves_storage_to_the_dashboard(
         assert env["ATELIER_PANEL_ART_ENABLED"]["value"] == "true", service["name"]
         assert env["ATELIER_PANEL_ART_BANDS"]["value"] == "A1,A2", service["name"]
         for key in ("GRAPHIC_NOVEL_IMAGE_STORAGE", "GRAPHIC_NOVEL_IMAGE_S3_BUCKET"):
-            assert env[key].get("sync") is False, (service["name"], key)
+            if service["type"] == "web":
+                assert env[key].get("sync") is False, (service["name"], key)
+            else:  # the worker inherits the API's dashboard values
+                assert env[key]["fromService"]["envVarKey"] == key, (service["name"], key)
 
 
 def test_the_image_ships_the_cast_references() -> None:
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     assert "docs/design-reference/cast" in dockerfile
     assert any((ROOT / "docs/design-reference/cast").glob("*/reference.webp"))
+
+
+def test_generated_panels_wait_for_durable_storage_in_production(monkeypatch) -> None:
+    """Owner 2026-10-12: the switch is on in production, but nothing is drawn onto the
+    container's disk (it dies at deploy); the panels draw once an S3 bucket is set."""
+
+    from app.services.graphic_novel import image_generation_enabled
+
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", True)
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_STORAGE", "local")
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_S3_BUCKET", None)
+    assert image_generation_enabled() is False
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_STORAGE", "s3")
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_S3_BUCKET", "atelier-images")
+    assert image_generation_enabled() is True
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", False)
+    assert image_generation_enabled() is False

@@ -145,6 +145,19 @@ def scene_matches_current_contract(scene: GraphicNovelScene | None) -> bool:
     return version in GRAPHIC_NOVEL_COMPATIBLE_PROMPT_VERSIONS
 
 
+def image_generation_enabled() -> bool:
+    """Generated panel images are on, and in production they land somewhere durable.
+
+    Owner 2026-10-12: the switch is on in production, but a drawing written to the
+    container's disk dies at the next deploy, so without S3 storage the panels stay
+    the deterministic SVGs (the same rule panel art follows).
+    """
+
+    from app.services.panel_art import durable_storage
+
+    return bool(settings.GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED) and durable_storage()
+
+
 def _panel_count(value: int | None) -> int:
     resolved = value or settings.GRAPHIC_NOVEL_DEFAULT_PANEL_COUNT
     return resolved if resolved in GRAPHIC_NOVEL_PANEL_COUNTS else 6
@@ -649,7 +662,7 @@ class GraphicNovelScheduler:
         resolved_render_mode = _render_mode(render_mode)
         resolved_image_quality = _image_quality(image_quality)
         resolved_public_figure_mode = _public_figure_mode(public_figure_mode)
-        sync_images = bool(sync) if sync is not None else not settings.GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED
+        sync_images = bool(sync) if sync is not None else not image_generation_enabled()
         atelier_session = self._atelier_session(user=user, atelier_session_id=atelier_session_id)
         mission = self._mission(user=user, mission_id=mission_id)
         serial_thread = self._serial_thread(user=user, serial_thread_id=serial_thread_id)
@@ -1653,7 +1666,7 @@ class GraphicNovelScheduler:
             "image_model": settings.OPENAI_IMAGE_MODEL,
             "image_generation_mode": (
                 "openai"
-                if settings.GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED and settings.OPENAI_API_KEY
+                if image_generation_enabled() and settings.OPENAI_API_KEY
                 else "local_fallback"
             ),
             "serial": {
@@ -5995,7 +6008,7 @@ class GraphicNovelImageService:
                 f"Draw one complete comic page with {script.get('panel_count', 6)} panels. "
                 "Penguin Crime paperback-cover mood, photomechanical halftone texture, editorial paper, no readable text."
             )
-        if settings.GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED and self.api_key:
+        if image_generation_enabled() and self.api_key:
             last_error: Exception | None = None
             for attempt in range(1, 4):
                 try:
@@ -6017,7 +6030,7 @@ class GraphicNovelImageService:
         return fallback
 
     async def generate_panel_image(self, prompt: str, panel_index: int, image_quality: str | None = None) -> dict[str, Any]:
-        if settings.GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED and self.api_key:
+        if image_generation_enabled() and self.api_key:
             last_error: Exception | None = None
             for attempt in range(1, 4):
                 try:
