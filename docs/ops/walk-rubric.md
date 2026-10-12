@@ -12,7 +12,10 @@ Scores go into the walk report as a table, one column per played day, with the
 previous walk's scores beside them, so each question is tracked as a trend.
 
 Mark a question `n/a` when the walk cannot judge it: question 19 in the cloud walk
-(browser only), and question 4 in a fake-provider run (write «fake»).
+(browser only), and question 14 on the learner's first day (nothing earlier to
+repeat). In a fake-provider run, write «fake» for question 4, and score question 9
+only on the deterministic drill feedback: model-written corrections come from the
+stub there and say nothing about the product.
 
 ## A. Orientierung (pro Bildschirm)
 1. Weiß ich, wo ich bin (Ort, Figuren, Zeitpunkt in der Geschichte)?
