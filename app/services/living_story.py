@@ -866,7 +866,8 @@ sentence; else empty). When brief.today.open_obstacle is set, yesterday's compli
 still in the way: show it and have someone deal with it. brief.today.agreements are what
 the learner agreed with a character in their own words: no page breaks one. When
 brief.today.callback is set, stage it today: callback.character does what
-callback.instruction says, because of the learner's own words (callback.learner_words).
+callback.instruction says, because of the learner's own words (callback.learner_words);
+put that line in callback_fr and copy brief.today.callback.id into callback_ref.
 When brief.today.learner_agency_rules is set, fill season_checklist.learner_agency in
 that shape: what the learner may really decide in today's turn (accept or refuse, show
 or withhold, propose, promise…), the limits the character would honour, and what each
@@ -4620,7 +4621,42 @@ def _callback_ledger(context: dict) -> list[tuple[str, str]]:
     chapter = context.get("chapter") or {}
     if chapter.get("last_development"):
         ledger.append(("", str(chapter["last_development"])))
+    # N1 pilot (third agency walk, 12 Oct 2026): what the learner decided lives in the
+    # season's own record, and the brief offers it back as today's callback. Both are
+    # this life's past; without them every agency payoff read as invented.
+    today = _season_brief_today(context)
+    agency_callback = today.get("callback") or {}
+    if agency_callback:
+        body = " ".join(
+            [str(agency_callback.get("instruction") or ""), *map(str, agency_callback.get("learner_words") or [])]
+        )
+        for row_id in {agency_callback.get("id"), agency_callback.get("source_event")}:
+            if row_id:
+                ledger.append((str(row_id), body))
+    for line in today.get("agreements") or []:
+        ledger.append(("", str(line)))
     return ledger
+
+
+def _season_brief_today(context: dict) -> dict:
+    return (((context.get("season_script") or {}).get("brief") or {}).get("today")) or {}
+
+
+def _names_agency_callback(text: str, context: dict) -> str | None:
+    """The id of today's agency callback when ``text`` stages it through its character.
+
+    The writer plays the callback in its own French («Romy montre ses notes où tes mots
+    sont anonymes»), which shares no words with the learner's («sans mon nom»); the
+    brief asked for exactly this scene, so naming that character is grounding enough."""
+
+    offered = _season_brief_today(context).get("callback") or {}
+    character = str(offered.get("character") or "")
+    if not offered.get("id") or not character:
+        return None
+    member = next((row for row in context.get("cast") or [] if row.get("id") == character), {})
+    names = {character, str(member.get("name") or "").split(" ")[0]} - {""}
+    words = set(re.findall(r"\w+", text.lower()))
+    return str(offered["id"]) if any(name.lower() in words for name in names) else None
 
 
 def _callback_grounded(text: str, ref: str | None, ledger: list[tuple[str, str]]) -> bool:
@@ -6358,6 +6394,8 @@ def _validate_scene(draft: SceneDraft, context: dict):
     # callback is by definition invented.
     if draft.callback_fr:
         ledger = _callback_ledger(context)
+        if not draft.callback_ref and not _callback_grounded(draft.callback_fr, None, ledger):
+            draft.callback_ref = _names_agency_callback(draft.callback_fr, context)
         if not _callback_grounded(draft.callback_fr, draft.callback_ref, ledger):
             raise StoryUnavailable(
                 "fabricated_callback",

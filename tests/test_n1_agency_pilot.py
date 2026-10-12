@@ -356,3 +356,41 @@ def test_a_plain_answer_sets_no_limit(pilot) -> None:
                           evidence_quotes=["Oui, c'est moi, Paul"])
     details = agency.acts_for_details(contract, [act], text=text)
     assert details["season_acts"][0]["conditions"] == []
+
+
+def test_a_callback_to_what_the_learner_decided_is_this_lifes_past():
+    """Third agency walk, 12 Oct 2026: the writer staged the offered callback in its own
+    French and the memory guard refused it as invented, so the day was lost."""
+
+    from app.services import living_story
+
+    context = {
+        "cast": [{"id": "romy", "name": "Romy Delacroix"}],
+        "season_script": {
+            "brief": {
+                "today": {
+                    "agreements": ["The learner let Romy use what they told her, but not their name."],
+                    "callback": {
+                        "id": "romy_notes_without_name",
+                        "character": "romy",
+                        "instruction": "Romy shows her notes, the learner's name left out.",
+                        "learner_words": ["Oui, tu peux utiliser mon histoire, mais sans mon nom."],
+                        "source_event": "g1.1:accept:learner_account",
+                    },
+                }
+            }
+        },
+    }
+    staged = "Romy montre ses notes où tes mots sont anonymes, comme tu as demandé."
+    ledger = living_story._callback_ledger(context)
+    assert not living_story._callback_grounded(staged, None, ledger)
+    ref = living_story._names_agency_callback(staged, context)
+    assert ref == "romy_notes_without_name"
+    assert living_story._callback_grounded(staged, ref, ledger)
+    assert living_story._callback_grounded(staged, "g1.1:accept:learner_account", ledger)
+    # Someone else's invented past is still refused.
+    invented = "Gus se souvient de la fête que tu as organisée hier soir."
+    assert living_story._names_agency_callback(invented, context) is None
+    assert not living_story._callback_grounded(invented, None, ledger)
+    # No offered callback: nothing changes.
+    assert living_story._names_agency_callback(staged, {"cast": context["cast"]}) is None

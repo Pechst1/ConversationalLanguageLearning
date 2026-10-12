@@ -1333,10 +1333,13 @@ def test_what_the_learner_decides_on_a_generated_day_reaches_the_season(
         turn_agency = data["data"].get("agency")
         assert turn_agency, "a generated day always carries a contract with the pilot on"
         subject = turn_agency["may_decide"][0]["subject"]
+        # As the voice is told: an authored contract's key when it matches (the
+        # authored g1 scene has `no_name`), otherwise the learner's own limit.
+        condition = "no_name" if "no_name" in turn_agency["conditions"] else "sans mon nom"
         value = json.loads(response.content)
         value["acts"] = [
             {"action": "decline", "subject": subject, "evidence_quotes": ["Non, pas de caméra."]},
-            {"action": "accept", "subject": subject, "conditions": ["sans mon nom"],
+            {"action": "accept", "subject": subject, "conditions": [condition],
              "evidence_quotes": ["Tu peux utiliser mon histoire, mais sans mon nom"]},
         ]
         return SimpleNamespace(**{**vars(response), "content": json.dumps(value, ensure_ascii=False)})
