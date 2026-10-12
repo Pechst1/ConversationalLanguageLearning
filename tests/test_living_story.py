@@ -793,7 +793,9 @@ def test_a_reworded_repeat_of_a_recent_objective_is_rejected():
 def test_learner_address_is_enforced_deterministically(address, text, reason):
     """WP-14F L-6: prompt-only address rules were violated live; now a rule."""
     context = _scene_context(learner={"address": address})
-    proposal = engine.SceneDraft.model_validate({**draft(context, 0), "opening_line_fr": text})
+    # Only the opening line speaks to the learner (the fixture's «Vous avez une idée ?»
+    # would make a «tu» opening a mixed page, which is a different refusal).
+    proposal = _with_lines(context, text)
     if reason and reason.startswith("scrub:"):
         engine._validate_scene(proposal, context)
         assert proposal.opening_line_fr == reason.removeprefix("scrub:")
@@ -815,6 +817,47 @@ def test_the_task_line_loses_an_inclusive_dot_form_too():
     except engine.StoryUnavailable:
         pass  # another guard may refuse this fixture's objective; the scrub already ran
     assert "·" not in proposal.objective_native
+
+
+def _with_lines(context, opening: str, *lines: str):
+    base = draft(context, 0)
+    panels = [{**panel, "dialogue": []} for panel in base["panels"]]
+    panels[0]["dialogue"] = [{"character_id": base["character_id"], "text_fr": text} for text in lines]
+    return engine.SceneDraft.model_validate({**base, "opening_line_fr": opening, "panels": panels})
+
+
+def test_one_character_saying_tu_then_vous_to_the_learner_is_refused():
+    """The 12 October A2 read: Gus «Tu as vu ?» then «Vous voulez bien signer ?»."""
+    context = _scene_context()
+    mixed = _with_lines(context, "Vous voulez bien signer ?", "Tu as vu ? Le marché a brûlé.")
+    with pytest.raises(engine.StoryUnavailable, match="speaker_mixed_register"):
+        engine._check_speaker_mixed_register(mixed)
+    # A plural «vous» to the group is not the learner's register.
+    plural = _with_lines(context, "Tu viens ?", "Vous deux, vous signez aussi ?")
+    engine._check_speaker_mixed_register(plural)
+    # Gus's staged slip keeps its mix.
+    mixed.season_checklist = SimpleNamespace(small_moment_id="tu_de_gus")
+    engine._check_speaker_mixed_register(mixed)
+
+
+@pytest.mark.parametrize(
+    ("address", "text", "refused"),
+    [
+        ("neutral", "Vous voulez bien signer la première ?", True),
+        ("neutral", "Tu es le seul à savoir.", True),
+        ("feminine", "Tu arrives le premier ?", True),
+        ("feminine", "Tu es la seule à savoir.", False),
+        ("neutral", "Gus veut que tu sois la première signature.", False),
+        ("neutral", "Mme Diallo arrive la première au marché.", False),
+        ("neutral", "C'est la première fois que tu viens ?", False),
+    ],
+)
+def test_first_last_and_only_as_a_person_follow_the_learners_address(address, text, refused):
+    if refused:
+        with pytest.raises(engine.StoryUnavailable, match="gendered_(learner_noun|agreement)"):
+            engine._check_address([text], address)
+    else:
+        engine._check_address([text], address)
 
 
 def test_a_reply_that_recites_the_suggested_answer_is_rejected():

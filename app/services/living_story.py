@@ -5211,6 +5211,29 @@ _PERSON_DETERMINER = (
 )
 
 
+# The 12 October A2 read: «Vous voulez bien signer la première ?» to a neutral learner.
+# «le premier / la première», «le dernier / la dernière», «le seul / la seule» as a
+# person, in a sentence that speaks to the learner (tu or vous in it), and not
+# followed by the noun they qualify («la première signature» is about the signature).
+_MASCULINE_ROLES = ("premier", "dernier", "seul")
+_FEMININE_ROLES = ("première", "dernière", "seule")
+_ROLE_FOLLOWERS = frozenset({"à", "a", "de", "d", "du", "des", "qui", "ici", "aujourd", "ce", "cette"})
+_SECOND_PERSON_WORD = re.compile(r"\b(?:tu|toi|te|t|vous|ton|ta|tes|votre|vos)\b")
+
+
+def _role_hits(texts: list[str], roles: tuple[str, ...]) -> list[str]:
+    hits: list[str] = []
+    raw = [part for text in texts if text for part in re.split(r"(?<=[.!?…])\s+", text)]
+    for sentence in (_folded(part) for part in raw):
+        if not _SECOND_PERSON_WORD.search(sentence):
+            continue
+        for match in re.finditer(r"\b(?:le|la)\s+(" + "|".join(roles) + r")\b(?:\s+(\w+))?", sentence):
+            following = match.group(2)
+            if following is None or following in _ROLE_FOLLOWERS:
+                hits.append(match.group(1))
+    return hits
+
+
 def _person_noun_hits(folded: str, nouns: tuple[str, ...]) -> list[str]:
     return [noun for noun in nouns if re.search(rf"\b{_YOU_ARE}{_PERSON_DETERMINER}{noun}\b", folded)]
 
@@ -5370,6 +5393,11 @@ def _check_address(texts: list[str], address: str | None, *, own: frozenset[str]
         "masculine": _FEMININE_PERSON_NOUNS,
     }.get(address or "neutral", _MASCULINE_PERSON_NOUNS + _FEMININE_PERSON_NOUNS)
     nouns = [hit for hit in _person_noun_hits(folded, forbidden_nouns) if hit not in own]
+    forbidden_roles = {
+        "feminine": _MASCULINE_ROLES,
+        "masculine": _FEMININE_ROLES,
+    }.get(address or "neutral", _MASCULINE_ROLES + _FEMININE_ROLES)
+    nouns += [hit for hit in _role_hits(texts, forbidden_roles) if hit not in own]
     if nouns:
         raise StoryUnavailable(
             "gendered_learner_noun",
@@ -5585,6 +5613,42 @@ def _check_scene_address_register(draft: SceneDraft) -> None:
                 f"character speaks to them as \"{spoken}\". Pick one and use it "
                 "everywhere: switching between tu and vous inside a scene reads as a "
                 "mistake to a learner who is being taught the difference."
+            ),
+        )
+
+
+def _check_speaker_mixed_register(draft: SceneDraft) -> None:
+    """The addressed character says «tu» to the learner in one line and «vous» in
+    another. Every register check read the character's lines together and took a mix
+    for «no signal», because Gus's two staged slips (``_REGISTER_MOMENTS``) are a mix
+    on purpose; the 12 October A2 read served Gus «Tu as vu ?» then «Vous voulez bien
+    signer ?» on an ordinary day. Read line by line now: plainly plural lines are not
+    a signal, and a day staging one of the register moments keeps its mix."""
+
+    checklist = getattr(draft, "season_checklist", None)
+    if getattr(checklist, "small_moment_id", None) in _REGISTER_MOMENTS:
+        return
+    lines = [
+        text
+        for text in [
+            draft.opening_line_fr,
+            *[
+                line.text_fr
+                for panel in draft.panels
+                for line in panel.dialogue
+                if line.character_id == draft.character_id
+            ],
+        ]
+        if text and not _PLURAL_VOUS.search(text)
+    ]
+    said = {register: next((text for text in lines if _address_register([text]) == register), None) for register in ("tu", "vous")}
+    if said["tu"] and said["vous"]:
+        raise StoryUnavailable(
+            "speaker_mixed_register",
+            hint=(
+                f"The same character says «tu» to the learner («{said['tu'][:80]}») and "
+                f"«vous» («{said['vous'][:80]}»). Pick one for the whole page, the one "
+                "this character uses with the learner, and keep the narration the same."
             ),
         )
 
@@ -6413,6 +6477,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_address(learner_text, (context.get("learner") or {}).get("address"))
     _check_register(learner_text, context.get("level"))
     _check_scene_address_register(draft)
+    _check_speaker_mixed_register(draft)
     _check_season_register(draft, context)
     _check_canon_register(draft, context)
     _check_departed_cast(draft, context)
