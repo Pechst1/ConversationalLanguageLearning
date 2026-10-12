@@ -2895,6 +2895,13 @@ def plan_journey(
         # mounts Le Papier after the ending, and the two together are the day.
         practice = False
         introduction = forge = reading = desk = None
+    if forge and introduction is not None and _authored_page(scenario):
+        # GRAMMAR-DAY-ONE (#81): the page's rule follows its ending, so a forge
+        # folded in with it before the scene would drill a unit not yet taught.
+        forge = None
+        forge_note = "forge not folded: an authored page's rule follows the ending"
+    else:
+        forge_note = None
     profile = pace or PacingProfile()
     # WP-128: the reading prior, the page's prose factor and the reply's
     # composition are the scene's band's.
@@ -2902,7 +2909,7 @@ def plan_journey(
     spt = profile.effective_seconds_per_token(band)
     multiplier = profile.effective_step_multiplier()
     authored = authored_turns(scenario)
-    notes: list[str] = []
+    notes: list[str] = [forge_note] if forge_note else []
     if pace is not None and not profile.is_trusted:
         notes.append(
             f"measured pace ignored: {profile.observations} observation(s), "
@@ -5153,6 +5160,10 @@ def _plan_practice_day(
     ]
     reemploi = unit_sentence_words(reemploi_briefs[0], band) if reemploi_briefs else 0
     emploi = unit_sentence_words(introduction, band) if intro_card else 0
+    if intro_card and _authored_page(scenario):
+        # GRAMMAR-DAY-ONE (#81): the page's unit is taught after the ending, so the
+        # reply asks for no unit and is priced without one.
+        emploi = reemploi = 0
 
     # WP-129: the units a B1+ day may mix in — the due Rappel units and the
     # introduced ``practice_unit`` candidates, never today's new unit.
