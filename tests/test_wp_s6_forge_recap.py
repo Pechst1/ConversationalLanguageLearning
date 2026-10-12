@@ -77,8 +77,8 @@ def test_bank_cues_offer_the_learner_language_and_keep_the_english_prompt():
     repair = ib.transform_item(gloss)
     if repair is not None:
         assert repair["instruction_l10n"]["en"] == repair["instruction"]
-        assert repair["instruction_l10n"]["de"] == f"Korrigiere den Satz, sodass er sagt: „{gloss.de}“"
+        assert repair["instruction_l10n"]["de"] == f"Korrigiere zu: „{gloss.de}“"
 
     produce = ib.produce_block(item, item, requirement={"label": "X", "target_count": 1})
     assert produce["prompt_l10n"]["en"] == produce["prompt"]
-    assert "Nachricht auf Französisch" in produce["prompt_l10n"]["de"]
+    assert "Sätze auf Französisch" in produce["prompt_l10n"]["de"]

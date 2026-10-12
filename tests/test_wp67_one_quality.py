@@ -212,6 +212,17 @@ def test_an_instruction_nobody_authored_is_left_alone() -> None:
     assert _with_learner_instructions(written_by_the_model, native_language="de") == written_by_the_model
 
 
+def test_a_set_cached_before_the_text_diet_still_reaches_the_learner_in_their_language() -> None:
+    """The forge instructions were shortened; a set cached with the old English and
+    no key is still read in German and French, never served in English."""
+    cached = {"items": [{"instruction": "Build the sentence. One chip is not needed."}]}
+
+    assert key_for_english("Build the sentence. One chip is not needed.") == "forge.word_bank"
+    german = _with_learner_instructions(cached, native_language="de")
+    assert german["items"][0]["instruction"] == LEARNER_COPY["forge.word_bank"]["de"]
+    assert key_for_english(LEARNER_COPY["forge.word_bank"]["en"]) == "forge.word_bank"
+
+
 def test_every_copy_key_atelier_asks_for_is_a_real_row() -> None:
     source = (ROOT / "app" / "services" / "atelier.py").read_text(encoding="utf-8")
     keys = set(re.findall(r'"(atelier\.[a-z_0-9]+\.[a-z_0-9.]+)"', source))

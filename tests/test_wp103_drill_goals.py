@@ -73,7 +73,7 @@ def test_a_scene_line_with_its_translation_can_be_the_build():
 def test_the_rappel_transform_starts_from_its_source():
     task = grammar_items.transform_item(_owner_brief(), language="en")
     assert task.source_fr == task.prompt_fr == "une petit table"
-    assert task.goal_native.startswith("Correct the sentence")
+    assert task.goal_native.startswith("One part breaks")
 
 
 @pytest.mark.parametrize("stability", [4.0, 6.0, 9.0])
@@ -108,7 +108,7 @@ def test_vocabulary_drills_carry_their_goal_and_a_gloss_less_bank_is_not_posed()
         target=TargetRef(kind=TargetKind.VOCABULARY, id="v2", label_fr="café", label_native="coffee"),
         sentences=["Je voudrais un café au comptoir."], optional=False, control_language="en",
     )
-    assert without.goal_native == "Rebuild the sentence from today's scene that has «café» in it."
+    assert without.goal_native == "Rebuild the scene line with «café»."
 
 
 def test_a_line_rebuilt_from_the_scene_names_its_speaker_and_meaning():

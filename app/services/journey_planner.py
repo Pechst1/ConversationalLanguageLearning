@@ -355,8 +355,8 @@ _TILES_INSTRUCTION_WITH_GLOSS: dict[str, str] = {
     "fr": "Remets les mots dans l'ordre pour dire « {native} ».",
 }
 _TILES_INSTRUCTION: dict[str, str] = {
-    "en": "Put the words in the right order.",
-    "de": "Bring die Wörter in die richtige Reihenfolge.",
+    "en": "Put the words in order.",
+    "de": "Ordne die Wörter.",
     "fr": "Remets les mots dans le bon ordre.",
 }
 _SHORT_ANSWER_INSTRUCTION: dict[str, str] = {
@@ -403,13 +403,13 @@ def word_count_phrase(count: int, control_language: Any) -> str:
 #: A word bank is tiles with chips that are *not* in the answer, so the chip row
 #: stops being the answer written down in the wrong order.
 _WORD_BANK_INSTRUCTION_WITH_GLOSS: dict[str, str] = {
-    "en": 'Build "{native}". Some chips are not needed.',
-    "de": 'Bau „{native}“. Nicht jeder Baustein wird gebraucht.',
+    "en": 'Build "{native}". Some words are extra.',
+    "de": 'Bau „{native}“. Manche Wörter sind zu viel.',
     "fr": "Construisez « {native} ». Certains mots sont en trop.",
 }
 _WORD_BANK_INSTRUCTION: dict[str, str] = {
-    "en": "Build the phrase. Some chips are not needed.",
-    "de": "Bau den Ausdruck. Nicht jeder Baustein wird gebraucht.",
+    "en": "Build the phrase. Some words are extra.",
+    "de": "Bau den Ausdruck. Manche Wörter sind zu viel.",
     "fr": "Construisez l'expression. Certains mots sont en trop.",
 }
 #: Gender is asked about the bare noun: the article is what answers it, so the

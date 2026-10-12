@@ -688,31 +688,31 @@ RECALL_GOALS: dict[str, dict[str, str]] = {
         "fr": "Reconstruisez la phrase de la scène : « {meaning} »",
     },
     "rebuild_word": {
-        "en": 'Rebuild the sentence from today\'s scene that has «{word}» in it.',
-        "de": "Bau den Satz aus der Szene von heute nach, in dem «{word}» vorkommt.",
-        "fr": "Reconstruisez la phrase de la scène du jour où se trouve « {word} ».",
+        "en": 'Rebuild the scene line with «{word}».',
+        "de": "Bau den Szenensatz mit «{word}» nach.",
+        "fr": "Reconstruisez la phrase de la scène avec « {word} ».",
     },
     "complete_line": {
-        "en": 'Complete what {speaker} said: "{meaning}"',
-        "de": "Ergänze, was {speaker} gesagt hat: „{meaning}“",
-        "fr": "Complétez ce qu'a dit {speaker} : « {meaning} »",
+        "en": '{speaker}: "{meaning}"',
+        "de": "{speaker}: „{meaning}“",
+        "fr": "{speaker} : « {meaning} »",
     },
     "fix_meaning": {
-        "en": 'Correct it so that it says: "{meaning}"',
-        "de": "Korrigiere den Satz, sodass er sagt: „{meaning}“",
-        "fr": "Corrigez la phrase pour dire : « {meaning} »",
+        "en": 'It should say: "{meaning}"',
+        "de": "Gemeint ist: „{meaning}“",
+        "fr": "Elle doit dire : « {meaning} »",
     },
     "fix_rule": {
-        "en": "Correct the sentence: fix the part that breaks today's rule, keep the rest.",
-        "de": "Korrigiere den Satz: Ändere den Teil, der gegen die Regel von heute verstößt.",
-        "fr": "Corrigez la phrase : changez la partie qui enfreint la règle du jour.",
+        "en": "One part breaks today's rule.",
+        "de": "Ein Teil verstößt gegen die Regel von heute.",
+        "fr": "Une partie enfreint la règle du jour.",
     },
     # EXPERIENCE-REVIEW 2026-10-04: a Rappel corrects a rule learnt on an earlier
     # day; «the rule of today» sent the learner looking for the wrong rule.
     "fix_rule_review": {
-        "en": "Correct the sentence: one part breaks a rule you have learnt.",
-        "de": "Korrigiere den Satz: Ein Teil verstößt gegen eine Regel, die du gelernt hast.",
-        "fr": "Corrigez la phrase : une partie enfreint une règle que vous avez apprise.",
+        "en": "One part breaks a rule you know.",
+        "de": "Ein Teil verstößt gegen eine Regel, die du kennst.",
+        "fr": "Une partie enfreint une règle que vous connaissez.",
     },
     "repair_own": {
         "en": "Write what you said, correctly.",

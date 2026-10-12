@@ -121,6 +121,22 @@ def test_the_private_paraphrase_is_rewritten_never_to_le_apprenant():
     assert agreeing.understood_intent == "Learner said: «Je reste.»"
 
 
+
+def test_a_paraphrase_with_both_pronouns_becomes_the_learners_words():
+    """Agency pilot 2026-10-12 (B4): «qu'il/elle a faim» reached the story critic,
+    which refused it after release. No neutral pronoun exists: quote the learner."""
+
+    payload = _payload("J'ai faim.")
+    for intent in ("L'apprenant veut dire qu'il/elle a faim.", "Il ou elle a faim.", "Elle (il) a faim."):
+        voice = _voice("Moi aussi !", intent=intent)
+        lanes.validate_voice(voice, payload)
+        assert voice.understood_intent == "Learner said: «J'ai faim.»", intent
+    assert not lane_guards.has_pronoun_pair("L'apprenant demande si elle ou elles viennent.")
+    kept = _voice("Moi aussi !", intent="L'apprenant a faim ; Romy dit qu'elle aussi.")
+    lanes.validate_voice(kept, payload)
+    assert kept.understood_intent == "L'apprenant a faim ; Romy dit qu'elle aussi."
+
+
 def test_the_voice_reply_with_an_inclusive_form_is_refused_with_a_hint():
     payload = _payload("Oui, je viens.")
     for reply in ("Merci ! Tu t'es engagé·e, c'est beau.", "Tu es prêt(e) ? On y va.",
@@ -144,6 +160,25 @@ def test_a_correction_carrying_an_inclusive_form_is_dropped():
         correction_fr="je me suis engagé·e", correction_note_native="Use the participle.",
     )
     lanes.validate_tutor(verdict, _payload("Oui, je suis engager."))
+    assert verdict.correction_fr is None and verdict.correction_span_fr is None
+
+
+def test_a_correct_word_swapped_for_its_equivalent_is_not_a_correction():
+    """Agency walk run 3: «mais sans mon nom» was "corrected" to «mais pas mon nom» and
+    saved as a fix. Both are correct French; a real fix in the same span still stands."""
+
+    from app.services.answer_acceptance import is_preference_swap
+
+    assert is_preference_swap("mais sans mon nom", "mais pas mon nom")
+    assert is_preference_swap("Vous êtes disponible ?", "Êtes-vous disponible ?")
+    assert not is_preference_swap("je veux une café", "je veux un café")
+    assert not is_preference_swap("sans mon nom", "sans mon nom")
+    text = "Oui, tu peux utiliser mon histoire, mais sans mon nom."
+    verdict = lanes.TutorVerdict(
+        outcome="met", evidence_quotes=[text], correction_span_fr="mais sans mon nom",
+        correction_fr="mais pas mon nom", correction_note_native="Use «pas» here.",
+    )
+    lanes.validate_tutor(verdict, _payload(text))
     assert verdict.correction_fr is None and verdict.correction_span_fr is None
 
 

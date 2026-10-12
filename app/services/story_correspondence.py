@@ -1038,6 +1038,7 @@ def story_letter_candidate(
         "register": learner_register(thread, str(character_id)),
         "summary_fr": _compact(event.get("summary_fr"), limit=240),
         "source_quotes": [str(item) for item in (event.get("source_quotes") or [])][:2],
+        "open_question_fr": _compact(event.get("open_question_fr"), limit=240) or None,
         "week": week,
     }
 
@@ -1089,6 +1090,7 @@ def first_letter_candidate(
             "register": learner_register(thread, character_id),
             "summary_fr": _compact(event.get("summary_fr"), limit=240),
             "source_quotes": [str(item) for item in (event.get("source_quotes") or [])][:2],
+            "open_question_fr": _compact(event.get("open_question_fr"), limit=240) or None,
             "week": iso_week_key(now),
             "first_letter": True,
         }
@@ -1159,6 +1161,7 @@ def story_letter_context(candidate: dict[str, Any]) -> dict[str, Any]:
     name = candidate.get("character_name") or "Un personnage"
     summary = candidate.get("summary_fr") or "ce qui vient de se passer"
     register = "tu" if candidate.get("register") == "tu" else "vous"
+    question = str(candidate.get("open_question_fr") or "").strip()
     if register == "tu":
         scenario = (
             f"{name} t'écrit après ce qui vient de se passer dans le feuilleton : {summary} "
@@ -1172,6 +1175,9 @@ def story_letter_context(candidate: dict[str, Any]) -> dict[str, Any]:
             f"Répondez-lui en français. N'inventez aucun fait nouveau : parlez de cet épisode-là."
         )
         outcome = f"{name} sait ce que vous en pensez et ce que vous comptez faire ensuite."
+    if question:
+        # R2-3: the scene ended before its question was settled; the letter asks it again.
+        scenario += f" La scène est restée ouverte : {name} pose de nouveau sa question, « {question} »."
     return {
         "scenario": scenario,
         "desired_outcome": outcome,
@@ -1188,6 +1194,7 @@ def story_letter_context(candidate: dict[str, Any]) -> dict[str, Any]:
         # «vous» keeps the letter writer's own inference (``None``); «tu» is binding.
         "register": LETTER_REGISTERS["tu"] if register == "tu" else None,
         "source": "story_born",
+        "open_question_fr": question or None,
     }
 
 

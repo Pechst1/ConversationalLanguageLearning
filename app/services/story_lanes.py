@@ -57,6 +57,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import settings
 from app.services import lane_guards
 from app.services import living_story as engine
+from app.services.answer_acceptance import is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -203,7 +204,8 @@ vous with vous, as the scene addresses the learner. Below B1 use no coarse or vu
 Address, agreement and endearments aimed at the learner follow learner.address; for
 neutral use no gendered adjective, participle or endearment about the learner and never
 an inclusive-dot form such as trempé·e, never a form like "prêt(e)".
-understood_intent states what the learner meant, in one sentence.
+understood_intent states what the learner meant, in one sentence, without a pronoun for
+the learner (never «il/elle»): «L'apprenant a faim», «L'apprenant dit non à la caméra».
 needs_clarification is true only when the learner's meaning is genuinely unclear; then
 reply_fr asks the one question that would clear it. When turn_plan.clarify_form_fr is not
 null, set needs_clarification true and do not ask that question yourself, do not answer
@@ -414,6 +416,9 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
             # «Je suis perdu» → «perdu(e)» (live read 2026-09-30): the learner's
             # gender is theirs to give; a gender-only "correction" is dropped.
             verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
+    if verdict.correction_fr and is_preference_swap(verdict.correction_span_fr, verdict.correction_fr):
+        # Agency walk run 3: «mais sans mon nom» → «mais pas mon nom». Both are correct.
+        verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
     if lane_guards.gender_form_hits(verdict.correction_fr or "") or lane_guards.gender_form_hits(
         verdict.correction_note_native or ""
     ):
@@ -499,6 +504,10 @@ def _neutral_intent(intent: str, payload: dict, address: str | None, own: frozen
     rewritten = lane_guards.scrub_learner_gender(intent)
     try:
         lane_guards.check_agreement([rewritten], address, own=own)
+        if lane_guards.has_pronoun_pair(rewritten):
+            # «qu'il/elle a faim» (agency pilot 2026-10-12, B4): the critic refused it
+            # after release; there is no neutral pronoun to put in its place.
+            raise engine.StoryUnavailable("learner_gender_form")
     except engine.StoryUnavailable:
         rewritten = f"Learner said: «{str(payload.get('learner_text') or '')[:370]}»"
     return rewritten or intent
@@ -1242,6 +1251,8 @@ def fallback_story(lane: dict, *, character_name: str | None, language: str, rea
         learner_text=str(lane.get("learner_text") or ""),
         language=language,
         reason=reason,
+        # R2-5: the reply the learner read stands; the ending does not deny it.
+        answered=bool((voice.reply_fr or "").strip()),
     )
     return merged_turn(
         tutor,

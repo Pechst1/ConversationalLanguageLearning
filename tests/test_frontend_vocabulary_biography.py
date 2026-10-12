@@ -122,7 +122,8 @@ def test_vocabulary_review_keeps_header_and_rating_controls_compact() -> None:
     assert "const sessionRemaining = remainingItems.length" in source
     assert "plural(t, 'cards', sessionRemaining)" in source
     assert "cards_many: '{n} cartes'" in read_page(LEXIQUE_COPY)
-    assert "remainingSummary.due" in source
+    # Text diet (2026-10-12): the deck's due/new split is no longer printed above the card.
+    assert "remainingSummary" not in source
     assert "refreshQueueSummary" not in source
     assert "const handleRatingClick" in source
     assert "disabled={reviewing}" in source
