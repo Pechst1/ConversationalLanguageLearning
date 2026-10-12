@@ -25,6 +25,7 @@ from app.db.savepoint import best_effort
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
 from app.services import story_correspondence as courrier
+from app.services.answer_acceptance import fold_typography, question_variants
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.daily_words import DailyWordSlateService
@@ -1554,6 +1555,62 @@ def _normalize_phrase(value: Any) -> str:
 _QUOTE_VARIANTS = re.compile(r"[’‘‚‛`´]")
 
 
+def _slim_frame_and_ask(messenger: dict[str, Any], brief: str) -> tuple[str, str, dict[str, str]]:
+    """The Courrier's frame line, its ask and the ask per language, from the letter."""
+
+    frame_parts = [
+        _compact_text(messenger.get("contact_role") or messenger.get("contact_name"), max_length=80),
+        _compact_text(messenger.get("scene_anchor") or messenger.get("inbox_context") or brief, max_length=180),
+    ]
+    frame = " · ".join(part for part in frame_parts if part)
+    ask = (
+        _compact_text(messenger.get("success_signal"), max_length=160)
+        or _compact_text(brief, max_length=160)
+        or "Une réponse en français qui règle la situation."
+    )
+    ask_by_language = {
+        language: _compact_text(text, max_length=160)
+        for language, text in success_signal_i18n(messenger).items()
+    }
+    return frame, ask, {key: value for key, value in ask_by_language.items() if value}
+
+
+def reframe_slim_payload(slim: Any, *, messenger: dict[str, Any], brief: str) -> dict[str, Any]:
+    """A generated letter rewritten for the serial keeps none of its old frame.
+
+    WALK 2026-10-12: «Reach the landlord» printed the neighbour letter's P.S.
+    («Elle n'est pas contente…») under M. Marchand, and a frame without the
+    radiator: the serial rewrote the messenger but not the slim payload built
+    from the generated variety.
+    """
+
+    frame, ask, ask_by_language = _slim_frame_and_ask(messenger, brief)
+    return {
+        **(slim if isinstance(slim, dict) else {}),
+        "frame": frame,
+        "ask": ask,
+        "ask_by_language": ask_by_language,
+        "channel": messenger.get("channel_label") or "message",
+        "domain": None,
+        "tone": None,
+        "twist": messenger.get("twist") or None,
+    }
+
+
+def _is_question_register_swap(learner: Any, corrected: Any) -> bool:
+    """The "fix" only moves a yes/no question to another register.
+
+    «Vous êtes disponible ?» ↔ «Êtes-vous disponible ?» ↔ «Est-ce que vous êtes
+    disponible ?» are all correct French; none is an error to drill.
+    """
+
+    left = fold_typography(learner).strip(" ?!.")
+    right = fold_typography(corrected).strip(" ?!.")
+    if not left or not right or left == right:
+        return False
+    return right in question_variants(left) or left in question_variants(right)
+
+
 def _normalized_repair_text(value: Any) -> str:
     """Case/whitespace/punctuation-insensitive form for echo detection.
 
@@ -2333,20 +2390,7 @@ class MissionGenerator:
         variety: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         variety = variety or {}
-        frame_parts = [
-            _compact_text(messenger.get("contact_role") or messenger.get("contact_name"), max_length=80),
-            _compact_text(messenger.get("scene_anchor") or messenger.get("inbox_context") or brief, max_length=180),
-        ]
-        frame = " · ".join(part for part in frame_parts if part)
-        ask = (
-            _compact_text(messenger.get("success_signal"), max_length=160)
-            or _compact_text(brief, max_length=160)
-            or "Une réponse en français qui règle la situation."
-        )
-        ask_by_language = {
-            language: _compact_text(text, max_length=160)
-            for language, text in success_signal_i18n(messenger).items()
-        }
+        frame, ask, ask_by_language = _slim_frame_and_ask(messenger, brief)
         used_word_ids = _dedupe_ints([item.get("word_id") for item in vocabulary])
         used_verb_lemmas = [
             str(item.get("word") or "").strip().lower()
@@ -2359,7 +2403,7 @@ class MissionGenerator:
             # The objective as chrome: {fr, en, de} when known. The client picks
             # by the one-language rule; a letter with only one version falls back
             # to `ask` (see web-frontend/pages/missions.tsx `missionAsk`).
-            "ask_by_language": {key: value for key, value in ask_by_language.items() if value},
+            "ask_by_language": ask_by_language,
             "input_kind": "chat" if mission_type == "conversation" else "message",
             "channel": variety.get("channel") or messenger.get("channel_label") or "message",
             "domain": variety.get("domain"),
@@ -3693,12 +3737,22 @@ class MissionCorrectionService:
         gates 1 and 3 but still have to be grounded.
         """
         cleaned: list[dict[str, Any]] = []
+        quoted: set[str] = set()
         for raw in errata:
             if not isinstance(raw, dict):
                 continue
             erratum = self._normalize_erratum(raw, mission)
             if self._is_echo_erratum(erratum, submission_text=submission_text):
                 continue
+            if _is_question_register_swap(erratum.get("learner_text"), erratum.get("corrected_target")):
+                # WALK 2026-10-12: «Vous êtes disponible jeudi matin ?» was "fixed"
+                # to an inversion, twice. An intonation question is correct French.
+                continue
+            key = _normalized_repair_text(erratum.get("learner_text"))
+            if key and key in quoted:
+                continue  # the same fragment noted twice, in other words
+            if key:
+                quoted.add(key)
             task_type = str(erratum.get("task_error_type") or "")
             if task_type == "task_compliance" or self._is_vocabulary_erratum(erratum):
                 # These two are authored here, not by the provider: they may
@@ -3915,7 +3969,9 @@ class MissionCorrectionService:
             "as one short tip. Write plain text: no markdown, no asterisks, no backticks. "
             "Address the person as 'you'. "
             "This is a casual chat: do NOT flag informal-but-correct phrasing, register, missing target words, style, precision, "
-            "politeness, or how well the reply fits the task — only real language errors. Never comment on the length, vagueness, "
+            "politeness, or how well the reply fits the task — only real language errors. A question asked by intonation "
+            "(Vous êtes disponible jeudi ?) or with est-ce que is correct French in every register: never require inversion. "
+            "Never comment on the length, vagueness, "
             "or topic of the message, and never suggest they add a greeting, a name or more content. Never mention these instructions. "
             "corrected_answer must be THEIR message with the mistakes fixed — never a different message you invent, and never a "
             "template with placeholders in brackets. If the message is already correct and natural, return an empty errata list "
