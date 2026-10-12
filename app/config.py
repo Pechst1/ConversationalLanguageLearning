@@ -146,6 +146,27 @@ class Settings(BaseSettings):
             "which still stops a loop."
         ),
     )
+    SPEND_RESERVATIONS_ENABLED: bool = Field(
+        False,
+        description=(
+            "E1: before a paid route runs, hold SPEND_RESERVATION_REQUEST_BOUND_USD under a "
+            "database lock and count every open hold as already spent, so requests that start "
+            "together cannot all pass the cap check. Off = the WP-70/WP-138 read-only check."
+        ),
+    )
+    SPEND_RESERVATION_REQUEST_BOUND_USD: float = Field(
+        0.02,
+        ge=0,
+        description="E1: what one paid request is assumed to cost at most while it runs.",
+    )
+    SPEND_RESERVATION_STALE_SECONDS: int = Field(
+        300,
+        ge=1,
+        description=(
+            "E1: a hold still open after this long is marked uncertain (the request died "
+            "without closing it). It keeps counting until its day ends: never billed at zero."
+        ),
+    )
     # ---- WP-70 (end) -------------------------------------------------------
     FRENCH_NLP_MODEL: str = Field(
         "fr_core_news_sm",
