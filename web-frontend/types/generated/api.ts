@@ -9073,6 +9073,10 @@ export interface components {
             status: components["schemas"]["JourneyStatus"];
             /** Steps */
             steps: (components["schemas"]["SceneStep"] | components["schemas"]["RecallStep"] | components["schemas"]["RespondStep"] | components["schemas"]["ResolutionStep"] | components["schemas"]["RuleStep"] | components["schemas"]["ForgeStep"] | components["schemas"]["ReadStep"] | components["schemas"]["DeskStep"])[];
+            /** Story How Native */
+            story_how_native: string | null;
+            /** Story Premise Native */
+            story_premise_native: string | null;
             streak: components["schemas"]["StreakView"] | null;
             time_estimate: components["schemas"]["DayTimeEstimate"] | null;
             /** Timezone */

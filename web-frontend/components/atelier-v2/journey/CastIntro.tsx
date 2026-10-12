@@ -82,12 +82,27 @@ function CastMember({ entry, language }: { entry: CastIntroEntry; language: stri
   );
 }
 
+/** STORY-ORIENTATION: the situation and how to play, on a first season day. */
+export function storyPremiseOf(
+  journey: JourneySnapshot | null | undefined,
+): { premise: string | null; how: string | null } {
+  const premise = typeof journey?.story_premise_native === 'string' ? journey.story_premise_native.trim() : '';
+  const how = typeof journey?.story_how_native === 'string' ? journey.story_how_native.trim() : '';
+  return { premise: premise || null, how: how || null };
+}
+
 export function CastIntro({
   cast,
   language,
+  premise = null,
+  how = null,
   onContinue,
 }: {
   cast: CastIntroEntry[];
+  /** STORY-ORIENTATION: who the learner is and where, in their language. */
+  premise?: string | null;
+  /** STORY-ORIENTATION: what the learner does on each page. */
+  how?: string | null;
   /** The learner's control language, for the role and translation lines. */
   language: string;
   onContinue: () => void;
@@ -97,6 +112,14 @@ export function CastIntro({
   const copy = journeyCopy(useControlLanguage());
   return (
     <section className="cast-intro" aria-labelledby="cast-intro-title">
+      {premise && (
+        <div className="cast-intro__premise">
+          <h2 className="av2-headline av2-headline--title">{copy.premise_title}</h2>
+          <p className="cast-intro__premise-text" lang={language}>
+            {premise}
+          </p>
+        </div>
+      )}
       <h2 id="cast-intro-title" className="av2-headline av2-headline--title">
         {copy.cast_title}
       </h2>
@@ -105,6 +128,11 @@ export function CastIntro({
           <CastMember key={entry.character_id} entry={entry} language={language} />
         ))}
       </ul>
+      {how && (
+        <p className="av2-label cast-intro__how" lang={language}>
+          {how}
+        </p>
+      )}
       <Action tone="primary" onClick={onContinue} iconAfter={<ArrowRightIcon size={18} />}>
         {copy.continue}
       </Action>
@@ -114,6 +142,23 @@ export function CastIntro({
           flex-direction: column;
           gap: 18px;
           min-width: 0;
+        }
+        .cast-intro__premise {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .cast-intro__premise h2,
+        .cast-intro__premise-text,
+        .cast-intro__how {
+          margin: 0;
+        }
+        .cast-intro__premise-text {
+          line-height: 1.5;
+        }
+        .cast-intro__how {
+          font-weight: 400;
+          color: var(--av2-muted);
         }
         .cast-intro__list {
           display: flex;
