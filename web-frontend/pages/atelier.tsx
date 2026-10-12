@@ -3701,6 +3701,7 @@ function SessionView({
                 coach={ruleCoach}
                 production={isProductionRound}
                 classifyItem={classifyItem}
+                picked={round === 'recognize'}
               />
           </>)}
         </section>
@@ -3769,6 +3770,7 @@ function ExerciseFeedbackMoment({
   coach,
   production = false,
   classifyItem = null,
+  picked = false,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -3792,6 +3794,8 @@ function ExerciseFeedbackMoment({
   production?: boolean;
   /** WP-103 T8: the classify item on screen, for its follow-up. */
   classifyItem?: Record<string, any> | null;
+  /** The answer was a tapped card, which already shows it was right. */
+  picked?: boolean;
 }) {
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
@@ -3871,7 +3875,8 @@ function ExerciseFeedbackMoment({
   if (feedback.correct) {
     return (
       <div className="ep-feedback" data-verdict="correct">
-        <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />
+        {/* Text diet: a picked answer is already marked right on its card. */}
+        {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}

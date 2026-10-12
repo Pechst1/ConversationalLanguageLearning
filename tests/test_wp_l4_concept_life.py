@@ -459,7 +459,7 @@ def test_a_build_names_the_sentence_or_is_not_posed() -> None:
     )
     assert scene is not None and scene.goal_native == 'Build: "He is at the café."'
     transform = grammar_items.transform_item(untranslated, language="en")
-    assert transform.goal_native.startswith("Correct the sentence") and transform.source_fr == "Je es français."
+    assert transform.goal_native.startswith("One part breaks") and transform.source_fr == "Je es français."
 
 
 def test_a_strong_unit_is_asked_for_in_the_reply_not_drilled() -> None:

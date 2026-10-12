@@ -1020,19 +1020,19 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     },
     # -- app/services/item_bank.py: WP-S2 La Forge item-bank instructions -----
     "forge.word_bank": {
-        "en": "Build the sentence. One chip is not needed.",
+        "en": "Build it. One word is extra.",
         "de": "Bau den Satz. Ein Baustein wird nicht gebraucht.",
         "fr": "Construisez la phrase. Un mot est en trop.",
     },
     "forge.word_bank_all": {
-        "en": "Build the sentence with the chips.",
-        "de": "Bau den Satz mit den Bausteinen.",
-        "fr": "Construisez la phrase avec les mots.",
+        "en": "Build the sentence.",
+        "de": "Bau den Satz.",
+        "fr": "Construisez la phrase.",
     },
     "forge.transform": {
-        "en": "Correct the sentence: fix the part that breaks today's rule. Keep the rest.",
-        "de": "Korrigiere den Satz: Verbessere die Stelle, die gegen die Regel von heute verstößt. Der Rest bleibt.",
-        "fr": "Corrigez la phrase : réparez ce qui enfreint la règle du jour. Gardez le reste.",
+        "en": "Fix the one mistake.",
+        "de": "Korrigiere den einen Fehler.",
+        "fr": "Corrigez la faute.",
     },
     "forge.sentence": {
         "en": "Write the sentence in French.",
@@ -1040,12 +1040,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "fr": "Écrivez la phrase en français.",
     },
     "forge.speak": {
-        "en": "Say it aloud in French, then check the transcript.",
+        "en": "Say it in French.",
         "de": "Sag es laut auf Französisch und prüfe dann die Transkription.",
-        "fr": "Dites-le à voix haute en français, puis vérifiez la transcription.",
+        "fr": "Dites-le en français.",
     },
     "forge.conversation": {
-        "en": "Answer the message in French, with the rule of the day.",
+        "en": "Reply in French, with today's rule.",
         "de": "Beantworte die Nachricht auf Französisch, mit der Regel von heute.",
         "fr": "Répondez au message en français, avec la règle du jour.",
     },

@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 import { learnerGloss } from '@/lib/glosses';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { pickByLanguage } from '@/lib/language-rule';
 import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
 
 import MotsDuJour from '@/components/lexique/MotsDuJour';
@@ -655,26 +654,10 @@ export default function VocabularyReviewPage() {
   const completed = reviewedIds.size;
   const total = remainingItems.length + completed;
   const sessionRemaining = remainingItems.length;
-  const remainingSummary = useMemo(() => ({
-    due: remainingItems.filter((item) => item.bucket === 'due').length,
-    fragile: remainingItems.filter((item) => item.bucket === 'fragile').length,
-    new: remainingItems.filter((item) => item.bucket === 'new').length,
-  }), [remainingItems]);
   const progress = total ? Math.round((completed / total) * 100) : 0;
   const minutesLeft = sessionRemaining
     ? Math.max(1, Math.round((sessionRemaining * SECONDS_PER_CARD) / 60))
     : 0;
-  // The bucket split is one quiet sentence, and only when it actually says
-  // something the headline count does not.
-  const deckComposition = useMemo(() => {
-    const parts: string[] = [];
-    if (remainingSummary.due) parts.push(fill(t.count_due, { n: remainingSummary.due }));
-    if (remainingSummary.fragile) parts.push(plural(t, 'count_fragile', remainingSummary.fragile));
-    if (remainingSummary.new) parts.push(plural(t, 'count_new', remainingSummary.new));
-    if (parts.length < 2) return '';
-    const list = `${parts.slice(0, -1).join(', ')} ${t.and_word} ${parts[parts.length - 1]}`;
-    return fill(t.composition, { list });
-  }, [remainingSummary, t]);
 
   // WP-131: the day's allowance still holds new words after this deck. Offered
   // once the deck is done, never in «Encore 5 minutes» (review only), and at most
@@ -1097,16 +1080,8 @@ export default function VocabularyReviewPage() {
                   <p className="av2-label">{kicker}</p>
                   {direction && <span className="av2-label lx-review__direction">{direction}</span>}
                 </div>
-                {deckComposition && <p className="av2-body lx-review__composition">{deckComposition}</p>}
-                {current.recommendation_reason?.text && (
-                  <p className="av2-body lx-review__why">
-                    {pickByLanguage(
-                      current.recommendation_reason.text_by_language,
-                      language,
-                      current.recommendation_reason.text,
-                    )}
-                  </p>
-                )}
+                {/* Text diet: the card is the task. The deck's make-up and why
+                    this word was picked are not printed above it any more. */}
 
                 {/* The tap-to-flip card. It holds a field and two audio
                     controls in the production/audio modes, so it is a region

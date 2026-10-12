@@ -2182,12 +2182,12 @@ def near_miss_sentences(external_id: str | None, *, seed: str) -> tuple[str, lis
 RUNG_TYPES: tuple[str, ...] = ("fill", "classify", "pair", "word_bank", "transform", "production")
 
 _INSTRUCTIONS = {
-    "forge.word_bank": "Build the sentence. One chip is not needed.",
-    "forge.word_bank_all": "Build the sentence with the chips.",
-    "forge.transform": "Correct the sentence: fix the part that breaks today's rule. Keep the rest.",
+    "forge.word_bank": "Build it. One word is extra.",
+    "forge.word_bank_all": "Build the sentence.",
+    "forge.transform": "Fix the one mistake.",
     "forge.sentence": "Write the sentence in French.",
-    "forge.speak": "Say it aloud in French, then check the transcript.",
-    "forge.conversation": "Answer the message in French, with the rule of the day.",
+    "forge.speak": "Say it in French.",
+    "forge.conversation": "Reply in French, with today's rule.",
     "forge.scene": "Answer in French, with the rule of the day.",
 }
 
@@ -2205,7 +2205,7 @@ _CUES: dict[str, dict[str, str]] = {
         "fr": "Quelle phrase est correcte ?",
     },
     "transform_gloss": {
-        "en": 'Correct the sentence so that it means: "{meaning}"',
+        "en": 'Fix it to say: "{meaning}"',
         "de": "Korrigiere den Fehler im Satz.",
         "fr": "Corrigez l’erreur dans la phrase.",
     },
@@ -2215,49 +2215,37 @@ _CUES: dict[str, dict[str, str]] = {
         "fr": "{scene} Écrivez une courte phrase à vous en français, avec la règle du jour.",
     },
     "message": {
-        "en": (
-            '{scene} Write a short message in French (two or three sentences). '
-            'Include the idea "{meaning}" and add a reason or a detail of your own.'
-        ),
-        "de": (
-            "{scene} Schreib eine kurze Nachricht auf Französisch (zwei oder drei Sätze), "
-            "mit der Regel von heute, und füge einen Grund oder ein eigenes Detail hinzu."
-        ),
-        "fr": (
-            "{scene} Écrivez un court message en français (deux ou trois phrases), "
-            "avec la règle du jour, et ajoutez une raison ou un détail à vous."
-        ),
+        "en": '{scene} In two or three French sentences: "{meaning}", and why.',
+        "de": "{scene} Zwei, drei Sätze auf Französisch, mit der Regel von heute und einem Grund.",
+        "fr": "{scene} Deux ou trois phrases en français, avec la règle du jour et une raison.",
     },
 }
 
 #: FORGE-DE: the German cues when the item has a German meaning (``BankItem.de``).
 _CUES_DE_MEANING: dict[str, str] = {
     "pair": "Welcher Satz sagt: „{meaning}“?",
-    "transform_gloss": "Korrigiere den Satz, sodass er sagt: „{meaning}“",
+    "transform_gloss": "Korrigiere zu: „{meaning}“",
     "say": "{scene} Sag auf Französisch: „{meaning}“",
-    "message": (
-        "{scene} Schreib eine kurze Nachricht auf Französisch (zwei oder drei Sätze) mit der Idee "
-        "„{meaning}“ und füge einen Grund oder ein eigenes Detail hinzu."
-    ),
+    "message": "{scene} Zwei, drei Sätze auf Französisch: „{meaning}“, und warum.",
 }
 
 #: QA-FORGE: the bank's English instructions (``instruction_key``) in the other
 #: chrome languages, so no English instruction reaches a German learner.
 INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
     "forge.word_bank": {
-        "en": "Build the sentence. One chip is not needed.",
-        "de": "Bau den Satz. Ein Wort brauchst du nicht.",
+        "en": "Build it. One word is extra.",
+        "de": "Bau den Satz. Ein Wort ist zu viel.",
         "fr": "Construisez la phrase. Un mot est en trop.",
     },
     "forge.word_bank_all": {
-        "en": "Build the sentence with the chips.",
-        "de": "Bau den Satz aus den Wörtern.",
-        "fr": "Construisez la phrase avec les mots.",
+        "en": "Build the sentence.",
+        "de": "Bau den Satz.",
+        "fr": "Construisez la phrase.",
     },
     "forge.transform": {
-        "en": "Correct the sentence: fix the part that breaks today's rule. Keep the rest.",
-        "de": "Korrigiere den Fehler im Satz. Der Rest bleibt gleich.",
-        "fr": "Corrigez l’erreur dans la phrase. Le reste ne change pas.",
+        "en": "Fix the one mistake.",
+        "de": "Korrigiere den einen Fehler.",
+        "fr": "Corrigez la faute.",
     },
     "forge.sentence": {
         "en": "Write the sentence in French.",
@@ -2265,12 +2253,12 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
         "fr": "Écrivez la phrase en français.",
     },
     "forge.speak": {
-        "en": "Say it aloud in French, then check the transcript.",
-        "de": "Sag es laut auf Französisch und prüf dann die Abschrift.",
-        "fr": "Dites-le à voix haute en français, puis vérifiez la transcription.",
+        "en": "Say it in French.",
+        "de": "Sag es auf Französisch.",
+        "fr": "Dites-le en français.",
     },
     "forge.conversation": {
-        "en": "Answer the message in French, with the rule of the day.",
+        "en": "Reply in French, with today's rule.",
         "de": "Antworte auf Französisch, mit der Regel von heute.",
         "fr": "Répondez en français, avec la règle du jour.",
     },
@@ -2322,21 +2310,21 @@ _SCENES_L10N: dict[str, dict[str, str]] = {
 _GOALS: dict[str, dict[str, str]] = {
     "build": {
         "en": 'Build: "{meaning}"',
-        "de": "Bau den Satz aus den Wörtern.",
-        "fr": "Remettez les mots dans l’ordre pour construire la phrase.",
+        "de": "Bau den Satz.",
+        "fr": "Remettez les mots dans l’ordre.",
     },
     "fill": {
-        "en": 'Complete the sentence: "{meaning}"',
+        "en": 'Complete: "{meaning}"',
         "de": "Ergänze den Satz mit der richtigen Form.",
         "fr": "Complétez la phrase avec la forme qui convient.",
     },
     "repair": {
-        "en": 'Correct it so that it says: "{meaning}"',
+        "en": 'It should say: "{meaning}"',
         "de": "Korrigiere den Fehler im Satz.",
         "fr": "Corrigez l’erreur dans la phrase.",
     },
     "pick": {
-        "en": 'Pick the sentence that says: "{meaning}"',
+        "en": 'Which one says "{meaning}"?',
         "de": "Welcher Satz ist richtig?",
         "fr": "Quelle phrase est correcte ?",
     },
@@ -2351,7 +2339,7 @@ _GOALS: dict[str, dict[str, str]] = {
         "fr": "Répondez en français, avec la règle du jour.",
     },
     "message": {
-        "en": 'Write a short message in French with the idea "{meaning}"',
+        "en": 'A short message in French: "{meaning}"',
         "de": "Schreib eine kurze Nachricht auf Französisch, mit der Regel von heute.",
         "fr": "Écrivez un court message en français, avec la règle du jour.",
     },
@@ -2368,7 +2356,7 @@ _GOALS: dict[str, dict[str, str]] = {
 _GOALS_DE_MEANING: dict[str, str] = {
     "build": "Bau den Satz: „{meaning}“",
     "fill": "Ergänze den Satz: „{meaning}“",
-    "repair": "Korrigiere den Satz, sodass er sagt: „{meaning}“",
+    "repair": "Gemeint ist: „{meaning}“",
     "pick": "Welcher Satz sagt: „{meaning}“?",
     "say": "Sag auf Französisch: „{meaning}“",
     "reply": "Antworte auf Französisch: „{meaning}“",
@@ -2835,7 +2823,7 @@ def transform_item(item: BankItem) -> dict[str, Any] | None:
     instruction: dict[str, Any] = {"instruction": _INSTRUCTIONS["forge.transform"], "instruction_key": "forge.transform"}
     if item.gloss:
         instruction = {
-            "instruction": f'Correct the sentence so that it means: "{item.en}"',
+            "instruction": f'Fix it to say: "{item.en}"',
             "instruction_l10n": _cue_l10n("transform_gloss", item),
         }
     return _checked(
@@ -2943,10 +2931,7 @@ def produce_block(item: BankItem, model: BankItem, *, requirement: dict[str, Any
 
     return {
         "source_fragment": model.sentence,
-        "prompt": (
-            'Write a short message in French (two or three sentences). '
-            f'Include the idea "{item.en}" and add a reason or a detail of your own.'
-        ),
+        "prompt": f'In two or three French sentences: "{item.en}", and why.',
         "prompt_l10n": _cue_l10n("message", item),
         **_meaning_l10n(item),
         **_goal("message", item.en, item.de),

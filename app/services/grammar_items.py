@@ -87,13 +87,13 @@ _CHOOSE: dict[str, str] = {
     "fr": "Laquelle est juste ?",
 }
 _BUILD_BANK: dict[str, str] = {
-    "en": "Build the sentence. Some chips are not needed.",
-    "de": "Bau den Satz. Nicht jeder Baustein wird gebraucht.",
+    "en": "Build the sentence. Some words are extra.",
+    "de": "Bau den Satz. Manche Wörter sind zu viel.",
     "fr": "Construisez la phrase. Certains mots sont en trop.",
 }
 _BUILD_TILES: dict[str, str] = {
-    "en": "Put the words in the right order.",
-    "de": "Bring die Wörter in die richtige Reihenfolge.",
+    "en": "Put the words in order.",
+    "de": "Ordne die Wörter.",
     "fr": "Remettez les mots dans le bon ordre.",
 }
 _TRANSFORM: dict[str, str] = {
