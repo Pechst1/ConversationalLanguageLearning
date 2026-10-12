@@ -93,7 +93,29 @@ function join(parts: Array<string | null | undefined>): string {
     .join(' · ');
 }
 
-type DrillNames = Pick<JourneyCopy, 'drill_recall' | 'drill_rule' | 'drill_forge'>;
+type DrillNames = Pick<JourneyCopy, 'drill_recall' | 'drill_rule' | 'drill_forge'> &
+  Partial<Pick<JourneyCopy, 'drill_warmup'>>;
+
+/** The steps that are the day's story: once one has come, a recall reviews it. */
+const STORY_KINDS: readonly unknown[] = ['scene', 'read', 'respond', 'resolution'];
+
+/**
+ * Walk 2026-10-12 (#76): a recall before the day's first story step is not a
+ * review. On day 1 its words have never been shown («Wiederholung · vendre»
+ * right after sign-up); on later days it pre-teaches the scene's words. It is
+ * named for what it is: the words before the scene.
+ */
+export function isBeforeStory(
+  steps: ReadonlyArray<{ id?: unknown; kind?: unknown }> | null | undefined,
+  stepId: unknown,
+): boolean {
+  if (!steps || stepId == null) return false;
+  for (const step of steps) {
+    if (step.id === stepId) return true;
+    if (STORY_KINDS.includes(step.kind)) return false;
+  }
+  return false;
+}
 
 type AnswerCards = { options?: Array<{ text_fr?: unknown }> | null };
 
@@ -122,6 +144,7 @@ export function drillHeaderLabel(
   step: PublicStep | null | undefined,
   language: ControlLanguage,
   copy: DrillNames,
+  beforeStory = false,
 ): string | null {
   if (!step || !isDrillKind(step.kind)) return null;
   const french = language === 'fr';
@@ -133,9 +156,10 @@ export function drillHeaderLabel(
     // is its correction, so only a grammar unit's title is named — and not
     // even that when the item's own answer cards carry it.
     const target = step.prompt.target;
-    if (target?.kind !== 'grammar') return join([copy.drill_recall]);
+    const name = (beforeStory && copy.drill_warmup) || copy.drill_recall;
+    if (target?.kind !== 'grammar') return join([name]);
     const topic = pick(target.label_native, target.label_fr);
-    return join([copy.drill_recall, revealsAnswer(topic, step.prompt) ? null : topic]);
+    return join([name, revealsAnswer(topic, step.prompt) ? null : topic]);
   }
   if (step.kind === 'rule') {
     return join([copy.drill_rule, pick(step.prompt.title_native, step.prompt.title_fr)]);
@@ -157,9 +181,14 @@ export function stepHeaderLine(input: {
   copy: DrillNames;
   location?: string | null;
   objective?: string | null;
+  /** The day's steps in order, to tell a warm-up from a review (#76). */
+  steps?: ReadonlyArray<{ id?: unknown; kind?: unknown }> | null;
 }): string {
   const { step } = input;
-  if (step && isDrillKind(step.kind)) return drillHeaderLabel(step, input.language, input.copy) ?? '';
+  if (step && isDrillKind(step.kind)) {
+    const before = isBeforeStory(input.steps, (step as { id?: unknown }).id);
+    return drillHeaderLabel(step, input.language, input.copy, before) ?? '';
+  }
   if (step && (step.kind === 'read' || step.kind === 'desk')) return '';
   if (step && step.kind === 'respond') return clean(input.location);
   return join([input.location, input.objective]);

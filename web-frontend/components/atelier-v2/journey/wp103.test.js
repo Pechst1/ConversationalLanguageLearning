@@ -318,6 +318,19 @@ test('T3 · the header of a drill is «Rappel · Genre et nombre», in the chrom
   assert.equal(frame.drillHeaderLabel(forge, 'en', EN), 'La Forge · Past tense');
 });
 
+test('walk #76 · a recall before the day\'s first story step is «Vor der Szene», not «Wiederholung»', () => {
+  const step = recallStep();
+  const steps = [{ id: step.id, kind: 'recall' }, { id: 's', kind: 'scene' }, { id: 'r2', kind: 'recall' }];
+  assert.equal(frame.isBeforeStory(steps, step.id), true);
+  assert.equal(frame.isBeforeStory(steps, 'r2'), false, 'after the scene it reviews the scene');
+  assert.equal(frame.isBeforeStory(null, step.id), false);
+  assert.equal(frame.stepHeaderLine({ step, language: 'de', copy: DE, steps }), 'Vor der Szene · Gender and number');
+  assert.equal(frame.stepHeaderLine({ step, language: 'en', copy: EN, steps }), 'Before the scene · Gender and number');
+  assert.equal(frame.stepHeaderLine({ step, language: 'fr', copy: FR, steps }), 'Avant la scène · Genre et nombre');
+  const later = [{ id: 'read', kind: 'read' }, { id: step.id, kind: 'recall' }];
+  assert.equal(frame.stepHeaderLine({ step, language: 'de', copy: DE, steps: later }), 'Wiederholung · Gender and number');
+});
+
 test('WP-137 C-1 · no drill eyebrow names the answer or any option', () => {
   // «Wiederholung · verkaufen» above «vendre — Was bedeutet das?» (day-1 walk).
   const cards = [
@@ -374,7 +387,8 @@ test('T3 · the session prints the drill’s name, not the day’s objective, ab
   const recall = recallStep({ goal_native: 'Build: "A small table."' });
   const journey = journeyWith([recall, respondStep()], recall.id);
   const html = decode(renderToStaticMarkup(h(JourneySession, { controller: controllerFor(journey, recall) })));
-  assert.ok(html.includes('Recall · Gender and number'), 'the drill is named');
+  // Walk #76: first in the day, before any story step, it is the warm-up.
+  assert.ok(html.includes('Before the scene · Gender and number'), 'the drill is named');
   assert.ok(!html.includes('Ask Romy if she wants to sit with you.'), 'the objective is not above the drill');
   assert.ok(!html.includes('Le Mistral ·'), 'nor the place');
 
