@@ -25,8 +25,8 @@ else
   # WP-70: more than one worker, so a request stuck on a provider (or a crash)
   # never takes the whole API with it. --factory is compatible with --workers:
   # each worker process calls create_app() itself. Each worker is its own
-  # Python process (~150-250 MB resident with the app loaded), so on Render's
-  # 512 MB starter plan keep WEB_CONCURRENCY at 2; raise it with the plan.
+  # Python process (~450 MB resident once the spaCy pipeline is warmed), so on
+  # Render's 512 MB starter plan keep WEB_CONCURRENCY at 1; raise it with the plan.
   # Rate-limit counters live in Redis so every worker shares them.
   exec uvicorn app.main:create_app --factory --host 0.0.0.0 --port "${PORT:-8000}" \
     --workers "${WEB_CONCURRENCY:-2}" --timeout-keep-alive 75

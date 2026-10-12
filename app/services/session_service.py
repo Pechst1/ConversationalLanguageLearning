@@ -222,8 +222,11 @@ class SessionService:
         if nlp is None:
             try:
                 import spacy
+
+                from app.services.french_nlp import french_nlp
+
                 try:
-                    self.nlp = spacy.load(settings.FRENCH_NLP_MODEL)
+                    self.nlp = french_nlp()
                 except Exception:
                     self.nlp = spacy.blank("fr")
             except Exception:

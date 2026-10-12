@@ -65,7 +65,9 @@ class ErrorDetector:
             model_name = settings.FRENCH_NLP_MODEL
             try:
                 logger.debug("Loading spaCy model", model=model_name)
-                return spacy.load(model_name)  # type: ignore[arg-type]
+                from app.services.french_nlp import french_nlp
+
+                return french_nlp()
             except Exception:  # pragma: no cover - fallback path
                 logger.warning("Falling back to blank French spaCy model", model=model_name)
                 return spacy.blank("fr")

@@ -396,11 +396,9 @@ def default_resolver() -> LemmaResolver:
 @lru_cache(maxsize=1)
 def _load_default_resolver() -> LemmaResolver:
     try:
-        import spacy
+        from app.services.french_nlp import french_nlp
 
-        from app.config import settings
-
-        return SpacyResolver(nlp=spacy.load(settings.FRENCH_NLP_MODEL))
+        return SpacyResolver(nlp=french_nlp())
     except Exception:
         return CuratedResolver()
 
