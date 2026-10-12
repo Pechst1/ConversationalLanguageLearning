@@ -72,6 +72,7 @@ from app.services.journey_contracts import (
     normalize_control_language,
 )
 from app.services.met_gate import DOWNGRADED, met_gate
+from app.services.season import agency
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +132,8 @@ class VoiceReply(engine.StrictModel):
     understood_intent: str = Field(min_length=1, max_length=400)
     needs_clarification: bool
     feeling_shift: Literal["warmer", "colder", "steady"] = "steady"
+    #: N1 pilot: what the learner decided, on a day whose premise has a contract.
+    acts: list[agency.VoiceAct] = Field(default_factory=list, max_length=3)
 
 
 class StoryTurn(engine.StrictModel):
@@ -360,12 +363,17 @@ def voice_payload(payload: dict) -> dict:
         "who_is_who": lane_guards.who_is_who(scene, character),
         # WP-155: on a generated day, the reveals the season keeps for later.
         **({"never_reveal": [row.get("text") for row in must_not]} if (must_not := _season_must_not(payload)) else {}),
+        **({"agency": turn_agency} if (turn_agency := _season_agency(payload)) else {}),
         **_turn_tail(payload),
     }
 
 
 def _season_must_not(payload: dict) -> list[dict]:
     return list(((payload.get("story") or {}).get("season_turn") or {}).get("must_not") or [])
+
+
+def _season_agency(payload: dict) -> dict | None:
+    return ((payload.get("story") or {}).get("season_turn") or {}).get("agency")
 
 
 def story_payload(payload: dict, released: dict) -> dict:
@@ -650,7 +658,7 @@ def run_reply_lanes(payload: dict, *, deadline: float | None = None, lexical=Non
             window=LANE_REQUEST_TIMEOUT_SECONDS,
         ),
         "voice": lambda: _run_lane(
-            VOICE, voice_payload(payload), VoiceReply,
+            VOICE + (agency.VOICE_ADDENDUM if _season_agency(payload) else ""), voice_payload(payload), VoiceReply,
             lambda v: validate_voice(v, payload, lexical=lexical), deadline=deadline,
             collected=usage["voice"],
             max_tokens=VOICE_OUTPUT_TOKENS + LANE_REASONING_HEADROOM,
@@ -992,6 +1000,17 @@ def margin_correction(
     return None
 
 
+def _agency_details(payload: dict, voice: VoiceReply, learner_text: str) -> dict:
+    """N1 pilot: the acts the voice heard, checked against the contract before the reply
+    is released and stored with the turn; the day's settle commits them."""
+
+    contract = agency.contract_from_turn(_season_agency(payload))
+    if contract is None:
+        return {}
+    text = agency.agency_text(learner_text, payload.get("history"))
+    return agency.acts_for_details(contract, list(voice.acts), text=text)
+
+
 def evaluate_turn_lanes(
     db: Session,
     *,
@@ -1087,6 +1106,7 @@ def evaluate_turn_lanes(
                     "reply_seconds": lanes.seconds,
                     "met_gate": list(lanes.gated),
                     "usage": [],
+                    **_agency_details(payload, voice, answer.text),
                 },
             )
         )

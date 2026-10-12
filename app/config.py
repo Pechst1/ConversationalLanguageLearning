@@ -601,6 +601,15 @@ class Settings(BaseSettings):
             "its story either way."
         ),
     )
+    SEASON_AGENCY_PILOT: bool = Field(
+        False,
+        description=(
+            "N1 pilot (research brief 2026-10-12): on the generated days whose premise has a "
+            "contract in the season's agency.json (gap 1, «Romy enquête»), what the learner "
+            "decides is committed to the season state and later days call back to it. Off: "
+            "those days run exactly as before."
+        ),
+    )
     # WP-119 §9 — La Revue de Romy (docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md).
     REVUE_ENABLED: bool = Field(
         False,

@@ -382,6 +382,8 @@ class Storylet(BaseModel):
     repeatable: bool = False
     #: The always-finishable continuation for this gap.
     fallback: bool = False
+    #: What the director stages when this storylet is dealt (English, never a line).
+    instruction: str = ""
 
 
 def _knows(state: WorldState, character: str, fact: str) -> bool:
