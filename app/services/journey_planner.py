@@ -3766,6 +3766,14 @@ def _repeats_the_day(
     return False
 
 
+def _authored_page(scenario: ScenarioBrief) -> bool:
+    """Is today's scene an authored season page (a tentpole or its reprise)?"""
+
+    story = scenario.story_context if isinstance(scenario.story_context, dict) else {}
+    season = story.get("season")
+    return isinstance(season, dict) and season.get("kind") == "tentpole"
+
+
 def fill_practice_items(
     *,
     scenario: ScenarioBrief,
@@ -3797,7 +3805,15 @@ def fill_practice_items(
     pool = [entry.target for entry in entries if _glossed(entry.target) is not None]
     pool.extend(target for target in partners if _glossed(target) is not None)
     caps = caps or rhythm_caps(None)
-    order = practice_fill_order(caps, listening=shape is DayShape.LISTENING)
+    # STORY-FIRST 2026-10-12: an authored season page is read before anything is
+    # asked about it. Its words drilled as warm-ups came before the learner knew
+    # where they were or who was speaking («grand-mère», «vendre», «premier étage»
+    # on day one, out of nowhere) — so, like a listening day, nothing is posed
+    # before the scene.
+    story_first = shape is DayShape.LISTENING or _authored_page(scenario)
+    if story_first and caps.max_warmups:
+        caps = replace(caps, max_warmups=0)
+    order = practice_fill_order(caps, listening=story_first)
     rule = practice_day_shape_rule(shape, caps.budget_seconds)
     cap = min(caps.max_recall if max_items is None else max_items, rule.max_recall, caps.max_recall)
     max_uses = caps.uses_per_target
