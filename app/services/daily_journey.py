@@ -3434,8 +3434,10 @@ class DailyJourneyService:
             else:
                 candidates = self._select_candidates(user, fresh, result)
             # T-1 (content program 2026-10-03, D7): a tentpole page is served as
-            # written, so a tentpole day introduces no new unit (the quota offers
-            # it again tomorrow); its rule review is a unit the page uses.
+            # written; its rule review is a unit the page uses. GRAMMAR-DAY-ONE
+            # (#81, owner 2026-10-12): grammar starts on day 1, so a tentpole day
+            # may introduce a new unit too — only one the page itself uses, so the
+            # rule is the scene's own and is practised on its lines.
             story_units = tentpole_units(result.story_context)
             # WP-124a: a reprise re-reads a page but is an ordinary practice day. It
             # introduces the day's unit like any other day; skipping it would hand
@@ -3443,7 +3445,9 @@ class DailyJourneyService:
             # failure would then repeat every day (the 2026-10-04 A1 walk lost 28 days).
             introduction = (
                 None
-                if first_day or (is_tentpole(result.story_context) and not _is_reprise(result))
+                if first_day
+                else self._introduction_for_today(user, result, units=story_units)
+                if is_tentpole(result.story_context) and not _is_reprise(result)
                 else self._introduction_for_today(user, result)
             )
             forge = None if first_day else self._forge_for_today(user, introduction, story_units)
@@ -4326,7 +4330,9 @@ class DailyJourneyService:
             )
         return select(self.db, **kwargs)
 
-    def _introduction_for_today(self, user: User, scenario: ScenarioBrief) -> Any:
+    def _introduction_for_today(
+        self, user: User, scenario: ScenarioBrief, *, units: list[str] | None = None
+    ) -> Any:
         """WP-L4: today's new grammar unit (a unit brief), or None.
 
         The rhythm's weekly quota and the one new-concept picker decide
@@ -4347,6 +4353,7 @@ class DailyJourneyService:
                 user,
                 now=_utcnow(),
                 control_language=str(scenario.control_language),
+                units=units,
             ),
             default=None,
             log=logger,

@@ -7,7 +7,10 @@ first screens were warm-up drills of words from a scene not yet read. Pinned her
 
 1. the learner's first season day carries the premise, how to play and the faces of
    the first night, in the learner's language — and only that day does;
-2. on an authored season page nothing is drilled before the scene is read.
+2. on an authored season page nothing is drilled before the scene is read;
+3. GRAMMAR-DAY-ONE (#81): grammar starts on day one. The rule is one the page itself
+   uses (Gus's «C'est qui, vous ?» → «je suis / tu es»), taught and practised straight
+   after the ending, not shown before the learner knows where they are.
 """
 
 from __future__ import annotations
@@ -16,7 +19,12 @@ import uuid
 
 import pytest
 
+from app.config import settings
+from app.db.models.user import User
+from app.services import concept_life
 from app.services import journey_planner as planner
+from app.services.atelier import AtelierScheduler
+from app.services.grammar_catalog import FrenchCoreGrammarCatalog
 from app.services.journey_contracts import DayShape, StepKind
 from app.services.season.intro import is_first_season_day, season_intro
 from tests import test_journey_end_to_end as support
@@ -140,3 +148,63 @@ def test_the_first_day_is_the_story_then_la_forge_then_the_words(assembled_clien
     clock.advance(days=1)
     day_two_today = d.today()
     assert day_two_today["forge"]["folded"] is True, "from day 2 the rhythm folds La Forge again"
+
+
+@pytest.fixture
+def catalogue_v2(monkeypatch, db_session):
+    """The production catalogue (v2, FR2_* units), seeded; v1 is restored afterwards."""
+
+    monkeypatch.setattr(settings, "ATELIER_GRAMMAR_CATALOG_VERSION", "v2")
+    FrenchCoreGrammarCatalog(db_session, "v2").ensure_catalog()
+    db_session.commit()
+    yield
+    monkeypatch.setattr(settings, "ATELIER_GRAMMAR_CATALOG_VERSION", "v1")
+    FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
+
+
+@pytest.mark.parametrize("season_on", [False], ids=["one-actor"], indirect=True)
+def test_grammar_starts_on_day_one_with_a_rule_from_the_page(
+    assembled_client, db_session, journey_enabled, clock, season_on, catalogue_v2, monkeypatch  # noqa: F811
+):
+    monkeypatch.setattr(settings, "ATELIER_JOURNEY_PRACTICE_DAY_ENABLED", True)
+    provider = season_on
+    provider.routes = {"Odile, c'est ma grand-mère.": "a"}
+    d = support.Driver(
+        assembled_client, support.register(assembled_client, f"s1-gram-{uuid.uuid4()}@example.com", cefr="A1.1"), db=db_session
+    )
+    d.create()
+    steps = d.journey["steps"]
+    kinds = [step["kind"] for step in steps]
+    assert kinds[:3] == ["scene", "respond", "resolution"], kinds
+    rules = [step for step in steps if step["kind"] == "rule"]
+    assert len(rules) == 1, kinds
+    rule = rules[0]["prompt"]
+    assert not rule.get("review")
+    assert "être" in rule["title_fr"]
+    page_lines = [line for line in (rule["rule_card"].get("example") or {}).values() if isinstance(line, str)]
+    assert any("C'est" in line for line in page_lines), "the rule's example is a line of the page"
+    guided = [step for step in steps[kinds.index("rule") + 1 :] if step["kind"] == "recall"]
+    assert len(guided) >= 2 and all(
+        (step["prompt"].get("target") or {}).get("kind") == "grammar" for step in guided[:2]
+    ), "the rule is practised, not just shown"
+    reply_targets = steps[kinds.index("respond")]["prompt"]["targets"]
+    assert not [t for t in reply_targets if t.get("kind") == "grammar"], "the reply does not ask for a rule not yet taught"
+    d.play(answer="Odile, c'est ma grand-mère.")
+    assert d.finish("complete").status_code == 200
+
+
+def test_a_page_introduces_only_a_unit_it_uses(db_session, catalogue_v2):
+    user = User(
+        id=uuid.uuid4(), email=f"s1-units-{uuid.uuid4().hex}@example.com", hashed_password="x",
+        native_language="en", target_language="fr", proficiency_level="A1", cefr_estimate="A1.1",
+        daily_goal_minutes=10,
+    )
+    db_session.add(user)
+    db_session.commit()
+    upcoming = AtelierScheduler(db_session).next_new_concepts(user, limit=4, language="fr")
+    assert len(upcoming) >= 2
+    second = str(upcoming[1].external_id)
+    brief = concept_life.introduction_for_today(db_session, user, units=[second, "FR2_NOT_A_UNIT"])
+    assert brief is not None and brief["concept_id"] == upcoming[1].id
+    assert concept_life.introduction_for_today(db_session, user, units=[]) is None
+    assert concept_life.introduction_for_today(db_session, user, units=["FR2_NOT_A_UNIT"]) is None

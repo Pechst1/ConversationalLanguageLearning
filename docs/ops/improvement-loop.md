@@ -21,10 +21,15 @@ checks the fix.
 | | scripted walk | explore walk |
 |---|---|---|
 | what | `npm run walk`, 7 days × en/de/fr, fixed answers | `npm run explore`, an agent plays as a stranger and writes its own answers |
-| judges | does it work: no errors, a way forward, one verdict, no English on French screens | does it make sense: orientation, task sense, reaction to what was written, consistency |
+| judges | does it work: no errors, a way forward, one verdict, no English on French screens | does it make sense: the 22 questions of `docs/ops/walk-rubric.md`, scored 1–5 per day |
 | where | GitHub Actions, nightly 02:17 UTC and on demand | a Claude Code routine in a cloud session |
 | cost | free (fake provider) | agent time; model calls only in live mode |
 | procedure | `.github/workflows/walk.yml` | `.claude/skills/explore-walk/SKILL.md` |
+
+Both judging walks, the cloud explore walk and the app walk on the Mac simulator,
+score the same rubric, `docs/ops/walk-rubric.md`, so their numbers compare. Each report
+puts the scores beside the previous walk's, which makes every question a trend line:
+a fix should move its question up, and a drop flags a regression no assertion catches.
 
 A finding from the explore walk that can be checked mechanically becomes a new
 assertion in `e2e/lib/learner-walk.mjs`, so it can never come back unnoticed. That is
@@ -36,7 +41,8 @@ A Claude Code routine fires a fresh cloud session each night and runs:
 
 1. Pull `main`, read the last scripted walk's summary.
 2. Run the explore walk (`explore-walk` skill) for two personas, rotating the third.
-3. File or update `walk-finding` issues, ranked; write `docs/ops/walks/<date>.md`.
+3. File or update `walk-finding` issues, ranked; write `docs/ops/walks/<date>.md` with
+   the rubric scores and their trend.
 4. Re-test the issues whose fix merged; close the fixed ones with a screenshot.
 5. Take the top finding that is small and not in the story engine, fix it on a
    branch, add the assertion that would have caught it, run the fast checks and the
