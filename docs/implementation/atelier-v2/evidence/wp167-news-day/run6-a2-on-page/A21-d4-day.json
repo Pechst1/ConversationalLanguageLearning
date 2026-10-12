@@ -1,0 +1,233 @@
+{
+ "marker": {
+  "generated": true,
+  "news": null,
+  "skipped": "news_unused"
+ },
+ "pick": {
+  "mechanic_fr": "Un incendie dans le marché voisin entraîne une enquête municipale et l'imposition immédiate de contrôles de sécurité et d'interdictions de travaux pour tous les établissements du quartier, y compris Le Mistral et l'appartement d'Odile.",
+  "why": "A new fire and mandatory inspections would reopen questions about Odile’s fire and block any quick sale or renovation, forcing the cast to act now.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "La même chose ?",
+  "premise_fr": "Au Mistral, Margaux demande votre commande pour la troisième fois. Gus dit que votre commande dit qui vous êtes. Il faut choisir, et dire pourquoi vous êtes encore là.",
+  "setup_native": "At the café Le Mistral Margaux asks your order again and wants to know why you are still staying; the group teases you. Choose your usual order and explain why you remain.",
+  "objective_native": "Choose your usual order (one item) and say why you are still here, in one or two short sentences.",
+  "objective_semantics": "Two acts: name a café order (simple noun phrase) and give a brief reason for staying (because + consequence), using a short connective (parce que / car / donc). The answer shows who you are to the group and makes your usual order a habit.",
+  "character_id": "margaux_barman",
+  "location_id": "le_mistral",
+  "causal_reason": "Margaux has asked the same question twice before; Gus insists an order reveals identity, so the learner's answer will make their 'usual' order and explain their presence.",
+  "source_event_ids": [],
+  "novelty_key": "mistral_la_meme_chose_g1.2.v1",
+  "chapter": {
+   "title_fr": "Une commande qui dit quelque chose",
+   "dramatic_question": "Quelle commande deviendra la vôtre, et pourquoi restez-vous ici ?",
+   "possible_developments": [
+    "The learner's order becomes their 'usual order' and Gus announces them as habitué.",
+    "Someone remembers the learner differently, causing a small surprise.",
+    "A consequence: the learner's reason raises a practical question about the succession."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "establish_usual_order",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:2",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "Le Mistral, soirée pluvieuse. Gus commente pendant que Lila rit.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Règle numéro un : l'ordre révèle l'âme.",
+      "mood": "happy",
+      "text_native": "Rule number one: the order reveals the soul."
+     },
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Sept sur vingt si tu prends toujours la même chose.",
+      "mood": "neutral",
+      "text_native": "Seven out of twenty if you always take the same thing."
+     }
+    ],
+    "visual_direction": "Wide shot of the zinc counter: Margaux behind the bar, Gus in the booth making a show, Lila perched on a stool, Romy holding a small notebook. Rain on the window behind them.",
+    "alt_native": "Interior of the café with people at the zinc and rain outside."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "margaux_barman",
+      "text_fr": "La même chose ?",
+      "mood": "neutral",
+      "text_native": "The same as usual?"
+     },
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Oui, la même chose. On saura qui tu es.",
+      "mood": "happy",
+      "text_native": "Yes, the same. We'll know who you are."
+     }
+    ],
+    "visual_direction": "Medium close on Margaux as she wipes a glass and looks at the learner; Gus leans forward from the booth, theatrical. Romy listens, pen ready.",
+    "alt_native": "Margaux asks the learner 'La même chose ?' while Gus speaks from the booth."
+   },
+   {
+    "narration_fr": "Tout le monde attend votre réponse.",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Et pourquoi tu restes, toi ?",
+      "mood": "moved",
+      "text_native": "And why are you staying?"
+     },
+     {
+      "character_id": "romy_tremblay",
+      "text_fr": "C'est pour l'héritage ?",
+      "mood": "neutral",
+      "text_native": "Is it for the inheritance?"
+     }
+    ],
+    "visual_direction": "Close-up on Lila smiling, then looking curious; Romy tilts her head toward the learner as if offering the microphone of attention to them.",
+    "alt_native": "Lila asks why the learner stays; Romy asks if it's because of the inheritance."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [],
+    "visual_direction": "Panel with no dialogue: a hand close-up of Margaux sliding a saucer across the zinc; the rain streaks the window behind it.",
+    "alt_native": "Margaux slides a saucer across the bar; rain on the window."
+   }
+  ],
+  "opening_line_fr": "La même chose ?",
+  "suggested_response_fr": "Je prends un café-crème, parce que je reste pour régler la succession d'Odile.",
+  "hint_native": "Say one café order (e.g. 'un café-crème') and then give a short reason: 'parce que...' Mention you are staying to handle the succession or papers.",
+  "translation_native": "The same as usual? / I will have a café-crème, because I am staying to sort out Odile's succession.",
+  "capability_key": "explain_delay",
+  "lexicon": [
+   {
+    "surface_fr": "commande",
+    "lemma": "commande",
+    "gloss_native": "order (at a café or shop)",
+    "part_of_speech": "noun",
+    "gender": "f",
+    "line_ref": "premise",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_A21_EXPLAIN_WHY",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "la_meme_chose",
+   "threads": [
+    "s1:2"
+   ],
+   "change_before": "Le Mistral ne connaît pas encore votre commande habituelle.",
+   "change_after": "Votre commande devient votre 'habitude' reconnue au café.",
+   "turn_want": "Choose your order and say why you remain in Paris.",
+   "small_moment_id": "la_meme_chose",
+   "hook_fr": "À suivre… Gus a quelque chose à annoncer.",
+   "forbidden_respected": true,
+   "complication": "Tomorrow, someone will mention Solvel's letter left in the stairwell, making the question of why you stay suddenly more urgent."
+  },
+  "time_of_day": "evening",
+  "weather": "rain",
+  "news_day_notes": null
+ },
+ "refusals": [
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "La commande dit qui tu es",
+    "dramatic_question": "Une commande peut-elle faire de vous un habitué ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Choose your order (one short sentence) and give a brief reason why you are still here (second short sentence).",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "L'ordre habituel",
+    "dramatic_question": "Quelle commande allez-vous garder comme vôtre, et cela montre-t-il que vous restez ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Choose your usual order in French (one item) and say briefly why you are still here (one short reason).",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "news_day_notes_missing",
+   "hint": "Today is a news day: fill news_day_notes (mechanic_fr, plate_brief): the headline's mechanic as it plays out today, and the people-free plate brief.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Une commande qui dit quelque chose",
+    "dramatic_question": "Quelle commande deviendra la vôtre, et pourquoi restez-vous ici ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "romy_tremblay"
+    ],
+    "objective_native": "Choose your usual order (one item) and say why you are still here, in one or two short sentences.",
+    "objective_words": 19,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  }
+ ]
+}

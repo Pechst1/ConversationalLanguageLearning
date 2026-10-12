@@ -1,0 +1,265 @@
+{
+ "marker": {
+  "generated": true,
+  "news": null,
+  "skipped": "news_unused"
+ },
+ "pick": {
+  "mechanic_fr": "Une grande mobilisation lycéenne contre la suppression de Parcoursup débouche sur des blocages et manifestations qui convergent vers le 10e, empêchant l'accès au Mistral et forçant sa fermeture temporaire.",
+  "why": "Student protests block the neighborhood and directly disrupt Le Mistral and the inheritance timeline.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "La coupure qu'on peut déplacer ?",
+  "premise_fr": "Après une omelette brûlée, Lila découvre une affiche : il n'y aura pas d'eau demain matin. Elle veut peindre à sept heures. Elle demande au lecteur d'aller parler à M. Marchand dans le palier.",
+  "setup_native": "After the burnt omelette, Lila sees a notice: no water tomorrow morning. She asks you to ask Mr Marchand, politely (vous), to move the cut by an hour.",
+  "objective_native": "Ask Mr Marchand, politely (using vous), to move the water cut by one hour.",
+  "objective_semantics": "The learner must make a polite request to the landlord (vous form) asking him to change the scheduled water cut so the group's morning plans (Lila painting, Marin cooking) remain possible. This is a single communicative act: a polite, direct request with a reason.",
+  "character_id": "landlord_marchand",
+  "location_id": "odile_flat",
+  "causal_reason": "The burnt omelette and the smoke alarm made everyone scatter; Lila found the notice about the water cut and needs time tomorrow to paint.",
+  "source_event_ids": [],
+  "novelty_key": "diner-rate-coupure-setup-001",
+  "chapter": {
+   "title_fr": "Déplacer la coupure ?",
+   "dramatic_question": "Pouvez-vous parler à M. Marchand pour décaler la coupure d'eau, et gagner la matinée de Lila ?",
+   "possible_developments": [
+    "M. Marchand accepte de décaler la coupure d'une heure — nouvelle habitude.",
+    "Il refuse et la coupure reste — Lila et Marin doivent changer leurs plans.",
+    "Il propose une autre solution (une bouteille d'eau ou un plombier) et parle enfin au lecteur comme voisin."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "coupure_d_eau",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:2",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "La cuisine sent la fumée. L'omelette a brûlé.",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Oh non, l'omelette !",
+      "mood": "neutral",
+      "text_native": "Oh no, the omelette!"
+     },
+     {
+      "character_id": "marin_leveque",
+      "text_fr": "C'est le meilleur dîner raté.",
+      "mood": "happy",
+      "text_native": "This is the best failed dinner."
+     }
+    ],
+    "visual_direction": "Wide shot of Odile's small kitchen. The ceiling has a grey smear from the burnt omelette smoke. Lila and Marin stand by the stove; a pan black with smoke sits on the table.",
+    "alt_native": "Kitchen with two people and a burnt pan; smoke in the room."
+   },
+   {
+    "narration_fr": "Sur la table, une affiche attire l'attention.",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Regarde : coupure d'eau demain matin.",
+      "mood": "cross",
+      "text_native": "Look: water cut tomorrow morning."
+     }
+    ],
+    "visual_direction": "Medium shot on the table where a printed notice lies face up. Lila's hand points to it; the learner is partly in frame, holding a towel.",
+    "alt_native": "A notice on the table saying there will be no water tomorrow morning; a hand points to it."
+   },
+   {
+    "narration_fr": "Lila voulait peindre à sept heures. Marin voulait cuisiner.",
+    "dialogue": [
+     {
+      "character_id": "marin_leveque",
+      "text_fr": "Sans eau, je ne peux pas finir la soupe.",
+      "mood": "neutral",
+      "text_native": "Without water, I can't finish the soup."
+     },
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Tu peux parler à M. Marchand ?",
+      "mood": "moved",
+      "text_native": "Can you speak to Mr Marchand?"
+     }
+    ],
+    "visual_direction": "Close-up on Marin and Lila. Marin sighs and gestures to the kettle; Lila looks worried about her paints.",
+    "alt_native": "Two people worry about plans: one holds a kettle, the other touches a paintbrush."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "landlord_marchand",
+      "text_fr": "Ah, c'est vous. Vous voulez que je décale la coupure d'eau d'une heure ?",
+      "mood": "neutral",
+      "text_native": "Ah, it's you. Do you want me to delay the water cut by one hour?"
+     }
+    ],
+    "visual_direction": "Medium shot through the open flat door onto the landing. M. Marchand is half in his doorway, door half closed behind him, a stack of bills in his hand. He looks surprised to see you on the landing.",
+    "alt_native": "A landlord stands in his doorway on the landing, holding papers, talking to the person in the flat."
+   }
+  ],
+  "opening_line_fr": "Ah, c'est vous. Vous voulez que je décale la coupure d'eau d'une heure ?",
+  "suggested_response_fr": "Monsieur Marchand, pouvez-vous décaler la coupure d'eau d'une heure, s'il vous plaît ?",
+  "hint_native": "Use the formal vous and say please. Give a short reason: Lila needs to paint and Marin needs to cook.",
+  "translation_native": "Ah, it's you. Do you want me to delay the water cut by one hour?",
+  "capability_key": "arrange_meeting",
+  "lexicon": [
+   {
+    "surface_fr": "coupure d'eau",
+    "lemma": "coupure d'eau",
+    "gloss_native": "water cut; scheduled stoppage of water",
+    "part_of_speech": "noun",
+    "gender": "f",
+    "line_ref": "panel:1:line:0",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "peindre",
+    "lemma": "peindre",
+    "gloss_native": "to paint",
+    "part_of_speech": "verb",
+    "gender": null,
+    "line_ref": "premise",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_A22_PASS_MESSAGE",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "le_diner_rate",
+   "threads": [
+    "s1:2"
+   ],
+   "change_before": "Tomorrow morning there will be a scheduled water cut in the building.",
+   "change_after": "The learner will try to have the cut moved by one hour or leave it as is (decision pending).",
+   "turn_want": "",
+   "small_moment_id": "tasse_de_lila",
+   "hook_fr": "À suivre… Marchand ferme la porte, mais il n'a pas répondu.",
+   "forbidden_respected": true,
+   "complication": "If Marchand refuses, Lila must change her painting schedule and Marin must cook without water."
+  },
+  "time_of_day": "evening",
+  "weather": "rain",
+  "news_day_notes": null
+ },
+ "refusals": [
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "news_day_notes_missing",
+   "hint": "Today is a news day: fill news_day_notes (mechanic_fr, plate_brief): the headline's mechanic as it plays out today, and the people-free plate brief.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Déplacer la coupure ?",
+    "dramatic_question": "Pouvez-vous parler à M. Marchand pour décaler la coupure d'eau, et gagner la matinée de Lila ?",
+    "open_question": null,
+    "character_id": "landlord_marchand",
+    "speakers": [
+     "landlord_marchand",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Ask Mr Marchand, politely (using vous), to move the water cut by one hour.",
+    "objective_words": 14,
+    "panels": 4,
+    "premise_id": "le_diner_rate"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "news_day_notes_missing",
+   "hint": "Today is a news day: fill news_day_notes (mechanic_fr, plate_brief): the headline's mechanic as it plays out today, and the people-free plate brief.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "La phrase qui sauve",
+    "dramatic_question": "Quel mot transforme ce dîner raté en un souvenir chaleureux ?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Say one short sentence in French that will save the evening: show tenderness or complicity toward Lila or the group.",
+    "objective_words": 20,
+    "panels": 5,
+    "premise_id": "le_diner_rate"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Une phrase qui sauve",
+    "dramatic_question": "Pouvez-vous dire une phrase qui transforme un faux pas en rire ou en tendresse ?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Say one sentence in French that comforts Lila or makes the evening light again (one short sentence).",
+    "objective_words": 17,
+    "panels": 4,
+    "premise_id": "le_diner_rate"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 2,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Une phrase qui sauve",
+    "dramatic_question": "Une petite phrase peut-elle sauver cette soirée et créer une blague partagée ?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Give Lila one sentence (in French): say something tender or a joking excuse that turns the moment into a private joke.",
+    "objective_words": 21,
+    "panels": 4,
+    "premise_id": "le_diner_rate"
+   }
+  }
+ ]
+}

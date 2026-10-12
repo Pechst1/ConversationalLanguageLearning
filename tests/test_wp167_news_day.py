@@ -80,8 +80,12 @@ def test_a_page_that_never_used_the_news_is_not_credited():
     without = SimpleNamespace(location_id="le_mistral", news_day_notes=None)
     news_day.mark_brief(brief, {}, without, {"headline": headline, "pick": {}})
     assert brief.story_context[news_day.BRIEF_KEY] == {"generated": True, "news": None, "skipped": "news_unused"}
-    notes = news_day.NewsDayNotes(mechanic_fr="La grève vide le quai.", plate_brief="the zinc, a radio, rain")
-    news_day.mark_brief(brief, {}, SimpleNamespace(location_id="le_mistral", news_day_notes=notes), {"headline": headline, "pick": {}})
+    line = "La radio annonce une grève : le métro presque à l'arrêt."
+    notes = news_day.NewsDayNotes(mechanic_fr="La grève vide le quai.", plate_brief="the zinc, a radio, rain", news_line_fr=line)
+    page = SimpleNamespace(
+        location_id="le_mistral", news_day_notes=notes, opening_line_fr="", panels=[SimpleNamespace(narration_fr=line, dialogue=[])]
+    )
+    news_day.mark_brief(brief, {}, page, {"headline": headline, "pick": {}})
     assert brief.story_context[news_day.BRIEF_KEY]["news"]["plate"]["brief"] == "the zinc, a radio, rain"
 
 
@@ -222,9 +226,13 @@ def news_on(monkeypatch, season_on):
         if context.get(news_day.CONTEXT_KEY):
             if record.refuse_news:
                 raise engine.StoryUnavailable("news_refused_for_test")
+            news_line = f"La radio annonce : {context[news_day.CONTEXT_KEY]['headline']['title_fr']}."
+            panel = value["panels"][0]
+            panel["narration_fr"] = f"{panel.get('narration_fr') or ''} {news_line}".strip()
             value["news_day_notes"] = {
                 "mechanic_fr": "La grève vide le quai : personne ne vient au Mistral.",
                 "entry_fr": "La radio du zinc l'annonce.",
+                "news_line_fr": news_line,
                 "plate_brief": "Le Mistral's zinc at dusk, a radio on the shelf, empty stools, a strike notice, rain outside",
             }
             value["season_checklist"]["premise_id"] = "news"
@@ -371,3 +379,42 @@ def test_a_small_learner_gets_the_small_news_task_and_the_news_outranks_the_spar
     big = nd.director_prompt(base, {"level": "C1", nd.CONTEXT_KEY: {"headline": {}}})
     assert nd.NEWS_OVER_SPARK in small and nd.NEWS_OVER_SPARK in big
     assert nd.NEWS_DAY_SMALL in small and nd.NEWS_DAY_SMALL not in big
+
+
+def _page(line_fr: str, *texts: str):
+    from types import SimpleNamespace
+
+    panels = [SimpleNamespace(narration_fr=text, dialogue=[]) for text in texts]
+    return SimpleNamespace(
+        opening_line_fr="La même chose ?",
+        panels=panels,
+        news_day_notes=SimpleNamespace(mechanic_fr="m", plate_brief="b", news_line_fr=line_fr),
+    )
+
+
+FIRE = {"headline": {"title_fr": "Le marché des Enfants-Rouges ravagé par un incendie", "summary_fr": ""}}
+
+
+def test_the_news_must_be_said_on_the_page_not_only_in_the_notes():
+    from app.services import news_day as nd
+
+    # The 12 October A2 read: notes said «a newspaper on a chair», the page had no news.
+    silent = _page("Un journal plié sur une chaise.", "Le Mistral, soir pluvieux.", "La même chose ?")
+    assert nd.news_on_page(silent, FIRE) == "news_line_fr is not on the page"
+    assert "ON THE PAGE" in nd.notes_gap(silent, FIRE)
+    told = _page("Gus lit : un incendie au marché des Enfants-Rouges !", "Gus lit : un incendie au marché des Enfants-Rouges !")
+    assert nd.news_on_page(told, FIRE) is None and nd.notes_gap(told, FIRE) is None
+    vague = _page("Gus lit le journal du soir.", "Gus lit le journal du soir.")
+    assert nd.news_on_page(vague, FIRE) == "news_line_fr does not name the news"
+    # The stored shape (mark_brief) reads the same way.
+    stored = {"headline": {"title": FIRE["headline"]["title_fr"]}}
+    assert nd.news_on_page(told, stored) is None
+
+
+def test_the_retry_hands_the_ready_sentence_back():
+    from app.services import news_day as nd
+
+    silent = _page("Un journal plié sur une chaise.", "Le Mistral, soir pluvieux.")
+    block = {**FIRE, "say_it_fr": "Le marché des Enfants-Rouges a brûlé ce matin."}
+    assert "«Le marché des Enfants-Rouges a brûlé ce matin.»" in nd.notes_gap(silent, block)
+    assert nd.NewsPick.model_validate({"choice": 1, "say_it_fr": "Le marché a brûlé."}).say_it_fr == "Le marché a brûlé."

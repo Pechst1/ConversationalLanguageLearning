@@ -1,0 +1,31 @@
+{
+ "days": [
+  {
+   "band": "A2.1",
+   "day": 4,
+   "title": "La même chose ?",
+   "news": false,
+   "skipped": "news_unused"
+  },
+  {
+   "band": "A2.1",
+   "day": 6,
+   "title": "Une voix et une caméra",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-le_mistral-2026-10-12-story_fa8f895aabfe4ee6a453d3d92b56ca2a-cf0f731e192ea13d.webp"
+  },
+  {
+   "band": "A2.2",
+   "day": 12,
+   "title": "La coupure qu'on peut déplacer ?",
+   "news": false,
+   "skipped": "news_unused"
+  }
+ ],
+ "text_usd": 0.1168,
+ "calls": 14,
+ "plates": 1,
+ "plate_usd_estimated": 0.06,
+ "total_usd": 0.1768
+}

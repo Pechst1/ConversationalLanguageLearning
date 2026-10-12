@@ -155,7 +155,7 @@ def test_wp167_live_news_days(assembled_client, db_session, journey_enabled, clo
         marker = result.story_context.get(news_day.BRIEF_KEY) or {}
         draft = result.story_context.get("draft") or {}
         pick = picks[-1] if len(picks) > before else {}
-        tag = band.replace(".", "")
+        tag = band.replace(".", "") + f"-d{int(day)}"
         (out / f"{tag}-day.json").write_text(
             json.dumps({"marker": marker, "pick": pick, "draft": draft, "refusals": refusals}, ensure_ascii=False, indent=1),
             encoding="utf-8",

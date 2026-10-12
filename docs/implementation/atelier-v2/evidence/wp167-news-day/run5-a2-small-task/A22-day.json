@@ -1,0 +1,186 @@
+{
+ "marker": {
+  "generated": true,
+  "news": {
+   "id": "e9a2f014b8434670",
+   "keys": [
+    "e9a2f014b8434670",
+    "t:3d78f0e09d94bf5f"
+   ],
+   "title": "Le marché des Enfants-Rouges, à Paris, \"ravagé\" par un incendie",
+   "summary": "Un feu a \"ravagé\" le marché des Enfants-Rouges, situé au cœur de la capitale, a annoncé la mairie de Paris Centre tôt lundi matin. Il s'agit du plus vieux marché couvert de Paris",
+   "source": "France 24",
+   "source_id": "france24_france",
+   "url": "https://www.france24.com/fr/france/20261012-march%C3%A9-des-enfants-rouges-paris-ravag%C3%A9-par-incendie",
+   "published_at": "2026-10-12T06:06:15+00:00",
+   "published_on": "2026-10-12",
+   "credit_fr": "D'après l'actualité du 12 octobre : Le marché des Enfants-Rouges, à Paris, \"ravagé\" par un incendie (France 24)",
+   "mechanic_fr": "L'incendie du marché des Enfants-Rouges provoque des fermetures administratives; les brocantes voisines craignent des contrôles et un arrêt temporaire.",
+   "entry_fr": "Un panneau municipal dit que le marché est soumis à une fermeture administrative; les commerçants ont l'air pressés.",
+   "picked_by": "model",
+   "offered": 15,
+   "location_id": "brocante",
+   "plate": {
+    "key": "season:brocante:2026-10-12-story_56f0f637450f47a8a57738c47250d8bb",
+    "brief": "Location: brocante along the canal, Three concrete details: a municipal closure notice on a lamppost, a folding table with stacked crates, and an antique dealer's cash in a worn leather wallet, Light: midday, soft sunlight, Weather: dry, cool",
+    "name_fr": "La brocante · actualité du 12 octobre"
+   }
+  }
+ },
+ "pick": {
+  "mechanic_fr": "L'incendie du marché déclenche une fermeture administrative et une obligation urgente de mise aux normes pour tous les commerces et logements voisins, y compris Le Mistral et l'appartement d'Odile.",
+  "why": "A forced closure and safety inspections would immediately threaten the café's future and Odile's flat, pushing Marin's co‑op plan and Camille's inventory deadline into action.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "La lampe ou le brocanteur",
+  "premise_fr": "Au brocante du canal, Gus a traîné la lampe verte d'Odile. Le marchand la regarde, sourit, puis sort un billet. Lila est là, silencieuse, et regarde la lampe. Le panneau municipal annonce la fermeture administrative temporaire du marché après l'incendie; tout le monde se regarde.",
+  "setup_native": "Decide whether to sell Odile's green lamp at the market and tell Gus why.",
+  "objective_native": "Decide now: refuse or accept the dealer's offer, and give one reason in French.",
+  "objective_semantics": "One communicative act: state a decision (sell / not sell) and one short justification. The learner's reply changes what Gus does next: he will either put the lamp away or applaud the sale. This matters because Gus wants a symbol sold to fund the petition; Lila wants the lamp kept as memory.",
+  "character_id": "augustin_de_roncourt",
+  "location_id": "brocante",
+  "causal_reason": "Gus brought the lamp to prove its value; the dealer's offer forces a choice about memory versus money; the municipal notice about closures makes the market feel urgent.",
+  "source_event_ids": [],
+  "novelty_key": "brocante-lampe-closure",
+  "chapter": {
+   "title_fr": "Vendre ou garder ?",
+   "dramatic_question": "Vendez-vous le premier objet de l'appartement d'Odile, ou le gardez-vous comme mémoire ?",
+   "possible_developments": [
+    "Le lamp is kept and becomes a symbol at Le Mistral.",
+    "The lamp is sold; the money pays a practical cost and someone is upset."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "objet_initial:vente",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:2",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "Vous êtes au marché. Gus montre la lampe d'Odile au brocanteur.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Mesdames, messieurs, regardez cette beauté !",
+      "mood": "happy",
+      "text_native": "Ladies and gentlemen, look at this beauty!"
+     }
+    ],
+    "visual_direction": "Wide shot of the canal brocante stalls in day light; Gus stands center holding Odile's green lamp on a cloth; a dealer leans over a small table; Lila stands to the left, arms folded, watching silently.",
+    "alt_native": "Market scene: Gus holds a green lamp, dealer leans in, Lila watches."
+   },
+   {
+    "narration_fr": "Un commerçant offre de l'argent. Un panneau annonce la fermeture administrative du marché.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Le brocanteur dit qu'il donne quarante euros, maintenant.",
+      "mood": "neutral",
+      "text_native": "The antique dealer says he'll give forty euros now."
+     }
+    ],
+    "visual_direction": "Medium close on the dealer's hands counting notes; Gus smiles too wide; Lila glances away toward a municipal notice on a lamppost.",
+    "alt_native": "Dealer counts money; a municipal notice is visible on a post."
+   },
+   {
+    "narration_fr": "Gus vous tend la lampe comme si c'était à vous de décider.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Tu signes ici, ou tu gardes le souvenir ? Que décides-tu ?",
+      "mood": "moved",
+      "text_native": "You sign here, or you keep the memory? What do you decide?"
+     }
+    ],
+    "visual_direction": "Close-up on Gus holding the lamp at chest height, looking at you (the learner) as if asking permission; Lila is slightly behind him, fingers tight on her bag.",
+    "alt_native": "Gus offers the lamp to the learner; Lila watches anxiously."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [],
+    "visual_direction": "Panel without dialogue: Lila's face, close-up, a thin smile that is not a smile, the municipal notice half in frame; the dealer waits, hand on the notes.",
+    "alt_native": "Lila watches the learner; the dealer waits with money."
+   },
+   {
+    "narration_fr": "Le marché ferme peut-être bientôt. Ta réponse va décider du jour.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Dites-le moi, s'il vous plaît. J'ai besoin d'une raison, courte.",
+      "mood": "neutral",
+      "text_native": "Tell me, please. I need a short reason."
+     }
+    ],
+    "visual_direction": "Medium shot: Gus waiting politely, the dealer holding the notes near the lamp; the learner must speak; Lila's shoulders are tense.",
+    "alt_native": "Gus asks the learner for a short reason while the dealer waits."
+   }
+  ],
+  "opening_line_fr": "Dites-le moi, s'il vous plaît. J'ai besoin d'une raison, courte.",
+  "suggested_response_fr": "Non, je ne vends pas la lampe; elle reste avec nous comme souvenir d'Odile.",
+  "hint_native": "Say one sentence in French: refuse or accept, and add a short reason (memory, need for money, or urgency because of the market closure).",
+  "translation_native": "Decide whether to sell the lamp or not and give one brief reason in French; your answer changes what Gus does next.",
+  "capability_key": "arrange_meeting",
+  "lexicon": [
+   {
+    "surface_fr": "brocanteur",
+    "lemma": "brocanteur",
+    "gloss_native": "antique dealer at the market",
+    "part_of_speech": "noun",
+    "gender": "m",
+    "line_ref": "panel:1:line:0",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "lampe",
+    "lemma": "lampe",
+    "gloss_native": "lamp, small light",
+    "part_of_speech": "noun",
+    "gender": "f",
+    "line_ref": "premise",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "offre",
+    "lemma": "offre",
+    "gloss_native": "offer (a sum of money)",
+    "part_of_speech": "noun",
+    "gender": "f",
+    "line_ref": "panel:1:narration",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_A22_CHOOSE_OBJECT",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "le_brocanteur",
+   "threads": [
+    "s1:2"
+   ],
+   "change_before": "The lamp is at the market and unsold.",
+   "change_after": "Either the lamp is kept with the group, or it is sold and the money leaves the scene.",
+   "turn_want": "Decide and say why you sell or keep the lamp.",
+   "small_moment_id": "pas_encore",
+   "hook_fr": "À suivre… la lampe trouve-t-elle sa place au Mistral ?",
+   "forbidden_respected": true,
+   "complication": "If the lamp is unsold, the market closure may force another sale or move tomorrow."
+  },
+  "time_of_day": "day",
+  "weather": "dry",
+  "news_day_notes": {
+   "mechanic_fr": "L'incendie du marché des Enfants-Rouges provoque des fermetures administratives; les brocantes voisines craignent des contrôles et un arrêt temporaire.",
+   "entry_fr": "Un panneau municipal dit que le marché est soumis à une fermeture administrative; les commerçants ont l'air pressés.",
+   "plate_brief": "Location: brocante along the canal. Three concrete details: a municipal closure notice on a lamppost, a folding table with stacked crates, and an antique dealer's cash in a worn leather wallet. Light: midday, soft sunlight. Weather: dry, cool."
+  }
+ },
+ "refusals": []
+}

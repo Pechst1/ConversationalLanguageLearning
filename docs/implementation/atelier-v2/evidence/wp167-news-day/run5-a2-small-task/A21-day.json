@@ -1,0 +1,268 @@
+{
+ "marker": {
+  "generated": true,
+  "news": {
+   "id": "e9a2f014b8434670",
+   "keys": [
+    "e9a2f014b8434670",
+    "t:3d78f0e09d94bf5f"
+   ],
+   "title": "Le marché des Enfants-Rouges, à Paris, \"ravagé\" par un incendie",
+   "summary": "Un feu a \"ravagé\" le marché des Enfants-Rouges, situé au cœur de la capitale, a annoncé la mairie de Paris Centre tôt lundi matin. Il s'agit du plus vieux marché couvert de Paris",
+   "source": "France 24",
+   "source_id": "france24_france",
+   "url": "https://www.france24.com/fr/france/20261012-march%C3%A9-des-enfants-rouges-paris-ravag%C3%A9-par-incendie",
+   "published_at": "2026-10-12T06:06:15+00:00",
+   "published_on": "2026-10-12",
+   "credit_fr": "D'après l'actualité du 12 octobre : Le marché des Enfants-Rouges, à Paris, \"ravagé\" par un incendie (France 24)",
+   "mechanic_fr": "Un grand incendie dans un marché déclenche des inspections de sécurité partout. Les cafés doivent montrer leurs dossiers et certains pourraient fermer temporairement.",
+   "entry_fr": "Un journal plié sur une chaise montre la nouvelle; Gus le lit et fait une remarque sur la sécurité.",
+   "picked_by": "model",
+   "offered": 15,
+   "location_id": "le_mistral",
+   "plate": {
+    "key": "season:le_mistral:2026-10-12-story_c78dbc593652470eb82b9f492480a18a",
+    "brief": "a half-closed red umbrella on a chair, a metal ashtray on the counter, Light: yellow bar lights inside, wet reflections on the window, Weather: steady rain, evening",
+    "name_fr": "Le Mistral · actualité du 12 octobre"
+   }
+  }
+ },
+ "pick": {
+  "mechanic_fr": "Un incendie majeur provoque l'ouverture immédiate d'enquêtes et d'inspections obligatoires sur la sécurité des établissements similaires, entraînant fermetures temporaires, expertises et blocages administratifs.",
+  "why": "A market fire would trigger new safety inspections and closures that could directly delay the succession, revive the memory of Odile's café fire, and give Solvel or Marchand leverage over Le Mistral.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "La même chose ?",
+  "premise_fr": "Au Mistral, Margaux demande «La même chose ?» pour la troisième fois. Gus dit que l'ordre révèle qui tu es. Il est temps de choisir ton «habitué» et d'expliquer pourquoi tu restes.",
+  "setup_native": "At the café, Margaux asks your order again and wants you to pick a usual drink. Gus jokes that your choice says who you are; Lila teases. Choose your order and explain, briefly, why you are still in Paris.",
+  "objective_native": "Choose a usual order (one item) and say.",
+  "objective_semantics": "One A2 act + one A2 reason: the learner states a café order (e.g., «un café noir») and gives a short motivating reason (e.g., «parce que j'aide Margaux» or «car j'organise la succession»). The reply must be one sentence that contains an order and a short cause.",
+  "character_id": "margaux_barman",
+  "location_id": "le_mistral",
+  "causal_reason": "Margaux has asked the learner's order three times; the group treats a usual order as a sign of belonging. Establishing the usual order will make you an habitué and change how the group treats you.",
+  "source_event_ids": [],
+  "novelty_key": "mistral_usual_order_g1.4",
+  "chapter": {
+   "title_fr": "Un habitué ?",
+   "dramatic_question": "Quel sera ton ordre habituel, et est-ce qu'il te dira qui tu es ici ?",
+   "possible_developments": [
+    "Tu choisis un ordre et le groupe t'appelle habitué.",
+    "Tu refuses et Gus insiste en plaisantant.",
+    "Ton choix révèle pourquoi tu restes, et Margaux écoute.",
+    "La question du bail ou de la succession entre en jeu."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:2",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "Le Mistral, soir pluvieux. Le groupe débat déjà.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Règle numéro un : l'ordre dit tout.",
+      "mood": "happy",
+      "text_native": "Rule number one: the order says everything."
+     },
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Allez, choisis, toi tu fais ton mystère.",
+      "mood": "happy",
+      "text_native": "Come on, choose; you make yourself a mystery."
+     }
+    ],
+    "visual_direction": "Wide shot of the zinc counter. Gus (hands on napkin), Lila (leaning on counter), Marin (holding a bowl), Margaux behind the bar. Rain on the canal outside visible through the window. Medium shot.",
+    "alt_native": "Interior of the café with four people at the counter; rain outside."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "margaux_barman",
+      "text_fr": "La même chose ?",
+      "mood": "neutral",
+      "text_native": "The same as usual?"
+     }
+    ],
+    "visual_direction": "Medium close on Margaux at the bar, she holds a towel and looks at the learner. Gus is blurred in background, smiling theatrically. Close-up.",
+    "alt_native": "Margaux at the bar asks the learner a question."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "marin_leveque",
+      "text_fr": "Si tu prends la soupe, je t'apporte une louche.",
+      "mood": "happy",
+      "text_native": "If you take the soup, I'll bring you a ladle."
+     },
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Un café noir, c'est sobre ; un chocolat, c'est doux parmi nous.",
+      "mood": "happy",
+      "text_native": "A black coffee is sober; a hot chocolate is gentle among us."
+     }
+    ],
+    "visual_direction": "Two-shot: Gus and Marin whispering, Lila watching. Gus writes 'habitué' on a napkin. Marin stirs his soup. Medium shot.",
+    "alt_native": "Gus writes on a napkin while Marin speaks and stirs a bowl."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Tu restes ici, non ? Dis pourquoi, simplement.",
+      "mood": "happy",
+      "text_native": "You're staying here, yes? Say why, simply."
+     }
+    ],
+    "visual_direction": "Close-up on Lila, teasing, holding a small postcard. She steps forward a little, facing the learner. Close-up.",
+    "alt_native": "Lila leans forward and asks the learner to explain simply why they stay."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [],
+    "visual_direction": "Wide shot including the learner's empty stool at the counter (one panel without dialogue). Margaux watches, waiting. The group leans in expectantly.",
+    "alt_native": "The empty stool at the counter; the group watches and waits silently."
+   }
+  ],
+  "opening_line_fr": "La même chose ?",
+  "suggested_response_fr": "Un café noir, parce que j'aime être ici et aider avec la succession.",
+  "hint_native": "Say your usual order and give a short reason why you are staying (one sentence).",
+  "translation_native": "The same as usual?",
+  "capability_key": "order_at_cafe",
+  "lexicon": [
+   {
+    "surface_fr": "habitué",
+    "lemma": "habitué",
+    "gloss_native": "regular, someone who comes often",
+    "part_of_speech": "noun",
+    "gender": "m",
+    "line_ref": "premise",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_A21_EXPLAIN_WHY",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "la_meme_chose",
+   "threads": [
+    "s1:2"
+   ],
+   "change_before": "You have no usual order at the café.",
+   "change_after": "The learner will have a usual order known to the group; being called 'habitué' is possible.",
+   "turn_want": "Choose your usual order and explain briefly why you are staying in Paris.",
+   "small_moment_id": "la_meme_chose",
+   "hook_fr": "À suivre… qui te dira «habitué» ?",
+   "forbidden_respected": true,
+   "complication": ""
+  },
+  "time_of_day": "evening",
+  "weather": "rain",
+  "news_day_notes": {
+   "mechanic_fr": "Un grand incendie dans un marché déclenche des inspections de sécurité partout. Les cafés doivent montrer leurs dossiers et certains pourraient fermer temporairement.",
+   "entry_fr": "Un journal plié sur une chaise montre la nouvelle; Gus le lit et fait une remarque sur la sécurité.",
+   "plate_brief": "Three concrete objects: a wet newspaper with a headline visible, a half-closed red umbrella on a chair, a metal ashtray on the counter. Light: yellow bar lights inside, wet reflections on the window. Weather: steady rain, evening."
+  }
+ },
+ "refusals": [
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "news_day_notes_missing",
+   "hint": "Today is a news day: fill news_day_notes (mechanic_fr, plate_brief): the headline's mechanic as it plays out today, and the people-free plate brief.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "L'ordinaire qui vous définit",
+    "dramatic_question": "Quelle boisson deviendra votre marque au Mistral, et est-ce que rester vous plaît vraiment ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Choose your usual order at the café and explain briefly why you are still here, in French.",
+    "objective_words": 17,
+    "panels": 5,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "news_day_notes_missing",
+   "hint": "Today is a news day: fill news_day_notes (mechanic_fr, plate_brief): the headline's mechanic as it plays out today, and the people-free plate brief.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "Un ordre, une histoire",
+    "dramatic_question": "Quel est ton ordre, et pourquoi restes-tu ici ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Choose your drink at the bar and tell Margaux why you are still in Paris, briefly.",
+    "objective_words": 16,
+    "panels": 5,
+    "premise_id": "la_meme_chose"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "Quel est ton ordre ?",
+    "dramatic_question": "Quelle boisson deviendra votre «habitude» au Mistral, et cela dira-t-il pourquoi vous restez ?",
+    "open_question": null,
+    "character_id": "margaux_barman",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Choose your usual café order in French and say (briefly) why you are still in Paris.",
+    "objective_words": 16,
+    "panels": 4,
+    "premise_id": "la_meme_chose"
+   }
+  }
+ ]
+}
