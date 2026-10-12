@@ -50,6 +50,7 @@ from app.db.models.revue_place import RevuePlace
 from app.db.models.revue_relecture import RevueRelecture
 from app.db.models.revue_session import RevueSession
 from app.db.models.revue_vignette import RevuePictogram, RevueVignette
+from app.db.models.season_draft import StorySeasonDraft
 from app.db.models.scenario import UserScenarioState
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.session import (
@@ -69,6 +70,7 @@ from app.db.models.vocabulary import (
 )
 
 __all__ = [
+    "StorySeasonDraft",
     "RevueSession",
     "RevueRelecture",
     "RevueCorrection",

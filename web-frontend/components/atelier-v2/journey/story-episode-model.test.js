@@ -486,3 +486,39 @@ test('WP-110: the ending step closes the finished page on «À suivre…»', () 
   assert.deepEqual(stages.map((stage) => stage.kind), ['panel', 'panel', 'panel', 'resolution']);
   assert.equal(stages[3].aSuivre, 'Demain, Camille.');
 });
+
+// ---------------------------------------------------------------------------
+// WP-167 — a news day closes on its credit
+// ---------------------------------------------------------------------------
+
+test('WP-167: a news day closes on «D’après l’actualité du …», an ordinary day on nothing', () => {
+  const credit = "D'après l'actualité du 12 octobre : Grève à la RATP (Franceinfo)";
+  const news = { ...finished, news: { credit_fr: credit, title: 'Grève à la RATP', source: 'Franceinfo' } };
+  assert.equal(model.storyNewsCredit(news), credit);
+  assert.equal(model.buildStoryStages(news).at(-1).newsCredit, credit, 'the replay close carries it');
+  const finale = model.storyFinaleStage('res-1', { character_line_fr: 'Deux clés.' }, { id: 'margaux', name: 'Margaux' });
+  assert.equal(model.storyStagesWithFinale(news, finale).at(-1).newsCredit, credit, 'the day’s own close carries it');
+  assert.equal(model.storyNewsCredit(finished), '');
+  assert.equal(model.buildStoryStages(finished).at(-1).newsCredit, undefined);
+  assert.equal(model.storyStagesWithFinale({ ...finished, news: null }, finale).at(-1).newsCredit, undefined);
+});
+
+test('WP-168: an episode registers the written season\'s new faces for the stage', () => {
+  const { generatedRigId, generatedSpec } = require('../../cast/generated-cast.ts');
+  const stages = model.buildStoryStages({
+    ...episode,
+    panels: [{
+      id: 'p9', index: 0, narration_fr: 'Au port.',
+      dialogue: [{ character_id: 'awa_ndiaye', character_name: 'Awa Ndiaye', text_fr: 'Ton billet ?' }],
+      image_url: '/assets/serial/locations/le_mistral-counter.webp', image_status: 'setting_reference',
+      plate_url: '/assets/serial/locations/le_mistral-counter.webp',
+    }],
+    cast_rigs: [{ id: 'awa_ndiaye', name: 'Awa Ndiaye', rig: { hair: 'braids', skin: 'deeper' } }],
+  });
+  assert.equal(generatedRigId('awa_ndiaye'), 'awa_ndiaye');
+  assert.equal(generatedSpec('awa_ndiaye').rig.hair, 'braids');
+  const panel = stages.find((stage) => stage.kind === 'panel');
+  assert.deepEqual(panel.cast.map((member) => member.id), ['awa_ndiaye']);
+  // An episode without new faces registers nothing and still builds.
+  assert.ok(model.buildStoryStages({ ...episode, cast_rigs: null }).length > 0);
+});

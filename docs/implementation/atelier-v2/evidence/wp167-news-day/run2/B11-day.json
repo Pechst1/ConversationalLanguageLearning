@@ -1,0 +1,215 @@
+{
+ "marker": {
+  "generated": true,
+  "news": {
+   "id": "4bf5255688dc948d",
+   "keys": [
+    "4bf5255688dc948d",
+    "t:d1b15b209b2c9534"
+   ],
+   "title": "\"C'est un côté magique\": des aurores boréales visibles en France",
+   "summary": "Dans la nuit du samedi 10 au dimanche 11 octobre, en France, le ciel s’est paré de couleurs inhabituelles, un phénomène rare: des aurores boréales que l’on a pu observer dans le Loir-et-Cher, en Seine-Maritime ou encore",
+   "source": "Franceinfo",
+   "source_id": "franceinfo_france",
+   "url": "https://www.franceinfo.fr/replay-jt/france-2/13-heures/c-est-un-cote-magique-des-aurores-boreales-visibles-en-france_8232661.html#xtor=RSS-3-%5Bgeneral%5D",
+   "published_at": "2026-10-11T12:52:23+00:00",
+   "published_on": "2026-10-11",
+   "credit_fr": "D'après l'actualité du 11 octobre : \"C'est un côté magique\": des aurores boréales visibles en France (Franceinfo)",
+   "mechanic_fr": "Les aurores boréales attirent les voisins sur le toit, rendant publique la décision sur la photo.",
+   "entry_fr": "On voit le ciel vert par la fenêtre; des silhouettes montent sur le toit et chuchotent.",
+   "picked_by": "model",
+   "offered": 15,
+   "location_id": "odile_flat",
+   "plate": {
+    "key": "season:odile_flat:2026-10-11-story_346acce42b9d492eac2264fee1cc25b0",
+    "brief": "Location: Odile's kitchen with window to roof, Objects: a small framed Polaroid on the table, a damp towel on the sink, a birthday badge on Gus's sweater, Light and weather: pale green northern-light glow through the window, evening, clear sky",
+    "name_fr": "L'appartement d'Odile · actualité du 11 octobre"
+   }
+  }
+ },
+ "pick": {
+  "mechanic_fr": "Des aurores boréales visibles sur Paris attirent les habitués du Mistral (et les voisins de l’immeuble) sur le toit et dans la rue, forçant une réunion improvisée où des archives d’Odile, des photos et des décisions sur le café peuvent être dévoilées.",
+  "why": "A rare night-sky event brings the cast together on the roof and can surface Odile's Polaroids, pushing the debate about Le Mistral.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "Le cadeau de Gus",
+  "premise_fr": "La soirée commence mal: l'omelette brûle, la fumée alerte Margaux, et tout le monde se retrouve dans la cuisine d'Odile. Lila veut offrir le Polaroid de Gus pour son anniversaire à quinze heures; elle demande ton avis. Dehors, des aurores boréales inattendues teintent le ciel — le voisinage monte sur le toit et murmure, et ça attire du monde vers la décision sur la photo.",
+  "setup_native": "Lila asks you to decide with her whether to give Gus his Polaroid for his birthday and to explain why; the aurora draws neighbours to the roof, making the moment public.",
+  "objective_native": "Donner ton avis: dire si l'on donne la photo à Gus ou si on la garde, et expliquer pourquoi (position + raison en au moins deux phrases).",
+  "objective_semantics": "The learner must take a position about giving Gus his Polaroid and justify it with a reason that matters to the group's feelings or to Gus (two short sentences or one sentence with a cause). This is a B1 opinion+justification move that advances the gus_photo thread and creates a small public moment because of the aurora.",
+  "character_id": "lila_bonnet",
+  "location_id": "odile_flat",
+  "causal_reason": "Lila wants the learner's decision because Gus's reaction will change how the group treats the photo and how Gus behaves; the aurora turned the roof into an audience, so the choice feels public.",
+  "source_event_ids": [],
+  "novelty_key": "give_gus_photo_with_aurora",
+  "chapter": {
+   "title_fr": "Donner ou garder ?",
+   "dramatic_question": "Donne-t-on la photo à Gus pour son anniversaire, ou la garde-t-on ?",
+   "possible_developments": [
+    "Vous donnez la photo: Gus la reçoit en public et son costume ne craque pas.",
+    "Vous gardez la photo: Lila encadre la photo mais ne la montre pas; elle reste un secret entre vous.",
+    "Vous cachez la photo pour un autre moment: le groupe est soulagé, mais Gus s'en doute."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "s1.gus_photo_decision",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:1",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "La fumée est retombée. Dehors, le ciel brille bizarrement.",
+    "dialogue": [
+     {
+      "character_id": "marin_leveque",
+      "text_fr": "Regarde ! On dirait une aurore — viens voir sur le toit.",
+      "mood": "happy",
+      "text_native": null
+     },
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Une aurore ? Magnifique. Mais revenons à l'essentiel: il y a un cadeau à décider.",
+      "mood": "happy",
+      "text_native": null
+     }
+    ],
+    "visual_direction": "Wide shot of Odile's small kitchen. Lila is at the table with a small Polaroid in her hand; Marin stands by the sink holding a damp towel; Gus peeks in the doorway wearing a birthday badge. Outside the window, a pale green light glows in the sky.",
+    "alt_native": "Dans la cuisine d'Odile, Lila tient une petite photo; Marin et Gus regardent par la fenêtre vers un ciel vert."
+   },
+   {
+    "narration_fr": "Lila veut encadrer la photo et la donner tout de suite.",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "C'est son anniversaire. On la donne maintenant ou on la garde ? On fait quoi, toi ?",
+      "mood": "moved",
+      "text_native": null
+     }
+    ],
+    "visual_direction": "Medium close-up on Lila leaning forward, the Polaroid balanced between her fingers. Marin moves a chair closer; Gus listens at the doorway, smiling too loudly.",
+    "alt_native": "Lila montre la photo et demande l'avis du lecteur, Gus attendu à la porte."
+   },
+   {
+    "narration_fr": "Le toit se remplit; la décision devient publique sans que vous l'ayez prévue.",
+    "dialogue": [
+     {
+      "character_id": "margaux_barman",
+      "text_fr": "Aussitôt que ça devient du spectacle, choisis ce qui protège Gus.",
+      "mood": "cold",
+      "text_native": null
+     }
+    ],
+    "visual_direction": "Close-up on the Polaroid in Lila's hand; the picture shows Gus as a younger man laughing. In the window behind, silhouettes climb the stair to the roof to see the aurora.",
+    "alt_native": "La photo tient dans la main de Lila; on voit des gens monter sur le toit par la fenêtre."
+   },
+   {
+    "narration_fr": "Tu dois dire ton choix et pourquoi, maintenant, devant tout le monde.",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Je veux l'encadrer et la lui donner ici. Mais je ne peux pas sans toi.",
+      "mood": "neutral",
+      "text_native": null
+     }
+    ],
+    "visual_direction": "Two-shot: Lila looks at the learner (off-panel); Gus has come nearer, unaware of Lila's plan. Marin folds his hands, waiting.",
+    "alt_native": "Lila attend la réponse du lecteur; Gus s'est approché, Marin attend."
+   }
+  ],
+  "opening_line_fr": "Tu penses qu'on doit lui donner la photo maintenant, ou la garder ?",
+  "suggested_response_fr": "Donne-lui la photo maintenant, parce que cela le rendra heureux et ça célèbre sa place dans le groupe.",
+  "hint_native": "Say whether you give the Polaroid to Gus now or keep it, and explain your reason briefly (for example: it will make Gus happy; or: keep it to protect his privacy).",
+  "translation_native": "Lila asks whether you want to give Gus his Polaroid now or keep it; explain your choice and why it matters.",
+  "capability_key": "order_at_cafe",
+  "lexicon": [
+   {
+    "surface_fr": "aurore",
+    "lemma": "aurore",
+    "gloss_native": "northern lights / coloured sky phenomenon",
+    "part_of_speech": "nom",
+    "gender": "f",
+    "line_ref": "panel:0:line:0",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "encadrer",
+    "lemma": "encadrer",
+    "gloss_native": "to frame (a photo or picture)",
+    "part_of_speech": "verbe",
+    "gender": null,
+    "line_ref": "panel:1:narration",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "aussitôt",
+    "lemma": "aussitôt",
+    "gloss_native": "immediately",
+    "part_of_speech": "adverbe",
+    "gender": null,
+    "line_ref": "panel:2:line:0",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_B11_OPINION",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "pour_son_anniversaire",
+   "threads": [
+    "s1:1",
+    "s1:2"
+   ],
+   "change_before": "Avant: la photo est avec Lila.",
+   "change_after": "Après: la photo est soit donnée à Gus en public, soit conservée à l'abri selon ton choix.",
+   "turn_want": "Tu dois dire si on donne la photo maintenant et expliquer pourquoi.",
+   "small_moment_id": "mon_cher",
+   "hook_fr": "À suivre… Gus tient la photo et il sourit un peu trop fort.",
+   "forbidden_respected": true,
+   "complication": "Le fait que le toit soit rempli aujourd'hui transforme une décision privée en un geste public."
+  },
+  "news_day_notes": {
+   "mechanic_fr": "Les aurores boréales attirent les voisins sur le toit, rendant publique la décision sur la photo.",
+   "entry_fr": "On voit le ciel vert par la fenêtre; des silhouettes montent sur le toit et chuchotent.",
+   "plate_brief": "Location: Odile's kitchen with window to roof. Objects: a small framed Polaroid on the table, a damp towel on the sink, a birthday badge on Gus's sweater. Light and weather: pale green northern-light glow through the window; evening, clear sky."
+  }
+ },
+ "refusals": [
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_register_vous",
+   "hint": "Marin says «tu» to the learner in this season, but here says «vous»: «Ma grand-mère disait toujours «un projet, c'est comme une soupe»… pardon, je suis désolé, pardon, je». Rewrite Marin's lines with tu (tu, toi, ton, ta): from someone who knows the learner, a «vous» reads as a stranger's. Keep the narration's address the same as theirs.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "Peut-on suivre son idée ?",
+    "dramatic_question": "Le groupe peut-il construire le projet d'Odile sans trahir sa mémoire ?",
+    "open_question": null,
+    "character_id": "marin_leveque",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque"
+    ],
+    "objective_native": "Dites à Marin si, selon vous, il peut utiliser le plan d'Odile et expliquez pourquoi ou sous quelle condition (position + raison ou condition).",
+    "objective_words": 24,
+    "panels": 5,
+    "premise_id": "je_peux"
+   }
+  }
+ ]
+}

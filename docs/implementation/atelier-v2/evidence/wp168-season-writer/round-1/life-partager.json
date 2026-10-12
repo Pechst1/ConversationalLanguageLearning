@@ -1,0 +1,694 @@
+{
+  "ending": "partager",
+  "rolled": true,
+  "seconds": 59.3,
+  "material": [
+    {
+      "id": "p:lettres_grand_mere",
+      "kind": "plant",
+      "text_fr": "Dans le loft de Gus, une caisse de lettres de sa grand-mère, écrites d'une ville où il n'est jamais allé.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "b:mariage_camille",
+      "kind": "branch",
+      "text_fr": "Camille vous a demandé de l'accompagner à un mariage de famille, loin de Paris.",
+      "character_id": "camille_marchand"
+    },
+    {
+      "id": "c:interviews_romy",
+      "kind": "commitment",
+      "text_fr": "Traduire les interviews de Romy pour son nouveau contrat.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = partager",
+      "character_id": null
+    },
+    {
+      "id": "p:dessin_enfant",
+      "kind": "plant",
+      "text_fr": "À l'atelier, un enfant dessine toujours la même maison au bord de l'eau.",
+      "character_id": null
+    },
+    {
+      "id": "b:roman_marin",
+      "kind": "branch",
+      "text_fr": "Marin vous a confié son roman et vous a demandé où il devrait se passer.",
+      "character_id": "marin_leveque"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = coop",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.lila_path",
+      "kind": "flag",
+      "text_fr": "s1.lila_path = open",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "Le Mistral is a co-operative, «Le Mistral à nous»; Margaux is member number 1 and no longer runs it alone.",
+      "Odile's flat is the co-op's workshop (children's painting classes, the meeting room); the learner rents the little room under the roof.",
+      "Gus lost the café of his childhood as it was; he forgives the learner in his own way («Tu m'as coûté une banquette»).",
+      "Gus has the painting in his loft, face to the wall, and says he does not know where it is.",
+      "Romy's article «Le feu du Mistral» is public; it earned her a Paris contract.",
+      "M. Marchand bought one share of the co-op; he never comes, but he pays.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it.",
+      "Lila gave the copy of the key back, «tu me la redonnes quand je reviens»."
+    ],
+    "closed_locations": []
+  },
+  "draft": {
+    "title_fr": "Les lettres de la mer",
+    "logline": "A crate of letters found in Gus's loft names a port town he has never seen; the learner travels with Augustin to Saint‑Malo to follow Odile's past, accompanies Camille to a family wedding there, helps Marin choose a setting for his novel, and translates Romy's interviews — together they uncover a living trace behind a painting and decide what to carry back to Paris.",
+    "logline_fr": "Vous partez à Saint‑Malo pour suivre les lettres d'Odile et accompagner Camille au mariage.",
+    "your_arc": "You follow the letters you found in Gus's loft to learn who Odile really was, help Augustin meet the past he never saw, and decide whether a small piece of Odile's story belongs in your life back in Paris or must stay with the sea.",
+    "first_episode_seed": "In Gus's loft the learner opens a crate of letters that name 'Saint‑Malo' and a wedding date; Augustin refuses to go until the learner reads aloud a line about 'la mer de juillet' — at dawn they buy tickets.",
+    "arcs": [
+      {
+        "id": "letters_origin",
+        "title_fr": "Les lettres d'Augustin",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "aline_lemoine",
+          "yves_kermoal"
+        ],
+        "grounded_in": "p:lettres_grand_mere",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "The learner reads a letter in Gus's crate that names Saint‑Malo and a small detail only a neighbour would know, and Augustin, surprised, agrees to come with you.",
+            "sets": {
+              "augustin_de_roncourt.found_name_in_letter": true,
+              "user.reads_letter_aloud": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "At the mairie archives Aline finds a record that connects Odile to a local household and a shipowner's ledger; Augustin refuses an easy answer and the small town's reticence makes progress slow.",
+            "sets": {
+              "aline_lemoine.record_found": true,
+              "augustin_de_roncourt.resists_simple_story": true,
+              "user.pushes_on": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "At a harbour stall Yves remembers Odile and points the group to a friend who kept a photograph and a postcard tucked behind a painting — a living trace appears.",
+            "sets": {
+              "yves_kermoal.remembers_odile": true,
+              "user.finds_postcard": true,
+              "augustin_de_roncourt.sees_origin": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "camille_wedding",
+        "title_fr": "Le mariage de Camille",
+        "characters": [
+          "user",
+          "camille_marchand",
+          "sophie_legard",
+          "landlord_marchand"
+        ],
+        "grounded_in": "b:mariage_camille",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Camille asks the learner to come to the family wedding; the invitation is gentle but carries an expectation of support.",
+            "sets": {
+              "camille_marchand.asks_for_company": true,
+              "user.agrees_to_come": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "At family gatherings old questions surface about why M. Marchand bought a share in Le Mistral and whether city choices hurt people, and a quiet argument threatens the evening.",
+            "sets": {
+              "landlord_marchand.family_tension": true,
+              "sophie_legard.manages_confrontation": true,
+              "user.mediates": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "The learner helps Camille face a family memory, and Camille opens up about what 'home' means without changing the vous; the two find steadier footing.",
+            "sets": {
+              "camille_marchand.opens_up": true,
+              "user.supports_camille": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "marin_setting",
+        "title_fr": "Le roman de Marin",
+        "characters": [
+          "user",
+          "marin_leveque",
+          "yves_kermoal"
+        ],
+        "grounded_in": "b:roman_marin",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Marin brings his manuscript and asks the learner whether the story should be set on the coast they are now visiting.",
+            "sets": {
+              "marin_leveque.needs_place_for_novel": true,
+              "user.reads_manuscript": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "They search the town and debate realism versus myth; the learner finds the child's repeated drawing in Odile's workshop that suggests a true place the novel should honour.",
+            "sets": {
+              "user.finds_child_drawing": true,
+              "marin_leveque.questions_tone": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "Marin chooses a setting inspired by the drawing and the letters; the novel's place becomes a small tribute to Odile's life and the learner helps frame it.",
+            "sets": {
+              "marin_leveque.setting_chosen": true,
+              "user.helps_shape_story": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "romy_translation",
+        "title_fr": "Les interviews de Romy",
+        "characters": [
+          "user",
+          "romy_tremblay"
+        ],
+        "grounded_in": "c:interviews_romy",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "The learner translates Romy's interviews and finds references to small coastal cafés sold under opaque papers; Romy asks for careful reading.",
+            "sets": {
+              "user.translating_interviews": true,
+              "romy_tremblay.requests_precision": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "A local title document appears ambiguous and Romy worries the story will scapegoat a family; the learner must choose how to present the facts.",
+            "sets": {
+              "user.finds_ambiguous_document": true,
+              "romy_tremblay.hesitates": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "Romy publishes a careful dispatch that ties the interviews to the town's changes and to Odile's little story; the learner is credited with the translation.",
+            "sets": {
+              "romy_tremblay.publishes_followup": true,
+              "user.translation_credit": true
+            }
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "text": "Who was Odile, and what exactly did she leave in that town and in Paris?",
+        "text_fr": "Qui était Odile et pourquoi est‑elle partie ?",
+        "grounded_in": "thread:s1:0"
+      },
+      {
+        "text": "Is Lila happy in Berlin and will her letters home change what you decide about Paris?",
+        "text_fr": "Lila est‑elle heureuse à Berlin ?",
+        "grounded_in": "thread:s1:1"
+      },
+      {
+        "text": "Who is the person in the window on Rue de Lancry that stayed lit at night?",
+        "text_fr": "Qui est à la fenêtre rue de Lancry ?",
+        "grounded_in": "thread:s1.open_question"
+      }
+    ],
+    "setting": {
+      "city": "Saint‑Malo",
+      "region": "Brittany, France",
+      "neighborhood": "Intra‑Muros and the harbour quarter — compact cobbled streets, tide-swept walls, and small fisheries",
+      "genre": "road‑mystery with warm ensemble drama",
+      "tone": "salt air, quiet wonder, small tensions that resolve into tenderness",
+      "situation": "You travel with Augustin to the coastal town named in his grandmother's letters; Camille asked you to accompany them to a family wedding there, and you'll stay a month to research, translate Romy's interviews, and help Marin choose a novel setting.",
+      "situation_fr": "Vous partez avec Augustin à Saint‑Malo, et vous accompagnez Camille au mariage.",
+      "why": "A crate of letters in Gus's loft (p:lettres_grand_mere) repeatedly names a port town he has never been to; one letter alludes to a family event — that same town holds the wedding Camille asked you to attend (b:mariage_camille) so the material pulls the learner there.",
+      "grounded_in": "p:lettres_grand_mere",
+      "travelling_cast": [
+        "augustin_de_roncourt",
+        "camille_marchand",
+        "marin_leveque"
+      ],
+      "keep_locations": []
+    },
+    "places": [
+      {
+        "id": "quai_port",
+        "name_fr": "Le quai du port",
+        "kind": "harbour",
+        "description": "The working harbour where fishing boats tie up, people argue about tides, and clues about Odile's past appear; scenes of arrival and small discoveries happen here.",
+        "brief": "Stone quay, rows of moored small trawlers, nets and a single faded poster nailed to a crate; late afternoon light, low tide reflections on wet wood."
+      },
+      {
+        "id": "plage_intra_muros",
+        "name_fr": "La plage intra‑muros",
+        "kind": "beach",
+        "description": "A wind‑swept narrow beach between the old ramparts and the sea where characters talk in the cold sun and a postcard or fragment washes ashore.",
+        "brief": "Narrow sand strip, low stone wall of the ramparts, distant lighthouse on the horizon; pale morning light and sharp sea air."
+      },
+      {
+        "id": "mairie_archives",
+        "name_fr": "Les archives de la mairie",
+        "kind": "administration",
+        "description": "A small municipal archive room where dusty records, birth certificates and shipping logs are consulted; a place for quiet revelations and paperwork drama.",
+        "brief": "Wooden shelves of labelled boxes, a single small table with a green lamp, a barred window letting in a cold noon shaft of light."
+      },
+      {
+        "id": "cafe_du_phare",
+        "name_fr": "Le Café du Phare",
+        "kind": "cafe",
+        "description": "A low-ceilinged café by the wall where fishermen drink, the wedding afterparty spills in, and the learner meets people who remember Odile.",
+        "brief": "Worn wooden counter, a drying line of mugs, a small chalk menu above the stove, warm amber interior light in contrast to the grey sky outside."
+      },
+      {
+        "id": "maison_odile",
+        "name_fr": "La maison d'Odile",
+        "kind": "home",
+        "description": "A narrow, slightly sagging house on a side street — Odile's old home, full of small domestic traces, a painting with something taped behind it, and the child's drawing reference.",
+        "brief": "Peeling blue door, narrow staircase, a small back room with a framed painting on the wall, late afternoon light through a curtained window."
+      }
+    ],
+    "new_characters": [
+      {
+        "id": "aline_lemoine",
+        "name": "Aline Lemoine",
+        "gender": "f",
+        "role": "Archivist at the mairie; she helps with the records and resents journalists but respects careful readers.",
+        "personality": "Meticulous, slightly dry, quietly amused by outsiders who love names.",
+        "wants": "To protect the town's memory and to be believed when she reads a handwriting sample.",
+        "speech_pattern": "Polished, precise sentences; sometimes corrects dates aloud.",
+        "register_with_user": "vous",
+        "grounded_in": "p:lettres_grand_mere",
+        "rig": {
+          "build": "slim",
+          "height": "short",
+          "head": "oval",
+          "skin": "light",
+          "hair": "bob",
+          "hair_colour": "grey",
+          "facial_hair": "none",
+          "glasses": "round",
+          "top": "jacket",
+          "top_colour": "stone",
+          "bottom_colour": "navy",
+          "accessory": "scarf",
+          "accessory_colour": "ochre",
+          "idle": "nod"
+        }
+      },
+      {
+        "id": "yves_kermoal",
+        "name": "Yves Kermoal",
+        "gender": "m",
+        "role": "A retired fisherman who now runs a tiny harbour stall and remembers the town's café life; a living link to Odile's era.",
+        "personality": "Gravel-voiced, warm, stubbornly honest, quick with an anecdote.",
+        "wants": "To tell stories the right way and to keep a small corner of the port unchanged.",
+        "speech_pattern": "Short sentences with local words, laughs in the middle of speaking.",
+        "register_with_user": "tu",
+        "grounded_in": "p:lettres_grand_mere",
+        "rig": {
+          "build": "broad",
+          "height": "medium",
+          "head": "round",
+          "skin": "tan",
+          "hair": "cropped",
+          "hair_colour": "white",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "jumper",
+          "top_colour": "navy",
+          "bottom_colour": "stone",
+          "accessory": "cap",
+          "accessory_colour": "ink",
+          "idle": "sway"
+        }
+      },
+      {
+        "id": "sophie_legard",
+        "name": "Sophie Légard",
+        "gender": "f",
+        "role": "A cousin organising the Marchand family wedding in town; she knows family stories and small pressures of kinship.",
+        "personality": "Practical, affectionate, sometimes exasperated by sentiment.",
+        "wants": "A calm wedding and for Camille to feel at home with family.",
+        "speech_pattern": "Direct, with small repeated reassurances.",
+        "register_with_user": "vous",
+        "grounded_in": "b:mariage_camille",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "long",
+          "skin": "rose",
+          "hair": "long",
+          "hair_colour": "chestnut",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "dress",
+          "top_colour": "cream",
+          "bottom_colour": "stone",
+          "accessory": "earrings",
+          "accessory_colour": "red",
+          "idle": "bob"
+        }
+      }
+    ]
+  },
+  "review": {
+    "accepted": true,
+    "grows_from_material": true,
+    "fresh": true,
+    "issues": [
+      "Registers for new characters conflict with the canon rule that the whole cast knows the learner: Aline Lemoine and Sophie Légard are specified as addressing the learner with vous. The season rule says 'never the vous of strangers from the group.' Either make them use tu (if appropriate) or mark them as already known to the learner and avoid the vous.",
+      "Clarify the painting provenance so it does not accidentally contradict Gus's canon line. Canon says Gus has the Mistral painting in his loft, face to the wall, and claims not to know where it is. The proposal locates a postcard 'tucked behind a painting' in Odile's house (which is fine) but the outline should avoid implying that Gus's claimed painting is found in Saint‑Malo unless the season explicitly addresses and resolves why Gus denied knowing its location.",
+      "The proposal keeps an open thread about Lila (her happiness in Berlin). That's acceptable, but make explicit how Lila's absence is handled on‑screen (letters? messages?) so the season doesn't accidentally stage her in Paris (canon: Lila lives in Berlin and 'is never in a Paris scene').",
+      "Minor: ensure the season does not revisit the closed cafe question. The proposal appears careful about this, but writers must avoid re‑opening debate about keeping/changing Le Mistral since 'The café question of season 1 is closed.'"
+    ]
+  },
+  "refused": null,
+  "details": null,
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 14832,
+      "cost_usd": 0.018581,
+      "seconds": 52.07
+    },
+    {
+      "stage": "SeasonReview",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 7116,
+      "cost_usd": 0.003812,
+      "seconds": 7.23
+    }
+  ],
+  "world": {
+    "season_number": 2,
+    "season_source": "written",
+    "world_bible_version": "saint-malo-s2-written",
+    "title_fr": "Les lettres de la mer",
+    "logline": "A crate of letters found in Gus's loft names a port town he has never seen; the learner travels with Augustin to Saint‑Malo to follow Odile's past, accompanies Camille to a family wedding there, helps Marin choose a setting for his novel, and translates Romy's interviews — together they uncover a living trace behind a painting and decide what to carry back to Paris.",
+    "season_logline_fr": "Vous partez à Saint‑Malo pour suivre les lettres d'Odile et accompagner Camille au mariage.",
+    "setting": {
+      "city": "Saint‑Malo",
+      "previous_city": "Paris",
+      "region": "Brittany, France",
+      "neighborhood": "Intra‑Muros and the harbour quarter — compact cobbled streets, tide-swept walls, and small fisheries",
+      "genre": "road‑mystery with warm ensemble drama",
+      "tone": "salt air, quiet wonder, small tensions that resolve into tenderness",
+      "situation": "You travel with Augustin to the coastal town named in his grandmother's letters; Camille asked you to accompany them to a family wedding there, and you'll stay a month to research, translate Romy's interviews, and help Marin choose a novel setting."
+    },
+    "places": [
+      {
+        "id": "quai_port",
+        "name_fr": "Le quai du port",
+        "type": "harbour",
+        "description": "The working harbour where fishing boats tie up, people argue about tides, and clues about Odile's past appear; scenes of arrival and small discoveries happen here.",
+        "brief": "Stone quay, rows of moored small trawlers, nets and a single faded poster nailed to a crate; late afternoon light, low tide reflections on wet wood.",
+        "plate_id": "w-quai_port-8904563f",
+        "stand_in": "quai_de_valmy"
+      },
+      {
+        "id": "plage_intra_muros",
+        "name_fr": "La plage intra‑muros",
+        "type": "beach",
+        "description": "A wind‑swept narrow beach between the old ramparts and the sea where characters talk in the cold sun and a postcard or fragment washes ashore.",
+        "brief": "Narrow sand strip, low stone wall of the ramparts, distant lighthouse on the horizon; pale morning light and sharp sea air.",
+        "plate_id": "w-plage_intra_muros-67efcc4c",
+        "stand_in": "buttes_chaumont"
+      },
+      {
+        "id": "mairie_archives",
+        "name_fr": "Les archives de la mairie",
+        "type": "administration",
+        "description": "A small municipal archive room where dusty records, birth certificates and shipping logs are consulted; a place for quiet revelations and paperwork drama.",
+        "brief": "Wooden shelves of labelled boxes, a single small table with a green lamp, a barred window letting in a cold noon shaft of light.",
+        "plate_id": "w-mairie_archives-57c90d67",
+        "stand_in": "mairie"
+      },
+      {
+        "id": "cafe_du_phare",
+        "name_fr": "Le Café du Phare",
+        "type": "cafe",
+        "description": "A low-ceilinged café by the wall where fishermen drink, the wedding afterparty spills in, and the learner meets people who remember Odile.",
+        "brief": "Worn wooden counter, a drying line of mugs, a small chalk menu above the stove, warm amber interior light in contrast to the grey sky outside.",
+        "plate_id": "w-cafe_du_phare-d305c926",
+        "stand_in": "le_mistral"
+      },
+      {
+        "id": "maison_odile",
+        "name_fr": "La maison d'Odile",
+        "type": "home",
+        "description": "A narrow, slightly sagging house on a side street — Odile's old home, full of small domestic traces, a painting with something taped behind it, and the child's drawing reference.",
+        "brief": "Peeling blue door, narrow staircase, a small back room with a framed painting on the wall, late afternoon light through a curtained window.",
+        "plate_id": "w-maison_odile-43155265",
+        "stand_in": "user_apartment"
+      }
+    ],
+    "kept_places": [],
+    "new_characters": [
+      {
+        "id": "aline_lemoine",
+        "name": "Aline Lemoine",
+        "gender": "f",
+        "role": "Archivist at the mairie; she helps with the records and resents journalists but respects careful readers.",
+        "personality": "Meticulous, slightly dry, quietly amused by outsiders who love names.",
+        "wants": "To protect the town's memory and to be believed when she reads a handwriting sample.",
+        "speech_pattern": "Polished, precise sentences; sometimes corrects dates aloud.",
+        "register_with_user": "vous",
+        "grounded_in": "p:lettres_grand_mere",
+        "rig": {
+          "build": "slim",
+          "height": "short",
+          "head": "oval",
+          "skin": "light",
+          "hair": "bob",
+          "hair_colour": "grey",
+          "facial_hair": "none",
+          "glasses": "round",
+          "top": "jacket",
+          "top_colour": "stone",
+          "bottom_colour": "navy",
+          "accessory": "scarf",
+          "accessory_colour": "ochre",
+          "idle": "nod"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "yves_kermoal",
+        "name": "Yves Kermoal",
+        "gender": "m",
+        "role": "A retired fisherman who now runs a tiny harbour stall and remembers the town's café life; a living link to Odile's era.",
+        "personality": "Gravel-voiced, warm, stubbornly honest, quick with an anecdote.",
+        "wants": "To tell stories the right way and to keep a small corner of the port unchanged.",
+        "speech_pattern": "Short sentences with local words, laughs in the middle of speaking.",
+        "register_with_user": "tu",
+        "grounded_in": "p:lettres_grand_mere",
+        "rig": {
+          "build": "broad",
+          "height": "medium",
+          "head": "round",
+          "skin": "tan",
+          "hair": "cropped",
+          "hair_colour": "white",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "jumper",
+          "top_colour": "navy",
+          "bottom_colour": "stone",
+          "accessory": "cap",
+          "accessory_colour": "ink",
+          "idle": "sway"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "sophie_legard",
+        "name": "Sophie Légard",
+        "gender": "f",
+        "role": "A cousin organising the Marchand family wedding in town; she knows family stories and small pressures of kinship.",
+        "personality": "Practical, affectionate, sometimes exasperated by sentiment.",
+        "wants": "A calm wedding and for Camille to feel at home with family.",
+        "speech_pattern": "Direct, with small repeated reassurances.",
+        "register_with_user": "vous",
+        "grounded_in": "b:mariage_camille",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "long",
+          "skin": "rose",
+          "hair": "long",
+          "hair_colour": "chestnut",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "dress",
+          "top_colour": "cream",
+          "bottom_colour": "stone",
+          "accessory": "earrings",
+          "accessory_colour": "red",
+          "idle": "bob"
+        },
+        "written_season": 2
+      }
+    ],
+    "away": {
+      "lila_bonnet": "Stayed in Paris when the story moved to Saint‑Malo: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "margaux_barman": "Stayed in Paris when the story moved to Saint‑Malo: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "romy_tremblay": "Stayed in Paris when the story moved to Saint‑Malo: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "landlord_marchand": "Stayed in Paris when the story moved to Saint‑Malo: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "mme_diallo": "Stayed in Paris when the story moved to Saint‑Malo: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "maitre_vasseur": "Stayed in Paris when the story moved to Saint‑Malo: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "bastien_roux": "Stayed in Paris when the story moved to Saint‑Malo: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there."
+    },
+    "arcs": [
+      {
+        "id": "letters_origin",
+        "title_fr": "Les lettres d'Augustin",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "aline_lemoine",
+          "yves_kermoal"
+        ],
+        "grounded_in": "p:lettres_grand_mere",
+        "stages": [
+          "The learner reads a letter in Gus's crate that names Saint‑Malo and a small detail only a neighbour would know, and Augustin, surprised, agrees to come with you.",
+          "At the mairie archives Aline finds a record that connects Odile to a local household and a shipowner's ledger; Augustin refuses an easy answer and the small town's reticence makes progress slow.",
+          "At a harbour stall Yves remembers Odile and points the group to a friend who kept a photograph and a postcard tucked behind a painting — a living trace appears."
+        ]
+      },
+      {
+        "id": "camille_wedding",
+        "title_fr": "Le mariage de Camille",
+        "characters": [
+          "user",
+          "camille_marchand",
+          "sophie_legard",
+          "landlord_marchand"
+        ],
+        "grounded_in": "b:mariage_camille",
+        "stages": [
+          "Camille asks the learner to come to the family wedding; the invitation is gentle but carries an expectation of support.",
+          "At family gatherings old questions surface about why M. Marchand bought a share in Le Mistral and whether city choices hurt people, and a quiet argument threatens the evening.",
+          "The learner helps Camille face a family memory, and Camille opens up about what 'home' means without changing the vous; the two find steadier footing."
+        ]
+      },
+      {
+        "id": "marin_setting",
+        "title_fr": "Le roman de Marin",
+        "characters": [
+          "user",
+          "marin_leveque",
+          "yves_kermoal"
+        ],
+        "grounded_in": "b:roman_marin",
+        "stages": [
+          "Marin brings his manuscript and asks the learner whether the story should be set on the coast they are now visiting.",
+          "They search the town and debate realism versus myth; the learner finds the child's repeated drawing in Odile's workshop that suggests a true place the novel should honour.",
+          "Marin chooses a setting inspired by the drawing and the letters; the novel's place becomes a small tribute to Odile's life and the learner helps frame it."
+        ]
+      },
+      {
+        "id": "romy_translation",
+        "title_fr": "Les interviews de Romy",
+        "characters": [
+          "user",
+          "romy_tremblay"
+        ],
+        "grounded_in": "c:interviews_romy",
+        "stages": [
+          "The learner translates Romy's interviews and finds references to small coastal cafés sold under opaque papers; Romy asks for careful reading.",
+          "A local title document appears ambiguous and Romy worries the story will scapegoat a family; the learner must choose how to present the facts.",
+          "Romy publishes a careful dispatch that ties the interviews to the town's changes and to Odile's little story; the learner is credited with the translation."
+        ]
+      }
+    ],
+    "situation": {
+      "your_arc": "You follow the letters you found in Gus's loft to learn who Odile really was, help Augustin meet the past he never saw, and decide whether a small piece of Odile's story belongs in your life back in Paris or must stay with the sea.",
+      "open_threads": [
+        "Who was Odile, and what exactly did she leave in that town and in Paris?",
+        "Is Lila happy in Berlin and will her letters home change what you decide about Paris?",
+        "Who is the person in the window on Rue de Lancry that stayed lit at night?"
+      ],
+      "open_threads_fr": [
+        "Qui était Odile et pourquoi est‑elle partie ?",
+        "Lila est‑elle heureuse à Berlin ?",
+        "Qui est à la fenêtre rue de Lancry ?"
+      ],
+      "first_episode_seed": "In Gus's loft the learner opens a crate of letters that name 'Saint‑Malo' and a wedding date; Augustin refuses to go until the learner reads aloud a line about 'la mer de juillet' — at dawn they buy tickets."
+    }
+  },
+  "interlude": null
+}

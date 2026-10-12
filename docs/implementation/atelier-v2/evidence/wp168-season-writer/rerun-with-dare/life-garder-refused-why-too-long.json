@@ -1,0 +1,145 @@
+{
+  "ending": "garder",
+  "rolled": false,
+  "seconds": 46.7,
+  "material": [
+    {
+      "id": "p:polaroid_port",
+      "kind": "plant",
+      "text_fr": "Dans le tiroir d'Odile, un Polaroid : un port, des bateaux, et « 1971 » au dos.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "b:peintre_l",
+      "kind": "branch",
+      "text_fr": "Vous avez promis à M. Marchand de retrouver le peintre « L. » avant son anniversaire.",
+      "character_id": "landlord_marchand"
+    },
+    {
+      "id": "c:carte_mistral",
+      "kind": "commitment",
+      "text_fr": "Aider Margaux à refaire la carte du Mistral avant le printemps.",
+      "character_id": "margaux_barman"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:marchand.sundays",
+      "kind": "flag",
+      "text_fr": "marchand.sundays = True",
+      "character_id": null
+    },
+    {
+      "id": "p:lettre_gus",
+      "kind": "plant",
+      "text_fr": "Gus a reçu une lettre d'un notaire, avec un timbre étranger, et il ne l'ouvre pas.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "b:documentaire",
+      "kind": "branch",
+      "text_fr": "Romy vous a demandé d'être la voix française de son documentaire radio.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = garder",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = keep",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "The learner kept Odile's flat above Le Mistral and lives there now.",
+      "Le Mistral is exactly as it was; Margaux runs it alone, on a nine-year lease.",
+      "M. Marchand left the building for a residence without stairs; Solvel owns his floors, he kept the café's walls.",
+      "Only four people know Odile's notebook page; Gus knows nothing of it.",
+      "The painting «Le Mistral sur le canal» is with the learner; its back reads «Pour Odile, qui part. — L., 1970» and «Toujours rue de Lancry. — L., 2021».",
+      "Marin has put his co-op folder in a drawer.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it.",
+      "M. Marchand comes to Sunday lunch at the learner's, by the 46 bus, as he did at Odile's.",
+      "Romy gave the learner the memory card with Margaux's admission, without a word."
+    ],
+    "closed_locations": []
+  },
+  "draft": null,
+  "review": null,
+  "refused": "invalid_story_output",
+  "details": {
+    "finish_reason": "stop",
+    "completion_tokens": 7032,
+    "reasoning_tokens": 3392,
+    "truncated": false,
+    "errors": [
+      {
+        "loc": "setting.why",
+        "type": "string_too_long",
+        "msg": "String should have at most 300 characters"
+      }
+    ],
+    "excerpt": "re de Romy et pour chercher le peintre « L. » comme promis à M. Marchand.\",\n    \"why\": \"The Polaroid found in Odile's drawer (p:polaroid_port) shows a harbour t",
+    "content_chars": 14502
+  },
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 13794,
+      "cost_usd": 0.015755,
+      "seconds": 46.681
+    }
+  ],
+  "world": null,
+  "interlude": {
+    "since": "2026-12-20",
+    "returns_on": "2027-01-03",
+    "reason_fr": "Entre deux saisons : l'histoire reprend le 3 janvier."
+  }
+}

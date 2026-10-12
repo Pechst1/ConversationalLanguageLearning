@@ -1,0 +1,621 @@
+{
+  "ending": "partager",
+  "rolled": true,
+  "seconds": 54.6,
+  "material": [
+    {
+      "id": "p:lettres_grand_mere",
+      "kind": "plant",
+      "text_fr": "Dans le loft de Gus, une caisse de lettres de sa grand-mère, écrites d'une ville où il n'est jamais allé.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "b:mariage_camille",
+      "kind": "branch",
+      "text_fr": "Camille vous a demandé de l'accompagner à un mariage de famille, loin de Paris.",
+      "character_id": "camille_marchand"
+    },
+    {
+      "id": "c:interviews_romy",
+      "kind": "commitment",
+      "text_fr": "Traduire les interviews de Romy pour son nouveau contrat.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = partager",
+      "character_id": null
+    },
+    {
+      "id": "p:dessin_enfant",
+      "kind": "plant",
+      "text_fr": "À l'atelier, un enfant dessine toujours la même maison au bord de l'eau.",
+      "character_id": null
+    },
+    {
+      "id": "b:roman_marin",
+      "kind": "branch",
+      "text_fr": "Marin vous a confié son roman et vous a demandé où il devrait se passer.",
+      "character_id": "marin_leveque"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = coop",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.lila_path",
+      "kind": "flag",
+      "text_fr": "s1.lila_path = open",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "Le Mistral is a co-operative, «Le Mistral à nous»; Margaux is member number 1 and no longer runs it alone.",
+      "Odile's flat is the co-op's workshop (children's painting classes, the meeting room); the learner rents the little room under the roof.",
+      "Gus lost the café of his childhood as it was; he forgives the learner in his own way («Tu m'as coûté une banquette»).",
+      "Gus has the painting in his loft, face to the wall, and says he does not know where it is.",
+      "Romy's article «Le feu du Mistral» is public; it earned her a Paris contract.",
+      "M. Marchand bought one share of the co-op; he never comes, but he pays.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it.",
+      "Lila gave the copy of the key back, «tu me la redonnes quand je reviens»."
+    ],
+    "closed_locations": []
+  },
+  "draft": {
+    "title_fr": "Le mariage à Concarneau",
+    "logline": "After helping Camille with a family wedding in a small Breton town, the learner gets pulled into local stories — a crate of old letters, a journalist's recordings, and a novelist's search for a setting — and must choose what to carry back to Paris without solving every mystery.",
+    "logline_fr": "Vous allez au mariage de Camille en Bretagne. Vous trouvez des lettres et des histoires. Que rapportez-vous à Paris ?",
+    "your_arc": "The learner grows from being the flat-inheritor tied to Paris to someone who can hold other people's pasts: they listen, choose what to share, and learn how loyalty can travel with them.",
+    "first_episode_seed": "Camille asks you to be their plus-one for a weekend wedding in Concarneau; you buy a train ticket, pack the little key from Odile, and discover a folded letter in the pocket of your jacket on the platform.",
+    "arcs": [
+      {
+        "id": "arc_camille_wedding",
+        "title_fr": "Le mariage et la famille",
+        "characters": [
+          "user",
+          "camille_marchand"
+        ],
+        "grounded_in": "b:mariage_camille",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Camille asks the learner to accompany them to a family wedding in Concarneau and to be a calm, steady presence.",
+            "sets": {
+              "camille_marchand.invited": true,
+              "user.going_to_wedding": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "At the ceremony and the long family meal the learner overhears old disagreements about property and old promises that make Camille anxious.",
+            "sets": {
+              "camille_marchand.family_tension": true,
+              "user.hears_old_grudges": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "When Camille confronts an elder about past choices the learner chooses how to back them, earning Camille's trust without changing the formalities of their relationship.",
+            "sets": {
+              "camille_marchand.trust_user": true,
+              "user.supports_camille": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "arc_gus_letters",
+        "title_fr": "Les lettres de la grand-mère",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "loic_morvan"
+        ],
+        "grounded_in": "p:lettres_grand_mere",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "A surname in a folded letter found in the learner's pocket matches a name on a framed photo at the family house; Augustin realises the letters may point somewhere real.",
+            "sets": {
+              "user.finds_name": true,
+              "augustin_de_roncourt.seeks_origin": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "At the harbour Loïc remembers a woman in old harbour tales whose name is in the letters and shows the learner a faded photograph that looks like Odile.",
+            "sets": {
+              "loic_morvan.knows_story": true,
+              "user.suspects_odile_link": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "The learner and Augustin decide to open an old trunk in the attic and find materials that tie Odile to the town but stop short of naming L.; the learner must choose whether to tell Gus everything now.",
+            "sets": {
+              "user.tells_gus": true,
+              "augustin_de_roncourt.faces_past": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "arc_romy_interviews",
+        "title_fr": "Les interviews et la traduction",
+        "characters": [
+          "user",
+          "romy_tremblay"
+        ],
+        "grounded_in": "c:interviews_romy",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Romy arrives to record local testimonies about properties and cafés; the learner begins translating her recordings for the article.",
+            "sets": {
+              "romy_tremblay.recording": true,
+              "user.translating": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "A transcript contains a surprising mention of a buyer active in both Paris and the region, and Romy presses the learner for precise translation while local reputations stir.",
+            "sets": {
+              "romy_tremblay.needs_translation": true,
+              "user.finds_inconsistency": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "Romy's piece — helped by the learner's careful translation — brings attention to development pressures in the town and forces a local discussion about memory and ownership.",
+            "sets": {
+              "romy_tremblay.publishes": true,
+              "user.pride": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "arc_marin_setting",
+        "title_fr": "Le roman et le lieu",
+        "characters": [
+          "user",
+          "marin_leveque"
+        ],
+        "grounded_in": "b:roman_marin",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Marin asks the learner if this coastal town could be the setting for a scene in his novel and sends a chapter for comments.",
+            "sets": {
+              "marin_leveque.sends_chapter": true,
+              "user.considers_setting": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "Local details — a fish market call, a dialect joke, a lane by the quay — press the learner to suggest changes that affect Marin's tone and authenticity.",
+            "sets": {
+              "user.notes_local": true,
+              "marin_leveque.needs_reality_check": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "The learner proposes a small, truthful change that integrates an element of Odile's story; Marin accepts and promises to set a scene here, giving the learner a creative stake in the place.",
+            "sets": {
+              "marin_leveque.sets_scene": true,
+              "user.affirms_identity": true
+            }
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "text": "Who exactly was Odile, and what did she mean by 'look behind the painting of Le Mistral' — follow the name in the letters but do not promise a reveal.",
+        "text_fr": "Qui était Odile, exactement ? Cherchez son nom dans les lettres.",
+        "grounded_in": "thread:s1:0"
+      },
+      {
+        "text": "Gus's crate of letters: some names point to this Breton coast — trace the people named and where their boats went; a gentle archaeology of memory.",
+        "text_fr": "Les lettres d'Auguste parlent d'un port. Trouvez ce port.",
+        "grounded_in": "p:lettres_grand_mere"
+      },
+      {
+        "text": "Lila in Berlin writes and calls; her absence is a presence — keep her messages as a way to show distance and choices without bringing her back.",
+        "text_fr": "Lila écrit de Berlin. Lisez ses lettres quand elles arrivent.",
+        "grounded_in": "thread:s1:1"
+      },
+      {
+        "text": "Rue de Lancry's lit window remains a small city mystery for the learner — it pops into the learner's mind in quiet moments at the wedding.",
+        "text_fr": "La fenêtre rue de Lancry est toujours allumée dans vos pensées.",
+        "grounded_in": "thread:s1.open_question"
+      }
+    ],
+    "setting": {
+      "city": "Concarneau",
+      "region": "Finistère, Bretagne, France",
+      "neighborhood": "La Ville-Close and the fishing port — old stone, low houses, gulls",
+      "genre": "small-town family drama with a gentle mystery",
+      "tone": "warm, attentive, slightly wistful — comedy with quiet feeling",
+      "situation": "You go with Camille to a family wedding in their hometown; you will be an outsider who sees what others miss.",
+      "situation_fr": "Vous accompagnez Camille à son mariage en Bretagne.",
+      "why": "Camille asked the learner to accompany them to a family wedding (b:mariage_camille); the invitation pulls the learner out of Paris and into a place where local memories (and a name from Gus's letters) surface in unexpected ways.",
+      "grounded_in": "b:mariage_camille",
+      "travelling_cast": [
+        "camille_marchand",
+        "augustin_de_roncourt",
+        "romy_tremblay"
+      ],
+      "keep_locations": []
+    },
+    "places": [
+      {
+        "id": "mairie_concarneau",
+        "name_fr": "La mairie",
+        "kind": "administration",
+        "description": "The town hall where the wedding ceremony happens and where local politics quietly hum; a place for formal words and overheard grudges.",
+        "brief": "Stone façade with a small flag, a heavy wooden door, sun on worn steps; bronze plaque, a narrow alley visible to the side; morning light, cool shadow in the doorway."
+      },
+      {
+        "id": "eglise_sainte_anne",
+        "name_fr": "L'église Sainte-Anne",
+        "kind": "church",
+        "description": "An old parish church on a hill by the walled town, packed for the wedding; echoes, incense, and a choir of cousins.",
+        "brief": "Grey stone church with a small bell tower, wooden pews, a stained-glass window of a saint, late-afternoon light through coloured glass, dust motes in the aisle."
+      },
+      {
+        "id": "port_pecheur",
+        "name_fr": "Le port",
+        "kind": "harbour",
+        "description": "The working fishing harbour where a boat captain recognises a surname in an old letter; gulls, nets, and the smell of sea create tangible clues.",
+        "brief": "Low quay with stacked crates, coiled ropes, a small trawler tied to a bollard, wet stone reflecting grey sky; cold light, salty spray on the paint."
+      },
+      {
+        "id": "maison_famille",
+        "name_fr": "La maison de famille",
+        "kind": "home",
+        "description": "A simple family house with a kitchen that serves as the wedding's informal heart: food, photographs on walls, and a locked attic that holds an old trunk.",
+        "brief": "Whitewashed kitchen wall, wooden table with a blue cloth, framed black-and-white photos on a shelf, a narrow staircase leading up, warm afternoon light through a lace curtain."
+      }
+    ],
+    "new_characters": [
+      {
+        "id": "tante_renee",
+        "name": "Renée Le Gall",
+        "gender": "f",
+        "role": "Camille's aunt and the family's practical anchor; she runs the house and organises the meal for the wedding.",
+        "personality": "Direct, affectionate in private, suspicious of outsiders until they do a useful thing.",
+        "wants": "To keep the family together for the weekend and to protect a small family secret that she thinks is harmless.",
+        "speech_pattern": "Short, clear sentences; uses Breton proverbs sometimes; speaks warmly but with little small talk.",
+        "register_with_user": "vous",
+        "grounded_in": "b:mariage_camille",
+        "rig": {
+          "build": "medium",
+          "height": "short",
+          "head": "round",
+          "skin": "olive",
+          "hair": "bun",
+          "hair_colour": "grey",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "jacket",
+          "top_colour": "olive",
+          "bottom_colour": "stone",
+          "accessory": "earrings",
+          "accessory_colour": "cream",
+          "idle": "nod"
+        }
+      },
+      {
+        "id": "loic_morvan",
+        "name": "Loïc Morvan",
+        "gender": "m",
+        "role": "Local boat captain who once ferried letters and people between small harbours; he recognises a place-name in Gus's letters.",
+        "personality": "Weathered, attentive, tells stories that start slow and end sharp.",
+        "wants": "To be asked about his memories and to keep the harbour's stories alive.",
+        "speech_pattern": "Laid-back, long sentences that shorten to proverbs; uses nautical words.",
+        "register_with_user": "vous",
+        "grounded_in": "p:lettres_grand_mere",
+        "rig": {
+          "build": "broad",
+          "height": "tall",
+          "head": "square",
+          "skin": "tan",
+          "hair": "short",
+          "hair_colour": "dark_brown",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "jumper",
+          "top_colour": "navy",
+          "bottom_colour": "ink",
+          "accessory": "cap",
+          "accessory_colour": "navy",
+          "idle": "sway"
+        }
+      }
+    ]
+  },
+  "review": {
+    "accepted": true,
+    "grows_from_material": true,
+    "fresh": true,
+    "issues": [
+      "Do not reopen the season‑1 café question: canon explicitly says that arc is closed. The proposal must avoid making Le Mistral's fate a plot engine in Brittany (mentions of buyers must not tie back to a new attempt to sell or retake the Paris co‑op).",
+      "Respect the rule that the whole cast knows the learner: new scenes in Concarneau must preserve familiar registers (Camille should still address the learner with vous until a later season).",
+      "Keep the restriction about 'L.': the continuation may look for the name and follow hints, but must not reveal who L. is — the proposal hints at Odile links and names; ensure you stop short of any definitive reveal.",
+      "Maintain existing facts about Gus and the painting: canon says Gus has the painting face to the wall and claims not to know where it is. The letters plot can tie Odile to the town, but must not contradict Gus's stated ignorance or place the painting where canon forbids.",
+      "Romy already published 'Le feu du Mistral'. If she pursues regional reporting here, be careful not to contradict her established career progress (the proposal's new contract work is consistent but should not undo her previous success).",
+      "Small language note for implementation: the season must remain learner‑facing at roughly A2 French (short clear sentences, limited subordinate clauses). The logline and arcs mix English and French — when authored, keep episode text and dialogue simple and repetitive to suit A2 learners."
+    ]
+  },
+  "refused": null,
+  "details": null,
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 13821,
+      "cost_usd": 0.016342,
+      "seconds": 50.059
+    },
+    {
+      "stage": "SeasonReview",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 6290,
+      "cost_usd": 0.002747,
+      "seconds": 4.584
+    }
+  ],
+  "world": {
+    "season_number": 2,
+    "season_source": "written",
+    "world_bible_version": "concarneau-s2-written",
+    "title_fr": "Le mariage à Concarneau",
+    "logline": "After helping Camille with a family wedding in a small Breton town, the learner gets pulled into local stories — a crate of old letters, a journalist's recordings, and a novelist's search for a setting — and must choose what to carry back to Paris without solving every mystery.",
+    "season_logline_fr": "Vous allez au mariage de Camille en Bretagne. Vous trouvez des lettres et des histoires. Que rapportez-vous à Paris ?",
+    "setting": {
+      "city": "Concarneau",
+      "previous_city": "Paris",
+      "region": "Finistère, Bretagne, France",
+      "neighborhood": "La Ville-Close and the fishing port — old stone, low houses, gulls",
+      "genre": "small-town family drama with a gentle mystery",
+      "tone": "warm, attentive, slightly wistful — comedy with quiet feeling",
+      "situation": "You go with Camille to a family wedding in their hometown; you will be an outsider who sees what others miss."
+    },
+    "places": [
+      {
+        "id": "mairie_concarneau",
+        "name_fr": "La mairie",
+        "type": "administration",
+        "description": "The town hall where the wedding ceremony happens and where local politics quietly hum; a place for formal words and overheard grudges.",
+        "brief": "La mairie, Concarneau: Stone façade with a small flag, a heavy wooden door, sun on worn steps; bronze plaque, a narrow alley visible to the side; morning light, cool shadow in the doorway.",
+        "plate_id": "w-mairie_concarneau-19d964c4",
+        "stand_in": "mairie"
+      },
+      {
+        "id": "eglise_sainte_anne",
+        "name_fr": "L'église Sainte-Anne",
+        "type": "home",
+        "description": "An old parish church on a hill by the walled town, packed for the wedding; echoes, incense, and a choir of cousins.",
+        "brief": "L'église Sainte-Anne, Concarneau: Grey stone church with a small bell tower, wooden pews, a stained-glass window of a saint, late-afternoon light through coloured glass, dust motes in the aisle.",
+        "plate_id": "w-eglise_sainte_anne-6b1dce6a",
+        "stand_in": "user_apartment"
+      },
+      {
+        "id": "port_pecheur",
+        "name_fr": "Le port",
+        "type": "harbour",
+        "description": "The working fishing harbour where a boat captain recognises a surname in an old letter; gulls, nets, and the smell of sea create tangible clues.",
+        "brief": "Le port, Concarneau: Low quay with stacked crates, coiled ropes, a small trawler tied to a bollard, wet stone reflecting grey sky; cold light, salty spray on the paint.",
+        "plate_id": "w-port_pecheur-a6355c0d",
+        "stand_in": "quai_de_valmy"
+      },
+      {
+        "id": "maison_famille",
+        "name_fr": "La maison de famille",
+        "type": "home",
+        "description": "A simple family house with a kitchen that serves as the wedding's informal heart: food, photographs on walls, and a locked attic that holds an old trunk.",
+        "brief": "La maison de famille, Concarneau: Whitewashed kitchen wall, wooden table with a blue cloth, framed black-and-white photos on a shelf, a narrow staircase leading up, warm afternoon light through a lace curtain.",
+        "plate_id": "w-maison_famille-f9e66aa4",
+        "stand_in": "user_apartment"
+      }
+    ],
+    "kept_places": [],
+    "new_characters": [
+      {
+        "id": "tante_renee",
+        "name": "Renée Le Gall",
+        "gender": "f",
+        "role": "Camille's aunt and the family's practical anchor; she runs the house and organises the meal for the wedding.",
+        "personality": "Direct, affectionate in private, suspicious of outsiders until they do a useful thing.",
+        "wants": "To keep the family together for the weekend and to protect a small family secret that she thinks is harmless.",
+        "speech_pattern": "Short, clear sentences; uses Breton proverbs sometimes; speaks warmly but with little small talk.",
+        "register_with_user": "vous",
+        "grounded_in": "b:mariage_camille",
+        "rig": {
+          "build": "medium",
+          "height": "short",
+          "head": "round",
+          "skin": "olive",
+          "hair": "bun",
+          "hair_colour": "grey",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "jacket",
+          "top_colour": "olive",
+          "bottom_colour": "stone",
+          "accessory": "earrings",
+          "accessory_colour": "cream",
+          "idle": "nod"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "loic_morvan",
+        "name": "Loïc Morvan",
+        "gender": "m",
+        "role": "Local boat captain who once ferried letters and people between small harbours; he recognises a place-name in Gus's letters.",
+        "personality": "Weathered, attentive, tells stories that start slow and end sharp.",
+        "wants": "To be asked about his memories and to keep the harbour's stories alive.",
+        "speech_pattern": "Laid-back, long sentences that shorten to proverbs; uses nautical words.",
+        "register_with_user": "vous",
+        "grounded_in": "p:lettres_grand_mere",
+        "rig": {
+          "build": "broad",
+          "height": "tall",
+          "head": "square",
+          "skin": "tan",
+          "hair": "short",
+          "hair_colour": "dark_brown",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "jumper",
+          "top_colour": "navy",
+          "bottom_colour": "ink",
+          "accessory": "cap",
+          "accessory_colour": "navy",
+          "idle": "sway"
+        },
+        "written_season": 2
+      }
+    ],
+    "away": {
+      "lila_bonnet": "Stayed in Paris when the story moved to Concarneau: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "marin_leveque": "Stayed in Paris when the story moved to Concarneau: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "margaux_barman": "Stayed in Paris when the story moved to Concarneau: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "landlord_marchand": "Stayed in Paris when the story moved to Concarneau: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "mme_diallo": "Stayed in Paris when the story moved to Concarneau: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "maitre_vasseur": "Stayed in Paris when the story moved to Concarneau: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "bastien_roux": "Stayed in Paris when the story moved to Concarneau: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there."
+    },
+    "arcs": [
+      {
+        "id": "arc_camille_wedding",
+        "title_fr": "Le mariage et la famille",
+        "characters": [
+          "user",
+          "camille_marchand"
+        ],
+        "grounded_in": "b:mariage_camille",
+        "stages": [
+          "Camille asks the learner to accompany them to a family wedding in Concarneau and to be a calm, steady presence.",
+          "At the ceremony and the long family meal the learner overhears old disagreements about property and old promises that make Camille anxious.",
+          "When Camille confronts an elder about past choices the learner chooses how to back them, earning Camille's trust without changing the formalities of their relationship."
+        ]
+      },
+      {
+        "id": "arc_gus_letters",
+        "title_fr": "Les lettres de la grand-mère",
+        "characters": [
+          "user",
+          "augustin_de_roncourt",
+          "loic_morvan"
+        ],
+        "grounded_in": "p:lettres_grand_mere",
+        "stages": [
+          "A surname in a folded letter found in the learner's pocket matches a name on a framed photo at the family house; Augustin realises the letters may point somewhere real.",
+          "At the harbour Loïc remembers a woman in old harbour tales whose name is in the letters and shows the learner a faded photograph that looks like Odile.",
+          "The learner and Augustin decide to open an old trunk in the attic and find materials that tie Odile to the town but stop short of naming L.; the learner must choose whether to tell Gus everything now."
+        ]
+      },
+      {
+        "id": "arc_romy_interviews",
+        "title_fr": "Les interviews et la traduction",
+        "characters": [
+          "user",
+          "romy_tremblay"
+        ],
+        "grounded_in": "c:interviews_romy",
+        "stages": [
+          "Romy arrives to record local testimonies about properties and cafés; the learner begins translating her recordings for the article.",
+          "A transcript contains a surprising mention of a buyer active in both Paris and the region, and Romy presses the learner for precise translation while local reputations stir.",
+          "Romy's piece — helped by the learner's careful translation — brings attention to development pressures in the town and forces a local discussion about memory and ownership."
+        ]
+      },
+      {
+        "id": "arc_marin_setting",
+        "title_fr": "Le roman et le lieu",
+        "characters": [
+          "user",
+          "marin_leveque"
+        ],
+        "grounded_in": "b:roman_marin",
+        "stages": [
+          "Marin asks the learner if this coastal town could be the setting for a scene in his novel and sends a chapter for comments.",
+          "Local details — a fish market call, a dialect joke, a lane by the quay — press the learner to suggest changes that affect Marin's tone and authenticity.",
+          "The learner proposes a small, truthful change that integrates an element of Odile's story; Marin accepts and promises to set a scene here, giving the learner a creative stake in the place."
+        ]
+      }
+    ],
+    "situation": {
+      "your_arc": "The learner grows from being the flat-inheritor tied to Paris to someone who can hold other people's pasts: they listen, choose what to share, and learn how loyalty can travel with them.",
+      "open_threads": [
+        "Who exactly was Odile, and what did she mean by 'look behind the painting of Le Mistral' — follow the name in the letters but do not promise a reveal.",
+        "Gus's crate of letters: some names point to this Breton coast — trace the people named and where their boats went; a gentle archaeology of memory.",
+        "Lila in Berlin writes and calls; her absence is a presence — keep her messages as a way to show distance and choices without bringing her back.",
+        "Rue de Lancry's lit window remains a small city mystery for the learner — it pops into the learner's mind in quiet moments at the wedding."
+      ],
+      "open_threads_fr": [
+        "Qui était Odile, exactement ? Cherchez son nom dans les lettres.",
+        "Les lettres d'Auguste parlent d'un port. Trouvez ce port.",
+        "Lila écrit de Berlin. Lisez ses lettres quand elles arrivent.",
+        "La fenêtre rue de Lancry est toujours allumée dans vos pensées."
+      ],
+      "first_episode_seed": "Camille asks you to be their plus-one for a weekend wedding in Concarneau; you buy a train ticket, pack the little key from Odile, and discover a folded letter in the pocket of your jacket on the platform."
+    }
+  },
+  "interlude": null
+}

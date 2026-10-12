@@ -1,0 +1,33 @@
+{
+ "days": [
+  {
+   "band": "A2.1",
+   "day": 4,
+   "title": "Romy pose la question",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-le_mistral-2026-10-12-story_a511a721d071488aba17f008a2cd0a79-5eb9367202b0e9b2.webp"
+  },
+  {
+   "band": "A2.1",
+   "day": 6,
+   "title": "La journaliste et l'héritage",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-le_mistral-2026-10-12-story_c5810b555ed34ff5bbf22ad522d8a1da-cbad01ecd6bfc434.webp"
+  },
+  {
+   "band": "A2.2",
+   "day": 12,
+   "title": "La première signature",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-marche_canal-2026-10-12-story_7ec8ffa489ea45e8b797c7f129096af5-c9173e5ac074b18f.webp"
+  }
+ ],
+ "text_usd": 0.1109,
+ "calls": 15,
+ "plates": 3,
+ "plate_usd_estimated": 0.18,
+ "total_usd": 0.2909
+}

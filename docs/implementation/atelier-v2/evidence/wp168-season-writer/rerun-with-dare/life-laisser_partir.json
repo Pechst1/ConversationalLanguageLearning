@@ -1,0 +1,636 @@
+{
+  "ending": "laisser_partir",
+  "rolled": true,
+  "seconds": 55.4,
+  "material": [
+    {
+      "id": "p:carte_phare",
+      "kind": "plant",
+      "text_fr": "La carte postale de Margaux : un phare, et « Il y a du travail ici, si tu veux. »",
+      "character_id": "margaux_barman"
+    },
+    {
+      "id": "b:bateau_pere",
+      "kind": "branch",
+      "text_fr": "Marin vous a dit que son père cherche quelqu'un pour l'été, sur son bateau.",
+      "character_id": "marin_leveque"
+    },
+    {
+      "id": "c:photos_lila",
+      "kind": "commitment",
+      "text_fr": "Envoyer à Lila les photos du canal, chaque dimanche.",
+      "character_id": "lila_bonnet"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = laisser_partir",
+      "character_id": null
+    },
+    {
+      "id": "p:neon",
+      "kind": "plant",
+      "text_fr": "Romy a gardé le dernier néon du Mistral dans sa cave.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "b:camion_tableau",
+      "kind": "branch",
+      "text_fr": "Un voisin a vu le camion du brocanteur partir vers le sud avec le tableau.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = sell",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.lila_path",
+      "kind": "flag",
+      "text_fr": "s1.lila_path = open",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      },
+      {
+        "id": "margaux_barman",
+        "name": "Margaux",
+        "why": "Margaux has gone to Brittany, to Marin's father's, to see the sea."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "Le Mistral has closed: its neon went out on the last night. Never stage it as an open café.",
+      "Odile's flat is sold to Solvel; the learner kept only Odile's kitchen table.",
+      "Margaux has gone to Brittany, to Marin's father's, to see the sea; she writes postcards («Elle est grande.»).",
+      "Gus bought the booth's bench and keeps it in his loft.",
+      "The painting left with a second-hand dealer's van; it is somewhere in Paris.",
+      "Romy's photo essay on the last night is the best thing she has written; M. Marchand sent the learner a Christmas card.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it."
+    ],
+    "closed_locations": [
+      "le_mistral"
+    ]
+  },
+  "draft": {
+    "title_fr": "Le néon et la valise",
+    "logline": "After Romy finds a small sticker behind the Mistral's neon, you follow her to Brussels — between the EU quarter and Matongé — to copy corporate papers, track a painting, and decide whether a seasonal job at sea really calls you; the season is a small heist/investigation, warm and nervous.",
+    "logline_fr": "Romy trouve une étiquette derrière le néon du Mistral. Vous partez à Bruxelles pour une enquête, un tableau perdu, et une décision de partir en mer.",
+    "your_arc": "You learn to hold two lives at once: protect Odile's memory and the friends in Paris while letting new, practical chances (work, investigation) change you.",
+    "first_episode_seed": "At Margaux's postcard arrival party (welcome postcards read aloud), Romy cleans the neon she kept and finds a tiny label with a Brussels address; she shows it to you — you buy a train ticket by evening.",
+    "arcs": [
+      {
+        "id": "solvel_paper_trail",
+        "title_fr": "La piste du dossier",
+        "characters": [
+          "romy_tremblay",
+          "bastien_roux",
+          "ines_van_den_berg",
+          "user"
+        ],
+        "grounded_in": "p:neon",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Romy cleans the neon and discovers a tiny sticker with a Brussels mailbox and a company name; she convinces you the label could link Solvel to an EU shell.",
+            "sets": {
+              "romy.found_clue": true,
+              "user.commit_to_travel": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "In Brussels, Inès helps you trace the mailbox to a small administrative office; Bastien appears cold and secretive when you ask, and you realise Solvel uses EU registrations to hide acquisitions.",
+            "sets": {
+              "ines.traced_mailbox": true,
+              "bastien.defensive": true,
+              "user.suspicious_of_solvel": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "You and Romy copy files from the office archive during a tense, improvised infiltration, uncovering names that tie Solvel to a cultural broker who supplied café elements abroad.",
+            "sets": {
+              "romy.story_ready": true,
+              "user.copied_files": true,
+              "bastien.exposed_links": "partial"
+            }
+          }
+        ]
+      },
+      {
+        "id": "painting_recovery",
+        "title_fr": "Le tableau perdu",
+        "characters": [
+          "user",
+          "sacha_kabongo",
+          "romy_tremblay"
+        ],
+        "grounded_in": "b:camion_tableau",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Romy spots a photo of the painting that left Paris on a dealer's page and traces it to Sacha's gallery in Matongé; you decide to meet him.",
+            "sets": {
+              "sacha.linked_to_painting": true,
+              "user.determine_to_find": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "Sacha admits he has the painting on consignment for a collector from the EU quarter and asks for money or a favour; negotiations strain your plan and Romy's promise to protect friends.",
+            "sets": {
+              "sacha.negotiating": true,
+              "user.hesitant": true,
+              "romy.reluctant_to_publish": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "You and Romy stage a bluff in the gallery — a quick swap and a borrowed crate — and secure the painting long enough to move it out of reach of the collector.",
+            "sets": {
+              "user.recovered_painting": true,
+              "romy.protects_friends": true,
+              "sacha.trust_established": "fragile"
+            }
+          }
+        ]
+      },
+      {
+        "id": "boat_offer",
+        "title_fr": "L'été sur le bateau",
+        "characters": [
+          "marin_leveque",
+          "user"
+        ],
+        "grounded_in": "b:bateau_pere",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "Marin tells you his father needs reliable help for the summer on his boat and invites you to try the job; the offer feels like a clean, moving life.",
+            "sets": {
+              "marin.father_needs_help": true,
+              "user.tempted_by_boat": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "As the Brussels investigation deepens and the painting recovery becomes risky, you must decide quickly whether to accept the boat job and leave unfinished business.",
+            "sets": {
+              "user.conflicted": true,
+              "marin.asks_for_answer": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "You accept a short trial contract on the boat but schedule the start after you finish the Brussels work, choosing a provisional bridge between places.",
+            "sets": {
+              "user.accepts_boat_trial": true,
+              "user.plans_return": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "carte_phare",
+        "title_fr": "La carte de Margaux",
+        "characters": [
+          "user"
+        ],
+        "grounded_in": "p:carte_phare",
+        "min_episodes_between_stages": 2,
+        "stages": [
+          {
+            "id": "spark",
+            "summary": "A postcard from Margaux arrives from Brittany with a short line: 'Il y a du travail ici, si tu veux', and it makes you imagine a quieter life by the sea.",
+            "sets": {
+              "user.tempted_by_brittany": true
+            }
+          },
+          {
+            "id": "pressure",
+            "summary": "You ask around about the lighthouse job and learn it is steady but lonely; the postcard's warmth conflicts with your ties to Paris and Brussels.",
+            "sets": {
+              "user.fears_loneliness": true
+            }
+          },
+          {
+            "id": "tentpole",
+            "summary": "You write back to Margaux, keeping the door open but telling her you'll come only after you finish what you started — a promise to stay connected, not to disappear.",
+            "sets": {
+              "user.chooses_stay_connected": true,
+              "margaux.invitation_pending": true
+            }
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "text": "Who was Odile, really — the thing she left in Paris, and the other person she mentioned in her letter, remains unresolved; you keep a question about the window on rue de Lancry and the painting's back.",
+        "text_fr": "Qui était Odile, et qui est « derrière le tableau » ?",
+        "grounded_in": "thread:s1:0"
+      },
+      {
+        "text": "Lila's move to Berlin changed the group's shape — you still send her the canal photos and ask whether one can want someone to be both here and elsewhere.",
+        "text_fr": "Peut-on vouloir quelqu'un ici et vouloir son départ ?",
+        "grounded_in": "thread:s1:1"
+      },
+      {
+        "text": "Margaux's postcard promises work at a lighthouse; the invitation is open and the sea keeps calling — you must decide later whether you will go.",
+        "text_fr": "La carte de Margaux dit : il y a du travail, si tu veux.",
+        "grounded_in": "p:carte_phare"
+      }
+    ],
+    "setting": {
+      "city": "Bruxelles",
+      "region": "Belgique (entre le quartier européen et Matongé)",
+      "neighborhood": "Between the European institutions and Matongé — a busy cross-city place of offices, small shops, and Congolese cafés",
+      "genre": "heist / investigative comedy",
+      "tone": "warm, nervous, slightly playful — small-scale tension, friendship at the center",
+      "situation": "You travel to Brussels with Romy to follow a paper trail and find a lost painting; you juggle that with a summer job offer on Marin's father's boat.",
+      "situation_fr": "Vous allez à Bruxelles avec Romy pour suivre une piste et trouver un tableau.",
+      "why": "Grounded in Romy's neon (p:neon): while cleaning the neon she kept from Le Mistral, Romy finds a small sticker that lists a Brussels mailbox and a dealer — the label pulls you to Brussels to follow the corporate paper trail and the painting's trail.",
+      "grounded_in": "p:neon",
+      "travelling_cast": [
+        "romy_tremblay",
+        "bastien_roux"
+      ],
+      "keep_locations": [
+        "marin_lila_flat",
+        "odile_flat",
+        "marchand_office"
+      ]
+    },
+    "places": [
+      {
+        "id": "gare_bruxelles_central",
+        "name_fr": "Gare de Bruxelles-Central",
+        "kind": "station",
+        "description": "The arrival point and rendezvous: late trains, a tired café, and quick phone calls; scenes of arrivals and departures happen here.",
+        "brief": "A wide stone train concourse, a battered café kiosk with metal letters, a row of ticket machines; grey morning light through high windows."
+      },
+      {
+        "id": "marche_matonge",
+        "name_fr": "Le marché de Matongé",
+        "kind": "market",
+        "description": "A colourful neighbourhood market where you meet informants, see the painting's provenance discussed, and feel the city's other rhythms.",
+        "brief": "Stalls of fruit and fabric, bright parasols, stacked wooden crates and a weathered metro sign; ochre midday light dappled through awnings."
+      },
+      {
+        "id": "bureau_quartier_europeen",
+        "name_fr": "Le bureau du quartier européen",
+        "kind": "office",
+        "description": "A bland administrative office where the Brussels mailbox is registered; scenes of quiet infiltration, copying files, and small, tense negotiations happen here.",
+        "brief": "A glass office corridor, metal letterboxes on a pale wall, a small waiting chair; cool fluorescent light reflecting on glass."
+      },
+      {
+        "id": "galerie_matonge",
+        "name_fr": "Galerie de Matongé",
+        "kind": "shop",
+        "description": "A cramped gallery / dealer's shop that displays the painting and becomes the scene of the season's attempted swap; cosy and cluttered, it smells of old varnish.",
+        "brief": "A narrow shopfront with a faded poster in the window, a mid-sized framed painting on an easel, stacked picture frames leaning against a radiator; warm lamplight and dust motes."
+      }
+    ],
+    "new_characters": [
+      {
+        "id": "sacha_kabongo",
+        "name": "Sacha Kabongo",
+        "gender": "m",
+        "role": "Owner of a small gallery in Matongé who sometimes consigns works to European clients; he knows where many pieces move and dislikes big buyers.",
+        "personality": "Direct, good-humoured, pragmatic — protective of objects and of the neighbourhood's stories.",
+        "wants": "To keep local art accessible and to make honest deals; he will trade favours for trust.",
+        "speech_pattern": "Speaks fast, sometimes mixes French with Lingala and street phrases; addresses the user as vous at first.",
+        "register_with_user": "vous",
+        "grounded_in": "b:camion_tableau",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "round",
+          "skin": "deep",
+          "hair": "cropped",
+          "hair_colour": "black",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "jacket",
+          "top_colour": "olive",
+          "bottom_colour": "ink",
+          "accessory": "cap",
+          "accessory_colour": "charcoal",
+          "idle": "sway"
+        }
+      },
+      {
+        "id": "ines_van_den_berg",
+        "name": "Inès Van den Berg",
+        "gender": "f",
+        "role": "A contract lawyer / administrative fixer who works near the European quarter and knows how mailbox addresses and shell companies are set up.",
+        "personality": "Precise, quietly amused, a little bureaucratic but secretly mischievous.",
+        "wants": "To see institutions used for good, not just profit; she likes puzzles and will help if convinced.",
+        "speech_pattern": "Careful, clear, uses formal register with the user (vous) then relaxes into tu after trust.",
+        "register_with_user": "vous",
+        "grounded_in": "p:neon",
+        "rig": {
+          "build": "slim",
+          "height": "short",
+          "head": "oval",
+          "skin": "light",
+          "hair": "bob",
+          "hair_colour": "auburn",
+          "facial_hair": "none",
+          "glasses": "square",
+          "top": "shirt",
+          "top_colour": "cream",
+          "bottom_colour": "navy",
+          "accessory": "earrings",
+          "accessory_colour": "red",
+          "idle": "nod"
+        }
+      }
+    ]
+  },
+  "review": {
+    "accepted": true,
+    "grows_from_material": true,
+    "fresh": true,
+    "issues": [
+      "All main arcs are clearly grounded in material plants/branches: p:neon → Brussels paper-trail, b:camion_tableau → painting, b:bateau_pere → boat offer, p:carte_phare → Margaux's lighthouse invite. The move to Brussels is permitted (may_move = true).",
+      "Do not reopen the café question. The season keeps the investigation away from 'should we save Le Mistral?' which is closed in canon; ensure no plotline treats the café as reopenable or staged as an open venue (canon: 'Le Mistral has closed').",
+      "Clarify Margaux's presence at the first-party scene. The seed says 'Margaux's postcard arrival party' — canon says Margaux is in Brittany and sends postcards. Make explicit that Margaux is not physically back in Paris (the party reads her postcard), to avoid a contradiction with 'Margaux has gone to Brittany.'",
+      "Respect Lila's canon status. Lila must remain in Berlin and never appear in Paris scenes; the season correctly keeps her as an off-screen correspondence thread (photos).",
+      "Romy's journalist ethics are a canon constraint: she 'does not want to publish the thing that breaks her friends.' The proposal honours this (Romy protects friends) but scripts must avoid scenes where she recklessly publishes evidence that endangers the group.",
+      "A few new elements risk overshooting an A2 learner profile: 'shell companies', 'EU registrations', and administrative/contract-law specifics can be lexically dense. Keep vocabulary and explanations simple; use concrete scenes and repetition to teach key words (bureau, boîte postale, dossier, copie, galerie, carte).",
+      "The heist / infiltration beats should stay low-stakes and character-focused (friendship, small cons, bluff) — avoid complex procedural legal or high-technology burglary details that would both contradict the warm, small-scale tone and be linguistically heavy.",
+      "Maintain the register rules: the whole cast knows the learner (no stranger vous), and characters introduced as 'vous' (Inès, Sacha at first) must keep their intended registers; do not switch to intimate tu with the learner unless the material promises that development.",
+      "Keep continuity details: Gus keeps the booth bench; the painting left with a second-hand dealer — the season must place the painting consistently as having left Paris in the van (b:camion_tableau) and not reframe its provenance in a way that contradicts those facts.",
+      "Preserve the unresolved promises of season 1 that belong to future authors: do not reveal who 'L.' is or definitively answer the rue de Lancry/window mystery — you may deepen or reframe the question but must not provide canonical revelation."
+    ]
+  },
+  "refused": null,
+  "details": null,
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 13538,
+      "cost_usd": 0.015295,
+      "seconds": 47.826
+    },
+    {
+      "stage": "SeasonReview",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 7021,
+      "cost_usd": 0.003831,
+      "seconds": 7.561
+    }
+  ],
+  "world": {
+    "season_number": 2,
+    "season_source": "written",
+    "world_bible_version": "bruxelles-s2-written",
+    "title_fr": "Le néon et la valise",
+    "logline": "After Romy finds a small sticker behind the Mistral's neon, you follow her to Brussels — between the EU quarter and Matongé — to copy corporate papers, track a painting, and decide whether a seasonal job at sea really calls you; the season is a small heist/investigation, warm and nervous.",
+    "season_logline_fr": "Romy trouve une étiquette derrière le néon du Mistral. Vous partez à Bruxelles pour une enquête, un tableau perdu, et une décision de partir en mer.",
+    "setting": {
+      "city": "Bruxelles",
+      "previous_city": "Paris",
+      "region": "Belgique (entre le quartier européen et Matongé)",
+      "neighborhood": "Between the European institutions and Matongé — a busy cross-city place of offices, small shops, and Congolese cafés",
+      "genre": "heist / investigative comedy",
+      "tone": "warm, nervous, slightly playful — small-scale tension, friendship at the center",
+      "situation": "You travel to Brussels with Romy to follow a paper trail and find a lost painting; you juggle that with a summer job offer on Marin's father's boat."
+    },
+    "places": [
+      {
+        "id": "gare_bruxelles_central",
+        "name_fr": "Gare de Bruxelles-Central",
+        "type": "station",
+        "description": "The arrival point and rendezvous: late trains, a tired café, and quick phone calls; scenes of arrivals and departures happen here.",
+        "brief": "Gare de Bruxelles-Central, Bruxelles: A wide stone train concourse, a battered café kiosk with metal letters, a row of ticket machines; grey morning light through high windows.",
+        "plate_id": "w-gare_bruxelles_central-07c8c599",
+        "stand_in": "gare_de_lest"
+      },
+      {
+        "id": "marche_matonge",
+        "name_fr": "Le marché de Matongé",
+        "type": "market",
+        "description": "A colourful neighbourhood market where you meet informants, see the painting's provenance discussed, and feel the city's other rhythms.",
+        "brief": "Le marché de Matongé, Bruxelles: Stalls of fruit and fabric, bright parasols, stacked wooden crates and a weathered metro sign; ochre midday light dappled through awnings.",
+        "plate_id": "w-marche_matonge-195da49e",
+        "stand_in": "marche_canal"
+      },
+      {
+        "id": "bureau_quartier_europeen",
+        "name_fr": "Le bureau du quartier européen",
+        "type": "office",
+        "description": "A bland administrative office where the Brussels mailbox is registered; scenes of quiet infiltration, copying files, and small, tense negotiations happen here.",
+        "brief": "Le bureau du quartier européen, Bruxelles: A glass office corridor, metal letterboxes on a pale wall, a small waiting chair; cool fluorescent light reflecting on glass.",
+        "plate_id": "w-bureau_quartier_europeen-d9a667db",
+        "stand_in": "ngo_office"
+      },
+      {
+        "id": "galerie_matonge",
+        "name_fr": "Galerie de Matongé",
+        "type": "shop",
+        "description": "A cramped gallery / dealer's shop that displays the painting and becomes the scene of the season's attempted swap; cosy and cluttered, it smells of old varnish.",
+        "brief": "Galerie de Matongé, Bruxelles: A narrow shopfront with a faded poster in the window, a mid-sized framed painting on an easel, stacked picture frames leaning against a radiator; warm lamplight and dust motes.",
+        "plate_id": "w-galerie_matonge-b16d3586",
+        "stand_in": "brocante"
+      }
+    ],
+    "kept_places": [
+      "marin_lila_flat",
+      "odile_flat",
+      "marchand_office"
+    ],
+    "new_characters": [
+      {
+        "id": "sacha_kabongo",
+        "name": "Sacha Kabongo",
+        "gender": "m",
+        "role": "Owner of a small gallery in Matongé who sometimes consigns works to European clients; he knows where many pieces move and dislikes big buyers.",
+        "personality": "Direct, good-humoured, pragmatic — protective of objects and of the neighbourhood's stories.",
+        "wants": "To keep local art accessible and to make honest deals; he will trade favours for trust.",
+        "speech_pattern": "Speaks fast, sometimes mixes French with Lingala and street phrases; addresses the user as vous at first.",
+        "register_with_user": "vous",
+        "grounded_in": "b:camion_tableau",
+        "rig": {
+          "build": "medium",
+          "height": "medium",
+          "head": "round",
+          "skin": "deep",
+          "hair": "cropped",
+          "hair_colour": "black",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "jacket",
+          "top_colour": "olive",
+          "bottom_colour": "ink",
+          "accessory": "cap",
+          "accessory_colour": "charcoal",
+          "idle": "sway"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "ines_van_den_berg",
+        "name": "Inès Van den Berg",
+        "gender": "f",
+        "role": "A contract lawyer / administrative fixer who works near the European quarter and knows how mailbox addresses and shell companies are set up.",
+        "personality": "Precise, quietly amused, a little bureaucratic but secretly mischievous.",
+        "wants": "To see institutions used for good, not just profit; she likes puzzles and will help if convinced.",
+        "speech_pattern": "Careful, clear, uses formal register with the user (vous) then relaxes into tu after trust.",
+        "register_with_user": "vous",
+        "grounded_in": "p:neon",
+        "rig": {
+          "build": "slim",
+          "height": "short",
+          "head": "oval",
+          "skin": "light",
+          "hair": "bob",
+          "hair_colour": "auburn",
+          "facial_hair": "none",
+          "glasses": "square",
+          "top": "shirt",
+          "top_colour": "cream",
+          "bottom_colour": "navy",
+          "accessory": "earrings",
+          "accessory_colour": "red",
+          "idle": "nod"
+        },
+        "written_season": 2
+      }
+    ],
+    "away": {
+      "lila_bonnet": "Stayed in Paris when the story moved to Bruxelles: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "marin_leveque": "Stayed in Paris when the story moved to Bruxelles: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "augustin_de_roncourt": "Stayed in Paris when the story moved to Bruxelles: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "margaux_barman": "Stayed in Paris when the story moved to Bruxelles: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "landlord_marchand": "Stayed in Paris when the story moved to Bruxelles: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "camille_marchand": "Stayed in Paris when the story moved to Bruxelles: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "mme_diallo": "Stayed in Paris when the story moved to Bruxelles: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "maitre_vasseur": "Stayed in Paris when the story moved to Bruxelles: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there."
+    },
+    "arcs": [
+      {
+        "id": "solvel_paper_trail",
+        "title_fr": "La piste du dossier",
+        "characters": [
+          "romy_tremblay",
+          "bastien_roux",
+          "ines_van_den_berg",
+          "user"
+        ],
+        "grounded_in": "p:neon",
+        "stages": [
+          "Romy cleans the neon and discovers a tiny sticker with a Brussels mailbox and a company name; she convinces you the label could link Solvel to an EU shell.",
+          "In Brussels, Inès helps you trace the mailbox to a small administrative office; Bastien appears cold and secretive when you ask, and you realise Solvel uses EU registrations to hide acquisitions.",
+          "You and Romy copy files from the office archive during a tense, improvised infiltration, uncovering names that tie Solvel to a cultural broker who supplied café elements abroad."
+        ]
+      },
+      {
+        "id": "painting_recovery",
+        "title_fr": "Le tableau perdu",
+        "characters": [
+          "user",
+          "sacha_kabongo",
+          "romy_tremblay"
+        ],
+        "grounded_in": "b:camion_tableau",
+        "stages": [
+          "Romy spots a photo of the painting that left Paris on a dealer's page and traces it to Sacha's gallery in Matongé; you decide to meet him.",
+          "Sacha admits he has the painting on consignment for a collector from the EU quarter and asks for money or a favour; negotiations strain your plan and Romy's promise to protect friends.",
+          "You and Romy stage a bluff in the gallery — a quick swap and a borrowed crate — and secure the painting long enough to move it out of reach of the collector."
+        ]
+      },
+      {
+        "id": "boat_offer",
+        "title_fr": "L'été sur le bateau",
+        "characters": [
+          "marin_leveque",
+          "user"
+        ],
+        "grounded_in": "b:bateau_pere",
+        "stages": [
+          "Marin tells you his father needs reliable help for the summer on his boat and invites you to try the job; the offer feels like a clean, moving life.",
+          "As the Brussels investigation deepens and the painting recovery becomes risky, you must decide quickly whether to accept the boat job and leave unfinished business.",
+          "You accept a short trial contract on the boat but schedule the start after you finish the Brussels work, choosing a provisional bridge between places."
+        ]
+      },
+      {
+        "id": "carte_phare",
+        "title_fr": "La carte de Margaux",
+        "characters": [
+          "user"
+        ],
+        "grounded_in": "p:carte_phare",
+        "stages": [
+          "A postcard from Margaux arrives from Brittany with a short line: 'Il y a du travail ici, si tu veux', and it makes you imagine a quieter life by the sea.",
+          "You ask around about the lighthouse job and learn it is steady but lonely; the postcard's warmth conflicts with your ties to Paris and Brussels.",
+          "You write back to Margaux, keeping the door open but telling her you'll come only after you finish what you started — a promise to stay connected, not to disappear."
+        ]
+      }
+    ],
+    "situation": {
+      "your_arc": "You learn to hold two lives at once: protect Odile's memory and the friends in Paris while letting new, practical chances (work, investigation) change you.",
+      "open_threads": [
+        "Who was Odile, really — the thing she left in Paris, and the other person she mentioned in her letter, remains unresolved; you keep a question about the window on rue de Lancry and the painting's back.",
+        "Lila's move to Berlin changed the group's shape — you still send her the canal photos and ask whether one can want someone to be both here and elsewhere.",
+        "Margaux's postcard promises work at a lighthouse; the invitation is open and the sea keeps calling — you must decide later whether you will go."
+      ],
+      "open_threads_fr": [
+        "Qui était Odile, et qui est « derrière le tableau » ?",
+        "Peut-on vouloir quelqu'un ici et vouloir son départ ?",
+        "La carte de Margaux dit : il y a du travail, si tu veux."
+      ],
+      "first_episode_seed": "At Margaux's postcard arrival party (welcome postcards read aloud), Romy cleans the neon she kept and finds a tiny label with a Brussels address; she shows it to you — you buy a train ticket by evening."
+    }
+  },
+  "interlude": null
+}

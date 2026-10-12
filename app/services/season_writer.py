@@ -3,12 +3,22 @@
 Three ways a finished season is followed, in this order (``living_story.roll_over_season``):
 
 1. **Authored** — a season file exists (``serial.AUTHORED_SEASON_PATHS``: seasons 2 and 3).
-2. **Written** — behind ``ATELIER_SEASON_WRITER_ENABLED`` (default off), season N+1's arcs
-   are drafted from THIS learner's own material — the archived season questions, the
-   plants nobody paid, the branches nobody picked up again, the open promises and the
-   world flags — by one director-class call, gated by structural checks and one critic
-   call. Every arc and every thread must name the row of material it grows from; a
-   season that invents its premise from nothing is refused.
+2. **Written** — behind ``ATELIER_SEASON_WRITER_ENABLED`` (default on since WP-168: it only
+   runs once a season has ended), season N+1's arcs are drafted from THIS learner's own
+   material — the archived season questions, the plants nobody paid, the branches nobody
+   picked up again, the open promises and the world flags — by one director-class call,
+   gated by structural checks and one critic call. Every arc and every thread must name
+   the row of material it grows from; a season that invents its premise from nothing is
+   refused.
+
+   WP-168 «the writer may move the story» (``ATELIER_SEASON_WRITER_MAY_MOVE``, owner
+   decision of 11 October): the season may change city, genre and the learner's
+   situation, anywhere French is spoken, with new places (painted lazily, a stand-in
+   until then: ``season.written_world``) and new characters (drawn from rig parameters)
+   beside the cast members who travel. The move itself must name the material row that
+   pulls the learner there, and the critic judges both «grows from the material» and «is
+   it a fresh story». Canon guards stay: the departed cast never travels on stage, the
+   finished season's own rules and closed places hold.
 3. **Named interlude** — when neither is ready, the life does not sit in an interlude
    that never ends. It is told honestly: ``{"since", "returns_on", "reason_fr"}``, with
    ``returns_on`` :data:`INTERLUDE_WAIT_DAYS` days out. On that date the question is asked
@@ -22,18 +32,33 @@ current world by ``SerialThreadService.merge_season_world_bible``.
 
 from __future__ import annotations
 
+import copy
 import logging
+import random
 import re
+import threading
 import time
-from datetime import date, timedelta
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.services.season.written_world import (
+    PLACE_KINDS,
+    RIG_DEFAULTS,
+    RIG_VOCABULARY,
+    normalise_rig,
+)
 
 logger = logging.getLogger(__name__)
 
 INTERLUDE_WAIT_DAYS = 14
 WRITER_BUDGET_SECONDS = 90
+#: A season that may move is longer to write and gets one retry with the refusal's reasons.
+MOVING_BUDGET_SECONDS = 160
+MOVING_ATTEMPTS = 2
 MATERIAL_LIMIT = 12
 REPRISE_ARCS = 5
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9_]{1,62}$")
@@ -149,6 +174,32 @@ def _cast_ids(world: dict) -> list[str]:
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _clip_long_text(cls, data: Any) -> Any:
+        """Prose past a field's limit is cut at a sentence or a word, not a lost season
+        (the 12 October rerun lost an Acadian season to a 301-character ``setting.why``)."""
+
+        if not isinstance(data, dict):
+            return data
+        clipped = dict(data)
+        for name, field in cls.model_fields.items():
+            value = clipped.get(name)
+            limit = next((m.max_length for m in field.metadata if getattr(m, "max_length", None)), None)
+            if isinstance(value, str) and limit and len(value) > limit:
+                clipped[name] = _clip_prose(value, limit)
+        return clipped
+
+
+def _clip_prose(text: str, limit: int) -> str:
+    cut = text[:limit]
+    for mark in (". ", "! ", "? ", "; "):
+        end = cut.rfind(mark)
+        if end >= limit // 2:
+            return cut[: end + 1].strip()
+    space = cut.rfind(" ")
+    return (cut[:space] if space >= limit // 2 else cut).rstrip(" ,;:")
+
 
 class StageDraft(_Strict):
     id: str = Field(min_length=2, max_length=40)
@@ -171,6 +222,82 @@ class ThreadDraft(_Strict):
     grounded_in: str = Field(min_length=1, max_length=200)
 
 
+def _enum(key: str, description: str) -> Any:
+    return Field(
+        default=RIG_DEFAULTS[key],
+        description=description,
+        json_schema_extra={"enum": list(RIG_VOCABULARY[key])},
+    )
+
+
+class RigDraft(_Strict):
+    """How a new character is drawn: the drawn set builds the figure from these. A value
+    outside the vocabulary is the default, never an error."""
+
+    build: str = _enum("build", "body width")
+    height: str = _enum("height", "height")
+    head: str = _enum("head", "face shape")
+    skin: str = _enum("skin", "skin tone, lightest to deepest")
+    hair: str = _enum("hair", "hairstyle")
+    hair_colour: str = _enum("hair_colour", "hair colour")
+    facial_hair: str = _enum("facial_hair", "facial hair")
+    glasses: str = _enum("glasses", "glasses")
+    top: str = _enum("top", "what they wear on top")
+    top_colour: str = _enum("top_colour", "its colour")
+    bottom_colour: str = _enum("bottom_colour", "trousers or skirt colour")
+    accessory: str = _enum("accessory", "one accessory")
+    accessory_colour: str = _enum("accessory_colour", "its colour")
+    idle: str = _enum("idle", "how they move when still: bob, bounce, sway or nod")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _closed_vocabulary(cls, value: Any) -> Any:
+        return normalise_rig(value)
+
+
+class PlaceDraft(_Strict):
+    id: str = Field(min_length=2, max_length=63, description="snake_case French slug that starts with the kind of place: quai_…, gare_…, cafe_…, marche_…, appartement_…")
+    name_fr: str = Field(min_length=2, max_length=80)
+    kind: str = Field(
+        min_length=2,
+        max_length=20,
+        json_schema_extra={"enum": sorted(PLACE_KINDS)},
+    )
+    description: str = Field(min_length=10, max_length=300, description="English, for the director: what it is and what happens there")
+    brief: str = Field(
+        min_length=30,
+        max_length=420,
+        description="English plate brief for the painter: the place, three concrete landmarks, the light. No people, no readable text.",
+    )
+
+
+class NewCharacterDraft(_Strict):
+    id: str = Field(min_length=2, max_length=63, description="snake_case slug of their name, e.g. awa_ndiaye")
+    name: str = Field(min_length=2, max_length=60)
+    gender: str = Field(default="x", max_length=2, description="f, m or x")
+    role: str = Field(min_length=5, max_length=240)
+    personality: str = Field(min_length=5, max_length=240)
+    wants: str = Field(min_length=5, max_length=200)
+    speech_pattern: str = Field(min_length=5, max_length=200)
+    register_with_user: str = Field(default="vous", max_length=4, description="tu or vous")
+    grounded_in: str = Field(default="", max_length=200, description="the material row or cast id they are tied to")
+    rig: RigDraft = Field(default_factory=RigDraft)
+
+
+class SettingDraft(_Strict):
+    city: str = Field(min_length=2, max_length=80)
+    region: str = Field(default="", max_length=120, description="region and country")
+    neighborhood: str = Field(default="", max_length=200)
+    genre: str = Field(min_length=3, max_length=80)
+    tone: str = Field(default="", max_length=200)
+    situation: str = Field(min_length=10, max_length=300, description="the learner's situation this season, English")
+    situation_fr: str = Field(min_length=5, max_length=200, description="the same, one A2 French sentence")
+    why: str = Field(min_length=10, max_length=300, description="how the material row pulls the learner into this setting")
+    grounded_in: str = Field(min_length=1, max_length=200)
+    travelling_cast: list[str] = Field(default_factory=list, max_length=6)
+    keep_locations: list[str] = Field(default_factory=list, max_length=8)
+
+
 class SeasonDraft(_Strict):
     title_fr: str = Field(min_length=2, max_length=80)
     logline: str = Field(min_length=10, max_length=400)
@@ -179,11 +306,52 @@ class SeasonDraft(_Strict):
     first_episode_seed: str = Field(min_length=10, max_length=400)
     arcs: list[ArcDraft] = Field(min_length=3, max_length=5)
     open_threads: list[ThreadDraft] = Field(min_length=3, max_length=5)
+    # WP-168: only read under ATELIER_SEASON_WRITER_MAY_MOVE.
+    setting: SettingDraft | None = None
+    places: list[PlaceDraft] = Field(default_factory=list, max_length=6)
+    new_characters: list[NewCharacterDraft] = Field(default_factory=list, max_length=3)
+
+    @model_validator(mode="after")
+    def _slug_new_ids(self) -> SeasonDraft:
+        """A slip in a new face's id («marie-jo_boudreau») is repaired, not a lost season:
+        the id becomes a slug and every arc that names it follows (the rerun of 12 October
+        lost its Acadian season to the hyphen)."""
+
+        renamed: dict[str, str] = {}
+        for character in self.new_characters:
+            slug = _slugify_id(character.id)
+            if slug and slug != character.id:
+                renamed[character.id] = slug
+                character.id = slug
+        if renamed:
+            for arc in self.arcs:
+                arc.characters = [renamed.get(cid, cid) for cid in arc.characters]
+        # The same repair for arc and place ids («arc:follow_the_polaroid» lost a season).
+        for row in (*self.arcs, *self.places):
+            slug = _slugify_id(row.id)
+            if slug and len(slug) >= 2:
+                row.id = slug
+        return self
+
+
+def _slugify_id(value: str) -> str:
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", str(value or "")).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"_+", "_", re.sub(r"[^a-z0-9_]+", "_", text)).strip("_")[:63]
 
 
 class SeasonReview(_Strict):
     accepted: bool
+    # WP-168: the critic's two judgements of a season that may move. Absent (an older
+    # critic) they do not refuse; ``False`` does.
+    grows_from_material: bool | None = None
+    fresh: bool | None = None
     issues: list[str] = Field(default_factory=list)
+
+    @property
+    def passes(self) -> bool:
+        return bool(self.accepted) and self.grows_from_material is not False and self.fresh is not False
 
 
 SEASON_WRITER = """You are Atelier's season director. A learner has lived a whole season (or
@@ -204,18 +372,218 @@ Tone: warm, wry, one real feeling per arc. Return JSON matching the schema."""
 SEASON_CRITIC = """Independently check a proposed next season against the learner material it
 claims to grow from. Reject (accepted=false) when an arc or thread is not really about the
 material row it names, when it contradicts the cast, when the French is above A2 or
-unnatural, or when it merely repeats the previous season. List concrete issues."""
+unnatural, or when it merely repeats the previous season. List concrete issues. Return JSON
+matching the schema."""
+
+
+SEASON_WRITER_MOVING = """You are Atelier's season director. A learner has lived a whole season (or
+several) of a French-learning serial. Write the NEXT season's spine — not scenes.
+
+This season MAY MOVE. You may change the city, the genre and the learner's situation,
+anywhere French is spoken: Marseille, Brussels, Montréal, Dakar, a ferry to Corsica, a
+vineyard in Burgundy, a radio station in Abidjan, a lighthouse in Brittany — invent, there
+is no list. The French-speaking world is wide (Europe, North and West Africa, the Americas,
+the Indian Ocean, the Pacific); a town near the old city is the timid choice unless the
+material names it. You may also stay and change only the genre or the situation. Prefer
+the bold, specific, surprising choice that THIS learner's material makes inevitable.
+`previous_attempt_refused`, when present, is why your last draft was refused: answer every
+reason (keep its setting if only a thread was missing). `dare` is a place and a genre drawn at random for this call: weigh them seriously before
+your own idea, and take one or both whenever the material can carry them. The French coast
+and Paris are everyone's first idea; choose them only when the material names them.
+
+Choose the genre on purpose (for instance a mystery, a workplace comedy, a romance, a
+coming-of-age story, a heist, a survival story, a satire) and make it unlike the previous
+season's. The previous season's open questions may stay in the background as threads;
+they need not be this season's spine, and a road trip that re-investigates them is the
+default to avoid.
+
+What may not change: the season grows from `material`, the rows of this learner's own life
+(unpaid plants, branches nobody picked up again, open promises, the season questions and
+how they closed, facts a season established).
+- Every arc and every open thread names, in `grounded_in`, the exact `id` of its row.
+- A move is motivated: `setting.grounded_in` names the row that pulls the learner there and
+  `setting.why` says how (a thread that leads elsewhere, a promise to keep in another city,
+  someone to find, a job the story gave them). A move nothing in the material asks for is
+  refused. Always give `setting`, with `city` even when you stay.
+- `canon` holds: a `departed` cast member is never in `characters` or `travelling_cast`
+  (they may write, call, be remembered); `canon.rules` and `canon.facts` stay true; a
+  `closed_locations` place is never kept.
+
+Who comes along: `setting.travelling_cast` lists the cast ids physically there this season,
+each with a reason in an arc; everyone else stays where they were and reaches the learner
+from afar. Add 1–3 `new_characters` who live in the new setting, each tied in `grounded_in`
+to a material row or a cast id, each with a `rig` (how they are drawn: choose from the
+enums, make them distinct from each other and from the cast). Their ids are slugs of their
+names; a first name is never a cast member's first name or surname. A cast member's
+relative keeps the family name and the family facts of `cast` (`origin`, `contradiction`).
+
+Places: 3–6 `places` where this season's scenes happen (when you stay, fewer new ones plus
+`keep_locations`). Each: a French slug id that starts with its kind word, a French name, a
+`kind`, an English `description` for the director, and an English `brief` for the painter
+(the place, three concrete landmarks, the light; no people, no readable text).
+
+3–5 arcs, each 3 stages (spark → pressure → tentpole; the last one is the payoff), each
+stage a one-sentence summary in English and `sets` flags named `<character>.<fact>`;
+`characters` are cast ids, new character ids, and "user" for the learner.
+3–5 open threads: the English line the director reads and the short French line the learner
+reads (A2 French, one sentence). `title_fr` and `logline_fr` are short, warm, A2 French;
+`logline` (English) tells the director where the story is now and what this season is
+about. One real feeling per arc. Return JSON matching the schema."""
+
+SEASON_CRITIC_MOVING = """Independently judge a proposed next season of a French-learning serial
+against the learner material it claims to grow from (`source.material`) and against the
+season the learner already lived (`source.world`). Set two booleans and the verdict.
+
+grows_from_material: true only when every arc, every thread AND the setting itself grow
+from the material row each one names. A move must be motivated by its row: the learner is
+pulled there by a thread, a promise, a person, a consequence of their own choices. A season
+that could have been written for any learner, or a move nothing in the material asks for,
+is false.
+fresh: true only when it is a new story and not the previous season again: a new central
+question, new places or a real change of genre or situation, new people to meet, the
+travelling cast with new goals. The previous premise re-run in new clothes is false.
+
+accepted: grows_from_material and fresh, no canon contradiction (a departed cast member on
+stage, a closed place kept, a canon fact or a cast member's family contradicted), and natural A2 learner-facing
+French. A move to another city or a change of genre is welcome, never a problem in itself.
+List concrete issues. Return JSON matching the schema."""
 
 
 class SeasonRejected(ValueError):
     pass
 
 
-def validate_season(draft: SeasonDraft, *, material: list[dict], cast_ids: list[str]) -> None:
-    """The structural gate — deterministic, before the critic ever sees the draft."""
+def season_canon(live: dict) -> dict:
+    """What a written season may not undo: the cast the finished season sent away (never
+    on stage), its rules and facts, and the places its ending closed. Empty for a life
+    that never played a scripted season."""
 
+    empty: dict[str, Any] = {"departed": [], "rules": [], "facts": [], "closed_locations": []}
+    state = (live or {}).get("season_script")
+    if not isinstance(state, dict) or not state.get("id"):
+        return empty
+    try:
+        from app.services.season import epilogue as ep
+        from app.services.season.flags import effective_flags
+        from app.services.season.format import load_season
+
+        season = load_season(str(state["id"]))
+        flags = effective_flags(season, state)
+        carried = ep.carried(season, state, flags, band="A2", language="en")
+    except Exception:  # noqa: BLE001 - no canon read is an empty canon, never a lost season
+        logger.exception("season_writer: canon of %s unreadable", state.get("id"))
+        return empty
+    return {
+        "departed": [
+            {key: row.get(key) for key in ("id", "name", "why")} for row in carried.get("departed") or []
+        ],
+        # The continuation's rules that bind a later season too: the cast knows the
+        # learner, and «L.» is looked for, never revealed. (The others are about days
+        # inside the finished season's world, which a new season may leave.)
+        "rules": [rule for rule in ep.CONTINUATION_RULES if "stranger" in rule or "L." in rule],
+        "facts": list(carried.get("facts") or []),
+        "closed_locations": list(carried.get("closed_locations") or []),
+    }
+
+
+#: Words a name may share with the cast without being theirs.
+_NAME_COMMON = frozenset({"mme", "madame", "monsieur", "maitre", "the", "and", "les", "des"})
+#: Names the reader already maps onto the fixed cast (``lib/cast-faces``), besides the cast's own.
+_NAME_ALIASES = frozenset(
+    {"romane", "gus", "odile", "ferrand", "toi", "you", "user", "learner", "landlord", "proprietaire"}
+)
+
+
+def _cast_name_words(world: dict) -> set[str]:
+    """Every word of a cast member's id or name: a new face whose first word is one of
+    them would be read as theirs by the reader (their face, their voice)."""
+
+    from app.services.season.written_world import _tokens
+
+    words: set[str] = set(_NAME_ALIASES)
+    for member in world.get("cast") or []:
+        if isinstance(member, dict):
+            words.update(_tokens(member.get("name")))
+            words.update(_tokens(member.get("id")))
+    return {word for word in words if len(word) > 2 and word not in _NAME_COMMON}
+
+
+def _place_ids(world: dict) -> set[str]:
+    setting = world.get("setting") or {}
+    return {
+        str(place.get("id"))
+        for place in (setting.get("recurring_locations") if isinstance(setting, dict) else None) or []
+        if isinstance(place, dict) and place.get("id")
+    }
+
+
+def validate_season(
+    draft: SeasonDraft,
+    *,
+    material: list[dict],
+    cast_ids: list[str],
+    may_move: bool = False,
+    world: dict | None = None,
+    canon: dict | None = None,
+) -> None:
+    """The structural gate — deterministic, before the critic ever sees the draft.
+
+    WP-168, under ``may_move``: the setting names its material row; nobody departed
+    travels; kept places exist and are not closed; new places and new characters have
+    fresh slugs (a new face's first word is no cast member's name, so it never gets
+    their face or their voice in the reader); a change of city brings at least two new
+    places and three in all.
+    """
+
+    from app.services.season.written_world import same_city, valid_slug
+
+    world = world or {}
+    canon = canon or {}
     refs = {row["id"] for row in material}
-    allowed = set(cast_ids) | {"user"}
+    departed = {str(row.get("id")) for row in canon.get("departed") or [] if row.get("id")}
+    new_ids: set[str] = set()
+    if may_move:
+        from app.services.season.written_world import _tokens
+
+        reserved = set(cast_ids) | {"user"}
+        taken = _cast_name_words(world)
+        for character in draft.new_characters:
+            if not valid_slug(character.id) or character.id in reserved or character.id in new_ids:
+                raise SeasonRejected(f"new_character_id:{character.id}")
+            # The first word is what the reader and the voices go by (a relative may
+            # carry the family name: «Yann Lévêque», Marin's father).
+            if (_tokens(character.id) or [""])[0] in taken:
+                raise SeasonRejected(f"new_character_id:{character.id}")
+            if (_tokens(character.name) or [""])[0] in taken:
+                raise SeasonRejected(f"name_taken:{character.name}")
+            new_ids.add(character.id)
+        places = _place_ids(world)
+        closed = set(canon.get("closed_locations") or [])
+        setting = draft.setting
+        moved = False
+        if setting is not None:
+            if setting.grounded_in not in refs:
+                raise SeasonRejected("ungrounded_setting")
+            for who in setting.travelling_cast:
+                if who in departed:
+                    raise SeasonRejected(f"departed_travels:{who}")
+                if who not in cast_ids:
+                    raise SeasonRejected(f"unknown_traveller:{who}")
+            for place_id in setting.keep_locations:
+                if place_id not in places:
+                    raise SeasonRejected(f"unknown_place:{place_id}")
+                if place_id in closed:
+                    raise SeasonRejected(f"closed_place:{place_id}")
+            current = (world.get("setting") or {}).get("city") if isinstance(world.get("setting"), dict) else None
+            moved = bool(current) and not same_city(setting.city, current)
+        seen: set[str] = set()
+        for place in draft.places:
+            if not valid_slug(place.id) or place.id in places or place.id in seen:
+                raise SeasonRejected(f"place_id:{place.id}")
+            seen.add(place.id)
+        if moved and (len(seen) < 2 or len(seen) + len(setting.keep_locations) < 3):
+            raise SeasonRejected("too_few_places")
+    allowed = set(cast_ids) | {"user"} | new_ids
     ids: set[str] = set()
     for arc in draft.arcs:
         if not _SLUG.match(arc.id) or arc.id in ids:
@@ -226,6 +594,9 @@ def validate_season(draft: SeasonDraft, *, material: list[dict], cast_ids: list[
         unknown = [who for who in arc.characters if who not in allowed]
         if unknown:
             raise SeasonRejected(f"unknown_character:{unknown[0]}")
+        gone = [who for who in arc.characters if who in departed]
+        if gone:
+            raise SeasonRejected(f"departed_character:{gone[0]}")
         stage_ids = [stage.id for stage in arc.stages]
         if len(set(stage_ids)) != len(stage_ids):
             raise SeasonRejected(f"stage_ids:{arc.id}")
@@ -234,8 +605,86 @@ def validate_season(draft: SeasonDraft, *, material: list[dict], cast_ids: list[
             raise SeasonRejected("ungrounded_thread")
 
 
-def season_file_from_draft(draft: SeasonDraft, *, number: int, source: str) -> dict:
-    """A written season, in the authored season-file format."""
+def _setting_move(draft: SeasonDraft, *, number: int, world: dict) -> dict | None:
+    """The ``setting_move`` directive ``merge_season_world_bible`` applies (WP-168)."""
+
+    from app.services.season.written_world import place_kind, plate_id_for, stand_in_location
+
+    if draft.setting is None and not draft.places:
+        return None
+    setting = draft.setting
+    current = world.get("setting") if isinstance(world.get("setting"), dict) else {}
+    city = str((setting.city if setting else None) or current.get("city") or "").strip()
+    places = []
+    for place in draft.places:
+        kind = place_kind(place.kind, place.id, place.name_fr)
+        brief = " ".join(place.brief.split())
+        if city and city.lower() not in brief.lower():
+            # The painter needs the place and its city, not only its landmarks.
+            brief = f"{place.name_fr}, {city}: {brief}"
+        row = {
+            "id": place.id,
+            "name": place.name_fr,
+            "name_fr": place.name_fr,
+            "type": kind,
+            "description": place.description,
+            "brief": brief,
+            "plate_id": plate_id_for(place.id, brief),
+            "written_season": int(number),
+        }
+        row["stand_in"] = stand_in_location(row)
+        places.append(row)
+    move: dict[str, Any] = {"city": setting.city if setting else current.get("city"), "places": places}
+    if setting is not None:
+        move.update(
+            {
+                "region": setting.region,
+                "neighborhood": setting.neighborhood,
+                "genre": setting.genre,
+                "tone": setting.tone,
+                "situation": setting.situation,
+                "situation_fr": setting.situation_fr,
+                "why": setting.why,
+                "grounded_in": setting.grounded_in,
+                "travelling_cast": list(setting.travelling_cast),
+                "keep_locations": list(setting.keep_locations),
+            }
+        )
+    return move
+
+
+def _new_character(character: NewCharacterDraft, *, number: int) -> dict:
+    gender = character.gender.strip().lower()[:1]
+    return {
+        "id": character.id,
+        "name": character.name,
+        "gender": gender if gender in {"f", "m", "x"} else "x",
+        "role": character.role,
+        "personality": character.personality,
+        "wants": character.wants,
+        "speech_pattern": character.speech_pattern,
+        "register_with_user": "tu" if character.register_with_user.strip().lower() == "tu" else "vous",
+        "grounded_in": character.grounded_in,
+        "rig": normalise_rig(character.rig.model_dump()),
+        "written_season": int(number),
+    }
+
+
+def season_file_from_draft(
+    draft: SeasonDraft,
+    *,
+    number: int,
+    source: str,
+    may_move: bool = False,
+    world: dict | None = None,
+) -> dict:
+    """A written season, in the authored season-file format.
+
+    WP-168, under ``may_move``: plus the ``setting_move`` directive (city, genre, the
+    learner's situation, the new places with their plate briefs, who travels), the new
+    faces as ``cast_additions`` with their rig parameters, and the director's own
+    ``logline`` for the world the story is in now.
+    """
 
     arcs = []
     for arc in draft.arcs:
@@ -254,7 +703,8 @@ def season_file_from_draft(draft: SeasonDraft, *, number: int, source: str) -> d
             "grounded_in": arc.grounded_in,
             "stages": stages,
         })
-    return {
+    world = world or {}
+    written: dict[str, Any] = {
         "world_bible_version": f"paris-s{number}-{source}",
         "season_number": number,
         "season_source": source,
@@ -272,53 +722,176 @@ def season_file_from_draft(draft: SeasonDraft, *, number: int, source: str) -> d
         "character_agendas": {},
         "season_arcs": arcs,
     }
+    if may_move:
+        move = _setting_move(draft, number=int(number), world=world)
+        if move:
+            written["setting_move"] = move
+            city = re.sub(r"[^a-z0-9]+", "-", str(move.get("city") or "").lower()).strip("-")
+            if city:
+                written["world_bible_version"] = f"{city}-s{number}-{source}"
+        if draft.setting is not None:
+            # The director reads ``world.logline``: after a move it is this season's.
+            written["logline"] = draft.logline
+            written["season_setting"] = {
+                "city": draft.setting.city,
+                "region": draft.setting.region,
+                "genre": draft.setting.genre,
+                "situation_fr": draft.setting.situation_fr,
+            }
+        if draft.new_characters:
+            written["cast_additions"] = [_new_character(row, number=int(number)) for row in draft.new_characters]
+    return written
+
+
+#: The WP-168 dry run (11 October): 5 of 6 drafts went to the French coast and none left
+#: France. Each call now carries a dare, drawn at random (never seeded): one corner of the
+#: French-speaking world and one genre the writer must weigh before choosing its own.
+COMPASS_PLACES: tuple[str, ...] = (
+    "Montréal in a January cold snap", "a fishing village on the Gaspé Peninsula", "Moncton and Acadian Shediac",
+    "Brussels between the EU quarter and Matongé", "Liège in carnival week", "Geneva and its lake", "Lausanne's steep streets",
+    "Luxembourg City's ravines", "Aosta valley on the Italian side", "Dakar's Plateau and the Gorée ferry",
+    "Saint-Louis du Sénégal on its river island", "Abidjan's Plateau and Treichville", "Ouagadougou during FESPACO",
+    "Cotonou and the stilt village of Ganvié", "Lomé's grand market", "Kinshasa along the river", "Douala's port",
+    "Antananarivo's hills", "Saint-Denis de La Réunion under the volcano", "Port-Louis, Mauritius",
+    "Fort-de-France, Martinique", "Pointe-à-Pitre, Guadeloupe", "Cayenne and the Kourou launch base",
+    "Nouméa and a Kanak tribe up the coast", "Papeete and an atoll a boat ride away", "Saint-Pierre-et-Miquelon in fog",
+    "Port-au-Prince's hills", "Tunis medina and La Marsa", "Casablanca's art-deco centre", "Beirut's Achrafieh",
+    "a night train from Paris to Briançon", "a hospital in Lille", "Strasbourg's Christmas market", "a ski station in the Alps",
+    "a Corsican mountain village", "a vineyard harvest in Burgundy", "a Lyon bouchon kitchen", "Toulouse and the Airbus works",
+)
+COMPASS_GENRES: tuple[str, ...] = (
+    "a heist", "a mystery", "a workplace comedy", "a romance", "a coming-of-age story", "a survival story",
+    "a satire", "a ghost story", "a road movie", "a courtroom drama", "a family saga", "a sports season",
+    "a political campaign", "a cooking competition", "a music tour", "a quiet slice of life", "a thriller",
+)
+
+
+def compass() -> dict[str, str]:
+    """One dare for this call: a place and a genre, truly at random."""
+
+    draw = random.SystemRandom()
+    return {"place": draw.choice(COMPASS_PLACES), "genre": draw.choice(COMPASS_GENRES)}
+
+
+def _writer_payload(world: dict, *, next_season: int, material: list[dict], may_move: bool, canon: dict) -> dict:
+    # A moved season meets the cast's families (Marin's father's boat): their facts travel.
+    keys = ("id", "name", "role", "wants", "gender") + (("origin", "contradiction", "away") if may_move else ())
+    cast = [
+        {key: member.get(key) for key in keys if member.get(key) is not None}
+        for member in world.get("cast") or []
+        if isinstance(member, dict) and member.get("id")
+    ]
+    previous = [arc.get("id") for arc in world.get("season_arcs") or [] if isinstance(arc, dict)]
+    payload: dict[str, Any] = {
+        "world": {"logline": world.get("logline"), "cast": cast, "previous_season_arcs": previous},
+        "season_number": int(next_season),
+        "material": material,
+    }
+    if may_move:
+        setting = world.get("setting") if isinstance(world.get("setting"), dict) else {}
+        payload["world"]["setting"] = {
+            key: setting.get(key) for key in ("city", "neighborhood", "genre", "tone") if setting.get(key)
+        }
+        payload["world"]["places"] = [
+            {"id": place.get("id"), "name_fr": place.get("name_fr") or place.get("name")}
+            for place in setting.get("recurring_locations") or []
+            if isinstance(place, dict) and place.get("id")
+        ]
+        payload["world"]["previous_season_title_fr"] = world.get("season_title_fr")
+        payload["canon"] = canon
+        payload["may_move"] = True
+        payload["dare"] = compass()
+    return payload
 
 
 def draft_next_season(
-    *, live: dict, world: dict, next_season: int, db=None, user=None
+    *, live: dict, world: dict, next_season: int, db=None, user=None, record: dict | None = None
 ) -> dict | None:
     """One director-class call and one critic call; ``None`` on any failure.
 
     Never raises: a season that could not be written is a named interlude, not a lost
     day. Uses the story engine's own provider seam, so the tests' fake provider (and the
-    spend records) apply unchanged.
+    spend records) apply unchanged. ``record``, when given, receives the draft, the
+    critic's verdict, the refusal and the usage (the WP-168 dry run reads it).
     """
 
+    from app.config import settings
     from app.services import living_story as engine
 
+    record = record if record is not None else {}
     material = season_material(live, world)
+    record["material"] = material
     if len(material) < 3:
         logger.info("season_writer: too little material for season %s (%s rows)", next_season, len(material))
+        record["refused"] = "too_little_material"
         return None
-    cast = [
-        {key: member.get(key) for key in ("id", "name", "role", "wants", "gender")}
-        for member in world.get("cast") or []
-        if isinstance(member, dict) and member.get("id")
-    ]
-    previous = [arc.get("id") for arc in world.get("season_arcs") or [] if isinstance(arc, dict)]
-    payload = {
-        "world": {"logline": world.get("logline"), "cast": cast, "previous_season_arcs": previous},
-        "season_number": int(next_season),
-        "material": material,
-    }
+    may_move = bool(getattr(settings, "ATELIER_SEASON_WRITER_MAY_MOVE", False))
+    canon = season_canon(live)
+    payload = _writer_payload(world, next_season=next_season, material=material, may_move=may_move, canon=canon)
+    record["may_move"] = may_move
+    record["canon"] = canon
     usage: list[dict] = []
-    deadline = time.monotonic() + WRITER_BUDGET_SECONDS
+    record["usage"] = usage
+    deadline = time.monotonic() + (MOVING_BUDGET_SECONDS if may_move else WRITER_BUDGET_SECONDS)
+    attempts = MOVING_ATTEMPTS if may_move else 1
     try:
-        draft, _ = engine._json_call(
-            SEASON_WRITER, payload, SeasonDraft, usage.append, deadline=deadline,
-            max_tokens=6000, reasoning_effort="medium", window=60,
-        )
-        validate_season(draft, material=material, cast_ids=_cast_ids(world))
-        review, _ = engine._json_call(
-            SEASON_CRITIC, {"source": payload, "proposal": draft.model_dump(mode="json")},
-            SeasonReview, usage.append, deadline=deadline,
-        )
-        if not review.accepted:
+        for attempt in range(1, attempts + 1):
+            last = attempt == attempts
+            try:
+                draft, _ = engine._json_call(
+                    SEASON_WRITER_MOVING if may_move else SEASON_WRITER,
+                    payload,
+                    SeasonDraft,
+                    usage.append,
+                    deadline=deadline,
+                    max_tokens=12000 if may_move else 6000,
+                    reasoning_effort="medium",
+                    window=80 if may_move else 60,
+                )
+                record["draft"] = draft.model_dump(mode="json")
+                validate_season(
+                    draft, material=material, cast_ids=_cast_ids(world), may_move=may_move, world=world, canon=canon
+                )
+            except SeasonRejected as exc:
+                if last or time.monotonic() > deadline - 60:
+                    raise
+                # The gate's reason goes back to the writer, as a story day's guards do.
+                payload = {**payload, "previous_attempt_refused": {"reasons": [str(exc)]}}
+                record.setdefault("retries", []).append(str(exc))
+                continue
+            review, _ = engine._json_call(
+                SEASON_CRITIC_MOVING if may_move else SEASON_CRITIC,
+                {"source": payload, "proposal": draft.model_dump(mode="json")},
+                SeasonReview,
+                usage.append,
+                deadline=deadline,
+                max_tokens=4000 if may_move else None,
+            )
+            record["review"] = review.model_dump(mode="json")
+            if review.passes:
+                return season_file_from_draft(
+                    draft, number=int(next_season), source="written", may_move=may_move, world=world
+                )
             logger.info("season_writer: critic refused season %s: %s", next_season, review.issues[:3])
-            return None
-        return season_file_from_draft(draft, number=int(next_season), source="written")
+            if last or time.monotonic() > deadline - 60:
+                record["refused"] = "critic"
+                return None
+            # WP-168: one more draft that answers the critic, never the same season again.
+            payload = {
+                **payload,
+                "previous_attempt_refused": {
+                    "title_fr": draft.title_fr,
+                    "city": draft.setting.city if draft.setting else None,
+                    "reasons": review.issues[:6],
+                },
+            }
+            record.setdefault("retries", []).append("critic")
+        return None
     except (engine.StoryUnavailable, SeasonRejected) as exc:
         logger.info("season_writer: season %s not written (%s)", next_season, exc)
+        record["refused"] = str(exc)
+        if getattr(exc, "details", None):
+            record["details"] = exc.details
         return None
     except Exception:  # pragma: no cover - a writer never costs the learner a day
         logger.exception("season_writer: season %s failed", next_season)
@@ -467,3 +1040,177 @@ def reprise_season(*, live: dict, world: dict, next_season: int, seed: str) -> d
         "character_agendas": {},
         "season_arcs": arcs,
     }
+
+
+# --- the writer in the background (WP-168 follow-up) ------------------------
+#
+# A drafted season takes 60–95 s, too long for a learner's request. The finale's
+# close calls :func:`request_draft`, a worker thread writes the season into
+# ``story_season_drafts``, and the rollover adopts a ``ready`` row
+# (:func:`ready_season`) without a model call. The worker never touches the
+# learner's story state. It works from a snapshot, so a story revision in flight
+# is never invalidated.
+
+#: A ``drafting`` row older than this is presumed lost (a restarted process) and drafted again.
+DRAFT_STALE_SECONDS = 20 * 60
+
+_DRAFT_LOCK = threading.Lock()
+_DRAFTS_IN_FLIGHT: set[tuple[str, int]] = set()
+_DRAFT_EXECUTOR: ThreadPoolExecutor | None = None
+
+
+@dataclass(frozen=True)
+class DraftJob:
+    bind: Any
+    thread_id: Any
+    user_id: Any
+    season: int
+    live: dict
+    world: dict
+
+
+def _draft_executor() -> ThreadPoolExecutor:
+    global _DRAFT_EXECUTOR
+    with _DRAFT_LOCK:
+        if _DRAFT_EXECUTOR is None:
+            _DRAFT_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="season-writer")
+        return _DRAFT_EXECUTOR
+
+
+def _draft_row(db: Any, thread_id: Any, season: int) -> Any:
+    from app.db.models.season_draft import StorySeasonDraft
+
+    try:
+        with db.begin_nested():  # a failed lookup must not poison the caller's transaction
+            return db.get(StorySeasonDraft, (thread_id, int(season)))
+    except Exception as exc:  # noqa: BLE001 - an old database without the table: no draft
+        logger.debug("season_writer: draft lookup failed (%s)", exc)
+        return None
+
+
+def ready_season(db: Any, thread_id: Any, season: int) -> dict | None:
+    """The season file the worker drafted for ``season``, or ``None`` if not ready."""
+
+    if db is None or thread_id is None:
+        return None
+    row = _draft_row(db, thread_id, season)
+    if row is None or row.status != "ready" or not isinstance(row.season_file, dict):
+        return None
+    return row.season_file
+
+
+def mark_adopted(db: Any, thread_id: Any, season: int) -> None:
+    row = _draft_row(db, thread_id, season)
+    if row is not None and row.status == "ready":
+        row.status = "adopted"
+
+
+def _fresh(row: Any) -> bool:
+    stamp = getattr(row, "updated_at", None) or getattr(row, "created_at", None)
+    if stamp is None:
+        return True
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=UTC)
+    return (datetime.now(UTC) - stamp).total_seconds() < DRAFT_STALE_SECONDS
+
+
+def request_draft(db: Any, thread: Any, live: dict, world: dict, *, next_season: int, user: Any = None) -> str:
+    """Start drafting ``next_season`` on the worker unless it is already under way or
+    done. Returns ``queued``, ``drafting``, ``ready``, ``adopted``, ``refused``,
+    ``failed`` or ``off``. Never blocks, never raises."""
+
+    from app.config import settings
+
+    thread_id = getattr(thread, "id", None)
+    if db is None or thread_id is None or not settings.ATELIER_SEASON_WRITER_ENABLED:
+        return "off"
+    row = _draft_row(db, thread_id, next_season)
+    if row is not None and (row.status != "drafting" or _fresh(row)):
+        return str(row.status)
+    key = (str(thread_id), int(next_season))
+    with _DRAFT_LOCK:
+        if key in _DRAFTS_IN_FLIGHT:
+            return "drafting"
+        _DRAFTS_IN_FLIGHT.add(key)
+    job = DraftJob(
+        bind=db.get_bind(),
+        thread_id=thread_id,
+        user_id=getattr(user, "id", None),
+        season=int(next_season),
+        live=copy.deepcopy(live),
+        world=copy.deepcopy(world),
+    )
+    try:
+        _draft_executor().submit(run_draft_job, job)
+    except Exception:  # pragma: no cover - a shut-down executor: the rollover falls back
+        with _DRAFT_LOCK:
+            _DRAFTS_IN_FLIGHT.discard(key)
+        logger.exception("season_writer: draft for season %s not queued", next_season)
+        return "failed"
+    logger.info("season_writer: season %s queued for thread %s", next_season, thread_id)
+    return "queued"
+
+
+def _save_draft(db: Any, job: DraftJob, *, status: str, season_file: dict | None, detail: dict) -> None:
+    from app.db.models.season_draft import StorySeasonDraft
+
+    row = db.get(StorySeasonDraft, (job.thread_id, job.season))
+    if row is None:
+        row = StorySeasonDraft(thread_id=job.thread_id, season=job.season)
+        db.add(row)
+    row.status = status
+    row.season_file = season_file
+    row.detail = detail
+    db.commit()
+
+
+def run_draft_job(job: DraftJob) -> str:
+    """Draft the season and keep it in ``story_season_drafts``. Returns the status
+    written (``ready``, ``refused``, ``failed``). Never raises."""
+
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.models.user import User
+
+    key = (str(job.thread_id), int(job.season))
+    factory = sessionmaker(bind=job.bind, autoflush=False, expire_on_commit=False)
+    status = "failed"
+    started = time.monotonic()
+    try:
+        with factory() as db:
+            try:
+                _save_draft(db, job, status="drafting", season_file=None, detail={})
+            except Exception:  # noqa: BLE001 - another process drafts it: theirs is the draft
+                db.rollback()
+                logger.info("season_writer: season %s already drafting elsewhere", job.season)
+                return "drafting"
+            user = db.get(User, job.user_id) if job.user_id else None
+            record: dict = {}
+            season_file = draft_next_season(
+                live=job.live, world=job.world, next_season=job.season, db=db, user=user, record=record
+            )
+            status = "ready" if season_file else "refused"
+            _save_draft(
+                db,
+                job,
+                status=status,
+                season_file=season_file,
+                detail={
+                    "refused": record.get("refused"),
+                    "retries": record.get("retries"),
+                    "seconds": round(time.monotonic() - started, 1),
+                },
+            )
+            logger.info("season_writer: season %s %s in %.0f s", job.season, status, time.monotonic() - started)
+    except Exception:  # noqa: BLE001 - the rollover falls back to the interlude and the reprise
+        logger.exception("season_writer: background draft of season %s failed", job.season)
+        try:
+            with factory() as db:
+                _save_draft(db, job, status="failed", season_file=None, detail={"error": True})
+        except Exception:  # noqa: BLE001
+            logger.exception("season_writer: could not record the failed draft")
+        status = "failed"
+    finally:
+        with _DRAFT_LOCK:
+            _DRAFTS_IN_FLIGHT.discard(key)
+    return status

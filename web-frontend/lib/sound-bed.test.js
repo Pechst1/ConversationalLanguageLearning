@@ -62,6 +62,25 @@ test("a plate's file name names its place; the location id wins over it", () => 
   assert.equal(B.scenePlace('', null), null);
 });
 
+test('WP-168: a written season\'s new place sounds like its words, else like its stand-in plate', () => {
+  assert.equal(B.bedForPlace('quai_du_vieux_port'), 'canal');
+  assert.equal(B.bedForPlace('ferry_pont_superieur'), 'canal');
+  assert.equal(B.bedForPlace('gare_saint_charles'), 'metro');
+  assert.equal(B.bedForPlace('maquis_chez_tantie'), 'cafe');
+  assert.equal(B.bedForPlace('marché_de_sandaga'), 'market');
+  assert.equal(B.bedForPlace('bureau_de_la_radio'), 'office');
+  assert.equal(B.bedForPlace('vignes_du_domaine'), 'wind');
+  assert.equal(B.bedForPlace('appartement_de_awa'), 'room');
+  assert.equal(B.bedForPlace('atlantis'), B.DEFAULT_BED);
+  for (const [bed] of B.BED_WORDS) assert.ok(B.BED_IDS.includes(bed));
+  // A place whose name says nothing known sounds like the plate standing in for it.
+  assert.equal(B.scenePlace('chez_awa_ndiaye', '/assets/serial/locations/le_mistral-counter.webp'), 'chez_awa_ndiaye');
+  assert.equal(B.scenePlace('le_cargo', '/assets/serial/locations/le_mistral-counter.webp'), 'le_mistral');
+  assert.equal(B.bedForPlace(B.scenePlace('le_cargo', '/assets/serial/locations/le_mistral-counter.webp')), 'cafe');
+  assert.equal(B.scenePlace('le_cargo', '/media/revue-plates/season-w-le_cargo-1a2b.webp'), 'le_cargo');
+  assert.equal(B.bedForPlace('le_cargo'), B.DEFAULT_BED);
+});
+
 test('each bed is a 10–20 s stereo loop with no seam, levelled and repeatable', () => {
   assert.ok(B.BED_SECONDS >= 10 && B.BED_SECONDS <= 20);
   for (const bed of B.BED_IDS) {

@@ -1,0 +1,33 @@
+{
+ "days": [
+  {
+   "band": "A2.1",
+   "day": 4,
+   "title": "La journaliste au zinc",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-le_mistral-2026-10-12-story_863e8ffd9cf94cc0bc59b5d11b94abdb-bba6b78ae33a4517.webp"
+  },
+  {
+   "band": "A2.1",
+   "day": 6,
+   "title": "La même chose ?",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-le_mistral-2026-10-12-story_c78dbc593652470eb82b9f492480a18a-09ae014743d7290d.webp"
+  },
+  {
+   "band": "A2.2",
+   "day": 12,
+   "title": "La lampe ou le brocanteur",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-brocante-2026-10-12-story_56f0f637450f47a8a57738c47250d8bb-00d6e7fb232b8214.webp"
+  }
+ ],
+ "text_usd": 0.105,
+ "calls": 15,
+ "plates": 3,
+ "plate_usd_estimated": 0.18,
+ "total_usd": 0.285
+}

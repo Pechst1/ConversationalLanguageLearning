@@ -1,0 +1,204 @@
+{
+ "marker": {
+  "generated": true,
+  "news": {
+   "id": "a746bd30febc68a7",
+   "keys": [
+    "a746bd30febc68a7",
+    "t:30d82e8a41687d08"
+   ],
+   "title": "Affaire Thélyson Orélien: le monde de l'édition francophone en quête de nouveaux repères face à l'IA",
+   "summary": "Le 25 septembre dernier, l'académie Goncourt retirait brutalement de sa liste le roman de Thélyson Orélien, le grand succès de la rentrée littéraire soupçonné d'avoir été écrit avec l'aide de l'IA. L'affaire continue de",
+   "source": "RFI",
+   "source_id": "rfi_culture",
+   "url": "https://www.rfi.fr/fr/culture/20261011-affaire-th%C3%A9lyson-or%C3%A9lien-le-monde-de-l-%C3%A9dition-francophone-en-qu%C3%AAte-de-nouveaux-rep%C3%A8res-face-%C3%A0-l-ia",
+   "published_at": "2026-10-11T14:56:15+00:00",
+   "published_on": "2026-10-11",
+   "credit_fr": "D'après l'actualité du 11 octobre : Affaire Thélyson Orélien: le monde de l'édition francophone en quête de nouveaux repères face à l'IA (RFI)",
+   "mechanic_fr": "Des journalistes cherchent des preuves et deviennent méfiants envers les manuscrits inconnus; Romy est sur cette histoire et la mentionne en réunion.",
+   "entry_fr": "Romy montre une alerte et dit qu'elle est prudente, ce qui rend la décision plus délicate.",
+   "picked_by": "model",
+   "offered": 15,
+   "location_id": "odile_flat",
+   "plate": {
+    "key": "season:odile_flat:2026-10-11-story_6400ab7d9f1e498da827d94e3a297f3b",
+    "brief": "Location: Odile's flat kitchen, Objects: a smoking frying pan, a torn notebook page on the table, a phone with a visible news alert, Light: warm kitchen light after sunset, Weather: light rain outside the window",
+    "name_fr": "L'appartement d'Odile · actualité du 11 octobre"
+   }
+  }
+ },
+ "pick": {
+  "mechanic_fr": "Un roman encensé est brutalement retiré des listes de la rentrée parce qu’on le soupçonne d’avoir été écrit par une IA, déclenchant une chasse aux preuves chez les journalistes et une défiance immédiate des éditeurs envers les manuscrits inconnus.",
+  "why": "This threatens Marin's nascent novel and gives Romy a direct investigative beat — and it raises questions about Odile's notebook and authorship that could upset the café's plans.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "Le plan d'Odile",
+  "premise_fr": "La cuisine fume un peu après l'omelette ratée. Marin tient la page du carnet «Le Mistral à nous» et hésite : peut-il utiliser l'idée d'Odile ? Lila, Margaux et Romy écoutent. Romy montre une alerte sur son téléphone (une histoire de journalistes).",
+  "setup_native": "Marin asks permission to use Odile's plan; the learner must say yes or no with a short reason.",
+  "objective_native": "Tell Marin if he may use Odile's plan and give a brief reason (one short sentence).",
+  "objective_semantics": "One act: grant or refuse permission to Marin to use Odile's plan; include a simple justification about the café's future (reason linked to consequence).",
+  "character_id": "marin_leveque",
+  "location_id": "odile_flat",
+  "causal_reason": "Marin holds Odile's notebook page and wants to build a spreadsheet; the group needs the learner's blessing to use Odile's idea and to start planning.",
+  "source_event_ids": [],
+  "novelty_key": "marin_asks_use_plan_g2",
+  "chapter": {
+   "title_fr": "Feuilles et promesses",
+   "dramatic_question": "Acceptez-vous que Marin utilise le plan d'Odile pour le café ?",
+   "possible_developments": [
+    "Le groupe commence une petite feuille de route si le lecteur dit oui.",
+    "Si non, Marin garde l'idée pour lui et la construit plus tard.",
+    "Romy prend une note pour son reportage; la nouvelle la pousse à vérifier."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "decide_use_notebook",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:0",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "La soirée a mal commencé, elle peut bien finir.",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Bon, l'omelette est fichue, mais on rigole.",
+      "mood": "happy",
+      "text_native": "Okay, the omelette is ruined, but we laugh."
+     },
+     {
+      "character_id": "margaux_barman",
+      "text_fr": "J'ai fermé la porte. Ça va ?",
+      "mood": "neutral",
+      "text_native": "I closed the door. Are you okay?"
+     }
+    ],
+    "visual_direction": "Wide shot. Kitchen table with a smoking pan, Marin stands holding the torn notebook page. Lila sits, apron dusty; Margaux appears in the doorway. Romy is to the side, phone in hand.",
+    "alt_native": "Kitchen table, people around, a smoking pan on the stove."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "marin_leveque",
+      "text_fr": "Ma grand-mère disait toujours «on demande avec le cœur». Pardon, pardon, désolé — je peux utiliser le plan d'Odile ?",
+      "mood": "moved",
+      "text_native": "My grandmother always said 'ask with the heart.' Sorry, sorry, sorry — can I use Odile's plan?"
+     },
+     {
+      "character_id": "romy_tremblay",
+      "text_fr": "Voyons voir… les journalistes cherchent des preuves, ça me rend prudente.",
+      "mood": "neutral",
+      "text_native": "Let's see... journalists are hunting for evidence, that makes me cautious."
+     }
+    ],
+    "visual_direction": "Medium close. Marin holds the page up like a small flag. He looks nervous, Lila watches him with a grading smile. Romy's phone screen glows with a news alert.",
+    "alt_native": "Marin asks, Lila listens, Romy shows a news alert on her phone."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Selon moi, c'est une bonne base, parmi nous elle fait travailler tout le monde.",
+      "mood": "neutral",
+      "text_native": "In my view, it's a good base; among us it makes everyone work together."
+     }
+    ],
+    "visual_direction": "Close-up on Lila and the notebook page on the table. Lila taps the page with a finger, thinking.",
+    "alt_native": "Lila points at the notebook page on the table."
+   },
+   {
+    "narration_fr": "Margaux regarde le plafond. Tout le monde attend votre réponse.",
+    "dialogue": [],
+    "visual_direction": "One panel without dialogue. Margaux looks at the ceiling; the smoke alarm light is visible. The learner is in the room, listening.",
+    "alt_native": "Margaux looks at the ceiling; the room waits for the learner's answer."
+   }
+  ],
+  "opening_line_fr": "Ma grand-mère disait toujours «on demande avec le cœur». Pardon, pardon, désolé — je peux utiliser le plan d'Odile ?",
+  "suggested_response_fr": "Oui, tu peux utiliser le plan d'Odile parce que ça aide le café et crée un projet pour tout le monde.",
+  "hint_native": "Answer Yes or No and add a short reason: for example 'Oui, tu peux...' or 'Non, je préfère que...'. Keep it one sentence.",
+  "translation_native": "My grandmother always said 'ask with the heart.' Sorry, sorry, sorry — can I use Odile's plan?",
+  "capability_key": "arrange_meeting",
+  "lexicon": [
+   {
+    "surface_fr": "selon",
+    "lemma": "selon",
+    "gloss_native": "in my view / according to",
+    "part_of_speech": "preposition",
+    "gender": null,
+    "line_ref": "panel:2:line:0",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "parmi",
+    "lemma": "parmi",
+    "gloss_native": "among",
+    "part_of_speech": "preposition",
+    "gender": null,
+    "line_ref": "panel:2:line:0",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_A21_REQUEST_POLITELY",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "je_peux",
+   "threads": [
+    "s1:0",
+    "s1:2"
+   ],
+   "change_before": "No decision yet about Odile's plan.",
+   "change_after": "The learner either allows Marin to use the plan, starting the group's work, or refuses and keeps the idea private.",
+   "turn_want": "The learner must decide whether Marin may use Odile's plan.",
+   "small_moment_id": "polaroid_de_marin",
+   "hook_fr": "À suivre… Romy note quelque chose sur son téléphone.",
+   "forbidden_respected": true,
+   "complication": "A journalist's interest (Romy) may make the group more cautious tomorrow."
+  },
+  "news_day_notes": {
+   "mechanic_fr": "Des journalistes cherchent des preuves et deviennent méfiants envers les manuscrits inconnus; Romy est sur cette histoire et la mentionne en réunion.",
+   "entry_fr": "Romy montre une alerte et dit qu'elle est prudente, ce qui rend la décision plus délicate.",
+   "plate_brief": "Location: Odile's flat kitchen. Objects: a smoking frying pan, a torn notebook page on the table, a phone with a visible news alert. Light: warm kitchen light after sunset. Weather: light rain outside the window."
+  }
+ },
+ "refusals": [
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "mixed_address_register",
+   "hint": "The narration addresses the learner as \"vous\" while the character speaks to them as \"tu\". Pick one and use it everywhere: switching between tu and vous inside a scene reads as a mistake to a learner who is being taught the difference.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "ensemble",
+    "chapter_title_fr": "La décision du cadre",
+    "dramatic_question": "Donner la photo à Gus maintenant, la garder, ou la cacher pour plus tard ?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "marin_leveque"
+    ],
+    "objective_native": "Decide whether to give Gus his Polaroid and tell Lila one reason for your choice.",
+    "objective_words": 15,
+    "panels": 4,
+    "premise_id": "le_diner_rate"
+   }
+  }
+ ]
+}

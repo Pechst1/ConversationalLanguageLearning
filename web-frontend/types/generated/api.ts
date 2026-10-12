@@ -12444,6 +12444,21 @@ export interface components {
             /** Seasons */
             seasons?: components["schemas"]["ArchiveSeason"][];
         };
+        /**
+         * StoryCastRigRead
+         * @description WP-168: a character a written season added, and how the drawn set draws them
+         *     (parameters from ``season.written_world.RIG_VOCABULARY``).
+         */
+        StoryCastRigRead: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Rig */
+            rig: {
+                [key: string]: string;
+            };
+        };
         /** StoryChapterRead */
         StoryChapterRead: {
             /**
@@ -12507,12 +12522,19 @@ export interface components {
         };
         /** StoryEpisodeRead */
         StoryEpisodeRead: {
+            /**
+             * Cast Rigs
+             * @default null
+             */
+            cast_rigs?: components["schemas"]["StoryCastRigRead"][] | null;
             chapter: components["schemas"]["StoryChapterRead"] | null;
             grammar_focus: components["schemas"]["GrammarFocusRead"] | null;
             /** Id */
             id: string;
             /** Journey Id */
             journey_id: string | null;
+            /** @default null */
+            news?: components["schemas"]["StoryNewsCreditRead"] | null;
             /** @default null */
             page?: components["schemas"]["StoryPageRead"] | null;
             /** Panel Index */
@@ -12585,6 +12607,34 @@ export interface components {
              * @default 0
              */
             xp_earned?: number;
+        };
+        /**
+         * StoryNewsCreditRead
+         * @description WP-167: a news day's honest credit, «D'après l'actualité du 12 octobre : … (Le Monde)».
+         */
+        StoryNewsCreditRead: {
+            /** Credit Fr */
+            credit_fr: string;
+            /**
+             * Published On
+             * @default null
+             */
+            published_on?: string | null;
+            /**
+             * Source
+             * @default null
+             */
+            source?: string | null;
+            /**
+             * Title
+             * @default null
+             */
+            title?: string | null;
+            /**
+             * Url
+             * @default null
+             */
+            url?: string | null;
         };
         /** StoryOutcome */
         StoryOutcome: {

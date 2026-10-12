@@ -1,0 +1,119 @@
+{
+ "band": "B1.1",
+ "outcome": "complete",
+ "spend": {
+  "usd": 0.062332,
+  "calls": 13,
+  "cap": 0.15
+ },
+ "weaves": [
+  {
+   "unit": "Le plus-que-parfait : le passé du passé",
+   "title": "La carte sur la table",
+   "uses": 0,
+   "invited": true,
+   "countable": true,
+   "complies": false
+  },
+  {
+   "unit": null,
+   "title": "La question du rendez-vous — complication",
+   "uses": null,
+   "invited": null,
+   "countable": false,
+   "complies": true
+  }
+ ],
+ "failures": [],
+ "refusals": [
+  {
+   "position": "g5.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "unknown_panel_character",
+   "hint": "['clerk'] speak in the panels but are not in the cast. Give their lines to someone who is, or to narration: cast is ['augustin_de_roncourt', 'bastien_roux', 'camille_marchand', 'landlord_marchand', 'lila_bonnet', 'maitre_vasseur', 'margaux_barman', 'marin_leveque', 'mme_diallo', 'romy_tremblay']. The learner never has a dialogue line (their words are their reply), and a person who is only remembered or mentioned (Odile, a clerk) is spoken about, never given a line.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "Acheter pour elle",
+    "dramatic_question": "Peut-on rendre un départ réel pour Lila sans la forcer à parler?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "clerk",
+     "lila_bonnet",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Demander au guichetier un billet pour Lila et expliquer, en utilisant le plus-que-parfait, que sa voix avait déjà été fragilisée et qu'elle préfère l'acheter a…",
+    "objective_words": 26,
+    "panels": 4,
+    "premise_id": "le_guichet"
+   }
+  },
+  {
+   "position": "g5.1",
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "grammar_not_woven",
+   "hint": "grammar_plan.introduce («Le plus-que-parfait : le passé du passé») is said 0 time(s) in the cast's dialogue; cast members must say it at least 2 times, naturally, in what they want from each other (the form as in «Quand Léa est arrivée, ses amis étaient déjà partis.»); marin_leveque is this rule's coach: give marin_leveque one of those lines.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "La question du rendez-vous",
+    "dramatic_question": "Peut-on obtenir de Bastien qu'il revienne pour écouter le groupe sans perdre la vente ?",
+    "open_question": null,
+    "character_id": "bastien_roux",
+    "speakers": [
+     "augustin_de_roncourt",
+     "bastien_roux",
+     "marin_leveque"
+    ],
+    "objective_native": "Demandez à Bastien de revenir demain pour parler calmement, et proposez une condition (une heure précise ou que Gus reste à l'écart).",
+    "objective_words": 22,
+    "panels": 5,
+    "premise_id": null
+   }
+  },
+  {
+   "position": "g5.1",
+   "stage": "SceneDraft",
+   "attempt": 1,
+   "reason": "unknown_panel_character",
+   "hint": "['ticket_agent'] speak in the panels but are not in the cast. Give their lines to someone who is, or to narration: cast is ['augustin_de_roncourt', 'bastien_roux', 'camille_marchand', 'landlord_marchand', 'lila_bonnet', 'maitre_vasseur', 'margaux_barman', 'marin_leveque', 'mme_diallo', 'romy_tremblay']. The learner never has a dialogue line (their words are their reply), and a person who is only remembered or mentioned (Odile, a clerk) is spoken about, never given a line.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "bottle",
+    "chapter_title_fr": "Commencer le départ",
+    "dramatic_question": "Peut-on rendre le départ de Lila réel sans lui voler sa voix ?",
+    "open_question": null,
+    "character_id": "lila_bonnet",
+    "speakers": [
+     "lila_bonnet",
+     "marin_leveque",
+     "ticket_agent"
+    ],
+    "objective_native": "Ask the ticket agent for Lila's train ticket, explain briefly why she cannot speak, and propose one condition (par example, un siège côté fenêtre).",
+    "objective_words": 24,
+    "panels": 5,
+    "premise_id": "le_guichet"
+   }
+  }
+ ],
+ "refusal_reasons": {
+  "unknown_panel_character": 2,
+  "grammar_not_woven": 1
+ }
+}

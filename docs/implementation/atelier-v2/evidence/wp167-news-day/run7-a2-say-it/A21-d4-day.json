@@ -1,0 +1,269 @@
+{
+ "marker": {
+  "generated": true,
+  "news": {
+   "id": "e9a2f014b8434670",
+   "keys": [
+    "e9a2f014b8434670",
+    "t:3d78f0e09d94bf5f"
+   ],
+   "title": "Le marché des Enfants-Rouges, à Paris, \"ravagé\" par un incendie",
+   "summary": "Un feu a \"ravagé\" le marché des Enfants-Rouges, situé au cœur de la capitale, a annoncé la mairie de Paris Centre tôt lundi matin. Il s'agit du plus vieux marché couvert de Paris",
+   "source": "France 24",
+   "source_id": "france24_france",
+   "url": "https://www.france24.com/fr/france/20261012-march%C3%A9-des-enfants-rouges-paris-ravag%C3%A9-par-incendie",
+   "published_at": "2026-10-12T06:06:15+00:00",
+   "published_on": "2026-10-12",
+   "credit_fr": "D'après l'actualité du 12 octobre : Le marché des Enfants-Rouges, à Paris, \"ravagé\" par un incendie (France 24)",
+   "mechanic_fr": "Un grand incendie provoque des fermetures et des contrôles : les procédures immobilières et la survie des petits cafés sont retardées.",
+   "entry_fr": "Romy annonce la nouvelle au zinc pendant son interview, ce qui pousse la question vers le learner.",
+   "picked_by": "model",
+   "offered": 15,
+   "location_id": "le_mistral",
+   "plate": {
+    "key": "season:le_mistral:2026-10-12-story_a511a721d071488aba17f008a2cd0a79",
+    "brief": "an official clipboard with inspection forms left on the bar, and a half‑closed metal market door in the background, Light: overcast, grey morning, weather: steady rain making the zinc shine",
+    "name_fr": "Le Mistral · actualité du 12 octobre"
+   }
+  }
+ },
+ "pick": {
+  "mechanic_fr": "Un incendie important provoque des fermetures administratives et des contrôles de sécurité renforcés dans le quartier, retardant les procédures immobilières et menaçant la survie des petits cafés.",
+  "why": "A nearby market blaze could trigger inspections and shutdowns that directly affect the café and the flat's future.",
+  "say_it_fr": "Le marché des Enfants‑Rouges a été ravagé par un incendie ce matin — ils ferment le quartier et inspectent tous les commerces, y compris Le Mistral.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "Romy pose la question",
+  "premise_fr": "Romy interviewe Margaux au zinc. Elle apprend une info sur Solvel et se tourne vers toi : elle veut savoir qui tu es et ce que tu penses de Solvel.",
+  "setup_native": "Romy is doing a short interview at the bar. She finds a new piece of information about Solvel buying cafés and wants to ask you about it. The learner must tell Romy who they are and what they think of Solvel, as much or little as they want.",
+  "objective_native": "Tell Romy who you are and say what you think of Solvel (one short answer).",
+  "objective_semantics": "Introduce yourself in one sentence (who you are in relation to Odile) and give a short opinion about Solvel (positive, negative or unsure). This matters because Romy will use your answer in her report and she decides how much of the group's story reaches the public.",
+  "character_id": "romy_tremblay",
+  "location_id": "le_mistral",
+  "causal_reason": "Romy's interview finds that Solvel bought three cafés nearby; Margaux and the group worry. Romy asks the learner to position themself, which will affect the group's exposure and Margaux's trust.",
+  "source_event_ids": [],
+  "novelty_key": "romy_enquete_g1.2",
+  "chapter": {
+   "title_fr": "La première question",
+   "dramatic_question": "Vas‑tu dire à Romy qui tu es et ce que tu penses de Solvel ?",
+   "possible_developments": [
+    "Tu dis que tu es l'héritier·e et tu te méfies de Solvel : Romy écoute, et Margaux se ferme.",
+    "Tu évites la question : Romy accepte le silence et garde une piste ouverte.",
+    "Tu dis que tu veux partager le lieu : Gus applaudit et propose une idée."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:0",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "Le groupe est au zinc. Romy a son micro, Margaux essuie un verre.",
+    "dialogue": [
+     {
+      "character_id": "margaux_barman",
+      "text_fr": "J'ai rien entendu.",
+      "mood": "neutral",
+      "text_native": "I heard nothing."
+     },
+     {
+      "character_id": "romy_tremblay",
+      "text_fr": "Tu as le temps ? Je fais une petite enquête.",
+      "mood": "happy",
+      "text_native": "Do you have a moment? I'm doing a short inquiry."
+     }
+    ],
+    "visual_direction": "Wide shot: the zinc counter, Margaux drying a glass, Gus in the booth, Lila sketching, Marin holding a bowl; Romy stands with a small recorder, looking at the learner who is near the bar.",
+    "alt_native": "Group at the bar: Romy with a recorder, Margaux drying a glass, others around the counter."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "romy_tremblay",
+      "text_fr": "Le marché des Enfants‑Rouges a été ravagé par un incendie ce matin — ils ferment le quartier et inspectent tous les commerces, y compris Le Mistral.",
+      "mood": "neutral",
+      "text_native": "The Enfants‑Rouges market was devastated by a fire this morning — they are closing the area and inspecting all businesses, including Le Mistral."
+     },
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Ah ! Selon moi, c'est le moment où l'on voit qui tient bon.",
+      "mood": "happy",
+      "text_native": "Ah! In my view, it's when you see who holds firm."
+     }
+    ],
+    "visual_direction": "Medium close-up on Romy and Margaux at the counter; Romy leans in and speaks quickly, the recorder visible. Gus snorts softly in the background.",
+    "alt_native": "Romy says the news aloud; Gus reacts with theatrical surprise."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "romy_tremblay",
+      "text_fr": "C'est toi, l'héritage ? Qui es‑tu pour Odile, et que penses‑tu de Solvel ?",
+      "mood": "moved",
+      "text_native": "Are you the heir? Who are you for Odile, and what do you think of Solvel?"
+     }
+    ],
+    "visual_direction": "Close-up on Romy turning toward the learner, recorder lowered; Lila looks curious, Marin puts down his bowl; Margaux watches quietly.",
+    "alt_native": "Romy asks the learner directly about their relation to Odile and their opinion of Solvel."
+   },
+   {
+    "narration_fr": "Tout le monde attend ta réponse. Romy éteint son appareil quand tu la regardes.",
+    "dialogue": [
+     {
+      "character_id": "lila_bonnet",
+      "text_fr": "Allez, dis‑leur quelque chose. Sept sur vingt si tu restes muet.",
+      "mood": "happy",
+      "text_native": "Come on, say something. Seven out of twenty if you stay silent."
+     },
+     {
+      "character_id": "marin_leveque",
+      "text_fr": "Puisque c'est important, dis‑la doucement.",
+      "mood": "moved",
+      "text_native": "Since it's important, say it gently."
+     }
+    ],
+    "visual_direction": "Two panels worth of action in one: Gus leans forward, half-smiling; Lila bites her lip; Marin looks nervous; Margaux gives a small, unreadable look; the learner is in frame but silent — the moment asks for a reply.",
+    "alt_native": "The group waits; Romy turns off the recorder; friends encourage the learner to speak."
+   }
+  ],
+  "opening_line_fr": "C'est toi, l'héritage ?",
+  "suggested_response_fr": "Je suis la petite‑fille d'Odile, et je crains que Solvel change le quartier sans écouter les habitants.",
+  "hint_native": "Introduce yourself briefly (your relation to Odile) and give a short opinion about Solvel (for example, 'I trust them', 'I worry', or 'I'm not sure yet'). One sentence is enough.",
+  "translation_native": "Romy asks whether you are the heir and asks who you are for Odile and what you think of Solvel.",
+  "capability_key": "explain_delay",
+  "lexicon": [
+   {
+    "surface_fr": "l'héritage",
+    "lemma": "héritage",
+    "gloss_native": "inheritance, what someone left you",
+    "part_of_speech": "noun",
+    "gender": "m",
+    "line_ref": "panel:2:line:0",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "enquête",
+    "lemma": "enquête",
+    "gloss_native": "investigation, short journalistic inquiry",
+    "part_of_speech": "noun",
+    "gender": "f",
+    "line_ref": "panel:0:line:1",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "inspectent",
+    "lemma": "inspecter",
+    "gloss_native": "to inspect, to check (officials checking businesses)",
+    "part_of_speech": "verb",
+    "gender": null,
+    "line_ref": "panel:1:line:0",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "ravagé",
+    "lemma": "ravager",
+    "gloss_native": "devastated, destroyed",
+    "part_of_speech": "adjective",
+    "gender": null,
+    "line_ref": "panel:1:line:0",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_A21_REQUEST_POLITELY",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "romy_enquete",
+   "threads": [
+    "s1:0",
+    "s1:2"
+   ],
+   "change_before": "Before: Romy not yet introduced in a report about Solvel.",
+   "change_after": "After: Romy knows Solvel bought three cafés and is asking the learner for their position.",
+   "turn_want": "Tell Romy who you are and what you think of Solvel.",
+   "small_moment_id": "romy_eteint",
+   "hook_fr": "À suivre… Romy a une piste.",
+   "forbidden_respected": true,
+   "complication": "Tomorrow, official inspections may delay the café's paperwork and create new checks."
+  },
+  "time_of_day": "day",
+  "weather": "rain",
+  "news_day_notes": {
+   "mechanic_fr": "Un grand incendie provoque des fermetures et des contrôles : les procédures immobilières et la survie des petits cafés sont retardées.",
+   "entry_fr": "Romy annonce la nouvelle au zinc pendant son interview, ce qui pousse la question vers le learner.",
+   "news_line_fr": "Le marché des Enfants‑Rouges a été ravagé par un incendie ce matin — ils ferment le quartier et inspectent tous les commerces, y compris Le Mistral.",
+   "plate_brief": "Three concrete objects: a police tape across a nearby alley, an official clipboard with inspection forms left on the bar, and a half‑closed metal market door in the background. Light: overcast, grey morning; weather: steady rain making the zinc shine."
+  }
+ },
+ "refusals": [
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_register_vous",
+   "hint": "Romy says «tu» to the learner in this season, but here says «vous»: «C'est vous, l'héritage ?». Rewrite Romy's lines with tu (tu, toi, ton, ta): from someone who knows the learner, a «vous» reads as a stranger's. Keep the narration's address the same as theirs.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "La voix qui demande",
+    "dramatic_question": "Allez-vous dire que l'héritage est votre affaire, et rendre l'enquête plus personnelle ?",
+    "open_question": null,
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "lila_bonnet",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Tell Romy who you are and say briefly what you think of Solvel (one short opinion).",
+    "objective_words": 16,
+    "panels": 5,
+    "premise_id": "romy_enquete"
+   }
+  },
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "season_register_vous",
+   "hint": "Romy says «tu» to the learner in this season, but here says «vous»: «C'est vous, l'héritage ?». Rewrite Romy's lines with tu (tu, toi, ton, ta): from someone who knows the learner, a «vous» reads as a stranger's. Keep the narration's address the same as theirs.",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "standard",
+    "chapter_title_fr": "La première question",
+    "dramatic_question": "Vas‑tu te présenter comme l'héritier d'Odile, et que dis‑tu de Solvel ?",
+    "open_question": null,
+    "character_id": "romy_tremblay",
+    "speakers": [
+     "augustin_de_roncourt",
+     "margaux_barman",
+     "marin_leveque",
+     "romy_tremblay"
+    ],
+    "objective_native": "Tell Romy who you are and say briefly what you think of Solvel (one or two short sentences).",
+    "objective_words": 18,
+    "panels": 4,
+    "premise_id": "romy_enquete"
+   }
+  }
+ ]
+}

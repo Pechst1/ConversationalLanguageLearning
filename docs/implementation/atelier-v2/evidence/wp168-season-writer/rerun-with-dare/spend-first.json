@@ -1,0 +1,17 @@
+{
+  "llm_usd": 0.057364,
+  "lives": {
+    "garder": {
+      "rolled": false,
+      "refused": "new_character_id:marie-jo_boudreau"
+    },
+    "partager": {
+      "rolled": true,
+      "refused": null
+    },
+    "laisser_partir": {
+      "rolled": true,
+      "refused": null
+    }
+  }
+}

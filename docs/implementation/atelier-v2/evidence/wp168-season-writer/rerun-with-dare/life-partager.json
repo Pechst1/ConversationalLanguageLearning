@@ -1,0 +1,582 @@
+{
+  "ending": "partager",
+  "rolled": true,
+  "seconds": 59.7,
+  "material": [
+    {
+      "id": "p:lettres_grand_mere",
+      "kind": "plant",
+      "text_fr": "Dans le loft de Gus, une caisse de lettres de sa grand-mère, écrites d'une ville où il n'est jamais allé.",
+      "character_id": "augustin_de_roncourt"
+    },
+    {
+      "id": "b:mariage_camille",
+      "kind": "branch",
+      "text_fr": "Camille vous a demandé de l'accompagner à un mariage de famille, loin de Paris.",
+      "character_id": "camille_marchand"
+    },
+    {
+      "id": "c:interviews_romy",
+      "kind": "commitment",
+      "text_fr": "Traduire les interviews de Romy pour son nouveau contrat.",
+      "character_id": "romy_tremblay"
+    },
+    {
+      "id": "thread:s1:2",
+      "kind": "thread",
+      "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.ending",
+      "kind": "flag",
+      "text_fr": "s1.ending = partager",
+      "character_id": null
+    },
+    {
+      "id": "p:dessin_enfant",
+      "kind": "plant",
+      "text_fr": "À l'atelier, un enfant dessine toujours la même maison au bord de l'eau.",
+      "character_id": null
+    },
+    {
+      "id": "b:roman_marin",
+      "kind": "branch",
+      "text_fr": "Marin vous a confié son roman et vous a demandé où il devrait se passer.",
+      "character_id": "marin_leveque"
+    },
+    {
+      "id": "thread:s1:1",
+      "kind": "thread",
+      "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.flat_decision",
+      "kind": "flag",
+      "text_fr": "s1.flat_decision = coop",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1:0",
+      "kind": "thread",
+      "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+      "state": "open",
+      "character_id": null
+    },
+    {
+      "id": "flag:s1.lila_path",
+      "kind": "flag",
+      "text_fr": "s1.lila_path = open",
+      "character_id": null
+    },
+    {
+      "id": "thread:s1.open_question",
+      "kind": "thread",
+      "text_fr": "Rue de Lancry, au troisième, une fenêtre est encore allumée.",
+      "state": "open",
+      "character_id": null
+    }
+  ],
+  "canon": {
+    "departed": [
+      {
+        "id": "lila_bonnet",
+        "name": "Lila Bonnet",
+        "why": "Lila left for Berlin on 8 January (T8, the platform) and lives there now."
+      }
+    ],
+    "rules": [
+      "The whole cast knows the learner: never a stranger's welcome, never the vous of strangers from the group.",
+      "The continuation may look for «L.», ask about the rue de Lancry, follow the painting; it never reveals who L. is — that answer belongs to the next authored season."
+    ],
+    "facts": [
+      "Le Mistral is a co-operative, «Le Mistral à nous»; Margaux is member number 1 and no longer runs it alone.",
+      "Odile's flat is the co-op's workshop (children's painting classes, the meeting room); the learner rents the little room under the roof.",
+      "Gus lost the café of his childhood as it was; he forgives the learner in his own way («Tu m'as coûté une banquette»).",
+      "Gus has the painting in his loft, face to the wall, and says he does not know where it is.",
+      "Romy's article «Le feu du Mistral» is public; it earned her a Paris contract.",
+      "M. Marchand bought one share of the co-op; he never comes, but he pays.",
+      "Lila left for Berlin on 8 January; she lives there now. She writes; she is never in a Paris scene.",
+      "Odile's last letter has been read: she left two things in Paris, the flat and someone; for the other, «regarde derrière le tableau du Mistral».",
+      "Camille Marchand has met the learner and still says vous; the switch to tu belongs to a later season.",
+      "The café question of season 1 is closed. Do not reopen it.",
+      "Lila gave the copy of the key back, «tu me la redonnes quand je reviens»."
+    ],
+    "closed_locations": []
+  },
+  "draft": {
+    "title_fr": "Valises sur l'eau",
+    "logline": "Gus finds a crate of letters from a town he never visited; you travel with him from Paris to Ganvié and Cotonou in Benin — a workplace comedy about translating, mediating between friends and a new community, and finding what home means.",
+    "logline_fr": "Vous partez avec Gus à Ganvié et Cotonou pour suivre des lettres; c'est une comédie de travail, douce et drôle.",
+    "your_arc": "You chose to follow the letters in Gus's crate to a stilt village on Lac Nokoué; now you must translate, bridge cultures, and help Gus face a family story while keeping ties to Paris.",
+    "first_episode_seed": "In Gus's loft you open a sealed envelope with an address and a childlike drawing of a house on stilts; Gus says, 'C'est tout ce que j'ai.' Margaux calls from Le Mistral asking for news, and Camille texts wedding times — you decide to go.",
+    "arcs": [
+      {
+        "id": "lettres_de_grand_mere",
+        "title_fr": "Les lettres de grand-mère",
+        "characters": [
+          "augustin_de_roncourt",
+          "user",
+          "adou_ahossi"
+        ],
+        "grounded_in": "p:lettres_grand_mere",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark_opening",
+            "summary": "Spark: You and Gus open the crate of letters and find repeated references to a 'ville sur l'eau' and names that point to Ganvié; Gus asks you to come translate and find the place.",
+            "sets": {
+              "augustin_de_roncourt.follows_lettres": true,
+              "user.feeling": "curieux"
+            }
+          },
+          {
+            "id": "pressure_misstep",
+            "summary": "Pressure: In Ganvié, a literal translation angers an elder and a local name in the letters is disputed — Gus's claim of connection is questioned and you worry you mistranslated.",
+            "sets": {
+              "user.mistranslates": true,
+              "adou_ahossi.doubles_back_for_context": true,
+              "augustin_de_roncourt.confronted": true,
+              "user.feeling": "ashamed"
+            }
+          },
+          {
+            "id": "tentpole_clue",
+            "summary": "Tentpole/payoff: A small clue — an old photo referenced in a letter and a painted house by the water — ties the letters to a family memory; Gus finds a piece of closure without rewriting anyone's past.",
+            "sets": {
+              "augustin_de_roncourt.finds_clue": true,
+              "user.feeling": "soulagé"
+            }
+          }
+        ]
+      },
+      {
+        "id": "aller_au_mariage",
+        "title_fr": "Le mariage de Camille",
+        "characters": [
+          "camille_marchand",
+          "user",
+          "maman_agbessi"
+        ],
+        "grounded_in": "b:mariage_camille",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark_invitation",
+            "summary": "Spark: Camille asks you to accompany them to a family wedding nearby; you accept, partly to support Camille and partly because it fits the trip.",
+            "sets": {
+              "camille_marchand.attends_wedding": true,
+              "user.feeling": "nerveux"
+            }
+          },
+          {
+            "id": "pressure_family",
+            "summary": "Pressure: At the family gathering, cultural customs and a misread greeting cause awkwardness; Camille looks embarrassed and you must repair the moment.",
+            "sets": {
+              "user.messes_up_salutation": true,
+              "camille_marchand.embarrassed": true,
+              "maman_agbessi.tests_you": true,
+              "user.feeling": "inquiet"
+            }
+          },
+          {
+            "id": "tentpole_speech",
+            "summary": "Tentpole/payoff: You give a short, honest line in French that honors Camille's family and eases the tension; Camille shows a quiet gratitude and invites you deeper into trust.",
+            "sets": {
+              "camille_marchand.trusts_user": true,
+              "user.feeling": "connecté"
+            }
+          }
+        ]
+      },
+      {
+        "id": "traduire_les_interviews",
+        "title_fr": "Traduire pour Romy",
+        "characters": [
+          "romy_tremblay",
+          "user",
+          "adou_ahossi"
+        ],
+        "grounded_in": "c:interviews_romy",
+        "min_episodes_between_stages": 3,
+        "stages": [
+          {
+            "id": "spark_request",
+            "summary": "Spark: Romy asks you to translate the interviews she recorded in the village so she can finish her piece for a Paris outlet.",
+            "sets": {
+              "romy_tremblay.needs_translation": true,
+              "user.feeling": "responsable"
+            }
+          },
+          {
+            "id": "pressure_ethics",
+            "summary": "Pressure: The interviews include talk about a French company's plans that could harm locals; literal translation might endanger people or expose them to outsiders.",
+            "sets": {
+              "user.uncertain": true,
+              "romy_tremblay.conflicted": true,
+              "adou_ahossi.warns": true,
+              "user.feeling": "déchiré"
+            }
+          },
+          {
+            "id": "tentpole_publication",
+            "summary": "Tentpole/payoff: You craft translations with nuance and contextual notes; Romy publishes a piece that uplifts voices without exposing vulnerabilities, and you learn the craft of ethical translation.",
+            "sets": {
+              "romy_tremblay.publishes_respectfully": true,
+              "user.feeling": "fier"
+            }
+          }
+        ]
+      }
+    ],
+    "open_threads": [
+      {
+        "text": "Director: Who was Odile, and why did she leave Paris? The painting at Le Mistral still faces the wall and the co-op remembers different stories.",
+        "text_fr": "Qui était Odile et pourquoi elle est partie ?",
+        "grounded_in": "thread:s1:0"
+      },
+      {
+        "text": "Director: Lila is in Berlin — can you want someone to leave for their dream and also want them back? The learner still has Lila's returned key in a drawer.",
+        "text_fr": "Lila est à Berlin; peut-on la vouloir ici et vouloir son départ ?",
+        "grounded_in": "thread:s1:1"
+      },
+      {
+        "text": "Director: The child at Odile's atelier keeps drawing the same house by the water — is it connected to the letters and Ganvié?",
+        "text_fr": "L'enfant dessine une maison au bord de l'eau. Est-ce Ganvié ?",
+        "grounded_in": "p:dessin_enfant"
+      }
+    ],
+    "setting": {
+      "city": "Ganvié (Lac Nokoué) & Cotonou",
+      "region": "Sud du Bénin, Golfe de Guinée",
+      "neighborhood": "",
+      "genre": "workplace comedy",
+      "tone": "warm, chaotic, fish-out-of-water — funny moments with real tenderness",
+      "situation": "You go to Ganvié and Cotonou to trace the letters in Gus's crate, to translate Romy's interviews on site, and to accompany Camille to a family wedding.",
+      "situation_fr": "Vous allez à Ganvié et Cotonou pour suivre les lettres, traduire et aller au mariage de Camille.",
+      "why": "The crate of letters in Gus's loft mentions a 'ville sur l'eau' and names places and people that match Ganvié; Gus asks you to translate the letters and to come with him to find where they were written — you accept, and Camille's wedding happens in the same region, so she asks you to come too.",
+      "grounded_in": "p:lettres_grand_mere",
+      "travelling_cast": [
+        "augustin_de_roncourt",
+        "camille_marchand"
+      ],
+      "keep_locations": [
+        "le_mistral",
+        "user_apartment"
+      ]
+    },
+    "places": [
+      {
+        "id": "marche_ganvie",
+        "name_fr": "Le marché de Ganvié",
+        "kind": "market",
+        "description": "A floating market and cluster of stalls on planks and small boats where locals trade fish, spices and fabrics; many key conversations and mismatched translations happen here.",
+        "brief": "Rows of wooden stalls on narrow planks, baskets of smoked fish and bright wax cloth, low morning light on rippled water."
+      },
+      {
+        "id": "case_guesthouse",
+        "name_fr": "La case d'hôtes d'Agbessi",
+        "kind": "home",
+        "description": "A raised guesthouse of woven walls and a corrugated roof, where wedding guests sleep and visitors meet elders; this is where family stories surface and the learner sleeps while translating.",
+        "brief": "A small stilted house with rope railings, a woven mat on the floor, an oil lamp by the door; warm late-afternoon light."
+      },
+      {
+        "id": "quai_lac_nokoue",
+        "name_fr": "Le quai du Lac Nokoué",
+        "kind": "quay",
+        "description": "The wooden landing where pirogues arrive and depart; a place for arrivals, farewells, and found letters; it's windy, noisy, and full of calling vendors.",
+        "brief": "Weathered planks, tied pirogues with painted names, a low blue sky and sun on water, salt and smoke in the air."
+      },
+      {
+        "id": "port_cotonou",
+        "name_fr": "Le port de Cotonou",
+        "kind": "harbour",
+        "description": "A busy harbour and transit point where the group deals with visas, tickets, and an officious official who asks too many questions; a contrast to the slow life on the lake.",
+        "brief": "Crates and shipping containers, a concrete quay with rust stains, midday heat and hard, bright light; a small kiosk with official stamps."
+      }
+    ],
+    "new_characters": [
+      {
+        "id": "adou_ahossi",
+        "name": "Adou Ahossi",
+        "gender": "m",
+        "role": "Young pirogue pilot and guide who speaks Fon, French and broken English; he reads letters aloud and negotiates meetings with elders.",
+        "personality": "Quick-witted, practical, quietly proud of his village; likes small jokes and dislikes long lectures.",
+        "wants": "To show outsiders the real life of Ganvié and to protect the community from misunderstanding.",
+        "speech_pattern": "Short proverbs, easy humour, quick to correct literal translations with a local phrase.",
+        "register_with_user": "tu",
+        "grounded_in": "p:lettres_grand_mere",
+        "rig": {
+          "build": "slim",
+          "height": "tall",
+          "head": "oval",
+          "skin": "deep",
+          "hair": "cropped",
+          "hair_colour": "black",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "shirt",
+          "top_colour": "ochre",
+          "bottom_colour": "navy",
+          "accessory": "cap",
+          "accessory_colour": "navy",
+          "idle": "sway"
+        }
+      },
+      {
+        "id": "maman_agbessi",
+        "name": "Maman Agbessi",
+        "gender": "f",
+        "role": "Matriarch who runs the guesthouse and organizes the family wedding; keeper of local memory and a bridge to elders.",
+        "personality": "Forthright, warm, sometimes stern; she believes in hospitality and storytelling.",
+        "wants": "A safe wedding, the village's dignity maintained, and to know why a Frenchman claims kinship.",
+        "speech_pattern": "Measured, singsong when remembering, often uses local forms of address; she corrects foreign words gently.",
+        "register_with_user": "vous",
+        "grounded_in": "b:mariage_camille",
+        "rig": {
+          "build": "broad",
+          "height": "short",
+          "head": "round",
+          "skin": "deepest",
+          "hair": "bun",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "boubou",
+          "top_colour": "red",
+          "bottom_colour": "cream",
+          "accessory": "earrings",
+          "accessory_colour": "red",
+          "idle": "nod"
+        }
+      }
+    ]
+  },
+  "review": {
+    "accepted": true,
+    "grows_from_material": true,
+    "fresh": true,
+    "issues": [
+      "Strongly grounded moves: the season's central trip (Ganvié/Cotonou) is directly pulled from p:lettres_grand_mere; Camille's wedding branch and Romy's translation commitment are used. Good — nothing feels gratuitous.",
+      "Canon safety: Lila remains absent (Berlin) and the café question from season 1 is not reopened. Le Mistral and the user_apartment are kept as locations. No explicit canon facts are contradicted.",
+      "Tone/genre: This is a real change (Paris → Benin, rom-com/ensemble → workplace/ fish-out-of-water comedy) and introduces new people and goals. That satisfies 'fresh'.",
+      "Learner motivation: The learner is pulled by concrete items in the material (Gus's crate of letters, Romy's translation job, Camille's wedding). Every arc is traced to a named plant/branch/commitment.",
+      "Potential issue — register with new characters: The canon rule emphasises that the established cast 'knows the learner' (no stranger 'vous' from group members). Maman Agbessi's register is listed as 'vous' while Adou uses 'tu'. If Maman becomes part of the ongoing travelling cast or a recurring ally, consider aligning her register (or explicitly framing her as a respectful elder who uses vous for cultural reasons).",
+      "Potential issue — series balance: The proposal relocates the dramatic center to Benin. Make sure Le Mistral and the rooftop room remain active touchpoints (calls, letters, short scenes) so the season still feels like a continuation tied to the show's Paris roots rather than a wholly separate miniseries.",
+      "Potential issue — the 'child drawing' thread and the director's open questions are invoked; ensure the season does not claim definitive answers to 'Who was Odile?' beyond what the rules allow (the rules say the answer 'L.' belongs to the next authored season). The proposal ties the drawing to Ganvié — be careful not to assert a canonical identification that would close the question if the show intends that reveal to be reserved.",
+      "Language level: The situation (translation work, simple family scenes, practical travel tasks) is well suited to A2 learner-facing French, but scripts should keep vocabulary explanation and short, clear utterances for scenes of cultural/ethical nuance (e.g., discussions about the company's harmful plans) to remain accessible."
+    ]
+  },
+  "refused": null,
+  "details": null,
+  "usage": [
+    {
+      "stage": "SeasonDraft",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 14481,
+      "cost_usd": 0.017157,
+      "seconds": 52.634
+    },
+    {
+      "stage": "SeasonReview",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "tokens": 6772,
+      "cost_usd": 0.003524,
+      "seconds": 7.084
+    }
+  ],
+  "world": {
+    "season_number": 2,
+    "season_source": "written",
+    "world_bible_version": "ganvi-lac-nokou-cotonou-s2-written",
+    "title_fr": "Valises sur l'eau",
+    "logline": "Gus finds a crate of letters from a town he never visited; you travel with him from Paris to Ganvié and Cotonou in Benin — a workplace comedy about translating, mediating between friends and a new community, and finding what home means.",
+    "season_logline_fr": "Vous partez avec Gus à Ganvié et Cotonou pour suivre des lettres; c'est une comédie de travail, douce et drôle.",
+    "setting": {
+      "city": "Ganvié (Lac Nokoué) & Cotonou",
+      "previous_city": "Paris",
+      "region": "Sud du Bénin, Golfe de Guinée",
+      "neighborhood": "Canal Saint-Martin & the 10th/11th arrondissements — young, mixed, slightly bohemian, walkable",
+      "genre": "workplace comedy",
+      "tone": "warm, chaotic, fish-out-of-water — funny moments with real tenderness",
+      "situation": "You go to Ganvié and Cotonou to trace the letters in Gus's crate, to translate Romy's interviews on site, and to accompany Camille to a family wedding."
+    },
+    "places": [
+      {
+        "id": "marche_ganvie",
+        "name_fr": "Le marché de Ganvié",
+        "type": "market",
+        "description": "A floating market and cluster of stalls on planks and small boats where locals trade fish, spices and fabrics; many key conversations and mismatched translations happen here.",
+        "brief": "Le marché de Ganvié, Ganvié (Lac Nokoué) & Cotonou: Rows of wooden stalls on narrow planks, baskets of smoked fish and bright wax cloth, low morning light on rippled water.",
+        "plate_id": "w-marche_ganvie-28cf2ecd",
+        "stand_in": "marche_canal"
+      },
+      {
+        "id": "case_guesthouse",
+        "name_fr": "La case d'hôtes d'Agbessi",
+        "type": "home",
+        "description": "A raised guesthouse of woven walls and a corrugated roof, where wedding guests sleep and visitors meet elders; this is where family stories surface and the learner sleeps while translating.",
+        "brief": "La case d'hôtes d'Agbessi, Ganvié (Lac Nokoué) & Cotonou: A small stilted house with rope railings, a woven mat on the floor, an oil lamp by the door; warm late-afternoon light.",
+        "plate_id": "w-case_guesthouse-643d2020",
+        "stand_in": "user_apartment"
+      },
+      {
+        "id": "quai_lac_nokoue",
+        "name_fr": "Le quai du Lac Nokoué",
+        "type": "quay",
+        "description": "The wooden landing where pirogues arrive and depart; a place for arrivals, farewells, and found letters; it's windy, noisy, and full of calling vendors.",
+        "brief": "Le quai du Lac Nokoué, Ganvié (Lac Nokoué) & Cotonou: Weathered planks, tied pirogues with painted names, a low blue sky and sun on water, salt and smoke in the air.",
+        "plate_id": "w-quai_lac_nokoue-6d2bab19",
+        "stand_in": "quai_de_valmy"
+      },
+      {
+        "id": "port_cotonou",
+        "name_fr": "Le port de Cotonou",
+        "type": "harbour",
+        "description": "A busy harbour and transit point where the group deals with visas, tickets, and an officious official who asks too many questions; a contrast to the slow life on the lake.",
+        "brief": "Le port de Cotonou, Ganvié (Lac Nokoué) & Cotonou: Crates and shipping containers, a concrete quay with rust stains, midday heat and hard, bright light; a small kiosk with official stamps.",
+        "plate_id": "w-port_cotonou-a2f5bba9",
+        "stand_in": "quai_de_valmy"
+      }
+    ],
+    "kept_places": [
+      "le_mistral",
+      "user_apartment"
+    ],
+    "new_characters": [
+      {
+        "id": "adou_ahossi",
+        "name": "Adou Ahossi",
+        "gender": "m",
+        "role": "Young pirogue pilot and guide who speaks Fon, French and broken English; he reads letters aloud and negotiates meetings with elders.",
+        "personality": "Quick-witted, practical, quietly proud of his village; likes small jokes and dislikes long lectures.",
+        "wants": "To show outsiders the real life of Ganvié and to protect the community from misunderstanding.",
+        "speech_pattern": "Short proverbs, easy humour, quick to correct literal translations with a local phrase.",
+        "register_with_user": "tu",
+        "grounded_in": "p:lettres_grand_mere",
+        "rig": {
+          "build": "slim",
+          "height": "tall",
+          "head": "oval",
+          "skin": "deep",
+          "hair": "cropped",
+          "hair_colour": "black",
+          "facial_hair": "stubble",
+          "glasses": "none",
+          "top": "shirt",
+          "top_colour": "ochre",
+          "bottom_colour": "navy",
+          "accessory": "cap",
+          "accessory_colour": "navy",
+          "idle": "sway"
+        },
+        "written_season": 2
+      },
+      {
+        "id": "maman_agbessi",
+        "name": "Maman Agbessi",
+        "gender": "f",
+        "role": "Matriarch who runs the guesthouse and organizes the family wedding; keeper of local memory and a bridge to elders.",
+        "personality": "Forthright, warm, sometimes stern; she believes in hospitality and storytelling.",
+        "wants": "A safe wedding, the village's dignity maintained, and to know why a Frenchman claims kinship.",
+        "speech_pattern": "Measured, singsong when remembering, often uses local forms of address; she corrects foreign words gently.",
+        "register_with_user": "vous",
+        "grounded_in": "b:mariage_camille",
+        "rig": {
+          "build": "broad",
+          "height": "short",
+          "head": "round",
+          "skin": "deepest",
+          "hair": "bun",
+          "hair_colour": "black",
+          "facial_hair": "none",
+          "glasses": "none",
+          "top": "boubou",
+          "top_colour": "red",
+          "bottom_colour": "cream",
+          "accessory": "earrings",
+          "accessory_colour": "red",
+          "idle": "nod"
+        },
+        "written_season": 2
+      }
+    ],
+    "away": {
+      "lila_bonnet": "Stayed in Paris when the story moved to Ganvié (Lac Nokoué) & Cotonou: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "marin_leveque": "Stayed in Paris when the story moved to Ganvié (Lac Nokoué) & Cotonou: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "margaux_barman": "Stayed in Paris when the story moved to Ganvié (Lac Nokoué) & Cotonou: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "romy_tremblay": "Stayed in Paris when the story moved to Ganvié (Lac Nokoué) & Cotonou: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "landlord_marchand": "Stayed in Paris when the story moved to Ganvié (Lac Nokoué) & Cotonou: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "mme_diallo": "Stayed in Paris when the story moved to Ganvié (Lac Nokoué) & Cotonou: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "maitre_vasseur": "Stayed in Paris when the story moved to Ganvié (Lac Nokoué) & Cotonou: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there.",
+      "bastien_roux": "Stayed in Paris when the story moved to Ganvié (Lac Nokoué) & Cotonou: only from afar (a message, a call, a letter, a visit someone plans), never physically on the page there."
+    },
+    "arcs": [
+      {
+        "id": "lettres_de_grand_mere",
+        "title_fr": "Les lettres de grand-mère",
+        "characters": [
+          "augustin_de_roncourt",
+          "user",
+          "adou_ahossi"
+        ],
+        "grounded_in": "p:lettres_grand_mere",
+        "stages": [
+          "Spark: You and Gus open the crate of letters and find repeated references to a 'ville sur l'eau' and names that point to Ganvié; Gus asks you to come translate and find the place.",
+          "Pressure: In Ganvié, a literal translation angers an elder and a local name in the letters is disputed — Gus's claim of connection is questioned and you worry you mistranslated.",
+          "Tentpole/payoff: A small clue — an old photo referenced in a letter and a painted house by the water — ties the letters to a family memory; Gus finds a piece of closure without rewriting anyone's past."
+        ]
+      },
+      {
+        "id": "aller_au_mariage",
+        "title_fr": "Le mariage de Camille",
+        "characters": [
+          "camille_marchand",
+          "user",
+          "maman_agbessi"
+        ],
+        "grounded_in": "b:mariage_camille",
+        "stages": [
+          "Spark: Camille asks you to accompany them to a family wedding nearby; you accept, partly to support Camille and partly because it fits the trip.",
+          "Pressure: At the family gathering, cultural customs and a misread greeting cause awkwardness; Camille looks embarrassed and you must repair the moment.",
+          "Tentpole/payoff: You give a short, honest line in French that honors Camille's family and eases the tension; Camille shows a quiet gratitude and invites you deeper into trust."
+        ]
+      },
+      {
+        "id": "traduire_les_interviews",
+        "title_fr": "Traduire pour Romy",
+        "characters": [
+          "romy_tremblay",
+          "user",
+          "adou_ahossi"
+        ],
+        "grounded_in": "c:interviews_romy",
+        "stages": [
+          "Spark: Romy asks you to translate the interviews she recorded in the village so she can finish her piece for a Paris outlet.",
+          "Pressure: The interviews include talk about a French company's plans that could harm locals; literal translation might endanger people or expose them to outsiders.",
+          "Tentpole/payoff: You craft translations with nuance and contextual notes; Romy publishes a piece that uplifts voices without exposing vulnerabilities, and you learn the craft of ethical translation."
+        ]
+      }
+    ],
+    "situation": {
+      "your_arc": "You chose to follow the letters in Gus's crate to a stilt village on Lac Nokoué; now you must translate, bridge cultures, and help Gus face a family story while keeping ties to Paris.",
+      "open_threads": [
+        "Director: Who was Odile, and why did she leave Paris? The painting at Le Mistral still faces the wall and the co-op remembers different stories.",
+        "Director: Lila is in Berlin — can you want someone to leave for their dream and also want them back? The learner still has Lila's returned key in a drawer.",
+        "Director: The child at Odile's atelier keeps drawing the same house by the water — is it connected to the letters and Ganvié?"
+      ],
+      "open_threads_fr": [
+        "Qui était Odile et pourquoi elle est partie ?",
+        "Lila est à Berlin; peut-on la vouloir ici et vouloir son départ ?",
+        "L'enfant dessine une maison au bord de l'eau. Est-ce Ganvié ?"
+      ],
+      "first_episode_seed": "In Gus's loft you open a sealed envelope with an address and a childlike drawing of a house on stilts; Gus says, 'C'est tout ce que j'ai.' Margaux calls from Le Mistral asking for news, and Camille texts wedding times — you decide to go."
+    }
+  },
+  "interlude": null
+}

@@ -10,9 +10,13 @@ import { castVariant, NEEDS_VARIANT } from '@/lib/cast-variants';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import { CastRig } from './CastRig';
 import { rigMoodFor } from './cast-registry';
+import { generatedRigId } from './generated-cast';
 import type { Viseme } from './rig-kit';
 
 export function drawnFaceId(...seeds: unknown[]): string | null {
+  // WP-168: a written season's new face, named exactly by its id or its name.
+  const generated = generatedRigId(...seeds);
+  if (generated) return generated;
   const id = drawnCastIdFor(...seeds);
   if (!id) return null;
   if (NEEDS_VARIANT.has(id) && !castVariant(id)) return null;

@@ -1,0 +1,11 @@
+23:37:16.417 | INFO     | app.services.news_day:395 - news_day: 141 fresh headlines ({'le_monde_front': 'ok:16', 'rfi_france': 'ok:11', 'france24_france': 'ok:21', 'franceinfo_france': 'ok:13', 'franceinfo_culture': 'ok:20', 'franceinfo_sports': 'ok:19', 'le_monde_culture': 'ok:19', 'le_monde_gastronomie': 'ok:0', 'rfi_culture': 'ok:9', 'lequipe_une': 'ok:14'})
+23:37:21.329 | INFO     | app.services.llm_service:523 - OpenAI completion success model='gpt-5-mini' tokens=3950 cost=0.001948
+23:37:21.332 | INFO     | app.services.news_day:601 - news_day: Affaire Thélyson Orélien: le monde de l'édition francophone en quête de nouveaux repères face à l'IA (© JF Paga, picked by model)
+23:37:37.482 | INFO     | app.services.llm_service:523 - OpenAI completion success model='gpt-5-mini' tokens=22867 cost=0.009772
+23:37:39.084 | INFO     | app.services.llm_service:523 - OpenAI completion success model='gpt-5-mini' tokens=23162 cost=0.010362
+23:37:39.121 | INFO     | app.services.living_story:1556 - living_story: SceneDraft attempt 0 refused (news_day_notes_missing): Today is a news day: fill news_day_notes (mechanic_fr, plate_brief): the headline's mechanic as it plays out today, and the people-free plate brief.
+23:37:39.127 | INFO     | app.services.living_story:1556 - living_story: SceneDraft attempt 0 refused (news_day_notes_missing): Today is a news day: fill news_day_notes (mechanic_fr, plate_brief): the headline's mechanic as it plays out today, and the people-free plate brief.
+23:37:56.062 | INFO     | app.services.llm_service:523 - OpenAI completion success model='gpt-5-mini' tokens=23225 cost=0.010414
+23:37:56.062 | INFO     | app.services.living_story:1556 - living_story: SceneDraft attempt 1 refused (unknown_panel_character): ['gus_levêque'] speak in the panels but are not in the cast. Give their lines to someone who is, or to narration: cast is ['augustin_de_roncourt', 'bastien_roux', 'camille_marchand', 'landlord_marchand', 'lila_bonnet', 'maitre_vasseur', 'margaux_barman', 'marin_leveque'
+23:38:12.514 | INFO     | app.services.llm_service:523 - OpenAI completion success model='gpt-5-mini' tokens=23232 cost=0.010174
+23:38:17.632 | INFO     | app.services.llm_service:523 - OpenAI completion success model='gpt-5-mini' tokens=4701 cost=0.002194

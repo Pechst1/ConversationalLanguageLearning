@@ -1,7 +1,7 @@
 """Authentication API endpoints."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -36,7 +36,9 @@ PASSWORD_RESET_REQUEST_MESSAGE = (  # noqa: S105 - response text, not a credenti
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserRead:
+def register_user(
+    payload: UserCreate, background: BackgroundTasks, db: Session = Depends(get_db)
+) -> UserRead:
     """Register a new user and return the created entity."""
 
     service = AuthService(db)
@@ -46,6 +48,12 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserRea
         handle_email_exists(exc)
     except RegistrationClosedError as exc:
         handle_registration_closed(exc)
+    # WP-166: the first day's way in is written for this learner after the response is
+    # sent (never on the sign-up's clock); day 1 serves the authored one if it is late.
+    from app.services.season import opening
+
+    if opening.enabled():
+        background.add_task(opening.prepare_in_background, user.id)
     return user
 
 

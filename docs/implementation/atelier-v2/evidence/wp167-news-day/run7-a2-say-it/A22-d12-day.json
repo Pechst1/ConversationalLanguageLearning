@@ -1,0 +1,209 @@
+{
+ "marker": {
+  "generated": true,
+  "news": {
+   "id": "e9a2f014b8434670",
+   "keys": [
+    "e9a2f014b8434670",
+    "t:3d78f0e09d94bf5f"
+   ],
+   "title": "Le marché des Enfants-Rouges, à Paris, \"ravagé\" par un incendie",
+   "summary": "Un feu a \"ravagé\" le marché des Enfants-Rouges, situé au cœur de la capitale, a annoncé la mairie de Paris Centre tôt lundi matin. Il s'agit du plus vieux marché couvert de Paris",
+   "source": "France 24",
+   "source_id": "france24_france",
+   "url": "https://www.france24.com/fr/france/20261012-march%C3%A9-des-enfants-rouges-paris-ravag%C3%A9-par-incendie",
+   "published_at": "2026-10-12T06:06:15+00:00",
+   "published_on": "2026-10-12",
+   "credit_fr": "D'après l'actualité du 12 octobre : Le marché des Enfants-Rouges, à Paris, \"ravagé\" par un incendie (France 24)",
+   "mechanic_fr": "Un incendie au marché voisin déclenche des contrôles et une pression pour rénover ou fermer des lieux proches, donnant une urgence politique aux actions locales comme une pétition.",
+   "entry_fr": "Gus dit la nouvelle au marché en premier, pour expliquer pourquoi il faut agir tout de suite.",
+   "picked_by": "model",
+   "offered": 15,
+   "location_id": "marche_canal",
+   "plate": {
+    "key": "season:marche_canal:2026-10-12-story_7ec8ffa489ea45e8b797c7f129096af5",
+    "brief": "Place: canal market table, Objects: a folding table with a stack of petition sheets, a fountain pen, Light: late morning, soft sunlight, Weather: dry with a light breeze",
+    "name_fr": "Le marché du canal · actualité du 12 octobre"
+   }
+  }
+ },
+ "pick": {
+  "mechanic_fr": "Un incendie dans un marché voisin provoque des contrôles d'habitation et de sécurité, des expertises d'assurance et la pression municipale pour fermer ou rénover les bistrots touchés, y compris Le Mistral.",
+  "why": "A nearby market fire would trigger inspections, insurance claims and municipal pressure that could force changes at Le Mistral.",
+  "say_it_fr": "Tu as vu? Le marché des Enfants-Rouges a été ravagé par un incendie ce matin, tout le quartier est bouclé.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "La première signature",
+  "premise_fr": "Au marché du canal, Gus a installé sa table pour une pétition. Mme Diallo attend, un acheteur regarde la table. Gus veut que tu sois la première signature et il demande ce que tu veux écrire dans le motif. La rumeur d'un incendie au marché voisin crée de l'urgence : tout le monde parle de contrôles et de fermetures possibles.",
+  "setup_native": "Gus asks you to be the first signatory on his petition at the canal market and to say the reason he can print. The market fire news makes the petition urgent.",
+  "objective_native": "Decide whether you sign the petition and give one short reason the petition can print.",
+  "objective_semantics": "The learner must choose yes or no and supply a brief motive phrase for the petition's \"motif\" box (one short sentence or clause). This answer matters because Gus will print it as the first line and tell Mme Diallo; the choice changes whether the petition starts with the learner's voice.",
+  "character_id": "augustin_de_roncourt",
+  "location_id": "marche_canal",
+  "causal_reason": "Gus wants a public start for his petition and the market fire news makes signatures feel urgent; the learner's first line will shape how others sign.",
+  "source_event_ids": [],
+  "novelty_key": "petition_march_fire",
+  "chapter": {
+   "title_fr": "Signer ou pas ?",
+   "dramatic_question": "Vas-tu mettre ton nom en tête de la pétition, et pourquoi ?",
+   "possible_developments": [
+    "The petition begins with the learner's reason and Mme Diallo adds her name.",
+    "The learner refuses; Gus persuades Mme Diallo to be first, changing the petition's tone.",
+    "The market fire news makes more people sign or scares them away."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "petition_start",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": null,
+  "thread_shift": null,
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "Le marché est animé, mais tout le monde parle de l'incendie au marché voisin.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Tu as vu? Le marché des Enfants-Rouges a été ravagé par un incendie ce matin, tout le quartier est bouclé.",
+      "mood": "neutral",
+      "text_native": "You saw? The Enfants-Rouges market was devastated by a fire this morning, the whole neighbourhood is cordoned off."
+     }
+    ],
+    "visual_direction": "Wide: market stalls along the canal. Gus stands behind a small folding table with a neat stack of petition sheets and a fountain pen. Mme Diallo is second in line, hands on a paper bag, watching silently. A passerby looks at the table.",
+    "alt_native": "Gus stands at a market table with a petition; people and stalls around."
+   },
+   {
+    "narration_fr": "Gus veut que tu sois la première signature. Il tient le stylo.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Vous voulez bien signer la première ? Et que j'écrive quoi dans le motif ?",
+      "mood": "happy",
+      "text_native": "Would you sign first? And what should I write as the reason?"
+     }
+    ],
+    "visual_direction": "Medium shot: Gus leans forward toward the learner (off-panel), smiling a little, pen ready. Mme Diallo folds her arms, patient and expectant, silent.",
+    "alt_native": "Gus asks for the learner's first signature and the reason; Mme Diallo watches."
+   },
+   {
+    "narration_fr": "Il attend une phrase courte : le motif sera la première ligne imprimée.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Fais court, je dois imprimer la première feuille avant la fin du marché.",
+      "mood": "moved",
+      "text_native": "Keep it short, I have to print the first sheet before the market ends."
+     }
+    ],
+    "visual_direction": "Close-up on Gus's hands: a neat petition sheet with a box labeled «motif» and the pen poised. In the background, Mme Diallo taps her foot, a little impatient but kind.",
+    "alt_native": "Gus shows the petition's 'motif' box and asks for a short phrase."
+   },
+   {
+    "narration_fr": "Ta réponse décidera si le premier mot sur la pétition vient de toi.",
+    "dialogue": [
+     {
+      "character_id": "augustin_de_roncourt",
+      "text_fr": "Alors ? Je mets votre phrase, ou je laisse la place à Mme Diallo ?",
+      "mood": "neutral",
+      "text_native": "So? Do I put your phrase, or do I leave the space for Mme Diallo?"
+     }
+    ],
+    "visual_direction": "Medium shot: Gus holds the pen out as if offering it to the learner. Mme Diallo smiles a little, ready to sign after you. A nearby stall's cloth flutters in the wind.",
+    "alt_native": "Gus waits with the pen; the market continues around them."
+   }
+  ],
+  "opening_line_fr": "Vous voulez bien signer la première ? Et que j'écrive quoi dans le motif ?",
+  "suggested_response_fr": "Oui, je signe : «Pour garder le café du quartier.»",
+  "hint_native": "Say yes or no, then give a short reason phrase the petition can print (for example: \"Pour garder le café du quartier\").",
+  "translation_native": "Gus asks you to sign first and what short reason he should write in the petition's reason box.",
+  "capability_key": null,
+  "lexicon": [
+   {
+    "surface_fr": "pétition",
+    "lemma": "pétition",
+    "gloss_native": "a public letter asking for change",
+    "part_of_speech": "noun",
+    "gender": "f",
+    "line_ref": "premise",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "motif",
+    "lemma": "motif",
+    "gloss_native": "the short reason written on a form",
+    "part_of_speech": "noun",
+    "gender": "m",
+    "line_ref": "premise",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "marché",
+    "lemma": "marché",
+    "gloss_native": "market, a place with stalls",
+    "part_of_speech": "noun",
+    "gender": "m",
+    "line_ref": "premise",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_A22_PASS_MESSAGE",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "la_petition",
+   "threads": [
+    "The petition"
+   ],
+   "change_before": "No petition started → after: a petition has a first signature or a recorded refusal",
+   "change_after": "The petition will start with either the learner's phrase or Mme Diallo's name, and the petition gains momentum",
+   "turn_want": "Decide whether to sign and give a short printed reason for the petition",
+   "small_moment_id": null,
+   "hook_fr": "À suivre… la phrase qui ouvre la pétition change tout.",
+   "forbidden_respected": true,
+   "complication": "The market fire news brings inspectors and a chance that signatures become urgent or that people avoid the stalls tomorrow."
+  },
+  "time_of_day": "day",
+  "weather": "dry",
+  "news_day_notes": {
+   "mechanic_fr": "Un incendie au marché voisin déclenche des contrôles et une pression pour rénover ou fermer des lieux proches, donnant une urgence politique aux actions locales comme une pétition.",
+   "entry_fr": "Gus dit la nouvelle au marché en premier, pour expliquer pourquoi il faut agir tout de suite.",
+   "news_line_fr": "Tu as vu? Le marché des Enfants-Rouges a été ravagé par un incendie ce matin, tout le quartier est bouclé.",
+   "plate_brief": "Place: canal market table. Objects: a folding table with a stack of petition sheets, a fountain pen, Mme Diallo's paper bag. Light: late morning, soft sunlight. Weather: dry with a light breeze."
+  }
+ },
+ "refusals": [
+  {
+   "stage": "SceneDraft",
+   "attempt": 0,
+   "reason": "news_day_notes_missing",
+   "hint": "Today is a news day, but news_line_fr is not on the page. Put the news ON THE PAGE: one line of narration or dialogue that says what happened in simple words (name it: the fire, the strike, the record), make today's scene turn on its consequence, and copy that line exactly into news_day_notes.news_line_fr. Say it like this: «Tu as vu? Le marché des Enfants-Rouges a été ravagé par un incendie ce matin, tout le quartier est bouclé.».",
+   "draft": {
+    "beat": "setup",
+    "required_beat": [
+     "setup"
+    ],
+    "chapter_closed": true,
+    "shape": "two_hander",
+    "chapter_title_fr": "La pétition au canal",
+    "dramatic_question": "Accepterez-vous d'être la première signature de Gus, et pourquoi ?",
+    "open_question": null,
+    "character_id": "augustin_de_roncourt",
+    "speakers": [
+     "augustin_de_roncourt"
+    ],
+    "objective_native": "Decide whether you will sign Gus's petition and give one short reason (one or two short sentences).",
+    "objective_words": 17,
+    "panels": 4,
+    "premise_id": "la_petition"
+   }
+  }
+ ]
+}

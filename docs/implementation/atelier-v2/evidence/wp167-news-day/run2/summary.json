@@ -1,0 +1,32 @@
+{
+ "days": [
+  {
+   "band": "A2.1",
+   "day": 4,
+   "title": "La même chose ?",
+   "news": true,
+   "skipped": null
+  },
+  {
+   "band": "B1.1",
+   "day": 12,
+   "title": "Le cadeau de Gus",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-odile_flat-2026-10-11-story_346acce42b9d492eac2264fee1cc25b0-bd83b944c4566722.webp"
+  },
+  {
+   "band": "C1.1",
+   "day": 20,
+   "title": "Sur le toit : une torche et des aurores",
+   "news": true,
+   "skipped": null,
+   "plate_url": "/media/graphic-novel/revue-plates/season-toit-2026-10-11-story_69534866c0fe43a8992029ac7df6e46f-5fa25572afc416da.webp"
+  }
+ ],
+ "text_usd": 0.0918,
+ "calls": 13,
+ "plates": 2,
+ "plate_usd_estimated": 0.12,
+ "total_usd": 0.2118
+}

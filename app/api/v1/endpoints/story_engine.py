@@ -70,6 +70,33 @@ def cast_names(db, scenes) -> dict[str, str]:
     return names
 
 
+def cast_rigs(db, scenes) -> list[dict]:
+    """WP-168: the drawn rig of every character a written season added to these
+    scenes' threads (``{id, name, rig}``), so the drawn set can stand them on the plate.
+    The fixed cast has its own rigs and is never listed."""
+
+    from app.services.season.written_world import normalise_rig
+
+    thread_ids = {scene.serial_thread_id for scene in scenes if scene.serial_thread_id}
+    if not thread_ids:
+        return []
+    rows: dict[str, dict] = {}
+    for bible in db.scalars(
+        select(SerialThread.world_bible).where(SerialThread.id.in_(thread_ids))
+    ):
+        for member in (bible or {}).get("cast", []) or []:
+            if isinstance(member, dict) and member.get("id") and isinstance(member.get("rig"), dict):
+                rows.setdefault(
+                    str(member["id"]),
+                    {
+                        "id": str(member["id"]),
+                        "name": str(member.get("name") or member["id"]),
+                        "rig": normalise_rig(member["rig"]),
+                    },
+                )
+    return list(rows.values())
+
+
 def panel_image_status(panel) -> str:
     """``panel_art`` (the panel's own drawing), ``rendering`` (the plate, while the
     drawing is on its way), ``setting_reference`` (the plate) or ``unavailable``."""
@@ -84,16 +111,66 @@ def panel_image_status(panel) -> str:
     return "setting_reference"
 
 
+def _session_of(row) -> Session | None:
+    """The session a loaded row belongs to (``None`` for a detached or plain object)."""
+
+    from sqlalchemy.orm import object_session
+
+    try:
+        return object_session(row)
+    except Exception:  # noqa: BLE001 - not a mapped instance
+        return None
+
+
+def _painted_written_plate(panel) -> str | None:
+    """WP-168: a panel set in a written season's place opened on a stand-in plate; once
+    the place is painted, that plate is the one served (read lazily, never waited for)."""
+
+    plate_id = (panel.generation_metadata or {}).get("plate_id")
+    if not plate_id:
+        return None
+    from sqlalchemy.orm import object_session
+
+    from app.services.season.written_world import painted_plate
+
+    try:
+        session = object_session(panel)
+    except Exception:  # noqa: BLE001 - a detached panel reads the painted memo only
+        session = None
+    return painted_plate(session, str(plate_id))
+
+
 def panel_plate_url(panel) -> str | None:
     """WP-116: the location plate under a panel. New panels keep it in their metadata
-    when a drawing replaces ``image_url``; an undrawn panel's image is the plate."""
+    when a drawing replaces ``image_url``; an undrawn panel's image is the plate.
+    WP-168: a written place's painted plate replaces its stand-in once it exists."""
 
     meta = panel.generation_metadata or {}
+    if meta.get("plate_place_id"):
+        # WP-165: the plate painted in the page's light and weather, once it exists.
+        from app.services.season.plates import panel_variant_url
+
+        variant = panel_variant_url(_session_of(panel), meta)
+        if variant:
+            return variant
+    painted = _painted_written_plate(panel)
+    if painted:
+        return painted
     if meta.get("plate_url"):
         return str(meta["plate_url"])
     if panel.image_url and meta.get("image_source") != "panel_art":
         return panel.image_url
     return None
+
+
+def panel_image_url(panel) -> str | None:
+    """The panel's picture: its drawing, else its plate (WP-168: the painted plate of a
+    written place once there is one, instead of the stand-in it was bound with)."""
+
+    meta = panel.generation_metadata or {}
+    if panel.image_url and meta.get("image_source") != "panel_art":
+        return _painted_written_plate(panel) or panel.image_url
+    return panel.image_url
 
 
 def public_grammar_focus(scene) -> dict | None:
@@ -115,7 +192,7 @@ def public_grammar_focus(scene) -> dict | None:
     }
 
 
-def public_scene(scene, names: dict[str, str] | None = None):
+def public_scene(scene, names: dict[str, str] | None = None, rigs: list[dict] | None = None):
     source = scene.source_snapshot or {}
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
     names = names or {}
@@ -137,12 +214,13 @@ def public_scene(scene, names: dict[str, str] | None = None):
                 {**line, "character_name": names.get(str(line.get("character_id")))}
                 for line in (p.overlay_payload or {}).get("dialogue", [])
             ],
-            "image_url": p.image_url,
+            "image_url": panel_image_url(p),
             "image_status": panel_image_status(p),
             "plate_url": panel_plate_url(p),
         }
         for p in panels
     ]
+    from app.services.news_day import public_credit
     from app.services.story_page import episode_page
 
     return {
@@ -160,12 +238,16 @@ def public_scene(scene, names: dict[str, str] | None = None):
         "panels": public_panels,
         # WP-110: the finished day as one page, the learner's lines in it.
         "page": episode_page(scene, public_panels, names),
+        # WP-167: a news day's credit («D'après l'actualité du …»), else None.
+        "news": public_credit(scene),
         "resolution": {
             "text_fr": (scene.recap_payload or {}).get("resolution_fr"),
             "summary_native": (scene.recap_payload or {}).get("summary_native"),
         }
         if scene.status == "completed"
         else None,
+        # WP-168: the drawn rigs of a written season's new faces (absent when none).
+        **({"cast_rigs": list(rigs)} if rigs else {}),
     }
 
 
@@ -208,8 +290,9 @@ def episodes(
 
     heal_stale_rendering(db, rows[:20])
     names = cast_names(db, rows[:20])
+    rigs = cast_rigs(db, rows[:20])
     return {
-        "episodes": [public_scene(scene, names) for scene in rows[:20]],
+        "episodes": [public_scene(scene, names, rigs) for scene in rows[:20]],
         "next_cursor": str(rows[19].id) if len(rows) > 20 else None,
     }
 
@@ -223,7 +306,7 @@ def episode(scene_id: UUID, db: Session = Depends(get_db), user: User = Depends(
     from app.services.panel_art import heal_stale_rendering
 
     heal_stale_rendering(db, [scene])  # WP-108: a drawing that never came is served as its plate
-    return public_scene(scene, cast_names(db, [scene]))
+    return public_scene(scene, cast_names(db, [scene]), cast_rigs(db, [scene]))
 
 
 @router.put("/episodes/{scene_id}/position")

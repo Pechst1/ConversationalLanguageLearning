@@ -344,6 +344,14 @@ def prefetch_scene_for(
     # thread moved under a long generation, this row is born stale and the serve
     # path will never match it.
     produced_key = scene_cache_key(db, user, input_mode=input_mode)
+    # WP-167: a news day's own plate is painted now, ahead of the day (after the commit);
+    # marked on the brief before it is stored, so the bind waits for it, never repaints.
+    try:
+        from app.services.news_day import request_prefetch_plate
+
+        request_prefetch_plate(db, user, result)
+    except Exception:  # pragma: no cover - defensive: the day keeps its static plate
+        logger.exception("journey_latency: news-day plate not requested")
     row = PilotEvent(
         user_id=user.id,
         event_type=PREFETCH_EVENT,

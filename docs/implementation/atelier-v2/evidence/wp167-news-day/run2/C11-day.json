@@ -1,0 +1,188 @@
+{
+ "marker": {
+  "generated": true,
+  "news": {
+   "id": "4bf5255688dc948d",
+   "keys": [
+    "4bf5255688dc948d",
+    "t:d1b15b209b2c9534"
+   ],
+   "title": "\"C'est un côté magique\": des aurores boréales visibles en France",
+   "summary": "Dans la nuit du samedi 10 au dimanche 11 octobre, en France, le ciel s’est paré de couleurs inhabituelles, un phénomène rare: des aurores boréales que l’on a pu observer dans le Loir-et-Cher, en Seine-Maritime ou encore",
+   "source": "Franceinfo",
+   "source_id": "franceinfo_france",
+   "url": "https://www.franceinfo.fr/replay-jt/france-2/13-heures/c-est-un-cote-magique-des-aurores-boreales-visibles-en-france_8232661.html#xtor=RSS-3-%5Bgeneral%5D",
+   "published_at": "2026-10-11T12:52:23+00:00",
+   "published_on": "2026-10-11",
+   "credit_fr": "D'après l'actualité du 11 octobre : \"C'est un côté magique\": des aurores boréales visibles en France (Franceinfo)",
+   "mechanic_fr": "Les aurores boréales rendent le toit visible et attirent des voisins, forçant une inspection improvisée de la copropriété ce soir.",
+   "entry_fr": "La lumière verte dans le ciel a amené Lila et d'autres voisins sur le toit; Marchand prend cela comme une affaire de sécurité et vous trouve là.",
+   "picked_by": "model",
+   "offered": 15,
+   "location_id": "toit",
+   "plate": {
+    "key": "season:toit:2026-10-11-story_69534866c0fe43a8992029ac7df6e46f",
+    "brief": "Location: toit de l'immeuble au-dessus du Canal Saint‑Martin, Objects/details: une lucarne ouverte, une torche tenue par un homme âgé, guirlandes de fête repliées au sol, weather/light: nuit froide, ciel vert pâle des aurores, clair de lune basse",
+    "name_fr": "Le toit de l'immeuble · actualité du 11 octobre"
+   }
+  }
+ },
+ "pick": {
+  "mechanic_fr": "Une aurore boréale visible au‑dessus de Paris attire les voisins sur le toit et oblige la copropriété à organiser une évacuation/contrôle de sécurité improvisé.",
+  "why": "A sudden rooftop gathering lets characters be caught on the roof, forcing confrontations and pushing the 'caught somewhere you shouldn't be' and Le Mistral threads forward.",
+  "picked_by": "model"
+ },
+ "draft": {
+  "title_fr": "Sur le toit : une torche et des aurores",
+  "premise_fr": "Lila vous emmène sur le toit par la lucarne du cinquième pour voir les aurores boréales au‑dessus du canal. Vous êtes penché sur la balustrade quand une lumière de torche vous surprend : M. Marchand, qui tient sa lampe, dit «La succession Ferrand n'a rien à faire sur mon toit.» Lila rit doucement et se cache derrière vous. Vous devez parler avec M. Marchand en bon vous pour descendre sans incident.",
+  "setup_native": "Convaincre M. Marchand de vous laisser descendre tout de suite, en expliquant pourquoi vous êtes montés et en proposant une solution qui le rassure.",
+  "objective_native": "Parlez à M. Marchand en utilisant le vouvoiement : justifiez brièvement pourquoi vous êtes monté·e, présentez une solution concrète (par exemple, redescendre tout de suite par la lucarne ou attendre quinze minutes), et demandez la permission de partir sans faire d'esclandre.",
+  "objective_semantics": "The learner must perform a persuasive speech in vous: give a short justification for being on the roof, propose a concrete compromise to reassure the landlord, and request permission to descend; tone must be polite and de-escalating so Marchand lets them go without calling management.",
+  "character_id": "landlord_marchand",
+  "location_id": "toit",
+  "causal_reason": "The unusual aurora drew neighbours to the roof; Marchand mistook the learner's presence for trespass and confronts them, so the learner must persuade him politely to allow a calm descent.",
+  "source_event_ids": [],
+  "novelty_key": "toit_aurores_marchand_intervention",
+  "chapter": {
+   "title_fr": "La lampe sur le toit",
+   "dramatic_question": "Marchand vous a surpris sur le toit : allez‑vous le convaincre de vous laisser descendre sans conflit ?",
+   "possible_developments": [
+    "Vous réussissez à le rassurer et descendez sans problème.",
+    "Il vous demande une condition (montrer une pièce d'identité, promettre de ne plus monter).",
+    "Il insiste pour appeler la copropriété, et la situation s'envenime un peu."
+   ]
+  },
+  "beat": "setup",
+  "problem_key": "toit_confrontation",
+  "arc_id": null,
+  "callback_fr": "",
+  "callback_ref": null,
+  "plant_fr": "Une enveloppe collée sous la pierre de la lucarne.",
+  "pays_plant_id": null,
+  "secret_shift": null,
+  "arc_stage_id": null,
+  "advances_arc": false,
+  "season_thread": "s1:1",
+  "thread_shift": "developing",
+  "escalates_ref": null,
+  "panels": [
+   {
+    "narration_fr": "La lucarne est encore ouverte; le ciel brille d'une lumière verte. Lila chuchote et rit.",
+    "dialogue": [],
+    "visual_direction": "Wide night shot from behind the learner and Lila at the roof edge; the canal and a faint green aurora on the horizon. Lila leans on the learner's shoulder, giggling; no dialogue in this panel.",
+    "alt_native": "On the roof at night, learner and Lila look at a faint green aurora; Lila giggles and leans on the learner."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "landlord_marchand",
+      "text_fr": "La succession Ferrand n'a rien à faire sur mon toit. Qui êtes‑vous et que faites‑vous là ?",
+      "mood": "cold",
+      "text_native": null
+     }
+    ],
+    "visual_direction": "Medium shot: M. Marchand appears at the opposite end of the roof with a bright torche (flashlight). He points it toward the learner; Lila ducks behind you.",
+    "alt_native": "Landlord Marchand shines a flashlight at the learner and asks who they are and what they are doing on the roof."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "landlord_marchand",
+      "text_fr": "Je veux des réponses claires : restez où vous êtes ou descendez maintenant. La copropriété ne plaisante pas.",
+      "mood": "cross",
+      "text_native": null
+     }
+    ],
+    "visual_direction": "Close-up on Marchand holding the torche steady, stern but not shouting; Lila hides a smile behind her hand. Marchand waits for an answer, arms folded.",
+    "alt_native": "Close-up of Marchand speaking firmly, Lila watching nervously from behind the learner."
+   },
+   {
+    "narration_fr": "",
+    "dialogue": [
+     {
+      "character_id": "landlord_marchand",
+      "text_fr": "Si vous descendez tout de suite et sans bruit, je fermerai les yeux. Sinon j'appelle la gérance.",
+      "mood": "neutral",
+      "text_native": null
+     }
+    ],
+    "visual_direction": "Medium shot showing the learner's suggested exit route down the lucarne; Lila points with her chin toward the skylight, still silent. Marchand gestures toward the hatch.",
+    "alt_native": "Lila indicates the skylight as Marchand offers a conditional permission to descend quietly."
+   },
+   {
+    "narration_fr": "Marchand attend votre réponse, la torche toujours levée. Lila compte sur vous pour la sortir de là sans histoire.",
+    "dialogue": [],
+    "visual_direction": "Pan out: the roof, the canal, the aurora; Lila stands ready by the lucarne. Marchand watches, waiting for the learner's promise; no dialogue.",
+    "alt_native": "The rooftop scene shows Marchand waiting with flashlight, Lila by the skylight, and the aurora above; tension as Marchand expects the learner's reply."
+   }
+  ],
+  "opening_line_fr": "La succession Ferrand n'a rien à faire sur mon toit. Qui êtes‑vous et que faites‑vous là ?",
+  "suggested_response_fr": "Je suis monté par curiosité pour voir les aurores; je propose de redescendre tout de suite par la lucarne et de vous attendre dans la cour cinq minutes si vous préférez.",
+  "hint_native": "Dites qui vous êtes brièvement, dites pourquoi vous êtes monté·e (curiosité pour l'aurore), proposez une solution concrète et rassurante (redescendre tout de suite, attendre dans la cour), et terminez par une question polie pour demander la permission.",
+  "translation_native": "Expliquez brièvement votre présence, proposez une solution claire (descendre immédiatement par la lucarne), et demandez la permission poliment.",
+  "capability_key": "explain_delay",
+  "lexicon": [
+   {
+    "surface_fr": "lucarne",
+    "lemma": "lucarne",
+    "gloss_native": "petite fenêtre de toit (skylight)",
+    "part_of_speech": "nom",
+    "gender": "f",
+    "line_ref": "premise",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "torche",
+    "lemma": "torche",
+    "gloss_native": "lampe de poche, flashlight",
+    "part_of_speech": "nom",
+    "gender": "f",
+    "line_ref": "premise",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "copropriété",
+    "lemma": "copropriété",
+    "gloss_native": "ensemble des propriétaires d'un immeuble, building co-owners",
+    "part_of_speech": "nom",
+    "gender": "f",
+    "line_ref": "panel:2:line:0",
+    "band_fit": null
+   },
+   {
+    "surface_fr": "aurores boréales",
+    "lemma": "aurores boréales",
+    "gloss_native": "luminous natural sky phenomenon (northern lights)",
+    "part_of_speech": "nom",
+    "gender": "f",
+    "line_ref": "premise",
+    "band_fit": null
+   }
+  ],
+  "can_do_id": "CD_C11_DEBATE",
+  "epreuve_pass_line_fr": null,
+  "epreuve_fail_line_fr": null,
+  "season_checklist": {
+   "premise_id": "sur_le_toit",
+   "threads": [
+    "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+    "Le mur d'Odile"
+   ],
+   "change_before": "Vous étiez sur le toit, observant l'aurore avec Lila, non vu·e par Marchand.",
+   "change_after": "Marchand connaît votre présence sur le toit et attend une explication polie; Lila a maintenant une histoire à raconter.",
+   "turn_want": "Convaincre M. Marchand, en vous adressant en vous, de vous laisser descendre sans incident.",
+   "small_moment_id": "cartes_de_lila",
+   "hook_fr": "À suivre… Marchand va‑t‑il croire votre promesse ?",
+   "forbidden_respected": true,
+   "complication": "La nouvelle présence d'autres voisins attirés par l'aurore pourrait forcer la copropriété à intervenir demain."
+  },
+  "news_day_notes": {
+   "mechanic_fr": "Les aurores boréales rendent le toit visible et attirent des voisins, forçant une inspection improvisée de la copropriété ce soir.",
+   "entry_fr": "La lumière verte dans le ciel a amené Lila et d'autres voisins sur le toit; Marchand prend cela comme une affaire de sécurité et vous trouve là.",
+   "plate_brief": "Location: toit de l'immeuble au-dessus du Canal Saint‑Martin; Objects/details: une lucarne ouverte, une torche tenue par un homme âgé, guirlandes de fête repliées au sol; weather/light: nuit froide, ciel vert pâle des aurores, clair de lune basse."
+  }
+ },
+ "refusals": []
+}
