@@ -217,7 +217,7 @@ def test_a_sentence_sorted_a_corriger_is_then_corrected(db_session, lila_item):
     follow_up = correction["follow_up"]
     assert follow_up["kind"] == "correct_it"
     assert follow_up["source_fr"] == "Lila cherche une grand affiche."
-    assert follow_up["goal_native"] == 'Correct it so that it says: "Lila is looking for a big poster."'
+    assert follow_up["goal_native"] == 'It should say: "Lila is looking for a big poster."'
     assert follow_up["accepted_fr"][0] == "Lila cherche une grande affiche."
     assert "Lila cherche un grand poster." in follow_up["accepted_fr"]
     # A1: tiles — the right sentence's words and the wrong word as a spare.
@@ -256,7 +256,7 @@ def test_production_items_carry_no_pseudo_scene(lila_item):
     # translate step comes back with the German meaning.
     assert output["prompt_l10n"]["de"] == "Sag auf Französisch: „Lila sucht ein großes Plakat.“"
     produce = ib.produce_block(lila_item, lila_item, requirement={"label": "X"})
-    assert produce["prompt"].startswith("Write a short message in French")
+    assert produce["prompt"].startswith("In two or three French sentences")
     # A stored item written before WP-103 is served without its frame.
     stored = {
         "id": "x", "prompt": 'Romy texts you from the newsroom and wants a quick answer. Say in French: "Hi."',
@@ -272,15 +272,15 @@ def test_every_forge_drill_states_its_goal_in_the_learners_language(lila_item):
     assert build["goal_native"] == 'Build: "Lila is looking for a big poster."'
     german = ib.public_item(build, "de")
     assert "Lila is looking" not in json.dumps(german, ensure_ascii=False)
-    assert german["prompt"] == "Bau den Satz. Ein Wort brauchst du nicht."
+    assert german["prompt"] == "Bau den Satz. Ein Wort ist zu viel."
     # FORGE-DE: the meaning cue is the German meaning.
     assert german["goal_native"] == "Bau den Satz: „Lila sucht ein großes Plakat.“"
     assert german["meaning_cue"] == "Lila sucht ein großes Plakat."
     assert ib.public_item(build, "fr")["meaning_cue"] is None
     fill = ib.fill_item(lila_item)
-    assert fill["goal_native"] == 'Complete the sentence: "Lila is looking for a big poster."'
+    assert fill["goal_native"] == 'Complete: "Lila is looking for a big poster."'
     repair = ib.transform_item(lila_item)
-    assert repair["goal_native"].startswith("Correct it so that it says")
+    assert repair["goal_native"].startswith("It should say")
     assert repair["source_fr"] == repair["source"]
     say = ib.output_item(lila_item, round_name="sentence", requirement={"label": "X"})
     assert say["goal_native"] == 'Say in French: "Lila is looking for a big poster."'

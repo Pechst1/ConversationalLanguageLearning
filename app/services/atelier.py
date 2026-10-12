@@ -7189,7 +7189,7 @@ class AtelierCorrectionService:
             "A word that looks English can be French: established loanwords such as poster, week-end, parking, sandwich, "
             "email, film, sport, taxi, match or jean are French words. Never call a French word English, never list it in "
             "lexical_gaps and never replace it only because it looks English; correct only what is actually wrong around it. "
-            "One explanation per issue: why_wrong is at most two short sentences about that issue only; never repeat the same "
+            "One explanation per issue: why_wrong is ONE short sentence (about 15 words at most) naming the rule and the fixed form, about that issue only; never repeat the same "
             "explanation in several errata, and repair_hint never restates why_wrong."
         )
 
