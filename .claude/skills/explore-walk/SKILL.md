@@ -46,10 +46,7 @@ Play day 1 completely (teaser → sign-up → day → recap → Home), then
 `/clock {"days":1}` and day 2, then day 7 if time allows. Open Feuilleton, Courrier
 and Cahier once each.
 
-## 3 · The rubric
-
-**On every screen**, ask the five quick questions and note a finding the moment one
-fails:
+## 3 · The rubric: ask on every screen
 
 1. **Orientation.** Do I know where I am, who is speaking, who they are to me and why
    I am here? Is every name introduced before it is used?
@@ -59,34 +56,8 @@ fails:
 3. **Reaction.** When I write something, does the scene answer *what I wrote*? Does
    anyone put words in my mouth? Do I learn whether my French was right and what the
    right form is?
-4. **Consistency.** du everywhere in German (the owner's choice), names, tone, no
-   leak of another language into the chrome, numbers that add up.
+4. **Consistency.** du/Sie, names, tone, language of the chrome, numbers that add up.
 5. **Flow.** A way forward, no dead end, no error, no wait without a sign of life.
-
-**At the end of each played day**, score the day 1–5 on the fourteen questions below
-and write the scores into the report, so the loop can track them as a trend per day
-(day 1 of tonight against day 1 of last night). A score of 1–2 needs a finding that
-says why.
-
-| group | # | question |
-|---|---|---|
-| Learning | L1 | Does the level fit (not too easy, not too hard for the persona)? |
-| | L2 | Is the learning goal of the day clear? |
-| | L3 | Is the feedback correct, and does it explain the mistake? |
-| | L4 | Do earlier words and rules come back? |
-| | L5 | Was there grammar today (a rule, a drill on it, a correction that names it)? |
-| Story | S1 | Do I know where I am and what is at stake? |
-| | S2 | Does the scene react to what I answered? |
-| | S3 | Do the characters stay consistent (names, voice, tu/vous)? |
-| Usability | U1 | Is the next step always clear? |
-| | U2 | No dead ends and no errors? |
-| | U3 | Is the language consistent (du in German, no foreign leaks)? |
-| | U4 | Are load and wait times acceptable (note the slowest wait in seconds)? |
-| Motivation | M1 | Would I want to come back tomorrow? |
-| | M2 | How long did the day really take against what it promised (minutes / minutes)? |
-
-S2 is judged only in a live run; in a fake-provider run write «fake» instead of a
-score. U4 and M2 are measured, not felt: take them from the transcript timestamps.
 
 Write a finding the moment you notice it, with `/note` (it ties the finding to the
 last screenshot):
@@ -103,10 +74,9 @@ drills, copy, layout, flow.
 
 1. Rank: severity first, then how early it hits (day 1 before day 7), then how small
    the fix is.
-2. Write `docs/ops/walks/<date>.md`: personas, the score table (one column per
-   played day, with last night's scores beside it), one section per finding (what,
-   where, screenshot, expected, suspected cause with `file:line` when found), and
-   the scripted walk's result.
+2. Write `docs/ops/walks/<date>.md`: personas, one section per finding (what, where,
+   screenshot, expected, suspected cause with `file:line` when found), and the
+   scripted walk's result.
 3. For each finding, search open issues labelled `walk-finding` for the same title
    or screen. Comment on a match ("seen again <date>"); otherwise open an issue with
    labels `walk-finding` + `area:<area>` + `sev:<severity>`.
