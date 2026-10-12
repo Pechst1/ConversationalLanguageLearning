@@ -117,13 +117,16 @@ export function ArmLayer({
   );
 }
 
-/** The blink lid over an open eye; scaled to nothing at rest (also without CSS). */
+/**
+ * The blink lid over an open eye: hidden and scaled to nothing at rest, also without CSS (a
+ * zero scale alone still leaves a hairline under a tilted head).
+ */
 export function Blink({ e, skin, line = 2.6 }: { e: VEye; skin: string; line?: number }) {
   if (!e.blinks) return null;
   const [x, y] = e.blinkTop;
   return (
     <g transform={`translate(${x} ${y})`}>
-      <g className="tv-blink" transform="scale(1 0)">
+      <g className="tv-blink" transform="scale(1 0)" opacity={0}>
         <g transform={`translate(${-x} ${-y})`}>
           <path d={e.blinkLid} fill={skin} />
           <path d={e.blinkLine} fill="none" stroke={INK} strokeWidth={line} strokeLinecap="round" />

@@ -36,7 +36,8 @@
 }
 
 @keyframes tv-blink {
-  0%, 94%, 100% { transform: scale(1, 0); }
+  0%, 94%, 100% { transform: scale(1, 0); opacity: 0; }
+  94.3%, 99.7% { opacity: 1; }
   96.5% { transform: scale(1, 1); }
 }
 

@@ -68,7 +68,7 @@ export function VivantFigure({
     });
   } else if (gesture) {
     const gf = gestureFaces(fig, gesture);
-    if (gf.act) add(gf.act[0], g?.talk ? { ...gf.act[1], talk: true } : gf.act[1]);
+    if (gf.act) add(gf.act[0], gf.act[1]);
     if (gf.then) add(gf.then[1], gf.then[2]);
   }
   const rendered = list.map(([fid, def]) => ({ id: fid, values: faceValues(fig, def) }));

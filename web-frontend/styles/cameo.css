@@ -172,7 +172,8 @@
 .cameo-troupe[data-crowd='true'] .cameo-bubble { padding: 3px 7px 4px; }
 .cameo-troupe[data-crowd='true'] .cameo-bubble__fr { font-size: 12px; }
 .cameo-troupe[data-crowd='true'] .cameo-troupe__member:nth-child(even) .cameo-bubble { margin-bottom: 34px; }
-.cameo-troupe[data-trigger='finale'] .cameo-troupe__member .cast-rig {
+.cameo-troupe[data-trigger='finale'] .cameo-troupe__member .cast-rig,
+.cameo-troupe[data-trigger='finale'] .cameo-troupe__member .tv {
   animation: cameo-bow 900ms calc(700ms + var(--i, 0) * 120ms) ease-in-out both;
   transform-origin: 50% 100%;
 }

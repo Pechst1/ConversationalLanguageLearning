@@ -4,9 +4,14 @@
  */
 import { rigFor } from '../cast-registry';
 import type { FigureDef } from './kit';
+import { gus } from './figures/gus';
+import { lila } from './figures/lila';
+import { marchand } from './figures/marchand';
+import { margaux } from './figures/margaux';
+import { marin } from './figures/marin';
 import { romy } from './figures/romy';
 
-export const FIGURES: readonly FigureDef[] = [romy];
+export const FIGURES: readonly FigureDef[] = [romy, gus, margaux, marin, marchand, lila];
 
 export function figureFor(id: string | null | undefined): FigureDef | null {
   if (!id) return null;

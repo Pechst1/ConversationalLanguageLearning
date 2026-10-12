@@ -8,6 +8,9 @@
  *     itself a button or a link: the face wobbles and answers back;
  *   * a long stillness on an exercise screen (`.ep-top`), once in a while.
  *
+ * Whoever has a jointed figure (components/cast/vivant) walks in acting: a bravo
+ * for a streak, an «oups» to comfort, their signature move to photobomb.
+ *
  * Nothing here blocks the learner: the troupe and the bubbles never take a tap,
  * a peeking figure goes away when tapped, and everything leaves on its own.
  * Reduced motion keeps the cameos but swaps every slide and hop for a fade.
@@ -23,15 +26,46 @@ import {
   cameosEnabled,
   decideCameo,
 } from '@/lib/cameo';
-import type { Cameo, CameoEvent, CameoGag, CameoLang, CameoState } from '@/lib/cameo';
+import type { Cameo, CameoEvent, CameoFigure, CameoGag, CameoLang, CameoMood, CameoState } from '@/lib/cameo';
 import { readLearnerLanguage } from '@/lib/learner-language';
 
 import { CastRig } from './CastRig';
+import type { ExpressionId, GestureId } from './vivant/kit';
+import { figureFor } from './vivant/registry';
+import { VivantFigure } from './vivant/VivantFigure';
 
 /** Stillness on an exercise before somebody checks on the learner. */
 export const IDLE_AFTER_MS = 35_000;
 
 type Poke = { cameo: Cameo; x: number; y: number };
+
+/** The mood a cameo asks for, as one of the jointed figures' faces. */
+const FACE: Record<CameoMood, ExpressionId> = { neutre: 'neutre', ravie: 'joie', surprise: 'surprise', fachee: 'fache', emue: 'emu' };
+
+/** What a jointed figure does as it walks in; each of them does it their own way. */
+function gestureFor(cameo: Cameo, figure: CameoFigure): GestureId | null {
+  switch (cameo.trigger) {
+    case 'streak':
+    case 'troupe':
+      return 'bravo';
+    case 'photobomb':
+      return 'signature';
+    case 'comfort':
+      return 'oups';
+    case 'idle':
+      return 'salut';
+    case 'finale':
+      return figure.mood === 'emue' ? 'signature' : 'salut';
+    default:
+      return null;
+  }
+}
+
+/** The jointed figure when the cast member has one (La troupe vivante), else the rig. */
+function CameoFace({ cameo, figure, size }: { cameo: Cameo; figure: CameoFigure; size: number }) {
+  if (!figureFor(figure.id)) return <CastRig id={figure.id} mood={figure.mood} crop="bust" size={size} label="" />;
+  return <VivantFigure id={figure.id} expression={FACE[figure.mood]} gesture={gestureFor(cameo, figure)} crop="bust" size={size} label="" />;
+}
 
 function reducedMotion(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -226,7 +260,7 @@ export function CameoLayer() {
           aria-live="polite"
         >
           <button type="button" className="cameo-solo__figure" onClick={dismiss} aria-label={shown.figures[0].name}>
-            <CastRig id={shown.figures[0].id} mood={shown.figures[0].mood} crop="bust" size={132} label="" />
+            <CameoFace cameo={shown} figure={shown.figures[0]} size={132} />
           </button>
           <span className="cameo-solo__talk">
             <Bubble cameo={shown} language={language} />
@@ -248,7 +282,7 @@ export function CameoLayer() {
           {shown.figures.map((figure, i) => (
             <span key={figure.id} className="cameo-troupe__member" style={{ '--i': i } as CSSProperties}>
               <Bubble cameo={shown} language={language} figureIndex={i} />
-              <CastRig id={figure.id} mood={figure.mood} crop="bust" size={shown.figures.length > 4 ? 70 : 96} label="" />
+              <CameoFace cameo={shown} figure={figure} size={shown.figures.length > 4 ? 70 : 96} />
             </span>
           ))}
         </div>

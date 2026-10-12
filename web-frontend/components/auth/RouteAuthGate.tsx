@@ -24,6 +24,7 @@ const PUBLIC_PATHNAMES = new Set([
   // production build and listing it here widens nothing.
   '/atelier-v2-gallery',
   '/cameo-gallery',
+  '/troupe-vivante',
 ]);
 
 const GUEST_ONLY_PATHNAMES = new Set([

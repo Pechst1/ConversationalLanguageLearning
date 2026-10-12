@@ -53,7 +53,8 @@ export interface FaceDef {
   eyes: [VEyeState, VEyeState];
   brows: [Brow, Brow];
   mouth: string;
-  /** head pose for this face: tilt about the head centre, then a nudge */
+  /** head pose for this face: tilt about the head centre, then a nudge (the ten expressions;
+   *  within a gesture the keys' `head`, `headX` and `headY` move the head) */
   tilt?: number;
   dx?: number;
   dy?: number;
@@ -345,7 +346,8 @@ export function vEye(centre: Pt, p: EyeParams, state: VEyeState, side: -1 | 1, g
   o.blinks = o.sD !== 'none';
   const top = cy - ry - 1.5;
   o.blinkTop = [cx, top];
-  o.blinkLid = ellipse(cx, cy, rx + 1.6, ry + 1.6);
+  // big enough for a wide eye too, whose white sits a little higher and larger
+  o.blinkLid = ellipse(cx, cy - 0.6, rx + 2, ry + 2.4);
   o.blinkLine = `M${cx - rx},${cy + ry * 0.55} Q${cx},${cy + ry * 0.95} ${cx + rx},${cy + ry * 0.55}`;
   return o;
 }
@@ -727,7 +729,8 @@ export function armFrames(fig: FigureDef, keys: Key[], side: Side): ArmFrame[] {
       const reach = lerp(here.a.s, next.a.s);
       const u = norm(fromE + turnE * p - angleOf(arm.shoulder, arm.elbow));
       const f = norm(fromF + turnF * p - angleOf(arm.elbow, arm.palm) - u);
-      const hand = lerp(here.hand, next.hand);
+      // the hand's own direction turns the short way too (u, f and h are each kept within a turn)
+      const hand = lerp(here.hand, here.hand + norm(next.hand - here.hand));
       frames.push({ at: r2((k.at + (keys[i + 1].at - k.at) * q) * 10000) / 10000, a: { u: r2(u), f: r2(f), h: r2(norm(hand - u - f)), s: r2(reach * 1000) / 1000 } });
     }
   }
@@ -740,15 +743,19 @@ export function armFrames(fig: FigureDef, keys: Key[], side: Side): ArmFrame[] {
   return frames;
 }
 
-/** When one arm is busy: from halfway into its first move to halfway out of its last. */
-export function sideWindow(g: GestureDef, side: Side): [number, number] | null {
+/**
+ * When one arm is busy: from `share` of the way into its first move to as far before the end of
+ * its last (halfway for a hand's shape; early for the copy over the head, which must be there
+ * before the hand passes behind it).
+ */
+export function sideWindow(g: GestureDef, side: Side, share = 0.5): [number, number] | null {
   const k = g.keys;
   const busy = k.map((key) => Boolean(key[side]));
   const first = busy.indexOf(true);
   const last = busy.lastIndexOf(true);
   if (first < 0) return null;
-  const from = first > 0 ? (k[first - 1].at + k[first].at) / 2 : 0;
-  const to = last < k.length - 1 ? (k[last].at + k[last + 1].at) / 2 : 1;
+  const from = first > 0 ? k[first - 1].at + (k[first].at - k[first - 1].at) * share : 0;
+  const to = last < k.length - 1 ? k[last + 1].at - (k[last + 1].at - k[last].at) * share : 1;
   return [r2(from), r2(to)];
 }
 
@@ -819,7 +826,11 @@ function partFrames(solved: SolvedKey[], id: string) {
 export function gestureFaces(fig: FigureDef, id: GestureId): { act?: [string, FaceDef]; then?: [number, string, FaceDef] } {
   const g = fig.gestures[id];
   const out: { act?: [string, FaceDef]; then?: [number, string, FaceDef] } = {};
-  if (g.face) out.act = typeof g.face === 'string' ? [g.face, fig.expressions[g.face]] : [`g-${id}`, g.face];
+  if (g.face) {
+    // a face that says the gesture's line is the gesture's own, even when it is one of the ten
+    const def = typeof g.face === 'string' ? fig.expressions[g.face] : g.face;
+    out.act = typeof g.face === 'string' && !g.talk ? [g.face, def] : [`g-${id}`, g.talk ? { ...def, talk: true } : def];
+  }
   if (g.then) {
     const f = g.then[1];
     out.then = typeof f === 'string' ? [g.then[0], f, fig.expressions[f]] : [g.then[0], `g-${id}-2`, f];
@@ -976,8 +987,9 @@ export function gestureCss(fig: FigureDef, id: GestureId, forBase?: ExpressionId
       windowed(`.tv-hand--${side}-${shape}`, w[0], w[1], true, `${side}-${shape}`);
     }
     if (g.front?.includes(side)) {
-      windowed(`.tv-back--${side}`, w[0], w[1], false, `back-${side}`);
-      windowed(`.tv-front--${side}`, w[0], w[1], true, `front-${side}`);
+      const f = sideWindow(g, side, 0.15) ?? win;
+      windowed(`.tv-back--${side}`, f[0], f[1], false, `back-${side}`);
+      windowed(`.tv-front--${side}`, f[0], f[1], true, `front-${side}`);
     }
   }
   for (const [prop, w] of Object.entries(g.show ?? {})) {

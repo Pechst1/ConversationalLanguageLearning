@@ -30,6 +30,8 @@ import '@/styles/atelier-v2-voices.css';
 import '@/styles/cast-rig.css';
 // Les apparitions: the cast walking in on the app (components/cast/CameoLayer).
 import '@/styles/cameo.css';
+// La troupe vivante: the jointed cast acting (components/cast/vivant), all stoppable by reduced motion.
+import '@/styles/cast-vivant.css';
 // WP-119: La Revue de Romy (components/revue), scoped under `.av2`.
 import '@/styles/revue.css';
 // WP-120: La Carte (components/carte), scoped under `.av2`.
