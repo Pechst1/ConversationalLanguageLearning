@@ -5456,12 +5456,16 @@ def _plan_practice_day(
         steps.append(_recall_step(len(steps), item))
     intro_target: TargetRef | None = None
     intro_entry: SelectedTarget | None = None
+    # GRAMMAR-DAY-ONE (#81): an authored page is read first; the unit it uses is
+    # taught and practised straight after its ending, not posed before it.
+    intro_after_ending = _authored_page(scenario)
+    intro_steps: list[PlannedStep] = []
     reserved = intro_reserve(turns)
     if intro_card and reserved and introduction is not None:
         intro_target = grammar_items.grammar_target(introduction)
-        steps.append(
+        intro_steps.append(
             _rule_step(
-                len(steps), brief=introduction, card=intro_card, cost=intro_card_cost,
+                0, brief=introduction, card=intro_card, cost=intro_card_cost,
                 scenario=scenario,
             )
         )
@@ -5479,9 +5483,9 @@ def _plan_practice_day(
             demonstrated=False,
         )
         for position, (guided, guided_cost) in enumerate(reserved):
-            steps.append(
+            intro_steps.append(
                 _recall_step(
-                    len(steps),
+                    0,
                     PracticeItem(
                         slot="mid", position=-1 - position, entry=intro_entry,
                         task=guided, cost=guided_cost,
@@ -5492,10 +5496,12 @@ def _plan_practice_day(
         notes.append(
             f"introduction: {intro_target.kind}:{intro_target.id}, rule card + "
             + ", ".join(guided.task_type for guided, _cost in reserved)
-            + " (before the scene)"
+            + (" (after the ending)" if intro_after_ending else " (before the scene)")
         )
     elif introduction is not None:
         notes.append("introduction skipped: its rule and guided items did not fit")
+    if not intro_after_ending:
+        steps.extend(intro_steps)
     forge_at = len(steps)
     steps.append(
         PlannedStep(
@@ -5519,7 +5525,10 @@ def _plan_practice_day(
     elicited = [entry.target for entry in selection.selected if entry.is_elicitable]
     # WP-L4 «Emploi» / «Réemploi»: the reply's grammar targets — the new unit
     # first, then a strong due unit asked for as free use (no item today).
-    grammar_asked: list[TargetRef] = [intro_target] if intro_target is not None else []
+    # (#81: a unit taught after the ending is not asked for before it.)
+    grammar_asked: list[TargetRef] = (
+        [intro_target] if intro_target is not None and not intro_after_ending else []
+    )
     # WP-130 B: a «Réemploi» is asked only when the reply was priced with it
     # (WP-128 prices one unit's sentence: today's new unit's when there is one).
     reemploi_asked = bool(reemploi) and intro_target is None
@@ -5595,6 +5604,8 @@ def _plan_practice_day(
     if review_step is not None:
         # D7: straight after the ending, while the page is fresh.
         steps.append(replace(review_step, ordinal=len(steps)))
+    if intro_after_ending:
+        steps.extend(intro_steps)
     # WP-109 «Une seule maison»: the episode is never interrupted. The builds and
     # the word from today (WP-93 put them after the reply) follow the ending.
     for item in [*placed("mid"), *placed("post")]:
