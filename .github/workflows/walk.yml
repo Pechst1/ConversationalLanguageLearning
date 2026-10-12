@@ -16,10 +16,11 @@ concurrency:
 jobs:
   walk:
     # One runner played all five learners side by side for 18 minutes, the long pole of
-    # every CI run: the next-slowest job ends by minute 7. Three runners now each start
-    # their own stack and play a share of the same learners, days and checks.
-    # Learners still share a stack in pairs, so the engine's writer still sees
-    # concurrent requests. `needs:` on this job waits for every shard.
+    # every CI run: the next-slowest job ends by minute 7. Four runners now each start
+    # their own stack and play a share of the same learners, days and checks (two
+    # full 7-day learners on one runner still took 15 minutes). en and B1 share a
+    # stack, so the engine's writer still sees concurrent requests; the postgres
+    # job in ci.yml tests the row locks directly. `needs:` waits for every shard.
     name: Walk · ${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -30,9 +31,12 @@ jobs:
           - shard: en + B1 × 7 days
             key: en-b1
             args: --langs en --b1-days 3 --season-days 0
-          - shard: de + fr × 7 days
-            key: de-fr
-            args: --langs de,fr --b1-days 0 --season-days 0
+          - shard: de × 7 days
+            key: de
+            args: --langs de --b1-days 0 --season-days 0
+          - shard: fr × 7 days
+            key: fr
+            args: --langs fr --b1-days 0 --season-days 0
           - shard: season × 10 days
             key: season
             args: --langs '' --b1-days 0 --season-days 10
@@ -111,6 +115,6 @@ jobs:
         with:
           name: walk-${{ github.event_name == 'schedule' && 'nightly' || 'pr' }}-${{ github.run_number }}-${{ matrix.key }}
           path: web-frontend/e2e/out/ci
-          # A nightly walk is kept for 7 days = the last 7 walks (three artifacts each).
+          # A nightly walk is kept for 7 days = the last 7 walks (four artifacts each).
           retention-days: ${{ github.event_name == 'schedule' && 7 || 14 }}
           if-no-files-found: warn
