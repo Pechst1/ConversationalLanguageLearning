@@ -46,7 +46,7 @@ test('the three tables are complete and fill the same placeholders', () => {
 
 test('A1 reads English, A2 German, B1 French', () => {
   assert.equal(rehearsalCopy(chromeLanguage('en', 'A1')).declare_title, 'Rehearse a real situation');
-  assert.equal(rehearsalCopy(chromeLanguage('de', 'A2')).declare_title, 'Proben Sie eine echte Situation');
+  assert.equal(rehearsalCopy(chromeLanguage('de', 'A2')).declare_title, 'Probe eine echte Situation');
   assert.equal(rehearsalCopy(chromeLanguage('en', 'B1')).declare_title, 'Répétez une vraie situation');
 });
 

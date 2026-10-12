@@ -60,10 +60,10 @@ const EN: ErrataCopy = {
 
 const DE: ErrataCopy = {
   task: 'Korrekturaufgabe',
-  memorised: 'Ihr früherer Fehler',
+  memorised: 'Dein früherer Fehler',
   why: 'Warum:',
   hint: 'Zu korrigieren:',
-  answer: 'Ihre Korrektur',
+  answer: 'Deine Korrektur',
   send: 'Korrektur senden',
   sending: 'Wird gesendet…',
   repaired: 'Korrigiert',

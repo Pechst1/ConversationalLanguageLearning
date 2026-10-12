@@ -114,7 +114,7 @@ const STATUS: Record<ControlLanguage, Record<StatusKey, string>> = {
   de: {
     consolidating: 'Diese Woche festigen wir.',
     forecast_line: 'In diesem Rhythmus: {level} etwa im {month}.',
-    freeze_used: 'Ein Ruhetag hat Ihre Serie gehalten.',
+    freeze_used: 'Ein Ruhetag hat deine Serie gehalten.',
     level_evidence: '{w} Wörter und {g} Regeln sicher.',
     level_evidence_words: '{w} Wörter sicher.',
     level_evidence_rules: '{g} Regeln sicher.',
