@@ -148,6 +148,8 @@ export function CameoLayer() {
   const lastActivity = useRef(Date.now());
   const timers = useRef<number[]>([]);
   const leaveTimer = useRef<number | null>(null);
+  const soloRef = useRef<Cameo | null>(null);
+  soloRef.current = shown && shown.kind !== 'troupe' && !leaving ? shown : null;
 
   const later = useCallback((fn: () => void, ms: number) => {
     timers.current.push(window.setTimeout(fn, ms));
@@ -242,17 +244,27 @@ export function CameoLayer() {
     const onActivity = () => {
       lastActivity.current = Date.now();
     };
+    // The learner reaching for the page comes first: a figure in the way steps off at once.
+    const onReach = (event: PointerEvent) => {
+      onActivity();
+      const target = event.target as Element | null;
+      if (!soloRef.current || target?.closest?.('.cameo-layer')) return;
+      if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+      soloRef.current = null;
+      dismiss();
+    };
     document.addEventListener('click', onClick);
     document.addEventListener('keydown', onActivity);
-    document.addEventListener('pointerdown', onActivity);
+    document.addEventListener('pointerdown', onReach, true);
     document.addEventListener('scroll', onActivity, { passive: true, capture: true });
     return () => {
       document.removeEventListener('click', onClick);
       document.removeEventListener('keydown', onActivity);
-      document.removeEventListener('pointerdown', onActivity);
+      document.removeEventListener('pointerdown', onReach, true);
       document.removeEventListener('scroll', onActivity, { capture: true } as EventListenerOptions);
     };
-  }, [play]);
+  }, [play, dismiss]);
 
   // Stillness on an exercise.
   useEffect(() => {

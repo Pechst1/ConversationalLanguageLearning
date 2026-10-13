@@ -1,7 +1,7 @@
 /* Les apparitions (components/cast/CameoLayer.tsx, lib/cameo.ts).
    The cast walks in on the app: a figure peeks from a side, the troupe pops up
    from the bottom edge, a poked face answers back. Nothing here takes a tap
-   except a peeking figure (tap = it leaves). Reduced motion: fades only. */
+   except a peeking figure's drawn body (first tap: the gloss; second: it leaves). A tap anywhere else sends it off. Reduced motion: fades only. */
 
 .cameo-layer {
   position: fixed;
@@ -79,7 +79,8 @@
   top: 0;
   width: 170px;
   height: 357px;
-  pointer-events: auto;
+  /* only the drawn figure takes a tap, never the empty box around it */
+  pointer-events: none;
   padding: 0;
   border: 0;
   background: none;
@@ -88,6 +89,8 @@
   transform-origin: 85px 357px;
 }
 .cameo-solo__figure > svg { display: block; }
+.cameo-solo__figure > svg * { pointer-events: visiblePainted; }
+.cameo-solo[data-leaving='true'] .cameo-solo__figure > svg * { pointer-events: none; }
 .cameo-solo[data-edge='left'] .cameo-solo__figure {
   left: -110px;
   animation:
