@@ -54,7 +54,7 @@ const sound = require('@/lib/sound.ts');
 const steps = require('./JourneySteps.tsx');
 const { journeyCopy } = require('./journey-copy.ts');
 const { feelForTransition } = require('./useJourneyFeel.ts');
-const { journeySpeaker } = require('./journey-faces.ts');
+const { drillSpeaker, journeySpeaker } = require('./journey-faces.ts');
 const episodeModel = require('./story-episode-model.ts');
 const panelModel = require('@/components/feuilleton/reader/panel-model.ts');
 const ui = require('@/components/atelier-v2/ui');
@@ -570,4 +570,20 @@ test('the three sounds exist, are small, and default on in the app, off on the w
   // Playing without a window is a no-op, never a throw.
   sound.playFeelSound('correct');
   feelLib.feel('complete');
+});
+
+test('La troupe vivante: a grammar drill is asked by its rule’s coach, a word drill by the scene', () => {
+  const journey = {
+    scenario: { character_id: 'marin', character_name: 'Marin' },
+    steps: [
+      { kind: 'rule', prompt: { concept_id: 7, rule_card: { speaker: 'margaux_barman' } } },
+      { kind: 'rule', prompt: { concept_id: 9, rule_card: { speaker: null } } },
+    ],
+  };
+  const drill = (kind, id) => ({ kind: 'recall', prompt: { target: { kind, id } } });
+  assert.deepEqual(drillSpeaker(journey, drill('grammar', '7')), { id: 'margaux_barman', name: 'Margaux' });
+  assert.deepEqual(drillSpeaker(journey, drill('grammar', '9')), { id: 'marin', name: 'Marin' }, 'a card with no speaker: the scene');
+  assert.deepEqual(drillSpeaker(journey, drill('grammar', '12')), { id: 'marin', name: 'Marin' }, 'a rule from another day: the scene');
+  assert.deepEqual(drillSpeaker(journey, drill('vocabulary', '7')), { id: 'marin', name: 'Marin' }, 'words belong to the scene');
+  assert.equal(drillSpeaker({ steps: [] }, drill('vocabulary', '1')), null);
 });

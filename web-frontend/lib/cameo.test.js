@@ -46,14 +46,18 @@ test('every cameo character has a drawn rig', () => {
   CAMEO_CAST.forEach((who) => assert.ok(rigs.includes(`id: '${who.id}'`), who.id));
 });
 
-test('three right in a row brings the rule’s own coach, with their gag', () => {
-  const { out } = run([right('augustin_de_roncourt'), right('augustin_de_roncourt'), right('augustin_de_roncourt')]);
-  assert.equal(out[0], null);
-  assert.equal(out[1], null);
-  assert.equal(out[2].trigger, 'streak');
-  assert.equal(out[2].kind, 'solo');
-  assert.equal(out[2].figures[0].id, 'augustin_de_roncourt');
-  assert.equal(out[2].gag, 'note');
+test('three right in a row brings a colleague of the coach (who is acting in the verdict), with their gag', () => {
+  for (let seed = 0; seed < 6; seed += 1) {
+    const rand = () => 0.3 + seed * 0.11; // high enough that nobody photobombs the first two
+    const { out } = run([right('augustin_de_roncourt'), right('augustin_de_roncourt'), right('augustin_de_roncourt')], rand);
+    assert.equal(out[0], null);
+    assert.equal(out[1], null);
+    assert.equal(out[2].trigger, 'streak');
+    assert.equal(out[2].kind, 'solo');
+    const who = out[2].figures[0].id;
+    assert.notEqual(who, 'augustin_de_roncourt', 'never a second Gus beside the one in the verdict');
+    assert.equal(out[2].gag, CAMEO_CAST.find((c) => c.id === who).gag, 'their own gag');
+  }
 });
 
 test('six right in a row brings the troupe up from the bottom', () => {
@@ -136,6 +140,16 @@ test('the finale is the whole troupe, and Marin cries', () => {
   assert.equal(out[0].trigger, 'finale');
   assert.equal(out[0].figures.length, CAMEO_CAST.length);
   assert.equal(out[0].figures.find((f) => f.id === 'marin_leveque').mood, 'emue');
+});
+
+test('the day’s own person takes the bow in the middle of the line', () => {
+  for (const lead of CAMEO_CAST.map((c) => c.id)) {
+    const { out } = run([{ type: 'finale', lead }]);
+    const ids = out[0].figures.map((f) => f.id);
+    assert.equal(ids.length, CAMEO_CAST.length);
+    assert.equal(new Set(ids).size, ids.length, 'everyone once');
+    assert.equal(ids[Math.floor((ids.length - 1) / 2)], lead, lead);
+  }
 });
 
 test('every line is French with a German and an English gloss, short enough for a bubble', () => {

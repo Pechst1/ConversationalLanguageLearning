@@ -27,7 +27,7 @@ export type CameoEvent =
   | { type: 'answer'; correct: boolean; coachId?: string | null }
   | { type: 'idle' }
   | { type: 'poke'; id: string }
-  | { type: 'finale' };
+  | { type: 'finale'; lead?: string | null };
 
 export type CameoLine = { fr: string; en: string; de: string };
 
@@ -232,9 +232,15 @@ function solo(
   };
 }
 
-function troupe(state: CameoState, trigger: 'troupe' | 'finale', rand: () => number, size: number): Cameo {
+function troupe(state: CameoState, trigger: 'troupe' | 'finale', rand: () => number, size: number, lead: Who | null = null): Cameo {
   const words = trigger === 'finale' ? FINALE_WORDS : TROUPE_WORDS;
   const shuffled = [...CAMEO_CAST].sort(() => rand() - 0.5).slice(0, size);
+  // The day's own person takes the bow in the middle of the line.
+  if (lead) {
+    const rest = shuffled.filter((who) => who.id !== lead.id).slice(0, Math.max(0, size - 1));
+    shuffled.splice(0, shuffled.length, ...rest);
+    shuffled.splice(Math.floor(shuffled.length / 2), 0, lead);
+  }
   const said = [...words].sort(() => rand() - 0.5);
   const figures = shuffled.map((who, i) => ({
     id: who.id,
@@ -268,7 +274,8 @@ export function decideCameo(
           cameo = troupe(state, 'troupe', rand, Math.min(CAMEO_CAST.length, 2 + Math.floor(next.streak / 5)));
         } else {
           // The rule's own coach is the one who is proudest, when there is one.
-          const who = castMember(event.coachId) ?? someone(rand, state.lastId);
+          // The rule's coach is already acting in the verdict, so a colleague leans in with the gag.
+          const who = someone(rand, castMember(event.coachId)?.id ?? state.lastId);
           cameo = solo(state, 'streak', who, STREAK, rand, { gag: true, ttl: 4000 });
         }
       } else if (now - state.lastAmbientAt >= AMBIENT_COOLDOWN_MS && rand() < PHOTOBOMB_CHANCE) {
@@ -309,7 +316,7 @@ export function decideCameo(
   } else if (event.type === 'finale') {
     next.streak = 0;
     next.wrongRun = 0;
-    cameo = troupe(state, 'finale', rand, CAMEO_CAST.length);
+    cameo = troupe(state, 'finale', rand, CAMEO_CAST.length, castMember(event.lead));
   }
 
   if (cameo) {

@@ -168,3 +168,19 @@ test('no SMIL and no script: every move is CSS that reduced motion and `still` s
     assert.match(vivant({ id: fig.key, gesture: 'bravo', still: true }), /tv--still/);
   }
 });
+
+test('a CastActor acts when the character has a figure, and keeps the round face otherwise', () => {
+  const { CastActor, verdictGesture, MOOD_EXPRESSION } = require('./CastActor.tsx');
+  const act = (props) => renderToStaticMarkup(React.createElement(CastActor, props));
+  const coach = act({ characterId: 'margaux_barman', name: 'Margaux', mood: 'surprised', gesture: 'oups' });
+  assert.match(coach, /class="cast-actor" data-figure="margaux"/);
+  assert.match(coach, /tv-g--oups tv--acting/);
+  assert.match(coach, /tv-e--surprise/);
+  assert.match(act({ characterId: 'Gus', mood: 'happy' }), /data-figure="gus"[\s\S]*tv-e--joie/, 'a name is enough');
+  assert.doesNotMatch(act({ characterId: 'camille', name: 'Camille' }), /cast-actor/, 'no figure: the portrait');
+  assert.equal(verdictGesture('correct'), 'bravo');
+  assert.equal(verdictGesture('wrong'), 'oups');
+  assert.equal(verdictGesture('supported'), null, 'helped: a smile, no applause');
+  assert.equal(verdictGesture(null), null, 'nobody acts before the answer');
+  for (const expression of Object.values(MOOD_EXPRESSION)) assert.ok(EXPRESSIONS.includes(expression));
+});

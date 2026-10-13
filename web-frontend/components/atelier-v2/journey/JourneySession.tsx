@@ -68,7 +68,7 @@ import {
 import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { ReadStepView } from './ReadStep';
 import { DeskStepView } from './DeskStep';
-import { journeySpeaker } from './journey-faces';
+import { drillSpeaker, journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { continuesConversation } from './respond-thread';
 import { stepHeaderLine } from './drill-frame';
@@ -195,6 +195,8 @@ export function JourneySession({
   // WP-76/77: a haptic (and a sound, when on) per state; the face on screen.
   useJourneyFeel(phase.kind, step?.id ?? null, feedback);
   const speaker = journeySpeaker(journey, step);
+  // La troupe vivante: a drill is asked by the rule's coach, or by the scene's character.
+  const asker = step?.kind === 'recall' ? drillSpeaker(journey, step) : null;
 
   // WP-82: the step caption is status, in the screen's one chrome language.
   // WP-76: steps only — no clock that a server wait can move.
@@ -545,6 +547,7 @@ export function JourneySession({
                   onContinue={actions.continueJourney}
                   draft={draft}
                   journeyId={journey?.id ?? null}
+                  speaker={asker}
                 />
               )}
               {step.kind === 'respond' && (
@@ -583,6 +586,7 @@ export function JourneySession({
                 onDismiss={actions.clearFeedback}
                 speaker={speaker}
                 stepKind={step?.kind ?? null}
+                faceShown={step?.kind === 'recall' && Boolean(asker)}
               />
 
               {/* Third tier. Quiet by construction, so the step's own primary

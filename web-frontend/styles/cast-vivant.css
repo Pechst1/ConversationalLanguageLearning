@@ -179,3 +179,10 @@
     animation: none;
   }
 }
+
+/* CastActor: a jointed cast member standing where a round face used to be. */
+.cast-actor {
+  display: inline-flex;
+  flex: none;
+  line-height: 0;
+}

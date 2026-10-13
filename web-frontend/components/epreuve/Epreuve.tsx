@@ -48,6 +48,7 @@ import {
   useControlLanguage,
 } from '@/components/atelier-v2/ui';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { CastActor, actorFigure } from '@/components/cast/vivant/CastActor';
 import { emitCameo } from '@/lib/cameo';
 import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
@@ -433,7 +434,20 @@ export function EpVerdict({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="av2-feedback ep-verdict" data-tone={correct ? 'correct' : 'wrong'} data-coach={coach?.id || undefined} role="status" aria-live="polite">
-      {coach ? (
+      {coach && actorFigure(coach.id, coach.name) ? (
+        // La troupe vivante: the coach steps into the verdict and plays it their own way. A miss
+        // gets their «oups», never a cross face.
+        <span className="ep-verdict__coach" data-mood={coachMood || 'neutral'} data-actor="true">
+          <CastActor
+            characterId={coach.id}
+            name={coach.name}
+            mood={coachMood === 'cross' ? 'surprised' : coachMood || 'neutral'}
+            gesture={correct ? 'bravo' : 'oups'}
+            width={72}
+            fallback="xs"
+          />
+        </span>
+      ) : coach ? (
         <span className="ep-verdict__coach" data-mood={coachMood || 'neutral'}>
           <CastPortrait characterId={coach.id} name={coach.name} mood={coachMood || 'neutral'} size="xs" ring />
         </span>
