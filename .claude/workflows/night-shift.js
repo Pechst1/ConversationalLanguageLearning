@@ -1,7 +1,7 @@
 export const meta = {
   name: 'night-shift',
   description: 'Work the walk-finding queue: plan clusters, fix each in its own worktree and open a PR, verify each PR, write the morning digest. Never merges.',
-  whenToUse: 'Nightly after the walks (docs/ops/improvement-loop.md). args: {date: "YYYY-MM-DD", maxFixes?: 8, maxStory?: 2, wave?: 4}',
+  whenToUse: 'Nightly after the walks (docs/ops/improvement-loop.md). args: {date: "YYYY-MM-DD", maxFixes?: 8, maxStory?: 2, wave?: 4, queue?: "python /path/loop_queue.py"}',
   phases: [
     { title: 'Plan', detail: 'read the queue, group issues that touch the same files' },
     { title: 'Fix', detail: 'one agent per cluster in its own worktree, one wave of at most 4 at a time' },
@@ -14,7 +14,8 @@ const date = (args && args.date) || 'unknown-date'
 const MAX_FIXES = (args && args.maxFixes) || 8
 const MAX_STORY = (args && args.maxStory) || 2
 const WAVE = (args && args.wave) || 4
-const Q = 'python scripts/loop/loop_queue.py'
+// Until the loop tooling is on main, the routine passes a copy's path in args.queue.
+const Q = (args && args.queue) || 'python scripts/loop/loop_queue.py'
 
 const PLAN = {
   type: 'object',
