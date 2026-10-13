@@ -1641,6 +1641,12 @@ export default function AtelierPage() {
   // «Plus de pratique» link. The guard fires once per landing, so a re-render
   // (or a failed start) cannot loop on the paid start endpoint.
   const practiceEnteredRef = useRef(false);
+  // Walk 2026-10-13: the guard is per landing, not per page. Once the URL stops
+  // asking for practice (the learner left the séance), the next link in starts
+  // one again; without this, «Weiter: La Forge» stayed dead until a reload.
+  useEffect(() => {
+    if (!practiceMode) practiceEnteredRef.current = false;
+  }, [practiceMode]);
   useEffect(() => {
     if (!practiceMode || loading) return;
     if (practiceEnteredRef.current) return;
@@ -1654,7 +1660,9 @@ export default function AtelierPage() {
     // the server parks the open séance and seats the asked-for rule.
     const seatsAskedRule = !practiceConceptId
       || Number(session?.concepts?.[0]?.id) === practiceConceptId;
-    if (session && session.status !== 'completed' && seatsAskedRule && !forgeStepId) {
+    // A left rule check is not the forge the learner asked for: start the séance.
+    const leftTestOut = forgeViewOf(session?.forge)?.mode === 'test_out';
+    if (session && session.status !== 'completed' && seatsAskedRule && !forgeStepId && !leftTestOut) {
       practiceEnteredRef.current = true;
       setView('session');
       return;
@@ -2175,6 +2183,9 @@ export default function AtelierPage() {
                 void apiService.exitAtelierSession(session.session_id).catch(() => undefined);
               }
               setView('today');
+              // Home is not a practice landing: drop `?mode=forge` / `?testout=`
+              // so the same link can open the séance again.
+              void router.replace('/atelier', undefined, { shallow: true });
             }}
             produceAnswer={produceAnswer}
             language={pageChromeLanguage}
