@@ -4,7 +4,7 @@
  * Mounted once in `_app`. It listens for three things:
  *
  *   * `emitCameo(...)` from a screen (a verdict band, a deck's grade, a recap);
- *   * a tap on any drawn face in the app (`svg.cast-rig[data-cast]`) that is not
+ *   * a tap on any drawn face in the app (`svg.cast-rig[data-cast]`, or an acting `.cast-actor`) that is not
  *     itself a button or a link: the face wobbles and answers back;
  *   * a long stillness on an exercise screen (`.ep-top`), once in a while.
  *
@@ -232,7 +232,7 @@ export function CameoLayer() {
     const onClick = (event: MouseEvent) => {
       lastActivity.current = Date.now();
       const target = event.target as Element | null;
-      const face = target?.closest?.('svg.cast-rig[data-cast]');
+      const face = target?.closest?.('svg.cast-rig[data-cast], .cast-actor[data-cast]');
       if (!face || face.closest('.cameo-layer')) return;
       // A face inside a control belongs to the control's tap.
       if (face.closest('button, a, [role="button"], label')) return;

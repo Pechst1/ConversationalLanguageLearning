@@ -106,6 +106,7 @@ import {
   type RouteStage,
 } from '@/lib/first-steps';
 import { isRevueDay } from '@/lib/revue-une';
+import { emitCameo } from '@/lib/cameo';
 
 export type JourneySessionProps = {
   controller: DailyJourneyController;
@@ -231,6 +232,15 @@ export function JourneySession({
           ? 'frown'
           : null
       : null;
+  // Les apparitions: each graded answer counts toward the troupe's streaks and comforts, once.
+  const announced = React.useRef<unknown>(null);
+  const gradedVerdict = tokenFace === 'grin' ? true : tokenFace === 'frown' ? false : null;
+  const askerId = asker?.id ?? null;
+  React.useEffect(() => {
+    if (gradedVerdict === null || announced.current === feedback) return;
+    announced.current = feedback;
+    emitCameo({ type: 'answer', correct: gradedVerdict, coachId: askerId });
+  }, [feedback, gradedVerdict, askerId]);
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
   // WP-D1: the mark is the day's plan, in the head's right-hand slot.
   const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;

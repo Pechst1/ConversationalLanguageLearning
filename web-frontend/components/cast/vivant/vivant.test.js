@@ -173,7 +173,7 @@ test('a CastActor acts when the character has a figure, and keeps the round face
   const { CastActor, verdictGesture, MOOD_EXPRESSION } = require('./CastActor.tsx');
   const act = (props) => renderToStaticMarkup(React.createElement(CastActor, props));
   const coach = act({ characterId: 'margaux_barman', name: 'Margaux', mood: 'surprised', gesture: 'oups' });
-  assert.match(coach, /class="cast-actor" data-figure="margaux"/);
+  assert.match(coach, /class="cast-actor" data-cast="margaux" data-figure="margaux"/, 'a poke finds the acting figure too');
   assert.match(coach, /tv-g--oups tv--acting/);
   assert.match(coach, /tv-e--surprise/);
   assert.match(act({ characterId: 'Gus', mood: 'happy' }), /data-figure="gus"[\s\S]*tv-e--joie/, 'a name is enough');
