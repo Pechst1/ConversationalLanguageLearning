@@ -2088,10 +2088,9 @@ const noSleep = () => Promise.resolve();
   for (const option of wordBankStep.prompt.options) {
     assert.ok(htmlHas(wordBankHtml, option.text_fr), `chip ${option.id} is rendered`);
   }
-  assert.ok(
-    htmlHas(wordBankHtml, EN66.word_bank_spare_chips),
-    'the learner is told some chips do not belong — otherwise counting solves it',
-  );
+  // Text diet: the server's instruction already says some chips are extra; the
+  // screen does not say it a second time.
+  assert.ok(!htmlHas(wordBankHtml, EN66.word_bank_spare_chips), 'the spare-chips line is not repeated');
   assert.ok(!wordBankHtml.includes('<textarea'), 'a word bank is built, not written');
   // Plain tiles say nothing of the kind: every chip there is part of the answer.
   const tilesHtml = render(steps.RecallStepView, {
@@ -2113,7 +2112,7 @@ const noSleep = () => Promise.resolve();
   };
   const transformHtml = render(steps.RecallStepView, transformStep);
   assert.ok(htmlHas(transformHtml, 'tu prends un café'), 'the source sentence is printed');
-  assert.ok(htmlHas(transformHtml, EN66.transform_source_label), 'and labelled as the source');
+  assert.ok(!htmlHas(transformHtml, EN66.transform_source_label), 'the instruction already says it is the source');
   assert.ok(transformHtml.includes('<textarea'), 'a transform is written out');
   assert.ok(
     !htmlHas(transformHtml, 'vous prenez un café'),

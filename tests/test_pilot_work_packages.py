@@ -246,7 +246,8 @@ def test_pilot_frontend_contracts_are_pinned():
     assert "pulseAppHaptic('complete')" in la_une
     assert "ep-motif-settle" in epreuve
     assert "nc-cta:active" in cahiers
-    assert "recommendation_reason" in review
+    # Text diet (2026-10-12): the review card no longer prints why a word was
+    # picked; the mission and the Feuilleton still say why.
     assert "recommendation_reason" in mission
     assert "recommendation_reason" in feuilleton
     assert "episodic_anchor" in review

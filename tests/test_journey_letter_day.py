@@ -907,3 +907,17 @@ def test_a_letter_day_played_over_the_real_api_finishes_the_letter(
         if item.get("source") == "courrier"
     )
     assert event["mission_id"] == str(mission.id)
+
+
+def test_a_season_page_is_never_a_letter_day():
+    """Agency walk run 2 (R2-2): on a generated season day the page ends on its own
+    question; a letter dealt in the reply's place left it with no answer field. The
+    service turns a dealt letter day back into the standard day on any season page."""
+
+    from app.services.daily_journey import _is_season_day
+
+    gap_day = {"source": {"season_script": {"id": "s1", "position": {"key": "g1.2"}}}, "draft": {}}
+    tentpole = {"season": {"kind": "tentpole", "key": "t1.b"}}
+    off_season = {"source": {"thread_id": "x"}, "draft": {}}
+    assert _is_season_day(gap_day) and _is_season_day(tentpole)
+    assert not _is_season_day(off_season) and not _is_season_day(None)

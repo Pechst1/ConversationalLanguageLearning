@@ -95,7 +95,6 @@ import {
   verdictTitleKey,
   showsVerdict,
   voiceOffered,
-  wordBankHasSpareChips,
   type JourneyFeedback,
 } from './journey-state';
 import {
@@ -255,7 +254,7 @@ function StepFrame({
   );
   return (
     <section className="av2-stack av2-step">
-      <p className="av2-label av2-label--story">{label}</p>
+      {label ? <p className="av2-label av2-label--story">{label}</p> : null}
       {speaker ? (
         <div className="av2-speech" data-mood={speakerMood}>
           {/* Keyed on the mood, so the verdict's face pops in (at-pop). */}
@@ -593,8 +592,10 @@ export function RecallStepView({
   const goal = (heard || dictating) && !graded ? null : drillGoalLine(step.prompt);
 
   return (
+    // Text diet: the step header already names the drill («Recall · Avoir»), so
+    // no «Today» eyebrow repeats it above the question.
     <StepFrame
-      label={copy.today_eyebrow}
+      label={null}
       headline={headline}
       headlineLang={headline === step.prompt.prompt_fr && step.prompt.prompt_fr ? 'fr' : undefined}
     >
@@ -629,14 +630,6 @@ export function RecallStepView({
             draft?.set(draftKey, next);
           }}
         />
-      )}
-
-      {/* A transform prints the sentence being rewritten, so the learner knows
-          the headline above is the source and not their answer. */}
-      {step.prompt.task_type === 'transform' && step.prompt.prompt_fr && (
-        <p className="av2-label" data-state="transform-source">
-          {wide.transform_source_label}
-        </p>
       )}
 
       {isMatch && (
@@ -684,14 +677,6 @@ export function RecallStepView({
             wrong: wide.status_wrong,
           }}
         />
-      )}
-
-      {/* A word bank is tiles whose chip row is *not* the answer in the wrong
-          order. Saying so is the difference between a puzzle and a count. */}
-      {wordBankHasSpareChips(step.prompt) && (
-        <p className="av2-label" data-state="word-bank-spare">
-          {wide.word_bank_spare_chips}
-        </p>
       )}
 
       {/* One bank for both formats (WP-76: a second copy used to render for

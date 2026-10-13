@@ -320,8 +320,10 @@ export function RuleCard({
       data-review={review || undefined}
       aria-label={review ? copy.reviewEyebrow : copy.eyebrow}
     >
-      {variant === 'intro' && (
-        <p className="av2-label av2-label--story rc-eyebrow">{review ? copy.reviewEyebrow : copy.eyebrow}</p>
+      {/* Text diet: the step header (or the forge's rule row) already names
+          today's rule, so only a review says what it is. */}
+      {variant === 'intro' && review && (
+        <p className="av2-label av2-label--story rc-eyebrow">{copy.reviewEyebrow}</p>
       )}
 
       {sceneAnchor && (

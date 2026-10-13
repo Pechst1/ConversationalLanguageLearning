@@ -142,6 +142,23 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{prompt}“ als „{learner}“ eingeordnet; richtig wäre „{target}“.",
         "fr": "Vous avez classé « {prompt} » comme « {learner} » ; l’étiquette attendue est « {target} ».",
     },
+    # Issue #104: a judgement («Correct» / «À corriger») answered wrongly names the
+    # sentence, never the buttons.
+    "atelier.judgement.was_correct": {
+        "en": "“{sentence}” is already correct; there is nothing to fix.",
+        "de": "„{sentence}“ stimmt so; hier gibt es nichts zu korrigieren.",
+        "fr": "« {sentence} » est déjà correcte ; il n’y a rien à corriger.",
+    },
+    "atelier.judgement.should_be": {
+        "en": "“{sentence}” is not right; it should be “{corrected}”.",
+        "de": "„{sentence}“ stimmt nicht; richtig ist „{corrected}“.",
+        "fr": "« {sentence} » n’est pas correcte ; il faut « {corrected} ».",
+    },
+    "atelier.judgement.needs_fixing": {
+        "en": "“{sentence}” is not right yet; it needs fixing.",
+        "de": "„{sentence}“ stimmt noch nicht; der Satz muss korrigiert werden.",
+        "fr": "« {sentence} » n’est pas encore correcte ; elle est à corriger.",
+    },
     "atelier.recognize.word_bank_mismatch": {
         "en": "The sentence you built does not match the target sentence.",
         "de": "Der Satz, den du gebaut hast, stimmt nicht mit dem Zielsatz überein.",
@@ -1020,19 +1037,19 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     },
     # -- app/services/item_bank.py: WP-S2 La Forge item-bank instructions -----
     "forge.word_bank": {
-        "en": "Build the sentence. One chip is not needed.",
-        "de": "Bau den Satz. Ein Baustein wird nicht gebraucht.",
+        "en": "Build it. One word is extra.",
+        "de": "Bau den Satz. Ein Wort ist zu viel.",
         "fr": "Construisez la phrase. Un mot est en trop.",
     },
     "forge.word_bank_all": {
-        "en": "Build the sentence with the chips.",
-        "de": "Bau den Satz mit den Bausteinen.",
-        "fr": "Construisez la phrase avec les mots.",
+        "en": "Build the sentence.",
+        "de": "Bau den Satz.",
+        "fr": "Construisez la phrase.",
     },
     "forge.transform": {
-        "en": "Correct the sentence: fix the part that breaks today's rule. Keep the rest.",
-        "de": "Korrigiere den Satz: Verbessere die Stelle, die gegen die Regel von heute verstößt. Der Rest bleibt.",
-        "fr": "Corrigez la phrase : réparez ce qui enfreint la règle du jour. Gardez le reste.",
+        "en": "Fix the one mistake.",
+        "de": "Korrigiere den einen Fehler.",
+        "fr": "Corrigez la faute.",
     },
     "forge.sentence": {
         "en": "Write the sentence in French.",
@@ -1040,12 +1057,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "fr": "Écrivez la phrase en français.",
     },
     "forge.speak": {
-        "en": "Say it aloud in French, then check the transcript.",
-        "de": "Sag es laut auf Französisch und prüfe dann die Transkription.",
-        "fr": "Dites-le à voix haute en français, puis vérifiez la transcription.",
+        "en": "Say it in French.",
+        "de": "Sag es auf Französisch.",
+        "fr": "Dites-le en français.",
     },
     "forge.conversation": {
-        "en": "Answer the message in French, with the rule of the day.",
+        "en": "Reply in French, with today's rule.",
         "de": "Beantworte die Nachricht auf Französisch, mit der Regel von heute.",
         "fr": "Répondez au message en français, avec la règle du jour.",
     },
@@ -1240,6 +1257,18 @@ for _key, _row in LEARNER_COPY.items():
     if _english and _english not in _ENGLISH_INDEX:
         _ENGLISH_INDEX[_english] = _key
 del _key, _row, _english
+#: Text diet (2026-10-12): the forge instructions were shortened, but cached sets
+#: still carry the old English with no key. The old sentences stay findable here
+#: so those sets keep reaching German and French learners in their language.
+_ENGLISH_INDEX.update(
+    {
+        "Build the sentence. One chip is not needed.": "forge.word_bank",
+        "Build the sentence with the chips.": "forge.word_bank_all",
+        "Correct the sentence: fix the part that breaks today's rule. Keep the rest.": "forge.transform",
+        "Say it aloud in French, then check the transcript.": "forge.speak",
+        "Answer the message in French, with the rule of the day.": "forge.conversation",
+    }
+)
 
 
 def key_for_english(text: Any) -> str | None:

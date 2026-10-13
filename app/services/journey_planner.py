@@ -355,8 +355,8 @@ _TILES_INSTRUCTION_WITH_GLOSS: dict[str, str] = {
     "fr": "Remets les mots dans l'ordre pour dire « {native} ».",
 }
 _TILES_INSTRUCTION: dict[str, str] = {
-    "en": "Put the words in the right order.",
-    "de": "Bring die Wörter in die richtige Reihenfolge.",
+    "en": "Put the words in order.",
+    "de": "Ordne die Wörter.",
     "fr": "Remets les mots dans le bon ordre.",
 }
 _SHORT_ANSWER_INSTRUCTION: dict[str, str] = {
@@ -403,13 +403,13 @@ def word_count_phrase(count: int, control_language: Any) -> str:
 #: A word bank is tiles with chips that are *not* in the answer, so the chip row
 #: stops being the answer written down in the wrong order.
 _WORD_BANK_INSTRUCTION_WITH_GLOSS: dict[str, str] = {
-    "en": 'Build "{native}". Some chips are not needed.',
-    "de": 'Bau „{native}“. Nicht jeder Baustein wird gebraucht.',
+    "en": 'Build "{native}". Some words are extra.',
+    "de": 'Bau „{native}“. Manche Wörter sind zu viel.',
     "fr": "Construisez « {native} ». Certains mots sont en trop.",
 }
 _WORD_BANK_INSTRUCTION: dict[str, str] = {
-    "en": "Build the phrase. Some chips are not needed.",
-    "de": "Bau den Ausdruck. Nicht jeder Baustein wird gebraucht.",
+    "en": "Build the phrase. Some words are extra.",
+    "de": "Bau den Ausdruck. Manche Wörter sind zu viel.",
     "fr": "Construisez l'expression. Certains mots sont en trop.",
 }
 #: Gender is asked about the bare noun: the article is what answers it, so the
@@ -631,6 +631,10 @@ def _tokens(*texts: str | None) -> int:
 
 def _fold(value: str | None) -> str:
     return normalize_answer_text(value).casefold()
+
+
+#: A judgement item's two buttons (``item_bank.classify_item``): never a repair.
+_JUDGEMENT_BUTTONS = frozenset(_fold(label) for label in ("Correct", "À corriger"))
 
 
 #: Leading articles of the three languages a card may be in.
@@ -1127,6 +1131,10 @@ def build_recall_task(
     if target.kind is TargetKind.ERROR:
         learner = " ".join(str(learner_text or "").split())
         if not learner or _fold(learner) == _fold(label_fr):
+            return None
+        if _fold(label_fr) in _JUDGEMENT_BUTTONS or _fold(learner) in _JUDGEMENT_BUTTONS:
+            # Issue #104: errata filed before the fix carry a judgement item's
+            # buttons («À corriger» → «Correct»), not French the learner wrote.
             return None
         if _fold(label_fr) in _fold(learner):
             # The wrong wording already contains the whole answer: showing it

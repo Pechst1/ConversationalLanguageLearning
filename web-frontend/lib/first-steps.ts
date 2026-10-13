@@ -90,39 +90,39 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
     stickers: {
       scene: {
         title: 'Die Szene',
-        body: 'Hier liest und hörst du, was in der Geschichte passiert. Eine Übersetzung kannst du dir jederzeit anzeigen lassen. Der blaue Kreis oben steht für die Szene.',
+        body: 'Lesen und hören. Übersetzung per Tipp.',
       },
       rule: {
         title: 'Die Regel',
-        body: 'Eine kleine Grammatikregel, genommen aus der Szene, die du gerade gelesen hast. Lies sie einmal, gleich danach kommt sie in der Geschichte vor.',
+        body: 'Eine Regel aus der Szene, gleich danach im Einsatz.',
       },
       recall: {
         title: 'Die Wörter',
-        body: 'Kurze Übungen mit Wörtern aus der Szene. Falsch ist hier nicht schlimm: du siehst sofort die richtige Lösung. Das gelbe Quadrat steht für die Wörter.',
+        body: 'Kurze Wortübungen. Bei Fehlern siehst du die Lösung.',
       },
       respond: {
         title: 'Deine Antwort',
-        body: 'Jetzt bist du dran: Antworte der Person auf Französisch, mit deinen eigenen Worten. Schreiben oder sprechen, beides geht. Die Geschichte reagiert auf das, was du sagst. Das rote Dreieck steht für deine Antwort.',
+        body: 'Antworte auf Französisch, schriftlich oder laut. Die Geschichte reagiert.',
       },
       resolution: {
         title: 'Das Ende des Tages',
-        body: 'So geht die Szene heute aus. Danach ist der Tag geschafft und das schwarze Quadrat oben füllt sich.',
+        body: 'Hier endet die Szene. Dein Tag ist geschafft.',
       },
       read: {
         title: 'Eine Seite zum Lesen',
-        body: 'Eine zusätzliche Seite, nur zum Lesen. Du kannst sie auch überspringen.',
+        body: 'Eine Extra-Seite zum Lesen. Freiwillig.',
       },
       desk: {
         title: 'Der Schreibtisch',
-        body: 'Eine kurze Extra-Übung nach der Szene, ganz freiwillig.',
+        body: 'Eine kurze Extra-Übung. Freiwillig.',
       },
       forge: {
         title: 'La Forge',
-        body: 'Hier übst du eine Grammatikregel gezielt, Schritt für Schritt: erst erkennen, dann selbst bilden. Etwa fünf Minuten, und die Regel kommt danach wieder in deiner Geschichte vor.',
+        body: 'Eine Regel, Schritt für Schritt. Etwa fünf Minuten.',
       },
       words: {
         title: 'Der Lexique',
-        body: 'Deine Wortkarten. Tippe auf die Karte, um sie umzudrehen, dann sag ehrlich, ob du das Wort wusstest. Was du nicht weißt, kommt bald wieder, was du weißt, später.',
+        body: 'Tippen zum Umdrehen. Sag, ob du es wusstest.',
       },
     },
     walkthrough: {
@@ -131,9 +131,9 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       start: 'Los geht’s',
       skip: 'Überspringen',
       welcome_title: 'Willkommen im Atelier',
-      welcome_body: 'Jeden Tag spielst du eine Folge einer Geschichte in Paris. Du liest, was passiert, und antwortest den Figuren auf Französisch. Was du schreibst, verändert die Geschichte.',
+      welcome_body: 'Jeden Tag eine Folge in Paris. Du antwortest auf Französisch, und die Geschichte ändert sich.',
       shapes_title: 'Die vier Formen',
-      shapes_body: 'Jeder Tag hat vier Teile, und jeder Teil hat eine Form. Du findest sie überall in der App.',
+      shapes_body: 'Jeder Teil des Tages hat eine Form.',
       shapes: {
         story: 'Blauer Kreis: die Szene. Lesen und hören.',
         reward: 'Gelbes Quadrat: die Wörter. Kurze Übungen.',
@@ -141,14 +141,14 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         done: 'Schwarzes Quadrat: das Ende. Der Tag ist geschafft.',
       },
       progress_title: 'Wo du gerade bist',
-      progress_body: 'Oben auf jeder Seite siehst du, wie weit du bist.',
+      progress_body: 'Oben auf jeder Seite siehst du, wo du bist.',
       progress_points: [
-        'Die Reihe kleiner Formen: ein Feld pro Schritt. Das Feld mit Augen ist der Schritt, auf dem du gerade bist.',
-        'Fertige Schritte sind farbig, kommende sind grau.',
-        'Das Logo rechts oben ist dein Tag: jede Form füllt sich, wenn ihr Teil fertig ist.',
+        'Eine Form pro Schritt. Augen zeigen, wo du bist.',
+        'Fertig ist farbig, Kommendes grau.',
+        'Rechts oben: dein Tag füllt sich.',
       ],
       day_title: 'Dein erster Tag',
-      day_body: 'Erst die Geschichte, dann La Forge für die Grammatik, dann deine Wörter. Wenn etwas zum ersten Mal auftaucht, erklärt es dir ein kleiner gelber Zettel.',
+      day_body: 'Geschichte, dann La Forge, dann deine Wörter. Gelbe Zettel erklären Neues.',
     },
     route: {
       title: 'Dein erster Tag',
@@ -168,39 +168,39 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
     stickers: {
       scene: {
         title: 'The scene',
-        body: 'Here you read and hear what happens in the story. You can show a translation whenever you need one. The blue circle at the top stands for the scene.',
+        body: 'Read and listen. Translation is one tap away.',
       },
       rule: {
         title: 'The rule',
-        body: 'One small grammar rule, taken from the scene you just read. Read it once; it comes up in the story right after.',
+        body: 'One grammar rule from the scene. It comes up next.',
       },
       recall: {
         title: 'The words',
-        body: 'Quick exercises on words from the scene. Getting one wrong is fine: you see the right answer straight away. The yellow square stands for the words.',
+        body: 'Quick word drills. A miss shows the answer.',
       },
       respond: {
         title: 'Your reply',
-        body: 'Your turn: answer the character in French, in your own words. Type or speak, either works. The story reacts to what you say. The red triangle stands for your reply.',
+        body: 'Answer in French, typed or spoken. The story reacts.',
       },
       resolution: {
         title: 'The end of the day',
-        body: 'This is how the scene ends today. After it the day is done and the black square at the top fills in.',
+        body: 'The scene ends here. Your day is done.',
       },
       read: {
         title: 'A page to read',
-        body: 'An extra page, just for reading. You can skip it.',
+        body: 'An extra page to read. Optional.',
       },
       desk: {
         title: 'The desk',
-        body: 'A short extra exercise after the scene. It is optional.',
+        body: 'A short extra drill. Optional.',
       },
       forge: {
         title: 'La Forge',
-        body: 'Here you practise one grammar rule on its own, step by step: first recognise it, then build it yourself. About five minutes, and the rule comes back in your story afterwards.',
+        body: 'One rule, step by step. About five minutes.',
       },
       words: {
         title: 'The Lexique',
-        body: 'Your word cards. Tap a card to turn it over, then say honestly whether you knew it. What you don’t know comes back soon, what you know comes back later.',
+        body: 'Tap to turn. Say if you knew it.',
       },
     },
     walkthrough: {
@@ -209,9 +209,9 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       start: 'Let’s go',
       skip: 'Skip',
       welcome_title: 'Welcome to the Atelier',
-      welcome_body: 'Every day you play one episode of a story set in Paris. You read what happens and answer the characters in French. What you write changes the story.',
+      welcome_body: 'One episode a day, set in Paris. You answer in French, and the story changes.',
       shapes_title: 'The four shapes',
-      shapes_body: 'Every day has four parts, and each part has a shape. You will see them everywhere in the app.',
+      shapes_body: 'Each part of the day has a shape.',
       shapes: {
         story: 'Blue circle: the scene. Read and listen.',
         reward: 'Yellow square: the words. Quick exercises.',
@@ -219,14 +219,14 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         done: 'Black square: the ending. The day is done.',
       },
       progress_title: 'Where you are',
-      progress_body: 'At the top of every page you can see how far you have come.',
+      progress_body: 'The top of each page shows where you are.',
       progress_points: [
-        'The row of small shapes: one per step. The one with eyes is the step you are on.',
-        'Finished steps are in colour, steps still ahead are grey.',
-        'The logo at the top right is your day: each shape fills in when its part is done.',
+        'One shape per step. Eyes mark where you are.',
+        'Done is colour, ahead is grey.',
+        'Top right: your day fills in.',
       ],
       day_title: 'Your first day',
-      day_body: 'First the story, then La Forge for grammar, then your words. The first time something new appears, a small yellow note explains it.',
+      day_body: 'Story, then La Forge, then your words. Yellow notes explain new things.',
     },
     route: {
       title: 'Your first day',
@@ -246,39 +246,39 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
     stickers: {
       scene: {
         title: 'La scène',
-        body: 'Ici, vous lisez et écoutez ce qui se passe dans l’histoire. Une traduction est toujours à portée de main. Le cercle bleu, en haut, c’est la scène.',
+        body: 'Lisez et écoutez. La traduction est à un geste.',
       },
       rule: {
         title: 'La règle',
-        body: 'Une petite règle de grammaire, tirée de la scène que vous venez de lire. Lisez-la une fois ; elle revient tout de suite dans l’histoire.',
+        body: 'Une règle tirée de la scène. Elle revient tout de suite.',
       },
       recall: {
         title: 'Les mots',
-        body: 'De courts exercices sur les mots de la scène. Une erreur n’est pas grave : la bonne réponse s’affiche aussitôt. Le carré jaune, ce sont les mots.',
+        body: 'De courts exercices. Une erreur montre la réponse.',
       },
       respond: {
         title: 'Votre réponse',
-        body: 'À vous : répondez au personnage en français, avec vos propres mots, à l’écrit ou à l’oral. L’histoire réagit à ce que vous dites. Le triangle rouge, c’est votre réponse.',
+        body: 'Répondez en français, à l’écrit ou à l’oral. L’histoire réagit.',
       },
       resolution: {
         title: 'La fin du jour',
-        body: 'Voici comment la scène se termine aujourd’hui. Ensuite la journée est bouclée et le carré noir, en haut, se remplit.',
+        body: 'La scène se termine ici. Votre journée est faite.',
       },
       read: {
         title: 'Une page à lire',
-        body: 'Une page en plus, seulement à lire. Vous pouvez la passer.',
+        body: 'Une page en plus, à lire. Facultatif.',
       },
       desk: {
         title: 'Le bureau',
-        body: 'Un court exercice en plus, après la scène. Il est facultatif.',
+        body: 'Un court exercice en plus. Facultatif.',
       },
       forge: {
         title: 'La Forge',
-        body: 'Ici, vous travaillez une règle de grammaire à part, pas à pas : d’abord la reconnaître, puis la former vous-même. Cinq minutes environ, et la règle revient ensuite dans votre histoire.',
+        body: 'Une règle, pas à pas. Cinq minutes environ.',
       },
       words: {
         title: 'Le Lexique',
-        body: 'Vos cartes de mots. Touchez une carte pour la retourner, puis dites honnêtement si vous la saviez. Ce que vous ne savez pas revient vite, le reste plus tard.',
+        body: 'Touchez pour retourner. Dites si vous saviez.',
       },
     },
     walkthrough: {
@@ -287,9 +287,9 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       start: 'C’est parti',
       skip: 'Passer',
       welcome_title: 'Bienvenue à l’Atelier',
-      welcome_body: 'Chaque jour, vous jouez un épisode d’une histoire à Paris. Vous lisez ce qui se passe et vous répondez aux personnages en français. Ce que vous écrivez change l’histoire.',
+      welcome_body: 'Un épisode par jour, à Paris. Vous répondez en français, et l’histoire change.',
       shapes_title: 'Les quatre formes',
-      shapes_body: 'Chaque journée a quatre parties, et chaque partie a sa forme. Vous les retrouverez partout.',
+      shapes_body: 'Chaque partie de la journée a sa forme.',
       shapes: {
         story: 'Cercle bleu : la scène. Lire et écouter.',
         reward: 'Carré jaune : les mots. De courts exercices.',
@@ -299,12 +299,12 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       progress_title: 'Où vous en êtes',
       progress_body: 'En haut de chaque page, vous voyez où vous en êtes.',
       progress_points: [
-        'La rangée de petites formes : une par étape. Celle qui a des yeux, c’est l’étape en cours.',
-        'Les étapes faites sont en couleur, celles à venir en gris.',
-        'Le logo en haut à droite, c’est votre journée : chaque forme se remplit quand sa partie est faite.',
+        'Une forme par étape. Les yeux marquent l’étape en cours.',
+        'Fait en couleur, à venir en gris.',
+        'En haut à droite : votre journée se remplit.',
       ],
       day_title: 'Votre premier jour',
-      day_body: 'D’abord l’histoire, puis La Forge pour la grammaire, puis vos mots. La première fois que quelque chose de nouveau apparaît, une petite note jaune l’explique.',
+      day_body: 'L’histoire, puis La Forge, puis vos mots. Les notes jaunes expliquent le nouveau.',
     },
     route: {
       title: 'Votre premier jour',

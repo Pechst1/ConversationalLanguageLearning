@@ -295,6 +295,31 @@ def gender_form_hits(text: str) -> list[str]:
     return list(dict.fromkeys(hits))
 
 
+#: «il/elle», «elle ou il», «lui/elle»: both pronouns for the learner, as in
+#: «L'apprenant veut dire qu'il/elle a faim» (agency pilot 2026-10-12, B4).
+_PRONOUN_PAIR = re.compile(
+    r"\b(?:il|elle|ils|elles|lui|eux)\s*(?:/|\bou\b|\()\s*(?:il|elle|ils|elles|lui|eux)\b\)?",
+    re.IGNORECASE,
+)
+
+
+#: Only a masculine and a feminine form of the same person hedge a gender
+#: («elle ou elles» is a number, not a gender).
+_GENDER_PAIRS = frozenset(
+    frozenset(pair) for pair in (("il", "elle"), ("ils", "elles"), ("lui", "elle"), ("eux", "elles"))
+)
+
+
+def has_pronoun_pair(text: str) -> bool:
+    """Does the text name the learner with both pronouns («il/elle», «il ou elle»)?"""
+
+    return any(
+        frozenset(word.casefold() for word in re.findall(r"[a-zà-ÿ]+", match.group(0), re.IGNORECASE)) - {"ou"}
+        in _GENDER_PAIRS
+        for match in _PRONOUN_PAIR.finditer(text or "")
+    )
+
+
 def scrub_learner_gender(text: str) -> str:
     """The deterministic rewrite for a private field (``understood_intent``): every
     «le/la apprenant(e)» becomes «l'apprenant», and an inclusive spelling loses its
