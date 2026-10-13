@@ -39,6 +39,7 @@ path for rollback: with it off, nothing in this module runs.
 
 from __future__ import annotations
 
+import contextvars
 import logging
 import re
 import threading
@@ -704,7 +705,9 @@ def run_reply_lanes(payload: dict, *, deadline: float | None = None, lexical=Non
             seconds[name] = round(time.monotonic() - started, 3)
 
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="reply-lane") as pool:
-        futures = {name: pool.submit(timed, name) for name in lanes}
+        # Each lane runs in a copy of this request's context, so its provider calls
+        # land on the request's E1 tally.
+        futures = {name: pool.submit(contextvars.copy_context().run, timed, name) for name in lanes}
         errors = {name: f.exception() for name, f in futures.items()}
     for name in ("voice", "tutor"):
         error = errors[name]

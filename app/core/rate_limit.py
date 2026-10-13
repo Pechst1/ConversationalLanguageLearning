@@ -402,10 +402,18 @@ def paid_route_guard(user_dependency: Callable[..., Any]) -> Callable[..., Itera
         hold = spend_ledger.reserve(
             db, current_user, kind=f"route:{request.method.upper()} {_route_path(request)}", open_day=open_day
         )
+        calls = spend_ledger.paid_calls()
         try:
             yield
-        finally:
-            spend_ledger.release(db, hold)
+        except BaseException:
+            # A failure after a provider answered may have rolled its cost row
+            # back: keep the hold counting. One before any paid call frees it.
+            if calls is not None and calls.count:
+                spend_ledger.keep_uncertain(db, hold, calls.cost_usd)
+            else:
+                spend_ledger.release(db, hold)
+            raise
+        spend_ledger.release(db, hold)
 
     guard.__name__ = f"paid_route_guard_{getattr(user_dependency, '__name__', 'user')}"
     return guard

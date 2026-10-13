@@ -14,7 +14,11 @@ one step under a lock:
    either cap, otherwise write the hold and commit.
 
 The request closes its hold when it ends (:func:`release`); its real cost is on
-the usual ledgers by then. A hold nobody closed within
+the usual ledgers by then. A request that fails *after* a provider answered may
+have rolled its cost row back with it, so its hold is kept instead
+(:func:`keep_uncertain`): :class:`PaidCallTracking` gives every request a tally
+that :func:`note_paid_call` adds to. A request that fails before any paid call
+still frees its hold. A hold nobody closed within
 ``SPEND_RESERVATION_STALE_SECONDS`` becomes ``uncertain`` and keeps counting
 until its day is over, so a crash or a timeout is never billed at zero.
 
@@ -24,8 +28,11 @@ the very concurrent requests it has to stop.
 """
 from __future__ import annotations
 
+import threading
 import uuid
 import zlib
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -175,6 +182,61 @@ def reserve(
         session.close()
 
 
+@dataclass
+class PaidCalls:
+    """What the provider answered during one request (shared by its worker threads)."""
+
+    count: int = 0
+    cost_usd: float = 0.0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def add(self, cost_usd: float) -> None:
+        with self._lock:
+            self.count += 1
+            self.cost_usd += max(0.0, cost_usd)
+
+
+_paid_calls: ContextVar[PaidCalls | None] = ContextVar("spend_paid_calls", default=None)
+
+
+def paid_calls() -> PaidCalls | None:
+    return _paid_calls.get()
+
+
+def note_paid_call(cost_usd: Any = 0.0) -> None:
+    """A provider answered: whatever this request does next, that call is owed."""
+
+    tally = _paid_calls.get()
+    if tally is None:
+        return
+    try:
+        tally.add(float(cost_usd or 0.0))
+    except (TypeError, ValueError):
+        tally.add(0.0)
+
+
+class PaidCallTracking:
+    """ASGI middleware: one :class:`PaidCalls` tally per HTTP request.
+
+    It is set here, in the request's own context, because a sync dependency's
+    context changes do not reach the route; a mutable tally set before both is
+    shared by them and by the threads they copy the context into.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+        token = _paid_calls.set(PaidCalls())
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            _paid_calls.reset(token)
+
+
 def _close(db: Session, reservation_id: uuid.UUID, *, status: str, actual_usd: float | None) -> None:
     session = _own_session(db)
     try:
@@ -204,6 +266,29 @@ def release(db: Session, reservation_id: uuid.UUID) -> None:
     _close(db, reservation_id, status="released", actual_usd=None)
 
 
+def keep_uncertain(db: Session, reservation_id: uuid.UUID, cost_usd: float = 0.0) -> None:
+    """The request failed after a provider answered: its cost may not be on the ledgers.
+
+    The hold stays counted as ``uncertain`` for the rest of its day, at no less
+    than what the provider calls are known to have cost.
+    """
+
+    session = _own_session(db)
+    try:
+        _lock(session)
+        hold = session.get(SpendReservation, reservation_id)
+        if hold is not None and hold.status in OPEN_STATUSES:
+            hold.status = "uncertain"
+            hold.upper_bound_usd = max(float(hold.upper_bound_usd or 0.0), max(0.0, float(cost_usd or 0.0)))
+        session.commit()
+    except Exception as exc:  # pragma: no cover - defensive
+        session.rollback()
+        # Left open, the hold goes uncertain on its own: safe, not free.
+        logger.warning("Spend hold {} could not be kept: {}", reservation_id, exc)
+    finally:
+        session.close()
+
+
 def settle(db: Session, reservation_id: uuid.UUID, actual_usd: float) -> None:
     """The request ended with a known cost that is on the ledgers: record it and stop holding."""
 
@@ -211,8 +296,13 @@ def settle(db: Session, reservation_id: uuid.UUID, actual_usd: float) -> None:
 
 
 __all__ = [
+    "PaidCallTracking",
+    "PaidCalls",
     "enabled",
+    "keep_uncertain",
+    "note_paid_call",
     "outstanding_usd",
+    "paid_calls",
     "release",
     "request_bound_usd",
     "reserve",

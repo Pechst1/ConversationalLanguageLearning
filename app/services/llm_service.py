@@ -386,6 +386,10 @@ def call_with_retries(
             (sleep or time.sleep)(wait)
             continue
         breaker.record_success()
+        # E1: the provider answered, so this request owes the call whatever happens next.
+        from app.services.spend_ledger import note_paid_call
+
+        note_paid_call(getattr(result, "cost", 0.0))
         return result
     breaker.record_failure()
     raise last_error or LLMProviderError(

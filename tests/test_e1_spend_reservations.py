@@ -142,6 +142,70 @@ def test_a_paid_route_holds_while_it_runs_and_releases_after(
     assert rows[0].kind.startswith("route:POST ")
 
 
+def _hold_of(db: Session, user) -> SpendReservation:  # type: ignore[no-untyped-def]
+    rows = db.scalars(select(SpendReservation).where(SpendReservation.user_id == user.id)).all()
+    assert len(rows) == 1
+    db.refresh(rows[0])
+    return rows[0]
+
+
+def test_a_paid_request_that_fails_after_the_provider_answered_keeps_its_hold(
+    abuser_client: TestClient, db_session: Session, speech, holds_on, monkeypatch
+) -> None:
+    """Its cost row may have rolled back with it: the hold keeps counting, at no less than the call cost."""
+
+    user, headers = _learner(db_session)
+
+    def answered_then_failed(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        spend_ledger.note_paid_call(0.03)
+        raise RuntimeError("cost row lost")
+
+    monkeypatch.setattr(speech, "text_to_speech", answered_then_failed)
+    response = abuser_client.post("/api/v1/audio/speak", json={"text": "Bonjour"}, headers=headers)
+    assert response.status_code == 500
+
+    hold = _hold_of(db_session, user)
+    assert hold.status == "uncertain"
+    assert hold.upper_bound_usd == pytest.approx(0.03)
+    assert spend_ledger.outstanding_usd(db_session, user.id, zone=spend_guard.learner_zone(user)) == pytest.approx(0.03)
+
+
+def test_a_paid_request_that_fails_before_any_provider_call_frees_its_hold(
+    abuser_client: TestClient, db_session: Session, speech, holds_on, monkeypatch
+) -> None:
+    user, headers = _learner(db_session)
+
+    def failed(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        raise RuntimeError("never reached the provider")
+
+    monkeypatch.setattr(speech, "text_to_speech", failed)
+    response = abuser_client.post("/api/v1/audio/speak", json={"text": "Bonjour"}, headers=headers)
+    assert response.status_code == 500
+
+    assert _hold_of(db_session, user).status == "released"
+
+
+def test_a_provider_answer_counts_on_the_tally_of_its_own_request_only() -> None:
+    from app.services.llm_service import CircuitBreaker, call_with_retries
+
+    assert spend_ledger.paid_calls() is None
+    spend_ledger.note_paid_call(0.5)  # outside a request: nothing to add to
+
+    token = spend_ledger._paid_calls.set(spend_ledger.PaidCalls())
+    try:
+        call_with_retries(
+            lambda _timeout: type("Result", (), {"cost": 0.004})(),
+            breaker=CircuitBreaker("e1-test"),
+            attempts=1,
+            deadline_seconds=5,
+        )
+        tally = spend_ledger.paid_calls()
+        assert tally is not None and tally.count == 1
+        assert tally.cost_usd == pytest.approx(0.004)
+    finally:
+        spend_ledger._paid_calls.reset(token)
+
+
 def test_a_paid_route_is_refused_before_the_provider_when_the_hold_would_cross_the_cap(
     abuser_client: TestClient, db_session: Session, speech, holds_on
 ) -> None:
