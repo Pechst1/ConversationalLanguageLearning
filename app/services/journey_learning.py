@@ -1940,24 +1940,24 @@ IDENTITY_GRADED_FORMATS = TILE_ORDER_FORMATS | {"choice", "classify", "listen_ta
 #: QA-PRACTICE: what a rebuilt sentence got wrong, in the learner's language.
 _ORDER_NOTES: dict[str, dict[str, str]] = {
     "from": {
-        "en": "From “{word}” on, the order is off. The right order is above.",
-        "de": "Ab „{word}“ stimmt die Reihenfolge nicht mehr. Oben steht die richtige.",
-        "fr": "À partir de « {word} », l'ordre ne va plus. Le bon ordre est au-dessus.",
+        "en": "From “{word}” on, the order is off.",
+        "de": "Ab „{word}“ stimmt die Reihenfolge nicht.",
+        "fr": "À partir de « {word} », l'ordre ne va plus.",
     },
     "first": {
-        "en": "The sentence does not start with “{word}”. The right order is above.",
-        "de": "Der Satz beginnt nicht mit „{word}“. Oben steht die richtige Reihenfolge.",
-        "fr": "La phrase ne commence pas par « {word} ». Le bon ordre est au-dessus.",
+        "en": "It does not start with “{word}”.",
+        "de": "Der Satz beginnt nicht mit „{word}“.",
+        "fr": "La phrase ne commence pas par « {word} ».",
     },
     "missing": {
-        "en": "Some words are missing. The whole sentence is above.",
-        "de": "Es fehlen Wörter. Oben steht der ganze Satz.",
-        "fr": "Il manque des mots. La phrase entière est au-dessus.",
+        "en": "Some words are missing.",
+        "de": "Es fehlen Wörter.",
+        "fr": "Il manque des mots.",
     },
     "extra": {
-        "en": "Some tiles were not needed. The sentence is above.",
-        "de": "Manche Bausteine gehörten nicht dazu. Oben steht der Satz.",
-        "fr": "Certains mots étaient en trop. La phrase est au-dessus.",
+        "en": "Some words were extra.",
+        "de": "Manche Wörter waren zu viel.",
+        "fr": "Certains mots étaient en trop.",
     },
 }
 

@@ -113,7 +113,7 @@ def test_a_wrong_unscramble_is_corrected_with_the_sentence_and_where_it_went_wro
     # The words the learner placed, never tile ids.
     assert "tile_" not in correction.span_fr and correction.span_fr.startswith("d'Odile,")
     assert correction.note_native == (
-        "Der Satz beginnt nicht mit „d'Odile,“. Oben steht die richtige Reihenfolge."
+        "Der Satz beginnt nicht mit „d'Odile,“."
     )
     # And it survives the public filter the attempt response goes through.
     shown = DailyJourneyService._public_correction(
@@ -130,7 +130,7 @@ def test_a_later_slip_names_the_first_misplaced_word() -> None:
     wrong = [order[0], order[2], order[1], *order[3:]]
     note = journey_learning.tile_order_note(task, wrong, "de")
     texts = {o["id"]: o["text_fr"] for o in task.options}
-    assert note == f"Ab „{texts[order[2]]}“ stimmt die Reihenfolge nicht mehr. Oben steht die richtige."
+    assert note == f"Ab „{texts[order[2]]}“ stimmt die Reihenfolge nicht."
     assert journey_learning.tile_order_note(task, wrong, "en").startswith("From “")
 
 

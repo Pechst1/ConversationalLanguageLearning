@@ -3527,11 +3527,14 @@ def apply_feedback_policy(
     answer: AttemptAnswer,
     turn_index: int,
     decision: FeedbackDecision,
+    may_extend: bool = True,
 ) -> ResponseEvaluation:
     """Put the decision on the graded turn — or hand the turn straight back.
 
     Returns the *same object* when nothing fired, which is how "a learner with
     no open errata is scored exactly as before" is pinned rather than asserted.
+    ``may_extend=False`` says the scene has closed for good (an authored season
+    page played its ending): a line that would buy another exchange is dropped.
     """
 
     if decision.is_empty or evaluation.pending:
@@ -3553,7 +3556,7 @@ def apply_feedback_policy(
             updates["correction"] = correction
 
     line = decision.elicitation_fr
-    if line and not decision.extends_turn and not evaluation.needs_repair:
+    if line and not (decision.extends_turn and may_extend) and not evaluation.needs_repair:
         # The scene was about to end and this line is not worth stopping it.
         return replace(evaluation, **updates) if updates else evaluation
     if line and remaining_turns(task, turn_index) > 0:
@@ -3674,6 +3677,17 @@ def _evaluate_response(
             history=history,
             self_repair=decision.prompt,
         )
+        # Walk 2026-10-13 (#105): an authored season page that has just played its
+        # close (the hook, «À suivre…») has no question left to ask. A nudge that
+        # bought one more exchange («Et on se quitte comme ça ?») sent the learner
+        # back to the last question, and their next answer replayed the close.
+        from app.services.season import runtime as season_runtime
+
+        may_extend = not (
+            season_runtime.is_tentpole(scenario.story_context)
+            and not evaluation.needs_repair
+            and not evaluation.pending
+        )
         evaluation = apply_feedback_policy(
             evaluation,
             db,
@@ -3682,6 +3696,7 @@ def _evaluate_response(
             answer=answer,
             turn_index=turn_index,
             decision=decision,
+            may_extend=may_extend,
         )
         evaluation = _with_register_correction(
             evaluation,
@@ -3718,6 +3733,7 @@ def _evaluate_response(
                 answer=answer,
                 turn_index=turn_index,
                 decision=decision,
+                may_extend=may_extend,
             )
         return _stamped(evaluation, decision)
 

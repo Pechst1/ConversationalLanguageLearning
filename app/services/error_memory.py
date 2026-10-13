@@ -338,6 +338,10 @@ class ErrorMemoryService:
     ) -> dict[str, Any] | None:
         if erratum.get("task_error_type") == "task_compliance" and not erratum.get("recurring"):
             return None
+        if erratum.get("remember") is False:
+            # Issue #104: shown now, never drilled later (a right sentence sorted
+            # «À corriger» has no French to repair).
+            return None
 
         concept_id = concept_id or erratum.get("concept_id")
         task_type = str(erratum.get("task_error_type") or "grammar_target")

@@ -57,11 +57,15 @@ from app.services.forge_grading import (
     classify_follow_up,
     describe_diff,
     drop_false_english,
+    fold_typography,
     free_use_acceptable,
     notes_native,
     production_local_check,
     refine_production_correction,
     token_diff,
+)
+from app.services.forge_grading import (
+    TO_CORRECT_LABEL as JUDGEMENT_TO_CORRECT,
 )
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
@@ -76,6 +80,7 @@ from app.services.grammar_feedback import count_concept_hits, infer_grammar_prof
 from app.services.item_bank import (
     ITEM_BANK_VERSION,
     VARIETY_WINDOW_DAYS,
+    _is_judgement,
     build_bank_set,
     units_for_external_id,
 )
@@ -780,6 +785,20 @@ def _drop_noop_errata(errata: list[dict[str, Any]]) -> tuple[list[dict[str, Any]
             continue
         kept.append(erratum)
     return kept, dropped
+
+
+#: The two buttons of a judgement item (``item_bank.classify_item``).
+JUDGEMENT_LABEL_KEYS = ("Correct", JUDGEMENT_TO_CORRECT)
+
+
+def _judgement_sentence(item: dict[str, Any]) -> str:
+    """The sentence a judgement item shows, without the gloss ``classify_item`` adds."""
+
+    sentence = str(item.get("source_fr") or item.get("prompt") or "").strip()
+    meaning = str(item.get("meaning") or "").strip()
+    if meaning and sentence.endswith(f"({meaning})"):
+        sentence = sentence[: -len(f"({meaning})")].strip()
+    return sentence
 
 
 def _join_french_tokens(tokens: list[Any]) -> str:
@@ -3406,6 +3425,9 @@ class AtelierExerciseGenerator:
                 'labels': ['Correct', 'À corriger'],
                 'correct_label': 'Correct' if show_correct else 'À corriger',
                 'explanation': lesson['core_rule'],
+                # Issue #104: a wrong sentence sorted «Correct» is filed with its fix.
+                # Server-only (``item_bank._PRIVATE_ITEM_KEYS``).
+                **({} if show_correct else {'judgement_fix_fr': sentence}),
             }]},
         }
         for container in payload['recognize'].values():
@@ -5277,6 +5299,7 @@ class AtelierCorrectionService:
         if dropped:
             correction["errata"] = kept
         if round_name == "recognize" and mode == "classify":
+            correction = self._with_judgement_errata(concept, correction, prompt_payload, answer_payload)
             correction = self._with_classify_follow_up(correction, prompt_payload, answer_payload)
         # Pattern hits cannot certify arbitrary French or task relevance.
         if round_name in FREE_PRODUCTION_ROUNDS and (correction.get("correction_debug") or {}).get("fallback_used"):
@@ -5342,6 +5365,50 @@ class AtelierCorrectionService:
         # WP-103: one note per issue, deduplicated — never three copies of one rule.
         correction["notes_native"] = notes_native(correction.get("errata"))
         return correction
+
+    def _with_judgement_errata(
+        self,
+        concept: GrammarConcept | None,
+        correction: dict[str, Any],
+        prompt_payload: dict[str, Any],
+        answer_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Issue #104: a judgement miss is filed against its sentence, never its labels.
+
+        Runs after the no-op filter (a right sentence's erratum reprints the
+        sentence on purpose) and on the relecture too, so a model erratum that
+        quotes «Correct» / «À corriger» is replaced by the sentence's own.
+        """
+
+        items = [
+            item for item in prompt_payload.get("items") or []
+            if isinstance(item, dict) and item.get("id") and _is_judgement(item)
+        ]
+        if not items:
+            return correction
+        ids = {str(item["id"]) for item in items}
+        if len(items) == len(prompt_payload.get("items") or []):
+            # Only judgements here: an erratum the model left unkeyed is one of them.
+            ids.add("")
+        labels = {fold_typography(label) for label in JUDGEMENT_LABEL_KEYS}
+        kept = [
+            erratum
+            for erratum in correction.get("errata") or []
+            if isinstance(erratum, dict)
+            and str(erratum.get("item_id") or "") not in ids
+            and fold_typography(erratum.get("learner_text")) not in labels
+            and fold_typography(erratum.get("corrected_target")) not in labels
+        ]
+        answers = answer_payload.get("answers") or {}
+        for item in items:
+            learner = str(answers.get(item["id"]) or "")
+            target = str(item.get("correct_label") or "")
+            if _keyed_verdict(concept, item, learner, target).correct:
+                continue
+            kept.append(self._recognize_erratum(concept, "classify", item, learner, target))
+        updated = dict(correction)
+        updated["errata"] = kept
+        return updated
 
     def _with_classify_follow_up(
         self, correction: dict[str, Any], prompt_payload: dict[str, Any], answer_payload: dict[str, Any]
@@ -5633,6 +5700,8 @@ class AtelierCorrectionService:
                 severity=1,
                 recurring=False,
             )
+        if mode == "classify" and _is_judgement(item):
+            return self._judgement_erratum(concept, item, learner_text, target)
         if concept and item.get("lesson_external_id") == concept.external_id:
             # WP-56: the immediate line is in the learner's language. The item's
             # authored explanation is English catalogue prose; for a learner who
@@ -5734,6 +5803,55 @@ class AtelierCorrectionService:
             why=why,
             repair=repair,
             task_type=self._task_type_for(concept, item),
+        )
+
+    def _judgement_erratum(
+        self,
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        learner_text: str,
+        target: str,
+    ) -> dict[str, Any]:
+        """Issue #104: «Correct» / «À corriger» answered wrongly.
+
+        The labels are the item's buttons, not French the learner got wrong. A
+        right sentence sorted «À corriger» has nothing to repair: the line names
+        the sentence and the erratum is not remembered. A wrong sentence sorted
+        «Correct» is filed as that sentence and its corrected form.
+        """
+
+        language = self.explanation_language
+        sentence = _judgement_sentence(item)
+        label = _concept_title_for(concept, language) if concept else _copy(
+            "atelier.recognize.label_classification", language
+        )
+        repair = item.get("repair_hint") or self._repair_for(concept)
+        if fold_typography(target) != fold_typography(JUDGEMENT_TO_CORRECT):
+            return {
+                **self._recognize_erratum_payload(
+                    concept, item, label=label, learner_text=sentence, target=sentence,
+                    why=_copy("atelier.judgement.was_correct", language, sentence=sentence),
+                    repair=repair, task_type=self._task_type_for(concept, item), severity=1,
+                ),
+                "remember": False,
+            }
+        key = item.get("follow_up_key") if isinstance(item.get("follow_up_key"), dict) else {}
+        corrected = str(key.get("corrected_fr") or item.get("judgement_fix_fr") or "").strip()
+        if not corrected:
+            # An older item without the key: the sentence is named, but there is
+            # no corrected form to drill later.
+            return {
+                **self._recognize_erratum_payload(
+                    concept, item, label=label, learner_text=sentence, target="",
+                    why=_copy("atelier.judgement.needs_fixing", language, sentence=sentence),
+                    repair=repair, task_type=self._task_type_for(concept, item),
+                ),
+                "remember": False,
+            }
+        return self._recognize_erratum_payload(
+            concept, item, label=label, learner_text=sentence, target=corrected,
+            why=_copy("atelier.judgement.should_be", language, sentence=sentence, corrected=corrected),
+            repair=repair, task_type=self._task_type_for(concept, item),
         )
 
     def _classify_erratum(
@@ -7189,7 +7307,7 @@ class AtelierCorrectionService:
             "A word that looks English can be French: established loanwords such as poster, week-end, parking, sandwich, "
             "email, film, sport, taxi, match or jean are French words. Never call a French word English, never list it in "
             "lexical_gaps and never replace it only because it looks English; correct only what is actually wrong around it. "
-            "One explanation per issue: why_wrong is at most two short sentences about that issue only; never repeat the same "
+            "One explanation per issue: why_wrong is ONE short sentence (about 15 words at most) naming the rule and the fixed form, about that issue only; never repeat the same "
             "explanation in several errata, and repair_hint never restates why_wrong."
         )
 

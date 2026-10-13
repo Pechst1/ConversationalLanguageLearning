@@ -442,7 +442,7 @@ class AtelierAssetService:
                 ],
                 "correction_style": {
                     "address": "you",
-                    "max_why_sentences": 2,
+                    "max_why_sentences": 1,
                     "max_repair_sentences": 1,
                     "avoid_phrases": ["the learner", "the user"],
                 },
@@ -466,7 +466,7 @@ class AtelierAssetService:
             "punctuation_rules": [],
             "correction_style": {
                 "address": "you",
-                "max_why_sentences": 2,
+                "max_why_sentences": 1,
                 "max_repair_sentences": 1,
                 "avoid_phrases": ["the learner", "the user"],
             },
