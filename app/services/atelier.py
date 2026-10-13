@@ -3425,6 +3425,9 @@ class AtelierExerciseGenerator:
                 'labels': ['Correct', 'À corriger'],
                 'correct_label': 'Correct' if show_correct else 'À corriger',
                 'explanation': lesson['core_rule'],
+                # Issue #104: a wrong sentence sorted «Correct» is filed with its fix.
+                # Server-only (``item_bank._PRIVATE_ITEM_KEYS``).
+                **({} if show_correct else {'judgement_fix_fr': sentence}),
             }]},
         }
         for container in payload['recognize'].values():
@@ -5833,7 +5836,7 @@ class AtelierCorrectionService:
                 "remember": False,
             }
         key = item.get("follow_up_key") if isinstance(item.get("follow_up_key"), dict) else {}
-        corrected = str(key.get("corrected_fr") or "").strip()
+        corrected = str(key.get("corrected_fr") or item.get("judgement_fix_fr") or "").strip()
         if not corrected:
             # An older item without the key: the sentence is named, but there is
             # no corrected form to drill later.

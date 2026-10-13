@@ -115,6 +115,22 @@ def test_a_curated_judgement_skips_the_label_line_of_its_own_concept(db_session)
     assert erratum["remember"] is False
 
 
+def test_a_curated_wrong_sentence_sorted_correct_is_filed_with_its_fix(db_session):
+    key = next(key for key, row in curriculum().items() if not row["classify_show_correct"])
+    row = curriculum()[key]
+    concept = GrammarConcept(id=1, external_id=key, name=row["name_en"], category=row["category"],
+                             subskill=row["subskill"], core_rule=row["core_rule"], level=row["cefr_level"], language="fr")
+    item = AtelierExerciseGenerator(None)._fallback_payload(concept)["recognize"]["classify"]["items"][0]
+    assert item["correct_label"] == "À corriger"
+    assert "judgement_fix_fr" not in ib.public_item(item)
+
+    [erratum] = _correct(db_session, item, "Correct", concept=concept)["errata"]
+    _no_labels(erratum)
+    assert erratum["learner_text"] == row["source"]
+    assert erratum["corrected_target"] == item["judgement_fix_fr"]
+    assert "remember" not in erratum
+
+
 def test_a_relecture_erratum_quoting_the_buttons_is_replaced(db_session, lila_item):
     item = ib.classify_item(lila_item, show_correct=True)
     service = AtelierCorrectionService(db_session)
