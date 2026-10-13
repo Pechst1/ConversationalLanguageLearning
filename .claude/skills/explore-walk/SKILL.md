@@ -76,9 +76,15 @@ drills, copy, layout, flow.
 3. For each finding, search open issues labelled `walk-finding` for the same title
    or screen. Comment on a match ("seen again <date>"); otherwise open an issue with
    labels `walk-finding` + `area:<area>` + `sev:<severity>`.
-4. Re-test every open `walk-finding` issue whose fix has merged: walk to that screen;
-   close the issue with the screenshot if it is fixed, comment if not.
-5. `curl -s localhost:7777/stop` tears down the stack and the throwaway database.
+4. Triage every finding you filed or commented on: one state (`queue:ready`,
+   `queue:owner`), one lane (`lane:code`, `lane:story`), one size (`size:S`, `size:M`)
+   and a comment starting **Done when:** with the check a fix must pass
+   (`docs/ops/improvement-loop.md`, "The queue"). The night shift fixes what you mark
+   ready; this walk does not fix anything itself.
+5. Re-test every open `walk-finding` issue whose fix has merged: walk to that screen;
+   close the issue with the screenshot if it is fixed, comment and set it back to
+   `queue:ready` if not.
+6. `curl -s localhost:7777/stop` tears down the stack and the throwaway database.
 
 ## 5 · Live runs (real model)
 
