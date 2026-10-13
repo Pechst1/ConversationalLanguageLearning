@@ -99,19 +99,35 @@ def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None,
     return page.get("title_fr"), _ordered(speakers), today.season.title_fr, image
 
 
-def cast_variants(live: dict) -> dict[str, str]:
-    """WP-116: how the drawn cast looks for this learner — only what the learner chose.
+def cast_variants(live: dict, *, seed: str | None = None) -> dict[str, str]:
+    """WP-116: how the drawn cast looks for this learner.
 
-    Camille's look follows the learner's choice in T1 Day B (``s1.camille_gender``).
-    Before that choice nothing is sent, and the client keeps Camille's face hidden
-    (the side view and the helmet of T1 P8), never guessing.
+    Camille's look follows ``s1.camille_gender``: the learner's own choice in T1 Day B
+    once it is stored. Without ``seed`` only that choice is sent, and the client keeps
+    Camille's face hidden.
+
+    Walk 2026-10-13 (#107): no screen poses that choice yet, so the story already
+    plays the seeded value (``flags.effective_flags``: the pronouns other characters
+    use for Camille from T1 B on). With the learner's ``seed`` (``str(user.id)``,
+    as the season runtime uses) that same value is sent from the day Camille walks
+    in, so Camille has a face like the rest of the cast, and it is the face the
+    story's «il» or «elle» already describes.
     """
 
     from app.services.season.clock import SEASON_KEY
-    from app.services.season.flags import stored_flags
+    from app.services.season.flags import effective_flags, stored_flags
 
-    flags = stored_flags((live or {}).get(SEASON_KEY))
-    gender = flags.get("s1.camille_gender")
+    state = (live or {}).get(SEASON_KEY)
+    gender = stored_flags(state).get("s1.camille_gender")
+    if gender not in ("f", "m") and seed:
+        from app.services.season.format import load_season
+        from app.services.season.runtime import season_id_for
+
+        try:
+            if season_id_for(live) == "s1":
+                gender = effective_flags(load_season("s1"), state, seed=seed).get("s1.camille_gender")
+        except Exception:  # noqa: BLE001 - a face is never worth the headline
+            logger.exception("story_headline: Camille's seeded look unavailable")
     return {"camille_marchand": gender} if gender in ("f", "m") else {}
 
 
@@ -179,7 +195,7 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             # the tentpole's opening place.
             "image_url": image,
             "cast": [{"id": who, "name": names.get(who) or more.get(who) or who.split("_")[0].title()} for who in cast],
-            "cast_variants": cast_variants(live),
+            "cast_variants": cast_variants(live, seed=str(user.id)),
         }
     except Exception:  # noqa: BLE001 - a headline never costs Home
         logger.exception("story_headline: headline unavailable")
