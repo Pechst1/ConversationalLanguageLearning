@@ -71,7 +71,7 @@ export function CastActor({
     return <CastPortrait characterId={characterId} name={name} mood={mood === 'cold' ? 'neutral' : mood} size={fallback} ring />;
   }
   return (
-    <span className="cast-actor" data-figure={fig.key} data-gesture={gesture || undefined}>
+    <span className="cast-actor" data-figure={fig.key} data-crop={crop} data-gesture={gesture || undefined}>
       {/* A new gesture or face is a new take: remounting restarts the CSS from its first frame. */}
       <VivantFigure
         key={`${gesture ?? 'rest'}-${mood}`}

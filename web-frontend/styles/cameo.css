@@ -11,104 +11,140 @@
   overflow: hidden;
 }
 
-/* ---------- the speech bubble: comic, paper, ink outline ---------- */
+/* ---------- the speech bubble: the app's own (av2-speech), floating ---------- */
+.cameo-layer {
+  --cameo-card: #f8f3e8;
+  --cameo-ink: #14110d;
+  --cameo-ink-2: #5d5548;
+  --cameo-shadow: 0 10px 28px rgba(20, 17, 13, 0.16), 0 1px 3px rgba(20, 17, 13, 0.1);
+}
+:root[data-theme='dark'] .cameo-layer {
+  --cameo-card: #221e17;
+  --cameo-ink: #f5efe1;
+  --cameo-ink-2: #b9b0a0;
+  --cameo-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] .cameo-layer,
+  :root:not([data-theme]) .cameo-layer {
+    --cameo-card: #221e17;
+    --cameo-ink: #f5efe1;
+    --cameo-ink-2: #b9b0a0;
+    --cameo-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+}
 .cameo-bubble {
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  gap: 2px;
-  max-width: min(58vw, 220px);
-  padding: 9px 13px 10px;
-  border: 2px solid var(--app-ink, #14110d);
-  border-radius: 18px;
-  background: var(--app-paper, #f1ece1);
-  color: var(--app-ink, #14110d);
-  box-shadow: 3px 3px 0 var(--app-ink, #14110d);
+  gap: 4px;
+  max-width: min(56vw, 230px);
+  padding: 12px 16px 13px;
+  border-radius: 20px;
+  background: var(--cameo-card);
+  color: var(--cameo-ink);
+  box-shadow: var(--cameo-shadow);
   text-align: left;
 }
-.cameo-bubble__name {
-  font: 800 10px/1.1 var(--app-grotesk, sans-serif);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--app-red, #d8321a);
-}
 .cameo-bubble__fr {
-  font: 600 16px/1.2 var(--app-serif, serif);
+  font-family: 'AtelierSerif', 'EB Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 21px;
+  line-height: 1.15;
+  text-wrap: pretty;
 }
 .cameo-bubble__gloss {
-  font: 400 12px/1.25 var(--app-grotesk, sans-serif);
-  opacity: 0.68;
+  font: 400 13px/1.3 'AtelierSans', 'Instrument Sans', system-ui, sans-serif;
+  color: var(--cameo-ink-2);
+  animation: cameo-gloss-in 220ms ease-out both;
+}
+@keyframes cameo-gloss-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* ---------- solo: a figure leans in from a side ---------- */
+/* ---------- solo: the whole figure swings in from behind a side ----------
+   The figure (170 × 357, full length) pivots about its feet, which stay off screen: the edge
+   cuts it at the legs, and only the upper body leans in. */
 .cameo-solo {
   position: absolute;
-  top: 30%;
-  display: flex;
-  align-items: flex-start;
-  gap: 2px;
+  top: 16%;
+  left: 0;
+  right: 0;
+  height: 0;
 }
-.cameo-solo[data-edge='left'] { left: 0; flex-direction: row; }
-.cameo-solo[data-edge='right'] { right: 0; flex-direction: row-reverse; }
-
 .cameo-solo__figure {
+  position: absolute;
+  top: 0;
+  width: 170px;
+  height: 357px;
   pointer-events: auto;
   padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  animation: cameo-lean-left 520ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+  transform-origin: 85px 357px;
 }
-.cameo-solo[data-edge='left'] .cameo-solo__figure { margin-left: -34px; transform-origin: 0% 100%; }
-.cameo-solo[data-edge='right'] .cameo-solo__figure { margin-right: -34px; transform-origin: 100% 100%; animation-name: cameo-lean-right; }
+.cameo-solo__figure > svg { display: block; }
+.cameo-solo[data-edge='left'] .cameo-solo__figure {
+  left: -110px;
+  animation:
+    cameo-swing-left 760ms cubic-bezier(0.2, 1.35, 0.45, 1) both,
+    cameo-sway-left 2.8s 760ms ease-in-out infinite alternate;
+}
+.cameo-solo[data-edge='right'] .cameo-solo__figure {
+  right: -110px;
+  animation:
+    cameo-swing-right 760ms cubic-bezier(0.2, 1.35, 0.45, 1) both,
+    cameo-sway-right 2.8s 760ms ease-in-out infinite alternate;
+}
 
 .cameo-solo__talk {
+  position: absolute;
+  top: 74px;
   display: inline-flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  margin-top: 6px;
-  animation: cameo-pop 360ms 300ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  gap: 8px;
+  animation: cameo-pop 380ms 420ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
-.cameo-solo[data-edge='right'] .cameo-solo__talk { align-items: flex-end; }
-/* the bubble's tail points at the speaker */
-.cameo-solo .cameo-bubble::before {
-  content: '';
-  position: absolute;
-  top: 16px;
-  width: 12px;
-  height: 12px;
-  background: var(--app-paper, #f1ece1);
-  border: 2px solid var(--app-ink, #14110d);
-  border-top: 0;
-  border-right: 0;
-}
-.cameo-solo[data-edge='left'] .cameo-bubble::before { left: -8px; transform: rotate(45deg); }
-.cameo-solo[data-edge='right'] .cameo-bubble::before { right: -8px; transform: rotate(-135deg); }
+.cameo-solo[data-edge='left'] .cameo-solo__talk { left: 106px; align-items: flex-start; transform-origin: 0% 0%; }
+.cameo-solo[data-edge='right'] .cameo-solo__talk { right: 106px; align-items: flex-end; transform-origin: 100% 0%; }
+/* the corner nearest the speaker is the bubble's tail, as in the app */
+.cameo-solo[data-edge='left'] .cameo-bubble { border-top-left-radius: 6px; }
+.cameo-solo[data-edge='right'] .cameo-bubble { border-top-right-radius: 6px; }
 
-.cameo-solo[data-leaving='true'] .cameo-solo__figure { animation: cameo-duck-left 300ms ease-in both; }
+.cameo-solo[data-leaving='true'] .cameo-solo__figure { animation: cameo-duck-left 420ms ease-in both; }
 .cameo-solo[data-edge='right'][data-leaving='true'] .cameo-solo__figure { animation-name: cameo-duck-right; }
 .cameo-solo[data-leaving='true'] .cameo-solo__talk { animation: cameo-fade-out 200ms ease-in both; }
 
-@keyframes cameo-lean-left {
-  from { transform: translateX(-110%) rotate(-24deg); }
-  to { transform: translateX(0) rotate(12deg); }
+@keyframes cameo-swing-left {
+  from { transform: translateX(-40px) rotate(-12deg); }
+  to { transform: translateX(0) rotate(25deg); }
 }
-@keyframes cameo-lean-right {
-  from { transform: translateX(110%) rotate(24deg); }
-  to { transform: translateX(0) rotate(-12deg); }
+@keyframes cameo-sway-left {
+  from { transform: rotate(25deg); }
+  to { transform: rotate(21deg); }
 }
 @keyframes cameo-duck-left {
-  from { transform: translateX(0) rotate(12deg); }
-  to { transform: translateX(-115%) rotate(-10deg); }
+  from { transform: rotate(23deg); }
+  to { transform: translateX(-40px) rotate(-14deg); }
+}
+@keyframes cameo-swing-right {
+  from { transform: translateX(40px) rotate(12deg); }
+  to { transform: translateX(0) rotate(-25deg); }
+}
+@keyframes cameo-sway-right {
+  from { transform: rotate(-25deg); }
+  to { transform: rotate(-21deg); }
 }
 @keyframes cameo-duck-right {
-  from { transform: translateX(0) rotate(-12deg); }
-  to { transform: translateX(115%) rotate(10deg); }
+  from { transform: rotate(-23deg); }
+  to { transform: translateX(40px) rotate(14deg); }
 }
 @keyframes cameo-pop {
-  from { opacity: 0; transform: scale(0.4); }
+  from { opacity: 0; transform: scale(0.5); }
   to { opacity: 1; transform: scale(1); }
 }
 @keyframes cameo-fade-out {
@@ -162,15 +198,14 @@
 }
 .cameo-troupe__member:nth-child(even) { margin-bottom: -26px; }
 .cameo-troupe .cameo-bubble {
-  padding: 4px 9px 5px;
-  border-radius: 12px;
-  box-shadow: 2px 2px 0 var(--app-ink, #14110d);
-  margin-bottom: 4px;
+  padding: 5px 10px 6px;
+  border-radius: 14px;
+  margin-bottom: 6px;
   white-space: nowrap;
 }
-.cameo-troupe .cameo-bubble__fr { font-size: 14px; }
+.cameo-troupe .cameo-bubble__fr { font-size: 16px; }
 .cameo-troupe[data-crowd='true'] .cameo-bubble { padding: 3px 7px 4px; }
-.cameo-troupe[data-crowd='true'] .cameo-bubble__fr { font-size: 12px; }
+.cameo-troupe[data-crowd='true'] .cameo-bubble__fr { font-size: 14px; }
 .cameo-troupe[data-crowd='true'] .cameo-troupe__member:nth-child(even) .cameo-bubble { margin-bottom: 34px; }
 .cameo-troupe[data-trigger='finale'] .cameo-troupe__member .cast-rig,
 .cameo-troupe[data-trigger='finale'] .cameo-troupe__member .tv {
@@ -208,12 +243,12 @@
   height: 30px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid var(--app-ink, #14110d);
-  background: var(--app-paper, #f1ece1);
+  background: var(--cameo-card);
+  box-shadow: var(--cameo-shadow);
   flex: none;
 }
-.cameo-poke .cameo-bubble { padding: 6px 10px 7px; border-radius: 14px; }
-.cameo-poke .cameo-bubble__fr { font-size: 15px; }
+.cameo-poke .cameo-bubble { padding: 8px 12px 9px; border-radius: 16px 16px 16px 6px; }
+.cameo-poke .cameo-bubble__fr { font-size: 17px; }
 @keyframes cameo-poke-pop {
   from { opacity: 0; transform: translate(-50%, calc(-100% + 8px)) scale(0.5); }
   to { opacity: 1; transform: translate(-50%, calc(-100% - 6px)) scale(1); }
@@ -227,8 +262,8 @@
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
   }
-  .cameo-solo[data-edge='left'] .cameo-solo__figure { transform: rotate(12deg); }
-  .cameo-solo[data-edge='right'] .cameo-solo__figure { transform: rotate(-12deg); }
+  .cameo-solo[data-edge='left'] .cameo-solo__figure { transform: rotate(25deg); }
+  .cameo-solo[data-edge='right'] .cameo-solo__figure { transform: rotate(-25deg); }
   .cameo-flash { display: none; }
 }
 @keyframes cameo-reduced-in { from { opacity: 0; } to { opacity: 1; } }

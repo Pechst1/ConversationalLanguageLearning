@@ -12,7 +12,8 @@
  * for a streak, an «oups» to comfort, their signature move to photobomb.
  *
  * Nothing here blocks the learner: the troupe and the bubbles never take a tap,
- * a peeking figure goes away when tapped, and everything leaves on its own.
+ * a peeking figure says what it meant when tapped (and leaves on a second tap),
+ * and everything leaves on its own.
  * Reduced motion keeps the cameos but swaps every slide and hop for a fade.
  * Réglages › «Apparitions» switches it all off.
  */
@@ -62,9 +63,9 @@ function gestureFor(cameo: Cameo, figure: CameoFigure): GestureId | null {
 }
 
 /** The jointed figure when the cast member has one (La troupe vivante), else the rig. */
-function CameoFace({ cameo, figure, size }: { cameo: Cameo; figure: CameoFigure; size: number }) {
-  if (!figureFor(figure.id)) return <CastRig id={figure.id} mood={figure.mood} crop="bust" size={size} label="" />;
-  return <VivantFigure id={figure.id} expression={FACE[figure.mood]} gesture={gestureFor(cameo, figure)} crop="bust" size={size} label="" />;
+function CameoFace({ cameo, figure, size, crop = 'bust' }: { cameo: Cameo; figure: CameoFigure; size: number; crop?: 'bust' | 'full' }) {
+  if (!figureFor(figure.id)) return <CastRig id={figure.id} mood={figure.mood} crop={crop} size={size} label="" />;
+  return <VivantFigure id={figure.id} expression={FACE[figure.mood]} gesture={gestureFor(cameo, figure)} crop={crop} size={size} label="" />;
 }
 
 function reducedMotion(): boolean {
@@ -123,14 +124,14 @@ function GagMark({ gag }: { gag: CameoGag }) {
   return null;
 }
 
-function Bubble({ cameo, language, figureIndex = 0 }: { cameo: Cameo; language: CameoLang; figureIndex?: number }) {
+/** The line in French, as the app's own speech bubbles say it; the gloss only once asked for. */
+function Bubble({ cameo, language, figureIndex = 0, glossed = false }: { cameo: Cameo; language: CameoLang; figureIndex?: number; glossed?: boolean }) {
   const figure = cameo.figures[figureIndex];
-  const gloss = cameoGloss(figure.line, language);
+  const gloss = glossed ? cameoGloss(figure.line, language) : null;
   return (
     <span className="cameo-bubble" lang="fr">
-      {cameo.kind !== 'troupe' && <span className="cameo-bubble__name">{figure.name}</span>}
       <span className="cameo-bubble__fr">{figure.line.fr}</span>
-      {gloss && cameo.kind !== 'troupe' && <span className="cameo-bubble__gloss" lang={language}>{gloss}</span>}
+      {gloss && <span className="cameo-bubble__gloss" lang={language}>{gloss}</span>}
     </span>
   );
 }
@@ -142,8 +143,11 @@ export function CameoLayer() {
   const [flash, setFlash] = useState(0);
   const [poke, setPoke] = useState<Poke | null>(null);
   const [language, setLanguage] = useState<CameoLang>('en');
+  // A tap on the peeking figure asks what they said: the gloss shows and they stay a little longer.
+  const [glossed, setGlossed] = useState(false);
   const lastActivity = useRef(Date.now());
   const timers = useRef<number[]>([]);
+  const leaveTimer = useRef<number | null>(null);
 
   const later = useCallback((fn: () => void, ms: number) => {
     timers.current.push(window.setTimeout(fn, ms));
@@ -154,7 +158,7 @@ export function CameoLayer() {
     later(() => {
       setShown(null);
       setLeaving(false);
-    }, 320);
+    }, 420);
   }, [later]);
 
   const play = useCallback((event: CameoEvent, anchor?: Element | null) => {
@@ -181,18 +185,37 @@ export function CameoLayer() {
       return;
     }
     setLeaving(false);
+    setGlossed(false);
     setShown(cameo);
     if (cameo.gag === 'flash') {
       later(() => setFlash((n) => n + 1), reducedMotion() ? 0 : 520);
     }
-    later(() => {
+    leaveAfter(cameo, cameo.ttl);
+  }, [later]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function leaveAfter(cameo: Cameo, ms: number) {
+    if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+    leaveTimer.current = window.setTimeout(() => {
+      leaveTimer.current = null;
       setLeaving(true);
       later(() => {
         setShown((current) => (current && current.key === cameo.key ? null : current));
         setLeaving(false);
-      }, 320);
-    }, cameo.ttl);
-  }, [later]);
+      }, 420);
+    }, ms);
+  }
+
+  /** First tap: what did they say? Second tap: off you go. */
+  const tapFigure = (cameo: Cameo) => {
+    if (glossed) {
+      if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+      dismiss();
+      return;
+    }
+    setGlossed(true);
+    leaveAfter(cameo, 3200);
+  };
 
   // Screens announce what happened.
   useEffect(() => {
@@ -243,7 +266,10 @@ export function CameoLayer() {
     return () => window.clearInterval(tick);
   }, [play]);
 
-  useEffect(() => () => timers.current.forEach((id) => window.clearTimeout(id)), []);
+  useEffect(() => () => {
+    timers.current.forEach((id) => window.clearTimeout(id));
+    if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+  }, []);
 
   return (
     <div className="cameo-layer">
@@ -259,11 +285,18 @@ export function CameoLayer() {
           role="status"
           aria-live="polite"
         >
-          <button type="button" className="cameo-solo__figure" onClick={dismiss} aria-label={shown.figures[0].name}>
-            <CameoFace cameo={shown} figure={shown.figures[0]} size={132} />
+          {/* The whole figure swings in from behind the screen's edge, which cuts it, never mid-air. */}
+          <button
+            type="button"
+            className="cameo-solo__figure"
+            onClick={() => tapFigure(shown)}
+            aria-label={shown.figures[0].name}
+            aria-expanded={glossed}
+          >
+            <CameoFace cameo={shown} figure={shown.figures[0]} size={170} crop="full" />
           </button>
           <span className="cameo-solo__talk">
-            <Bubble cameo={shown} language={language} />
+            <Bubble cameo={shown} language={language} glossed={glossed} />
             {shown.gag && shown.gag !== 'flash' && <GagMark gag={shown.gag} />}
           </span>
         </div>
@@ -299,7 +332,8 @@ export function CameoLayer() {
           <span className="cameo-poke__face">
             <CastRig id={poke.cameo.figures[0].id} mood={poke.cameo.figures[0].mood} crop="head" size={30} label="" still />
           </span>
-          <Bubble cameo={poke.cameo} language={language} />
+          {/* A poke is already a question: the answer comes with its gloss. */}
+          <Bubble cameo={poke.cameo} language={language} glossed />
         </span>
       )}
     </div>

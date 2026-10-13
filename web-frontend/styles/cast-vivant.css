@@ -180,9 +180,14 @@
   }
 }
 
-/* CastActor: a jointed cast member standing where a round face used to be. */
+/* CastActor: a jointed cast member standing where a round face used to be. A bust fades out
+   at the chest instead of stopping on a hard line. */
 .cast-actor {
   display: inline-flex;
   flex: none;
   line-height: 0;
+}
+.cast-actor[data-crop='bust'] > .tv {
+  -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
 }
