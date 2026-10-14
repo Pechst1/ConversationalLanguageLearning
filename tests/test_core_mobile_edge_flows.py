@@ -200,13 +200,13 @@ def test_settings_safety_edges_for_account_and_device_actions() -> None:
 
     for sentence in (
         # save_blocked
-        "Reload the file before filing your changes.",
-        "Lade die Akte neu, bevor du deine Änderungen ablegst.",
-        "Rechargez le dossier avant de classer les modifications.",
+        "Reload your settings before saving your changes.",
+        "Lade die Einstellungen neu, bevor du deine Änderungen speicherst.",
+        "Rechargez les réglages avant d’enregistrer les modifications.",
         # load_error_body
-        "Your file could not be loaded.",
-        "Deine Akte konnte nicht geladen werden.",
-        "Votre dossier n’a pas pu être chargé.",
+        "Your settings could not be loaded.",
+        "Deine Einstellungen konnten nicht geladen werden.",
+        "Vos réglages n’ont pas pu être chargés.",
         # save_failed
         "The changes could not be filed.",
         "Die Änderungen konnten nicht abgelegt werden.",

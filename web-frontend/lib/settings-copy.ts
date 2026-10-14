@@ -280,7 +280,7 @@ const EN: SettingsCopy = {
   headline: 'Settings',
   page_label: 'Settings',
   kicker_fallback: 'Reader',
-  loading_status: 'Opening your file…',
+  loading_status: 'Opening your settings…',
   jump_label: 'Settings sections',
 
   section_profile: 'Account',
@@ -291,10 +291,10 @@ const EN: SettingsCopy = {
   section_audio: 'Voice',
   section_privacy: 'Data',
 
-  load_error_kicker: 'File unavailable',
+  load_error_kicker: 'Settings unavailable',
   load_error_headline: 'Your settings could not be loaded.',
-  load_error_title: 'The file stayed shut.',
-  load_error_body: 'Your file could not be loaded. Try again before changing your preferences.',
+  load_error_title: 'Settings did not open.',
+  load_error_body: 'Your settings could not be loaded. Try again before changing your preferences.',
   action_retry: 'Try again',
 
   switch_on: 'on',
@@ -330,7 +330,7 @@ const EN: SettingsCopy = {
   action_placement: 'Take the check again',
   row_rehearsal: 'Rehearse a real situation',
   row_rehearsal_hint: 'Rehearse a real errand once.',
-  row_dossier: 'Your file',
+  row_dossier: 'Your dossier',
   row_dossier_hint: 'What we know, and why.',
   row_feedback: 'Report a problem',
   row_feedback_hint: 'Tell us about this screen.',
@@ -466,7 +466,7 @@ const EN: SettingsCopy = {
   save_done: 'Changes filed.',
   save_failed: 'The changes could not be filed.',
   save_failed_fields: 'The changes could not be filed:',
-  save_blocked: 'Reload the file before filing your changes.',
+  save_blocked: 'Reload your settings before saving your changes.',
 
   confirm_delete_account:
     'Permanently delete this account and all its data? This cannot be undone.',
@@ -502,7 +502,7 @@ const DE: SettingsCopy = {
   headline: 'Einstellungen',
   page_label: 'Einstellungen',
   kicker_fallback: 'Leser',
-  loading_status: 'Deine Akte wird geöffnet…',
+  loading_status: 'Deine Einstellungen werden geöffnet…',
   jump_label: 'Bereiche der Einstellungen',
 
   section_profile: 'Konto',
@@ -513,11 +513,11 @@ const DE: SettingsCopy = {
   section_audio: 'Stimme',
   section_privacy: 'Daten',
 
-  load_error_kicker: 'Akte nicht verfügbar',
+  load_error_kicker: 'Einstellungen nicht verfügbar',
   load_error_headline: 'Deine Einstellungen konnten nicht geladen werden.',
-  load_error_title: 'Die Akte blieb geschlossen.',
+  load_error_title: 'Die Einstellungen blieben zu.',
   load_error_body:
-    'Deine Akte konnte nicht geladen werden. Versuch es erneut, bevor du Einstellungen änderst.',
+    'Deine Einstellungen konnten nicht geladen werden. Versuch es erneut, bevor du etwas änderst.',
   action_retry: 'Erneut versuchen',
 
   switch_on: 'an',
@@ -553,7 +553,7 @@ const DE: SettingsCopy = {
   action_placement: 'Einstufung wiederholen',
   row_rehearsal: 'Eine echte Situation proben',
   row_rehearsal_hint: 'Einen echten Termin einmal proben.',
-  row_dossier: 'Deine Akte',
+  row_dossier: 'Dein Dossier',
   row_dossier_hint: 'Was wir wissen, und warum.',
   row_feedback: 'Ein Problem melden',
   row_feedback_hint: 'Sag uns deine Meinung.',
@@ -688,7 +688,7 @@ const DE: SettingsCopy = {
   save_done: 'Änderungen abgelegt.',
   save_failed: 'Die Änderungen konnten nicht abgelegt werden.',
   save_failed_fields: 'Die Änderungen konnten nicht abgelegt werden:',
-  save_blocked: 'Lade die Akte neu, bevor du deine Änderungen ablegst.',
+  save_blocked: 'Lade die Einstellungen neu, bevor du deine Änderungen speicherst.',
 
   confirm_delete_account:
     'Dieses Konto und alle seine Daten endgültig löschen? Das lässt sich nicht rückgängig machen.',
@@ -729,10 +729,10 @@ const FR: SettingsCopy = {
   headline: 'Réglages',
   page_label: 'Réglages',
   kicker_fallback: 'Lecteur',
-  loading_status: 'Ouverture de votre dossier…',
+  loading_status: 'Ouverture des réglages…',
   jump_label: 'Sections des réglages',
 
-  section_profile: 'Dossier',
+  section_profile: 'Compte',
   section_learning: 'Langues',
   section_practice: 'Rythme',
   section_notifications: 'Notifications',
@@ -740,11 +740,11 @@ const FR: SettingsCopy = {
   section_audio: 'Voix',
   section_privacy: 'Données',
 
-  load_error_kicker: 'Dossier indisponible',
+  load_error_kicker: 'Réglages indisponibles',
   load_error_headline: 'Vos réglages n’ont pas pu être chargés.',
-  load_error_title: 'Le dossier est resté fermé.',
+  load_error_title: 'Les réglages sont restés fermés.',
   load_error_body:
-    'Votre dossier n’a pas pu être chargé. Réessayez avant de modifier vos préférences.',
+    'Vos réglages n’ont pas pu être chargés. Réessayez avant de modifier vos préférences.',
   action_retry: 'Réessayer',
 
   switch_on: 'activé',
@@ -915,7 +915,7 @@ const FR: SettingsCopy = {
   save_done: 'Modifications classées.',
   save_failed: 'Les modifications n’ont pas pu être classées.',
   save_failed_fields: 'Les modifications n’ont pas pu être classées :',
-  save_blocked: 'Rechargez le dossier avant de classer les modifications.',
+  save_blocked: 'Rechargez les réglages avant d’enregistrer les modifications.',
 
   confirm_delete_account:
     'Supprimer définitivement ce compte et toutes ses données ? Cette action est irréversible.',

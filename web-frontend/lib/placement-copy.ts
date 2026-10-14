@@ -135,7 +135,7 @@ const EN: PlacementCopy = {
   offer_title: 'Let’s find your level',
   offer_lead: '4 to 6 questions.',
   offer_fine:
-    'Without a check, your level keeps following your scenes. You can take it later from Réglages.',
+    'Without a check, your level keeps following your scenes. You can take it later from Settings.',
   kicker: 'Level check',
   reading: 'Reading…',
   send: 'Send',
@@ -174,7 +174,7 @@ const EN: PlacementCopy = {
   day_end_begin: 'Take the level check',
   day_end_resume: 'Resume the level check',
   day_end_skip: 'Not now',
-  day_end_skipped: 'Noted. The level check stays available in Réglages.',
+  day_end_skipped: 'Noted. The level check stays available in Settings.',
   chip: 'Check your level',
 };
 
@@ -191,7 +191,7 @@ const DE: PlacementCopy = {
   offer_title: 'Finden wir dein Niveau',
   offer_lead: '4 bis 6 Fragen.',
   offer_fine:
-    'Ohne Einstufung folgt dein Niveau weiter deinen Szenen. Du kannst sie später in den Réglages machen.',
+    'Ohne Einstufung folgt dein Niveau weiter deinen Szenen. Du kannst sie später in den Einstellungen machen.',
   kicker: 'Einstufung',
   reading: 'Wird gelesen…',
   send: 'Senden',
@@ -230,7 +230,7 @@ const DE: PlacementCopy = {
   day_end_begin: 'Einstufung machen',
   day_end_resume: 'Einstufung fortsetzen',
   day_end_skip: 'Jetzt nicht',
-  day_end_skipped: 'Notiert. Die Einstufung bleibt in den Réglages verfügbar.',
+  day_end_skipped: 'Notiert. Die Einstufung bleibt in den Einstellungen verfügbar.',
   chip: 'Dein Niveau prüfen',
 };
 

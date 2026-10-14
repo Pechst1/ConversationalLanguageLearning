@@ -5,6 +5,13 @@ import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
+import {
+  CahierHead,
+  CahierStyles,
+  NotebookModeTabs,
+  cahierStandaloneHref,
+} from '@/components/cahiers/CahierV2';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { learnerGloss } from '@/lib/glosses';
 import { useChromeLanguage } from '@/lib/learner-language';
 import {
@@ -646,32 +653,6 @@ function sumCoverage(items: Array<{ nailed?: number; total?: number }>): Coverag
 
 /* The Cahier masthead: count line, the one headline, and the Règles / Mots
    pill switch. `route` is the current register; `xlink` the sibling. */
-function LxMasthead({
-  count,
-  route,
-  xlink,
-  xlinkHref,
-}: {
-  count: string;
-  route: string;
-  xlink: string;
-  xlinkHref: string;
-}) {
-  return (
-    <header className="lx-mast">
-      <div className="lx-mast__main">
-        {count && <p className="lx-mast__count">{count}</p>}
-        {/* the one Garamond-italic headline on this screen */}
-        <h1 className="av2-headline av2-headline--screen">Le lexique</h1>
-      </div>
-      <nav className="lx-switch" aria-label="Le cahier">
-        <Link className="lx-switch__tab" href={xlinkHref}>{xlink}</Link>
-        <span className="lx-switch__tab" aria-current="page">{route}</span>
-      </nav>
-    </header>
-  );
-}
-
 function LxSearch({ value, onChange }: { value: string; onChange: (next: string) => void }) {
   const t = useLexCopy();
   return (
@@ -1480,7 +1461,14 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
   const content = (
     <>
       {!embedded && (
-        <LxMasthead count={countLine} route="Vocabulaire" xlink="Grammaire" xlinkHref="/grammar" />
+        <>
+          {/* The same head and tabs as every other Cahier page, not a second
+              «Grammaire | Vocabulaire» switch of its own (walk 2026-10-12). */}
+          <CahierStyles />
+          <CahierHead kicker={countLine || ''}>
+            <NotebookModeTabs active="vocabulary" library={STORY_FEATURE_VISIBLE} hrefFor={cahierStandaloneHref} />
+          </CahierHead>
+        </>
       )}
       <div className="lx-body">{landing}</div>
 
@@ -1671,43 +1659,8 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         .av2 .lx-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px var(--av2-gutter) 0; }
         .av2.lx-page--embedded .lx-body { padding: 8px 0 0; }
 
-        /* Masthead — the Cahier artboard: count over headline, pill switch. */
-        .av2 .lx-mast {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 12px;
-          min-width: 0;
-          padding: calc(18px + env(safe-area-inset-top, 0px)) var(--av2-gutter) 0;
-        }
-        .av2 .lx-mast__main { min-width: 0; }
+        /* The embedded count line; the standalone page wears the Cahier head. */
         .av2 .lx-mast__count { margin: 0 0 3px; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-muted); overflow-wrap: anywhere; }
-        .av2 .lx-switch { display: flex; flex: none; padding: 3px; border-radius: var(--av2-r-pill); background: var(--av2-line); }
-        .av2 .lx-switch__tab {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          min-height: 30px;
-          padding: 0 13px;
-          border: 0;
-          border-radius: var(--av2-r-pill);
-          background: transparent;
-          color: var(--av2-muted);
-          font-size: var(--av2-t-meta);
-          font-weight: 700;
-          text-decoration: none;
-        }
-        .av2 .lx-switch__tab[aria-current='page'] { background: var(--av2-ink); color: var(--av2-on-ink); }
-        /* The pill stays 30px as drawn; the tap target around it is the floor. */
-        .av2 .lx-switch__tab::after {
-          content: '';
-          position: absolute;
-          left: 0;
-          right: 0;
-          top: 50%;
-          height: var(--av2-tap);
-          transform: translateY(-50%);
-        }
         .av2 .lx-cta { margin-top: 2px; }
 
         /* Search well: 44px, radius 14, card face. */
@@ -1943,7 +1896,6 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         @media (max-width: 360px) {
           .av2 .lx-dossier__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .av2 .lx-ratings { grid-template-columns: minmax(0, 1fr); }
-          .av2 .lx-mast { flex-direction: column; align-items: flex-start; }
         }
       `}</style>
     </>

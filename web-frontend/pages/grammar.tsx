@@ -28,14 +28,15 @@ import {
   NbBack,
   NbSectionHead,
   NotebookModeTabs,
+  cahierStandaloneHref,
   type CahierChip,
-  type CahierMode,
   type ConceptTone,
 } from '@/components/cahiers/CahierV2';
 import { cahierCopy, countLabel, fill, type CahierCopy } from '@/components/cahiers/cahier-copy';
 import GrammarMap from '@/components/cahiers/GrammarMap';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { XraySentence } from '@/components/atelier-v2/rule/XraySentence';
+import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { cardExamples, plainText, usableCard, usableXray } from '@/lib/rule-card';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
@@ -139,14 +140,6 @@ function firstQueryValue(value: string | string[] | undefined) {
 
 export default function GrammarNotebookPage() {
   return <GrammarNotebookSurface />;
-}
-
-/* The direct /grammar and /vocabulary routes carry the same head as the
- * /notebook shell; their pill tabs are links to the sibling registers. */
-function standaloneHref(mode: CahierMode) {
-  if (mode === 'grammar') return '/grammar';
-  if (mode === 'vocabulary') return '/vocabulary';
-  return `/notebook?mode=${mode}`;
 }
 
 export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurfaceProps) {
@@ -457,7 +450,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
       <CahierStyles />
       <AtelierV2Root as="main" language={language} className="nb-page" aria-label={t.grammar.page_label}>
         <CahierHead kicker={isLoading ? t.grammar.kicker_loading : `${countLabel(t.cahier, 'concepts', concepts.length)} · ${stageCountsText(countStages(concepts), language)}`}>
-          <NotebookModeTabs active="grammar" hrefFor={standaloneHref} />
+          <NotebookModeTabs active="grammar" library={STORY_FEATURE_VISIBLE} hrefFor={cahierStandaloneHref} />
         </CahierHead>
         <div className="nb-body">{pageContent}</div>
       </AtelierV2Root>

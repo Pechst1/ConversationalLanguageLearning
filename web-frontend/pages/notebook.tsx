@@ -22,7 +22,6 @@ import {
   type CahierMode,
 } from '@/components/cahiers/CahierV2';
 import { cahierCopy, countLabel, fill, useCahierCopy, type CahierCopy } from '@/components/cahiers/cahier-copy';
-import CarnetTab from '@/components/cahiers/CarnetTab';
 import JournalTab from '@/components/cahiers/JournalTab';
 import { NOTEBOOK_MODE_STORAGE_KEY } from '@/components/mobile';
 import Releve from '@/components/releve/Releve';
@@ -82,8 +81,8 @@ function storedNotebookMode(): NotebookMode {
     const stored = window.localStorage.getItem(NOTEBOOK_MODE_STORAGE_KEY);
     if (stored === 'vocabulary') return 'vocabulary';
     if (stored === 'journal') return 'journal';
-    if (stored === 'releve') return 'releve';
-    if (stored === 'carnet') return 'carnet';
+    // The Carnet folded into Fortschritt; an old stored «carnet» opens it there.
+    if (stored === 'releve' || stored === 'carnet') return 'releve';
     if (STORY_FEATURE_VISIBLE && stored === 'library') return 'library';
     return 'grammar';
   } catch {
@@ -107,8 +106,9 @@ function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
     || explicitMode === 'vocabulary'
     || explicitMode === 'journal'
     || explicitMode === 'releve'
-    || explicitMode === 'carnet'
   ) return explicitMode;
+  // Old links to the Carnet tab open Fortschritt, where the Carnet now lives.
+  if (explicitMode === 'carnet') return 'releve';
   if (STORY_FEATURE_VISIBLE && explicitMode === 'library') return 'library';
   if (STORY_FEATURE_VISIBLE && firstQueryValue(query.book)) return 'library';
   if (firstQueryValue(query.word)) return 'vocabulary';
@@ -125,7 +125,7 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
   if (mode === 'grammar') {
     const concept = firstQueryValue(query.concept) || firstQueryValue(query.review);
     if (concept) nextQuery.concept = concept;
-  } else if (mode === 'releve' || mode === 'journal' || mode === 'carnet') {
+  } else if (mode === 'releve' || mode === 'journal') {
     // Le Relevé is a read-only ledger and Le journal de bord is the learner's
     // own writing; neither carries deep-link parameters.
     return nextQuery;
@@ -150,7 +150,6 @@ const MODE_TITLE_KEYS: Record<NotebookMode, keyof CahierCopy['notebook']> = {
   vocabulary: 'title_vocabulary',
   journal: 'title_journal',
   releve: 'title_releve',
-  carnet: 'title_carnet',
   library: 'title_library',
 };
 
@@ -315,8 +314,6 @@ export default function NotebookEntryPage() {
               <JournalTab />
             ) : visibleMode === 'releve' ? (
               <Releve />
-            ) : visibleMode === 'carnet' ? (
-              <CarnetTab />
             ) : (
               <LibraryNotebookSurface
                 bookId={firstQueryValue(queryBook)}

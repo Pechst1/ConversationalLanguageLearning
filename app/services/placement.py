@@ -254,7 +254,7 @@ PROMPT_VARIANTS: dict[str, tuple[PlacementPrompt, ...]] = {
 #: the placement follows the learner's declared native language, so every
 #: authored hint has its English and German version. The prompt stays French.
 HINT_TRANSLATIONS: dict[str, dict[str, str]] = {
-    "Commencez par saluer.": {"en": "Start with a greeting.", "de": "Beginnen Sie mit einer Begrüßung."},
+    "Commencez par saluer.": {"en": "Start with a greeting.", "de": "Beginne mit einer Begrüßung."},
     "Deux phrases courtes suffisent.": {"en": "Two short sentences are enough.", "de": "Zwei kurze Sätze genügen."},
     "Deux phrases simples.": {"en": "Two simple sentences.", "de": "Zwei einfache Sätze."},
     "Deux phrases suffisent.": {"en": "Two sentences are enough.", "de": "Zwei Sätze genügen."},
@@ -264,36 +264,36 @@ HINT_TRANSLATIONS: dict[str, dict[str, str]] = {
     },
     "Deux phrases, à voix haute dans votre tête d’abord.": {
         "en": "Two sentences — say them in your head first.",
-        "de": "Zwei Sätze — sagen Sie sie zuerst im Kopf.",
+        "de": "Zwei Sätze — sag sie zuerst im Kopf.",
     },
     "Dites si vous êtes d’accord, puis pourquoi.": {
         "en": "Say whether you agree, then why.",
-        "de": "Sagen Sie, ob Sie zustimmen, und dann warum.",
+        "de": "Sag, ob du zustimmst, und dann warum.",
     },
-    "Excusez-vous, puis invitez.": {"en": "Apologise, then invite.", "de": "Entschuldigen Sie sich, dann laden Sie ein."},
+    "Excusez-vous, puis invitez.": {"en": "Apologise, then invite.", "de": "Entschuldige dich, dann lade ein."},
     "Excusez-vous, puis proposez un jour.": {
         "en": "Apologise, then suggest a day.",
-        "de": "Entschuldigen Sie sich, dann schlagen Sie einen Tag vor.",
+        "de": "Entschuldige dich, dann schlag einen Tag vor.",
     },
     "Excusez-vous, puis proposez un moment.": {
         "en": "Apologise, then suggest a time.",
-        "de": "Entschuldigen Sie sich, dann schlagen Sie einen Zeitpunkt vor.",
+        "de": "Entschuldige dich, dann schlag einen Zeitpunkt vor.",
     },
     "Excusez-vous, puis proposez une heure.": {
         "en": "Apologise, then suggest a time.",
-        "de": "Entschuldigen Sie sich, dann schlagen Sie eine Uhrzeit vor.",
+        "de": "Entschuldige dich, dann schlag eine Uhrzeit vor.",
     },
     "Le temps du passé est attendu ici.": {"en": "The past tense is expected here.", "de": "Hier wird die Vergangenheit erwartet."},
     "Nuancez, et soignez le registre.": {
         "en": "Add nuance, and mind the register.",
-        "de": "Differenzieren Sie, und achten Sie auf das Register.",
+        "de": "Differenziere, und achte auf das Register.",
     },
     "Nommez l’objection avant d’y répondre.": {
         "en": "Name the objection before you answer it.",
-        "de": "Nennen Sie den Einwand, bevor Sie darauf antworten.",
+        "de": "Nenne den Einwand, bevor du darauf antwortest.",
     },
-    "Pensez à la politesse.": {"en": "Remember to be polite.", "de": "Denken Sie an die Höflichkeit."},
-    "Prévenez, puis excusez-vous.": {"en": "Let them know, then apologise.", "de": "Sagen Sie Bescheid, dann entschuldigen Sie sich."},
+    "Pensez à la politesse.": {"en": "Remember to be polite.", "de": "Denk an die Höflichkeit."},
+    "Prévenez, puis excusez-vous.": {"en": "Let them know, then apologise.", "de": "Sag Bescheid, dann entschuldige dich."},
     "Trois informations, en phrases courtes.": {
         "en": "Three pieces of information, in short sentences.",
         "de": "Drei Angaben, in kurzen Sätzen.",
@@ -305,7 +305,7 @@ HINT_TRANSLATIONS: dict[str, dict[str, str]] = {
     "Une ou deux phrases suffisent.": {"en": "One or two sentences are enough.", "de": "Ein oder zwei Sätze genügen."},
     "Vous écrivez à un cabinet : restez poli.": {
         "en": "You are writing to a surgery: stay polite.",
-        "de": "Sie schreiben an eine Praxis: Bleiben Sie höflich.",
+        "de": "Du schreibst an eine Praxis: Bleib höflich.",
     },
 }
 

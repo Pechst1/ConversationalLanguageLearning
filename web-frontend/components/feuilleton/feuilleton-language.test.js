@@ -138,9 +138,14 @@ test('the Feuilleton pages resolve the chrome language once and hand it on', () 
   // WP-96: with no scene open the tab is the archive, not the season page
   assert.ok(gn.includes('<FeuilletonArchive view={archiveView}'));
   assert.ok(!gn.includes('<SeasonPage'));
-  // W14: «Back to La Une» is gone from the Feuilleton's own copy
+  // W14 said «Back to La Une» when Home had another name; since WP-109 the
+  // home tab is «La Une» again, so the way back names the tab it lands on,
+  // never «L'Atelier», which is the whole app (walk 2026-10-12).
   for (const lang of ['en', 'de', 'fr']) {
-    assert.ok(!/La Une/.test(feuilletonCopy(lang).back_home), `${lang}.back_home still names La Une`);
+    for (const key of ['back_home', 'back_atelier']) {
+      assert.ok(/La Une/.test(feuilletonCopy(lang)[key]), `${lang}.${key} names the home tab`);
+      assert.ok(!/Atelier/.test(feuilletonCopy(lang)[key]), `${lang}.${key} still names L'Atelier`);
+    }
   }
   // the «why» note is re-picked from the server's three versions
   assert.ok(gn.includes('task.recommendation_reason?.text_by_language'));
