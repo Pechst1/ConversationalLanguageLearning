@@ -227,8 +227,9 @@ VISUAL_SPEC = """{"kind": "scene"|"editorial" (see PICTURE RULES),
             "viewpoint": str (English: where the viewer stands — «from the public gallery high above the
              chamber», «close to the table, at eye level»),
             "light": str (English: the light and the time of day),
-            "words": [{"fr": str (a noun with le/la/l'/les, copied from one claim's fr), "shows": str (English: what
-             in the picture shows it)}] (2 or 3 things the picture shows),
+            "words": [{"fr": str (ONE short noun with le/la/l'/les, 1 to 3 words, copied letter for letter from
+             one claim's fr — «le poulet», «les plagiats» — never a sentence), "shows": str (English: what in the
+             picture shows it)}] (2 or 3 things the picture shows),
             "caption_fr": str (the desk's caption under the picture: one A2-B1 sentence, who or what and where; it
              names the people it shows with their role and uses at least one of the words),
             "look_fr": str (Romy pointing at the picture for the learner: 1-2 short A2 sentences in the present tense
