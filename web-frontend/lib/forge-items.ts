@@ -74,6 +74,20 @@ export function seatForgeItem<T extends ExerciseSetLike>(
 }
 
 /**
+ * Live walk #131: does the forge's next item sit where the learner already is?
+ * Then «Continue» would move nothing, and the item has to be asked again.
+ */
+export function forgeSeatIsSamePlace(
+  here: { conceptIndex: number; round: string; mode: string; itemIndex: number },
+  next: { conceptIndex: number; round: string; mode?: string | null; itemIndex: number },
+): boolean {
+  return here.conceptIndex === next.conceptIndex
+    && here.round === next.round
+    && here.itemIndex === next.itemIndex
+    && (next.round !== 'recognize' || here.mode === next.mode);
+}
+
+/**
  * The output rungs render their container's first item. When the forge poses
  * another one (a top-up, a reprise), the page shows a set scoped to that item.
  */

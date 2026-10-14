@@ -153,7 +153,7 @@ import {
   stepText,
   type SeenItem,
 } from '@/lib/forge-progress';
-import { isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
+import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboOf, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, comboLabel, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref } from '@/lib/grammar-map';
@@ -1459,6 +1459,28 @@ export default function AtelierPage() {
     setRecentCorrection(null);
   };
 
+  // Live walk #131: La Forge may pose an item again that was already answered
+  // (a retried miss comes back later). It is asked fresh, as a resubmission;
+  // shown graded, its «Continue» re-seated the same item and did nothing.
+  const reposeForgeItem = (key: string) => {
+    setSubmitted((prev) => ({ ...prev, [key]: false }));
+    setResubmitKeys((prev) => ({ ...prev, [key]: true }));
+    setAnswers((prev) => {
+      if (!(key in prev)) return prev;
+      const { [key]: _dropped, ...rest } = prev;
+      return rest;
+    });
+    setRecentCorrection(null);
+  };
+  const forgeSeatedRef = useRef(false);
+  useEffect(() => {
+    if (!forgeSeatedRef.current) return;
+    forgeSeatedRef.current = false;
+    if (submitted[scopedKey]) reposeForgeItem(scopedKey);
+    // Runs once per seat, on the item the forge just seated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopedKey]);
+
   const submitMicroRepair = async (erratumIndex: number) => {
     const attemptId = attemptIdsByKey[scopedKey];
     const draftKey = `${scopedKey}:${erratumIndex}`;
@@ -1952,6 +1974,16 @@ export default function AtelierPage() {
       const conceptIndex = next ? session.concepts.findIndex((concept) => concept.id === next.concept_id) : -1;
       if (next && conceptIndex >= 0) {
         const seated = seatForgeItem(session.exercise_sets, next);
+        const samePlace = forgeSeatIsSamePlace(
+          { conceptIndex: activeConceptIndex, round, mode, itemIndex: activeItemIndex },
+          { conceptIndex, round: next.round, mode: next.mode, itemIndex: seated.index },
+        );
+        if (samePlace) {
+          // The forge asks the item on screen again: nothing would move.
+          if (submitted[scopedKey]) reposeForgeItem(scopedKey);
+          return;
+        }
+        forgeSeatedRef.current = true;
         if (seated.sets !== session.exercise_sets) setSession({ ...session, exercise_sets: seated.sets });
         setActiveConceptIndex(conceptIndex);
         setRound(next.round as RoundName);
