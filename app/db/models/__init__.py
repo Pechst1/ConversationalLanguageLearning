@@ -58,6 +58,7 @@ from app.db.models.session import (
     SessionLearningMoment,
     WordInteraction,
 )
+from app.db.models.spend_reservation import SpendReservation
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
 from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
@@ -110,6 +111,7 @@ __all__ = [
     "UserBook",
     "SerialEpisode",
     "SerialThread",
+    "SpendReservation",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",

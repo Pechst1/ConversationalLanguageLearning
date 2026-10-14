@@ -201,7 +201,12 @@ def service_budget_reached(db: Session, *, now: datetime | None = None) -> bool:
     if cap <= 0:
         return False
     try:
-        return service_spend_today_usd(db, now=now) >= cap
+        spent = service_spend_today_usd(db, now=now)
+        from app.services import spend_ledger
+
+        if spend_ledger.enabled():
+            spent += spend_ledger.outstanding_usd(db, now=now)
+        return spent >= cap
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("Service spend check skipped: {}", exc)
         return False

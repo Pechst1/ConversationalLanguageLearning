@@ -254,7 +254,7 @@ export function eye(centre: [number, number], params: EyeParams, state: EyeState
  * Mouth shapes in a small local frame centred near (2, 16); each rig places and
  * scales them. [shape, teeth, tongue]. The six visemes come first.
  */
-const BASE_MOUTHS: Record<string, [string, string?, string?]> = {
+export const BASE_MOUTHS: Record<string, [string, string?, string?]> = {
   rest: ['M-6,15.5 Q2,16.5 9,14.5 Q2,18 -6,15.5 Z'],
   a: [
     'M-6,13.5 Q2,12 9,13 Q8,22.5 2,22.5 Q-4.5,22 -6,13.5 Z',
@@ -278,7 +278,7 @@ const BASE_MOUTHS: Record<string, [string, string?, string?]> = {
   flat: ['M-6,15.6 L9,15.2 L9,16.6 L-6,17 Z'],
 };
 
-const SYMMETRIC_MOUTHS: Record<string, [string, string?, string?]> = {
+export const SYMMETRIC_MOUTHS: Record<string, [string, string?, string?]> = {
   ...BASE_MOUTHS,
   rest: ['M-6,15.5 Q2,17 10,15.5 Q2,18.6 -6,15.5 Z'],
   a: [

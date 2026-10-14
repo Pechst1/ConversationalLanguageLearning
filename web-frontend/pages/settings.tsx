@@ -64,6 +64,7 @@ import {
 } from '@/lib/rhythm';
 import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
 import { ambiancePreferred, setAmbianceEnabled } from '@/lib/sound-bed';
+import { cameosEnabled, setCameosEnabled } from '@/lib/cameo';
 import { setVoicesAloud, voicesAloud } from '@/lib/voice-preference';
 import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
 import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
@@ -479,6 +480,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     // like «Sons»; it plays only while «Sons» is on too.
     const [ambianceOn, setAmbianceOn] = useState(false);
     useEffect(() => { setAmbianceOn(ambiancePreferred()); }, []);
+    // Les apparitions: the cast's cameos, this device only, on by default.
+    const [cameosOn, setCameosOn] = useState(true);
+    useEffect(() => { setCameosOn(cameosEnabled()); }, []);
     // WP-49: the row exists only where the server can read an episode aloud.
     const [episodeAudioEnabled, setEpisodeAudioEnabled] = useState(false);
 
@@ -1574,6 +1578,17 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     onChange={(next) => {
                                         setAmbianceEnabled(next);
                                         setAmbianceOn(next);
+                                    }}
+                                />
+                            </Row>
+                            <Row id="st-cameos-label" label={copy.row_cameos} hint={copy.row_cameos_hint}>
+                                <Switch
+                                    copy={copy}
+                                    labelledBy="st-cameos-label"
+                                    checked={cameosOn}
+                                    onChange={(next) => {
+                                        setCameosEnabled(next);
+                                        setCameosOn(next);
                                     }}
                                 />
                             </Row>

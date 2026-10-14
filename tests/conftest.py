@@ -114,6 +114,7 @@ from app.db.models.session import (
     SessionLearningMoment,
     WordInteraction,
 )
+from app.db.models.spend_reservation import SpendReservation
 from app.db.models.streak_day import StreakDay
 from app.db.models.vocabulary import UserDailyWordSlate, VocabularyDrillBatch
 from app.main import create_app
@@ -235,6 +236,7 @@ def db_engine():
             UserAchievement.__table__,
             AnalyticsSnapshot.__table__,
             PilotEvent.__table__,
+            SpendReservation.__table__,
             PlacementSession.__table__,
             Rehearsal.__table__,
             VocabularyWord.__table__,
@@ -305,6 +307,7 @@ def db_engine():
                 UserVocabularyProgress.__table__,
                 AnalyticsSnapshot.__table__,
                 Rehearsal.__table__,
+                SpendReservation.__table__,
                 PilotEvent.__table__,
                 UserErrorConcept.__table__,
                 UserError.__table__,

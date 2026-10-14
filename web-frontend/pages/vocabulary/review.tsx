@@ -63,6 +63,7 @@ import {
 } from '@/lib/pilot-resilience';
 import { useArtSet } from '@/lib/art-set';
 import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
+import { emitCameo } from '@/lib/cameo';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
@@ -492,6 +493,10 @@ function VocabularyReviewContinuation({
   // «5 more minutes» after the Seal on a day nothing is due yet (day 1): no card
   // was answered, so «Deck cleared» would be a claim. Say what is true.
   const nothingDue = !lastItem && isEncore();
+  // Les apparitions: a cleared deck gets the curtain call.
+  useEffect(() => {
+    if (lastItem) emitCameo({ type: 'finale' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -880,6 +885,7 @@ export default function VocabularyReviewPage() {
       const serverCorrect = typeof response.correct === 'boolean' ? response.correct : typedMatches;
       const wrong = graded ? !serverCorrect : rating === 0;
       setAgainIds((prev) => nextAgainQueue(prev, current.word_id, wrong));
+      emitCameo({ type: 'answer', correct: !wrong });
       setSpokenAnswer(false);
       setLastRating(rating);
       setLastReviewedItem(current);
