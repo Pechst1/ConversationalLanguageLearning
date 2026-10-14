@@ -433,15 +433,45 @@ def test_the_story_prompt_paints_the_moment_in_the_house_style() -> None:
     assert prompt.startswith(plates.REVUE_STORY_STYLE) and plates._art().PALETTE_WORDS in prompt
     assert "No people" not in prompt and policy.STORY_PEOPLE_CLAUSE in prompt
     assert f"The place: {ALIGRE_BRIEF}, France." in prompt
-    assert "The scene, one moment of this week's news: a busy morning at the open-air market" in prompt
-    assert "At the heart of the moment: a single wooden crate of clementines" in prompt
+    assert "The moment: a busy morning at the open-air market" in prompt
+    assert "At the heart of it: a single wooden crate of clementines" in prompt
     assert ("The picture clearly shows the stalls under striped awnings in the square; "
             "the old covered market hall behind the stalls.") in prompt
     assert "Seen from the corner of the square, behind the last stall." in prompt
     assert "Light: cool early morning light." in prompt
-    assert prompt.endswith(policy.STORY_STAGE_CLAUSE + " " + policy.PLATE_NEGATIVE)
+    assert prompt.endswith(policy.STORY_STAGE_CLAUSE + " " + policy.STORY_NEGATIVE)
+    assert "Calm, generous" not in prompt and "Bold, Bauhaus-inspired composition." in prompt
     # The French is the learner's, never the painter's.
     assert MARKET_VISUAL.caption_fr not in prompt and "Regarde" not in prompt
+
+
+def test_an_editorial_picture_paints_its_idea_large() -> None:
+    prompt = plates.story_prompt_for(pictured(kind="editorial", symbol="a shopping trolley weighed on a giant kitchen scale"))
+    assert "An editorial illustration for one news story of the week" in prompt
+    assert "The idea, large and central to the picture: a shopping trolley weighed on a giant kitchen scale." in prompt
+    assert f"Setting: {ALIGRE_BRIEF}, France." in prompt and "The moment:" not in prompt
+
+
+def test_only_a_site_in_france_is_told_it_is_in_france() -> None:
+    from app.services.revue.dossier import Geo
+
+    dossier = pictured()
+    abroad = dossier.places[0].model_copy(update={"known": False, "geo": None, "brief": "Montréal: the Old Port, Mount Royal, morning light"})
+    dossier.places[0] = abroad
+    assert "Montréal: the Old Port, Mount Royal, morning light. " in plates.story_prompt_for(dossier)
+    assert "morning light, France" not in plates.story_prompt_for(dossier)
+    dossier.places[0] = abroad.model_copy(update={"geo": Geo(lat=45.5, lon=-73.55, precision="city", label_fr="Montréal")})
+    assert "morning light, France" not in plates.story_prompt_for(dossier)
+    dossier.places[0] = abroad.model_copy(update={"brief": "Toulouse: the Capitole, the Garonne, morning light",
+                                                  "geo": Geo(lat=43.6, lon=1.44, precision="city", label_fr="Toulouse")})
+    assert "Toulouse: the Capitole, the Garonne, morning light, France." in plates.story_prompt_for(dossier)
+
+
+def test_a_story_picture_may_quote_a_word_or_two_and_no_more() -> None:
+    assert plates.story_prompt_for(pictured(symbol="a price tag reading «5 €» on a steaming plate"))
+    with pytest.raises(plates.PlateBriefError) as refused:
+        plates.story_prompt_for(pictured(symbol="a board reading «le plat du peuple à cinq euros seulement»"))
+    assert refused.value.reason == "too_much_text"
 
 
 def test_the_story_prompt_refuses_what_it_must_not_paint() -> None:

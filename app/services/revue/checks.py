@@ -709,18 +709,33 @@ def visual_word_claim(word_fr: str, dossier: EditorialDossier) -> str | None:
     return None
 
 
+_QUOTED = re.compile(r"«\s*([^»]{1,80}?)\s*»|“([^”]{1,80})”|\"([^\"]{1,80})\"")
+
+
+def quoted_lettering(text: str) -> list[str]:
+    """§8.4 v2: the lettering a painter text quotes («IA», "50 %"): the only text a story
+    picture may show."""
+
+    return [next(g for g in match.groups() if g is not None).strip() for match in _QUOTED.finditer(text or "")]
+
+
 def check_visual(dossier: EditorialDossier) -> list[CheckResult]:
     """WP-119 §8.4: may this dossier's story picture be painted, and is its French sound?
 
     Reasons: ``person_named`` (a person entity's name in the painter's text: people are drawn
     by their role, the caption names them), ``forbidden_words`` (``policy.story_forbidden_hits``
-    in the painter's text: portraits, emblems, logos, readable text, flags, placards), ``word_not_in_claims``
+    in the painter's text: portraits, emblems, logos, banners, flags, placards), ``too_much_text``
+    (more lettering in «guillemets» than ``policy.STORY_MAX_QUOTED`` bits of three words), ``word_not_in_claims``
     (a picture word no claim carries), ``relative_date`` (in the caption, Romy's look line or a
     decoy caption).
     A dossier without a visual has nothing to check (an empty list: it keeps its place plate).
     """
 
-    from app.services.revue.policy import story_forbidden_hits
+    from app.services.revue.policy import (
+        STORY_MAX_QUOTED,
+        STORY_MAX_QUOTED_WORDS,
+        story_forbidden_hits,
+    )
 
     visual = dossier.visual
     if visual is None:
@@ -732,6 +747,9 @@ def check_visual(dossier: EditorialDossier) -> list[CheckResult]:
     hits = story_forbidden_hits(painter)
     if hits:
         results.append(_fail("render", "forbidden_words", field="visual", words=hits))
+    quoted = quoted_lettering(painter)
+    if len(quoted) > STORY_MAX_QUOTED or any(len(q.split()) > STORY_MAX_QUOTED_WORDS for q in quoted):
+        results.append(_fail("render", "too_much_text", field="visual", quoted=quoted))
     for word in visual.words:
         if visual_word_claim(word.fr, dossier) is None:
             results.append(_fail("render", "word_not_in_claims", field="visual.words", word=word.fr))

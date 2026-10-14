@@ -74,7 +74,7 @@ PLATE_WEBP_QUALITY = 86
 #: Key prefix under the durable art store (S3 bucket or ``GRAPHIC_NOVEL_LOCAL_IMAGE_DIR``).
 STORAGE_PREFIX = "revue-plates"
 #: §8.4: the story pictures' template version and key prefix.
-STORY_PROMPT_VERSION = "revue-story-v1"
+STORY_PROMPT_VERSION = "revue-story-v2"
 STORY_STORAGE_PREFIX = "revue-stories"
 #: The pilot-ledger row each painting writes (no learner: the picture is everyone's).
 PICTURE_COST_EVENT = "revue_picture_cost"
@@ -110,11 +110,16 @@ def _revue_style() -> str:
     return base.replace(_SEASON_NO_PEOPLE, policy.PLATE_PEOPLE_CLAUSE + " ")
 
 
+#: §8.4 v2: a news picture needs a focal point, not the plates' calm.
+_SEASON_CALM = "Calm, generous, Bauhaus-inspired composition. "
+_STORY_BOLD = "Bold, Bauhaus-inspired composition. "
+
+
 def _story_style() -> str:
     base = _art().PLATE_STYLE
-    if _SEASON_NO_PEOPLE not in base:
-        raise RuntimeError("atelier_art.PLATE_STYLE no longer carries the no-people clause to replace")
-    return base.replace(_SEASON_NO_PEOPLE, policy.STORY_PEOPLE_CLAUSE + " ")
+    if _SEASON_NO_PEOPLE not in base or _SEASON_CALM not in base:
+        raise RuntimeError("atelier_art.PLATE_STYLE no longer carries the clauses the story style replaces")
+    return base.replace(_SEASON_CALM, _STORY_BOLD).replace(_SEASON_NO_PEOPLE, policy.STORY_PEOPLE_CLAUSE + " ")
 
 
 #: ``PLATE_STYLE`` with the people clause (§8.1, §12.4) instead of "No people, no animals…".
@@ -578,37 +583,70 @@ def _site_text(place: Place, dossier: EditorialDossier) -> str:
     return name if checks.person_names_in(text, dossier) else text
 
 
+#: Metropolitan France and Corsica: a site inside gets ", France" in the prompt; one outside (or
+#: without coordinates) is named by its brief alone — «Montréal…, France» painted a city in between.
+_FRANCE_BOUNDS = (41.2, 51.2, -5.3, 9.7)
+
+
+def _country_suffix(place: Place) -> str:
+    if place.known:
+        return ", France"
+    geo = place.geo
+    if geo is None:
+        return ""
+    south, north, west, east = _FRANCE_BOUNDS
+    return ", France" if south <= geo.lat <= north and west <= geo.lon <= east else ""
+
+
 def story_prompt_for(dossier: EditorialDossier) -> str:
-    """The story picture's full prompt (§8.4): the season's screen print with the story's
-    people, the site, the moment, the object that carries the idea, the words it must show,
-    the viewpoint and light, the stage's composition, the negative clause.
+    """The story picture's full prompt (§8.4 v2): the season's screen print with the story's
+    people; then either the real moment at the site (``scene``) or one bold visual idea
+    (``editorial``, its ``symbol`` large in the frame); the words it must show, the viewpoint
+    and light, the stage's composition, the negative clause.
 
     Refuses (:class:`PlateBriefError`) a dossier without a visual (``no_visual``) and a visual
-    the staging checks refuse (``person_named``, ``forbidden_words``): the builder repairs or
-    drops those, so this is the painter's own last look before money is spent.
+    the staging checks refuse (``person_named``, ``forbidden_words``, ``too_much_text``): the
+    builder repairs or drops those, so this is the painter's own last look before money is spent.
     """
 
     visual = dossier.visual
     if visual is None or not dossier.places:
         raise PlateBriefError("no_visual", dossier_id=dossier.id)
     for failure in checks.failures(checks.check_visual(dossier)):
-        if failure.reason in {"person_named", "forbidden_words"}:
+        if failure.reason in {"person_named", "forbidden_words", "too_much_text"}:
             raise PlateBriefError(failure.reason, dossier_id=dossier.id, **failure.detail)
-    site = _site_text(dossier.places[0], dossier)
+    place = dossier.places[0]
+    site = _site_text(place, dossier) + _country_suffix(place)
     shows = [word.shows.strip().rstrip(".") for word in visual.words if word.shows.strip()]
     viewpoint = visual.viewpoint.strip()
-    seen = f"Seen {viewpoint}" if viewpoint.lower().startswith(("from ", "through ", "across ", "over ")) else f"Viewpoint: {viewpoint}"
+    seen = f"Seen {viewpoint}" if viewpoint.lower().startswith(("from ", "through ", "across ", "over ", "close ")) else f"Viewpoint: {viewpoint}"
+    if visual.kind == "editorial" and visual.symbol:
+        subject = (
+            _sentence(
+                "An editorial illustration for one news story of the week, the kind a newspaper draws for its front "
+                "page: one striking visual idea rather than a documentary scene, so that a reader can tell the story "
+                "from the picture alone"
+            )
+            + _sentence(f"The idea, large and central to the picture: {visual.symbol}")
+            + _sentence(visual.moment)
+            + _sentence(f"Setting: {site}")
+        )
+    else:
+        subject = (
+            _sentence("A picture of one news story of the week, specific enough that a reader can tell the story from it alone")
+            + _sentence(f"The place: {site}")
+            + _sentence(f"The moment: {visual.moment}")
+            + (_sentence(f"At the heart of it: {visual.symbol}") if visual.symbol else "")
+        )
     return (
         REVUE_STORY_STYLE
-        + _sentence(f"The place: {site}, France")
-        + _sentence(f"The scene, one moment of this week's news: {visual.moment}")
-        + (_sentence(f"At the heart of the moment: {visual.symbol}") if visual.symbol else "")
+        + subject
         + (_sentence("The picture clearly shows " + "; ".join(shows)) if shows else "")
         + _sentence(seen)
         + _sentence(f"Light: {visual.light}")
         + policy.STORY_STAGE_CLAUSE
         + " "
-        + policy.PLATE_NEGATIVE
+        + policy.STORY_NEGATIVE
     )
 
 
@@ -710,6 +748,8 @@ class PaintReport:
     painted: int = 0
     pictures: dict[str, dict[str, str]] = field(default_factory=dict)
     cost_usd: float = 0.0
+    #: §8.4 v2: dossiers the picture desk rebriefed before this run painted them.
+    rebriefed: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -718,11 +758,50 @@ class PaintReport:
             "painted": self.painted,
             "pictures": {key: dict(value) for key, value in self.pictures.items()},
             "cost_usd": round(self.cost_usd, 6),
+            "rebriefed": list(self.rebriefed),
         }
 
 
 def _painted_now(value: str) -> bool:
     return "/" in value or value.startswith("data:")
+
+
+def rebrief_stale_visuals(db: Session, period: str, *, provider: Any = None) -> list[str]:
+    """§8.4 v2: before painting, give every built dossier of ``period`` that was briefed under
+    older picture rules (its row's ``builder_version``) and has no picture yet a fresh brief from
+    the picture desk (``builder.rebrief_visual``, one small call each), stored on its row so the
+    caption, Romy's line and the decoys match the picture. Returns the ids rebriefed."""
+
+    from sqlalchemy import select
+
+    from app.db.models.revue_session import RevueDossier
+    from app.services.revue.builder import BUILDER_VERSION, rebrief_visual
+    from app.services.revue.dossier import EditorialDossier
+
+    done: list[str] = []
+    rows = list(db.scalars(select(RevueDossier).where(RevueDossier.period == period)))
+    for row in rows:
+        if row.builder_version == BUILDER_VERSION or (row.checks or {}).get("evergreen_top_up"):
+            continue
+        try:
+            dossier = EditorialDossier.model_validate(row.payload)
+        except Exception as exc:  # noqa: BLE001 - an unreadable row is left to the kiosk's own guard
+            logger.bind(row=row.id).debug("revue plates: stored dossier unreadable ({})", exc)
+            continue
+        if dossier.evergreen or story_picture(db, dossier.id) is not None:
+            continue
+        visual, repairs = rebrief_visual(dossier, provider)
+        if visual is None:
+            logger.bind(dossier=dossier.id, repairs=repairs).info("revue plates: rebrief refused; the old brief stays")
+            continue
+        payload = dict(row.payload)
+        payload["visual"] = visual.model_dump(mode="json")
+        row.payload = payload
+        row.builder_version = BUILDER_VERSION
+        done.append(dossier.id)
+    if done:
+        db.commit()
+    return done
 
 
 def paint_period(db: Session, period: str, *, limit: int | None = None) -> PaintReport:
@@ -740,6 +819,11 @@ def paint_period(db: Session, period: str, *, limit: int | None = None) -> Paint
     if reason:
         report.status = f"off: {reason}"
         return report
+    try:
+        report.rebriefed = rebrief_stale_visuals(db, period)
+    except Exception as exc:  # noqa: BLE001 - painting goes on with the briefs it has
+        logger.warning("revue plates: rebriefing {} failed ({})", period, exc)
+        db.rollback()
     calls = 0
     held: str | None = None
 

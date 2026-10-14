@@ -17,6 +17,7 @@ from app.services.revue.builder import (
     StoryInput,
     build_dossier,
     provider_context,
+    rebrief_visual,
     trim_quote,
 )
 from app.services.revue.dossier import quote_word_count
@@ -225,7 +226,7 @@ def with_visual(**visual) -> dict:
 
 
 def test_the_builder_writes_the_story_pictures_brief_and_repairs_it() -> None:
-    assert BUILDER_VERSION == "revue-builder-v2"
+    assert BUILDER_VERSION == "revue-builder-v3"
     result = build(with_visual())
     assert result.ok, result.rejected
     visual = result.dossier.visual
@@ -271,6 +272,41 @@ def test_a_claim_dropped_by_the_checks_takes_its_picture_word_with_it() -> None:
     assert result.ok and "c3" not in result.dossier.claims_by_id()
     assert [w.fr for w in result.dossier.visual.words] == ["les vendanges"]
     assert "visual:word_dropped:les machines" in result.repairs
+
+
+class DeskProvider:
+    def __init__(self, visual: dict) -> None:
+        self.visual = visual
+        self.asked: list[tuple[str, dict]] = []
+
+    def ask_json(self, instructions: str, payload: dict, **_: object) -> dict:
+        self.asked.append((instructions, payload))
+        return {"visual": self.visual}
+
+
+def test_the_picture_desk_rebriefs_a_built_dossier_under_the_picture_rules() -> None:
+    dossier = build(with_visual()).dossier
+    desk = DeskProvider({**VISUAL, "kind": "editorial", "symbol": "a single bunch of grapes on a weighing scale"})
+    visual, repairs = rebrief_visual(dossier, desk)
+    assert visual is not None and visual.kind == "editorial"
+    assert visual.symbol == "a single bunch of grapes on a weighing scale"
+    instructions, payload = desk.asked[0]
+    assert "PICTURE RULES" in instructions and payload["title_fr"] == dossier.title_fr
+    assert "Marie Dubois" not in visual.painter_text() and "visual:person_named:moment" in repairs
+
+
+def test_an_editorial_brief_without_its_idea_is_painted_as_the_scene() -> None:
+    dossier = build(with_visual()).dossier
+    visual, repairs = rebrief_visual(dossier, DeskProvider({**VISUAL, "kind": "editorial", "symbol": None}))
+    assert visual is not None and visual.kind == "scene" and "visual:editorial_without_symbol" in repairs
+
+
+def test_a_failed_picture_desk_keeps_the_old_brief() -> None:
+    class Broken:
+        def ask_json(self, *_: object, **__: object) -> dict:
+            raise RuntimeError("down")
+
+    assert rebrief_visual(build(with_visual()).dossier, Broken()) == (None, ["visual:desk_failed"])
 
 
 def test_the_fake_builder_gives_every_dossier_a_picture_with_two_decoys() -> None:
