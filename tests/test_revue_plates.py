@@ -467,10 +467,11 @@ def test_only_a_site_in_france_is_told_it_is_in_france() -> None:
     assert "Toulouse: the Capitole, the Garonne, morning light, France." in plates.story_prompt_for(dossier)
 
 
-def test_a_story_picture_may_quote_a_few_words_and_no_more() -> None:
-    assert plates.story_prompt_for(pictured(symbol="a price tag reading «5 €» on a steaming plate"))
+def test_a_story_picture_may_carry_scene_lettering_but_not_a_paragraph() -> None:
+    assert plates.story_prompt_for(pictured(symbol="a board reading «le plat du peuple à cinq euros seulement»"))
+    paragraph = "«elle regarda le fleuve et pensa à tout ce qui reste à dire ce matin là»"
     with pytest.raises(plates.PlateBriefError) as refused:
-        plates.story_prompt_for(pictured(symbol="a board reading «le plat du peuple à cinq euros seulement»"))
+        plates.story_prompt_for(pictured(symbol=f"a page reading {paragraph}"))
     assert refused.value.reason == "too_much_text"
 
 

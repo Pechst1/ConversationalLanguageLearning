@@ -103,10 +103,10 @@ STORY_FORBIDDEN: tuple[str, ...] = (
 STORY_FORBIDDEN_EXTRA: tuple[str, ...] = (
     "flag", "flags", "drapeau", "drapeaux", "placard", "placards", "pancarte", "pancartes", "likeness",
 )
-#: §8.4 v3 (owner, 2026-10-14, with the sunburst model, which spells well): at most four quoted bits
-#: of lettering, each at most five words.
-STORY_MAX_QUOTED = 4
-STORY_MAX_QUOTED_WORDS = 5
+#: §8.4 v3 (owner, 2026-10-14, with the sunburst model, which spells well): in-scene lettering is free;
+#: these caps only stop a brief from pasting a paragraph into the painter's text.
+STORY_MAX_QUOTED = 8
+STORY_MAX_QUOTED_WORDS = 12
 
 #: WP-119 §8.4 v2: the stage still stands Romy and Toi over the picture and crops it to a band, but
 #: the moment no longer has to squeeze into the left third: it only keeps clear of the bottom-right
@@ -123,8 +123,9 @@ STORY_STAGE_CLAUSE = (
 PLATE_NEGATIVE = "No flags, emblems or logos, no readable text or numbers, no signage lettering."
 #: §8.4 v2: a story picture may carry the lettering its brief quotes, nothing else.
 STORY_NEGATIVE = (
-    "No flags, emblems or logos. Lettering only where quoted above, in French, spelled exactly; "
-    "no other words, labels or numbers."
+    "No flags, emblems or logos. Any lettering is real French, spelled correctly, and belongs to the place "
+    "(signs, menus, labels, covers); the words quoted above appear exactly as written. Never invent a "
+    "quotation, headline or statement by a real person."
 )
 
 #: The ``outfit`` catalogue of the Revue stage (§8.2). ``coat`` is the canon default.
