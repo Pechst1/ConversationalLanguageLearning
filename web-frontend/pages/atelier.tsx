@@ -188,6 +188,7 @@ import { revueClient } from '@/lib/revue-api';
 import type { RvWeekResult } from '@/lib/revue-types';
 import {
   dayShapeFrom,
+  isRevueDay,
   revueDossierHref,
   revueHeroOpensDay,
   revueOpenHref,
@@ -2827,6 +2828,9 @@ function TodayView({
         special: specialEdition,
       })
     : { chip: null, hero: null };
+  // The programme still names the day's first step «Le Papier» on the Revue
+  // day once the Papier is filed and the hero is the day's card again.
+  const revueDayToday = Boolean(homeDay) && isRevueDay(dayShapeFrom(dayJourney, dayEnvelope), specialEdition);
   const revueDayDone = Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done);
   const revueHero = revueEntry.hero
     ? (() => {
@@ -3066,7 +3070,7 @@ function TodayView({
       // (Le Papier first); only an interlude has no scene to plan.
       planHidden={(Boolean(revueHero) && !daySession) || Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
       session={daySession ? {
-        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) }),
+        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) || revueDayToday }),
         tempoLabel: sessionCopy.tempo(sessionCopy.pace[daySession.pace]),
         onTempo: () => setTempoOpen(true),
       } : null}
