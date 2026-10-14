@@ -27,6 +27,8 @@ import { ArchiveStyles } from '@/components/feuilleton/archive/ArchiveStyles';
 import { archiveCopy, faFill } from '@/components/feuilleton/archive/archive-copy';
 import { marginNotes } from '@/components/feuilleton/archive/archive-model';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { emitCameo } from '@/lib/cameo';
+import { castIdFor } from '@/lib/cast-faces';
 import { PlacementDayEndOffer } from '@/components/onboarding/PlacementDayEndOffer';
 import { castName, epreuveRecapView } from '@/lib/can-dos';
 import { canDoCopy } from '@/lib/can-do-copy';
@@ -55,6 +57,17 @@ export type JourneyRecapProps = {
   /** WP-80's push pre-prompt, mounted by the session shell. */
   pushOptIn?: React.ReactNode;
 };
+
+/**
+ * Les apparitions: a whole day ends like La Forge and the deck, with the troupe's bow, the day's
+ * own person in the middle. Draws nothing itself; the cameo layer does.
+ */
+function CurtainCall({ lead }: { lead: string | null }) {
+  React.useEffect(() => {
+    emitCameo({ type: 'finale', lead });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
 
 export function JourneyRecap({
   journey,
@@ -105,6 +118,8 @@ export function JourneyRecap({
       data-state={partial ? 'partial' : 'complete'}
       aria-label={partial ? copy.finished_partial_title : copy.finished_title}
     >
+      {/* A day ended early gets no curtain. */}
+      {!partial && <CurtainCall lead={castIdFor(journey.scenario?.character_id, journey.scenario?.character_name)} />}
       <Surface
         tone={partial ? 'outline' : 'paper'}
         shape="hero"

@@ -216,6 +216,8 @@ export type SettingsCopyKey =
   // WP-145 «Ambiance»
   | 'row_ambiance'
   | 'row_ambiance_hint'
+  | 'row_cameos'
+  | 'row_cameos_hint'
   // WP-91 «Les voix»
   | 'row_voices_aloud'
   | 'row_voices_aloud_hint'
@@ -437,6 +439,8 @@ const EN: SettingsCopy = {
   row_sounds_hint: 'Tones for right, wrong, done.',
   row_ambiance: 'Ambience',
   row_ambiance_hint: 'The quiet sound of the place under a scene: rain on the café window, the market, the métro. Plays only with Sounds on.',
+  row_cameos: 'Cameos',
+  row_cameos_hint: 'The characters drop in uninvited: they cheer a streak, photobomb an answer and answer back when you tap them.',
   row_voices_aloud: 'Characters speak aloud',
   row_voices_aloud_hint: 'Each reply is read out once as it arrives. Tap a face to hear it again.',
   row_tts_speed: 'Reading speed',
@@ -657,6 +661,8 @@ const DE: SettingsCopy = {
   row_sounds_hint: 'Töne für richtig, falsch, geschafft.',
   row_ambiance: 'Atmosphäre',
   row_ambiance_hint: 'Der leise Klang des Ortes unter einer Szene: Regen am Caféfenster, der Markt, die Métro. Nur wenn Töne an sind.',
+  row_cameos: 'Auftritte',
+  row_cameos_hint: 'Die Figuren schauen ungefragt vorbei: Sie feiern deine Serie, platzen ins Bild und antworten, wenn du sie antippst.',
   row_voices_aloud: 'Figuren sprechen laut',
   row_voices_aloud_hint: 'Jede Antwort wird einmal vorgelesen. Tippe auf ein Gesicht, um sie noch einmal zu hören.',
   row_tts_speed: 'Lesegeschwindigkeit',
@@ -882,6 +888,8 @@ const FR: SettingsCopy = {
   row_sounds_hint: 'Un son : juste, faux, terminé.',
   row_ambiance: 'Ambiance',
   row_ambiance_hint: 'Le son discret du lieu sous la scène : la pluie sur la vitre du café, le marché, le métro. Seulement avec les sons.',
+  row_cameos: 'Apparitions',
+  row_cameos_hint: 'Les personnages passent sans prévenir : ils fêtent une série, s’invitent sur la photo et répondent quand vous les touchez.',
   row_voices_aloud: 'Les personnages parlent à voix haute',
   row_voices_aloud_hint: 'Chaque réplique est lue une fois à son arrivée. Touchez un visage pour la réentendre.',
   row_tts_speed: 'Vitesse de lecture',

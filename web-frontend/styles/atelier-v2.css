@@ -2906,6 +2906,8 @@
 .av2 .av2-speech { display: flex; align-items: flex-end; gap: 12px; min-width: 0; }
 .av2 .av2-speech__face { flex: none; display: inline-flex; }
 .av2 .av2-speech:not([data-mood='neutral']) .av2-speech__face { animation: av2-pop 0.3s ease-out; }
+/* La troupe vivante: the one who asks stands beside the bubble, cut at the chest by its baseline. */
+.av2 .av2-speech__face[data-actor] { align-self: flex-end; margin: 0 -4px -2px -6px; animation: none; }
 .av2 .av2-speech__bubble {
   flex: 1 1 auto;
   min-width: 0;
