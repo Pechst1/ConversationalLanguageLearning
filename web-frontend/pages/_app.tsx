@@ -26,6 +26,7 @@ import '@/styles/globals.css';
 // a page that never renders <AtelierV2Root> is unaffected by its presence.
 import '@/styles/atelier-v2.css';
 import '@/styles/atelier-v2-voices.css';
+import '@/styles/day-session.css';
 // WP-116: the drawn cast's motion (idle loops, blinks), all stoppable by reduced motion.
 import '@/styles/cast-rig.css';
 // Les apparitions: the cast walking in on the app (components/cast/CameoLayer).

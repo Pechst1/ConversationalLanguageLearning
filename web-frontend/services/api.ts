@@ -21,6 +21,7 @@ import type {
   AttemptResult,
   CapabilityProgress,
   CreateJourneyBody,
+  DaySession,
   FinishBody,
   HelpBody,
   HelpResult,
@@ -28,6 +29,8 @@ import type {
   JourneySnapshot,
   LineAudioBody,
   LineAudioResult,
+  PaceName,
+  PaceOptions,
   RetryBody,
   RevisionBody,
   TodayEnvelope,
@@ -871,6 +874,8 @@ export interface VocabularyDueContextParams extends VocabularyRecommendationPara
   /** WP-154: the drill page's own deck — `session` serves the rest of the batch
    *  dealt today, `more` appends the «Encore N mots» continuation to it. */
   drill?: 'session' | 'more';
+  /** Round 3: «Noch 10 Wörter» after the day — new words past the day's pace. */
+  extra?: number;
 }
 
 export type VocabularyWord = components['schemas']['VocabularyWordRead'];
@@ -3210,6 +3215,22 @@ class ApiService {
     // WP-116: the drawn cast's looks for this learner (Camille after T1 Day B).
     rememberCastVariants((envelope?.headline as { cast_variants?: Record<string, string> } | null | undefined)?.cast_variants);
     return envelope;
+  }
+
+  /** Round 3: the Tempo sheet — what each pace costs and when it reaches the goal. */
+  async getDaySessionPace(): Promise<PaceOptions> {
+    return this.get<PaceOptions>('/daily-journeys/session/pace', this.journeyConfig());
+  }
+
+  async setDaySessionPace(pace: PaceName): Promise<PaceOptions> {
+    const response = await this.api.put<PaceOptions>('/daily-journeys/session/pace', { pace }, this.journeyConfig());
+    return response.data;
+  }
+
+  /** Round 3: the day's word deck is finished; the day moves on to grammar. */
+  async markDaySessionWordsDone(): Promise<DaySession | null> {
+    const response = await this.api.post<DaySession | null>('/daily-journeys/session/words-done', {}, this.journeyConfig());
+    return response.data;
   }
 
   async getDailyJourney(journeyId: string): Promise<JourneySnapshot> {

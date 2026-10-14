@@ -27,6 +27,7 @@ from app.core.security import (
 )
 from app.db.models.user import RefreshToken, User
 from app.schemas import Token, UserCreate
+from app.services.daily_session import DEFAULT_PACE, PACES
 
 logger = logging.getLogger(__name__)
 
@@ -154,8 +155,10 @@ class AuthService:
             speaking_comfort=payload.speaking_comfort,
             daily_goal_minutes=payload.daily_goal_minutes,
             daily_goal_xp=payload.daily_goal_xp,
-            # Stored for WP-L6, which makes it the vocabulary pace.
-            new_words_per_day=payload.new_words_per_day,
+            # Round 3 (owner, 2026-10-14): a new learner starts on the Normal
+            # pace, 20 new words a day; the Tempo sheet changes it.
+            daily_pace=DEFAULT_PACE,
+            new_words_per_day=PACES[DEFAULT_PACE].words,
             default_vocab_direction=payload.default_vocab_direction
             or _default_vocab_direction_for(payload.native_language),
             notifications_enabled=payload.notifications_enabled,

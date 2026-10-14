@@ -56,6 +56,7 @@ from app.schemas.daily_journey import (
     CapabilityEvidence,
     CapabilityProgress,
     CapabilitySummary,
+    DaySession,
     DayTimeEstimate,
     ForgeEntry,
     HelpResult,
@@ -73,6 +74,7 @@ from app.schemas.daily_journey import (
     LegacyResume,
     NextFocus,
     NextTurn,
+    PaceOptions,
     PracticedTarget,
     RespondPrompt,
     ScenarioDescriptor,
@@ -93,6 +95,7 @@ from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
     FIRST_DAY_KIND,
     READ_MIN_BUDGET_SECONDS,
+    TERMINAL_JOURNEY_STATUSES,
     AppliedEvidence,
     AssistanceLevel,
     AttemptAnswer,
@@ -1102,6 +1105,36 @@ class DailyJourneyService:
             journey=journey,
         )
         snapshot = self.snapshot(journey) if journey else None
+        due_words = (
+            run_best_effort(
+                self.db,
+                "daily_journey: due words for today",
+                lambda: _due_word_count(self.db, user),
+                default=0,
+                log=logger,
+            )
+            if enabled
+            else 0
+        )
+        session = (
+            run_best_effort(
+                self.db,
+                "daily_journey: the day's session",
+                lambda: self._day_session(
+                    user,
+                    journey=journey,
+                    today=today,
+                    snapshot=snapshot,
+                    available=available,
+                    forge=forge_entry,
+                    due_words=due_words,
+                ),
+                default=None,
+                log=logger,
+            )
+            if enabled and forge_entry is not None
+            else None
+        )
         return TodayEnvelope(
             learner_level=learner_level_band(user),
             enabled=enabled,
@@ -1116,10 +1149,11 @@ class DailyJourneyService:
             forge=forge_entry,
             # WP-128: the one estimate Home shows, and each extension's own.
             time_estimate=(
-                self._today_time_estimate(user, snapshot, available, forge_entry)
+                self._today_time_estimate(user, snapshot, available, forge_entry, due=due_words)
                 if enabled
                 else None
             ),
+            session=session,
             because=self._because_for(journey),
             is_warm=self._draft_is_warm(user) if enabled and journey is None else False,
             headline=self._headline(user, journey, today) if enabled else None,
@@ -1133,6 +1167,8 @@ class DailyJourneyService:
         snapshot: JourneySnapshot | None,
         available: ScenarioDescriptor | None,
         forge: ForgeEntry | None,
+        *,
+        due: int | None = None,
     ) -> DayTimeEstimate | None:
         """WP-128: today's core — the plan's once planned, else the forecast the
         offer card prints — and every optional extension with its own minutes:
@@ -1153,13 +1189,14 @@ class DailyJourneyService:
         else:
             return None
         band = learner_level_band(user) or (available.level_band if available else None)
-        due = run_best_effort(
-            self.db,
-            "daily_journey: due words for the estimate",
-            lambda: _due_word_count(self.db, user),
-            default=0,
-            log=logger,
-        )
+        if due is None:
+            due = run_best_effort(
+                self.db,
+                "daily_journey: due words for the estimate",
+                lambda: _due_word_count(self.db, user),
+                default=0,
+                log=logger,
+            )
         extensions = list(estimate.get("extensions") or [])
         if word_drill_seconds(due) > 0:
             extensions.append({"kind": "words", "seconds": word_drill_seconds(due)})
@@ -1168,6 +1205,95 @@ class DailyJourneyService:
             extensions.append({"kind": "forge", "seconds": int(forge.budget_seconds)})
         estimate["extensions"] = extensions
         return DayTimeEstimate.model_validate(estimate)
+
+    # ------------------------------------------------------------------
+    # Round 3: the day as one sequence
+    # ------------------------------------------------------------------
+
+    def _day_session(
+        self,
+        user: User,
+        *,
+        journey: DailyJourney | None,
+        today: date,
+        snapshot: JourneySnapshot | None,
+        available: ScenarioDescriptor | None,
+        forge: ForgeEntry,
+        due_words: int,
+    ) -> DaySession:
+        """Szene, Wörter, Grammatik, Fertig — each with its state and minutes."""
+
+        from app.services.daily_session import build_session
+
+        todays = journey if journey is not None and journey.local_date == today else None
+        scene_done = todays is not None and todays.status in {
+            status.value for status in TERMINAL_JOURNEY_STATUSES
+        }
+        scene_seconds: int | None = None
+        if snapshot is not None and snapshot.time_estimate is not None:
+            scene_seconds = int(snapshot.time_estimate.core_seconds)
+        elif available is not None:
+            scene_seconds = int(available.estimated_seconds)
+        forge_href = forge_href_for(forge.concept_id, budget_seconds=forge.budget_seconds)
+        return DaySession.model_validate(
+            build_session(
+                self.db,
+                user,
+                journey=todays,
+                scene_done=scene_done,
+                scene_seconds=scene_seconds,
+                reviews_due=due_words,
+                forge_href=f"{forge_href}&from=day",
+                forge_blocks_today=forge.blocks_today,
+            )
+        )
+
+    def todays_session(self, user: User) -> DaySession | None:
+        return self.get_today(user).session
+
+    def mark_session_words_done(self, user: User) -> DaySession | None:
+        """The learner finished the day's word deck: the word step is done."""
+
+        from app.services.daily_session import mark_words_done
+
+        journey = self._occupying_journey(user)
+        if journey is None:
+            zone = resolve_timezone(getattr(user, "timezone", None))
+            journey = self._journey_for_date(user, local_date_for(zone))
+        if journey is not None:
+            today = local_date_for(journey.timezone)
+            if journey.local_date == today:
+                mark_words_done(self.db, journey)
+                self.db.commit()
+        return self.todays_session(user)
+
+    def pace_options(self, user: User) -> PaceOptions:
+        from app.services.daily_session import pace_options
+
+        envelope = self.get_today(user)
+        scene_seconds: int | None = None
+        if envelope.time_estimate is not None:
+            scene_seconds = int(envelope.time_estimate.core_seconds)
+        due = run_best_effort(
+            self.db,
+            "daily_journey: due words for the pace sheet",
+            lambda: _due_word_count(self.db, user),
+            default=0,
+            log=logger,
+        )
+        return PaceOptions.model_validate(
+            pace_options(self.db, user, scene_seconds=scene_seconds, reviews_due=due)
+        )
+
+    def set_pace(self, user: User, pace: str) -> PaceOptions:
+        from app.services.daily_session import PACES
+
+        user.daily_pace = pace
+        user.new_words_per_day = PACES[pace].words  # type: ignore[index]
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+        return self.pace_options(user)
 
     def _headline(self, user: User, journey: DailyJourney | None, today) -> dict | None:
         """WP-109: today's episode, headlined — read-only, never costs Home."""

@@ -133,6 +133,7 @@ def test_the_first_day_is_the_story_then_la_forge_then_the_words(assembled_clien
     headers = support.register(assembled_client, email, cefr="A2.1")
     user = db_session.get(User, support.learner_id(db_session, email))
     user.daily_goal_minutes = 20  # Soutenu: La Forge is folded into an ordinary day
+    user.daily_pace = None  # a rhythm learner: no round-3 pace picked
     db_session.commit()
     d = support.Driver(assembled_client, headers, db=db_session)
     d.create()

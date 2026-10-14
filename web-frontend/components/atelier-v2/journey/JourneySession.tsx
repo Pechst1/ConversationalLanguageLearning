@@ -48,6 +48,8 @@ import {
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
+import Router from 'next/router';
+import { sessionAfterScene } from '@/lib/day-session';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
@@ -289,6 +291,9 @@ export function JourneySession({
   const dayFinished = phase.kind === 'finished';
   // A day ended early is not the story done: the route ticks it only when completed.
   const storyCompleted = dayFinished && journey?.status === 'completed';
+  // Round 3: with the day as one sequence, the scene's ending hands on to the
+  // next step itself, so the first day's old route stands down.
+  const daySession = Boolean(controller.envelope?.session);
   React.useEffect(() => {
     if (!firstDay || !storyCompleted || !localDate) return;
     const store = deviceStore();
@@ -408,7 +413,7 @@ export function JourneySession({
             <RvJourneyPapier language={chromeLanguage} onDone={() => setPapierDone(true)} />
           ) : (
             <>
-            {firstDay && storyCompleted && firstDayRoute && (
+            {firstDay && storyCompleted && firstDayRoute && !daySession && (
               <div className="journey-first-route">
                 <FirstDayRoute
                   language={chromeLanguage}
@@ -425,7 +430,7 @@ export function JourneySession({
               onExit={onExit}
               morePractice={morePractice}
               onPractice={onPractice}
-              forgeAfterDay={firstDay && storyCompleted && firstDayRoute ? null : forgeAfterDay}
+              forgeAfterDay={(firstDay && storyCompleted && firstDayRoute) || daySession ? null : forgeAfterDay}
             />
             </>
           )}
@@ -843,11 +848,17 @@ export function JourneyRecapView({
   forgeAfterDay?: { label: string; onSelect: () => void } | null;
 }) {
   const speaker = journeySpeaker(phase.journey);
+  const language = journeyChromeLanguage(controller);
+  // Round 3: with the day as one sequence, a completed scene hands on to the
+  // words (or the grammar); the seal and the curtain call wait for «Fertig».
+  const next =
+    phase.journey.status === 'completed' ? sessionAfterScene(controller.envelope?.session, language) : null;
   return (
     <JourneyRecap
       journey={phase.journey}
       recap={phase.recap}
-      language={journeyChromeLanguage(controller)}
+      language={language}
+      sessionNext={next ? { label: next.label, meta: next.meta, onSelect: () => { void Router.push(next.href); } } : null}
       onExit={onExit}
       morePractice={morePractice}
       onPractice={onPractice}

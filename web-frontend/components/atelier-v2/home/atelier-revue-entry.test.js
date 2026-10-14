@@ -246,8 +246,11 @@ test('pages/atelier.tsx wires La Une through lib/revue-une.ts, beside the day an
   assert.match(page, /\.catch\(\(\) => \{ \/\* the Revue is an enrichment/, 'a failed read is swallowed');
   assert.match(page, /revueUneEntry\(\{[\s\S]*?dayShape: dayShapeFrom\(dayJourney, dayEnvelope\),[\s\S]*?special: specialEdition,/);
   assert.match(page, /revueHomeChips<HomeChip>\(revueEntry, dayChips\)/);
-  assert.match(page, /hero=\{revueHero \?\? journeyCard\}/);
-  assert.match(page, /planHidden=\{Boolean\(revueHero\) \|\|/);
+  // Round 3: the hero is the Revue's (else the journey card), with the day's one
+  // next-step button under it; on a news day the programme stays, Le Papier first.
+  assert.match(page, /const homeHero = [\s\S]*?\{revueHero \?\? journeyCard\}[\s\S]*?: \(revueHero \?\? journeyCard\);/);
+  assert.match(page, /hero=\{homeHero\}/);
+  assert.match(page, /planHidden=\{\(Boolean\(revueHero\) && !daySession\) \|\|/);
   // WP-119 phase 3: the hero opens the day until it is done (the hero hides the plan row), then /revue.
   assert.match(page, /if \(revueHeroOpensDay\(revueDayDone, Boolean\(onOpenDay\)\) && onOpenDay\) onOpenDay\(\);\s*else void router\.push\(revueOpenHref\(offer\)\);/);
   assert.match(page, /router\.push\(revueDossierHref\(dossierId\)\)/);

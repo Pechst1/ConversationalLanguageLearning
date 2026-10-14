@@ -91,6 +91,7 @@ def _login(client: TestClient, db: Session, *, minutes: int = 30) -> tuple[dict,
     token = client.post("/api/v1/auth/login", json={"email": email, "password": password}).json()["access_token"]
     user = db.get(User, UUID(str(decode_token(token)["sub"])))
     user.daily_goal_minutes = minutes  # Intensif: 30 a day, 18 of them the drill's before the journey
+    user.daily_pace = None  # Round 3: a learner who never picked a pace keeps the rhythm's intake
     user.new_words_per_day = None
     user.timezone = "Europe/Paris"
     db.commit()

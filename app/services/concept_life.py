@@ -442,10 +442,14 @@ def weekly_concept_rate(db: Session, user: Any, *, now: datetime) -> float:
     """New units a week at this learner's rhythm, throttled (§2.2) — may be
     fractional: Léger's one a week, halved, is one every two weeks."""
 
+    from app.services.daily_session import pace_rules_per_week
     from app.services.journey_rhythm import rhythm_of
     from app.services.vocabulary_pace import intake_throttle_factor
 
-    base = NEW_CONCEPTS_PER_WEEK.get(rhythm_of(user), NEW_CONCEPTS_PER_WEEK["regulier"])
+    # Round 3: a pace picked on the Tempo sheet sets the rules a week.
+    base = pace_rules_per_week(user) or NEW_CONCEPTS_PER_WEEK.get(
+        rhythm_of(user), NEW_CONCEPTS_PER_WEEK["regulier"]
+    )
     try:
         factor = float(intake_throttle_factor(db, user, now=now))
     except Exception:  # pragma: no cover - a broken read never stops the day

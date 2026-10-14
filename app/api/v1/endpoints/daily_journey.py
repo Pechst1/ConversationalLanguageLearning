@@ -17,6 +17,7 @@ from app.db.models.user import User
 from app.schemas.daily_journey import (
     AttemptResult,
     CapabilityProgress,
+    DaySession,
     HelpResult,
     JourneyAdvanceRequest,
     JourneyAttemptRequest,
@@ -26,6 +27,8 @@ from app.schemas.daily_journey import (
     JourneyRetryRequest,
     JourneyRevisionRequest,
     JourneySnapshot,
+    PaceOptions,
+    PaceUpdate,
     TodayEnvelope,
 )
 from app.services.daily_journey import DailyJourneyService
@@ -72,6 +75,36 @@ def read_today(
     """
 
     return service.get_today(current_user, timezone_hint=timezone)
+
+
+@router.get("/session/pace", response_model=PaceOptions)
+def read_pace(
+    current_user: User = Depends(get_current_user),
+    service: DailyJourneyService = Depends(get_journey_service),
+) -> PaceOptions:
+    """Round 3: the Tempo sheet — what each pace costs today and in eight weeks,
+    and when it reaches the learner's goal level."""
+
+    return service.pace_options(current_user)
+
+
+@router.put("/session/pace", response_model=PaceOptions)
+def update_pace(
+    payload: PaceUpdate,
+    current_user: User = Depends(get_current_user),
+    service: DailyJourneyService = Depends(get_journey_service),
+) -> PaceOptions:
+    return service.set_pace(current_user, payload.pace)
+
+
+@router.post("/session/words-done", response_model=DaySession | None)
+def words_done(
+    current_user: User = Depends(get_current_user),
+    service: DailyJourneyService = Depends(get_journey_service),
+) -> DaySession | None:
+    """Round 3: the learner finished today's word deck; the day moves on to grammar."""
+
+    return service.mark_session_words_done(current_user)
 
 
 @router.get("/capabilities/progress", response_model=CapabilityProgress)

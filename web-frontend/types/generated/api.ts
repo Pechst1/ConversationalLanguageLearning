@@ -1391,6 +1391,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daily-journeys/session/pace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pace
+         * @description Round 3: the Tempo sheet — what each pace costs today and in eight weeks,
+         *     and when it reaches the learner's goal level.
+         */
+        get: operations["read_pace_api_v1_daily_journeys_session_pace_get"];
+        /** Update Pace */
+        put: operations["update_pace_api_v1_daily_journeys_session_pace_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daily-journeys/session/words-done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Words Done
+         * @description Round 3: the learner finished today's word deck; the day moves on to grammar.
+         */
+        post: operations["words_done_api_v1_daily_journeys_session_words_done_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daily-journeys/today": {
         parameters: {
             query?: never;
@@ -7277,6 +7319,86 @@ export interface components {
             words?: components["schemas"]["DailyWordEntry"][];
         };
         /**
+         * DaySession
+         * @description Round 3 (owner, 2026-10-14): the day as one sequence — Szene, Wörter,
+         *     Grammatik, Fertig — at the learner's pace. See ``app.services.daily_session``.
+         */
+        DaySession: {
+            /**
+             * Done
+             * @default false
+             */
+            done: boolean;
+            /**
+             * Minutes Left
+             * @default 0
+             */
+            minutes_left: number;
+            /** More Href */
+            more_href: string;
+            /** More Minutes */
+            more_minutes: number;
+            /** More Words */
+            more_words: number;
+            /** Next Kind */
+            next_kind: ("scene" | "words" | "grammar" | "finish") | null;
+            /**
+             * Pace
+             * @enum {string}
+             */
+            pace: "ruhig" | "normal" | "schnell";
+            /** Steps */
+            steps: components["schemas"]["DaySessionStep"][];
+            tally: components["schemas"]["DaySessionTally"];
+        };
+        /**
+         * DaySessionStep
+         * @description Round 3: one of the day's four steps, in order.
+         */
+        DaySessionStep: {
+            /** Count */
+            count: number | null;
+            /** Href */
+            href: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "scene" | "words" | "grammar" | "finish";
+            /**
+             * Minutes
+             * @default 0
+             */
+            minutes: number;
+            /** New Left */
+            new_left: number | null;
+            /** Reviews */
+            reviews: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "done" | "next" | "todo";
+        };
+        /** DaySessionTally */
+        DaySessionTally: {
+            /**
+             * Exercises
+             * @default 0
+             */
+            exercises: number;
+            /**
+             * Scenes
+             * @default 0
+             */
+            scenes: number;
+            /**
+             * Words
+             * @default 0
+             */
+            words: number;
+        };
+        /**
          * DayTimeEstimate
          * @description WP-128 — the one estimate every surface shows: Home, the entry, the plan, the ending.
          *
@@ -9808,6 +9930,57 @@ export interface components {
              * @default task
              */
             type?: string;
+        };
+        /** PaceOption */
+        PaceOption: {
+            /** Exercises */
+            exercises: number;
+            /** Goal Weeks */
+            goal_weeks: number;
+            /** Minutes Today */
+            minutes_today: number;
+            /** Minutes Week 8 */
+            minutes_week_8: number;
+            /**
+             * Pace
+             * @enum {string}
+             */
+            pace: "ruhig" | "normal" | "schnell";
+            /** Reviews Week 8 */
+            reviews_week_8: number;
+            /** Rules Per Week */
+            rules_per_week: number;
+            /** Words */
+            words: number;
+        };
+        /**
+         * PaceOptions
+         * @description Round 3: the Tempo sheet — what each pace costs and when it reaches the goal.
+         */
+        PaceOptions: {
+            /** Chosen */
+            chosen: boolean;
+            /**
+             * Current
+             * @enum {string}
+             */
+            current: "ruhig" | "normal" | "schnell";
+            /** Goal */
+            goal: string;
+            /** Options */
+            options: components["schemas"]["PaceOption"][];
+            /** Units Left */
+            units_left: number;
+            /** Words Left */
+            words_left: number;
+        };
+        /** PaceUpdate */
+        PaceUpdate: {
+            /**
+             * Pace
+             * @enum {string}
+             */
+            pace: "ruhig" | "normal" | "schnell";
         };
         /**
          * PasswordResetConfirm
@@ -13113,6 +13286,7 @@ export interface components {
              */
             practice_href: string;
             season_premiere: components["schemas"]["SeasonPremiereView"] | null;
+            session: components["schemas"]["DaySession"] | null;
             streak: components["schemas"]["StreakView"] | null;
             time_estimate: components["schemas"]["DayTimeEstimate"] | null;
             /** Timezone */
@@ -13674,6 +13848,8 @@ export interface components {
             daily_goal_minutes: number;
             /** Daily Goal Xp */
             daily_goal_xp: number;
+            /** Daily Pace */
+            daily_pace?: ("ruhig" | "normal" | "schnell") | null;
             /** Default Vocab Direction */
             default_vocab_direction: string;
             /**
@@ -13774,6 +13950,8 @@ export interface components {
             daily_goal_minutes?: number | null;
             /** Daily Goal Xp */
             daily_goal_xp?: number | null;
+            /** Daily Pace */
+            daily_pace?: ("ruhig" | "normal" | "schnell") | null;
             /** Default Vocab Direction */
             default_vocab_direction?: ("fr_to_de" | "de_to_fr" | "fr_to_en" | "en_to_fr" | "mixed") | null;
             /** Font Size */
@@ -16739,6 +16917,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_pace_api_v1_daily_journeys_session_pace_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaceOptions"];
+                };
+            };
+        };
+    };
+    update_pace_api_v1_daily_journeys_session_pace_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaceOptions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    words_done_api_v1_daily_journeys_session_words_done_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DaySession"] | null;
                 };
             };
         };
@@ -22331,6 +22582,8 @@ export interface operations {
                 /** @description WP-154: the word drill's own deck. `session` serves the rest of the batch dealt today (a new one once it is answered); `more` appends the «Encore N mots» continuation. */
                 drill?: string | null;
                 due_limit?: number;
+                /** @description Round 3: «Noch 10 Wörter» after the day — new words beyond the day's pace, appended like `more`. Only after the learner chose to keep going. */
+                extra?: number;
                 feuilleton_scene_id?: string | null;
                 fragile_limit?: number;
                 limit?: number;

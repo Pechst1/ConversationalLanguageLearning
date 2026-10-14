@@ -93,6 +93,8 @@ const OWN_SHELL_ROUTES = new Set([
   '/audio-session',
   // WP-S7: Éclair draws its own top bar (close, clock, score).
   '/eclair',
+  // Round 3: «Fertig für heute» is the day's last screen, like the recap it follows.
+  '/fertig',
   // WP-72: the legal pages draw their own bar (back + language) and are read
   // signed out, so no masthead.
   '/privacy',
