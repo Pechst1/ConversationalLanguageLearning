@@ -1722,7 +1722,8 @@ export default function AtelierPage() {
   // Walk 2026-10-14 (#122): the forge recap's «Zurück zu La Une» kept the query,
   // and «Weiter lernen» to the same URL did nothing.
   const leavePracticeLanding = () => {
-    if (!practiceMode) return;
+    // A test-out landing (`?testout=`) is not a `practiceMode` URL, but it reopens too.
+    if (!practiceMode && !router.query.testout) return;
     void router.replace('/atelier', undefined, { shallow: true });
   };
 
