@@ -1682,6 +1682,15 @@ export default function AtelierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practiceMode, practiceQueue, loading, session, activeSessionReady]);
 
+  // Every way back to Home from a practice landing drops `?mode=forge` /
+  // `?mode=practice` / `?testout=`, so the same link can open the séance again.
+  // Walk 2026-10-14 (#122): the forge recap's «Zurück zu La Une» kept the query,
+  // and «Weiter lernen» to the same URL did nothing.
+  const leavePracticeLanding = () => {
+    if (!practiceMode) return;
+    void router.replace('/atelier', undefined, { shallow: true });
+  };
+
   // WP-S4: a forge block folded into the day hands the learner back to the
   // day's forge step, which now reads «Back to the scene».
   const returnToForgedDay = () => {
@@ -2183,9 +2192,7 @@ export default function AtelierPage() {
                 void apiService.exitAtelierSession(session.session_id).catch(() => undefined);
               }
               setView('today');
-              // Home is not a practice landing: drop `?mode=forge` / `?testout=`
-              // so the same link can open the séance again.
-              void router.replace('/atelier', undefined, { shallow: true });
+              leavePracticeLanding();
             }}
             produceAnswer={produceAnswer}
             language={pageChromeLanguage}
@@ -2215,6 +2222,8 @@ export default function AtelierPage() {
                 return;
               }
               setView('today');
+              // Before the action, so a link it follows is not cancelled.
+              leavePracticeLanding();
               handleRecommendedAction(legacyRecommendation);
             }}
             onClose={() => {
@@ -2224,6 +2233,7 @@ export default function AtelierPage() {
                 return;
               }
               setView('today');
+              leavePracticeLanding();
             }}
           />
         )}
@@ -2239,6 +2249,7 @@ export default function AtelierPage() {
               setReviewTask(null);
               setReviewAnswer('');
               setReviewResult(null);
+              leavePracticeLanding();
             }}
           />
         )}
