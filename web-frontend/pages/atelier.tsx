@@ -45,7 +45,6 @@ import {
   cacheAtelierEdition,
   clearResumeActivity,
   readCachedAtelierEdition,
-  saveResumeActivity,
 } from '@/lib/pilot-resilience';
 import { homeRender, readHomeKind, rememberHomeKind, resolvedHomeKind, type HomeKind } from '@/lib/home-loading';
 import { type LuAskKind } from '@/components/laune/LaUne';
@@ -901,11 +900,10 @@ export default function AtelierPage() {
 
   useEffect(() => {
     if (!session || session.status === 'completed' || forgeViewOf(session.forge)?.mode === 'test_out') return;
-    saveResumeActivity({
-      href: `/atelier?resume=${session.session_id}`,
-      kind: 'atelier',
-      entityId: session.session_id,
-    });
+    // No launch resume for the Forge (`lib/journey-resume.ts`): a cold start
+    // shows Home, whose day button opens the Forge step. Clear what an older
+    // build stored so it cannot come back.
+    clearResumeActivity('atelier');
     const requestedSession = router.query.resume ?? router.query.session;
     if (router.isReady && requestedSession === session.session_id) setView('session');
   }, [router.isReady, router.query.resume, router.query.session, session]);

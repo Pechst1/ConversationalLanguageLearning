@@ -113,7 +113,14 @@ export function resolveResumeHref(
 ): string | null {
   const journey = readJourneyResume(now, storage);
   if (journey) return journey.href;
-  return readResumeActivity(storage)?.href ?? null;
+  const activity = readResumeActivity(storage);
+  // 2026-10-14 (owner, iPhone): the app opened inside La Forge on every
+  // launch. Home rewrote the `atelier` record whenever it loaded an unfinished
+  // Forge, so the guess never went stale. Since round 3 the Forge is a step of
+  // the day and Home's one button opens it, so a launch lands on Home instead.
+  // A record left by an older build is ignored here, never navigated to.
+  if (!activity || activity.kind === 'atelier') return null;
+  return activity.href;
 }
 
 // ---------------------------------------------------------------------------
