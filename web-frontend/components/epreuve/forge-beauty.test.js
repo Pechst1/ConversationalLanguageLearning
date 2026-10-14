@@ -137,7 +137,7 @@ test('the page draws the forge head instead of the eyebrow and concept row', () 
   assert.ok(session.indexOf('<ForgeHead', forgeBranch) > forgeBranch);
   // The legacy eyebrow (round · mode · i/n) only renders in the other branch.
   assert.ok(session.indexOf('<EpEyebrow', forgeBranch) > session.indexOf('<ForgeHead', forgeBranch));
-  assert.match(session, /middle=\{forge \? <ForgeCount copy=\{fc\} count=\{seanceCountText\(fc, forge\)\} \/> : undefined\}/);
+  assert.match(session, /middle=\{forge \? <ForgeCount copy=\{fc\} count=\{seanceCountText\(fc, forge, activeItemId\)\} \/> : undefined\}/);
   // The «More practice» strip never sits over a forge séance.
   assert.match(page, /\{practiceMode && !forge && \(/);
   // One Garamond line: no lock headline, and the legacy rule panel in the sans.

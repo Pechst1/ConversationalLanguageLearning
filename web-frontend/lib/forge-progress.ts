@@ -66,24 +66,36 @@ type ForgeViewLike = {
   length?: number | null;
   answered?: number | null;
   finished?: boolean | null;
-  next?: { position?: number | null; length?: number | null } | null;
+  next?: { position?: number | null; length?: number | null; item_id?: string | number | null } | null;
 } | null | undefined;
 
-/** The séance's quiet «n of N»: the item on screen, of the séance's length. */
-export function seanceCount(forge: ForgeViewLike): { n: number; total: number } | null {
+/**
+ * The séance's quiet «n of N»: the item on screen, of the séance's length.
+ * Walk #90: once an item is answered the server already names the next one;
+ * while the answered item is still on screen (its feedback, «Try again») the
+ * count stays on it, so a retry no longer reads «2 of 12».
+ */
+export function seanceCount(
+  forge: ForgeViewLike,
+  onScreenItemId?: string | null,
+): { n: number; total: number } | null {
   if (!forge) return null;
   const total = Math.max(0, Math.floor(Number(forge.next?.length ?? forge.length) || 0));
   if (total < 1) return null;
   const answered = Math.max(0, Math.floor(Number(forge.answered) || 0));
   const position = Number(forge.next?.position);
+  const nextId = forge.next?.item_id;
+  const behindNext = Boolean(onScreenItemId)
+    && nextId != null && String(nextId) !== ''
+    && String(nextId) !== String(onScreenItemId);
   const current = forge.finished || !forge.next
     ? answered
-    : Number.isFinite(position) ? position + 1 : answered + 1;
+    : Number.isFinite(position) ? (behindNext ? position : position + 1) : answered + 1;
   return { n: Math.max(1, Math.min(total, current)), total };
 }
 
-export function seanceCountText(copy: ForgeCopy, forge: ForgeViewLike): string {
-  const count = seanceCount(forge);
+export function seanceCountText(copy: ForgeCopy, forge: ForgeViewLike, onScreenItemId?: string | null): string {
+  const count = seanceCount(forge, onScreenItemId);
   return count ? fillForge(copy.count_of, count) : '';
 }
 

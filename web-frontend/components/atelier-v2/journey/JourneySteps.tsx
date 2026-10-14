@@ -1616,6 +1616,12 @@ export function ResolutionStepView({
  * them is something the learner got wrong. `journey-state.ts` guarantees that
  * separation in the data; this keeps it true in the pixels.
  */
+/** Live walk #116: only a step the learner writes in has an answer to keep. */
+const ANSWERLESS_STEPS = new Set(['scene', 'read', 'resolution', 'rule']);
+export function stepKeepsAnswer(stepKind: string | null | undefined): boolean {
+  return !stepKind || !ANSWERLESS_STEPS.has(stepKind);
+}
+
 export function JourneyFeedbackView({
   feedback,
   copy,
@@ -1715,7 +1721,9 @@ export function JourneyFeedbackView({
       return (
         <div data-state="error">
           <Notice tone="alert" live="alert" shape="action">
-            <p>{feedback.message === 'session_expired' ? sessionExpiredCopy[copyLanguage(copy)].message : copy.transport_error}</p>
+            <p>{feedback.message === 'session_expired'
+              ? sessionExpiredCopy[copyLanguage(copy)].message
+              : stepKeepsAnswer(stepKind) ? copy.transport_error : copy.transport_error_plain}</p>
             {feedback.message === 'session_expired' && <Action tone="primary" onClick={() => void reconnectWebSession(window.location.pathname + window.location.search)}>
               {sessionExpiredCopy[copyLanguage(copy)].action}
             </Action>}

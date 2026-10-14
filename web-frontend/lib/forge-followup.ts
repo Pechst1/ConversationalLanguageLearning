@@ -109,10 +109,23 @@ export function foldSentence(value: string | string[] | null | undefined): strin
     .toLowerCase();
 }
 
-/** True when the answer (typed, or tiles in order) is one of the accepted sentences. */
+/** The sentence without its punctuation marks: what a tile build can say. */
+function foldWords(value: string | string[]): string {
+  return foldSentence(value).replace(/[.!?…;:,]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * True when the answer (typed, or tiles in order) is one of the accepted sentences.
+ * Tiles carry words only (live walk #115: no «,» or «?» tile), so a tile build is
+ * compared without punctuation; a typed answer still keeps its inner commas.
+ */
 export function followUpMatches(answer: string | string[], followUp: ForgeFollowUp): boolean {
   const said = foldSentence(answer);
   if (!said) return false;
+  if (Array.isArray(answer)) {
+    const words = foldWords(answer);
+    return followUp.accepted.some((sentence) => foldWords(sentence) === words);
+  }
   return followUp.accepted.some((sentence) => foldSentence(sentence) === said);
 }
 

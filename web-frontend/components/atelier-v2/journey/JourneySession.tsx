@@ -588,16 +588,20 @@ export function JourneySession({
                 />
               )}
 
-              <JourneyFeedbackView
-                feedback={feedback}
-                copy={copy}
-                onContinue={actions.continueJourney}
-                onRetry={actions.retryLastAnswer}
-                onDismiss={actions.clearFeedback}
-                speaker={speaker}
-                stepKind={step?.kind ?? null}
-                faceShown={step?.kind === 'recall' && Boolean(asker)}
-              />
+              {/* Live walk #116: under the reader the notice sat behind its
+                  pinned panel dots, and «Try again» could not be tapped. */}
+              <div className={immersive ? 'fr-over-nav' : undefined}>
+                <JourneyFeedbackView
+                  feedback={feedback}
+                  copy={copy}
+                  onContinue={actions.continueJourney}
+                  onRetry={actions.retryLastAnswer}
+                  onDismiss={actions.clearFeedback}
+                  speaker={speaker}
+                  stepKind={step?.kind ?? null}
+                  faceShown={step?.kind === 'recall' && Boolean(asker)}
+                />
+              </div>
 
               {/* Third tier. Quiet by construction, so the step's own primary
                   stays the only primary in the composition. Hidden under the

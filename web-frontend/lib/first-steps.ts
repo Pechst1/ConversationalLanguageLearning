@@ -105,8 +105,8 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         body: 'Antworte auf Französisch, schriftlich oder laut. Die Geschichte reagiert.',
       },
       resolution: {
-        title: 'Das Ende des Tages',
-        body: 'Hier endet die Szene. Dein Tag ist geschafft.',
+        title: 'Das Ende der Folge',
+        body: 'Hier endet die Szene. Danach kommen die Regel von heute und La Forge.',
       },
       read: {
         title: 'Eine Seite zum Lesen',
@@ -183,8 +183,8 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         body: 'Answer in French, typed or spoken. The story reacts.',
       },
       resolution: {
-        title: 'The end of the day',
-        body: 'The scene ends here. Your day is done.',
+        title: 'The end of the episode',
+        body: 'The scene ends here. Next come today’s rule and La Forge.',
       },
       read: {
         title: 'A page to read',
@@ -261,8 +261,8 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         body: 'Répondez en français, à l’écrit ou à l’oral. L’histoire réagit.',
       },
       resolution: {
-        title: 'La fin du jour',
-        body: 'La scène se termine ici. Votre journée est faite.',
+        title: 'La fin de l’épisode',
+        body: 'La scène se termine ici. Ensuite viennent la règle du jour et La Forge.',
       },
       read: {
         title: 'Une page à lire',

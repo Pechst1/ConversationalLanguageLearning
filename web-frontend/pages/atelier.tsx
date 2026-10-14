@@ -153,7 +153,8 @@ import {
   stepText,
   type SeenItem,
 } from '@/lib/forge-progress';
-import { isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
+import { rewardMomentCopy } from '@/lib/reward-moment-copy';
+import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboOf, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, comboLabel, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref } from '@/lib/grammar-map';
@@ -1457,7 +1458,41 @@ export default function AtelierPage() {
     setSubmitted((prev) => ({ ...prev, [scopedKey]: false }));
     setResubmitKeys((prev) => ({ ...prev, [scopedKey]: true }));
     setRecentCorrection(null);
+    // Walk #90: a retried choice starts unchosen; «Je es sérieux.» with «es ·
+    // gewählt» stayed filled in. Typed answers stay, ready to fix.
+    if (exerciseRound === 'recognize') {
+      setAnswers((prev) => {
+        const current = prev[scopedKey];
+        if (!current) return prev;
+        if (!activeAnswerItemId) return { ...prev, [scopedKey]: {} };
+        if (!(activeAnswerItemId in current)) return prev;
+        const { [activeAnswerItemId]: _wrong, ...rest } = current;
+        return { ...prev, [scopedKey]: rest };
+      });
+    }
   };
+
+  // Live walk #131: La Forge may pose an item again that was already answered
+  // (a retried miss comes back later). It is asked fresh, as a resubmission;
+  // shown graded, its «Continue» re-seated the same item and did nothing.
+  const reposeForgeItem = (key: string) => {
+    setSubmitted((prev) => ({ ...prev, [key]: false }));
+    setResubmitKeys((prev) => ({ ...prev, [key]: true }));
+    setAnswers((prev) => {
+      if (!(key in prev)) return prev;
+      const { [key]: _dropped, ...rest } = prev;
+      return rest;
+    });
+    setRecentCorrection(null);
+  };
+  const forgeSeatedRef = useRef(false);
+  useEffect(() => {
+    if (!forgeSeatedRef.current) return;
+    forgeSeatedRef.current = false;
+    if (submitted[scopedKey]) reposeForgeItem(scopedKey);
+    // Runs once per seat, on the item the forge just seated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopedKey]);
 
   const submitMicroRepair = async (erratumIndex: number) => {
     const attemptId = attemptIdsByKey[scopedKey];
@@ -1681,6 +1716,16 @@ export default function AtelierPage() {
     // guard is what makes the entry happen exactly once, not the dependency list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practiceMode, practiceQueue, loading, session, activeSessionReady]);
+
+  // Every way back to Home from a practice landing drops `?mode=forge` /
+  // `?mode=practice` / `?testout=`, so the same link can open the séance again.
+  // Walk 2026-10-14 (#122): the forge recap's «Zurück zu La Une» kept the query,
+  // and «Weiter lernen» to the same URL did nothing.
+  const leavePracticeLanding = () => {
+    // A test-out landing (`?testout=`) is not a `practiceMode` URL, but it reopens too.
+    if (!practiceMode && !router.query.testout) return;
+    void router.replace('/atelier', undefined, { shallow: true });
+  };
 
   // WP-S4: a forge block folded into the day hands the learner back to the
   // day's forge step, which now reads «Back to the scene».
@@ -1943,6 +1988,16 @@ export default function AtelierPage() {
       const conceptIndex = next ? session.concepts.findIndex((concept) => concept.id === next.concept_id) : -1;
       if (next && conceptIndex >= 0) {
         const seated = seatForgeItem(session.exercise_sets, next);
+        const samePlace = forgeSeatIsSamePlace(
+          { conceptIndex: activeConceptIndex, round, mode, itemIndex: activeItemIndex },
+          { conceptIndex, round: next.round, mode: next.mode, itemIndex: seated.index },
+        );
+        if (samePlace) {
+          // The forge asks the item on screen again: nothing would move.
+          if (submitted[scopedKey]) reposeForgeItem(scopedKey);
+          return;
+        }
+        forgeSeatedRef.current = true;
         if (seated.sets !== session.exercise_sets) setSession({ ...session, exercise_sets: seated.sets });
         setActiveConceptIndex(conceptIndex);
         setRound(next.round as RoundName);
@@ -2055,6 +2110,7 @@ export default function AtelierPage() {
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
+                      restOfDayOpen={Boolean(continueRoute && continueRoute.plan.next !== 'more')}
                       onOpenLegacy={(href) => {
                         // The old Atelier session is resumed on its own terms: the
                         // journey never converts, replaces or completes it.
@@ -2183,9 +2239,7 @@ export default function AtelierPage() {
                 void apiService.exitAtelierSession(session.session_id).catch(() => undefined);
               }
               setView('today');
-              // Home is not a practice landing: drop `?mode=forge` / `?testout=`
-              // so the same link can open the séance again.
-              void router.replace('/atelier', undefined, { shallow: true });
+              leavePracticeLanding();
             }}
             produceAnswer={produceAnswer}
             language={pageChromeLanguage}
@@ -2215,6 +2269,8 @@ export default function AtelierPage() {
                 return;
               }
               setView('today');
+              // Before the action, so a link it follows is not cancelled.
+              leavePracticeLanding();
               handleRecommendedAction(legacyRecommendation);
             }}
             onClose={() => {
@@ -2224,6 +2280,7 @@ export default function AtelierPage() {
                 return;
               }
               setView('today');
+              leavePracticeLanding();
             }}
           />
         )}
@@ -2239,12 +2296,14 @@ export default function AtelierPage() {
               setReviewTask(null);
               setReviewAnswer('');
               setReviewResult(null);
+              leavePracticeLanding();
             }}
           />
         )}
         {rewardMoment && (
           <RewardMomentOverlay
             moment={rewardMoment}
+            language={pageChromeLanguage}
             onClose={() => setRewardMoment(null)}
           />
         )}
@@ -2255,25 +2314,18 @@ export default function AtelierPage() {
 
 function RewardMomentOverlay({
   moment,
+  language,
   onClose,
 }: {
   moment: RewardMoment;
+  language: unknown;
   onClose: () => void;
 }) {
   const isLogoToken = moment.kind === 'logo_token';
   const isDrafting = isLogoToken && moment.collectible?.metadata?.effort === 'drafting';
   const credit = Number(moment.collectible?.metadata?.credit || 0);
-  const eyebrow = isLogoToken
-    ? (isDrafting ? 'Composé de toutes pièces' : 'Écran parfait')
-    : 'Édition sans faute';
-  const title = isLogoToken
-    ? (isDrafting ? 'Jeton bonus gagné' : 'Jeton du logo gagné')
-    : 'Sceau doré gagné';
-  const body = isLogoToken
-    ? (isDrafting
-        ? 'Vous avez produit la forme visée avec vos propres mots : ce travail plus exigeant reçoit un crédit supplémentaire.'
-        : 'Les trois formes ont rejoint la marque de la maison. Elles sont classées dans votre Almanach.')
-    : 'Aucune coquille sur ce tirage. Le sceau du jour a été frappé en doré.';
+  const rc = rewardMomentCopy(language);
+  const { eyebrow, title, body } = rc[isLogoToken ? (isDrafting ? 'drafting' : 'logo') : 'seal'];
   return (
     <div className="reward-moment-layer" role="status" aria-live="polite">
       <Confetti count={isLogoToken ? (isDrafting ? 30 : 24) : 30} />
@@ -2295,11 +2347,11 @@ function RewardMomentOverlay({
         <div>
           <span>{eyebrow}</span>
           <h2>{title}</h2>
-          {isDrafting && credit > 0 && <p className="reward-credit-line">+{credit} crédit</p>}
+          {isDrafting && credit > 0 && <p className="reward-credit-line">{rc.credit(credit)}</p>}
           <p>{body}</p>
         </div>
         <button type="button" onClick={onClose}>
-          Continuer <ArrowRight size={14} />
+          {rc.continue} <ArrowRight size={14} />
         </button>
       </section>
     </div>
@@ -3593,7 +3645,7 @@ function SessionView({
           is announced rather than printed (WP-20 D-11). */}
       <h1 className="av2-sr">{forge ? `${fc.surface_name} · ${fc.surface_action}` : t.screen_name}</h1>
       <EpTopbar
-        middle={forge ? <ForgeCount copy={fc} count={seanceCountText(fc, forge)} /> : undefined}
+        middle={forge ? <ForgeCount copy={fc} count={seanceCountText(fc, forge, activeItemId)} /> : undefined}
         groups={epGroups}
         cap={epCap}
         onClose={onBack}
@@ -5631,11 +5683,9 @@ function AtelierStyles() {
         background: var(--red);
         color: #fff;
         padding: 0 18px;
-        font-family: var(--mono);
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .13em;
-        text-transform: uppercase;
+        font-family: var(--grotesk);
+        font-size: 15px;
+        font-weight: 700;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes slip-in { from { opacity: 0; transform: translate(18px, -8px) rotate(2deg); } to { opacity: 1; transform: translate(0, 0) rotate(-1deg); } }
