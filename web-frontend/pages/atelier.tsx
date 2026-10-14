@@ -1458,6 +1458,18 @@ export default function AtelierPage() {
     setSubmitted((prev) => ({ ...prev, [scopedKey]: false }));
     setResubmitKeys((prev) => ({ ...prev, [scopedKey]: true }));
     setRecentCorrection(null);
+    // Walk #90: a retried choice starts unchosen; «Je es sérieux.» with «es ·
+    // gewählt» stayed filled in. Typed answers stay, ready to fix.
+    if (exerciseRound === 'recognize') {
+      setAnswers((prev) => {
+        const current = prev[scopedKey];
+        if (!current) return prev;
+        if (!activeAnswerItemId) return { ...prev, [scopedKey]: {} };
+        if (!(activeAnswerItemId in current)) return prev;
+        const { [activeAnswerItemId]: _wrong, ...rest } = current;
+        return { ...prev, [scopedKey]: rest };
+      });
+    }
   };
 
   // Live walk #131: La Forge may pose an item again that was already answered
@@ -3632,7 +3644,7 @@ function SessionView({
           is announced rather than printed (WP-20 D-11). */}
       <h1 className="av2-sr">{forge ? `${fc.surface_name} · ${fc.surface_action}` : t.screen_name}</h1>
       <EpTopbar
-        middle={forge ? <ForgeCount copy={fc} count={seanceCountText(fc, forge)} /> : undefined}
+        middle={forge ? <ForgeCount copy={fc} count={seanceCountText(fc, forge, activeItemId)} /> : undefined}
         groups={epGroups}
         cap={epCap}
         onClose={onBack}
