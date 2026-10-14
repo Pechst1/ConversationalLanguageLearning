@@ -45,7 +45,6 @@ import {
   cacheAtelierEdition,
   clearResumeActivity,
   readCachedAtelierEdition,
-  saveResumeActivity,
 } from '@/lib/pilot-resilience';
 import { homeRender, readHomeKind, rememberHomeKind, resolvedHomeKind, type HomeKind } from '@/lib/home-loading';
 import { type LuAskKind } from '@/components/laune/LaUne';
@@ -189,6 +188,7 @@ import { revueClient } from '@/lib/revue-api';
 import type { RvWeekResult } from '@/lib/revue-types';
 import {
   dayShapeFrom,
+  isRevueDay,
   revueDossierHref,
   revueHeroOpensDay,
   revueOpenHref,
@@ -901,11 +901,10 @@ export default function AtelierPage() {
 
   useEffect(() => {
     if (!session || session.status === 'completed' || forgeViewOf(session.forge)?.mode === 'test_out') return;
-    saveResumeActivity({
-      href: `/atelier?resume=${session.session_id}`,
-      kind: 'atelier',
-      entityId: session.session_id,
-    });
+    // No launch resume for the Forge (`lib/journey-resume.ts`): a cold start
+    // shows Home, whose day button opens the Forge step. Clear what an older
+    // build stored so it cannot come back.
+    clearResumeActivity('atelier');
     const requestedSession = router.query.resume ?? router.query.session;
     if (router.isReady && requestedSession === session.session_id) setView('session');
   }, [router.isReady, router.query.resume, router.query.session, session]);
@@ -2829,6 +2828,9 @@ function TodayView({
         special: specialEdition,
       })
     : { chip: null, hero: null };
+  // The programme still names the day's first step «Le Papier» on the Revue
+  // day once the Papier is filed and the hero is the day's card again.
+  const revueDayToday = Boolean(homeDay) && isRevueDay(dayShapeFrom(dayJourney, dayEnvelope), specialEdition);
   const revueDayDone = Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done);
   const revueHero = revueEntry.hero
     ? (() => {
@@ -3068,7 +3070,7 @@ function TodayView({
       // (Le Papier first); only an interlude has no scene to plan.
       planHidden={(Boolean(revueHero) && !daySession) || Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
       session={daySession ? {
-        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) }),
+        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) || revueDayToday }),
         tempoLabel: sessionCopy.tempo(sessionCopy.pace[daySession.pace]),
         onTempo: () => setTempoOpen(true),
       } : null}

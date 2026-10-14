@@ -199,7 +199,7 @@ test('a letter and a Revue the same day: §2 — the letter first, then the Revu
     assert.deepEqual(laUne(language, { week: live, letter: false }).chips.map((chip) => chip.id), ['revue', 'lexique']);
     // The Revue day: the Revue is the day's route and takes La Une whole — its
     // card spends the words a chip would need; the letter waits in the Courrier.
-    for (const offer of [liveOffer, resumeOffer, filedOffer]) {
+    for (const offer of [liveOffer, resumeOffer]) {
       const revueDay = laUne(language, { week: { enabled: true, offer }, dayShape: une.REVUE_DAY_SHAPE });
       assert.match(revueDay.html, /data-revue-card=/);
       assert.doesNotMatch(revueDay.html, /data-chip=|av2-home__chips/);
@@ -207,18 +207,19 @@ test('a letter and a Revue the same day: §2 — the letter first, then the Revu
   }
 });
 
-test('a special edition keeps its hero; a filed Revue shows only on the Revue day', () => {
+test('a special edition keeps its hero; a filed Revue never takes the hero', () => {
   const special = laUne('fr', { week: live, dayShape: une.REVUE_DAY_SHAPE, special: true });
   assert.equal(special.entry.hero, null, 'never on a special edition');
   assert.match(special.html, /data-chip="revue"/, 'the Revue stays a chip');
   assert.match(special.html, /av2-day-plan/);
 
+  // 2026-10-14 (owner, iPhone): a filed Papier pushed today's day card off
+  // Home on the Revue day. Filed, it gives the hero back to the day.
   for (const language of ['en', 'de', 'fr']) {
     const filed = laUne(language, { week: { enabled: true, offer: filedOffer }, dayShape: une.REVUE_DAY_SHAPE });
-    assert.equal(filed.entry.hero.state, 'filed');
-    assert.match(filed.html, /data-revue-card="filed"/);
-    assert.equal((filed.html.match(/av2-btn--primary/g) || []).length, 0, 'filed: no press');
-    assertHomeBudget(filed.html, `${language} filed`);
+    assert.equal(filed.entry.hero, null, `${language} filed: no hero on the Revue day`);
+    assert.doesNotMatch(filed.html, /data-revue-card=/);
+    assert.match(filed.html, /av2-day-plan/, `${language} filed: the day's plan row is back`);
   }
   const filedOrdinary = laUne('en', { week: { enabled: true, offer: filedOffer } });
   assert.equal(filedOrdinary.entry.hero, null, 'filed: no hero on an ordinary day');
