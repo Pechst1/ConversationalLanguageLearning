@@ -725,7 +725,7 @@ def check_visual(dossier: EditorialDossier) -> list[CheckResult]:
     Reasons: ``person_named`` (a person entity's name in the painter's text: people are drawn
     by their role, the caption names them), ``forbidden_words`` (``policy.story_forbidden_hits``
     in the painter's text: portraits, emblems, logos, banners, flags, placards), ``too_much_text``
-    (more lettering in «guillemets» than ``policy.STORY_MAX_QUOTED`` bits of three words), ``word_not_in_claims``
+    (more lettering in «guillemets» than ``policy.STORY_MAX_QUOTED`` bits of ``policy.STORY_MAX_QUOTED_WORDS`` words), ``word_not_in_claims``
     (a picture word no claim carries), ``relative_date`` (in the caption, Romy's look line or a
     decoy caption).
     A dossier without a visual has nothing to check (an empty list: it keeps its place plate).

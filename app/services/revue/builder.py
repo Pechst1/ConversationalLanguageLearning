@@ -246,9 +246,11 @@ news is something said, written, decided, counted or disputed (a statement, a de
 budget, a poll, a report, a price): one bold, concrete visual idea, the way a newspaper's cover illustrator
 would draw it, beats people talking. Be surprising and specific; never fall back on people at desks, typing on
 laptops, reading papers, holding microphones or shaking hands, nor on a generic view of a city, unless that is
-literally the news. Real people appear by their role, never by name and never as a likeness or a portrait. No
-readable text except at most two short French words or a number in «guillemets» when they are the point (a
-price, a score); no flags, logos, emblems, placards or banners."""
+literally the news. Real people appear by their role, never by name and never as a likeness or a portrait.
+Lettering that belongs in the scene is welcome when it helps tell the story (a menu, a shop sign, a price tag, a
+score, a headline, a book cover): at most four short bits of real French in «guillemets», each true to the
+sources and spelled exactly; never invent a claim the sources do not make. No flags, logos, emblems, placards or
+banners."""
 
 BUILDER_INSTRUCTIONS = """You are the fact desk of «Le Papier de Romy», a French-learning app.
 From the INPUT articles about one French news story of the week, write ONE editorial dossier as JSON:
