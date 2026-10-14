@@ -1132,7 +1132,11 @@ class DailyJourneyService:
                 default=None,
                 log=logger,
             )
-            if enabled and forge_entry is not None
+            # Yesterday's unfinished scene closes yesterday's day: the sequence
+            # starts once today's journey (or none yet) is the one on Home.
+            if enabled
+            and forge_entry is not None
+            and (journey is None or journey.local_date == today)
             else None
         )
         return TodayEnvelope(

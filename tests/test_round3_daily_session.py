@@ -10,6 +10,8 @@
 """
 from __future__ import annotations
 
+import uuid
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -199,3 +201,39 @@ def test_the_word_step_can_be_marked_done(
     response = assembled_client.post("/api/v1/daily-journeys/session/words-done", headers=headers)
     assert response.status_code == 200, response.text
     assert response.json()["steps"][1]["state"] in {"todo", "next"}
+
+
+def test_a_word_count_sent_at_registration_is_kept_as_a_custom_intake(
+    assembled_client: TestClient, db_session: Session
+) -> None:
+    response = assembled_client.post(
+        "/api/v1/auth/register",
+        json={"email": "round3-custom@example.com", "password": "Round3-Custom-Aa1!", "new_words_per_day": 7},
+    )
+    assert response.status_code in {200, 201}, response.text
+    user = db_session.get(User, learner_id(db_session, "round3-custom@example.com"))
+    assert (user.daily_pace, user.new_words_per_day) == (None, 7)
+
+
+def test_yesterdays_unfinished_scene_carries_no_sequence(
+    assembled_client: TestClient, db_session: Session, journey_enabled: None
+) -> None:
+    from datetime import timedelta
+
+    from app.db.models.daily_journey import DailyJourney
+
+    headers = register(assembled_client, "round3-midnight@example.com")
+    created = assembled_client.post(
+        "/api/v1/daily-journeys",
+        json={"mutation_id": "round3-midnight", "timezone": "UTC", "budget_seconds": 300, "preferred_input_mode": "text"},
+        headers=headers,
+    )
+    assert created.status_code in {200, 201, 202}, created.text
+    journey = db_session.get(DailyJourney, uuid.UUID(created.json()["id"]))
+    journey.local_date = journey.local_date - timedelta(days=1)
+    db_session.commit()
+
+    today = assembled_client.get("/api/v1/daily-journeys/today", headers=headers).json()
+    assert today["journey"]["id"] == str(journey.id)
+    # The late scene closes yesterday's day; today's sequence starts after it.
+    assert today["session"] is None
