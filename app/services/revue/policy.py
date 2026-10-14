@@ -82,40 +82,51 @@ PLATE_PEOPLE_CLAUSE = (
     "close-ups; no animals in the foreground."
 )
 
-#: WP-119 §8.4 (owner, 2026-10-14): the story picture shows the people of the story, by what they
-#: do and where they stand. Still the plate's flat print and never a likeness (no features, no
-#: portrait, never larger than a fifth of the frame), and nobody where the drawn cast stands.
+#: WP-119 §8.4 v2 (owner, 2026-10-14: «not so restrictive»): the story's people at whatever size
+#: the scene needs, in the plate's flat print, recognisable by what they do — never a likeness.
 STORY_PEOPLE_CLAUSE = (
-    "People in the same flat screen-print style: simple figures built from a few flat shapes, faces left "
-    "as plain flat shapes without features. The people of the story are small to medium, never taller than a "
-    "fifth of the frame's height, seen from a distance, from behind or in profile, recognisable only by what "
-    "they do and where they stand, never as portraits, close-ups or the likeness of anyone; nobody in the "
-    "bottom quarter of the frame; no animals in the foreground."
+    "People in the same flat screen-print style, with simple stylised faces built from a few flat shapes. "
+    "They can be as large as the picture needs, in the foreground or far away, told apart by what they do, "
+    "their clothes, their gestures and what they hold; never a recognisable likeness or a portrait of a real "
+    "person."
 )
 
-#: WP-119 §8.4: what a story picture's brief may not ask for beyond :data:`PLATE_FORBIDDEN`: the
-#: prompt ends on "no flags…, no readable text", so a moment built on a flag or a placard would ask
-#: the model for two opposite things (the builder is told; the check drops such a brief).
+#: §8.4 v2: what a story picture's brief may not ask for. Text is no longer banned outright (a
+#: menu, a sign or a price in «guillemets» may tell the story, :data:`STORY_MAX_QUOTED_WORDS`); portraits,
+#: emblems, logos, banners and flags still are.
+STORY_FORBIDDEN: tuple[str, ...] = (
+    "portrait", "portraits", "close-up", "closeup", "gros plan", "selfie", "likeness",
+    "emblem", "emblems", "embleme", "emblemes", "logo", "logos", "banner", "banners", "banderole", "banderoles",
+    "slogan", "slogans", "flag", "flags", "drapeau", "drapeaux", "placard", "placards", "pancarte", "pancartes",
+)
+#: Kept for readers of the v1 rule (the plates' list plus these).
 STORY_FORBIDDEN_EXTRA: tuple[str, ...] = (
     "flag", "flags", "drapeau", "drapeaux", "placard", "placards", "pancarte", "pancartes", "likeness",
 )
+#: §8.4 v3 (owner, 2026-10-14, with the sunburst model, which spells well): in-scene lettering is free;
+#: these caps only stop a brief from pasting a paragraph into the painter's text.
+STORY_MAX_QUOTED = 8
+STORY_MAX_QUOTED_WORDS = 12
 
-#: WP-119 §8.4: the stage crops the picture (4:3 on arrival, 16:9 on La Une, a wide band over the
-#: thread) and stands Romy in front of its middle third and Toi at the bottom right. The left third
-#: shows beside her at every size, so the moment goes there; printed whole («La légende», the
-#: dispatch, La Carte) it reads as a rule-of-thirds picture.
+#: WP-119 §8.4 v2: the stage still stands Romy and Toi over the picture and crops it to a band, but
+#: the moment no longer has to squeeze into the left third: it only keeps clear of the bottom-right
+#: corner (Toi) and of the very top and bottom edges (the crop).
 STORY_STAGE_CLAUSE = (
-    "Composition: two drawn figures will stand in front of this picture, a tall one across its middle third and "
-    "a smaller one in its bottom right corner, so the story's moment and its key object sit in the left third of "
-    "the frame, between a quarter and four fifths of its height and clear of the left edge, which may be cropped; "
-    "the place spreads across the whole width behind them, so what the picture shows can still be seen around "
-    "the figures; the bottom quarter is calm floor, rail, table or pavement with nothing important in it."
+    "Composition: one clear focal point with real depth; the app's drawn characters will stand over the "
+    "bottom-right corner, so keep the story's action and key object visible elsewhere, ideally left of centre "
+    "or in the upper half, and away from the very top and bottom edges, which may be cropped."
 )
 
 #: WP-119 §8.1 feasibility (2026-10-02): the model added readable minutes on a metro board and
 #: flags in a press room unasked. National colours in architecture are fine (§12.4); flags,
 #: emblems, logos and anything readable are not.
 PLATE_NEGATIVE = "No flags, emblems or logos, no readable text or numbers, no signage lettering."
+#: §8.4 v2: a story picture may carry the lettering its brief quotes, nothing else.
+STORY_NEGATIVE = (
+    "No flags, emblems or logos. Any lettering is real French, spelled correctly, and belongs to the place "
+    "(signs, menus, labels, covers); the words quoted above appear exactly as written. Never invent a "
+    "quotation, headline or statement by a real person."
+)
 
 #: The ``outfit`` catalogue of the Revue stage (§8.2). ``coat`` is the canon default.
 OUTFITS: tuple[str, ...] = ("coat", "suit", "apron", "raincoat", "sport", "scarf_only", "chef", "hi_vis")
@@ -455,7 +466,11 @@ def fallback_place_for(kind: str | None) -> str:
 def plate_forbidden_hits(text: str | None, *, extra: tuple[str, ...] = ()) -> list[str]:
     """The :data:`PLATE_FORBIDDEN` words (and ``extra``) a plate brief contains (whole words, accent-folded)."""
 
-    forbidden = {_fold_ascii(word) for word in (*PLATE_FORBIDDEN, *extra)}
+    return _forbidden_hits(text, (*PLATE_FORBIDDEN, *extra))
+
+
+def _forbidden_hits(text: str | None, words: tuple[str, ...]) -> list[str]:
+    forbidden = {_fold_ascii(word) for word in words}
     seen: list[str] = []
     for token in _tokens(text or ""):
         if token in forbidden and token not in seen:
@@ -464,10 +479,10 @@ def plate_forbidden_hits(text: str | None, *, extra: tuple[str, ...] = ()) -> li
 
 
 def story_forbidden_hits(text: str | None) -> list[str]:
-    """§8.4: what a story picture's painter text may not ask for — :data:`PLATE_FORBIDDEN` and
-    :data:`STORY_FORBIDDEN_EXTRA` (a flag or a placard would fight the negative clause)."""
+    """§8.4 v2: what a story picture's painter text may not ask for (:data:`STORY_FORBIDDEN`: a
+    portrait, an emblem or logo, a banner, a flag or a placard)."""
 
-    return plate_forbidden_hits(text, extra=STORY_FORBIDDEN_EXTRA)
+    return _forbidden_hits(text, STORY_FORBIDDEN)
 
 
 def is_sensitive(text: str | None) -> bool:

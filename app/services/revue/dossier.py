@@ -217,8 +217,12 @@ class StoryVisual(_Model):
     ``decoys_fr``, the wrong captions of the A1–A2 caption choice).
     """
 
+    #: v2 (owner, 2026-10-14): ``scene`` paints the real moment at the site; ``editorial`` paints
+    #: one bold visual idea (``symbol``, large in the frame) for news that is said, decided or
+    #: counted rather than seen. Rows built before v2 read as ``scene``.
+    kind: Literal["scene", "editorial"] = "scene"
     moment: str = Field(min_length=1, max_length=400)
-    symbol: str | None = Field(None, max_length=200)
+    symbol: str | None = Field(None, max_length=240)
     viewpoint: str = Field(min_length=1, max_length=200)
     light: str = Field(min_length=1, max_length=160)
     words: list[VisualWord] = Field(default_factory=list, max_length=3)
