@@ -2307,4 +2307,21 @@ const noSleep = () => Promise.resolve();
   );
 }
 
+// Live walk #116: a failed «Continue» on the reader has no answer to keep.
+{
+  const errorOn = (stepKind) => renderToStaticMarkup(
+    React.createElement(steps.JourneyFeedbackView, {
+      feedback: { kind: 'error', message: 'network', retryable: true },
+      copy: EN,
+      onContinue: () => {},
+      onRetry: () => {},
+      onDismiss: () => {},
+      stepKind,
+    }),
+  );
+  assert.ok(htmlHas(errorOn('scene'), EN.transport_error_plain));
+  assert.ok(!htmlHas(errorOn('scene'), EN.transport_error), 'no «Your answer was kept» without an answer');
+  assert.ok(htmlHas(errorOn('respond'), EN.transport_error));
+}
+
 console.log('WP-66 day shapes and recall formats: ok');

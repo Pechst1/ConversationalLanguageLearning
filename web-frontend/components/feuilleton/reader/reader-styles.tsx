@@ -859,6 +859,15 @@ export function FeuilletonReaderStyles() {
       .av2 .fr-reader[data-story] {
         padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px));
       }
+      /* Live walk #116: a journey notice (a failed «Continue») sits above the
+         pinned nav, where its «Try again» can be tapped. */
+      .av2 .fr-over-nav:not(:empty) {
+        position: fixed;
+        left: max(16px, calc((100vw - 560px) / 2 + 16px));
+        right: max(16px, calc((100vw - 560px) / 2 + 16px));
+        bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+        z-index: 4;
+      }
       .av2 .fr-reader[data-story] .fr-nav {
         position: fixed;
         left: 0;
