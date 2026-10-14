@@ -23,7 +23,11 @@ test('English and German sessions get their own words, not French', () => {
   }
 });
 
-test('French keeps its text, and an unknown language falls back to English', () => {
-  assert.equal(rewardMomentCopy('fr').drafting.title, 'Jeton bonus gagné');
+test('French says tu, and an unknown language falls back to English', () => {
+  const fr = rewardMomentCopy('fr');
+  assert.equal(fr.drafting.title, 'Jeton bonus gagné');
+  for (const kind of ['drafting', 'logo', 'seal']) {
+    assert.doesNotMatch(Object.values(fr[kind]).join(' '), /\b(vous|Vous|votre|vos)\b/);
+  }
   assert.equal(rewardMomentCopy(undefined).continue, 'Continue');
 });

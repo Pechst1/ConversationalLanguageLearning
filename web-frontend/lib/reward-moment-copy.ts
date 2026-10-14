@@ -1,8 +1,8 @@
 /**
  * The reward moment (bonus token, logo token, gilt seal) in the learner's
  * chrome language. Live walk #118: it was French only, with vous, in English
- * and German A1 sessions. German says du, as the rest of the app does. The
- * French text is unchanged: tu or vous in French chrome is the owner's call (#128).
+ * and German A1 sessions. German says du and French says tu, as the owner
+ * decided for the whole app (#128).
  */
 
 export type RewardMomentLanguage = 'en' | 'de' | 'fr';
@@ -57,12 +57,12 @@ const COPY: Record<RewardMomentLanguage, RewardCopy> = {
     drafting: {
       eyebrow: 'Composé de toutes pièces',
       title: 'Jeton bonus gagné',
-      body: 'Vous avez produit la forme visée avec vos propres mots : ce travail plus exigeant reçoit un crédit supplémentaire.',
+      body: 'Tu as produit la forme visée avec tes propres mots : ce travail plus exigeant reçoit un crédit supplémentaire.',
     },
     logo: {
       eyebrow: 'Écran parfait',
       title: 'Jeton du logo gagné',
-      body: 'Les trois formes ont rejoint la marque de la maison. Elles sont classées dans votre Almanach.',
+      body: 'Les trois formes ont rejoint la marque de la maison. Elles sont classées dans ton Almanach.',
     },
     seal: {
       eyebrow: 'Édition sans faute',
