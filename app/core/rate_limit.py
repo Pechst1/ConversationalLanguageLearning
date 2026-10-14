@@ -33,7 +33,7 @@ import importlib.util
 import math
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -363,7 +363,7 @@ def is_open_day_route(request: Request) -> bool:
     return (request.method.upper(), _route_path(request)) in OPEN_DAY_ROUTES
 
 
-def paid_route_guard(user_dependency: Callable[..., Any]) -> Callable[..., None]:
+def paid_route_guard(user_dependency: Callable[..., Any]) -> Callable[..., Iterator[None]]:
     """Build the router dependency for routers whose routes resolve ``user_dependency``.
 
     FastAPI caches a dependency per request, so the learner resolved here is the
@@ -375,11 +375,13 @@ def paid_route_guard(user_dependency: Callable[..., Any]) -> Callable[..., None]
         request: Request,
         current_user: Any = Depends(user_dependency),
         db: Session = Depends(get_db),
-    ) -> None:
+    ) -> Iterator[None]:
         if not is_paid_route(request) or is_exempt(request):
+            yield
             return
         user_id = getattr(current_user, "id", None)
         if user_id is None:
+            yield
             return
         enforce(
             f"paid:{user_id}",
@@ -387,9 +389,31 @@ def paid_route_guard(user_dependency: Callable[..., Any]) -> Callable[..., None]
             window_seconds=int(_setting("RATE_LIMIT_PAID_WINDOW_SECONDS", 60)),
             message="You are going a little fast. Please wait a moment and try again.",
         )
+        from app.services import spend_ledger
         from app.services.spend_guard import enforce_daily_budget
 
-        enforce_daily_budget(db, current_user, open_day=is_open_day_route(request))
+        open_day = is_open_day_route(request)
+        if not spend_ledger.enabled():
+            enforce_daily_budget(db, current_user, open_day=open_day)
+            yield
+            return
+        # E1: the check and the hold are one step, so requests that start
+        # together cannot all pass; the hold ends with the request.
+        hold = spend_ledger.reserve(
+            db, current_user, kind=f"route:{request.method.upper()} {_route_path(request)}", open_day=open_day
+        )
+        calls = spend_ledger.paid_calls()
+        try:
+            yield
+        except BaseException:
+            # A failure after a provider answered may have rolled its cost row
+            # back: keep the hold counting. One before any paid call frees it.
+            if calls is not None and calls.count:
+                spend_ledger.keep_uncertain(db, hold, calls.cost_usd)
+            else:
+                spend_ledger.release(db, hold)
+            raise
+        spend_ledger.release(db, hold)
 
     guard.__name__ = f"paid_route_guard_{getattr(user_dependency, '__name__', 'user')}"
     return guard

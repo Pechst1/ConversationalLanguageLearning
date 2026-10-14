@@ -1,0 +1,77 @@
+{
+  "_doc": "N1 pilot (research brief 2026-10-12): what the learner's French may change on one generated day, and the callbacks that change makes due. Gap 1, premise «Romy enquête». Read only when SEASON_AGENCY_PILOT is on. English only: these are director instructions, not lines; the page's French is still written by the generator inside the gap's rules.",
+  "contracts": [
+    {
+      "gap": "g1",
+      "premise": "romy_enquete",
+      "speaker": "romy_tremblay",
+      "subjects": {
+        "learner_account": "What the learner tells Romy about who they are, the inheritance and what they think of Solvel, and whether she may use it in her article."
+      },
+      "conditions": {
+        "no_name": "Romy may use it, but not the learner's name.",
+        "off_record": "Romy may hear it, but not write it down or publish it."
+      },
+      "effects": [
+        {
+          "id": "romy_may_use_account",
+          "actions": ["tell", "accept", "show"],
+          "subject": "learner_account",
+          "allowed_conditions": ["no_name", "off_record"],
+          "alternative": "Romy cannot promise that. She can leave the learner's name out, or keep everything off the record."
+        },
+        {
+          "id": "romy_gets_nothing",
+          "actions": ["decline", "withhold"],
+          "subject": "learner_account"
+        }
+      ],
+      "agreements": {
+        "granted": "The learner let Romy use what they told her, name included.",
+        "granted:no_name": "The learner let Romy use what they told her, but not their name.",
+        "granted:off_record": "The learner told Romy things off the record: she may not write them down or publish them.",
+        "granted:no_name+off_record": "The learner told Romy things off the record and without their name.",
+        "refused": "The learner did not want to talk to Romy for her article.",
+        "tell": "The learner told Romy about themselves, without saying whether she may use it in her article."
+      }
+    }
+  ],
+  "storylets": [
+    {
+      "id": "romy_keeps_it_off_record",
+      "gap": "g1",
+      "when": {"perm.learner_account.romy_tremblay": "granted", "perm.learner_account.romy_tremblay.off_record": true},
+      "cast": ["romy_tremblay"],
+      "salience": 3,
+      "pays_off": "romy_may_use_account",
+      "instruction": "Romy shows she kept her word: what the learner told her stays off the record. She closes her notebook, or asks someone else for a quote instead."
+    },
+    {
+      "id": "romy_notes_without_name",
+      "gap": "g1",
+      "when": {"perm.learner_account.romy_tremblay": "granted", "perm.learner_account.romy_tremblay.no_name": true, "perm.learner_account.romy_tremblay.off_record": {"set": false}},
+      "cast": ["romy_tremblay"],
+      "salience": 2,
+      "pays_off": "romy_may_use_account",
+      "instruction": "Romy shows the learner her notes: their words are there, with no name, as they asked."
+    },
+    {
+      "id": "romy_checks_the_quote",
+      "gap": "g1",
+      "when": {"perm.learner_account.romy_tremblay": "granted", "perm.learner_account.romy_tremblay.no_name": {"set": false}, "perm.learner_account.romy_tremblay.off_record": {"set": false}},
+      "cast": ["romy_tremblay"],
+      "salience": 1,
+      "pays_off": "romy_may_use_account",
+      "instruction": "Romy reads the learner the line she wrote down from them, with their name, and asks if she got it right."
+    },
+    {
+      "id": "romy_leaves_her_card",
+      "gap": "g1",
+      "when": {"perm.learner_account.romy_tremblay": "refused"},
+      "cast": ["romy_tremblay"],
+      "salience": 1,
+      "pays_off": "romy_gets_nothing",
+      "instruction": "Romy does not ask again. She leaves her card on the zinc, in case the learner changes their mind."
+    }
+  ]
+}
