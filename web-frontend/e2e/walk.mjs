@@ -31,8 +31,9 @@ import { sleep, startStack } from './lib/stack.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
+// The last occurrence wins, so CI can append a shorter run to a shard's own flags.
 const opt = (name, dflt) => {
-  const i = argv.indexOf(`--${name}`);
+  const i = argv.lastIndexOf(`--${name}`);
   return i >= 0 ? argv[i + 1] : dflt;
 };
 if (argv.includes('--live')) {
@@ -283,7 +284,8 @@ const SEASON_PAGES = [
 ];
 
 function seasonChecks(l) {
-  for (const page of SEASON_PAGES) {
+  // A shorter walk (pull requests play 3 days) asks only for the pages it reached.
+  for (const page of SEASON_PAGES.filter((row) => Math.max(...row.days) <= l.dayCount)) {
     // French print sets the apostrophe as ’ (lib/french-typography); the bible writes '.
     const fold = (text) => text.replace(/[’ʼ]/g, "'");
     const where = (l.pages || []).filter((row) => fold(row.text).includes(fold(page.line))).map((row) => row.day);

@@ -146,6 +146,17 @@ jobs:
               out.write(f"### Backend shard ${{ matrix.shard }}/4\n\n{line}\n")
           PY
 
+      - name: Test timings
+        # The shards are dealt by tests/ci_durations.json; these reports refresh it
+        # (`python scripts/ci_test_shard.py --record pytest-report-*.xml`).
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report-${{ matrix.shard }}
+          path: pytest-report.xml
+          retention-days: 14
+          if-no-files-found: ignore
+
   learner-walk:
     name: Backend · learner walk (30 days × 5 personas)
     # EXERCISE-QA 2026-10-03: the long tier of tests/test_learner_walk.py, which the
@@ -378,5 +389,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Same builder and GHA cache as publish-image.yml: on main the publish job
+      # then finds every layer already built here instead of building it again
+      # after every other job has finished (it was 110 s on the deploy path).
       - name: Build Docker image
-        run: docker build . -t conversational-language-learning:ci
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: conversational-language-learning:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
