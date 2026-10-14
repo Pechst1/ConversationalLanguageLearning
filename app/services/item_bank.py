@@ -2552,8 +2552,9 @@ def without_frames(node: Any) -> Any:
     return out
 
 
-#: Keys an item carries for the server only: the follow-up's key (WP-103 T8).
-_PRIVATE_ITEM_KEYS = ("follow_up_key",)
+#: Keys an item carries for the server only: the follow-up's key (WP-103 T8) and
+#: a curated judgement's corrected sentence (issue #104).
+_PRIVATE_ITEM_KEYS = ("follow_up_key", "judgement_fix_fr")
 
 
 def public_item(item: Any, language: Any = None) -> Any:

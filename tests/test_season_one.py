@@ -1304,3 +1304,60 @@ def test_opposite_choices_read_different_episodes_and_reach_different_endings(as
     assert keeper["flags"]["s1.margaux_persuaded"] is True and sharer["flags"]["s1.gus_persuaded"] is True
     assert keeper["flags"]["s1.ending"] == "garder"
     assert sharer["flags"]["s1.ending"] == "partager"
+
+
+@pytest.mark.parametrize("ending", ["written", "fallback"])
+@pytest.mark.parametrize("season_on", [True], ids=["lanes"], indirect=True)
+def test_what_the_learner_decides_on_a_generated_day_reaches_the_season(
+    assembled_client, db_session, journey_enabled, clock, season_on, monkeypatch, ending
+):
+    """N1 through the real API and the story lane (second agency walk, 12 Oct 2026):
+    the acts the voice heard were stored with the turn, then lost when the lane wrote
+    its ending (written or authored), so nothing was ever committed."""
+
+    from app.db.models.user import User
+    from app.services import story_lanes
+    from app.services.season import agency
+    from app.services.season.admin import jump_to_day
+
+    monkeypatch.setattr(settings, "SEASON_AGENCY_PILOT", True)
+    provider = season_on
+    answer = "Non, pas de caméra. Tu peux utiliser mon histoire, mais sans mon nom."
+    original = provider.generate_chat_completion
+
+    def hears_the_decision(messages, **kwargs):
+        response = original(messages, **kwargs)
+        data = json.loads(messages[0]["content"])
+        if data["output_schema"]["title"] != "VoiceReply":
+            return response
+        turn_agency = data["data"].get("agency")
+        assert turn_agency, "a generated day always carries a contract with the pilot on"
+        subject = turn_agency["may_decide"][0]["subject"]
+        # As the voice is told: an authored contract's key when it matches (the
+        # authored g1 scene has `no_name`), otherwise the learner's own limit.
+        condition = "no_name" if "no_name" in turn_agency["conditions"] else "sans mon nom"
+        value = json.loads(response.content)
+        value["acts"] = [
+            {"action": "decline", "subject": subject, "evidence_quotes": ["Non, pas de caméra."]},
+            {"action": "accept", "subject": subject, "conditions": [condition],
+             "evidence_quotes": ["Tu peux utiliser mon histoire, mais sans mon nom"]},
+        ]
+        return SimpleNamespace(**{**vars(response), "content": json.dumps(value, ensure_ascii=False)})
+
+    monkeypatch.setattr(provider, "generate_chat_completion", hears_the_decision)
+    if ending == "fallback":
+        monkeypatch.setattr(story_lanes, "run_story_lane", lambda *a, **k: story_lanes.StoryLaneResult(turn=None))
+    email = f"s1-agency-{uuid.uuid4()}@example.com"
+    d = support.Driver(assembled_client, support.register(assembled_client, email, cefr="A2.1"), db=db_session)
+    user = db_session.scalar(select(User).where(User.email == email))
+    jump_to_day(db_session, user, day=3)
+    db_session.commit()
+    journey = _play(d, provider, clock, answer)
+    scene = _latest_scene(db_session, _user_id_of(db_session, journey))
+    assert (scene.script_payload or {}).get("season", {}).get("key") == "g1.1"
+
+    world = agency.world_of(_season_state(db_session, user.id))
+    assert [event.action for event in world.events] == ["decline", "accept"]
+    assert world.flags.get("notes"), "each commit carries the line the director reads"
+    extras = agency.brief_extras("s1", "g1", 2, state=_season_state(db_session, user.id), seed=str(user.id))
+    assert extras.get("agreements") and extras.get("callback")

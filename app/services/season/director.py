@@ -24,6 +24,7 @@ Two guards stand behind that brief:
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from typing import Any
 
@@ -32,6 +33,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.services.season.clock import Position
 from app.services.season.flags import holds
 from app.services.season.format import Forbidden, Gap, Season
+
+logger = logging.getLogger(__name__)
 
 #: How many generated days a critic refusal may cost: one retry, then accept + log.
 CRITIC_RETRIES = 1
@@ -54,6 +57,14 @@ class SeasonChecklist(BaseModel):
     #: for TOMORROW («Le radiateur est mort : pas de chauffage tant que Gus n'a pas
     #: la pièce»). Empty when no card was drawn.
     complication: str = Field(default="", max_length=240)
+    #: N1: what the learner may decide in today's turn (``season/agency.py`` checks it;
+    #: a proposal that does not hold is dropped, never the page).
+    learner_agency: dict[str, Any] | None = None
+
+    @field_validator("learner_agency", mode="before")
+    @classmethod
+    def _agency(cls, value: Any) -> Any:
+        return value if isinstance(value, dict) else None
 
     # LOSS-RATE 2026-10-06: the checklist is the director's own notes (the critic
     # and tomorrow's obstacle read them; the learner never does). A fifth thread
@@ -143,7 +154,9 @@ Score each rubric item true or false:
 - honours_choices: the page agrees with gap.facts and flags, which the learner's own
   choices made true. False if it contradicts one: a character knows what they were never
   told (who saw the letter, who kept the key), an object is where the learner did not put
-  it, a relationship ignores what the learner chose.
+  it, a relationship ignores what the learner chose, or it breaks one of today.agreements
+  (what the learner agreed with a character, in their own words). When today.callback is
+  set, the page stages it.
 - obstacle_faced: when today.open_obstacle is set (yesterday's complication), the page
   shows it still in the way and someone deals with it, visibly. True when it is null.
   The learner's task counts: a page whose learner_turn.task asks the learner to deal
@@ -289,6 +302,16 @@ def level_shape(band: str | None) -> dict[str, Any]:
     return {"band": code if code in LEVEL_SHAPES else "A2", **LEVEL_SHAPES.get(code, LEVEL_SHAPES["A2"])}
 
 
+def _agency_extras(season: Season, gap_id: str, day: int, *, state: dict | None, seed: str) -> dict[str, Any]:
+    from app.services.season import agency
+
+    try:
+        return agency.brief_extras(season.id, gap_id, day, state=state, seed=seed)
+    except Exception:  # noqa: BLE001 - the pilot never costs a day its brief
+        logger.exception("agency: no extras for %s day %s", gap_id, day)
+        return {}
+
+
 def gap_brief(
     season: Season,
     pos: Position,
@@ -362,6 +385,8 @@ def gap_brief(
             "may_set": list(gap.sets_allowed),
             # WP-113: yesterday's complication, still in the way today.
             "open_obstacle": obstacle,
+            # N1 pilot: what the learner agreed, and a callback to it when one is due.
+            **_agency_extras(season, gap.id, day, state=state, seed=seed),
         },
         "next_tentpole": {
             "id": next_tentpole.id,
@@ -446,7 +471,13 @@ def critic_payload(brief: dict[str, Any], draft: dict[str, Any]) -> dict[str, An
         "season": brief.get("season"),
         "gap": brief.get("gap"),
         "today": {
-            key: (brief.get("today") or {}).get(key) for key in ("required_premise", "gate", "open_obstacle")
+            **{key: (brief.get("today") or {}).get(key) for key in ("required_premise", "gate", "open_obstacle")},
+            # N1 pilot: only on a day that has them.
+            **{
+                key: (brief.get("today") or {})[key]
+                for key in ("agreements", "callback")
+                if (brief.get("today") or {}).get(key)
+            },
         },
         # WP-113: what the learner's choices made true, for honours_choices.
         "flags": brief.get("flags"),

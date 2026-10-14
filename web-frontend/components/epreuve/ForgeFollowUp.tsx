@@ -17,7 +17,7 @@
 import React from 'react';
 
 import { PendingIcon } from '@/components/atelier-v2/ui';
-import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { CastActor } from '@/components/cast/vivant/CastActor';
 import type { DrillGoal } from '@/components/atelier-v2/journey/drill-frame';
 import { frenchSpacing } from '@/lib/french-typography';
 import {
@@ -78,7 +78,8 @@ export function ForgeReading({
       <div className="ep-reading">
         <span className="ep-reading__face">
           {coach ? (
-            <CastPortrait characterId={coach.id} name={coach.name} mood={mood} size="sm" ring />
+            // La troupe vivante: the coach reads your sentence, thinking it over.
+            <CastActor characterId={coach.id} name={coach.name} mood={mood} gesture="reflechit" loop width={56} />
           ) : (
             <span className="av2-feedback__icon" aria-hidden="true">
               <PendingIcon size={15} />

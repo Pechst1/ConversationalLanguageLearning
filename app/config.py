@@ -146,6 +146,27 @@ class Settings(BaseSettings):
             "which still stops a loop."
         ),
     )
+    SPEND_RESERVATIONS_ENABLED: bool = Field(
+        False,
+        description=(
+            "E1: before a paid route runs, hold SPEND_RESERVATION_REQUEST_BOUND_USD under a "
+            "database lock and count every open hold as already spent, so requests that start "
+            "together cannot all pass the cap check. Off = the WP-70/WP-138 read-only check."
+        ),
+    )
+    SPEND_RESERVATION_REQUEST_BOUND_USD: float = Field(
+        0.02,
+        ge=0,
+        description="E1: what one paid request is assumed to cost at most while it runs.",
+    )
+    SPEND_RESERVATION_STALE_SECONDS: int = Field(
+        300,
+        ge=1,
+        description=(
+            "E1: a hold still open after this long is marked uncertain (the request died "
+            "without closing it). It keeps counting until its day ends: never billed at zero."
+        ),
+    )
     # ---- WP-70 (end) -------------------------------------------------------
     FRENCH_NLP_MODEL: str = Field(
         "fr_core_news_sm",
@@ -578,6 +599,15 @@ class Settings(BaseSettings):
             "as written and the days between them are generated inside the season's gap "
             "rules. Empty: the generated serial, as before. A life already under way keeps "
             "its story either way."
+        ),
+    )
+    SEASON_AGENCY_PILOT: bool = Field(
+        False,
+        description=(
+            "N1 pilot (research brief 2026-10-12): on the generated days whose premise has a "
+            "contract in the season's agency.json (gap 1, «Romy enquête»), what the learner "
+            "decides is committed to the season state and later days call back to it. Off: "
+            "those days run exactly as before."
         ),
     )
     # WP-119 §9 — La Revue de Romy (docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md).

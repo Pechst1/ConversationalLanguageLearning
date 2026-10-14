@@ -33,3 +33,33 @@ export function journeySpeaker(
   }
   return null;
 }
+
+/** The cast's short names, as the rule cards and La Forge say them. */
+const COACH_NAMES: Record<string, string> = {
+  margaux_barman: 'Margaux',
+  marin_leveque: 'Marin',
+  romy_tremblay: 'Romy',
+  lila_bonnet: 'Lila',
+  augustin_de_roncourt: 'Gus',
+  landlord_marchand: 'M. Marchand',
+};
+
+/**
+ * La troupe vivante: who asks a drill and reacts to its answer. A grammar drill on a rule the
+ * day introduces belongs to that rule's coach (the card's speaker, as in La Forge); anything else
+ * stays with the scene's character. `null` when nobody is known.
+ */
+export function drillSpeaker(
+  journey: Pick<JourneySnapshot, 'scenario' | 'steps'> | null | undefined,
+  step: PublicStep | null | undefined,
+): JourneySpeaker | null {
+  if (step?.kind === 'recall' && step.prompt.target?.kind === 'grammar') {
+    const concept = Number(step.prompt.target.id);
+    for (const other of journey?.steps ?? []) {
+      if (other.kind !== 'rule' || other.prompt.concept_id !== concept) continue;
+      const id = other.prompt.rule_card?.speaker;
+      if (id && COACH_NAMES[id]) return { id, name: COACH_NAMES[id] };
+    }
+  }
+  return journeySpeaker(journey, step);
+}

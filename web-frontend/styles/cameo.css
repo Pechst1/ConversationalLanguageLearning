@@ -1,0 +1,272 @@
+/* Les apparitions (components/cast/CameoLayer.tsx, lib/cameo.ts).
+   The cast walks in on the app: a figure peeks from a side, the troupe pops up
+   from the bottom edge, a poked face answers back. Nothing here takes a tap
+   except a peeking figure's drawn body (first tap: the gloss; second: it leaves). A tap anywhere else sends it off. Reduced motion: fades only. */
+
+.cameo-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ---------- the speech bubble: the app's own (av2-speech), floating ---------- */
+.cameo-layer {
+  --cameo-card: #f8f3e8;
+  --cameo-ink: #14110d;
+  --cameo-ink-2: #5d5548;
+  --cameo-shadow: 0 10px 28px rgba(20, 17, 13, 0.16), 0 1px 3px rgba(20, 17, 13, 0.1);
+}
+:root[data-theme='dark'] .cameo-layer {
+  --cameo-card: #221e17;
+  --cameo-ink: #f5efe1;
+  --cameo-ink-2: #b9b0a0;
+  --cameo-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] .cameo-layer,
+  :root:not([data-theme]) .cameo-layer {
+    --cameo-card: #221e17;
+    --cameo-ink: #f5efe1;
+    --cameo-ink-2: #b9b0a0;
+    --cameo-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+}
+.cameo-bubble {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(56vw, 230px);
+  padding: 12px 16px 13px;
+  border-radius: 20px;
+  background: var(--cameo-card);
+  color: var(--cameo-ink);
+  box-shadow: var(--cameo-shadow);
+  text-align: left;
+}
+.cameo-bubble__fr {
+  font-family: 'AtelierSerif', 'EB Garamond', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 21px;
+  line-height: 1.15;
+  text-wrap: pretty;
+}
+.cameo-bubble__gloss {
+  font: 400 13px/1.3 'AtelierSans', 'Instrument Sans', system-ui, sans-serif;
+  color: var(--cameo-ink-2);
+  animation: cameo-gloss-in 220ms ease-out both;
+}
+@keyframes cameo-gloss-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- solo: the whole figure swings in from behind a side ----------
+   The figure (170 × 357, full length) pivots about its feet, which stay off screen: the edge
+   cuts it at the legs, and only the upper body leans in. */
+.cameo-solo {
+  position: absolute;
+  top: 16%;
+  left: 0;
+  right: 0;
+  height: 0;
+}
+.cameo-solo__figure {
+  position: absolute;
+  top: 0;
+  width: 170px;
+  height: 357px;
+  /* only the drawn figure takes a tap, never the empty box around it */
+  pointer-events: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transform-origin: 85px 357px;
+}
+.cameo-solo__figure > svg { display: block; }
+.cameo-solo__figure > svg * { pointer-events: visiblePainted; }
+.cameo-solo[data-leaving='true'] .cameo-solo__figure > svg * { pointer-events: none; }
+.cameo-solo[data-edge='left'] .cameo-solo__figure {
+  left: -110px;
+  animation:
+    cameo-swing-left 760ms cubic-bezier(0.2, 1.35, 0.45, 1) both,
+    cameo-sway-left 2.8s 760ms ease-in-out infinite alternate;
+}
+.cameo-solo[data-edge='right'] .cameo-solo__figure {
+  right: -110px;
+  animation:
+    cameo-swing-right 760ms cubic-bezier(0.2, 1.35, 0.45, 1) both,
+    cameo-sway-right 2.8s 760ms ease-in-out infinite alternate;
+}
+
+.cameo-solo__talk {
+  position: absolute;
+  top: 74px;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: cameo-pop 380ms 420ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.cameo-solo[data-edge='left'] .cameo-solo__talk { left: 106px; align-items: flex-start; transform-origin: 0% 0%; }
+.cameo-solo[data-edge='right'] .cameo-solo__talk { right: 106px; align-items: flex-end; transform-origin: 100% 0%; }
+/* the corner nearest the speaker is the bubble's tail, as in the app */
+.cameo-solo[data-edge='left'] .cameo-bubble { border-top-left-radius: 6px; }
+.cameo-solo[data-edge='right'] .cameo-bubble { border-top-right-radius: 6px; }
+
+.cameo-solo[data-leaving='true'] .cameo-solo__figure { animation: cameo-duck-left 420ms ease-in both; }
+.cameo-solo[data-edge='right'][data-leaving='true'] .cameo-solo__figure { animation-name: cameo-duck-right; }
+.cameo-solo[data-leaving='true'] .cameo-solo__talk { animation: cameo-fade-out 200ms ease-in both; }
+
+@keyframes cameo-swing-left {
+  from { transform: translateX(-40px) rotate(-12deg); }
+  to { transform: translateX(0) rotate(25deg); }
+}
+@keyframes cameo-sway-left {
+  from { transform: rotate(25deg); }
+  to { transform: rotate(21deg); }
+}
+@keyframes cameo-duck-left {
+  from { transform: rotate(23deg); }
+  to { transform: translateX(-40px) rotate(-14deg); }
+}
+@keyframes cameo-swing-right {
+  from { transform: translateX(40px) rotate(12deg); }
+  to { transform: translateX(0) rotate(-25deg); }
+}
+@keyframes cameo-sway-right {
+  from { transform: rotate(-25deg); }
+  to { transform: rotate(-21deg); }
+}
+@keyframes cameo-duck-right {
+  from { transform: rotate(-23deg); }
+  to { transform: translateX(40px) rotate(14deg); }
+}
+@keyframes cameo-pop {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes cameo-fade-out {
+  to { opacity: 0; transform: scale(0.9); }
+}
+
+/* ---------- the gags ---------- */
+.cameo-gag { display: block; animation: cameo-gag-wobble 900ms 500ms ease-in-out 2 both; }
+.cameo-gag--coffee { animation-name: cameo-gag-slide; animation-iteration-count: 1; }
+.cameo-gag--phone { animation-name: cameo-gag-buzz; animation-duration: 120ms; animation-iteration-count: 10; }
+.cameo-gag--sparkle { animation-name: cameo-gag-spin; animation-iteration-count: 1; animation-duration: 1200ms; }
+.cameo-gag--tears { animation-name: cameo-gag-drip; animation-iteration-count: 3; }
+
+@keyframes cameo-gag-wobble { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-12deg) translateY(-2px); } }
+@keyframes cameo-gag-slide { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes cameo-gag-buzz { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2px) rotate(4deg); } }
+@keyframes cameo-gag-spin { from { opacity: 0; transform: scale(0) rotate(-180deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes cameo-gag-drip { 0% { transform: translateY(-4px); opacity: 0.4; } 100% { transform: translateY(5px); opacity: 1; } }
+
+/* Romy's camera */
+.cameo-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  animation: cameo-flash 420ms ease-out both;
+}
+@keyframes cameo-flash {
+  0% { opacity: 0; }
+  12% { opacity: 0.92; }
+  100% { opacity: 0; }
+}
+
+/* ---------- troupe: everybody pops up from the bottom edge ---------- */
+.cameo-troupe {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.cameo-troupe__member {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 -10px -12px;
+  animation: cameo-hop 620ms calc(var(--i, 0) * 90ms) cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.cameo-troupe__member:nth-child(even) { margin-bottom: -26px; }
+.cameo-troupe .cameo-bubble {
+  padding: 5px 10px 6px;
+  border-radius: 14px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+.cameo-troupe .cameo-bubble__fr { font-size: 16px; }
+.cameo-troupe[data-crowd='true'] .cameo-bubble { padding: 3px 7px 4px; }
+.cameo-troupe[data-crowd='true'] .cameo-bubble__fr { font-size: 14px; }
+.cameo-troupe[data-crowd='true'] .cameo-troupe__member:nth-child(even) .cameo-bubble { margin-bottom: 34px; }
+.cameo-troupe[data-trigger='finale'] .cameo-troupe__member .cast-rig,
+.cameo-troupe[data-trigger='finale'] .cameo-troupe__member .tv {
+  animation: cameo-bow 900ms calc(700ms + var(--i, 0) * 120ms) ease-in-out both;
+  transform-origin: 50% 100%;
+}
+.cameo-troupe[data-leaving='true'] .cameo-troupe__member {
+  animation: cameo-sink 300ms calc(var(--i, 0) * 40ms) ease-in both;
+}
+@keyframes cameo-hop {
+  0% { transform: translateY(120%); }
+  70% { transform: translateY(-8%); }
+  100% { transform: translateY(0); }
+}
+@keyframes cameo-bow {
+  0%, 100% { transform: rotate(0); }
+  45%, 60% { transform: rotate(14deg) translateY(6px); }
+}
+@keyframes cameo-sink {
+  to { transform: translateY(130%); }
+}
+
+/* ---------- poke: the face answers in place ---------- */
+.cameo-poke {
+  position: fixed;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  transform: translate(-50%, calc(-100% - 6px));
+  animation: cameo-poke-pop 300ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.cameo-poke__face {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--cameo-card);
+  box-shadow: var(--cameo-shadow);
+  flex: none;
+}
+.cameo-poke .cameo-bubble { padding: 8px 12px 9px; border-radius: 16px 16px 16px 6px; }
+.cameo-poke .cameo-bubble__fr { font-size: 17px; }
+@keyframes cameo-poke-pop {
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 8px)) scale(0.5); }
+  to { opacity: 1; transform: translate(-50%, calc(-100% - 6px)) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cameo-layer *,
+  .cameo-layer *::before {
+    animation-name: cameo-reduced-in !important;
+    animation-duration: 200ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .cameo-solo[data-edge='left'] .cameo-solo__figure { transform: rotate(25deg); }
+  .cameo-solo[data-edge='right'] .cameo-solo__figure { transform: rotate(-25deg); }
+  .cameo-flash { display: none; }
+}
+@keyframes cameo-reduced-in { from { opacity: 0; } to { opacity: 1; } }

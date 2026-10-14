@@ -13,6 +13,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { CastActor } from '@/components/cast/vivant/CastActor';
 import { useControlLanguage } from '@/components/atelier-v2/ui';
 import {
   prefersReducedMotion,
@@ -50,7 +51,8 @@ export function CharacterTyping({ speaker }: { speaker: ReplySpeaker }) {
   const line = typingLine(speaker?.name, language);
   return (
     <div className="av2-reply av2-reply--typing" role="status" aria-live="polite">
-      {speaker && <CastPortrait characterId={speaker.id || ''} name={speaker.name} size="sm" />}
+      {/* La troupe vivante: the wait is the character thinking about your sentence. */}
+      {speaker && <CastActor characterId={speaker.id || ''} name={speaker.name} gesture="reflechit" loop width={56} />}
       <p className="av2-reply__typing">
         <span>{line}</span>
         <span className="av2-reply__dots" aria-hidden="true">
@@ -195,7 +197,8 @@ export function StoryWriting({
   const language = useControlLanguage();
   return (
     <div className="av2-reply av2-reply--typing" role="status" aria-live="polite">
-      {speaker && <CastPortrait characterId={speaker.id || ''} name={speaker.name} size="sm" />}
+      {/* La troupe vivante: the wait is the character thinking about your sentence. */}
+      {speaker && <CastActor characterId={speaker.id || ''} name={speaker.name} gesture="reflechit" loop width={56} />}
       <p className="av2-reply__typing">
         <span>{line || endingLine(language)}</span>
         <span className="av2-reply__dots" aria-hidden="true">

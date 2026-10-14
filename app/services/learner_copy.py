@@ -142,6 +142,23 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{prompt}“ als „{learner}“ eingeordnet; richtig wäre „{target}“.",
         "fr": "Vous avez classé « {prompt} » comme « {learner} » ; l’étiquette attendue est « {target} ».",
     },
+    # Issue #104: a judgement («Correct» / «À corriger») answered wrongly names the
+    # sentence, never the buttons.
+    "atelier.judgement.was_correct": {
+        "en": "“{sentence}” is already correct; there is nothing to fix.",
+        "de": "„{sentence}“ stimmt so; hier gibt es nichts zu korrigieren.",
+        "fr": "« {sentence} » est déjà correcte ; il n’y a rien à corriger.",
+    },
+    "atelier.judgement.should_be": {
+        "en": "“{sentence}” is not right; it should be “{corrected}”.",
+        "de": "„{sentence}“ stimmt nicht; richtig ist „{corrected}“.",
+        "fr": "« {sentence} » n’est pas correcte ; il faut « {corrected} ».",
+    },
+    "atelier.judgement.needs_fixing": {
+        "en": "“{sentence}” is not right yet; it needs fixing.",
+        "de": "„{sentence}“ stimmt noch nicht; der Satz muss korrigiert werden.",
+        "fr": "« {sentence} » n’est pas encore correcte ; elle est à corriger.",
+    },
     "atelier.recognize.word_bank_mismatch": {
         "en": "The sentence you built does not match the target sentence.",
         "de": "Der Satz, den du gebaut hast, stimmt nicht mit dem Zielsatz überein.",

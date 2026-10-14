@@ -595,12 +595,12 @@
       }
     },
     "957dc126ff8b": {
-      "a1": "Pas comme ça, non.",
+      "a1": "Tu n'entres pas ? Je comprends.",
       "b2": "En tout cas, pas comme ça.",
       "c1": "Pas de cette façon-là, en tout cas.",
       "a1_native": {
-        "en": "Not like this, no.",
-        "de": "So nicht, nein."
+        "en": "You're not going in? I understand.",
+        "de": "Du gehst nicht rein? Ich verstehe."
       }
     },
     "f0dac27e84bb": {
@@ -613,12 +613,12 @@
       }
     },
     "3732319f5d11": {
-      "a1": "Tu pars mercredi. Lila est libre mercredi. À suivre…",
+      "a1": "Ton billet de retour est pour mercredi. Lila est libre mercredi. À suivre…",
       "b2": "Ton billet de retour est pour mercredi prochain — précisément le jour où Lila n'a pas cours. À suivre…",
       "c1": "Ton billet retour est pour mercredi. Le jour où Lila est libre, justement. À suivre…",
       "a1_native": {
-        "en": "You leave on Wednesday. Lila is free on Wednesday. To be continued…",
-        "de": "Du fährst am Mittwoch. Lila hat am Mittwoch frei. Fortsetzung folgt…"
+        "en": "Your return ticket is for Wednesday. Lila is free on Wednesday. To be continued…",
+        "de": "Dein Rückflug ist am Mittwoch. Lila hat am Mittwoch frei. Fortsetzung folgt…"
       }
     },
     "7916ceeb083d": {

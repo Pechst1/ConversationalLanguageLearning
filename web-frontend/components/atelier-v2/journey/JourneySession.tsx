@@ -68,7 +68,7 @@ import {
 import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { ReadStepView } from './ReadStep';
 import { DeskStepView } from './DeskStep';
-import { journeySpeaker } from './journey-faces';
+import { drillSpeaker, journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { continuesConversation } from './respond-thread';
 import { stepHeaderLine } from './drill-frame';
@@ -106,6 +106,7 @@ import {
   type RouteStage,
 } from '@/lib/first-steps';
 import { isRevueDay } from '@/lib/revue-une';
+import { emitCameo } from '@/lib/cameo';
 
 export type JourneySessionProps = {
   controller: DailyJourneyController;
@@ -195,6 +196,8 @@ export function JourneySession({
   // WP-76/77: a haptic (and a sound, when on) per state; the face on screen.
   useJourneyFeel(phase.kind, step?.id ?? null, feedback);
   const speaker = journeySpeaker(journey, step);
+  // La troupe vivante: a drill is asked by the rule's coach, or by the scene's character.
+  const asker = step?.kind === 'recall' ? drillSpeaker(journey, step) : null;
 
   // WP-82: the step caption is status, in the screen's one chrome language.
   // WP-76: steps only — no clock that a server wait can move.
@@ -229,6 +232,15 @@ export function JourneySession({
           ? 'frown'
           : null
       : null;
+  // Les apparitions: each graded answer counts toward the troupe's streaks and comforts, once.
+  const announced = React.useRef<unknown>(null);
+  const gradedVerdict = tokenFace === 'grin' ? true : tokenFace === 'frown' ? false : null;
+  const askerId = asker?.id ?? null;
+  React.useEffect(() => {
+    if (gradedVerdict === null || announced.current === feedback) return;
+    announced.current = feedback;
+    emitCameo({ type: 'answer', correct: gradedVerdict, coachId: askerId });
+  }, [feedback, gradedVerdict, askerId]);
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
   // WP-D1: the mark is the day's plan, in the head's right-hand slot.
   const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;
@@ -545,6 +557,7 @@ export function JourneySession({
                   onContinue={actions.continueJourney}
                   draft={draft}
                   journeyId={journey?.id ?? null}
+                  speaker={asker}
                 />
               )}
               {step.kind === 'respond' && (
@@ -583,6 +596,7 @@ export function JourneySession({
                 onDismiss={actions.clearFeedback}
                 speaker={speaker}
                 stepKind={step?.kind ?? null}
+                faceShown={step?.kind === 'recall' && Boolean(asker)}
               />
 
               {/* Third tier. Quiet by construction, so the step's own primary
