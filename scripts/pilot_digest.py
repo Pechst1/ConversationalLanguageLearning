@@ -449,6 +449,41 @@ def format_revue_line(db, day: date, user_id: str | None = None) -> str:
     )
 
 
+#: WP-119 §8.4. One row per painting (a story's picture, or a new place's plate), written by
+#: `plates._record_cost` (`app/services/revue/plates.py`, ``PICTURE_COST_EVENT``) with no
+#: learner: the picture is everyone's. Payload: ``kind`` (story | place), ``flagged`` (the flag
+#: post-check fired; the picture is final either way), ``prompt_version``, ``model``.
+REVUE_PICTURE_EVENT_TYPE = "revue_picture_cost"
+
+
+def format_revue_pictures_line(db, day: date) -> str:
+    """WP-119 §8.4. Le Papier's pictures painted that day, by kind, flagged, and their cost.
+
+    Service-wide (no learner filter): a story's picture is painted once and shared.
+    """
+
+    rows = db.query(PilotEvent.payload, PilotEvent.cost_usd).filter(
+        PilotEvent.event_type == REVUE_PICTURE_EVENT_TYPE,
+        func.date(PilotEvent.occurred_at) == day,
+    )
+    kinds: dict[str, int] = {}
+    flagged = 0
+    cost = 0.0
+    for payload, row_cost in rows:
+        payload = payload or {}
+        kind = str(payload.get("kind") or "story")
+        kinds[kind] = kinds.get(kind, 0) + 1
+        flagged += 1 if payload.get("flagged") else 0
+        cost += float(row_cost or 0.0)
+    if not kinds:
+        return "Le Papier pictures (revue): none"
+    split = ", ".join(f"{kind} {count}" for kind, count in sorted(kinds.items()))
+    return (
+        f"Le Papier pictures (revue): {sum(kinds.values())} painted [{split}] · "
+        f"{flagged} flagged (kept, final) · ${cost:.4f}"
+    )
+
+
 #: WP-149 «Rien de refusé à l'écran». Kept as literals so the digest does not import
 #: the story engine: ``living_story._record_story_reviews`` writes the critic rows
 #: (payload ``class``: correctness / storytelling, absent before WP-149), and
@@ -621,6 +656,7 @@ def main() -> None:
         print(format_self_repair_line(db, args.day, args.user_id))
         # WP-119 §10c: Le Papier's sessions, turns, guests and cost.
         print(format_revue_line(db, args.day, args.user_id))
+        print(format_revue_pictures_line(db, args.day))  # WP-119 §8.4
         # WP-149 §C: critic overrides served by class, and the grading corrections.
         print(format_story_correctness_line(db, args.day, args.user_id))
     # WP-33: read off the rollup above — no extra query, and it cannot disagree

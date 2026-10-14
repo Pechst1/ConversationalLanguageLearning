@@ -13,7 +13,7 @@ a success.
 **The rubric** (:func:`build_rubric`): the claims on the table (or the first facts
 before any is shown), the plan's vocabulary, the band, who the learner is talking to
 (Romy, tu; a guest with their register) and the kind of turn (``respond``,
-``headline_write``, ``short_report``). Versioned :data:`RUBRIC_ID`.
+``headline_write``, ``short_report``, ``caption`` — WP-119 §8.4). Versioned :data:`RUBRIC_ID`.
 
 **The scorer** (:class:`RubricScorer`): :class:`LLMRubricScorer` asks the critic
 model through the Revue provider's own LLM plumbing (``OpenAIRevueProvider.ask_json``,
@@ -44,17 +44,20 @@ from loguru import logger
 
 RUBRIC_ID = "revue-rubric-v1"
 #: WP-119 §10e.7: the critic prompt's version, recorded on every evidence event (``prompt_version``).
-CRITIC_PROMPT_VERSION = "revue-critic-v1"
+#: v2 (WP-119 §8.4): band fit for a caption too.
+CRITIC_PROMPT_VERSION = "revue-critic-v2"
 #: The capability a Papier turn reports on when no target word names a can-do.
 CONVERSATION_CAPABILITY = "revue.conversation"
 
-TurnKind = Literal["respond", "headline_write", "short_report"]
+TurnKind = Literal["respond", "headline_write", "short_report", "caption"]
 Outcome = Literal["correct", "incorrect", "unscored"]
 FactFit = Literal["supported", "unsupported", "contradicted", "not_applicable"]
 Register = Literal["ok", "vous_to_tu", "tu_to_vous"]
 
 #: Headline length (words) the band expects — the rubric's band fit for ``headline_write``.
 HEADLINE_WORDS: dict[str, tuple[int, int]] = {"A1": (2, 10), "A2": (3, 10), "B1": (4, 14), "B2": (4, 16)}
+#: WP-119 §8.4: caption length (words) the band expects — the band fit for ``caption`` («La légende»).
+CAPTION_WORDS: dict[str, tuple[int, int]] = {"A1": (2, 10), "A2": (3, 12), "B1": (4, 16), "B2": (5, 20)}
 
 _ARTICLES = ("le", "la", "les", "un", "une", "des", "du", "l")
 _WORD = re.compile(r"[^\W\d_]+(?:['-][^\W\d_]+)*", re.UNICODE)
@@ -149,6 +152,7 @@ class Rubric:
             "expected_register": self.register,
             "summary_fr": self.summary_fr,
             "headline_words": list(HEADLINE_WORDS.get(self.band, (3, 12))) if self.kind == "headline_write" else None,
+            "caption_words": list(CAPTION_WORDS.get(self.band, (3, 14))) if self.kind == "caption" else None,
         }
 
 
@@ -270,8 +274,9 @@ _CRITIC_TASK = (
     "target words the learner did not use. fact_fit: does what the learner asserts agree with claims_shown "
     "('supported'), go beyond them ('unsupported'), contradict them ('contradicted'), or assert nothing "
     "('not_applicable', e.g. a question)? register: 'ok', or 'vous_to_tu' when the learner says vous to "
-    "someone the rubric expects tu with, 'tu_to_vous' the other way. band_fit: for a headline, 'below', "
-    "'at' or 'above' the band's expected length and complexity; else 'at'. "
+    "someone the rubric expects tu with, 'tu_to_vous' the other way. band_fit: for a headline or a caption "
+    "(kind 'caption': the caption under the story's picture, judged against claims_shown, which include what "
+    "the picture shows), 'below', 'at' or 'above' the band's expected length and complexity; else 'at'. "
     'JSON: {{"words": [{{"fr": str, "outcome": "correct"|"incorrect", "quote": str}}], '
     '"fact_fit": str, "register": str, "band_fit": str}}'
 )
@@ -302,9 +307,12 @@ class LLMRubricScorer:
 
 
 def _band_fit(rubric: Rubric, text: str) -> str:
-    if rubric.kind != "headline_write":
+    if rubric.kind == "headline_write":
+        low, high = HEADLINE_WORDS.get(rubric.band, (3, 12))
+    elif rubric.kind == "caption":
+        low, high = CAPTION_WORDS.get(rubric.band, (3, 14))
+    else:
         return "at"
-    low, high = HEADLINE_WORDS.get(rubric.band, (3, 12))
     count = len(_WORD.findall(text or ""))
     return "below" if count < low else "above" if count > high else "at"
 

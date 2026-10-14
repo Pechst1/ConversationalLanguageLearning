@@ -4,6 +4,8 @@
  * item, Romy's `make_intro` / `make_done` lines, the rubric evidence
  * (`revue-rubric-v1`), `headline_write` and `short_report`, and the vignette a
  * close mints (WP-120, `closing.vignette`).
+ * WP-119 §8.4 (the story's own picture): `stage.plate_kind` / `picture_words`, Romy's
+ * `look` line, the `caption` make («La légende») and the dispatch's picture and caption.
  *
  * The server speaks `snake_case` (docs/implementation/atelier-v2/WP-119-WIRE.md,
  * app/schemas/revue.py); the components read `camelCase`. Every response goes
@@ -22,11 +24,14 @@ export type RvClaimKind = 'fact' | 'interpretation' | 'forecast';
 export type RvDress = 'coat' | 'suit' | 'apron' | 'raincoat' | 'sport' | 'scarf_only' | 'chef' | 'hi_vis';
 export type RvBeat = 'arrive' | 'facts' | 'pursue' | 'make' | 'close';
 export type RvRoomPhase = 'open' | 'bouclage' | 'boucle';
-export type RvMakeKind = 'headline_choice' | 'headline_write' | 'reader_question' | 'short_report';
-export const RV_MAKE_KINDS = ['headline_choice', 'headline_write', 'reader_question', 'short_report'] as const;
+export type RvMakeKind = 'headline_choice' | 'headline_write' | 'reader_question' | 'short_report' | 'caption';
+export const RV_MAKE_KINDS = ['headline_choice', 'headline_write', 'reader_question', 'short_report', 'caption'] as const;
 export type RvLanguage = 'en' | 'de' | 'fr';
 export type RvPurpose = 'understand_change' | 'explain_disagreement' | 'choose_angle' | 'prepare_dispatch';
-export type RvLineRole = 'purpose' | 'place_note' | 'reply' | 'steer' | 'fallback' | 'make_intro' | 'make_done' | 'close';
+/** `look` (§8.4): on arrival, Romy points at the story's picture with the words it shows. */
+export type RvLineRole = 'purpose' | 'place_note' | 'look' | 'reply' | 'steer' | 'fallback' | 'make_intro' | 'make_done' | 'close';
+/** §8.4: what the site's plate is — the story's own picture, a painted place, a season plate, a stand-in. */
+export type RvPlateKind = 'story' | 'painted' | 'season' | 'stand_in';
 /** WIRE §6.1: why an authored line stands in. Set on every `fallback` line (and on a guest's authored line). */
 export type RvFallbackReason = 'model_down' | 'knowledge_refused' | 'budget' | 'no_match';
 export type RvGuestMove = 'enter' | 'follow_up' | 'disagree' | 'moved';
@@ -59,6 +64,10 @@ export type RvStage = {
   /** WP-119 phase 4 (§12.7): the second view, shown from the guest's entrance (or `make`) on. */
   plateUrlSecond?: string | null;
   plateSwitched?: boolean;
+  /** §8.4: `story` when `plateUrl` is the story's own picture (painted once, for every learner). */
+  plateKind: RvPlateKind;
+  /** §8.4: in a session, the words the story's picture shows, glossed (they lead the vocabulary). */
+  pictureWords: RvGloss[];
 };
 export type RvStoryCard = {
   dossierId: string;
@@ -86,6 +95,10 @@ export type RvDispatch = {
   contribution: RvSpan[];
   bylineFr: string;
   sources: RvSource[];
+  /** §8.4: the story's picture printed with the dispatch, under its caption (the learner's when `captionByLearner`). */
+  pictureUrl: string | null;
+  captionFr: string | null;
+  captionByLearner: boolean;
 };
 export type RvQuickReply = { label: string; sendFr: string };
 
@@ -242,11 +255,25 @@ export type RvTurnResult = {
   evidence: RvEvidence;
 };
 export type RvHeadlineOption = { id: string; textFr: string };
+/**
+ * §8.4 «La légende»: the caption under the story's picture. `choice` (A1–A2): three captions,
+ * one says what the picture shows (the answer stays on the server until the pick); `write`
+ * (B1+): the learner writes it, `maxWords` at most, with the picture's words as chips.
+ */
+export type RvCaptionOffer = {
+  kind: 'caption';
+  format: 'choice' | 'write';
+  pictureUrl: string;
+  options: RvHeadlineOption[];
+  words: RvGloss[];
+  maxWords: number;
+};
 export type RvMakeOption =
   | { kind: 'headline_choice'; options: RvHeadlineOption[] }
   | { kind: 'headline_write'; maxWords: number }
   | { kind: 'reader_question'; seedFr: string | null; uncertaintyFr: string | null }
-  | { kind: 'short_report'; seconds: number };
+  | { kind: 'short_report'; seconds: number }
+  | RvCaptionOffer;
 /** `intro`: Romy's `make_intro` line, written once on the first GET (phase 2). */
 export type RvMakeOffer = { recommended: RvMakeKind; options: RvMakeOption[]; intro: RvLineItem | null };
 export type RvQuestionDraftData = {
@@ -273,10 +300,26 @@ export type RvWriteResult = {
   line: RvLineItem | null;
 };
 export type RvReportResult = { kind: 'short_report'; evidence: RvEvidence; made: RvMade; line: RvLineItem | null };
+/**
+ * «La légende» filed (or refused). `choice`: `correct` and `answerId` (a wrong pick files the
+ * caption the picture shows, uncredited); `write`: the rubric's `evidence`, and `accepted`
+ * false when a claim contradicts it (nothing filed: write again).
+ */
+export type RvCaptionResult = {
+  kind: 'caption';
+  format: 'choice' | 'write';
+  accepted: boolean;
+  correct: boolean | null;
+  answerId: string | null;
+  evidence: RvEvidence | null;
+  made: RvMade | null;
+  line: RvLineItem | null;
+};
 export type RvMakeResult =
   | RvPickResult
   | RvWriteResult
   | RvReportResult
+  | RvCaptionResult
   | { kind: 'reader_question'; draft: RvQuestionDraftData }
   | { kind: 'reader_question'; made: RvMade; line: RvLineItem | null };
 export type RvCloseResult = { session: RvSessionView; closing: RvClosing };
@@ -289,7 +332,9 @@ export type RvMakeBody =
   | { kind: 'reader_question'; action: 'propose'; text?: string }
   | { kind: 'reader_question'; action: 'send'; textFr: string }
   | { kind: 'headline_write'; action: 'write'; textFr: string }
-  | { kind: 'short_report'; action: 'report'; transcript: string; mode?: 'voice' | 'text' };
+  | { kind: 'short_report'; action: 'report'; transcript: string; mode?: 'voice' | 'text' }
+  | { kind: 'caption'; action: 'caption'; optionId: string }
+  | { kind: 'caption'; action: 'caption'; textFr: string };
 
 // ---------------------------------------------------------------------------
 // Errors (WIRE §4)
@@ -416,6 +461,7 @@ export function parseGloss(raw: Json): RvGloss {
 }
 
 const DRESSES = ['coat', 'suit', 'apron', 'raincoat', 'sport', 'scarf_only', 'chef', 'hi_vis'] as const;
+const PLATE_KINDS = ['story', 'painted', 'season', 'stand_in'] as const;
 
 export function parseStage(raw: Json): RvStage {
   return {
@@ -429,6 +475,9 @@ export function parseStage(raw: Json): RvStage {
     // Phase 4: only when the wire carries them (nothing invented for an older payload).
     ...(raw.plate_url_second !== undefined ? { plateUrlSecond: strOrNull(raw.plate_url_second) } : {}),
     ...(raw.plate_switched !== undefined ? { plateSwitched: Boolean(raw.plate_switched) } : {}),
+    // §8.4: an older payload (no `plate_kind`) is a season plate with no picture words.
+    plateKind: oneOf(raw.plate_kind, PLATE_KINDS, 'season'),
+    pictureWords: list(raw.picture_words, parseGloss),
   };
 }
 
@@ -486,6 +535,10 @@ export function parseDispatch(raw: Json): RvDispatch {
     contribution: spans(raw.contribution),
     bylineFr: str(raw.byline_fr),
     sources: list(raw.sources, parseSource),
+    pictureUrl: strOrNull(raw.picture_url) || null,
+    // A caption is printed only under a picture.
+    captionFr: raw.picture_url ? strOrNull(raw.caption_fr) || null : null,
+    captionByLearner: Boolean(raw.picture_url) && raw.caption_by_learner === true,
   };
 }
 
@@ -493,7 +546,7 @@ export function parseQuickReply(raw: Json): RvQuickReply {
   return { label: str(raw.label), sendFr: str(raw.send_fr) };
 }
 
-const ROLES = ['purpose', 'place_note', 'reply', 'steer', 'fallback', 'make_intro', 'make_done', 'close'] as const;
+const ROLES = ['purpose', 'place_note', 'look', 'reply', 'steer', 'fallback', 'make_intro', 'make_done', 'close'] as const;
 const REASONS = ['model_down', 'knowledge_refused', 'budget', 'no_match'] as const;
 const MOVES = ['enter', 'follow_up', 'disagree', 'moved'] as const;
 const POSITIONS = ['for', 'against', 'moved'] as const;
@@ -718,6 +771,19 @@ export function parseMakeOffer(raw: Json): RvMakeOffer {
       options.push({ kind: 'reader_question', seedFr: strOrNull(option.seed_fr), uncertaintyFr: strOrNull(option.uncertainty_fr) });
     } else if (option.kind === 'short_report') {
       options.push({ kind: 'short_report', seconds: Math.max(1, num(option.seconds, 30)) });
+    } else if (option.kind === 'caption' && str(option.picture_url)) {
+      // «La légende» without its picture would be a caption under nothing: absent.
+      const format = option.format === 'write' ? 'write' : 'choice';
+      const captions = list(option.options, (row) => ({ id: str(row.id), textFr: str(row.text_fr) }));
+      if (format === 'choice' && captions.length < 2) continue;
+      options.push({
+        kind: 'caption',
+        format,
+        pictureUrl: str(option.picture_url),
+        options: captions,
+        words: list(option.words, parseGloss),
+        maxWords: Math.max(1, num(option.max_words, 16)),
+      });
     }
     // An unknown kind is absent here, never greyed.
   }
@@ -752,6 +818,18 @@ export function parseMakeResult(raw: Json): RvMakeResult {
       kind: 'short_report',
       evidence: parseEvidence(isObject(raw.evidence) ? raw.evidence : {}),
       made: parseMade(isObject(raw.made) ? raw.made : {}),
+      line,
+    };
+  }
+  if (raw.kind === 'caption') {
+    return {
+      kind: 'caption',
+      format: raw.format === 'write' ? 'write' : 'choice',
+      accepted: raw.accepted === true,
+      correct: typeof raw.correct === 'boolean' ? raw.correct : null,
+      answerId: strOrNull(raw.answer_id),
+      evidence: isObject(raw.evidence) ? parseEvidence(raw.evidence) : null,
+      made: isObject(raw.made) ? parseMade(raw.made) : null,
       line,
     };
   }
@@ -795,6 +873,11 @@ export function turnBodyWire(body: RvTurnBody): Json {
 
 export function makeBodyWire(body: RvMakeBody): Json {
   if (body.action === 'pick') return { kind: body.kind, action: body.action, option_id: body.optionId };
+  if (body.action === 'caption') {
+    return 'optionId' in body
+      ? { kind: body.kind, action: body.action, option_id: body.optionId }
+      : { kind: body.kind, action: body.action, text_fr: body.textFr };
+  }
   if (body.action === 'propose') return body.text ? { kind: body.kind, action: body.action, text: body.text } : { kind: body.kind, action: body.action };
   if (body.action === 'report') return { kind: body.kind, action: body.action, transcript: body.transcript, mode: body.mode ?? 'voice' };
   return { kind: body.kind, action: body.action, text_fr: body.textFr };

@@ -82,6 +82,36 @@ PLATE_PEOPLE_CLAUSE = (
     "close-ups; no animals in the foreground."
 )
 
+#: WP-119 §8.4 (owner, 2026-10-14): the story picture shows the people of the story, by what they
+#: do and where they stand. Still the plate's flat print and never a likeness (no features, no
+#: portrait, never larger than a fifth of the frame), and nobody where the drawn cast stands.
+STORY_PEOPLE_CLAUSE = (
+    "People in the same flat screen-print style: simple figures built from a few flat shapes, faces left "
+    "as plain flat shapes without features. The people of the story are small to medium, never taller than a "
+    "fifth of the frame's height, seen from a distance, from behind or in profile, recognisable only by what "
+    "they do and where they stand, never as portraits, close-ups or the likeness of anyone; nobody in the "
+    "bottom quarter of the frame; no animals in the foreground."
+)
+
+#: WP-119 §8.4: what a story picture's brief may not ask for beyond :data:`PLATE_FORBIDDEN`: the
+#: prompt ends on "no flags…, no readable text", so a moment built on a flag or a placard would ask
+#: the model for two opposite things (the builder is told; the check drops such a brief).
+STORY_FORBIDDEN_EXTRA: tuple[str, ...] = (
+    "flag", "flags", "drapeau", "drapeaux", "placard", "placards", "pancarte", "pancartes", "likeness",
+)
+
+#: WP-119 §8.4: the stage crops the picture (4:3 on arrival, 16:9 on La Une, a wide band over the
+#: thread) and stands Romy in front of its middle third and Toi at the bottom right. The left third
+#: shows beside her at every size, so the moment goes there; printed whole («La légende», the
+#: dispatch, La Carte) it reads as a rule-of-thirds picture.
+STORY_STAGE_CLAUSE = (
+    "Composition: two drawn figures will stand in front of this picture, a tall one across its middle third and "
+    "a smaller one in its bottom right corner, so the story's moment and its key object sit in the left third of "
+    "the frame, between a quarter and four fifths of its height and clear of the left edge, which may be cropped; "
+    "the place spreads across the whole width behind them, so what the picture shows can still be seen around "
+    "the figures; the bottom quarter is calm floor, rail, table or pavement with nothing important in it."
+)
+
 #: WP-119 §8.1 feasibility (2026-10-02): the model added readable minutes on a metro board and
 #: flags in a press room unasked. National colours in architecture are fine (§12.4); flags,
 #: emblems, logos and anything readable are not.
@@ -422,15 +452,22 @@ def fallback_place_for(kind: str | None) -> str:
     return PLACE_FALLBACKS.get(str(kind or ""), PLACE_FALLBACKS["default"])
 
 
-def plate_forbidden_hits(text: str | None) -> list[str]:
-    """The :data:`PLATE_FORBIDDEN` words a plate brief contains (whole words, accent-folded)."""
+def plate_forbidden_hits(text: str | None, *, extra: tuple[str, ...] = ()) -> list[str]:
+    """The :data:`PLATE_FORBIDDEN` words (and ``extra``) a plate brief contains (whole words, accent-folded)."""
 
-    forbidden = {_fold_ascii(word) for word in PLATE_FORBIDDEN}
+    forbidden = {_fold_ascii(word) for word in (*PLATE_FORBIDDEN, *extra)}
     seen: list[str] = []
     for token in _tokens(text or ""):
         if token in forbidden and token not in seen:
             seen.append(token)
     return seen
+
+
+def story_forbidden_hits(text: str | None) -> list[str]:
+    """§8.4: what a story picture's painter text may not ask for — :data:`PLATE_FORBIDDEN` and
+    :data:`STORY_FORBIDDEN_EXTRA` (a flag or a placard would fight the negative clause)."""
+
+    return plate_forbidden_hits(text, extra=STORY_FORBIDDEN_EXTRA)
 
 
 def is_sensitive(text: str | None) -> bool:

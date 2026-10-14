@@ -7,6 +7,9 @@
  * and «Aujourd'hui» — with the words the rubric flagged underlined (a dotted line for
  * register, a solid one for grammar, each with its word for screen readers: never
  * colour alone), and Romy's one line. No score, no verdict word.
+ *
+ * WP-119 §8.4 · a caption the learner wrote under the story's picture: the picture comes
+ * back whole (the painter's 3:2, not the band) and they caption it again.
  */
 
 import React, { useId, useState } from 'react';
@@ -68,7 +71,7 @@ export function CarteRelecture({ offer, copy, pair: initialPair = null, onAnswer
   };
 
   return (
-    <section className="carte-relecture" aria-label={copy.relecture_title}>
+    <section className="carte-relecture" aria-label={copy.relecture_title} data-kind={offer.kind}>
       <div className="carte-relecture__band" aria-hidden="true">
         {plate && (
           // eslint-disable-next-line @next/next/no-img-element -- a static plate, already sized
@@ -111,7 +114,9 @@ export function CarteRelecture({ offer, copy, pair: initialPair = null, onAnswer
         </>
       ) : (
         <>
-          <p className="av2-body av2-body--lg">{offer.kind === 'question' ? copy.relecture_lead_question : copy.relecture_lead_headline}</p>
+          <p className="av2-body av2-body--lg">
+            {offer.kind === 'question' ? copy.relecture_lead_question : offer.kind === 'caption' ? copy.relecture_lead_caption : copy.relecture_lead_headline}
+          </p>
           <div className="av2-field">
             <label className="av2-field__label" htmlFor={fieldId}>
               {copy.relecture_field}

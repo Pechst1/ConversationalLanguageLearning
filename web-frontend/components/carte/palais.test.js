@@ -69,9 +69,18 @@ test('the Relecture row: «Relire ta question» when eligible, «Relue le …» 
   assert.match(open, /Relire ta question/);
   const read = visibleText(render(h(CartePinCard, { pin: pins.find((p) => p.sessionId === 'mock-canicules'), copy: FR, onClose: noop, onRelire: noop, onReleve: noop, onRelecture: noop })));
   assert.match(read, /Relue le 22 oct\./);
-  const headline = palais.relectureAction({ relecture: { state: 'eligible', readAt: null }, questionFr: null });
-  assert.deepEqual(headline, { kind: 'open', headline: true });
+  const eligible = { state: 'eligible', readAt: null };
+  const headline = palais.relectureAction({ relecture: eligible, questionFr: null, contributionKind: 'headline_write' });
+  assert.deepEqual(headline, { kind: 'open', task: 'headline' });
+  assert.deepEqual(palais.relectureAction({ relecture: eligible, questionFr: 'Q ?', contributionKind: 'caption' }), { kind: 'open', task: 'question' });
   assert.equal(palais.relectureAction({ relecture: null, questionFr: 'Q ?' }), null);
+  // WP-119 §8.4: a caption written under the story's picture is captioned again.
+  const caption = palais.relectureAction({ relecture: eligible, questionFr: null, contributionKind: 'caption' });
+  assert.deepEqual(caption, { kind: 'open', task: 'caption' });
+  const pin = { ...pins.find((p) => p.sessionId === 'mock-bourgogne'), questionFr: null, contributionKind: 'caption' };
+  const card = visibleText(render(h(CartePinCard, { pin, copy: FR, onClose: noop, onRelire: noop, onReleve: noop, onRelecture: noop })));
+  assert.match(card, /Réécrire ta légende/);
+  assert.match(card, /Ta légende/);
 });
 
 // --- 3. CarteReview ----------------------------------------------------------------------------
@@ -135,6 +144,15 @@ test('CarteRelecture asks first, without the old answer', () => {
   assert.match(html, /<textarea[^>]*lang="fr"/);
   assert.doesNotMatch(text, /la récolte bonne cette année \? /, 'the old answer is not shown before sending');
   assert.doesNotMatch(text, /Semaine 35/);
+});
+
+test('CarteRelecture brings the story’s picture back whole for a caption (WP-119 §8.4)', () => {
+  const offer = { ...mock.CARTE_MOCK_RELECTURE_OFFER, kind: 'caption', promptFr: 'Regarde l’image : quelle légende écrirais-tu aujourd’hui ?' };
+  const html = render(h(CarteRelecture, { offer, copy: FR, onAnswer: async () => mock.CARTE_MOCK_RELECTURE_PAIR, onBack: noop }));
+  assert.match(html, /class="carte-relecture"[^>]*data-kind="caption"/);
+  assert.match(visibleText(html), /Regarde l’image : quelle légende écrirais-tu aujourd’hui \?/);
+  assert.equal(types.parseRelectureOffer({ session_id: 's1', kind: 'caption' }).kind, 'caption');
+  assert.equal(types.parseRelectureOffer({ session_id: 's1', kind: 'other' }).kind, 'question');
 });
 
 test('CarteRelecture renders the pair: both answers, the flags underlined with their word, Romy’s line', () => {

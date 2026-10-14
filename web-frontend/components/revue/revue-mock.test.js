@@ -9,7 +9,9 @@
 //   carries the learner's words, marked as theirs.
 //
 // Plus: the 80 % steer and the 100 % «bouclé»; simplify on breakdown; resume is
-// a replay; a retried turn is safe; the flag-off 404; one active Revue a week.
+// a replay; a retried turn is safe; the flag-off 404; one active Revue a week;
+// WP-119 §8.4 (`pictures: true`): the story's own picture on the stage, Romy's
+// «Regarde», «La légende» chosen (A1–A2) or written (B1+), the dispatch's picture.
 
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
@@ -283,4 +285,100 @@ test('below B1 the phase-2 makes are absent, and refused with 409 revue_make_una
   );
   const off = createMockRevueClient({ persist: false, disabled: true });
   await assert.rejects(off.vignettes(), (error) => error.code === 'revue_disabled');
+});
+
+// ---------------------------------------------------------------------------
+// WP-119 §8.4 · the story's own picture: «Regarde», «La légende», the dispatch
+// ---------------------------------------------------------------------------
+
+const DESK_CAPTION = 'Un marché en plein air, un matin, entre les étals de fruits et légumes.';
+
+test('§8.4 A2: the picture is the stage, Romy points at it, its words lead; a wrong caption files the picture\'s own, uncredited', async () => {
+  const client = createMockRevueClient({ persist: false, band: 'A2', language: 'fr', pictures: true });
+  assert.equal((await client.week()).offer.recommended.stage.plateKind, 'story');
+  const s = await client.start();
+  assert.deepEqual([s.stage.plateKind, s.stage.placeIsReal], ['story', true], 'the story\'s own picture: nothing stands in');
+  assert.deepEqual(s.stage.pictureWords.map((word) => word.fr), ['marché couvert', 'en plein air']);
+  assert.deepEqual(s.plan.vocabulary.slice(0, 2).map((word) => word.fr), ['marché couvert', 'en plein air'], 'the picture\'s words lead the vocabulary');
+  const lines = s.thread.filter((item) => item.kind === 'line');
+  assert.deepEqual(lines.map((item) => item.role), ['look', 'purpose'], 'Romy points at the picture instead of the place note');
+  assert.match(lines[0].textFr, /^Regarde : /);
+  assert.deepEqual(lines[0].glosses.map((gloss) => gloss.fr), ['marché couvert', 'en plein air']);
+  assert.deepEqual(s.plan.makeOptions, ['headline_choice', 'reader_question', 'caption']);
+
+  await client.turn(s.id, { text: "D'accord, je t'aide." });
+  const offer = await client.makeOffer(s.id);
+  assert.equal(offer.recommended, 'caption', 'the story\'s own picture is captioned first');
+  assert.match(offer.intro.textFr, /légende sous l'image/);
+  const caption = offer.options.find((option) => option.kind === 'caption');
+  assert.deepEqual([caption.format, caption.options.length, caption.maxWords], ['choice', 3, 12]);
+  assert.ok(caption.options.some((option) => option.textFr === DESK_CAPTION), 'one says what the picture shows');
+  const answer = caption.options.find((option) => option.textFr === DESK_CAPTION);
+  await assert.rejects(client.make(s.id, { kind: 'caption', action: 'caption', optionId: 'zz' }), (error) => error.code === 'revue_unknown_option');
+  const wrong = await client.make(s.id, { kind: 'caption', action: 'caption', optionId: caption.options.find((option) => option !== answer).id });
+  assert.deepEqual([wrong.accepted, wrong.correct, wrong.answerId], [true, false, answer.id]);
+  assert.deepEqual([wrong.made.textFr, wrong.made.contribution], [DESK_CAPTION, []], 'a wrong pick is not the learner\'s caption');
+  assert.match(wrong.line.textFr, /On garde l'autre/);
+
+  const { closing } = await client.close(s.id);
+  assert.deepEqual(
+    [closing.dispatch.pictureUrl, closing.dispatch.captionFr, closing.dispatch.captionByLearner],
+    [caption.pictureUrl, DESK_CAPTION, false],
+  );
+  assert.notEqual(closing.dispatch.headlineFr, DESK_CAPTION, 'a caption is not a headline');
+  assert.equal(closing.vignette.keptContribution, false);
+});
+
+test('§8.4 A1: the right caption is the learner\'s, «toi» under the picture in the dispatch', async () => {
+  const client = createMockRevueClient({ persist: false, band: 'A1', language: 'de', pictures: true });
+  const s = await client.start();
+  assert.deepEqual(s.stage.pictureWords.map((word) => word.gloss), ['Markthalle', 'im Freien'], 'glossed in the learner\'s language');
+  const caption = (await client.makeOffer(s.id)).options.find((option) => option.kind === 'caption');
+  assert.equal(caption.maxWords, 10);
+  const right = await client.make(s.id, { kind: 'caption', action: 'caption', optionId: caption.options.find((option) => option.textFr === DESK_CAPTION).id });
+  assert.deepEqual([right.correct, right.made.contribution], [true, [[0, DESK_CAPTION.length]]]);
+  assert.match(right.line.textFr, /C'est ta légende/);
+  const { closing } = await client.close(s.id);
+  assert.deepEqual([closing.dispatch.captionFr, closing.dispatch.captionByLearner], [DESK_CAPTION, true]);
+  assert.equal(closing.vignette.keptContribution, true);
+});
+
+test('§8.4 B1: the caption is written with the picture\'s words; contradicted → write again; filed, it is printed as theirs', async () => {
+  const client = createMockRevueClient({ persist: false, band: 'B1', language: 'en', pictures: true });
+  const s = await client.start();
+  assert.deepEqual(s.plan.makeOptions, ['headline_choice', 'headline_write', 'reader_question', 'short_report', 'caption']);
+  const offer = await client.makeOffer(s.id);
+  assert.equal(offer.recommended, 'caption');
+  const caption = offer.options.find((option) => option.kind === 'caption');
+  assert.deepEqual([caption.format, caption.options, caption.maxWords], ['write', [], 16]);
+  assert.deepEqual(caption.words.map((word) => [word.fr, word.gloss]), [['marché couvert', 'covered market'], ['en plein air', 'outdoors']]);
+
+  const refused = await client.make(s.id, { kind: 'caption', action: 'caption', textFr: "Le marché n'ouvre que le dimanche, en plein air." });
+  assert.deepEqual([refused.accepted, refused.made, refused.evidence.factFit], [false, null, 'contradicted'], 'nothing filed');
+  assert.match(refused.line.textFr, /Tu réessaies/);
+  const text = 'Un marché en plein air, devant le marché couvert, un matin.';
+  const filed = await client.make(s.id, { kind: 'caption', action: 'caption', textFr: text });
+  assert.deepEqual([filed.accepted, filed.made.learnerFr, filed.made.contribution], [true, text, [[0, text.length]]]);
+  assert.deepEqual(filed.evidence.words.filter((word) => word.outcome === 'correct').map((word) => word.fr), ['marché couvert', 'en plein air']);
+
+  const { closing } = await client.close(s.id);
+  assert.deepEqual([closing.dispatch.captionFr, closing.dispatch.captionByLearner], [text, true]);
+  assert.notEqual(closing.dispatch.headlineFr, text, 'a caption is not a headline');
+  assert.deepEqual(closing.kept.words.filter((word) => word.used).map((word) => word.fr), ['marché couvert', 'en plein air'], 'the words the caption used are kept as used, for review');
+  assert.deepEqual([closing.vignette.ring, closing.vignette.keptContribution], ['headline', true]);
+});
+
+test('§8.4 without the story\'s picture: the plate stands in, no «Regarde», no «La légende» (refused with 409)', async () => {
+  const client = createMockRevueClient({ persist: false, band: 'A2' });
+  const s = await client.start();
+  assert.deepEqual([s.stage.plateKind, s.stage.pictureWords], ['stand_in', []]);
+  assert.ok(!s.thread.some((item) => item.kind === 'line' && item.role === 'look'));
+  assert.ok(s.thread.some((item) => item.kind === 'line' && item.role === 'place_note'));
+  assert.ok(!(await client.makeOffer(s.id)).options.some((option) => option.kind === 'caption'), 'absent, never greyed');
+  await assert.rejects(
+    client.make(s.id, { kind: 'caption', action: 'caption', optionId: 'l1' }),
+    (error) => error instanceof RevueError && error.code === 'revue_make_unavailable' && error.makeKind === 'caption',
+  );
+  const { closing } = await client.close(s.id);
+  assert.deepEqual([closing.dispatch.pictureUrl, closing.dispatch.captionFr], [null, null]);
 });

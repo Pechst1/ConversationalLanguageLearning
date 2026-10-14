@@ -28,7 +28,8 @@ PLAN_VERSION = "revue-plan-v1"
 
 GlossMode = Literal["shown", "tap", "none"]
 TranslationMode = Literal["one_tap", "on_request", "none"]
-MakeOption = Literal["headline_choice", "headline_write", "reader_question", "tell_margaux", "short_report"]
+#: ``caption`` (WP-119 §8.4): added by the encounter when the story's own picture is on the stage.
+MakeOption = Literal["headline_choice", "headline_write", "reader_question", "tell_margaux", "short_report", "caption"]
 
 DEFAULT_ROUTE: tuple[str, ...] = ("arrive", "facts", "pursue", "make", "close")
 #: §5.4 make options by band: A1/A2 choose a headline, B1+ write one and may report.

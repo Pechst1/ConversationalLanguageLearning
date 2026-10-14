@@ -312,3 +312,37 @@
 .av2 .rv-seal-vignettes > .av2-label { margin: 0; }
 .av2 .rv-seal-vignettes ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 12px 8px; margin: 0; padding: 0; list-style: none; }
 .av2 .rv-seal-vignettes li { display: flex; justify-content: center; min-width: 0; }
+
+/* --- WP-119 §8.4 · the story's own picture, printed (RvPicture) ----------
+   A press photograph's grammar: a hairline frame around the house print at the
+   painter's 3:2, the caption under it on an ink rule (Garamond italic, the
+   learner's words marked «toi»), the credit right-aligned: «Illustration ·
+   Le Papier». A caption still to find is a dotted blank line; one that arrives
+   is inked in. The print stays a print in dark mode, like the plates. ---------- */
+.av2 .rv-picture { display: flex; flex-direction: column; gap: 8px; margin: 0; min-width: 0; }
+.av2 .rv-picture__frame { position: relative; overflow: hidden; aspect-ratio: 3 / 2; border-radius: 4px;
+  background: repeating-linear-gradient(135deg, var(--av2-line) 0 8px, var(--av2-card) 8px 16px); box-shadow: 0 0 0 1px var(--av2-line-2); }
+.av2 .rv-picture__img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.av2 .rv-picture__cap { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--av2-ink); }
+.av2 .rv-picture__fr { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.35; color: var(--av2-ink);
+  animation: rv-ink 0.24s ease-out both; }
+.av2 .rv-picture__fr[data-draft] { color: var(--av2-ink-2); animation: none; }
+.av2 .rv-picture[data-size='small'] .rv-picture__fr { font-size: var(--av2-t-body); }
+.av2 .rv-picture__blank { display: block; width: 72%; height: 1.2rem; border-bottom: 2px dotted var(--av2-line-2); }
+.av2 .rv-picture__credit { align-self: flex-end; font: 700 0.625rem/1.2 var(--av2-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--av2-muted); }
+@keyframes rv-ink { from { opacity: 0; filter: blur(1.5px); } to { opacity: 1; filter: none; } }
+@media (prefers-reduced-motion: reduce) { .av2 .rv-picture__fr { animation: none; } }
+.av2 .rv-dispatch .rv-picture { margin: 2px 0 4px; }
+
+/* «La légende» (RvCaption): the picture, its words as tiles, then the captions or the field */
+.av2 .rv-caption { display: flex; flex-direction: column; gap: 12px; }
+.av2 .rv-caption__words { display: flex; flex-direction: column; gap: 8px; }
+.av2 .rv-caption__k { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .rv-caption__list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.av2 .rv-caption__word { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.av2 li.rv-caption__word { padding: 6px 14px; border-radius: var(--av2-r-pill); background: var(--av2-card); }
+.av2 .av2-tile.rv-caption__word { padding: 0.375rem 1rem; text-align: left; }
+.av2 .rv-caption__fr { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); line-height: 1.25; color: var(--av2-ink);
+  text-decoration: underline; text-decoration-color: var(--av2-yellow); text-decoration-thickness: 3px; text-underline-offset: 3px; }
+.av2 .rv-caption__gloss { font: 600 normal var(--av2-t-meta)/1.2 var(--av2-sans); color: var(--av2-muted); }
+.av2 .rv-caption .av2-field__control { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); }

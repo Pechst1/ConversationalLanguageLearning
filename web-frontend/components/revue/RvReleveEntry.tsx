@@ -7,7 +7,8 @@
  *   ═══════════════════════════════  the double hairline (`rv-dispatch__rule`)
  *   Semaine 40 · 2 oct.     Le Monde · RFI   period in blue, outlets on the right
  *   The story's title (Garamond)
- *   «Ton titre» — what was made, quoted
+ *   the story's own picture under its caption (WP-119 §8.4), when it was painted
+ *   «Ton titre» — what was made, quoted (a caption is the picture's, not quoted twice)
  *   the claims: kind rule + label, the French, who says so, «D'après …, date ↗»
  *   the words as chips: token, French, gloss
  *
@@ -24,6 +25,7 @@ import { releveAnchor, type RvReleveEntryData, type RvReleveMadeKind } from '@/l
 import { count, type ReleveCopy } from './releve-copy';
 import type { RevueCopy } from './revue-copy';
 import { sourceDate } from './revue-model';
+import { RvPicture } from './RvPicture';
 import { RvSourceLine } from './RvThread';
 
 export type RvReleveEntryProps = {
@@ -38,6 +40,7 @@ export type RvReleveEntryProps = {
 export function madeKindLabel(kind: RvReleveMadeKind, copy: RevueCopy, releve: ReleveCopy): string {
   if (kind === 'reader_question') return copy.made_question;
   if (kind === 'short_report') return copy.made_report;
+  if (kind === 'caption') return copy.made_caption;
   if (kind === 'tell_margaux') return releve.made_tell_margaux;
   return copy.made_headline;
 }
@@ -126,7 +129,16 @@ export function RvReleveEntry({ entry, collapsed, onToggle, copy, releve, now }:
         </p>
       ) : (
         <div id={bodyId} className="nb-sec">
-          {entry.made && (
+          {entry.pictureUrl && (
+            <RvPicture
+              url={entry.pictureUrl}
+              captionFr={entry.captionFr}
+              contribution={entry.captionByLearner && entry.captionFr ? [[0, entry.captionFr.length]] : []}
+              size="small"
+              copy={copy}
+            />
+          )}
+          {entry.made && !(entry.made.kind === 'caption' && entry.pictureUrl && entry.captionFr) && (
             <div className="rv-made" data-made={entry.made.kind}>
               <p className="av2-label">{madeKindLabel(entry.made.kind, copy, releve)}</p>
               <blockquote className="rv-quote" lang="fr" style={{ fontStyle: 'normal' }}>

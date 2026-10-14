@@ -403,17 +403,85 @@ deep the default goes**; every story is open at every band.
 Romy in front with `notebook` (an authored prop, WP-116 §12.3 tier 1). Toi from behind in the
 dress. A guest enters when §7 says so and stands beside Romy. Camille obeys the WP-116 phase-2 rule.
 
+### 8.4 The story's own picture (owner, 2026-10-14)
+The plates of §8.1 paint a *place*: a learner could not tell the budget story from any other story in the
+hémicycle, and in production nothing ever called the painter, so every Papier showed a season plate standing in.
+Each story now gets **one picture of its news**, painted once at the morning intake, shared by every learner, and
+final. The owner's rules for it: «ship it», in the app's own print style; in production one picture per story and
+it is always final («too expensive always only create one version»; several candidates and a score only before
+shipping, on the owner's sample); people of the story allowed, by their role, never a likeness.
+
+- **The brief (`visual`, builder v2).** The builder's one call also writes `EditorialDossier.visual`
+  (`dossier.StoryVisual`). In English for the painter: the `moment` that says what happened, set in `places[0]`,
+  people named only by their role («the economy minister at the tribune, the benches full of deputies»); an optional
+  `symbol`, the one object that carries the idea (a taut red cord on the floor for «une ligne rouge»); the
+  `viewpoint` and the `light`; 2–3 `words` the picture shows (a noun with its article copied from a claim, and what
+  in the picture shows it). In French for the learner: the desk's `caption_fr` (it names the people), Romy's
+  `look_fr` («Regarde : …») and two `decoys_fr` (captions the picture plainly contradicts, for A1–A2).
+  `builder._repair_visual` turns a person's name in the painter's text into their role and drops a word no claim
+  carries, a caption or look line with a relative date; `checks.check_visual` refuses what is still wrong
+  (`person_named`, `forbidden_words` with flag and placard added, `word_not_in_claims`, `relative_date`): the visual
+  is dropped and the dossier keeps its place plate, it is never dropped for its picture.
+- **The prompt (`plates.story_prompt_for`, `revue-story-v1`).** The season's `PLATE_STYLE` (the same flat risograph
+  screen print and the same palette lock as every season plate and Feuilleton background) with
+  `policy.STORY_PEOPLE_CLAUSE` (flat figures without features, never taller than a fifth of the frame, seen from a
+  distance, from behind or in profile, known by what they do and where they stand, never a portrait or a likeness,
+  nobody in the bottom quarter), then the place, the moment, the symbol, the words it must show, the viewpoint, the
+  light, `policy.STORY_STAGE_CLAUSE` (the moment and its key object in the left third, which every stage size
+  shows beside Romy, who stands across the middle third; the place across the whole width behind her and Toi; a
+  calm bottom quarter) and `PLATE_NEGATIVE` (no flags, emblems, logos, readable text or numbers).
+- **One call, final.** `plates.paint_story` makes one 1536×1024 medium call, palette-locks the result, stores it
+  under `revue-stories/` where durable art lives and writes a `revue_story_pictures` row (migration a7c9e1b3d5f7:
+  URL, caption, place, the full prompt, its version, model, cost, `flagged`). It never repaints: `looks_wrong` (the
+  tricolour band) only sets `flagged` for the owner. The place painter `paint` follows the same rule (its one repaint
+  is gone).
+- **When, and what it costs.** `tasks.revue.weekly_intake` queues `paint_pictures` after every morning's intake
+  (inline when the broker is unreachable): `plates.paint_period` paints what the period's kiosk is missing (each
+  story's picture, and a plate for a new second view), each once, until done or the service's daily cap
+  (`spend_guard.service_budget_reached`). A morning that finds everything painted spends nothing; one whose painting
+  failed is caught up the next. Every painting writes one pilot-ledger row `revue_picture_cost` with no learner
+  (`REVUE_PICTURE_COST_USD`, $0.06 a picture), which the cap counts and the digest prints («Le Papier pictures»: by
+  kind, flagged, cost). Weekly cadence: six pictures a week, about $0.36. `POST /revue/admin/paint` paints on
+  demand (queued; `?enqueue=false` paints in the request, `?limit=`). Gated by `REVUE_PLATE_GENERATION_ENABLED`
+  **and** durable storage (`GRAPHIC_NOVEL_IMAGE_STORAGE=s3` with its bucket, `docs/ops/image-storage.md`): until the
+  bucket exists, production keeps its place plates.
+- **On the stage (`plates.site_plate`).** A painted story picture is the site's plate (`plate_kind: "story"`) before
+  any season or painted plate. Nothing stands in, so Romy's `place_note` gives way to her `look` line (`look_fr`,
+  the picture's words glossed), and the picture's words lead the plan's vocabulary, so they are the words kept for
+  review on La Carte. The second view (§12.7) is still a place plate: the second place's, else the site's own, so
+  the band has moved on (at the guest's entrance or at make) by the time «La légende» and the dispatch print the
+  picture right under it, and the picture never shows twice. A story whose picture is not painted yet shows its
+  place plate as before, and La Une shows the picture as the story's plate.
+- **«La légende», a make.** With the picture painted, `plan.make_options` gains `caption` (at A1–A2 only when the
+  builder gave its two decoys), recommended unless a reader question waits or the learner's last Papier was a
+  caption. A1–A2 choose among the desk's caption and the
+  two decoys (the order fixed per session, the answer kept by the server until the pick; a wrong pick files the
+  picture's own caption, uncredited, like the headline). B1+ write it (`grading.CAPTION_WORDS` sets the band's
+  length; 16 words at B1) with the picture's words as tiles that drop into the caption, which prints under the
+  picture as it is typed; the rubric grades it against the claims shown plus what the picture shows (the desk's
+  caption as a `picture` claim) and refuses a contradicted caption (write again). The close makes the picture the
+  plan's plate, the dispatch prints it under its caption (the learner's, marked «toi»), the vignette rings
+  «headline», Le Relevé keeps the picture with its caption, and six weeks later La Relecture shows the picture again
+  and asks for a written caption anew (`relecture.CAPTION_PROMPT_FR`).
+- **Honesty.** Every printed picture carries the credit «Illustration · Le Papier»: it is an illustration, never a
+  photograph. The image is decorative for screen readers (`alt=""`); Romy's look line says what it shows.
+- **Not verified yet.** The template has not been run against the image model since it was written: the cloud
+  container cannot reach the image API, and the owner's sample (the week's six stories, three candidates each,
+  scored, as a contact sheet) runs from the owner's machine before the flag goes on with the bucket. Dossiers built
+  before builder v2 have no `visual` and keep their place plates until the next intake or an admin refresh.
+
 ## 9. Flags, cost, caching
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `REVUE_ENABLED` | off | the card, the page, the weekly beat |
-| `REVUE_PLATE_GENERATION_ENABLED` | off | §8.1; off → known-plate fallback |
+| `REVUE_PLATE_GENERATION_ENABLED` | off | §8.1, §8.4: paint each story's own picture and a plate per new place, after the morning intake; needs durable storage; off → the place plates and the known-plate fallback |
+| `REVUE_PICTURE_COST_USD` | 0.06 | §8.4: the price of one painting, written to the pilot ledger for the service's daily cap |
 | `REVUE_ARTICLE_FETCH_ENABLED` | on | §4.1; off → RSS only |
 | `REVUE_STORIES_PER_WEEK` | 6 | intake target |
 | `REVUE_CADENCE` | `weekly` | `weekly` or `daily` (§12) |
 
-Cost: per week for all learners, one builder call per story and one plate per new place. Per
+Cost: per week for all learners, one builder call per story, one picture per story (§8.4) and one plate per new place. Per
 learner per Revue, a conversation of ~14 turns through the existing respond pipeline plus a guest's
 lines and the close. Target: at most the cost of a standard day plus 30 %; the cost report
 (`atelier_correction_cost.py`) gets a `revue` line and phase 1 measures it before phase 2 starts.
@@ -666,3 +734,4 @@ The owner answered the open questions of the first two drafts. Each decision and
 | 10c | 914692f | leftovers: «Classer le Papier», wire doc, pilot digest `revue` line, W40 fields, pictogram refresh (guitar kept), mock dress; read-only head and replayable evidence still open |
 | 10c+ | fec55dc | the remaining leftovers: read-only head with its real beat bar, replayable kept-word outcomes and register notes, the planner's «desk» step (one a day, each desk once a week), the «vu au …» line on recall cards; WIRE.md §7 |
 | 10d | e3ea714, 5eed0a0 | kiosk midnight race pinned; full-suite stability pass BLOCKED on the venv's missing declared packages (owner decision); real-model sample: 10/10 pass grounding, rubric, knowledge, dates; 10/10 FAIL natural French → phase 6 (§10e) |
+| 8.4 | claude/project-thread-i2ys4r | The story's own picture: builder v2 writes `visual` (moment, symbol, viewpoint, light, the words it shows, the caption, Romy's look line, two decoys), repaired and checked (`check_visual`); `plates.paint_story` paints it once, final, in the season's print with the story's people by role (`revue_story_pictures`, a7c9e1b3d5f7); the intake queues `paint_pictures` within the daily cap, each painting priced on the pilot ledger and in the digest; `POST /revue/admin/paint`; the place painter's repaint removed (final too). Stage `plate_kind`/`picture_words` (the moment composed in the left third, beside Romy; the band moves on to its second view before the picture is printed), Romy's `look` line, the picture's words first in the vocabulary, «La légende» (choose A1–A2, write B1+), the dispatch and Le Relevé print the picture with «Illustration · Le Papier», La Carte and La Relecture bring it back. Not verified: a real-model sample of the template; production needs the image bucket |

@@ -23,7 +23,10 @@ ClaimKind = Literal["fact", "interpretation", "forecast"]
 Outfit = Literal["coat", "suit", "apron", "raincoat", "sport", "scarf_only", "chef", "hi_vis"]
 Beat = Literal["arrive", "facts", "pursue", "make", "close"]
 RoomPhase = Literal["open", "bouclage", "boucle"]
-MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report"]
+#: ``caption`` (WP-119 §8.4, «La légende»): the caption under the story's picture.
+MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report", "caption"]
+#: WP-119 §8.4: what the site's plate is — the story's own picture, a painted place, a season plate, a stand-in.
+PlateKind = Literal["story", "painted", "season", "stand_in"]
 FallbackReason = Literal["model_down", "knowledge_refused", "budget", "no_match"]
 GuestPosition = Literal["for", "against", "moved"]
 GuestMove = Literal["enter", "follow_up", "disagree", "moved"]
@@ -92,6 +95,12 @@ class RvStage(RevueModel):
     #: whether the stage has switched to it (at the guest's entrance, or at ``make``).
     plate_url_second: str | None = None
     plate_switched: bool = False
+    #: WP-119 §8.4: ``story`` when ``plate_url`` is the story's own picture (painted once at
+    #: intake, shared by every learner) and, in a session, the words the picture shows,
+    #: glossed in the plan's gloss language (they lead the vocabulary). The desk's caption is
+    #: not sent here: it is the answer of «La légende»; the dispatch prints it after the close.
+    plate_kind: PlateKind = "season"
+    picture_words: list[RvGloss] = Field(default_factory=list)
 
 
 class RvStoryCard(RevueModel):
@@ -133,6 +142,11 @@ class RvDispatch(RevueModel):
     contribution: list[Span]
     byline_fr: str
     sources: list[RvSource]
+    #: WP-119 §8.4: the story's picture printed with the dispatch, and its caption — the
+    #: learner's («La légende», ``caption_by_learner``) or the desk's.
+    picture_url: str | None = None
+    caption_fr: str | None = None
+    caption_by_learner: bool = False
 
 
 class RvQuickReply(RevueModel):
@@ -165,7 +179,8 @@ class RvSummaryItem(_Item):
 class RvLineItem(_Item):
     kind: Literal["line"] = "line"
     speaker: str = "romy_tremblay"
-    role: Literal["purpose", "place_note", "reply", "steer", "fallback", "make_intro", "make_done", "close"]
+    #: ``look`` (WP-119 §8.4): on arrival, Romy points at the story's picture with its words.
+    role: Literal["purpose", "place_note", "look", "reply", "steer", "fallback", "make_intro", "make_done", "close"]
     text_fr: str
     translation: str | None = None
     glosses: list[RvGloss] = Field(default_factory=list)
@@ -440,11 +455,29 @@ class RvShortReportOffer(RevueModel):
     seconds: int = 30
 
 
+class RvCaptionOption(RevueModel):
+    id: str
+    text_fr: str
+
+
+class RvCaptionOffer(RevueModel):
+    """WP-119 §8.4 «La légende»: the caption under the story's picture. ``choice`` (A1–A2): three
+    captions, one says what the picture shows; ``write`` (B1+): the learner writes it, at most
+    ``max_words`` words, with the picture's words as chips."""
+
+    kind: Literal["caption"] = "caption"
+    format: Literal["choice", "write"]
+    picture_url: str
+    options: list[RvCaptionOption] = Field(default_factory=list)
+    words: list[RvGloss] = Field(default_factory=list)
+    max_words: int = 16
+
+
 class RvMakeOffer(RevueModel):
     recommended: MakeKind
     options: list[
         Annotated[
-            RvHeadlineChoiceOffer | RvHeadlineWriteOffer | RvReaderQuestionOffer | RvShortReportOffer,
+            RvHeadlineChoiceOffer | RvHeadlineWriteOffer | RvReaderQuestionOffer | RvShortReportOffer | RvCaptionOffer,
             Field(discriminator="kind"),
         ]
     ]
@@ -482,8 +515,17 @@ class RvShortReport(RevueRequest):
     mode: Literal["text", "voice"] = "voice"
 
 
+class RvCaptionMake(RevueRequest):
+    """«La légende»: ``option_id`` for the choice, ``text_fr`` for the written caption."""
+
+    kind: Literal["caption"]
+    action: Literal["caption"]
+    option_id: str | None = Field(None, min_length=1, max_length=40)
+    text_fr: str | None = Field(None, min_length=1, max_length=200)
+
+
 RvMakeRequest = Annotated[
-    RvHeadlinePick | RvQuestionPropose | RvQuestionSend | RvHeadlineWrite | RvShortReport,
+    RvHeadlinePick | RvQuestionPropose | RvQuestionSend | RvHeadlineWrite | RvShortReport | RvCaptionMake,
     Field(discriminator="action"),
 ]
 
@@ -536,12 +578,28 @@ class RvShortReportResult(RevueModel):
     line: RvLineItem | None = None
 
 
+class RvCaptionResult(RevueModel):
+    """The caption filed under the picture. ``choice``: ``correct`` and ``answer_id`` (a wrong pick
+    files the caption the picture shows, uncredited, like the headline); ``write``: graded by the
+    rubric, refused (``accepted`` false, nothing filed) when a claim contradicts it."""
+
+    kind: Literal["caption"] = "caption"
+    format: Literal["choice", "write"]
+    accepted: bool
+    correct: bool | None = None
+    answer_id: str | None = None
+    evidence: RvEvidence | None = None
+    made: RvMade | None = None
+    line: RvLineItem | None = None
+
+
 RvMakeResult = (
     RvHeadlinePickResult
     | RvQuestionProposeResult
     | RvQuestionSendResult
     | RvHeadlineWriteResult
     | RvShortReportResult
+    | RvCaptionResult
 )
 
 

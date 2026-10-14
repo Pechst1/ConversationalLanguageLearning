@@ -49,6 +49,7 @@ from app.db.models.revue_correcteur import RevueCorrection
 from app.db.models.revue_place import RevuePlace
 from app.db.models.revue_relecture import RevueRelecture
 from app.db.models.revue_session import RevueSession
+from app.db.models.revue_story_picture import RevueStoryPicture
 from app.db.models.revue_vignette import RevuePictogram, RevueVignette
 from app.db.models.scenario import UserScenarioState
 from app.db.models.serial import SerialEpisode, SerialThread
@@ -74,6 +75,7 @@ __all__ = [
     "RevueRelecture",
     "RevueCorrection",
     "RevuePlace",
+    "RevueStoryPicture",
     "RevuePictogram",
     "RevueVignette",
     "PasswordResetDelivery",

@@ -1,14 +1,16 @@
 """La Relecture (WP-121 B): answer your own question again, six weeks later.
 
 **When** (:func:`eligible`). A closed Papier whose close kept a reader question
-(``closing.question_kept_fr``) or a headline the learner wrote (an ``artifact`` of kind
-``headline_write``) becomes eligible :data:`RELECTURE_AFTER` (six weeks, owner decision
-§5.2) after ``closed_at``, once: a row in ``revue_relectures`` ends it for good.
+(``closing.question_kept_fr``), a headline the learner wrote (an ``artifact`` of kind
+``headline_write``) or a caption they wrote under the story's picture (WP-119 §8.4, an
+``artifact`` of kind ``caption``, format ``write``; the picture comes back with it) becomes
+eligible :data:`RELECTURE_AFTER` (six weeks, owner decision §5.2) after ``closed_at``, once:
+a row in ``revue_relectures`` ends it for good.
 :func:`offer` deals the oldest eligible one (``GET /revue/relecture/offer``); the pin
 card opens it too («Relire ta question»).
 
 **What** (:func:`answer`). The learner answers *the question itself* (or titles the
-story again) without seeing their old answer. The new answer is graded with the
+story again, or writes the picture's caption again) without seeing their old answer. The new answer is graded with the
 phase-2 rubric (``grading.build_rubric`` with the session's own claims and vocabulary,
 the encounter's scorer: the critic when a provider is configured, else the deterministic
 rubric); the old one with the deterministic rubric (no second model call). Underlined:
@@ -42,6 +44,7 @@ RELECTURE_AFTER = timedelta(weeks=6)
 #: How many closed Papiers the offer scans (oldest first).
 SCAN_LIMIT = 200
 HEADLINE_PROMPT_FR = "Quel titre écrirais-tu aujourd'hui pour cette histoire ?"
+CAPTION_PROMPT_FR = "Regarde l'image : quelle légende écrirais-tu aujourd'hui ?"
 TODAY_LABEL_FR = "Aujourd'hui"
 
 
@@ -90,7 +93,10 @@ def _material(row: RevueSession) -> dict[str, Any] | None:
     closing = _closing(events)
     artifacts = [_payload(e) for e in events if e.get("kind") == "artifact"]
     written = next((a for a in reversed(artifacts) if a.get("kind") == "headline_write"), None)
+    caption = next((a for a in reversed(artifacts) if a.get("kind") == "caption" and a.get("format") == "write"), None)
     question = str(closing.get("question_kept_fr") or "").strip()
+    plan = row.plan if isinstance(row.plan, dict) else {}
+    stage = plan.get("stage") if isinstance(plan.get("stage"), dict) else {}
     learner_turns = [str(_payload(e).get("text_fr") or "") for e in events if e.get("kind") == "turn_learner"]
     if question:
         made = next((a for a in reversed(artifacts) if a.get("kind") == "reader_question"), None)
@@ -100,14 +106,16 @@ def _material(row: RevueSession) -> dict[str, Any] | None:
     elif written is not None:
         then = str(written.get("learner_fr") or written.get("text_fr") or "")
         kind, prompt = "headline", HEADLINE_PROMPT_FR
+    elif caption is not None and stage.get("plate_url"):
+        # §8.4: the picture comes back (the close made it the plan's plate) and is captioned again.
+        then = str(caption.get("learner_fr") or caption.get("text_fr") or "")
+        kind, prompt = "caption", CAPTION_PROMPT_FR
     else:
         return None
     if not then.strip():
         return None
     snapshot = _snapshot(events)
-    plan = row.plan if isinstance(row.plan, dict) else {}
     place, geo = _place(plan, snapshot)
-    stage = plan.get("stage") if isinstance(plan.get("stage"), dict) else {}
     kept = closing.get("kept") if isinstance(closing.get("kept"), dict) else {}
     return {
         "kind": kind,
@@ -152,7 +160,8 @@ def _done(db: Session, session_ids: list[uuid.UUID]) -> dict[str, RevueRelecture
 
 
 def eligible(row: RevueSession, *, now: datetime | None = None, done: bool = False) -> bool:
-    """Closed six weeks ago or more, with a kept question or a written headline, never re-asked."""
+    """Closed six weeks ago or more, with a kept question, a written headline or a written
+    caption, never re-asked."""
 
     now = now or _now()
     closed = _aware(row.closed_at)
@@ -214,7 +223,7 @@ def _rubric(material: dict[str, Any]) -> grading.Rubric:
               for i, c in enumerate(material["claims"])]
     vocabulary = [SimpleNamespace(fr=str(v["fr"]), claim_id=str(v.get("claim_id") or "")) for v in material["vocabulary"]]
     return grading.build_rubric(
-        kind="respond" if material["kind"] == "question" else "headline_write",
+        kind={"question": "respond", "caption": "caption"}.get(material["kind"], "headline_write"),
         band=material["band"],
         claims=claims,
         vocabulary=vocabulary,

@@ -439,3 +439,34 @@ export function wordOutcome(outcomes: WordOutcomes, fr: string): RvOutcome | nul
 export function headlineWords(text: string): number {
   return wordCount(text);
 }
+
+// ---------------------------------------------------------------------------
+// WP-119 §8.4 · «La légende»: the picture's words as tiles
+// ---------------------------------------------------------------------------
+
+const ARTICLE = /^(?:le|la|les|l['’]|un|une|des|du|de la|de l['’])\s*/i;
+
+function foldFr(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[’‘`´]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Whether a caption already uses a picture word (accents, case and the article aside). */
+export function captionUses(text: string, word: string): boolean {
+  const bare = foldFr(word).replace(ARTICLE, '');
+  return Boolean(bare) && foldFr(text).includes(bare);
+}
+
+/** A picture word tapped into the caption: at the end, after a space; a first word opens the sentence. */
+export function captionInsert(text: string, word: string): string {
+  const lead = text.replace(/\s+$/, '');
+  const fr = word.trim();
+  if (!fr) return text;
+  if (!lead) return fr.charAt(0).toUpperCase() + fr.slice(1);
+  return `${lead} ${fr}`;
+}

@@ -7,12 +7,14 @@
 //   2. `stagePlateUrl`: the site until the switch; the second view once the server
 //      says so, once a guest has entered in the thread, or while making; never
 //      without a second view;
-//   3. RvStage shows the second plate after a switch and keeps the cast in place.
+//   3. RvStage shows the second plate after a switch and keeps the cast in place;
+//   4. WP-119 §8.4: with the story's own picture on the site, the band has moved on
+//      by the time «La légende» and the dispatch print the picture.
 
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 
-const { h, render } = require('./revue-test-setup');
+const { fixture, h, render } = require('./revue-test-setup');
 
 const types = require('../../lib/revue-types.ts');
 const { RvStage, stageCast, stagePlateUrl } = require('./RvStage.tsx');
@@ -70,4 +72,21 @@ test('RvStage shows the second plate after a switch and keeps the cast', () => {
   const strip = (html) => html.replace(/<img[^>]*class="rv-stage__plate[^"]*"[^>]*>/g, '');
   assert.equal(strip(after), strip(before));
   assert.match(after, /margaux_barman|margaux/);
+});
+
+test('§8.4 the band moves on before «La légende» and the dispatch print the picture', () => {
+  const MOCK = fixture('mock-wire');
+  const PICTURE = '/assets/serial/locations/marche_canal.webp';
+  const session = types.parseSessionView(MOCK.session_picture_arrive);
+  assert.deepEqual([session.stage.plateKind, session.stage.plateUrl, session.stage.plateSwitched], ['story', PICTURE, false]);
+  const second = session.stage.plateUrlSecond;
+  assert.ok(second && second !== PICTURE);
+  // Arrival and the facts: the picture, Romy pointing at it. Making: the second view.
+  assert.equal(stagePlateUrl(session.stage, session.thread), PICTURE);
+  assert.equal(stagePlateUrl(session.stage, session.thread, true), second);
+  // Closed (a reload): the server's word, while the dispatch prints the picture below.
+  const closed = types.parseCloseResult(MOCK.close_caption_choice);
+  assert.equal(closed.session.stage.plateSwitched, true);
+  assert.equal(stagePlateUrl(closed.session.stage, closed.session.thread), second);
+  assert.equal(closed.closing.dispatch.pictureUrl, PICTURE);
 });

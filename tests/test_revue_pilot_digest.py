@@ -9,9 +9,15 @@ from uuid import uuid4
 
 from app.services.pilot_events import PilotEventService
 from app.services.revue.encounter import REVUE_COST_EVENT_TYPE
+from app.services.revue.plates import PICTURE_COST_EVENT
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from pilot_digest import REVUE_EVENT_TYPE, format_revue_line  # noqa: E402
+from pilot_digest import (  # noqa: E402
+    REVUE_EVENT_TYPE,
+    REVUE_PICTURE_EVENT_TYPE,
+    format_revue_line,
+    format_revue_pictures_line,
+)
 
 
 def _row(db, user_id, *, turns, guests, cost, provider="openai", at):
@@ -49,3 +55,19 @@ def test_the_revue_line_prints_sessions_turns_guests_and_cost(db_session):
 def test_the_revue_line_says_none_on_an_empty_day(db_session):
     day = (datetime.now(UTC) - timedelta(days=400)).date()
     assert format_revue_line(db_session, day, str(uuid4())) == "Le Papier (revue): none"
+
+
+def test_the_pictures_line_reads_the_painter_rows(db_session):
+    assert REVUE_PICTURE_EVENT_TYPE == PICTURE_COST_EVENT
+    stamp = datetime.now(UTC) - timedelta(days=500)
+    for kind, flagged in (("story", False), ("story", True), ("place", False)):
+        PilotEventService(db_session).record(
+            PICTURE_COST_EVENT, user_id=None, entity_type=f"revue_{kind}", entity_id=uuid4(),
+            payload={"kind": kind, "flagged": flagged, "prompt_version": "v", "model": "m"},
+            cost_usd=0.06, occurred_at=stamp,
+        )
+    db_session.flush()
+    assert format_revue_pictures_line(db_session, stamp.date()) == (
+        "Le Papier pictures (revue): 3 painted [place 1, story 2] · 1 flagged (kept, final) · $0.1800"
+    )
+    assert format_revue_pictures_line(db_session, (stamp - timedelta(days=1)).date()) == "Le Papier pictures (revue): none"

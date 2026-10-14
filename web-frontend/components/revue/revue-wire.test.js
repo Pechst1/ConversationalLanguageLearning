@@ -2,7 +2,9 @@
 //
 // WP-119 phases 1–2 · the wire, client side (phase 2 «Les invités», WIRE §6:
 // fallback reasons, the guest item, make_intro / make_done, the rubric,
-// headline_write and short_report; WP-120's vignette on the close).
+// headline_write and short_report; WP-120's vignette on the close; §8.4 the
+// story's own picture: the stage's `plate_kind` / `picture_words`, the `look`
+// line, «La légende» and the dispatch's picture).
 //
 //   1. every JSON example of docs/implementation/atelier-v2/WP-119-WIRE.md parses
 //      (fixtures/wire-examples.json, copied verbatim), and so does every payload
@@ -234,6 +236,82 @@ test('the mock\'s phase-2 payloads: guest moves, fallback reasons, the rubric, m
   assert.equal(report.evidence.grader, 'revue-rubric-v1');
 });
 
+test('§8.4 the story\'s own picture: the stage, «Regarde», «La légende», the dispatch', () => {
+  // The stage carries the story's picture and the words it shows, never its caption (that is
+  // the answer of «La légende»); an older payload is a season plate with no picture words.
+  const session = types.parseSessionView(MOCK.session_picture_arrive);
+  assert.deepEqual([session.stage.plateKind, session.stage.plateUrl], ['story', '/assets/serial/locations/marche_canal.webp']);
+  assert.deepEqual(session.stage.pictureWords.map((word) => [word.fr, word.gloss]), [['marché couvert', 'marché sous un toit'], ['en plein air', 'dehors']]);
+  assert.equal(JSON.stringify(MOCK.session_picture_arrive).includes('entre les étals de fruits'), false, 'the desk caption is not on the wire before the pick');
+  const older = types.parseSessionView(MOCK.session_arrive).stage;
+  assert.deepEqual([older.plateKind, older.pictureWords], ['season', []]);
+  const offer = types.parseOffer(MOCK.offer_picture);
+  assert.equal(offer.recommended.stage.plateKind, 'story');
+  assert.deepEqual(offer.alternatives.map((card) => card.stage.plateKind), ['stand_in', 'stand_in']);
+
+  // «Regarde»: Romy's look line, the picture's words glossed, before her purpose; the
+  // picture's words lead the vocabulary (so they are the ones kept for review).
+  assert.deepEqual(session.thread.filter((item) => item.kind === 'line').map((item) => item.role), ['look', 'purpose']);
+  const look = session.thread.find((item) => item.kind === 'line' && item.role === 'look');
+  assert.deepEqual(look.glosses.map((gloss) => gloss.fr), ['marché couvert', 'en plein air']);
+  assert.deepEqual(session.plan.vocabulary.slice(0, 2).map((gloss) => gloss.fr), ['marché couvert', 'en plein air']);
+  assert.deepEqual(session.plan.makeOptions, ['headline_choice', 'reader_question', 'caption']);
+
+  // «La légende», A1–A2: three captions, one says what the picture shows; it leads.
+  const make = types.parseMakeOffer(MOCK.make_offer_caption);
+  assert.equal(make.recommended, 'caption');
+  const choice = make.options.find((option) => option.kind === 'caption');
+  assert.deepEqual(
+    { format: choice.format, pictureUrl: choice.pictureUrl, ids: choice.options.map((option) => option.id), maxWords: choice.maxWords },
+    { format: 'choice', pictureUrl: '/assets/serial/locations/marche_canal.webp', ids: ['l1', 'l2', 'l3'], maxWords: 12 },
+  );
+  assert.deepEqual(choice.words.map((word) => word.gloss), ['marché sous un toit', 'dehors']);
+  assert.match(make.intro.textFr, /légende sous l'image/);
+  const wrong = types.parseMakeResult(MOCK.make_caption_pick_wrong);
+  assert.deepEqual([wrong.kind, wrong.format, wrong.accepted, wrong.correct, wrong.answerId, wrong.evidence], ['caption', 'choice', true, false, 'l1', null]);
+  assert.deepEqual([wrong.made.textFr, wrong.made.contribution], [choice.options[0].textFr, []], 'a wrong pick files the picture\'s caption, uncredited');
+  const right = types.parseMakeResult(MOCK.make_caption_pick_right);
+  assert.deepEqual([right.correct, right.made.contribution, right.line.role], [true, [[0, 71]], 'make_done']);
+
+  // B1+: written, the picture's words as tiles; refused (nothing filed) when the picture or a source contradicts it.
+  const write = types.parseMakeOffer(MOCK.make_offer_caption_b1).options.find((option) => option.kind === 'caption');
+  assert.deepEqual([write.format, write.options, write.maxWords], ['write', [], 16]);
+  assert.deepEqual(write.words.map((word) => [word.fr, word.gloss]), [['marché couvert', 'covered market'], ['en plein air', 'outdoors']]);
+  const refused = types.parseMakeResult(MOCK.make_caption_refused);
+  assert.deepEqual([refused.format, refused.accepted, refused.correct, refused.answerId, refused.made, refused.evidence.factFit], ['write', false, null, null, null, 'contradicted']);
+  assert.match(refused.line.textFr, /Tu réessaies/);
+  const filed = types.parseMakeResult(MOCK.make_caption_write);
+  assert.deepEqual([filed.accepted, filed.evidence.factFit, filed.made.contribution], [true, 'supported', [[0, 59]]]);
+  assert.equal(filed.made.learnerFr, 'Un marché en plein air, devant le marché couvert, un matin.');
+
+  // «La légende» without its picture is absent, never greyed; a choice needs two captions.
+  const without = (patch) => types.parseMakeOffer({
+    ...MOCK.make_offer_caption,
+    options: MOCK.make_offer_caption.options.map((option) => (option.kind === 'caption' ? { ...option, ...patch } : option)),
+  }).options.map((option) => option.kind);
+  assert.deepEqual(without({ picture_url: null }), ['headline_choice', 'reader_question']);
+  assert.deepEqual(without({ options: MOCK.make_offer_caption.options[2].options.slice(0, 1) }), ['headline_choice', 'reader_question']);
+  assert.deepEqual(without({ format: 'write', options: [] }), ['headline_choice', 'reader_question', 'caption']);
+
+  // The dispatch prints the picture under its caption: the desk's after a wrong pick, the learner's otherwise.
+  const desk = types.parseCloseResult(MOCK.close_caption_choice).closing;
+  assert.deepEqual(
+    [desk.dispatch.pictureUrl, desk.dispatch.captionFr, desk.dispatch.captionByLearner, desk.vignette.keptContribution],
+    ['/assets/serial/locations/marche_canal.webp', 'Un marché en plein air, un matin, entre les étals de fruits et légumes.', false, false],
+  );
+  assert.equal(types.parseCloseResult(MOCK.close_caption_right).closing.dispatch.captionByLearner, true);
+  const mine = types.parseCloseResult(MOCK.close_caption_write).closing;
+  assert.deepEqual([mine.dispatch.captionFr, mine.dispatch.captionByLearner], ['Un marché en plein air, devant le marché couvert, un matin.', true]);
+  assert.deepEqual(mine.kept.words.filter((word) => word.used).map((word) => word.fr), ['marché couvert', 'en plein air'], 'the words the caption used are kept as used');
+  // A caption is printed only under a picture; a dispatch before §8.4 has neither.
+  assert.deepEqual(
+    (({ pictureUrl, captionFr, captionByLearner }) => [pictureUrl, captionFr, captionByLearner])(
+      types.parseDispatch({ ...MOCK.close.closing.dispatch, caption_fr: 'Une légende', caption_by_learner: true }),
+    ),
+    [null, null, false],
+  );
+});
+
 function fakeTransport(routes) {
   const calls = [];
   const reply = async (method, url, body) => {
@@ -307,6 +385,8 @@ test('request bodies go out in snake_case, on the wire\'s paths', async () => {
   await client.make('s 1', { kind: 'headline_write', action: 'write', textFr: 'Paris et ses marchés' });
   await client.make('s 1', { kind: 'short_report', action: 'report', transcript: 'Je suis au marché.' });
   await client.make('s 1', { kind: 'short_report', action: 'report', transcript: 'Je tape.', mode: 'text' });
+  await client.make('s 1', { kind: 'caption', action: 'caption', optionId: 'l2' });
+  await client.make('s 1', { kind: 'caption', action: 'caption', textFr: 'Un marché en plein air, un matin.' });
   await client.makeOffer('s 1');
   await client.close('s 1');
   await client.match('le cinéma', '2026-W40');
@@ -320,6 +400,8 @@ test('request bodies go out in snake_case, on the wire\'s paths', async () => {
     ['POST', '/revue/sessions/s%201/make', { kind: 'headline_write', action: 'write', text_fr: 'Paris et ses marchés' }],
     ['POST', '/revue/sessions/s%201/make', { kind: 'short_report', action: 'report', transcript: 'Je suis au marché.', mode: 'voice' }],
     ['POST', '/revue/sessions/s%201/make', { kind: 'short_report', action: 'report', transcript: 'Je tape.', mode: 'text' }],
+    ['POST', '/revue/sessions/s%201/make', { kind: 'caption', action: 'caption', option_id: 'l2' }],
+    ['POST', '/revue/sessions/s%201/make', { kind: 'caption', action: 'caption', text_fr: 'Un marché en plein air, un matin.' }],
     ['GET', '/revue/sessions/s%201/make', null],
     ['POST', '/revue/sessions/s%201/close', {}],
     ['POST', '/revue/match', { text: 'le cinéma', week: '2026-W40' }],

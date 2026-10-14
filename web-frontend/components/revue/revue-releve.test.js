@@ -11,7 +11,9 @@
 //   3. only the newest entry is open: older ones are the title and
 //      «Ton titre · 4 mots · 2 faits»;
 //   4. zero entries draw nothing;
-//   5. Le Relevé mounts the section right after Le Registre.
+//   5. Le Relevé mounts the section right after Le Registre;
+//   6. WP-119 §8.4: the story's own picture is kept with its caption (the
+//      learner's marked «toi»), and a caption is not quoted a second time.
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -248,3 +250,41 @@ test('«Le Correcteur · un brouillon t’attend» when the week has a draft to 
   const without = decode(render(h(RvReleveSection, { entries, language: 'fr', now: NOW, carte: { pins: 0, due: 0 }, draft: null })));
   assert.doesNotMatch(without, /data-releve-correcteur/);
 });
+
+// --- WP-119 §8.4 · the story's own picture, kept in Le Relevé ---
+
+test('§8.4: the picture is kept under its caption, the learner\'s marked «toi»; a caption is not quoted twice', () => {
+  const picture = '/media/revue/pictures/2026-W40/budget.webp';
+  const caption = 'Les députés, à l’Assemblée, devant le texte du budget.';
+  const entry = releve.parseReleveEntry(wireEntry({
+    made: { kind: 'caption', text_fr: caption },
+    picture_url: picture,
+    caption_fr: caption,
+    caption_by_learner: true,
+  }));
+  assert.deepEqual([entry.pictureUrl, entry.captionFr, entry.captionByLearner, entry.made.kind], [picture, caption, true, 'caption']);
+  // A row from before §8.4 has no picture; a caption is kept only under a picture.
+  const bare = releve.parseReleveEntry(wireEntry());
+  assert.deepEqual([bare.pictureUrl, bare.captionFr, bare.captionByLearner], [null, null, false]);
+  const stray = releve.parseReleveEntry(wireEntry({ caption_fr: 'Une légende', caption_by_learner: true }));
+  assert.deepEqual([stray.captionFr, stray.captionByLearner], [null, false]);
+
+  const html = decode(render(h(RvReleveSection, { entries: [entry], language: 'fr', now: NOW })));
+  assert.match(html, /<figure class="rv-picture" data-size="small" data-picture=""><div class="rv-picture__frame"><img class="rv-picture__img" src="\/media\/revue\/pictures\/2026-W40\/budget\.webp"/);
+  assert.match(html, /<span class="rv-yours">Les députés, à l’Assemblée, devant le texte du budget\.<sup>toi<\/sup><\/span>/);
+  assert.match(visibleText(html), /Illustration · Le Papier/);
+  assert.doesNotMatch(html, /data-made="caption"/, 'printed under the picture, not quoted again');
+  assert.ok(html.indexOf('data-picture=""') < html.indexOf('data-releve-word=""'), 'the picture leads the clipping');
+  assert.equal(entrySummary(entry, revueCopy('fr'), releveCopy('fr')), 'Ta légende · 4 mots · 2 faits');
+  assert.equal(entrySummary(entry, revueCopy('en'), releveCopy('en')), 'Your caption · 4 words · 2 facts');
+
+  // The desk's caption (a wrong pick, or another make): the picture with no «toi»; what was made is quoted as before.
+  const desk = releve.parseReleveEntry(wireEntry({ picture_url: picture, caption_fr: 'Les députés à l’Assemblée.', caption_by_learner: false }));
+  const deskHtml = decode(render(h(RvReleveSection, { entries: [desk], language: 'fr', now: NOW })));
+  assert.match(deskHtml, /<span class="rv-picture__fr" lang="fr">Les députés à l’Assemblée\.<\/span>/);
+  assert.doesNotMatch(deskHtml, /<sup>toi<\/sup>/);
+  assert.match(deskHtml, /data-made="headline_choice"/);
+  // No picture, no frame.
+  assert.doesNotMatch(decode(render(h(RvReleveSection, { entries: [bare], language: 'fr', now: NOW }))), /rv-picture/);
+});
+

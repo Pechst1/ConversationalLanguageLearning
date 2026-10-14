@@ -19,8 +19,8 @@ import {
   type RvSource,
 } from './revue-types';
 
-/** What was made: the four make kinds, plus phase 2's «tell Margaux». */
-export type RvReleveMadeKind = 'headline_choice' | 'reader_question' | 'headline_write' | 'short_report' | 'tell_margaux';
+/** What was made: the five make kinds (§8.4 adds «La légende», `caption`), plus phase 2's «tell Margaux». */
+export type RvReleveMadeKind = 'headline_choice' | 'reader_question' | 'headline_write' | 'short_report' | 'caption' | 'tell_margaux';
 
 export type RvReleveWord = { fr: string; gloss: string; claimId: string; used: boolean };
 
@@ -40,11 +40,15 @@ export type RvReleveEntryData = {
   sources: RvSource[];
   /** A second Papier in the same period. */
   second: boolean;
+  /** WP-119 §8.4: the story's picture as the dispatch printed it, under its caption (the learner's when `captionByLearner`). */
+  pictureUrl: string | null;
+  captionFr: string | null;
+  captionByLearner: boolean;
 };
 
 export type RvReleveResult = { enabled: boolean; entries: RvReleveEntryData[] };
 
-const MADE_KINDS: readonly RvReleveMadeKind[] = ['headline_choice', 'reader_question', 'headline_write', 'short_report', 'tell_margaux'];
+const MADE_KINDS: readonly RvReleveMadeKind[] = ['headline_choice', 'reader_question', 'headline_write', 'short_report', 'caption', 'tell_margaux'];
 const CLAIM_KINDS: readonly RvClaimKind[] = ['fact', 'interpretation', 'forecast'];
 
 type Raw = Record<string, unknown>;
@@ -114,6 +118,9 @@ export function parseReleveEntry(raw: unknown): RvReleveEntryData | null {
     words: arr(e.words).map(parseWord).filter((w): w is RvReleveWord => w !== null),
     sources: arr(e.sources).map(parseSource).filter((s) => Boolean(s.name)),
     second: e.second === true,
+    pictureUrl: strOrNull(e.picture_url),
+    captionFr: strOrNull(e.picture_url) ? strOrNull(e.caption_fr) : null,
+    captionByLearner: Boolean(strOrNull(e.picture_url)) && e.caption_by_learner === true,
   };
 }
 

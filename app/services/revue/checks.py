@@ -672,6 +672,78 @@ def brief_missing_place_names(
     ]
 
 
+def person_names_in(text: str | None, dossier: EditorialDossier) -> list[str]:
+    """The dossier's people named in ``text``: the full name, or a surname of five letters or
+    more (articles and particles dropped, accents folded). The painter draws people by their
+    role; a name in a painter brief asks the model for a likeness (§8.4)."""
+
+    haystack = f" {' '.join(_place_words(text))} "
+    found: list[str] = []
+    for name in dossier.person_names():
+        words = [word for word in _place_words(name) if word not in _ARTICLES]
+        if not words:
+            continue
+        surname = words[-1]
+        if f" {' '.join(words)} " in haystack or (len(surname) >= 5 and f" {surname} " in haystack):
+            found.append(name)
+    return found
+
+
+def visual_word_claim(word_fr: str, dossier: EditorialDossier) -> str | None:
+    """The id of the first claim whose French carries ``word_fr`` (the article dropped; a
+    plural or a conjugated form shares the stem), or ``None``. A picture word must be in a
+    claim so the session's vocabulary can gloss and credit it (§8.4)."""
+
+    words = [word for word in _place_words(word_fr) if word not in _ARTICLES]
+    if not words:
+        return None
+    for claim in dossier.claims:
+        haystack = _place_words(claim.fr)
+        spaced = f" {' '.join(haystack)} "
+        if f" {' '.join(words)} " in spaced:
+            return claim.id
+        if len(words) == 1 and len(words[0]) >= 5:
+            stem = words[0][: max(5, len(words[0]) - 2)]
+            if any(token.startswith(stem) for token in haystack):
+                return claim.id
+    return None
+
+
+def check_visual(dossier: EditorialDossier) -> list[CheckResult]:
+    """WP-119 §8.4: may this dossier's story picture be painted, and is its French sound?
+
+    Reasons: ``person_named`` (a person entity's name in the painter's text: people are drawn
+    by their role, the caption names them), ``forbidden_words`` (``policy.story_forbidden_hits``
+    in the painter's text: portraits, emblems, logos, readable text, flags, placards), ``word_not_in_claims``
+    (a picture word no claim carries), ``relative_date`` (in the caption, Romy's look line or a
+    decoy caption).
+    A dossier without a visual has nothing to check (an empty list: it keeps its place plate).
+    """
+
+    from app.services.revue.policy import story_forbidden_hits
+
+    visual = dossier.visual
+    if visual is None:
+        return []
+    painter = visual.painter_text()
+    results: list[CheckResult] = []
+    named = person_names_in(painter, dossier)
+    results.append(_fail("render", "person_named", field="visual", names=named) if named else _ok("render", field="visual"))
+    hits = story_forbidden_hits(painter)
+    if hits:
+        results.append(_fail("render", "forbidden_words", field="visual", words=hits))
+    for word in visual.words:
+        if visual_word_claim(word.fr, dossier) is None:
+            results.append(_fail("render", "word_not_in_claims", field="visual.words", word=word.fr))
+    learner_texts = [("visual.caption_fr", visual.caption_fr), ("visual.look_fr", visual.look_fr or "")]
+    learner_texts += [(f"visual.decoys_fr[{index}]", decoy) for index, decoy in enumerate(visual.decoys_fr)]
+    for field_name, text in learner_texts:
+        found = _relative_dates(text, weekdays_allowed=False)
+        if found:
+            results.append(_fail("temporal", "relative_date", field=field_name, phrases=found))
+    return results
+
+
 def check_credit(evidence_write: dict) -> list[CheckResult]:
     """Credit: is the evidence write routed through the existing evidence policy with a
     rubric version? Unknown capability → unknown, never mastery. On failure: the turn is

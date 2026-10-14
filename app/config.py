@@ -625,8 +625,18 @@ class Settings(BaseSettings):
     REVUE_PLATE_GENERATION_ENABLED: bool = Field(
         False,
         description=(
-            "WP-119 §8.1: paint a plate for a place the season has none for. Off: an unknown "
-            "place falls back to the nearest known plate (policy.PLACE_FALLBACKS)."
+            "WP-119 §8.1/§8.4: paint each Papier story's own picture (one per story, final) and a "
+            "plate for a place the season has none for, each morning after the intake. Off: the "
+            "stage shows the place's plate, or the nearest known one (policy.PLACE_FALLBACKS). "
+            "Needs durable image storage (GRAPHIC_NOVEL_IMAGE_STORAGE=s3)."
+        ),
+    )
+    REVUE_PICTURE_COST_USD: float = Field(
+        0.06,
+        ge=0,
+        description=(
+            "WP-119 §8.4: the price of one 1536x1024 medium Papier picture, written to the pilot "
+            "ledger per painting (no learner) so the service's daily cap counts it."
         ),
     )
     REVUE_ARTICLE_FETCH_ENABLED: bool = Field(

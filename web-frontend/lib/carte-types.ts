@@ -289,7 +289,8 @@ export type RelectureSpan = { start: number; end: number; flag: RelectureFlag };
 export type RelectureOffer = {
   sessionId: string;
   week: string;
-  kind: 'question' | 'headline';
+  /** `caption` (WP-119 §8.4): the caption written under the story's picture, which comes back with it. */
+  kind: 'question' | 'headline' | 'caption';
   dossierTitleFr: string;
   promptFr: string;
   placeLabelFr: string;
@@ -313,7 +314,7 @@ export function parseRelectureOffer(raw: unknown): RelectureOffer | null {
   return {
     sessionId: str(raw.session_id),
     week: str(raw.week),
-    kind: raw.kind === 'headline' ? 'headline' : 'question',
+    kind: raw.kind === 'headline' || raw.kind === 'caption' ? raw.kind : 'question',
     dossierTitleFr: str(raw.dossier_title_fr),
     promptFr: str(raw.prompt_fr),
     placeLabelFr: str(raw.place_label_fr),

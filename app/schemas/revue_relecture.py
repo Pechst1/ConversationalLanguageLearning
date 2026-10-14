@@ -10,7 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-RelectureKind = Literal["question", "headline"]
+#: ``caption`` (WP-119 §8.4): the caption the learner wrote under the story's picture.
+RelectureKind = Literal["question", "headline", "caption"]
 RelectureFlag = Literal["register", "grammar"]
 
 
@@ -30,7 +31,7 @@ class RelectureOffer(_RelectureModel):
     week: str
     kind: RelectureKind
     dossier_title_fr: str
-    #: The question as Romy proposed it (``question_kept_fr``), or the headline ask.
+    #: The question as Romy proposed it (``question_kept_fr``), or the headline or caption ask.
     prompt_fr: str
     place_label_fr: str
     plate_url: str | None = None
