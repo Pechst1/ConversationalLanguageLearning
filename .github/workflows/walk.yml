@@ -21,25 +21,38 @@ jobs:
     # full 7-day learners on one runner still took 15 minutes). en and B1 share a
     # stack, so the engine's writer still sees concurrent requests; the postgres
     # job in ci.yml tests the row locks directly. `needs:` waits for every shard.
-    name: Walk · ${{ matrix.shard }}
+    #
+    # Pull requests play 3 days per learner (day 1, the Feuilleton entry and La Forge on
+    # day 2, the last-day drill and settings checks on day 3, the season's first two
+    # tentpoles), about a third of the time. Main, which gates the Render deploy, and the
+    # nightly run play every day, so nothing reaches production on the short walk alone.
+    name: Walk · ${{ matrix.shard }} × ${{ github.event_name == 'pull_request' && 3 || matrix.days }} days
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - shard: en + B1 × 7 days
+          - shard: en + B1
+            days: 7
             key: en-b1
             args: --langs en --b1-days 3 --season-days 0
-          - shard: de × 7 days
+            pr_args: --days 3
+          - shard: de
+            days: 7
             key: de
             args: --langs de --b1-days 0 --season-days 0
-          - shard: fr × 7 days
+            pr_args: --days 3
+          - shard: fr
+            days: 7
             key: fr
             args: --langs fr --b1-days 0 --season-days 0
-          - shard: season × 10 days
+            pr_args: --days 3
+          - shard: season
+            days: 10
             key: season
             args: --langs '' --b1-days 0 --season-days 10
+            pr_args: --season-days 3
     services:
       postgres:
         image: postgres:15
@@ -91,7 +104,7 @@ jobs:
       - name: Walk
         id: walk
         working-directory: web-frontend
-        run: npm run walk -- ${{ matrix.args }} --out e2e/out/ci
+        run: npm run walk -- ${{ matrix.args }} ${{ github.event_name == 'pull_request' && matrix.pr_args || '' }} --out e2e/out/ci
 
       - name: Summary
         if: always()
