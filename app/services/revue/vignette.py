@@ -37,11 +37,12 @@ RING_BY_MAKE: dict[str, Ring] = {
     "reader_question": "question",
     "short_report": "report",
     "tell_margaux": "report",
+    "caption": "headline",
 }
 
 
 def ring_for(make_option: str | None) -> Ring:
-    """``headline_choice``/``headline_write`` → headline, ``reader_question`` → question,
+    """``headline_choice``/``headline_write``/``caption`` → headline, ``reader_question`` → question,
     ``short_report`` (and ``tell_margaux``) → report; nothing made → headline (the dispatch still has one)."""
 
     return RING_BY_MAKE.get(str(make_option or ""), "headline")

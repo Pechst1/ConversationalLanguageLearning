@@ -356,3 +356,54 @@ def test_the_beat_runs_every_morning_and_the_task_is_off_with_the_flag(monkeypat
     assert celery_app.conf.timezone in {"Europe/Paris", "Europe/Berlin"}
     monkeypatch.setattr(settings, "REVUE_ENABLED", False)
     assert task.weekly_intake() == {"status": "disabled"}
+
+
+def test_each_morning_the_intake_hands_the_period_to_the_painter(monkeypatch) -> None:
+    """WP-119 §8.4: after the intake, the period's missing pictures are painted (queued; inline
+    when the queue is unreachable). Off with the Revue."""
+
+    from app.tasks import revue as task
+
+    monkeypatch.setattr(settings, "REVUE_ENABLED", True)
+    monkeypatch.setattr(task, "intake_now", lambda refresh=False: {"status": "kept", "period": "2026-W42"})
+    queued: list = []
+
+    class Result:
+        id = "task-1"
+
+    monkeypatch.setattr(task.paint_pictures, "delay", lambda period, limit=None: queued.append(period) or Result())
+    report = task.weekly_intake()
+    assert report["status"] == "kept" and report["pictures"] == {"status": "enqueued", "task_id": "task-1"}
+    assert queued == ["2026-W42"]
+
+    def unreachable(period, limit=None):  # noqa: ANN001, ANN202
+        raise ConnectionError("no broker")
+
+    painted: list = []
+    monkeypatch.setattr(task.paint_pictures, "delay", unreachable)
+    monkeypatch.setattr(task, "paint_now", lambda period=None, now=None, limit=None: painted.append(period) or {"status": "painted"})
+    assert task.weekly_intake()["pictures"] == {"status": "painted"} and painted == ["2026-W42"]
+
+    monkeypatch.undo()  # the real painter, with the Revue off
+    monkeypatch.setattr(settings, "REVUE_ENABLED", False)
+    assert task.paint_now() == {"status": "disabled"}
+
+
+def test_paint_is_admin_only_and_paints_the_period(api: TestClient, db: Session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "REVUE_ENABLED", True)
+    seen: dict = {}
+
+    def fake_paint(*, period: str | None = None, now=None, limit: int | None = None) -> dict:  # noqa: ANN001
+        seen.update(period=period, limit=limit)
+        return {"status": "painted", "period": period or WEEK, "painted": 2, "pictures": {}, "cost_usd": 0.12}
+
+    monkeypatch.setattr("app.tasks.revue.paint_now", fake_paint)
+    headers, email = login(api)
+    assert api.post("/api/v1/revue/admin/paint?enqueue=false", headers=headers).status_code == 403
+    user = db.scalar(select(User).where(User.email == email))
+    user.role = "admin"
+    db.commit()
+    response = api.post("/api/v1/revue/admin/paint?enqueue=false&period=2026-W40&limit=3", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["painted"] == 2 and seen == {"period": "2026-W40", "limit": 3}
+    assert api.post("/api/v1/revue/admin/paint?period=last-week", headers=headers).status_code == 422

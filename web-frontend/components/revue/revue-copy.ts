@@ -83,8 +83,11 @@ export type RevueCopy = {
   typing: string;
   make_label: string;
   make_go: string;
-  /** `{n}` in a detail is filled with the option's own number (max words, seconds). */
-  make_options: Record<RvMakeKind, { title: string; detail: string }>;
+  /**
+   * `{n}` in a detail is filled with the option's own number (max words, seconds).
+   * `caption` is «La légende» to choose (A1–A2), `caption_write` the one to write (B1+).
+   */
+  make_options: Record<RvMakeKind | 'caption_write', { title: string; detail: string }>;
   /** Phase 2 · the guest (WIRE §6.2, design §3.4 #guest). `{name}` is the guest's name. */
   guest_arrives: string;
   guest_testimony: string;
@@ -116,6 +119,21 @@ export type RevueCopy = {
   report_no_mic: string;
   made_report: string;
   kept_word_right: string;
+  /** WP-119 §8.4 · «La légende», the caption under the story's picture. */
+  caption_label: string;
+  caption_right: string;
+  caption_wrong: string;
+  caption_write_label: string;
+  caption_placeholder: string;
+  caption_send: string;
+  caption_supported: string;
+  caption_unsupported: string;
+  caption_contradicted: string;
+  /** The picture's words, as tiles under it. */
+  caption_words: string;
+  caption_word_add: string;
+  caption_word_used: string;
+  made_caption: string;
   /** WP-120 · the vignette. */
   vignette_label: string;
   vignettes_title: string;
@@ -238,6 +256,8 @@ const FR: RevueCopy = {
     headline_choice: { title: 'Choisir le titre', detail: 'Trois titres, un seul dit vrai.' },
     headline_write: { title: 'Écrire le titre', detail: '{n} mots au plus, et vrai.' },
     short_report: { title: 'Raconter en {n} secondes', detail: 'À voix haute, comme à la radio.' },
+    caption: { title: 'Choisir la légende', detail: 'Trois légendes, une seule dit ce qu’on voit.' },
+    caption_write: { title: 'Écrire la légende', detail: 'Ce que montre l’image, {n} mots au plus.' },
   },
   guest_arrives: '{name} arrive.',
   guest_testimony: 'témoignage',
@@ -269,6 +289,19 @@ const FR: RevueCopy = {
   report_no_mic: 'Pas de micro ici : écris ton reportage.',
   made_report: 'Ton reportage',
   kept_word_right: 'bien employé',
+  caption_label: 'La légende',
+  caption_right: 'C’est ce qu’on voit.',
+  caption_wrong: 'Pas celle-là : l’image montre autre chose.',
+  caption_write_label: 'Ta légende',
+  caption_placeholder: 'Ce qu’on voit sur l’image…',
+  caption_send: 'Proposer la légende',
+  caption_supported: 'L’image et les sources le disent.',
+  caption_unsupported: 'Ce n’est pas tout à fait sur l’image, mais Romy la garde.',
+  caption_contradicted: 'L’image ou les sources disent autre chose. Réécris-la.',
+  caption_words: 'Sur l’image',
+  caption_word_add: 'Ajouter « {word} » à ta légende',
+  caption_word_used: 'dans ta légende',
+  made_caption: 'Ta légende',
   vignette_label: 'Ta vignette · {week}',
   vignettes_title: 'Tes vignettes',
   one_more_question: 'Encore une question',
@@ -379,6 +412,8 @@ const EN: RevueCopy = {
     headline_choice: { title: 'Pick the headline', detail: 'Three headlines, only one is true.' },
     headline_write: { title: 'Write the headline', detail: '{n} words at most, and true.' },
     short_report: { title: 'Tell it in {n} seconds', detail: 'Out loud, like on the radio.' },
+    caption: { title: 'Pick the caption', detail: 'Three captions, only one says what we see.' },
+    caption_write: { title: 'Write the caption', detail: 'What the picture shows, {n} words at most.' },
   },
   guest_arrives: '{name} joins.',
   guest_testimony: 'testimony',
@@ -410,6 +445,19 @@ const EN: RevueCopy = {
   report_no_mic: 'No microphone here: write your report.',
   made_report: 'Your report',
   kept_word_right: 'used well',
+  caption_label: 'The caption',
+  caption_right: 'That is what we see.',
+  caption_wrong: 'Not that one: the picture shows something else.',
+  caption_write_label: 'Your caption',
+  caption_placeholder: 'What the picture shows…',
+  caption_send: 'Suggest the caption',
+  caption_supported: 'The picture and the sources say so.',
+  caption_unsupported: "The picture doesn't quite show that, but Romy keeps it.",
+  caption_contradicted: 'The picture or the sources say otherwise. Write it again.',
+  caption_words: 'In the picture',
+  caption_word_add: 'Add «{word}» to your caption',
+  caption_word_used: 'in your caption',
+  made_caption: 'Your caption',
   vignette_label: 'Your vignette · {week}',
   vignettes_title: 'Your vignettes',
   one_more_question: 'One more question',
@@ -520,6 +568,8 @@ const DE: RevueCopy = {
     headline_choice: { title: 'Die Schlagzeile wählen', detail: 'Drei Schlagzeilen, nur eine stimmt.' },
     headline_write: { title: 'Die Schlagzeile schreiben', detail: 'Höchstens {n} Wörter, und wahr.' },
     short_report: { title: 'In {n} Sekunden erzählen', detail: 'Laut, wie im Radio.' },
+    caption: { title: 'Die Bildunterschrift wählen', detail: 'Drei Bildunterschriften, nur eine sagt, was man sieht.' },
+    caption_write: { title: 'Die Bildunterschrift schreiben', detail: 'Was das Bild zeigt, höchstens {n} Wörter.' },
   },
   guest_arrives: '{name} kommt dazu.',
   guest_testimony: 'Zeugnis',
@@ -551,6 +601,19 @@ const DE: RevueCopy = {
   report_no_mic: 'Hier gibt es kein Mikrofon: schreib deine Reportage.',
   made_report: 'Deine Reportage',
   kept_word_right: 'gut verwendet',
+  caption_label: 'Die Bildunterschrift',
+  caption_right: 'Genau das sieht man.',
+  caption_wrong: 'Nicht diese: Das Bild zeigt etwas anderes.',
+  caption_write_label: 'Deine Bildunterschrift',
+  caption_placeholder: 'Was man auf dem Bild sieht…',
+  caption_send: 'Bildunterschrift vorschlagen',
+  caption_supported: 'Das Bild und die Quellen sagen es.',
+  caption_unsupported: 'Das zeigt das Bild nicht ganz, aber Romy behält sie.',
+  caption_contradicted: 'Das Bild oder die Quellen sagen etwas anderes. Schreib sie neu.',
+  caption_words: 'Auf dem Bild',
+  caption_word_add: '„{word}“ in deine Bildunterschrift einfügen',
+  caption_word_used: 'in deiner Bildunterschrift',
+  made_caption: 'Deine Bildunterschrift',
   vignette_label: 'Deine Vignette · {week}',
   vignettes_title: 'Deine Vignetten',
   one_more_question: 'Noch eine Frage',
@@ -617,6 +680,9 @@ export const ROMY_CLIENT_LINES = {
   /** Phase 2: when the learner picks an option other than the one Romy's intro asked for. */
   headline_write_ask: 'Ton titre, alors. Court, et vrai.',
   report_ask: 'Trente secondes, comme à la radio : tu racontes ce que tu vois ?',
+  /** WP-119 §8.4 · «La légende», when Romy's intro asked for something else. */
+  caption_ask: 'Trois légendes pour mon image. Laquelle dit ce qu’on voit ?',
+  caption_write_ask: 'Ta légende, alors : ce que montre l’image, en quelques mots.',
   resume: 'Te revoilà. On reprend où on en était.',
 } as const;
 

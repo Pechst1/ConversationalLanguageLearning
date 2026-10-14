@@ -35,8 +35,10 @@ export {
   RvRegisterNote,
 } from './RvThread';
 export type { RvThreadProps, RvLineProps, RvGlossTextProps, RvWordEvent, RvGuestLineProps } from './RvThread';
-export { RvMakePicker, RvHeadlineChoice, RvQuestionDraft, RvHeadlineWrite, RvShortReport, writeFeedback } from './RvMake';
-export type { RvMakePickerOption, RvHeadlineChoiceProps, RvQuestionDraftProps, RvHeadlineWriteProps, RvShortReportProps } from './RvMake';
+export { RvMakePicker, RvHeadlineChoice, RvQuestionDraft, RvHeadlineWrite, RvShortReport, RvCaption, writeFeedback, captionFeedback, captionShown } from './RvMake';
+export type { RvMakePickerOption, RvHeadlineChoiceProps, RvQuestionDraftProps, RvHeadlineWriteProps, RvShortReportProps, RvCaptionProps } from './RvMake';
+export { RvPicture, PICTURE_CREDIT_FR } from './RvPicture';
+export type { RvPictureProps } from './RvPicture';
 export { RvDispatch, RvKept, RvCloseVignette } from './RvClose';
 export { RvVignette } from './RvVignette';
 export type { RvVignetteProps } from './RvVignette';

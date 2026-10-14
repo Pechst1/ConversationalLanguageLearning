@@ -6,13 +6,19 @@ when the article fetch worked, each article's text (``sources.py``). The builder
 1. asks the provider **once** for the dossier's editorial content (title, summary, typed
    claims with verbatim quotes, entities, uncertainties, two angles with
    ``participation``/``guest_fit``, a place whose ``brief`` is *name + three landmarks +
-   light* (§8.1 rule 1), ``vignette_object_fr``) — :class:`DossierProvider`;
+   light* (§8.1 rule 1), ``vignette_object_fr``, and the story picture's ``visual``: the one
+   moment that says what happened, people by their role, the words it shows, the caption
+   and Romy's look line, §8.4) — :class:`DossierProvider`;
 2. assembles an :class:`EditorialDossier` around it (id, week, sources, URLs, dates come
    from the feed, never from the model) after the **structural repairs**: a quote over
    :data:`MAX_QUOTE_WORDS` words is trimmed to its first sentence that is still verbatim in
    the source (§4.2 Anchor, «repairs a 41-word quote»); an interpretation or forecast with
    no ``attributed_to`` is attributed to its outlet; a place brief that does not name its
-   place is prefixed with the name (§8.1); a claim the schema refuses is dropped;
+   place is prefixed with the name (§8.1); a claim the schema refuses is dropped; the
+   ``visual`` is repaired by :func:`_repair_visual` (a person's name in the painter's text
+   becomes their role, a picture word no claim carries is dropped, a caption or look line
+   with a relative date is replaced) and dropped, never the dossier, when it still fails
+   ``checks.check_visual``;
 3. runs :func:`checks.run_dossier_checks` and applies §4.2's table: an unanchored claim is
    dropped, a fact that reads as an opinion is retyped as an interpretation attributed to
    its outlet, a claim with a relative date or a stale/future source is dropped, a refused
@@ -46,6 +52,7 @@ from app.services.revue.dossier import (
     EditorialDossier,
     Entity,
     Place,
+    StoryVisual,
     TimeScope,
     fold,
     quote_word_count,
@@ -53,7 +60,8 @@ from app.services.revue.dossier import (
 )
 from app.services.revue.sources import text_hash
 
-BUILDER_VERSION = "revue-builder-v1"
+#: v2 (WP-119 §8.4): the dossier carries the story picture's ``visual``.
+BUILDER_VERSION = "revue-builder-v2"
 #: What the provider may read of one article (the rest is not needed for six claims).
 ARTICLE_CHARS_FOR_PROVIDER = 6000
 #: The angle purposes a dossier offers, in the order the builder asks for them (§5.2).
@@ -219,13 +227,33 @@ From the INPUT articles about one French news story of the week, write ONE edito
              "participation": "none"|"helps"|"works"|"formal", "guest_fit": one of INPUT.guest_cast_ids or null}] (exactly 2),
  "places": [{"id": snake_case str, "name_fr": str, "brief": str}] (1 or 2),
  "time_scope": {"happening": "YYYY-MM-DD/YYYY-MM-DD", "relevant_until": "YYYY-MM-DD"},
- "vignette_object_fr": str (one drawable object, with its article: «une urne»)}
+ "vignette_object_fr": str (one drawable object, with its article: «une urne»),
+ "visual": {"moment": str (English: the ONE moment of the story that says what happened, as a scene in places[0]: who
+             does what, people named only by their ROLE — «the economy minister speaking at the tribune, the benches
+             full of deputies» — never by name),
+            "symbol": str|null (English: one concrete object in that scene that carries the story's idea — «a single
+             taut red cord stretched across the floor» for a red line; null when the moment says it alone),
+            "viewpoint": str (English: where Romy and the learner stand to see it — «from the public gallery high
+             above the chamber»),
+            "light": str (English: the light and the time of day),
+            "words": [{"fr": str (a noun with le/la/l'/les, copied from one claim's fr), "shows": str (English: what
+             in the picture shows it)}] (2 or 3 things the picture shows),
+            "caption_fr": str (the desk's caption under the picture: one A2-B1 sentence, who or what and where; it
+             names the people it shows with their role and uses at least one of the words),
+            "look_fr": str (Romy pointing at the picture for the learner: 1-2 short A2 sentences in the present tense
+             using the words — «Regarde : le ministre parle à la tribune. Devant lui, une ligne rouge.»),
+            "decoys_fr": [str, str] (two wrong captions in the caption's style, each plainly contradicted by the
+             picture: ONE visible detail changed — the place, who acts, or what they do — and never a claim of the
+             story)}}
 Rules: every quote is copied character for character from that item's text; a fact reports, it never judges
 (no «heureusement», «scandaleux», «il faut»); no relative dates («demain», «jeudi», «la semaine prochaine») —
 write absolute dates; happening must overlap week_monday..week_sunday and relevant_until must be on or after
 week_sunday; a place brief is the place's NAME + three distinctive, checkable landmarks + the light, never a
 type of place, and names no person; participation is how the learner would take part (helps at a stall, works
-on a site, formal role) — "none" when they only watch."""
+on a site, formal role) — "none" when they only watch. The picture (visual) is a flat screen print seen from a
+distance: never ask for a face, an expression, a likeness, readable text or numbers, a sign, a banner, a placard,
+a flag, a logo or an emblem; people are small figures defined by what they do and where they stand. Show the
+story's moment, not a generic view of the place."""
 
 
 @dataclass
@@ -322,7 +350,36 @@ class FakeDossierProvider:
                 "relevant_until": (date.fromisoformat(context["week_sunday"]) + timedelta(days=14)).isoformat(),
             },
             "vignette_object_fr": "un journal",
+            "visual": _fake_visual(claims, city),
         }
+
+
+_FAKE_NOUN = re.compile(r"\b(le|la|les|l['’])\s?([a-zà-ÿœæ]{5,})\b")
+
+
+def _fake_visual(claims: list[dict[str, Any]], city: str) -> dict[str, Any]:
+    """The deterministic story picture of a fake dossier: passers-by at a kiosk, and up to two
+    nouns of the claims (with their article) as the words the picture shows."""
+
+    words: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for claim in claims:
+        for article, noun in _FAKE_NOUN.findall(str(claim.get("fr") or "")):
+            if noun in seen or len(words) >= 2:
+                continue
+            seen.add(noun)
+            fr = f"l'{noun}" if article.startswith("l'") or article.startswith("l’") else f"{article} {noun}"
+            words.append({"fr": fr, "shows": f"something in the scene that stands for {noun}"})
+    return {
+        "moment": f"an ordinary morning in {city}: a few passers-by stop at a newspaper kiosk to read the news",
+        "symbol": None,
+        "viewpoint": "from the pavement across the street",
+        "light": "soft morning light",
+        "words": words,
+        "caption_fr": f"Un kiosque à journaux à {city}.",
+        "look_fr": "Regarde : les gens lisent le journal.",
+        "decoys_fr": [f"Un kiosque à journaux fermé à {city}.", f"Une boulangerie pleine de monde à {city}."],
+    }
 
 
 def _city_in(text: str) -> str | None:
@@ -436,7 +493,7 @@ def _assemble(story: StoryInput, raw: dict[str, Any], result: BuildResult) -> Ed
     title = str(raw.get("title_fr") or story.items[0].title).strip()
     prefix = story.period.lower()
     try:
-        return EditorialDossier(
+        dossier = EditorialDossier(
             id=f"{prefix}-{slug(title)}"[:120],
             week=story.week,
             topic=topic,
@@ -456,6 +513,87 @@ def _assemble(story: StoryInput, raw: dict[str, Any], result: BuildResult) -> Ed
     except ValidationError as exc:
         result.rejected.extend(sorted({f"schema:{error['loc'][0] if error['loc'] else '?'}" for error in exc.errors()}))
         return None
+    return dossier.model_copy(update={"visual": _repair_visual(raw.get("visual"), dossier, result)})
+
+
+def _replace_names(text: str, dossier: EditorialDossier) -> str:
+    """Each person's name in ``text`` (the full name, then the surname) → their role."""
+
+    for entity in dossier.entities:
+        if entity.kind != "person" or not entity.name.strip():
+            continue
+        role = (entity.role or "a person").strip()
+        names = [entity.name.strip()]
+        surname = entity.name.strip().split()[-1]
+        if len(surname) >= 5 and surname not in names:
+            names.append(surname)
+        for name in names:
+            text = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", role, text, flags=re.IGNORECASE)
+    return text
+
+
+def _repair_visual(raw: Any, dossier: EditorialDossier, result: BuildResult) -> StoryVisual | None:
+    """The story picture's brief (§8.4), repaired: a person's name in the painter's text becomes
+    their role; a picture word no claim carries is dropped (at most three are kept); a caption
+    with a relative date becomes the place's name, a look line with one is dropped. What still
+    fails :func:`checks.check_visual` (a forbidden word, a name the repair missed) drops the
+    visual — the dossier keeps its place plate — and never the dossier."""
+
+    if not isinstance(raw, dict):
+        result.repairs.append("visual:missing")
+        return None
+    data: dict[str, Any] = {key: raw.get(key) for key in ("moment", "symbol", "viewpoint", "light", "caption_fr", "look_fr")}
+    for key in ("moment", "symbol", "viewpoint", "light"):
+        value = re.sub(r"\s+", " ", str(data.get(key) or "")).strip()
+        repaired = _replace_names(value, dossier)
+        if repaired != value:
+            result.repairs.append(f"visual:person_named:{key}")
+        data[key] = repaired or None
+    words: list[dict[str, str]] = []
+    for row in raw.get("words") or []:
+        if not isinstance(row, dict):
+            continue
+        fr = re.sub(r"\s+", " ", str(row.get("fr") or "")).strip(" .,;:«»")
+        shows = _replace_names(re.sub(r"\s+", " ", str(row.get("shows") or "")).strip(), dossier)
+        if not fr or not shows:
+            continue
+        if checks.visual_word_claim(fr, dossier) is None:
+            result.repairs.append(f"visual:word_dropped:{fr}")
+            continue
+        if len(words) < 3 and fold(fr).casefold() not in {fold(w["fr"]).casefold() for w in words}:
+            words.append({"fr": fr, "shows": shows})
+    data["words"] = words
+    place = dossier.places[0]
+    caption = re.sub(r"\s+", " ", str(data.get("caption_fr") or "")).strip()
+    if not caption or checks._relative_dates(caption, weekdays_allowed=False):  # noqa: SLF001 - the Temporal rule
+        result.repairs.append("visual:caption_replaced")
+        caption = f"{place.name_fr.rstrip('.')}."
+    data["caption_fr"] = caption[:200]
+    look = re.sub(r"\s+", " ", str(data.get("look_fr") or "")).strip()
+    if look and checks._relative_dates(look, weekdays_allowed=False):  # noqa: SLF001
+        result.repairs.append("visual:look_dropped")
+        look = ""
+    data["look_fr"] = look[:240] or None
+    decoys: list[str] = []
+    for raw_decoy in raw.get("decoys_fr") or []:
+        decoy = re.sub(r"\s+", " ", str(raw_decoy or "")).strip()[:200]
+        if not decoy or fold(decoy).casefold() in {fold(d).casefold() for d in [caption, *decoys]}:
+            continue
+        if checks._relative_dates(decoy, weekdays_allowed=False):  # noqa: SLF001
+            result.repairs.append("visual:decoy_dropped")
+            continue
+        decoys.append(decoy)
+    data["decoys_fr"] = decoys[:2]
+    try:
+        visual = StoryVisual.model_validate(data)
+    except ValidationError as exc:
+        result.repairs.append(f"visual:schema:{exc.errors()[0].get('loc', ['?'])[0]}")
+        return None
+    problems = checks.failures(checks.check_visual(dossier.model_copy(update={"visual": visual})))
+    if problems:
+        result.repairs.append("visual:refused:" + ",".join(sorted({p.reason or p.check for p in problems})))
+        return None
+    return visual
 
 
 def _apply_checks(dossier: EditorialDossier, story: StoryInput, result: BuildResult) -> EditorialDossier | None:
@@ -522,6 +660,25 @@ def _apply_checks(dossier: EditorialDossier, story: StoryInput, result: BuildRes
     return dossier
 
 
+def _visual_after_checks(dossier: EditorialDossier, result: BuildResult) -> EditorialDossier:
+    """The checks may have dropped a claim a picture word lived in: drop that word too, and
+    the visual when it no longer passes :func:`checks.check_visual`."""
+
+    visual = dossier.visual
+    if visual is None:
+        return dossier
+    kept = [word for word in visual.words if checks.visual_word_claim(word.fr, dossier) is not None]
+    if len(kept) != len(visual.words):
+        result.repairs.extend(f"visual:word_dropped:{w.fr}" for w in visual.words if w not in kept)
+        visual = visual.model_copy(update={"words": kept})
+    dossier = dossier.model_copy(update={"visual": visual})
+    problems = checks.failures(checks.check_visual(dossier))
+    if problems:
+        result.repairs.append("visual:refused:" + ",".join(sorted({p.reason or p.check for p in problems})))
+        return dossier.model_copy(update={"visual": None})
+    return dossier
+
+
 def _reason_for(failed: list[checks.CheckResult], claim_id: str) -> str:
     return next((f.reason or f.check for f in failed if f.detail.get("claim_id") == claim_id), "check")
 
@@ -555,6 +712,7 @@ def build_dossier(
     if dossier is None:
         logger.bind(story=story.key, reasons=result.rejected).info("revue_check_failed dossier rejected")
         return result
+    dossier = _visual_after_checks(dossier, result)
     if geocode is None:
         from app.services.revue.geo import geocode_dossier as geocode
     try:

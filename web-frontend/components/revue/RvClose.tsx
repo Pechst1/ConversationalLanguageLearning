@@ -3,8 +3,9 @@
  * «Pour ton Relevé».
  *
  * The dispatch: a double rule, the kicker, a Garamond headline with the
- * learner's part marked (underline + «toi»), three lines, the byline with
- * Romy's face. RvKept: the plan's words as WordToken rows with their gloss,
+ * learner's part marked (underline + «toi»), the story's own picture under its
+ * caption when it was painted (WP-119 §8.4; the learner's caption, marked, when
+ * they made «La légende»), three lines, the byline with Romy's face. RvKept: the plan's words as WordToken rows with their gloss,
  * then the claims shown with their source lines. Phase 2: a word the rubric
  * found used correctly (WIRE §6.3 `words[].outcome`, stored on the close's
  * `kept.words[].outcome` so it survives a reload, §3.8) wears the Relevé's mark for
@@ -28,6 +29,7 @@ import type { RvVignetteView } from '@/lib/revue-types';
 
 import { fill, type RevueCopy } from './revue-copy';
 import { wordOutcome, type WordOutcomes } from './revue-model';
+import { RvPicture } from './RvPicture';
 import { ContributedText, RvSourceLine } from './RvThread';
 import { RvVignette } from './RvVignette';
 
@@ -38,11 +40,25 @@ export type RvDispatchProps = {
   contribution: RvSpan[];
   bylineFr: string;
   sources: RvSource[];
+  /** §8.4: the story's picture, printed under its caption. */
+  pictureUrl?: string | null;
+  captionFr?: string | null;
+  captionByLearner?: boolean;
   readOnly?: boolean;
   copy: RevueCopy;
 };
 
-export function RvDispatch({ kickerFr, headlineFr, bodyFr = [], contribution, bylineFr, copy }: RvDispatchProps) {
+export function RvDispatch({
+  kickerFr,
+  headlineFr,
+  bodyFr = [],
+  contribution,
+  bylineFr,
+  pictureUrl = null,
+  captionFr = null,
+  captionByLearner = false,
+  copy,
+}: RvDispatchProps) {
   return (
     <article className="rv-dispatch" lang="fr" data-dispatch="">
       <div className="rv-dispatch__rule" aria-hidden="true" />
@@ -50,6 +66,14 @@ export function RvDispatch({ kickerFr, headlineFr, bodyFr = [], contribution, by
       <h2 className="rv-dispatch__hl">
         <ContributedText text={headlineFr} spans={contribution} label={copy.contribution} />
       </h2>
+      {pictureUrl && (
+        <RvPicture
+          url={pictureUrl}
+          captionFr={captionFr}
+          contribution={captionByLearner && captionFr ? [[0, captionFr.length]] : []}
+          copy={copy}
+        />
+      )}
       {bodyFr.length > 0 && <p className="rv-dispatch__body">{bodyFr.join(' ')}</p>}
       <p className="rv-dispatch__by">
         <CastPortrait characterId="romy_tremblay" name="Romy" size="xs" ring />

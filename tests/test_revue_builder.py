@@ -11,6 +11,7 @@ import pytest
 
 from app.services.revue import checks
 from app.services.revue.builder import (
+    BUILDER_VERSION,
     FakeDossierProvider,
     SourceItem,
     StoryInput,
@@ -194,6 +195,90 @@ def test_without_an_article_the_teaser_is_the_source() -> None:
     assert context["items"][0]["is_teaser_only"] is True
     assert "Les vendanges se terminent en Bourgogne" in context["items"][0]["text"]
     assert len(provider_context(story("x" * 20000))["items"][0]["text"]) == 6000
+
+
+# ---------------------------------------------------------------------------
+# The story picture's brief (§8.4)
+# ---------------------------------------------------------------------------
+
+VISUAL = {
+    "moment": "the winegrower Marie Dubois cutting grapes by hand between rows of vines, pickers with crates behind her",
+    "symbol": "one full crate of dark grapes in the middle of the row",
+    "viewpoint": "from the end of a row of vines",
+    "light": "late golden afternoon light",
+    "words": [
+        {"fr": "les vendanges", "shows": "the pickers at work between the vines"},
+        {"fr": "les saisonniers", "shows": "the seasonal pickers carrying crates"},
+        {"fr": "le parlement", "shows": "a parliament nobody mentioned"},
+    ],
+    "caption_fr": "Marie Dubois, vigneronne, pendant les vendanges à Beaune.",
+    "look_fr": "Regarde : les vendanges ! Les saisonniers portent les caisses.",
+    "decoys_fr": ["Marie Dubois, vigneronne, dans une usine de Beaune.", "Demain, les vendanges à Beaune."],
+}
+PERSON = {"name": "Marie Dubois", "kind": "person", "role": "a winegrower of Beaune"}
+
+
+def with_visual(**visual) -> dict:
+    data = raw([claim("c1", S1), claim("c2", S3)], visual={**VISUAL, **visual})
+    data["entities"] = [*data["entities"], PERSON]
+    return data
+
+
+def test_the_builder_writes_the_story_pictures_brief_and_repairs_it() -> None:
+    assert BUILDER_VERSION == "revue-builder-v2"
+    result = build(with_visual())
+    assert result.ok, result.rejected
+    visual = result.dossier.visual
+    assert visual is not None
+    # People are drawn by their role, never asked for by name; the learner's French keeps the name.
+    assert "Marie Dubois" not in visual.painter_text() and "a winegrower of Beaune" in visual.moment
+    assert "visual:person_named:moment" in result.repairs
+    assert visual.caption_fr.startswith("Marie Dubois")
+    # A picture word no claim carries is dropped; the others are copied from the claims.
+    assert [w.fr for w in visual.words] == ["les vendanges", "les saisonniers"]
+    assert "visual:word_dropped:le parlement" in result.repairs
+    # A decoy caption with a relative date is dropped (the A1-A2 choice then needs two: none here).
+    assert visual.decoys_fr == ["Marie Dubois, vigneronne, dans une usine de Beaune."]
+    assert "visual:decoy_dropped" in result.repairs
+    assert checks.check_visual(result.dossier) and checks.passed(checks.check_visual(result.dossier))
+
+
+def test_a_caption_with_a_relative_date_becomes_the_place_and_the_look_line_goes() -> None:
+    result = build(with_visual(caption_fr="Demain, les vendanges.", look_fr="Regarde : hier, les vendanges."))
+    assert result.ok
+    assert result.dossier.visual.caption_fr == "Un vignoble à Beaune."
+    assert result.dossier.visual.look_fr is None
+    assert {"visual:caption_replaced", "visual:look_dropped"} <= set(result.repairs)
+
+
+@pytest.mark.parametrize("symbol", ["a portrait of the winegrower", "a big flag over the vines", "a placard with a slogan"])
+def test_a_brief_asking_for_what_is_never_painted_drops_the_visual_not_the_dossier(symbol: str) -> None:
+    result = build(with_visual(symbol=symbol))
+    assert result.ok and result.dossier.visual is None
+    assert any(repair.startswith("visual:refused:forbidden_words") for repair in result.repairs)
+
+
+def test_no_visual_is_a_dossier_without_a_picture() -> None:
+    result = build(raw([claim("c1", S1), claim("c2", S3)]))
+    assert result.ok and result.dossier.visual is None and "visual:missing" in result.repairs
+
+
+def test_a_claim_dropped_by_the_checks_takes_its_picture_word_with_it() -> None:
+    data = raw([claim("c1", S1), claim("c2", S3), claim("c3", S3, fr="Demain, les machines arrivent.")],
+               visual={**VISUAL, "words": [{"fr": "les vendanges", "shows": "the pickers"},
+                                           {"fr": "les machines", "shows": "a harvesting machine"}]})
+    result = build(data)
+    assert result.ok and "c3" not in result.dossier.claims_by_id()
+    assert [w.fr for w in result.dossier.visual.words] == ["les vendanges"]
+    assert "visual:word_dropped:les machines" in result.repairs
+
+
+def test_the_fake_builder_gives_every_dossier_a_picture_with_two_decoys() -> None:
+    result = build_dossier(story(), FakeDossierProvider(), geocode=lambda d: d)
+    assert result.ok, result.rejected
+    visual = result.dossier.visual
+    assert visual is not None and len(visual.decoys_fr) == 2 and visual.words
+    assert checks.passed(checks.check_visual(result.dossier))
 
 
 # ---------------------------------------------------------------------------

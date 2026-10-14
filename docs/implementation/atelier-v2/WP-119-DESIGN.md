@@ -160,12 +160,29 @@ page. Sources are cited the way a paper cites a confrère: «D'après Le Monde, 
   - One line of why, in the learner's language («va être = „wird … sein“ …»).
   - Primary: «On l'envoie à la rédaction». Secondary: «Je change un mot».
   - At A1 the same pane uses `WordTiles` for the word order.
+- **«La légende»** (WP-119 §8.4, 2026-10-14; offered only when the story's own picture is painted, and then Romy's
+  first proposal).
+  - `RvCaption` prints the picture as a press photograph (`RvPicture`): the house print in a hairline frame at 3:2,
+    a dotted blank line where the caption goes on an ink rule, and the credit «Illustration · Le Papier» right-aligned.
+    Under it «Sur l'image»: the two or three words the picture shows, each with its gloss. The pinned band above has
+    moved on to its second view by then (the second place, else the site's own plate), so the picture never shows
+    twice on one screen; the same holds under the dispatch.
+  - A1–A2 choose: three captions in the standard `ChoiceList`; one says what the picture shows, the others change
+    one visible detail. The pick prints grey under the picture while it travels; the answer then inks in (240 ms,
+    none under Reduce Motion), marked «toi» when it was the learner's pick, and a `FeedbackBand` says «C'est ce qu'on
+    voit.» or «Pas celle-là : l'image montre autre chose.».
+  - B1+ write: the picture's words are `av2-tile`s that drop into the caption (and turn «placed»); the caption prints
+    under the picture as it is typed; a TextAnswer with the band's word cap and its count; one red press «Proposer la
+    légende». The `FeedbackBand` gives the fact fit against the picture and the sources and the words used well; a
+    contradicted caption is not filed («L'image ou les sources disent autre chose. Réécris-la.»).
 
 ### 3.6 `close` and the Relevé — `06-close-releve.html`
 - **The close** (`#close`).
   - Romy says what she did, then an `RvDispatch` clipping: a double rule, the kicker «La Revue de Romy · semaine 40», a
     30 px Garamond headline with the learner's part marked, a three-line dispatch, and the byline «Romy Tremblay, avec
     toi · d'après Le Monde et RFI».
+  - With the story's own picture (§8.4), the clipping prints it between the headline and the three lines, under its
+    caption (the learner's, marked «toi», after «La légende»), with the credit «Illustration · Le Papier».
   - Then «Pour ton Relevé»: the five words as `WordToken` rows with their gloss, and the claims.
   - Then the colophon «La suite la semaine prochaine.».
   - The terminal press is **ink** («Classer la Revue»), because nothing is left to do. «Voir dans le Relevé» is quiet.
@@ -174,8 +191,9 @@ page. Sources are cited the way a paper cites a confrère: «D'après Le Monde, 
 - **The Relevé** (`#releve`).
   - Section «La Revue», counted as «2 coupures».
   - An entry, `RvReleveEntry`, holds: a double hairline; «Semaine 40 · 2 oct.» in blue with the outlets on the right; the
-    title; what was made, quoted; the claims with a kind rule and their source line (links); the words as chips (token,
-    French, gloss).
+    title; the story's picture under its caption when one was painted (§8.4, small); what was made, quoted (a caption
+    is the picture's, not quoted twice); the claims with a kind rule and their source line (links); the words as chips
+    (token, French, gloss).
   - Older weeks collapse to their title and «Ton titre · 4 mots · 2 faits».
   - **Distinct from a story day's entry** (the Carnet seal row) by its double rule, its source line, and the absence of a
     seal and of a face. The typography is the same: `nb-*` lines, Garamond for French.
@@ -292,6 +310,8 @@ written `.av2 .rv-…` with `--av2-*` tokens only. All copy comes from `revue-co
 | `RvContribution` | `{ children; label?: string }` (default «toi») | yellow underline + sup word, never colour alone |
 | `RvDispatch` | `{ week: RvWeek; headlineFr; bodyFr?; contribution: RvSpan[]; sources: RvSource[]; readOnly?: boolean }` | the clipping |
 | `RvKept` | `{ words: { fr; article?; gender?; state; gloss }[]; claims: RvClaim['claim'][] }` | «Pour ton Relevé» |
+| `RvPicture` | `{ url: string; captionFr?: string \| null; contribution?: RvSpan[]; draft?: boolean; size?: 'full' \| 'small' }` | §8.4: the story's own picture printed like a press photograph (frame 3:2, caption on an ink rule, «Illustration · Le Papier»); `alt=""`, Romy's look line says what it shows; used by `RvCaption`, `RvDispatch`, `RvReleveEntry` |
+| `RvCaption` | `{ offer: RvCaptionOffer; result: RvCaptionResult \| null; picked: string \| null; pending?; onPick(id); onWrite(textFr); glosses?; glossLanguage? }` | §8.4 «La légende»: `choice` (A1–A2, `ChoiceList` + `FeedbackBand`) or `write` (B1+, word tiles + TextAnswer + count) |
 | `RvReleveSection` / `RvReleveEntry` | `{ entries: RvReleveEntryData[] }` / `{ entry; collapsed: boolean; onToggle }` | `RvReleveEntryData = { week; date; titleFr; made: { kind: RvMakeKind; textFr }; claims; words; sources }` |
 
 ## 5. Copy: Romy's voice vs the chrome

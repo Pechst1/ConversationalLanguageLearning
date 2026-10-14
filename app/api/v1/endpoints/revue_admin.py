@@ -4,6 +4,10 @@
   (or ``?period=2026-W40`` / ``2026-10-03``) with ``refresh=True`` — the week's dossiers
   are rebuilt from the feeds and replace the stored ones. Synchronous: one builder call
   per story, about a minute for six. ``?enqueue=true`` hands it to the Celery task instead.
+* ``POST /revue/admin/paint`` (admin only): paint what the period's kiosk is missing (§8.4:
+  one picture per story, final; a plate per new place), queued by default; ``?enqueue=false``
+  paints in the request (about 35 s a picture) and returns the report. A refresh queued with
+  ``?enqueue=true`` paints on its own; after a synchronous refresh, call this.
 * ``GET /revue/releve``: the learner's filed Papiers for Le Relevé (newest first), with
   what was made, the claims with their source lines and the words. A pure read.
 
@@ -56,6 +60,25 @@ def refresh_intake(
     from app.tasks.revue import intake_now
 
     return intake_now(refresh=True, period=period)
+
+
+@router.post("/admin/paint")
+def paint_pictures(
+    period: str | None = Query(None, pattern=PERIOD_PATTERN),
+    enqueue: bool = Query(True),
+    limit: int | None = Query(None, ge=1, le=40),
+    _admin: User = Depends(require_admin),
+) -> dict[str, Any]:
+    """Paint the period's missing pictures (each once, final)."""
+
+    if enqueue:
+        from app.tasks.revue import paint_pictures as task
+
+        result = task.delay(period, limit)
+        return {"status": "enqueued", "task_id": str(getattr(result, "id", ""))}
+    from app.tasks.revue import paint_now
+
+    return paint_now(period=period, limit=limit)
 
 
 @router.get("/releve", response_model=ReleveView)

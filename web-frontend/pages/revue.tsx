@@ -10,7 +10,8 @@
      ?dossier=<id>   start that story (`chosen_by: learner`); ?story= is the same
      ?mock=1         DEV ONLY (never in a production build): the scripted server of
                      lib/revue-mock.ts instead of the API. ?lang=de|en|fr and
-                     ?band=A1|A2|B1 shape the mock learner; ?reset=1 forgets it.
+                     ?band=A1|A2|B1 shape the mock learner; ?reset=1 forgets it;
+                     ?pictures=0 plays the story without its own picture (§8.4).
 
    States (design §3.7): loading (the 4:3 frame holds its size, «Romy rassemble
    ses notes», skeletons after 400 ms) · choose (from the chip) · the encounter ·
@@ -70,6 +71,7 @@ export default function RevuePage() {
           language,
           band: band === 'A1' || band === 'B1' || band === 'B2' ? band : 'A2',
           latency: 450,
+          pictures: router.query.pictures !== '0',
         });
         if (router.query.reset === '1') next.reset();
         setClient(next);

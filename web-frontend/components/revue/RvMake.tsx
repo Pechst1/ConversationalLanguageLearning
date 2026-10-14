@@ -20,6 +20,14 @@
  * - RvShortReport: thirty seconds out loud (`useVoiceAnswer`: record →
  *   transcribe), the transcript shown for a quick edit, then sent; a text field
  *   when there is no microphone (or it fails). Never scored on pronunciation.
+ *
+ * WP-119 §8.4, offered only when the story's own picture is painted:
+ * - RvCaption, «La légende»: the picture printed with an empty caption line and
+ *   the words it shows. A1–A2 choose the caption among three (a ChoiceList; the
+ *   right one is inked in under the picture after the pick, the server keeping the
+ *   answer until then). B1+ write it: the caption prints under the picture as they
+ *   type, the picture's words are tiles that drop into it, and the rubric grades it
+ *   on what the picture and the sources say (a contradicted caption: write again).
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -27,11 +35,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Action, ChoiceList, FeedbackBand, IconAction, MicIcon, ShapeToken, StopIcon, type ChoiceOption } from '@/components/atelier-v2/ui';
 import { textAnswerField } from '@/components/atelier-v2/ui/Choice';
 import { useVoiceAnswer } from '@/components/atelier-v2/journey/useVoiceAnswer';
-import type { RvHeadlineOption, RvMakeKind, RvPickResult, RvSpan, RvWriteResult } from '@/lib/revue-types';
+import type {
+  RvCaptionOffer,
+  RvCaptionResult,
+  RvHeadlineOption,
+  RvLanguage,
+  RvMakeKind,
+  RvPickResult,
+  RvSpan,
+  RvWriteResult,
+} from '@/lib/revue-types';
 
 import { fill, type RevueCopy } from './revue-copy';
+import { RvPicture } from './RvPicture';
 import { ContributedText } from './RvThread';
-import { headlineWords, sourceDate } from './revue-model';
+import { captionInsert, captionUses, headlineWords, sourceDate } from './revue-model';
 
 // ---------------------------------------------------------------------------
 // RvMakePicker
@@ -372,6 +390,179 @@ export function RvShortReport({ seconds, pending = false, onSend, copy, voice: v
           {fill(copy.report_record, { n: seconds })}
         </span>
       </Action>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RvCaption (WP-119 §8.4 «La légende»)
+// ---------------------------------------------------------------------------
+
+export type RvCaptionProps = {
+  offer: RvCaptionOffer;
+  /** The server's answer: the pick's verdict, or the written caption's grading; null before. */
+  result: RvCaptionResult | null;
+  /** The caption picked (choice), printed grey until the answer arrives. */
+  picked: string | null;
+  pending?: boolean;
+  onPick: (optionId: string) => void;
+  onWrite: (textFr: string) => void;
+  /** The plan's gloss support: a picture word carries its gloss unless `none`. */
+  glosses?: 'shown' | 'tap' | 'none';
+  glossLanguage?: RvLanguage;
+  copy: RevueCopy;
+};
+
+type Feedback = { tone: 'correct' | 'wrong' | 'neutral'; title: string; detail: string | null };
+
+/** The FeedbackBand a caption gets: the pick's verdict, or a written caption's fact fit. */
+export function captionFeedback(result: RvCaptionResult, copy: RevueCopy): Feedback {
+  if (result.format === 'choice') {
+    return { tone: result.correct ? 'correct' : 'wrong', title: result.correct ? copy.caption_right : copy.caption_wrong, detail: null };
+  }
+  const right = (result.evidence?.words ?? []).filter((word) => word.outcome === 'correct').map((word) => word.fr);
+  const detail = right.length ? fill(copy.write_words_right, { words: right.join(', ') }) : null;
+  const fit = result.evidence?.factFit;
+  if (!result.accepted || fit === 'contradicted') return { tone: 'wrong', title: copy.caption_contradicted, detail };
+  if (fit === 'supported') return { tone: 'correct', title: copy.caption_supported, detail };
+  return { tone: 'neutral', title: copy.caption_unsupported, detail };
+}
+
+/** What prints under the picture: the filed caption, else the draft (typed, or the pick on its way). */
+export function captionShown(
+  offer: Pick<RvCaptionOffer, 'format' | 'options'>,
+  result: RvCaptionResult | null,
+  picked: string | null,
+  text: string,
+): { captionFr: string | null; contribution: RvSpan[]; draft: boolean } {
+  if (result?.accepted && result.made) return { captionFr: result.made.textFr, contribution: result.made.contribution, draft: false };
+  if (offer.format === 'write') return { captionFr: text.trim() || null, contribution: [], draft: true };
+  const option = picked ? offer.options.find((row) => row.id === picked) : null;
+  return { captionFr: option ? option.textFr : null, contribution: [], draft: true };
+}
+
+export function RvCaption({ offer, result, picked, pending = false, onPick, onWrite, glosses = 'tap', glossLanguage = 'en', copy }: RvCaptionProps) {
+  const [text, setText] = useState('');
+  const field = useRef<HTMLTextAreaElement | null>(null);
+  const filed = Boolean(result?.accepted && result.made);
+  const shown = captionShown(offer, result, picked, text);
+  const feedback = result ? captionFeedback(result, copy) : null;
+  const write = offer.format === 'write';
+  const words = headlineWords(text);
+  const tooLong = words > offer.maxWords;
+  const countId = 'rv-caption-count';
+
+  const tiles = offer.words.length > 0 && (
+    <div className="rv-caption__words">
+      <p className="rv-caption__k">{copy.caption_words}</p>
+      <ul className="rv-caption__list">
+        {offer.words.map((word) => {
+          const gloss = glosses !== 'none' && word.gloss ? word.gloss : null;
+          const body = (
+            <>
+              <span className="rv-caption__fr" lang="fr">
+                {word.fr}
+              </span>
+              {gloss && (
+                <small className="rv-caption__gloss" lang={glossLanguage}>
+                  {gloss}
+                </small>
+              )}
+            </>
+          );
+          if (!write) {
+            return (
+              <li key={word.fr} className="rv-caption__word" data-word="">
+                {body}
+              </li>
+            );
+          }
+          const used = captionUses(filed && result?.made ? result.made.textFr : text, word.fr);
+          return (
+            <li key={word.fr}>
+              <button
+                type="button"
+                className="av2-tile rv-caption__word"
+                data-state={used ? 'placed' : undefined}
+                aria-label={used ? `${word.fr}, ${copy.caption_word_used}` : fill(copy.caption_word_add, { word: word.fr })}
+                disabled={pending || filed || used}
+                onClick={() => {
+                  setText((current) => captionInsert(current, word.fr));
+                  field.current?.focus();
+                }}
+              >
+                {body}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+
+  if (!write) {
+    const choices: ChoiceOption[] = offer.options.map((option) => ({
+      id: option.id,
+      textFr: option.textFr,
+      state: result
+        ? option.id === result.answerId
+          ? 'correct'
+          : option.id === picked
+            ? 'wrong'
+            : 'idle'
+        : undefined,
+    }));
+    return (
+      <div className="rv-caption" data-format="choice" data-answered={result ? '' : undefined}>
+        <RvPicture url={offer.pictureUrl} captionFr={shown.captionFr} contribution={shown.contribution} draft={shown.draft} copy={copy} />
+        {tiles}
+        <ChoiceList
+          options={choices}
+          selectedId={picked}
+          label={copy.caption_label}
+          disabled={pending || Boolean(result)}
+          onSelect={onPick}
+          statusLabels={{ selected: copy.status_selected, correct: copy.status_correct, wrong: copy.status_wrong }}
+        />
+        {feedback && <FeedbackBand tone={feedback.tone} title={feedback.title} />}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rv-caption" data-format="write" data-accepted={filed ? '' : undefined}>
+      <RvPicture url={offer.pictureUrl} captionFr={shown.captionFr} contribution={shown.contribution} draft={shown.draft} copy={copy} />
+      {tiles}
+      {!filed && (
+        <>
+          {textAnswerField({
+            label: copy.caption_write_label,
+            value: text,
+            rows: 2,
+            placeholder: copy.caption_placeholder,
+            disabled: pending,
+            invalid: tooLong,
+            describedBy: countId,
+            onChange: setText,
+            inputRef: field,
+          })}
+          <p className="rv-write__count" id={countId} data-over={tooLong ? '' : undefined}>
+            {tooLong ? fill(copy.write_too_long, { max: offer.maxWords }) : fill(copy.write_words, { n: words, max: offer.maxWords })}
+          </p>
+        </>
+      )}
+      {feedback && (
+        <FeedbackBand
+          tone={feedback.tone}
+          title={feedback.title}
+          detail={feedback.detail ? <span className="rv-evidence">{feedback.detail}</span> : undefined}
+        />
+      )}
+      {!filed && (
+        <Action tone="primary" pending={pending} pendingLabel={copy.caption_send} disabled={!text.trim() || tooLong} onClick={() => onWrite(text.trim())}>
+          {copy.caption_send}
+        </Action>
+      )}
     </div>
   );
 }

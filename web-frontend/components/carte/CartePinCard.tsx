@@ -133,9 +133,11 @@ export function CartePinCard({ pin, copy, onClose, onRelire, onReleve, onReview,
             <button type="button" className="av2-btn av2-btn--quiet av2-btn--inline" onClick={() => onRelecture(pin)}>
               <span>
                 {relecture.kind === 'open'
-                  ? relecture.headline
-                    ? copy.relecture_open_headline
-                    : copy.relecture_open_question
+                  ? relecture.task === 'question'
+                    ? copy.relecture_open_question
+                    : relecture.task === 'caption'
+                      ? copy.relecture_open_caption
+                      : copy.relecture_open_headline
                   : copy.relecture_read(relecture.at ? copy.date_short(relecture.at) : '')}
               </span>
             </button>

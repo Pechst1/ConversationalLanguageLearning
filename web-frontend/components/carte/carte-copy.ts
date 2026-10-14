@@ -68,10 +68,13 @@ export type CarteCopy = {
   // WP-121 B · La Relecture
   relecture_open_question: string;
   relecture_open_headline: string;
+  /** WP-119 §8.4: the caption the learner wrote under the story's picture. */
+  relecture_open_caption: string;
   relecture_read: (date: string) => string;
   relecture_title: string;
   relecture_lead_question: string;
   relecture_lead_headline: string;
+  relecture_lead_caption: string;
   relecture_field: string;
   relecture_placeholder: string;
   relecture_send: string;
@@ -86,6 +89,7 @@ const CONTRIBUTION_FR = {
   headline_write: 'Ton titre',
   reader_question: 'Ta question',
   short_report: 'Ton papier',
+  caption: 'Ta légende',
 };
 
 const week_fr = (week: number | null) => (week == null ? '' : `Semaine ${week}`);
@@ -163,10 +167,12 @@ const FR: CarteCopy = {
   review_error: 'La révision ne s’ouvre pas. Rien n’est perdu.',
   relecture_open_question: 'Relire ta question',
   relecture_open_headline: 'Réécrire ton titre',
+  relecture_open_caption: 'Réécrire ta légende',
   relecture_read: (date) => (date ? `Relue le ${date}` : 'Relue'),
   relecture_title: 'La Relecture',
   relecture_lead_question: 'Tu avais posé cette question avec Romy. Aujourd’hui, qu’est-ce que tu y réponds ?',
   relecture_lead_headline: 'Quel titre donnerais-tu aujourd’hui à cette histoire ?',
+  relecture_lead_caption: 'Regarde l’image : quelle légende écrirais-tu aujourd’hui ?',
   relecture_field: 'Ta réponse, en français · une ou deux phrases',
   relecture_placeholder: 'Je pense que…',
   relecture_send: 'Envoyer',
@@ -187,7 +193,7 @@ const EN: CarteCopy = {
   cluster_label: (n) => `${n} Papiers here. Zoom in.`,
   cluster_list_title: 'Here',
   kept_words: 'Words you kept',
-  contribution: { headline_choice: 'Your headline', headline_write: 'Your headline', reader_question: 'Your question', short_report: 'Your report' },
+  contribution: { headline_choice: 'Your headline', headline_write: 'Your headline', reader_question: 'Your question', short_report: 'Your report', caption: 'Your caption' },
   question_kept: 'The question kept',
   relire: 'Read it again',
   releve: 'In the Relevé',
@@ -231,9 +237,11 @@ const EN: CarteCopy = {
   review_error: 'The review won’t open. Nothing is lost.',
   relecture_open_question: 'Answer your question again',
   relecture_open_headline: 'Rewrite your headline',
+  relecture_open_caption: 'Rewrite your caption',
   relecture_read: (date) => (date ? `Re-read on ${date}` : 'Re-read'),
   relecture_lead_question: 'You asked this question with Romy. What would you answer today?',
   relecture_lead_headline: 'What headline would you give this story today?',
+  relecture_lead_caption: 'Look at the picture: what caption would you write today?',
   relecture_field: 'Your answer, in French · one or two sentences',
   relecture_send: 'Send',
   relecture_sending: 'Sending…',
@@ -253,7 +261,7 @@ const DE: CarteCopy = {
   cluster_label: (n) => `${n} Papiers hier. Vergrößern.`,
   cluster_list_title: 'Hier',
   kept_words: 'Behaltene Wörter',
-  contribution: { headline_choice: 'Deine Schlagzeile', headline_write: 'Deine Schlagzeile', reader_question: 'Deine Frage', short_report: 'Dein Bericht' },
+  contribution: { headline_choice: 'Deine Schlagzeile', headline_write: 'Deine Schlagzeile', reader_question: 'Deine Frage', short_report: 'Dein Bericht', caption: 'Deine Bildunterschrift' },
   question_kept: 'Die offene Frage',
   relire: 'Nochmal lesen',
   releve: 'Im Relevé',
@@ -297,9 +305,11 @@ const DE: CarteCopy = {
   review_error: 'Die Wiederholung lässt sich nicht öffnen. Nichts ist verloren.',
   relecture_open_question: 'Deine Frage nochmal beantworten',
   relecture_open_headline: 'Deine Schlagzeile neu schreiben',
+  relecture_open_caption: 'Deine Bildunterschrift neu schreiben',
   relecture_read: (date) => (date ? `Neu gelesen am ${date}` : 'Neu gelesen'),
   relecture_lead_question: 'Diese Frage hast du mit Romy gestellt. Was antwortest du heute darauf?',
   relecture_lead_headline: 'Welche Schlagzeile würdest du dieser Geschichte heute geben?',
+  relecture_lead_caption: 'Sieh dir das Bild an: Welche Bildunterschrift würdest du heute schreiben?',
   relecture_field: 'Deine Antwort, auf Französisch · ein oder zwei Sätze',
   relecture_send: 'Senden',
   relecture_sending: 'Wird gesendet…',
