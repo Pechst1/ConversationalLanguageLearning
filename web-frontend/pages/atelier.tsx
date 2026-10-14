@@ -153,6 +153,7 @@ import {
   stepText,
   type SeenItem,
 } from '@/lib/forge-progress';
+import { rewardMomentCopy } from '@/lib/reward-moment-copy';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboOf, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, comboLabel, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
@@ -2288,6 +2289,7 @@ export default function AtelierPage() {
         {rewardMoment && (
           <RewardMomentOverlay
             moment={rewardMoment}
+            language={pageChromeLanguage}
             onClose={() => setRewardMoment(null)}
           />
         )}
@@ -2298,25 +2300,18 @@ export default function AtelierPage() {
 
 function RewardMomentOverlay({
   moment,
+  language,
   onClose,
 }: {
   moment: RewardMoment;
+  language: unknown;
   onClose: () => void;
 }) {
   const isLogoToken = moment.kind === 'logo_token';
   const isDrafting = isLogoToken && moment.collectible?.metadata?.effort === 'drafting';
   const credit = Number(moment.collectible?.metadata?.credit || 0);
-  const eyebrow = isLogoToken
-    ? (isDrafting ? 'Composé de toutes pièces' : 'Écran parfait')
-    : 'Édition sans faute';
-  const title = isLogoToken
-    ? (isDrafting ? 'Jeton bonus gagné' : 'Jeton du logo gagné')
-    : 'Sceau doré gagné';
-  const body = isLogoToken
-    ? (isDrafting
-        ? 'Vous avez produit la forme visée avec vos propres mots : ce travail plus exigeant reçoit un crédit supplémentaire.'
-        : 'Les trois formes ont rejoint la marque de la maison. Elles sont classées dans votre Almanach.')
-    : 'Aucune coquille sur ce tirage. Le sceau du jour a été frappé en doré.';
+  const rc = rewardMomentCopy(language);
+  const { eyebrow, title, body } = rc[isLogoToken ? (isDrafting ? 'drafting' : 'logo') : 'seal'];
   return (
     <div className="reward-moment-layer" role="status" aria-live="polite">
       <Confetti count={isLogoToken ? (isDrafting ? 30 : 24) : 30} />
@@ -2338,11 +2333,11 @@ function RewardMomentOverlay({
         <div>
           <span>{eyebrow}</span>
           <h2>{title}</h2>
-          {isDrafting && credit > 0 && <p className="reward-credit-line">+{credit} crédit</p>}
+          {isDrafting && credit > 0 && <p className="reward-credit-line">{rc.credit(credit)}</p>}
           <p>{body}</p>
         </div>
         <button type="button" onClick={onClose}>
-          Continuer <ArrowRight size={14} />
+          {rc.continue} <ArrowRight size={14} />
         </button>
       </section>
     </div>
@@ -5674,11 +5669,9 @@ function AtelierStyles() {
         background: var(--red);
         color: #fff;
         padding: 0 18px;
-        font-family: var(--mono);
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .13em;
-        text-transform: uppercase;
+        font-family: var(--grotesk);
+        font-size: 15px;
+        font-weight: 700;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes slip-in { from { opacity: 0; transform: translate(18px, -8px) rotate(2deg); } to { opacity: 1; transform: translate(0, 0) rotate(-1deg); } }
