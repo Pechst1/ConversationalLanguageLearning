@@ -6,8 +6,8 @@ the day's new words, the grammar rules a week and the La Forge séance length
 one: their stored ``new_words_per_day`` and rhythm keep working as before.
 Only adds a nullable column.
 
-Revision ID: a7c9e1b3d5f7
-Revises: f1b3d5e7a9c2
+Revision ID: 504cc77963e8
+Revises: a7c9e1b3d5f7
 Create Date: 2026-10-14
 """
 
@@ -17,8 +17,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "a7c9e1b3d5f7"
-down_revision = "f1b3d5e7a9c2"
+revision = "504cc77963e8"
+down_revision = "a7c9e1b3d5f7"
 branch_labels = None
 depends_on = None
 
