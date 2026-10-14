@@ -438,7 +438,7 @@ shipping, on the owner's sample); people of the story allowed, by their role, ne
 - **When, and what it costs.** `tasks.revue.weekly_intake` queues `paint_pictures` after every morning's intake
   (inline when the broker is unreachable): `plates.paint_period` paints what the period's kiosk is missing (each
   story's picture, and a plate for a new second view), each once, until done or the service's daily cap
-  (`spend_guard.service_budget_reached`). A morning that finds everything painted spends nothing; one whose painting
+  (`spend_guard.service_budget_reached`, asked before every image call, like the admin route's `limit`). A morning that finds everything painted spends nothing; one whose painting
   failed is caught up the next. Every painting writes one pilot-ledger row `revue_picture_cost` with no learner
   (`REVUE_PICTURE_COST_USD`, $0.06 a picture), which the cap counts and the digest prints («Le Papier pictures»: by
   kind, flagged, cost). Weekly cadence: six pictures a week, about $0.36. `POST /revue/admin/paint` paints on

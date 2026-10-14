@@ -537,6 +537,29 @@ def test_paint_period_paints_what_is_missing_and_stops_at_the_cap(db: Session, m
     assert len(fake.prompts) == 1
 
 
+def test_paint_period_asks_its_limit_and_the_cap_before_every_image_call(db: Session, monkeypatch, flag_on) -> None:
+    """A story and its new second view are two image calls: ``limit=1`` makes one, and a cap
+    the first painting reaches holds the second; the next run paints what was held."""
+    from app.services import spend_guard
+
+    fake = FakeImages()
+    monkeypatch.setattr(plates, "_call", fake)
+    two = with_places(pictured(), pictured().places[0], SECOND_VIEW).model_copy(update={"visual": MARKET_VISUAL})
+    monkeypatch.setattr(enc, "available_dossiers", lambda week, db=None: [two])
+    monkeypatch.setattr(spend_guard, "service_budget_reached", lambda db, now=None: False)
+    report = plates.paint_period(db, WEEK, limit=1)
+    assert (report.status, report.painted, len(fake.prompts)) == ("limit", 1, 1)
+    assert report.pictures[two.id]["cafe_rue_aligre"] == "limit"
+
+    other = two.model_copy(update={"id": "evergreen-marche-bis", "places": [two.places[0], SECOND_VIEW.model_copy(update={"id": "cafe_bis"})]})
+    monkeypatch.setattr(enc, "available_dossiers", lambda week, db=None: [two, other])
+    monkeypatch.setattr(spend_guard, "service_budget_reached", lambda db, now=None: len(fake.prompts) >= 3)
+    report = plates.paint_period(db, WEEK)
+    assert (report.status, report.painted, len(fake.prompts)) == ("budget", 2, 3)
+    assert report.pictures[two.id]["cafe_rue_aligre"].startswith(settings.GRAPHIC_NOVEL_LOCAL_IMAGE_URL_PREFIX.rstrip("/"))
+    assert report.pictures[other.id]["cafe_bis"] == "budget", "the cap reached by the story's own cost holds the next call"
+
+
 def test_paint_period_is_off_without_durable_storage(db: Session, monkeypatch) -> None:
     fake = FakeImages()
     monkeypatch.setattr(plates, "_call", fake)

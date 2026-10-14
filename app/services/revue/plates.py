@@ -46,6 +46,7 @@ import importlib.util
 import io
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -438,12 +439,19 @@ def paint(db: Session, place_id: str, brief: str, *, name_fr: str | None = None)
     return url
 
 
-def paint_dossier_places(db: Session, dossier: EditorialDossier, *, places: list[Place] | None = None) -> dict[str, str]:
+#: Asked by a painting run before every image call: the reason to hold it (``"limit"``,
+#: ``"budget"``), or ``None`` to paint.
+PaintGate = Callable[[], str | None]
+
+
+def paint_dossier_places(
+    db: Session, dossier: EditorialDossier, *, places: list[Place] | None = None, gate: PaintGate | None = None,
+) -> dict[str, str]:
     """Paint every new place of ``dossier`` (or of ``places``) that has none yet.
 
     Returns place id → plate URL or the refusal reason (``known``, ``painted``, a
-    :class:`PlateBriefError` reason, ``off``, ``error``). Never raises: a place without a
-    plate shows its stand-in.
+    :class:`PlateBriefError` reason, ``off``, ``error``, or what ``gate`` held it for). Never
+    raises: a place without a plate shows its stand-in.
     """
 
     from app.services.season.world import SEASON_ONE_LOCATIONS
@@ -458,7 +466,8 @@ def paint_dossier_places(db: Session, dossier: EditorialDossier, *, places: list
             continue
         try:
             brief = brief_for(place, dossier)
-            out[place.id] = paint(db, place.id, brief, name_fr=place.name_fr)
+            held = gate() if gate is not None else None
+            out[place.id] = held or paint(db, place.id, brief, name_fr=place.name_fr)
         except PlateBriefError as exc:
             logger.info("revue plates: brief for {} refused ({})", place.id, exc.reason)
             out[place.id] = exc.reason
@@ -660,17 +669,23 @@ def paint_story(db: Session, dossier: EditorialDossier) -> str:
     return url
 
 
-def paint_dossier_pictures(db: Session, dossier: EditorialDossier) -> dict[str, str]:
+def paint_dossier_pictures(db: Session, dossier: EditorialDossier, *, gate: PaintGate | None = None) -> dict[str, str]:
     """Every picture ``dossier`` is missing: its story picture, and a plate for each new place
     the story picture does not cover (the second view; the site too when there is no story
-    picture). Returns key → URL or reason, the story under ``"story"``. Never raises."""
+    picture). Returns key → URL or reason, the story under ``"story"``. ``gate`` is asked
+    before each image call (a painted story makes none). Never raises."""
 
     out: dict[str, str] = {}
     story_ok = False
+    held: str | None = None
     if dossier.visual is not None and dossier.places:
         try:
-            out["story"] = paint_story(db, dossier)
-            story_ok = True
+            held = gate() if gate is not None and story_picture(db, dossier.id) is None else None
+            if held:
+                out["story"] = held
+            else:
+                out["story"] = paint_story(db, dossier)
+                story_ok = True
         except PlateBriefError as exc:
             logger.info("revue plates: the story picture of {} was refused ({})", dossier.id, exc.reason)
             out["story"] = exc.reason
@@ -680,8 +695,9 @@ def paint_dossier_pictures(db: Session, dossier: EditorialDossier) -> dict[str, 
             logger.warning("revue plates: painting the story of {} failed ({})", dossier.id, exc)
             db.rollback()
             out["story"] = "error"
-    places = dossier.places[1:2] if story_ok else dossier.places[:2]
-    out.update(paint_dossier_places(db, dossier, places=places))
+    # A held story is painted by the next run: its site needs no place plate meanwhile.
+    places = dossier.places[1:2] if story_ok or held else dossier.places[:2]
+    out.update(paint_dossier_places(db, dossier, places=places, gate=gate))
     return out
 
 
@@ -710,10 +726,11 @@ def _painted_now(value: str) -> bool:
 
 
 def paint_period(db: Session, period: str, *, limit: int | None = None) -> PaintReport:
-    """Paint what ``period``'s kiosk is missing, one dossier after another, until done, the
-    service's daily cap is met (``spend_guard.service_budget_reached``) or ``limit`` new
-    pictures are painted. Off (``status``) when painting is unavailable. What is already
-    painted costs nothing; a failure is retried by the next run."""
+    """Paint what ``period``'s kiosk is missing, one picture after another, until done, the
+    service's daily cap is met (``spend_guard.service_budget_reached``) or ``limit`` image
+    calls are made; both are asked before every call, so a dossier's second picture is held
+    like any other. Off (``status``) when painting is unavailable. What is already painted
+    costs nothing; what was held or failed is painted by the next run."""
 
     from app.services import spend_guard
     from app.services.revue.encounter import available_dossiers
@@ -723,17 +740,29 @@ def paint_period(db: Session, period: str, *, limit: int | None = None) -> Paint
     if reason:
         report.status = f"off: {reason}"
         return report
+    calls = 0
+    held: str | None = None
+
+    def gate() -> str | None:
+        nonlocal calls, held
+        if held is None:
+            if limit is not None and calls >= limit:
+                held = "limit"
+            elif spend_guard.service_budget_reached(db):
+                held = "budget"
+            else:
+                calls += 1
+        return held
+
     for dossier in available_dossiers(period, db):
-        if limit is not None and report.painted >= limit:
-            report.status = "limit"
-            break
-        if spend_guard.service_budget_reached(db):
-            report.status = "budget"
+        if held:
             break
         known = story_picture(db, dossier.id) is not None  # paint_story answers a painted story with its URL
-        result = paint_dossier_pictures(db, dossier)
+        result = paint_dossier_pictures(db, dossier, gate=gate)
         report.pictures[dossier.id] = result
         report.painted += sum(1 for key, value in result.items() if _painted_now(value) and not (key == "story" and known))
+    if held:
+        report.status = held
     report.cost_usd = round(report.painted * picture_cost_usd(), 6)
     logger.bind(period=period, painted=report.painted, status=report.status).info("revue plates: painted {} picture(s)", report.painted)
     return report
