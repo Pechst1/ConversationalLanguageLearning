@@ -2097,6 +2097,7 @@ export default function AtelierPage() {
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
+                      restOfDayOpen={Boolean(continueRoute && continueRoute.plan.next !== 'more')}
                       onOpenLegacy={(href) => {
                         // The old Atelier session is resumed on its own terms: the
                         // journey never converts, replaces or completes it.

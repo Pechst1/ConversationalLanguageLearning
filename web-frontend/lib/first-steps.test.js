@@ -134,3 +134,12 @@ test('without localStorage the device store keeps the route in memory for the pa
     else global.window = previous;
   }
 });
+
+test('#123: the episode-end sticker does not say the day is done, and names what follows', () => {
+  const expected = { de: /Regel.*La Forge/, en: /rule.*La Forge/, fr: /règle.*La Forge/ };
+  for (const language of ['de', 'en', 'fr']) {
+    const { title, body } = steps.firstStepsCopy(language).stickers.resolution;
+    assert.doesNotMatch(`${title} ${body}`, /Tag ist geschafft|Ende des Tages|day is done|end of the day|journée est faite|fin du jour/);
+    assert.match(body, expected[language]);
+  }
+});

@@ -77,11 +77,17 @@ export type JourneyTodayCardProps = {
    * Home.
    */
   onOpenLegacy?: (href: string) => void;
+  /**
+   * Walk #123: the story is done but La Forge or the words are still open, so
+   * the finished card says the episode is done, not the day.
+   */
+  restOfDayOpen?: boolean;
 };
 
 export function JourneyTodayCard({
   controller,
   onOpen,
+  restOfDayOpen = false,
 }: JourneyTodayCardProps) {
   // WP-82: the card is one chrome language — the learner's up to A2, French
   // from B1. French on it is the scene's own title and names.
@@ -120,6 +126,7 @@ export function JourneyTodayCard({
           premiere={premiere}
           interlude={interlude}
           forgeHref={forgeHref}
+          restOfDayOpen={restOfDayOpen}
           phase={phase}
           copy={copy}
           statusCopy={statusCopy}
@@ -244,7 +251,9 @@ function JourneyTodayBody({
   interlude = null,
   forgeHref = null,
   headline = null,
+  restOfDayOpen = false,
 }: {
+  restOfDayOpen?: boolean;
   headline?: Headline | null;
   special?: SpecialEdition | null;
   premiere?: SeasonPremiereView | null;
@@ -457,8 +466,8 @@ function JourneyTodayBody({
       return (
         <Card
           copy={copy}
-          eyebrow={copy.done_today}
-          title={titleFr || copy.done_today}
+          eyebrow={restOfDayOpen ? copy.story_done : copy.done_today}
+          title={titleFr || (restOfDayOpen ? copy.story_done : copy.done_today)}
           lang={titleFr ? 'fr' : undefined}
           done
           // Owner test 2026-09-30: the day's episode, pictured above «Look again».

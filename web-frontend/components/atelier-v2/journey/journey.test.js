@@ -969,6 +969,19 @@ const noSleep = () => Promise.resolve();
   // the learner-language status.
   assert.ok(htmlHas(doneHtml, fixture('completed').response.scenario.title_fr));
   assert.ok(!htmlHas(doneHtml, EN.start), 'a finished day is never restartable from here');
+  // Walk #123: with La Forge or the words still open, the episode is done, not the day.
+  const storyDoneHtml = renderToStaticMarkup(
+    React.createElement(JourneyTodayCard, {
+      controller: controller({
+        phase: state.phaseFromJourney(fixture('completed').response),
+        journey: fixture('completed').response,
+      }),
+      onOpen: () => {},
+      restOfDayOpen: true,
+    }),
+  );
+  assert.ok(htmlHas(storyDoneHtml, EN.story_done));
+  assert.ok(!htmlHas(storyDoneHtml, EN.done_today), 'not «Done for today» while the day goes on');
 
   // The capability being off renders nothing at all.
   assert.equal(

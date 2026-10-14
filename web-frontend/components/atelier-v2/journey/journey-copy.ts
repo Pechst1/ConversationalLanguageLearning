@@ -135,6 +135,8 @@ export type JourneyCopyKey =
   // for one target the scene actually practised.
   | 'practice_this'
   | 'done_today'
+  // Walk #123: the episode is done, La Forge or the words are still open.
+  | 'story_done'
   | 'done_review'
   | 'nothing_offered'
   // WP-32 «Écouter d'abord» — the four-stage listening cycle. Chrome only:
@@ -355,6 +357,7 @@ const EN: CopyTable = {
   more_practice_note: 'Optional. It does not reopen today’s scene.',
   practice_this: 'Practise this',
   done_today: 'Done for today',
+  story_done: 'Episode done',
   done_review: 'Look again',
   nothing_offered: 'No scene is available right now.',
   listen_first_label: 'Listen first',
@@ -556,6 +559,7 @@ const DE: CopyTable = {
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
   practice_this: 'Das üben',
   done_today: 'Für heute erledigt',
+  story_done: 'Folge geschafft',
   done_review: 'Noch einmal ansehen',
   nothing_offered: 'Gerade ist keine Szene verfügbar.',
   listen_first_label: 'Zuerst hören',
@@ -757,6 +761,7 @@ const FR: CopyTable = {
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
   practice_this: 'Retravailler',
   done_today: 'Journée bouclée',
+  story_done: 'Épisode bouclé',
   done_review: 'Revoir',
   nothing_offered: 'Aucune scène n’est disponible pour le moment.',
   listen_first_label: 'Écouter d’abord',
