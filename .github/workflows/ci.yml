@@ -147,8 +147,13 @@ jobs:
           PY
 
       - name: Test timings
-        # The shards are dealt by tests/ci_durations.json; these reports refresh it
-        # (`python scripts/ci_test_shard.py --record pytest-report-*.xml`).
+        # The shards are dealt by tests/ci_durations.json, measured here: this
+        # shard's seconds per file, printed and uploaded so the table can be
+        # refreshed (`python scripts/ci_test_shard.py --record pytest-report-*.xml`).
+        if: always()
+        run: test -f pytest-report.xml && python scripts/ci_test_shard.py --print pytest-report.xml || true
+
+      - name: Upload test timings
         if: always()
         uses: actions/upload-artifact@v4
         with:
