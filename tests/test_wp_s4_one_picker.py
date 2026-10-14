@@ -463,6 +463,7 @@ def test_the_soutenu_day_serves_the_forge_step_and_returns_to_it(
     headers = register(assembled_client, email, cefr="A2.1")
     user = db_session.get(User, learner_id(db_session, email))
     user.daily_goal_minutes = 20
+    user.daily_pace = None  # Round 3: with a pace La Forge is never folded
     db_session.commit()
     driver = Driver(assembled_client, headers, db=db_session)
     journey = driver.create()
@@ -521,6 +522,7 @@ def test_the_envelope_names_the_forge_per_rhythm(
     assert envelope["forge"]["href"].startswith("/atelier?mode=forge")
     user = db_session.get(User, learner_id(db_session, email))
     user.daily_goal_minutes = 30
+    user.daily_pace = None  # Round 3: with a pace La Forge is never folded
     db_session.commit()
     envelope = driver.client.get("/api/v1/daily-journeys/today", headers=headers, params={"timezone": "UTC"}).json()
     assert envelope["forge"]["folded"] is True

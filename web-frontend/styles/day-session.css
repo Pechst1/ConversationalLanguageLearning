@@ -1,0 +1,61 @@
+/*
+ * Round 3 (owner, 2026-10-14) — the day as one sequence.
+ * The programme (Szene · Wörter · Grammatik · Fertig as path nodes with their
+ * minutes), the Tempo sheet's pace rows and the finish screen's tally.
+ * Token-only, under `.av2`, like atelier-v2.css.
+ */
+
+/* The programme: grey = still to come, colour = next or done. */
+.av2 .av2-programme { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.av2 .av2-programme__act {
+  position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto;
+  column-gap: 12px; align-items: center; padding: 6px 0;
+}
+.av2 .av2-programme__act::before {
+  content: ''; position: absolute; left: 9px; top: 26px; bottom: -6px; width: 2px;
+  border-radius: 1px; background: var(--av2-line);
+}
+.av2 .av2-programme__act:last-child::before { display: none; }
+.av2 .av2-programme__act[data-state='done']::before { background: var(--av2-ink); }
+.av2 .av2-programme__node { position: relative; z-index: 1; display: grid; place-items: center; width: 20px; height: 20px; }
+.av2 .av2-programme__node .av2-shape { width: 14px; height: 14px; }
+.av2 .av2-programme__act[data-state='todo'] .av2-shape { color: var(--av2-line-2); }
+.av2 .av2-programme__act[data-state='next'] .av2-programme__node::after {
+  content: ''; position: absolute; inset: -3px; border-radius: var(--av2-r-pill);
+  border: 2px solid var(--av2-blue);
+}
+.av2 .av2-programme__act[data-state='next'][data-part='grammar'] .av2-programme__node::after { border-color: var(--av2-red); }
+.av2 .av2-programme__act[data-state='next'][data-part='words'] .av2-programme__node::after { border-color: var(--av2-yellow-deep, var(--av2-yellow)); }
+.av2 .av2-programme__check {
+  position: absolute; right: -5px; bottom: -4px; display: grid; place-items: center;
+  width: 12px; height: 12px; border-radius: var(--av2-r-pill); background: var(--av2-ink); color: var(--av2-on-ink);
+}
+.av2 .av2-programme__name { font-size: var(--av2-t-body); font-weight: 700; color: var(--av2-ink); line-height: 1.3; }
+.av2 .av2-programme__act[data-state='todo'] .av2-programme__name { color: var(--av2-ink-2); font-weight: 600; }
+.av2 .av2-programme__min { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.av2 .av2-session-next { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.av2 .av2-session-next__quiet { align-self: center; }
+.av2 .av2-btn__meta { font-weight: 500; opacity: 0.85; margin-left: 4px; }
+
+/* The Tempo sheet. */
+.av2 .av2-pace-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.av2 .av2-pace {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px;
+  align-items: baseline; width: 100%; text-align: left;
+}
+.av2 .av2-pace__name { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); }
+.av2 .av2-pace__min { font-size: var(--av2-t-body); font-weight: 700; text-align: right; }
+.av2 .av2-pace__facts, .av2 .av2-pace__eta { font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-ink-2); }
+.av2 .av2-pace__eta { text-align: right; }
+.av2 .av2-pace-note { margin: 14px 2px 18px; }
+
+/* The finish screen. */
+.av2 .av2-finish { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.av2 .av2-tally { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.av2 .av2-tally__item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
+.av2 .av2-tally__n { font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: 2rem; line-height: 1; }
+.av2 .av2-tally__l { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .av2-fertig { min-height: 100dvh; display: flex; flex-direction: column; }
+.av2 .av2-fertig__body { flex: 1; display: flex; flex-direction: column; gap: 18px; padding: 24px var(--av2-gutter, 20px) 28px; }
+.av2 .av2-fertig__spacer { flex: 1; }

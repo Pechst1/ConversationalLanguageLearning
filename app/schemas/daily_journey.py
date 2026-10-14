@@ -1102,6 +1102,78 @@ class EpisodeHeadline(JourneyModel):
     cast_variants: dict[str, str] = Field(default_factory=dict)
 
 
+DaySessionStepKind = Literal["scene", "words", "grammar", "finish"]
+DaySessionStepState = Literal["done", "next", "todo"]
+PaceName = Literal["ruhig", "normal", "schnell"]
+
+
+class DaySessionStep(JourneyModel):
+    """Round 3: one of the day's four steps, in order."""
+
+    kind: DaySessionStepKind
+    state: DaySessionStepState
+    #: What the step still costs; 0 once done.
+    minutes: int = 0
+    #: Where the step opens. The scene has none: Home's own button starts it.
+    href: str | None = None
+    #: Words: the day's new words. Grammar: the séance's items.
+    count: int | None = None
+    #: Words only: new words still to meet today, and reviews waiting.
+    new_left: int | None = None
+    reviews: int | None = None
+
+
+class DaySessionTally(JourneyModel):
+    scenes: int = 0
+    words: int = 0
+    exercises: int = 0
+
+
+class DaySession(JourneyModel):
+    """Round 3 (owner, 2026-10-14): the day as one sequence — Szene, Wörter,
+    Grammatik, Fertig — at the learner's pace. See ``app.services.daily_session``."""
+
+    pace: PaceName
+    steps: list[DaySessionStep]
+    #: The step Home's one button opens; ``None`` once the day is done.
+    next_kind: DaySessionStepKind | None = None
+    minutes_left: int = 0
+    done: bool = False
+    tally: DaySessionTally
+    #: After the day, the one optional extra: «Noch 10 Wörter».
+    more_words: int
+    more_minutes: int
+    more_href: str
+
+
+class PaceOption(JourneyModel):
+    pace: PaceName
+    words: int
+    rules_per_week: int
+    exercises: int
+    minutes_today: int
+    minutes_week_8: int
+    reviews_week_8: int
+    #: Weeks to the goal level at this pace (an estimate).
+    goal_weeks: float
+
+
+class PaceOptions(JourneyModel):
+    """Round 3: the Tempo sheet — what each pace costs and when it reaches the goal."""
+
+    current: PaceName
+    #: ``False`` while the learner never picked a pace (it is read off their words).
+    chosen: bool
+    goal: str
+    words_left: int
+    units_left: int
+    options: list[PaceOption]
+
+
+class PaceUpdate(JourneyRequest):
+    pace: PaceName
+
+
 class TodayEnvelope(JourneyModel):
     learner_level: str | None = None
     contract_version: ContractVersion = CONTRACT_VERSION
@@ -1149,6 +1221,9 @@ class TodayEnvelope(JourneyModel):
     #: day is planned, else the forecast ``available.estimated_seconds`` says)
     #: and each optional extension with its own minutes.
     time_estimate: DayTimeEstimate | None = None
+    #: Round 3. The day as one sequence at the learner's pace (``None`` with the
+    #: journey off).
+    session: DaySession | None = None
 
 
 # ---------------------------------------------------------------------------

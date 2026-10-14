@@ -336,6 +336,8 @@ class UserSettingsRead(BaseModel):
     rhythm: Literal["leger", "regulier", "soutenu", "intensif"] = "regulier"
     daily_goal_xp: int
     new_words_per_day: int
+    #: Round 3: the pace picked on the Tempo sheet; ``None`` when never picked.
+    daily_pace: Literal["ruhig", "normal", "schnell"] | None = None
     #: WP-115a (owner, 2026-09-30): Anki-like caps the learner sets.
     max_reviews_per_day: int = 200
     default_vocab_direction: str
@@ -401,6 +403,9 @@ class UserSettingsUpdate(BaseModel):
     #: and the word drill together (one intake pool).
     #: WP-115a: up to 100 (owner: «an option to set the max new words higher»).
     new_words_per_day: int | None = Field(default=None, ge=1, le=100)
+    #: Round 3: the Tempo sheet's pace. It sets the day's new words, the rules a
+    #: week and La Forge's séance length (``app.services.daily_session.PACES``).
+    daily_pace: Literal["ruhig", "normal", "schnell"] | None = None
     #: WP-115a: the most word reviews a day (Anki's «Maximum reviews/day»).
     max_reviews_per_day: int | None = Field(default=None, ge=1, le=9999)
     default_vocab_direction: VocabDirection | None = None

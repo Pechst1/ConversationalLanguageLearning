@@ -84,9 +84,11 @@ def daily_quota(db: Session, user: Any, *, now: datetime | None = None) -> int:
 
 
 def _quota(user: Any, factor: float) -> int:
+    from app.services.daily_session import pace_words
     from app.services.journey_rhythm import rhythm_of
 
-    raw = getattr(user, "new_words_per_day", None)
+    # Round 3: a pace picked on the Tempo sheet sets the day's words.
+    raw = pace_words(user) or getattr(user, "new_words_per_day", None)
     quota = int(raw) if raw else RHYTHM_NEW_WORDS.get(rhythm_of(user), DEFAULT_NEW_WORDS_PER_DAY)
     return max(0, int(quota * factor))
 

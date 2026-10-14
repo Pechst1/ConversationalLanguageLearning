@@ -106,7 +106,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       resolution: {
         title: 'Das Ende der Folge',
-        body: 'Hier endet die Szene. Danach kommen die Regel von heute und La Forge.',
+        body: 'Hier endet die Szene. Danach kommen deine Wörter und die Grammatik.',
       },
       read: {
         title: 'Eine Seite zum Lesen',
@@ -148,7 +148,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         'Rechts oben: dein Tag füllt sich.',
       ],
       day_title: 'Dein erster Tag',
-      day_body: 'Geschichte, dann La Forge, dann deine Wörter. Gelbe Zettel erklären Neues.',
+      day_body: 'Szene, dann deine Wörter, dann Grammatik. Gelbe Zettel erklären Neues.',
     },
     route: {
       title: 'Dein erster Tag',
@@ -184,7 +184,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       resolution: {
         title: 'The end of the episode',
-        body: 'The scene ends here. Next come today’s rule and La Forge.',
+        body: 'The scene ends here. Next come your words and the grammar.',
       },
       read: {
         title: 'A page to read',
@@ -226,7 +226,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         'Top right: your day fills in.',
       ],
       day_title: 'Your first day',
-      day_body: 'Story, then La Forge, then your words. Yellow notes explain new things.',
+      day_body: 'Scene, then your words, then grammar. Yellow notes explain new things.',
     },
     route: {
       title: 'Your first day',
@@ -262,7 +262,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       resolution: {
         title: 'La fin de l’épisode',
-        body: 'La scène se termine ici. Ensuite viennent la règle du jour et La Forge.',
+        body: 'La scène se termine ici. Ensuite viennent vos mots et la grammaire.',
       },
       read: {
         title: 'Une page à lire',
@@ -304,7 +304,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         'En haut à droite : votre journée se remplit.',
       ],
       day_title: 'Votre premier jour',
-      day_body: 'L’histoire, puis La Forge, puis vos mots. Les notes jaunes expliquent le nouveau.',
+      day_body: 'La scène, puis vos mots, puis la grammaire. Les notes jaunes expliquent le nouveau.',
     },
     route: {
       title: 'Votre premier jour',
