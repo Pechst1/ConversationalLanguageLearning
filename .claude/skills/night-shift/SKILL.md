@@ -15,22 +15,32 @@ as ready to merge.
 If the Workflow tool is available, run the saved workflow:
 
 ```
-Workflow name: night-shift   args: {"date": "<YYYY-MM-DD>", "maxFixes": 8, "maxStory": 2, "wave": 4}
+Workflow name: night-shift   args: {"date": "<YYYY-MM-DD>", "maxFixes": 15, "maxStory": 3, "maxRootCauses": 3, "wave": 5}
 ```
+
+**GitHub access:** cloud sessions block GraphQL, so `gh issue …` and `gh pr …` fail.
+Use `scripts/loop/loop_queue.py` (REST through `gh api`): `show N`, `comment N`,
+`open-night-prs`, `pr-create`, `pr-diff N`, `pr-unready N`, plus the queue verbs below;
+or the GitHub MCP tools.
+
+**Test environment:** `bash scripts/loop/setup_env.sh && source ~/.venvs/atelier/bin/activate`
+gives the Python 3.11 venv CI uses and web-frontend's node_modules. In a worktree run
+`python -m pytest` from the worktree root.
 
 Without the Workflow tool, do the same steps with the Agent tool:
 
-1. **Plan** (one agent, or yourself). Count open `claude/night-*` PRs; at 10 or more,
-   plan nothing new. Otherwise read `python scripts/loop/loop_queue.py ready` and each
+1. **Plan** (one agent, or yourself). Count open `claude/night-*` PRs
+   (`loop_queue.py open-night-prs`); at 30 or more, plan nothing new. Root-cause issues
+   come first: up to 3, each its own cluster with its ready children. Otherwise read `python scripts/loop/loop_queue.py ready` and each
    issue's "Done when" comment, find the files each fix will touch, group issues that
    share files into one cluster (at most 3 issues, one lane), order by severity then
-   size, and keep at most 8 clusters with at most 2 story clusters.
-2. **Fix** in waves of at most 4 agents (`isolation: "worktree"`; more than 4 at once
+   size, and keep at most 15 clusters with at most 3 story clusters.
+2. **Fix** in waves of at most 5 agents (`isolation: "worktree"`; more at once
    stall). Give each agent the fixer brief from `.claude/workflows/night-shift.js`
    (`fixPrompt`): branch `claude/night-<date>-<first issue>` from origin/main, claim,
    reproduce, fix, add the test that would have caught it, run the focused checks,
    push, open the PR, `mark-pr`, or `release` with a reason.
-3. **Verify** each PR with a fresh agent that did not write it (`verifyPrompt`): it
+3. **Verify** each PR (never skip this) with a fresh agent that did not write it (`verifyPrompt`): it
    checks the diff against every done-when and, if it is not ok, removes
    `loop:merge-ready`, turns the PR into a draft and comments why.
 4. **Digest**: `python scripts/loop/loop_queue.py merge-ready` (lists only) and

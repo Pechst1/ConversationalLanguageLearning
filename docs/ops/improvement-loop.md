@@ -9,7 +9,7 @@ the fix.
  Berlin   02:17 scripted walk (CI, fake provider)
           03:43 live walk (Mac, real model, production)  ─┐
           04:57 explore walk (cloud, fake provider)       ├─► issues + triage → queue:ready
-          06:30 night shift (cloud): plan → fix ×8 in waves of 4 → verify → digest
+          06:30 night shift (cloud): plan → fix ×15 in waves of 5 → verify → digest
  morning  owner merges (ready-to-merge list first) ──► CI on main ──► Render deploys
  next     live walk checks /health release, re-tests deployed fixes, closes or reopens
 ```
@@ -71,13 +71,19 @@ Lanes:
    fixes, triages. It no longer fixes anything itself.
 3. **Night shift** (cloud, 06:30, `night-shift` skill and `.claude/workflows/night-shift.js`):
    - plans clusters from `queue:ready` so no two agents touch the same file;
-   - fixes up to 8 clusters (at most 2 story) in waves of 4, each agent in its own
+   - takes up to 3 `root-cause` issues first, each with its ready children;
+   - fixes up to 15 clusters (at most 3 story) in waves of 5, each agent in its own
      worktree and branch `claude/night-<date>-<issue>`;
    - has a second agent review every PR against the done-when; a PR that fails loses
      `loop:merge-ready`, becomes a draft and gets a comment;
    - posts the digest: queue counts, tonight's PRs, the ones ready to merge, anything
      left `queue:working`, and what waits for the owner.
-   With 10 or more night-shift PRs open it opens nothing new.
+   With 30 or more night-shift PRs open it opens nothing new.
+   Cloud sessions block GitHub GraphQL, so the loop never calls `gh issue` or `gh pr`:
+   `loop_queue.py` talks REST through `gh api` and also covers reading an issue,
+   commenting, opening a PR, its diff and the verifier's verdict.
+   `scripts/loop/setup_env.sh` sets up the Python 3.11 venv and node_modules the
+   focused checks need.
 
 Nothing in the loop merges, deploys or pushes to main. The owner merges; for the
 small code fixes, `python scripts/loop/loop_queue.py merge-ready` lists the PRs whose

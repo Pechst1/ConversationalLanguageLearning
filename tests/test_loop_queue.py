@@ -65,3 +65,30 @@ def test_owner_review_draft_and_foreign_branch_block() -> None:
 
 def test_large_diff_blocks() -> None:
     assert any("changed lines" in b for b in loop_queue.merge_blockers(_green_pr(additions=500)))
+
+
+def test_rest_pr_reads_like_gh_pr_view(monkeypatch: Any) -> None:
+    """Cloud sessions block GraphQL: the REST answers must feed the same guard."""
+    pr = {
+        "number": 160, "title": "fix", "state": "open", "draft": False, "merged_at": None,
+        "labels": [{"name": "loop:merge-ready"}], "head": {"ref": "claude/night-2026-10-16-160", "sha": "abc"},
+        "mergeable": True, "additions": 30, "deletions": 5,
+    }
+    runs = [{"name": f"check {i}", "status": "completed", "conclusion": "success"} for i in range(5)]
+    monkeypatch.setattr(loop_queue, "api_json", lambda method, path, body=None: (
+        pr if path == "pulls/160" else {"statuses": [{"context": "render", "state": "success"}]}))
+    monkeypatch.setattr(loop_queue, "api_list", lambda path, limit=1000: (
+        runs if "check-runs" in path else [{"filename": "web-frontend/lib/day-plan.ts"}]))
+    rolled = loop_queue.pr_rollup(160)
+    assert loop_queue.merge_blockers(rolled) == []
+    pr["mergeable"] = False
+    runs[0]["conclusion"] = "failure"
+    blockers = loop_queue.merge_blockers(loop_queue.pr_rollup(160))
+    assert "mergeable=CONFLICTING" in blockers and "check 0: FAILURE" in blockers
+
+
+def test_label_removal_tolerates_a_missing_label(monkeypatch: Any) -> None:
+    def missing(*_: Any, **__: Any) -> str:
+        raise SystemExit("gh api DELETE failed: HTTP 404: Label does not exist")
+    monkeypatch.setattr(loop_queue, "api", missing)
+    loop_queue.remove_label(5, "queue:ready")
