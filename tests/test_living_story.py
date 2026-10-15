@@ -2824,10 +2824,29 @@ def test_the_brief_no_longer_asks_for_a_long_task_line():
         ("Dites-lui merci.", "Dis-lui merci."),
         ("Dis à Romy qui tu es.", "Dis à Romy qui tu es."),
         ("Passe chez Margaux et demande assez de pain.", "Passe chez Margaux et demande assez de pain."),
+        # The -er verbs with a stem change (Codex on #162: «Envoyez» came out «Envoye»).
+        ("Envoyez un message à Romy.", "Envoie un message à Romy."),
+        ("Levez-vous et appelez Lila.", "Lève-toi et appelle Lila."),
+        ("Suggérez une table à Gus, puis achetez du pain.", "Suggère une table à Gus, puis achète du pain."),
+        ("Souvenez-vous de Lila.", "Souviens-toi de Lila."),
+        ("Parlez-en à Lila.", "Parles-en à Lila."),
+        ("Allez-y.", "Vas-y."),
     ],
 )
 def test_a_french_task_line_says_tu(vous, tu):
     assert engine.tutoie_task(vous) == tu
+
+
+@pytest.mark.parametrize(
+    ("line", "left"),
+    [("Buvez un café avec Gus.", "Buvez"), ("N'oubliez pas ton carnet.", "oubliez")],
+)
+def test_a_vous_form_the_repair_does_not_know_is_refused_never_guessed(line, left):
+    assert engine.tutoie_task(line) == line
+    with pytest.raises(engine.StoryUnavailable, match="task_says_vous") as refused:
+        engine._check_task_tutoiement(_fr_draft(objective_native=line))
+    assert f"«{left}»" in refused.value.feedback
+    engine._check_task_tutoiement(_fr_draft(objective_native="Dis bonjour à Martinez."))
 
 
 def _fr_draft(**fields):

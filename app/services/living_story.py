@@ -5914,8 +5914,10 @@ def _check_objective_scope(
 
 # #144 (one register for the learner): a French task line speaks to the learner as tu.
 # The director's imperative in vous is repaired word by word where the tu form is
-# certain; anything still in vous after that (« votre », « vous allez ») is refused
-# with the reason, never shown.
+# certain: the verbs listed here, and the -er verbs of the core lexicon with their
+# stem change («Envoyez» → «Envoie», «Répétez» → «Répète»). Any other vous form is
+# left as written and refused with the reason, never guessed (Codex on #162: «Envoyez»
+# came out as «Envoye»).
 _TU_IMPERATIVES = {
     "dites": "dis", "faites": "fais", "choisissez": "choisis", "convainquez": "convaincs",
     "lisez": "lis", "écrivez": "écris", "décrivez": "décris", "répondez": "réponds",
@@ -5924,25 +5926,68 @@ _TU_IMPERATIVES = {
     "offrez": "offre", "ouvrez": "ouvre", "soyez": "sois", "suivez": "suis",
     "finissez": "finis", "réfléchissez": "réfléchis", "partez": "pars", "sortez": "sors",
     "servez": "sers", "allez": "va", "redites": "redis", "admettez": "admets",
+    "tenez": "tiens", "retenez": "retiens", "obtenez": "obtiens", "prévenez": "préviens",
+    "revenez": "reviens", "souvenez": "souviens", "apprenez": "apprends",
+    "comprenez": "comprends", "reprenez": "reprends", "entendez": "entends",
+    "perdez": "perds", "défendez": "défends", "permettez": "permets", "remettez": "remets",
+    "dormez": "dors", "sentez": "sens", "recevez": "reçois", "voyez": "vois",
+    "croyez": "crois", "asseyez": "assieds", "taisez": "tais", "connaissez": "connais",
+    "reconnaissez": "reconnais", "conduisez": "conduis", "souriez": "souris",
+    "rejoignez": "rejoins", "découvrez": "découvre", "accueillez": "accueille",
+    "remplissez": "remplis", "réussissez": "réussis", "agissez": "agis",
+    "saisissez": "saisis", "ayez": "aie", "sachez": "sache", "interrompez": "interromps",
+    "inscrivez": "inscris",
 }
+#: -eler/-eter verbs that take a grave accent («achète»); the others double («appelle»).
+_GRAVE_ELER_ETER = frozenset(
+    {"acheter", "racheter", "geler", "dégeler", "congeler", "harceler", "receler", "déceler",
+     "modeler", "peler", "haleter", "marteler", "ciseler", "démanteler", "écarteler", "fureter"}
+)
+_STEM_CHANGE = re.compile(r"([eé])([bcdfghjklmnpqrstvwzç]+)$")
 #: A clause start: the line's start, or after a comma, a colon, «et», «puis» or «ou».
 _CLAUSE_IMPERATIVE = re.compile(
-    r"(^|[,:;]\s*(?:(?:et|puis|ou)\s+)?|\b(?:et|puis|ou)\s+)([A-Za-zÀ-ÿ]+)(-(?:vous|lui|leur|moi|nous))?\b"
+    r"(^|[,:;]\s*(?:(?:et|puis|ou)\s+)?|\b(?:et|puis|ou)\s+)([A-Za-zÀ-ÿ]+)"
+    r"(-(?:vous-en|vous|lui|leur|moi|nous|en|y))?\b"
 )
 _TASK_VOUS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
+#: A vous verb form the repair could not put in tu: «-ez» but these words, and these.
+_NOT_VOUS_EZ = frozenset({"chez", "assez", "nez", "rez", "lez", "fez"})
+_VOUS_VERBS = frozenset({"dites", "redites", "faites", "êtes"})
 _QUOTED = re.compile(r"«[^»]*»|\"[^\"]*\"|“[^”]*”")
+
+
+def _er_tu(stem: str) -> str:
+    """The tu imperative of the -er verb «stem» + er.
+
+    «propos» → «propose», «envoy» → «envoie», «répét» → «répète», «lev» → «lève»,
+    «appel» → «appelle», «achet» → «achète»."""
+
+    if stem.endswith(("ay", "oy", "uy")):
+        return stem[:-1] + "ie"
+    match = _STEM_CHANGE.search(stem)
+    if match and (match.group(1) == "é" or (len(match.group(2)) == 1 and match.group(2) != "x")):
+        head, vowel, tail = stem[: match.start()], match.group(1), match.group(2)
+        if vowel == "e" and tail in ("l", "t") and f"{stem}er" not in _GRAVE_ELER_ETER:
+            return f"{head}e{tail}{tail}e"
+        return f"{head}è{tail}e"
+    return stem + "e"
 
 
 def _tu_form(word: str) -> str | None:
     lower = word.casefold()
     if lower in _TU_IMPERATIVES:
         tu = _TU_IMPERATIVES[lower]
-    elif lower.endswith("ez") and len(lower) > 4 and lower not in {"chez", "assez", "nez"}:
-        # A regular -er verb: «proposez» → «propose», «demandez» → «demande».
-        tu = lower[:-1]
+    elif lower.endswith("ez") and len(lower) > 4 and _is_er_verb(lower[:-2] + "er"):
+        tu = _er_tu(lower[:-2])
     else:
         return None
     return tu[:1].upper() + tu[1:] if word[:1].isupper() else tu
+
+
+def _is_er_verb(infinitive: str) -> bool:
+    from app.services.lexicon_grammar import lexicon_pos
+
+    return lexicon_pos(infinitive) == "verb"
 
 
 def tutoie_task(text: str) -> str:
@@ -5961,24 +6006,45 @@ def tutoie_task(text: str) -> str:
         clitic = match.group(3) or ""
         if clitic == "-vous":
             clitic = "-toi"
+        elif clitic == "-vous-en":
+            clitic = "-t'en"
+        elif clitic in ("-en", "-y") and tu.endswith(("e", "a")):
+            tu += "s"  # «Parles-en», «Vas-y»
         return f"{match.group(1)}{tu}{clitic}"
 
     return _CLAUSE_IMPERATIVE.sub(swap, text)
+
+
+def _vous_verb(text: str) -> str | None:
+    """The first vous verb form in ``text`` («Envoyez», «N'oubliez», «dites»), if any.
+
+    A capitalised word inside a sentence is a name (Martinez), not a verb."""
+
+    for match in re.finditer(r"[A-Za-zÀ-ÿ]+", text):
+        word, lower = match.group(0), match.group(0).casefold()
+        before = text[: match.start()].rstrip()
+        if word[:1].isupper() and before and before[-1] not in ".!?'’":
+            continue
+        if lower in _VOUS_VERBS or (lower.endswith("ez") and lower not in _NOT_VOUS_EZ):
+            return word
+    return None
 
 
 def _check_task_tutoiement(draft: SceneDraft) -> None:
     for field, text in (("objective_native", draft.objective_native), ("hint_native", draft.hint_native)):
         # A quoted French phrase is the scene's own line («Vous pouvez… ?» to a vous
         # character), not the app speaking to the learner.
-        found = _TASK_VOUS.search(_QUOTED.sub(" ", text or ""))
-        if found:
+        unquoted = _QUOTED.sub(" ", text or "")
+        found = _TASK_VOUS.search(unquoted)
+        said = found.group(0) if found else _vous_verb(unquoted)
+        if said:
             raise StoryUnavailable(
                 "task_says_vous",
                 hint=(
-                    f"{field} is French and says «{found.group(0)}» to the learner. The app "
+                    f"{field} is French and says «{said}» to the learner. The app "
                     "always says tu to the learner in its own lines (tu, ton, ta, tes, "
                     "imperative «Dis…», «Demande…»), whatever the characters say inside the "
-                    f"scene. Rewrite «{text}» in tu."
+                    f"scene; a line for a vous character goes in « ». Rewrite «{text}» in tu."
                 ),
             )
 
