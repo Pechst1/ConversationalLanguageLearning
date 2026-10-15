@@ -212,3 +212,25 @@ test('WP-103 · every new Épreuve key exists in en, de and fr', () => {
   assert.equal(epreuveCopy('fr').follow_title, 'Corrigez la phrase');
   assert.equal(epreuveCopy('fr').follow_skip, 'Passer');
 });
+
+// #125 — a judgement miss on a sentence that was already right: the walk's exact
+// item. The server files learner_text === corrected_target (the sentence); the
+// feedback must not strike it through and show it again as «Richtig».
+test('#125 a right sentence called wrong is never struck through', () => {
+  const sentence = 'Tu es aux États-Unis cette semaine, Romy ?';
+  const html = renderToStaticMarkup(
+    React.createElement(Ep.EpLabelFix, { old: sentence, fix: sentence }),
+  );
+  assert.ok(!html.includes('av2-correction__span'), 'no struck span');
+  assert.ok(!html.includes('Votre choix'), 'no «your choice» row');
+  assert.ok(html.includes('data-already-right'));
+  assert.equal(html.split('États-Unis').length - 1, 1, 'the sentence appears once');
+  assert.match(html, /déjà juste|already right|schon richtig/);
+  for (const Fix of [Ep.EpLineFix, Ep.EpFix]) {
+    const out = renderToStaticMarkup(React.createElement(Fix, { old: sentence, fix: sentence }));
+    assert.ok(!out.includes('av2-correction__span'));
+  }
+  // a real correction still strikes the old form
+  const real = renderToStaticMarkup(React.createElement(Ep.EpLabelFix, { old: 'tu es', fix: 'tu as' }));
+  assert.ok(real.includes('av2-correction__span'));
+});

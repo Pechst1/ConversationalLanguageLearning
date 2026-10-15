@@ -487,7 +487,17 @@ export function EpFoot({ children, tone }: { children: Node; tone?: 'correct' | 
 }
 
 /* ---------- corrections ---------- */
+/* Root cause of #125: every correction renderer drew «old struck → new», so a
+   «was already right» erratum (old === new, the server's wording for a sentence
+   the learner wrongly called wrong) crossed out the correct sentence. A
+   correction whose two sides are the same text strikes nothing. */
+function sameText(a: Node, b: Node): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const fold = (v: string) => v.normalize('NFC').replace(/[‘’ʼ`]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+  return fold(a) !== '' && fold(a) === fold(b);
+}
 export function EpFix({ old, fix }: { old: Node; fix: Node }) {
+  if (sameText(old, fix)) return <span className="ep-fix"><span className="av2-correction__fix" lang="fr">{fix}</span></span>;
   return (
     <span className="ep-fix">
       <span className="av2-correction__span" lang="fr">{old}</span>
@@ -510,6 +520,14 @@ export function EpIns({ fix }: { fix: Node }) {
    and correct category names run too long to sit on one. */
 export function EpLabelFix({ old, fix }: { old: Node; fix: Node }) {
   const t = useEpCopy();
+  if (sameText(old, fix)) {
+    return (
+      <div className="ep-labelfix" data-already-right="true">
+        <p><span className="av2-correction__fix" lang="fr">{fix}</span></p>
+        <p className="av2-label">{t.labelfix_already_right}</p>
+      </div>
+    );
+  }
   return (
     <div className="ep-labelfix">
       <p><span className="av2-label ep-labelfix__k">{t.labelfix_old}</span><span className="av2-correction__span" lang="fr">{old}</span></p>
@@ -520,6 +538,7 @@ export function EpLabelFix({ old, fix }: { old: Node; fix: Node }) {
 /* full-line rewrite: the learner's line struck through, the corrected line
    beneath — both WRAP within the column. */
 export function EpLineFix({ old, fix }: { old: Node; fix: Node }) {
+  if (sameText(old, fix)) return <div className="ep-linefix"><p className="av2-correction__fix ep-linefix__new" lang="fr">{fix}</p></div>;
   return (
     <div className="ep-linefix">
       {old ? <p className="av2-correction__span" lang="fr">{old}</p> : null}
