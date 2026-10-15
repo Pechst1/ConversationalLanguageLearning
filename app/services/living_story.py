@@ -6459,10 +6459,16 @@ def _season_required_moment(draft: SceneDraft, context: dict) -> str | None:
     if not required or chosen == required:
         return None
     title = ((brief.get("today") or {}).get("required_premise") or {}).get("title_fr")
-    return (
+    hint = (
         f"Today this gap stages «{title}» (season_script.brief.today.required_premise): "
         f"write that day, and set season_checklist.premise_id to {required!r}."
     )
+    # Story plan (gap-1 runs, 2026-10-15): a planned day the draft dropped came back
+    # as another scene; the retry is told the day's change itself.
+    beat = (brief.get("today") or {}).get("beat") or {}
+    if beat.get("before") and beat.get("after"):
+        hint += f" The page starts from «{beat['before']}» and the exchange ends at «{beat['after']}»."
+    return hint
 
 
 def _wrong_beat_hint(draft: SceneDraft, chapter: dict, allowed: tuple[str, ...], closing: bool) -> str:

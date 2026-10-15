@@ -96,3 +96,19 @@ def test_a_planned_beat_the_learner_did_not_take_up_still_moves_the_plan_on():
 def test_a_required_beat_still_waits_for_the_learner():
     assert not _settle("le_billet", "not_yet").get("premises")
     assert [row["premise"] for row in _settle("le_billet", "met")["premises"]] == ["le_billet"]
+
+
+def test_the_retry_for_a_dropped_planned_day_names_its_change():
+    """Second gap-1 run: day 2 left premise_id empty and wrote Lila on the quay; the
+    retry was told only the premise's title."""
+
+    from types import SimpleNamespace
+
+    from app.services.living_story import _season_required_moment
+
+    season, pos, state = _g1_day(2, premises=["plusieurs_semaines"])
+    brief = gap_brief(season, pos, flags=effective_flags(season, state, seed="x"), state=state, seed="x")
+    draft = SimpleNamespace(season_checklist=None)
+    hint = _season_required_moment(draft, {"season_script": {"brief": brief}})
+    assert "'soupe_de_marin'" in hint
+    assert brief["today"]["beat"]["before"] in hint and brief["today"]["beat"]["after"] in hint
