@@ -8218,7 +8218,7 @@ def _season_story_review(context: dict, reviews: list[dict]):
         try:
             verdict, _ = _json_call(
                 STORY_CRITIC,
-                critic_payload(brief, proposal.model_dump(mode="json")),
+                critic_payload(brief, proposal.model_dump(mode="json"), recent_days=(context.get("recent_situations") or [])[-3:]),
                 StoryReview,
                 record,
                 deadline=deadline,
