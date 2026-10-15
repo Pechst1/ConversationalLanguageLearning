@@ -1173,11 +1173,14 @@ export default function AtelierPage() {
     rememberedKind: rememberedHomeKind,
   }) === 'skeleton';
 
+  // Clamp to the container's items. Live walk #148: against the output-scoped
+  // index (always 0) this undid every forge seat on a second output item, so
+  // the answered first item came back and «Continue» never moved.
   useEffect(() => {
-    if (!activeRetest && activeItemIndex !== activeItemIndexSafe) {
-      setActiveItemIndex(activeItemIndexSafe);
+    if (!activeRetest && activeItemIndex !== baseActiveItemIndexSafe) {
+      setActiveItemIndex(baseActiveItemIndexSafe);
     }
-  }, [activeItemIndex, activeItemIndexSafe, activeRetest]);
+  }, [activeItemIndex, baseActiveItemIndexSafe, activeRetest]);
 
   function applyAttemptResult(key: string, result: AtelierAttemptResult, replaceErrata = false, schedulePending = true) {
     const correction = correctionWithAiReview(result);
