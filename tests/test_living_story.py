@@ -1544,6 +1544,25 @@ def test_a_forbidden_endearment_is_cut_and_the_sentence_kept():
     assert cut("Mon grand, tu viens ?", "neutral") == "Tu viens ?"
 
 
+def test_a_family_word_is_not_a_gendered_address():
+    """Gate 1 run, 2026-10-15: Camille's «mon grand-père» read as «mon grand» and lost
+    every B1 page of the notary chapter. Only a vocative is an address."""
+
+    for line in (
+        "Je dois répondre à mon grand-père.",
+        "La créance de mon grand-père passe avant toute vente.",
+        "Ma petite-fille arrive demain, et ma belle-mère aussi.",
+        "Mon grand frère arrive.",
+        "Ma fille est partie à Lyon.",
+    ):
+        engine._check_address([line], "neutral")
+    for line in ("Merci, mon grand.", "Viens, ma belle !", "« Ça va, ma puce ? »", "Mon vieux, tu viens ?", "Mon grand — viens ici.", "Ma belle – attends !"):
+        with pytest.raises(engine.StoryUnavailable, match="gendered_address"):
+            engine._check_address([line], "neutral")
+    engine._check_address(["Merci, mon grand."], "masculine")
+    assert engine._scrub_endearments("Je parle à mon grand-père.", "neutral") == "Je parle à mon grand-père."
+
+
 # ---------------------------------------------------------------------------
 # WP-59 — loop engineering, per-learner dice, and level-true B1/B2/C1
 # ---------------------------------------------------------------------------
