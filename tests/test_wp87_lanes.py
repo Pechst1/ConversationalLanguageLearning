@@ -306,6 +306,14 @@ def test_a_failed_story_lane_gets_the_authored_ending_around_the_shown_reply(
                                  PilotEvent.user_id == d.user_id)
     ).all()
     assert [e.payload["stage"] for e in events] == ["story_lane"]
+    settled = db_session.scalars(
+        select(PilotEvent).where(PilotEvent.event_type == "journey_story_lane_settled",
+                                 PilotEvent.user_id == d.user_id)
+    ).one()
+    # Story plan, Phase 1 «Maßstab»: the authored ending the learner read is the one counted
+    # («La conversation reprendra là où elle s'est arrêtée.»).
+    assert settled.payload["status"] == "fallback"
+    assert settled.payload["prose_hits"] == {"deferred_ending": 1}
 
 
 def test_a_released_reply_the_critic_refuses_is_logged_never_retracted(

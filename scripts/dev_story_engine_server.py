@@ -118,8 +118,8 @@ SEASON_QUESTIONS = (
 
 
 def _suggested(context: dict, answer: str) -> str:
-    """From B1 the answer is a move (``living_story._ANSWER_MINIMUM_WORDS``): the
-    short answer, with a reason and a condition."""
+    """From B1 the situation invites a move: the short answer, with a reason and a
+    condition. Since 15 Oct 2026 no answer has a floor; this is just a natural one."""
 
     if str(context.get("level") or "")[:2] in {"B1", "B2", "C1", "C2"}:
         return answer.rstrip(".") + ", mais seulement le matin, parce que je travaille tard le soir."
@@ -147,7 +147,8 @@ class FakeStoryProvider:
             elif schema == "SceneDraft":
                 value = self._draft(source, self.scenes)
                 self.scenes += 1
-                # WP-92: a compliant director says the day's new form twice and asks for it.
+                # WP-92: the fake says the day's new form twice and asks for it. Since 15 Oct
+                # 2026 the director says it once and never asks for it; twice still passes.
                 examples = ((source.get("grammar_plan") or {}).get("introduce") or {}).get("examples") or []
                 if examples and len(value["panels"]) >= 3:
                     speaker = value["character_id"]

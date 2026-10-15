@@ -47,8 +47,9 @@ OBJECTIVES = [
 ]
 
 
-# WP-59: from B1 the answer is a move, not a sentence. Since 15 Oct 2026 the move lives
-# in the suggested answer and the task line stays short (``_ANSWER_MINIMUM_WORDS``).
+# WP-59: from B1 the answer is a move, not a sentence. The task line stays short and the
+# suggested answer shows the move (no length is required of it since the story plan's
+# Phase 1: depth comes from the follow-up question).
 UPPER_BAND_ANSWER = (
     "Je peux apporter les affiches samedi, mais seulement le matin, parce que je "
     "travaille l'après-midi."
@@ -1548,17 +1549,12 @@ def test_a_forbidden_endearment_is_cut_and_the_sentence_kept():
 # ---------------------------------------------------------------------------
 
 
-def test_upper_bands_are_asked_for_a_move_not_a_sentence():
+def test_upper_bands_are_never_asked_for_one_sentence_and_no_answer_has_a_floor():
     with pytest.raises(engine.StoryUnavailable, match="objective_too_thin"):
         engine._check_objective_scope("Tell Romy in one sentence whether you want to try.", "B1")
-    # The move is measured on the answer the scene expects, not on the task line.
-    with pytest.raises(engine.StoryUnavailable, match="objective_too_thin"):
-        engine._check_objective_scope("Accept the invitation.", "B2", suggested="Oui, avec plaisir.")
-    engine._check_objective_scope(
-        "Tell Romy whether she may use your story.",
-        "B2",
-        suggested="Oui, tu peux l'utiliser, mais sans mon nom, parce que ma famille ne sait encore rien.",
-    )
+    # Story plan, decision 4: a short task, and whatever answer a person would give.
+    engine._check_objective_scope("Accept the invitation.", "B2")
+    engine._check_objective_scope("Tell Romy whether she may use your story.", "C1")
     # A1/A2 keep the one-act rule.
     with pytest.raises(engine.StoryUnavailable, match="objective_too_complex"):
         engine._check_objective_scope("Order a coffee, ask the price, and then thank the waiter.", "A1")
@@ -1591,7 +1587,7 @@ def test_the_resolution_may_not_ask_the_turns_question_again():
         {
             "novelty_key": "turn-1",
             "premise_fr": "Tout autre chose hier soir au parc.",
-            "objective_native": "Tell Romy whether you want to try something real with her or stay friends.",
+            "objective_native": "Tell Romy whether you want something real with her.",
             "chapter_title_fr": chapter["title_fr"],
             "beat": "turn",
         }
@@ -1600,7 +1596,7 @@ def test_the_resolution_may_not_ask_the_turns_question_again():
         {
             **draft(context, 1),
             "beat": "resolution",
-            "objective_native": "Tell Romy whether you want to try something real with her and stay together.",
+            "objective_native": "Tell Romy whether you want something real with her now.",
         }
     ).model_copy(update={"chapter": first.chapter})
     with pytest.raises(engine.StoryUnavailable, match="resolution_repeats_turn"):
@@ -2658,8 +2654,8 @@ def test_a_parenthetical_constraint_is_not_a_second_ask():
     """Paid A2 re-run 2026-09-21: "(one sentence, max two short clauses)" cost a day."""
 
     engine._check_objective_scope(
-        "Write one short sentence in French that Lila can write to Marin to propose a calm, "
-        "private meeting tomorrow (one sentence, max two short clauses).",
+        "Write Lila a line for Marin proposing a calm meeting tomorrow "
+        "(one sentence, max two short clauses).",
         "A2",
     )
     with pytest.raises(engine.StoryUnavailable, match="objective_too_complex"):
@@ -2796,7 +2792,7 @@ THE_SCREENSHOT = (
 def test_an_upper_band_task_line_that_lists_the_answer_is_refused(level):
     with pytest.raises(engine.StoryUnavailable, match="objective_too_complex") as refused:
         engine._check_objective_scope(THE_SCREENSHOT, level)
-    assert "suggested_response_fr" in refused.value.feedback
+    assert "what the character asks" in refused.value.feedback
 
 
 def test_an_upper_band_task_line_is_trimmed_to_its_ask_before_it_costs_a_draft():
@@ -2809,9 +2805,8 @@ def test_the_brief_no_longer_asks_for_a_long_task_line():
     rules = engine.season_page_rules(
         None, chapter=None, shape="standard", level="B1", cast=[], resolved_questions=[], recent=[]
     )["page_rules"]["objective"]
-    assert "ONE short instruction" in rules and "at most 22 words" in rules
-    assert "suggested_response_fr: at least 10 words" in rules
-    assert "is a move of at least" not in rules
+    assert "ONE short instruction" in rules and "at most 12 words" in rules
+    assert "at least" not in rules, "story plan, decision 4: no answer floor"
 
 
 @pytest.mark.parametrize(

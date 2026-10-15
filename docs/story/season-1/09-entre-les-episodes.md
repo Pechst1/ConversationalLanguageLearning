@@ -85,7 +85,7 @@ Every generated day must end with **something different from how it began**, and
 
 **Example premises**
 1. **«Le billet».** You must call the airline to move your ticket, in French, with Lila as a coach who keeps making it worse on purpose. *The change:* the ticket moves, and so does something in you. *The turn:* explain to the agent why you are staying. The learner decides how honest to be.
-2. **«Romy enquête».** Romy interviews Margaux at the zinc («J'ai rien entendu»), then turns to you: «C'est vous, l'héritage ?» *The change:* you learn that Solvel has bought three cafés in the quartier this year, and Romy has a source she likes.
+2. **«Romy enquête».** Romy interviews Margaux at the zinc («J'ai rien entendu»), then turns to you: «C'est toi, l'héritage ?» *The change:* you learn that Solvel has bought three cafés in the quartier this year, and Romy has a source she likes.
 3. **«La même chose ?»** Margaux asks your order for the third time. Gus insists your order says who you are. You choose, and say why you're still here. *The change:* your usual order exists. Gus announces that you are «un habitué», and it is not a joke.
 
 ---
