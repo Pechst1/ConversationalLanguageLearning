@@ -1,5 +1,5 @@
 {
-  "_about": "Season 1 «La clé d'Odile»: the generated days between tentpoles, transcribed from docs/story/season-1/09-entre-les-episodes.md (WP-111). `must_not[].patterns` are case-insensitive regular expressions over the French a learner reads; a draft that matches one is refused with the reason before the story critic runs. `required` moments are staged on a seeded day between from_day and by_day of the gap.",
+  "_about": "Season 1 «La clé d'Odile»: the generated days between tentpoles, transcribed from docs/story/season-1/09-entre-les-episodes.md (WP-111). `must_not[].patterns` are case-insensitive regular expressions over the French a learner reads; a draft that matches one is refused with the reason before the story critic runs. `required` moments are staged on a seeded day between from_day and by_day of the gap. A gap with `days` (a day plan) stages one planned beat a day instead: the premise and its change, «before → after».",
   "rules": {
     "the_rule": "Episodes without meaningful change are refused. Every generated day ends with something different from how it began, and the difference is something the learner can see: a relationship (something said that can't be unsaid, a gesture that becomes a habit, a first tu, a first time someone waits for you), knowledge (the learner or a character learns something true, or something false they now believe), a situation (an object moves, a plan advances or is blocked, a decision is taken, a letter arrives), or the learner's life in Paris (the return ticket moves, the usual order is known, a first time happens). Quiet changes count.",
     "refused": [
@@ -62,6 +62,7 @@
         {"id": "romance", "text": "Anything romantic beyond Lila being curious.", "patterns": []}
       ],
       "premises": [
+        {"id": "plusieurs_semaines", "title_fr": "Plusieurs semaines", "text": "Maître Vasseur's office, in the morning. The learner came to sign and fly home on Wednesday. Vasseur says it in two plain sentences: nothing can be sold before the succession papers, and that takes weeks. Outside, Lila waits in the rain with two coffees: «Alors ?»", "change": "The learner knows they cannot sign and leave this week, and Wednesday's flight now makes no sense.", "turn": "Tell Lila what the notary said, and what you will do about your flight."},
         {"id": "le_billet", "title_fr": "Le billet", "text": "The learner must call the airline to move their ticket, in French, with Lila as a coach who keeps making it worse on purpose.", "change": "The ticket moves (to 2 December), and so does something in the learner.", "turn": "Explain to the agent why you are staying. The learner decides how honest to be.", "sets": ["user.return_ticket"]},
         {"id": "romy_enquete", "title_fr": "Romy enquête", "text": "Romy interviews Margaux at the zinc («J'ai rien entendu»), then turns to the learner: «C'est toi, l'héritage ?»", "change": "The learner learns that Solvel has bought three cafés in the quartier this year, and Romy has a source she likes.", "turn": "Tell Romy who you are and what you think of Solvel, as much or as little as you want."},
         {"id": "la_meme_chose", "title_fr": "La même chose ?", "text": "Margaux asks the learner's order for the third time. Gus insists your order says who you are. The learner chooses, and says why they're still here.", "change": "The learner's usual order exists. Gus announces that the learner is «un habitué», and it is not a joke.", "turn": "Choose your order, and say why you are still here.", "sets": ["user.usual_order"]},
@@ -70,7 +71,7 @@
       ],
       "required": [
         {"premise": "romy_enquete", "from_day": 1, "by_day": 4},
-        {"premise": "la_meme_chose", "from_day": 1, "by_day": 4},
+        {"premise": "la_meme_chose", "from_day": 1, "by_day": 5},
         {"premise": "le_billet", "from_day": 2, "by_day": 5}
       ],
       "sets_allowed": ["user.usual_order", "user.return_ticket"],
@@ -89,7 +90,14 @@
           "marin": "Marin knows the price and took it as a bad sign.",
           "nobody": "Nobody knows the price; Gus finds it «mystérieux»."
         }
-      }
+      },
+      "days": [
+        {"day": 1, "premise": "plusieurs_semaines", "before": "The learner thinks they will sign next week and fly home on Wednesday 18 November.", "after": "They know nothing can be sold for weeks, and the flight on the 18th is now a question they must answer.", "also": "On the stairs back, Marchand with his ring of keys: «La succession Ferrand. Bonjour.»", "hook": "The flight: keep it, or move it?"},
+        {"day": 2, "premise": "soupe_de_marin", "before": "The learner is alone in a cold short-let studio, and nobody in Paris knows where they live.", "after": "Marin knows the address, has seen how the learner really is, and will come back.", "also": "One of Marin's grandmother's sayings, more absurd than useful.", "hook": "Marin: the ticket has to be moved tomorrow, and Lila will «help»."},
+        {"day": 3, "premise": "le_billet", "before": "The ticket still says Wednesday 18 November.", "after": "The ticket says 2 December, and the learner has said out loud, to a stranger, why they are staying.", "also": "Lila grades the call like homework: «Douze sur vingt.»", "hook": "Tomorrow a journalist is coming to Le Mistral."},
+        {"day": 4, "premise": "romy_enquete", "before": "For the learner, Solvel is one offer in one letter.", "after": "They know Solvel has bought three cafés in the quartier this year, and Romy wants to see them again.", "also": "Romy switches off her recorder when the learner looks uncomfortable.", "hook": "Romy has questions, and so does the learner."},
+        {"day": 5, "premise": "la_meme_chose", "before": "Margaux still asks the learner's order every time.", "after": "The learner has a usual order, and Gus has declared them «un habitué», not as a joke.", "also": "Gus's first accidental tu, followed by a panicked return to vous.", "hook": "The key on its cicada key ring, on the zinc, and the ceiling above it: tomorrow is for upstairs."}
+      ]
     },
     {
       "id": "g2",

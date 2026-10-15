@@ -872,7 +872,10 @@ caption about it. brief.gap.must_not is a list of reveals the next tentpole
 owns: never make them, not even obliquely — hint at most. brief.gap.facts and
 brief.flags are what this learner's own choices made true: honour them. When
 brief.today.required_premise is set, TODAY is that premise: stage it, in this life's
-terms, and set season_checklist.premise_id to its id. Otherwise choose one of
+terms, and set season_checklist.premise_id to its id. brief.today.beat, when set, is the
+day's plan for it: the page starts from its before, the learner's exchange ends at its
+after (change_before and change_after say the same), «also» is a small extra to carry if
+it fits, and the «À suivre…» points where its hook says. Otherwise choose one of
 brief.today.premises or a day of your own inside brief.gap.threads (they may advance
 only as far as they say). Offer one of brief.today.small_moments when it fits.
 brief.writing_rules and brief.registers are the season's register: lines addressed to

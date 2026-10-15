@@ -67,7 +67,12 @@ def test_the_critic_reads_the_flags_and_the_open_obstacle():
     }
     payload = critic_payload(brief, {"title_fr": "Le froid"})
     assert payload["flags"] == {"s1.letter_reader": "margaux"}
-    assert payload["today"] == {"required_premise": None, "gate": None, "open_obstacle": "Plus de chauffage."}
+    assert payload["today"] == {
+        "required_premise": None,
+        "beat": None,
+        "gate": None,
+        "open_obstacle": "Plus de chauffage.",
+    }
 
 
 # ---------------------------------------------------------------------------
