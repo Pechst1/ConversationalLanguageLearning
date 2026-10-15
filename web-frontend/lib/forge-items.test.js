@@ -77,3 +77,16 @@ test('#131: an item posed again where the learner stands is the same place', () 
   assert.equal(forgeSeatIsSamePlace(recognize, { conceptIndex: 0, round: 'recognize', mode: 'fill', itemIndex: 2 }), true);
   assert.equal(forgeSeatIsSamePlace(recognize, { conceptIndex: 0, round: 'recognize', mode: 'classify', itemIndex: 2 }), false);
 });
+
+test('#148: the page clamps the item index to the container, not to the scoped output view', () => {
+  // A second output item of one rule is rendered from a set scoped to it, at
+  // index 0 of that view. Clamping the page's index to that 0 reseated the
+  // answered first item, so «Continue» never moved (live walk, 15 Oct 2026).
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages', 'atelier.tsx'), 'utf8');
+  assert.match(page, /activeItemIndex !== baseActiveItemIndexSafe\)\s*{\s*setActiveItemIndex\(baseActiveItemIndexSafe\)/);
+  assert.doesNotMatch(page, /setActiveItemIndex\(activeItemIndexSafe\)/);
+  const payload = { output_ladder: { sentence: { items: [{ id: 's1' }, { id: 's2' }] } } };
+  const seated = seatForgeItem([{ concept_id: 1, payload }], { concept_id: 1, round: 'sentence', mode: 'sentence', item_id: 's2', item_index: 1 });
+  assert.equal(seated.index, 1);
+  assert.deepEqual(scopeOutputItem(payload, 'sentence', seated.index).output_ladder.sentence.items, [{ id: 's2' }]);
+});
