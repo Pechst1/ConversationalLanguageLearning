@@ -1223,7 +1223,12 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     # engagement, not the calendar. A day the learner did not take up (the turn
     # ended «not_yet») leaves its scheduled moment owed; it is staged again.
     engaged = details.get("outcome") in (None, "met", "partially_met")
-    if premise and not engaged:
+    # Story plan (gap-1 comparison, 2026-10-15): a planned beat the season does not
+    # require is staged once its page is served, taken up or not. Held back, it came
+    # back the next day and the plan stood still (Marin's soup twice). A required
+    # moment still waits for the learner.
+    planned = premise in {beat.premise for beat in gap.days} and premise not in {need.premise for need in gap.required}
+    if premise and not engaged and not planned:
         premise = None
     # WP-113: today's complication card is tomorrow's obstacle (faced today, it is
     # replaced by today's own, or cleared).

@@ -35,7 +35,8 @@ def _gap_ctx(day: int = 1, *, checklist: dict | None = None, gap: str = "g1") ->
 
 
 def _scheduled_premise(season) -> str:
-    return season.gaps["g1"].premises[0].id
+    # A required moment: a planned beat the season does not require moves on anyway.
+    return season.gaps["g1"].required[0].premise
 
 
 # ---------------------------------------------------------------------------

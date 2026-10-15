@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.services.season import clock as season_clock
+from app.services.season import runtime as season_runtime
 from app.services.season.director import gap_brief, planned_beat
 from app.services.season.flags import effective_flags
 from app.services.season.format import DayBeat, load_season, validate_season
@@ -75,3 +76,23 @@ def test_the_check_refuses_a_plan_that_breaks_the_required_window():
     assert "'nope', which is not a premise" in problems
     assert "day 9 is past the gap's 5 days" in problems
     assert "required 'la_meme_chose' is not planned inside days" in problems
+
+
+def _settle(premise: str, outcome: str, state: dict | None = None) -> dict:
+    ctx = {"id": "s1", "kind": "gap", "position": {"segment": "g1", "day_in_segment": 2}, "checklist": {"premise_id": premise}}
+    return season_runtime._settle_gap(load_season("s1"), state or {"id": "s1"}, ctx, {"outcome": outcome}, event_id="e", day=4)
+
+
+def test_a_planned_beat_the_learner_did_not_take_up_still_moves_the_plan_on():
+    """Gap-1 comparison (2026-10-15): the learner answered Marin beside the point, the
+    soup stayed owed, and day 3 served Marin's soup again instead of the ticket."""
+
+    state = _settle("soupe_de_marin", "not_yet", {"id": "s1", "premises": [{"gap": "g1", "premise": "plusieurs_semaines"}]})
+    assert [row["premise"] for row in state["premises"]] == ["plusieurs_semaines", "soupe_de_marin"]
+    beat = planned_beat(load_season("s1").gaps["g1"], 3, {row["premise"] for row in state["premises"]}, {})
+    assert beat is not None and beat.premise == "le_billet"
+
+
+def test_a_required_beat_still_waits_for_the_learner():
+    assert not _settle("le_billet", "not_yet").get("premises")
+    assert [row["premise"] for row in _settle("le_billet", "met")["premises"]] == ["le_billet"]
