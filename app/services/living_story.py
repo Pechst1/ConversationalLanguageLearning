@@ -577,7 +577,13 @@ the teaching task (for example, 'It is time to express a simple need'). Put
 learning instructions only in objective_native and hint_native, and write both in
 control_language — the learner's OWN language ("en" English, "de" German, "fr" French),
 never in French unless control_language is "fr": the learner reads the task before they
-can read the scene.
+can read the scene. When control_language is "fr", both speak to the learner as tu
+(«Dis à Romy…», «Demande…», «ton», «ta», «tes»), never vous: the app always says tu to the
+learner, whatever register the characters use inside the scene.
+The task is one short, plain instruction a friend could say: what the learner wants to
+get done with this character, in everyday words. It never lists the parts of the
+answer («…and give a brief and convincing reason», «…then propose an alternative») and
+never names the brief's machinery.
 The cast has desires, contradictions and a life between scenes. Be concrete, warm,
 sometimes funny or surprising; earn surprises through cause and effect. Invent a new
 present situation, never invent a past learner choice or retroactively change a fact.
@@ -592,11 +598,12 @@ abstract discussion; C1 gets implicit meaning, register play, argument with conc
 and characters who do not say what they mean. Never give a B1 or B2 learner a beginner
 drill such as ordering a coffee. At A1 the objective is ONE communicative act the
 learner can satisfy in one sentence (no chained "do X, give Y and ask Z"); at A2 at
-most two. From B1 upward the objective is a MOVE, never "in one sentence": B1 asks
-for a position plus a reason or a counter-proposal (two or three sentences); B2 asks
-the learner to argue, concede a point and hold a line, or to read what a character
-did not say; C1 asks for nuance — irony answered, a face saved, a refusal that keeps
-the friendship. Write the dialogue at the level too: from B2, subordinate clauses,
+most two. From B1 upward the ANSWER is a MOVE, never one bare sentence: B1 answers
+with a position plus a reason or a counter-proposal (two or three sentences); B2
+argues, concedes a point and holds a line, or reads what a character did not say; C1
+answers with nuance — irony answered, a face saved, a refusal that keeps the
+friendship. The situation asks for that move; the objective stays a short instruction
+(at most 22 words) and suggested_response_fr shows the move. Write the dialogue at the level too: from B2, subordinate clauses,
 connectors (pourtant, alors que, à condition que), idiom and understatement; the
 characters speak like adults with histories, not like a phrasebook. previous_rejections lists why the last proposal
 was refused — obey it literally: a repetition refusal means a different communicative
@@ -610,8 +617,14 @@ a different character or a different location from that pair. The whole cast and
 location belong to this life, not only the café and one friend. A chapter is bounded:
 when chapter.resolved or chapter.exhausted is true, or chapter is null, open a NEW
 chapter with a new title and a genuinely new dramatic question — never a question listed
-in resolved_chapter_questions, and never a rewording of one. suggested_response_fr is ONE sentence the
-learner could actually say, never a list of alternatives with slashes or brackets.
+in resolved_chapter_questions, and never a rewording of one. suggested_response_fr is what the
+learner could actually say (one sentence at A1 and A2, up to three short sentences from
+B1), never a list of alternatives with slashes or brackets.
+PLAIN SPEECH. Characters talk like people in that moment, about the concrete thing in
+front of them (the notebook, the name in the article, the key, the train), never in
+the words of these instructions or of the brief: no line, premise or objective uses
+their bookkeeping (conditions, limits, agency, permission, consent, stakes, beat, arc,
+thread) as its subject. A question to the learner is one a person would really ask.
 An invitation can be declined; do not railroad the learner. character_id
 is the cast member who addresses the learner and must be an id from world.cast; every
 dialogue character_id likewise; the learner is never a character_id. The person the
@@ -874,7 +887,11 @@ put that line in callback_fr and copy brief.today.callback.id into callback_ref.
 When brief.today.learner_agency_rules is set, fill season_checklist.learner_agency in
 that shape: what the learner may really decide in today's turn (accept or refuse, show
 or withhold, propose, promise…), the limits the character would honour, and what each
-outcome makes true. Give the learner real outcomes that differ: at least two effects
+outcome makes true. The contract is bookkeeping, never dialogue: the character asks
+one plain question about the concrete thing («Je peux écrire ton nom dans
+l'article ?»), and the limits are what the LEARNER may say in their own words — the
+character never lists them, and the objective never asks the learner to propose
+«conditions». Give the learner real outcomes that differ: at least two effects
 when the turn asks them something. Effects never reveal anything brief.gap.must_not
 keeps. Otherwise learner_agency is null.
 When season_script is absent,
@@ -5584,13 +5601,15 @@ def season_page_rules(
         ),
     }
     band = str(level or "")
-    floor = _OBJECTIVE_MINIMUM_WORDS.get(band)
+    floor = _ANSWER_MINIMUM_WORDS.get(band)
     limits = _OBJECTIVE_LIMITS.get(band)
-    if floor:
+    if floor and limits:
         rules["objective"] = (
-            f"objective_native is a move of at least {floor} words (a position with a "
-            "reason, a counter-proposal with a condition, an objection answered); never "
-            "«in one sentence» or «en une phrase»."
+            f"objective_native is ONE short instruction: at most {limits[1]} words and at "
+            f"most {limits[0]} comma, semicolon or «and/et/und», never «in one sentence» "
+            "or «en une phrase», never a list of what the answer must contain. The move "
+            "(a position with a reason, a counter-proposal with a condition, an objection "
+            f"answered) is in suggested_response_fr: at least {floor} words."
         )
     elif limits:
         rules["objective"] = (
@@ -5800,22 +5819,29 @@ def _variety_hint(variety: dict, what: str) -> str:
 # 2026-09-07 asked three things at once ("accept or decline, give a reason, and ask the
 # time and place"); ten of twelve days ended in a clarification because one A1 sentence
 # cannot satisfy three asks, so no commitment and no chapter ever closed.
-_OBJECTIVE_LIMITS = {"A1": (1, 16), "A2": (2, 24)}
+#
+# From B1 the same kind of ceiling holds, for a different reason (Vincent, 15 Oct 2026:
+# «Proposez à Romy les conditions pour qu'elle écoute et n'écrive rien, et donnez une
+# raison brève et convaincante pour ces conditions.»). A word FLOOR on the objective made
+# the director pad the task line with the parts of the answer; the move a B1 learner owes
+# is measured on suggested_response_fr instead (``_ANSWER_MINIMUM_WORDS``), and the task
+# stays one short instruction at every band.
+_OBJECTIVE_LIMITS = {"A1": (1, 16), "A2": (2, 24), "B1": (2, 22), "B2": (2, 22), "C1": (2, 22)}
 _OBJECTIVE_SEPARATORS = re.compile(
     r"[;,]|\b(and|then|also|et|puis|aussi|und|dann|außerdem)\b", re.IGNORECASE
 )
 
 
-# From B1 the objective must be a move, not a sentence: the B1/B2 live runs of
+# From B1 the answer must be a move, not a sentence: the B1/B2 live runs of
 # 2026-09-19 asked «tell Romy in one sentence…» on every day, which is A2 with harder
 # topics. Words the director uses to shrink an objective back to one act, in the three
-# control languages, and the floor on how much an objective must ask for.
+# control languages, and the floor on how long the suggested answer must be.
 _ONE_SENTENCE_FRAMING = re.compile(
     r"\b(in one sentence|one sentence|a single sentence|en une phrase|une seule phrase"
     r"|in einem satz|ein satz|einen satz)\b",
     re.IGNORECASE,
 )
-_OBJECTIVE_MINIMUM_WORDS = {"B1": 10, "B2": 12, "C1": 14}
+_ANSWER_MINIMUM_WORDS = {"B1": 10, "B2": 12, "C1": 14}
 
 
 # Paid B1 review 2026-09-22: a thin objective was widened into the task already asked,
@@ -5828,26 +5854,38 @@ _PINCER_EXIT = (
 
 
 def _check_objective_scope(
-    objective: str, level: str | None, *, asked: list[str] | None = None
+    objective: str,
+    level: str | None,
+    *,
+    asked: list[str] | None = None,
+    suggested: str | None = None,
 ) -> None:
-    floor = _OBJECTIVE_MINIMUM_WORDS.get(str(level or ""))
+    """The task line is one short instruction at every band; from B1 the ANSWER is a move.
+
+    ``suggested`` is the draft's suggested_response_fr: from B1 it must carry the move (a
+    position with its reason, a counter-proposal with its condition), so a B1 day cannot
+    shrink back to an A2 ask, and the task line never has to list the parts of the answer
+    to prove it is not thin."""
+
+    floor = _ANSWER_MINIMUM_WORDS.get(str(level or ""))
     if floor:
-        if _ONE_SENTENCE_FRAMING.search(objective) or len(objective.split()) < floor:
+        thin_answer = suggested is not None and len(suggested.split()) < floor
+        if _ONE_SENTENCE_FRAMING.search(objective) or thin_answer:
             raise StoryUnavailable(
                 "objective_too_thin",
                 hint=(
-                    f"A {level} learner is not asked for one sentence. Ask for a move: "
-                    "a position with a reason, a counter-proposal with a condition, an "
-                    "objection answered — two or three sentences, at least "
-                    f"{floor} words of objective. \"{objective}\" ({len(objective.split())} "
-                    "words) is an A2 ask. "
+                    f"A {level} learner is not asked for one sentence. Give the situation a "
+                    "move to make — a position with a reason, a counter-proposal with a "
+                    "condition, an objection answered — and show it in suggested_response_fr "
+                    f"(at least {floor} words; \"{suggested or ''}\" has "
+                    f"{len((suggested or '').split())}). Keep the objective itself one short "
+                    "instruction and never write «in one sentence». "
                     + _PINCER_EXIT
                     + OTHER_ACTS
                     + (f". Already asked: {list(asked)[-3:]}" if asked else "")
                     + "."
                 ),
             )
-        return
     limits = _OBJECTIVE_LIMITS.get(str(level or ""))
     if not limits:
         return
@@ -5858,18 +5896,161 @@ def _check_objective_scope(
     separators, words = limits
     found = len(_OBJECTIVE_SEPARATORS.findall(objective))
     if found > separators or len(objective.split()) > words:
+        answer = (
+            "the move shows in suggested_response_fr, not in the task"
+            if floor
+            else "the learner answers in one sentence"
+        )
         raise StoryUnavailable(
             "objective_too_complex",
             hint=(
-                f"A {level} learner answers in one sentence: ask for ONE thing "
-                f"(at most {separators} clause separator(s) and {words} words). "
+                f"A {level} task line is one short instruction ({answer}): ask for ONE "
+                f"thing in plain words (at most {separators} clause separator(s) and "
+                f"{words} words), never a list of what the answer must contain. "
                 f"\"{objective}\" chains {found + 1} asks."
             ),
         )
 
 
+# #144 (one register for the learner): a French task line speaks to the learner as tu.
+# The director's imperative in vous is repaired word by word where the tu form is
+# certain: the verbs listed here, and the -er verbs of the core lexicon with their
+# stem change («Envoyez» → «Envoie», «Répétez» → «Répète»). Any other vous form is
+# left as written and refused with the reason, never guessed (Codex on #162: «Envoyez»
+# came out as «Envoye»).
+_TU_IMPERATIVES = {
+    "dites": "dis", "faites": "fais", "choisissez": "choisis", "convainquez": "convaincs",
+    "lisez": "lis", "écrivez": "écris", "décrivez": "décris", "répondez": "réponds",
+    "prenez": "prends", "mettez": "mets", "promettez": "promets", "venez": "viens",
+    "attendez": "attends", "rendez": "rends", "vendez": "vends", "descendez": "descends",
+    "offrez": "offre", "ouvrez": "ouvre", "soyez": "sois", "suivez": "suis",
+    "finissez": "finis", "réfléchissez": "réfléchis", "partez": "pars", "sortez": "sors",
+    "servez": "sers", "allez": "va", "redites": "redis", "admettez": "admets",
+    "tenez": "tiens", "retenez": "retiens", "obtenez": "obtiens", "prévenez": "préviens",
+    "revenez": "reviens", "souvenez": "souviens", "apprenez": "apprends",
+    "comprenez": "comprends", "reprenez": "reprends", "entendez": "entends",
+    "perdez": "perds", "défendez": "défends", "permettez": "permets", "remettez": "remets",
+    "dormez": "dors", "sentez": "sens", "recevez": "reçois", "voyez": "vois",
+    "croyez": "crois", "asseyez": "assieds", "taisez": "tais", "connaissez": "connais",
+    "reconnaissez": "reconnais", "conduisez": "conduis", "souriez": "souris",
+    "rejoignez": "rejoins", "découvrez": "découvre", "accueillez": "accueille",
+    "remplissez": "remplis", "réussissez": "réussis", "agissez": "agis",
+    "saisissez": "saisis", "ayez": "aie", "sachez": "sache", "interrompez": "interromps",
+    "inscrivez": "inscris",
+}
+#: -eler/-eter verbs that take a grave accent («achète»); the others double («appelle»).
+_GRAVE_ELER_ETER = frozenset(
+    {"acheter", "racheter", "geler", "dégeler", "congeler", "harceler", "receler", "déceler",
+     "modeler", "peler", "haleter", "marteler", "ciseler", "démanteler", "écarteler", "fureter"}
+)
+_STEM_CHANGE = re.compile(r"([eé])([bcdfghjklmnpqrstvwzç]+)$")
+#: A clause start: the line's start, or after a comma, a colon, «et», «puis» or «ou».
+_CLAUSE_IMPERATIVE = re.compile(
+    r"(^|[,:;]\s*(?:(?:et|puis|ou)\s+)?|\b(?:et|puis|ou)\s+)([A-Za-zÀ-ÿ]+)"
+    r"(-(?:vous-en|vous|lui|leur|moi|nous|en|y))?\b"
+)
+_TASK_VOUS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
+#: A vous verb form the repair could not put in tu: «-ez» but these words, and these.
+_NOT_VOUS_EZ = frozenset({"chez", "assez", "nez", "rez", "lez", "fez"})
+_VOUS_VERBS = frozenset({"dites", "redites", "faites", "êtes"})
+_QUOTED = re.compile(r"«[^»]*»|\"[^\"]*\"|“[^”]*”")
+
+
+def _er_tu(stem: str) -> str:
+    """The tu imperative of the -er verb «stem» + er.
+
+    «propos» → «propose», «envoy» → «envoie», «répét» → «répète», «lev» → «lève»,
+    «appel» → «appelle», «achet» → «achète»."""
+
+    if stem.endswith(("ay", "oy", "uy")):
+        return stem[:-1] + "ie"
+    match = _STEM_CHANGE.search(stem)
+    if match and (match.group(1) == "é" or (len(match.group(2)) == 1 and match.group(2) != "x")):
+        head, vowel, tail = stem[: match.start()], match.group(1), match.group(2)
+        if vowel == "e" and tail in ("l", "t") and f"{stem}er" not in _GRAVE_ELER_ETER:
+            return f"{head}e{tail}{tail}e"
+        return f"{head}è{tail}e"
+    return stem + "e"
+
+
+def _tu_form(word: str) -> str | None:
+    lower = word.casefold()
+    if lower in _TU_IMPERATIVES:
+        tu = _TU_IMPERATIVES[lower]
+    elif lower.endswith("ez") and len(lower) > 4 and _is_er_verb(lower[:-2] + "er"):
+        tu = _er_tu(lower[:-2])
+    else:
+        return None
+    return tu[:1].upper() + tu[1:] if word[:1].isupper() else tu
+
+
+def _is_er_verb(infinitive: str) -> bool:
+    from app.services.lexicon_grammar import lexicon_pos
+
+    return lexicon_pos(infinitive) == "verb"
+
+
+def tutoie_task(text: str) -> str:
+    """A French task line's vous imperatives in tu («Proposez à Romy…» → «Propose à Romy…»).
+
+    Only an imperative at a clause start is touched; text with no vous form comes back
+    unchanged."""
+
+    if not text:
+        return text
+
+    def swap(match: re.Match) -> str:
+        tu = _tu_form(match.group(2))
+        if tu is None:
+            return match.group(0)
+        clitic = match.group(3) or ""
+        if clitic == "-vous":
+            clitic = "-toi"
+        elif clitic == "-vous-en":
+            clitic = "-t'en"
+        elif clitic in ("-en", "-y") and tu.endswith(("e", "a")):
+            tu += "s"  # «Parles-en», «Vas-y»
+        return f"{match.group(1)}{tu}{clitic}"
+
+    return _CLAUSE_IMPERATIVE.sub(swap, text)
+
+
+def _vous_verb(text: str) -> str | None:
+    """The first vous verb form in ``text`` («Envoyez», «N'oubliez», «dites»), if any.
+
+    A capitalised word inside a sentence is a name (Martinez), not a verb."""
+
+    for match in re.finditer(r"[A-Za-zÀ-ÿ]+", text):
+        word, lower = match.group(0), match.group(0).casefold()
+        before = text[: match.start()].rstrip()
+        if word[:1].isupper() and before and before[-1] not in ".!?'’":
+            continue
+        if lower in _VOUS_VERBS or (lower.endswith("ez") and lower not in _NOT_VOUS_EZ):
+            return word
+    return None
+
+
+def _check_task_tutoiement(draft: SceneDraft) -> None:
+    for field, text in (("objective_native", draft.objective_native), ("hint_native", draft.hint_native)):
+        # A quoted French phrase is the scene's own line («Vous pouvez… ?» to a vous
+        # character), not the app speaking to the learner.
+        unquoted = _QUOTED.sub(" ", text or "")
+        found = _TASK_VOUS.search(unquoted)
+        said = found.group(0) if found else _vous_verb(unquoted)
+        if said:
+            raise StoryUnavailable(
+                "task_says_vous",
+                hint=(
+                    f"{field} is French and says «{said}» to the learner. The app "
+                    "always says tu to the learner in its own lines (tu, ton, ta, tes, "
+                    "imperative «Dis…», «Demande…»), whatever the characters say inside the "
+                    f"scene; a line for a vous character goes in « ». Rewrite «{text}» in tu."
+                ),
+            )
+
+
 def _trimmed_objective(objective: str, level: str | None) -> str:
-    """An A1/A2 objective too long only by its trailing qualifiers, cut back to its ask.
+    """An objective too long only by its trailing qualifiers, cut back to its ask.
 
     Diagnostic read 2026-09-30: «Tell Romy who you are and what you think of Solvel, as
     much or as little as you want, in one or two short sentences.» was refused three
@@ -6284,6 +6465,12 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_departed_cast(draft, context)
     _check_flag_contradiction(draft, context, learner_text)
     _check_season_gap(draft, context, learner_text)
+    if str(context.get("control_language") or "").strip().lower() == "fr":
+        # #144: the app says tu to the learner; a French task line in vous is the app
+        # switching register on them (Vincent, 15 Oct 2026: «Proposez à Romy…»).
+        draft.objective_native = tutoie_task(draft.objective_native)
+        draft.hint_native = tutoie_task(draft.hint_native)
+        _check_task_tutoiement(draft)
     epreuve = context.get(EPREUVE_KEY)
     if not epreuve:
         draft.objective_native = _trimmed_objective(draft.objective_native, context.get("level"))
@@ -6291,6 +6478,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
             draft.objective_native,
             context.get("level"),
             asked=(context.get("variety") or {}).get("used_objectives"),
+            suggested=draft.suggested_response_fr,
         )
     else:
         # WP-94: the special edition asks for its 2–3 can-dos across the conversation —

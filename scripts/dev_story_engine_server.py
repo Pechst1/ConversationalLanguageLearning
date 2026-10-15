@@ -117,6 +117,15 @@ SEASON_QUESTIONS = (
 )
 
 
+def _suggested(context: dict, answer: str) -> str:
+    """From B1 the answer is a move (``living_story._ANSWER_MINIMUM_WORDS``): the
+    short answer, with a reason and a condition."""
+
+    if str(context.get("level") or "")[:2] in {"B1", "B2", "C1", "C2"}:
+        return answer.rstrip(".") + ", mais seulement le matin, parce que je travaille tard le soir."
+    return answer
+
+
 class FakeStoryProvider:
     """Deterministic, canon-safe answers for the engine's three schemas."""
 
@@ -286,7 +295,7 @@ class FakeStoryProvider:
                 {"narration_fr": "Panneau 4 : la pluie sur la vitre.", "dialogue": [], "visual_direction": "Wide shot of the window, rain."},
             ],
             "opening_line_fr": "Vous pouvez m'aider ?",
-            "suggested_response_fr": "Oui, je peux vous aider samedi.",
+            "suggested_response_fr": _suggested(context, "Oui, je peux vous aider samedi."),
             "hint_native": "Say yes or no, and when.",
             "translation_native": "Can you help me?",
             "capability_key": None,
@@ -360,7 +369,7 @@ class FakeStoryProvider:
                 {"narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Alors, on fait quoi ?"}], "visual_direction": "Close-up, waiting.", "alt_native": "A friend, waiting."},
             ],
             "opening_line_fr": "Tu m'aides ?",
-            "suggested_response_fr": "Oui, je peux t'aider samedi.",
+            "suggested_response_fr": _suggested(context, "Oui, je peux t'aider samedi."),
             "hint_native": "Say yes or no, and when.",
             "translation_native": "Can you help me?",
             "capability_key": None,

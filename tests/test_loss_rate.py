@@ -104,9 +104,9 @@ def test_the_registers_in_the_brief_are_todays_not_the_seasons_first():
 
 
 @pytest.mark.parametrize("level", ["B1", "B2", "C1"])
-def test_the_brief_states_the_objective_floor_the_guard_holds(level):
-    floor = engine._OBJECTIVE_MINIMUM_WORDS[level]
-    assert f"at least {floor} words" in _rules(None, level=level)["objective"]
+def test_the_brief_states_the_answer_floor_the_guard_holds(level):
+    floor = engine._ANSWER_MINIMUM_WORDS[level]
+    assert f"suggested_response_fr: at least {floor} words" in _rules(None, level=level)["objective"]
 
 
 def test_the_brief_states_the_one_act_limit_at_a1():
