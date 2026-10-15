@@ -1550,6 +1550,24 @@ def _dedupe_ints(values: list[Any]) -> list[int]:
     return result
 
 
+def _has_word(text: str, words: tuple[str, ...]) -> bool:
+    """Whole-word (not substring) match, so "tu" is not found in "attitude" nor "formal" in "informal"."""
+    lowered = (text or "").lower()
+    return any(re.search(rf"(?<!\w){re.escape(word)}(?!\w)", lowered) for word in words)
+
+
+def register_kind(register: str) -> str | None:
+    """Read a free-text register description as "informal", "formal" or None.
+
+    Informal wins: "informal" must never be read as "formal" (it contains it).
+    """
+    if _has_word(register, ("informal", "informel", "informelle", "casual", "tu", "tutoiement")):
+        return "informal"
+    if _has_word(register, ("formal", "formel", "formelle", "polite", "vous", "vouvoiement")):
+        return "formal"
+    return None
+
+
 def _compact_text(value: Any, *, max_length: int = 800) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()[:max_length]
 
@@ -2926,9 +2944,9 @@ class MissionGenerator:
         return "A real-life moment where clarity and tone both matter"
 
     def _custom_opening(self, *, relationship: str, register: str, outcome: str, scenario: str) -> str:
-        if "formal" in register:
+        if register_kind(register) == "formal":
             return "Bonjour, expliquez-moi la situation clairement. Quel résultat souhaitez-vous obtenir ?"
-        if "informal" in register:
+        if register_kind(register) == "informal":
             return "D'accord, raconte-moi vite la situation. Qu'est-ce que tu veux obtenir exactement ?"
         return f"D'accord, explique-moi le contexte. Le but, c'est bien: {outcome}"
 
@@ -2942,13 +2960,13 @@ class MissionGenerator:
         return cues
 
     def _custom_quick_replies(self, *, register: str, mission_type: str) -> list[str]:
-        if "formal" in register:
+        if register_kind(register) == "formal":
             return [
                 "Bonjour, je vous contacte parce que...",
                 "Serait-il possible de...",
                 "Je vous remercie par avance...",
             ]
-        if "informal" in register:
+        if register_kind(register) == "informal":
             return [
                 "Coucou, je voulais te dire que...",
                 "Est-ce que ça te va si...",
@@ -6818,12 +6836,13 @@ class MissionConversationService:
         messenger = (mission.prompt_payload or {}).get("messenger") or {}
         expected_register = " ".join(messenger.get("realism_rules") or []).lower()
         stakes_level = int(getattr(mission, "stakes_level", None) or (mission.prompt_payload or {}).get("stakes_level") or 1)
-        formal_markers = any(token in text.lower() for token in ("vous", "pourriez", "serait-il", "merci par avance"))
-        informal_markers = any(token in text.lower() for token in ("tu", "coucou", "bisous"))
+        formal_markers = _has_word(text, ("vous", "pourriez", "serait-il", "merci par avance"))
+        informal_markers = _has_word(text, ("tu", "coucou", "bisous"))
         tone_ok = True
-        if "formal" in expected_register and informal_markers and not formal_markers:
+        expected_kind = register_kind(expected_register)
+        if expected_kind == "formal" and informal_markers and not formal_markers:
             tone_ok = False
-        if "informal" in expected_register and formal_markers and not informal_markers:
+        if expected_kind == "informal" and formal_markers and not informal_markers:
             tone_ok = False
         if not has_detail:
             state = "needs_detail"
