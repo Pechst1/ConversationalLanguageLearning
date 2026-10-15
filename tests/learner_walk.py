@@ -78,32 +78,23 @@ def weave_grammar(draft: dict[str, Any], context: dict[str, Any]) -> dict[str, A
     return {**draft, "panels": panels}
 
 
-#: EXPERIENCE-REVIEW 2026-10-04: what a compliant director adds to a gap day's
-#: objective from B1 (``living_story._OBJECTIVE_MINIMUM_WORDS``: a move, not one
-#: sentence). Without it every B1+ gap day was refused as ``objective_too_thin``, the
-#: authored stand-in was served, and the B1/B2/C1 walks never left day 2 of the season.
-#: Each of the fake director's objectives (``test_living_story_longitudinal.OBJECTIVES``)
-#: as a B1+ move. Distinct words on purpose: the repeat guards compare objectives.
-B1_MOVES: dict[str, str] = {
-    "Offer your help for the exhibition.": "Offer your help for the exhibition, name the part you would take on, and settle when you could start.",
-    "Propose another time for the market morning.": "Propose another time for the market morning and defend it against the objection that Saturday suits everybody better.",
-    "Ask the price of the bike.": "Ask what the bike costs, bargain politely about its worn tyres, and agree on a fair sum before leaving.",
-    "Explain where the parcel went.": "Explain where the misdelivered parcel went, admit your part in the mix-up, and propose how to put things right.",
-    "Say whether you come on Friday.": "Say whether you will come to Friday's games night, justify your answer, and react to the pressure to change your mind.",
-    "Ask a neighbour about the flooded cellar.": "Question a neighbour about the flooded cellar, find out who is responsible, and suggest what everyone should do next.",
-    "Accept or decline the cat-sitting.": "Accept or decline looking after the cat this weekend, give a convincing reason, and offer an alternative arrangement.",
-    "Agree a time for the bins.": "Negotiate a time for taking down the bins, explain your constraints, and reach a compromise that the caretaker accepts.",
-    "Describe the lost dog.": "Describe the lost dog in detail, say where you last saw it, and convince someone sceptical to help you search.",
-}
+#: EXPERIENCE-REVIEW 2026-10-04: what a compliant director does from B1: the answer is a
+#: move, not one sentence (``living_story._ANSWER_MINIMUM_WORDS``). Without it every B1+
+#: gap day was refused as ``objective_too_thin``, the authored stand-in was served, and
+#: the B1/B2/C1 walks never left day 2 of the season. Since 15 Oct 2026 the move is the
+#: suggested answer's, and the task line stays the fake director's short one.
+B1_ANSWER = (
+    "Je reste encore un peu, parce que le quartier commence à me plaire, "
+    "mais je ne promets rien pour l'hiver."
+)
 
 
 def fit_level(draft: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-    """What a compliant director does with the level's objective floor."""
+    """What a compliant director does with the level's answer floor."""
 
     if str(context.get("level") or "")[:2] not in {"B1", "B2", "C1", "C2"}:
         return draft
-    objective = str(draft.get("objective_native") or "")
-    return {**draft, "objective_native": B1_MOVES.get(objective, objective)}
+    return {**draft, "suggested_response_fr": B1_ANSWER}
 
 
 def register(client: TestClient, persona: Persona) -> tuple[dict[str, str], str]:
