@@ -5171,6 +5171,17 @@ def _forbidden_endearments(address: str | None) -> tuple[str, ...]:
     }.get(address or "neutral", _MASCULINE_ADDRESS + _FEMININE_ADDRESS)
 
 
+def _vocative(term: str) -> re.Pattern[str]:
+    """``term`` said TO someone: "Merci, mon grand." — never "mon grand frère" or "mon
+    grand-père" (Gate 1 run, 2026-10-15: Camille's «mon grand-père» lost every B1 page
+    of the notary chapter to the address check)."""
+
+    return re.compile(
+        r"\b" + re.escape(term).replace("\\ ", r"\s+") + r"\b(?=\s*(?:[,.!?…;:»\"”]|$))",
+        re.IGNORECASE,
+    )
+
+
 def _scrub_endearments(text: str, address: str | None) -> str:
     """Drop a gendered endearment the learner's address forbids — ", mon grand" — and
     keep the sentence (WP-58). Marin's bible voice says "mon grand"; on the live run of
@@ -5180,12 +5191,7 @@ def _scrub_endearments(text: str, address: str | None) -> str:
 
     scrubbed = text or ""
     for term in _forbidden_endearments(address):
-        # Only the vocative: "Merci, mon grand." — never "mon grand frère".
-        pattern = re.compile(
-            r"(?:,\s*|\s+)?\b" + re.escape(term).replace("\\ ", r"\s+") + r"\b(?=\s*(?:[,.!?…;:]|$))",
-            re.IGNORECASE,
-        )
-        scrubbed = pattern.sub("", scrubbed)
+        scrubbed = re.compile(r"(?:,\s*|\s+)?" + _vocative(term).pattern, re.IGNORECASE).sub("", scrubbed)
     # French keeps its space before ? ! ; : — only the comma and the full stop close up.
     scrubbed = re.sub(r"\s+([,.])", r"\1", scrubbed)
     scrubbed = re.sub(r",\s*([,.!?…;:])", r"\1", scrubbed)
@@ -5262,11 +5268,8 @@ def _check_address(texts: list[str], address: str | None, *, own: frozenset[str]
             ),
         )
     folded = f" {_folded(joined)} "
-    forbidden = {
-        "feminine": _MASCULINE_ADDRESS,
-        "masculine": _FEMININE_ADDRESS,
-    }.get(address or "neutral", _MASCULINE_ADDRESS + _FEMININE_ADDRESS)
-    if any(f" {term} " in folded for term in forbidden):
+    spoken = [text.replace("’", "'") for text in texts if text]
+    if any(_vocative(term).search(text) for term in _forbidden_endearments(address) for text in spoken):
         raise StoryUnavailable(
             "gendered_address",
             hint=(
