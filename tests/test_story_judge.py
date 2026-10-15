@@ -499,7 +499,7 @@ def test_the_cli_writes_the_report_and_its_summary_and_a_dry_run_calls_nothing(
     monkeypatch.setattr(cli, "_client", lambda: pytest.fail("a dry run builds no client"))
     assert cli.main(["benchmark", "--dry-run", "--model", "gpt-5.5"]) == 0
     printed = capsys.readouterr().out
-    assert "## s1/t1.json t1.a (this call costs at most US$0.06" in printed
+    assert "## s1/t1.json t1.a (this call costs at most US$0.12" in printed
     assert "Task line: Dis qui tu es et pourquoi tu es là." in printed
     assert printed.rstrip().endswith(
         "8 calls planned to gpt-5.5, cap US$0.60. Dry run: no client, no call."

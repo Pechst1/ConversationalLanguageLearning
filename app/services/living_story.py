@@ -1741,11 +1741,12 @@ def _approved(
 
                 # Only a proven truncation passes a budget (scripted fakes take none).
                 sized = {"max_tokens": budget} if budget else {}
-                route = story_route(schema)
+                # The workers do not see the ahead-of-time context: the route goes with them.
+                routed = {"route": route} if any(route := story_route(schema)) else {}
 
-                def draw(index: int, request=request, collected=collected, sized=sized, route=route):
+                def draw(index: int, request=request, collected=collected, sized=sized, routed=routed):
                     return _json_call(
-                        system, request, schema, collected[index].append, deadline=deadline, route=route, **sized
+                        system, request, schema, collected[index].append, deadline=deadline, **routed, **sized
                     )[0]
 
                 from concurrent.futures import ThreadPoolExecutor
