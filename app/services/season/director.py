@@ -328,11 +328,13 @@ def level_shape(band: str | None) -> dict[str, Any]:
     return {"band": code if code in LEVEL_SHAPES else "A2", **LEVEL_SHAPES.get(code, LEVEL_SHAPES["A2"])}
 
 
-def _agency_extras(season: Season, gap_id: str, day: int, *, state: dict | None, seed: str) -> dict[str, Any]:
+def _agency_extras(
+    season: Season, gap_id: str, day: int, *, state: dict | None, seed: str, premise: str | None = None
+) -> dict[str, Any]:
     from app.services.season import agency
 
     try:
-        return agency.brief_extras(season.id, gap_id, day, state=state, seed=seed)
+        return agency.brief_extras(season.id, gap_id, day, state=state, seed=seed, premise=premise)
     except Exception:  # noqa: BLE001 - the pilot never costs a day its brief
         logger.exception("agency: no extras for %s day %s", gap_id, day)
         return {}
@@ -411,8 +413,11 @@ def gap_brief(
             "may_set": list(gap.sets_allowed),
             # WP-113: yesterday's complication, still in the way today.
             "open_obstacle": obstacle,
-            # N1 pilot: what the learner agreed, and a callback to it when one is due.
-            **_agency_extras(season, gap.id, day, state=state, seed=seed),
+            # N1 pilot: what the learner agreed, and a callback to it when one is due;
+            # the contract rules only when today's required premise has an authored one.
+            **_agency_extras(
+                season, gap.id, day, state=state, seed=seed, premise=required_row.id if required_row else None
+            ),
         },
         "next_tentpole": {
             "id": next_tentpole.id,
