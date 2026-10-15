@@ -6,6 +6,11 @@ returns a synthetic image. The rules under test: the brief rule (name + three la
 plate the stage shows (season plate, painted plate, stand-in with its marker), one paint
 per place forever, the flag post-check, and the second view switched at the guest's
 entrance or at ``make`` (§12.7).
+
+§8.4 «Story pictures»: the story's own picture — its prompt (the screen print, the moment,
+the words it shows, the stage's composition, never a name), one call and final, priced on
+the pilot ledger with no learner, shown on the site before any place plate, and the
+period's painter that stops at the service's daily cap.
 """
 
 from __future__ import annotations
@@ -18,10 +23,12 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.db.models.pilot_event import PilotEvent
 from app.db.models.revue_place import RevuePlace
+from app.db.models.revue_story_picture import RevueStoryPicture
 from app.services.revue import checks, plates, policy
 from app.services.revue import encounter as enc
-from app.services.revue.dossier import EditorialDossier, Place
+from app.services.revue.dossier import EditorialDossier, Place, StoryVisual, VisualWord
 from app.services.revue.encounter import FakeRevueProvider, RevueEncounter
 from app.services.revue.evergreen import evergreens_for_week
 from app.services.revue.session import LearnerContext, plan_for
@@ -43,7 +50,7 @@ ALIGRE_BRIEF = (
 
 @pytest.fixture(scope="module")
 def plate_tables(db_engine) -> Generator[None, None, None]:
-    tables = (*REVUE_TABLES, RevuePlace.__table__)
+    tables = (*REVUE_TABLES, RevuePlace.__table__, RevueStoryPicture.__table__, PilotEvent.__table__)
     created = [table for table in tables if not inspect(db_engine).has_table(table.name)]
     for table in created:
         table.create(bind=db_engine, checkfirst=True)
@@ -59,15 +66,19 @@ def db(db_session: Session, plate_tables) -> Generator[Session, None, None]:
     yield db_session
     db_session.rollback()
     db_session.query(RevuePlace).delete()
+    db_session.query(RevueStoryPicture).delete()
+    db_session.query(PilotEvent).filter(PilotEvent.event_type == plates.PICTURE_COST_EVENT).delete()
     db_session.commit()
 
 
 @pytest.fixture(autouse=True)
 def clean_memo(monkeypatch) -> Generator[None, None, None]:
     plates._PAINTED.clear()
+    plates._STORIES.clear()
     monkeypatch.setattr(enc, "available_dossiers", evergreens_for_week)
     yield
     plates._PAINTED.clear()
+    plates._STORIES.clear()
 
 
 class FakeImages:
@@ -275,11 +286,17 @@ def test_paint_stores_a_row_and_never_repaints(db: Session, monkeypatch, flag_on
     assert plates.plate_for_place(db, marche().places[0]).url == url
 
 
-def test_a_flag_band_is_dropped_and_painted_once_more(db: Session, monkeypatch, flag_on) -> None:
+def test_a_flag_band_is_noted_and_kept_one_call_final(db: Session, monkeypatch, flag_on) -> None:
+    """Owner, 2026-10-14: one picture, and it is final. The flag band is a note, not a repaint."""
+
     fake = FakeImages(tricolour_plate(), plain_plate())
     monkeypatch.setattr(plates, "_call", fake)
-    plates.paint(db, "salle_de_presse", "the press room of the Élysée, an empty podium, gilded mouldings, soft daylight")
-    assert len(fake.prompts) == 2
+    url = plates.paint(db, "salle_de_presse", "the press room of the Élysée, an empty podium, gilded mouldings, soft daylight")
+    assert len(fake.prompts) == 1
+    assert db.get(RevuePlace, "salle_de_presse").plate_url == url
+    (cost,) = db.query(PilotEvent).filter(PilotEvent.event_type == plates.PICTURE_COST_EVENT).all()
+    assert cost.user_id is None and cost.entity_id == "salle_de_presse" and cost.cost_usd == pytest.approx(0.06)
+    assert cost.payload["flagged"] is True and cost.payload["kind"] == "place"
 
 
 def test_paint_dossier_places_refuses_a_brief_without_the_name(db: Session, monkeypatch, flag_on) -> None:
@@ -384,3 +401,202 @@ def test_looks_wrong_on_the_real_plates() -> None:
     if evidence.exists():
         quiet.append(evidence)
     assert [path.name for path in quiet if plates.looks_wrong(Image.open(path))] == []
+
+
+# ---------------------------------------------------------------------------
+# Story pictures (§8.4)
+# ---------------------------------------------------------------------------
+
+MARKET_VISUAL = StoryVisual(
+    moment="a busy morning at the open-air market: stallholders weigh vegetables while shoppers wait with baskets",
+    symbol="a single wooden crate of clementines glowing in the middle of the square",
+    viewpoint="from the corner of the square, behind the last stall",
+    light="cool early morning light",
+    words=[
+        VisualWord(fr="le marché en plein air", shows="the stalls under striped awnings in the square"),
+        VisualWord(fr="le marché couvert", shows="the old covered market hall behind the stalls"),
+    ],
+    caption_fr="Le marché d'Aligre, un matin, à Paris.",
+    look_fr="Regarde : le marché en plein air, et derrière, le marché couvert.",
+    decoys_fr=["Le marché d'Aligre, fermé, un soir de pluie.", "Un supermarché vide, le soir."],
+)
+
+
+def pictured(dossier: EditorialDossier | None = None, **update) -> EditorialDossier:
+    dossier = (dossier or marche()).model_copy(deep=True)
+    dossier.places[0] = dossier.places[0].model_copy(update={"brief": ALIGRE_BRIEF})
+    return dossier.model_copy(update={"visual": MARKET_VISUAL.model_copy(update=update)})
+
+
+def test_the_story_prompt_paints_the_moment_in_the_house_style() -> None:
+    prompt = plates.story_prompt_for(pictured())
+    assert prompt.startswith(plates.REVUE_STORY_STYLE) and plates._art().PALETTE_WORDS in prompt
+    assert "No people" not in prompt and policy.STORY_PEOPLE_CLAUSE in prompt
+    assert f"The place: {ALIGRE_BRIEF}, France." in prompt
+    assert "The moment: a busy morning at the open-air market" in prompt
+    assert "At the heart of it: a single wooden crate of clementines" in prompt
+    assert ("The picture clearly shows the stalls under striped awnings in the square; "
+            "the old covered market hall behind the stalls.") in prompt
+    assert "Seen from the corner of the square, behind the last stall." in prompt
+    assert "Light: cool early morning light." in prompt
+    assert prompt.endswith(policy.STORY_STAGE_CLAUSE + " " + policy.STORY_NEGATIVE)
+    assert "Calm, generous" not in prompt and "Bold, Bauhaus-inspired composition." in prompt
+    # The French is the learner's, never the painter's.
+    assert MARKET_VISUAL.caption_fr not in prompt and "Regarde" not in prompt
+
+
+def test_an_editorial_picture_paints_its_idea_large() -> None:
+    prompt = plates.story_prompt_for(pictured(kind="editorial", symbol="a shopping trolley weighed on a giant kitchen scale"))
+    assert "An editorial illustration for one news story of the week" in prompt
+    assert "The idea, large and central to the picture: a shopping trolley weighed on a giant kitchen scale." in prompt
+    assert f"Setting: {ALIGRE_BRIEF}, France." in prompt and "The moment:" not in prompt
+
+
+def test_only_a_site_in_france_is_told_it_is_in_france() -> None:
+    from app.services.revue.dossier import Geo
+
+    dossier = pictured()
+    abroad = dossier.places[0].model_copy(update={"known": False, "geo": None, "brief": "Montréal: the Old Port, Mount Royal, morning light"})
+    dossier.places[0] = abroad
+    assert "Montréal: the Old Port, Mount Royal, morning light. " in plates.story_prompt_for(dossier)
+    assert "morning light, France" not in plates.story_prompt_for(dossier)
+    dossier.places[0] = abroad.model_copy(update={"geo": Geo(lat=45.5, lon=-73.55, precision="city", label_fr="Montréal")})
+    assert "morning light, France" not in plates.story_prompt_for(dossier)
+    dossier.places[0] = abroad.model_copy(update={"brief": "Toulouse: the Capitole, the Garonne, morning light",
+                                                  "geo": Geo(lat=43.6, lon=1.44, precision="city", label_fr="Toulouse")})
+    assert "Toulouse: the Capitole, the Garonne, morning light, France." in plates.story_prompt_for(dossier)
+
+
+def test_a_story_picture_may_carry_scene_lettering_but_not_a_paragraph() -> None:
+    assert plates.story_prompt_for(pictured(symbol="a board reading «le plat du peuple à cinq euros seulement»"))
+    paragraph = "«elle regarda le fleuve et pensa à tout ce qui reste à dire ce matin là»"
+    with pytest.raises(plates.PlateBriefError) as refused:
+        plates.story_prompt_for(pictured(symbol=f"a page reading {paragraph}"))
+    assert refused.value.reason == "too_much_text"
+
+
+def test_the_story_prompt_refuses_what_it_must_not_paint() -> None:
+    with pytest.raises(plates.PlateBriefError) as refused:
+        plates.story_prompt_for(marche())
+    assert refused.value.reason == "no_visual"
+    named = pictured()
+    named.entities = [*named.entities, named.entities[0].model_copy(update={"name": "Rachida Lambert", "kind": "person"})]
+    named = named.model_copy(update={"visual": MARKET_VISUAL.model_copy(update={"moment": "Rachida Lambert buys leeks"})})
+    with pytest.raises(plates.PlateBriefError) as refused:
+        plates.story_prompt_for(named)
+    assert refused.value.reason == "person_named"
+    with pytest.raises(plates.PlateBriefError) as refused:
+        plates.story_prompt_for(pictured(symbol="a stall waving a big flag"))
+    assert refused.value.reason == "forbidden_words"
+
+
+def test_a_site_brief_with_a_name_or_a_forbidden_word_gives_way_to_the_place_name() -> None:
+    dossier = pictured()
+    dossier.places[0] = dossier.places[0].model_copy(update={"brief": "the market, a portrait of the mayor, morning light"})
+    prompt = plates.story_prompt_for(dossier)
+    assert "The place: Le marché d'Aligre, un matin, France." in prompt and "of the mayor" not in prompt
+
+
+def test_paint_story_paints_once_final_and_prices_it_on_the_ledger(db: Session, monkeypatch, flag_on) -> None:
+    fake = FakeImages(tricolour_plate())
+    monkeypatch.setattr(plates, "_call", fake)
+    dossier = pictured()
+    url = plates.paint_story(db, dossier)
+    assert url.startswith(settings.GRAPHIC_NOVEL_LOCAL_IMAGE_URL_PREFIX.rstrip("/") + "/revue-stories/")
+    assert list((flag_on / "revue-stories").glob("*.webp"))
+    row = db.get(RevueStoryPicture, dossier.id)
+    assert (row.picture_url, row.place_id, row.caption_fr) == (url, "marche_aligre", MARKET_VISUAL.caption_fr)
+    assert row.prompt == fake.prompts[0] and row.prompt_version == plates.STORY_PROMPT_VERSION
+    assert row.flagged is True, "the flag band is noted for the owner; the picture stays (final)"
+    (cost,) = db.query(PilotEvent).filter(PilotEvent.event_type == plates.PICTURE_COST_EVENT).all()
+    assert cost.user_id is None and cost.entity_type == "revue_story" and cost.entity_id == dossier.id
+    assert cost.cost_usd == pytest.approx(settings.REVUE_PICTURE_COST_USD)
+
+    plates._STORIES.clear()  # a fresh process: the row answers, nothing is painted again
+    assert plates.paint_story(db, dossier) == url
+    assert len(fake.prompts) == 1
+    assert db.query(PilotEvent).filter(PilotEvent.event_type == plates.PICTURE_COST_EVENT).count() == 1
+
+
+def test_the_site_shows_the_story_picture_and_the_second_view_its_plate(db: Session) -> None:
+    dossier = with_places(pictured(), pictured().places[0], SECOND_VIEW).model_copy(update={"visual": MARKET_VISUAL})
+    assert enc.stage_for(dossier, db=db).plate_kind == "stand_in", "not painted yet: the place stands in"
+    db.add(RevueStoryPicture(dossier_id=dossier.id, place_id="marche_aligre", picture_url="/media/story.webp",
+                             caption_fr=MARKET_VISUAL.caption_fr, prompt="p", prompt_version=plates.STORY_PROMPT_VERSION))
+    db.commit()
+    site = plates.site_plate(db, dossier, dossier.places[0])
+    assert (site.url, site.kind, site.caption_fr) == ("/media/story.webp", "story", MARKET_VISUAL.caption_fr)
+    stage = enc.stage_for(dossier, db=db)
+    assert (stage.plate_url, stage.plate_kind) == ("/media/story.webp", "story")
+    assert stage.place_is_real is True and stage.plate_place_id == "marche_aligre"
+    assert stage.plate_url_second == plate_for("le_mistral"), "the second view keeps its place plate"
+    card = enc.story_card(dossier, db)
+    assert card.plate_url == "/media/story.webp" and card.stage.plate_kind == "story"
+
+
+def test_paint_dossier_pictures_paints_the_story_and_the_new_second_view(db: Session, monkeypatch, flag_on) -> None:
+    fake = FakeImages()
+    monkeypatch.setattr(plates, "_call", fake)
+    dossier = with_places(pictured(), pictured().places[0], SECOND_VIEW).model_copy(update={"visual": MARKET_VISUAL})
+    out = plates.paint_dossier_pictures(db, dossier)
+    assert set(out) == {"story", "cafe_rue_aligre"}
+    assert "/revue-stories/" in out["story"] and "/revue-plates/" in out["cafe_rue_aligre"]
+    assert len(fake.prompts) == 2, "the site needs no place plate: the story picture is its plate"
+    assert plates.paint_dossier_pictures(db, dossier) == {"story": out["story"], "cafe_rue_aligre": "painted"}
+    assert len(fake.prompts) == 2
+    # Without a picture brief the site gets its place plate, as before.
+    plain = marche().model_copy(update={"id": "evergreen-sans-image"})
+    plain.places[0] = plain.places[0].model_copy(update={"id": "marche_aligre_bis", "brief": ALIGRE_BRIEF})
+    assert "/revue-plates/" in plates.paint_dossier_pictures(db, plain)["marche_aligre_bis"]
+
+
+def test_paint_period_paints_what_is_missing_and_stops_at_the_cap(db: Session, monkeypatch, flag_on) -> None:
+    from app.services import spend_guard
+
+    fake = FakeImages()
+    monkeypatch.setattr(plates, "_call", fake)
+    dossier = pictured()
+    monkeypatch.setattr(enc, "available_dossiers", lambda week, db=None: [dossier])
+    monkeypatch.setattr(spend_guard, "service_budget_reached", lambda db, now=None: True)
+    report = plates.paint_period(db, WEEK)
+    assert (report.status, report.painted, fake.prompts) == ("budget", 0, [])
+    monkeypatch.setattr(spend_guard, "service_budget_reached", lambda db, now=None: False)
+    report = plates.paint_period(db, WEEK)
+    assert (report.status, report.painted) == ("painted", 1)
+    assert report.cost_usd == pytest.approx(settings.REVUE_PICTURE_COST_USD)
+    assert plates.paint_period(db, WEEK).painted == 0, "a painted story costs nothing the next morning"
+    assert len(fake.prompts) == 1
+
+
+def test_paint_period_asks_its_limit_and_the_cap_before_every_image_call(db: Session, monkeypatch, flag_on) -> None:
+    """A story and its new second view are two image calls: ``limit=1`` makes one, and a cap
+    the first painting reaches holds the second; the next run paints what was held."""
+    from app.services import spend_guard
+
+    fake = FakeImages()
+    monkeypatch.setattr(plates, "_call", fake)
+    two = with_places(pictured(), pictured().places[0], SECOND_VIEW).model_copy(update={"visual": MARKET_VISUAL})
+    monkeypatch.setattr(enc, "available_dossiers", lambda week, db=None: [two])
+    monkeypatch.setattr(spend_guard, "service_budget_reached", lambda db, now=None: False)
+    report = plates.paint_period(db, WEEK, limit=1)
+    assert (report.status, report.painted, len(fake.prompts)) == ("limit", 1, 1)
+    assert report.pictures[two.id]["cafe_rue_aligre"] == "limit"
+
+    other = two.model_copy(update={"id": "evergreen-marche-bis", "places": [two.places[0], SECOND_VIEW.model_copy(update={"id": "cafe_bis"})]})
+    monkeypatch.setattr(enc, "available_dossiers", lambda week, db=None: [two, other])
+    monkeypatch.setattr(spend_guard, "service_budget_reached", lambda db, now=None: len(fake.prompts) >= 3)
+    report = plates.paint_period(db, WEEK)
+    assert (report.status, report.painted, len(fake.prompts)) == ("budget", 2, 3)
+    assert report.pictures[two.id]["cafe_rue_aligre"].startswith(settings.GRAPHIC_NOVEL_LOCAL_IMAGE_URL_PREFIX.rstrip("/"))
+    assert report.pictures[other.id]["cafe_bis"] == "budget", "the cap reached by the story's own cost holds the next call"
+
+
+def test_paint_period_is_off_without_durable_storage(db: Session, monkeypatch) -> None:
+    fake = FakeImages()
+    monkeypatch.setattr(plates, "_call", fake)
+    monkeypatch.setattr(settings, "REVUE_PLATE_GENERATION_ENABLED", True)
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key-not-used")
+    monkeypatch.setattr(settings, "GRAPHIC_NOVEL_IMAGE_STORAGE", "local")
+    monkeypatch.setattr(settings, "APP_ENV", "production")  # production keeps nothing on its own disk
+    report = plates.paint_period(db, WEEK)
+    assert report.status.startswith("off:") and report.painted == 0 and fake.prompts == []

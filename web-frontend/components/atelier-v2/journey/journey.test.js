@@ -969,6 +969,19 @@ const noSleep = () => Promise.resolve();
   // the learner-language status.
   assert.ok(htmlHas(doneHtml, fixture('completed').response.scenario.title_fr));
   assert.ok(!htmlHas(doneHtml, EN.start), 'a finished day is never restartable from here');
+  // Walk #123: with La Forge or the words still open, the episode is done, not the day.
+  const storyDoneHtml = renderToStaticMarkup(
+    React.createElement(JourneyTodayCard, {
+      controller: controller({
+        phase: state.phaseFromJourney(fixture('completed').response),
+        journey: fixture('completed').response,
+      }),
+      onOpen: () => {},
+      restOfDayOpen: true,
+    }),
+  );
+  assert.ok(htmlHas(storyDoneHtml, EN.story_done));
+  assert.ok(!htmlHas(storyDoneHtml, EN.done_today), 'not «Done for today» while the day goes on');
 
   // The capability being off renders nothing at all.
   assert.equal(
@@ -2292,6 +2305,23 @@ const noSleep = () => Promise.resolve();
       episodeStep.indexOf('<StoryEpisodeReader'),
     'and the offer is rendered before the reader, not after it',
   );
+}
+
+// Live walk #116: a failed «Continue» on the reader has no answer to keep.
+{
+  const errorOn = (stepKind) => renderToStaticMarkup(
+    React.createElement(steps.JourneyFeedbackView, {
+      feedback: { kind: 'error', message: 'network', retryable: true },
+      copy: EN,
+      onContinue: () => {},
+      onRetry: () => {},
+      onDismiss: () => {},
+      stepKind,
+    }),
+  );
+  assert.ok(htmlHas(errorOn('scene'), EN.transport_error_plain));
+  assert.ok(!htmlHas(errorOn('scene'), EN.transport_error), 'no «Your answer was kept» without an answer');
+  assert.ok(htmlHas(errorOn('respond'), EN.transport_error));
 }
 
 console.log('WP-66 day shapes and recall formats: ok');

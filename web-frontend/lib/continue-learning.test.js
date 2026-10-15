@@ -102,6 +102,7 @@ test('the target names the next band, what is missing and when', () => {
 test('Home draws the route every day once the story is completed, and no chip doubles it', () => {
   const source = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
   assert.match(source, /const storyCompleted = journey\.phase\.kind === 'finished' && journey\.journey\?\.status === 'completed'/);
-  assert.match(source, /\{continueRoute && \(\s*\/\/ CONTINUE/);
+  // Round 3: with the day as one sequence, its programme replaces the route.
+  assert.match(source, /\{continueRoute && !journey\.envelope\?\.session && \(\s*\/\/ CONTINUE/);
   assert.match(source, /vocabularyReviewDue > 0 && !afterDayRoute/);
 });

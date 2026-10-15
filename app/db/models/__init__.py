@@ -49,6 +49,7 @@ from app.db.models.revue_correcteur import RevueCorrection
 from app.db.models.revue_place import RevuePlace
 from app.db.models.revue_relecture import RevueRelecture
 from app.db.models.revue_session import RevueSession
+from app.db.models.revue_story_picture import RevueStoryPicture
 from app.db.models.revue_vignette import RevuePictogram, RevueVignette
 from app.db.models.scenario import UserScenarioState
 from app.db.models.serial import SerialEpisode, SerialThread
@@ -58,6 +59,7 @@ from app.db.models.session import (
     SessionLearningMoment,
     WordInteraction,
 )
+from app.db.models.spend_reservation import SpendReservation
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
 from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
@@ -73,6 +75,7 @@ __all__ = [
     "RevueRelecture",
     "RevueCorrection",
     "RevuePlace",
+    "RevueStoryPicture",
     "RevuePictogram",
     "RevueVignette",
     "PasswordResetDelivery",
@@ -110,6 +113,7 @@ __all__ = [
     "UserBook",
     "SerialEpisode",
     "SerialThread",
+    "SpendReservation",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",

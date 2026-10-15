@@ -856,7 +856,7 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "success_signal_i18n": {
             "fr": "Margaux sait quand vous passez.",
             "en": "Margaux knows when you are coming by.",
-            "de": "Margaux weiß, wann Sie vorbeikommen.",
+            "de": "Margaux weiß, wann du vorbeikommst.",
         },
         "twist": "Demain, le premier café est pour moi.",
         "ambient_cues": ["une écharpe bleue", "le café Le Mistral", "un petit message"],
@@ -895,7 +895,7 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "success_signal_i18n": {
             "fr": "Romy sait d'où vous venez et pourquoi vous êtes à Paris.",
             "en": "Romy knows where you are from and why you are in Paris.",
-            "de": "Romy weiß, woher Sie kommen und warum Sie in Paris sind.",
+            "de": "Romy weiß, woher du kommst und warum du in Paris bist.",
         },
         "twist": "Elle a déjà un titre pour l'article, mais pas encore de photo.",
         "ambient_cues": ["un article en préparation", "trois questions", "le café Le Mistral"],
@@ -1051,7 +1051,7 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
 AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
     "Samira knows what you want and whether to slice or set anything aside.": {
         "fr": "Samira sait quel pain vous voulez.",
-        "de": "Samira weiß, was Sie möchten und ob sie etwas schneiden oder zurücklegen soll.",
+        "de": "Samira weiß, was du möchtest und ob sie etwas schneiden oder zurücklegen soll.",
     },
     "The landlord understands the issue and proposes a concrete time.": {
         "fr": "Monsieur Marchand comprend le problème et donne un jour et une heure.",
@@ -1059,7 +1059,7 @@ AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
     },
     "Your neighbour feels heard and knows what will change.": {
         "fr": "Madame Vidal est contente et sait ce que vous allez faire.",
-        "de": "Ihr Nachbar fühlt sich gehört und weiß, was sich ändern wird.",
+        "de": "Dein Nachbar fühlt sich gehört und weiß, was sich ändern wird.",
     },
     "Support has the right address and a clear next step.": {
         "fr": "Ils savent où vous habitez et ce qu'ils vont faire.",
@@ -1071,15 +1071,15 @@ AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
     },
     "The agent knows whether to reroute or refund you.": {
         "fr": "L'agent sait si vous voulez un autre train ou votre argent.",
-        "de": "Der Mitarbeiter weiß, ob er Sie umbuchen oder Ihnen das Geld erstatten soll.",
+        "de": "Der Mitarbeiter weiß, ob er dich umbuchen oder dir das Geld erstatten soll.",
     },
     "Noémie knows you are coming and where to wait for you.": {
         "fr": "Noémie sait que vous venez et où vous trouver.",
-        "de": "Noémie weiß, dass Sie kommen und wo sie auf Sie warten soll.",
+        "de": "Noémie weiß, dass du kommst und wo sie auf dich warten soll.",
     },
     "Nadia knows when you arrive and what to do meanwhile.": {
         "fr": "Nadia sait quand vous arrivez.",
-        "de": "Nadia weiß, wann Sie ankommen und was sie bis dahin tun soll.",
+        "de": "Nadia weiß, wann du ankommst und was sie bis dahin tun soll.",
     },
     "Support logs the duration and gives a repair or compensation step.": {
         "fr": "Ils savent depuis quand vous n'avez pas internet et quand ça va marcher.",
@@ -1091,56 +1091,56 @@ AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
     },
     "The clerk tells you which document or detail will complete the file.": {
         "fr": "La mairie vous dit ce qu'il faut.",
-        "de": "Die Sachbearbeitung sagt Ihnen, welches Dokument oder welche Angabe die Akte vervollständigt.",
+        "de": "Die Sachbearbeitung sagt dir, welches Dokument oder welche Angabe die Akte vervollständigt.",
     },
     "Luc smiles instead of feeling annoyed and knows what you will do.": {
         "fr": "Luc sourit et sait ce que vous allez faire.",
-        "de": "Luc lächelt, statt sich zu ärgern, und weiß, was Sie tun werden.",
+        "de": "Luc lächelt, statt sich zu ärgern, und weiß, was du tun wirst.",
     },
     # WP-125B proposal letters.
     "The service knows which option you take, or what you need instead.": {
         "fr": "Le service sait quelle solution vous choisissez, ou ce qu'il vous faut.",
-        "de": "Der Kundendienst weiß, welche Lösung Sie wählen oder was Sie stattdessen brauchen.",
+        "de": "Der Kundendienst weiß, welche Lösung du wählst oder was du stattdessen brauchst.",
     },
     "The office can check the bag is yours and knows when you will come.": {
         "fr": "Le service peut vérifier que le sac est à vous et sait quand vous passez.",
-        "de": "Das Fundbüro kann prüfen, dass die Tasche Ihnen gehört, und weiß, wann Sie vorbeikommen.",
+        "de": "Das Fundbüro kann prüfen, dass die Tasche dir gehört, und weiß, wann du vorbeikommst.",
     },
     "The council has one thing you like and one thing you miss in the area.": {
         "fr": "Le conseil sait ce qui vous plaît et ce qui vous manque dans le quartier.",
-        "de": "Der Quartiersrat weiß, was Ihnen im Viertel gefällt und was Ihnen fehlt.",
+        "de": "Der Quartiersrat weiß, was dir im Viertel gefällt und was dir fehlt.",
     },
     "Hélène knows whether you leave on Saturday or want to stay, and what it depends on.": {
         "fr": "Hélène sait si vous partez samedi ou si vous voulez rester, et de quoi cela dépend.",
-        "de": "Hélène weiß, ob Sie am Samstag abreisen oder bleiben möchten und wovon das abhängt.",
+        "de": "Hélène weiß, ob du am Samstag abreisen oder bleiben möchtest und wovon das abhängt.",
     },
     "The managing agent has your availability for a visit and knows your constraint.": {
         "fr": "Le syndic connaît vos disponibilités et ce qui vous gêne.",
-        "de": "Die Hausverwaltung kennt Ihre Verfügbarkeit für einen Besuch und weiß, was Sie einschränkt.",
+        "de": "Die Hausverwaltung kennt deine Verfügbarkeit für einen Besuch und weiß, was dich einschränkt.",
     },
     "The editor has your position and at least one reason for it.": {
         "fr": "Le journal connaît votre position et au moins une raison.",
-        "de": "Die Redaktion kennt Ihre Position und mindestens einen Grund dafür.",
+        "de": "Die Redaktion kennt deine Position und mindestens einen Grund dafür.",
     },
     "The service has a precise account of what happened and knows what you ask for.": {
         "fr": "Le service dispose d'un récit précis des faits et sait ce que vous demandez.",
-        "de": "Der Kundendienst hat eine genaue Darstellung des Geschehens und weiß, was Sie verlangen.",
+        "de": "Der Kundendienst hat eine genaue Darstellung des Geschehens und weiß, was du verlangst.",
     },
     "The association knows whether you will speak and has your view in a few lines.": {
         "fr": "L'association sait si vous intervenez et connaît votre regard en quelques lignes.",
-        "de": "Der Verein weiß, ob Sie sprechen, und kennt Ihre Sicht in ein paar Zeilen.",
+        "de": "Der Verein weiß, ob du sprichst, und kennt deine Sicht in ein paar Zeilen.",
     },
     "The town hall has your view of the project's effects and any reservation.": {
         "fr": "La mairie connaît votre avis sur les effets du projet et vos éventuelles réserves.",
-        "de": "Das Bezirksamt kennt Ihre Einschätzung der Folgen des Projekts und Ihre Vorbehalte.",
+        "de": "Das Bezirksamt kennt deine Einschätzung der Folgen des Projekts und deine Vorbehalte.",
     },
     "They know what to do next.": {
         "fr": "L'autre personne sait ce qu'il faut faire après.",
-        "de": "Ihr Gegenüber weiß, was als Nächstes zu tun ist.",
+        "de": "Dein Gegenüber weiß, was als Nächstes zu tun ist.",
     },
     "Nadia can repeat your plan without asking three follow-up questions.": {
         "fr": "Nadia comprend votre plan et n'a pas de questions.",
-        "de": "Nadia kann Ihren Plan wiederholen, ohne drei Rückfragen zu stellen.",
+        "de": "Nadia kann deinen Plan wiederholen, ohne drei Rückfragen zu stellen.",
     },
     "Mina understands what happened, why it matters, and what changes next.": {
         "fr": "Mina comprend ce qui se passe et pourquoi c'est important.",
@@ -3220,7 +3220,7 @@ class MissionGenerator:
                 # shown in the learner's language (the one-language rule), so the
                 # writer returns it in all three control languages at once.
                 "success_signal_en": "the same success_signal, in plain English",
-                "success_signal_de": "the same success_signal, in plain German",
+                "success_signal_de": "the same success_signal, in plain German, addressing the learner with «du»",
                 "inbox_context": "French, one line on what the other person actually needs",
                 "domain": "same domain id as chosen_variety",
                 "channel": "same channel id as chosen_variety",

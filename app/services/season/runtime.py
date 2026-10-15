@@ -1248,7 +1248,10 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     signal = details.get("season_signal")
     if gate and signal:
         state = add_signal(state, gate=gate, signal=signal, source=f"{event_id}:gap", day=day)
-    return state
+    # N1 pilot: what the learner decided is committed; a staged callback is played.
+    from app.services.season.agency import settle_day
+
+    return settle_day(state, season_ctx, details, event_id=event_id, engaged=engaged)
 
 
 def _shorten(state: dict, row: dict[str, Any]) -> dict:

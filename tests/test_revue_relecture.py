@@ -1,7 +1,8 @@
 """WP-121 B: La Relecture — re-answer your own Papier's question six weeks later.
 
 * eligibility (clock shim): five weeks after close no, six weeks yes; a Papier without a
-  kept question or a written headline never; once re-read, never again;
+  kept question, a written headline or a written caption never; once re-read, never again;
+* WP-119 §8.4: a caption written under the story's picture brings the picture back;
 * the offer is the oldest eligible Papier;
 * the answer is stored once in ``revue_relectures`` and answered with the pair: the old
   answer and the new one, the rubric's register/grammar spans, Romy's one line, no score;
@@ -118,6 +119,32 @@ def test_a_papier_without_a_question_or_a_written_headline_is_never_eligible(db:
     assert relecture.eligible(written, now=CLOSED + timedelta(weeks=6)) is True
     offer = relecture.offer(db, user, now=CLOSED + timedelta(weeks=6))
     assert offer.kind == "headline" and offer.session_id == str(written.id)
+
+
+def test_a_written_caption_brings_the_picture_back(db: Session, monkeypatch) -> None:
+    user = make_user(db)
+    chosen = papier(db, user, question=None,
+                    artifact={"kind": "caption", "format": "choice", "text_fr": "Le marché d'Aligre, un matin."})
+    assert relecture.eligible(chosen, now=CLOSED + timedelta(weeks=12)) is False, "a chosen caption, like a chosen headline"
+    written = papier(db, user, question=None, artifact={"kind": "caption", "format": "write",
+                     "text_fr": "Des cagettes sur un étal.", "learner_fr": "Des cagettes sur un étal."})
+    offer = relecture.offer(db, user, now=CLOSED + timedelta(weeks=6))
+    assert (offer.kind, offer.session_id, offer.prompt_fr) == ("caption", str(written.id), relecture.CAPTION_PROMPT_FR)
+    assert offer.plate_url == "/assets/serial/locations/marche_canal.webp", "the picture comes back with its caption"
+
+    kinds: list[str] = []
+    build = grading.build_rubric
+    monkeypatch.setattr(grading, "build_rubric", lambda **kw: kinds.append(kw["kind"]) or build(**kw))
+    pair = relecture.answer(db, user, str(written.id), answer_fr="Des clients devant les étals du marché.",
+                            now=CLOSED + timedelta(weeks=6), scorer=grading.FakeRubricScorer())
+    assert kinds == ["caption"] and pair.offer.kind == "caption"
+    assert (pair.then.text_fr, pair.now.text_fr) == ("Des cagettes sur un étal.", "Des clients devant les étals du marché.")
+
+    pictureless = papier(db, user, question=None, artifact={"kind": "caption", "format": "write",
+                         "text_fr": "Un étal.", "learner_fr": "Un étal."})
+    pictureless.plan = {**pictureless.plan, "stage": {"place_id": "marche_aligre"}}
+    db.commit()
+    assert relecture.eligible(pictureless, now=CLOSED + timedelta(weeks=6)) is False, "no picture, no caption to rewrite"
 
 
 def test_the_offer_is_the_oldest_eligible_and_never_twice(db: Session) -> None:

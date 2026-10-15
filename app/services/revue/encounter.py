@@ -67,6 +67,9 @@ from app.schemas.revue import (
     RvAngle,
     RvAngleRef,
     RvBudget,
+    RvCaptionOffer,
+    RvCaptionOption,
+    RvCaptionResult,
     RvClaim,
     RvClaimsItem,
     RvClosedWord,
@@ -122,6 +125,7 @@ from app.services.revue.checks import (
     check_distinguishable,
     check_knowledge,
     failures,
+    visual_word_claim,
 )
 from app.services.revue.dossier import Claim, EditorialDossier, fold, parse_week, week_bounds
 from app.services.revue.evergreen import evergreens_for_week, load_evergreens
@@ -164,8 +168,9 @@ BOUCLAGE_RATIO = 0.8
 HISTORY_ITEMS = 6
 #: The make kinds the encounter builds, in the order the wire lists them. ``headline_choice``
 #: and ``reader_question`` are offered at every band; the others when the plan has them
-#: (``session.MAKE_OPTIONS_UPPER``: B1+). ``tell_margaux`` is planned, not built.
-MAKE_KINDS: tuple[str, ...] = ("headline_choice", "headline_write", "reader_question", "short_report")
+#: (``session.MAKE_OPTIONS_UPPER``: B1+; ``caption``, WP-119 §8.4: when the story's own picture
+#: is on the stage). ``tell_margaux`` is planned, not built.
+MAKE_KINDS: tuple[str, ...] = ("headline_choice", "headline_write", "reader_question", "short_report", "caption")
 ALWAYS_MAKE: frozenset[str] = frozenset({"headline_choice", "reader_question"})
 SHORT_REPORT_SECONDS = 30
 
@@ -175,6 +180,7 @@ MAKE_INTRO_LINES: dict[str, str] = {
     "headline_write": "Il me faut un titre. Tu l'écris ? Court, et vrai.",
     "reader_question": "Ta question, on l'envoie à la rédaction. On la formule ensemble ?",
     "short_report": "Tu me fais un petit reportage ? Trente secondes, pas plus.",
+    "caption": "Il me faut une légende sous l'image. Qu'est-ce qu'on y voit ?",
 }
 #: Romy's ``make_done`` line once something is filed (``*_wrong``: a pick the claims contradict;
 #: ``headline_write_refused``: a written headline a shown claim contradicts — nothing filed).
@@ -185,6 +191,9 @@ MAKE_DONE_LINES: dict[str, str] = {
     "headline_write_refused": "Attention : les sources disent autre chose. Tu réessaies ?",
     "reader_question": "Partie pour la rédaction.",
     "short_report": "C'est enregistré. Je le mets dans mon papier.",
+    "caption": "C'est ta légende. Elle part sous l'image.",
+    "caption_wrong": "Celle-là, l'image la contredit. On garde l'autre.",
+    "caption_refused": "Attention : l'image ou les sources disent autre chose. Tu réessaies ?",
 }
 
 #: Phase 2 (§7): one guest per Papier, and at most this many lines after their entrance.
@@ -199,6 +208,8 @@ FACTS_ON_ENTRY = 2
 MAX_NEW_CLAIMS = 2
 #: §10e.3: symbols (→ ≈ ~ > / ×) are refused at these bands.
 LOWER_BANDS = frozenset({"A1", "A2"})
+#: WP-119 §8.4: Romy points at the story's picture (the builder's ``look_fr``, else its words).
+LOOK_LEAD = "Regarde :"
 #: §10e.4: a guest changes their mind only after a learner statement this long (not a question).
 GUEST_STATEMENT_WORDS = 4
 #: §10e.8: how long a turn waits for the critic once the reply is assembled; after that the
@@ -220,6 +231,7 @@ CLOSE_LINES: dict[str, str] = {
     "headline_choice": "Je garde ton titre. Il part avec mon papier.",
     "headline_write": "Je garde ton titre, tel que tu l'as écrit. Il part avec mon papier.",
     "short_report": "Ton reportage part avec mon papier. On entend ta voix dedans.",
+    "caption": "Ta légende part sous l'image, avec mon papier.",
     "none": "Les sources ne m'ont pas tout dit, mais on a de quoi écrire trois lignes.",
 }
 
@@ -495,8 +507,41 @@ def find_dossier(dossier_id: str, week: str) -> EditorialDossier | None:
 
 
 # ---------------------------------------------------------------------------
-# The stage (phase 1: known plates only)
+# The stage (phase 4: the story's picture, painted places, season plates, stand-ins)
 # ---------------------------------------------------------------------------
+
+
+def picture_words(dossier: EditorialDossier, plan: SessionPlan | None) -> list[RvGloss]:
+    """WP-119 §8.4: the words the story's picture shows, as the plan's vocabulary glosses them
+    (the vocabulary puts them first); a word the plan could not keep has no gloss."""
+
+    if dossier.visual is None or plan is None:
+        return []
+    language = _gloss_language_of(plan)
+    out: list[RvGloss] = []
+    for word in dossier.visual.words:
+        item = next((v for v in plan.vocabulary if _stem_key(v.fr) == _stem_key(word.fr)), None)
+        claim_id = item.claim_id if item is not None else visual_word_claim(word.fr, dossier)
+        if claim_id is None:
+            continue
+        gloss = (item.gloss.get(language) or next(iter(item.gloss.values()), "")) if item is not None else ""
+        out.append(RvGloss(fr=item.fr if item is not None else word.fr, gloss=gloss, claim_id=claim_id))
+    return out
+
+
+def look_line(dossier: EditorialDossier) -> str | None:
+    """WP-119 §8.4: Romy pointing at the story's picture on arrival: the builder's ``look_fr``,
+    else «Regarde : …» with the words the picture shows; ``None`` without either."""
+
+    visual = dossier.visual
+    if visual is None:
+        return None
+    text = voice.strip_ids(re.sub(r"\s+", " ", visual.look_fr or "").strip())
+    if not text and visual.words:
+        text = f"{LOOK_LEAD} {', '.join(word.fr for word in visual.words)}."
+    if not text or relative_dates(text):
+        return None
+    return voice.french_typography(text)
 
 
 def stage_for(
@@ -510,11 +555,16 @@ def stage_for(
 
     place = next((p for p in dossier.places if plan is None or p.id == plan.stage.place_id), dossier.places[0])
     kind = policy.place_kind(f"{place.id} {place.name_fr} {place.brief}")
-    # WP-119 phase 4: season plate, else the painted one, else the stand-in (§8.1).
-    first = plates.plate_for_place(db, place)
+    # §8.4: the story's own picture on the site; else (phase 4, §8.1) the season plate, the
+    # painted one, or the stand-in.
+    first = plates.site_plate(db, dossier, place)
     # §12.7: a second view for pursue/make, switched at the guest's entrance or at make.
     second_place = next((p for p in dossier.places if p.id != place.id), None)
     second = plates.plate_for_place(db, second_place) if second_place is not None else None
+    if first.kind == "story" and (second is None or second.url in (None, first.url)):
+        # §8.4: «La légende» and the dispatch print the picture in full, so the band above
+        # them moves on to the site's own plate rather than show it twice.
+        second = plates.plate_for_place(db, place)
     second_url = second.url if second is not None and second.url != first.url else None
     dress = plan.stage.dress if plan is not None else policy.dress_for(kind)
     cast = (
@@ -537,6 +587,8 @@ def stage_for(
         cast=cast,
         plate_url_second=second_url,
         plate_switched=bool(second_url) and state is not None and plate_switched(state),
+        plate_kind=first.kind,
+        picture_words=picture_words(dossier, plan) if first.kind == "story" else [],
     )
 
 
@@ -557,8 +609,8 @@ def _known_plate(place_id: str) -> str | None:
     return None
 
 
-def story_card(dossier: EditorialDossier) -> RvStoryCard:
-    stage = stage_for(dossier)
+def story_card(dossier: EditorialDossier, db: Any = None) -> RvStoryCard:
+    stage = stage_for(dossier, db=db)
     return RvStoryCard(
         dossier_id=dossier.id,
         title_fr=dossier.title_fr,
@@ -604,7 +656,8 @@ class RevueProvider(Protocol):
     name: str
 
     def vocabulary(
-        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = ()
+        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = (),
+        must: Sequence[str] = (),
     ) -> list[dict[str, str]]: ...
 
     def reply(self, context: dict[str, Any]) -> dict[str, Any]: ...
@@ -699,12 +752,19 @@ class FakeRevueProvider:
     spent_usd: float = 0.0
 
     def vocabulary(
-        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = ()
+        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = (),
+        must: Sequence[str] = (),
     ) -> list[dict[str, str]]:
-        self.calls.append(("vocabulary", {"count": count, "language": language, "prefer": list(prefer)}))
+        self.calls.append(("vocabulary", {"count": count, "language": language, "prefer": list(prefer),
+                                          "must": list(must)}))
+        first: list[dict[str, str]] = []
+        for fr in must:
+            claim = next((c for c in claims if appears_in(c["fr"], fr)), None)
+            if claim is not None:
+                first.append({"fr": fr, "claim_id": claim["id"]})
         return [
             {**row, "gloss": f"{_without_article(row['fr'])} ({language})"}
-            for row in extract_vocabulary(claims, count)
+            for row in [*first, *extract_vocabulary(claims, count)]
         ]
 
     def reply(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -817,9 +877,9 @@ def _fake_contradiction(fr: str, index: int) -> str:
 
 REPLY_PROMPT_VERSION = "revue-reply-v2"
 GUEST_PROMPT_VERSION = "revue-guest-v2"
-CLOSE_PROMPT_VERSION = "revue-close-v2"
+CLOSE_PROMPT_VERSION = "revue-close-v3"
 QUESTION_PROMPT_VERSION = "revue-question-v2"
-VOCABULARY_PROMPT_VERSION = "revue-vocabulary-v2"
+VOCABULARY_PROMPT_VERSION = "revue-vocabulary-v3"
 HEADLINE_PROMPT_VERSION = "revue-headline-v2"
 PROMPT_VERSIONS: dict[str, str] = {
     "reply": REPLY_PROMPT_VERSION,
@@ -857,8 +917,9 @@ _GUEST_SYSTEM = (
 
 _TASKS: dict[str, str] = {
     "vocabulary": (
-        "Pick {count} words worth learning that a learner needs to read these claims. Each must appear in its "
-        "claim's French. Give nouns in their dictionary form with le/la/l'/les («le prix», «l'école»; never «du», "
+        "Pick {count} words worth learning that a learner needs to read these claims. The words in `must` are "
+        "drawn in the story's picture: list each of them first, exactly as given, with its claim_id and gloss. "
+        "Each must appear in its claim's French. Give nouns in their dictionary form with le/la/l'/les («le prix», «l'école»; never «du», "
         "«au», «aux», «des», «de l'») or verbs in the infinitive. Never a proper noun (a person, place, "
         "organisation, prize, brand), never a number, never a word under three letters. Prefer the words listed "
         "in `prefer` (the course tracks them) when they appear in the claims. Gloss each in language '{language}'. "
@@ -929,7 +990,7 @@ _TASKS: dict[str, str] = {
         "no praise, and never an app word (artefact, session, dossier, état, événement, exercice, application, "
         "«les éléments», «les sources du dossier»). "
         "Do not mention a contribution that is not in artifact. headline_fr: keep the learner's artifact text when "
-        "there is one. body_lines: exactly three short French lines from the shown claims, no ids, no symbols. "
+        "it is a headline (a caption is printed under the picture, a report or a question is not a headline). body_lines: exactly three short French lines from the shown claims, no ids, no symbols. "
         'JSON: {{"romy_line_fr": str, "headline_fr": str, "body_lines": [str, str, str]}}'
     ),
 }
@@ -1006,9 +1067,11 @@ class OpenAIRevueProvider:
         return data
 
     def vocabulary(
-        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = ()
+        self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = (),
+        must: Sequence[str] = (),
     ) -> list[dict[str, str]]:
-        data = self._ask("vocabulary", {"claims": claims, "prefer": list(prefer)}, count=count, language=language)
+        data = self._ask("vocabulary", {"claims": claims, "prefer": list(prefer), "must": list(must)}, count=count,
+                         language=language)
         return [row for row in data.get("items") or [] if isinstance(row, dict)]
 
     def reply(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -1297,6 +1360,8 @@ def thread_items(dossier: EditorialDossier, plan: SessionPlan, state: Conversati
         elif event.kind == "turn_romy" and payload.get("beat") == "arrive":
             for index, sentence in enumerate(payload.get("narration") or []):
                 items.append(RvNarrationItem(id=f"{event.seq}.n{index}", seq=event.seq, at=at, text_fr=str(sentence)))
+            if payload.get("look_fr"):
+                items.append(_line(event, plan, suffix=".l", role="look", text=str(payload["look_fr"])))
             if payload.get("place_note"):
                 items.append(_line(event, plan, suffix=".p", role="place_note", text=str(payload["place_note"])))
             if payload.get("request_miss"):
@@ -1764,7 +1829,7 @@ class RevueEncounter:
     def week_offer(self, user: Any, week: str | None = None) -> RvOffer:
         week = week or current_period()
         ordered, reason = self.ranked(user, week)
-        cards = [story_card(d) for d in ordered[:3]]
+        cards = [story_card(d, self.db) for d in ordered[:3]]
         resume = None
         filed = None
         rows = self._sessions(user, week=week)
@@ -1907,15 +1972,26 @@ class RevueEncounter:
         learner = LearnerContext(band=band, ui_language=user_chrome_language(user), interests=_interests(user))
         plan = plan_for(dossier, learner, angle_id=angle_id, chosen_by=chosen_by,  # type: ignore[arg-type]
                         place_known_plate=_known_plate)
-        if plan.stage.plate_url is None:
+        site = stage_for(dossier, db=self.db)
+        must: list[str] = []
+        if site.plate_kind == "story" and dossier.visual is not None:
+            # §8.4: the story's own picture is the plate La Carte and the review show with these
+            # words; its words lead the vocabulary, and «La légende» joins the make options
+            # (A1–A2 choose among the captions, so only with the builder's two decoys).
+            plan.stage.plate_url = site.plate_url
+            must = [word.fr for word in dossier.visual.words]
+            if band not in LOWER_BANDS or len(dossier.visual.decoys_fr) >= 2:
+                plan.activities.make_options = [*plan.activities.make_options, "caption"]
+        elif plan.stage.plate_url is None:
             # Phase 1: known plates only — the place's nearest season plate stands in (§8.1).
-            plan.stage.plate_url = stage_for(dossier, db=self.db).plate_url
+            plan.stage.plate_url = site.plate_url
         gloss_language = normalize_control_language(getattr(user, "native_language", None))
-        plan.vocabulary = self._vocabulary(dossier, plan.support.vocab_target, gloss_language)
+        plan.vocabulary = self._vocabulary(dossier, plan.support.vocab_target, gloss_language, must=must)
         return plan.validate_against(dossier)
 
-    def _vocabulary(self, dossier: EditorialDossier, count: int, language: str) -> list[VocabItem]:
-        """The plan's 5/7 words (§10e.5): the provider's picks through
+    def _vocabulary(self, dossier: EditorialDossier, count: int, language: str, *, must: Sequence[str] = ()) -> list[VocabItem]:
+        """The plan's 5/7 words (§10e.5): the words the story's picture shows first (``must``,
+        §8.4: in its claims since the build), then the provider's picks through
         :func:`session.vocabulary_form` (no proper noun, contraction, number or short token;
         a contraction becomes its article), catalogue words first so a correct use can be
         credited; topped up from the claims, then from the summary."""
@@ -1925,7 +2001,8 @@ class RevueEncounter:
         prefer = catalogue_words_in(claims)
         rows: list[dict[str, str]] = []
         try:
-            rows = list(self.provider.vocabulary(claims=claims, count=count, language=language, prefer=prefer))
+            extra = {"must": list(must)} if must else {}  # a provider from before §8.4 takes no ``must``
+            rows = list(self.provider.vocabulary(claims=claims, count=count, language=language, prefer=prefer, **extra))
         except Exception as exc:  # noqa: BLE001
             logger.warning("revue: vocabulary provider failed ({}); authored extraction", exc)
         items: list[VocabItem] = []
@@ -1945,6 +2022,11 @@ class RevueEncounter:
             items.append(VocabItem(fr=form, gloss={language: gloss.strip()} if gloss.strip() else {}, claim_id=claim_id))
 
         cleaned = [row for row in rows if isinstance(row, dict)]
+        glossed = {_stem_key(str(row.get("fr") or "")): str(row.get("gloss") or "") for row in cleaned}
+        for fr in must:
+            claim_id = visual_word_claim(fr, dossier)
+            if claim_id is not None:
+                add(fr, glossed.get(_stem_key(fr), ""), claim_id)
         cleaned.sort(key=lambda row: not _catalogue_known(vocabulary_form(str(row.get("fr") or "")) or ""))
         for row in cleaned:
             add(str(row.get("fr") or ""), str(row.get("gloss") or ""), str(row.get("claim_id") or ""))
@@ -1970,8 +2052,10 @@ class RevueEncounter:
         place_note = None if stage.place_is_real else f"Ce n'est pas vraiment {_lower_first(place.name_fr)}, hein… mais on fait comme si."
         angle = dossier.angle_by_id(plan.angle_id) or dossier.angles[0]
         purpose = PURPOSE_LINES.get(angle.purpose, PURPOSE_LINES["understand_change"]).format(angle=angle.fr)
+        # §8.4: on the story's own picture, Romy points at what it shows, with its words.
+        look = look_line(dossier) if stage.plate_kind == "story" else None
         state.append("turn_romy", beat="arrive", role="purpose", narration=narration, place_note=place_note,
-                     request_miss=request_miss, text_fr=purpose, summary_fr=dossier.summary_fr)
+                     request_miss=request_miss, look_fr=look, text_fr=purpose, summary_fr=dossier.summary_fr)
 
     # -- a turn ----------------------------------------------------------------
 
@@ -2809,16 +2893,72 @@ class RevueEncounter:
         ))
         if "short_report" in served:
             options.append(RvShortReportOffer(seconds=SHORT_REPORT_SECONDS))
+        caption = self._caption_exercise(loaded) if "caption" in served else None
+        if caption is not None:
+            low_high = grading.CAPTION_WORDS.get(loaded.plan.learner.band, (3, 14))
+            options.append(RvCaptionOffer(
+                format=caption["format"],
+                picture_url=caption["picture_url"],
+                options=[RvCaptionOption(**o) for o in caption.get("options") or []],
+                words=picture_words(loaded.dossier, loaded.plan),
+                max_words=low_high[1],
+            ))
+        # §8.4: the picture is this story's own, so its caption leads — unless the learner's last
+        # Papier was a caption, then the headline does, for a change (the caption stays offered).
+        caption_again = caption is not None and self._last_made_kind(row) == "caption"
         if question:
             recommended = "reader_question"
+        elif caption is not None and not caption_again:
+            recommended = "caption"
         elif "headline_write" in served:
             recommended = "headline_write"
         elif exercise is not None:
             recommended = "headline_choice"
+        elif caption is not None:
+            recommended = "caption"
         else:
             recommended = "reader_question"
         intro = self._make_intro(loaded, recommended)
         return RvMakeOffer(recommended=recommended, options=options, intro=intro)  # type: ignore[arg-type]
+
+    def _last_made_kind(self, row: RevueSession) -> str | None:
+        """What the learner filed in their last closed Papier (``None``: nothing, or none yet)."""
+
+        previous = self.db.scalars(
+            select(RevueSession)
+            .where(RevueSession.user_id == row.user_id, RevueSession.status == "closed", RevueSession.id != row.id)
+            .order_by(RevueSession.started_at.desc())
+            .limit(1)
+        ).first()
+        events = (previous.state or {}).get("events") or [] if previous is not None else []
+        artifacts = [e for e in events if isinstance(e, dict) and e.get("kind") == "artifact"]
+        return str((artifacts[-1].get("payload") or {}).get("kind") or "") or None if artifacts else None
+
+    def _caption_exercise(self, loaded: Loaded) -> dict[str, Any] | None:
+        """§8.4 «La légende»: the caption under the story's picture, or ``None`` when the picture
+        is not painted (or the dossier has no picture brief). A1–A2 choose among three captions
+        (the desk's and the builder's two decoys, in an order fixed by the session id); B1+ write
+        it. Deterministic, so it is rebuilt, never stored; the answer never leaves the server."""
+
+        from app.services.revue import plates
+
+        dossier = loaded.dossier
+        visual = dossier.visual
+        picture = plates.story_picture(self.db, dossier.id) if visual is not None else None
+        if visual is None or picture is None:
+            return None
+        caption = picture.caption_fr or visual.caption_fr
+        if loaded.plan.learner.band not in LOWER_BANDS:
+            return {"format": "write", "picture_url": picture.url, "caption_fr": caption}
+        decoys = [d for d in visual.decoys_fr if fold_keep_length(d) != fold_keep_length(caption)][:2]
+        if len(decoys) < 2:
+            return None
+        rows = [caption, *decoys]
+        seed = str(loaded.row.id)
+        order = sorted(range(3), key=lambda i: hashlib.sha256(f"{seed}:caption:{i}".encode()).hexdigest())
+        options = [{"id": f"l{position + 1}", "text_fr": rows[index]} for position, index in enumerate(order)]
+        answer = next(o["id"] for o in options if o["text_fr"] == caption)
+        return {"format": "choice", "picture_url": picture.url, "caption_fr": caption, "options": options, "answer": answer}
 
     def _make_intro(self, loaded: Loaded, recommended: str) -> RvLineItem:
         """Romy's ``make_intro`` line: written once, on the first GET of the make options."""
@@ -2853,6 +2993,8 @@ class RevueEncounter:
             return self._write_headline(loaded, str(payload.get("text_fr") or ""))
         if option == "short_report" and action == "report":
             return self._short_report(loaded, str(payload.get("transcript") or ""), mode=str(payload.get("mode") or "voice"))
+        if option == "caption" and action == "caption":
+            return self._caption(loaded, payload)
         raise RevueError(422, "revue_unknown_option")
 
     def _require(self, loaded: Loaded, kind: str) -> None:
@@ -2882,6 +3024,55 @@ class RevueEncounter:
         line = self._make_done(loaded, "headline_write" if accepted else "headline_write_refused")
         self._save(loaded)
         return RvHeadlineWriteResult(accepted=accepted, evidence=evidence_view(evidence), made=made, line=line)
+
+    def _caption(self, loaded: Loaded, payload: dict[str, Any]) -> RvCaptionResult:
+        """§8.4 «La légende». ``choice``: a pick files the caption the picture shows (credited
+        only when it was the pick, like the headline). ``write``: graded by the rubric against
+        the shown claims and what the picture shows, with the picture's words as target words;
+        filed unless a claim contradicts it (then Romy asks again and nothing is filed)."""
+
+        self._require(loaded, "caption")
+        exercise = self._caption_exercise(loaded)
+        if exercise is None:
+            raise RevueError(409, "revue_make_unavailable", kind="caption")
+        state = loaded.state
+        if exercise["format"] == "choice":
+            option_id = str(payload.get("option_id") or "")
+            texts = {o["id"]: o["text_fr"] for o in exercise["options"]}
+            if option_id not in texts:
+                raise RevueError(422, "revue_unknown_option")
+            answer_id = str(exercise["answer"])
+            correct = option_id == answer_id
+            text = texts[answer_id]
+            if not _choices(state, "make"):
+                state.append("choice", kind="make", option="caption")
+            made_payload = {"kind": "caption", "format": "choice", "text_fr": text,
+                            "contribution": [[0, len(text)]] if correct else [], "learner_fr": None,
+                            "picked": option_id, "correct": correct}
+            state.append("artifact", **made_payload)
+            line = self._make_done(loaded, "caption" if correct else "caption_wrong")
+            self._save(loaded)
+            return RvCaptionResult(format="choice", accepted=True, correct=correct, answer_id=answer_id,
+                                   made=_made(made_payload), line=line)
+        text = re.sub(r"\s+", " ", str(payload.get("text_fr") or "")).strip()
+        if not text:
+            raise RevueError(422, "revue_unknown_option", reason="empty")
+        shown = self._shown_claims(loaded) or loaded.dossier.facts()[:FACTS_ON_ENTRY]
+        picture = Claim.model_construct(id="picture", kind="fact", fr=str(exercise["caption_fr"]))
+        evidence = self._grade(loaded, text, kind="caption", claims=[*shown, picture])
+        if not _choices(state, "make"):
+            state.append("choice", kind="make", option="caption")
+        state.append("evidence", **evidence, breakdown=False, counts=False, make="caption")
+        accepted = evidence.get("fact_fit") != "contradicted"
+        made = None
+        if accepted:
+            made_payload = {"kind": "caption", "format": "write", "text_fr": text, "contribution": [[0, len(text)]],
+                            "learner_fr": text, "fact_fit": evidence.get("fact_fit"), "band_fit": evidence.get("band_fit")}
+            state.append("artifact", **made_payload)
+            made = _made(made_payload)
+        line = self._make_done(loaded, "caption" if accepted else "caption_refused")
+        self._save(loaded)
+        return RvCaptionResult(format="write", accepted=accepted, evidence=evidence_view(evidence), made=made, line=line)
 
     def _short_report(self, loaded: Loaded, transcript: str, *, mode: str) -> RvShortReportResult:
         """``short_report``: the transcript of a ~30-second report (the audio route is the
@@ -3069,7 +3260,7 @@ class RevueEncounter:
             romy_line = CLOSE_LINES.get(kind, CLOSE_LINES["none"])
         romy_line = voice.french_typography(romy_line)
 
-        if artifact and kind != "short_report":
+        if artifact and kind in {"headline_choice", "headline_write", "reader_question"}:
             headline = str(artifact.get("text_fr") or dossier.title_fr)
             contribution = [tuple(span) for span in artifact.get("contribution") or []]
         else:
@@ -3077,8 +3268,24 @@ class RevueEncounter:
             if knowledge_hits([headline], position) or relative_dates(headline):
                 headline = dossier.title_fr
             if artifact and fold_keep_length(headline) == fold_keep_length(str(artifact.get("text_fr") or "")):
-                headline = dossier.title_fr  # a short report is not a headline
+                headline = dossier.title_fr  # a short report or a caption is not a headline
             contribution = []
+
+        # §8.4: the story's own picture is printed with the dispatch, under the learner's caption
+        # when they made one; the plan's plate becomes it too (La Carte, the review).
+        from app.services.revue import plates
+
+        site = stage_for(dossier, plan, db=self.db)
+        picture = plates.story_picture(self.db, dossier.id) if site.plate_kind == "story" else None
+        picture_url = site.plate_url if picture is not None else None
+        caption_fr = picture.caption_fr if picture is not None else None
+        caption_by_learner = False
+        if picture_url and kind == "caption" and artifact:
+            caption_fr = str(artifact.get("text_fr") or caption_fr or "") or None
+            caption_by_learner = bool(artifact.get("contribution"))
+        if picture_url and plan.stage.plate_url != picture_url:
+            plan.stage.plate_url = picture_url
+            row.plan = plan.model_dump(mode="json")
 
         body: list[str] = []
         for line in raw.get("body_lines") or []:
@@ -3104,8 +3311,13 @@ class RevueEncounter:
             contribution=contribution,
             byline_fr="Romy Tremblay, avec toi · d'après " + " et ".join(source_names) if source_names else "Romy Tremblay, avec toi",
             sources=sources,
+            picture_url=picture_url,
+            caption_fr=caption_fr,
+            caption_by_learner=caption_by_learner,
         )
-        learner_texts = " ".join(str(e.payload.get("text_fr") or "") for e in state.events if e.kind == "turn_learner")
+        # A word the learner wrote into what they made (a headline, a caption, a report) is used too.
+        learner_texts = " ".join([*(str(e.payload.get("text_fr") or "") for e in state.events if e.kind == "turn_learner"),
+                                  str((artifact or {}).get("learner_fr") or "")])
         language = _gloss_language_of(plan)
         outcomes = word_outcomes(state)
         kept = RvKept(
@@ -3182,6 +3394,9 @@ class RevueEncounter:
             content += f" Tu as écrit le titre : « {artifact.get('text_fr')} »."
         elif kind == "short_report" and artifact:
             content += " Tu as fait un petit reportage pour mon papier."
+        elif kind == "caption" and artifact:
+            verb = "écrit" if artifact.get("learner_fr") else "choisi"
+            content += f" Tu as {verb} la légende de l'image : « {artifact.get('text_fr')} »."
         else:
             content += " On n'a rien bouclé de plus."
         learner_turns = [e for e in loaded.state.events if e.kind == "turn_learner"]

@@ -32,7 +32,7 @@ def test_reglages_is_the_way_in() -> None:
     # is administrative and reads in the learner's own language.
     assert "copy.row_dossier" in page
     assert "'/dossier'" in page
-    for label in ("Your file", "Deine Akte", "Votre dossier"):
+    for label in ("Your dossier", "Dein Dossier", "Votre dossier"):
         assert label in copy, label
 
 

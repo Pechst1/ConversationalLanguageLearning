@@ -314,6 +314,8 @@
 .av2 .carte-relecture { display: flex; flex-direction: column; gap: 14px; }
 .av2 .carte-relecture__band { height: 112px; border-radius: 12px; overflow: hidden; background: var(--av2-line); }
 .av2 .carte-relecture__band img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* WP-119 §8.4: the story's picture comes back whole to be captioned again. */
+.av2 .carte-relecture[data-kind='caption'] .carte-relecture__band { height: auto; aspect-ratio: 3 / 2; border-radius: 4px; box-shadow: 0 0 0 1px var(--av2-line-2); }
 .av2 .carte-relecture__head { display: flex; flex-direction: column; gap: 4px; }
 .av2 .carte-relecture__head .av2-label { margin: 0; }
 .av2 .carte-relecture__title { margin: 0; font-family: var(--av2-serif); font-weight: 500; font-size: var(--av2-t-title); line-height: 1.15; color: var(--av2-ink); }

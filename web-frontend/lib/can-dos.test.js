@@ -116,7 +116,7 @@ test('Home: the next can-do replaces the percentage (W12)', () => {
   assert.equal(read.total, 12);
   const fr = m.nextStepView({ band: 'A1.1', ...read }, 'fr');
   assert.equal(fr.line, 'Prochaine étape : demander un prix et payer');
-  assert.equal(fr.href, '/notebook?mode=carnet');
+  assert.equal(fr.href, '/notebook?mode=releve#carnet');
   assert.doesNotMatch(fr.line, /%/);
   assert.equal(m.nextStepView({ band: 'A1.1', ...read }, 'en').line, 'Next step: ask a price and pay');
   assert.equal(m.nextStepView({ band: 'A1.1', ...read }, 'de').ariaLabel, 'Niveau A1.1. Nächster Schritt: ask a price and pay. Carnet öffnen');

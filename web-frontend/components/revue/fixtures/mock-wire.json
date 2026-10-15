@@ -1,5 +1,5 @@
 {
- "_source": "lib/revue-mock.ts wire output (snake_case), every payload validated against app/schemas/revue.py (extra=forbid) on 2026-10-02 — regenerated for phase 2 («Les invités») + WP-120 vignettes",
+ "_source": "lib/revue-mock.ts wire output (snake_case), every payload validated against app/schemas/revue.py (extra=forbid) on 2026-10-02 — regenerated for phase 2 («Les invités») + WP-120 vignettes — WP-119 §8.4 (`pictures: true`: the story's own picture, «La légende», the dispatch's picture) added and validated 2026-10-14",
  "offer": {
   "week": {
    "iso": "2026-W40",
@@ -5609,5 +5609,2447 @@
     "minted_at": "2026-10-01T07:00:00.000Z"
    }
   ]
+ },
+ "offer_picture": {
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "recommended": {
+   "dossier_id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "evergreen": true,
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": true,
+    "dress": "coat",
+    "plate_kind": "story",
+    "picture_words": [],
+    "plate_url_second": "/assets/serial/locations/brocante.webp",
+    "plate_switched": false,
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   }
+  },
+  "recommended_reason": "interests",
+  "alternatives": [
+   {
+    "dossier_id": "evergreen-greve-transports",
+    "title_fr": "Un jour de grève dans les transports",
+    "summary_fr": "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+    "topic": "work",
+    "place_fr": "Un quai de métro un matin de grève",
+    "plate_url": "/assets/serial/locations/metro_platform.webp",
+    "evergreen": true,
+    "stage": {
+     "place_id": "quai_metro_greve",
+     "place_fr": "Un quai de métro un matin de grève",
+     "plate_url": "/assets/serial/locations/metro_platform.webp",
+     "plate_place_id": "metro_platform",
+     "place_is_real": false,
+     "dress": "coat",
+     "plate_kind": "stand_in",
+     "picture_words": [],
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "hold": "notebook"
+      },
+      {
+       "id": "user",
+       "hold": null
+      }
+     ]
+    }
+   },
+   {
+    "dossier_id": "evergreen-fete-de-la-musique",
+    "title_fr": "La Fête de la musique",
+    "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+    "topic": "culture",
+    "place_fr": "Une petite place parisienne le soir du 21 juin",
+    "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+    "evergreen": true,
+    "stage": {
+     "place_id": "place_fete_musique",
+     "place_fr": "Une petite place parisienne le soir du 21 juin",
+     "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "plate_place_id": "le_mistral",
+     "place_is_real": false,
+     "dress": "coat",
+     "plate_kind": "stand_in",
+     "picture_words": [],
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "hold": "notebook"
+      },
+      {
+       "id": "user",
+       "hold": null
+      }
+     ]
+    }
+   }
+  ],
+  "evergreen_only": true,
+  "resume": null,
+  "filed": null
+ },
+ "session_picture_arrive": {
+  "id": "mock-4139r9tw",
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "status": "active",
+  "started_at": "2026-10-01T07:12:07.000Z",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "marche_paris",
+     "name": "Ville de Paris (paris.fr)",
+     "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+     "published_at": "2026-09-23"
+    },
+    {
+     "id": "marche_wikipedia_aligre",
+     "name": "Wikipédia, « Marché d'Aligre »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+     "published_at": "2026-03-10"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "fr",
+   "gloss_language": "fr",
+   "chosen_by": "recommended",
+   "angle": {
+    "id": "a1",
+    "fr": "Faire ses courses au marché : comment ça marche",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "marché couvert",
+     "gloss": "marché sous un toit",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "en plein air",
+     "gloss": "dehors",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "arrondissement",
+     "gloss": "quartier de Paris",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "matins",
+     "gloss": "débuts de journée",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "savoir-faire",
+     "gloss": "talent du métier",
+     "claim_id": "c4"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question",
+    "caption"
+   ],
+   "budget": {
+    "turns": 6,
+    "minutes": 12
+   }
+  },
+  "stage": {
+   "place_id": "marche_aligre",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "plate_place_id": "marche_canal",
+   "place_is_real": true,
+   "dress": "coat",
+   "plate_kind": "story",
+   "picture_words": [
+    {
+     "fr": "marché couvert",
+     "gloss": "marché sous un toit",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "en plein air",
+     "gloss": "dehors",
+     "claim_id": "c3"
+    }
+   ],
+   "plate_url_second": "/assets/serial/locations/brocante.webp",
+   "plate_switched": false,
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 6
+  },
+  "thread": [
+   {
+    "id": "1.n0",
+    "seq": 1,
+    "at": "2026-10-01T07:12:14.000Z",
+    "kind": "narration",
+    "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+   },
+   {
+    "id": "1.n1",
+    "seq": 1,
+    "at": "2026-10-01T07:12:14.000Z",
+    "kind": "narration",
+    "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+   },
+   {
+    "id": "1.l",
+    "seq": 1,
+    "at": "2026-10-01T07:12:21.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "look",
+    "text_fr": "Regarde : le marché en plein air, et derrière, le marché couvert.",
+    "translation": null,
+    "glosses": [
+     {
+      "fr": "marché couvert",
+      "gloss": "marché sous un toit",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "dehors",
+      "claim_id": "c3"
+     }
+    ],
+    "reason": null
+   },
+   {
+    "id": "1",
+    "seq": 1,
+    "at": "2026-10-01T07:12:28.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "purpose",
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1.s",
+    "seq": 1,
+    "at": "2026-10-01T07:12:14.000Z",
+    "kind": "summary",
+    "speaker": "romy_tremblay",
+    "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "artifact": null,
+  "closing": null
+ },
+ "turn_picture_facts": {
+  "items": [
+   {
+    "id": "2",
+    "seq": 2,
+    "at": "2026-10-01T07:12:35.000Z",
+    "kind": "mine",
+    "text_fr": "D'accord, je t'aide.",
+    "mode": "text"
+   },
+   {
+    "id": "3",
+    "seq": 3,
+    "at": "2026-10-01T07:12:42.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "reply",
+    "text_fr": "Merci ! Voilà ce qu’on sait.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-10-01T07:12:49.000Z",
+    "kind": "claims",
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   }
+  ],
+  "beat": "facts",
+  "room": {
+   "used": 1,
+   "phase": "open",
+   "remaining_turns": 5
+  },
+  "support": {
+   "glosses": "tap",
+   "translation": "on_request",
+   "reading_target_words": 90,
+   "vocab_target": 5,
+   "level": 0
+  },
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "evidence": {
+   "outcome": "unscored",
+   "capability_known": false,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "not_applicable",
+   "register_note": "ok"
+  }
+ },
+ "make_offer_caption": {
+  "recommended": "caption",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "À Aligre, le marché n'ouvre que le dimanche"
+     },
+     {
+      "id": "h2",
+      "text_fr": "À Aligre, le marché ouvre six matins sur sept"
+     },
+     {
+      "id": "h3",
+      "text_fr": "À Aligre, il n'y a plus de marché couvert"
+     }
+    ]
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": null,
+    "uncertainty_fr": null
+   },
+   {
+    "kind": "caption",
+    "format": "choice",
+    "picture_url": "/assets/serial/locations/marche_canal.webp",
+    "options": [
+     {
+      "id": "l1",
+      "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes."
+     },
+     {
+      "id": "l2",
+      "text_fr": "Un marché fermé, un soir de pluie."
+     },
+     {
+      "id": "l3",
+      "text_fr": "Un supermarché vide, un lundi matin."
+     }
+    ],
+    "words": [
+     {
+      "fr": "marché couvert",
+      "gloss": "marché sous un toit",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "dehors",
+      "claim_id": "c3"
+     }
+    ],
+    "max_words": 12
+   }
+  ],
+  "intro": {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-01T07:12:56.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Il me faut une légende sous l'image. Qu'est-ce qu'on y voit ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make_caption_pick_wrong": {
+  "kind": "caption",
+  "format": "choice",
+  "accepted": true,
+  "correct": false,
+  "answer_id": "l1",
+  "evidence": null,
+  "made": {
+   "kind": "caption",
+   "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+   "contribution": [],
+   "learner_fr": null
+  },
+  "line": {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-01T07:13:10.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Celle-là, l'image la contredit. On garde l'autre.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "close_caption_choice": {
+  "session": {
+   "id": "mock-4139r9tw",
+   "week": {
+    "iso": "2026-W40",
+    "label": "Semaine 40",
+    "range": "du 28 sept. au 4 oct."
+   },
+   "status": "closed",
+   "started_at": "2026-10-01T07:12:07.000Z",
+   "closed_at": "2026-10-01T07:13:24.000Z",
+   "dossier": {
+    "id": "evergreen-marche-du-dimanche",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+    "topic": "food",
+    "evergreen": true,
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "plan": {
+    "band": "A2",
+    "ui_language": "fr",
+    "gloss_language": "fr",
+    "chosen_by": "recommended",
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "on_request",
+     "reading_target_words": 90,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "vocabulary": [
+     {
+      "fr": "marché couvert",
+      "gloss": "marché sous un toit",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "dehors",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "arrondissement",
+      "gloss": "quartier de Paris",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "matins",
+      "gloss": "débuts de journée",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "talent du métier",
+      "claim_id": "c4"
+     }
+    ],
+    "make_options": [
+     "headline_choice",
+     "reader_question",
+     "caption"
+    ],
+    "budget": {
+     "turns": 6,
+     "minutes": 12
+    }
+   },
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": true,
+    "dress": "coat",
+    "plate_kind": "story",
+    "picture_words": [
+     {
+      "fr": "marché couvert",
+      "gloss": "marché sous un toit",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "dehors",
+      "claim_id": "c3"
+     }
+    ],
+    "plate_url_second": "/assets/serial/locations/brocante.webp",
+    "plate_switched": true,
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   },
+   "beat": "close",
+   "room": {
+    "used": 1,
+    "phase": "open",
+    "remaining_turns": 5
+   },
+   "thread": [
+    {
+     "id": "1.n0",
+     "seq": 1,
+     "at": "2026-10-01T07:12:14.000Z",
+     "kind": "narration",
+     "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+    },
+    {
+     "id": "1.n1",
+     "seq": 1,
+     "at": "2026-10-01T07:12:14.000Z",
+     "kind": "narration",
+     "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+    },
+    {
+     "id": "1.l",
+     "seq": 1,
+     "at": "2026-10-01T07:12:21.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "look",
+     "text_fr": "Regarde : le marché en plein air, et derrière, le marché couvert.",
+     "translation": null,
+     "glosses": [
+      {
+       "fr": "marché couvert",
+       "gloss": "marché sous un toit",
+       "claim_id": "c3"
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "dehors",
+       "claim_id": "c3"
+      }
+     ],
+     "reason": null
+    },
+    {
+     "id": "1",
+     "seq": 1,
+     "at": "2026-10-01T07:12:28.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "purpose",
+     "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1.s",
+     "seq": 1,
+     "at": "2026-10-01T07:12:14.000Z",
+     "kind": "summary",
+     "speaker": "romy_tremblay",
+     "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+    },
+    {
+     "id": "2",
+     "seq": 2,
+     "at": "2026-10-01T07:12:35.000Z",
+     "kind": "mine",
+     "text_fr": "D'accord, je t'aide.",
+     "mode": "text"
+    },
+    {
+     "id": "3",
+     "seq": 3,
+     "at": "2026-10-01T07:12:42.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Merci ! Voilà ce qu’on sait.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "4",
+     "seq": 4,
+     "at": "2026-10-01T07:12:49.000Z",
+     "kind": "claims",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    {
+     "id": "5",
+     "seq": 5,
+     "at": "2026-10-01T07:12:56.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_intro",
+     "text_fr": "Il me faut une légende sous l'image. Qu'est-ce qu'on y voit ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "6",
+     "seq": 6,
+     "at": "2026-10-01T07:13:03.000Z",
+     "kind": "made",
+     "made": {
+      "kind": "caption",
+      "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+      "contribution": [],
+      "learner_fr": null
+     }
+    },
+    {
+     "id": "7",
+     "seq": 7,
+     "at": "2026-10-01T07:13:10.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_done",
+     "text_fr": "Celle-là, l'image la contredit. On garde l'autre.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    }
+   ],
+   "quick_replies": [],
+   "steer_to_make": false,
+   "artifact": {
+    "kind": "caption",
+    "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+    "contribution": [],
+    "learner_fr": null
+   },
+   "closing": {
+    "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",
+    "dispatch": {
+     "kicker_fr": "Le Papier de Romy · semaine 40",
+     "headline_fr": "Le marché d’Aligre",
+     "body_fr": [
+      "Paris compte 91 marchés.",
+      "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "La suite la semaine prochaine, avec les lecteurs."
+     ],
+     "contribution": [],
+     "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+     "sources": [
+      {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      },
+      {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     ],
+     "picture_url": "/assets/serial/locations/marche_canal.webp",
+     "caption_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+     "caption_by_learner": false
+    },
+    "kept": {
+     "words": [
+      {
+       "fr": "marché couvert",
+       "gloss": "marché sous un toit",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "dehors",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "arrondissement",
+       "gloss": "quartier de Paris",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "matins",
+       "gloss": "débuts de journée",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "savoir-faire",
+       "gloss": "talent du métier",
+       "claim_id": "c4",
+       "used": false
+      }
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    "question_kept_fr": null,
+    "colophon_fr": "La suite la semaine prochaine.",
+    "vignette": {
+     "id": "vig-mock-4139r9tw",
+     "session_id": "mock-4139r9tw",
+     "dossier_id": "evergreen-marche-du-dimanche",
+     "week": "2026-W40",
+     "place_label_fr": "Le marché d'Aligre",
+     "ring": "headline",
+     "kept_contribution": false,
+     "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+     "headline_fr": "Le marché d’Aligre",
+     "minted_at": "2026-10-01T07:13:17.000Z"
+    }
+   }
+  },
+  "closing": {
+   "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",
+   "dispatch": {
+    "kicker_fr": "Le Papier de Romy · semaine 40",
+    "headline_fr": "Le marché d’Aligre",
+    "body_fr": [
+     "Paris compte 91 marchés.",
+     "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "La suite la semaine prochaine, avec les lecteurs."
+    ],
+    "contribution": [],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ],
+    "picture_url": "/assets/serial/locations/marche_canal.webp",
+    "caption_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+    "caption_by_learner": false
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "marché couvert",
+      "gloss": "marché sous un toit",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "dehors",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "arrondissement",
+      "gloss": "quartier de Paris",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "matins",
+      "gloss": "débuts de journée",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "talent du métier",
+      "claim_id": "c4",
+      "used": false
+     }
+    ],
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "colophon_fr": "La suite la semaine prochaine.",
+   "vignette": {
+    "id": "vig-mock-4139r9tw",
+    "session_id": "mock-4139r9tw",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "week": "2026-W40",
+    "place_label_fr": "Le marché d'Aligre",
+    "ring": "headline",
+    "kept_contribution": false,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Le marché d’Aligre",
+    "minted_at": "2026-10-01T07:13:17.000Z"
+   }
+  }
+ },
+ "make_caption_pick_right": {
+  "kind": "caption",
+  "format": "choice",
+  "accepted": true,
+  "correct": true,
+  "answer_id": "l1",
+  "evidence": null,
+  "made": {
+   "kind": "caption",
+   "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+   "contribution": [
+    [
+     0,
+     71
+    ]
+   ],
+   "learner_fr": null
+  },
+  "line": {
+   "id": "7",
+   "seq": 7,
+   "at": "2026-10-01T08:01:10.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "C'est ta légende. Elle part sous l'image.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "close_caption_right": {
+  "session": {
+   "id": "mock-8ziy6we6",
+   "week": {
+    "iso": "2026-W40",
+    "label": "Semaine 40",
+    "range": "du 28 sept. au 4 oct."
+   },
+   "status": "closed",
+   "started_at": "2026-10-01T08:00:07.000Z",
+   "closed_at": "2026-10-01T08:01:24.000Z",
+   "dossier": {
+    "id": "evergreen-marche-du-dimanche",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+    "topic": "food",
+    "evergreen": true,
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "plan": {
+    "band": "A1",
+    "ui_language": "de",
+    "gloss_language": "de",
+    "chosen_by": "recommended",
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "support": {
+     "glosses": "shown",
+     "translation": "one_tap",
+     "reading_target_words": 60,
+     "vocab_target": 5,
+     "level": 0
+    },
+    "vocabulary": [
+     {
+      "fr": "marché couvert",
+      "gloss": "Markthalle",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "im Freien",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "arrondissement",
+      "gloss": "Bezirk",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "matins",
+      "gloss": "Vormittage",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "Können",
+      "claim_id": "c4"
+     }
+    ],
+    "make_options": [
+     "headline_choice",
+     "reader_question",
+     "caption"
+    ],
+    "budget": {
+     "turns": 6,
+     "minutes": 12
+    }
+   },
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": true,
+    "dress": "coat",
+    "plate_kind": "story",
+    "picture_words": [
+     {
+      "fr": "marché couvert",
+      "gloss": "Markthalle",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "im Freien",
+      "claim_id": "c3"
+     }
+    ],
+    "plate_url_second": "/assets/serial/locations/brocante.webp",
+    "plate_switched": true,
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   },
+   "beat": "close",
+   "room": {
+    "used": 1,
+    "phase": "open",
+    "remaining_turns": 5
+   },
+   "thread": [
+    {
+     "id": "1.n0",
+     "seq": 1,
+     "at": "2026-10-01T08:00:14.000Z",
+     "kind": "narration",
+     "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+    },
+    {
+     "id": "1.n1",
+     "seq": 1,
+     "at": "2026-10-01T08:00:14.000Z",
+     "kind": "narration",
+     "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+    },
+    {
+     "id": "1.l",
+     "seq": 1,
+     "at": "2026-10-01T08:00:21.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "look",
+     "text_fr": "Regarde : le marché en plein air, et derrière, le marché couvert.",
+     "translation": null,
+     "glosses": [
+      {
+       "fr": "marché couvert",
+       "gloss": "Markthalle",
+       "claim_id": "c3"
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "im Freien",
+       "claim_id": "c3"
+      }
+     ],
+     "reason": null
+    },
+    {
+     "id": "1",
+     "seq": 1,
+     "at": "2026-10-01T08:00:28.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "purpose",
+     "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1.s",
+     "seq": 1,
+     "at": "2026-10-01T08:00:14.000Z",
+     "kind": "summary",
+     "speaker": "romy_tremblay",
+     "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+    },
+    {
+     "id": "2",
+     "seq": 2,
+     "at": "2026-10-01T08:00:35.000Z",
+     "kind": "mine",
+     "text_fr": "D'accord, je t'aide.",
+     "mode": "text"
+    },
+    {
+     "id": "3",
+     "seq": 3,
+     "at": "2026-10-01T08:00:42.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Merci ! Voilà ce qu’on sait.",
+     "translation": "Danke! Das wissen wir.",
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "4",
+     "seq": 4,
+     "at": "2026-10-01T08:00:49.000Z",
+     "kind": "claims",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    {
+     "id": "5",
+     "seq": 5,
+     "at": "2026-10-01T08:00:56.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_intro",
+     "text_fr": "Il me faut une légende sous l'image. Qu'est-ce qu'on y voit ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "6",
+     "seq": 6,
+     "at": "2026-10-01T08:01:03.000Z",
+     "kind": "made",
+     "made": {
+      "kind": "caption",
+      "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+      "contribution": [
+       [
+        0,
+        71
+       ]
+      ],
+      "learner_fr": null
+     }
+    },
+    {
+     "id": "7",
+     "seq": 7,
+     "at": "2026-10-01T08:01:10.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_done",
+     "text_fr": "C'est ta légende. Elle part sous l'image.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    }
+   ],
+   "quick_replies": [],
+   "steer_to_make": false,
+   "artifact": {
+    "kind": "caption",
+    "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+    "contribution": [
+     [
+      0,
+      71
+     ]
+    ],
+    "learner_fr": null
+   },
+   "closing": {
+    "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",
+    "dispatch": {
+     "kicker_fr": "Le Papier de Romy · semaine 40",
+     "headline_fr": "Le marché d’Aligre",
+     "body_fr": [
+      "Paris compte 91 marchés.",
+      "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "La suite la semaine prochaine, avec les lecteurs."
+     ],
+     "contribution": [],
+     "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+     "sources": [
+      {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      },
+      {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     ],
+     "picture_url": "/assets/serial/locations/marche_canal.webp",
+     "caption_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+     "caption_by_learner": true
+    },
+    "kept": {
+     "words": [
+      {
+       "fr": "marché couvert",
+       "gloss": "Markthalle",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "im Freien",
+       "claim_id": "c3",
+       "used": false
+      },
+      {
+       "fr": "arrondissement",
+       "gloss": "Bezirk",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "matins",
+       "gloss": "Vormittage",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "savoir-faire",
+       "gloss": "Können",
+       "claim_id": "c4",
+       "used": false
+      }
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    "question_kept_fr": null,
+    "colophon_fr": "La suite la semaine prochaine.",
+    "vignette": {
+     "id": "vig-mock-8ziy6we6",
+     "session_id": "mock-8ziy6we6",
+     "dossier_id": "evergreen-marche-du-dimanche",
+     "week": "2026-W40",
+     "place_label_fr": "Le marché d'Aligre",
+     "ring": "headline",
+     "kept_contribution": true,
+     "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+     "headline_fr": "Le marché d’Aligre",
+     "minted_at": "2026-10-01T08:01:17.000Z"
+    }
+   }
+  },
+  "closing": {
+   "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",
+   "dispatch": {
+    "kicker_fr": "Le Papier de Romy · semaine 40",
+    "headline_fr": "Le marché d’Aligre",
+    "body_fr": [
+     "Paris compte 91 marchés.",
+     "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "La suite la semaine prochaine, avec les lecteurs."
+    ],
+    "contribution": [],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ],
+    "picture_url": "/assets/serial/locations/marche_canal.webp",
+    "caption_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
+    "caption_by_learner": true
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "marché couvert",
+      "gloss": "Markthalle",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "im Freien",
+      "claim_id": "c3",
+      "used": false
+     },
+     {
+      "fr": "arrondissement",
+      "gloss": "Bezirk",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "matins",
+      "gloss": "Vormittage",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "Können",
+      "claim_id": "c4",
+      "used": false
+     }
+    ],
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "colophon_fr": "La suite la semaine prochaine.",
+   "vignette": {
+    "id": "vig-mock-8ziy6we6",
+    "session_id": "mock-8ziy6we6",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "week": "2026-W40",
+    "place_label_fr": "Le marché d'Aligre",
+    "ring": "headline",
+    "kept_contribution": true,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Le marché d’Aligre",
+    "minted_at": "2026-10-01T08:01:17.000Z"
+   }
+  }
+ },
+ "session_b1_picture_arrive": {
+  "id": "mock-u9muxw24",
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "status": "active",
+  "started_at": "2026-10-01T09:30:07.000Z",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-marche-du-dimanche",
+   "title_fr": "Le marché du dimanche à Aligre",
+   "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+   "topic": "food",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "marche_paris",
+     "name": "Ville de Paris (paris.fr)",
+     "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+     "published_at": "2026-09-23"
+    },
+    {
+     "id": "marche_wikipedia_aligre",
+     "name": "Wikipédia, « Marché d'Aligre »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+     "published_at": "2026-03-10"
+    }
+   ]
+  },
+  "plan": {
+   "band": "B1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "recommended",
+   "angle": {
+    "id": "a1",
+    "fr": "Faire ses courses au marché : comment ça marche",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "none",
+    "reading_target_words": 140,
+    "vocab_target": 7,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "marché couvert",
+     "gloss": "covered market",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "en plein air",
+     "gloss": "outdoors",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "arrondissement",
+     "gloss": "district",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "matins",
+     "gloss": "mornings",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "savoir-faire",
+     "gloss": "know-how",
+     "claim_id": "c4"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "headline_write",
+    "reader_question",
+    "short_report",
+    "caption"
+   ],
+   "budget": {
+    "turns": 6,
+    "minutes": 12
+   }
+  },
+  "stage": {
+   "place_id": "marche_aligre",
+   "place_fr": "Le marché d'Aligre, un matin",
+   "plate_url": "/assets/serial/locations/marche_canal.webp",
+   "plate_place_id": "marche_canal",
+   "place_is_real": true,
+   "dress": "coat",
+   "plate_kind": "story",
+   "picture_words": [
+    {
+     "fr": "marché couvert",
+     "gloss": "covered market",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "en plein air",
+     "gloss": "outdoors",
+     "claim_id": "c3"
+    }
+   ],
+   "plate_url_second": "/assets/serial/locations/brocante.webp",
+   "plate_switched": false,
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 6
+  },
+  "thread": [
+   {
+    "id": "1.n0",
+    "seq": 1,
+    "at": "2026-10-01T09:30:14.000Z",
+    "kind": "narration",
+    "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+   },
+   {
+    "id": "1.n1",
+    "seq": 1,
+    "at": "2026-10-01T09:30:14.000Z",
+    "kind": "narration",
+    "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+   },
+   {
+    "id": "1.l",
+    "seq": 1,
+    "at": "2026-10-01T09:30:21.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "look",
+    "text_fr": "Regarde : le marché en plein air, et derrière, le marché couvert.",
+    "translation": null,
+    "glosses": [
+     {
+      "fr": "marché couvert",
+      "gloss": "covered market",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "outdoors",
+      "claim_id": "c3"
+     }
+    ],
+    "reason": null
+   },
+   {
+    "id": "1",
+    "seq": 1,
+    "at": "2026-10-01T09:30:28.000Z",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "purpose",
+    "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   },
+   {
+    "id": "1.s",
+    "seq": 1,
+    "at": "2026-10-01T09:30:14.000Z",
+    "kind": "summary",
+    "speaker": "romy_tremblay",
+    "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "artifact": null,
+  "closing": null
+ },
+ "make_offer_caption_b1": {
+  "recommended": "caption",
+  "options": [
+   {
+    "kind": "headline_choice",
+    "options": [
+     {
+      "id": "h1",
+      "text_fr": "À Aligre, le marché n'ouvre que le dimanche"
+     },
+     {
+      "id": "h2",
+      "text_fr": "À Aligre, le marché ouvre six matins sur sept"
+     },
+     {
+      "id": "h3",
+      "text_fr": "À Aligre, il n'y a plus de marché couvert"
+     }
+    ]
+   },
+   {
+    "kind": "headline_write",
+    "max_words": 14
+   },
+   {
+    "kind": "reader_question",
+    "seed_fr": null,
+    "uncertainty_fr": null
+   },
+   {
+    "kind": "short_report",
+    "seconds": 30
+   },
+   {
+    "kind": "caption",
+    "format": "write",
+    "picture_url": "/assets/serial/locations/marche_canal.webp",
+    "options": [],
+    "words": [
+     {
+      "fr": "marché couvert",
+      "gloss": "covered market",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "outdoors",
+      "claim_id": "c3"
+     }
+    ],
+    "max_words": 16
+   }
+  ],
+  "intro": {
+   "id": "5",
+   "seq": 5,
+   "at": "2026-10-01T09:30:56.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_intro",
+   "text_fr": "Il me faut une légende sous l'image. Qu'est-ce qu'on y voit ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make_caption_refused": {
+  "kind": "caption",
+  "format": "write",
+  "accepted": false,
+  "correct": null,
+  "answer_id": null,
+  "evidence": {
+   "outcome": "incorrect",
+   "capability_known": true,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "correct",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "contradicted",
+   "register_note": "ok"
+  },
+  "made": null,
+  "line": {
+   "id": "6",
+   "seq": 6,
+   "at": "2026-10-01T09:31:03.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Attention : l'image ou les sources disent autre chose. Tu réessaies ?",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "make_caption_write": {
+  "kind": "caption",
+  "format": "write",
+  "accepted": true,
+  "correct": null,
+  "answer_id": null,
+  "evidence": {
+   "outcome": "correct",
+   "capability_known": true,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "correct",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "correct",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register_note": "ok"
+  },
+  "made": {
+   "kind": "caption",
+   "text_fr": "Un marché en plein air, devant le marché couvert, un matin.",
+   "contribution": [
+    [
+     0,
+     59
+    ]
+   ],
+   "learner_fr": "Un marché en plein air, devant le marché couvert, un matin."
+  },
+  "line": {
+   "id": "8",
+   "seq": 8,
+   "at": "2026-10-01T09:31:17.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "C'est ta légende. Elle part sous l'image.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  }
+ },
+ "close_caption_write": {
+  "session": {
+   "id": "mock-u9muxw24",
+   "week": {
+    "iso": "2026-W40",
+    "label": "Semaine 40",
+    "range": "du 28 sept. au 4 oct."
+   },
+   "status": "closed",
+   "started_at": "2026-10-01T09:30:07.000Z",
+   "closed_at": "2026-10-01T09:31:31.000Z",
+   "dossier": {
+    "id": "evergreen-marche-du-dimanche",
+    "title_fr": "Le marché du dimanche à Aligre",
+    "summary_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+    "topic": "food",
+    "evergreen": true,
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ]
+   },
+   "plan": {
+    "band": "B1",
+    "ui_language": "en",
+    "gloss_language": "en",
+    "chosen_by": "recommended",
+    "angle": {
+     "id": "a1",
+     "fr": "Faire ses courses au marché : comment ça marche",
+     "purpose": "understand_change"
+    },
+    "support": {
+     "glosses": "tap",
+     "translation": "none",
+     "reading_target_words": 140,
+     "vocab_target": 7,
+     "level": 0
+    },
+    "vocabulary": [
+     {
+      "fr": "marché couvert",
+      "gloss": "covered market",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "outdoors",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "arrondissement",
+      "gloss": "district",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "matins",
+      "gloss": "mornings",
+      "claim_id": "c2"
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "know-how",
+      "claim_id": "c4"
+     }
+    ],
+    "make_options": [
+     "headline_choice",
+     "headline_write",
+     "reader_question",
+     "short_report",
+     "caption"
+    ],
+    "budget": {
+     "turns": 6,
+     "minutes": 12
+    }
+   },
+   "stage": {
+    "place_id": "marche_aligre",
+    "place_fr": "Le marché d'Aligre, un matin",
+    "plate_url": "/assets/serial/locations/marche_canal.webp",
+    "plate_place_id": "marche_canal",
+    "place_is_real": true,
+    "dress": "coat",
+    "plate_kind": "story",
+    "picture_words": [
+     {
+      "fr": "marché couvert",
+      "gloss": "covered market",
+      "claim_id": "c3"
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "outdoors",
+      "claim_id": "c3"
+     }
+    ],
+    "plate_url_second": "/assets/serial/locations/brocante.webp",
+    "plate_switched": true,
+    "cast": [
+     {
+      "id": "romy_tremblay",
+      "hold": "notebook"
+     },
+     {
+      "id": "user",
+      "hold": null
+     }
+    ]
+   },
+   "beat": "close",
+   "room": {
+    "used": 1,
+    "phase": "open",
+    "remaining_turns": 5
+   },
+   "thread": [
+    {
+     "id": "1.n0",
+     "seq": 1,
+     "at": "2026-10-01T09:30:14.000Z",
+     "kind": "narration",
+     "text_fr": "Un dimanche matin, entre les cagettes de poireaux et de clémentines."
+    },
+    {
+     "id": "1.n1",
+     "seq": 1,
+     "at": "2026-10-01T09:30:14.000Z",
+     "kind": "narration",
+     "text_fr": "Romy t'attend devant un étal, son carnet ouvert."
+    },
+    {
+     "id": "1.l",
+     "seq": 1,
+     "at": "2026-10-01T09:30:21.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "look",
+     "text_fr": "Regarde : le marché en plein air, et derrière, le marché couvert.",
+     "translation": null,
+     "glosses": [
+      {
+       "fr": "marché couvert",
+       "gloss": "covered market",
+       "claim_id": "c3"
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "outdoors",
+       "claim_id": "c3"
+      }
+     ],
+     "reason": null
+    },
+    {
+     "id": "1",
+     "seq": 1,
+     "at": "2026-10-01T09:30:28.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "purpose",
+     "text_fr": "Je dois expliquer ça à mes lecteurs de Montréal : « Faire ses courses au marché : comment ça marche ». Tu m’aides ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "1.s",
+     "seq": 1,
+     "at": "2026-10-01T09:30:14.000Z",
+     "kind": "summary",
+     "speaker": "romy_tremblay",
+     "text_fr": "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air."
+    },
+    {
+     "id": "2",
+     "seq": 2,
+     "at": "2026-10-01T09:30:35.000Z",
+     "kind": "mine",
+     "text_fr": "D'accord, je t'aide.",
+     "mode": "text"
+    },
+    {
+     "id": "3",
+     "seq": 3,
+     "at": "2026-10-01T09:30:42.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "reply",
+     "text_fr": "Merci ! Voilà ce qu’on sait.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "4",
+     "seq": 4,
+     "at": "2026-10-01T09:30:49.000Z",
+     "kind": "claims",
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    {
+     "id": "5",
+     "seq": 5,
+     "at": "2026-10-01T09:30:56.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_intro",
+     "text_fr": "Il me faut une légende sous l'image. Qu'est-ce qu'on y voit ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "6",
+     "seq": 6,
+     "at": "2026-10-01T09:31:03.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_done",
+     "text_fr": "Attention : l'image ou les sources disent autre chose. Tu réessaies ?",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    },
+    {
+     "id": "7",
+     "seq": 7,
+     "at": "2026-10-01T09:31:10.000Z",
+     "kind": "made",
+     "made": {
+      "kind": "caption",
+      "text_fr": "Un marché en plein air, devant le marché couvert, un matin.",
+      "contribution": [
+       [
+        0,
+        59
+       ]
+      ],
+      "learner_fr": "Un marché en plein air, devant le marché couvert, un matin."
+     }
+    },
+    {
+     "id": "8",
+     "seq": 8,
+     "at": "2026-10-01T09:31:17.000Z",
+     "kind": "line",
+     "speaker": "romy_tremblay",
+     "role": "make_done",
+     "text_fr": "C'est ta légende. Elle part sous l'image.",
+     "translation": null,
+     "glosses": [],
+     "reason": null
+    }
+   ],
+   "quick_replies": [],
+   "steer_to_make": false,
+   "artifact": {
+    "kind": "caption",
+    "text_fr": "Un marché en plein air, devant le marché couvert, un matin.",
+    "contribution": [
+     [
+      0,
+      59
+     ]
+    ],
+    "learner_fr": "Un marché en plein air, devant le marché couvert, un matin."
+   },
+   "closing": {
+    "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",
+    "dispatch": {
+     "kicker_fr": "Le Papier de Romy · semaine 40",
+     "headline_fr": "Le marché d’Aligre",
+     "body_fr": [
+      "Paris compte 91 marchés.",
+      "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "La suite la semaine prochaine, avec les lecteurs."
+     ],
+     "contribution": [],
+     "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+     "sources": [
+      {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      },
+      {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     ],
+     "picture_url": "/assets/serial/locations/marche_canal.webp",
+     "caption_fr": "Un marché en plein air, devant le marché couvert, un matin.",
+     "caption_by_learner": true
+    },
+    "kept": {
+     "words": [
+      {
+       "fr": "marché couvert",
+       "gloss": "covered market",
+       "claim_id": "c3",
+       "used": true
+      },
+      {
+       "fr": "en plein air",
+       "gloss": "outdoors",
+       "claim_id": "c3",
+       "used": true
+      },
+      {
+       "fr": "arrondissement",
+       "gloss": "district",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "matins",
+       "gloss": "mornings",
+       "claim_id": "c2",
+       "used": false
+      },
+      {
+       "fr": "savoir-faire",
+       "gloss": "know-how",
+       "claim_id": "c4",
+       "used": false
+      }
+     ],
+     "claims": [
+      {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "Paris compte 91 marchés.",
+       "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_paris",
+        "name": "Ville de Paris (paris.fr)",
+        "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+        "published_at": "2026-09-23"
+       }
+      },
+      {
+       "id": "c2",
+       "kind": "fact",
+       "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+       "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+       "attributed_to": null,
+       "source": {
+        "id": "marche_wikipedia_aligre",
+        "name": "Wikipédia, « Marché d'Aligre »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+        "published_at": "2026-03-10"
+       }
+      }
+     ]
+    },
+    "question_kept_fr": null,
+    "colophon_fr": "La suite la semaine prochaine.",
+    "vignette": {
+     "id": "vig-mock-u9muxw24",
+     "session_id": "mock-u9muxw24",
+     "dossier_id": "evergreen-marche-du-dimanche",
+     "week": "2026-W40",
+     "place_label_fr": "Le marché d'Aligre",
+     "ring": "headline",
+     "kept_contribution": true,
+     "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+     "headline_fr": "Le marché d’Aligre",
+     "minted_at": "2026-10-01T09:31:24.000Z"
+    }
+   }
+  },
+  "closing": {
+   "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",
+   "dispatch": {
+    "kicker_fr": "Le Papier de Romy · semaine 40",
+    "headline_fr": "Le marché d’Aligre",
+    "body_fr": [
+     "Paris compte 91 marchés.",
+     "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+     "La suite la semaine prochaine, avec les lecteurs."
+    ],
+    "contribution": [],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "sources": [
+     {
+      "id": "marche_paris",
+      "name": "Ville de Paris (paris.fr)",
+      "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+      "published_at": "2026-09-23"
+     },
+     {
+      "id": "marche_wikipedia_aligre",
+      "name": "Wikipédia, « Marché d'Aligre »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+      "published_at": "2026-03-10"
+     }
+    ],
+    "picture_url": "/assets/serial/locations/marche_canal.webp",
+    "caption_fr": "Un marché en plein air, devant le marché couvert, un matin.",
+    "caption_by_learner": true
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "marché couvert",
+      "gloss": "covered market",
+      "claim_id": "c3",
+      "used": true
+     },
+     {
+      "fr": "en plein air",
+      "gloss": "outdoors",
+      "claim_id": "c3",
+      "used": true
+     },
+     {
+      "fr": "arrondissement",
+      "gloss": "district",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "matins",
+      "gloss": "mornings",
+      "claim_id": "c2",
+      "used": false
+     },
+     {
+      "fr": "savoir-faire",
+      "gloss": "know-how",
+      "claim_id": "c4",
+      "used": false
+     }
+    ],
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Paris compte 91 marchés.",
+      "quote": "les 91 marchés de Paris font vivre la ville au quotidien",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_paris",
+       "name": "Ville de Paris (paris.fr)",
+       "url": "https://www.paris.fr/pages/les-marches-parisiens-2428",
+       "published_at": "2026-09-23"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "Le marché d'Aligre, dans le 12e arrondissement, a lieu tous les matins, six jours sur sept.",
+      "quote": "Le marché d’Aligre se déroule tous les matins sauf le lundi place d'Aligre et rue d'Aligre, dans le 12e arrondissement de Paris.",
+      "attributed_to": null,
+      "source": {
+       "id": "marche_wikipedia_aligre",
+       "name": "Wikipédia, « Marché d'Aligre »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=March%C3%A9_d%27Aligre&oldid=233954957",
+       "published_at": "2026-03-10"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "colophon_fr": "La suite la semaine prochaine.",
+   "vignette": {
+    "id": "vig-mock-u9muxw24",
+    "session_id": "mock-u9muxw24",
+    "dossier_id": "evergreen-marche-du-dimanche",
+    "week": "2026-W40",
+    "place_label_fr": "Le marché d'Aligre",
+    "ring": "headline",
+    "kept_contribution": true,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Le marché d’Aligre",
+    "minted_at": "2026-10-01T09:31:24.000Z"
+   }
+  }
  }
 }

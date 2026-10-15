@@ -63,6 +63,8 @@ export type JourneyCopyKey =
   | 'retrying'
   | 'reconciled'
   | 'transport_error'
+  // Live walk #116: the same failure on a step with nothing written.
+  | 'transport_error_plain'
   | 'retry'
   | 'offline_cached'
   | 'offline_empty'
@@ -135,6 +137,8 @@ export type JourneyCopyKey =
   // for one target the scene actually practised.
   | 'practice_this'
   | 'done_today'
+  // Walk #123: the episode is done, La Forge or the words are still open.
+  | 'story_done'
   | 'done_review'
   | 'nothing_offered'
   // WP-32 «Écouter d'abord» — the four-stage listening cycle. Chrome only:
@@ -294,6 +298,7 @@ const EN: CopyTable = {
   retrying: 'Still working — retrying the same request.',
   reconciled: 'This scene moved on. It has been refreshed for you.',
   transport_error: 'That did not reach the server. Your answer was kept.',
+  transport_error_plain: 'That did not reach the server. Try again.',
   retry: 'Try again',
   offline_cached: 'You are offline. This is your saved copy — nothing on it has been checked.',
   offline_empty: 'You are offline, and there is nothing saved to show yet.',
@@ -355,6 +360,7 @@ const EN: CopyTable = {
   more_practice_note: 'Optional. It does not reopen today’s scene.',
   practice_this: 'Practise this',
   done_today: 'Done for today',
+  story_done: 'Episode done',
   done_review: 'Look again',
   nothing_offered: 'No scene is available right now.',
   listen_first_label: 'Listen first',
@@ -495,6 +501,7 @@ const DE: CopyTable = {
   retrying: 'Läuft noch — dieselbe Anfrage wird wiederholt.',
   reconciled: 'Diese Szene hat sich geändert. Sie wurde für dich aktualisiert.',
   transport_error: 'Das kam nicht beim Server an. Deine Antwort blieb erhalten.',
+  transport_error_plain: 'Das kam nicht beim Server an. Versuch es noch einmal.',
   retry: 'Erneut versuchen',
   offline_cached: 'Du bist offline. Das ist deine gespeicherte Kopie — nichts darin wurde geprüft.',
   offline_empty: 'Du bist offline, und es ist noch nichts gespeichert.',
@@ -556,6 +563,7 @@ const DE: CopyTable = {
   more_practice_note: 'Optional. Die heutige Szene wird dadurch nicht neu geöffnet.',
   practice_this: 'Das üben',
   done_today: 'Für heute erledigt',
+  story_done: 'Folge geschafft',
   done_review: 'Noch einmal ansehen',
   nothing_offered: 'Gerade ist keine Szene verfügbar.',
   listen_first_label: 'Zuerst hören',
@@ -696,6 +704,7 @@ const FR: CopyTable = {
   retrying: 'Toujours en cours — la même requête est relancée.',
   reconciled: 'Cette scène a changé. Elle a été actualisée pour vous.',
   transport_error: 'Le serveur n’a pas reçu cela. Votre réponse est conservée.',
+  transport_error_plain: 'Le serveur n’a pas reçu cela. Réessaie.',
   retry: 'Réessayer',
   offline_cached: 'Vous êtes hors ligne. Ceci est votre copie enregistrée — rien n’y a été corrigé.',
   offline_empty: 'Vous êtes hors ligne, et rien n’est encore enregistré.',
@@ -757,6 +766,7 @@ const FR: CopyTable = {
   more_practice_note: 'Facultatif. Cela ne rouvre pas la scène du jour.',
   practice_this: 'Retravailler',
   done_today: 'Journée bouclée',
+  story_done: 'Épisode bouclé',
   done_review: 'Revoir',
   nothing_offered: 'Aucune scène n’est disponible pour le moment.',
   listen_first_label: 'Écouter d’abord',

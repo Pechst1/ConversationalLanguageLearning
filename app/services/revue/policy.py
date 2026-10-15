@@ -82,10 +82,51 @@ PLATE_PEOPLE_CLAUSE = (
     "close-ups; no animals in the foreground."
 )
 
+#: WP-119 §8.4 v2 (owner, 2026-10-14: «not so restrictive»): the story's people at whatever size
+#: the scene needs, in the plate's flat print, recognisable by what they do — never a likeness.
+STORY_PEOPLE_CLAUSE = (
+    "People in the same flat screen-print style, with simple stylised faces built from a few flat shapes. "
+    "They can be as large as the picture needs, in the foreground or far away, told apart by what they do, "
+    "their clothes, their gestures and what they hold; never a recognisable likeness or a portrait of a real "
+    "person."
+)
+
+#: §8.4 v2: what a story picture's brief may not ask for. Text is no longer banned outright (a
+#: menu, a sign or a price in «guillemets» may tell the story, :data:`STORY_MAX_QUOTED_WORDS`); portraits,
+#: emblems, logos, banners and flags still are.
+STORY_FORBIDDEN: tuple[str, ...] = (
+    "portrait", "portraits", "close-up", "closeup", "gros plan", "selfie", "likeness",
+    "emblem", "emblems", "embleme", "emblemes", "logo", "logos", "banner", "banners", "banderole", "banderoles",
+    "slogan", "slogans", "flag", "flags", "drapeau", "drapeaux", "placard", "placards", "pancarte", "pancartes",
+)
+#: Kept for readers of the v1 rule (the plates' list plus these).
+STORY_FORBIDDEN_EXTRA: tuple[str, ...] = (
+    "flag", "flags", "drapeau", "drapeaux", "placard", "placards", "pancarte", "pancartes", "likeness",
+)
+#: §8.4 v3 (owner, 2026-10-14, with the sunburst model, which spells well): in-scene lettering is free;
+#: these caps only stop a brief from pasting a paragraph into the painter's text.
+STORY_MAX_QUOTED = 8
+STORY_MAX_QUOTED_WORDS = 12
+
+#: WP-119 §8.4 v2: the stage still stands Romy and Toi over the picture and crops it to a band, but
+#: the moment no longer has to squeeze into the left third: it only keeps clear of the bottom-right
+#: corner (Toi) and of the very top and bottom edges (the crop).
+STORY_STAGE_CLAUSE = (
+    "Composition: one clear focal point with real depth; the app's drawn characters will stand over the "
+    "bottom-right corner, so keep the story's action and key object visible elsewhere, ideally left of centre "
+    "or in the upper half, and away from the very top and bottom edges, which may be cropped."
+)
+
 #: WP-119 §8.1 feasibility (2026-10-02): the model added readable minutes on a metro board and
 #: flags in a press room unasked. National colours in architecture are fine (§12.4); flags,
 #: emblems, logos and anything readable are not.
 PLATE_NEGATIVE = "No flags, emblems or logos, no readable text or numbers, no signage lettering."
+#: §8.4 v2: a story picture may carry the lettering its brief quotes, nothing else.
+STORY_NEGATIVE = (
+    "No flags, emblems or logos. Any lettering is real French, spelled correctly, and belongs to the place "
+    "(signs, menus, labels, covers); the words quoted above appear exactly as written. Never invent a "
+    "quotation, headline or statement by a real person."
+)
 
 #: The ``outfit`` catalogue of the Revue stage (§8.2). ``coat`` is the canon default.
 OUTFITS: tuple[str, ...] = ("coat", "suit", "apron", "raincoat", "sport", "scarf_only", "chef", "hi_vis")
@@ -422,15 +463,26 @@ def fallback_place_for(kind: str | None) -> str:
     return PLACE_FALLBACKS.get(str(kind or ""), PLACE_FALLBACKS["default"])
 
 
-def plate_forbidden_hits(text: str | None) -> list[str]:
-    """The :data:`PLATE_FORBIDDEN` words a plate brief contains (whole words, accent-folded)."""
+def plate_forbidden_hits(text: str | None, *, extra: tuple[str, ...] = ()) -> list[str]:
+    """The :data:`PLATE_FORBIDDEN` words (and ``extra``) a plate brief contains (whole words, accent-folded)."""
 
-    forbidden = {_fold_ascii(word) for word in PLATE_FORBIDDEN}
+    return _forbidden_hits(text, (*PLATE_FORBIDDEN, *extra))
+
+
+def _forbidden_hits(text: str | None, words: tuple[str, ...]) -> list[str]:
+    forbidden = {_fold_ascii(word) for word in words}
     seen: list[str] = []
     for token in _tokens(text or ""):
         if token in forbidden and token not in seen:
             seen.append(token)
     return seen
+
+
+def story_forbidden_hits(text: str | None) -> list[str]:
+    """§8.4 v2: what a story picture's painter text may not ask for (:data:`STORY_FORBIDDEN`: a
+    portrait, an emblem or logo, a banner, a flag or a placard)."""
+
+    return _forbidden_hits(text, STORY_FORBIDDEN)
 
 
 def is_sensitive(text: str | None) -> bool:

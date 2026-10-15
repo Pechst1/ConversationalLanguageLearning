@@ -121,3 +121,17 @@ test('one shot, like a transform: right, or the right sentence is shown', () => 
   assert.equal(F.followUpSettled('revealed'), true);
   assert.equal(F.followUpSettled(null), false);
 });
+
+test('#115: a tile build without the punctuation the tiles never offered is right', () => {
+  const { followUp } = F.classifyRepair(WRONG_ITEM, {
+    corrected_fr: 'Tu es à Toulouse cette semaine, Marin ?',
+    follow_up: { ...FOLLOW_UP, options: ['es', 'est', 'Tu', 'à', 'semaine', 'cette', 'Marin', 'Toulouse'] },
+  });
+  assert.equal(F.followUpOutcome(['Tu', 'es', 'à', 'Toulouse', 'cette', 'semaine', 'Marin'], followUp), 'right');
+  // Still the right words in the right order.
+  assert.equal(F.followUpMatches(['Tu', 'est', 'à', 'Toulouse', 'cette', 'semaine', 'Marin'], followUp), false);
+  assert.equal(F.followUpMatches(['Marin', 'Tu', 'es', 'à', 'Toulouse', 'cette', 'semaine'], followUp), false);
+  // A typed answer keeps its fold: an accent slip is still a miss.
+  assert.equal(F.followUpMatches('Tu es à Toulouse cette semaine, Marin', followUp), true);
+  assert.equal(F.followUpMatches('Tu es a Toulouse cette semaine, Marin ?', followUp), false);
+});

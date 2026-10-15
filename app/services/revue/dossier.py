@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -199,6 +199,47 @@ class Place(_Model):
     geo: Geo | None = None
 
 
+class VisualWord(_Model):
+    """A word the story picture shows: the French with its article (it appears in a claim, so
+    the session's vocabulary can carry it) and, in English for the painter, what shows it."""
+
+    fr: str = Field(min_length=1, max_length=60)
+    shows: str = Field(min_length=1, max_length=200)
+
+
+class StoryVisual(_Model):
+    """The story picture's brief (WP-119 §8.4): the one moment that says what happened,
+    painted once on the site (``places[0]``) and shared by every learner.
+
+    English for the painter (``moment``, ``symbol``, ``viewpoint``, ``light``, each word's
+    ``shows``), where people appear by their role and never by name; French for the learner
+    (``caption_fr``, which names them, ``look_fr``, Romy pointing at the picture, and
+    ``decoys_fr``, the wrong captions of the A1–A2 caption choice).
+    """
+
+    #: v2 (owner, 2026-10-14): ``scene`` paints the real moment at the site; ``editorial`` paints
+    #: one bold visual idea (``symbol``, large in the frame) for news that is said, decided or
+    #: counted rather than seen. Rows built before v2 read as ``scene``.
+    kind: Literal["scene", "editorial"] = "scene"
+    moment: str = Field(min_length=1, max_length=400)
+    symbol: str | None = Field(None, max_length=240)
+    viewpoint: str = Field(min_length=1, max_length=200)
+    light: str = Field(min_length=1, max_length=160)
+    words: list[VisualWord] = Field(default_factory=list, max_length=3)
+    caption_fr: str = Field(min_length=1, max_length=200)
+    look_fr: str | None = Field(None, max_length=240)
+    #: «La légende» at A1–A2: two captions in the same style that the picture plainly
+    #: contradicts (one visible detail wrong: the place, who acts, what they do).
+    decoys_fr: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(default_factory=list, max_length=2)
+
+    def painter_text(self) -> str:
+        """Everything the painter reads, for the staging checks (names, forbidden words)."""
+
+        return " ".join(
+            part for part in (self.moment, self.symbol or "", self.viewpoint, self.light, *[w.shows for w in self.words]) if part
+        )
+
+
 class TimeScope(_Model):
     """When the story happens (``happening``, an ISO interval) and until when it matters."""
 
@@ -257,6 +298,9 @@ class EditorialDossier(_Model):
     evergreen: bool = False
     #: WP-120 §4.1: the one object the vignette's pictogram draws («une urne»); chosen by the builder.
     vignette_object_fr: str | None = None
+    #: WP-119 §8.4: the story picture's brief; ``None`` on dossiers built before it (they keep
+    #: the place plate) and when the builder's brief was refused.
+    visual: StoryVisual | None = None
 
     @field_validator("week")
     @classmethod

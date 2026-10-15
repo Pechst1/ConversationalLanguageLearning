@@ -111,7 +111,8 @@ test('the session shows the walkthrough before the cast, a sticker per step, and
   assert.match(source, /const storyCompleted = dayFinished && journey\?\.status === 'completed'/);
   assert.match(source, /firstDay && storyCompleted && firstDayRoute/);
   // The recap's own forge button would double the route's on the first day.
-  assert.match(source, /forgeAfterDay=\{firstDay && storyCompleted && firstDayRoute \? null : forgeAfterDay\}/);
+  // Round 3: with the day as one sequence, the scene's ending hands on itself.
+  assert.match(source, /forgeAfterDay=\{\(firstDay && storyCompleted && firstDayRoute\) \|\| daySession \? null : forgeAfterDay\}/);
 });
 
 test('without localStorage the device store keeps the route in memory for the page', () => {
@@ -132,5 +133,15 @@ test('without localStorage the device store keeps the route in memory for the pa
   } finally {
     if (previous === undefined) delete global.window;
     else global.window = previous;
+  }
+});
+
+test('#123: the episode-end sticker does not say the day is done, and names what follows', () => {
+  // Round 3: after the scene come the words, then the grammar.
+  const expected = { de: /Wörter.*Grammatik/, en: /words.*grammar/, fr: /mots.*grammaire/ };
+  for (const language of ['de', 'en', 'fr']) {
+    const { title, body } = steps.firstStepsCopy(language).stickers.resolution;
+    assert.doesNotMatch(`${title} ${body}`, /Tag ist geschafft|Ende des Tages|day is done|end of the day|journée est faite|fin du jour/);
+    assert.match(body, expected[language]);
   }
 });

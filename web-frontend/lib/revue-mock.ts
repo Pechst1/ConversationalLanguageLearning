@@ -42,6 +42,13 @@
  *      authored fallback pictogram from app/services/revue/evergreen/pictograms),
  *      and `GET /revue/vignettes` lists them.
  *
+ * WP-119 §8.4 (`pictures: true`; the page turns it on): the recommended story has
+ * its own picture (the place's plate stands in for the print). The stage shows it
+ * with the words it shows, Romy points at it («Regarde : …», a `look` line), its
+ * words lead the vocabulary, «La légende» is offered and leads the make (A1–A2
+ * choose among three captions, B1+ write it), and the dispatch prints the picture
+ * under the caption; the band above them has moved on by then (`second_plate`).
+ *
  * State lives in memory and in `sessionStorage` (try/catch), so reloading the page
  * replays the session — the resume contract, in miniature.
  */
@@ -80,6 +87,12 @@ type MockDossier = {
   contradictions?: string[];
   /** Phase 2: the dossier's guest and their scripted lines. */
   guest?: { cast_id: string; enter: string; reason_fr: string; disagree: string; moved: string };
+  /**
+   * WP-119 §8.4: the story's own picture — its words lead the vocabulary (`fr` as in `vocabulary`).
+   * `second_plate`: where the band moves on to at make, since «La légende» and the dispatch print
+   * the picture (the API: the site's own plate; here that plate stands in for the print).
+   */
+  picture?: { url: string; caption_fr: string; look_fr: string; words: string[]; decoys_fr: [string, string]; second_plate: string };
 };
 
 const MARCHE: MockDossier = {
@@ -156,6 +169,15 @@ const MARCHE: MockDossier = {
     reason_fr: 'Elle achète les citrons du bar ici, chaque dimanche.',
     disagree: "Je ne suis pas d'accord. Au marché, on paie aussi la qualité.",
     moved: "Bon. Vu comme ça, tu n'as pas tort.",
+  },
+  picture: {
+    url: '/assets/serial/locations/marche_canal.webp',
+    caption_fr: 'Un marché en plein air, un matin, entre les étals de fruits et légumes.',
+    look_fr: 'Regarde : le marché en plein air, et derrière, le marché couvert.',
+    words: ['en plein air', 'marché couvert'],
+    decoys_fr: ['Un marché fermé, un soir de pluie.', 'Un supermarché vide, un lundi matin.'],
+    // The market's brocante corner, place d'Aligre.
+    second_plate: '/assets/serial/locations/brocante.webp',
   },
 };
 
@@ -340,6 +362,7 @@ const CLOSE_LINES: Record<string, string> = {
   headline_choice: 'Je garde ton titre. Il part avec mon papier.',
   headline_write: 'Ton titre part tel quel avec mon papier. Je n’y touche pas.',
   short_report: 'Ton reportage part avec mon papier. À Montréal, on va t’entendre.',
+  caption: "Ta légende part sous l'image, avec mon papier.",
   none: "Les sources ne m'ont pas tout dit, mais on a de quoi écrire trois lignes.",
 };
 // Phase 2 · Romy's lines around the make (WIRE §6.4).
@@ -348,6 +371,7 @@ const INTRO_LINES: Record<string, string> = {
   headline_write: "Il me faut un titre. Tu l'écris ? Court, et vrai.",
   reader_question: "Ta question, on la pose aux lecteurs ? On l'écrit ensemble.",
   short_report: 'Raconte-moi ce que tu vois, trente secondes, comme à la radio.',
+  caption: "Il me faut une légende sous l'image. Qu'est-ce qu'on y voit ?",
 };
 const DONE_LINES = {
   pick_right: "Je le prends. C'est notre titre.",
@@ -356,9 +380,14 @@ const DONE_LINES = {
   write: "Je le prends. C'est ton titre.",
   write_rejected: 'Attention : les sources disent autre chose. Tu réessaies ?',
   report: "C'est enregistré. Je le mets dans mon papier.",
+  caption: "C'est ta légende. Elle part sous l'image.",
+  caption_wrong: "Celle-là, l'image la contredit. On garde l'autre.",
+  caption_refused: "Attention : l'image ou les sources disent autre chose. Tu réessaies ?",
 };
 const HEADLINE_WORDS = 14;
 const REPORT_SECONDS = 30;
+/** grading.CAPTION_WORDS: the most words a caption has, by band. */
+const CAPTION_WORDS: Record<Band, number> = { A1: 10, A2: 12, B1: 16, B2: 20 };
 const QR_AGREE = { label: "D'accord, je t'aide.", send_fr: "D'accord, je t'aide." };
 const QR_MORE = { label: 'Plus', send_fr: "Dis-m'en plus." };
 export const MOCK_FORMULATE_FR = 'On formule la question ensemble ?';
@@ -430,6 +459,8 @@ export type MockOptions = {
   persist?: boolean;
   /** The clock (tests). */
   now?: () => Date;
+  /** WP-119 §8.4: the recommended story has its own picture (default false; the page turns it on). */
+  pictures?: boolean;
 };
 
 const STORAGE_KEY = 'revue-mock-v1';
@@ -510,6 +541,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   const latency = options.latency ?? 0;
   const now = options.now ?? (() => new Date());
   const persist = options.persist ?? typeof window !== 'undefined';
+  const pictureOf = (d: MockDossier) => (options.pictures ? d.picture ?? null : null);
   let sessions: Record<string, MockSession> = {};
 
   if (persist) {
@@ -549,13 +581,32 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     source: sourceOf(d, c.source_id),
   });
   const glossOf = (v: MockDossier['vocabulary'][number], lang: Lang) => ({ fr: v.fr, gloss: lang === 'de' ? v.de : lang === 'fr' ? v.gloss_fr : v.en, claim_id: v.claim_id });
+  /** §8.4: the plan's vocabulary, the picture's words first. */
+  const vocabularyOf = (d: MockDossier) => {
+    const picture = pictureOf(d);
+    if (!picture) return d.vocabulary;
+    const first = d.vocabulary.filter((v) => picture.words.includes(v.fr));
+    return [...first, ...d.vocabulary.filter((v) => !picture.words.includes(v.fr))];
+  };
+  const pictureWordsOf = (d: MockDossier, lang: Lang) => {
+    const picture = pictureOf(d);
+    return picture ? d.vocabulary.filter((v) => picture.words.includes(v.fr)).map((v) => glossOf(v, lang)) : [];
+  };
   const stageOf = (d: MockDossier, s?: MockSession) => ({
     place_id: d.place.id,
     place_fr: d.place.name_fr,
-    plate_url: d.place.plate,
+    plate_url: pictureOf(d)?.url ?? d.place.plate,
     plate_place_id: d.place.plate_place_id,
-    place_is_real: d.place.real,
+    // The story's own picture is the place itself: nothing stands in.
+    place_is_real: d.place.real || Boolean(pictureOf(d)),
     dress: d.place.dress,
+    plate_kind: pictureOf(d) ? 'story' : d.place.real ? 'season' : 'stand_in',
+    picture_words: s ? pictureWordsOf(d, s.language) : [],
+    // §8.4: the band moves on at the guest's entrance or at make (§12.7), so the picture
+    // «La légende» and the dispatch print is not also above them.
+    ...(pictureOf(d)
+      ? { plate_url_second: pictureOf(d)?.second_plate, plate_switched: Boolean(s && (s.guest || s.makeStarted || s.closing)) }
+      : {}),
     // A guest on stage stands right after Romy (WIRE §1, phase 2).
     cast: [
       { id: 'romy_tremblay', hold: 'notebook' },
@@ -569,7 +620,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     summary_fr: d.summary_fr,
     topic: d.topic,
     place_fr: d.place.name_fr,
-    plate_url: d.place.plate,
+    plate_url: pictureOf(d)?.url ?? d.place.plate,
     evergreen: true,
     stage: stageOf(d),
   });
@@ -602,7 +653,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   };
   const glossesIn = (s: MockSession, d: MockDossier, text: string) => {
     const folded = fold(text);
-    return d.vocabulary.filter((v) => folded.includes(fold(v.fr))).map((v) => glossOf(v, s.language));
+    return vocabularyOf(d).filter((v) => folded.includes(fold(v.fr))).map((v) => glossOf(v, s.language));
   };
   const isB1 = (s: MockSession) => s.band === 'B1' || s.band === 'B2';
   const line = (s: MockSession, d: MockDossier, seq: number, role: string, text: string, suffix = '', reason: string | null = null) => {
@@ -679,8 +730,11 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         chosen_by: s.chosenBy,
         angle: d.angle,
         support: supportOf(s),
-        vocabulary: d.vocabulary.map((v) => glossOf(v, s.language)),
-        make_options: isB1(s) ? ['headline_choice', 'headline_write', 'reader_question', 'short_report'] : ['headline_choice', 'reader_question'],
+        vocabulary: vocabularyOf(d).map((v) => glossOf(v, s.language)),
+        make_options: [
+          ...(isB1(s) ? ['headline_choice', 'headline_write', 'reader_question', 'short_report'] : ['headline_choice', 'reader_question']),
+          ...(pictureOf(d) ? ['caption'] : []),
+        ],
         budget: { turns: BUDGET_TURNS, minutes: 12 },
       },
       stage: stageOf(d, s),
@@ -789,7 +843,10 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const seq = nextSeq(s);
     const at = stamp();
     d.narration.forEach((text, index) => s.thread.push({ id: `${seq}.n${index}`, seq, at, kind: 'narration', text_fr: text }));
-    if (d.place_note && !d.place.real) s.thread.push(line(s, d, seq, 'place_note', d.place_note, '.p'));
+    // §8.4: on the story's own picture Romy points at what it shows; nothing stands in.
+    const picture = pictureOf(d);
+    if (picture) s.thread.push(line(s, d, seq, 'look', picture.look_fr, '.l'));
+    else if (d.place_note && !d.place.real) s.thread.push(line(s, d, seq, 'place_note', d.place_note, '.p'));
     if (miss) s.thread.push(line(s, d, seq, 'fallback', missLine(), '.m', 'no_match'));
     s.thread.push(line(s, d, seq, 'purpose', PURPOSE_LINES[d.angle.purpose].replace('{angle}', d.angle.fr)));
     s.thread.push({ id: `${seq}.s`, seq, at, kind: 'summary', speaker: 'romy_tremblay', text_fr: d.summary_fr });
@@ -965,7 +1022,9 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const d = dossierById(s.dossierId) as MockDossier;
     s.makeStarted = true;
     const b1 = isB1(s);
-    const recommended = s.openQuestion ? 'reader_question' : b1 ? 'headline_write' : 'headline_choice';
+    const picture = pictureOf(d);
+    // §8.4: the story's own picture is captioned first, unless a question is waiting.
+    const recommended = s.openQuestion ? 'reader_question' : picture ? 'caption' : b1 ? 'headline_write' : 'headline_choice';
     // Romy's intro is written once, on the first GET, and replays as a thread item.
     if (!s.intro) {
       const seq = nextSeq(s);
@@ -980,9 +1039,28 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         ...(b1 ? [{ kind: 'headline_write', max_words: HEADLINE_WORDS }] : []),
         { kind: 'reader_question', seed_fr: s.openQuestion, uncertainty_fr: s.openUncertainty },
         ...(b1 ? [{ kind: 'short_report', seconds: REPORT_SECONDS }] : []),
+        ...(picture
+          ? [
+              {
+                kind: 'caption',
+                format: b1 ? 'write' : 'choice',
+                picture_url: picture.url,
+                options: b1 ? [] : captionOptions(s, picture),
+                words: pictureWordsOf(d, s.language),
+                max_words: CAPTION_WORDS[s.band],
+              },
+            ]
+          : []),
       ],
       intro: s.intro,
     };
+  };
+
+  /** «La légende» for A1–A2: the desk's caption and the two decoys, in an order fixed by the session id. */
+  const captionOptions = (s: MockSession, picture: NonNullable<MockDossier['picture']>) => {
+    const rows = [picture.caption_fr, ...picture.decoys_fr];
+    const turn = s.id.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 3;
+    return [0, 1, 2].map((i) => ({ id: `l${i + 1}`, text_fr: rows[(i + turn) % 3] }));
   };
 
   const why = (lang: Lang, addedLead: boolean) => {
@@ -1014,6 +1092,35 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     };
     if ((body.kind === 'headline_write' || body.kind === 'short_report') && !isB1(s)) {
       throw httpError(409, { code: 'revue_make_unavailable', kind: body.kind });
+    }
+    if (body.action === 'caption') {
+      const picture = pictureOf(d);
+      if (!picture) throw httpError(409, { code: 'revue_make_unavailable', kind: 'caption' });
+      if (!isB1(s)) {
+        const options = captionOptions(s, picture);
+        const option = options.find((row) => row.id === body.option_id);
+        if (!option) throw httpError(422, { code: 'revue_unknown_option' });
+        const answer = options.find((row) => row.text_fr === picture.caption_fr) as { id: string; text_fr: string };
+        const correct = option.id === answer.id;
+        const made = { kind: 'caption', text_fr: answer.text_fr, contribution: correct ? [[0, answer.text_fr.length]] : [], learner_fr: null };
+        fileMade(made);
+        const doneLine = done(correct ? DONE_LINES.caption : DONE_LINES.caption_wrong);
+        save();
+        return { kind: 'caption', format: 'choice', accepted: true, correct, answer_id: answer.id, evidence: null, made, line: doneLine };
+      }
+      const textFr = String(body.text_fr || '').trim();
+      if (!textFr || textFr.length > 200) throw httpError(422, [{ loc: ['body', 'text_fr'], msg: 'invalid' }]);
+      const evidence = grade(s, d, textFr, false);
+      if (evidence.fact_fit === 'contradicted') {
+        const doneLine = done(DONE_LINES.caption_refused);
+        save();
+        return { kind: 'caption', format: 'write', accepted: false, correct: null, answer_id: null, evidence, made: null, line: doneLine };
+      }
+      const made = { kind: 'caption', text_fr: textFr, contribution: [[0, textFr.length]], learner_fr: textFr };
+      fileMade(made);
+      const doneLine = done(DONE_LINES.caption);
+      save();
+      return { kind: 'caption', format: 'write', accepted: true, correct: null, answer_id: null, evidence, made, line: doneLine };
     }
     if (body.action === 'pick') {
       const option = d.headlines.find((h) => h.id === body.option_id);
@@ -1098,10 +1205,14 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         headline = `${prefix}${asked}`;
         // Only the question is the learner's: Romy's prefix is never marked.
         contribution = contributionSpans(asked, made.learner_fr ?? question).map(([a, b]) => [a + prefix.length, b + prefix.length] as [number, number]);
-      } else if (made && kind !== 'short_report') {
+      } else if (made && kind !== 'short_report' && kind !== 'caption') {
+        // A report or a caption is not a headline: the dispatch keeps Romy's own.
         headline = String(made.text_fr);
         contribution = (made.contribution as Array<[number, number]>) || [];
       }
+      // §8.4: the picture is printed with the dispatch, under the learner's caption when they made one.
+      const picture = pictureOf(d);
+      const captioned = picture && kind === 'caption' && made;
       // A report is not a headline: the dispatch keeps Romy's own, and quotes the report.
       const reported = kind === 'short_report' ? String(made?.text_fr || '').split(/(?<=[.!?])\s/)[0].split(/\s+/).slice(0, 20).join(' ') : '';
       const body = shown.slice(0, 2).map((c) => c.fr);
@@ -1115,7 +1226,10 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       );
       const usedSources = d.sources.filter((src) => shown.some((c) => c.source_id === src.id));
       const sources = (usedSources.length ? usedSources : d.sources).map((src) => sourceOf(d, src.id));
-      const mine = s.thread.filter((item) => item.kind === 'mine').map((item) => fold(String(item.text_fr))).join(' ');
+      // What the learner wrote: their turns, and what they made in their own words (a caption, a report…).
+      const mine = [...s.thread.filter((item) => item.kind === 'mine').map((item) => String(item.text_fr)), String(made?.learner_fr ?? '')]
+        .map(fold)
+        .join(' ');
       s.closing = {
         romy_line_fr: CLOSE_LINES[kind] ?? CLOSE_LINES.none,
         dispatch: {
@@ -1125,9 +1239,16 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
           contribution,
           byline_fr: `Romy Tremblay, avec toi · d'après ${sources.map((src) => src.name.replace(/\s*\(.*\)$/, '')).join(' et ')}`,
           sources,
+          ...(picture
+            ? {
+                picture_url: picture.url,
+                caption_fr: captioned ? String(made.text_fr) : picture.caption_fr,
+                caption_by_learner: Boolean(captioned && (made.contribution as unknown[]).length),
+              }
+            : {}),
         },
         kept: {
-          words: d.vocabulary.map((v) => ({ ...glossOf(v, s.language), used: mine.includes(fold(v.fr)) })),
+          words: vocabularyOf(d).map((v) => ({ ...glossOf(v, s.language), used: mine.includes(fold(v.fr)) })),
           claims: shown.map((c) => claimWire(d, c)),
         },
         question_kept_fr: kind === 'reader_question' ? null : s.openQuestion,
@@ -1141,7 +1262,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         week: WEEK.iso,
         place_label_fr: d.place.name_fr.split(',')[0],
         ring: kind === 'reader_question' ? 'question' : kind === 'short_report' ? 'report' : 'headline',
-        kept_contribution: kind === 'short_report' ? true : contribution.length > 0,
+        kept_contribution: kind === 'short_report' ? true : kind === 'caption' ? Boolean(made && (made.contribution as unknown[]).length) : contribution.length > 0,
         pictogram_svg: PICTOGRAMS[d.topic] ?? PICTOGRAMS.city,
         headline_fr: headline,
         minted_at: stamp(),

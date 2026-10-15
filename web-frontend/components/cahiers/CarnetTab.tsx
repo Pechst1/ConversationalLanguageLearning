@@ -1,10 +1,10 @@
 /**
  * WP-95 «Le Carnet» — what you can do in French, one page per sub-band.
  *
- * A Cahier tab beside «Relevé» (`/notebook?mode=carnet`): the Relevé is the
- * ledger of what went wrong, the Carnet the ledger of what you can do, and
- * both are records the learner reads rather than work to do. Home's next-step
- * line and the Dossier link here.
+ * A section of the Cahier's «Fortschritt» tab (`/notebook?mode=releve#carnet`;
+ * the old `?mode=carnet` links land there too), right under the level and
+ * goal: the Carnet is what the level means in practice. Home's next-step line
+ * and the Dossier link here.
  *
  * Each can-do of the band is a row. Unstamped: a quiet dotted disc and «Pas
  * encore». Stamped the first time the story showed it: a small pressed Seal,

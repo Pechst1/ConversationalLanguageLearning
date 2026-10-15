@@ -51,6 +51,8 @@ import type { NextStepView } from '@/lib/can-dos';
 import { frenchQuote } from '@/lib/french-typography';
 import type { ControlLanguage } from '@/types/daily-journey';
 import { ShellCorner } from '@/components/layout/ShellCorner';
+import { DaySessionPlan } from '@/components/atelier-v2/home/DaySession';
+import type { SessionRow } from '@/lib/day-session';
 import { QuickSettings } from '@/components/layout/QuickSettings';
 import { resolveSettingsLanguage, settingsCopy } from '@/lib/settings-copy';
 
@@ -239,6 +241,13 @@ export type HomeScreenProps = {
    * Home keeps its one-thing mode; the mark stays the plain house mark.
    */
   planHidden?: boolean;
+  /**
+   * Round 3 (owner, 2026-10-14): the day as one sequence — Szene · Wörter ·
+   * Grammatik · Fertig with their minutes — in place of the journey's plan
+   * row, and one quiet way to the Tempo sheet. `day` then carries the
+   * session's four steps as the mark's shapes.
+   */
+  session?: { rows: SessionRow[]; tempoLabel?: string | null; onTempo?: (() => void) | null } | null;
   colophon: { lead: string; focus: string; focusHref: string; tail?: string } | null;
   /**
    * WP-81: the day's scene card (the journey's entry), directly under the masthead —
@@ -286,6 +295,7 @@ export function HomeScreen({
   tiles,
   day,
   planHidden = false,
+  session = null,
   colophon,
   hero,
   chips,
@@ -436,11 +446,20 @@ export function HomeScreen({
         </div>
       ) : null}
 
-      {day && !planHidden && (
+      {day && !planHidden && session ? (
+        <div className="av2-home__section">
+          <DaySessionPlan
+            rows={session.rows}
+            language={language}
+            tempoLabel={session.tempoLabel}
+            onTempo={session.onTempo}
+          />
+        </div>
+      ) : day && !planHidden ? (
         <div className="av2-home__section">
           <DayPlanRow day={day} language={language} />
         </div>
-      )}
+      ) : null}
 
       {/* WP-81: at most one quiet row — a letter waiting, words due. */}
       {oneThing && shownChips.length > 0 && (

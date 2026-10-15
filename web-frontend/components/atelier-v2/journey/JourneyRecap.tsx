@@ -27,6 +27,8 @@ import { ArchiveStyles } from '@/components/feuilleton/archive/ArchiveStyles';
 import { archiveCopy, faFill } from '@/components/feuilleton/archive/archive-copy';
 import { marginNotes } from '@/components/feuilleton/archive/archive-model';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { emitCameo } from '@/lib/cameo';
+import { castIdFor } from '@/lib/cast-faces';
 import { PlacementDayEndOffer } from '@/components/onboarding/PlacementDayEndOffer';
 import { castName, epreuveRecapView } from '@/lib/can-dos';
 import { canDoCopy } from '@/lib/can-do-copy';
@@ -54,7 +56,25 @@ export type JourneyRecapProps = {
   onPractice?: (href: string) => void;
   /** WP-80's push pre-prompt, mounted by the session shell. */
   pushOptIn?: React.ReactNode;
+  /**
+   * Round 3 (owner, 2026-10-14): the scene is the day's first step, not its end.
+   * When set, this screen hands on to the next step («Weiter: 20 Wörter ·
+   * 8 Min.»): no seal, no curtain call and no extras yet — those wait for
+   * «Fertig», after the words and the grammar.
+   */
+  sessionNext?: { label: string; meta: string; onSelect: () => void } | null;
 };
+
+/**
+ * Les apparitions: a whole day ends like La Forge and the deck, with the troupe's bow, the day's
+ * own person in the middle. Draws nothing itself; the cameo layer does.
+ */
+function CurtainCall({ lead }: { lead: string | null }) {
+  React.useEffect(() => {
+    emitCameo({ type: 'finale', lead });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
 
 export function JourneyRecap({
   journey,
@@ -65,13 +85,16 @@ export function JourneyRecap({
   onPractice,
   forge,
   pushOptIn,
+  sessionNext = null,
 }: JourneyRecapProps) {
   const copy = journeyCopy(language);
   const view = rewardView(journey, recap, language);
   const partial = view?.partial ?? journey.status === 'ended_early';
+  // Round 3: mid-day, this is a hand-on, not the day's end.
+  const handOn = Boolean(sessionNext);
   const keepsake = view?.keepsake ?? null;
   const date = keepsakeDate(keepsake?.local_date);
-  const seal = partial ? null : view?.seal ?? null;
+  const seal = partial || handOn ? null : view?.seal ?? null;
   const chrome = recapChrome(language);
   const keepsakeTitle = seal && keepsake?.title_fr?.trim() ? keepsake.title_fr.trim() : null;
   // WP-94: the «Numéro spécial» result. Passed: the oversized seal stamped with
@@ -105,6 +128,8 @@ export function JourneyRecap({
       data-state={partial ? 'partial' : 'complete'}
       aria-label={partial ? copy.finished_partial_title : copy.finished_title}
     >
+      {/* A day ended early gets no curtain. */}
+      {!partial && !handOn && <CurtainCall lead={castIdFor(journey.scenario?.character_id, journey.scenario?.character_name)} />}
       <Surface
         tone={partial ? 'outline' : 'paper'}
         shape="hero"
@@ -197,7 +222,7 @@ export function JourneyRecap({
         </Surface>
       )}
 
-      {view && view.facts.length > 0 && (
+      {view && view.facts.length > 0 && !handOn && (
         <dl className="av2-reward__facts">
           {view.facts.map((fact) => (
             <div key={fact.id} className="av2-reward__fact" data-fact={fact.id}>
@@ -271,7 +296,7 @@ export function JourneyRecap({
       )}
 
       {(notes.length > 0 || chapterClosed || seasonFinished) && <ArchiveStyles />}
-      {notes.length > 0 && <MarginNotes notes={notes} language={language} />}
+      {notes.length > 0 && !handOn && <MarginNotes notes={notes} language={language} />}
 
       {(chapterClosed || seasonFinished) && (
         <Surface tone="outline" className="av2-recap__volume" data-chapter-closed={chapterClosed ? chapterClosed.index : undefined}>
@@ -304,7 +329,7 @@ export function JourneyRecap({
         </Surface>
       )}
 
-      {view?.teaser && (
+      {view?.teaser && !handOn && (
         <div className="av2-reward__teaser" data-source={view.teaser.source}>
           <p className="av2-label">{chrome.teaser_label}</p>
           <p className="av2-fr av2-reward__teaser-line" lang="fr">
@@ -316,13 +341,21 @@ export function JourneyRecap({
         </div>
       )}
 
-      {pushOptIn}
+      {!handOn && pushOptIn}
 
       {/* WP-126: the placement, offered right after a completed ending (from the
           first one on) to a learner who declared more than «Nouveau». Renders
           nothing unless `GET /placement/offer` says so; never after an early stop. */}
-      <PlacementDayEndOffer language={language} partial={partial} />
+      {!handOn && <PlacementDayEndOffer language={language} partial={partial} />}
 
+      {sessionNext ? (
+        <div className="av2-recap__actions" data-session-next="">
+          <Action tone="primary" onClick={sessionNext.onSelect}>
+            {sessionNext.label}
+            {sessionNext.meta ? <span className="av2-btn__meta">· {sessionNext.meta}</span> : null}
+          </Action>
+        </div>
+      ) : (
       <div className="av2-recap__actions">
         {onExit && (
           <Action tone="primary" onClick={onExit}>
@@ -348,6 +381,7 @@ export function JourneyRecap({
           </Action>
         )}
       </div>
+      )}
     </section>
   );
 }

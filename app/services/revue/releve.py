@@ -1,9 +1,10 @@
 """Le Papier in Le Relevé (WP-119 phase 3; design §3.6 #releve).
 
 One entry per filed Papier, newest first: the period, the title, what the learner made,
-the claims they read with their source lines, and the words with their glosses — all read
-from the session's own close (``closed`` event, ``RvClosing.kept``), so the Relevé shows
-exactly what the close showed. A pure read: no provider, no cache.
+the claims they read with their source lines, the words with their glosses, and (§8.4) the
+story's picture under its caption — all read from the session's own close (``closed`` event,
+``RvClosing.kept`` and ``dispatch``), so the Relevé shows exactly what the close showed. A pure
+read: no provider, no cache.
 """
 
 from __future__ import annotations
@@ -66,6 +67,11 @@ class ReleveEntry(_Model):
     sources: list[ReleveSource]
     #: A second Papier in the same period (§12.2: counts for evidence, never "filed").
     second: bool = False
+    #: WP-119 §8.4: the story's picture as the dispatch printed it, under its caption (the
+    #: learner's when ``caption_by_learner``).
+    picture_url: str | None = None
+    caption_fr: str | None = None
+    caption_by_learner: bool = False
 
 
 class ReleveView(_Model):
@@ -141,6 +147,9 @@ def entry_of(row: RevueSession, *, second: bool = False) -> ReleveEntry:
         words=words,
         sources=sources,
         second=second,
+        picture_url=str(dispatch["picture_url"]) if dispatch.get("picture_url") else None,
+        caption_fr=str(dispatch["caption_fr"]) if dispatch.get("picture_url") and dispatch.get("caption_fr") else None,
+        caption_by_learner=bool(dispatch.get("picture_url") and dispatch.get("caption_by_learner")),
     )
 
 

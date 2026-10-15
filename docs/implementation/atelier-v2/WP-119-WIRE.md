@@ -1,4 +1,4 @@
-# WP-119 phases 1–2 · Le Papier de Romy — the wire (frozen 2026-10-02; phase 2 «Les invités» added the same day, §6)
+# WP-119 phases 1–2 · Le Papier de Romy — the wire (frozen 2026-10-02; phase 2 «Les invités» added the same day, §6; the story's own picture 2026-10-14, §8)
 
 *Backend lead. The frontend builds `web-frontend/components/revue/` (WP-119-DESIGN.md §4) against this
 file. Pydantic models: `app/schemas/revue.py`. Router: `app/api/v1/endpoints/revue.py`. Service:
@@ -45,6 +45,8 @@ type RvStage = {
   plate_url: string | null;    // "/assets/serial/locations/marche_canal.webp" (phase 1: known plates only)
   plate_place_id: string;      // the known location whose plate stands in ("marche_canal")
   place_is_real: boolean;      // false → the plate is a stand-in and Romy says so (a `place_note` line)
+  plate_kind: "story" | "painted" | "season" | "stand_in";   // §8: "story" = the story's own picture; absent before → "season"
+  picture_words: RvGloss[];    // §8: on the story's picture, the words it shows (glossed); else []
   dress: "coat" | "suit" | "apron" | "raincoat" | "sport" | "scarf_only" | "chef" | "hi_vis";  // Toi's outfit
   cast: RvStageMember[];       // [{id: "romy_tremblay", hold: "notebook"}, {id: "user", hold: null}]
                                // phase 2: a guest on stage stands right after Romy: [romy, {id: "margaux_barman", hold: null}, user]
@@ -77,13 +79,13 @@ type RvRoom = {
   remaining_turns: number;     // for the screen-reader sentence only («environ quatre échanges»); never shown as a number
 };
 
-type RvMakeKind = "headline_choice" | "headline_write" | "reader_question" | "short_report";   // phase 2: + headline_write (B1+), short_report (B1+)
+type RvMakeKind = "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption";   // phase 2: + headline_write (B1+), short_report (B1+); §8: + caption («La légende»)
 
 type RvMade = {
   kind: RvMakeKind;
   text_fr: string;             // the headline, or the reader question as sent to the desk
   contribution: [number, number][];   // the learner's part of text_fr (yellow underline + «toi»)
-  learner_fr: string | null;   // what the learner wrote (reader_question), null for a picked headline
+  learner_fr: string | null;   // what the learner wrote (reader_question, a written headline or caption), null for a pick
 };
 
 type RvDispatch = {
@@ -93,6 +95,9 @@ type RvDispatch = {
   contribution: [number, number][];   // spans into headline_fr
   byline_fr: string;           // "Romy Tremblay, avec toi · d'après Ville de Paris (paris.fr) et Wikipédia…"
   sources: RvSource[];
+  picture_url: string | null;  // §8: the story's own picture, printed under the headline; null when none was painted
+  caption_fr: string | null;   // §8: its caption (the learner's after «La légende», else the desk's); null without a picture
+  caption_by_learner: boolean; // §8: the caption is the learner's (marked «toi»)
 };
 
 type RvQuickReply = { label: string; send_fr: string };   // label may differ from the French sent («Plus» → «Dis-m'en plus.»)
@@ -120,6 +125,7 @@ type RvItemBase = { id: string /* "<seq>" or "<seq>.<n>" — stable across repla
 | `guest` | `cast_id`, `text_fr`, `move`, `position`, `reason_fr`, `reason`, `glosses` | the guest's bubble (phase 2, §6.2) | a guest's line |
 
 `line.role`: `"purpose"` (the arrive headline bubble), `"place_note"` (phase-1 honest stand-in plate line),
+`"look"` (§8: on the story's own picture, Romy points at what it shows, before her purpose; its `glosses` are the picture's words),
 `"reply"` (a pursue answer), `"steer"` (the bouclage steer, its own bubble right after the reply), `"fallback"`
 (an authored line: knowledge check refused twice, the model is down, the column is full, or a free request
 matched nothing), `"make_intro"` / `"make_done"` (phase 2: Romy's lines around the `make` beat, from the
@@ -297,12 +303,15 @@ later calls reuse it, so the options never change under the learner); never expo
 ```ts
 type RvMakeOffer = {
   recommended: RvMakeKind;     // reader_question when the learner raised a question the sources cannot answer,
-                               // else headline_write (B1+), else headline_choice
+                               // else caption when the story's own picture is painted (§8; the headline when the
+                               // learner's last Papier was a caption), else headline_write (B1+), else headline_choice
   options: (
     | { kind: "headline_choice"; options: { id: string; text_fr: string }[] /* 3 */ }
     | { kind: "headline_write"; max_words: number }          // phase 2, B1+
     | { kind: "reader_question"; seed_fr: string | null /* the learner's open question */; uncertainty_fr: string | null }
     | { kind: "short_report"; seconds: number /* 30 */ }      // phase 2, B1+
+    | { kind: "caption"; format: "choice" | "write"; picture_url: string;   // §8: only with the story's own picture
+        options: { id: string; text_fr: string }[] /* choice: 3; write: [] */; words: RvGloss[]; max_words: number }
   )[];                          // an unavailable option is absent, never greyed; order as listed
   intro: RvThreadItem /* line, role "make_intro" */ | null;  // phase 2: written once, on the first GET
 };
@@ -318,8 +327,9 @@ Body, discriminated by `kind` + `action`:
 | { kind: "reader_question"; action: "send"; text_fr: string /* 1..300: the proposal, possibly edited */ }
 | { kind: "headline_write"; action: "write"; text_fr: string /* 1..160 */ }                       // phase 2
 | { kind: "short_report"; action: "report"; transcript: string /* 1..1200 */; mode?: "voice" | "text" /* default voice */ }  // phase 2
+| { kind: "caption"; action: "caption"; option_id?: string /* choice */; text_fr?: string /* write, 1..200 */ }       // §8
 ```
-The body is discriminated by `action` (`pick | propose | send | write | report`); a `kind` that does not go
+The body is discriminated by `action` (`pick | propose | send | write | report | caption`); a `kind` that does not go
 with the action is a `422`.
 Responses:
 ```ts
@@ -337,10 +347,15 @@ Responses:
   evidence: RvEvidence; made: RvMade | null; line: RvLineItem | null /* make_done */ }
 // report (phase 2)
 { kind: "short_report"; evidence: RvEvidence; made: RvMade; line: RvLineItem | null /* make_done */ }
+// caption (§8)
+{ kind: "caption"; format: "choice" | "write"; accepted: boolean;
+  correct: boolean | null; answer_id: string | null;    // choice only
+  evidence: RvEvidence | null;                          // write only
+  made: RvMade | null; line: RvLineItem | null /* make_done */ }
 ```
 `pick` also returns `line` (phase 2): Romy's `make_done` line.
 Errors: `409 {"detail": {"code": "revue_make_unavailable", "kind": "headline_choice"}}` (also for
-`headline_write` / `short_report` below B1);
+`headline_write` / `short_report` below B1, and `caption` without the story's picture);
 `422 {"detail": {"code": "revue_unknown_option"}}`; `409 revue_session_closed`.
 
 ### 3.8 `POST /revue/sessions/{id}/close` — Romy does something with it
@@ -543,7 +558,7 @@ type DeskPrompt = {
 
 | `desk` | Target (read at planning time, nothing created) | The client mounts (`components/atelier-v2/journey/DeskStep.tsx`) | Grades through |
 |---|---|---|---|
-| `relecture` | `relecture.offer(db, user)` — the oldest Papier closed ≥ 6 weeks ago with a kept question or headline, never re-read | `CarteRelecture` on `relecture` (a pair already stored is fetched with `GET /revue/relecture/{id}` and shown) | `POST /revue/relecture/{session_id}` (`carteClient().relectureAnswer`) |
+| `relecture` | `relecture.offer(db, user)` — the oldest Papier closed ≥ 6 weeks ago with a kept question, a written headline or (§8) a written caption, never re-read | `CarteRelecture` on `relecture` (a pair already stored is fetched with `GET /revue/relecture/{id}` and shown) | `POST /revue/relecture/{session_id}` (`carteClient().relectureAnswer`) |
 | `radio` | `radio.radio_week(...)` — the rotation's next unheard bulletin, none heard today (the chip's rule) | `RadioBulletin` (listen first → read → the dictée → «C'est entendu») | `GET /revue/radio/{id}`, `POST …/dictee`, `POST …/heard` |
 | `correcteur` | `correcteur.week_for(...)` — the week's first dossier not yet corrected | `CorrecteurDesk` on a new draft (`POST /revue/correcteur/{id}`); «Dans le Relevé» at the result continues the day | `POST /revue/correcteur/{id}/marks` |
 
@@ -556,4 +571,83 @@ Correcteur) and its offer is non-empty. A desk is priced at 120 s (Relecture) or
 reserved from the day's drills, and the day gives up one ordinary recall item for it (the last item after the
 ending); a day whose budget cannot hold it, or whose shape needs every recall it has, plans no desk. «Dealt this
 week» is read from the learner's earlier journeys' `desk` steps.
+
+## 8. The story's own picture (WP-119 §8.4, 2026-10-14)
+
+Each story's picture is painted once at the morning intake (`plates.paint_story`, `revue_story_pictures`) and is
+final; a session never paints. Every shape below is optional to read: a payload from before has none of it
+(`plate_kind` reads as `"season"`, `picture_words` as `[]`, the dispatch's picture as `null`).
+
+### 8.1 The stage and Romy's «Regarde»
+On the site (`places[0]`) with its picture painted, the stage carries it: `plate_url` is the picture,
+`plate_kind: "story"`, `place_is_real: true` (nothing stands in, so no `place_note`), and `picture_words` lists
+the words the picture shows, glossed in `plan.gloss_language`; they also lead `plan.vocabulary`. The desk's
+caption is **not** on the stage: it is the answer of «La légende» (§8.2), sent after the pick. `plate_url_second`
+(§1) is always set with the picture: the second place's plate, else the site's own, so the band has moved on
+(`plate_switched`, at the guest's entrance or at make) by the time «La légende» and the dispatch print the picture.
+```json
+{"place_id": "marche_aligre", "place_fr": "Le marché d'Aligre, un matin", "plate_url": "https://…/revue-stories/evergreen-marche-du-dimanche-3f9c….webp",
+ "plate_place_id": "marche_aligre", "place_is_real": true, "dress": "coat", "plate_kind": "story",
+ "picture_words": [{"fr": "marché couvert", "gloss": "Markthalle", "claim_id": "c3"}, {"fr": "en plein air", "gloss": "im Freien", "claim_id": "c3"}],
+ "plate_url_second": "/assets/serial/locations/marche_canal.webp", "plate_switched": false,
+ "cast": [{"id": "romy_tremblay", "hold": "notebook"}, {"id": "user", "hold": null}]}
+```
+The arrive beat's lines are then `look`, `purpose`:
+```json
+{"id": "1.l", "seq": 1, "at": "…", "kind": "line", "speaker": "romy_tremblay", "role": "look",
+ "text_fr": "Regarde : le marché en plein air, et derrière, le marché couvert.", "translation": null,
+ "glosses": [{"fr": "marché couvert", "gloss": "Markthalle", "claim_id": "c3"}, {"fr": "en plein air", "gloss": "im Freien", "claim_id": "c3"}], "reason": null}
+```
+`plate_kind` otherwise: `"season"` (a season plate), `"painted"` (a place plate painted for the Revue),
+`"stand_in"` (another place's plate, with Romy's `place_note`).
+
+### 8.2 «La légende» (`caption`)
+Offered (and listed in `plan.make_options`) only while the story's picture is on the stage (at A1–A2, only when
+the builder gave its two decoy captions). `choice` at A1–A2:
+three captions, one says what the picture shows (the order fixed per session, the answer kept by the server until
+the pick). `write` at B1+: `options` is empty, `max_words` is the band's (`grading.CAPTION_WORDS`: 10 · 12 · 16 ·
+20), `words` are the tiles.
+```json
+// GET /revue/sessions/{id}/make (A2): the caption option
+{"kind": "caption", "format": "choice", "picture_url": "https://…/revue-stories/….webp",
+ "options": [{"id": "l1", "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes."},
+             {"id": "l2", "text_fr": "Un marché fermé, un soir de pluie."},
+             {"id": "l3", "text_fr": "Un supermarché vide, un lundi matin."}],
+ "words": [{"fr": "marché couvert", "gloss": "marché sous un toit", "claim_id": "c3"}, {"fr": "en plein air", "gloss": "dehors", "claim_id": "c3"}],
+ "max_words": 12}
+```
+```json
+// POST … {"kind": "caption", "action": "caption", "option_id": "l2"}: a wrong pick files the picture's own caption, uncredited
+{"kind": "caption", "format": "choice", "accepted": true, "correct": false, "answer_id": "l1", "evidence": null,
+ "made": {"kind": "caption", "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.", "contribution": [], "learner_fr": null},
+ "line": {"…": "…", "role": "make_done", "text_fr": "Celle-là, l'image la contredit. On garde l'autre."}}
+```
+```json
+// POST … {"kind": "caption", "action": "caption", "text_fr": "Un marché en plein air, devant le marché couvert, un matin."} (B1)
+{"kind": "caption", "format": "write", "accepted": true, "correct": null, "answer_id": null,
+ "evidence": {"outcome": "correct", "capability_known": true, "grader": "revue-rubric-v1", "words": [{"fr": "marché couvert", "outcome": "correct", "capability_known": true}, {"fr": "en plein air", "outcome": "correct", "capability_known": true}], "fact_fit": "supported", "register_note": "ok"},
+ "made": {"kind": "caption", "text_fr": "Un marché en plein air, devant le marché couvert, un matin.", "contribution": [[0, 59]], "learner_fr": "Un marché en plein air, devant le marché couvert, un matin."},
+ "line": {"…": "…", "role": "make_done", "text_fr": "C'est ta légende. Elle part sous l'image."}}
+```
+- A written caption is graded by the rubric (`kind: "caption"`) against the claims shown plus what the picture
+  shows (the desk's caption as a claim `picture`); a contradicted one is not filed (`accepted: false`, `made:
+  null`, Romy: «Attention : l'image ou les sources disent autre chose. Tu réessaies ?»). A choice body without
+  `option_id`, or with an unknown one, is `422 revue_unknown_option`; an empty `text_fr` too.
+- A caption is not a headline: the dispatch keeps its own and prints the picture under the caption (§8.3); the
+  vignette rings `headline`; the words a written caption uses are kept as `used`.
+
+### 8.3 The dispatch, Le Relevé, La Relecture
+`RvDispatch` (and every `ReleveEntry` of `GET /revue/releve`) carries `picture_url`, `caption_fr` and
+`caption_by_learner` (§1): the picture as the close printed it, under the learner's caption after «La légende»
+(right pick or a filed written caption), else under the desk's. A caption is never sent without its picture. The
+client prints the credit «Illustration · Le Papier» under every caption. `RelectureOffer.kind` gains `"caption"`:
+a Papier whose written caption was filed comes back after six weeks with its `plate_url` (the picture) and
+`prompt_fr` «Regarde l'image : quelle légende écrirais-tu aujourd'hui ?»; the new caption is graded as a caption.
+
+### 8.4 The painter's admin route
+`POST /revue/admin/paint` (admin only): paints what the period's kiosk is missing, each picture once and final,
+within the service's daily cap. `?period=` (default the current one), `?limit=1..40`, `?enqueue=true` (default:
+`{"status": "enqueued", "task_id": …}`) or `false` (paints in the request, about 35 s a picture, and returns the
+report `{"period", "status": "painted" | "limit" | "budget" | "off: <reason>", "painted", "pictures": {dossier_id:
+{"story": url | reason, <place_id>: url | reason}}, "cost_usd"}`). The morning intake queues the same painting.
 

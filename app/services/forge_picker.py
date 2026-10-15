@@ -165,16 +165,23 @@ def _aware(value: datetime | None) -> datetime | None:
 def forge_budget_seconds(user: Any) -> int:
     """A standalone forge block's length for this learner's rhythm."""
 
+    from app.services.daily_session import pace_forge_seconds
     from app.services.journey_rhythm import rhythm_of
 
-    return FORGE_SECONDS.get(rhythm_of(user), FORGE_SECONDS["regulier"])
+    # Round 3: a pace picked on the Tempo sheet sets the séance's length.
+    return pace_forge_seconds(user) or FORGE_SECONDS.get(rhythm_of(user), FORGE_SECONDS["regulier"])
 
 
 def forge_is_folded(user: Any) -> bool:
     """Does this learner's day carry the forge inside it (Soutenu, Intensif)?"""
 
+    from app.services.daily_session import stored_pace
     from app.services.journey_rhythm import rhythm_of
 
+    # Round 3: with a pace, La Forge is the day's own grammar step after the
+    # words, never folded into the scene.
+    if stored_pace(user) is not None:
+        return False
     return rhythm_of(user) in FOLDED_RHYTHMS
 
 

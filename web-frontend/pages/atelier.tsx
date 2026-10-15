@@ -45,7 +45,6 @@ import {
   cacheAtelierEdition,
   clearResumeActivity,
   readCachedAtelierEdition,
-  saveResumeActivity,
 } from '@/lib/pilot-resilience';
 import { homeRender, readHomeKind, rememberHomeKind, resolvedHomeKind, type HomeKind } from '@/lib/home-loading';
 import { type LuAskKind } from '@/components/laune/LaUne';
@@ -119,6 +118,15 @@ import {
 import { extensionMinutes } from '@/components/atelier-v2/journey/time-estimate';
 import { readAnswerMode } from '@/components/atelier-v2/journey/voice-answer';
 import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
+import { DaySessionNext, TempoSheet } from '@/components/atelier-v2/home/DaySession';
+import {
+  daySessionCopy,
+  sessionAfterGrammar,
+  sessionMarkState,
+  sessionMore,
+  sessionNextAction,
+  sessionRows,
+} from '@/lib/day-session';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
 import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
@@ -153,7 +161,8 @@ import {
   stepText,
   type SeenItem,
 } from '@/lib/forge-progress';
-import { isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
+import { rewardMomentCopy } from '@/lib/reward-moment-copy';
+import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboOf, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, comboLabel, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref } from '@/lib/grammar-map';
@@ -179,6 +188,7 @@ import { revueClient } from '@/lib/revue-api';
 import type { RvWeekResult } from '@/lib/revue-types';
 import {
   dayShapeFrom,
+  isRevueDay,
   revueDossierHref,
   revueHeroOpensDay,
   revueOpenHref,
@@ -891,11 +901,10 @@ export default function AtelierPage() {
 
   useEffect(() => {
     if (!session || session.status === 'completed' || forgeViewOf(session.forge)?.mode === 'test_out') return;
-    saveResumeActivity({
-      href: `/atelier?resume=${session.session_id}`,
-      kind: 'atelier',
-      entityId: session.session_id,
-    });
+    // No launch resume for the Forge (`lib/journey-resume.ts`): a cold start
+    // shows Home, whose day button opens the Forge step. Clear what an older
+    // build stored so it cannot come back.
+    clearResumeActivity('atelier');
     const requestedSession = router.query.resume ?? router.query.session;
     if (router.isReady && requestedSession === session.session_id) setView('session');
   }, [router.isReady, router.query.resume, router.query.session, session]);
@@ -1035,6 +1044,9 @@ export default function AtelierPage() {
     const value = String(Array.isArray(raw) ? raw[0] : raw || '').trim();
     return forgeMode && value ? value : null;
   })();
+  // Round 3: `&from=day` is the day's own grammar step. Its recap hands on to
+  // the words when they are still open, else to «Fertig für heute».
+  const forgeFromDay = forgeMode && String(router.query.from || '') === 'day';
   const forgeBudget = (() => {
     const raw = router.query.budget;
     const value = Number(Array.isArray(raw) ? raw[0] : raw);
@@ -1457,7 +1469,41 @@ export default function AtelierPage() {
     setSubmitted((prev) => ({ ...prev, [scopedKey]: false }));
     setResubmitKeys((prev) => ({ ...prev, [scopedKey]: true }));
     setRecentCorrection(null);
+    // Walk #90: a retried choice starts unchosen; «Je es sérieux.» with «es ·
+    // gewählt» stayed filled in. Typed answers stay, ready to fix.
+    if (exerciseRound === 'recognize') {
+      setAnswers((prev) => {
+        const current = prev[scopedKey];
+        if (!current) return prev;
+        if (!activeAnswerItemId) return { ...prev, [scopedKey]: {} };
+        if (!(activeAnswerItemId in current)) return prev;
+        const { [activeAnswerItemId]: _wrong, ...rest } = current;
+        return { ...prev, [scopedKey]: rest };
+      });
+    }
   };
+
+  // Live walk #131: La Forge may pose an item again that was already answered
+  // (a retried miss comes back later). It is asked fresh, as a resubmission;
+  // shown graded, its «Continue» re-seated the same item and did nothing.
+  const reposeForgeItem = (key: string) => {
+    setSubmitted((prev) => ({ ...prev, [key]: false }));
+    setResubmitKeys((prev) => ({ ...prev, [key]: true }));
+    setAnswers((prev) => {
+      if (!(key in prev)) return prev;
+      const { [key]: _dropped, ...rest } = prev;
+      return rest;
+    });
+    setRecentCorrection(null);
+  };
+  const forgeSeatedRef = useRef(false);
+  useEffect(() => {
+    if (!forgeSeatedRef.current) return;
+    forgeSeatedRef.current = false;
+    if (submitted[scopedKey]) reposeForgeItem(scopedKey);
+    // Runs once per seat, on the item the forge just seated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopedKey]);
 
   const submitMicroRepair = async (erratumIndex: number) => {
     const attemptId = attemptIdsByKey[scopedKey];
@@ -1681,6 +1727,22 @@ export default function AtelierPage() {
     // guard is what makes the entry happen exactly once, not the dependency list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practiceMode, practiceQueue, loading, session, activeSessionReady]);
+
+  // Every way back to Home from a practice landing drops `?mode=forge` /
+  // `?mode=practice` / `?testout=`, so the same link can open the séance again.
+  // Walk 2026-10-14 (#122): the forge recap's «Zurück zu La Une» kept the query,
+  // and «Weiter lernen» to the same URL did nothing.
+  const leavePracticeLanding = () => {
+    // A test-out landing (`?testout=`) is not a `practiceMode` URL, but it reopens too.
+    if (!practiceMode && !router.query.testout) return;
+    void router.replace('/atelier', undefined, { shallow: true });
+  };
+
+  // An envelope not read yet still ends the day's grammar on «Fertig», which says what is left.
+  const dayHandOn = forgeFromDay
+    ? sessionAfterGrammar(journey.envelope?.session, pageChromeLanguage)
+      ?? { label: daySessionCopy(pageChromeLanguage).next_finish, href: '/fertig' }
+    : null;
 
   // WP-S4: a forge block folded into the day hands the learner back to the
   // day's forge step, which now reads «Back to the scene».
@@ -1943,6 +2005,16 @@ export default function AtelierPage() {
       const conceptIndex = next ? session.concepts.findIndex((concept) => concept.id === next.concept_id) : -1;
       if (next && conceptIndex >= 0) {
         const seated = seatForgeItem(session.exercise_sets, next);
+        const samePlace = forgeSeatIsSamePlace(
+          { conceptIndex: activeConceptIndex, round, mode, itemIndex: activeItemIndex },
+          { conceptIndex, round: next.round, mode: next.mode, itemIndex: seated.index },
+        );
+        if (samePlace) {
+          // The forge asks the item on screen again: nothing would move.
+          if (submitted[scopedKey]) reposeForgeItem(scopedKey);
+          return;
+        }
+        forgeSeatedRef.current = true;
         if (seated.sets !== session.exercise_sets) setSession({ ...session, exercise_sets: seated.sets });
         setActiveConceptIndex(conceptIndex);
         setRound(next.round as RoundName);
@@ -2055,13 +2127,14 @@ export default function AtelierPage() {
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
+                      restOfDayOpen={Boolean(continueRoute && continueRoute.plan.next !== 'more')}
                       onOpenLegacy={(href) => {
                         // The old Atelier session is resumed on its own terms: the
                         // journey never converts, replaces or completes it.
                         void router.push(href);
                       }}
                     />
-                    {continueRoute && (
+                    {continueRoute && !journey.envelope?.session && (
                       // CONTINUE: the story is done; La Forge, the words, then more.
                       <FirstDayRoute
                         language={journeyChromeLanguage(journey)}
@@ -2109,6 +2182,7 @@ export default function AtelierPage() {
                 if (journey.journey) setView('journey');
                 else void journey.actions.start().then(() => setView('journey'));
               }}
+              onSessionChanged={() => { void journey.actions.refresh(); }}
             />
           </>
         ) : (
@@ -2183,9 +2257,7 @@ export default function AtelierPage() {
                 void apiService.exitAtelierSession(session.session_id).catch(() => undefined);
               }
               setView('today');
-              // Home is not a practice landing: drop `?mode=forge` / `?testout=`
-              // so the same link can open the séance again.
-              void router.replace('/atelier', undefined, { shallow: true });
+              leavePracticeLanding();
             }}
             produceAnswer={produceAnswer}
             language={pageChromeLanguage}
@@ -2208,22 +2280,32 @@ export default function AtelierPage() {
             filedEarly={completedDrills < plannedDrills}
             language={pageChromeLanguage}
             recommendation={legacyRecommendation}
+            dayHandOn={dayHandOn ? { label: dayHandOn.label } : null}
             onRecommendedAction={() => {
               setRecap(null);
+              if (dayHandOn) {
+                void router.push(dayHandOn.href);
+                return;
+              }
               if (forgeStepId) {
                 returnToForgedDay();
                 return;
               }
               setView('today');
+              // Before the action, so a link it follows is not cancelled.
+              leavePracticeLanding();
               handleRecommendedAction(legacyRecommendation);
             }}
             onClose={() => {
               setRecap(null);
+              // The day's grammar step is done: Home's programme reads it again.
+              if (forgeFromDay) void journey.actions.refresh();
               if (forgeStepId) {
                 returnToForgedDay();
                 return;
               }
               setView('today');
+              leavePracticeLanding();
             }}
           />
         )}
@@ -2239,12 +2321,14 @@ export default function AtelierPage() {
               setReviewTask(null);
               setReviewAnswer('');
               setReviewResult(null);
+              leavePracticeLanding();
             }}
           />
         )}
         {rewardMoment && (
           <RewardMomentOverlay
             moment={rewardMoment}
+            language={pageChromeLanguage}
             onClose={() => setRewardMoment(null)}
           />
         )}
@@ -2255,25 +2339,18 @@ export default function AtelierPage() {
 
 function RewardMomentOverlay({
   moment,
+  language,
   onClose,
 }: {
   moment: RewardMoment;
+  language: unknown;
   onClose: () => void;
 }) {
   const isLogoToken = moment.kind === 'logo_token';
   const isDrafting = isLogoToken && moment.collectible?.metadata?.effort === 'drafting';
   const credit = Number(moment.collectible?.metadata?.credit || 0);
-  const eyebrow = isLogoToken
-    ? (isDrafting ? 'Composé de toutes pièces' : 'Écran parfait')
-    : 'Édition sans faute';
-  const title = isLogoToken
-    ? (isDrafting ? 'Jeton bonus gagné' : 'Jeton du logo gagné')
-    : 'Sceau doré gagné';
-  const body = isLogoToken
-    ? (isDrafting
-        ? 'Vous avez produit la forme visée avec vos propres mots : ce travail plus exigeant reçoit un crédit supplémentaire.'
-        : 'Les trois formes ont rejoint la marque de la maison. Elles sont classées dans votre Almanach.')
-    : 'Aucune coquille sur ce tirage. Le sceau du jour a été frappé en doré.';
+  const rc = rewardMomentCopy(language);
+  const { eyebrow, title, body } = rc[isLogoToken ? (isDrafting ? 'drafting' : 'logo') : 'seal'];
   return (
     <div className="reward-moment-layer" role="status" aria-live="polite">
       <Confetti count={isLogoToken ? (isDrafting ? 30 : 24) : 30} />
@@ -2295,11 +2372,11 @@ function RewardMomentOverlay({
         <div>
           <span>{eyebrow}</span>
           <h2>{title}</h2>
-          {isDrafting && credit > 0 && <p className="reward-credit-line">+{credit} crédit</p>}
+          {isDrafting && credit > 0 && <p className="reward-credit-line">{rc.credit(credit)}</p>}
           <p>{body}</p>
         </div>
         <button type="button" onClick={onClose}>
-          Continuer <ArrowRight size={14} />
+          {rc.continue} <ArrowRight size={14} />
         </button>
       </section>
     </div>
@@ -2342,6 +2419,7 @@ function TodayView({
   chromeLanguage = 'fr',
   noticeLanguage,
   onOpenDay,
+  onSessionChanged,
 }: {
   today: AtelierToday | null;
   activeSession: AtelierSessionStart | null;
@@ -2393,6 +2471,8 @@ function TodayView({
   noticeLanguage?: ControlLanguage;
   /** WP-119 phase 3: open (or start) today's journey — the Revue hero's press until the day is done. */
   onOpenDay?: () => void;
+  /** Round 3: the pace changed on the Tempo sheet; read the day again. */
+  onSessionChanged?: () => void;
 }) {
   const router = useRouter();
   const hasActiveSession = dayProgress.sessionStatus === 'active';
@@ -2704,7 +2784,17 @@ function TodayView({
    * tiles led to stays one tap away as quiet rows, and only when there is
    * something there: words due, errata due, and «Plus de pratique» (D-0).
    */
-  const homeDay = errorOnlyPage || !practiceEntry ? null : dayMarkState(dayJourney, chromeLanguage);
+  const journeyDay = errorOnlyPage || !practiceEntry ? null : dayMarkState(dayJourney, chromeLanguage);
+  /**
+   * Round 3 (owner, 2026-10-14): the day as one sequence — Szene, Wörter,
+   * Grammatik, Fertig — at the learner's pace. The mark's four shapes are the
+   * four steps, the programme replaces the plan row, and Home's one button
+   * after the scene opens the next step. Words and La Forge are then part of
+   * the day, so no chip offers them beside it.
+   */
+  const daySession = journeyDay ? (dayEnvelope as TodayEnvelope | null)?.session ?? null : null;
+  const homeDay = daySession ? sessionMarkState(daySession, chromeLanguage) : journeyDay;
+  const [tempoOpen, setTempoOpen] = useState(false);
   /**
    * WP-81 — Home does one thing. While the journey owns the day, Home is the
    * masthead, the day's card, the plan row and at most one quiet row of two
@@ -2738,6 +2828,9 @@ function TodayView({
         special: specialEdition,
       })
     : { chip: null, hero: null };
+  // The programme still names the day's first step «Le Papier» on the Revue
+  // day once the Papier is filed and the hero is the day's card again.
+  const revueDayToday = Boolean(homeDay) && isRevueDay(dayShapeFrom(dayJourney, dayEnvelope), specialEdition);
   const revueDayDone = Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done);
   const revueHero = revueEntry.hero
     ? (() => {
@@ -2792,7 +2885,7 @@ function TodayView({
               shape: 'story' as const,
             }]
           : []),
-        ...(vocabularyReviewDue > 0 && !afterDayRoute
+        ...(vocabularyReviewDue > 0 && !afterDayRoute && !daySession
           ? [{
               id: 'lexique',
               label: vocabularyReviewDue === 1
@@ -2810,7 +2903,7 @@ function TodayView({
         // pratique») are one tap from Home again, not only from the recap.
         // WP-S4: on Léger and Régulier that entry is La Forge, «Forge today's
         // rule»; on Soutenu and Intensif the forge was part of the day.
-        ...(practiceEntry && homeDay && homeDay.total > 0 && homeDay.done >= homeDay.total && !afterDayRoute
+        ...(practiceEntry && homeDay && homeDay.total > 0 && homeDay.done >= homeDay.total && !afterDayRoute && !daySession
           ? [forgeEntry
             ? {
                 id: 'forge',
@@ -2925,9 +3018,20 @@ function TodayView({
         },
       ];
 
+  const sessionCopy = daySessionCopy(chromeLanguage);
+  const sessionNext = sessionNextAction(daySession, chromeLanguage);
+  const sessionExtra = sessionMore(daySession, chromeLanguage);
+  const homeHero = daySession && (sessionNext || sessionExtra) ? (
+    <>
+      {revueHero ?? journeyCard}
+      <DaySessionNext next={sessionNext} more={sessionExtra} onNavigate={(href) => { void router.push(href); }} />
+    </>
+  ) : (revueHero ?? journeyCard);
+
   return (
+    <>
     <HomeScreen
-      hero={revueHero ?? journeyCard}
+      hero={homeHero}
       dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
       editionLabel={editionLabel}
       level={homeLevel}
@@ -2962,7 +3066,14 @@ function TodayView({
       day={homeDay}
       // WP-98: no scene between two seasons, so no plan row to fill.
       // WP-119: on the Revue day the card is the route, so the plan row stands down.
-      planHidden={Boolean(revueHero) || Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
+      // Round 3: with the day as one sequence, a news day keeps its programme
+      // (Le Papier first); only an interlude has no scene to plan.
+      planHidden={(Boolean(revueHero) && !daySession) || Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
+      session={daySession ? {
+        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) || revueDayToday }),
+        tempoLabel: sessionCopy.tempo(sessionCopy.pace[daySession.pace]),
+        onTempo: () => setTempoOpen(true),
+      } : null}
       chips={homeChips}
       language={homeDay ? chromeLanguage : 'fr'}
       colophon={errorOnlyPage ? null : {
@@ -2974,6 +3085,15 @@ function TodayView({
     >
       <AtelierEditionNav active="atelier" />
     </HomeScreen>
+    {daySession && (
+      <TempoSheet
+        open={tempoOpen}
+        language={chromeLanguage}
+        onClose={() => setTempoOpen(false)}
+        onChanged={() => onSessionChanged?.()}
+      />
+    )}
+    </>
   );
 }
 
@@ -3593,7 +3713,7 @@ function SessionView({
           is announced rather than printed (WP-20 D-11). */}
       <h1 className="av2-sr">{forge ? `${fc.surface_name} · ${fc.surface_action}` : t.screen_name}</h1>
       <EpTopbar
-        middle={forge ? <ForgeCount copy={fc} count={seanceCountText(fc, forge)} /> : undefined}
+        middle={forge ? <ForgeCount copy={fc} count={seanceCountText(fc, forge, activeItemId)} /> : undefined}
         groups={epGroups}
         cap={epCap}
         onClose={onBack}
@@ -4727,11 +4847,14 @@ function RecapModal({
   concepts,
   filedEarly = false,
   recommendation,
+  dayHandOn = null,
   onRecommendedAction,
   onClose,
   language,
 }: {
   recap: Record<string, any>;
+  /** Round 3: the day's grammar step hands on to the next step, not a suggestion. */
+  dayHandOn?: { label: string } | null;
   concepts: AtelierConcept[];
   /** The learner closed the edition before the last drill; say so plainly. */
   filedEarly?: boolean;
@@ -4747,7 +4870,7 @@ function RecapModal({
   // WP-S6: a forge séance's recap is each rule's progress, not a tally.
   const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
   const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
-  const nextLabel = recapActionLabel(recommendation, reviewTotal, t);
+  const nextLabel = dayHandOn ? { action: dayHandOn.label } : recapActionLabel(recommendation, reviewTotal, t);
   const practiced = concepts.slice(0, 3).map((concept) => displayConceptTitle(concept));
   const minted = Array.isArray(recap.minted_collectibles) ? recap.minted_collectibles as AtelierCollectible[] : [];
   const logoTokens = minted.filter((item) => item.kind === 'logo_token');
@@ -5631,11 +5754,9 @@ function AtelierStyles() {
         background: var(--red);
         color: #fff;
         padding: 0 18px;
-        font-family: var(--mono);
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .13em;
-        text-transform: uppercase;
+        font-family: var(--grotesk);
+        font-size: 15px;
+        font-weight: 700;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes slip-in { from { opacity: 0; transform: translate(18px, -8px) rotate(2deg); } to { opacity: 1; transform: translate(0, 0) rotate(-1deg); } }

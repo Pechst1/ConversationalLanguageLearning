@@ -74,6 +74,13 @@ export type JourneyEpreuve = Schemas['EpreuveView'];
 export type StreakView = Schemas['StreakView'];
 export type CastIntroEntry = Schemas['CastIntroEntry'];
 export type TodayEnvelope = Schemas['TodayEnvelope'];
+/** Round 3: the day as one sequence — Szene, Wörter, Grammatik, Fertig. */
+export type DaySession = Schemas['DaySession'];
+export type DaySessionStep = Schemas['DaySessionStep'];
+export type DaySessionStepKind = DaySessionStep['kind'];
+export type PaceName = DaySession['pace'];
+export type PaceOption = Schemas['PaceOption'];
+export type PaceOptions = Schemas['PaceOptions'];
 export type JourneyBecause = Schemas['JourneyBecause'];
 export type JourneyCorrection = Schemas['JourneyCorrection'];
 export type NextTurn = Schemas['NextTurn'];

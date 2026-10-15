@@ -93,12 +93,16 @@ const OWN_SHELL_ROUTES = new Set([
   '/audio-session',
   // WP-S7: Éclair draws its own top bar (close, clock, score).
   '/eclair',
+  // Round 3: «Fertig für heute» is the day's last screen, like the recap it follows.
+  '/fertig',
   // WP-72: the legal pages draw their own bar (back + language) and are read
   // signed out, so no masthead.
   '/privacy',
   '/terms',
   ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
 ]);
+
+const SETTINGS_ROUTES = new Set(['/settings', '/dossier', '/repetition']);
 
 export function routeUsesOwnProductShell(pathname: string) {
   return OWN_SHELL_ROUTES.has(pathname);
@@ -127,6 +131,8 @@ export function resolveProductTitle(
   if (STORY_FEATURE_VISIBLE && STORY_ROUTES.includes(pathname)) {
     return 'Bibliothèque';
   }
-  if (pathname === '/settings') return settingsCopy(resolveSettingsLanguage(language)).page_label;
+  // The pages opened from Réglages (the Dossier, the rehearsal)
+  // belong to it; they used to fall through to «La Une», a page they are not.
+  if (SETTINGS_ROUTES.has(pathname)) return settingsCopy(resolveSettingsLanguage(language)).page_label;
   return PHONE_PRODUCT_TABS.find((item) => item.id === section)?.label || 'La Une';
 }

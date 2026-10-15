@@ -162,7 +162,7 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     copy = read(WEB / "components" / "courrier" / "courrier-copy.ts")
     assert "next_act: 'Lire l’acte suivant'" in copy
     assert "{t.next_act}</CrGhost>" in missions
-    assert "back_atelier: 'Retour à l’Atelier'" in copy
+    assert "back_atelier: 'Retour à La Une'" in copy
     assert "{t.back_atelier}</CrGhost>" in missions
     assert "router.push(routeForMissionSerialBeat(result.next_serial))" not in missions
     assert "apiService.translateToEnglish(openingMessage)" in missions

@@ -11,7 +11,10 @@
 //   4. RvHeadlineChoice shows the verdict and the anchor quote only after a pick;
 //   5. RvEncounter replays a resume payload into the same thread as RvThread;
 //   6. the contribution is underline + «toi», never colour alone;
-//   7. RvUneCard: the four states, one red press (none once filed).
+//   7. RvUneCard: the four states, one red press (none once filed);
+//   8. WP-119 §8.4: RvPicture printed like a press photograph (frame, caption on
+//      its rule, «Illustration · Le Papier»), «La légende» chosen or written
+//      (RvCaption), the dispatch's picture, Romy's «Regarde» on the arrive screen.
 
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
@@ -574,3 +577,170 @@ test('replayable evidence: the kept words wear their stored outcome and the line
   assert.match(html, /data-kind="mine"[\s\S]*data-kind="register"/);
   assert.match(html, /Avec Romy, on se tutoie\./);
 });
+
+// ---------------------------------------------------------------------------
+// WP-119 §8.4 · the story's own picture: RvPicture, «La légende», the dispatch
+// ---------------------------------------------------------------------------
+
+const PICTURE = '/assets/serial/locations/marche_canal.webp';
+const DESK_CAPTION = 'Un marché en plein air, un matin, entre les étals de fruits et légumes.';
+const WRITTEN_CAPTION = 'Un marché en plein air, devant le marché couvert, un matin.';
+
+test('RvPicture prints the house print like a press photograph: the frame, the caption on its rule, the credit', () => {
+  const { RvPicture, PICTURE_CREDIT_FR } = require('./index.ts');
+  const html = render(h(RvPicture, { url: PICTURE, captionFr: 'Un marché en plein air.', contribution: [[0, 23]], copy: FR }));
+  assert.match(html, /^<figure class="rv-picture" data-size="full" data-picture=""><div class="rv-picture__frame"><img class="rv-picture__img" src="\/assets\/serial\/locations\/marche_canal\.webp" alt="" decoding="async"\/><\/div><figcaption class="rv-picture__cap">/);
+  assert.match(html, /<span class="rv-picture__fr" lang="fr"><span class="rv-yours">Un marché en plein air\.<sup>toi<\/sup><\/span><\/span>/, 'the learner\'s caption: underline + «toi»');
+  assert.equal(PICTURE_CREDIT_FR, 'Illustration · Le Papier');
+  assert.match(html, /<span class="rv-picture__credit" lang="fr">Illustration · Le Papier<\/span><\/figcaption>/, 'an illustration, and it says so');
+  assert.match(render(h(RvPicture, { url: PICTURE, copy: EN })), /Illustration · Le Papier/, 'the publication\'s credit, French in every chrome');
+  // No caption yet: a dotted blank line, the caption still to find.
+  const blank = render(h(RvPicture, { url: PICTURE, captionFr: '  ', copy: FR }));
+  assert.match(blank, /<span class="rv-picture__blank" aria-hidden="true"><\/span>/);
+  assert.doesNotMatch(blank, /class="rv-picture__fr"/);
+  // A draft is printed grey and never marked as the learner's yet.
+  const draft = render(h(RvPicture, { url: PICTURE, captionFr: 'Un marché', contribution: [[0, 9]], draft: true, size: 'small', copy: FR }));
+  assert.match(draft, /data-size="small"/);
+  assert.match(draft, /<span class="rv-picture__fr" lang="fr" data-draft="">Un marché<\/span>/);
+  assert.doesNotMatch(draft, /rv-yours/);
+});
+
+test('«La légende» at A1–A2: the picture, a blank line and its words; three captions; the right one inked in after the pick', () => {
+  const { RvCaption } = require('./index.ts');
+  const offer = types.parseMakeOffer(MOCK.make_offer_caption).options.find((option) => option.kind === 'caption');
+  const props = { offer, picked: null, result: null, onPick: () => {}, onWrite: () => {}, glossLanguage: 'fr', copy: FR };
+  const before = render(h(RvCaption, props));
+  assert.match(before, /^<div class="rv-caption" data-format="choice"><figure class="rv-picture"/);
+  assert.match(before, /rv-picture__blank/, 'the caption still to find');
+  assert.match(visibleText(before), /Sur l’image marché couvert marché sous un toit en plein air dehors/);
+  assert.doesNotMatch(before, /<button[^>]*rv-caption__word/, 'A1–A2: the picture\'s words are read, not placed');
+  assert.match(before, /role="radiogroup" aria-label="La légende"/);
+  assert.equal((before.match(/role="radio"/g) || []).length, 3);
+  assert.doesNotMatch(before, /av2-feedback|data-state="(correct|wrong)"/, 'the answer stays with the server until the pick');
+
+  // The pick on its way prints grey under the picture.
+  const sending = render(h(RvCaption, { ...props, picked: 'l2', pending: true }));
+  assert.match(sending, /data-draft="">Un marché fermé, un soir de pluie\.<\/span>/);
+
+  // A wrong pick: marked with its word, the picture's own caption inked in, uncredited.
+  const wrong = render(h(RvCaption, { ...props, picked: 'l2', result: types.parseMakeResult(MOCK.make_caption_pick_wrong) }));
+  assert.match(wrong, /data-answered=""/);
+  assert.match(wrong, new RegExp(`<span class="rv-picture__fr" lang="fr">${DESK_CAPTION.replace(/\./g, '\\.')}</span>`));
+  assert.doesNotMatch(wrong, /<sup>toi<\/sup>/);
+  assert.match(wrong, /data-state="correct" disabled=""><span lang="fr">Un marché en plein air/);
+  assert.match(wrong, /data-state="wrong" disabled=""><span lang="fr">Un marché fermé[\s\S]*?à revoir/);
+  assert.match(wrong, /data-tone="wrong"/);
+  assert.match(visibleText(wrong), /Pas celle-là : l’image montre autre chose\./);
+
+  // The right pick: the caption is the learner's, «toi».
+  const right = render(h(RvCaption, { ...props, picked: 'l1', result: types.parseMakeResult(MOCK.make_caption_pick_right) }));
+  assert.match(right, new RegExp(`<span class="rv-yours">${DESK_CAPTION.replace(/\./g, '\\.')}<sup>toi</sup></span>`));
+  assert.match(right, /data-tone="correct"/);
+  assert.match(visibleText(right), /C’est ce qu’on voit\./);
+});
+
+test('«La légende» at B1+: the words are tiles that drop into the caption; the count; refused → write again; filed → printed as theirs', () => {
+  const { RvCaption, captionShown, captionFeedback } = require('./index.ts');
+  const offer = types.parseMakeOffer(MOCK.make_offer_caption_b1).options.find((option) => option.kind === 'caption');
+  const props = { offer, picked: null, result: null, onPick: () => {}, onWrite: () => {}, glossLanguage: 'en', copy: EN };
+  const before = render(h(RvCaption, props));
+  assert.match(before, /data-format="write"/);
+  assert.match(before, /<button type="button" class="av2-tile rv-caption__word" aria-label="Add «marché couvert» to your caption"><span class="rv-caption__fr" lang="fr">marché couvert<\/span><small class="rv-caption__gloss" lang="en">covered market<\/small><\/button>/);
+  assert.match(before, /<span class="av2-field__label">Your caption<\/span><textarea class="av2-field__control" lang="fr"[^>]*aria-describedby="rv-caption-count"/);
+  assert.match(before, /<p class="rv-write__count" id="rv-caption-count">0 of 16 words at most<\/p>/);
+  assert.match(before, /<button type="button" class="av2-btn av2-btn--primary" disabled=""[^>]*><span>Suggest the caption<\/span>/, 'nothing to send yet');
+  assert.equal((before.match(/av2-btn--primary/g) || []).length, 1);
+  // Typing prints the caption grey under the picture as it grows; a tile drops its words in.
+  assert.deepEqual(captionShown(offer, null, null, ' Un marché '), { captionFr: 'Un marché', contribution: [], draft: true });
+  assert.deepEqual(captionShown(offer, null, null, ''), { captionFr: null, contribution: [], draft: true });
+  assert.equal(model.captionInsert('', 'en plein air'), 'En plein air');
+  assert.equal(model.captionInsert('Un marché', 'en plein air'), 'Un marché en plein air');
+  assert.equal(model.captionUses('Un Marché couvert, le matin', 'le marché couvert'), true);
+  assert.equal(model.captionUses('Un marché', 'en plein air'), false);
+
+  const refusedResult = types.parseMakeResult(MOCK.make_caption_refused);
+  const refused = render(h(RvCaption, { ...props, result: refusedResult }));
+  assert.match(refused, /data-tone="wrong"/);
+  assert.match(visibleText(refused), /The picture or the sources say otherwise\. Write it again\. Used well: en plein air/);
+  assert.match(refused, /<textarea/, 'write again');
+  assert.match(refused, /av2-btn--primary/);
+  assert.deepEqual(captionShown(offer, refusedResult, null, WRITTEN_CAPTION).draft, true, 'a refused caption stays a draft');
+
+  const filedResult = types.parseMakeResult(MOCK.make_caption_write);
+  const filed = render(h(RvCaption, { ...props, result: filedResult }));
+  assert.match(filed, /data-accepted=""/);
+  assert.match(filed, new RegExp(`<span class="rv-yours">${WRITTEN_CAPTION.replace(/\./g, '\\.')}<sup>you</sup></span>`));
+  assert.match(filed, /data-state="placed" aria-label="marché couvert, in your caption" disabled=""/);
+  assert.match(filed, /data-state="placed" aria-label="en plein air, in your caption" disabled=""/);
+  assert.doesNotMatch(filed, /<textarea|av2-btn--primary/, 'filed: the foot\'s «Continuer» is the one press');
+  assert.deepEqual(captionFeedback(filedResult, EN), { tone: 'correct', title: 'The picture and the sources say so.', detail: 'Used well: marché couvert, en plein air' });
+  assert.equal(captionFeedback({ ...filedResult, evidence: { ...filedResult.evidence, factFit: 'unsupported', words: [] } }, FR).title, 'Ce n’est pas tout à fait sur l’image, mais Romy la garde.');
+  // Glosses off: the words without their gloss.
+  assert.doesNotMatch(render(h(RvCaption, { ...props, glosses: 'none' })), /rv-caption__gloss/);
+});
+
+test('the dispatch prints the story\'s picture under the headline, the caption marked only when the learner made it', () => {
+  const desk = render(h(RvDispatch, { ...types.parseCloseResult(MOCK.close_caption_choice).closing.dispatch, copy: FR }));
+  const order = ['class="rv-dispatch__hl"', 'data-picture=""', 'class="rv-dispatch__body"', 'class="rv-dispatch__by"'].map((needle) => desk.indexOf(needle));
+  assert.ok(order.every((index) => index >= 0));
+  assert.deepEqual(order.slice().sort((a, b) => a - b), order, 'headline, picture, body, byline');
+  assert.match(desk, new RegExp(`<span class="rv-picture__fr" lang="fr">${DESK_CAPTION.replace(/\./g, '\\.')}</span>`));
+  assert.doesNotMatch(desk, /<sup>toi<\/sup>/, 'the desk\'s caption after a wrong pick: no «toi»');
+  const mine = render(h(RvDispatch, { ...types.parseCloseResult(MOCK.close_caption_write).closing.dispatch, copy: EN }));
+  assert.match(mine, new RegExp(`<span class="rv-yours">${WRITTEN_CAPTION.replace(/\./g, '\\.')}<sup>you</sup></span>`));
+  assert.match(visibleText(mine), /Illustration · Le Papier/);
+  assert.doesNotMatch(render(h(RvDispatch, { ...types.parseDispatch(MOCK.close.closing.dispatch), copy: FR })), /rv-picture/, 'no picture, no frame');
+
+  // In the close, the dispatch with its picture comes before «Pour ton Relevé».
+  const close = types.parseCloseResult(MOCK.close_caption_write);
+  const live = render(h(RvEncounter, {
+    client: createMockRevueClient({ persist: false }),
+    session: { ...types.parseSessionView(MOCK.session_b1_picture_arrive), closing: close.closing },
+    language: 'en',
+    onExit: () => {},
+    now: new Date(at),
+  }));
+  assert.ok(live.indexOf('data-picture=""') > live.indexOf('data-dispatch=""'));
+  assert.ok(live.indexOf('data-picture=""') < live.indexOf('data-kind="kept"'));
+  assert.match(visibleText(live), /Ta légende part sous l'image, avec mon papier\./);
+  const { RvMadeCard } = require('./index.ts');
+  assert.match(visibleText(render(h(RvMadeCard, { made: types.parseMakeResult(MOCK.make_caption_write).made, copy: FR }))), /^Ta légende Un marché en plein air/);
+});
+
+test('the arrive screen on the story\'s own picture: the picture is the plate, Romy says «Regarde», nothing stands in', () => {
+  const session = types.parseSessionView(MOCK.session_picture_arrive);
+  const html = render(h(RvEncounter, { client: createMockRevueClient({ persist: false }), session, language: 'fr', onExit: () => {}, now: new Date(at) }));
+  assert.match(html, /<div class="rv-stage" data-size="full"><img class="rv-stage__plate" src="\/assets\/serial\/locations\/marche_canal\.webp"/);
+  assert.match(html, /data-role="look"/);
+  assert.doesNotMatch(html, /data-role="place_note"/);
+  assert.ok(html.indexOf('data-role="look"') < html.indexOf('data-role="purpose"'), 'Romy points at the picture, then says why she is here');
+  assert.match(visibleText(html), /Regarde : le marché en plein air , et derrière , le marché couvert \./);
+  assert.equal((html.match(/av2-btn--primary/g) || []).length, 1);
+});
+
+test('the make picker names «La légende» in every chrome: to choose (A1–A2), to write (B1+)', () => {
+  for (const language of ['fr', 'en', 'de']) {
+    const copy = revueCopy(language);
+    for (const kind of ['caption', 'caption_write']) {
+      assert.ok(copy.make_options[kind].title && copy.make_options[kind].detail, `${language} ${kind}`);
+    }
+    assert.match(copy.make_options.caption_write.detail, /\{n\}/, `${language}: the word cap is shown`);
+    for (const key of ['caption_label', 'caption_right', 'caption_wrong', 'caption_write_label', 'caption_placeholder', 'caption_send', 'caption_supported', 'caption_unsupported', 'caption_contradicted', 'caption_words', 'caption_word_add', 'caption_word_used', 'made_caption']) {
+      assert.ok(copy[key], `${language} ${key}`);
+    }
+    assert.match(copy.caption_word_add, /\{word\}/);
+  }
+  const picker = render(h(RvMakePicker, {
+    options: [
+      { id: 'caption', titleFr: FR.make_options.caption.title, detail: FR.make_options.caption.detail },
+      { id: 'headline_choice', titleFr: FR.make_options.headline_choice.title, detail: FR.make_options.headline_choice.detail },
+    ],
+    recommended: 'caption',
+    value: 'caption',
+    onChange: () => {},
+    copy: FR,
+  }));
+  assert.match(picker, /aria-checked="true"[^>]*data-state="selected" data-make="caption"/);
+  assert.match(visibleText(picker), /Choisir la légende Trois légendes, une seule dit ce qu’on voit\./);
+});
+

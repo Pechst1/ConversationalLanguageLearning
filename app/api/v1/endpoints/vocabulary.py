@@ -813,8 +813,9 @@ def _drill_deck(
 @router.get("/due-context", response_model=VocabularyDueContextResponse)
 def get_vocabulary_due_context(
     *,
-    limit: int = Query(12, ge=1, le=50),
-    due_limit: int = Query(4, ge=0, le=50),
+    # Round 3: the day's deck holds the pace's words (Schnell: 40) and the reviews due.
+    limit: int = Query(12, ge=1, le=100),
+    due_limit: int = Query(4, ge=0, le=100),
     fragile_limit: int = Query(4, ge=0, le=50),
     new_limit: int = Query(4, ge=0, le=50),
     topic_limit: int = Query(4, ge=0, le=50),
@@ -830,6 +831,15 @@ def get_vocabulary_due_context(
         description=(
             "WP-154: the word drill's own deck. `session` serves the rest of the batch dealt "
             "today (a new one once it is answered); `more` appends the «Encore N mots» continuation."
+        ),
+    ),
+    extra: int = Query(
+        0,
+        ge=0,
+        le=20,
+        description=(
+            "Round 3: «Noch 10 Wörter» after the day — new words beyond the day's pace, "
+            "appended like `more`. Only after the learner chose to keep going."
         ),
     ),
     db: Session = Depends(deps.get_db),
@@ -952,6 +962,11 @@ def get_vocabulary_due_context(
     # the journey has reserved. WP-131: the room is kept, so the deck can say
     # what the day's allowance still holds after it.
     new_limit, reserved_new, new_room = vocabulary_pace_allowance(db, current_user, new_limit)
+    if extra:
+        # Round 3: the learner finished the day and asked for more: the pace is
+        # a daily dose, not a ceiling on a learner who wants to keep going.
+        new_limit, new_room = extra, None
+        drill = "more"
     # WP-115a: the learner's «Maximum reviews/day» — due words first, then fragile.
     try:
         from app.services.vocabulary_pace import reviews_left_today

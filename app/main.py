@@ -24,6 +24,7 @@ from app.api.v1 import api_router
 from app.config import settings
 from app.core.uploads import ImportBodyLimitMiddleware
 from app.services import story_correspondence
+from app.services.spend_ledger import PaidCallTracking
 
 tags_metadata: list[dict[str, str]] = [
     {"name": "auth", "description": "Register users and issue authentication tokens."},
@@ -131,6 +132,8 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(ImportBodyLimitMiddleware, api_prefix=settings.API_V1_STR)
+    # E1: a per-request tally of provider calls, so a failed paid request keeps its hold.
+    app.add_middleware(PaidCallTracking)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,

@@ -34,6 +34,7 @@ export type ReleveCopy = {
   track_words_label: string;
   track_rules: string;
   track_rules_label: string;
+  cours_how: string;
   // Le Registre
   registre_title: string;
   registre_failed: string;
@@ -120,6 +121,7 @@ const FR: ReleveCopy = {
   track_words_label: 'Mots vérifiés',
   track_rules: 'Règles',
   track_rules_label: 'Règles vérifiées',
+  cours_how: 'Comment on compte, et le corriger',
   registre_title: 'Le registre',
   registre_failed: 'Le registre n’a pas pu être ouvert.',
   words_mastered: 'Mots acquis',
@@ -160,8 +162,8 @@ const FR: ReleveCopy = {
   note_first_letter: 'Une première réponse au Courrier.',
   note_words_kept_50: 'Cinquante mots dans votre Lexique.',
   note_first_chapter: 'Le premier chapitre du feuilleton s’est refermé.',
-  foot_dated: 'Le Relevé · arrêté au {date}',
-  foot: 'Le Relevé · vos chiffres, rien d’autre',
+  foot_dated: 'Progrès · arrêté au {date}',
+  foot: 'Progrès · vos chiffres, rien d’autre',
   seals_title: 'Vos sceaux',
   seals_failed: 'Les sceaux n’ont pas pu être relevés.',
   seals_grid: 'Vos sceaux · série de {days}',
@@ -203,6 +205,7 @@ const EN: ReleveCopy = {
   track_words_label: 'Verified words',
   track_rules: 'Rules',
   track_rules_label: 'Verified rules',
+  cours_how: 'How we count this, and how to correct it',
   registre_title: 'Your record',
   registre_failed: 'Your record could not be loaded.',
   words_mastered: 'Words learned',
@@ -243,8 +246,8 @@ const EN: ReleveCopy = {
   note_first_letter: 'Your first reply in the Courrier.',
   note_words_kept_50: 'Fifty words in your Lexique.',
   note_first_chapter: 'The first chapter of the Feuilleton has closed.',
-  foot_dated: 'Le Relevé · as of {date}',
-  foot: 'Le Relevé · your numbers, nothing else',
+  foot_dated: 'Progress · as of {date}',
+  foot: 'Progress · your numbers, nothing else',
   seals_title: 'Your seals',
   seals_failed: 'Your seals could not be loaded.',
   seals_grid: 'Your seals · streak of {days}',
@@ -286,6 +289,7 @@ const DE: ReleveCopy = {
   track_words_label: 'Geprüfte Wörter',
   track_rules: 'Regeln',
   track_rules_label: 'Geprüfte Regeln',
+  cours_how: 'Wie wir das zählen, und wie du es korrigierst',
   registre_title: 'Deine Übersicht',
   registre_failed: 'Deine Übersicht konnte nicht geladen werden.',
   words_mastered: 'Gelernte Wörter',
@@ -326,8 +330,8 @@ const DE: ReleveCopy = {
   note_first_letter: 'Eine erste Antwort im Courrier.',
   note_words_kept_50: 'Fünfzig Wörter in deinem Lexique.',
   note_first_chapter: 'Das erste Kapitel des Feuilleton ist abgeschlossen.',
-  foot_dated: 'Le Relevé · Stand {date}',
-  foot: 'Le Relevé · Deine Zahlen, sonst nichts',
+  foot_dated: 'Fortschritt · Stand {date}',
+  foot: 'Fortschritt · Deine Zahlen, sonst nichts',
   seals_title: 'Deine Siegel',
   seals_failed: 'Deine Siegel konnten nicht geladen werden.',
   seals_grid: 'Deine Siegel · Serie: {days}',

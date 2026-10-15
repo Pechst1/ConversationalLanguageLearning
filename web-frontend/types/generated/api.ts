@@ -1391,6 +1391,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daily-journeys/session/pace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pace
+         * @description Round 3: the Tempo sheet — what each pace costs today and in eight weeks,
+         *     and when it reaches the learner's goal level.
+         */
+        get: operations["read_pace_api_v1_daily_journeys_session_pace_get"];
+        /** Update Pace */
+        put: operations["update_pace_api_v1_daily_journeys_session_pace_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daily-journeys/session/words-done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Words Done
+         * @description Round 3: the learner finished today's word deck; the day moves on to grammar.
+         */
+        post: operations["words_done_api_v1_daily_journeys_session_words_done_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daily-journeys/today": {
         parameters: {
             query?: never;
@@ -3062,6 +3104,26 @@ export interface paths {
         get: operations["read_state_api_v1_rehearsals_state_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/admin/paint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Paint Pictures
+         * @description Paint the period's missing pictures (each once, final).
+         */
+        post: operations["paint_pictures_api_v1_revue_admin_paint_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7277,6 +7339,86 @@ export interface components {
             words?: components["schemas"]["DailyWordEntry"][];
         };
         /**
+         * DaySession
+         * @description Round 3 (owner, 2026-10-14): the day as one sequence — Szene, Wörter,
+         *     Grammatik, Fertig — at the learner's pace. See ``app.services.daily_session``.
+         */
+        DaySession: {
+            /**
+             * Done
+             * @default false
+             */
+            done: boolean;
+            /**
+             * Minutes Left
+             * @default 0
+             */
+            minutes_left: number;
+            /** More Href */
+            more_href: string;
+            /** More Minutes */
+            more_minutes: number;
+            /** More Words */
+            more_words: number;
+            /** Next Kind */
+            next_kind: ("scene" | "words" | "grammar" | "finish") | null;
+            /**
+             * Pace
+             * @enum {string}
+             */
+            pace: "ruhig" | "normal" | "schnell";
+            /** Steps */
+            steps: components["schemas"]["DaySessionStep"][];
+            tally: components["schemas"]["DaySessionTally"];
+        };
+        /**
+         * DaySessionStep
+         * @description Round 3: one of the day's four steps, in order.
+         */
+        DaySessionStep: {
+            /** Count */
+            count: number | null;
+            /** Href */
+            href: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "scene" | "words" | "grammar" | "finish";
+            /**
+             * Minutes
+             * @default 0
+             */
+            minutes: number;
+            /** New Left */
+            new_left: number | null;
+            /** Reviews */
+            reviews: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "done" | "next" | "todo";
+        };
+        /** DaySessionTally */
+        DaySessionTally: {
+            /**
+             * Exercises
+             * @default 0
+             */
+            exercises: number;
+            /**
+             * Scenes
+             * @default 0
+             */
+            scenes: number;
+            /**
+             * Words
+             * @default 0
+             */
+            words: number;
+        };
+        /**
          * DayTimeEstimate
          * @description WP-128 — the one estimate every surface shows: Home, the entry, the plan, the ending.
          *
@@ -9809,6 +9951,57 @@ export interface components {
              */
             type?: string;
         };
+        /** PaceOption */
+        PaceOption: {
+            /** Exercises */
+            exercises: number;
+            /** Goal Weeks */
+            goal_weeks: number;
+            /** Minutes Today */
+            minutes_today: number;
+            /** Minutes Week 8 */
+            minutes_week_8: number;
+            /**
+             * Pace
+             * @enum {string}
+             */
+            pace: "ruhig" | "normal" | "schnell";
+            /** Reviews Week 8 */
+            reviews_week_8: number;
+            /** Rules Per Week */
+            rules_per_week: number;
+            /** Words */
+            words: number;
+        };
+        /**
+         * PaceOptions
+         * @description Round 3: the Tempo sheet — what each pace costs and when it reaches the goal.
+         */
+        PaceOptions: {
+            /** Chosen */
+            chosen: boolean;
+            /**
+             * Current
+             * @enum {string}
+             */
+            current: "ruhig" | "normal" | "schnell";
+            /** Goal */
+            goal: string;
+            /** Options */
+            options: components["schemas"]["PaceOption"][];
+            /** Units Left */
+            units_left: number;
+            /** Words Left */
+            words_left: number;
+        };
+        /** PaceUpdate */
+        PaceUpdate: {
+            /**
+             * Pace
+             * @enum {string}
+             */
+            pace: "ruhig" | "normal" | "schnell";
+        };
         /**
          * PasswordResetConfirm
          * @description Confirm a password reset with a one-time link token, or email plus code.
@@ -10519,7 +10712,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "question" | "headline";
+            kind: "question" | "headline" | "caption";
             /** Place Label Fr */
             place_label_fr: string;
             /** Plate Url */
@@ -10587,6 +10780,13 @@ export interface components {
         };
         /** ReleveEntry */
         ReleveEntry: {
+            /**
+             * Caption By Learner
+             * @default false
+             */
+            caption_by_learner?: boolean;
+            /** Caption Fr */
+            caption_fr?: string | null;
             /** Claims */
             claims: components["schemas"]["ReleveClaim"][];
             /** Closed At */
@@ -10598,6 +10798,8 @@ export interface components {
             period: string;
             /** Period Label */
             period_label: string;
+            /** Picture Url */
+            picture_url?: string | null;
             /**
              * Second
              * @default false
@@ -11013,6 +11215,90 @@ export interface components {
             /** Turns */
             turns: number;
         };
+        /**
+         * RvCaptionMake
+         * @description «La légende»: ``option_id`` for the choice, ``text_fr`` for the written caption.
+         */
+        RvCaptionMake: {
+            /**
+             * Action
+             * @constant
+             */
+            action: "caption";
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "caption";
+            /** Option Id */
+            option_id?: string | null;
+            /** Text Fr */
+            text_fr?: string | null;
+        };
+        /**
+         * RvCaptionOffer
+         * @description WP-119 §8.4 «La légende»: the caption under the story's picture. ``choice`` (A1–A2): three
+         *     captions, one says what the picture shows; ``write`` (B1+): the learner writes it, at most
+         *     ``max_words`` words, with the picture's words as chips.
+         */
+        RvCaptionOffer: {
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "choice" | "write";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "caption";
+            /**
+             * Max Words
+             * @default 16
+             */
+            max_words?: number;
+            /** Options */
+            options?: components["schemas"]["RvCaptionOption"][];
+            /** Picture Url */
+            picture_url: string;
+            /** Words */
+            words?: components["schemas"]["RvGloss"][];
+        };
+        /** RvCaptionOption */
+        RvCaptionOption: {
+            /** Id */
+            id: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /**
+         * RvCaptionResult
+         * @description The caption filed under the picture. ``choice``: ``correct`` and ``answer_id`` (a wrong pick
+         *     files the caption the picture shows, uncredited, like the headline); ``write``: graded by the
+         *     rubric, refused (``accepted`` false, nothing filed) when a claim contradicts it.
+         */
+        RvCaptionResult: {
+            /** Accepted */
+            accepted: boolean;
+            /** Answer Id */
+            answer_id?: string | null;
+            /** Correct */
+            correct?: boolean | null;
+            evidence?: components["schemas"]["RvEvidence"] | null;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "choice" | "write";
+            /**
+             * Kind
+             * @default caption
+             * @constant
+             */
+            kind?: "caption";
+            line?: components["schemas"]["RvLineItem"] | null;
+            made?: components["schemas"]["RvMade"] | null;
+        };
         /** RvClaim */
         RvClaim: {
             /** Attributed To */
@@ -11086,6 +11372,13 @@ export interface components {
             body_fr: string[];
             /** Byline Fr */
             byline_fr: string;
+            /**
+             * Caption By Learner
+             * @default false
+             */
+            caption_by_learner?: boolean;
+            /** Caption Fr */
+            caption_fr?: string | null;
             /** Contribution */
             contribution: [
                 number,
@@ -11095,6 +11388,8 @@ export interface components {
             headline_fr: string;
             /** Kicker Fr */
             kicker_fr: string;
+            /** Picture Url */
+            picture_url?: string | null;
             /** Sources */
             sources: components["schemas"]["RvSource"][];
         };
@@ -11324,7 +11619,7 @@ export interface components {
              * Role
              * @enum {string}
              */
-            role: "purpose" | "place_note" | "reply" | "steer" | "fallback" | "make_intro" | "make_done" | "close";
+            role: "purpose" | "place_note" | "look" | "reply" | "steer" | "fallback" | "make_intro" | "make_done" | "close";
             /** Seq */
             seq: number;
             /**
@@ -11348,7 +11643,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report";
+            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption";
             /** Learner Fr */
             learner_fr?: string | null;
             /** Text Fr */
@@ -11373,12 +11668,12 @@ export interface components {
         RvMakeOffer: {
             intro?: components["schemas"]["RvLineItem"] | null;
             /** Options */
-            options: (components["schemas"]["RvHeadlineChoiceOffer"] | components["schemas"]["RvHeadlineWriteOffer"] | components["schemas"]["RvReaderQuestionOffer"] | components["schemas"]["RvShortReportOffer"])[];
+            options: (components["schemas"]["RvHeadlineChoiceOffer"] | components["schemas"]["RvHeadlineWriteOffer"] | components["schemas"]["RvReaderQuestionOffer"] | components["schemas"]["RvShortReportOffer"] | components["schemas"]["RvCaptionOffer"])[];
             /**
              * Recommended
              * @enum {string}
              */
-            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report";
+            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption";
         };
         /** RvMatchRequest */
         RvMatchRequest: {
@@ -11470,7 +11765,7 @@ export interface components {
              */
             gloss_language: "en" | "de" | "fr";
             /** Make Options */
-            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report")[];
+            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption")[];
             support: components["schemas"]["RvSupport"];
             /**
              * Ui Language
@@ -11712,12 +12007,20 @@ export interface components {
              * @enum {string}
              */
             dress: "coat" | "suit" | "apron" | "raincoat" | "sport" | "scarf_only" | "chef" | "hi_vis";
+            /** Picture Words */
+            picture_words?: components["schemas"]["RvGloss"][];
             /** Place Fr */
             place_fr: string;
             /** Place Id */
             place_id: string;
             /** Place Is Real */
             place_is_real: boolean;
+            /**
+             * Plate Kind
+             * @default season
+             * @enum {string}
+             */
+            plate_kind?: "story" | "painted" | "season" | "stand_in";
             /** Plate Place Id */
             plate_place_id: string;
             /**
@@ -13113,6 +13416,7 @@ export interface components {
              */
             practice_href: string;
             season_premiere: components["schemas"]["SeasonPremiereView"] | null;
+            session: components["schemas"]["DaySession"] | null;
             streak: components["schemas"]["StreakView"] | null;
             time_estimate: components["schemas"]["DayTimeEstimate"] | null;
             /** Timezone */
@@ -13674,6 +13978,8 @@ export interface components {
             daily_goal_minutes: number;
             /** Daily Goal Xp */
             daily_goal_xp: number;
+            /** Daily Pace */
+            daily_pace?: ("ruhig" | "normal" | "schnell") | null;
             /** Default Vocab Direction */
             default_vocab_direction: string;
             /**
@@ -13774,6 +14080,8 @@ export interface components {
             daily_goal_minutes?: number | null;
             /** Daily Goal Xp */
             daily_goal_xp?: number | null;
+            /** Daily Pace */
+            daily_pace?: ("ruhig" | "normal" | "schnell") | null;
             /** Default Vocab Direction */
             default_vocab_direction?: ("fr_to_de" | "de_to_fr" | "fr_to_en" | "en_to_fr" | "mixed") | null;
             /** Font Size */
@@ -16743,6 +17051,79 @@ export interface operations {
             };
         };
     };
+    read_pace_api_v1_daily_journeys_session_pace_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaceOptions"];
+                };
+            };
+        };
+    };
+    update_pace_api_v1_daily_journeys_session_pace_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaceOptions"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    words_done_api_v1_daily_journeys_session_words_done_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DaySession"] | null;
+                };
+            };
+        };
+    };
     read_today_api_v1_daily_journeys_today_get: {
         parameters: {
             query?: {
@@ -19406,6 +19787,41 @@ export interface operations {
             };
         };
     };
+    paint_pictures_api_v1_revue_admin_paint_post: {
+        parameters: {
+            query?: {
+                enqueue?: boolean;
+                limit?: number | null;
+                period?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     refresh_intake_api_v1_revue_admin_refresh_post: {
         parameters: {
             query?: {
@@ -20011,7 +20427,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RvHeadlinePick"] | components["schemas"]["RvQuestionPropose"] | components["schemas"]["RvQuestionSend"] | components["schemas"]["RvHeadlineWrite"] | components["schemas"]["RvShortReport"];
+                "application/json": components["schemas"]["RvHeadlinePick"] | components["schemas"]["RvQuestionPropose"] | components["schemas"]["RvQuestionSend"] | components["schemas"]["RvHeadlineWrite"] | components["schemas"]["RvShortReport"] | components["schemas"]["RvCaptionMake"];
             };
         };
         responses: {
@@ -20021,7 +20437,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RvHeadlinePickResult"] | components["schemas"]["RvQuestionProposeResult"] | components["schemas"]["RvQuestionSendResult"] | components["schemas"]["RvHeadlineWriteResult"] | components["schemas"]["RvShortReportResult"];
+                    "application/json": components["schemas"]["RvHeadlinePickResult"] | components["schemas"]["RvQuestionProposeResult"] | components["schemas"]["RvQuestionSendResult"] | components["schemas"]["RvHeadlineWriteResult"] | components["schemas"]["RvShortReportResult"] | components["schemas"]["RvCaptionResult"];
                 };
             };
             /** @description Validation Error */
@@ -22331,6 +22747,8 @@ export interface operations {
                 /** @description WP-154: the word drill's own deck. `session` serves the rest of the batch dealt today (a new one once it is answered); `more` appends the «Encore N mots» continuation. */
                 drill?: string | null;
                 due_limit?: number;
+                /** @description Round 3: «Noch 10 Wörter» after the day — new words beyond the day's pace, appended like `more`. Only after the learner chose to keep going. */
+                extra?: number;
                 feuilleton_scene_id?: string | null;
                 fragile_limit?: number;
                 limit?: number;

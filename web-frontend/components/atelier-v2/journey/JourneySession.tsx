@@ -48,6 +48,8 @@ import {
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
+import Router from 'next/router';
+import { sessionAfterScene } from '@/lib/day-session';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
@@ -68,7 +70,7 @@ import {
 import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { ReadStepView } from './ReadStep';
 import { DeskStepView } from './DeskStep';
-import { journeySpeaker } from './journey-faces';
+import { drillSpeaker, journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { continuesConversation } from './respond-thread';
 import { stepHeaderLine } from './drill-frame';
@@ -106,6 +108,7 @@ import {
   type RouteStage,
 } from '@/lib/first-steps';
 import { isRevueDay } from '@/lib/revue-une';
+import { emitCameo } from '@/lib/cameo';
 
 export type JourneySessionProps = {
   controller: DailyJourneyController;
@@ -195,6 +198,8 @@ export function JourneySession({
   // WP-76/77: a haptic (and a sound, when on) per state; the face on screen.
   useJourneyFeel(phase.kind, step?.id ?? null, feedback);
   const speaker = journeySpeaker(journey, step);
+  // La troupe vivante: a drill is asked by the rule's coach, or by the scene's character.
+  const asker = step?.kind === 'recall' ? drillSpeaker(journey, step) : null;
 
   // WP-82: the step caption is status, in the screen's one chrome language.
   // WP-76: steps only — no clock that a server wait can move.
@@ -229,6 +234,15 @@ export function JourneySession({
           ? 'frown'
           : null
       : null;
+  // Les apparitions: each graded answer counts toward the troupe's streaks and comforts, once.
+  const announced = React.useRef<unknown>(null);
+  const gradedVerdict = tokenFace === 'grin' ? true : tokenFace === 'frown' ? false : null;
+  const askerId = asker?.id ?? null;
+  React.useEffect(() => {
+    if (gradedVerdict === null || announced.current === feedback) return;
+    announced.current = feedback;
+    emitCameo({ type: 'answer', correct: gradedVerdict, coachId: askerId });
+  }, [feedback, gradedVerdict, askerId]);
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
   // WP-D1: the mark is the day's plan, in the head's right-hand slot.
   const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;
@@ -277,6 +291,9 @@ export function JourneySession({
   const dayFinished = phase.kind === 'finished';
   // A day ended early is not the story done: the route ticks it only when completed.
   const storyCompleted = dayFinished && journey?.status === 'completed';
+  // Round 3: with the day as one sequence, the scene's ending hands on to the
+  // next step itself, so the first day's old route stands down.
+  const daySession = Boolean(controller.envelope?.session);
   React.useEffect(() => {
     if (!firstDay || !storyCompleted || !localDate) return;
     const store = deviceStore();
@@ -396,7 +413,7 @@ export function JourneySession({
             <RvJourneyPapier language={chromeLanguage} onDone={() => setPapierDone(true)} />
           ) : (
             <>
-            {firstDay && storyCompleted && firstDayRoute && (
+            {firstDay && storyCompleted && firstDayRoute && !daySession && (
               <div className="journey-first-route">
                 <FirstDayRoute
                   language={chromeLanguage}
@@ -413,7 +430,7 @@ export function JourneySession({
               onExit={onExit}
               morePractice={morePractice}
               onPractice={onPractice}
-              forgeAfterDay={firstDay && storyCompleted && firstDayRoute ? null : forgeAfterDay}
+              forgeAfterDay={(firstDay && storyCompleted && firstDayRoute) || daySession ? null : forgeAfterDay}
             />
             </>
           )}
@@ -545,6 +562,7 @@ export function JourneySession({
                   onContinue={actions.continueJourney}
                   draft={draft}
                   journeyId={journey?.id ?? null}
+                  speaker={asker}
                 />
               )}
               {step.kind === 'respond' && (
@@ -575,15 +593,20 @@ export function JourneySession({
                 />
               )}
 
-              <JourneyFeedbackView
-                feedback={feedback}
-                copy={copy}
-                onContinue={actions.continueJourney}
-                onRetry={actions.retryLastAnswer}
-                onDismiss={actions.clearFeedback}
-                speaker={speaker}
-                stepKind={step?.kind ?? null}
-              />
+              {/* Live walk #116: under the reader the notice sat behind its
+                  pinned panel dots, and «Try again» could not be tapped. */}
+              <div className={immersive ? 'fr-over-nav' : undefined}>
+                <JourneyFeedbackView
+                  feedback={feedback}
+                  copy={copy}
+                  onContinue={actions.continueJourney}
+                  onRetry={actions.retryLastAnswer}
+                  onDismiss={actions.clearFeedback}
+                  speaker={speaker}
+                  stepKind={step?.kind ?? null}
+                  faceShown={step?.kind === 'recall' && Boolean(asker)}
+                />
+              </div>
 
               {/* Third tier. Quiet by construction, so the step's own primary
                   stays the only primary in the composition. Hidden under the
@@ -825,11 +848,17 @@ export function JourneyRecapView({
   forgeAfterDay?: { label: string; onSelect: () => void } | null;
 }) {
   const speaker = journeySpeaker(phase.journey);
+  const language = journeyChromeLanguage(controller);
+  // Round 3: with the day as one sequence, a completed scene hands on to the
+  // words (or the grammar); the seal and the curtain call wait for «Fertig».
+  const next =
+    phase.journey.status === 'completed' ? sessionAfterScene(controller.envelope?.session, language) : null;
   return (
     <JourneyRecap
       journey={phase.journey}
       recap={phase.recap}
-      language={journeyChromeLanguage(controller)}
+      language={language}
+      sessionNext={next ? { label: next.label, meta: next.meta, onSelect: () => { void Router.push(next.href); } } : null}
       onExit={onExit}
       morePractice={morePractice}
       onPractice={onPractice}

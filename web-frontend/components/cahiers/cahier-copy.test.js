@@ -74,9 +74,12 @@ test('counts and placeholders read naturally in each language', () => {
 });
 
 test('place names stay French in every column', () => {
+  // The progress tab is chrome, not a place (owner, 2026-10-12: «Fortschritt»).
+  assert.equal(cahierCopy('de').cahier.mode_releve, 'Fortschritt');
+  assert.equal(cahierCopy('en').cahier.mode_releve, 'Progress');
+  assert.equal(cahierCopy('fr').cahier.mode_releve, 'Progrès');
   for (const language of ['en', 'de', 'fr']) {
     const t = cahierCopy(language);
-    assert.equal(t.cahier.mode_releve, 'Relevé');
     assert.equal(t.library.lexique, 'Lexique');
     assert.equal(t.notebook.title_library, 'Le Cahier · Bibliothèque');
     assert.match(t.grammar.cta, /[Ll]’Atelier/, `${language}: L’Atelier`);

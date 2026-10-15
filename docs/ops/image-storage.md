@@ -1,9 +1,14 @@
 # Durable image storage (Cloudflare R2)
 
-Generated images (Feuilleton panels, Revue plates, panel art) must outlive a deploy.
-Render's container disk is wiped on every deploy, so production keeps them in an
-S3-compatible bucket. Until the bucket is set, `GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED`
-and the plate painters stay on the SVG / known-plate fallback and draw nothing.
+Generated images (Feuilleton panels, Revue plates, Le Papier's story pictures, panel art)
+must outlive a deploy. Render's container disk is wiped on every deploy, so production
+keeps them in an S3-compatible bucket. Until the bucket is set, `GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED`
+and the plate painters stay on the SVG / known-plate fallback and draw nothing: each
+Papier story shows its place's season plate instead of its own picture (WP-119 §8.4).
+
+Once the bucket is set, the next morning's intake paints the week's story pictures (one
+each, final, about $0.06 apiece). To paint them the same day: `POST /api/v1/revue/admin/paint`
+as an admin (queued; `?enqueue=false` paints in the request and returns the report).
 
 Cloudflare R2 is the cheapest fit: 10 GB, 1 M uploads and 10 M reads a month free, and
 no charge for downloads. A panel is ~1–2 MB, so the free tier holds several thousand.

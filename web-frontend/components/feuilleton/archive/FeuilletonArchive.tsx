@@ -97,8 +97,12 @@ export function FeuilletonArchive({ view, dayQuery }: { view: ArchiveView; dayQu
     };
   }, [attempt, view]);
 
+  // The load is keyed on `castAttempt`, not on `castState`: setting the state
+  // to 'loading' inside the effect used to re-run it, whose cleanup dropped the
+  // answer, so the trombinoscope spun forever (walk 2026-10-12).
+  const [castAttempt, setCastAttempt] = useState(0);
   useEffect(() => {
-    if (view !== 'cast' || castState !== 'idle') return undefined;
+    if (view !== 'cast') return undefined;
     let alive = true;
     setCastState('loading');
     void getTrombinoscope().then((members) => {
@@ -109,7 +113,7 @@ export function FeuilletonArchive({ view, dayQuery }: { view: ArchiveView; dayQu
     return () => {
       alive = false;
     };
-  }, [castState, view]);
+  }, [castAttempt, view]);
 
   const openKeys = open ?? defaultOpenChapters(archive);
   const toggleChapter = useCallback(
@@ -171,7 +175,7 @@ export function FeuilletonArchive({ view, dayQuery }: { view: ArchiveView; dayQu
 
         {view === 'cast' ? (
           castState === 'failed' ? (
-            <FailedBlock title={t.cast_failed} body={t.archive_failed_body} retry={t.retry} onRetry={() => setCastState('idle')} />
+            <FailedBlock title={t.cast_failed} body={t.archive_failed_body} retry={t.retry} onRetry={() => setCastAttempt((n) => n + 1)} />
           ) : cast ? (
             <Trombinoscope cast={cast} language={language} />
           ) : (

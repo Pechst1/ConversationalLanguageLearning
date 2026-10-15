@@ -199,7 +199,7 @@ test('a letter and a Revue the same day: §2 — the letter first, then the Revu
     assert.deepEqual(laUne(language, { week: live, letter: false }).chips.map((chip) => chip.id), ['revue', 'lexique']);
     // The Revue day: the Revue is the day's route and takes La Une whole — its
     // card spends the words a chip would need; the letter waits in the Courrier.
-    for (const offer of [liveOffer, resumeOffer, filedOffer]) {
+    for (const offer of [liveOffer, resumeOffer]) {
       const revueDay = laUne(language, { week: { enabled: true, offer }, dayShape: une.REVUE_DAY_SHAPE });
       assert.match(revueDay.html, /data-revue-card=/);
       assert.doesNotMatch(revueDay.html, /data-chip=|av2-home__chips/);
@@ -207,18 +207,19 @@ test('a letter and a Revue the same day: §2 — the letter first, then the Revu
   }
 });
 
-test('a special edition keeps its hero; a filed Revue shows only on the Revue day', () => {
+test('a special edition keeps its hero; a filed Revue never takes the hero', () => {
   const special = laUne('fr', { week: live, dayShape: une.REVUE_DAY_SHAPE, special: true });
   assert.equal(special.entry.hero, null, 'never on a special edition');
   assert.match(special.html, /data-chip="revue"/, 'the Revue stays a chip');
   assert.match(special.html, /av2-day-plan/);
 
+  // 2026-10-14 (owner, iPhone): a filed Papier pushed today's day card off
+  // Home on the Revue day. Filed, it gives the hero back to the day.
   for (const language of ['en', 'de', 'fr']) {
     const filed = laUne(language, { week: { enabled: true, offer: filedOffer }, dayShape: une.REVUE_DAY_SHAPE });
-    assert.equal(filed.entry.hero.state, 'filed');
-    assert.match(filed.html, /data-revue-card="filed"/);
-    assert.equal((filed.html.match(/av2-btn--primary/g) || []).length, 0, 'filed: no press');
-    assertHomeBudget(filed.html, `${language} filed`);
+    assert.equal(filed.entry.hero, null, `${language} filed: no hero on the Revue day`);
+    assert.doesNotMatch(filed.html, /data-revue-card=/);
+    assert.match(filed.html, /av2-day-plan/, `${language} filed: the day's plan row is back`);
   }
   const filedOrdinary = laUne('en', { week: { enabled: true, offer: filedOffer } });
   assert.equal(filedOrdinary.entry.hero, null, 'filed: no hero on an ordinary day');
@@ -246,8 +247,11 @@ test('pages/atelier.tsx wires La Une through lib/revue-une.ts, beside the day an
   assert.match(page, /\.catch\(\(\) => \{ \/\* the Revue is an enrichment/, 'a failed read is swallowed');
   assert.match(page, /revueUneEntry\(\{[\s\S]*?dayShape: dayShapeFrom\(dayJourney, dayEnvelope\),[\s\S]*?special: specialEdition,/);
   assert.match(page, /revueHomeChips<HomeChip>\(revueEntry, dayChips\)/);
-  assert.match(page, /hero=\{revueHero \?\? journeyCard\}/);
-  assert.match(page, /planHidden=\{Boolean\(revueHero\) \|\|/);
+  // Round 3: the hero is the Revue's (else the journey card), with the day's one
+  // next-step button under it; on a news day the programme stays, Le Papier first.
+  assert.match(page, /const homeHero = [\s\S]*?\{revueHero \?\? journeyCard\}[\s\S]*?: \(revueHero \?\? journeyCard\);/);
+  assert.match(page, /hero=\{homeHero\}/);
+  assert.match(page, /planHidden=\{\(Boolean\(revueHero\) && !daySession\) \|\|/);
   // WP-119 phase 3: the hero opens the day until it is done (the hero hides the plan row), then /revue.
   assert.match(page, /if \(revueHeroOpensDay\(revueDayDone, Boolean\(onOpenDay\)\) && onOpenDay\) onOpenDay\(\);\s*else void router\.push\(revueOpenHref\(offer\)\);/);
   assert.match(page, /router\.push\(revueDossierHref\(dossierId\)\)/);

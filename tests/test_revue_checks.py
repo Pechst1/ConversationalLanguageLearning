@@ -503,3 +503,49 @@ def test_credit_never_masters_an_unknown_capability() -> None:
     assert passed(checks.check_credit({**write, "outcome": "unscored"}))
     assert passed(checks.check_credit({**write, "capability_known": True}))
     assert _reasons(checks.check_credit({**write, "outcome": "mastered"})) == ["invalid_outcome"]
+
+
+# -- the story picture's brief (WP-119 §8.4) --------------------------------------
+
+
+def _with_visual(dossier: EditorialDossier, **visual: Any) -> EditorialDossier:
+    from app.services.revue.dossier import StoryVisual
+
+    data = {
+        "moment": "a winegrower cutting grapes by hand between rows of vines",
+        "viewpoint": "from the end of a row",
+        "light": "late afternoon light",
+        "words": [{"fr": "les vendanges", "shows": "the pickers at work"}],
+        "caption_fr": "Les vendanges en Bourgogne.",
+        "decoys_fr": ["Une usine en Bourgogne.", "Un marché en Bourgogne."],
+    }
+    data.update(visual)
+    copy_ = dossier.model_copy(deep=True)
+    copy_.entities = [*copy_.entities, copy_.entities[0].model_copy(update={"name": "Marie Dubois", "kind": "person",
+                                                                            "role": "a winegrower"})]
+    return copy_.model_copy(update={"visual": StoryVisual.model_validate(data)})
+
+
+def test_visual_passes_and_without_one_there_is_nothing_to_check(dossier: EditorialDossier) -> None:
+    assert checks.check_visual(dossier) == []
+    assert passed(checks.check_visual(_with_visual(dossier)))
+
+
+@pytest.mark.parametrize(
+    ("visual", "reason"),
+    [
+        ({"moment": "Marie Dubois cutting grapes"}, "person_named"),
+        ({"moment": "Dubois, the winegrower, cutting grapes"}, "person_named"),
+        ({"symbol": "a portrait of the winegrower"}, "forbidden_words"),
+        ({"symbol": "a flag over the vines"}, "forbidden_words"),
+        ({"words": [{"fr": "le parlement", "shows": "a parliament"}]}, "word_not_in_claims"),
+        ({"caption_fr": "Demain, les vendanges."}, "relative_date"),
+        ({"decoys_fr": ["Hier, une usine.", "Un marché."]}, "relative_date"),
+    ],
+)
+def test_visual_reasons(dossier: EditorialDossier, visual: dict[str, Any], reason: str) -> None:
+    assert reason in {r.reason for r in failures(checks.check_visual(_with_visual(dossier, **visual)))}
+
+
+def test_a_caption_may_name_the_people_it_shows(dossier: EditorialDossier) -> None:
+    assert passed(checks.check_visual(_with_visual(dossier, caption_fr="Marie Dubois pendant les vendanges.")))

@@ -443,7 +443,9 @@ export class LearnerWalk {
     for (let i = 0; i < 40; i += 1) {
       // WP-115b: once a day, a word a character says is kept («Garder»), as a learner
       // would — so the drill has a word from the story to bring back in its own line.
-      if (!this.keptToday && (await page.locator(CHARACTER_WORDS).count())) {
+      // A French-native walker is never offered «Garder» (the core lexicon glosses in
+      // English and German): trying meant 4 s × 8 words on every panel, minutes a page.
+      if (this.lang !== 'fr' && !this.keptToday && (await page.locator(CHARACTER_WORDS).count())) {
         this.keptToday = await this.keepAWord();
       }
       const movement = (await stage.getAttribute('data-movement').catch(() => null)) || (await stage.getAttribute('data-kind'));

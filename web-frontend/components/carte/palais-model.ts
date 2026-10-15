@@ -86,9 +86,14 @@ export function relectureSegments(text: string, spans: readonly RelectureSpan[])
   return out;
 }
 
+/** What the Relecture re-asks: the kept question first, else the caption written under the picture, else the headline. */
+export type RelectureTask = 'question' | 'headline' | 'caption';
+
 /** The pin card's Relecture row, or null: «Relire ta question» / «Relue le 14 nov.». */
-export function relectureAction(pin: Pick<CartePin, 'relecture' | 'questionFr'>): { kind: 'open'; headline: boolean } | { kind: 'read'; at: string | null } | null {
+export function relectureAction(
+  pin: Pick<CartePin, 'relecture' | 'questionFr' | 'contributionKind'>,
+): { kind: 'open'; task: RelectureTask } | { kind: 'read'; at: string | null } | null {
   if (!pin.relecture) return null;
   if (pin.relecture.state === 'read') return { kind: 'read', at: pin.relecture.readAt };
-  return { kind: 'open', headline: !pin.questionFr };
+  return { kind: 'open', task: pin.questionFr ? 'question' : pin.contributionKind === 'caption' ? 'caption' : 'headline' };
 }

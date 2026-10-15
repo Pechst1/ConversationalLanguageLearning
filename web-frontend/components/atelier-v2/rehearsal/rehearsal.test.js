@@ -267,7 +267,7 @@ test('the screen and the page carry no English chrome', () => {
   assert.ok(screen.includes('{copy.not_prepared_title}'));
   assert.ok(FR.reveal_phrases.includes('c’est noté comme une aide'), 'asking for help is declared before it is used');
   assert.ok(screen.includes('{copy.reveal_phrases}'));
-  for (const phrase of ['Répétition non préparée', 'Revenir à l’Atelier', 'Préparer la répétition', 'Cette action n’a pas abouti']) {
+  for (const phrase of ['Répétition non préparée', 'Retour à La Une', 'Préparer la répétition', 'Cette action n’a pas abouti']) {
     assert.ok(!screen.includes(phrase) && !page.includes(phrase), `inline chrome: ${phrase}`);
   }
   assert.ok(screen.includes('useChromeLanguage()') && page.includes('useChromeLanguage()'), 'one language rule');

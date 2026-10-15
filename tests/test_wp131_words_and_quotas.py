@@ -142,6 +142,7 @@ def _learner(db: Session, *, minutes: int = 10, quota: int | None = None) -> Use
     user = make_user(db, f"wp131-{uuid.uuid4().hex[:8]}@example.com")
     user.daily_goal_minutes = minutes
     user.new_words_per_day = quota
+    user.daily_pace = None  # Round 3: a learner who never picked a pace keeps the rhythm's intake
     user.timezone = "Europe/Paris"
     db.flush()
     return user
@@ -280,6 +281,7 @@ def _login(client: TestClient, db: Session, *, minutes: int) -> tuple[dict, User
     user = db.get(User, UUID(str(decode_token(token)["sub"])))
     user.daily_goal_minutes = minutes
     user.new_words_per_day = None
+    user.daily_pace = None  # Round 3: a learner who never picked a pace keeps the rhythm's intake
     user.timezone = "Europe/Paris"
     db.flush()
     return {"Authorization": f"Bearer {token}"}, user

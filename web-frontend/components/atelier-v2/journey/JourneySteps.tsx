@@ -48,6 +48,8 @@ import {
 } from '@/components/atelier-v2/ui';
 import { crLetterHeadline } from '@/components/courrier/courrier-copy';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { CastActor, actorFigure, verdictGesture } from '@/components/cast/vivant/CastActor';
+import type { GestureId } from '@/components/cast/vivant/kit';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { RuleTestOut } from './RuleTestOut';
 import { ruleTestOutCopy } from './rule-test-out';
@@ -235,6 +237,8 @@ function StepFrame({
   headlineLang,
   speaker = null,
   speakerMood = 'neutral',
+  acting = false,
+  gesture = null,
   children,
 }: {
   label: React.ReactNode;
@@ -242,7 +246,10 @@ function StepFrame({
   headlineLang?: string;
   /** WP-D2: the headline is this character's line, said in a bubble beside their face. */
   speaker?: JourneySpeaker | null;
-  speakerMood?: PortraitMood;
+  speakerMood?: FaceMood;
+  /** La troupe vivante: the speaker stands beside the bubble, jointed, and acts the verdict. */
+  acting?: boolean;
+  gesture?: GestureId | null;
   children: React.ReactNode;
 }) {
   // WP-82: a French headline (or bubble) keeps « ? ! » on its word's line.
@@ -258,15 +265,21 @@ function StepFrame({
       {speaker ? (
         <div className="av2-speech" data-mood={speakerMood}>
           {/* Keyed on the mood, so the verdict's face pops in (at-pop). */}
-          <span key={speakerMood} className="av2-speech__face">
-            <CastPortrait
-              characterId={speaker.id || ''}
-              name={speaker.name}
-              mood={speakerMood}
-              size="md"
-              ring
-            />
-          </span>
+          {acting && actorFigure(speaker.id, speaker.name) ? (
+            <span className="av2-speech__face" data-actor="true">
+              <CastActor characterId={speaker.id || ''} name={speaker.name} mood={speakerMood} gesture={gesture} width={84} />
+            </span>
+          ) : (
+            <span key={speakerMood} className="av2-speech__face">
+              <CastPortrait
+                characterId={speaker.id || ''}
+                name={speaker.name}
+                mood={speakerMood}
+                size="md"
+                ring
+              />
+            </span>
+          )}
           <div
             className="av2-speech__bubble"
             data-long={typeof headline === 'string' && headline.length > 48 ? 'true' : undefined}
@@ -471,7 +484,12 @@ export function RecallStepView({
   onHelp,
   onSubmit,
   draft,
-}: { step: RecallStep } & StepViewCommonProps) {
+  speaker = null,
+}: {
+  step: RecallStep;
+  /** La troupe vivante: who asks the drill (the rule's coach, else the scene's character) and reacts to it. */
+  speaker?: JourneySpeaker | null;
+} & StepViewCommonProps) {
   const wide = widenCopy(copy);
   const [choice, setChoice] = useState<string | null>(null);
   const [tiles, setTiles] = useState<string[]>([]);
@@ -598,6 +616,12 @@ export function RecallStepView({
       label={null}
       headline={headline}
       headlineLang={headline === step.prompt.prompt_fr && step.prompt.prompt_fr ? 'fr' : undefined}
+      // La troupe vivante: the drill is someone's line. They stay still while the learner works
+      // and act once the answer is in: their own «bravo», their own «oups».
+      speaker={speaker}
+      speakerMood={expressionForVerdict(shown)}
+      acting
+      gesture={verdictGesture(shown)}
     >
       {step.prompt.prompt_fr && headline !== step.prompt.instruction_native && (
         <p className="av2-body av2-body--lg">{step.prompt.instruction_native}</p>
@@ -1592,6 +1616,12 @@ export function ResolutionStepView({
  * them is something the learner got wrong. `journey-state.ts` guarantees that
  * separation in the data; this keeps it true in the pixels.
  */
+/** Live walk #116: only a step the learner writes in has an answer to keep. */
+const ANSWERLESS_STEPS = new Set(['scene', 'read', 'resolution', 'rule']);
+export function stepKeepsAnswer(stepKind: string | null | undefined): boolean {
+  return !stepKind || !ANSWERLESS_STEPS.has(stepKind);
+}
+
 export function JourneyFeedbackView({
   feedback,
   copy,
@@ -1600,6 +1630,7 @@ export function JourneyFeedbackView({
   onDismiss,
   speaker = null,
   stepKind = null,
+  faceShown = false,
 }: {
   feedback: JourneyFeedback;
   copy: JourneyCopy;
@@ -1608,6 +1639,8 @@ export function JourneyFeedbackView({
   onDismiss: () => void;
   /** WP-77: whose face reacts to the verdict. */
   speaker?: JourneySpeaker | null;
+  /** La troupe vivante: the one who asked already reacts on the step, so the band carries no second face. */
+  faceShown?: boolean;
   /** QA-STORY: the step's kind — a story reply (`respond`) gets no verdict. */
   stepKind?: string | null;
 }) {
@@ -1688,7 +1721,9 @@ export function JourneyFeedbackView({
       return (
         <div data-state="error">
           <Notice tone="alert" live="alert" shape="action">
-            <p>{feedback.message === 'session_expired' ? sessionExpiredCopy[copyLanguage(copy)].message : copy.transport_error}</p>
+            <p>{feedback.message === 'session_expired'
+              ? sessionExpiredCopy[copyLanguage(copy)].message
+              : stepKeepsAnswer(stepKind) ? copy.transport_error : copy.transport_error_plain}</p>
             {feedback.message === 'session_expired' && <Action tone="primary" onClick={() => void reconnectWebSession(window.location.pathname + window.location.search)}>
               {sessionExpiredCopy[copyLanguage(copy)].action}
             </Action>}
@@ -1730,7 +1765,7 @@ export function JourneyFeedbackView({
       const title = copy[verdictTitleKey(verdict, result.assistance_level)];
       // WP-77: the character reacts to *your* answer — pleased or cross, small.
       const face =
-        speaker && castIdFor(speaker.id, speaker.name) ? (
+        !faceShown && speaker && castIdFor(speaker.id, speaker.name) ? (
           <CastPortrait
             characterId={speaker.id || ''}
             name={speaker.name}

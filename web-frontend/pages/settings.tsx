@@ -53,17 +53,17 @@ import {
     NEW_WORDS_MAX,
     NEW_WORDS_MIN,
     clampMaxReviews,
-    RHYTHMS,
     clampNewWords,
     formatReviewLoad,
-    formatRhythmForecast,
     isRhythm,
     rhythmForMinutes,
     type Rhythm,
-    type RhythmPrior,
 } from '@/lib/rhythm';
+import { daySessionCopy, paceRows, type PaceRow } from '@/lib/day-session';
+import type { PaceName } from '@/types/daily-journey';
 import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
 import { ambiancePreferred, setAmbianceEnabled } from '@/lib/sound-bed';
+import { cameosEnabled, setCameosEnabled } from '@/lib/cameo';
 import { setVoicesAloud, voicesAloud } from '@/lib/voice-preference';
 import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
 import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
@@ -86,6 +86,8 @@ interface UserSettings {
     // Learning Goals — WP-L6: the rhythm sizes the day; the server stores it
     // as its minutes and plans from it.
     rhythm: Rhythm;
+    /** Round 3: Ruhig / Normal / Schnell; null is a number of words of one's own. */
+    dailyPace: PaceName | null;
     newWordsPerDay: number;
     /** WP-115a: Anki's «Maximum reviews/day». */
     maxReviewsPerDay: number;
@@ -128,6 +130,7 @@ const defaultSettings: UserSettings = {
     cefrTargetLevel: 'A1.2',
     interests: [],
     rhythm: DEFAULT_RHYTHM,
+    dailyPace: null,
     newWordsPerDay: 10,
     maxReviewsPerDay: DEFAULT_MAX_REVIEWS,
     defaultVocabDirection: 'fr_to_de',
@@ -232,15 +235,9 @@ function normalizeVocabDirection(direction: string, nativeLanguage: string) {
 
 const interestTopicPresets = INTEREST_TOPICS;
 
-// WP-L6: the rhythm's four cards, in the order the owner approved.
-function rhythmLine(copy: SettingsCopy, rhythm: Rhythm): string {
-    switch (rhythm) {
-        case 'leger': return copy.rhythm_line_leger;
-        case 'soutenu': return copy.rhythm_line_soutenu;
-        case 'intensif': return copy.rhythm_line_intensif;
-        default: return copy.rhythm_line_regulier;
-    }
-}
+// Round 3: the paces, in the order of the Tempo sheet, and the words each brings.
+const PACE_NAMES: PaceName[] = ['ruhig', 'normal', 'schnell'];
+const PACE_WORDS: Record<PaceName, number> = { ruhig: 10, normal: 20, schnell: 40 };
 
 interface SettingsPageProps {
     userEmail?: string;
@@ -455,9 +452,13 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
     const [emailForm, setEmailForm] = useState({ currentPassword: '', newEmail: '' });
     const [isAdmin, setIsAdmin] = useState(false);
-    // WP-L8: each rhythm card's planning prior for A1, from `GET /progress/cefr`.
-    // Absent (the call failed), the cards simply print no estimate.
-    const [rhythmPriors, setRhythmPriors] = useState<Record<string, RhythmPrior> | null>(null);
+    // Round 3: the three paces, what each holds and costs, and when it reaches
+    // the goal, from `GET /daily-journeys/session/pace`. Absent, the cards
+    // print their names only.
+    const [paceChoices, setPaceChoices] = useState<PaceRow[] | null>(null);
+    // A number of new words typed here is sent as a custom intake; untouched,
+    // the pace speaks for it.
+    const [wordsTouched, setWordsTouched] = useState(false);
     /**
      * WP-32's «Écouter d’abord» preference (WP-37 hook). It lives in
      * `localStorage`, not in the settings payload, so it is read *after* mount:
@@ -479,6 +480,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     // like «Sons»; it plays only while «Sons» is on too.
     const [ambianceOn, setAmbianceOn] = useState(false);
     useEffect(() => { setAmbianceOn(ambiancePreferred()); }, []);
+    // Les apparitions: the cast's cameos, this device only, on by default.
+    const [cameosOn, setCameosOn] = useState(true);
+    useEffect(() => { setCameosOn(cameosEnabled()); }, []);
     // WP-49: the row exists only where the server can read an episode aloud.
     const [episodeAudioEnabled, setEpisodeAudioEnabled] = useState(false);
 
@@ -501,6 +505,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         nativeLanguageKnown ? settings.nativeLanguage : null,
     );
     const copy = settingsCopy(copyLanguage);
+    const paceCopy = daySessionCopy(copyLanguage);
     const castArt = useArtSet();
     const legalLanguage = resolveLegalLanguage(copyLanguage);
     const legalCopy = SETTINGS_LEGAL_COPY[legalLanguage];
@@ -563,6 +568,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     rhythm: isRhythm(user.rhythm)
                         ? user.rhythm
                         : rhythmForMinutes(user.daily_goal_minutes),
+                    dailyPace: user.daily_pace ?? null,
                     newWordsPerDay: user.new_words_per_day || prev.newWordsPerDay,
                     maxReviewsPerDay: user.max_reviews_per_day || prev.maxReviewsPerDay,
                     defaultVocabDirection: normalizeVocabDirection(
@@ -602,10 +608,12 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         };
 
         fetchSettings();
-        api.getCefrProgress()
-            .then((cefr) => setRhythmPriors((cefr?.rhythm_priors as Record<string, RhythmPrior> | null) || null))
-            .catch(() => setRhythmPriors(null));
-    }, [settingsReloadKey]);
+        setWordsTouched(false);
+        api.getDaySessionPace()
+            .then((body) => setPaceChoices(paceRows(body.options, body.goal, copyLanguage)))
+            .catch(() => setPaceChoices(null));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settingsReloadKey, copyLanguage]);
 
     useEffect(() => {
         applyVisualSettings(settings.theme, settings.fontSize);
@@ -644,7 +652,12 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                 interests: settings.interests.join(','),
 
                 rhythm: settings.rhythm,
-                new_words_per_day: clampNewWords(settings.newWordsPerDay),
+                // Round 3: a pace brings its own words; a number typed here is
+                // the learner's own and leaves the pace.
+                ...(settings.dailyPace ? { daily_pace: settings.dailyPace } : {}),
+                ...(wordsTouched || !settings.dailyPace
+                    ? { new_words_per_day: clampNewWords(settings.newWordsPerDay) }
+                    : {}),
                 max_reviews_per_day: clampMaxReviews(settings.maxReviewsPerDay),
                 default_vocab_direction: settings.defaultVocabDirection,
 
@@ -1295,33 +1308,39 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                     {/* ---------------- Rythme ---------------- */}
                     <section id="settings-practice" className="st-section" aria-labelledby="st-practice-label">
                         <p className="av2-label st-section__label" id="st-practice-label">{copy.section_practice}</p>
-                        {/* WP-L6 «Votre rythme»: four cards replace the old
-                            minutes presets — minutes, what is in the day, one
-                            line each. The same option rows as the level card. */}
-                        <div className="st-card" role="radiogroup" aria-label={copy.rhythm_title}>
-                            <Row label={copy.rhythm_title} hint={copy.rhythm_hint} />
-                            {RHYTHMS.map((rhythm) => {
-                                const active = settings.rhythm === rhythm.id;
+                        {/* Round 3 «Dein Tempo»: the same three paces as La Une's
+                            Tempo sheet — words a day, rules a week, minutes
+                            today and when the goal is reached. */}
+                        <div className="st-card" role="radiogroup" aria-label={paceCopy.sheet_title}>
+                            <Row label={paceCopy.sheet_title} />
+                            {PACE_NAMES.map((pace) => {
+                                const active = settings.dailyPace === pace;
+                                const row = paceChoices?.find((item) => item.pace === pace);
                                 return (
                                     <button
-                                        key={rhythm.id}
+                                        key={pace}
                                         type="button"
                                         role="radio"
                                         aria-checked={active}
                                         className="st-row st-row--option"
-                                        onClick={() => updateSetting('rhythm', rhythm.id)}
+                                        data-pace={pace}
+                                        onClick={() => {
+                                            setWordsTouched(false);
+                                            setSettings((prev) => ({
+                                                ...prev,
+                                                dailyPace: pace,
+                                                newWordsPerDay: PACE_WORDS[pace],
+                                            }));
+                                            setHasChanges(true);
+                                        }}
                                     >
                                         <span className="st-row__text">
                                             <span className="st-row__label">
-                                                {rhythm.name} · {rhythm.minutes} {copy.minutes_short}
-                                                {rhythm.id === DEFAULT_RHYTHM ? ` · ${copy.rhythm_recommended}` : ''}
+                                                {paceCopy.pace[pace]}
+                                                {row ? ` · ${row.minutes}` : ''}
                                             </span>
-                                            <span className="st-row__hint">{rhythmLine(copy, rhythm.id)}</span>
-                                            {/* WP-L8: the honest forecast, worded as an estimate. */}
-                                            {(() => {
-                                                const forecast = formatRhythmForecast(copy.rhythm_forecast, rhythmPriors?.[rhythm.id]);
-                                                return forecast ? <span className="st-row__hint">{forecast}</span> : null;
-                                            })()}
+                                            {row && <span className="st-row__hint">{row.detail}</span>}
+                                            {row && <span className="st-row__hint">{row.goal}</span>}
                                         </span>
                                         <span className="st-row__value st-option__state">
                                             {active ? <><ShapeToken kind="story" size="sm" /> {copy.level_current}</> : null}
@@ -1359,7 +1378,15 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     min={NEW_WORDS_MIN}
                                     max={NEW_WORDS_MAX}
                                     value={settings.newWordsPerDay}
-                                    onChange={(e) => updateSetting('newWordsPerDay', parseInt(e.target.value) || 10)}
+                                    onChange={(e) => {
+                                        setWordsTouched(true);
+                                        setSettings((prev) => ({
+                                            ...prev,
+                                            dailyPace: null,
+                                            newWordsPerDay: parseInt(e.target.value) || 10,
+                                        }));
+                                        setHasChanges(true);
+                                    }}
                                 />
                             </Row>
                             {/* WP-115a: Anki's «Maximum reviews/day», set by the learner. */}
@@ -1574,6 +1601,17 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     onChange={(next) => {
                                         setAmbianceEnabled(next);
                                         setAmbianceOn(next);
+                                    }}
+                                />
+                            </Row>
+                            <Row id="st-cameos-label" label={copy.row_cameos} hint={copy.row_cameos_hint}>
+                                <Switch
+                                    copy={copy}
+                                    labelledBy="st-cameos-label"
+                                    checked={cameosOn}
+                                    onChange={(next) => {
+                                        setCameosEnabled(next);
+                                        setCameosOn(next);
                                     }}
                                 />
                             </Row>

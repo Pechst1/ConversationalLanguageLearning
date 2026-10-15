@@ -12,7 +12,7 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { seatForgeItem, scopeOutputItem, isForgeOutputRound } = require('./forge-items.ts');
+const { seatForgeItem, scopeOutputItem, isForgeOutputRound, forgeSeatIsSamePlace } = require('./forge-items.ts');
 
 const sets = [
   {
@@ -66,4 +66,14 @@ test('the séance page seats the forge item and scopes output items to their id'
   assert.match(page, /scopeOutputItem\(/);
   // A forge output rung posts its item id, so each top-up is its own drill.
   assert.match(page, /forgeOutputItemId/);
+});
+
+test('#131: an item posed again where the learner stands is the same place', () => {
+  const here = { conceptIndex: 0, round: 'produce', mode: 'fill', itemIndex: 3 };
+  assert.equal(forgeSeatIsSamePlace(here, { conceptIndex: 0, round: 'produce', mode: null, itemIndex: 3 }), true);
+  assert.equal(forgeSeatIsSamePlace(here, { conceptIndex: 0, round: 'produce', itemIndex: 4 }), false);
+  assert.equal(forgeSeatIsSamePlace(here, { conceptIndex: 1, round: 'produce', itemIndex: 3 }), false);
+  const recognize = { conceptIndex: 0, round: 'recognize', mode: 'fill', itemIndex: 2 };
+  assert.equal(forgeSeatIsSamePlace(recognize, { conceptIndex: 0, round: 'recognize', mode: 'fill', itemIndex: 2 }), true);
+  assert.equal(forgeSeatIsSamePlace(recognize, { conceptIndex: 0, round: 'recognize', mode: 'classify', itemIndex: 2 }), false);
 });

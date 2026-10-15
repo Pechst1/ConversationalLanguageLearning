@@ -22,6 +22,10 @@
  * register note is worded under the learner's line and its word outcomes mark
  * the kept words at the close; the close stamps the minted vignette (WP-120).
  *
+ * WP-119 §8.4 (the story's own picture): the stage is the picture, Romy's `look`
+ * line points at what it shows, «La légende» is a make (`RvCaption`), and the
+ * dispatch prints the picture under its caption.
+ *
  * `readOnly` (La Carte's «Relire», `/revue?session=…&readonly=1`): the thread
  * replayed, no composer, no press, nothing sent.
  */
@@ -32,6 +36,8 @@ import { Action, Notice } from '@/components/atelier-v2/ui';
 import { WordHelpSheet, type WordHelpRequest } from '@/components/feuilleton/reader/WordHelpSheet';
 import { RevueError, newClientTurnId, type RevueClient } from '@/lib/revue-api';
 import type {
+  RvCaptionOffer,
+  RvCaptionResult,
   RvEvidence,
   RvHeadlineOption,
   RvLanguage,
@@ -62,7 +68,7 @@ import {
 } from './revue-model';
 import { RvCloseCarteLink, RvCloseVignette, RvDispatch, RvKept } from './RvClose';
 import { RvComposer } from './RvComposer';
-import { RvHeadlineChoice, RvHeadlineWrite, RvMakePicker, RvQuestionDraft, RvShortReport } from './RvMake';
+import { RvCaption, RvHeadlineChoice, RvHeadlineWrite, RvMakePicker, RvQuestionDraft, RvShortReport } from './RvMake';
 import { RvSessionHead } from './RvSessionHead';
 import { RvStage, stageCast, stagePlateUrl } from './RvStage';
 import { RvLine, RvMadeCard, RvQuickReplies, RvThread, type RvWordEvent } from './RvThread';
@@ -75,7 +81,8 @@ type MakeStep =
   | { step: 'write'; seed: string }
   | { step: 'draft'; draft: RvQuestionDraftData }
   | { step: 'headline_write'; maxWords: number; result: RvWriteResult | null; ask: boolean }
-  | { step: 'report'; seconds: number; result: RvReportResult | null; ask: boolean };
+  | { step: 'report'; seconds: number; result: RvReportResult | null; ask: boolean }
+  | { step: 'caption'; offer: RvCaptionOffer; picked: string | null; result: RvCaptionResult | null; ask: boolean };
 
 export type RvEncounterProps = {
   client: RevueClient;
@@ -205,6 +212,8 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       setMake({ step: 'headline_write', maxWords: option.maxWords, result: null, ask });
     } else if (option.kind === 'short_report') {
       setMake({ step: 'report', seconds: option.seconds, result: null, ask });
+    } else if (option.kind === 'caption') {
+      setMake({ step: 'caption', offer: option, picked: null, result: null, ask });
     } else {
       setMake({ step: 'write', seed: option.seedFr ?? openQuestion(session.thread) ?? '' });
     }
@@ -306,6 +315,33 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     }
   };
 
+  /** «La légende»: the pick (choice) or the written caption (write). A refused caption keeps the step: write again. */
+  const sendCaption = async (answer: { optionId: string } | { textFr: string }) => {
+    if (make.step !== 'caption' || busy || (make.result?.accepted && make.result.made)) return;
+    const step = 'optionId' in answer ? { ...make, picked: answer.optionId } : make;
+    setMake(step);
+    setBusy(true);
+    try {
+      const result = await client.make(
+        session.id,
+        'optionId' in answer
+          ? { kind: 'caption', action: 'caption', optionId: answer.optionId }
+          : { kind: 'caption', action: 'caption', textFr: answer.textFr },
+      );
+      if (result.kind === 'caption') {
+        setMake({ ...step, result });
+        setDoneLine(result.line);
+        noteEvidence(result.evidence, null);
+        if (result.accepted && result.made) fileLocally(result.made);
+      }
+    } catch (error) {
+      if (error instanceof RevueError && error.code === 'revue_session_closed') await reload();
+      else setModelDown(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const sendQuestion = async (textFr: string) => {
     setBusy(true);
     try {
@@ -366,12 +402,9 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       .slice()
       .sort((a, b) => Number(b.kind === make.offer.recommended) - Number(a.kind === make.offer.recommended))
       .map((option) => {
-        const n = option.kind === 'headline_write' ? option.maxWords : option.kind === 'short_report' ? option.seconds : '';
-        return {
-          id: option.kind,
-          titleFr: fill(copy.make_options[option.kind].title, { n }),
-          detail: fill(copy.make_options[option.kind].detail, { n }),
-        };
+        const n = option.kind === 'headline_write' || option.kind === 'caption' ? option.maxWords : option.kind === 'short_report' ? option.seconds : '';
+        const words = copy.make_options[option.kind === 'caption' && option.format === 'write' ? 'caption_write' : option.kind];
+        return { id: option.kind, titleFr: fill(words.title, { n }), detail: fill(words.detail, { n }) };
       })
     : [];
 
@@ -422,7 +455,25 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       </li>,
     );
   }
-  if (doneLine && !closing && (make.step === 'headline' || make.step === 'headline_write' || make.step === 'report')) {
+  if (make.step === 'caption') {
+    if (make.ask) after.push(romyRow('caption-ask', make.offer.format === 'write' ? ROMY_CLIENT_LINES.caption_write_ask : ROMY_CLIENT_LINES.caption_ask));
+    after.push(
+      <li key="make-caption" className="av2-thread__line" data-kind="make" data-make="caption">
+        <RvCaption
+          offer={make.offer}
+          result={make.result}
+          picked={make.picked}
+          pending={busy}
+          onPick={(optionId) => void sendCaption({ optionId })}
+          onWrite={(textFr) => void sendCaption({ textFr })}
+          glosses={support.glosses}
+          glossLanguage={glossLanguage}
+          copy={copy}
+        />
+      </li>,
+    );
+  }
+  if (doneLine && !closing && (make.step === 'headline' || make.step === 'headline_write' || make.step === 'report' || make.step === 'caption')) {
     after.push(
       <li key={`done-${doneLine.id}`} className="av2-thread__line" data-kind="line" data-role="make_done" data-speaker="romy">
         <RvLine textFr={doneLine.textFr} past={false} translation={doneLine.translation} support={support} glosses={doneLine.glosses} glossLanguage={glossLanguage} copy={copy} />
@@ -518,8 +569,13 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         )}
       </>
     );
-  } else if (make.step === 'headline' || make.step === 'headline_write' || make.step === 'report') {
-    const filed = make.step === 'headline' ? Boolean(make.result) : make.step === 'headline_write' ? Boolean(make.result?.accepted) : Boolean(make.result);
+  } else if (make.step === 'headline' || make.step === 'headline_write' || make.step === 'report' || make.step === 'caption') {
+    const filed =
+      make.step === 'headline' || make.step === 'report'
+        ? Boolean(make.result)
+        : make.step === 'headline_write'
+          ? Boolean(make.result?.accepted)
+          : Boolean(make.result?.accepted && make.result.made);
     foot = filed ? (
       <Action tone="primary" pending={busy} pendingLabel={copy.continue} onClick={() => void doClose()}>
         {copy.continue}

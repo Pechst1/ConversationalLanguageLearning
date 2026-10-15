@@ -8,6 +8,7 @@ import { learnerGloss } from '@/lib/glosses';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
+import { daySessionCopy, sessionNextAction } from '@/lib/day-session';
 
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
@@ -63,6 +64,7 @@ import {
 } from '@/lib/pilot-resilience';
 import { useArtSet } from '@/lib/art-set';
 import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
+import { emitCameo } from '@/lib/cameo';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
@@ -175,6 +177,43 @@ const encoreQueueParams = {
   topic_limit: 0,
   linked_limit: 0,
 } as const;
+
+/**
+ * Round 3 (owner, 2026-10-14): the words are the day's second step. `?day=1`
+ * is the day's deck — all of today's new words at the learner's pace (Normal
+ * 20, Schnell 40) and the reviews due, in bounded decks one after the other
+ * until the dose is met, then «Weiter: Grammatik». `?more=10` is «Noch 10
+ * Wörter» after the day: new words past the pace, the learner's own choice.
+ */
+const DAY_DECK_NEW_WORDS = 50;
+const dayQueueParams = {
+  limit: 100,
+  due_limit: 100,
+  fragile_limit: 0,
+  new_limit: DAY_DECK_NEW_WORDS,
+  topic_limit: 0,
+  linked_limit: 0,
+  drill: 'session',
+} as const;
+
+function dayMoreParams(n: number) {
+  const words = Math.max(0, Math.min(DAY_DECK_NEW_WORDS, Math.floor(n)));
+  return { ...moreWordsParams(SESSION_NEW_WORDS), limit: words + 30, new_limit: words };
+}
+
+function extraWordsParams(n: number) {
+  const words = Math.max(1, Math.min(20, Math.floor(n)));
+  return { ...moreWordsParams(SESSION_NEW_WORDS), limit: words + 30, new_limit: words, extra: words };
+}
+
+function daySessionMode(): { kind: 'day' } | { kind: 'more'; words: number } | null {
+  if (typeof window === 'undefined') return null;
+  const query = new URLSearchParams(window.location.search);
+  if (query.get('day') === '1') return { kind: 'day' };
+  const more = Number(query.get('more') || 0);
+  if (Number.isFinite(more) && more > 0) return { kind: 'more', words: more };
+  return null;
+}
 
 function isEncore(): boolean {
   if (typeof window === 'undefined') return false;
@@ -492,6 +531,10 @@ function VocabularyReviewContinuation({
   // «5 more minutes» after the Seal on a day nothing is due yet (day 1): no card
   // was answered, so «Deck cleared» would be a claim. Say what is true.
   const nothingDue = !lastItem && isEncore();
+  // Les apparitions: a cleared deck gets the curtain call.
+  useEffect(() => {
+    if (lastItem) emitCameo({ type: 'finale' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -577,11 +620,18 @@ export default function VocabularyReviewPage() {
     setLoading(!visibleCacheRef.current);
     setLoadError(null);
     try {
+      const mode = daySessionMode();
       const params = isEncore()
         ? encoreQueueParams
-        : moreWords
-          ? moreWordsParams(moreWords)
-          : reviewQueueParams;
+        : mode?.kind === 'day'
+          ? moreWords
+            ? dayMoreParams(moreWords)
+            : dayQueueParams
+          : mode?.kind === 'more' && !moreWords
+            ? extraWordsParams(mode.words)
+            : moreWords
+              ? moreWordsParams(moreWords)
+              : reviewQueueParams;
       const [next, slate] = await Promise.all([
         apiService.getVocabularyDueContext(params),
         apiService.getWordsOfTheDay().catch(() => null),
@@ -680,12 +730,45 @@ export default function VocabularyReviewPage() {
   // WP-131: the day's allowance still holds new words after this deck. Offered
   // once the deck is done, never in «Encore 5 minutes» (review only), and at most
   // one session's worth at a time; the server stays the judge of the room.
+  // Round 3: in the day's deck the dose goes on by itself, deck after deck,
+  // until today's new words are met; then the day moves on to the grammar.
+  const daySession = useMemo(() => daySessionMode(), []);
+  const dayLeft = daySession?.kind === 'day' ? Number(context?.new_words_left_today || 0) : 0;
+  const [dayNext, setDayNext] = useState<{ label: string; meta: string; href: string } | null>(null);
+  const [dayMarked, setDayMarked] = useState(false);
+  // The day deck's end waits for the day's next step; only a failed read falls
+  // back to the plain continuation (and its curtain call, which belongs to «Fertig»).
+  const [dayFallback, setDayFallback] = useState(false);
+  useEffect(() => {
+    if (!deckEmpty || daySession?.kind !== 'day') return;
+    if (Number.isFinite(dayLeft) && dayLeft > 0) {
+      void loadQueue(dayLeft);
+      return;
+    }
+    if (dayMarked) return;
+    setDayMarked(true);
+    apiService
+      .markDaySessionWordsDone()
+      .then((session) => {
+        const next = sessionNextAction(session, language);
+        const copy = daySessionCopy(language);
+        const step = next
+          ? { label: next.label, meta: next.meta, href: next.href }
+          : session?.done
+            ? { label: copy.next_finish, meta: '', href: '/fertig' }
+            : null;
+        setDayNext(step);
+        if (!step) setDayFallback(true);
+      })
+      .catch(() => setDayFallback(true));
+  }, [deckEmpty, daySession, dayLeft, dayMarked, language, loadQueue]);
+
   const moreWords = useMemo(() => {
     const left = Number(context?.new_words_left_today || 0);
-    if (isEncore() || !Number.isFinite(left) || left <= 0) return null;
+    if (isEncore() || daySession || !Number.isFinite(left) || left <= 0) return null;
     const n = Math.min(SESSION_NEW_WORDS, Math.floor(left));
     return { ...moreWordsCopy(language, n), onSelect: () => void loadQueue(n) };
-  }, [context, language, loadQueue]);
+  }, [context, daySession, language, loadQueue]);
 
   useEffect(() => {
     if (current) {
@@ -880,6 +963,7 @@ export default function VocabularyReviewPage() {
       const serverCorrect = typeof response.correct === 'boolean' ? response.correct : typedMatches;
       const wrong = graded ? !serverCorrect : rating === 0;
       setAgainIds((prev) => nextAgainQueue(prev, current.word_id, wrong));
+      emitCameo({ type: 'answer', correct: !wrong });
       setSpokenAnswer(false);
       setLastRating(rating);
       setLastReviewedItem(current);
@@ -1080,7 +1164,7 @@ export default function VocabularyReviewPage() {
               />
             )}
 
-            {!loading && !loadError && !current && firstDayDone && (
+            {!loading && !loadError && !current && firstDayDone && !daySession && (
               // GENTLE-ONBOARDING: the words were the first day's last stage.
               <FirstDayRoute
                 language={language}
@@ -1090,7 +1174,21 @@ export default function VocabularyReviewPage() {
               />
             )}
 
-            {!loading && !loadError && !current && (
+            {!loading && !loadError && !current && dayNext && (
+              // Round 3: the day's words are done; the day goes on.
+              <Surface as="section" shape="hero" className="lx-done" data-day-next="">
+                <ShapeToken kind="reward" size="lg" />
+                <h2 className="av2-headline av2-headline--screen">{daySessionCopy(language).words_done}</h2>
+                <div className="lx-done__actions">
+                  <Action tone="primary" onClick={() => void router.push(dayNext.href)}>
+                    {dayNext.label}
+                    {dayNext.meta ? <span className="av2-btn__meta">· {dayNext.meta}</span> : null}
+                  </Action>
+                </div>
+              </Surface>
+            )}
+
+            {!loading && !loadError && !current && !dayNext && (daySession?.kind !== 'day' || dayFallback) && (
               <VocabularyReviewContinuation
                 lastItem={lastReviewedItem}
                 lastRating={lastRating}

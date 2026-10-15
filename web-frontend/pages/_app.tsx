@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RouteAuthGate from '@/components/auth/RouteAuthGate';
 import Layout from '@/components/layout/Layout';
+import { CameoLayer } from '@/components/cast/CameoLayer';
 import { AppAuthProvider, useAppSession } from '@/lib/app-auth';
 import { listenForNativePushActions } from '@/lib/native-push';
 import apiService from '@/services/api';
@@ -25,8 +26,13 @@ import '@/styles/globals.css';
 // a page that never renders <AtelierV2Root> is unaffected by its presence.
 import '@/styles/atelier-v2.css';
 import '@/styles/atelier-v2-voices.css';
+import '@/styles/day-session.css';
 // WP-116: the drawn cast's motion (idle loops, blinks), all stoppable by reduced motion.
 import '@/styles/cast-rig.css';
+// Les apparitions: the cast walking in on the app (components/cast/CameoLayer).
+import '@/styles/cameo.css';
+// La troupe vivante: the jointed cast acting (components/cast/vivant), all stoppable by reduced motion.
+import '@/styles/cast-vivant.css';
 // WP-119: La Revue de Romy (components/revue), scoped under `.av2`.
 import '@/styles/revue.css';
 // WP-120: La Carte (components/carte), scoped under `.av2`.
@@ -205,6 +211,7 @@ export default function App({
             <Component {...pageProps} />
           </RouteAuthGate>
         </Layout>
+        <CameoLayer />
       </QueryClientProvider>
     </AppAuthProvider>
   );

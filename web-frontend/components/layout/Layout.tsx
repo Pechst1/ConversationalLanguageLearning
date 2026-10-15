@@ -153,6 +153,7 @@ function getMastheadSection(pathname: string) {
   if (pathname === '/grammar' || pathname === '/vocabulary') return 'notebook';
   if (pathname === '/missions') return 'missions';
   if (pathname === '/graphic-novel') return 'feuilleton';
-  if (pathname === '/settings') return 'settings';
+  // The Dossier and the rehearsal are opened from Réglages: no tab is lit for them.
+  if (pathname === '/settings' || pathname === '/dossier' || pathname === '/repetition') return 'settings';
   return undefined;
 }

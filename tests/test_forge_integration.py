@@ -74,6 +74,7 @@ def test_soutenu_day_forge_step_runs_a_bank_topped_seance_and_returns_to_the_day
     headers = register(assembled_client, email)
     user = db_session.get(User, learner_id(db_session, email))
     user.daily_goal_minutes = 20  # Soutenu: the forge is folded into the day
+    user.daily_pace = None  # a rhythm learner: no round-3 pace picked
     db_session.commit()
     driver = Driver(assembled_client, headers, db=db_session)
     journey = driver.create()
