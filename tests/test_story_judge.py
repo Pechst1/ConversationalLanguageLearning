@@ -4,7 +4,8 @@ No network: every call goes to a fake client that answers the way the judge woul
 
 1. A real live-read transcript reads as its generated pages, each with yesterday's summary,
    and the readability baseline's ``days``/``classify`` view of it is kept.
-2. The rubric's scores aggregate to medians and counts, the lowest lines and the plan's gate.
+2. The rubric's scores aggregate to medians and counts, the lowest lines and the plan's gate,
+   which is read on the whole run: a judgement the run missed leaves it incomplete.
 3. «new» is not asked of a page with no previous page.
 4. The pairwise order is seeded, and the judge's A/B maps back to old and new.
 5. The spend cap stops the run before a call could pass it, and says what it skipped.
@@ -217,7 +218,9 @@ def test_rubric_scores_aggregate_to_medians_counts_lowest_lines_and_the_gate():
         "reason": "something_happens: why",
     }
     verdict = report["gate"]
-    assert verdict["verdict"] == "fail"
+    # The off-scale «voices» is a judgement this run did not get.
+    assert verdict["verdict"] == "incomplete"
+    assert verdict["judgements"] == {"planned": 18, "taken": 17}
     assert [(row["measured"], row["ok"]) for row in verdict["criteria"]] == [
         (4, True),
         (4, True),
@@ -229,7 +232,8 @@ def test_rubric_scores_aggregate_to_medians_counts_lowest_lines_and_the_gate():
     assert "| natural | 4 | 3 | 4 5 3 |" in summary_md
     assert "| voices | 3.5 | 2 | 4 3 |" in summary_md
     assert "- new 1 · run2-b1/B1.1.md g4.2 — «new line» — new: why" in summary_md
-    assert "**Gate** (plan, Phase 1): fail" in summary_md
+    assert "**Gate** (plan, Phase 1): incomplete" in summary_md
+    assert "- judgements taken: 17 of 18 planned" in summary_md
     assert "- no question median below 3: something_happens 2 — fail" in summary_md
 
 
@@ -249,6 +253,49 @@ def test_the_gate_passes_at_four_and_three_and_needs_two_wins_in_three():
     assert gate(wins=1, compared=3)["verdict"] == "fail"
     assert gate(wins=3, compared=5)["verdict"] == "fail", "3 of 5 is under 2 of 3"
     assert gate(wins=0, compared=0)["verdict"] == "incomplete"
+
+
+def test_a_run_that_missed_a_judgement_is_incomplete_whatever_the_rest_scored():
+    """A page the cap skipped, a failed call, a malformed answer, a day only one run reached:
+    what came back may read as a pass, and is not the run the gate was set for."""
+
+    table = {key: {"median": 4} for key in QUESTIONS}
+    assert gate(table, planned=12, taken=12)["verdict"] == "pass"
+    assert gate(table, planned=12, taken=11)["verdict"] == "incomplete"
+    assert gate(wins=2, compared=2, planned=3, taken=2)["verdict"] == "incomplete"
+
+    pages = generated_pages(load_transcript(OLD_B1))[:2]
+    planned = sum(len(questions_for(page)) for page in pages)
+    answers = iter([scored(ALL_FOURS), lambda user: {**scored(ALL_FOURS)(user), "voices": "n/a"}])
+    report = rubric_report(
+        pages, Judge(client=FakeJudge(lambda user: next(answers)(user)), model="gpt-5.5")
+    )
+    assert report["summary"]["voices"] == {"median": 4, "count": 1, "scores": [4]}
+    assert report["gate"]["judgements"] == {"planned": planned, "taken": planned - 1}
+    assert report["gate"]["verdict"] == "incomplete"
+
+    old, new = load_transcript(OLD_B1), load_transcript(NEW_B1)
+    new_titles = {page.title for page in generated_pages(new)}
+
+    def prefers_new(user: str) -> dict[str, str]:
+        title_a = re.search(r"^Page A «(.*)»:$", user, re.M).group(1)
+        return {"better": "A" if title_a in new_titles else "B", "reason": "."}
+
+    replies = iter([prefers_new] * 4 + [lambda user: {"better": "both", "reason": "."}])
+    malformed = pairwise_report(
+        [(old, new)], Judge(client=FakeJudge(lambda user: next(replies)(user)), model="m")
+    )
+    assert (malformed["wins_new"], malformed["compared"]) == (4, 4)
+    assert malformed["gate"]["verdict"] == "incomplete", "4 of 4 answered is not 4 of 5"
+
+    shorter = [page for page in new if page.key != "g4.5"]
+    one_run_only = pairwise_report(
+        [(old, shorter)], Judge(client=FakeJudge(prefers_new), model="m")
+    )
+    assert one_run_only["unmatched"] == [{"key": "g4.5", "only_in": "old"}]
+    assert (one_run_only["wins_new"], one_run_only["compared"]) == (4, 4)
+    assert one_run_only["gate"]["verdict"] == "incomplete", "a day only the old run reached"
+    assert "- judgements taken: 4 of 5 planned" in markdown(one_run_only)
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +387,7 @@ def test_the_cap_stops_before_a_call_could_pass_it_and_says_what_it_skipped():
     assert len(fake.calls) == 2 and report["calls"] == 2
     assert report["spent_usd"] == pytest.approx(0.4) and report["spent_usd"] <= report["cap_usd"]
     assert [row["page"] for row in report["skipped"]] == [page.label for page in pages[2:]]
+    assert report["gate"]["verdict"] == "incomplete", "two pages of five never pass the gate"
     assert report["skipped"][0]["reason"].startswith("spend cap: US$0.4000 spent")
     assert report["stopped"] == report["skipped"][0]["reason"]
     with pytest.raises(SpendCapReached, match="spend cap"):

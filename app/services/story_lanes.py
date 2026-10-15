@@ -1386,8 +1386,9 @@ def _apply(db: Session, *, user, journey, brief, resolution, turn, usage, revisi
 
 
 def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reason: str,
-                         usage: list[dict] | None = None) -> None:
-    """Today's authored ending for an open lane. Free: never a model call."""
+                         usage: list[dict] | None = None) -> engine.SemanticTurn | None:
+    """Today's authored ending for an open lane. Free: never a model call. Returns the turn
+    it settled, or ``None`` when the lane was no longer open."""
 
     from app.services.pilot_events import PilotEventService
 
@@ -1395,7 +1396,7 @@ def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reaso
     if locked is not None:
         resolution = locked
     if not lane_open(resolution):
-        return
+        return None
     lane = lane_of(resolution)
     language = normalize_control_language(getattr(user, "native_language", None))
     turn = fallback_story(lane, character_name=brief.character_name, language=language, reason=reason)
@@ -1410,6 +1411,7 @@ def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reaso
            usage=list(usage or []), revision=engine.story_revision(db, user),
            lane_status="fallback", reason=reason)
     db.flush()
+    return turn
 
 
 def _journey_parts(db: Session, journey):
@@ -1605,16 +1607,18 @@ def _finish_job(db: Session, job: StoryJob, result: StoryLaneResult, payload: di
             _apply(db, user=user, journey=journey, brief=brief, resolution=resolution,
                    turn=result.turn, usage=usage, revision=payload["story"]["revision"],
                    lane_status="done")
-            status = lane_of(resolution).get("status", "done")
+            status, settled = lane_of(resolution).get("status", "done"), result.turn
         else:
-            settle_with_fallback(db, user=user, journey=journey, brief=brief, resolution=resolution,
-                                 reason=result.reason or "story_lane_failed", usage=usage)
+            settled = settle_with_fallback(db, user=user, journey=journey, brief=brief,
+                                           resolution=resolution,
+                                           reason=result.reason or "story_lane_failed", usage=usage)
             status = "fallback"
         events.record("journey_story_lane_settled", user_id=user.id, entity_type="living_story",
                       entity_id=str(journey.id),
                       payload={"status": status, "seconds": result.seconds,
                                "reason": result.reason, "calls": len(usage),
-                               **reply_prose_counts(result.turn)},
+                               # The ending the learner reads, the authored one included.
+                               **reply_prose_counts(settled)},
                       cost_usd=0.0)
         db.commit()
         return status

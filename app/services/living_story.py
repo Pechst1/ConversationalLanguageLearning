@@ -9519,10 +9519,11 @@ def settle_resolution(
         # never an abandoned scene after a reply the learner already read.
         from app.services.story_lanes import settle_with_fallback
 
-        return settle_with_fallback(
+        settle_with_fallback(
             db, user=user, journey=journey, brief=brief, resolution=resolution,
             reason="story_lane_unfinished_at_finish",
         )
+        return
     private = dict(resolution.private_task or {})
     scene = db.get(GraphicNovelScene, UUID(brief.story_context["scene_id"]))
     if scene is None or scene.user_id != user.id:

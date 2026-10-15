@@ -13,7 +13,8 @@ answers the plan's six questions from 1 to 5, each with one sentence and the lin
   one level, through the same rubric minus «new»: the bar the written days set.
 
 The gate is the plan's: median ≥ 4 for «natural» and «clear_question», no question with a
-median below 3, and the new page wins at least 2 of 3 comparisons. Calls go through
+median below 3, and the new page wins at least 2 of 3 comparisons, read on the whole run: a
+run that missed a judgement it set out to make is ``incomplete``. Calls go through
 :class:`~app.services.llm_service.LLMService` (injected, so tests pass a fake) under a spend cap
 checked before every call. Nothing here runs in the app; ``scripts/story_judge.py`` is the CLI.
 """
@@ -748,8 +749,16 @@ def gate(
     *,
     wins: int | None = None,
     compared: int | None = None,
+    planned: int | None = None,
+    taken: int | None = None,
 ) -> dict[str, Any]:
-    """The plan's gate over what this run measured: ``pass``, ``fail`` or ``incomplete``."""
+    """The plan's gate over what this run measured: ``pass``, ``fail`` or ``incomplete``.
+
+    ``taken`` of ``planned``: the judgements the run set out to make (each asked question of
+    each page; each story position, counting one that only one run reached) and those it got.
+    Any fewer (the spend cap stopped the run, a call failed, an answer was malformed) is
+    ``incomplete`` whatever the medians say: the gate is read on the whole run, never on what
+    happened to come back."""
 
     criteria: list[dict[str, Any]] = []
     if table is not None:
@@ -783,8 +792,14 @@ def gate(
             }
         )
     oks = [row["ok"] for row in criteria]
-    verdict = "fail" if False in oks else "pass" if oks and all(oks) else "incomplete"
-    return {"criteria": criteria, "verdict": verdict}
+    if planned is not None and (taken or 0) < planned:
+        verdict = "incomplete"
+    else:
+        verdict = "fail" if False in oks else "pass" if oks and all(oks) else "incomplete"
+    report: dict[str, Any] = {"criteria": criteria, "verdict": verdict}
+    if planned is not None:
+        report["judgements"] = {"planned": planned, "taken": taken or 0}
+    return report
 
 
 def rubric_report(
@@ -799,6 +814,13 @@ def rubric_report(
 
     rows, skipped = judge_pages(pages, judge, include_new=include_new)
     table = score_table(rows)
+    planned = sum(len(questions_for(page, include_new=include_new)) for page in pages)
+    taken = sum(
+        1
+        for row in rows
+        for cell in (row.get("scores") or {}).values()
+        if cell.get("score") is not None
+    )
     return {
         "mode": mode,
         **judge.fields(),
@@ -807,7 +829,7 @@ def rubric_report(
         "skipped": skipped,
         "summary": table,
         "lowest": lowest_lines(rows),
-        "gate": gate(table),
+        "gate": gate(table, planned=planned, taken=taken),
     }
 
 
@@ -823,9 +845,11 @@ def pairwise_report(
     comparisons: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     unmatched: list[dict[str, Any]] = []
+    planned = 0
     for old_pages, new_pages in pairs:
         plan, missing = pairwise_plan(old_pages, new_pages, seed=seed)
         unmatched += missing
+        planned += len(plan) + len(missing)
         for key, old, new, new_first in plan:
             first, second = (new, old) if new_first else (old, new)
             system, user = pairwise_messages(first, second, key=key, level=new.level)
@@ -864,7 +888,7 @@ def pairwise_report(
         "skipped": skipped,
         "wins_new": wins,
         "compared": compared,
-        "gate": gate(wins=wins, compared=compared),
+        "gate": gate(wins=wins, compared=compared, planned=planned, taken=compared),
     }
 
 
@@ -942,6 +966,9 @@ def markdown(report: dict[str, Any]) -> str:
             out += ["", "**Calls without scores**", "", *errors]
     verdict = report["gate"]
     out += ["", f"**Gate** (plan, Phase 1): {verdict['verdict']}"]
+    if verdict.get("judgements"):
+        count = verdict["judgements"]
+        out.append(f"- judgements taken: {count['taken']} of {count['planned']} planned")
     out += [
         f"- {row['criterion']}: {_fmt(row['measured'])} — "
         + {True: "pass", False: "fail", None: "not measured"}[row["ok"]]
