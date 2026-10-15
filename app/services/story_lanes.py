@@ -979,6 +979,29 @@ def _fold_scene_cost(scene, usd: float) -> None:
     }
 
 
+def reply_prose_counts(turn) -> dict:
+    """Story plan, Phase 1 «Maßstab»: the machine endings of the reply and the ending
+    (a character who leaves without answering, a question put off until tomorrow), as
+    ``{"prose_hits": {kind: count}}``. Counted only: the page is already served."""
+
+    if turn is None:
+        return {}
+    from app.services.season.prose_detector import reply_hits
+
+    try:
+        hits = [
+            *reply_hits(str(getattr(turn, "reply_fr", "") or ""), where="reply"),
+            *reply_hits(str(getattr(turn, "resolution_fr", "") or ""), where="resolution"),
+        ]
+    except Exception:  # noqa: BLE001 - a count is never worth a failed settle
+        logger.exception("story_lanes: prose count failed")
+        return {}
+    counts: dict[str, int] = {}
+    for hit in hits:
+        counts[hit.kind] = counts.get(hit.kind, 0) + 1
+    return {"prose_hits": counts} if counts else {}
+
+
 def book_lane(db: Session, user, *, scene, lane: str, usage: list[dict], seconds: float | None,
               payload: dict | None = None, failed_reason: str | None = None) -> None:
     """One cost row for one lane, plus its per-call diagnostics."""
@@ -1590,7 +1613,8 @@ def _finish_job(db: Session, job: StoryJob, result: StoryLaneResult, payload: di
         events.record("journey_story_lane_settled", user_id=user.id, entity_type="living_story",
                       entity_id=str(journey.id),
                       payload={"status": status, "seconds": result.seconds,
-                               "reason": result.reason, "calls": len(usage)},
+                               "reason": result.reason, "calls": len(usage),
+                               **reply_prose_counts(result.turn)},
                       cost_usd=0.0)
         db.commit()
         return status

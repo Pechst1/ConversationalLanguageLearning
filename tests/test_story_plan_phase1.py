@@ -13,7 +13,9 @@ words). What this file pins:
 * the cast's speech samples come at the learner's band only;
 * the character closes today's question, and asks for depth from B1;
 * on a season day a repeated mistake is corrected in the margin, never in the
-  character's line.
+  character's line;
+* a line the prose detector hears as a machine costs the page one retry, never the day,
+  and the reply side is counted only.
 """
 from __future__ import annotations
 
@@ -21,6 +23,7 @@ import json
 import uuid
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -214,3 +217,50 @@ def test_the_margin_note_is_written_in_three_languages():
     assert set(row) == set(SUPPORTED_COPY_LANGUAGES)
     for language, template in row.items():
         assert "{correct}" in template and "{wrong}" in template, language
+
+
+# ---------------------------------------------------------------------------
+# «Maßstab»: the detector on every generated page
+# ---------------------------------------------------------------------------
+
+
+def test_a_machine_line_costs_the_page_one_retry_never_the_day():
+    from tests import test_living_story as story
+
+    context = story._scene_context()
+    draft = engine.SceneDraft.model_validate(story.draft(context, 0))
+    assert engine.prose_gap(draft, context) is None, "the fixture's page reads like people"
+    draft.panels[-1].narration_fr = "Tout le monde attend ta réponse."
+    with pytest.raises(engine.SoftRejection) as caught:
+        engine._check_reading_aids(draft, context)
+    assert str(caught.value) == "machine_prose"
+    assert "'Tout le monde attend ta réponse.'" in caught.value.hint
+    assert caught.value.proposal is draft, "the page is servable as it stands"
+
+
+def test_a_broken_detector_never_refuses_a_page(monkeypatch):
+    from app.services.season import prose_detector
+    from tests import test_living_story as story
+
+    def broken(*_args, **_kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(prose_detector, "page_hits", broken)
+    context = story._scene_context()
+    draft = engine.SceneDraft.model_validate(story.draft(context, 0))
+    draft.panels[-1].narration_fr = "Tout le monde attend ta réponse."
+    assert engine.prose_gap(draft, context) is None
+
+
+def test_the_cast_s_refrains_may_come_back_on_one_page():
+    season_day = {engine.SEASON_TODAY_KEY: SimpleNamespace(season=SimpleNamespace(id="s1"))}
+    assert "J'ai rien entendu." in engine._signature_phrases(season_day)
+    assert engine._signature_phrases({}), "a life without a season reads the serial bible's"
+
+
+def test_the_reply_side_is_counted_never_refused():
+    turn = SimpleNamespace(reply_fr="D'accord.", resolution_fr="Elle sourit. On verra demain.")
+    assert story_lanes.reply_prose_counts(turn) == {"prose_hits": {"deferred_ending": 1}}
+    plain = SimpleNamespace(reply_fr="D'accord.", resolution_fr="Elle range la clé dans sa poche.")
+    assert story_lanes.reply_prose_counts(plain) == {}
+    assert story_lanes.reply_prose_counts(None) == {}

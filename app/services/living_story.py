@@ -7,6 +7,7 @@ There is deliberately no canned dialogue or authored-scene fallback here.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import logging
@@ -6965,11 +6966,21 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
     special = epreuve_gap(draft, context)
     # WP-111: a season's scheduled moment rides it too.
     moment = _season_required_moment(draft, context)
-    if not untranslated and not undescribed and not grammar and not special and not moment:
+    # Story plan, Phase 1 «Maßstab»: lines a reader hears as a machine ride it too.
+    prose = prose_gap(draft, context)
+    if not untranslated and not undescribed and not grammar and not special and not moment and not prose:
         return
     if not untranslated and not undescribed:
-        hint = " ".join(filter(None, [moment, grammar, special]))
-        reason = "season_required_moment" if moment else "grammar_not_woven" if grammar else "epreuve_incomplete"
+        hint = " ".join(filter(None, [moment, grammar, special, prose]))
+        reason = (
+            "season_required_moment"
+            if moment
+            else "grammar_not_woven"
+            if grammar
+            else "epreuve_incomplete"
+            if special
+            else "machine_prose"
+        )
         raise SoftRejection(reason, hint=hint, proposal=draft)
     wanted = []
     if moment:
@@ -6978,6 +6989,8 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
         wanted.append(special.rstrip("."))
     if grammar:
         wanted.append(grammar.rstrip("."))
+    if prose:
+        wanted.append(prose.rstrip("."))
     if untranslated:
         wanted.append(
             f"{len(untranslated)} of {len(lines)} dialogue lines have no text_native — give "
@@ -6989,6 +7002,54 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
             "every panel one plain sentence in control_language saying what the picture shows"
         )
     raise SoftRejection("missing_reading_aids", hint="; ".join(wanted) + ".", proposal=draft)
+
+
+def prose_gap(draft: SceneDraft, context: dict) -> str | None:
+    """Story plan, Phase 1 «Maßstab»: the lines of this page a reader hears as a machine
+    (:func:`app.services.season.prose_detector.page_hits`) as one hint, or ``None``.
+
+    Soft: the hint rides the scene's one retry and the retry is served either way, so
+    the detector never costs a learner a day — and a detector that breaks costs nothing.
+    """
+
+    from app.services.season import prose_detector
+
+    try:
+        hits = prose_detector.page_hits(
+            draft, level=str(context.get("level") or ""), signature_phrases=_signature_phrases(context)
+        )
+    except Exception:  # noqa: BLE001 - a broken detector never refuses a page
+        logger.exception("living_story: prose detector failed; page not checked")
+        return None
+    if not hits:
+        return None
+    return "Lines that read like a machine, rewrite them: " + "; ".join(prose_detector.feedback(hits)) + "."
+
+
+def _signature_phrases(context: dict) -> tuple[str, ...]:
+    """The cast's refrains («J'ai rien entendu.»), which may come back on one page: the
+    season bible's on a season day, the serial bible's otherwise."""
+
+    season = getattr(getattr(context.get(SEASON_TODAY_KEY), "season", None), "id", None)
+    return _bible_signature_phrases(str(season or ""))
+
+
+@functools.lru_cache(maxsize=4)
+def _bible_signature_phrases(season_id: str) -> tuple[str, ...]:
+    from app.services.season.prose_detector import signature_phrases
+
+    try:
+        if season_id:
+            from app.services.season.world import season_world_bible
+
+            world = season_world_bible(season_id)
+        else:
+            from app.services.serial import SerialThreadService
+
+            world = SerialThreadService._load_world_bible()
+    except Exception:  # noqa: BLE001 - no refrains is a stricter check, never a lost page
+        return ()
+    return tuple(signature_phrases(world))
 
 
 def _validate_lexicon(draft: SceneDraft, context: dict) -> None:
