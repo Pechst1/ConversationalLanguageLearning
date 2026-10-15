@@ -25,18 +25,19 @@ const cont = require('./continue-learning.ts');
 const FORGE = { href: '/atelier?mode=forge&concept=7', folded: false, blocksToday: 0 };
 const base = { storyDone: true, forge: FORGE, wordsDue: 12, wordsDoneToday: false, firstDay: false };
 
-test('after the story the button goes to La Forge, then the words, then more', () => {
+// #152: the order is the server plan's (scene, words, grammar), not the old one.
+test('after the story the button goes to the words, then La Forge, then more', () => {
   let plan = cont.continuePlan(base);
   assert.deepEqual(plan.done, ['story']);
-  assert.equal(plan.next, 'forge');
-  assert.equal(plan.href, FORGE.href);
-
-  plan = cont.continuePlan({ ...base, forge: { ...FORGE, blocksToday: 1 } });
   assert.equal(plan.next, 'words');
   assert.equal(plan.href, '/vocabulary/review');
 
+  plan = cont.continuePlan({ ...base, wordsDoneToday: true });
+  assert.equal(plan.next, 'forge');
+  assert.equal(plan.href, FORGE.href);
+
   plan = cont.continuePlan({ ...base, forge: { ...FORGE, blocksToday: 1 }, wordsDoneToday: true });
-  assert.deepEqual(plan.done, ['story', 'forge', 'words']);
+  assert.deepEqual(plan.done, ['story', 'words', 'forge']);
   assert.equal(plan.next, 'more');
   assert.equal(plan.href, FORGE.href, 'more is another La Forge round');
 });
@@ -49,7 +50,7 @@ test('the story comes first, and the journey card opens it', () => {
 
 test('a folded forge is part of the story; no words due is words done, except on the first day', () => {
   const folded = cont.continuePlan({ ...base, forge: { ...FORGE, folded: true }, wordsDue: 0 });
-  assert.deepEqual(folded.done, ['story', 'forge', 'words']);
+  assert.deepEqual(folded.done, ['story', 'words', 'forge']);
   assert.equal(folded.next, 'more');
 
   const firstDay = cont.continuePlan({ ...base, firstDay: true, wordsDue: 0, routeDone: ['story', 'forge'] });

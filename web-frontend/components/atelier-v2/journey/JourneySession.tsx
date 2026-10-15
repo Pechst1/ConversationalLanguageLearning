@@ -49,7 +49,7 @@ import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-cop
 import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
 import Router from 'next/router';
-import { sessionAfterScene } from '@/lib/day-session';
+import { handOnAfterScene } from '@/lib/day-plan';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
@@ -276,7 +276,7 @@ export function JourneySession({
   /* GENTLE-ONBOARDING: the learner's first day (the one that meets the cast)
      opens on the walkthrough — the app, the shapes, the progress row, the
      day's route — before the cast intro. Once per device. The day's route
-     (story → La Forge → words) is remembered under the journey's date. */
+     (story → words → La Forge) is remembered under the journey's date. */
   const firstDay = castIntro.length > 0;
   const localDate = journey?.local_date ?? null;
   const [walkthroughDone, setWalkthroughDone] = React.useState(true);
@@ -852,7 +852,13 @@ export function JourneyRecapView({
   // Round 3: with the day as one sequence, a completed scene hands on to the
   // words (or the grammar); the seal and the curtain call wait for «Fertig».
   const next =
-    phase.journey.status === 'completed' ? sessionAfterScene(controller.envelope?.session, language) : null;
+    phase.journey.status === 'completed' || phase.journey.status === 'ended_early'
+      ? handOnAfterScene(
+          controller.envelope?.session,
+          language,
+          phase.journey.status === 'completed' ? 'finished' : 'stopped',
+        )
+      : null;
   return (
     <JourneyRecap
       journey={phase.journey}
