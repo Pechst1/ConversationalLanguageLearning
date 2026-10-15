@@ -88,7 +88,7 @@ Every generated day must end with **something different from how it began**, and
 2. **«Romy enquête».** Romy interviews Margaux at the zinc («J'ai rien entendu»), then turns to you: «C'est toi, l'héritage ?» *The change:* you learn that Solvel has bought three cafés in the quartier this year, and Romy has a source she likes.
 3. **«La même chose ?»** Margaux asks your order for the third time. Gus insists your order says who you are. You choose, and say why you're still here. *The change:* your usual order exists. Gus announces that you are «un habitué», and it is not a joke.
 
-**Day plan** (`days` in `gaps.json`, 2026-10-15). Each day has one planned change. The page starts from *before*, and the learner's exchange ends at *after*. A beat that does not happen comes back the next day, before the following one.
+**Day plan** (`days` in `gaps.json`, 2026-10-15). Each day has one planned change. The page starts from *before*, and the learner's exchange ends at *after*. A beat the page did not stage comes back the next day, before the following one. A beat the page staged moves on even when the learner did not really answer it; for a required moment the story then settles its fact (the ticket moves to 2 December, the usual order is a café crème) unless the learner already chose (owner OK, 2026-10-15).
 
 | Day | Premise | Before → after | Also | Hook |
 |---|---|---|---|---|

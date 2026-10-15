@@ -1223,13 +1223,21 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     # engagement, not the calendar. A day the learner did not take up (the turn
     # ended «not_yet») leaves its scheduled moment owed; it is staged again.
     engaged = details.get("outcome") in (None, "met", "partially_met")
-    # Story plan (gap-1 comparison, 2026-10-15): a planned beat the season does not
-    # require is staged once its page is served, taken up or not. Held back, it came
-    # back the next day and the plan stood still (Marin's soup twice). A required
-    # moment still waits for the learner.
-    planned = premise in {beat.premise for beat in gap.days} and premise not in {need.premise for need in gap.required}
+    # Story plan (gap-1 comparison runs, owner OK 2026-10-15): a planned beat is
+    # staged once its page is served, taken up or not. Held back, it came back the
+    # next day and the plan stood still (Marin's soup twice, the ticket twice). A
+    # required moment the learner let pass still settles its fact, so the next
+    # tentpole holds (``_settled_without_the_learner``).
+    planned = premise in {beat.premise for beat in gap.days}
     if premise and not engaged and not planned:
         premise = None
+    if premise and not engaged and premise in {need.premise for need in gap.required}:
+        state = apply_sets(
+            season,
+            state,
+            _settled_without_the_learner(season, state, gap.id, premise),
+            source=f"{gap.id}/{premise}/not_taken_up",
+        )
     # WP-113: today's complication card is tomorrow's obstacle (faced today, it is
     # replaced by today's own, or cleared).
     complication = str(checklist.get("complication") or "").strip()
@@ -1257,6 +1265,39 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     from app.services.season.agency import settle_day
 
     return settle_day(state, season_ctx, details, event_id=event_id, engaged=engaged)
+
+
+def _settled_without_the_learner(season: Season, state: dict, gap_id: str, premise: str) -> dict[str, Any]:
+    """The facts a required moment leaves when the learner let it pass: its bridge's
+    fixed facts (the ticket moves to 2 December), and for a flag the moment lets the
+    learner choose (the usual order), the bridge's first option, unless already set."""
+
+    from app.services.season.bridges import load_bridges
+    from app.services.season.flags import stored_flags
+
+    bridge = load_bridges(season.id).get(gap_id)
+    moment = next((row for row in bridge.moments if row.premise == premise), None) if bridge else None
+    staged = next((row for row in season.gaps[gap_id].premises if row.id == premise), None)
+    if moment is None or staged is None:
+        return {}
+    known = stored_flags(state)
+    facts: dict[str, Any] = {fact.flag: fact.value for fact in moment.fixed}
+
+    def first_option(node: Any, flag: str) -> Any:
+        if isinstance(node, dict):
+            if node.get("flag") == flag and node.get("options"):
+                return (node["options"][0].get("sets") or {}).get(flag)
+            node = list(node.values())
+        if isinstance(node, list):
+            return next((value for item in node if (value := first_option(item, flag)) is not None), None)
+        return None
+
+    for flag in staged.sets:
+        if flag not in facts and known.get(flag) in (None, ""):
+            value = first_option(moment.model_dump(), flag)
+            if value is not None:
+                facts[flag] = value
+    return facts
 
 
 def _shorten(state: dict, row: dict[str, Any]) -> dict:

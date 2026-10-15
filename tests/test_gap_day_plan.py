@@ -93,9 +93,23 @@ def test_a_planned_beat_the_learner_did_not_take_up_still_moves_the_plan_on():
     assert beat is not None and beat.premise == "le_billet"
 
 
-def test_a_required_beat_still_waits_for_the_learner():
-    assert not _settle("le_billet", "not_yet").get("premises")
-    assert [row["premise"] for row in _settle("le_billet", "met")["premises"]] == ["le_billet"]
+def test_a_required_beat_the_learner_let_pass_moves_on_and_settles_its_fact():
+    """Third gap-1 run: the ticket came back on day 4 instead of Romy. Owner OK
+    2026-10-15: a required day moves on too, and the story settles its fact so T2
+    («you have moved your ticket to 2 December») still holds."""
+
+    state = _settle("le_billet", "not_yet")
+    assert [row["premise"] for row in state["premises"]] == ["le_billet"]
+    assert state["flags"]["user.return_ticket"] == "mercredi 2 décembre"
+    order = _settle("la_meme_chose", "not_yet")
+    assert order["flags"]["user.usual_order"] == "un café crème"
+
+
+def test_the_learners_own_choice_is_never_overwritten():
+    state = _settle("la_meme_chose", "not_yet", {"id": "s1", "flags": {"user.usual_order": "un thé"}})
+    assert state["flags"]["user.usual_order"] == "un thé"
+    # A day the learner took up keeps what they said; nothing is filled in for them.
+    assert "user.return_ticket" not in (_settle("le_billet", "met").get("flags") or {})
 
 
 def test_the_retry_for_a_dropped_planned_day_names_its_change():
