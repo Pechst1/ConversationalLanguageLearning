@@ -1198,6 +1198,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Danach wurde eben gefragt: Es heißt „{correct}“, nicht „{wrong}“.",
         "fr": "C’est ce qu’on venait de vous demander : on dit « {correct} », pas « {wrong} ».",
     },
+    # A season day corrects a repeated mistake in the margin only, without asking first.
+    "self_repair.margin_note": {
+        "en": "It is “{correct}”, not “{wrong}”.",
+        "de": "Es heißt „{correct}“, nicht „{wrong}“.",
+        "fr": "On dit « {correct} », pas « {wrong} ».",
+    },
 }
 
 

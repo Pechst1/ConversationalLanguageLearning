@@ -83,8 +83,8 @@ OBJECTIVES = [
 ]
 
 
-# WP-59: from B1 the answer is a move, not a sentence. Since 15 Oct 2026 the move lives
-# in the suggested answer and the task line stays short (``_ANSWER_MINIMUM_WORDS``).
+# WP-59: from B1 the answer is a move, not a sentence. Since 15 Oct 2026 the task line is
+# at most twelve words at every band and no answer has a floor; this is a natural one.
 UPPER_BAND_ANSWER = (
     "Je peux apporter les affiches samedi, mais seulement le matin, parce que je "
     "travaille l'après-midi."

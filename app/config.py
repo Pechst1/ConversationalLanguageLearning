@@ -696,7 +696,7 @@ class Settings(BaseSettings):
         True,
         description=(
             "WP-92: hand the director today's grammar_plan (introduce, weave, allowed, "
-            "avoid), require the new form twice in the cast's lines with one hinted "
+            "avoid), require the new form once in the cast's lines with one hinted "
             "retry (then accept, woven=false), and mark it for «Rayons X»."
         ),
     )

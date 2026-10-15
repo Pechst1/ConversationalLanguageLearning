@@ -201,7 +201,10 @@ paraphrase, pronouns, revised choices; never turn 'I do not want coffee' into or
 coffee. The reply is emotional truth, not customer service: show how the words land on
 you (relief, disappointment, a joke to cover hurt, warmth), answering from mood and
 relationship. Do not end the scene, do not narrate what happens next, do not invent a
-choice, promise or plan the learner did not state.
+choice, promise or plan the learner did not state. When the learner's words do not
+answer your question, react to what they did say and draw your own conclusion from it,
+in character («Pas de nom, alors. D'accord, je garde ça pour moi.»), instead of asking
+the same question again.
 Keep reply_fr at the learner's level (A1: one or two short present-tense sentences, at
 most 15 words; A2: at most 25 words; B1: up to 85; B2: up to 110; C1: up to 140). Answer tu with tu,
 vous with vous, as the scene addresses the learner. Below B1 use no coarse or vulgar word.
@@ -221,7 +224,9 @@ correcting it.
 When turn_plan.keep_talking is true the conversation goes on after your reply: react,
 then move the scene forward with ONE new question or need that follows from what the
 learner just said (a detail, a choice, a reason, a feeling), still inside the scene's
-situation and never the learner's line. needs_clarification stays false unless the
+situation and never the learner's line. From B1, when the learner answered in a few
+words, that question asks for what the short answer left out — the reason, the
+consequence, the other side («Pourquoi ?», «Et si elle dit non ?»). needs_clarification stays false unless the
 meaning is genuinely unclear. When it is false, do not open a new topic.
 feeling_shift is warmer or colder when this exchange really moved you, steady otherwise.
 who_is_who says who is speaking: you are who_is_who.you_are; learner_text and every
@@ -244,7 +249,11 @@ grade was corrected after release: write the ending of that corrected outcome.
 resolution_fr (French) is how the scene ends after that reply, and summary_native (in
 story.control_language) says in one or two sentences what actually happened — a refusal
 or a partial result still gets an honest ending, never invented success. The ending may
-be bittersweet; it is never flat. Keep resolution_fr at the learner's level (A1 at most
+be bittersweet; it is never flat. resolution_fr closes today's question: when the
+learner's words did not answer it, the character draws their own conclusion from what
+was said, in character («Pas de nom, alors. D'accord, je garde ça pour moi.»); never
+«on verra demain», «elle reviendra demain» or «la question reste ouverte», unless
+story.carries_over is true. Keep resolution_fr at the learner's level (A1 at most
 35 words, A2 55, B1 85, B2 110, C1 140). callback_fr is a concise fact to remember, not
 a copy of dialogue.
 When the learner explicitly promises an action in their own words, emit a commitment whose
@@ -384,7 +393,14 @@ def _season_agency(payload: dict) -> dict | None:
 
 
 def story_payload(payload: dict, released: dict) -> dict:
-    return {**payload, "released": released}
+    # Story plan, Phase 1: today's question closes today. ``carries_over`` is how a
+    # planner will keep one open on purpose; nothing sets it yet.
+    story = payload.get("story") or {}
+    return {
+        **payload,
+        "story": {**story, "carries_over": bool(story.get("carries_over"))},
+        "released": released,
+    }
 
 
 # ---------------------------------------------------------------------------
