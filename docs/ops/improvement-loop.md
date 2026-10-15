@@ -74,8 +74,8 @@ Lanes:
    - takes up to 3 `root-cause` issues first, each with its ready children;
    - fixes up to 15 clusters (at most 3 story) in waves of 5, each agent in its own
      worktree and branch `claude/night-<date>-<issue>`;
-   - has a second agent review every PR against the done-when; a PR that fails loses
-     `loop:merge-ready`, becomes a draft and gets a comment;
+   - has a second agent review every PR against the done-when; only a passing review
+     adds `loop:merge-ready`, and a PR that fails becomes a draft and gets a comment;
    - posts the digest: queue counts, tonight's PRs, the ones ready to merge, anything
      left `queue:working`, and what waits for the owner.
    With 30 or more night-shift PRs open it opens nothing new.

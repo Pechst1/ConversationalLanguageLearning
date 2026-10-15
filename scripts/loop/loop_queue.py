@@ -22,6 +22,7 @@ The night shift's GitHub verbs (it has no other way to read or write issues and 
     python scripts/loop/loop_queue.py pr-diff N
     python scripts/loop/loop_queue.py comment N --body-file F    (or --body TEXT)
     python scripts/loop/loop_queue.py pr-unready N --body-file F # drop loop:merge-ready, draft, say why
+    python scripts/loop/loop_queue.py add-label N LABEL          # e.g. loop:merge-ready after a passing verify
 
 Everything goes through GitHub's REST API with `gh api` (cloud sessions block GraphQL,
 so `gh issue`/`gh pr` fail there). With the owner's login, a merge made with `--merge`
@@ -397,6 +398,9 @@ def main(argv: list[str]) -> None:
     p.add_argument("--draft", action="store_true")
     p = sub.add_parser("pr-diff")
     p.add_argument("number", type=int)
+    p = sub.add_parser("add-label")
+    p.add_argument("number", type=int)
+    p.add_argument("label")
     for name in ("comment", "pr-unready"):
         p = sub.add_parser(name)
         p.add_argument("number", type=int)
@@ -430,6 +434,8 @@ def main(argv: list[str]) -> None:
         comment(args.number, _text(args))
     elif args.command == "pr-unready":
         pr_unready(args.number, _text(args))
+    elif args.command == "add-label":
+        add_labels(args.number, [args.label])
 
 
 if __name__ == "__main__":

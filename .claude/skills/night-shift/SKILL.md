@@ -41,8 +41,9 @@ Without the Workflow tool, do the same steps with the Agent tool:
    reproduce, fix, add the test that would have caught it, run the focused checks,
    push, open the PR, `mark-pr`, or `release` with a reason.
 3. **Verify** each PR (never skip this) with a fresh agent that did not write it (`verifyPrompt`): it
-   checks the diff against every done-when and, if it is not ok, removes
-   `loop:merge-ready`, turns the PR into a draft and comments why.
+   checks the diff against every done-when. Only the verifier adds
+   `loop:merge-ready`, and only when it is ok; otherwise it turns the PR into a draft
+   and comments why. A PR whose verify did not finish never carries the label.
 4. **Digest**: `python scripts/loop/loop_queue.py merge-ready` (lists only) and
    `python scripts/loop/loop_queue.py digest --date <date>`.
 

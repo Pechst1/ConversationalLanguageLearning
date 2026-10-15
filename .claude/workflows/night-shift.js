@@ -112,16 +112,16 @@ This cluster is ROOT CAUSE ${'#' + c.issues[0]}: confirm the mechanism in the co
 1. Start from the latest main: \`git fetch -q origin && git checkout -B ${branch} origin/main\`. Then \`bash scripts/loop/setup_env.sh && source $HOME/.venvs/atelier/bin/activate\` (on a main without that script, copy it the way ${Q} was copied). Run pytest as \`python -m pytest\` from the worktree root.
 2. Claim each issue: \`${Q} claim N --run night-${date}\`. If a claim fails, drop that issue.
 3. Read each issue and its "Done when" triage comment (\`${Q} show N\`). The done-when is your acceptance test.
-4. Reproduce the bug in code or a test before fixing it. If the bug is already gone on main, comment the evidence on the issue, run \`${Q} release N --reason "already fixed on main: <how you checked>"\`, and return status already-fixed.
+4. Reproduce the bug in code or a test before fixing it. If an issue's bug is already gone on main, comment the evidence on it, run \`${Q} release N --reason "already fixed on main: <how you checked>"\`, and go on with the cluster's other issues. Return status already-fixed only when every issue in the cluster was already fixed; never leave a claimed issue in queue:working.
 5. Fix it the way the surrounding code is written. ${story
     ? 'Story lane: do not rewrite prompts wholesale. Prefer a deterministic guard or validator next to the existing ones (app/services/season/canon_guards.py and friends) plus the smallest prompt change. Add a test that feeds the EXACT text quoted in the issue and asserts the guard catches or repairs it. No paid model calls in tests.'
     : 'Code lane: add the test or walk assertion (web-frontend/e2e/lib/learner-walk.mjs, node tests, or pytest) that would have caught it.'}
 6. Run the focused checks for what you touched: backend \`ruff check\` + the touched pytest files (the suite runs in random order; run focused files only); frontend \`npx tsc --noEmit\`, \`npm run lint\` and the touched node tests in web-frontend. CI runs the full suite.
 7. Commit with a message that says what changed for the learner. Push the branch.
-8. Write the PR body to a file and open the PR with \`${Q} pr-create --branch ${branch} --title "<plain words>" --body-file <file> --label lane:${c.lane}${story ? ' --label needs-owner-review --draft' : ''}\`. The body's first two lines are \`<!-- claude-projects-attribution: {"github_login":"Pechst1"} -->\` and \`_Requested by **Vincent** · night shift ${date}_\`; then what was wrong (quote the issue), «Root cause:», what changed, how it was checked, and "Fixes ${nums}" lines.${story ? '' : ` Add --label loop:merge-ready only if the cluster is size S, the diff is under 400 lines and touches none of the owner-only paths in scripts/loop/loop_queue.py (MERGE_DENY_PREFIXES). The label only marks it for the owner's quick review; nobody merges it but the owner.`}
+8. Write the PR body to a file and open the PR with \`${Q} pr-create --branch ${branch} --title "<plain words>" --body-file <file> --label lane:${c.lane}${story ? ' --label needs-owner-review --draft' : ''}\`. The body's first two lines are \`<!-- claude-projects-attribution: {"github_login":"Pechst1"} -->\` and \`_Requested by **Vincent** · night shift ${date}_\`; then what was wrong (quote the issue), «Root cause:», what changed, how it was checked, and "Fixes ${nums}" lines.${story ? '' : ` Do not add loop:merge-ready yourself: report mergeReadyLabel true only if the cluster is size S, the diff is under 400 lines and touches none of the owner-only paths in scripts/loop/loop_queue.py (MERGE_DENY_PREFIXES). The verifier adds the label once it agrees; nobody merges but the owner.`}
 9. For each issue: \`${Q} mark-pr N --pr <PR>\`.
 If you cannot finish (cannot reproduce, too large, checks fail and you cannot fix them), push nothing half-done, run \`${Q} release N --reason "<one line>"\` for each claimed issue, and return status released.
-Return status, pr, branch, whether you set loop:merge-ready, a two-line summary and the checks you ran.`
+Return status, pr, branch, whether the PR qualifies for loop:merge-ready, a two-line summary and the checks you ran.`
 }
 
 function verifyPrompt(c, fix) {
@@ -129,7 +129,7 @@ function verifyPrompt(c, fix) {
 ${NO_GH}
 Read the issues and their "Done when" comments (\`${Q} show N\`) and the diff (\`${Q} pr-diff ${fix.pr}\`).
 Check: does the diff meet every done-when? Is there a test that fails without the fix? Does it change behaviour beyond the issue (other screens, other languages, story canon)? Any bug introduced?
-If it is not ok: write the problems to a file and run \`${Q} pr-unready ${fix.pr} --body-file <file>\` (drops loop:merge-ready, makes it a draft, comments). If it is ok, \`${Q} comment ${fix.pr} --body "<one line: what you checked>"\`. Do not change the code.
+If it is not ok: write the problems to a file and run \`${Q} pr-unready ${fix.pr} --body-file <file>\` (drops loop:merge-ready, makes it a draft, comments). If it is ok, \`${Q} comment ${fix.pr} --body "<one line: what you checked>"\`${fix.mergeReadyLabel && c.lane === 'code' ? `, then \`${Q} add-label ${fix.pr} loop:merge-ready\` (only when ok; the label is what puts it on the owner's ready-to-merge list)` : ''}. Do not change the code.
 Return ok and the problems you found (empty when ok).`
 }
 
