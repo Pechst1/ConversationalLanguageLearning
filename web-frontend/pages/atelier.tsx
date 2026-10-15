@@ -121,12 +121,12 @@ import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
 import { DaySessionNext, TempoSheet } from '@/components/atelier-v2/home/DaySession';
 import {
   daySessionCopy,
-  sessionAfterGrammar,
   sessionMarkState,
   sessionMore,
   sessionNextAction,
   sessionRows,
 } from '@/lib/day-session';
+import { dayIsDone, handOnAfterGrammar } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
 import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
@@ -1076,8 +1076,8 @@ export default function AtelierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [journey.envelope],
   );
-  /* GENTLE-ONBOARDING: the learner's first day is the story, then La Forge,
-     then the words. Its route is drawn after the recap and on Home once the
+  /* GENTLE-ONBOARDING: the learner's first day is the story, then the words,
+     then La Forge. Its route is drawn after the recap and on Home once the
      story is done; La Forge opens at the server's forge href on every rhythm
      (the first day folds nothing in). */
   const firstDayJourney = castIntroOf(journey.journey).length > 0;
@@ -1141,6 +1141,13 @@ export default function AtelierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storyCompleted, journey.envelope, firstDayJourney, firstDayForgeHref, firstDayDone, dayProgress.vocabularyDue, wordsDoneOnDevice, practiceEntry, today]);
   const firstDayRouteOnHome = continueRoute !== null;
+  /* #143 / #153: «the day is done» has one reader. With the server's plan it is
+     `dayIsDone(plan)` — a stopped or finished scene never decides it. The device
+     route (`continueRoute`) answers only where the server sent no plan. */
+  const envelopePlan = journey.envelope?.session ?? null;
+  const restOfDayOpen = envelopePlan
+    ? !dayIsDone(envelopePlan)
+    : Boolean(continueRoute && continueRoute.plan.next !== 'more');
   // WP-24: why today's scene is this scene. `null` unless the plan actually
   // kept a target that exists because of a recorded mistake.
   const becauseLine = useMemo(() => journeyBecause(journey.envelope), [journey.envelope]);
@@ -1743,7 +1750,7 @@ export default function AtelierPage() {
 
   // An envelope not read yet still ends the day's grammar on «Fertig», which says what is left.
   const dayHandOn = forgeFromDay
-    ? sessionAfterGrammar(journey.envelope?.session, pageChromeLanguage)
+    ? handOnAfterGrammar(journey.envelope?.session, pageChromeLanguage)
       ?? { label: daySessionCopy(pageChromeLanguage).next_finish, href: '/fertig' }
     : null;
 
@@ -2130,7 +2137,7 @@ export default function AtelierPage() {
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
-                      restOfDayOpen={Boolean(continueRoute && continueRoute.plan.next !== 'more')}
+                      restOfDayOpen={restOfDayOpen}
                       onOpenLegacy={(href) => {
                         // The old Atelier session is resumed on its own terms: the
                         // journey never converts, replaces or completes it.

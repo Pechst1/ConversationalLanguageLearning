@@ -160,6 +160,8 @@ class SessionInputs:
     forge_blocks_today: int
     forge_href: str
     exercises_today: int
+    #: Distinct words reviewed today, every surface together (the end screen's «Words»).
+    words_reviewed_today: int = 0
 
 
 def session_view(inputs: SessionInputs) -> dict[str, Any]:
@@ -182,7 +184,10 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
             "done": words_done,
             "minutes": 0 if words_done else minutes(words_seconds(new_left, reviews)),
             "href": WORDS_HREF,
-            "count": inputs.quota,
+            # #153: the number the learner will meet, not the pace's target. The
+            # scene already introduced some of the quota; «20 words» over a
+            # deck of 17 was the plan and the screen disagreeing.
+            "count": (new_left or reviews) if not words_done else inputs.quota,
             "new_left": new_left,
             "reviews": reviews,
         },
@@ -218,7 +223,8 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
         "done": all_done,
         "tally": {
             "scenes": 1 if inputs.scene_done else 0,
-            "words": min(inputs.introduced, max(inputs.quota, inputs.introduced)),
+            # What was done, not what was planned: new words met or words reviewed.
+            "words": max(inputs.introduced, inputs.words_reviewed_today),
             "exercises": max(0, inputs.exercises_today),
         },
         "more_words": MORE_WORDS,
@@ -302,6 +308,25 @@ def exercises_today(db: Session, user: Any, *, now: datetime | None = None) -> i
     )
 
 
+def words_reviewed_today(db: Session, user: Any, *, now: datetime | None = None) -> int:
+    """Distinct words with a review logged on the learner's local today."""
+
+    from app.db.models.progress import ReviewLog
+    from app.db.models.progress import UserVocabularyProgress as Progress
+
+    now = now or datetime.now(UTC)
+    start, end = _local_window(user, now)
+    return int(
+        db.execute(
+            select(func.count(func.distinct(Progress.word_id)))
+            .select_from(ReviewLog)
+            .join(Progress, ReviewLog.progress_id == Progress.id)
+            .where(Progress.user_id == user.id, ReviewLog.review_date >= start, ReviewLog.review_date < end)
+        ).scalar_one()
+        or 0
+    )
+
+
 def words_marked_done(journey: Any) -> bool:
     selection = getattr(journey, "plan_selection", None) if journey is not None else None
     session = (selection or {}).get(SESSION_KEY) if isinstance(selection, dict) else None
@@ -352,6 +377,7 @@ def build_session(
             forge_blocks_today=forge_blocks_today,
             forge_href=forge_href,
             exercises_today=exercises_today(db, user, now=now),
+            words_reviewed_today=words_reviewed_today(db, user, now=now),
         )
     )
 
