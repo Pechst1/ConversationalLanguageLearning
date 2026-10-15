@@ -1556,7 +1556,7 @@ def test_a_family_word_is_not_a_gendered_address():
         "Ma fille est partie à Lyon.",
     ):
         engine._check_address([line], "neutral")
-    for line in ("Merci, mon grand.", "Viens, ma belle !", "« Ça va, ma puce ? »", "Mon vieux, tu viens ?"):
+    for line in ("Merci, mon grand.", "Viens, ma belle !", "« Ça va, ma puce ? »", "Mon vieux, tu viens ?", "Mon grand — viens ici.", "Ma belle – attends !"):
         with pytest.raises(engine.StoryUnavailable, match="gendered_address"):
             engine._check_address([line], "neutral")
     engine._check_address(["Merci, mon grand."], "masculine")

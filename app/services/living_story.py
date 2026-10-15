@@ -5177,7 +5177,7 @@ def _vocative(term: str) -> re.Pattern[str]:
     of the notary chapter to the address check)."""
 
     return re.compile(
-        r"\b" + re.escape(term).replace("\\ ", r"\s+") + r"\b(?=\s*(?:[,.!?…;:»\"”]|$))",
+        r"\b" + re.escape(term).replace("\\ ", r"\s+") + r"\b(?=\s*(?:[,.!?…;:»\"”—–]|$))",
         re.IGNORECASE,
     )
 
