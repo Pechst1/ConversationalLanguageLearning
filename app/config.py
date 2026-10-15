@@ -59,7 +59,12 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str | None = None
     PRIMARY_LLM_PROVIDER: str = Field("openai", description="Preferred LLM provider key")
     SECONDARY_LLM_PROVIDER: str | None = Field(
-        "anthropic", description="Fallback LLM provider key"
+        None,
+        description=(
+            "Fallback LLM provider key for calls that name no model. None by default: "
+            "an Anthropic key serves the story steps that name a Claude model, and only "
+            "takes the app's other calls when this (or PRIMARY_LLM_PROVIDER) names it."
+        ),
     )
     OPENAI_MODEL: str = Field("gpt-5-mini", description="Default OpenAI text model")
     OPENAI_ERROR_DETECTION_MODEL: str = Field(
@@ -84,7 +89,9 @@ class Settings(BaseSettings):
     OPENAI_API_BASE: AnyUrl | None = Field(
         None, description="Override base URL for OpenAI-compatible endpoints"
     )
-    ANTHROPIC_MODEL: str = Field("claude-3-5-sonnet", description="Default Anthropic model")
+    ANTHROPIC_MODEL: str = Field(
+        "claude-haiku-5-5", description="Anthropic model for a call that names no model"
+    )
     ANTHROPIC_API_BASE: AnyUrl | None = Field(
         None, description="Override base URL for Anthropic endpoints"
     )
@@ -583,6 +590,37 @@ class Settings(BaseSettings):
         True, description="Generate new daily situations and semantic responses from shared serial state."
     )
     ATELIER_STORY_MAX_ATTEMPTS: int = Field(2, ge=1, le=3)
+    # Story models per step (2026-10-15, plan decisions 9 and 10). Unset, every story
+    # call keeps OPENAI_MODEL, as before. The paid measurement picks the values.
+    STORY_WRITER_MODEL: str | None = Field(
+        None,
+        description=(
+            "Model that writes a day's page ahead of time (the prefetch), e.g. "
+            "claude-haiku-5-5 or gpt-6-luna. A Claude model needs ANTHROPIC_API_KEY; "
+            "without it the page is written by the live model."
+        ),
+    )
+    STORY_WRITER_REASONING_EFFORT: str | None = Field(
+        None, description="Reasoning effort for STORY_WRITER_MODEL (low, medium, high). Unset: the engine's own."
+    )
+    STORY_CRITIC_MODEL: str | None = Field(
+        None,
+        description=(
+            "Model that reviews a page written ahead of time (the season critic), e.g. "
+            "gpt-6.1-sol: a different family from the writer, so it does not pass its "
+            "own family's lines."
+        ),
+    )
+    STORY_CRITIC_REASONING_EFFORT: str | None = Field(
+        None, description="Reasoning effort for STORY_CRITIC_MODEL. Unset: the engine's own."
+    )
+    STORY_LIVE_MODEL: str | None = Field(
+        None,
+        description=(
+            "Model for every story call a learner waits on (a page written live, the "
+            "replies, the critic of a turn), e.g. gpt-6-luna. Unset: OPENAI_MODEL."
+        ),
+    )
     ATELIER_SEASON_WRITER_ENABLED: bool = Field(
         False,
         description=(

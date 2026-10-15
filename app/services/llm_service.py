@@ -105,11 +105,15 @@ class ProviderCircuitOpenError(LLMProviderError):
 
 #: US$ per 1,000 tokens. Sources: the rates this table already carried, plus the
 #: OpenAI list prices for the gpt-5 family members the config can select
-#: (gpt-5: $1.25/$10 per 1M; gpt-5-nano: $0.05/$0.40 per 1M). ``gpt-5.5`` — the
-#: premium Feuilleton script model in render.yaml — has no price documented
-#: anywhere in this repository, so it deliberately falls through to the
-#: conservative rate below rather than being guessed.
+#: (gpt-5: $1.25/$10 per 1M; gpt-5-nano: $0.05/$0.40 per 1M). The story-model
+#: rows (2026-10-15, plan decisions 9 and 10) are the list prices per 1M:
+#: gpt-5.5 $5/$30, gpt-6.1-sol $2/$10, gpt-6-luna $0.10/$0.50, claude-sonnet-5-5
+#: $2/$10, claude-haiku-5-5 $0.10/$0.50 (prompts up to 100K tokens; the story
+#: prompts are far below that).
 TEXT_PRICES_PER_1K_TOKENS: dict[str, dict[str, float]] = {
+    "gpt-6.1-sol": {"prompt": 0.002, "completion": 0.01},
+    "gpt-6-luna": {"prompt": 0.0001, "completion": 0.0005},
+    "gpt-5.5": {"prompt": 0.005, "completion": 0.03},
     "gpt-5": {"prompt": 0.00125, "completion": 0.01},
     "gpt-5-mini": {"prompt": 0.00025, "completion": 0.002},
     "gpt-5-nano": {"prompt": 0.00005, "completion": 0.0004},
@@ -118,6 +122,8 @@ TEXT_PRICES_PER_1K_TOKENS: dict[str, dict[str, float]] = {
     "gpt-4o-mini": {"prompt": 0.00015, "completion": 0.0006},
     "gpt-4o": {"prompt": 0.0025, "completion": 0.01},
     "gpt-3.5-turbo": {"prompt": 0.0005, "completion": 0.0015},
+    "claude-haiku-5-5": {"prompt": 0.0001, "completion": 0.0005},
+    "claude-sonnet-5-5": {"prompt": 0.002, "completion": 0.01},
     "claude-3-5-sonnet": {"prompt": 0.003, "completion": 0.015},
     "claude-3-sonnet": {"prompt": 0.003, "completion": 0.015},
 }
@@ -230,6 +236,27 @@ def estimate_image_cost_usd(model: str, images: int = 1) -> float:
         rate = max(IMAGE_PRICES_PER_IMAGE.values())
         _log_unknown_price_once("image", model, rate)
     return round(max(0, int(images or 0)) * rate, 6)
+
+
+def provider_for_model(model: str | None) -> str | None:
+    """The provider that serves ``model``: a Claude model is Anthropic's, any other
+    name OpenAI's (or an OpenAI-compatible gateway's). ``None`` for no model."""
+
+    if not model:
+        return None
+    return "anthropic" if str(model).strip().lower().startswith("claude") else "openai"
+
+
+#: gpt-6 models take ``none`` as their lowest reasoning effort and refuse
+#: ``minimal``, which the gpt-5 family's fast paths send (lanes, classifiers,
+#: error detection). Asked for ``minimal``, a gpt-6 model gets ``none``.
+_GPT6_PREFIX = "gpt-6"
+
+
+def openai_reasoning_effort(model: str, effort: str | None) -> str | None:
+    if effort == "minimal" and str(model).startswith(_GPT6_PREFIX):
+        return "none"
+    return effort
 
 
 # ---------------------------------------------------------------------------
@@ -446,7 +473,7 @@ class OpenAIProvider:
     def _uses_completion_token_limit(model: str) -> bool:
         """Newer OpenAI reasoning models reject the legacy max_tokens field."""
 
-        return model.startswith("gpt-5")
+        return model.startswith(("gpt-5", _GPT6_PREFIX))
 
     def generate(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         """One chat completion, retried only on retryable errors.
@@ -482,7 +509,7 @@ class OpenAIProvider:
             else:
                 payload["max_tokens"] = kwargs["max_tokens"]
         if kwargs.get("reasoning_effort"):
-            payload["reasoning_effort"] = kwargs["reasoning_effort"]
+            payload["reasoning_effort"] = openai_reasoning_effort(model, kwargs["reasoning_effort"])
         if kwargs.get("prompt_cache_key") and "api.openai.com" in self.base_url:
             # A compatible gateway may reject unknown fields; only OpenAI gets it.
             payload["prompt_cache_key"] = kwargs["prompt_cache_key"]
@@ -704,6 +731,37 @@ class ElevenLabsProvider:
         logger.info("ElevenLabs TTS success", chars=len(text), voice=voice, model=model)
         return response.content
 
+#: Floor for an Anthropic call's max_tokens (see ``AnthropicProvider._generate_once``).
+ANTHROPIC_MIN_MAX_TOKENS = 16000
+#: The Claude 5 family takes no assistant prefill and no json_object mode: a JSON
+#: call says so in the system prompt, and the answer is read as JSON by the caller.
+ANTHROPIC_JSON_INSTRUCTION = (
+    "Answer with exactly one JSON object and nothing else: no prose before or after it, no code fence."
+)
+_ANTHROPIC_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max"})
+
+
+def anthropic_effort(effort: str | None) -> str | None:
+    """An OpenAI reasoning effort as a Claude ``output_config.effort``: ``none`` and
+    ``minimal`` become ``low``, the lowest Claude level; an unknown value is dropped."""
+
+    if not effort:
+        return None
+    effort = {"none": "low", "minimal": "low"}.get(effort, effort)
+    return effort if effort in _ANTHROPIC_EFFORTS else None
+
+
+def _unfenced_json(content: str) -> str:
+    """The JSON object in ``content``, without a code fence around it."""
+
+    text = content.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else ""
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[:-3]
+    return text.strip()
+
+
 @dataclass
 class AnthropicProvider:
     """Generate chat completions using the Anthropic API."""
@@ -736,19 +794,27 @@ class AnthropicProvider:
         )
 
     def _generate_once(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
+        # The Claude 5 family (2026-10-15): thinking is adaptive and counts toward
+        # max_tokens, so a ceiling sized for an OpenAI answer would stop mid-thought;
+        # only the tokens produced are paid. A temperature other than 1 is refused,
+        # so none is sent. Effort goes to output_config.
         payload: dict[str, Any] = {
             "model": kwargs.get("model", self.model),
-            "max_tokens": kwargs.get("max_tokens", 512),
+            "max_tokens": max(int(kwargs.get("max_tokens") or 0), ANTHROPIC_MIN_MAX_TOKENS),
             "messages": [
                 {"role": message["role"], "content": message["content"]}
                 for message in messages
             ],
         }
-        payload["temperature"] = kwargs.get("temperature", 0.7)
-        if "system" in kwargs:
-            payload["system"] = kwargs["system"]
-        if "response_format" in kwargs:
-            payload["response_format"] = kwargs["response_format"]
+        system = str(kwargs.get("system") or "")
+        wants_json = (kwargs.get("response_format") or {}).get("type") in {"json_object", "json_schema"}
+        if wants_json:
+            system = f"{system}\n\n{ANTHROPIC_JSON_INSTRUCTION}".strip()
+        if system:
+            payload["system"] = system
+        effort = anthropic_effort(kwargs.get("reasoning_effort"))
+        if effort:
+            payload["output_config"] = {"effort": effort}
 
         headers = {
             "x-api-key": self.api_key,
@@ -768,11 +834,17 @@ class AnthropicProvider:
             raise _status_error("Anthropic", response.status_code, response.text)
 
         data = response.json()
+        stop_reason = data.get("stop_reason")
+        if stop_reason == "refusal":
+            raise LLMProviderError("Anthropic declined the request (stop_reason: refusal)")
         contents = data.get("content", [])
+        # Thinking blocks come first and carry no answer: only text blocks are read.
         content_chunks = [chunk.get("text", "") for chunk in contents if chunk.get("type") == "text"]
         content = "\n".join(filter(None, content_chunks)).strip()
         if not content:
-            raise LLMProviderError("Anthropic response did not include content")
+            raise LLMProviderError(f"Anthropic response did not include content (stop_reason: {stop_reason})")
+        if wants_json:
+            content = _unfenced_json(content)
 
         usage = data.get("usage", {})
         prompt_tokens = usage.get("input_tokens", 0)
@@ -865,10 +937,28 @@ class LLMService:
         maybe_add(primary)
         maybe_add(secondary)
         for provider in self._providers:
-            if provider.name in seen:
+            # Anthropic answers the calls that name a Claude model (the story steps,
+            # plan decisions 9 and 10). It is a fallback for every other call only
+            # when PRIMARY/SECONDARY_LLM_PROVIDER names it: a key set for the story
+            # must not quietly take over the app's OpenAI failures.
+            if provider.name in seen or provider.name == "anthropic":
                 continue
             ordered.append(provider)
         return ordered
+
+    def _providers_for(self, model: str | None, order: Sequence[BaseLLMProvider]) -> list[BaseLLMProvider]:
+        """The providers a call may reach: a named model goes only to the provider
+        that serves it (an OpenAI model name sent to Anthropic is a certain 404)."""
+
+        owner = provider_for_model(model)
+        if owner is None:
+            return list(order)
+        if owner == "anthropic":
+            provider = self._providers_by_name.get("anthropic")
+            if provider is None:
+                raise LLMProviderError(f"No Anthropic provider for model {model!r}: ANTHROPIC_API_KEY is not set")
+            return [provider]
+        return [provider for provider in order if provider.name != "anthropic"]
 
     def generate_chat_completion(
         self,
@@ -892,7 +982,9 @@ class LLMService:
         """
 
         errors: list[str] = []
-        providers = self._provider_order if max_provider_attempts is None else self._provider_order[:max(1, max_provider_attempts)]
+        providers = self._providers_for(model, self._provider_order)
+        if max_provider_attempts is not None:
+            providers = providers[: max(1, max_provider_attempts)]
         for provider in providers:
             if not hasattr(provider, "generate"):
                 continue
@@ -900,8 +992,8 @@ class LLMService:
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
-            # Only OpenAI chat supports response_format in our usage
-            if response_format and provider.name == "openai":
+            # Anthropic reads it as "answer in JSON" (no json_object mode there).
+            if response_format and provider.name in {"openai", "anthropic"}:
                 payload_kwargs["response_format"] = response_format
             if model and provider.name == "openai":
                 payload_kwargs["model"] = model
@@ -955,7 +1047,7 @@ class LLMService:
         Uses the configured correction model for better grammar analysis.
         """
         errors: list[str] = []
-        for provider in self._provider_order:
+        for provider in self._providers_for(model, self._provider_order):
             if not hasattr(provider, "generate"):
                 continue
             payload_kwargs: dict[str, Any] = {
@@ -977,6 +1069,8 @@ class LLMService:
                     payload_kwargs["reasoning_effort"] = "minimal"
             elif model:
                 payload_kwargs["model"] = model
+            if response_format and provider.name == "anthropic":
+                payload_kwargs["response_format"] = response_format
             if request_timeout is not None:
                 payload_kwargs["request_timeout"] = request_timeout
             if disable_retries:
@@ -1093,6 +1187,7 @@ __all__ = [
     "estimate_image_cost_usd",
     "estimate_text_cost_usd",
     "estimate_tts_cost_usd",
+    "provider_for_model",
     "reset_circuit_breakers",
     "text_price_for",
 ]

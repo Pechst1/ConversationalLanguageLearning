@@ -36,7 +36,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.services.season.clock import Position
 from app.services.season.flags import holds
-from app.services.season.format import Forbidden, Gap, Season
+from app.services.season.format import DayBeat, Forbidden, Gap, Season
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +163,8 @@ Score each rubric item true or false:
   REFUSE: «une soirée comme une autre» where nothing moves; an errand that could happen on
   any day with any cast; an investigation that learns nothing.
 - advances_thread: it moves one of the gap's threads a little (and no further than allowed).
+  When today.beat is set, it is the day's planned change: the page starts from its
+  before, and the page plus the planned exchange must reach its after.
 - in_character: every character speaks and acts as the cast bible says (Margaux uses the
   fewest words; Marin and Lila are NOT a couple; Gus performs; nobody explains their feelings).
 - spoils_next_tentpole: true if the page makes ANY reveal on the gap's must_not list, even
@@ -228,6 +230,20 @@ def required_schedule(gap: Gap, *, seed: str, length: int | None = None) -> dict
         digest = int(hashlib.sha256(f"{seed}:{gap.id}:{need.premise}".encode()).hexdigest(), 16)
         schedule[window[digest % len(window)]] = need.premise
     return schedule
+
+
+def planned_beat(gap: Gap, day: int, done: set[str], flags: dict[str, Any]) -> DayBeat | None:
+    """Today's beat from the gap's day plan: a beat a refused or missed day still owes
+    first, then today's, then the next one (pulled forward, so no planned day is left
+    empty). ``None`` when the plan is spent or the gap has none."""
+
+    premises = {premise.id: premise for premise in gap.premises}
+    open_beats = [
+        beat
+        for beat in sorted(gap.days, key=lambda beat: beat.day)
+        if beat.premise not in done and beat.premise in premises and holds(premises[beat.premise].when, flags)
+    ]
+    return next((beat for beat in open_beats if beat.day <= day), None) or next(iter(open_beats), None)
 
 
 def used_premises(state: dict | None, gap_id: str) -> set[str]:
@@ -357,18 +373,23 @@ def gap_brief(
     if gap is None:
         return None
     day = pos.day_in_segment
-    schedule = required_schedule(gap, seed=seed, length=pos.segment.days + 1)
     done = used_premises(state, gap.id)
-    required = schedule.get(day)
-    if required in done:
-        required = None
-    # A required moment whose day went by without it (a refused draft, a missed
-    # stage) is owed: it comes back on the next generated day of the gap.
-    overdue = next(
-        (premise for when, premise in sorted(schedule.items()) if when < day and premise not in done),
-        None,
-    )
-    required = required or overdue
+    # Story plan (2026-10-15): a gap with a day plan stages its beats in order.
+    beat = planned_beat(gap, day, done, flags) if gap.days else None
+    if gap.days:
+        required = beat.premise if beat else None
+    else:
+        schedule = required_schedule(gap, seed=seed, length=pos.segment.days + 1)
+        required = schedule.get(day)
+        if required in done:
+            required = None
+        # A required moment whose day went by without it (a refused draft, a missed
+        # stage) is owed: it comes back on the next generated day of the gap.
+        overdue = next(
+            (premise for when, premise in sorted(schedule.items()) if when < day and premise not in done),
+            None,
+        )
+        required = required or overdue
     premises = [
         premise
         for premise in gap.premises
@@ -407,6 +428,9 @@ def gap_brief(
         },
         "today": {
             "required_premise": required_row.model_dump(exclude={"when"}) if required_row else None,
+            # The day plan's change for today: the page starts from ``before``, the
+            # learner's exchange ends at ``after``.
+            "beat": beat.model_dump(exclude={"day", "premise"}) if beat else None,
             "premises": [premise.model_dump(exclude={"when"}) for premise in premises],
             "small_moments": [moment.model_dump() for moment in moments],
             "gate": required_row.gate if required_row else None,
@@ -510,7 +534,7 @@ def critic_payload(
         "season": brief.get("season"),
         "gap": brief.get("gap"),
         "today": {
-            **{key: (brief.get("today") or {}).get(key) for key in ("required_premise", "gate", "open_obstacle")},
+            **{key: (brief.get("today") or {}).get(key) for key in ("required_premise", "beat", "gate", "open_obstacle")},
             # N1 pilot: only on a day that has them.
             **{
                 key: (brief.get("today") or {})[key]

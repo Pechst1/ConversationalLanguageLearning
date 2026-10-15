@@ -328,13 +328,14 @@ def prefetch_scene_for(
         return "skipped_budget"
 
     from app.services.journey_contracts import ContentUnavailable
-    from app.services.living_story import generate_scene
+    from app.services.living_story import generate_scene, written_ahead_of_time
 
     started = time.monotonic()
     # WP-92: the day this scene is for is the learner's today (an open or finished day
     # refuses the prefetch above), so ``generate_scene``'s default ``now`` picks its
     # grammar plan, and the cache key carries that plan's new unit.
-    result = generate_scene(db, user=user, input_mode=input_mode)
+    with written_ahead_of_time():
+        result = generate_scene(db, user=user, input_mode=input_mode)
     elapsed = time.monotonic() - started
     if isinstance(result, ContentUnavailable) or not isinstance(result, ScenarioBrief):
         db.commit()

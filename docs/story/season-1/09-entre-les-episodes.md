@@ -88,6 +88,16 @@ Every generated day must end with **something different from how it began**, and
 2. **«Romy enquête».** Romy interviews Margaux at the zinc («J'ai rien entendu»), then turns to you: «C'est toi, l'héritage ?» *The change:* you learn that Solvel has bought three cafés in the quartier this year, and Romy has a source she likes.
 3. **«La même chose ?»** Margaux asks your order for the third time. Gus insists your order says who you are. You choose, and say why you're still here. *The change:* your usual order exists. Gus announces that you are «un habitué», and it is not a joke.
 
+**Day plan** (`days` in `gaps.json`, 2026-10-15). Each day has one planned change. The page starts from *before*, and the learner's exchange ends at *after*. A beat the page did not stage comes back the next day, before the following one. A beat the page staged moves on even when the learner did not really answer it; for a required moment the story then settles its fact (the ticket moves to 2 December, the usual order is a café crème) unless the learner already chose (owner OK, 2026-10-15).
+
+| Day | Premise | Before → after | Also | Hook |
+|---|---|---|---|---|
+| 3 | «Plusieurs semaines» (the notary) | You expect to sign and fly home on the 18th → nothing can be sold for weeks, and the flight is a question. | Marchand on the stairs: «La succession Ferrand. Bonjour.» | Keep the flight, or move it? |
+| 4 | «La soupe de Marin» | Alone in a cold studio nobody knows → Marin knows the address and will come back. | One of his grandmother's sayings. | The ticket moves tomorrow, and Lila will «help». |
+| 5 | «Le billet» | The ticket says 18 November → it says 2 December, and you said why you are staying. | Lila: «Douze sur vingt.» | A journalist comes to Le Mistral tomorrow. |
+| 6 | «Romy enquête» | Solvel is one letter → Solvel bought three cafés this year, and Romy wants to see you again. | Romy switches off her recorder. | Romy has questions, and so do you. |
+| 7 | «La même chose ?» | Margaux still asks your order → you are «un habitué». | Gus's first accidental *tu*. | The key on the zinc: tomorrow is for upstairs. |
+
 ---
 
 ## Gap 2 · Days 10–15 (20–25 November) · «L'appartement s'ouvre»

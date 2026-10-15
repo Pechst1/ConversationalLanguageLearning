@@ -367,8 +367,9 @@ def test_an_unknown_model_is_billed_at_the_highest_known_rate_and_logged_once(mo
 def test_snapshots_price_as_their_family_but_a_new_version_does_not() -> None:
     assert text_price_for("gpt-4o-mini-2024-07-18") == (TEXT_PRICES_PER_1K_TOKENS["gpt-4o-mini"], True)
     assert text_price_for("claude-3-5-sonnet-20241022")[1] is True
-    # gpt-5.5 is not gpt-5: it has no documented price, so it is billed conservatively.
-    assert text_price_for("gpt-5.5") == (conservative_text_price(), False)
+    # gpt-5.7 is not gpt-5: a version with no row is billed conservatively.
+    assert text_price_for("gpt-5.7") == (conservative_text_price(), False)
+    assert text_price_for("gpt-5.5") == (TEXT_PRICES_PER_1K_TOKENS["gpt-5.5"], True)
 
 
 def test_speech_transcription_and_images_are_priced() -> None:

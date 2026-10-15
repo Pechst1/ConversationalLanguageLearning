@@ -116,6 +116,12 @@ services:
         value: '["capacitor://localhost","ionic://localhost"]'
       - key: OPENAI_API_KEY
         sync: false
+      # Story models per step (plan decisions 9 and 10). The key alone changes
+      # nothing: Anthropic only answers a call that names a Claude model, and
+      # STORY_WRITER_MODEL / STORY_CRITIC_MODEL / STORY_LIVE_MODEL (app/config.py)
+      # stay unset until the paid measurement picks them.
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: PRIMARY_LLM_PROVIDER
         value: openai
       - key: OPENAI_MODEL
@@ -327,6 +333,12 @@ services:
           type: web
           name: atelier-api
           envVarKey: OPENAI_API_KEY
+      # The prefetch (this worker) writes tomorrow's page, so it needs the key too.
+      - key: ANTHROPIC_API_KEY
+        fromService:
+          type: web
+          name: atelier-api
+          envVarKey: ANTHROPIC_API_KEY
       - key: PRIMARY_LLM_PROVIDER
         value: openai
       - key: OPENAI_MODEL
