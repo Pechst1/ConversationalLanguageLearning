@@ -87,3 +87,54 @@ def test_the_contrast_unit_keeps_its_tense_choice_tag(external_id: str) -> None:
     from app.services.grammar_feedback import infer_grammar_profile
 
     assert infer_grammar_profile(_Unit(external_id, "Imparfait ou passé composé")).key == "tense_aspect"
+
+
+# --- #86: a grammar choice keeps the unit's rule as its reason ---------------
+
+
+def _choice_task(rule: str | None):
+    from app.services import grammar_items
+    from tests.test_wp107_retour import si_brief
+
+    brief = si_brief()
+    if rule:
+        brief["rule_short_native"] = rule
+    task = grammar_items.choose_item(brief, language="fr")
+    assert task is not None and task.task_type == "choice"
+    return task
+
+
+def test_a_wrong_grammar_choice_keeps_the_rule_as_its_reason() -> None:
+    task = _choice_task("Après si, le verbe reste au présent.")
+    result = _evaluate(task, option_id=_wrong_option(task))
+    assert result.correction is not None
+    assert result.correction.note_native == "Après si, le verbe reste au présent."
+
+
+def test_a_choice_without_a_rule_names_the_right_answer() -> None:
+    from dataclasses import replace
+
+    task = replace(_choice_task(None), hint_native=None)
+    result = _evaluate(task, option_id=_wrong_option(task))
+    assert result.correction is not None
+    assert "Si je finis tôt, je t'appellerai." in result.correction.note_native
+    assert result.correction.note_native.strip() != task.instruction_native.strip()
+
+
+def test_a_wrong_who_said_names_the_right_speaker() -> None:
+    from dataclasses import replace
+
+    base = _choice_task(None)
+    task = replace(
+        base,
+        task_type="who_said",
+        hint_native=None,
+        options=[{"id": "opt_a", "text_fr": "Romy"}, {"id": "opt_b", "text_fr": "Gus"}],
+        correct_option_id="opt_a",
+        accepted_answers=["Romy"],
+        solution_fr="Romy",
+    )
+    result = _evaluate(task, option_id="opt_b")
+    assert result.outcome is TaskOutcome.NOT_YET
+    assert result.correction is not None
+    assert "Romy" in result.correction.note_native

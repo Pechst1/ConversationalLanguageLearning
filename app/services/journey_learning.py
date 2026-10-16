@@ -2261,7 +2261,12 @@ def evaluate_recall(
         elif task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
             from app.services.chrome_language import user_chrome_language
 
-            note = pick_miss_note(task, str(user_chrome_language(user))) or note
+            pick = pick_miss_note(task, str(user_chrome_language(user)))
+            if task.task_type in {"choice", "who_said"} and task.hint_native:
+                # #86: a unit's one-line rule is the reason a grammar choice was
+                # wrong. «The right answer is X» only stands in when there is none.
+                pick = None
+            note = pick or note
         elif typed is not None and typed.note is not None:
             # EXERCISE-QA: the why a fold can see (an accent that is grammar, an
             # ending, an elision, a gender) beats the item's generic hint.
