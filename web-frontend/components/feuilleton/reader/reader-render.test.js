@@ -125,7 +125,7 @@ test('revisiting an answered panel shows the record, never the controls', () => 
   const { markup } = render(scene, { index: choiceIndex, furthest: stages.length - 1, filed: true });
   assert.ok(/Déjà lu/.test(markup), 'the revisit is stated');
   assert.ok(/class="fr-act is-read"/.test(markup), 'the action is rendered read-only');
-  assert.ok(/Votre réponse, déjà envoyée/.test(markup), 'the recorded answer is shown');
+  assert.ok(/Ta réponse, déjà envoyée/.test(markup), 'the recorded answer is shown');
   assert.ok(!/Envoyer/.test(markup), 'no submit control on a revisited panel');
   assert.ok(!/class="fr-option"/.test(markup), 'no choice options to re-pick');
 });
@@ -137,7 +137,7 @@ test('the live panel is marked in the action colour, a revisit in ink', () => {
   const liveIndex = stages.findIndex((stage) => stage.tasks.some((task) => String(task.id) === live));
   const onLive = render(capturedScene, { index: liveIndex, furthest: liveIndex });
   assert.ok(/class="fr-state is-live"/.test(onLive.markup));
-  assert.ok(/À vous de répondre/.test(onLive.markup));
+  assert.ok(/À toi de répondre/.test(onLive.markup));
 
   const onRevisit = render(capturedScene, { index: 0, furthest: liveIndex });
   assert.ok(/class="fr-state"/.test(onRevisit.markup));
@@ -478,7 +478,7 @@ test('WP-110: your line is the balloon on the art; the character keeps a caption
     imageUrl: '/assets/serial/locations/le_mistral-counter.webp', artStatus: 'ready', character: 'gus',
     caption: '', tasks: [], movement: 'turn',
     lines: [
-      { key: 'l0', who: 'Gus', fr: 'Vous êtes qui, exactement ?', en: '', character: 'gus' },
+      { key: 'l0', who: 'Gus', fr: 'Tu es qui, exactement ?', en: '', character: 'gus' },
       { key: 'l1', who: 'Vous', fr: 'Ma grand-mère était Odile.', en: '', character: 'toi', you: true },
     ],
   };

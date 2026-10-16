@@ -33,7 +33,7 @@ const FR: ErrataCopy = {
   memorised: 'Erreur mémorisée',
   why: 'Pourquoi :',
   hint: 'À reprendre :',
-  answer: 'Votre reprise',
+  answer: 'Ta reprise',
   send: 'Envoyer la reprise',
   sending: 'Envoi…',
   repaired: 'Repris',

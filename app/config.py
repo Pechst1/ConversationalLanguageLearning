@@ -653,6 +653,14 @@ class Settings(BaseSettings):
         False,
         description="WP-119: La Revue de Romy — the La Une card, the /revue page and the weekly intake beat.",
     )
+    REVUE_MIN_BAND: str = Field(
+        "A2",
+        description=(
+            "#149: the lowest CEFR band that is dealt a «jour du Papier». Below it the Papier is "
+            "only ever an opt-in extra, never the day (a real-news text far above A1 must not "
+            "replace the scene -> words -> Forge plan). One setting, reversible: set A1 to deal it to everyone."
+        ),
+    )
     REVUE_RADIO_ENABLED: bool = Field(
         False,
         description=(
@@ -941,6 +949,16 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("REVUE_MIN_BAND")
+    @classmethod
+    def validate_revue_min_band(cls, value: str) -> str:
+        """#149: a mistyped band must not silently let every learner be dealt the Papier."""
+
+        normalized = value.strip().upper()
+        if normalized not in {"A1", "A2", "B1", "B2"}:
+            raise ValueError("REVUE_MIN_BAND must be one of: A1, A2, B1, B2")
+        return normalized
 
     @field_validator("GRAPHIC_NOVEL_IMAGE_STORAGE")
     @classmethod

@@ -22,9 +22,9 @@ export type KeepState =
 export const KEEP_COPY = {
   action: 'Garder',
   saving: 'Enregistrement…',
-  kept: 'Gardé dans votre lexique — il reviendra demain.',
-  already: 'Déjà dans votre lexique.',
-  failed: 'Ce mot n’a pas pu être gardé. Réessayez plus tard.',
+  kept: 'Gardé dans ton lexique — il reviendra demain.',
+  already: 'Déjà dans ton lexique.',
+  failed: 'Ce mot n’a pas pu être gardé. Réessaie plus tard.',
 } as const;
 
 type KeepCopy = { [K in keyof typeof KEEP_COPY]: string };
@@ -76,7 +76,7 @@ const KEEP_REFUSALS: Record<ControlLanguage, Record<string, string>> = {
     empty_term: 'Ce mot ne peut pas être gardé.',
     no_sentence: 'Ce mot ne peut être gardé qu’avec sa phrase.',
     not_in_lexicon: 'Ce mot n’est pas encore dans le lexique.',
-    no_gloss_in_learner_language: 'Pas encore de traduction dans votre langue pour ce mot.',
+    no_gloss_in_learner_language: 'Pas encore de traduction dans ta langue pour ce mot.',
     refused: 'Ce mot ne peut pas être gardé.',
   },
   en: {

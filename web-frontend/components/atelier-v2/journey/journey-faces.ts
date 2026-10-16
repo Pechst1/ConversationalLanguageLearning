@@ -6,33 +6,10 @@
  * correspondent first). Pure, so the node harness can check it.
  */
 
+import { castIdFor } from '@/lib/cast-faces';
 import type { JourneySnapshot, PublicStep } from '@/types/daily-journey';
 
 export type JourneySpeaker = { id: string | null; name: string };
-
-export function journeySpeaker(
-  journey: Pick<JourneySnapshot, 'scenario'> | null | undefined,
-  step?: PublicStep | null,
-): JourneySpeaker | null {
-  if (step?.kind === 'respond') {
-    const letter = step.prompt.letter;
-    if (letter?.correspondent_name) {
-      return { id: letter.correspondent_id || null, name: letter.correspondent_name };
-    }
-    if (step.prompt.character_name) {
-      return { id: step.prompt.character_id || null, name: step.prompt.character_name };
-    }
-  }
-  // WP-93: «Coulisses» is someone's evening — theirs is the face on screen.
-  if (step?.kind === 'read' && step.prompt.character_name) {
-    return { id: step.prompt.character_id || null, name: step.prompt.character_name };
-  }
-  const scenario = journey?.scenario;
-  if (scenario?.character_name) {
-    return { id: scenario.character_id || null, name: scenario.character_name };
-  }
-  return null;
-}
 
 /** The cast's short names, as the rule cards and La Forge say them. */
 const COACH_NAMES: Record<string, string> = {
@@ -43,6 +20,40 @@ const COACH_NAMES: Record<string, string> = {
   augustin_de_roncourt: 'Gus',
   landlord_marchand: 'M. Marchand',
 };
+
+/**
+ * One name per face (#155): a payload may say «Augustin « Gus » de Roncourt» while the rule card
+ * and La Forge say «Gus». The name the learner reads is always the cast's short name for the same
+ * registry entry the face is drawn from; anyone outside the cast keeps the name they came with.
+ */
+export function speakerOf(id: string | null | undefined, name: string): JourneySpeaker {
+  const castId = castIdFor(id, name);
+  return { id: id || null, name: (castId && COACH_NAMES[castId]) || name };
+}
+
+export function journeySpeaker(
+  journey: Pick<JourneySnapshot, 'scenario'> | null | undefined,
+  step?: PublicStep | null,
+): JourneySpeaker | null {
+  if (step?.kind === 'respond') {
+    const letter = step.prompt.letter;
+    if (letter?.correspondent_name) {
+      return speakerOf(letter.correspondent_id, letter.correspondent_name);
+    }
+    if (step.prompt.character_name) {
+      return speakerOf(step.prompt.character_id, step.prompt.character_name);
+    }
+  }
+  // WP-93: «Coulisses» is someone's evening — theirs is the face on screen.
+  if (step?.kind === 'read' && step.prompt.character_name) {
+    return speakerOf(step.prompt.character_id, step.prompt.character_name);
+  }
+  const scenario = journey?.scenario;
+  if (scenario?.character_name) {
+    return speakerOf(scenario.character_id, scenario.character_name);
+  }
+  return null;
+}
 
 /**
  * La troupe vivante: who asks a drill and reacts to its answer. A grammar drill on a rule the
@@ -58,7 +69,7 @@ export function drillSpeaker(
     for (const other of journey?.steps ?? []) {
       if (other.kind !== 'rule' || other.prompt.concept_id !== concept) continue;
       const id = other.prompt.rule_card?.speaker;
-      if (id && COACH_NAMES[id]) return { id, name: COACH_NAMES[id] };
+      if (id && COACH_NAMES[id]) return speakerOf(id, COACH_NAMES[id]);
     }
   }
   return journeySpeaker(journey, step);

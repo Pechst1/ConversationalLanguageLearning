@@ -102,8 +102,8 @@ test('the journal helpers speak the table they are given, French by default', ()
 
 test('the fragility chip restates the server’s French in the chrome language', () => {
   const { fragilityLabel } = require('../mobile/FragilityBadge.tsx');
-  const server = { fragility_level: 'new', fragility_label: 'Nouveau', fragility_reason: 'Pas encore révisé par vous.' };
-  assert.deepEqual(fragilityLabel(server), { level: 'new', label: 'Nouveau', reason: 'Pas encore révisé par vous.' });
+  const server = { fragility_level: 'new', fragility_label: 'Nouveau', fragility_reason: 'Pas encore révisé par toi.' };
+  assert.deepEqual(fragilityLabel(server), { level: 'new', label: 'Nouveau', reason: 'Pas encore révisé par toi.' });
   assert.deepEqual(fragilityLabel(server, new Date(), 'en'), {
     level: 'new',
     label: 'New',
@@ -138,7 +138,7 @@ test('each screen reads its chrome from the copy module, not from inline French'
       'Retrouver la preuve',
       'Le passage fait foi',
       'Terminer l’épisode',
-      'Écrivez votre réponse en français',
+      'Écris ta réponse en français',
       'Consignes de l’épisode',
       '>\n            Vérifier',
     ],
@@ -146,7 +146,7 @@ test('each screen reads its chrome from the copy module, not from inline French'
     'components/cahiers/JournalTab.tsx': [
       'Rien à raconter aujourd’hui',
       'Le journal n’a pas pu être ouvert',
-      'Ce dont vous vous souvenez',
+      'Ce dont tu te souviens',
       'La scène, telle qu’elle était',
       'Passer cette scène',
       'Relire la scène après l’envoi',

@@ -159,7 +159,7 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
     dispatch_note: String(slim.ask || raw.dispatch_note || mission?.brief || 'Une réponse naturelle en français.'),
     opening_message: String(raw.opening_message || prompt.conversation_opening || 'Bonjour, vous pouvez me répondre ?'),
     quick_replies: uniqueText(asStringList(raw.quick_replies), 3),
-    success_signal: String(raw.success_signal || 'Votre correspondant sait quoi faire ensuite.'),
+    success_signal: String(raw.success_signal || 'Ton correspondant sait quoi faire ensuite.'),
     twist: raw.twist || missionVariety(mission).twist || null,
   };
 }

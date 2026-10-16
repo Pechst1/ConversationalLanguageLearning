@@ -422,7 +422,7 @@ test('idle → recording → (30 s) → transcribing → confirm → sent as voi
   assert.ok(currentRecorder && currentRecorder.started, 'the microphone runs');
   button = spokenButtonIn(view.tree);
   assert.equal(button.props['data-spoken-button'], 'recording');
-  assert.ok(html(view.tree).includes('Je vous écoute — encore 30 s'));
+  assert.ok(html(view.tree).includes('écoute — encore 30 s'));
   assert.equal(textareaIn(view.tree).props.disabled, true, 'the field waits while the learner speaks');
 
   // the recorder stops itself at 30 s
@@ -456,7 +456,7 @@ test('idle → recording → (30 s) → transcribing → confirm → sent as voi
   await view.settle();
   assert.deepEqual(sent, [{ mode: 'voice', text: 'je voudrais un café' }], 'the same onSubmit, as voice');
   assert.equal(spokenButtonIn(view.tree), null, 'once sent, «Parler» steps aside');
-  assert.ok(html(view.tree).includes('Envoyé tel que vous'));
+  assert.ok(html(view.tree).includes('Envoyé tel que tu'));
 });
 
 test('a touched field holds the send; the corrected sentence still goes as voice', async () => {
@@ -495,7 +495,7 @@ test('errors: a refused turn ceiling removes «Parler»; a failed transcription 
   spokenButtonIn(capped.tree).props.onClick();
   await capped.settle();
   assert.equal(spokenButtonIn(capped.tree), null, 'the turn’s spoken attempts are used');
-  assert.ok(html(capped.tree).includes('répondez par écrit'));
+  assert.ok(html(capped.tree).includes('réponds par écrit'));
   assert.equal(textareaIn(capped.tree).props.disabled, false, 'the field is the way on');
 
   apiHandler = (method) => {

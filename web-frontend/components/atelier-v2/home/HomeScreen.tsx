@@ -434,7 +434,7 @@ export function HomeScreen({
               sizes the day on the server, and WP-81's Home says one thing. */}
           {adjustHref && (
             <Link className="av2-btn av2-btn--quiet av2-btn--inline" href={adjustHref}>
-              Ajuster votre rythme
+              Ajuster ton rythme
             </Link>
           )}
         </div>

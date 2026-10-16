@@ -62,7 +62,7 @@ def test_do_mode_uses_rule_first_ramp_and_feedback_sheet() -> None:
     # WP-82: the ramp line is chrome and follows the language rule.
     assert "examples={firstConceptDrill ? [t.rule_try_first] : []}" in source
     copy = (Path(__file__).resolve().parents[1] / "web-frontend" / "components" / "epreuve" / "epreuve-copy.ts").read_text(encoding="utf-8")
-    assert "rule_try_first: 'Commencez par l’exemple le plus simple.'" in copy
+    assert "rule_try_first: 'Commence par l’exemple le plus simple.'" in copy
     assert "payload.rule_panel" in source
     assert "reportAtelierExercise" in source
     # Feedback is the inline épreuve verdict (EpVerdict + galley marks in the

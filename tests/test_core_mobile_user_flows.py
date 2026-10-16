@@ -27,7 +27,7 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     assert "const authed = status === 'authenticated';" in home
     # 2026-09-24: the button follows the onboarding language (one-language rule).
     assert "{TASTE_NAV[language].open_edition}" in home
-    assert "open_edition: 'Ouvrir votre édition'" in read(WEB / "lib" / "onboarding-taste.ts")
+    assert "open_edition: 'Ouvrir ton édition'" in read(WEB / "lib" / "onboarding-taste.ts")
     # WP-75: «Commencer» plays the taste on this page; the taste's last button
     # opens sign-up, and «J'ai déjà un compte» is the quiet way to sign in.
     assert 'href="/auth/signin"' in home

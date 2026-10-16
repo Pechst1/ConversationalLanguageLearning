@@ -32,7 +32,7 @@ def test_reglages_is_the_way_in() -> None:
     # is administrative and reads in the learner's own language.
     assert "copy.row_dossier" in page
     assert "'/dossier'" in page
-    for label in ("Your dossier", "Dein Dossier", "Votre dossier"):
+    for label in ("Your dossier", "Dein Dossier", "Ton dossier"):
         assert label in copy, label
 
 
@@ -47,10 +47,10 @@ def test_the_page_states_what_it_believes_and_why() -> None:
     screen = _source("components/atelier-v2/dossier/DossierScreen.tsx")
     french = _french_copy()
     for key, heading in (
-        ("level_title", "Votre niveau"),
-        ("caps_intro", "Ce que vous savez faire"),
-        ("errata_title", "Vos fautes notées"),
-        ("vocab_title", "Vos mots"),
+        ("level_title", "Ton niveau"),
+        ("caps_intro", "Ce que tu sais faire"),
+        ("errata_title", "Tes fautes notées"),
+        ("vocab_title", "Tes mots"),
         ("today_title", "La scène du jour"),
     ):
         assert heading in french

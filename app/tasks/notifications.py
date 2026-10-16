@@ -142,15 +142,15 @@ def _morning_copy(db, user: User, today: date) -> tuple[str, str]:
         by_id = {str(member.get("id")): member for member in cast}
         member = next((by_id[value] for value in required if value in by_id), cast[0] if cast else None)
         character_name = str((member or {}).get("name") or "").strip()
-    title = f"Votre édition du {today.day} {FRENCH_MONTHS[today.month - 1]} est parue"
+    title = f"Ton édition du {today.day} {FRENCH_MONTHS[today.month - 1]} est parue"
     if character_name:
-        message = f"{character_name} attend votre réponse. Votre prescription est prête dans La Une."
+        message = f"{character_name} attend ta réponse. Ta prescription est prête dans La Une."
     elif selections:
-        concept = str(getattr(selections[0].concept, "name", "") or "votre point fragile")
+        concept = str(getattr(selections[0].concept, "name", "") or "ton point fragile")
         message = f"Au programme : {concept}. Une séance courte suffit."
     else:
         words = [str(item.get("word") or "") for item in slate.get("words") or [] if item.get("word")]
-        message = f"Vos mots du jour sont prêts : {', '.join(words[:2])}." if words else "Votre prescription est prête."
+        message = f"Tes mots du jour sont prêts : {', '.join(words[:2])}." if words else "Ta prescription est prête."
     return title, message
 
 
@@ -362,11 +362,11 @@ def send_streak_reminders(now: str | None = None) -> dict[str, int]:
 
 
 def review_reminder_copy(total_due: int) -> tuple[str, str]:
-    """«vous», no emoji, an honest count."""
+    """The app speaking: «tu» (#144, ``app.services.address``), no emoji, an honest count."""
 
     if total_due == 1:
-        return "Le Lexique", "Un mot vous attend pour une révision rapide."
-    return "Le Lexique", f"{total_due} mots vous attendent pour une révision rapide."
+        return "Le Lexique", "Un mot t’attend pour une révision rapide."
+    return "Le Lexique", f"{total_due} mots t’attendent pour une révision rapide."
 
 
 @celery_app.task(name="app.tasks.notifications.send_daily_srs_reminders")

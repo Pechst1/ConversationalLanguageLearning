@@ -2,8 +2,8 @@
  * WP-75 — «A win before an account»: the sixty-second taste.
  *
  * One authored scene at Le Mistral, played before sign-up with no network and
- * no model: Romy says hello, the learner answers with a tap, then orders a
- * coffee from tiles, and Romy reacts. Everything a learner reads that
+ * no model: Margaux says hello, the learner answers with a tap, then orders a
+ * coffee from tiles, and Margaux reacts. Everything a learner reads that
  * *explains* is in their own language; everything said in the story is French.
  *
  * Grading is local and exact — there is nothing to be generous about in a
@@ -32,7 +32,7 @@ export type TasteChoiceItem = {
   task: Record<OnboardingLanguage, string>;
   options: TasteOption[];
   answerId: string;
-  /** What Romy says back to a right answer. */
+  /** What Margaux says back to a right answer. */
   reply: TasteLine;
 };
 
@@ -49,25 +49,34 @@ export type TasteTilesItem = {
 
 export type TasteItem = TasteChoiceItem | TasteTilesItem;
 
-const ROMY = { characterId: 'romy_tremblay', speaker: 'Romy' } as const;
+/**
+ * Who greets a new learner. 2026-10-14 owner call (#124): someone the learner
+ * keeps meeting, so Margaux, who runs Le Mistral and is first in the cast intro.
+ * Anyone the teaser names (speaker or closing line) must be in `CAST_INTRO_NAMES`
+ * so the first face never turns into a stranger.
+ */
+export const TASTE_SPEAKER = { characterId: 'margaux_barman', speaker: 'Margaux' } as const;
+
+/** The people the season's cast intro (app/data/season/s1/intro.json) shows after sign-up. */
+export const CAST_INTRO_NAMES = ['Margaux', 'Gus', 'Marin', 'Lila', 'Camille'] as const;
 
 export const TASTE_ITEMS: TasteItem[] = [
   {
     kind: 'choice',
     id: 'greet',
     line: {
-      ...ROMY,
-      fr: 'Bonjour ! Moi, c’est Romy.',
+      ...TASTE_SPEAKER,
+      fr: 'Bonjour ! Moi, c’est Margaux.',
       native: {
-        en: 'Hello! I’m Romy.',
-        de: 'Hallo! Ich bin Romy.',
-        fr: 'Bonjour ! Moi, c’est Romy.',
+        en: 'Hello! I’m Margaux.',
+        de: 'Hallo! Ich bin Margaux.',
+        fr: 'Bonjour ! Moi, c’est Margaux.',
       },
     },
     task: {
       en: 'Say hello back.',
       de: 'Grüß zurück.',
-      fr: 'Répondez-lui.',
+      fr: 'Réponds-lui.',
     },
     options: [
       { id: 'merci', fr: 'Merci !' },
@@ -76,7 +85,7 @@ export const TASTE_ITEMS: TasteItem[] = [
     ],
     answerId: 'bonjour',
     reply: {
-      ...ROMY,
+      ...TASTE_SPEAKER,
       fr: 'Bienvenue au Mistral !',
       native: {
         en: 'Welcome to Le Mistral!',
@@ -89,7 +98,7 @@ export const TASTE_ITEMS: TasteItem[] = [
     kind: 'tiles',
     id: 'order',
     line: {
-      ...ROMY,
+      ...TASTE_SPEAKER,
       fr: 'Vous prenez quoi ?',
       native: {
         en: 'What will you have?',
@@ -100,7 +109,7 @@ export const TASTE_ITEMS: TasteItem[] = [
     task: {
       en: 'Order a coffee.',
       de: 'Bestell einen Kaffee.',
-      fr: 'Commandez un café.',
+      fr: 'Commande un café.',
     },
     tiles: [
       { id: 'svp', fr: 's’il vous plaît' },
@@ -110,12 +119,12 @@ export const TASTE_ITEMS: TasteItem[] = [
     ],
     answer: ['cafe', 'svp'],
     reply: {
-      ...ROMY,
-      fr: 'Parfait ! Margaux, deux cafés !',
+      ...TASTE_SPEAKER,
+      fr: 'Parfait ! Un café, tout de suite !',
       native: {
-        en: 'Perfect! Margaux, two coffees!',
-        de: 'Perfekt! Margaux, zwei Kaffee!',
-        fr: 'Parfait ! Margaux, deux cafés !',
+        en: 'Perfect! One coffee, coming up!',
+        de: 'Perfekt! Ein Kaffee, kommt sofort!',
+        fr: 'Parfait ! Un café, tout de suite !',
       },
     },
   },
@@ -174,7 +183,7 @@ export const TASTE_COPY: Record<OnboardingLanguage, TasteCopy> = {
     wrong: 'Not quite. Try again.',
     remove_tile: 'Remove the last word',
     tiles_hint: 'Tap the words in order',
-    closing: 'Romy, Marin and Lila are waiting. Keep your story.',
+    closing: 'Gus, Marin and Lila are waiting. Keep your story.',
     language: 'Language',
     status: { selected: 'selected', correct: 'right', wrong: 'wrong' },
     options_label: 'Your answer',
@@ -187,23 +196,23 @@ export const TASTE_COPY: Record<OnboardingLanguage, TasteCopy> = {
     wrong: 'Nicht ganz. Noch einmal.',
     remove_tile: 'Letztes Wort entfernen',
     tiles_hint: 'Tippe die Wörter der Reihe nach an',
-    closing: 'Romy, Marin und Lila warten. Behalte deine Geschichte.',
+    closing: 'Gus, Marin und Lila warten. Behalte deine Geschichte.',
     language: 'Sprache',
     status: { selected: 'ausgewählt', correct: 'richtig', wrong: 'falsch' },
     options_label: 'Deine Antwort',
   },
   fr: {
-    promise: 'Apprenez le français dans une histoire. La première scène prend une minute.',
+    promise: 'Apprends le français dans une histoire. La première scène prend une minute.',
     translate: 'Toucher pour traduire',
     hide_translation: 'Masquer la traduction',
     correct: 'Exact !',
-    wrong: 'Pas tout à fait. Réessayez.',
+    wrong: 'Pas tout à fait. Réessaie.',
     remove_tile: 'Retirer le dernier mot',
-    tiles_hint: 'Touchez les mots dans l’ordre',
-    closing: 'Romy, Marin et Lila vous attendent. Gardez votre histoire.',
+    tiles_hint: 'Touche les mots dans l’ordre',
+    closing: 'Gus, Marin et Lila t’attendent. Garde ton histoire.',
     language: 'Langue',
     status: { selected: 'choisi', correct: 'juste', wrong: 'faux' },
-    options_label: 'Votre réponse',
+    options_label: 'Ta réponse',
   },
 };
 
@@ -244,9 +253,9 @@ export const TASTE_NAV: Record<OnboardingLanguage, TasteNav> = {
     start: 'Commencer',
     have_account: 'J’ai déjà un compte',
     next: 'Continuer',
-    keep: 'Gardez votre histoire',
+    keep: 'Garde ton histoire',
     retry: 'Réessayer',
-    open_edition: 'Ouvrir votre édition',
+    open_edition: 'Ouvrir ton édition',
   },
 };
 

@@ -88,7 +88,7 @@ test('the card speaks the learner’s language only', () => {
   const fr = render('offer', 'fr');
   const de = render('offer', 'de');
   const en = render('offer', 'en');
-  assert.ok(fr.includes('Et si l’on vérifiait votre niveau ?'));
+  assert.ok(fr.includes('Et si l’on vérifiait ton niveau ?'));
   assert.ok(de.includes('Sollen wir dein Niveau prüfen?'));
   for (const english of ['Shall we', 'Not now', 'level check']) {
     assert.ok(!de.includes(english), `de: ${english}`);

@@ -18,14 +18,15 @@ const {
   INITIAL_CAMEO_STATE,
   IDLE_COOLDOWN_MS,
   cameoGloss,
+  castFor,
   decideCameo,
 } = require('./cameo.ts');
 
 const never = () => 0.99; // dice that never photobomb
 const always = () => 0; // dice that always do
 
-function run(events, rand = never, start = 1_000_000) {
-  let state = INITIAL_CAMEO_STATE;
+function run(events, rand = never, start = 1_000_000, from = INITIAL_CAMEO_STATE) {
+  let state = from;
   const out = [];
   events.forEach((event, i) => {
     const now = typeof event.at === 'number' ? event.at : start + i * 1000;
@@ -135,8 +136,10 @@ test('a poke on someone outside the cast does nothing', () => {
   assert.equal(out[0], null);
 });
 
+const everyoneMet = { ...INITIAL_CAMEO_STATE, met: CAMEO_CAST.map((c) => c.id) };
+
 test('the finale is the whole troupe, and Marin cries', () => {
-  const { out } = run([{ type: 'finale' }]);
+  const { out } = run([{ type: 'finale' }], never, 1_000_000, everyoneMet);
   assert.equal(out[0].trigger, 'finale');
   assert.equal(out[0].figures.length, CAMEO_CAST.length);
   assert.equal(out[0].figures.find((f) => f.id === 'marin_leveque').mood, 'emue');
@@ -144,7 +147,7 @@ test('the finale is the whole troupe, and Marin cries', () => {
 
 test('the day’s own person takes the bow in the middle of the line', () => {
   for (const lead of CAMEO_CAST.map((c) => c.id)) {
-    const { out } = run([{ type: 'finale', lead }]);
+    const { out } = run([{ type: 'finale', lead }], never, 1_000_000, everyoneMet);
     const ids = out[0].figures.map((f) => f.id);
     assert.equal(ids.length, CAMEO_CAST.length);
     assert.equal(new Set(ids).size, ids.length, 'everyone once');
@@ -170,4 +173,21 @@ test('the layer is mounted once and switchable in Réglages', () => {
   assert.match(app, /styles\/cameo\.css/);
   const settings = fs.readFileSync(path.join(WEB_ROOT, 'pages/settings.tsx'), 'utf8');
   assert.match(settings, /setCameosEnabled\(next\)/);
+});
+
+test('#155: Romy never walks in before the learner has met her, and does after', () => {
+  const answers = Array.from({ length: 40 }, () => right(null));
+  for (let seed = 0; seed < 40; seed += 1) {
+    const rand = () => ((seed * 7 + 3) % 40) / 40;
+    const { out } = run([...answers, { type: 'finale' }], rand);
+    out.filter(Boolean).forEach((cameo) =>
+      cameo.figures.forEach((figure) => assert.notEqual(figure.id, 'romy_tremblay')),
+    );
+  }
+  const state = decideCameo(INITIAL_CAMEO_STATE, { type: 'met', ids: ['romy_tremblay', null] }, 1).state;
+  assert.deepEqual(state.met, ['romy_tremblay']);
+  assert.ok(castFor(state).some((who) => who.id === 'romy_tremblay'));
+  assert.ok(!castFor(INITIAL_CAMEO_STATE).some((who) => who.id === 'romy_tremblay'));
+  const finale = decideCameo(state, { type: 'finale' }, 2, () => 0.5).cameo;
+  assert.equal(finale.figures.length, castFor(state).length);
 });

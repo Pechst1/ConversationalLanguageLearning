@@ -2004,6 +2004,43 @@ def tile_order_note(task: RecallTask, tile_ids: Sequence[str], language: str) ->
     return table("first" if index == 0 else "from").format(word=word)
 
 
+#: #146 / #86 / #167: what a wrong tap is told. A picked answer has no span of French
+#: to correct, so the reason is built from the item's own key: the word and its meaning,
+#: the item and its label, or just the right card. One line, in the learner's language.
+_PICK_NOTES: dict[str, dict[str, str]] = {
+    "meaning": {
+        "en": "«{item}» means «{answer}».",
+        "de": "„{item}“ bedeutet „{answer}“.",
+        "fr": "« {item} » veut dire « {answer} ».",
+    },
+    "label": {
+        "en": "«{item}» is: {answer}.",
+        "de": "„{item}“ ist: {answer}.",
+        "fr": "« {item} » : {answer}.",
+    },
+    "answer": {
+        "en": "The right answer is «{answer}».",
+        "de": "Richtig ist „{answer}“.",
+        "fr": "La bonne réponse est « {answer} ».",
+    },
+}
+
+
+def pick_miss_note(task: RecallTask, language: str) -> str | None:
+    """One-line reason for a wrong tap on a picked recall item, or ``None``."""
+
+    answer = (_option_text(task, task.correct_option_id) or "").strip()
+    if not answer:
+        return None
+    table = lambda key: _PICK_NOTES[key].get(language) or _PICK_NOTES[key]["en"]  # noqa: E731
+    item = (task.prompt_fr or "").strip()
+    if task.task_type == "listen_tap" and item:
+        return table("meaning").format(item=item, answer=answer)
+    if task.task_type == "classify" and item:
+        return table("label").format(item=(task.solution_fr or item).strip(), answer=answer)
+    return table("answer").format(answer=answer)
+
+
 def _selected_option_id(task: RecallTask, answer: AttemptAnswer) -> str | None:
     if answer.option_id:
         return answer.option_id
@@ -2221,6 +2258,15 @@ def evaluate_recall(
             from app.services.chrome_language import user_chrome_language
 
             note = tile_order_note(task, answer.tile_ids, str(user_chrome_language(user))) or note
+        elif task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
+            from app.services.chrome_language import user_chrome_language
+
+            pick = pick_miss_note(task, str(user_chrome_language(user)))
+            if task.task_type in {"choice", "who_said"} and task.hint_native:
+                # #86: a unit's one-line rule is the reason a grammar choice was
+                # wrong. «The right answer is X» only stands in when there is none.
+                pick = None
+            note = pick or note
         elif typed is not None and typed.note is not None:
             # EXERCISE-QA: the why a fold can see (an accent that is grammar, an
             # ending, an elision, a gender) beats the item's generic hint.
@@ -2284,7 +2330,7 @@ _DICTATION_NOTE: dict[str, dict[str, str]] = {
     "words": {
         "en": "Listen again: this is what was said.",
         "de": "Hör noch einmal hin: Das wurde gesagt.",
-        "fr": "Réécoutez : voici ce qui a été dit.",
+        "fr": "Réécoute : voici ce qui a été dit.",
     },
 }
 
@@ -3898,7 +3944,7 @@ def _uuid_or_none(value: Any) -> UUID | None:
 _COACH_SCENE_INSTRUCTION: dict[str, str] = {
     "en": "{name} is talking to you. Reply in French: “{meaning}”",
     "de": "{name} spricht dich an. Antworte auf Französisch: „{meaning}“",
-    "fr": "{name} vous parle. Répondez en français : « {meaning} »",
+    "fr": "{name} te parle. Réponds en français : « {meaning} »",
 }
 
 

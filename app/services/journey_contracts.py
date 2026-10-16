@@ -670,27 +670,27 @@ RECALL_GOALS: dict[str, dict[str, str]] = {
     "build": {
         "en": 'Build: "{meaning}"',
         "de": "Bau den Satz: „{meaning}“",
-        "fr": "Construisez : « {meaning} »",
+        "fr": "Construis : « {meaning} »",
     },
     "rebuild_line": {
         "en": 'Rebuild what {speaker} said: "{meaning}"',
         "de": "Bau nach, was {speaker} gesagt hat: „{meaning}“",
-        "fr": "Reconstruisez ce qu'a dit {speaker} : « {meaning} »",
+        "fr": "Reconstruis ce qu'a dit {speaker} : « {meaning} »",
     },
     "rebuild_speaker": {
         "en": "Rebuild what {speaker} said in today's scene.",
         "de": "Bau nach, was {speaker} in der Szene von heute gesagt hat.",
-        "fr": "Reconstruisez ce qu'a dit {speaker} dans la scène du jour.",
+        "fr": "Reconstruis ce qu'a dit {speaker} dans la scène du jour.",
     },
     "rebuild_scene": {
         "en": 'Rebuild the sentence from the scene: "{meaning}"',
         "de": "Bau den Satz aus der Szene nach: „{meaning}“",
-        "fr": "Reconstruisez la phrase de la scène : « {meaning} »",
+        "fr": "Reconstruis la phrase de la scène : « {meaning} »",
     },
     "rebuild_word": {
         "en": 'Rebuild the scene line with «{word}».',
         "de": "Bau den Szenensatz mit «{word}» nach.",
-        "fr": "Reconstruisez la phrase de la scène avec « {word} ».",
+        "fr": "Reconstruis la phrase de la scène avec « {word} ».",
     },
     "complete_line": {
         "en": '{speaker}: "{meaning}"',
@@ -712,17 +712,17 @@ RECALL_GOALS: dict[str, dict[str, str]] = {
     "fix_rule_review": {
         "en": "One part breaks a rule you know.",
         "de": "Ein Teil verstößt gegen eine Regel, die du kennst.",
-        "fr": "Une partie enfreint une règle que vous connaissez.",
+        "fr": "Une partie enfreint une règle que tu connais.",
     },
     "repair_own": {
         "en": "Write what you said, correctly.",
         "de": "Schreib richtig, was du gesagt hast.",
-        "fr": "Écrivez correctement ce que vous avez dit.",
+        "fr": "Écris correctement ce que tu as dit.",
     },
     "readdress": {
         "en": 'Say the same thing to someone you call "{pronoun}".',
         "de": "Sag dasselbe zu jemandem, den du mit „{pronoun}“ ansprichst.",
-        "fr": "Dites la même chose à quelqu'un que vous appelez « {pronoun} ».",
+        "fr": "Dis la même chose à quelqu'un que tu appelles « {pronoun} ».",
     },
 }
 

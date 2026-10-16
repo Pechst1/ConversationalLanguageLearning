@@ -363,7 +363,7 @@ test('«Garder» is offered for a real entry with its sentence, and a refusal is
 
 test('WP-138: a refused keep says why, in the sheet’s language, and whether trying again helps', () => {
   const refusal = (code, extra = {}) => ({
-    response: { status: 422, data: { detail: { code, retryable: false, message: 'Pas encore de traduction dans votre langue pour ce mot.', ...extra } } },
+    response: { status: 422, data: { detail: { code, retryable: false, message: 'Pas encore de traduction dans ta langue pour ce mot.', ...extra } } },
   });
   // Permanent: the content cannot be kept — no «try again later».
   const en = kept.keepRefusal(refusal('no_gloss_in_learner_language'), 'en');
@@ -374,7 +374,7 @@ test('WP-138: a refused keep says why, in the sheet’s language, and whether tr
   assert.equal(de.retryable, false);
   assert.match(de.message, /Wörterbuch/);
   assert.doesNotMatch(de.message, /später/);
-  assert.equal(kept.keepRefusal(refusal('no_gloss_in_learner_language'), 'fr').message, 'Pas encore de traduction dans votre langue pour ce mot.');
+  assert.equal(kept.keepRefusal(refusal('no_gloss_in_learner_language'), 'fr').message, 'Pas encore de traduction dans ta langue pour ce mot.');
   // An unknown code: never the server's French in an English sheet.
   assert.equal(kept.keepRefusal(refusal('something_new'), 'en').message, 'This word can’t be kept.');
   // A malformed request (the schema's own 422) is not worth retrying either.
@@ -416,12 +416,12 @@ test('«Qui a dit ça ?» renders the line and one face per card', () => {
   const step = recallStep({
     task_type: 'who_said',
     instruction_native: 'Who said this?',
-    prompt_fr: 'Vous avez une idée ?',
+    prompt_fr: 'Tu as une idée ?',
     options: WHO_OPTIONS,
     answer_key: keyOf('who_a'),
   });
   const html = renderToStaticMarkup(React.createElement(steps.RecallStepView, baseProps(step)));
-  assert.match(html, /Vous avez une idée\u202f\?/);
+  assert.match(html, /Tu as une idée\u202f\?/);
   assert.match(html, /Who said this\?/);
   assert.equal((html.match(/class="av2-who-said__card"/g) || []).length, 3);
   for (const name of ['Romy', 'Lila', 'Marin']) assert.match(html, new RegExp(name));

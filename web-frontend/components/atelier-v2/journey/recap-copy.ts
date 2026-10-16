@@ -71,8 +71,8 @@ const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
     step_value: '1 étape',
     teaser_label: 'La suite demain',
     level_label: 'Niveau',
-    mood_warmer: '{name} vous sourit',
-    mood_colder: '{name} vous en veut un peu',
+    mood_warmer: '{name} te sourit',
+    mood_colder: '{name} t’en veut un peu',
     encore: 'Encore 5 minutes',
   },
 };

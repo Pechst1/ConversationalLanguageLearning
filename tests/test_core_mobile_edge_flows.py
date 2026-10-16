@@ -92,8 +92,8 @@ def test_feuilleton_locks_task_sheet_until_scene_and_requires_real_answers() -> 
 
     assert "const answer = (answers[taskId] || '').trim()" in feuilleton
     assert "if (!answer)" in feuilleton
-    assert "Écrivez ou choisissez d’abord une réponse." in feuilleton
-    assert "La correction n’a pas pu être transmise. Réessayez." in feuilleton
+    assert "Écris ou choisis d’abord une réponse." in feuilleton
+    assert "La correction n’a pas pu être transmise. Réessaie." in feuilleton
     assert "setGenerationFailure(null)" in feuilleton
     assert "loaded.status === 'writing' && feuilletonGenerationIsStalled(loaded)" in feuilleton
     assert "scene.status === 'generating' && <EditionArtProgress scene={scene}" in feuilleton
@@ -157,7 +157,7 @@ def test_story_flow_handles_auth_fetch_locked_and_incomplete_chapter_edges() -> 
     assert "disabled={!canComplete}" in chapter_progress
     assert "pending={loading}" in chapter_progress
     assert "goals_missing: 'Encore quelques objectifs à atteindre'" in copy
-    assert "reach_goals_many: 'Atteignez au moins {n} objectifs pour le clore.'" in copy
+    assert "reach_goals_many: 'Atteins au moins {n} objectifs pour le clore.'" in copy
     assert "{canComplete ? t.finish_chapter : t.goals_missing}" in chapter_progress
     assert "t.reach_goals_one : t.reach_goals_many" in chapter_progress
     assert "is_locked" in chapter_timeline
@@ -202,11 +202,11 @@ def test_settings_safety_edges_for_account_and_device_actions() -> None:
         # save_blocked
         "Reload your settings before saving your changes.",
         "Lade die Einstellungen neu, bevor du deine Änderungen speicherst.",
-        "Rechargez les réglages avant d’enregistrer les modifications.",
+        "Recharge les réglages avant d’enregistrer les modifications.",
         # load_error_body
         "Your settings could not be loaded.",
         "Deine Einstellungen konnten nicht geladen werden.",
-        "Vos réglages n’ont pas pu être chargés.",
+        "Tes réglages n’ont pas pu être chargés.",
         # save_failed
         "The changes could not be filed.",
         "Die Änderungen konnten nicht abgelegt werden.",

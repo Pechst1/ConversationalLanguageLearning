@@ -526,20 +526,20 @@ test('T7 · the exchange cue, in each chrome language', () => {
   const cue = (copy, position, total, name = 'Marin') =>
     thread.exchangeCue({ copy, name, progress: progress(position, total) });
 
-  assert.equal(cue(FR, 2, 3).text, 'À vous — répondez à Marin · Échange 2 sur 3');
+  assert.equal(cue(FR, 2, 3).text, 'À toi — réponds à Marin · Échange 2 sur 3');
   assert.equal(cue(EN, 2, 3).text, 'Your turn — reply to Marin · Exchange 2 of 3');
   assert.equal(cue(DE, 2, 3).text, 'Du bist dran — antworte Marin · Austausch 2 von 3');
   assert.equal(cue(EN, 1, 3).last, false);
 
   const last = cue(FR, 3, 3);
-  assert.equal(last.text, 'À vous — répondez à Marin · Dernier échange');
+  assert.equal(last.text, 'À toi — réponds à Marin · Dernier échange');
   assert.equal(last.last, true);
   assert.equal(cue(EN, 4, 4).part, 'Last exchange');
 
   // One exchange only: no count, and never «last».
   const single = cue(FR, 1, 1);
   assert.equal(single.part, null);
-  assert.equal(single.text, 'À vous — répondez à Marin');
+  assert.equal(single.text, 'À toi — réponds à Marin');
   assert.equal(single.last, false);
   // Nobody to name.
   assert.equal(cue(EN, 1, 3, '').lead, 'Your turn');
@@ -779,7 +779,7 @@ test('WP-107 · a B1 learner resuming an A2 scene keeps French chrome', () => {
 
 test('WP-107 · reply has a short name, one task and one help disclosure', () => {
   const prompt = { character_id: 'romy_tremblay', character_name: 'Romane « Romy » Tremblay',
-    character_line_fr: 'Si tu finis tôt, tu viens ?', objective_native: 'Proposez une heure — avec si.',
+    character_line_fr: 'Si tu finis tôt, tu viens ?', objective_native: 'Propose une heure — avec si.',
     targets: [{kind: 'grammar', id: '107', label_fr: 'Si + présent → futur'}], help_available: ['hint', 'translation', 'suggested_response'] };
   const html = decode(renderToStaticMarkup(h(steps.RespondStepView, commonProps(respondStep(prompt), { copy: FR }))));
   assert.ok(html.includes('Romy'));
@@ -797,7 +797,7 @@ test('WP-107 · expired authentication gives a sign-in action, never a transport
   const html = decode(renderToStaticMarkup(h(steps.JourneyFeedbackView, { copy: FR,
     feedback: { kind: 'error', message: 'session_expired', retryable: false },
     onContinue() {}, onRetry() {}, onDismiss() {} })));
-  assert.ok(html.includes('Votre session a expiré'));
+  assert.ok(html.includes('Ta session a expiré'));
   assert.ok(html.includes('Se reconnecter'));
   assert.ok(!html.includes(FR.transport_error));
 });

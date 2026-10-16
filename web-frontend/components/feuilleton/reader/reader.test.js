@@ -73,13 +73,13 @@ const SCENE = {
       overlay_payload: {
         bubbles: [{ speaker: 'Marin', speaker_id: 'marin', fr: 'Tu viens ?', en: 'Coming?' }],
         caption: { fr: 'Légende 2', en: '' },
-        tasks: [{ id: 'task-a', task_type: 'choice', prompt: 'Que répondez-vous ?', options: ['A: Oui', 'B: Non'] }],
+        tasks: [{ id: 'task-a', task_type: 'choice', prompt: 'Que réponds-tu ?', options: ['A: Oui', 'B: Non'] }],
       },
     }),
     panel(3, { image_url: null, generation_metadata: { image_status: 'queued' } }),
   ],
   script_payload: {
-    final_prompt: { id: 'task-final', task_type: 'short_sentence', prompt: 'Écrivez la dernière réplique.' },
+    final_prompt: { id: 'task-final', task_type: 'short_sentence', prompt: 'Écris la dernière réplique.' },
     serial_context: { location: 'Lyon' },
   },
   hook: { unresolved_question: 'Qui a écrit la lettre ?', text: 'Romy garde l’enveloppe.' },

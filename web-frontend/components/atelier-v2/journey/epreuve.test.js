@@ -68,7 +68,7 @@ function card(language, special) {
 test('the day card on a special edition: the kicker and the can-dos, in the chrome language', () => {
   const fr = card('fr', true);
   assert.match(fr, /<span class="av2-special__kicker" lang="fr" data-special-kicker="">Numéro spécial<\/span>/);
-  assert.match(text(fr), /Aujourd’hui, montrez que vous savez : commander au café · demander un prix et payer/);
+  assert.match(text(fr), /Aujourd’hui, montre que tu sais : commander au café · demander un prix et payer/);
   assert.match(fr, /data-special="epreuve"/);
   const en = text(card('en', true));
   assert.match(en, /Numéro spécial · Le Mistral/);
@@ -157,7 +157,7 @@ test('the Carnet: stamps pressed as seals with face, scene, date and quote; the 
   assert.match(html, /data-size="xs"/);
   assert.match(text(html), /1 sur 2 tamponnés/);
   assert.equal((html.match(/href="\/repetition\?situation=/g) || []).length, 2);
-  assert.match(text(html), /Essayez-le pour de vrai/);
+  assert.match(text(html), /Essaie-le pour de vrai/);
   // No gauge: no progress bar, no percent.
   assert.doesNotMatch(html, /role="progressbar"/);
   assert.doesNotMatch(text(html.replace(/<style>[\s\S]*?<\/style>/g, ' ')), /%/);

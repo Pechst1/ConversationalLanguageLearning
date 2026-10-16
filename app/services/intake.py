@@ -150,7 +150,7 @@ _TASK_LABELS_FR: dict[str, str] = {key: table["fr"] for key, table in _TASK_LABE
 #: Who the learner writes to when the document names nobody. Chrome, not the
 #: document's words; the French entry is the mission's contact name.
 COUNTERPART_FALLBACK: dict[str, str] = {
-    "fr": "votre correspondant",
+    "fr": "ton correspondant",
     "en": "your correspondent",
     "de": "dein Gegenüber",
 }

@@ -89,6 +89,8 @@ def test_the_component_never_fetches_the_scene_from_a_second_endpoint(tab: str):
         "writeJournalEntry",
         "skipJournalEntry",
         "answerJournalFollowup",
+        # Re-checks the stored paragraph; returns the same gated envelope.
+        "retryJournalCorrection",
     }, calls
 
 
@@ -174,7 +176,7 @@ def test_the_learner_facing_copy_is_french(tab: str, french: str):
         "Envoyer",
         "Passer cette scène",
         "Tout voir",
-        "Ce dont vous vous souvenez",
+        "Ce dont tu te souviens",
         "La scène, telle qu’elle était",
         "Une semaine plus tard",
     ):
@@ -192,10 +194,27 @@ def test_the_learner_facing_copy_is_french(tab: str, french: str):
 def test_an_ungraded_entry_says_so_and_is_never_a_verdict(tab: str, french: str):
     assert "assessment_status !== 'checked'" in tab
     assert "return t.correction_unavailable;" in tab
-    assert "La correction n’a pas pu être faite. Votre texte est gardé tel quel." in french
+    assert "La correction n’a pas pu être faite. Ton texte est gardé tel quel." in french
     # The ungraded branch renders a Notice, not the correction block.
     unavailable = tab.split("entry.correction?.assessment_status === 'unavailable' ? (")[1]
-    assert unavailable.split(") : (")[0].strip().startswith("<Notice")
+    assert unavailable.split(") : (")[0].strip().removeprefix("<>").strip().startswith("<Notice")
+
+
+def test_a_failed_correction_shows_its_reason_and_a_retry_control(tab: str, french: str):
+    """Done-when of #170: correction call failing -> retry control present."""
+    unavailable = tab.split("entry.correction?.assessment_status === 'unavailable' ? (")[1]
+    branch = unavailable.split(") : (")[0]
+    assert "correctionFailureReason(entry, t)" in branch
+    assert "canRetryCorrection(entry)" in branch
+    assert "api.retryJournalCorrection(entry.id)" in tab
+    # A scene with nothing to check against has nothing a retry could change.
+    assert "failure_reason !== 'no_check_target'" in tab
+    for line in (
+        "Le vérificateur a mis trop de temps à répondre.",
+        "Le vérificateur a renvoyé une réponse inutilisable.",
+        "Relancer la correction",
+    ):
+        assert line in french
 
 
 def test_a_failed_load_is_a_retryable_french_state_not_an_empty_screen(tab: str, french: str):
@@ -216,7 +235,7 @@ def test_the_two_verdicts_are_two_blocks_with_two_headings(tab: str, french: str
     assert 'className="av2-label">{t.french_label}<' in tab
     assert 'className="av2-label">{t.recall_label}<' in tab
     assert "french_label: 'Le français'" in french
-    assert "recall_label: 'Ce dont vous vous souvenez'" in french
+    assert "recall_label: 'Ce dont tu te souviens'" in french
     # And the recall sentence never speaks of correctness.
     recall_fn = tab.split("export function recallLine")[1].split("\n}\n")[0]
     assert "faute" not in recall_fn and "correct" not in recall_fn

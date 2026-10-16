@@ -44,7 +44,7 @@ def test_the_season_intro_reads_in_the_learners_language():
     assert "Wohnung" in intro["premise_native"]
     assert intro["how_native"]
     ids = [row["character_id"] for row in intro["cast_intro"]]
-    assert ids == ["margaux_barman", "augustin_de_roncourt", "marin_leveque", "lila_bonnet"]
+    assert ids == ["margaux_barman", "augustin_de_roncourt", "marin_leveque", "lila_bonnet", "camille_marchand"]
     assert all(row["role_native"] and row["line_fr"] and row["line_native"] for row in intro["cast_intro"])
     assert season_intro("nope", "de") is None
     assert "·" not in season_intro("s1", "fr")["premise_native"]

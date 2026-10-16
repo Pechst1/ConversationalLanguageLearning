@@ -99,7 +99,7 @@ test('the Relevé files read their chrome from the table', () => {
   ]) {
     assert.ok(!releve.includes(phrase), `inline chrome in Releve.tsx: ${phrase}`);
   }
-  for (const phrase of ['Vos sceaux', 'Le sceau du jour', 'Un jour de relâche en réserve', 'Réessayer', 'Série ·']) {
+  for (const phrase of ['Tes sceaux', 'Le sceau du jour', 'Un jour de relâche en réserve', 'Réessayer', 'Série ·']) {
     assert.ok(!seals.includes(phrase), `inline chrome in SealCollection.tsx: ${phrase}`);
   }
   for (const phrase of ['journée faite', 'jour de relâche', 'pas de séance', "'1 jour'", "'fr-FR'"]) {
