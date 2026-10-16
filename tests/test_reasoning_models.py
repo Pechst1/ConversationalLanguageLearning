@@ -34,3 +34,22 @@ def test_no_caller_tests_the_gpt_5_prefix_by_hand():
         if 'startswith("gpt-5")' in path.read_text(encoding="utf-8")
     ]
     assert offenders == [], f"use llm_service.takes_reasoning_effort: {offenders}"
+
+
+def test_the_story_judge_imports_without_the_app_settings():
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    env = {key: value for key, value in os.environ.items() if key != "SECRET_KEY"}
+    env["PYTHONPATH"] = str(root)
+    done = subprocess.run(
+        [sys.executable, "-c", "import app.services.season.story_judge"],
+        cwd=root / "tests",
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert done.returncode == 0, done.stderr[-600:]

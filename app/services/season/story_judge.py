@@ -31,7 +31,6 @@ from pathlib import Path
 from typing import Any
 
 from app.services.chrome_language import chrome_language, level_band
-from app.services.llm_service import takes_reasoning_effort
 from app.services.season.flags import effective_flags
 from app.services.season.format import load_season
 from app.services.season.page import reply_by_id, resolve_day, turns_of
@@ -617,6 +616,10 @@ class Judge:
 
     def _reasons(self) -> bool:
         # gpt-5 and gpt-6 models take an effort; gpt-4o rejects the field.
+        # Lazy, like default_model(): llm_service loads the app settings, and
+        # the provider-free paths (--help, --dry-run) must run without them.
+        from app.services.llm_service import takes_reasoning_effort
+
         return bool(self.reasoning_effort) and takes_reasoning_effort(self.model)
 
     def fields(self) -> dict[str, Any]:
