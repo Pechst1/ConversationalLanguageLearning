@@ -106,7 +106,7 @@ from app.services.journey_learning import (
     select_foreground_correction,
 )
 from app.services.learner_copy import learner_text as learner_copy_text
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMService, takes_reasoning_effort
 from app.services.pilot_events import PilotEventService
 from app.services.serial import SerialThreadService
 
@@ -2124,7 +2124,7 @@ def _model_grade(
             temperature=0.0,
             max_tokens=1500,
             reasoning_effort=(
-                "minimal" if str(settings.OPENAI_MODEL).startswith("gpt-5") else None
+                "minimal" if takes_reasoning_effort(settings.OPENAI_MODEL) else None
             ),
         )
     except Exception as exc:  # noqa: BLE001 - the keyword grade stands
@@ -2277,7 +2277,7 @@ def _model_reply(
                 # returns no content; every live reply then fell back.
                 max_tokens=2000,
                 reasoning_effort=(
-                    "minimal" if str(settings.OPENAI_MODEL).startswith("gpt-5") else None
+                    "minimal" if takes_reasoning_effort(settings.OPENAI_MODEL) else None
                 ),
             )
         except Exception as exc:  # noqa: BLE001 - a provider failure falls back, never raises

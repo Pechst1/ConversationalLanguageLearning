@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services.chrome_language import chrome_language, level_band
+from app.services.llm_service import takes_reasoning_effort
 from app.services.season.flags import effective_flags
 from app.services.season.format import load_season
 from app.services.season.page import reply_by_id, resolve_day, turns_of
@@ -615,8 +616,8 @@ class Judge:
         return answer, cost, None if answer is not None else "the answer is not a JSON object"
 
     def _reasons(self) -> bool:
-        # gpt-5 models take an effort; gpt-4o rejects the field (graphic_novel's rule).
-        return bool(self.reasoning_effort) and str(self.model).startswith("gpt-5")
+        # gpt-5 and gpt-6 models take an effort; gpt-4o rejects the field.
+        return bool(self.reasoning_effort) and takes_reasoning_effort(self.model)
 
     def fields(self) -> dict[str, Any]:
         return {

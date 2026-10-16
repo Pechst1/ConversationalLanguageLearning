@@ -37,7 +37,7 @@ from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.glosses import gloss_payload
 from app.services.grammar_feedback import infer_grammar_profile
 from app.services.graphic_novel_image_storage import GraphicNovelImageStorage
-from app.services.llm_service import LLMProviderError, LLMService
+from app.services.llm_service import LLMProviderError, LLMService, takes_reasoning_effort
 from app.services.progress import ProgressService
 from app.services.revue import feuilleton_bridge
 from app.services.revue.dossier import EditorialDossier
@@ -2945,7 +2945,7 @@ class GraphicNovelStoryGenerator:
         # gpt-5 reasoning models spend the token budget on reasoning first, so a low
         # max_tokens leaves no room for the actual plan ("response did not include
         # content"). Give ample room and keep reasoning light; gpt-4o ignores reasoning_effort.
-        reasoning_kwargs = {"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}
+        reasoning_kwargs = {"reasoning_effort": "low"} if takes_reasoning_effort(story_model) else {}
         try:
             result = self.llm.generate_chat_completion(
                 messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
@@ -4575,7 +4575,7 @@ class GraphicNovelStoryGenerator:
                 max_tokens=9000,
                 model=story_model,
                 request_timeout=90.0,
-                **({"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}),
+                **({"reasoning_effort": "low"} if takes_reasoning_effort(story_model) else {}),
             )
             return json.loads(result.content), {
                 "provider": result.provider,
@@ -4681,7 +4681,7 @@ class GraphicNovelStoryGenerator:
                 max_tokens=9000,
                 model=story_model,
                 request_timeout=90.0,
-                **({"reasoning_effort": "low"} if str(story_model).startswith("gpt-5") else {}),
+                **({"reasoning_effort": "low"} if takes_reasoning_effort(story_model) else {}),
             )
             return json.loads(result.content), {
                 "provider": result.provider,
