@@ -621,6 +621,15 @@ class Settings(BaseSettings):
             "replies, the critic of a turn), e.g. gpt-6-luna. Unset: OPENAI_MODEL."
         ),
     )
+    STORY_PLAN_THEN_WRITE: bool = Field(
+        False,
+        description=(
+            "Story plan, Phase 2: a season's generated day written ahead of time is "
+            "planned first (who, where, the change, the one question; no French), then "
+            "written from the plan, then given its reading aids. Off: one director call "
+            "writes everything. Live pages keep the one call either way."
+        ),
+    )
     ATELIER_SEASON_WRITER_ENABLED: bool = Field(
         False,
         description=(

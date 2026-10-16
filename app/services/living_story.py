@@ -1029,6 +1029,10 @@ reject. You cannot change the proposal."""
 # model. Unset settings keep OPENAI_MODEL everywhere, as before.
 _AHEAD_OF_TIME: ContextVar[bool] = ContextVar("story_ahead_of_time", default=False)
 _CRITIC_SCHEMAS = frozenset({"StoryReview", "Review"})
+#: Story plan, Phase 2 (``story_split``): the planner, the author and the aids are
+#: the writer's calls, and the plan and the page get a page's room.
+_SPLIT_SCHEMAS = frozenset({"PagePlan", "PageText", "PageAids"})
+_SPLIT_PAGE_SCHEMAS = frozenset({"PagePlan", "PageText"})
 _unservable_logged: set[str] = set()
 
 
@@ -1062,7 +1066,7 @@ def story_route(schema: type[BaseModel]) -> tuple[str | None, str | None]:
 
     if _AHEAD_OF_TIME.get():
         model = effort = None
-        if issubclass(schema, SceneDraft):
+        if issubclass(schema, SceneDraft) or schema.__name__ in _SPLIT_SCHEMAS:
             model, effort = settings.STORY_WRITER_MODEL, settings.STORY_WRITER_REASONING_EFFORT
         elif schema.__name__ in _CRITIC_SCHEMAS:
             model, effort = settings.STORY_CRITIC_MODEL, settings.STORY_CRITIC_REASONING_EFFORT
@@ -1341,9 +1345,10 @@ def _json_call(
         result = _client().generate_chat_completion(
             [{"role": "user", "content": _cache_friendly_content(payload, schema)}],
             system_prompt=system,
-            temperature=0.55 if schema is SceneDraft else 0.2,
+            temperature=0.55 if schema is SceneDraft or schema.__name__ in _SPLIT_PAGE_SCHEMAS else 0.2,
             # A 4-6 panel page (2026-09-25) is ~2× the old 2-3 panel draft.
-            max_tokens=max_tokens or (draft_tokens if schema is SceneDraft else 1600),
+            max_tokens=max_tokens
+            or (draft_tokens if schema is SceneDraft or schema.__name__ in _SPLIT_SCHEMAS else 1600),
             response_format={"type": "json_object"},
             # Live measurement 2026-09-06 (gpt-5-mini, SceneDraft): default reasoning
             # effort spends the whole completion budget on reasoning and returns no
@@ -1680,6 +1685,7 @@ def _approved(
     choose=None,
     story_review=None,
     digest=None,
+    draw=None,
 ) -> tuple[Any, list[dict]]:
     # Leave headroom under the journey's 90-second generation claim and HTTP timeout.
     # No hidden retries or provider cascades may multiply this budget.
@@ -1755,7 +1761,7 @@ def _approved(
         if soft["this_attempt"]:
             soft["hinted"], soft["this_attempt"] = True, False
         try:
-            if candidates > 1 and attempt == 0:
+            if candidates > 1 and attempt == 0 and draw is None:
                 # WP-59: two drafts side by side, every guard on each, the score keeps
                 # one. Usage is recorded on this thread once the workers are back —
                 # the DB session is not shared with them.
@@ -1769,7 +1775,7 @@ def _approved(
                 if _AHEAD_OF_TIME.get():
                     routed["ahead"] = True
 
-                def draw(index: int, request=request, collected=collected, sized=sized, routed=routed):
+                def draw_one(index: int, request=request, collected=collected, sized=sized, routed=routed):
                     return _json_call(
                         system, request, schema, collected[index].append, deadline=deadline, **routed, **sized
                     )[0]
@@ -1777,7 +1783,7 @@ def _approved(
                 from concurrent.futures import ThreadPoolExecutor
 
                 with ThreadPoolExecutor(max_workers=candidates) as pool:
-                    futures = [pool.submit(draw, index) for index in range(candidates)]
+                    futures = [pool.submit(draw_one, index) for index in range(candidates)]
                     outcomes = [
                         (future.result(), None) if future.exception() is None else (None, future.exception())
                         for future in futures
@@ -1812,6 +1818,15 @@ def _approved(
                         len(approved),
                         schema.__name__,
                     )
+            elif draw is not None:
+                # Story plan, Phase 2: plan, write, aid (``story_split``). A refusal of
+                # the page or by the critic comes back here and buys a new plan.
+                proposal = draw({**payload, "previous_rejections": feedback}, record, deadline=deadline, budget=budget)
+                try:
+                    proposal = vet(proposal)
+                except StoryUnavailable as exc:
+                    _refused(schema.__name__, exc, attempt=attempt, proposal=proposal, digest=digest)
+                    raise
             else:
                 proposal, _ = _json_call(
                     system,
@@ -8274,6 +8289,9 @@ def generate_scene(
         if epreuve:
             context[EPREUVE_KEY] = epreuve
         reviews: list[dict] = []
+        from app.services import story_split
+
+        split = story_split.applies(context)
         try:
             draft, usage = _approved(
                 DIRECTOR,
@@ -8284,10 +8302,11 @@ def generate_scene(
                 lambda p: _validate_scene(p, context),
                 db=db,
                 user=user,
-                candidates=dual_draft_candidates(context),
+                candidates=1 if split else dual_draft_candidates(context),
                 choose=lambda p: _scene_score(p, context),
                 story_review=_season_story_review(context, reviews),
                 digest=lambda p: scene_digest(p, context),
+                draw=story_split.draw(context) if split else None,
             )
         finally:
             # A lost day's readings are the metric too.

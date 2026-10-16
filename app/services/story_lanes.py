@@ -1358,7 +1358,7 @@ def fallback_story(lane: dict, *, character_name: str | None, language: str, rea
 
 
 def _apply(db: Session, *, user, journey, brief, resolution, turn, usage, revision, lane_status,
-           reason: str | None = None) -> None:
+           reason: str | None = None, hint: str | None = None) -> None:
     """Write one ending through the production writer, then mark the lane."""
 
     private_lane = lane_of(resolution)
@@ -1388,13 +1388,16 @@ def _apply(db: Session, *, user, journey, brief, resolution, turn, usage, revisi
         resolution.private_task = {**(resolution.private_task or {}), "resolution_settled": True}
     private = dict(resolution.private_task or {})
     private[LANE_KEY] = {**private_lane, "status": lane_status, "settled_at": _now().isoformat(),
-                         **({"reason": reason} if reason else {})}
+                         **({"reason": reason} if reason else {}),
+                         # Measured run 2026-10-16: a fallback ending with no record of what
+                         # the critic refused. Private; never shown to the learner.
+                         **({"hint": hint[:1200]} if hint else {})}
     resolution.private_task = private
     resolution.public_prompt = {**(resolution.public_prompt or {}), "story_pending": False}
 
 
 def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reason: str,
-                         usage: list[dict] | None = None) -> engine.SemanticTurn | None:
+                         usage: list[dict] | None = None, hint: str | None = None) -> engine.SemanticTurn | None:
     """Today's authored ending for an open lane. Free: never a model call. Returns the turn
     it settled, or ``None`` when the lane was no longer open."""
 
@@ -1417,7 +1420,7 @@ def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reaso
     )
     _apply(db, user=user, journey=journey, brief=brief, resolution=resolution, turn=turn,
            usage=list(usage or []), revision=engine.story_revision(db, user),
-           lane_status="fallback", reason=reason)
+           lane_status="fallback", reason=reason, hint=hint)
     db.flush()
     return turn
 
@@ -1619,12 +1622,14 @@ def _finish_job(db: Session, job: StoryJob, result: StoryLaneResult, payload: di
         else:
             settled = settle_with_fallback(db, user=user, journey=journey, brief=brief,
                                            resolution=resolution,
-                                           reason=result.reason or "story_lane_failed", usage=usage)
+                                           reason=result.reason or "story_lane_failed", usage=usage,
+                                           hint=result.hint)
             status = "fallback"
         events.record("journey_story_lane_settled", user_id=user.id, entity_type="living_story",
                       entity_id=str(journey.id),
                       payload={"status": status, "seconds": result.seconds,
                                "reason": result.reason, "calls": len(usage),
+                               **({"hint": result.hint[:600]} if result.hint else {}),
                                # The ending the learner reads, the authored one included.
                                **reply_prose_counts(settled)},
                       cost_usd=0.0)
