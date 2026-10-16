@@ -957,6 +957,9 @@ learner just said (a detail, a choice, a reason, a feeling), still inside the sc
 situation; write no ending yet. Otherwise, unless needs_clarification is true, this
 reply ends the scene, so always write resolution_fr and summary_native from what actually happened
 (a refusal or a partial result still gets an honest ending, not invented success);
+resolution_fr is the character's own last spoken line (it is printed in their speech
+bubble: no narration about them, no quotation marks), and summary_native tells the same
+ending as story, never what the learner did or did not ask;
 callback_fr is a concise fact, not a copy of dialogue. No predetermined outcome list.
 Commitments require exact learner source_quote; only resolve known commitment IDs when
 the exchange actually resolves them. chapter_resolved only if the chapter's question

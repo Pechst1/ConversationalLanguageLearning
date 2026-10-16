@@ -246,10 +246,14 @@ met — the objective happened; partially_met — part of it got across, the res
 open; not_yet — it did not happen. Never end on the opposite (a letter «not answered»
 after met, a success after not_yet). When released.outcome_corrected_from is set, the
 grade was corrected after release: write the ending of that corrected outcome.
-resolution_fr (French) is how the scene ends after that reply, and summary_native (in
-story.control_language) says in one or two sentences what actually happened — a refusal
-or a partial result still gets an honest ending, never invented success. The ending may
-be bittersweet; it is never flat. resolution_fr closes today's question: when the
+resolution_fr (French) is how the scene ends after that reply: the app prints it in the
+character's speech bubble, under their name, so it is the character's own last spoken
+line, in the first person, with no narration about them and no quotation marks.
+summary_native (in story.control_language) says in one or two plain sentences what
+happened in the story and what the character wants or will do next — a refusal or a
+partial result still gets an honest ending, never invented success. It is not feedback:
+it never says what the learner did or did not ask, and it tells the same ending as
+resolution_fr, never a different one. The ending may be bittersweet; it is never flat. resolution_fr closes today's question: when the
 learner's words did not answer it, the character draws their own conclusion from what
 was said, in character («Pas de nom, alors. D'accord, je garde ça pour moi.»); never
 «on verra demain», «elle reviendra demain» or «la question reste ouverte», unless
@@ -290,7 +294,9 @@ closure, development, secret), and insist they are consistent with what was rele
 The ending and the commitments are NOT released: a resolution that contradicts the
 released grade, or a commitment resolved without support, goes under issues, and so
 does an ending in which something the learner refused (released.learner_refused)
-happens anyway. Start
+happens anyway, a resolution_fr that narrates the character instead of being their own
+spoken line, and a summary_native that grades the learner or tells a different ending
+from resolution_fr. Start
 each released_issues entry with its defect's snake_case code and a colon
 (false_successful_grading: …, incompatible_demonstrated_targets: …)."""
 
@@ -832,6 +838,8 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     lane_guards.check_invented_choice(french, payload)
     # WP-155 §3: a generated day's ending keeps the reveals of the tentpoles ahead.
     lane_guards.check_season_spoiler(written, payload)
+    # The ending goes in the character's bubble and the summary under it tells the story.
+    lane_guards.check_ending_voice(turn.resolution_fr, turn.summary_native, _character_name(payload))
     if not turn.resolution_fr or not turn.summary_native:
         raise engine.StoryUnavailable(
             "missing_generated_ending",
