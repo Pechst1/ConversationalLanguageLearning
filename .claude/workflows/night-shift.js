@@ -128,6 +128,7 @@ function verifyPrompt(c, fix) {
   return `Review night-shift PR #${fix.pr} (branch ${fix.branch}) for issues ${c.issues.map(n => '#' + n).join(', ')} in Pechst1/ConversationalLanguageLearning. Be a skeptic: you did not write it.
 ${NO_GH}
 Read the issues and their "Done when" comments (\`${Q} show N\`) and the diff (\`${Q} pr-diff ${fix.pr}\`).
+Run the tests yourself: \`git fetch -q origin ${fix.branch} && git worktree add -q --detach /tmp/verify-${fix.pr} FETCH_HEAD && cd /tmp/verify-${fix.pr} && bash scripts/loop/setup_env.sh && source $HOME/.venvs/atelier/bin/activate\`, then \`python -m pytest\` from that worktree's root on the touched and new test files. If setup_env.sh fails, say so in your verdict; never report "could not run pytest" as a code finding.
 Check: does the diff meet every done-when? Is there a test that fails without the fix? Does it change behaviour beyond the issue (other screens, other languages, story canon)? Any bug introduced?
 If it is not ok: write the problems to a file and run \`${Q} pr-unready ${fix.pr} --body-file <file>\` (drops loop:merge-ready, makes it a draft, comments). If it is ok, \`${Q} comment ${fix.pr} --body "<one line: what you checked>"\`${fix.mergeReadyLabel && c.lane === 'code' ? `, then \`${Q} add-label ${fix.pr} loop:merge-ready\` (only when ok; the label is what puts it on the owner's ready-to-merge list)` : ''}. Do not change the code.
 Return ok and the problems you found (empty when ok).`

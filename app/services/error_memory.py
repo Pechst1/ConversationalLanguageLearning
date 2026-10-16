@@ -20,6 +20,7 @@ from app.db.models.grammar import GrammarConcept
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.answer_acceptance import is_real_correction
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
 from app.services.learner_copy import learner_text
 from app.services.progress import ProgressService
@@ -341,6 +342,12 @@ class ErrorMemoryService:
         if erratum.get("remember") is False:
             # Issue #104: shown now, never drilled later (a right sentence sorted
             # «À corriger» has no French to repair).
+            return None
+        if erratum.get("task_error_type") not in {"task_compliance", "length_compliance"} and not is_real_correction(
+            erratum.get("learner_text"), erratum.get("corrected_target")
+        ):
+            # #93/#174: a right sentence re-punctuated, or one right form swapped for
+            # another («Vous êtes … ?» → «Êtes-vous … ?»), is never saved as an error.
             return None
 
         concept_id = concept_id or erratum.get("concept_id")

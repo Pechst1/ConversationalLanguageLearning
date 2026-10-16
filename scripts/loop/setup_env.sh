@@ -24,8 +24,11 @@ if command -v uv >/dev/null; then
 else
   "$VENV/bin/python" -m pip install -q -c constraints.txt -e '.[dev]'
 fi
+# No `-q` here: spaCy reads it as the model name («No compatible package found for
+# '-q'»), the script then exited 1 under `set -e`, `&& source …activate` never ran,
+# and pytest fell back to the system Python without fastapi (night shift 16 Oct).
 "$VENV/bin/python" -c 'import fr_core_news_sm' 2>/dev/null \
-  || "$VENV/bin/python" -m spacy download -q fr_core_news_sm >/dev/null
+  || "$VENV/bin/python" -m spacy download fr_core_news_sm >/dev/null
 
 if [ ! -d web-frontend/node_modules ]; then
   (cd web-frontend && npm ci --no-audit --no-fund --loglevel=error)

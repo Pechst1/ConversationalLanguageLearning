@@ -144,7 +144,7 @@
   "slots": {"S": "pron"},
   "frames": [
    {"id": "penser-a", "fr": "{S|sv:penser} [[{N|a} // {N|de} // {N|def}]].", "en": "{S|en_sv:penser} about {N|en:the}.", "de": "{S|g_s} {S|g_v:penser} an {N|g_np:def:acc}.", "slots": {"N": "noun:topic_talk"}, "weight": 2},
-   {"id": "parler-de", "fr": "{S|sv:parler} [[{N|de} // {N|a} // {N|def}]] avec {C}.", "en": "{S|en_sv:parler_a} {C} about {N|en:the}.", "de": "{S|g_s} {S|g_v:parler} mit {C} über {N|g_np:def:acc}.", "slots": {"N": "noun:topic_talk", "C": "cast"}, "weight": 2},
+   {"id": "parler-de", "fr": "{S|sv:parler} [[{N|de} // {N|a} // {N|def}]] avec {C}.", "en": "{S|en_sv:parler_a} {C} about {N|en:the}.", "de": "{S|g_s} {S|g_v:parler} mit {C} über {N|g_np:def:acc}.", "accepted": ["{S|sv:parler} avec {C} {N|de}."], "slots": {"N": "noun:topic_talk", "C": "cast"}, "weight": 2},
    {"id": "telephoner-a", "fr": "{S|sv:téléphoner} [[à {C} // {C} // de {C}]] {T}.", "en": "{S|en_sv:telephoner_a:prog} {C} {T.en}.", "de": "{S|g_cl:telephoner_a:_:obj=C:adv=T}.", "slots": {"C": "cast", "T": "time_future"}},
    {"id": "besoin-de", "fr": "{S|sv:avoir} besoin [[{N|de} // {N|a} // {N|def}]].", "en": "{S|en_sv:besoin} {N|en:the}.", "de": "{S|g_s} {S|g_v:besoin} {N|g_np:def:acc}.", "slots": {"N": "noun:obj,count,possess,!art,!plant"}, "weight": 2},
    {"id": "jouer-a", "fr": "{S|sv:jouer} [[{G|a} // {G|de} // {G|def}]] le week-end.", "en": "{S|en_sv:jouer} {G.en} at the weekend.", "de": "{S|g_s} {S|g_v:jouer} am Wochenende {G}.", "slots": {"G": "play:sport"}},

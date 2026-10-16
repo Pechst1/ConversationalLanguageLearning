@@ -717,3 +717,23 @@ def is_preference_swap(learner: object, corrected: object) -> bool:
         return False
     changed = [frozenset({x, y}) for x, y in zip(a, b, strict=True) if x != y]
     return len(changed) == 1 and changed[0] in EQUIVALENT_WORD_SWAPS
+
+
+def is_real_correction(learner: object, corrected: object) -> bool:
+    """#174/#93: whether a "correction" changes anything that is wrong.
+
+    The one guard every saved error passes (``ErrorMemoryService.record_erratum``):
+    a correction that only changes typography (case, apostrophes, spacing, a final
+    full stop; accents are kept, they can be the error) or swaps one right form for
+    another (:func:`is_preference_swap`) is not an error and is never drilled. When
+    either side is missing there is nothing to compare, and the correction stands.
+    """
+
+    left = fold_typography(learner)
+    right = fold_typography(corrected)
+    if not left or not right:
+        return True
+    if left == right:
+        return False
+    return not is_preference_swap(learner, corrected)
+

@@ -138,3 +138,22 @@ def test_a_wrong_who_said_names_the_right_speaker() -> None:
     assert result.outcome is TaskOutcome.NOT_YET
     assert result.correction is not None
     assert "Romy" in result.correction.note_native
+
+
+def test_a_vocabulary_choice_miss_names_the_word_not_the_letter_clue() -> None:
+    """#178 follow-up: a vocabulary choice's hint is the first-letter clue
+    («… ça commence par « s »»), not a reason. Only a grammar choice keeps its hint."""
+    from dataclasses import replace
+
+    from app.services.journey_contracts import TargetKind
+
+    base = _choice_task(None)
+    task = replace(
+        base,
+        hint_native="C'est 7 mots et ça commence par « S ».",
+        target=replace(base.target, kind=TargetKind.VOCABULARY),
+    )
+    result = _evaluate(task, option_id=_wrong_option(task))
+    assert result.correction is not None
+    assert "commence par" not in result.correction.note_native
+    assert "Si je finis tôt, je t'appellerai." in result.correction.note_native

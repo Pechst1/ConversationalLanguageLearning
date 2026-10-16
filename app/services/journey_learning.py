@@ -2262,9 +2262,11 @@ def evaluate_recall(
             from app.services.chrome_language import user_chrome_language
 
             pick = pick_miss_note(task, str(user_chrome_language(user)))
-            if task.task_type in {"choice", "who_said"} and task.hint_native:
+            if task.task_type in {"choice", "who_said"} and task.hint_native and task.target.kind == TargetKind.GRAMMAR:
                 # #86: a unit's one-line rule is the reason a grammar choice was
                 # wrong. «The right answer is X» only stands in when there is none.
+                # A vocabulary choice's hint is the first-letter clue, not a reason:
+                # its miss names the right word.
                 pick = None
             note = pick or note
         elif typed is not None and typed.note is not None:
