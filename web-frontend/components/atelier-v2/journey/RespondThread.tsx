@@ -191,7 +191,6 @@ export function RespondThread({
     Boolean(typingBubble && replyFinishedTyping(typingBubble.text, typedText)),
     stepId,
   );
-  const label = listenLabel(copy, name);
   return (
     <ol className="av2-thread" aria-label={copy.thread_label}>
       {bubbles.map((bubble) => {
@@ -215,6 +214,9 @@ export function RespondThread({
           bubble.speaker && (bubble.speaker.id || bubble.speaker.name)
             ? { id: bubble.speaker.id || '', name: bubble.speaker.name || '' }
             : speaker;
+        // The listen button is named after the voice it plays: this bubble's
+        // speaker, never the one the learner addresses.
+        const label = listenLabel(copy, who?.name || name);
         const other = Boolean(bubble.speaker && speaker && bubble.speaker.id !== speaker.id);
         const whoLabel = other && who ? (
           <span className="av2-label av2-thread__who">{shortSpeakerName(who.name)}</span>
