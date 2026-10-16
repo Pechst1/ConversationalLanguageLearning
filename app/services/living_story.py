@@ -1775,7 +1775,7 @@ def _approved(
                 if _AHEAD_OF_TIME.get():
                     routed["ahead"] = True
 
-                def draw(index: int, request=request, collected=collected, sized=sized, routed=routed):
+                def draw_one(index: int, request=request, collected=collected, sized=sized, routed=routed):
                     return _json_call(
                         system, request, schema, collected[index].append, deadline=deadline, **routed, **sized
                     )[0]
@@ -1783,7 +1783,7 @@ def _approved(
                 from concurrent.futures import ThreadPoolExecutor
 
                 with ThreadPoolExecutor(max_workers=candidates) as pool:
-                    futures = [pool.submit(draw, index) for index in range(candidates)]
+                    futures = [pool.submit(draw_one, index) for index in range(candidates)]
                     outcomes = [
                         (future.result(), None) if future.exception() is None else (None, future.exception())
                         for future in futures

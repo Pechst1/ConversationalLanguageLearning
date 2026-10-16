@@ -307,3 +307,24 @@ def test_the_planner_the_author_and_the_aids_are_the_writer_s_calls(monkeypatch)
     with engine.written_ahead_of_time():
         for schema in (story_split.PagePlan, story_split.PageText, story_split.PageAids):
             assert engine.story_route(schema)[0] == "gpt-6-luna"
+
+
+def test_a_second_attempt_after_two_refused_drafts_asks_the_director_again(monkeypatch):
+    """CI 2026-10-16: the dual-draft worker was also called ``draw`` and shadowed the
+    Phase 2 draw, so the attempt after two refused drafts called the worker instead."""
+
+    from pydantic import BaseModel
+
+    class Page(BaseModel):
+        n: int
+
+    answers = iter([1, 2, 3])
+    monkeypatch.setattr(engine, "_json_call", lambda *args, **kwargs: (Page(n=next(answers)), {}))
+    monkeypatch.setattr(engine, "CRITIC_ENABLED", False)
+
+    def validate(page):
+        if page.n < 3:
+            raise engine.StoryUnavailable("refused", hint="again")
+
+    page, _ = engine._approved("system", {}, Page, validate, db=None, user=None, candidates=2)
+    assert page.n == 3
