@@ -23,9 +23,9 @@ const FR = {
   forge_name: 'La Forge',
   courrier_name: 'Le Courrier',
   // ---- «Pendant votre absence» (WP-99)
-  absence_title: 'Pendant votre absence',
-  absence_days_one: 'Un jour sans vous',
-  absence_days_many: '{n} jours sans vous',
+  absence_title: 'Pendant ton absence',
+  absence_days_one: 'Un jour sans toi',
+  absence_days_many: '{n} jours sans toi',
   absence_lines_aria: 'Ce qui s’est passé entre-temps',
   lapsed_title: 'Courrier en souffrance',
   lapsed_line: 'La lettre de {name}',
@@ -45,7 +45,7 @@ const FR = {
   interlude_paused: 'Le feuilleton fait une pause.',
   interlude_meanwhile: 'En attendant',
   interlude_forge_hint: 'La règle du jour, en exercices',
-  interlude_courrier_hint: 'Vos lettres',
+  interlude_courrier_hint: 'Tes lettres',
   interlude_relecture: 'Relire les archives',
   interlude_relecture_hint: 'Les planches de la saison passée',
   // ---- «La suite demain» on Home

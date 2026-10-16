@@ -114,7 +114,7 @@ const FR: Copy = {
   more_words: (n) => `Encore ${n} mots`,
   tempo: (pace) => `Rythme : ${pace}`,
   pace: { ruhig: 'Calme', normal: 'Normal', schnell: 'Rapide' },
-  sheet_title: 'Votre rythme',
+  sheet_title: 'Ton rythme',
   sheet_row: (words, rules) => `${words} mots · ${rules} règles par semaine`,
   sheet_goal: (goal, eta) => `${goal} dans ${eta}`,
   sheet_note: (low, high) =>
@@ -133,7 +133,7 @@ const FR: Copy = {
   part_done: 'fait',
   part_next: 'à suivre',
   part_todo: 'à venir',
-  plan_label: 'Votre journée',
+  plan_label: 'Ta journée',
 };
 
 const EN: Copy = {

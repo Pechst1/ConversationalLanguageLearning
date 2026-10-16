@@ -39,7 +39,7 @@ def test_home_offers_the_placement_only_when_the_server_says_so():
     # WP-126: the chip speaks the learner's language; its label lives in placement-copy.
     assert "placementCopy(useLearnerLanguage())" in chip
     copy = _source("lib/placement-copy.ts")
-    for label in ("Faire le point sur votre niveau", "Check your level", "Dein Niveau prüfen"):
+    for label in ("Faire le point sur ton niveau", "Check your level", "Dein Niveau prüfen"):
         assert f"chip: '{label}'" in copy
 
 
@@ -64,7 +64,7 @@ def test_the_offer_is_skippable_and_says_what_skipping_costs():
     assert "Passer pour l’instant" in copy and "Not now" in copy
     assert "api.skipPlacement()" in page
     assert "{copy.offer_fine}" in page
-    assert "Sans bilan, votre niveau continue de suivre vos scènes." in copy
+    assert "Sans bilan, ton niveau continue de suivre tes scènes." in copy
 
 
 def test_an_unmeasured_placement_says_so_instead_of_naming_a_level():

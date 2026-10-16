@@ -223,7 +223,7 @@ def test_apns_delivery_uses_http2_and_preserves_deep_link(
 
     delivered = NotificationService(db_session).send_notification(
         user.id,
-        "Votre édition est prête.",
+        "Ton édition est prête.",
         "Épisode 2 disponible",
         data={"route": "/serial"},
     )

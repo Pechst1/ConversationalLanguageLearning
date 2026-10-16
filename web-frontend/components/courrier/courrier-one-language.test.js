@@ -47,13 +47,13 @@ const TASK = {
   kind: 'decide',
   kind_label_fr: 'Choisir',
   kind_label_by_language: { fr: 'Choisir', en: 'Choose', de: 'Auswählen' },
-  instruction_fr: 'Commandez votre formule du midi auprès du serveur.',
+  instruction_fr: 'Commande ta formule du midi auprès du serveur.',
   instruction_by_language: {
-    fr: 'Commandez votre formule du midi auprès du serveur.',
+    fr: 'Commande ta formule du midi auprès du serveur.',
     en: 'Order your lunch menu from the waiter.',
   },
-  success_fr: 'Le serveur sait ce que vous prenez.',
-  success_by_language: { fr: 'Le serveur sait ce que vous prenez.' },
+  success_fr: 'Le serveur sait ce que tu prends.',
+  success_by_language: { fr: 'Le serveur sait ce que tu prends.' },
   counterpart_fr: 'le serveur',
 };
 const ARTEFACT = {
@@ -74,7 +74,7 @@ test('an A1 English learner reads the task card in English, the counterpart in F
   assert.match(html, /lang="en">Order your lunch menu from the waiter\.</);
   assert.match(html, /<span lang="fr"> · le serveur<\/span>/);
   // No English success line was written: the French one, marked so.
-  assert.match(html, /lang="fr">Le serveur sait ce que vous prenez\.</);
+  assert.match(html, /lang="fr">Le serveur sait ce que tu prends\.</);
   assert.ok(!html.includes('>Choisir<'));
   assert.equal(crArtefactLabel(ARTEFACT, lang), 'A menu · le serveur');
 });
@@ -86,8 +86,8 @@ test('an A2 German learner reads the labels in German and the fallback counterpa
       ...ARTEFACT,
       task: {
         ...TASK,
-        counterpart_fr: 'votre correspondant',
-        counterpart_by_language: { fr: 'votre correspondant', en: 'your correspondent', de: 'dein Gegenüber' },
+        counterpart_fr: 'ton correspondant',
+        counterpart_by_language: { fr: 'ton correspondant', en: 'your correspondent', de: 'dein Gegenüber' },
       },
     },
     lang,
@@ -107,7 +107,7 @@ test('a B1 learner reads all of it in French', () => {
   assert.equal(lang, 'fr');
   const html = render(lang, h(CrArtefactTaskCard, { task: TASK }));
   assert.match(html, /<span lang="fr">Choisir<\/span>/);
-  assert.match(html, /lang="fr">Commandez votre formule/);
+  assert.match(html, /lang="fr">Commande ta formule/);
   assert.equal(crArtefactLabel(ARTEFACT, lang), 'Un menu · le serveur');
 });
 

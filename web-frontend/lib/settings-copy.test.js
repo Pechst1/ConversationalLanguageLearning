@@ -49,7 +49,7 @@ test('French is kept verbatim from the artboard', () => {
   assert.equal(fr.page_title, 'L’administration · Réglages');
   assert.equal(fr.action_save, 'Classer les modifications');
   assert.equal(fr.row_feedback, 'Signaler un problème');
-  assert.equal(fr.row_dossier, 'Votre dossier');
+  assert.equal(fr.row_dossier, 'Ton dossier');
   assert.equal(fr.row_placement, 'Bilan de niveau');
   assert.equal(fr.row_rehearsal, 'Répéter une vraie situation');
 });

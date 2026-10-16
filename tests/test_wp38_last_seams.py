@@ -165,7 +165,7 @@ def test_the_courrier_offers_a_row_into_the_intake_never_a_second_press() -> Non
     # WP-82: the row's words are chrome, read from the copy table.
     assert "t.intake_link" in block
     copy = _read(WEB / "components" / "courrier" / "courrier-copy.ts")
-    assert "intake_link: 'Apportez votre français'" in copy
+    assert "intake_link: 'Apporte ton français'" in copy
     # …and the Courrier actually renders it.
     assert "<CrIntakeLink />" in _read(MISSIONS_PAGE)
 
@@ -182,7 +182,7 @@ def test_the_home_entry_exists_now_that_the_screen_does() -> None:
     assert "envelope?.cap?.enabled" in source
     entries = source.split("const homeEntries: HomeEntry[]", 1)[1].split("const homeTiles", 1)[0]
     assert "intakeOpen" in entries
-    assert "Vos documents" in entries
+    assert "Tes documents" in entries
     # One constant for the destination, shared with the Courrier's own row.
     assert "CR_INTAKE_HREF" in entries
     assert "from '@/components/courrier/Courrier'" in source

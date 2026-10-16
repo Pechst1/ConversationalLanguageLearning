@@ -95,7 +95,7 @@ export function pushOptInCopy(language: string | null | undefined, characterName
   switch ((language || 'en').slice(0, 2).toLowerCase()) {
     case 'fr':
       return {
-        line: `${name} vous prévient quand la suite arrive.`,
+        line: `${name} te prévient quand la suite arrive.`,
         yes: 'Oui',
         later: 'Plus tard',
         label: 'Notifications',

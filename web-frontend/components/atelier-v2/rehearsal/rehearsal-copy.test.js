@@ -47,13 +47,13 @@ test('the three tables are complete and fill the same placeholders', () => {
 test('A1 reads English, A2 German, B1 French', () => {
   assert.equal(rehearsalCopy(chromeLanguage('en', 'A1')).declare_title, 'Rehearse a real situation');
   assert.equal(rehearsalCopy(chromeLanguage('de', 'A2')).declare_title, 'Probe eine echte Situation');
-  assert.equal(rehearsalCopy(chromeLanguage('en', 'B1')).declare_title, 'Répétez une vraie situation');
+  assert.equal(rehearsalCopy(chromeLanguage('en', 'B1')).declare_title, 'Répète une vraie situation');
 });
 
 test('the state sentences follow the language they are given', () => {
   assert.equal(state.capSentence({ limit: 3, remaining: 2 }, 'en'), 'You have 2 rehearsals left this week.');
   assert.equal(state.capSentence({ limit: 0, remaining: 0 }, 'de'), 'Proben sind deaktiviert.');
-  assert.equal(state.capSentence({ limit: 2, remaining: 1 }), 'Il vous reste une répétition cette semaine.');
+  assert.equal(state.capSentence({ limit: 2, remaining: 1 }), 'Il te reste une répétition cette semaine.');
   assert.match(state.eventDateSentence({ event_date: '2026-09-15' }, 'en'), /^It’s on Tuesday/);
   assert.match(state.nextSlotSentence('2026-09-20T08:00:00+00:00', 'de'), /^Nächste Probe möglich am /);
   const partial = { result: { outcome: 'partially_met', points_total: 3, points_covered: 2 } };
@@ -74,15 +74,15 @@ test('the Répétition files read their chrome from the table', () => {
   assert.ok(page.includes("from '@/components/atelier-v2/rehearsal/rehearsal-copy'"));
   for (const phrase of [
     'Retour à La Une',
-    'Répétez une vraie situation',
+    'Répète une vraie situation',
     'Préparer la répétition',
     'Plus tard',
     'Répétition non préparée',
-    'Votre réponse, en français',
+    'Ta réponse, en français',
     'Phrases utiles',
     'Comment ça s’est passé',
     'Enregistrer le bilan',
-    'Il vous reste',
+    'Il te reste',
     'Je l’ai fait',
     'La page n’a pas pu être ouverte',
     'Cette action n’a pas abouti',

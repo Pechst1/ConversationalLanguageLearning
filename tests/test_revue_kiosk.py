@@ -407,3 +407,52 @@ def test_paint_is_admin_only_and_paints_the_period(api: TestClient, db: Session,
     assert response.status_code == 200, response.text
     assert response.json()["painted"] == 2 and seen == {"period": "2026-W40", "limit": 3}
     assert api.post("/api/v1/revue/admin/paint?period=last-week", headers=headers).status_code == 422
+
+
+# --- #149: an A1 learner is never dealt the Papier as the day ----------------------------------
+
+
+@pytest.mark.parametrize(
+    ("level", "allowed"),
+    [(None, False), ("A1", False), ("A1.1", False), ("A1.3", False), ("A2", True), ("A2.1", True), ("B1", True), ("C1", True)],
+)
+def test_the_papier_day_is_only_dealt_from_the_cutoff_band(level, allowed: bool, monkeypatch) -> None:
+    from app.services.revue.policy import revue_day_allowed_for
+
+    monkeypatch.setattr(settings, "REVUE_MIN_BAND", "A2")
+    assert revue_day_allowed_for(level) is allowed
+    monkeypatch.setattr(settings, "REVUE_MIN_BAND", "A1")  # the one-setting way back
+    assert revue_day_allowed_for(level) is True
+
+
+def test_an_a1_learner_gets_no_papier_day_whatever_the_week_holds(db: Session, monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from app.services.daily_journey import DailyJourneyService
+
+    monkeypatch.setattr(settings, "REVUE_ENABLED", True)
+    stock(db, WEEK, evergreens_for_week(WEEK)[:3])
+    day = date(2026, 10, 2)
+    learner = make_user(db)
+    ask = DailyJourneyService._revue_week_inputs
+    host = SimpleNamespace(db=db)
+
+    learner.cefr_estimate = "A1.1"
+    assert ask(host, learner, day) == (False, False)  # the unasked takeover of 15 Oct
+    learner.cefr_estimate = "A2.1"
+    assert ask(host, learner, day) == (True, False)  # same week, same kiosk, from A2
+
+
+def test_a_mistyped_cutoff_band_is_refused_and_never_lets_everyone_in(monkeypatch) -> None:
+    from pydantic import ValidationError
+
+    from app.config import Settings
+    from app.services.revue.policy import revue_day_allowed_for
+
+    with pytest.raises(ValidationError):
+        Settings(REVUE_MIN_BAND="A3")
+    assert Settings(REVUE_MIN_BAND=" b1 ").REVUE_MIN_BAND == "B1"
+    # Set at runtime past the validator: the restrictive default holds.
+    monkeypatch.setattr(settings, "REVUE_MIN_BAND", "A3")
+    assert revue_day_allowed_for("A1.1") is False
+    assert revue_day_allowed_for("A2.1") is True

@@ -340,29 +340,29 @@ function fallbackOutputPrompt(payload: Record<string, any>, item: Record<string,
   const anchorSentence = String(item?.context_anchor?.sentence || '').trim();
   if (conceptTitle.includes('imparfait') || conceptTitle.includes('passé composé') || conceptTitle.includes('passe compose')) {
     return round === 'conversation'
-      ? 'Message reçu : « Pourquoi tu n’as pas répondu hier soir ? » Dites ce qui était en cours et ce qui s’est produit.'
+      ? 'Message reçu : « Pourquoi tu n’as pas répondu hier soir ? » Dis ce qui était en cours et ce qui s’est produit.'
       : round === 'speak'
-        ? 'Un collègue demande ce que vous faisiez quand le téléphone a sonné. Dites une phrase avec le contexte et l’événement.'
-        : 'Un ami demande pourquoi vous êtes arrivé en retard hier. Expliquez en une phrase française ce qui se passait et ce qui s’est produit.';
+        ? 'Un collègue demande ce que tu faisais quand le téléphone a sonné. Dis une phrase avec le contexte et l’événement.'
+        : 'Un ami demande pourquoi tu es arrivé en retard hier. Explique en une phrase française ce qui se passait et ce qui s’est produit.';
   }
   if (conceptTitle.includes('si type') || conceptTitle.includes('si +') || conceptTitle.includes('condition')) {
     return round === 'conversation'
-      ? 'Message reçu : « S’il pleut demain, on fait quoi ? » Répondez avec une condition réelle et sa conséquence.'
+      ? 'Message reçu : « S’il pleut demain, on fait quoi ? » Réponds avec une condition réelle et sa conséquence.'
       : round === 'speak'
-        ? 'Un ami demande ce que vous ferez s’il pleut demain. Donnez une réponse naturelle avec si + présent.'
-        : 'Un collègue demande : « Tu termines tôt aujourd’hui ? » Répondez en disant ce que vous ferez dans ce cas.';
+        ? 'Un ami demande ce que tu feras s’il pleut demain. Donne une réponse naturelle avec si + présent.'
+        : 'Un collègue demande : « Tu termines tôt aujourd’hui ? » Réponds en disant ce que tu feras dans ce cas.';
   }
   if (conceptTitle.includes('negation') || conceptTitle.includes('négation') || conceptTitle.includes('pas de')) {
     return round === 'conversation'
-      ? 'Message reçu : « Tu as encore du café ? » Répondez avec une quantité niée.'
+      ? 'Message reçu : « Tu as encore du café ? » Réponds avec une quantité niée.'
       : round === 'speak'
-        ? 'Au café, on demande ce qui est disponible. Citez un élément manquant avec ne…pas de/d’.'
-        : 'Un ami demande ce qu’il reste à boire ou à manger. Dites une chose que vous n’avez pas.';
+        ? 'Au café, on demande ce qui est disponible. Cite un élément manquant avec ne…pas de/d’.'
+        : 'Un ami demande ce qu’il reste à boire ou à manger. Dis une chose que tu n’as pas.';
   }
-  if (anchorSentence) return `Réagissez à cette situation : ${anchorSentence}`;
+  if (anchorSentence) return `Réagis à cette situation : ${anchorSentence}`;
   return round === 'conversation'
-    ? 'Message reçu : « Qu’est-ce qui se passe ? » Répondez naturellement en français.'
-    : 'Un ami demande une nouvelle concrète de votre journée. Répondez en français avec une phrase complète.';
+    ? 'Message reçu : « Qu’est-ce qui se passe ? » Réponds naturellement en français.'
+    : 'Un ami demande une nouvelle concrète de ta journée. Réponds en français avec une phrase complète.';
 }
 
 function outputLadderPrompt(payload: Record<string, any>, item: Record<string, any>, round: 'sentence' | 'speak' | 'conversation'): string {
@@ -2670,16 +2670,16 @@ function TodayView({
   const onboardingMotivation = String(today?.summary?.learning_motivation || '').trim();
   const onboardingMotivationLabel = (
     {
-      travel: 'voyager et vous débrouiller',
+      travel: 'voyager et te débrouiller',
       work: 'travailler en français',
-      relationships: 'parler avec vos proches',
+      relationships: 'parler avec tes proches',
       culture: 'lire, regarder et écouter',
     } as Record<string, string>
   )[onboardingMotivation] || onboardingMotivation;
   /* One quiet explaining clause on the first edition only — the onboarding
      motivation earns it. */
   const prescriptionBecause = today?.summary?.first_session && onboardingMotivation
-    ? `parce que votre objectif « ${onboardingMotivationLabel} » commence par une seule règle bien posée.`
+    ? `parce que ton objectif « ${onboardingMotivationLabel} » commence par une seule règle bien posée.`
     : null;
   const phraseOfDay = today?.phrase_of_day || null;
   const nextEpisodeNumber = episodeNumber + 1;
@@ -2740,7 +2740,7 @@ function TodayView({
         artState: leadArtMode,
         byline: leadByline,
         bylineMeta: dayProgress.missionDone
-          ? `${leadByline} a lu votre lettre`
+          ? `${leadByline} a lu ta lettre`
           : [prescribedConcept?.t, `~${prescribedMinutes} min`].filter(Boolean).join(' · '),
         read: serialDone,
         onOpen: openStory,
@@ -2945,28 +2945,28 @@ function TodayView({
         ...(rehearsalEntry !== 'none'
           ? [{
               id: 'rehearsal-debrief',
-              label: 'Votre répétition',
+              label: 'Ta répétition',
               hint: rehearsalEntry === 'debrief'
                 ? 'Comment ça s’est passé ?'
-                : 'Elle vous attend, quand vous voulez.',
+                : 'Elle t’attend, quand tu veux.',
               href: '/repetition',
               ariaLabel: rehearsalEntry === 'debrief'
-                ? 'Votre répétition — comment ça s’est passé ?'
-                : 'Votre répétition — elle vous attend, quand vous voulez.',
+                ? 'Ta répétition — comment ça s’est passé ?'
+                : 'Ta répétition — elle t’attend, quand tu veux.',
             }]
           : []),
         ...(intakeOpen
           ? [{
               id: 'intake',
-              label: 'Vos documents',
-              hint: 'Un menu, une lettre : on le lit avec vous.',
+              label: 'Tes documents',
+              hint: 'Un menu, une lettre : on le lit avec toi.',
               href: CR_INTAKE_HREF,
             }]
           : []),
         {
           id: 'dossier',
-          label: 'Votre dossier',
-          hint: 'Ce que nous croyons savoir de vous, et d’où vient chaque chiffre.',
+          label: 'Ton dossier',
+          hint: 'Ce que nous croyons savoir de toi, et d’où vient chaque chiffre.',
           href: '/dossier',
         },
       ];
@@ -3412,10 +3412,10 @@ function serialThreadCopy({
   if (done) {
     return {
       episode: `${episodeLabel} · classé`,
-      previously: 'vous avez fait avancer le feuilleton.',
+      previously: 'tu as fait avancer le feuilleton.',
       beat: '— Fin de l’épisode —',
-      title: 'Vous êtes à jour.',
-      sub: hookText ? `Demain : ${hookText}` : 'Le prochain acte est encore en composition. Laissez le suspense reposer jusqu’à demain.',
+      title: 'Tu es à jour.',
+      sub: hookText ? `Demain : ${hookText}` : 'Le prochain acte est encore en composition. Laisse le suspense reposer jusqu’à demain.',
       cta: '',
     };
   }
@@ -3425,26 +3425,26 @@ function serialThreadCopy({
       previously: '',
       beat: 'Un nouveau feuilleton',
       title: '“L’arrivée”',
-      sub: 'Un café du 11e, une clé qui refuse de tourner et des gens qui se souviendront de vous. Votre français fait avancer le récit.',
+      sub: 'Un café du 11e, une clé qui refuse de tourner et des gens qui se souviendront de toi. Ton français fait avancer le récit.',
       cta: 'Commencer l’épisode 1',
     };
   }
   if (kind === 'mission') {
     return {
       episode: `${episodeLabel} · agir`,
-      previously: 'la dernière planche a laissé quelqu’un attendre votre réponse.',
+      previously: 'la dernière planche a laissé quelqu’un attendre ta réponse.',
       beat: 'Le monde attend ta réponse',
-      title: 'Le monde attend votre réponse',
-      sub: 'Écrivez le prochain message et laissez le feuilleton vous répondre.',
+      title: 'Le monde attend ta réponse',
+      sub: 'Écris le prochain message et laisse le feuilleton te répondre.',
       cta: 'Répondre dans le feuilleton',
     };
   }
   return {
     episode: `${episodeLabel} · lire`,
-    previously: hookText || 'la réponse que vous avez écrite devient la scène.',
+    previously: hookText || 'la réponse que tu as écrite devient la scène.',
     beat: 'Nouvel épisode prêt',
     title: 'Continuer le feuilleton',
-    sub: 'Voyez ce que votre dernier message a changé, puis repartez avec le prochain suspense.',
+    sub: 'Vois ce que ton dernier message a changé, puis repars avec le prochain suspense.',
     cta: 'Lire l’épisode',
   };
 }

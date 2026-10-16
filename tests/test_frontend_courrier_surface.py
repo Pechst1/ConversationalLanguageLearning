@@ -109,9 +109,9 @@ def test_the_soft_deadline_is_a_sentence_not_a_countdown() -> None:
     # column keeps the soft «si vous pouvez», the helper fills in the weekday.
     correspondance = read_web("components/courrier/Correspondance.tsx")
     copy = read_web("components/courrier/courrier-copy.ts")
-    assert "si vous pouvez" in copy
-    assert "expiry_weekday: 'Répondez avant {day}, si vous pouvez.'" in copy
-    assert "Répondez d’ici demain" in copy
+    assert "si tu peux" in copy
+    assert "expiry_weekday: 'Réponds avant {day}, si tu peux.'" in copy
+    assert "Réponds d’ici demain" in copy
     assert "crFill(t.expiry_weekday, { day: weekday })" in correspondance
 
 
@@ -126,7 +126,7 @@ def test_home_shows_the_waiting_letter_as_a_quiet_row() -> None:
     # `.av2-row` links, so no second primary can appear on La Une.
     assert "const homeEntries: HomeEntry[]" in atelier
     copy = read_web("components/courrier/courrier-copy.ts")
-    assert "letter_waiting: 'Une lettre vous attend'" in copy
+    assert "letter_waiting: 'Une lettre t’attend'" in copy
     assert "t.letter_waiting" in waiting
     assert "av2-btn--primary" not in waiting
 

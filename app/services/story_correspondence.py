@@ -40,6 +40,7 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.db.savepoint import run_best_effort
+from app.services.address import character_register
 
 # The living story's own ledger keys. Imported rather than re-spelled so a rename
 # in living_story.py breaks loudly here instead of silently writing a second,
@@ -1124,18 +1125,17 @@ def note_story_letter(db: Session, *, user: User, candidate: dict[str, Any], mis
 
 
 def learner_register(thread: SerialThread | None, character_id: str | None) -> str:
-    """``tu`` once the learner and this character have switched (WP-97), else ``vous``.
+    """How this character addresses the learner, ``tu`` or ``vous`` — the shared resolver.
 
-    The register lives in ``state.relationships[id].register``; the story engine writes
-    ``tu`` there when the learner accepts «On se tutoie ?».
+    The register the relationship records (the story engine writes ``tu`` there when the
+    learner accepts «On se tutoie ?»), else what the story opens that character with
+    (``app.services.address.character_register``). Reading only the relationship map
+    made a character the map had not recorded yet «vous» here and «tu» in the scene.
     """
 
-    if thread is None or not character_id or character_id == "landlord_marchand":
+    if thread is None or not character_id:
         return "vous"
-    relationships = (thread.state or {}).get("relationships") if isinstance(thread.state, dict) else None
-    entry = (relationships or {}).get(str(character_id)) if isinstance(relationships, dict) else None
-    register = str((entry or {}).get("register") or "").lower() if isinstance(entry, dict) else ""
-    return "tu" if register.startswith("tu") else "vous"
+    return character_register(thread.state if isinstance(thread.state, dict) else None, character_id)
 
 
 #: The register phrase the letter writer is given (``missions`` reads ``register``).
@@ -1162,19 +1162,15 @@ def story_letter_context(candidate: dict[str, Any]) -> dict[str, Any]:
     summary = candidate.get("summary_fr") or "ce qui vient de se passer"
     register = "tu" if candidate.get("register") == "tu" else "vous"
     question = str(candidate.get("open_question_fr") or "").strip()
+    # The page speaks to the learner in the app's one register («tu»); the *character's*
+    # register with the learner is a separate fact, stated on its own line.
+    scenario = f"{name} t'écrit après ce qui vient de se passer dans le feuilleton : {summary} "
     if register == "tu":
-        scenario = (
-            f"{name} t'écrit après ce qui vient de se passer dans le feuilleton : {summary} "
-            f"Vous vous tutoyez : {name} te dit « tu », et tu lui réponds en « tu », en français. "
-            f"N'invente aucun fait nouveau : parle de cet épisode-là."
-        )
-        outcome = f"{name} sait ce que tu en penses et ce que tu comptes faire ensuite."
+        scenario += f"Vous vous tutoyez : {name} te dit « tu », et tu lui réponds en « tu », en français. "
     else:
-        scenario = (
-            f"{name} vous écrit après ce qui vient de se passer dans le feuilleton : {summary} "
-            f"Répondez-lui en français. N'inventez aucun fait nouveau : parlez de cet épisode-là."
-        )
-        outcome = f"{name} sait ce que vous en pensez et ce que vous comptez faire ensuite."
+        scenario += f"{name} te vouvoie : tu lui réponds en « vous », poliment, en français. "
+    scenario += "N'invente aucun fait nouveau : parle de cet épisode-là."
+    outcome = f"{name} sait ce que tu en penses et ce que tu comptes faire ensuite."
     if question:
         # R2-3: the scene ended before its question was settled; the letter asks it again.
         scenario += f" La scène est restée ouverte : {name} pose de nouveau sa question, « {question} »."

@@ -287,7 +287,7 @@ test('the result card says the score honestly, and inferred credit as inferred',
 test('a paused visit says so and offers no third check', () => {
   const summary = S.summarize({ ...MISS, sub_band: 'A1.2', ladder_status: 'paused', next: null, resume_band: 'A1.1' }, BANDS);
   const html = view({ phase: 'result', summary }, 'fr');
-  assert.ok(html.includes('Reprenez avec A1.1 un autre jour'));
+  assert.ok(html.includes('Reprends avec A1.1 un autre jour'));
   assert.ok(!html.includes('Vérifier A1.1'));
   const screen = view({ phase: 'paused', band: 'A1.1' }, 'en');
   assert.ok(screen.includes('That’s enough for today'));

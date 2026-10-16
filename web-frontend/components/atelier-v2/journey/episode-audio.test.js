@@ -86,7 +86,7 @@ const agreeing = {
       index: 0,
       narration_fr: 'Le marché est presque vide.',
       dialogue: [
-        { character_id: 'toi', text_fr: 'Bonjour, vous avez des tomates ?' },
+        { character_id: 'toi', text_fr: 'Bonjour, tu as des tomates ?' },
         { character_id: '', text_fr: '' },
         { character_id: 'marchand', character_name: 'Monsieur Marchand', text_fr: 'Bien sûr, elles sont d’aujourd’hui.' },
       ],
@@ -380,7 +380,7 @@ const SCENE_STEP = {
   kind: 'scene',
   state: 'active',
   prompt: {
-    setup_fr: 'Vous entrez dans la boulangerie.',
+    setup_fr: 'Tu entres dans la boulangerie.',
     setup_native: 'You walk into the bakery.',
     objective_native: 'Ask for a baguette.',
     character_line_fr: '',
@@ -402,7 +402,7 @@ test('with the mode off, the scene renders and nothing audio-shaped is called', 
   );
 
   // Server render: no effects, so the plain scene prompt is what appears.
-  assert.ok(html.includes('Vous entrez dans la boulangerie.'), html.slice(0, 400));
+  assert.ok(html.includes('Tu entres dans la boulangerie.'), html.slice(0, 400));
   assert.equal(
     apiCalls.length,
     0,

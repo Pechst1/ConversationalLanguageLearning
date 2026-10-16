@@ -112,11 +112,11 @@ test('a letter that is not part of a chain says nothing about chains', () => {
 /* --------------------------------------------------------- soft deadline */
 
 test('the deadline is a soft sentence, never a countdown', () => {
-  assert.equal(crExpiryLine('2026-09-21T18:00:00Z', TODAY), 'Répondez aujourd’hui, si vous pouvez.');
-  assert.equal(crExpiryLine('2026-09-22T18:00:00Z', TODAY), 'Répondez d’ici demain, si vous pouvez.');
-  assert.equal(crExpiryLine('2026-09-24T18:00:00Z', TODAY), 'Répondez avant jeudi, si vous pouvez.');
+  assert.equal(crExpiryLine('2026-09-21T18:00:00Z', TODAY), 'Réponds aujourd’hui, si tu peux.');
+  assert.equal(crExpiryLine('2026-09-22T18:00:00Z', TODAY), 'Réponds d’ici demain, si tu peux.');
+  assert.equal(crExpiryLine('2026-09-24T18:00:00Z', TODAY), 'Réponds avant jeudi, si tu peux.');
   const far = crExpiryLine('2026-10-03T18:00:00Z', TODAY);
-  assert.ok(far.startsWith('Répondez avant le 3 octobre'), far);
+  assert.ok(far.startsWith('Réponds avant le 3 octobre'), far);
   for (const line of [
     crExpiryLine('2026-09-21T18:00:00Z', TODAY),
     crExpiryLine('2026-09-24T18:00:00Z', TODAY),
@@ -135,7 +135,7 @@ test('a deadline already past prints nothing — the lapse notice speaks instead
     lapsed: true,
     now: TODAY,
   }));
-  assert.ok(!markup.includes('Répondez avant'));
+  assert.ok(!markup.includes('Réponds avant'));
 });
 
 /* ------------------------------------------------------------- the lapse */
@@ -183,7 +183,7 @@ test('no percentage, no readiness, no formula over word count survives', () => {
     outcome: 'partial',
     measured: { objectives_met: 1, objectives_total: 2, repairs: 1, words_written: 80 },
     correspondent: SAMIRA,
-    storySummary: 'Vous avez promis de passer samedi matin.',
+    storySummary: 'Tu as promis de passer samedi matin.',
   }));
   assert.ok(!/\d+\s?%/.test(markup), 'the debrief must never print a percentage');
   for (const dead of ['Prêt pour la vraie vie', 'readiness', 'naturalness', 'clarté', 'Registre']) {
@@ -211,9 +211,9 @@ test('the mood line is labelled with when it was measured, never as "now"', () =
     outcome: 'kept',
     measured: { objectives_met: 2, objectives_total: 2 },
     correspondent: SAMIRA,
-    storySummary: 'Vous avez promis de passer samedi matin.',
+    storySummary: 'Tu as promis de passer samedi matin.',
   }));
-  assert.ok(markup.includes('À la réception de votre lettre'));
+  assert.ok(markup.includes('À la réception de ta lettre'));
   assert.ok(markup.includes(SAMIRA.mood_line));
   assert.ok(markup.includes('Ce que Samira retient'));
   assert.ok(!markup.includes('maintenant'));
@@ -250,8 +250,8 @@ test('the correspondent view is the thread with one person over weeks', () => {
   // language: French here, as the table defaults to it.
   assert.ok(markup.includes('Samira garde ses distances'));
   assert.ok(markup.includes('2ᵉ lettre sur 3'));
-  assert.ok(markup.includes('Répondez avant jeudi, si vous pouvez.'));
-  assert.ok(markup.includes('Vos 2 lettres précédentes'));
+  assert.ok(markup.includes('Réponds avant jeudi, si tu peux.'));
+  assert.ok(markup.includes('Tes 2 lettres précédentes'));
   assert.ok(markup.includes('Le pain mis de côté'));
   assert.ok(markup.includes('Parole tenue'));
   assert.ok(markup.includes('En partie'));
@@ -283,24 +283,24 @@ test('an answered letter is one seal, not a debrief stacked under a recap (Appen
 /* ------------------------------------------------- the waiting letter row */
 
 test('the waiting letter is a row, never a second press', () => {
-  const markup = render(h(CrLetterRow, { name: 'Samira', hint: 'Samira attend votre réponse.' }));
+  const markup = render(h(CrLetterRow, { name: 'Samira', hint: 'Samira attend ta réponse.' }));
   assert.ok(markup.includes('av2-row'));
   assert.ok(!markup.includes('av2-btn--primary'));
   assert.ok(!markup.includes('<button'));
-  assert.ok(markup.includes('Une lettre vous attend'));
+  assert.ok(markup.includes('Une lettre t’attend'));
 });
 
 test('the hint says which letter it is, then how long there is', () => {
   assert.equal(
     crLetterHint({ name: 'Samira', chain: { index: 2, total: 3 }, expiresAt: '2026-09-24T18:00:00Z', now: TODAY }),
-    '2ᵉ lettre sur 3, de Samira · répondez avant jeudi, si vous pouvez.',
+    '2ᵉ lettre sur 3, de Samira · réponds avant jeudi, si tu peux.',
   );
   assert.equal(
     crLetterHint({ name: 'Romy', origin: 'story_born' }),
-    'Romy vous écrit après l’épisode.',
+    'Romy t’écrit après l’épisode.',
   );
-  assert.equal(crLetterHint({ name: 'Samira' }), 'Samira attend votre réponse.');
-  assert.equal(crLetterHint({}), 'Le Courrier vous attend.');
+  assert.equal(crLetterHint({ name: 'Samira' }), 'Samira attend ta réponse.');
+  assert.equal(crLetterHint({}), 'Le Courrier t’attend.');
 });
 
 test('both Home and the Feuilleton read the letter through /missions/today', () => {

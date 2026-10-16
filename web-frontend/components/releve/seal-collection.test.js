@@ -173,7 +173,7 @@ test('the grid: Monday first, seven columns, the server states as discs', () => 
 test('the rendered collection: one disc per day, the record, fits 320 px', () => {
   const html = renderToStaticMarkup(React.createElement(SealCollectionBody, { payload: payload() }));
   assert.equal((html.match(/class="av2-seal-mini"/g) || []).length, 20 + 1, '20 days in the grid + today');
-  assert.match(html, /aria-label="Vos sceaux · série de 11 jours"/);
+  assert.match(html, /aria-label="Tes sceaux · série de 11 jours"/);
   assert.match(html, /Le sceau du jour attend sa scène\./);
   assert.match(html, /Série · 11 jours · record · 11 jours/);
   assert.match(

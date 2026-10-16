@@ -142,7 +142,7 @@ export function TypedReply({
 }
 
 const SMILES: Record<'fr' | 'en' | 'de', string> = {
-  fr: '{name} vous sourit',
+  fr: '{name} te sourit',
   en: '{name} smiles at you',
   de: '{name} lächelt dich an',
 };

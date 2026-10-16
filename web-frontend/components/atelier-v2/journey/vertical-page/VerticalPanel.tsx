@@ -100,7 +100,7 @@ export function isLearnerLine(line: Pick<ReaderLine, 'you' | 'character'>): bool
 }
 
 /** The learner's label when the line names nobody (the story's own word for the reader). */
-const LEARNER_LABEL = 'Vous';
+const LEARNER_LABEL = 'Toi';
 
 /** The panel's entries in reading order: the captions, then the lines as they are said. */
 export function panelEntries(stage: ReaderPanelStage, head: { eyebrow?: string; title: string } | null): Entry[] {

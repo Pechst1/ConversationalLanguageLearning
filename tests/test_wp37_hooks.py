@@ -424,7 +424,7 @@ def test_a_goalless_brief_falls_back_to_a_line_that_claims_nothing(
     _rehearsal(db_session, user, status="rehearsing", event_date=DAY + timedelta(days=1), goal="")
 
     copy = rehearsal_reminder_copy(db_session, user, today=DAY)
-    assert copy == (REHEARSAL_READY_TITLE, "C’est demain. Répétez-la une fois.")
+    assert copy == (REHEARSAL_READY_TITLE, "C’est demain. Répète-la une fois.")
 
 
 def test_the_push_is_another_learners_business_only(db_session: Session) -> None:
@@ -484,7 +484,7 @@ def test_the_rehearsal_entry_is_gated_on_the_servers_own_answer() -> None:
 def test_the_dossier_entry_is_on_home_in_french_sentence_case() -> None:
     source = _read(ATELIER_PAGE)
     entries = source.split("const homeEntries: HomeEntry[]", 1)[1].split("const homeTiles", 1)[0]
-    assert "Votre dossier" in entries
+    assert "Ton dossier" in entries
     assert "'/dossier'" in entries
     # An edition that failed to load offers no side doors.
     assert "errorOnlyPage" in entries

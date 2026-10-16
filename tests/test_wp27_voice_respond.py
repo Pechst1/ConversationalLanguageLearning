@@ -198,7 +198,7 @@ def test_every_voice_failure_has_a_french_sentence_of_its_own():
     french = copy.split("const FR", 1)[1]
     assert "Écrire plutôt" in french
     assert "Parler" in french
-    for marker in ("réglages", "Sans connexion", "Répondez par écrit"):
+    for marker in ("réglages", "Sans connexion", "Réponds par écrit"):
         assert marker in french, f"the French chrome is missing: {marker}"
 
 

@@ -20,7 +20,7 @@ _REVIEW: dict[str, _Table] = {
         "de": "Ausgewählt, weil die Wiederholung heute fällig ist.",
     },
     "fragile": {
-        "fr": "Choisi parce que ce mot reste fragile dans vos derniers rappels.",
+        "fr": "Choisi parce que ce mot reste fragile dans tes derniers rappels.",
         "en": "Chosen because this word is still fragile in your recent reviews.",
         "de": "Ausgewählt, weil dieses Wort in deinen letzten Wiederholungen noch wackelt.",
     },
@@ -30,7 +30,7 @@ _REVIEW: dict[str, _Table] = {
         "de": "Ausgewählt, weil es zum aktuellen Brief oder zur aktuellen Folge gehört.",
     },
     "topic": {
-        "fr": "Choisi parce qu’il rejoint le sujet de votre édition.",
+        "fr": "Choisi parce qu’il rejoint le sujet de ton édition.",
         "en": "Chosen because it fits the topic of your edition.",
         "de": "Ausgewählt, weil es zum Thema deiner Ausgabe passt.",
     },
@@ -44,13 +44,13 @@ _REVIEW: dict[str, _Table] = {
 }
 _REVIEW["topic_compatible"] = _REVIEW["topic"]
 _REVIEW_DEFAULT: _Table = {
-    "fr": "Choisi d’après votre calendrier de rappel.",
+    "fr": "Choisi d’après ton calendrier de rappel.",
     "en": "Chosen from your review schedule.",
     "de": "Ausgewählt nach deinem Wiederholungsplan.",
 }
 
 _MISSION_SERIAL: _Table = {
-    "fr": "Choisi pour faire avancer votre Feuilleton avec les mots et corrections du jour.",
+    "fr": "Choisi pour faire avancer ton Feuilleton avec les mots et corrections du jour.",
     "en": "Chosen to move your Feuilleton on with today’s words and corrections.",
     "de": "Ausgewählt, um dein Feuilleton mit den Wörtern und Korrekturen von heute voranzubringen.",
 }
@@ -60,7 +60,7 @@ _MISSION_ERRATA: _Table = {
     "de": "Ausgewählt, um eine neue Korrektur in einer echten Situation anzuwenden.",
 }
 _MISSION_DEFAULT: _Table = {
-    "fr": "Choisi pour produire les mots et structures de votre édition.",
+    "fr": "Choisi pour produire les mots et structures de ton édition.",
     "en": "Chosen so you use the words and structures of your edition.",
     "de": "Ausgewählt, damit du die Wörter und Strukturen deiner Ausgabe anwendest.",
 }
@@ -81,7 +81,7 @@ _PANEL_DEFAULT: _Table = {
     "de": "Ausgewählt, um den Sprachpunkt dieser Seite zu prüfen.",
 }
 _DEFAULT: _Table = {
-    "fr": "Choisi d’après les signaux de votre édition.",
+    "fr": "Choisi d’après les signaux de ton édition.",
     "en": "Chosen from your edition’s signals.",
     "de": "Ausgewählt nach den Signalen deiner Ausgabe.",
 }

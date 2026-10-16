@@ -68,7 +68,7 @@ test('the French tables keep the shipped wording', () => {
   assert.equal(fr.text_opening, 'Ouverture du texte…');
   assert.equal(fr.chapter_opening, 'Ouverture du chapitre…');
   assert.equal(fr.goals_missing, 'Encore quelques objectifs à atteindre');
-  assert.ok(fr.reach_goals_many.startsWith('Atteignez au moins'));
+  assert.ok(fr.reach_goals_many.startsWith('Atteins au moins'));
   assert.equal(LAUNE_COPY.fr.retry, 'Réessayer');
   assert.equal(LAUNE_COPY.fr.adjust_time, 'Ajuster le temps de l’édition');
 });
@@ -92,19 +92,19 @@ const SURFACES = {
   ],
   'components/stories/ChapterProgressCard.tsx': [
     'Progression dans le chapitre', 'Objectifs atteints', 'Mots employés', 'Terminer le chapitre',
-    'Encore quelques objectifs à atteindre', 'Atteignez au moins', 'Clôture…',
+    'Encore quelques objectifs à atteindre', 'Atteins au moins', 'Clôture…',
   ],
   'components/stories/StorySessionLayout.tsx': [
     'Quitter le chapitre', 'À reprendre', 'Rien à reprendre.', 'En train d’écrire…', 'Mots suggérés',
-    'Votre réponse, en français', 'Écrivez en français…', '"Envoyer"', 'En liaison', 'Liaison en cours…',
+    'Ta réponse, en français', 'Écris en français…', '"Envoyer"', 'En liaison', 'Liaison en cours…',
   ],
   'components/story/UploadBookModal.tsx': [
-    'Choisissez d’abord un fichier.', 'Envoi en cours…', 'Déposez un fichier ici', 'Titre (facultatif)',
+    'Choisis d’abord un fichier.', 'Envoi en cours…', 'Dépose un fichier ici', 'Titre (facultatif)',
     'Auteur (facultatif)', 'Niveaux visés', 'par ex.', 'Importer le livre', 'Annuler', 'Traitement du livre',
   ],
   'components/laune/LaUne.tsx': [
     '>Réessayer<', 'Continuer <IcoArrow', 'Ajuster le temps de l’édition', 'Plus long que les',
-    'À vous d’écrire', 'Sous presses', 'Illustration retardée', 'jours de suite', 'lecture du soir',
+    'À toi d’écrire', 'Sous presses', 'Illustration retardée', 'jours de suite', 'lecture du soir',
     "'Lire l’épisode — '",
   ],
 };
