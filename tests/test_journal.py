@@ -109,7 +109,7 @@ class _FakeCorrector:
         if self.fail:
             from app.services.llm_service import LLMProviderError
 
-            raise LLMProviderError("journal checker unavailable")
+            raise LLMProviderError(getattr(self, "fail_message", "journal checker unavailable"))
         payload = json.loads(messages[0]["content"])
         content = dict(self.content)
         content.setdefault("verdict", "accepted")
@@ -826,3 +826,66 @@ def test_content_cues_drop_function_words_and_what_the_prompt_gave_away():
     assert "promis" in cues and "rapporter" in cues and "livre" in cues and "mardi" in cues
     assert "romy" not in cues
     assert "vous" not in cues and "avez" not in cues
+
+
+# ---------------------------------------------------------------------------
+# 10. a failed check names its reason and can be run again
+# ---------------------------------------------------------------------------
+
+
+def _failed_entry(db_session, user, message: str = "journal checker unavailable"):
+    concept = _concept(db_session)
+    _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=concept)
+    corrector = _FakeCorrector(fail=True)
+    corrector.fail_message = message
+    return _write(db_session, user, corrector, "J’ai rapporté le livre à Romy mardi.")
+
+
+def test_a_failed_check_says_why_and_can_be_retried(db_session):
+    user = _user(db_session)
+    entry = _failed_entry(db_session, user)
+    assert entry.status == "unavailable"
+    assert entry.correction["failure_reason"] == "model_error"
+
+    good = _FakeCorrector({"verdict": "accepted", "score_0_4": 4, "errata": []})
+    retried = _service(db_session, good).retry_correction(user, entry)
+    assert retried.status == "written"
+    assert retried.assessment_status == "checked"
+    assert retried.correction["verdict"] == "accepted"
+    assert "failure_reason" not in retried.correction
+    assert good.calls == 1
+    # Retrying again buys nothing: the check already stands.
+    _service(db_session, good).retry_correction(user, retried)
+    assert good.calls == 1
+
+
+def test_a_timeout_is_named_as_a_timeout(db_session):
+    user = _user(db_session)
+    entry = _failed_entry(db_session, user, message="OpenAI request timeout after 20s")
+    assert entry.correction["failure_reason"] == "timeout"
+
+
+def test_a_scene_with_nothing_to_check_against_names_that_reason(db_session):
+    user = _user(db_session)
+    _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=None)
+    entry = _write(db_session, user, _FakeCorrector(), "J’ai rapporté le livre à Romy.")
+    assert entry.correction["failure_reason"] == "no_check_target"
+
+
+def test_the_characters_line_follows_the_scenes_register():
+    recall = {
+        "status": "scored",
+        "matched": [],
+        "missed": [{"kind": "outcome", "text_fr": "Ton ordre habituel : un café"}],
+    }
+    line = character_reaction(character_name="Margaux", recall=recall)
+    assert "te regarde" in line and "vous" not in line.lower()
+    assert "vous regarde" in character_reaction(
+        character_name="Margaux", recall=recall, address="vous"
+    )
+    remembered = {
+        "status": "scored",
+        "matched": [{"kind": "commitment", "text_fr": "rapporter le livre"}],
+        "missed": [],
+    }
+    assert "Tu n’as pas oublié" in character_reaction(character_name="Romy", recall=remembered)
