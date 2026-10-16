@@ -4,7 +4,7 @@
  *   1. what the Atelier is (a story you play, a day at a time);
  *   2. the four shapes and what each stands for;
  *   3. how to read the progress row and the mark at the top;
- *   4. what the first day holds: the story, then La Forge, then the words.
+ *   4. what the first day holds: the story, then the words, then La Forge.
  *
  * The situation and the characters follow on the next screen (`CastIntro`),
  * so they are not repeated here. Shown once per device; «Überspringen» counts

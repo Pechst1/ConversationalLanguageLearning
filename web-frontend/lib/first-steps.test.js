@@ -1,7 +1,7 @@
 // node --test lib/first-steps.test.js
 //
 // GENTLE-ONBOARDING (owner, 2026-10-12): the walkthrough, the first-time
-// stickers and the first day's route (story → La Forge → words).
+// stickers and the first day's route (story → words → La Forge).
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -31,13 +31,13 @@ function memory() {
   };
 }
 
-test('the first day runs story, then La Forge, then the words', () => {
-  assert.deepEqual([...steps.ROUTE_STAGES], ['story', 'forge', 'words']);
+test('the first day runs story, then the words, then La Forge (the server plan’s order)', () => {
+  assert.deepEqual([...steps.ROUTE_STAGES], ['story', 'words', 'forge']);
   assert.equal(steps.nextRouteStage([]), 'story');
-  assert.equal(steps.nextRouteStage(['story']), 'forge');
-  assert.equal(steps.nextRouteStage(['story', 'forge']), 'words');
-  // Words done before the forge still sends the learner to the forge next.
+  assert.equal(steps.nextRouteStage(['story']), 'words');
   assert.equal(steps.nextRouteStage(['story', 'words']), 'forge');
+  // La Forge done before the words still sends the learner to the words next.
+  assert.equal(steps.nextRouteStage(['story', 'forge']), 'words');
   assert.equal(steps.nextRouteStage(['story', 'forge', 'words']), null);
 });
 

@@ -46,10 +46,18 @@ function fakeStorage(seed = {}) {
 }
 
 const LEGACY = JSON.stringify({
-  href: '/atelier?resume=session-42',
+  href: '/missions?mission=42',
+  kind: 'mission',
+  entityId: 42,
+  updatedAt: '2026-09-06T08:00:00.000Z',
+});
+
+// What Home used to write for every unfinished La Forge it loaded.
+const FORGE = JSON.stringify({
+  href: '/missions?mission=42',
   kind: 'atelier',
   entityId: 'session-42',
-  updatedAt: '2026-09-06T08:00:00.000Z',
+  updatedAt: '2026-10-14T08:00:00.000Z',
 });
 
 function markOf(status, updatedAt = new Date().toISOString()) {
@@ -83,7 +91,18 @@ test('D-1: an open journey outranks the stored legacy practice session', () => {
 
 test('with no journey mark the legacy activity resumes exactly as before', () => {
   const storage = fakeStorage({ 'pilot:resume:v1': LEGACY });
-  assert.equal(resume.resolveResumeHref(new Date(), storage), '/atelier?resume=session-42');
+  assert.equal(resume.resolveResumeHref(new Date(), storage), '/missions?mission=42');
+});
+
+test('2026-10-14: an unfinished La Forge never takes over a launch; Home opens it', () => {
+  const storage = fakeStorage({ 'pilot:resume:v1': FORGE });
+  assert.equal(resume.resolveResumeHref(new Date(), storage), null);
+  for (const url of ['/', '/atelier']) {
+    assert.equal(resume.resolveLaunchResumeHref(url, new Date(), storage), null, `${url} stays on Home`);
+  }
+  const fs = require('node:fs');
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+  assert.ok(!page.includes("kind: 'atelier'"), 'Home no longer stores the Forge as a launch target');
 });
 
 test('with neither, nothing is navigated to', () => {
@@ -100,7 +119,7 @@ test('a finished or abandoned journey never wins', () => {
     });
     assert.equal(
       resume.resolveResumeHref(new Date(), storage),
-      '/atelier?resume=session-42',
+      '/missions?mission=42',
       `${status} must fall through to the legacy activity`,
     );
   }
@@ -112,7 +131,7 @@ test('a mark older than the 48h window is discarded, not resumed', () => {
     'pilot:resume:v1': LEGACY,
     [resume.JOURNEY_RESUME_KEY]: markOf('active', stale),
   });
-  assert.equal(resume.resolveResumeHref(new Date(), storage), '/atelier?resume=session-42');
+  assert.equal(resume.resolveResumeHref(new Date(), storage), '/missions?mission=42');
   assert.equal(resume.readJourneyResume(new Date(), storage), null);
 });
 

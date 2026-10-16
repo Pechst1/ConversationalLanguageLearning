@@ -1,19 +1,17 @@
 # The improvement loop
 
 Goal: the app gets a little better every day without anyone having to remember to
-test it. Two walks find problems, issues hold them, small PRs fix them, the next walk
-checks the fix.
+test it. The walks find problems, issues hold them as a queue, the night shift fixes
+as many as it can in parallel, the owner merges in the morning, the next walk checks
+the fix.
 
 ```
- nightly (after the scripted walk)            on every PR
- ┌──────────────────────────────┐            ┌───────────────────────┐
- │ 1. scripted walk (CI)        │            │ scripted walk (CI)    │
- │ 2. explore walk, 2 personas  │            │ catches regressions   │
- │ 3. rank → issues             │            └───────────────────────┘
- │ 4. re-test merged fixes      │
- │ 5. fix top finding → draft PR│──► owner reviews and merges ──► Render deploys
- └──────────────────────────────┘                                        │
-            ▲────────────────────── next night re-tests ◄────────────────┘
+ Berlin   02:17 scripted walk (CI, fake provider)
+          03:43 live walk (Mac, real model, production)  ─┐
+          04:57 explore walk (cloud, fake provider)       ├─► issues + triage → queue:ready
+          06:30 night shift (cloud): plan → fix ×15 in waves of 5 → verify → digest
+ morning  owner merges (ready-to-merge list first) ──► CI on main ──► Render deploys
+ next     live walk checks /health release, re-tests deployed fixes, closes or reopens
 ```
 
 ## The two walks
@@ -35,20 +33,67 @@ A finding from the explore walk that can be checked mechanically becomes a new
 assertion in `e2e/lib/learner-walk.mjs`, so it can never come back unnoticed. That is
 how the scripted walk grows.
 
-## The nightly routine
+## The queue
 
-A Claude Code routine fires a fresh cloud session each night and runs:
+The open `walk-finding` issues are the queue. Every walk ends with **triage**: each
+new or changed finding gets exactly one state, one lane and one size, and a comment
+that starts with **Done when:** and names the check a fix must pass.
 
-1. Pull `main`, read the last scripted walk's summary.
-2. Run the explore walk (`explore-walk` skill) for two personas, rotating the third.
-3. File or update `walk-finding` issues, ranked; write `docs/ops/walks/<date>.md` with
-   the rubric scores and their trend.
-4. Re-test the issues whose fix merged; close the fixed ones with a screenshot.
-5. Take the top finding that is small and not in the story engine, fix it on a
-   branch, add the assertion that would have caught it, run the fast checks and the
-   scripted walk, open a **draft** PR. It never merges and never deploys.
-6. Story-engine findings get the `area:story-engine` label and go to whoever owns the
-   story work, not into a quick fix.
+| label | meaning |
+|---|---|
+| `queue:ready` | reproduced, has a done-when, small enough for one night |
+| `queue:working` | claimed by a night-shift agent (never two on one issue) |
+| `queue:pr` | a PR that fixes it is open, or merged and waiting for the live check |
+| `queue:owner` | needs the owner: a product decision, a device check, or another thread owns it |
+| `lane:code` / `lane:story` | how it is fixed and proven (below) |
+| `size:S` / `size:M` | one focused change / several files or one subsystem; larger work is split or goes to `queue:owner` |
+
+`scripts/loop/loop_queue.py` does the label moves (`claim`, `release`, `mark-pr`),
+lists the queue in fix order (`ready`: severity, then size, then age), creates the
+labels (`ensure-labels`) and writes the digest (`digest`).
+
+Lanes:
+
+- **code** (UI, drills, API, copy): the PR adds the test or walk assertion that fails
+  without the fix. Small ones outside the owner-only paths get `loop:merge-ready`.
+- **story** (prompts, guards, authored lines): the PR adds a deterministic guard or the
+  smallest prompt change, plus a test that feeds the walk's **exact** text and asserts
+  it is caught. Always a draft with `needs-owner-review`. No paid model calls in tests.
+
+## The nightly routines
+
+1. **Live walk** (Mac, 03:43, `atelier-live-walk` scheduled task, `docs/ops/live-walk.md`):
+   checks `/health` `release` against main, plays today's real day, files findings,
+   re-tests the `queue:pr` issues whose PR is merged **and deployed**, closes the fixed
+   ones and reopens the rest, triages.
+2. **Explore walk** (cloud, 04:57, `explore-walk` skill): fake provider, two personas,
+   report in `docs/ops/walks/<date>.md`, files findings, re-tests merged code-lane
+   fixes, triages. It no longer fixes anything itself.
+3. **Night shift** (cloud, 06:30, `night-shift` skill and `.claude/workflows/night-shift.js`):
+   - plans clusters from `queue:ready` so no two agents touch the same file;
+   - takes up to 3 `root-cause` issues first, each with its ready children;
+   - fixes up to 15 clusters (at most 3 story) in waves of 5, each agent in its own
+     worktree and branch `claude/night-<date>-<issue>`;
+   - has a second agent review every PR against the done-when; only a passing review
+     adds `loop:merge-ready`, and a PR that fails becomes a draft and gets a comment;
+   - posts the digest: queue counts, tonight's PRs, the ones ready to merge, anything
+     left `queue:working`, and what waits for the owner.
+   With 30 or more night-shift PRs open it opens nothing new.
+   Cloud sessions block GitHub GraphQL, so the loop never calls `gh issue` or `gh pr`:
+   `loop_queue.py` talks REST through `gh api` and also covers reading an issue,
+   commenting, opening a PR, its diff and the verifier's verdict.
+   `scripts/loop/setup_env.sh` sets up the Python 3.11 venv and node_modules the
+   focused checks need.
+
+Nothing in the loop merges, deploys or pushes to main. The owner merges; for the
+small code fixes, `python scripts/loop/loop_queue.py merge-ready` lists the PRs whose
+every check is green, that are under 400 lines and touch no owner-only path (story
+engine, data model, deploy, CI, the loop's own rules), and `--merge` merges exactly
+those with the owner's login, so CI runs on main and Render deploys.
+
+**Merged is not live.** Render deploys only after main's checks pass, so the live
+walk compares `GET /health` → `release` (the deployed commit) with the merge commit
+before it re-tests a fix.
 
 ## Live mode (owner decision)
 

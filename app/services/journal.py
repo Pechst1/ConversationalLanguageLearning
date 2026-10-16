@@ -380,7 +380,30 @@ def score_content_recall(text: str, facts: list[dict[str, Any]]) -> dict[str, An
 # ---------------------------------------------------------------------------
 
 
-def character_reaction(*, character_name: str | None, recall: dict[str, Any]) -> str | None:
+#: How the journal's characters speak to the learner. The scenes they come out
+#: of use «tu» (the owner's decision, #144), so a line pasted next to a scene
+#: quote («Ton ordre habituel : un café») must not switch to «vous». One place
+#: to change it until #144 gives the whole app a single per-language setting.
+JOURNAL_ADDRESS = "tu"
+
+_REACTION_FORMS = {
+    "tu": {
+        "remembered": "Tu n’as pas oublié",
+        "looks": "te regarde",
+    },
+    "vous": {
+        "remembered": "Vous n’avez pas oublié",
+        "looks": "vous regarde",
+    },
+}
+
+
+def character_reaction(
+    *,
+    character_name: str | None,
+    recall: dict[str, Any],
+    address: str = JOURNAL_ADDRESS,
+) -> str | None:
     """One line, about the *content*, composed from public story context.
 
     Authored rather than generated: a second paid call for one sentence would
@@ -389,12 +412,16 @@ def character_reaction(*, character_name: str | None, recall: dict[str, Any]) ->
     fact the learner remembered, or the one they did not — and it never praises
     a recap that recalled nothing.
 
+    ``address`` is the register the line speaks in; it must agree with the
+    scene fact it quotes, which is written in the scene's own register.
+
     ``None`` when there is nothing honest to say (no facts, or no name to say it
     with). An empty compliment is worse than silence.
     """
     name = str(character_name or "").strip()
     if not name or recall.get("status") != "scored":
         return None
+    forms = _REACTION_FORMS.get(address, _REACTION_FORMS[JOURNAL_ADDRESS])
     matched = list(recall.get("matched") or [])
     missed = list(recall.get("missed") or [])
 
@@ -404,12 +431,12 @@ def character_reaction(*, character_name: str | None, recall: dict[str, Any]) ->
 
     commitments = [item for item in matched if item.get("kind") == "commitment"]
     if commitments:
-        return f"{name} hoche la tête. « Vous n’avez pas oublié : {short(commitments[0])}. »"
+        return f"{name} hoche la tête. « {forms['remembered']} : {short(commitments[0])}. »"
     if matched:
         return f"{name} sourit. « Oui, c’est bien comme ça que ça s’est passé. »"
     if missed:
         return (
-            f"{name} vous regarde. « Il manque quelque chose : "
+            f"{name} {forms['looks']}. « Il manque quelque chose : "
             f"{short(missed[0])}. »"
         )
     return None
@@ -661,10 +688,7 @@ class JournalService:
         entry.entry_text = written
         entry.written_at = _utcnow()
 
-        correction, corrector = self._correct(user, entry, written, truncated=truncated)
-        checked = correction.get("assessment_status") == "checked"
-        entry.assessment_status = "checked" if checked else "unavailable"
-        entry.status = "written" if checked else "unavailable"
+        self._settle_correction(user, entry, written, truncated=truncated)
 
         recall = score_content_recall(written, list(entry.scene_facts or []))
         entry.content_recall = recall
@@ -672,6 +696,47 @@ class JournalService:
         entry.reaction_fr = character_reaction(
             character_name=(entry.cue or {}).get("character_name"), recall=recall
         )
+
+        self.db.add(entry)
+        self.db.commit()
+        self.db.refresh(entry)
+        return entry
+
+    def retry_correction(self, user: User, entry: JournalEntry) -> JournalEntry:
+        """Run the check again on text that is already stored.
+
+        Only an entry whose check failed (``unavailable``) buys another call; a
+        checked entry is returned untouched, so a double tap never pays twice.
+        The learner's paragraph is never re-sent or edited, and the content half
+        (recall, the character's line) does not depend on the provider, so it
+        stays as it was.
+        """
+        if entry.status != "unavailable" or not str(entry.entry_text or "").strip():
+            return entry
+        bounded, truncated = bound_learner_answer(
+            {"text": entry.entry_text}, max_chars=ENTRY_MAX_CHARS
+        )
+        self._settle_correction(
+            user, entry, str(bounded.get("text") or entry.entry_text), truncated=truncated
+        )
+        self.db.add(entry)
+        self.db.commit()
+        self.db.refresh(entry)
+        return entry
+
+    def _settle_correction(
+        self, user: User, entry: JournalEntry, written: str, *, truncated: bool
+    ) -> None:
+        """Correct ``written`` and set everything that hangs off the verdict.
+
+        Shared by the first write and the retry, so a retried check lands in
+        exactly the state a first-time success would have (errata, credit,
+        status) and the two cannot drift apart.
+        """
+        correction, corrector = self._correct(user, entry, written, truncated=truncated)
+        checked = correction.get("assessment_status") == "checked"
+        entry.assessment_status = "checked" if checked else "unavailable"
+        entry.status = "written" if checked else "unavailable"
 
         if checked:
             entry.errata_ids = self._record_errata(user, entry, correction)
@@ -681,15 +746,29 @@ class JournalService:
             # must not move a schedule in either direction.
             entry.errata_ids = []
             entry.vocabulary_credit = {"status": "skipped", "reason": "assessment_unavailable"}
+            correction = {
+                **correction,
+                "failure_reason": self._failure_reason(user, entry, corrector),
+            }
 
+        previous_calls = int((entry.correction or {}).get("paid_calls") or 0)
         entry.correction = {
             **correction,
-            "paid_calls": int(getattr(corrector, "paid_calls", 0)),
+            "paid_calls": previous_calls + int(getattr(corrector, "paid_calls", 0)),
         }
-        self.db.add(entry)
-        self.db.commit()
-        self.db.refresh(entry)
-        return entry
+
+    def _failure_reason(self, user: User, entry: JournalEntry, corrector: Any) -> str:
+        """Why the check did not happen: ``no_check_target`` | ``timeout`` | ``model_error``.
+
+        ``no_check_target`` is the one a retry cannot fix (the scene taught no
+        grammar to anchor on), so the client offers no button for it.
+        """
+        reason = getattr(corrector, "_llm_failure_reason", None)
+        if reason in {"timeout", "model_error"}:
+            return reason
+        if getattr(corrector, "paid_calls", 0) == 0 and self.concepts_for(user, entry) is None:
+            return "no_check_target"
+        return "model_error"
 
     def answer_followup(self, user: User, entry: JournalEntry, *, text: str) -> JournalEntry:
         """The +7-day line. Its answer is the ``used_again_later`` signal.

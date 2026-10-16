@@ -60,8 +60,8 @@ from app.services.revue.dossier import (
 )
 from app.services.revue.sources import text_hash
 
-#: v2 (WP-119 §8.4): the dossier carries the story picture's ``visual``.
-BUILDER_VERSION = "revue-builder-v2"
+#: v2 (WP-119 §8.4): the dossier carries the story picture's ``visual``; v3: its ``kind`` and the picture rules.
+BUILDER_VERSION = "revue-builder-v3"
 #: What the provider may read of one article (the rest is not needed for six claims).
 ARTICLE_CHARS_FOR_PROVIDER = 6000
 #: The angle purposes a dossier offers, in the order the builder asks for them (§5.2).
@@ -214,6 +214,44 @@ def provider_context(story: StoryInput) -> dict[str, Any]:
     }
 
 
+#: v2 (owner, 2026-10-14: «too generic, the people and setting reveal nothing about the news»): the
+#: story picture's brief, shared by the builder and the picture desk (:func:`rebrief_visual`).
+VISUAL_SPEC = """{"kind": "scene"|"editorial" (see PICTURE RULES),
+            "moment": str (English, at most 60 words: what the picture shows. scene: the real moment at places[0]
+             — who, by ROLE and never by name, doing what, with at least three concrete details taken from the
+             sources (the vehicles, the products, the equipment, the weather, how many people). editorial: how
+             the idea is staged and where),
+            "symbol": str|null (English: the one concrete object or juxtaposition that carries the story's tension.
+             REQUIRED for editorial, where it is the subject of the picture, large in the frame — «a shopping
+             trolley full of groceries weighed on a giant kitchen scale whose needle is pushed into the red»; for a scene the key object in it, or null),
+            "viewpoint": str (English: where the viewer stands — «from the public gallery high above the
+             chamber», «close to the table, at eye level»),
+            "light": str (English: the light and the time of day),
+            "words": [{"fr": str (ONE short noun with le/la/l'/les, 1 to 3 words, copied letter for letter from
+             one claim's fr — «le poulet», «les plagiats» — never a sentence), "shows": str (English: what in the
+             picture shows it)}] (2 or 3 things the picture shows),
+            "caption_fr": str (the desk's caption under the picture: one A2-B1 sentence, who or what and where; it
+             names the people it shows with their role and uses at least one of the words),
+            "look_fr": str (Romy pointing at the picture for the learner: 1-2 short A2 sentences in the present tense
+             using the words — «Regarde : le ministre parle à la tribune. Devant lui, une ligne rouge.»),
+            "decoys_fr": [str, str] (two wrong captions in the caption's style, each plainly contradicted by the
+             picture: ONE visible detail changed — the place, who acts, or what they do — and never a claim of the
+             story)"""
+
+PICTURE_RULES = """PICTURE RULES (visual): you are the paper's art director. The picture must belong to this story and to
+no other: someone who sees it beside this week's other pictures must be able to tell which headline it goes
+with. Choose "scene" when the news visibly happened somewhere (a strike, a fire, a match, a market, a protest, a
+launch, a harvest) and stage it at the real place with the details the sources give. Choose "editorial" when the
+news is something said, written, decided, counted or disputed (a statement, a denial, an accusation, a vote, a
+budget, a poll, a report, a price): one bold, concrete visual idea, the way a newspaper's cover illustrator
+would draw it, beats people talking. Be surprising and specific; never fall back on people at desks, typing on
+laptops, reading papers, holding microphones or shaking hands, nor on a generic view of a city, unless that is
+literally the news. Real people appear by their role, never by name and never as a likeness or a portrait.
+Lettering that belongs in the scene is welcome wherever it helps tell the story (a menu, a shop sign, a price
+tag, a score, a book cover, a label): put the words you want in «guillemets», in real French, true to the
+sources. Never invent a quotation, headline or statement by a real person or organisation; words someone said
+appear only copied from a claim's quote. No flags, logos, emblems, placards or banners."""
+
 BUILDER_INSTRUCTIONS = """You are the fact desk of «Le Papier de Romy», a French-learning app.
 From the INPUT articles about one French news story of the week, write ONE editorial dossier as JSON:
 {"title_fr": str, "summary_fr": str (2-3 plain sentences, A2-B1 French),
@@ -228,32 +266,14 @@ From the INPUT articles about one French news story of the week, write ONE edito
  "places": [{"id": snake_case str, "name_fr": str, "brief": str}] (1 or 2),
  "time_scope": {"happening": "YYYY-MM-DD/YYYY-MM-DD", "relevant_until": "YYYY-MM-DD"},
  "vignette_object_fr": str (one drawable object, with its article: «une urne»),
- "visual": {"moment": str (English: the ONE moment of the story that says what happened, as a scene in places[0]: who
-             does what, people named only by their ROLE — «the economy minister speaking at the tribune, the benches
-             full of deputies» — never by name),
-            "symbol": str|null (English: one concrete object in that scene that carries the story's idea — «a single
-             taut red cord stretched across the floor» for a red line; null when the moment says it alone),
-            "viewpoint": str (English: where Romy and the learner stand to see it — «from the public gallery high
-             above the chamber»),
-            "light": str (English: the light and the time of day),
-            "words": [{"fr": str (a noun with le/la/l'/les, copied from one claim's fr), "shows": str (English: what
-             in the picture shows it)}] (2 or 3 things the picture shows),
-            "caption_fr": str (the desk's caption under the picture: one A2-B1 sentence, who or what and where; it
-             names the people it shows with their role and uses at least one of the words),
-            "look_fr": str (Romy pointing at the picture for the learner: 1-2 short A2 sentences in the present tense
-             using the words — «Regarde : le ministre parle à la tribune. Devant lui, une ligne rouge.»),
-            "decoys_fr": [str, str] (two wrong captions in the caption's style, each plainly contradicted by the
-             picture: ONE visible detail changed — the place, who acts, or what they do — and never a claim of the
-             story)}}
+ "visual": """ + VISUAL_SPEC + """}
 Rules: every quote is copied character for character from that item's text; a fact reports, it never judges
 (no «heureusement», «scandaleux», «il faut»); no relative dates («demain», «jeudi», «la semaine prochaine») —
 write absolute dates; happening must overlap week_monday..week_sunday and relevant_until must be on or after
 week_sunday; a place brief is the place's NAME + three distinctive, checkable landmarks + the light, never a
 type of place, and names no person; participation is how the learner would take part (helps at a stall, works
-on a site, formal role) — "none" when they only watch. The picture (visual) is a flat screen print seen from a
-distance: never ask for a face, an expression, a likeness, readable text or numbers, a sign, a banner, a placard,
-a flag, a logo or an emblem; people are small figures defined by what they do and where they stand. Show the
-story's moment, not a generic view of the place."""
+on a site, formal role) — "none" when they only watch. 
+""" + PICTURE_RULES
 
 
 @dataclass
@@ -543,6 +563,7 @@ def _repair_visual(raw: Any, dossier: EditorialDossier, result: BuildResult) -> 
         result.repairs.append("visual:missing")
         return None
     data: dict[str, Any] = {key: raw.get(key) for key in ("moment", "symbol", "viewpoint", "light", "caption_fr", "look_fr")}
+    kind = str(raw.get("kind") or "scene").strip().lower()
     for key in ("moment", "symbol", "viewpoint", "light"):
         value = re.sub(r"\s+", " ", str(data.get(key) or "")).strip()
         repaired = _replace_names(value, dossier)
@@ -563,6 +584,10 @@ def _repair_visual(raw: Any, dossier: EditorialDossier, result: BuildResult) -> 
         if len(words) < 3 and fold(fr).casefold() not in {fold(w["fr"]).casefold() for w in words}:
             words.append({"fr": fr, "shows": shows})
     data["words"] = words
+    # An editorial picture is its symbol: without one it falls back to the scene.
+    data["kind"] = "editorial" if kind == "editorial" and data.get("symbol") else "scene"
+    if kind == "editorial" and data["kind"] == "scene":
+        result.repairs.append("visual:editorial_without_symbol")
     place = dossier.places[0]
     caption = re.sub(r"\s+", " ", str(data.get("caption_fr") or "")).strip()
     if not caption or checks._relative_dates(caption, weekdays_allowed=False):  # noqa: SLF001 - the Temporal rule
@@ -677,6 +702,55 @@ def _visual_after_checks(dossier: EditorialDossier, result: BuildResult) -> Edit
         result.repairs.append("visual:refused:" + ",".join(sorted({p.reason or p.check for p in problems})))
         return dossier.model_copy(update={"visual": None})
     return dossier
+
+
+PICTURE_DESK_INSTRUCTIONS = (
+    """You are the art director of «Le Papier de Romy», a French-learning app. From the INPUT dossier of one
+news story of the week, write ONLY the story picture's brief as JSON: {"visual": """
+    + VISUAL_SPEC
+    + """}
+Copy each word's fr from a claim's fr; places[0] is where a scene happens.
+"""
+    + PICTURE_RULES
+)
+
+
+def rebrief_visual(dossier: EditorialDossier, provider: Any = None) -> tuple[StoryVisual | None, list[str]]:
+    """The picture desk: a fresh ``visual`` for a built dossier under the current picture rules
+    (one small JSON call), repaired and checked like the builder's. Used before a dossier built
+    under older rules is painted, and to try the rules on a real story. Returns the visual (or
+    ``None`` when it fails the checks or the call) and the repairs."""
+
+    result = BuildResult(story_key=dossier.id)
+    if not dossier.places:
+        return None, ["visual:no_place"]
+    payload = {
+        "title_fr": dossier.title_fr,
+        "summary_fr": dossier.summary_fr,
+        "topic": dossier.topic,
+        "claims": [
+            {"fr": c.fr, "quote": c.quote, "kind": c.kind, "attributed_to": c.attributed_to} for c in dossier.claims
+        ],
+        "entities": [e.model_dump(exclude_none=True) for e in dossier.entities],
+        "places": [{"id": p.id, "name_fr": p.name_fr, "brief": p.brief} for p in dossier.places],
+    }
+    if provider is None:
+        from app.services.revue.encounter import OpenAIRevueProvider
+
+        provider = OpenAIRevueProvider(name="openai-revue-picture-desk", max_tokens=1600)
+    try:
+        raw = provider.ask_json(
+            PICTURE_DESK_INSTRUCTIONS,
+            payload,
+            system="You are a newspaper art director briefing an illustrator. Answer with JSON only.",
+            temperature=0.7,
+            label="rebrief_visual",
+        )
+    except Exception as exc:  # noqa: BLE001 - the dossier keeps the visual it has
+        logger.bind(dossier=dossier.id).warning("revue picture desk failed ({})", exc)
+        return None, ["visual:desk_failed"]
+    visual = _repair_visual(raw.get("visual", raw) if isinstance(raw, dict) else raw, dossier, result)
+    return visual, result.repairs
 
 
 def _reason_for(failed: list[checks.CheckResult], claim_id: str) -> str:

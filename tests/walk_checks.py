@@ -58,10 +58,10 @@ def _fake_strings() -> frozenset[str]:
         "La journée se termine.",
         "Vous avez parlé.",
     }
-    from tests.learner_walk import B1_MOVES
+    from tests.learner_walk import B1_ANSWER
 
-    # learner_walk.fit_level: the walk director's B1+ objectives.
-    strings |= set(B1_MOVES.values())
+    # learner_walk.fit_level: the walk director's B1+ answer.
+    strings.add(B1_ANSWER)
     return frozenset(" ".join(text.split()) for text in strings)
 
 

@@ -45,7 +45,6 @@ import {
   cacheAtelierEdition,
   clearResumeActivity,
   readCachedAtelierEdition,
-  saveResumeActivity,
 } from '@/lib/pilot-resilience';
 import { homeRender, readHomeKind, rememberHomeKind, resolvedHomeKind, type HomeKind } from '@/lib/home-loading';
 import { type LuAskKind } from '@/components/laune/LaUne';
@@ -122,12 +121,12 @@ import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
 import { DaySessionNext, TempoSheet } from '@/components/atelier-v2/home/DaySession';
 import {
   daySessionCopy,
-  sessionAfterGrammar,
   sessionMarkState,
   sessionMore,
   sessionNextAction,
   sessionRows,
 } from '@/lib/day-session';
+import { dayIsDone, handOnAfterGrammar } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
 import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
@@ -189,6 +188,7 @@ import { revueClient } from '@/lib/revue-api';
 import type { RvWeekResult } from '@/lib/revue-types';
 import {
   dayShapeFrom,
+  isRevueDay,
   revueDossierHref,
   revueHeroOpensDay,
   revueOpenHref,
@@ -901,11 +901,10 @@ export default function AtelierPage() {
 
   useEffect(() => {
     if (!session || session.status === 'completed' || forgeViewOf(session.forge)?.mode === 'test_out') return;
-    saveResumeActivity({
-      href: `/atelier?resume=${session.session_id}`,
-      kind: 'atelier',
-      entityId: session.session_id,
-    });
+    // No launch resume for the Forge (`lib/journey-resume.ts`): a cold start
+    // shows Home, whose day button opens the Forge step. Clear what an older
+    // build stored so it cannot come back.
+    clearResumeActivity('atelier');
     const requestedSession = router.query.resume ?? router.query.session;
     if (router.isReady && requestedSession === session.session_id) setView('session');
   }, [router.isReady, router.query.resume, router.query.session, session]);
@@ -1077,8 +1076,8 @@ export default function AtelierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [journey.envelope],
   );
-  /* GENTLE-ONBOARDING: the learner's first day is the story, then La Forge,
-     then the words. Its route is drawn after the recap and on Home once the
+  /* GENTLE-ONBOARDING: the learner's first day is the story, then the words,
+     then La Forge. Its route is drawn after the recap and on Home once the
      story is done; La Forge opens at the server's forge href on every rhythm
      (the first day folds nothing in). */
   const firstDayJourney = castIntroOf(journey.journey).length > 0;
@@ -1142,6 +1141,13 @@ export default function AtelierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storyCompleted, journey.envelope, firstDayJourney, firstDayForgeHref, firstDayDone, dayProgress.vocabularyDue, wordsDoneOnDevice, practiceEntry, today]);
   const firstDayRouteOnHome = continueRoute !== null;
+  /* #143 / #153: «the day is done» has one reader. With the server's plan it is
+     `dayIsDone(plan)` — a stopped or finished scene never decides it. The device
+     route (`continueRoute`) answers only where the server sent no plan. */
+  const envelopePlan = journey.envelope?.session ?? null;
+  const restOfDayOpen = envelopePlan
+    ? !dayIsDone(envelopePlan)
+    : Boolean(continueRoute && continueRoute.plan.next !== 'more');
   // WP-24: why today's scene is this scene. `null` unless the plan actually
   // kept a target that exists because of a recorded mistake.
   const becauseLine = useMemo(() => journeyBecause(journey.envelope), [journey.envelope]);
@@ -1174,11 +1180,14 @@ export default function AtelierPage() {
     rememberedKind: rememberedHomeKind,
   }) === 'skeleton';
 
+  // Clamp to the container's items. Live walk #148: against the output-scoped
+  // index (always 0) this undid every forge seat on a second output item, so
+  // the answered first item came back and «Continue» never moved.
   useEffect(() => {
-    if (!activeRetest && activeItemIndex !== activeItemIndexSafe) {
-      setActiveItemIndex(activeItemIndexSafe);
+    if (!activeRetest && activeItemIndex !== baseActiveItemIndexSafe) {
+      setActiveItemIndex(baseActiveItemIndexSafe);
     }
-  }, [activeItemIndex, activeItemIndexSafe, activeRetest]);
+  }, [activeItemIndex, baseActiveItemIndexSafe, activeRetest]);
 
   function applyAttemptResult(key: string, result: AtelierAttemptResult, replaceErrata = false, schedulePending = true) {
     const correction = correctionWithAiReview(result);
@@ -1741,7 +1750,7 @@ export default function AtelierPage() {
 
   // An envelope not read yet still ends the day's grammar on «Fertig», which says what is left.
   const dayHandOn = forgeFromDay
-    ? sessionAfterGrammar(journey.envelope?.session, pageChromeLanguage)
+    ? handOnAfterGrammar(journey.envelope?.session, pageChromeLanguage)
       ?? { label: daySessionCopy(pageChromeLanguage).next_finish, href: '/fertig' }
     : null;
 
@@ -2128,7 +2137,7 @@ export default function AtelierPage() {
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
-                      restOfDayOpen={Boolean(continueRoute && continueRoute.plan.next !== 'more')}
+                      restOfDayOpen={restOfDayOpen}
                       onOpenLegacy={(href) => {
                         // The old Atelier session is resumed on its own terms: the
                         // journey never converts, replaces or completes it.
@@ -2829,6 +2838,9 @@ function TodayView({
         special: specialEdition,
       })
     : { chip: null, hero: null };
+  // The programme still names the day's first step «Le Papier» on the Revue
+  // day once the Papier is filed and the hero is the day's card again.
+  const revueDayToday = Boolean(homeDay) && isRevueDay(dayShapeFrom(dayJourney, dayEnvelope), specialEdition);
   const revueDayDone = Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done);
   const revueHero = revueEntry.hero
     ? (() => {
@@ -3068,7 +3080,7 @@ function TodayView({
       // (Le Papier first); only an interlude has no scene to plan.
       planHidden={(Boolean(revueHero) && !daySession) || Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
       session={daySession ? {
-        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) }),
+        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) || revueDayToday }),
         tempoLabel: sessionCopy.tempo(sessionCopy.pace[daySession.pace]),
         onTempo: () => setTempoOpen(true),
       } : null}

@@ -492,6 +492,52 @@ def test_a_correctness_critic_refusal_falls_to_the_reread(
     assert len(readings) >= 2 and all(row.payload["class"] == CORRECTNESS for row in readings)
 
 
+#: Phase 1: a page refused only for how it reads. «contradicts» alone would read as a
+#: canon defect (``issue_class``); the rubric says it is not one.
+READER_ONLY = {
+    **CONTINUITY,
+    "honours_choices": True,
+    "reads_like_people": False,
+    "one_plain_question": False,
+    "issues": [
+        "Cut the caption «Tout le monde attend ta décision»: show what Margaux does instead.",
+        "The task contradicts Margaux's question; ask one plain thing.",
+    ],
+}
+
+
+def test_a_reader_only_critic_refusal_is_served_and_logged_as_storytelling(
+    assembled_client, db_session, journey_enabled, clock, season_on, monkeypatch  # noqa: F811
+):
+    fake = season_on
+    fake.critic_refusals_left = 0
+    fake.spoil_once = False
+    headers, user = _first_gap_day(assembled_client, db_session, clock, fake)
+    original = fake.generate_chat_completion
+    read: list[dict] = []
+
+    def reader_refusals(messages, **kwargs):
+        data = json.loads(messages[0]["content"])
+        if data["output_schema"]["title"] == "StoryReview":
+            read.append(data["data"])
+            return SimpleNamespace(content=json.dumps(READER_ONLY), model="fake-season", provider="test", total_tokens=30, cost=0.0)
+        return original(messages, **kwargs)
+
+    monkeypatch.setattr(fake, "generate_chat_completion", reader_refusals)
+    transcript = _play(assembled_client, db_session, headers, A1_DE, 3, fake)
+    assert not transcript["scenario"]["scenario_key"].startswith(REPRISE_SCENARIO_PREFIX), "the day is served"
+    overrides = _review_events(db_session, user.id, "journey_story_critic_override")
+    assert len(overrides) == 1 and overrides[0].payload["class"] == STORYTELLING
+    assert overrides[0].payload["reads_like_people"] is False and overrides[0].payload["moves_on"] is True
+    readings = _review_events(db_session, user.id, "journey_story_critic_review")
+    assert readings and all(row.payload["class"] == STORYTELLING for row in readings)
+    # The critic compared the page with the days before it (T1's two), as a reader would.
+    assert read and all(1 <= len(row["recent_days"]) <= 3 for row in read)
+    assert {key for row in read for day in row["recent_days"] for key in day} == {
+        "location_id", "character_id", "premise_fr", "objective_native"
+    }
+
+
 def test_the_critic_reads_the_page_with_its_learner_turn():
     payload = critic_payload(
         {"today": {}},

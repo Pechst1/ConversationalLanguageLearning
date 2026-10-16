@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.npc import NPCMemory
 from app.db.models.revue_place import RevuePlace
-from app.db.models.revue_session import RevueSession
+from app.db.models.revue_session import RevueDossier, RevueSession
 from app.db.models.revue_story_picture import RevueStoryPicture
 from app.schemas.revue import RvCaptionMake, RvMakeRequest
 from app.services.revue import encounter as enc
@@ -59,7 +59,7 @@ PICTURE_WORDS = ["le marché en plein air", "le marché couvert"]
 
 @pytest.fixture(scope="module")
 def tables(db_engine) -> Generator[None, None, None]:
-    wanted = (*REVUE_TABLES, RevuePlace.__table__, RevueStoryPicture.__table__)
+    wanted = (*REVUE_TABLES, RevuePlace.__table__, RevueStoryPicture.__table__, RevueDossier.__table__)
     created = [table for table in wanted if not inspect(db_engine).has_table(table.name)]
     for table in created:
         table.create(bind=db_engine, checkfirst=True)
@@ -75,6 +75,7 @@ def db(db_session: Session, tables) -> Generator[Session, None, None]:
     yield db_session
     db_session.rollback()
     db_session.query(RevueStoryPicture).delete()
+    db_session.query(RevueDossier).delete()
     db_session.commit()
 
 
@@ -336,3 +337,50 @@ def test_the_caption_request_parses_and_rings_like_a_headline() -> None:
     written = TypeAdapter(RvMakeRequest).validate_python({"kind": "caption", "action": "caption", "text_fr": "Le marché."})
     assert written.text_fr == "Le marché."
     assert ring_for("caption") == "headline"
+
+
+# ---------------------------------------------------------------------------
+# §8.4 v2: dossiers briefed under the old picture rules get a fresh brief before painting
+# ---------------------------------------------------------------------------
+
+
+class Desk:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def ask_json(self, *_: object, **__: object) -> dict:
+        self.calls += 1
+        return {"visual": {**VISUAL.model_dump(mode="json"), "kind": "editorial",
+                           "symbol": "a crate of clementines on a scale tipping into the red"}}
+
+
+def stored(db: Session, dossier: EditorialDossier, *, version: str, period: str = "2026-W42") -> RevueDossier:
+    row = RevueDossier(id=f"{period.lower()}-{dossier.id}"[:120], week=period, period=period, topic=dossier.topic,
+                       payload=dossier.model_dump(mode="json"), source_hashes={}, checks={}, builder_version=version)
+    db.add(row)
+    db.commit()
+    return row
+
+
+def test_a_dossier_briefed_under_the_old_rules_is_rebriefed_once_before_painting(db: Session) -> None:
+    from app.services.revue.builder import BUILDER_VERSION
+
+    plates._STORIES.clear()
+    built = pictured().model_copy(update={"id": "2026-w42-marche", "evergreen": False})
+    row = stored(db, built, version="revue-builder-v2")
+    desk = Desk()
+    assert plates.rebrief_stale_visuals(db, "2026-W42", provider=desk) == ["2026-w42-marche"]
+    db.refresh(row)
+    assert row.builder_version == BUILDER_VERSION and row.payload["visual"]["kind"] == "editorial"
+    # Briefed under the current rules now: never asked again.
+    assert plates.rebrief_stale_visuals(db, "2026-W42", provider=desk) == [] and desk.calls == 1
+
+
+def test_a_painted_story_keeps_the_brief_its_picture_was_painted_from(db: Session) -> None:
+    plates._STORIES.clear()
+    built = pictured().model_copy(update={"id": "2026-w42-marche", "evergreen": False})
+    stored(db, built, version="revue-builder-v2")
+    paint(db, built)
+    desk = Desk()
+    assert plates.rebrief_stale_visuals(db, "2026-W42", provider=desk) == [] and desk.calls == 0
+    plates._STORIES.clear()

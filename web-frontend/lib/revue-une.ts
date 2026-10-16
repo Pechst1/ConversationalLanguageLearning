@@ -15,6 +15,8 @@
  *   «never on a tentpole day, at most once a week»): `RvUneCard` in the `hero`
  *   slot with `planHidden`, because the card is the route. Its state comes from
  *   `revueUneState(offer)`. No Revue chip that day: the hero is the door.
+ *   Once this week's Papier is filed it gives the hero back to the day and is
+ *   the quiet chip again (owner, 2026-10-14).
  *   A special edition (WP-94 «Numéro spécial», `special`) never gives up its
  *   hero, whatever the planner dealt — it is the only special-day predicate the
  *   page has; there is no tentpole/finale flag on the day in the client.
@@ -97,7 +99,9 @@ export function revueUneEntry({
   const offer = week.offer;
   if (isRevueDay(dayShape, special)) {
     const state = revueUneState(offer);
-    const story = state ? heroStory(offer, state) : null;
+    // 2026-10-14 (owner): a filed Papier is done and never takes the hero from
+    // today's day; it falls back to the chip row like any other day.
+    const story = state && state !== 'filed' ? heroStory(offer, state) : null;
     if (state && story) return { chip: null, hero: { offer, story, state } };
   }
   return { chip: revueHomeChip(week, language), hero: null };

@@ -392,6 +392,16 @@ def gap_days(season, gap_id):
     return next(seg.days for seg in season.segments if seg.id == gap_id)
 
 
+def test_romys_premise_quotes_her_in_her_register_with_the_learner():
+    """Romy says tu to the learner (world.json). The premise handed her «C'est vous,
+    l'héritage ?», the writer copied it, and the register guard refused the page
+    (loss-rate read 2026-10-07, run1-c1)."""
+
+    romy = next(premise for premise in load_season("s1").gaps["g1"].premises if premise.id == "romy_enquete")
+    assert "«C'est toi, l'héritage ?»" in romy.text
+    assert not re.search(r"\bvous\b", romy.text, re.IGNORECASE)
+
+
 def test_the_gap_brief_names_todays_moment_and_the_next_tentpole():
     season = load_season("s1")
     state = {"id": "s1", "played": [{"segment": "t1", "day_in_segment": 1, "event_id": "1"}, {"segment": "t1", "day_in_segment": 2, "event_id": "2"}]}

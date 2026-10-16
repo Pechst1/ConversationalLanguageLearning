@@ -8,7 +8,8 @@ import { learnerGloss } from '@/lib/glosses';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
-import { daySessionCopy, sessionNextAction } from '@/lib/day-session';
+import { handOnAfterWords } from '@/lib/day-plan';
+import { daySessionCopy } from '@/lib/day-session';
 
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
@@ -705,7 +706,7 @@ export default function VocabularyReviewPage() {
   }, [allItems, reviewedIds, againIds]);
   const current = remainingItems[0] || null;
   /* GENTLE-ONBOARDING: an emptied deck on the first day ticks the words off,
-     the last stage of story → La Forge → words. `null` on any other day. */
+     the last stage of story → words → La Forge. `null` on any other day. */
   const [firstDayDone, setFirstDayDone] = useState<RouteStage[] | null>(null);
   const deckEmpty = !loading && !loadError && !current;
   useEffect(() => {
@@ -750,13 +751,9 @@ export default function VocabularyReviewPage() {
     apiService
       .markDaySessionWordsDone()
       .then((session) => {
-        const next = sessionNextAction(session, language);
-        const copy = daySessionCopy(language);
-        const step = next
-          ? { label: next.label, meta: next.meta, href: next.href }
-          : session?.done
-            ? { label: copy.next_finish, meta: '', href: '/fertig' }
-            : null;
+        // Issue 143: the hand-on is the plan's, with the word step applied as finished.
+        const next = handOnAfterWords(session, language, 'finished');
+        const step = next ? { label: next.label, meta: next.meta, href: next.href } : null;
         setDayNext(step);
         if (!step) setDayFallback(true);
       })

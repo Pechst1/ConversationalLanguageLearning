@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
@@ -15,6 +16,16 @@ def test_health_endpoint(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_health_endpoint_reports_deployed_commit(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "0123456789abcdef0123")
+
+    response = client.get("/health")
+
+    assert response.json() == {"status": "ok", "release": "0123456789ab"}
 
 
 def test_readiness_endpoint_checks_database(client: TestClient) -> None:

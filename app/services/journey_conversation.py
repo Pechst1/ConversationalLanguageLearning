@@ -3201,6 +3201,23 @@ def self_repair_question(*, wrong_fr: str, corrected_fr: str, register: str) -> 
     return SELF_REPAIR_REPETITION_FR[key], "repetition"
 
 
+def _is_season_day(scenario: ScenarioBrief) -> bool:
+    from app.services.season.runtime import SEASON_CONTEXT_KEY
+
+    return bool((scenario.story_context or {}).get(SEASON_CONTEXT_KEY))
+
+
+def _margin_note(*, user: User, wrong: str, correct: str, why: str) -> str:
+    """A season day's margin correction: the right form, then the stored reason. Nobody
+    asked the learner about it first, so it never says they were."""
+
+    note = learner_copy_text(
+        "self_repair.margin_note", user_chrome_language(user), correct=correct, wrong=wrong
+    )
+    reason = " ".join(str(why or "").split())
+    return f"{note} {reason}".strip() if reason else note
+
+
 def _explicit_note(*, user: User, wrong: str, correct: str, why: str) -> str:
     """The explicit correction's note: the rule, then the stored reason.
 
@@ -3397,10 +3414,16 @@ def feedback_decision(
             reason="repair_failed",
         )
 
+    # Story plan, Phase 1: on a season day a repeated mistake is corrected in the margin,
+    # never in the character's line (B1, 7 Oct: «…J'ai peur et je suis soulagé à la fois.
+    # Pardon ? Tu peux le redire autrement ?»). The bible: «Grammar is corrected in the
+    # margin, never in the plot.» A margin note asks nothing, so it needs no turn left.
+    in_margin = _is_season_day(scenario)
+
     # 2. Bounds, before anything is asked.
-    if remaining_turns(task, turn_index) <= 0:
+    if not in_margin and remaining_turns(task, turn_index) <= 0:
         return FeedbackDecision(reason="last_turn")
-    if _already_elicited(history):
+    if not in_margin and _already_elicited(history):
         return FeedbackDecision(reason="already_prompted")
 
     # 3. Does this turn repeat a mistake the learner has had explained?
@@ -3414,6 +3437,20 @@ def feedback_decision(
         span = _verbatim_span(answer, wrong)
         if span is None:
             continue
+        if in_margin:
+            return FeedbackDecision(
+                explicit=Correction(
+                    span_fr=span,
+                    corrected_fr=_preserve_case(span, correct),
+                    note_native=_margin_note(
+                        user=user,
+                        wrong=wrong,
+                        correct=correct,
+                        why=str(error.why_wrong or error.context_snippet or ""),
+                    ),
+                ),
+                reason="recurrence_in_margin",
+            )
         question, kind = self_repair_question(
             wrong_fr=wrong, corrected_fr=correct, register=register
         )

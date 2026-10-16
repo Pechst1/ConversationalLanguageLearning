@@ -62,7 +62,7 @@ def test_llm_service_falls_back_on_error(sample_result):
     )
     fallback = StubProvider("anthropic", response=fallback_result)
 
-    service = LLMService(providers=[failing, fallback], primary="openai")
+    service = LLMService(providers=[failing, fallback], primary="openai", secondary="anthropic")
     result = service.generate_chat_completion([
         {"role": "user", "content": "Comment ça va ?"}
     ], temperature=0.2)
@@ -139,3 +139,43 @@ def test_llm_service_raises_when_all_providers_fail(sample_result):
         service.generate_chat_completion([
             {"role": "user", "content": "Quel temps fait-il ?"}
         ])
+
+
+def test_anthropic_is_no_fallback_unless_named(sample_result):
+    """An Anthropic key set for the story steps never takes the app's OpenAI failures."""
+
+    failing = StubProvider("openai", should_fail=True)
+    anthropic = StubProvider("anthropic", response=sample_result)
+    service = LLMService(providers=[failing, anthropic], primary="openai", secondary=None)
+    with pytest.raises(LLMProviderError):
+        service.generate_chat_completion([{"role": "user", "content": "Bonjour"}])
+    assert anthropic.recorded_messages is None
+
+
+def test_a_claude_model_goes_to_anthropic_and_an_openai_model_never_does(sample_result):
+    openai = StubProvider("openai", should_fail=True)
+    anthropic = StubProvider("anthropic", response=sample_result)
+    service = LLMService(providers=[openai, anthropic], primary="openai", secondary="anthropic")
+
+    service.generate_chat_completion(
+        [{"role": "user", "content": "Écris la page."}],
+        model="claude-haiku-5-5",
+        system_prompt="Director.",
+        response_format={"type": "json_object"},
+        reasoning_effort="medium",
+    )
+    assert openai.recorded_messages is None
+    assert anthropic.recorded_kwargs["model"] == "claude-haiku-5-5"
+    assert anthropic.recorded_kwargs["system"] == "Director."
+    assert anthropic.recorded_kwargs["response_format"] == {"type": "json_object"}
+
+    anthropic.recorded_messages = None
+    with pytest.raises(LLMProviderError):
+        service.generate_chat_completion([{"role": "user", "content": "x"}], model="gpt-6-luna")
+    assert anthropic.recorded_messages is None
+
+
+def test_a_claude_model_without_an_anthropic_key_fails_plainly(sample_result):
+    service = LLMService(providers=[StubProvider("openai", response=sample_result)], primary="openai")
+    with pytest.raises(LLMProviderError, match="ANTHROPIC_API_KEY"):
+        service.generate_chat_completion([{"role": "user", "content": "x"}], model="claude-haiku-5-5")
