@@ -32,6 +32,7 @@ COPY docker/entrypoint.sh /app/docker/entrypoint.sh
 RUN export PIP_CONSTRAINT=/app/constraints.txt \
     && pip install --no-cache-dir . \
     && python -m spacy download fr_core_news_sm \
+    && python -m app.services.compact_lemmas fr_core_news_sm \
     && chmod +x /app/docker/entrypoint.sh
 
 EXPOSE 8000
