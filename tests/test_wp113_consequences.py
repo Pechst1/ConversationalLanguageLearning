@@ -34,11 +34,6 @@ def _gap_ctx(day: int = 1, *, checklist: dict | None = None, gap: str = "g1") ->
     }
 
 
-def _scheduled_premise(season) -> str:
-    # A moment of a gap without a day plan: a planned day moves on anyway.
-    return season.gaps["g2"].required[0].premise
-
-
 # ---------------------------------------------------------------------------
 # 1. The learner's choices are honoured
 # ---------------------------------------------------------------------------
@@ -111,19 +106,23 @@ def test_a_complication_is_the_next_days_obstacle_in_the_same_gap_only():
 # ---------------------------------------------------------------------------
 
 
-def test_a_scheduled_moment_counts_only_when_the_learner_engaged():
+def test_an_unplanned_moment_counts_only_when_the_learner_engaged():
+    """Every gap has a day plan now, and a planned day moves on regardless; a pool
+    premise outside the plan still counts only once the learner took it up."""
+
     season = load_season("s1")
-    premise = _scheduled_premise(season)
+    premise = "pain_avec_lila"
+    assert premise not in {beat.premise for beat in season.gaps["g1"].days}
     checklist = {"premise_id": premise}
 
     skipped = season_runtime._settle_gap(
-        season, {"id": "s1"}, _gap_ctx(checklist=checklist, gap="g2"), {"outcome": "not_yet"}, event_id="a", day=3
+        season, {"id": "s1"}, _gap_ctx(checklist=checklist, gap="g1"), {"outcome": "not_yet"}, event_id="a", day=3
     )
     assert not skipped.get("premises"), "a day the learner did not take up leaves its moment owed"
 
     for outcome in ("met", "partially_met", None):
         details = {} if outcome is None else {"outcome": outcome}
         state = season_runtime._settle_gap(
-            season, {"id": "s1"}, _gap_ctx(checklist=checklist, gap="g2"), details, event_id="b", day=3
+            season, {"id": "s1"}, _gap_ctx(checklist=checklist, gap="g1"), details, event_id="b", day=3
         )
         assert [row["premise"] for row in state["premises"]] == [premise], outcome

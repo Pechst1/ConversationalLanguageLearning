@@ -504,3 +504,53 @@ def check_season_spoiler(texts: list[str], payload: dict) -> None:
             hint="; ".join(f"«{word}» breaks a rule of the season ({text.get(key, key)})" for key, word in hits)
             + ". Say it without it: hint at most, never reveal.",
         )
+
+
+# ---------------------------------------------------------------------------
+# The ending is the character's own line, and the summary tells the story
+# ---------------------------------------------------------------------------
+
+#: The reader prints a generated ending in the character's speech bubble, under their
+#: name and face: «Romy sourit à ton « avis », puis regarde Margaux. « Oui… » » read as
+#: Romy narrating herself (Vincent, 2026-10-16).
+_QUOTED = re.compile(r"[«“\"]([^»”\"]*)[»”\"]")
+#: The summary is what happened in the story, never a grade: «Tu n'as pas demandé ce que
+#: la lettre annonce» told the learner what they failed to ask.
+_GRADER_SUMMARY = re.compile(
+    r"\b(?:tu\s+n['’]as\s+pas|tu\s+n['’]as\s+jamais|you\s+did(?:\s+not|n['’]t)|you\s+never"
+    r"|du\s+hast\s+(?:nicht|nie|kein\w*))\b[^.!?]{0,60}?"
+    r"\b(?:demand\w*|pos\w*\s+(?:la|de)\s+question|ask\w*|gefragt|erfragt)",
+    re.IGNORECASE,
+)
+
+
+def ending_voice_issue(resolution_fr: str, summary_native: str, character_name: str | None) -> str | None:
+    """Why the ending cannot go in the character's bubble, or ``None``."""
+
+    line = str(resolution_fr or "").strip()
+    first = str(character_name or "").split()[0] if str(character_name or "").strip() else ""
+    if line and first:
+        outside = _QUOTED.sub(" ", line)
+        starts_with_name = re.match(rf"{re.escape(first)}\b", line, re.IGNORECASE) is not None
+        narrates = _QUOTED.search(line) is not None and re.search(
+            rf"\b{re.escape(first)}\b", outside, re.IGNORECASE
+        )
+        if starts_with_name or narrates:
+            return (
+                f"resolution_fr is printed in {first}'s speech bubble, so it is {first}'s own "
+                f"spoken line in the first person: no narration about {first}, no "
+                "«il/elle sourit», no quotation marks around what they say."
+            )
+    if _GRADER_SUMMARY.search(str(summary_native or "")):
+        return (
+            "summary_native tells what happened in the story and what the character wants "
+            "or will do next, in one or two plain sentences. It never says what the learner "
+            "did or did not ask: it is not feedback."
+        )
+    return None
+
+
+def check_ending_voice(resolution_fr: str, summary_native: str, character_name: str | None) -> None:
+    issue = ending_voice_issue(resolution_fr, summary_native, character_name)
+    if issue:
+        raise engine.StoryUnavailable("ending_voice", hint=issue)

@@ -1070,8 +1070,9 @@ def test_a_test_learner_can_be_put_on_any_season_day(assembled_client, db_sessio
 
 
 def test_a_director_that_skips_the_scheduled_moment_never_costs_the_day(assembled_client, db_session, journey_enabled, clock, season_on):
-    """The dinner (gate 2) is owed until staged; a draft without it is asked once more,
-    then served — the season never stalls on a missed moment."""
+    """A planned day is owed until staged; a draft without it is asked once more, then
+    served — the season never stalls on a missed moment. (Gap 2 has a day plan since
+    2026-10-16: jumping to its day 5 with nothing staged, day 1's box is owed first.)"""
 
     from app.db.models.user import User
     from app.services.season.admin import jump_to_day
@@ -1088,13 +1089,13 @@ def test_a_director_that_skips_the_scheduled_moment_never_costs_the_day(assemble
     email = f"s1-owed-{uuid.uuid4()}@example.com"
     d = support.Driver(assembled_client, support.register(assembled_client, email, cefr="A2.1"), db=db_session)
     user = db_session.scalar(select(User).where(User.email == email))
-    jump_to_day(db_session, user, day=14)  # g2.5: the dinner's last scheduled day has come
+    jump_to_day(db_session, user, day=14)  # g2.5, with none of the gap's days staged
     db_session.commit()
     journey = _play(d, provider, clock, "Je reste encore un peu.")
     scene = _latest_scene(db_session, _user_id_of(db_session, journey))
     assert (scene.script_payload or {}).get("season", {}).get("key") == "g2.5", "the day was served, not lost"
     hints = [" ".join(payload.get("previous_rejections") or []) for schema, payload in provider.calls if schema == "SceneDraft"]
-    assert any("Le dîner raté" in hint for hint in hints), "the director was asked once more for the dinner"
+    assert any("La boîte" in hint for hint in hints), "the director was asked once more for the owed day"
     brief = gap_brief(
         load_season("s1"),
         season_clock.position(load_season("s1"), _season_state(db_session, user.id), today=clock.moment.date()),
@@ -1102,7 +1103,7 @@ def test_a_director_that_skips_the_scheduled_moment_never_costs_the_day(assemble
         state=_season_state(db_session, user.id),
         seed=str(user.id),
     )
-    assert (brief["today"]["required_premise"] or {}).get("id") == "le_diner_rate", "the dinner is still owed"
+    assert (brief["today"]["required_premise"] or {}).get("id") == "la_boite", "the owed day is still owed"
 
 
 def test_a_critic_refusal_whose_retry_fails_the_guards_never_costs_the_day(assembled_client, db_session, journey_enabled, clock, season_on):

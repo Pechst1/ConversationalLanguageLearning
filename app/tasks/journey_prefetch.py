@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, time, timedelta
+from time import monotonic
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from loguru import logger
@@ -61,6 +62,12 @@ def _active_learner_ids(db, *, days: int, limit: int) -> list[str]:
     return seen
 
 
+#: Celery's soft limit (``app/celery_app.py``) less a minute, and the longest a page
+#: written ahead of time may take (``living_story.AHEAD_OPERATION_BUDGET_SECONDS``).
+_BATCH_SECONDS = 24 * 60
+_PAGE_AT_MOST_SECONDS = 330
+
+
 @celery_app.task(name="app.tasks.journey_prefetch.prefetch_next_journey_scenes")
 def prefetch_next_journey_scenes() -> dict[str, int | str]:
     """Generate tomorrow's opening scene for the active pilot cohort."""
@@ -85,9 +92,16 @@ def prefetch_next_journey_scenes() -> dict[str, int | str]:
             limit=bound * 4,
         )
         paid = 0
+        started = monotonic()
         for user_id in candidate_ids:
             if paid >= bound:
                 counts["stopped_at_bound"] = counts.get("stopped_at_bound", 0) + 1
+                break
+            if monotonic() - started + _PAGE_AT_MOST_SECONDS > _BATCH_SECONDS:
+                # A page written ahead of time may take up to 330 s: one that cannot
+                # finish before Celery's soft limit is not started. Learners left
+                # over get their page written when they open the day.
+                counts["stopped_at_time"] = counts.get("stopped_at_time", 0) + 1
                 break
             user = db.get(User, user_id)
             if user is None or not prefetch_enabled_for(user):

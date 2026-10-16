@@ -1238,6 +1238,13 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
             _settled_without_the_learner(season, state, gap.id, premise),
             source=f"{gap.id}/{premise}/not_taken_up",
         )
+    staged = next((row for row in gap.premises if row.id == premise), None)
+    if planned and staged is not None and staged.settles:
+        # Gaps 3, 5 and 7 move the ticket (owner hand-off 2026-10-16): a day that
+        # passed without a date from the learner moves it to the story's own.
+        settled = {flag: value for flag, value in staged.settles.items() if flag not in wanted}
+        if settled:
+            state = apply_sets(season, state, settled, source=f"{gap.id}/{premise}/settled")
     # WP-113: today's complication card is tomorrow's obstacle (faced today, it is
     # replaced by today's own, or cleared).
     complication = str(checklist.get("complication") or "").strip()
