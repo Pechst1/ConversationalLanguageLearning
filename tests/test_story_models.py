@@ -239,3 +239,43 @@ def test_json_call_names_the_routed_model_and_effort(story_models, monkeypatch) 
     calls.clear()
     living_story._json_call("S", {"x": 1}, ReplyChoice, deadline=time.monotonic() + 30)
     assert "model" not in calls[0]
+
+
+def test_a_page_written_ahead_of_time_gets_the_gate_one_limits(story_models, monkeypatch) -> None:
+    """Gate 1 (2026-10-15): under the live 35 s / 5,000-token limits every new writer
+    lost every page; the prefetch keeps nobody waiting, so it gets the room."""
+
+    import time
+
+    from app.services.living_story import SceneDraft
+
+    story_models()
+    calls: list[dict[str, Any]] = []
+
+    class Fake:
+        def generate_chat_completion(self, messages, **kwargs):
+            calls.append(kwargs)
+            raise RuntimeError("stop here")
+
+    monkeypatch.setattr(living_story, "_client", lambda: Fake())
+
+    def call(**extra) -> dict[str, Any]:
+        calls.clear()
+        with pytest.raises((RuntimeError, living_story.StoryUnavailable)):
+            living_story._json_call("S", {"x": 1}, SceneDraft, deadline=time.monotonic() + 600, **extra)
+        return calls[0]
+
+    live = call()
+    assert (live["request_timeout"], live["max_tokens"]) == (35, 5000)
+    with living_story.written_ahead_of_time():
+        ahead = call()
+        # A worker thread is told, as it is told the route.
+        told_live = call(ahead=False)
+    assert (ahead["request_timeout"], ahead["max_tokens"]) == (150, 16000)
+    assert (told_live["request_timeout"], told_live["max_tokens"]) == (35, 5000)
+    assert call(ahead=True)["request_timeout"] == 150
+
+
+def test_the_ahead_budget_still_holds_two_attempts() -> None:
+    attempts = settings.ATELIER_STORY_MAX_ATTEMPTS
+    assert living_story.AHEAD_REQUEST_TIMEOUT_SECONDS * attempts <= living_story.AHEAD_OPERATION_BUDGET_SECONDS

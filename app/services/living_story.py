@@ -168,6 +168,12 @@ CRITIC_STAGES = frozenset({"SemanticTurn"})
 # the invariant ``tests/test_living_story_budget.py`` now holds us to.
 REQUEST_TIMEOUT_SECONDS = 35
 OPERATION_BUDGET_SECONDS = 75
+# A page written ahead of time (the prefetch, inside ``written_ahead_of_time``) keeps
+# nobody waiting. Gate 1 (2026-10-15): under the live limits every new writer model
+# lost every page; with these, Haiku wrote 6 of 6 pages at p50 58 s / p95 74 s.
+AHEAD_REQUEST_TIMEOUT_SECONDS = 150
+AHEAD_OPERATION_BUDGET_SECONDS = 330
+AHEAD_DRAFT_MAX_TOKENS = 16000
 
 # WP-62 — la mémoire longue.
 #
@@ -1033,6 +1039,10 @@ def written_ahead_of_time():
         _AHEAD_OF_TIME.reset(token)
 
 
+def _request_window(ahead: bool) -> float:
+    return AHEAD_REQUEST_TIMEOUT_SECONDS if ahead else REQUEST_TIMEOUT_SECONDS
+
+
 def _servable(model: str) -> bool:
     if provider_for_model(model) == "anthropic" and not settings.ANTHROPIC_API_KEY:
         if model not in _unservable_logged:
@@ -1310,8 +1320,12 @@ def _json_call(
     reasoning_effort: str = "low",
     window: float | None = None,
     route: tuple[str | None, str | None] | None = None,
+    ahead: bool | None = None,
 ) -> tuple[BaseModel, dict]:
     result = None
+    # Like ``route``: a worker thread does not see the ahead-of-time context.
+    ahead = _AHEAD_OF_TIME.get() if ahead is None else ahead
+    draft_tokens = AHEAD_DRAFT_MAX_TOKENS if ahead else 5000
     # ``route`` is resolved by a caller that hands this call to a worker thread,
     # which does not see the ahead-of-time context.
     model, routed_effort = route if route is not None else story_route(schema)
@@ -1325,7 +1339,7 @@ def _json_call(
             system_prompt=system,
             temperature=0.55 if schema is SceneDraft else 0.2,
             # A 4-6 panel page (2026-09-25) is ~2× the old 2-3 panel draft.
-            max_tokens=max_tokens or (5000 if schema is SceneDraft else 1600),
+            max_tokens=max_tokens or (draft_tokens if schema is SceneDraft else 1600),
             response_format={"type": "json_object"},
             # Live measurement 2026-09-06 (gpt-5-mini, SceneDraft): default reasoning
             # effort spends the whole completion budget on reasoning and returns no
@@ -1334,7 +1348,7 @@ def _json_call(
             # draft + review.
             reasoning_effort=routed_effort or reasoning_effort,
             **({"model": model} if model else {}),
-            request_timeout=min(window or REQUEST_TIMEOUT_SECONDS, remaining),
+            request_timeout=min(window or _request_window(ahead), remaining),
             disable_retries=True,
             max_provider_attempts=1,
             # WP-87: requests sharing a static prefix are routed to the same cache.
@@ -1665,7 +1679,9 @@ def _approved(
 ) -> tuple[Any, list[dict]]:
     # Leave headroom under the journey's 90-second generation claim and HTTP timeout.
     # No hidden retries or provider cascades may multiply this budget.
-    deadline = time.monotonic() + OPERATION_BUDGET_SECONDS
+    deadline = time.monotonic() + (
+        AHEAD_OPERATION_BUDGET_SECONDS if _AHEAD_OF_TIME.get() else OPERATION_BUDGET_SECONDS
+    )
     # Every call of every attempt, including the ones a rejection threw away: the caller
     # writes the accepted artifact's single cost row from this list.
     usage: list[dict] = []
@@ -1727,7 +1743,7 @@ def _approved(
     for attempt in range(settings.ATELIER_STORY_MAX_ATTEMPTS + (1 if BONUS_ATTEMPT_ENABLED else 0)):
         if (
             attempt >= settings.ATELIER_STORY_MAX_ATTEMPTS
-            and deadline - time.monotonic() < REQUEST_TIMEOUT_SECONDS
+            and deadline - time.monotonic() < _request_window(_AHEAD_OF_TIME.get())
         ):
             # The bonus attempt is only taken when a whole request window is left:
             # two guard rejections at ~20 s leave one, two timeouts do not.
@@ -1746,6 +1762,7 @@ def _approved(
                 sized = {"max_tokens": budget} if budget else {}
                 # The workers do not see the ahead-of-time context: the route goes with them.
                 routed = {"route": route} if any(route := story_route(schema)) else {}
+                routed["ahead"] = _AHEAD_OF_TIME.get()
 
                 def draw(index: int, request=request, collected=collected, sized=sized, routed=routed):
                     return _json_call(
