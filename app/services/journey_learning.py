@@ -2284,7 +2284,7 @@ _DICTATION_NOTE: dict[str, dict[str, str]] = {
     "words": {
         "en": "Listen again: this is what was said.",
         "de": "Hör noch einmal hin: Das wurde gesagt.",
-        "fr": "Réécoutez : voici ce qui a été dit.",
+        "fr": "Réécoute : voici ce qui a été dit.",
     },
 }
 
@@ -3898,7 +3898,7 @@ def _uuid_or_none(value: Any) -> UUID | None:
 _COACH_SCENE_INSTRUCTION: dict[str, str] = {
     "en": "{name} is talking to you. Reply in French: “{meaning}”",
     "de": "{name} spricht dich an. Antworte auf Französisch: „{meaning}“",
-    "fr": "{name} vous parle. Répondez en français : « {meaning} »",
+    "fr": "{name} te parle. Réponds en français : « {meaning} »",
 }
 
 

@@ -50,42 +50,42 @@ router = APIRouter(prefix="/intake", tags=["intake"])
 #: shows up as the fallback line — visible, not silent.
 _REFUSAL: dict[str, dict[str, str]] = {
     "intake_disabled": {
-        "fr": "La lecture de vos documents est désactivée pour l’instant.",
+        "fr": "La lecture de tes documents est désactivée pour l’instant.",
         "en": "Reading your documents is switched off for now.",
         "de": "Das Lesen deiner Dokumente ist gerade ausgeschaltet.",
     },
     "weekly_cap_reached": {
-        "fr": "Vous avez déjà fait lire vos documents de la semaine. Le prochain se libère bientôt.",
+        "fr": "Tu as déjà fait lire tes documents de la semaine. Le prochain se libère bientôt.",
         "en": "You have already had this week’s documents read. The next one frees up soon.",
         "de": "Du hast diese Woche schon alle Dokumente lesen lassen. Das nächste wird bald frei.",
     },
     "cost_ceiling_reached": {
-        "fr": "Le budget de lecture de la semaine est atteint. Réessayez dans quelques jours.",
+        "fr": "Le budget de lecture de la semaine est atteint. Réessaie dans quelques jours.",
         "en": "This week’s reading budget is used up. Try again in a few days.",
         "de": "Das Lesebudget dieser Woche ist aufgebraucht. Versuche es in ein paar Tagen wieder.",
     },
     "document_too_short": {
-        "fr": "Collez un peu plus de texte : quelques mots ne font pas un document.",
+        "fr": "Colle un peu plus de texte : quelques mots ne font pas un document.",
         "en": "Paste a little more text: a few words are not a document.",
         "de": "Füge etwas mehr Text ein: ein paar Wörter sind noch kein Dokument.",
     },
     "image_type_unsupported": {
-        "fr": "Ce format d’image n’est pas lisible. Essayez une photo JPEG ou PNG.",
+        "fr": "Ce format d’image n’est pas lisible. Essaie une photo JPEG ou PNG.",
         "en": "This image format cannot be read. Try a JPEG or PNG photo.",
         "de": "Dieses Bildformat ist nicht lesbar. Versuche ein JPEG- oder PNG-Foto.",
     },
     "image_empty": {
-        "fr": "La photo est vide. Reprenez-la, puis réessayez.",
+        "fr": "La photo est vide. Reprends-la, puis réessaie.",
         "en": "The photo is empty. Take it again, then try again.",
         "de": "Das Foto ist leer. Nimm es noch einmal auf und versuche es erneut.",
     },
     "image_too_large": {
-        "fr": "La photo est trop lourde. Reprenez-la de plus près, puis réessayez.",
+        "fr": "La photo est trop lourde. Reprends-la de plus près, puis réessaie.",
         "en": "The photo is too large. Take it again from closer, then try again.",
         "de": "Das Foto ist zu groß. Nimm es näher auf und versuche es erneut.",
     },
     "image_undecodable": {
-        "fr": "La photo n’a pas pu être lue. Reprenez-la, puis réessayez.",
+        "fr": "La photo n’a pas pu être lue. Reprends-la, puis réessaie.",
         "en": "The photo could not be read. Take it again, then try again.",
         "de": "Das Foto ließ sich nicht lesen. Nimm es noch einmal auf und versuche es erneut.",
     },

@@ -128,7 +128,7 @@ test('with nothing read the page says so in one sentence', () => {
   assert.equal(model.seasonHasNothingRead(empty), true);
   assert.equal(model.seasonHasStory(empty), false);
   const html = render(empty);
-  assert.ok(html.includes('Votre première scène s’ouvre dans la séance.'), html);
+  assert.ok(html.includes('Ta première scène s’ouvre dans la séance.'), html);
   assert.ok(!html.includes('Ouvrir la séance'), 'nothing to open, so no button');
   assert.ok(!html.includes('Engagement en cours'));
 });

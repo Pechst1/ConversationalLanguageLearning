@@ -25,6 +25,7 @@ from app.db.savepoint import best_effort
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
 from app.services import story_correspondence as courrier
+from app.services.address import address_instruction
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
@@ -272,10 +273,10 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "register": "polite neutral",
         "scene_anchor": "À la boulangerie, avant midi",
         "opening_message": "Bonjour ! Il n'y a plus de pain blanc. Vous voulez un autre pain ?",
-        "brief": "Il n'y a plus votre pain. Choisissez un autre pain et demandez quelque chose.",
+        "brief": "Il n'y a plus ton pain. Choisis un autre pain et demande quelque chose.",
         "success_signal": "Samira knows what you want and whether to slice or set anything aside.",
         "twist": "Samira a une idée : son pain aux fruits.",
-        "ambient_cues": ["l'odeur du pain chaud", "des gens derrière vous", "un petit choix"],
+        "ambient_cues": ["l'odeur du pain chaud", "des gens derrière toi", "un petit choix"],
         "quick_replies": ["D'accord, je prends...", "Est-ce que vous avez aussi...", "Qu'est-ce que vous aimez ?"],
     },
     {
@@ -291,9 +292,9 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "SMS",
         "tone": "polite_firm",
         "register": "vous / polite formal",
-        "scene_anchor": "Chez vous, avec un manteau",
+        "scene_anchor": "Chez toi, avec un manteau",
         "opening_message": "Bonjour, j'ai lu votre message. Le radiateur ne marche plus du tout ?",
-        "brief": "Le radiateur ne marche plus. Dites le problème et demandez un jour pour réparer.",
+        "brief": "Le radiateur ne marche plus. Dis le problème et demande un jour pour réparer.",
         "success_signal": "The landlord understands the issue and proposes a concrete time.",
         "twist": "Quelqu'un peut venir le matin, pas après midi.",
         "ambient_cues": ["un appartement froid", "on dit « vous »", "un rendez-vous"],
@@ -302,7 +303,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "follow_ups": [
             {
                 "opening_message": "Bonjour, merci pour votre message sur le radiateur. Le technicien peut venir mardi à dix heures. Vous êtes là, ou je laisse la clé à la gardienne ?",
-                "brief": "Le technicien peut venir mardi. Dites si vous êtes là, ou qui peut ouvrir.",
+                "brief": "Le technicien peut venir mardi. Dis si tu es là, ou qui peut ouvrir.",
             }
         ],
     },
@@ -321,7 +322,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "register": "polite formal",
         "scene_anchor": "Devant les boîtes aux lettres, un petit mot",
         "opening_message": "Bonsoir, il y a eu beaucoup de bruit hier soir. C'est fini maintenant ?",
-        "brief": "La voisine parle du bruit. Répondez et dites ce que vous allez faire.",
+        "brief": "La voisine parle du bruit. Réponds et dis ce que tu vas faire.",
         "success_signal": "Your neighbour feels heard and knows what will change.",
         "twist": "Elle n'est pas contente, mais il y a un petit sourire sous son mot.",
         "ambient_cues": ["des murs fins", "le même escalier", "rester amis"],
@@ -330,7 +331,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "follow_ups": [
             {
                 "opening_message": "Bonsoir, merci pour votre petit mot d'hier. C'est plus calme maintenant. Samedi, je fais un gâteau : vous voulez passer prendre un café ?",
-                "brief": "Madame Vidal vous remercie et vous invite. Répondez à son invitation.",
+                "brief": "Madame Vidal te remercie et t’invite. Réponds à son invitation.",
             }
         ],
     },
@@ -347,18 +348,18 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie du service client",
         "tone": "calm_specific",
         "register": "polite neutral",
-        "scene_anchor": "Sur votre téléphone, une photo : ce n'est pas votre porte",
+        "scene_anchor": "Sur ton téléphone, une photo : ce n'est pas ta porte",
         "opening_message": "Bonjour, votre paquet est arrivé, mais pas chez vous. Quelle est votre rue ?",
-        "brief": "Le colis n'est pas chez vous. Expliquez et demandez une solution.",
+        "brief": "Le colis n'est pas chez toi. Explique et demande une solution.",
         "success_signal": "Support has the right address and a clear next step.",
-        "twist": "Sur la photo, la porte est bleue. Votre porte est verte.",
+        "twist": "Sur la photo, la porte est bleue. Ta porte est verte.",
         "ambient_cues": ["une photo du colis", "la mauvaise porte", "un numéro de commande"],
         "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
         "follow_ups": [
             {
                 "opening_message": "Bonjour, merci pour votre réponse. Nous avons maintenant votre adresse. Le paquet arrive demain matin. Comment est-ce qu'on entre dans votre immeuble ?",
-                "brief": "Le paquet arrive demain. Dites comment on entre chez vous.",
+                "brief": "Le paquet arrive demain. Dis comment on entre chez toi.",
             }
         ],
     },
@@ -379,10 +380,10 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "register": "polite formal",
         "scene_anchor": "Devant le métro, un petit message sur le téléphone",
         "opening_message": "Bonjour, votre rendez-vous de jeudi n'est pas possible. Vendredi matin, c'est bien pour vous ?",
-        "brief": "Le dentiste change votre rendez-vous. Dites oui ou proposez une autre heure.",
+        "brief": "Le dentiste change ton rendez-vous. Dis oui ou propose une autre heure.",
         "success_signal": "The reception desk can book the right slot without calling again.",
-        "twist": "Vendredi matin, vous avez cours.",
-        "ambient_cues": ["un message court", "votre semaine", "on dit « vous »"],
+        "twist": "Vendredi matin, tu as cours.",
+        "ambient_cues": ["un message court", "ta semaine", "on dit « vous »"],
         "quick_replies": ["Bonjour, merci pour votre message...", "Vendredi matin...", "Est-ce possible plutôt..."],
     },
     {
@@ -400,16 +401,16 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "register": "vous / polite formal",
         "scene_anchor": "Au guichet de la gare, le tableau change encore",
         "opening_message": "Votre train ne part pas. Vous voulez partir aujourd'hui ou avoir votre argent ?",
-        "brief": "Votre train ne part pas. Demandez le prochain train ou votre argent.",
+        "brief": "Ton train ne part pas. Demande le prochain train ou ton argent.",
         "success_signal": "The agent knows whether to reroute or refund you.",
         "twist": "Il y a un autre train, mais il part d'une autre gare.",
-        "ambient_cues": ["le tableau des départs", "des gens derrière vous", "une question d'argent"],
+        "ambient_cues": ["le tableau des départs", "des gens derrière toi", "une question d'argent"],
         "quick_replies": ["Je dois arriver aujourd'hui...", "Le prochain train part à quelle heure ?", "Et pour mon argent..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
         "follow_ups": [
             {
                 "opening_message": "Bonjour, j'ai bien reçu votre réponse. Il y a un train demain matin, à huit heures. Vous voulez une place près de la fenêtre ?",
-                "brief": "Il y a un train demain matin. Dites quelle place vous voulez.",
+                "brief": "Il y a un train demain matin. Dis quelle place tu veux.",
             }
         ],
     },
@@ -428,9 +429,9 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "WhatsApp",
         "tone": "light_warm",
         "register": "tu / warm informal",
-        "scene_anchor": "Un jour de soleil, votre téléphone sonne",
+        "scene_anchor": "Un jour de soleil, ton téléphone sonne",
         "opening_message": "On mange dans le parc des Buttes-Chaumont dans une heure. Tu viens ?",
-        "brief": "Une amie vous propose de venir. Dites oui et demandez où.",
+        "brief": "Une amie te propose de venir. Dis oui et demande où.",
         "success_signal": "Noémie knows you are coming and where to wait for you.",
         "twist": "Tout le monde apporte quelque chose, mais personne n'a de verres.",
         "ambient_cues": ["le parc au soleil", "dans une heure", "apporter quelque chose"],
@@ -453,7 +454,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "register": "polite neutral",
         "scene_anchor": "Dans le bus, pour aller au travail",
         "opening_message": "Tu es là pour la réunion de neuf heures ? On commence bientôt.",
-        "brief": "Dites à Nadia que vous arrivez vingt minutes plus tard, et pourquoi.",
+        "brief": "Dis à Nadia que tu arrives vingt minutes plus tard, et pourquoi.",
         "success_signal": "Nadia knows when you arrive and what to do meanwhile.",
         "twist": "Le bus ne va pas vite, et on va dans une autre salle.",
         "ambient_cues": ["un matin difficile", "au travail", "une idée simple"],
@@ -472,9 +473,9 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie du service",
         "tone": "polite_firm",
         "register": "polite formal",
-        "scene_anchor": "Chez vous, internet sur le téléphone",
+        "scene_anchor": "Chez toi, internet sur le téléphone",
         "opening_message": "Bonjour, internet ne marche pas dans votre rue. Depuis quand vous n'avez plus internet ?",
-        "brief": "Vous n'avez pas internet depuis trois jours. Écrivez un message poli et clair.",
+        "brief": "Tu n'as pas internet depuis trois jours. Écris un message poli et clair.",
         "success_signal": "Support logs the duration and gives a repair or compensation step.",
         "twist": "Pour eux, c'est « un petit problème ». C'est le troisième jour.",
         "ambient_cues": ["internet sur le téléphone", "le troisième jour", "poli mais clair"],
@@ -483,7 +484,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "follow_ups": [
             {
                 "opening_message": "Bonjour, merci pour votre message. Un technicien vient chez vous jeudi entre 14 h et 18 h. Pour les trois jours sans internet, nous vous offrons un mois. C'est bon pour vous ?",
-                "brief": "Un technicien vient jeudi. Dites si l'heure va, et si vous acceptez le mois offert.",
+                "brief": "Un technicien vient jeudi. Dis si l'heure va, et si tu acceptes le mois offert.",
             }
         ],
     },
@@ -500,18 +501,18 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Court e-mail",
         "tone": "polite_clear",
         "register": "polite formal",
-        "scene_anchor": "À votre bureau, avec le paquet à renvoyer",
+        "scene_anchor": "À ton bureau, avec le paquet à renvoyer",
         "opening_message": "Bonjour, quelle taille avez-vous et quelle taille voulez-vous ?",
-        "brief": "Ce n'est pas la bonne taille. Demandez un échange.",
+        "brief": "Ce n'est pas la bonne taille. Demande un échange.",
         "success_signal": "The shop can send the correct size or confirm the return.",
-        "twist": "Il reste un seul article à votre taille, jusqu'à ce soir.",
+        "twist": "Il reste un seul article à ta taille, jusqu'à ce soir.",
         "ambient_cues": ["le numéro de commande", "le paquet à renvoyer", "une seule taille"],
         "quick_replies": ["Bonjour, j'ai la taille...", "Je voudrais la taille...", "Est-ce que vous pouvez..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
         "follow_ups": [
             {
                 "opening_message": "Bonjour, merci pour votre réponse. Nous avons la bonne taille. Vous préférez l'échange par la poste ou à la boutique ?",
-                "brief": "La boutique a votre taille. Choisissez : par la poste ou à la boutique.",
+                "brief": "La boutique a ta taille. Choisis : par la poste ou à la boutique.",
             }
         ],
     },
@@ -530,7 +531,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "register": "vous / administrative formal",
         "scene_anchor": "À la table de la cuisine, un papier pas fini",
         "opening_message": "Bonjour, il nous faut encore une chose : où habitez-vous ?",
-        "brief": "Il manque une chose pour la mairie. Demandez ce qu'il faut.",
+        "brief": "Il manque une chose pour la mairie. Demande ce qu'il faut.",
         "success_signal": "The clerk tells you which document or detail will complete the file.",
         "twist": "Le papier est bon, mais l'adresse n'est pas la même.",
         "ambient_cues": ["un formulaire", "des mots difficiles", "une chose qui manque"],
@@ -539,7 +540,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "follow_ups": [
             {
                 "opening_message": "Bonjour, merci pour votre message. Avec votre adresse, le dossier est presque complet. Il faut encore un papier avec votre adresse, par exemple une facture. Vous pouvez l'envoyer par e-mail ?",
-                "brief": "Il manque un dernier papier. Dites quel papier vous pouvez envoyer, et quand.",
+                "brief": "Il manque un dernier papier. Dis quel papier tu peux envoyer, et quand.",
             }
         ],
     },
@@ -558,9 +559,9 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "SMS",
         "tone": "kind_playful",
         "register": "tu / friendly neighbour",
-        "scene_anchor": "Dans l'escalier, le voisin parle de votre chat",
+        "scene_anchor": "Dans l'escalier, le voisin parle de ton chat",
         "opening_message": "Ton chat est encore venu chez moi. Il est très mignon, mais il veut toujours entrer !",
-        "brief": "Le voisin écrit un gentil mot sur votre chat. Répondez et dites ce que vous allez faire.",
+        "brief": "Le voisin écrit un gentil mot sur ton chat. Réponds et dis ce que tu vas faire.",
         "success_signal": "Luc smiles instead of feeling annoyed and knows what you will do.",
         "twist": "Chez Luc, le chat a déjà sa chaise préférée.",
         "ambient_cues": ["un mot dans l'escalier", "un voisin sympa", "un petit pardon"],
@@ -574,7 +575,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "once": True,
         "label": "Le billet retour",
         "categories": {"transport_travel", "time_calendar"},
-        "title": "Votre train retour est supprimé",
+        "title": "Ton train retour est supprimé",
         "contact_name": "Service voyageurs",
         "contact_role": "service clients des trains",
         "contact_initials": "SV",
@@ -589,7 +590,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
             "votre billet. Merci de nous indiquer votre choix avant vendredi midi ; si aucune de ces "
             "solutions ne vous convient, expliquez-nous ce qui vous poserait problème."
         ),
-        "brief": "Votre train retour est supprimé. Choisissez une solution, ou expliquez ce qui ne vous convient pas.",
+        "brief": "Ton train retour est supprimé. Choisis une solution, ou explique ce qui ne te convient pas.",
         "success_signal": "The service knows which option you take, or what you need instead.",
         "twist": "Le lundi matin, le train part à 6 h 04.",
         "ambient_cues": ["un billet retour", "une grève", "trois solutions"],
@@ -615,7 +616,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
             "pourriez-vous nous décrire le sac et ce qu'il contient, et nous dire quand vous pourriez "
             "passer le chercher ?"
         ),
-        "brief": "On a retrouvé un sac avec votre nom. Décrivez-le et proposez un moment pour passer.",
+        "brief": "On a retrouvé un sac avec ton nom. Décris-le et propose un moment pour passer.",
         "success_signal": "The office can check the bag is yours and knows when you will come.",
         "twist": "Le bureau ferme à 17 h, et il est fermé le samedi.",
         "ambient_cues": ["un sac retrouvé", "une description précise", "des horaires d'ouverture"],
@@ -627,7 +628,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "open_ended": True,
         "label": "Le quartier",
         "categories": {"society_politics", "places_infrastructure", "people_relationships"},
-        "title": "Le conseil de quartier vous écrit",
+        "title": "Le conseil de quartier t’écrit",
         "contact_name": "Conseil de quartier",
         "contact_role": "conseil de quartier du canal",
         "contact_initials": "CQ",
@@ -641,7 +642,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
             "aimerions entendre aussi les personnes qui viennent d'arriver. Qu'est-ce qui vous a plu dans "
             "le quartier, et qu'est-ce qui vous a manqué ou étonné ? Quelques lignes suffisent."
         ),
-        "brief": "Le conseil de quartier veut votre avis. Racontez ce qui vous plaît ici, et ce qui vous manque.",
+        "brief": "Le conseil de quartier veut ton avis. Raconte ce qui te plaît ici, et ce qui te manque.",
         "success_signal": "The council has one thing you like and one thing you miss in the area.",
         "twist": "La réunion a lieu jeudi soir, dans la cour d'une école.",
         "ambient_cues": ["le canal", "une réunion de quartier", "quelques lignes"],
@@ -656,20 +657,20 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "categories": {"home_objects", "time_calendar", "work_money"},
         "title": "Rester ou partir samedi",
         "contact_name": "Hélène",
-        "contact_role": "votre hôte pour le studio",
+        "contact_role": "ton hôte pour le studio",
         "contact_initials": "HE",
         "channel": "booking_message",
         "channel_label": "Messagerie de location",
         "tone": "polite_firm",
         "register": "vous / polite neutral",
-        "scene_anchor": "Un message de votre hôte, un soir de semaine",
+        "scene_anchor": "Un message de ton hôte, un soir de semaine",
         "opening_message": (
             "Bonjour, j'espère que le studio vous convient, malgré ce radiateur capricieux. Votre "
             "réservation se termine samedi. J'ai une demande pour la semaine suivante, mais si vous "
             "envisagez de rester plus longtemps, je préférerais vous donner la priorité. Pourriez-vous me "
             "dire d'ici jeudi ce que vous comptez faire, quitte à me donner une réponse provisoire ?"
         ),
-        "brief": "Votre hôte doit savoir si vous restez. Expliquez vos projets, même s'ils ne sont pas encore décidés.",
+        "brief": "Ton hôte doit savoir si tu restes. Explique tes projets, même s'ils ne sont pas encore décidés.",
         "success_signal": "Hélène knows whether you leave on Saturday or want to stay, and what it depends on.",
         "twist": "Pour une semaine de plus, elle peut faire un prix, mais pas changer le radiateur.",
         "ambient_cues": ["une réservation qui se termine", "une décision pas encore prise", "une réponse provisoire"],
@@ -695,7 +696,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
             "accéder ponctuellement aux balcons. Nous vous remercions de nous indiquer vos disponibilités "
             "pour une visite, ainsi que toute contrainte particulière dont nous devrions tenir compte."
         ),
-        "brief": "Des travaux commencent dans l'immeuble. Donnez vos disponibilités et signalez ce qui vous gêne.",
+        "brief": "Des travaux commencent dans l'immeuble. Donne tes disponibilités et signale ce qui te gêne.",
         "success_signal": "The managing agent has your availability for a visit and knows your constraint.",
         "twist": "Les travaux commencent à 7 h 30, même le samedi.",
         "ambient_cues": ["un échafaudage", "trois semaines de bruit", "un ton administratif"],
@@ -722,7 +723,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
             "les familles réclament de l'espace. Accepteriez-vous de nous écrire quelques lignes pour notre "
             "courrier des lecteurs, avec votre point de vue et ce qui le justifie ?"
         ),
-        "brief": "Un journal de quartier vous demande votre avis sur les quais sans voitures. Donnez votre position et vos arguments.",
+        "brief": "Un journal de quartier te demande ton avis sur les quais sans voitures. Donne ta position et tes arguments.",
         "success_signal": "The editor has your position and at least one reason for it.",
         "twist": "Le numéro sort samedi ; il leur faut le texte jeudi.",
         "ambient_cues": ["un débat de quartier", "des commerçants inquiets", "le courrier des lecteurs"],
@@ -749,7 +750,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
             "précisément les faits ; nous ouvrirons alors une enquête auprès du transporteur, dont les "
             "conclusions nous parviennent généralement sous quinze jours."
         ),
-        "brief": "Le transporteur affirme vous avoir remis le colis. Contestez-le avec précision et dites ce que vous attendez.",
+        "brief": "Le transporteur affirme t’avoir remis le colis. Conteste-le avec précision et dis ce que tu attends.",
         "success_signal": "The service has a precise account of what happened and knows what you ask for.",
         "twist": "La signature sur le bon de livraison ne ressemble pas du tout à la vôtre.",
         "ambient_cues": ["une réponse type", "une signature qui n'est pas la vôtre", "quinze jours d'attente"],
@@ -776,7 +777,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
             "de quelqu'un qui découvre le quartier nous serait précieux : accepteriez-vous d'intervenir "
             "cinq minutes, ou, à défaut, de nous envoyer quelques lignes que nous lirions en ouverture ?"
         ),
-        "brief": "Une association vous invite à parler des commerces de quartier. Dites si vous intervenez, et donnez votre regard.",
+        "brief": "Une association t’invite à parler des commerces de quartier. Dis si tu interviens, et donne ton regard.",
         "success_signal": "The association knows whether you will speak and has your view in a few lines.",
         "twist": "Une librairie du quai a fermé la semaine dernière.",
         "ambient_cues": ["des loyers qui flambent", "une table ronde", "un regard neuf"],
@@ -804,7 +805,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
             "profit de plantations et de bancs. Quels effets en attendez-vous sur la vie du quartier, et "
             "quelles réserves éventuelles souhaiteriez-vous formuler ?"
         ),
-        "brief": "La mairie consulte les habitants sur les berges du canal. Donnez un avis nuancé, avec vos réserves.",
+        "brief": "La mairie consulte les habitants sur les berges du canal. Donne un avis nuancé, avec tes réserves.",
         "success_signal": "The town hall has your view of the project's effects and any reservation.",
         "twist": "La consultation ferme dimanche à minuit.",
         "ambient_cues": ["une consultation publique", "des places de stationnement", "un avis nuancé"],
@@ -822,11 +823,11 @@ FIRST_LETTER_WRITERS: tuple[str, ...] = ("margaux_barman", "romy_tremblay")
 
 #: The cast's roles as the Courrier prints them (French, the letter's language).
 CAST_ROLES_FR: dict[str, str] = {
-    "marin_leveque": "votre premier ami à Paris",
+    "marin_leveque": "ton premier ami à Paris",
     "romy_tremblay": "journaliste, nouvelle à Paris",
     "lila_bonnet": "institutrice et peintre",
     "margaux_barman": "serveuse au Mistral",
-    "landlord_marchand": "votre propriétaire",
+    "landlord_marchand": "ton propriétaire",
 }
 
 #: The authored first letter per band group (``A`` = A1–A2, ``B`` = B1 and up),
@@ -839,7 +840,7 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "level": "A1",
         "label": "Le Mistral",
         "character_id": "margaux_barman",
-        "title": "Votre écharpe au Mistral",
+        "title": "Ton écharpe au Mistral",
         "contact_name": "Margaux",
         "contact_role": "serveuse au Mistral",
         "contact_initials": "MA",
@@ -850,11 +851,11 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "scene_anchor": "Le soir, un message du café Le Mistral",
         "opening_message": "Bonsoir ! C'est Margaux, du Mistral. Vous avez oublié votre écharpe sur la table. Vous passez demain ?",
         "opening_message_tu": "Salut ! C'est Margaux, du Mistral. Tu as oublié ton écharpe sur la table. Tu passes demain ?",
-        "brief": "Margaux a votre écharpe. Répondez et dites quand vous passez.",
+        "brief": "Margaux a ton écharpe. Réponds et dis quand tu passes.",
         "brief_tu": "Margaux a ton écharpe. Réponds et dis quand tu passes.",
-        "success_signal": "Margaux sait quand vous passez.",
+        "success_signal": "Margaux sait quand tu passes.",
         "success_signal_i18n": {
-            "fr": "Margaux sait quand vous passez.",
+            "fr": "Margaux sait quand tu passes.",
             "en": "Margaux knows when you are coming by.",
             "de": "Margaux weiß, wann du vorbeikommst.",
         },
@@ -878,7 +879,7 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "channel_label": "Court e-mail",
         "tone": "light_warm",
         "register": "vous / warm but polite",
-        "scene_anchor": "Un e-mail de Romy, après votre soirée au Mistral",
+        "scene_anchor": "Un e-mail de Romy, après ta soirée au Mistral",
         "opening_message": (
             "Bonjour ! C'est Romy, on s'est vus au Mistral. J'écris un article sur les gens qui "
             "arrivent à Paris. Vous voulez bien répondre à trois questions : d'où venez-vous, "
@@ -889,11 +890,11 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
             "arrivent à Paris. Tu veux bien répondre à trois questions : d'où tu viens, "
             "pourquoi Paris, et qu'est-ce qui te surprend ici ?"
         ),
-        "brief": "Romy écrit un article. Répondez à ses trois questions.",
+        "brief": "Romy écrit un article. Réponds à ses trois questions.",
         "brief_tu": "Romy écrit un article. Réponds à ses trois questions.",
-        "success_signal": "Romy sait d'où vous venez et pourquoi vous êtes à Paris.",
+        "success_signal": "Romy sait d'où tu viens et pourquoi tu es à Paris.",
         "success_signal_i18n": {
-            "fr": "Romy sait d'où vous venez et pourquoi vous êtes à Paris.",
+            "fr": "Romy sait d'où tu viens et pourquoi tu es à Paris.",
             "en": "Romy knows where you are from and why you are in Paris.",
             "de": "Romy weiß, woher du kommst und warum du in Paris bist.",
         },
@@ -1050,7 +1051,7 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
 # twelve domains, the mission-type fallbacks, the serial default — is covered.
 AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
     "Samira knows what you want and whether to slice or set anything aside.": {
-        "fr": "Samira sait quel pain vous voulez.",
+        "fr": "Samira sait quel pain tu veux.",
         "de": "Samira weiß, was du möchtest und ob sie etwas schneiden oder zurücklegen soll.",
     },
     "The landlord understands the issue and proposes a concrete time.": {
@@ -1058,80 +1059,80 @@ AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
         "de": "Der Vermieter versteht das Problem und schlägt einen konkreten Termin vor.",
     },
     "Your neighbour feels heard and knows what will change.": {
-        "fr": "Madame Vidal est contente et sait ce que vous allez faire.",
+        "fr": "Madame Vidal est contente et sait ce que tu vas faire.",
         "de": "Dein Nachbar fühlt sich gehört und weiß, was sich ändern wird.",
     },
     "Support has the right address and a clear next step.": {
-        "fr": "Ils savent où vous habitez et ce qu'ils vont faire.",
+        "fr": "Ils savent où tu habites et ce qu'ils vont faire.",
         "de": "Der Kundendienst hat die richtige Adresse und einen klaren nächsten Schritt.",
     },
     "The reception desk can book the right slot without calling again.": {
-        "fr": "Le cabinet a le bon jour et la bonne heure pour vous.",
+        "fr": "Le cabinet a le bon jour et la bonne heure pour toi.",
         "de": "Die Rezeption kann den richtigen Termin buchen, ohne noch einmal anzurufen.",
     },
     "The agent knows whether to reroute or refund you.": {
-        "fr": "L'agent sait si vous voulez un autre train ou votre argent.",
+        "fr": "L'agent sait si tu veux un autre train ou ton argent.",
         "de": "Der Mitarbeiter weiß, ob er dich umbuchen oder dir das Geld erstatten soll.",
     },
     "Noémie knows you are coming and where to wait for you.": {
-        "fr": "Noémie sait que vous venez et où vous trouver.",
+        "fr": "Noémie sait que tu viens et où te trouver.",
         "de": "Noémie weiß, dass du kommst und wo sie auf dich warten soll.",
     },
     "Nadia knows when you arrive and what to do meanwhile.": {
-        "fr": "Nadia sait quand vous arrivez.",
+        "fr": "Nadia sait quand tu arrives.",
         "de": "Nadia weiß, wann du ankommst und was sie bis dahin tun soll.",
     },
     "Support logs the duration and gives a repair or compensation step.": {
-        "fr": "Ils savent depuis quand vous n'avez pas internet et quand ça va marcher.",
+        "fr": "Ils savent depuis quand tu n'as pas internet et quand ça va marcher.",
         "de": "Der Kundendienst notiert die Dauer und bietet eine Reparatur oder Entschädigung an.",
     },
     "The shop can send the correct size or confirm the return.": {
-        "fr": "La boutique sait quelle taille vous voulez.",
+        "fr": "La boutique sait quelle taille tu veux.",
         "de": "Der Laden kann die richtige Größe schicken oder die Rücksendung bestätigen.",
     },
     "The clerk tells you which document or detail will complete the file.": {
-        "fr": "La mairie vous dit ce qu'il faut.",
+        "fr": "La mairie te dit ce qu'il faut.",
         "de": "Die Sachbearbeitung sagt dir, welches Dokument oder welche Angabe die Akte vervollständigt.",
     },
     "Luc smiles instead of feeling annoyed and knows what you will do.": {
-        "fr": "Luc sourit et sait ce que vous allez faire.",
+        "fr": "Luc sourit et sait ce que tu vas faire.",
         "de": "Luc lächelt, statt sich zu ärgern, und weiß, was du tun wirst.",
     },
     # WP-125B proposal letters.
     "The service knows which option you take, or what you need instead.": {
-        "fr": "Le service sait quelle solution vous choisissez, ou ce qu'il vous faut.",
+        "fr": "Le service sait quelle solution tu choisis, ou ce qu'il te faut.",
         "de": "Der Kundendienst weiß, welche Lösung du wählst oder was du stattdessen brauchst.",
     },
     "The office can check the bag is yours and knows when you will come.": {
-        "fr": "Le service peut vérifier que le sac est à vous et sait quand vous passez.",
+        "fr": "Le service peut vérifier que le sac est à toi et sait quand tu passes.",
         "de": "Das Fundbüro kann prüfen, dass die Tasche dir gehört, und weiß, wann du vorbeikommst.",
     },
     "The council has one thing you like and one thing you miss in the area.": {
-        "fr": "Le conseil sait ce qui vous plaît et ce qui vous manque dans le quartier.",
+        "fr": "Le conseil sait ce qui te plaît et ce qui te manque dans le quartier.",
         "de": "Der Quartiersrat weiß, was dir im Viertel gefällt und was dir fehlt.",
     },
     "Hélène knows whether you leave on Saturday or want to stay, and what it depends on.": {
-        "fr": "Hélène sait si vous partez samedi ou si vous voulez rester, et de quoi cela dépend.",
+        "fr": "Hélène sait si tu pars samedi ou si tu veux rester, et de quoi cela dépend.",
         "de": "Hélène weiß, ob du am Samstag abreisen oder bleiben möchtest und wovon das abhängt.",
     },
     "The managing agent has your availability for a visit and knows your constraint.": {
-        "fr": "Le syndic connaît vos disponibilités et ce qui vous gêne.",
+        "fr": "Le syndic connaît tes disponibilités et ce qui te gêne.",
         "de": "Die Hausverwaltung kennt deine Verfügbarkeit für einen Besuch und weiß, was dich einschränkt.",
     },
     "The editor has your position and at least one reason for it.": {
-        "fr": "Le journal connaît votre position et au moins une raison.",
+        "fr": "Le journal connaît ta position et au moins une raison.",
         "de": "Die Redaktion kennt deine Position und mindestens einen Grund dafür.",
     },
     "The service has a precise account of what happened and knows what you ask for.": {
-        "fr": "Le service dispose d'un récit précis des faits et sait ce que vous demandez.",
+        "fr": "Le service dispose d'un récit précis des faits et sait ce que tu demandes.",
         "de": "Der Kundendienst hat eine genaue Darstellung des Geschehens und weiß, was du verlangst.",
     },
     "The association knows whether you will speak and has your view in a few lines.": {
-        "fr": "L'association sait si vous intervenez et connaît votre regard en quelques lignes.",
+        "fr": "L'association sait si tu interviens et connaît ton regard en quelques lignes.",
         "de": "Der Verein weiß, ob du sprichst, und kennt deine Sicht in ein paar Zeilen.",
     },
     "The town hall has your view of the project's effects and any reservation.": {
-        "fr": "La mairie connaît votre avis sur les effets du projet et vos éventuelles réserves.",
+        "fr": "La mairie connaît ton avis sur les effets du projet et tes éventuelles réserves.",
         "de": "Das Bezirksamt kennt deine Einschätzung der Folgen des Projekts und deine Vorbehalte.",
     },
     "They know what to do next.": {
@@ -1139,7 +1140,7 @@ AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
         "de": "Dein Gegenüber weiß, was als Nächstes zu tun ist.",
     },
     "Nadia can repeat your plan without asking three follow-up questions.": {
-        "fr": "Nadia comprend votre plan et n'a pas de questions.",
+        "fr": "Nadia comprend ton plan et n'a pas de questions.",
         "de": "Nadia kann deinen Plan wiederholen, ohne drei Rückfragen zu stellen.",
     },
     "Mina understands what happened, why it matters, and what changes next.": {
@@ -1151,7 +1152,7 @@ AUTHORED_SUCCESS_SIGNAL_I18N: dict[str, dict[str, str]] = {
         "de": "Der Mitarbeiter kennt das Problem, die Bitte und den genauen nächsten Schritt.",
     },
     "The conversation can continue without sounding scripted.": {
-        "fr": "Vous pouvez parler encore, comme dans la vie.",
+        "fr": "Tu peux parler encore, comme dans la vie.",
         "de": "Das Gespräch kann weitergehen, ohne auswendig gelernt zu klingen.",
     },
     "The next person in the story knows exactly what to do.": {
@@ -2821,9 +2822,9 @@ class MissionGenerator:
         tu = str(custom_context.get("register") or "").lower().startswith("tu")
         question = str(custom_context.get("open_question_fr") or "").strip()
         generated = bool(messenger.get("success_signal_i18n"))
-        outcome = custom_context.get("desired_outcome") or (
-            f"{name} sait ce que tu en penses." if tu else f"{name} sait ce que vous en pensez."
-        )
+        # The goal is the app speaking to the learner: «tu» whatever the letter writer's
+        # own register is (``tu`` below only picks the writer's quick replies and opening).
+        outcome = custom_context.get("desired_outcome") or f"{name} sait ce que tu en penses."
         story_messenger = {
             **messenger,
             "contact_name": name,
@@ -2861,11 +2862,7 @@ class MissionGenerator:
         if summary and summary[-1] not in ".!?…":
             summary += "."
         about = f" : {summary}" if summary else "."
-        story_brief = (
-            f"{name} t'écrit après ce qui s'est passé{about} Réponds-lui en français."
-            if tu
-            else f"{name} vous écrit après ce qui s'est passé{about} Répondez-lui en français."
-        )
+        story_brief = f"{name} t'écrit après ce qui s'est passé{about} Réponds-lui en français."
         objectives = [
             {
                 "id": "custom_real_life_outcome",
@@ -3183,7 +3180,11 @@ class MissionGenerator:
             "numbers and due_vocabulary), at most level_limits.max_words_outside_the_list other words in the "
             "whole letter, and sentences no longer than level_limits.max_words_per_sentence; a letter that "
             "breaks a limit is thrown away. If rewrite_because is present, your previous "
-            "letter was too hard or incomplete: rewrite it fixing exactly that. Return JSON only."
+            "letter was too hard or incomplete: rewrite it fixing exactly that. "
+            # The page speaks to the learner in the one register setting; only the other
+            # person's opening_message follows the `register` field.
+            f"{address_instruction('fr')} The other person's opening_message is the exception: it follows the "
+            "`register` field. Return JSON only."
         )
         # WP-99: the WP-84 check's limits go into the prompt, so the first draft
         # is written at the learner's band rather than rejected at it.
@@ -3432,8 +3433,8 @@ class MissionGenerator:
                 "time_label": "08:15",
                 "thread_title": "Nadia · le plan de demain",
                 "scene_anchor": "Messagerie du travail, avant un changement de planning",
-                "dispatch_note": "Expliquez votre plan, simplement.",
-                "inbox_context": "Nadia veut savoir ce que vous faites d'abord, et après.",
+                "dispatch_note": "Explique ton plan, simplement.",
+                "inbox_context": "Nadia veut savoir ce que tu fais d'abord, et après.",
                 "opening_message": "Tu peux me dire ce que tu fais demain ? Je veux savoir.",
                 "ambient_cues": ["le planning change", "une collègue absente", "une décision avant midi"],
                 "quick_replies": [
@@ -3451,7 +3452,7 @@ class MissionGenerator:
                 "time_label": "12:03",
                 "thread_title": "Mina · un titre du jour",
                 "scene_anchor": "À midi, un titre dans le journal",
-                "dispatch_note": "Résumez l'information en quelques phrases.",
+                "dispatch_note": "Résume l'information en quelques phrases.",
                 "inbox_context": first_source or "Mina a vu un titre et veut comprendre.",
                 "opening_message": (
                     f"J'ai vu ce titre : « {first_source} ». Tu peux me résumer l'idée principale ?"
@@ -3473,11 +3474,11 @@ class MissionGenerator:
                 "contact_initials": "AM",
                 "time_label": "19:28",
                 "thread_title": "Agent Moreau · un problème",
-                "scene_anchor": "À l'accueil, des gens attendent derrière vous",
-                "dispatch_note": "Expliquez le problème poliment et demandez la suite.",
-                "inbox_context": "L'agent peut aider si votre demande est claire.",
+                "scene_anchor": "À l'accueil, des gens attendent derrière toi",
+                "dispatch_note": "Explique le problème poliment et demande la suite.",
+                "inbox_context": "L'agent peut aider si ta demande est claire.",
                 "opening_message": "Bonjour, dites-moi le problème et je regarde ce que je peux faire.",
-                "ambient_cues": ["des gens derrière vous", "votre billet", "on dit « vous »"],
+                "ambient_cues": ["des gens derrière toi", "ton billet", "on dit « vous »"],
                 "quick_replies": [
                     "Bonjour, j'ai un problème avec...",
                     "Est-ce que c'est possible de...",
@@ -3493,8 +3494,8 @@ class MissionGenerator:
                 "time_label": "21:06",
                 "thread_title": "Noémie · on se parle",
                 "scene_anchor": "Une petite conversation, avec peu de temps",
-                "dispatch_note": "Continuez l'échange avec des détails et des questions.",
-                "inbox_context": "Noémie répond si vous lui donnez un vrai détail.",
+                "dispatch_note": "Continue l'échange avec des détails et des questions.",
+                "inbox_context": "Noémie répond si tu lui donnes un vrai détail.",
                 "opening_message": "On parle un peu : tu arrives et tu n'as pas beaucoup de temps. Tu me dis quoi ?",
                 "ambient_cues": ["peu de temps", "une vraie réaction", "une autre question"],
                 "quick_replies": [
@@ -3522,27 +3523,27 @@ class MissionGenerator:
     def _writing_title(self, mission_type: str) -> str:
         return {
             "message": "Votre dépêche",
-            "explain_plan": "Votre plan",
-            "news_summary": "Votre brève",
-            "travel_work": "Ce que vous diriez",
-            "conversation": "Votre première réponse",
-        }.get(mission_type, "Votre réponse")
+            "explain_plan": "Ton plan",
+            "news_summary": "Ta brève",
+            "travel_work": "Ce que tu dirais",
+            "conversation": "Ta première réponse",
+        }.get(mission_type, "Ta réponse")
 
     def _writing_instruction(self, mission_type: str) -> str:
         return {
-            "message": "Gardez la longueur d'un vrai message : salutation, détail utile, une question, formule de politesse.",
-            "explain_plan": "Enchaînez les étapes : première étape, solution de repli, puis ce qui se passera ensuite.",
-            "news_summary": "Ne recopiez pas la source. Résumez l'essentiel et ajoutez la conséquence concrète pour vous.",
-            "travel_work": "Soyez précis et poli : le problème, la demande, la confirmation.",
-            "conversation": "Écrivez la première réponse que vous diriez à voix haute, puis continuez l'échange.",
-        }.get(mission_type, "Écrivez une réponse réaliste.")
+            "message": "Garde la longueur d'un vrai message : salutation, détail utile, une question, formule de politesse.",
+            "explain_plan": "Enchaîne les étapes : première étape, solution de repli, puis ce qui se passera ensuite.",
+            "news_summary": "Ne recopie pas la source. Résume l'essentiel et ajoute la conséquence concrète pour toi.",
+            "travel_work": "Sois précis et poli : le problème, la demande, la confirmation.",
+            "conversation": "Écris la première réponse que tu dirais à voix haute, puis continue l'échange.",
+        }.get(mission_type, "Écris une réponse réaliste.")
 
     def _conversation_title(self, mission_type: str) -> str:
         return "L'échange" if mission_type == "conversation" else "Une réponse de plus"
 
     def _conversation_instruction(self, mission_type: str) -> str:
         if mission_type == "conversation":
-            return "Répondez, puis continuez sur plusieurs tours. Chaque réponse doit faire avancer la situation."
+            return "Réponds, puis continue sur plusieurs tours. Chaque réponse doit faire avancer la situation."
         return "À utiliser pour rejouer la même situation en quelques répliques, à l'oral ou à l'écrit."
 
     def _task_label(self, mission_type: str) -> str:
@@ -3561,7 +3562,7 @@ class MissionGenerator:
             return "Bonjour, je vous écris parce que..."
         if mission_type == "explain_plan":
             return "D'abord, je vais..."
-        return "Votre réponse en français…"
+        return "Ta réponse en français…"
 
 
 class MissionCorrectionService:
@@ -4005,8 +4006,9 @@ class MissionCorrectionService:
             # language of the text it was correcting instead of the learner's own.
             f"LANGUAGE RULE, applies to every field: write why_wrong, repair_hint and display_label in {gloss_language}, "
             f"and ONLY in {gloss_language}. Keep learner_text, corrected_target and corrected_answer in French — never "
-            f"translate the French itself. If you are about to write why_wrong in French, write it in {gloss_language} instead."
-        )
+            f"translate the French itself. If you are about to write why_wrong in French, write it in {gloss_language} instead. "
+            f"{address_instruction(normalize_language(getattr(user, 'native_language', None)))}"
+        ).strip()
         try:
             result = self.llm.generate_error_detection(
                 messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
@@ -4923,14 +4925,14 @@ class MissionDebriefService:
         if outcome == "partial":
             return "Réglé à moitié : un point est resté en suspens."
         if turns == 0:
-            return "Rien n'a été réglé cette fois. Répondez une fois en direct."
+            return "Rien n'a été réglé cette fois. Réponds une fois en direct."
         return "Rien n'a été réglé cette fois : l'essentiel n'a pas été dit."
 
     def _next_best_move(self, *, mission: RealWorldMission, errata_count: int, outcome: str) -> str:
         if errata_count:
-            return "Revoyez les corrections dans la séance du jour, puis renvoyez une version plus nette."
+            return "Revois les corrections dans la séance du jour, puis renvoie une version plus nette."
         if outcome != "kept":
-            return "Ajoutez un détail concret et posez une question plus claire sur la suite."
+            return "Ajoute un détail concret et pose une question plus claire sur la suite."
         return "Refaites la même situation à l'oral, puis replacez la phrase gardée dans la séance."
 
     def _next_mission_seed(self, *, mission: RealWorldMission, outcome: str, errata_count: int) -> dict[str, Any]:
@@ -5922,7 +5924,7 @@ class MissionScheduler:
             "inbox_context": mission.brief,
             "opening_message": messenger.get("opening_message")
             or hook.get("text")
-            or "Le fil continue. Répondez avec un message clair et utile.",
+            or "Le fil continue. Réponds avec un message clair et utile.",
             "success_signal": messenger.get("success_signal")
             or "The next person in the story knows exactly what to do.",
         }
@@ -5969,9 +5971,7 @@ class MissionScheduler:
     def _serial_register_for_character(*, thread: SerialThread, character_id: str) -> str:
         if character_id == "landlord_marchand":
             return "vous / polite formal"
-        relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
-        entry = relationships.get(character_id) if isinstance(relationships, dict) else {}
-        if isinstance(entry, dict) and str(entry.get("register") or "").lower() == "tu":
+        if courrier.learner_register(thread, character_id) == "tu":
             return "tu / warm informal"
         return "vous / cautious newcomer"
 
@@ -5984,7 +5984,10 @@ class MissionScheduler:
         moods = living.get("moods") if isinstance(living, dict) and isinstance(living.get("moods"), dict) else {}
         payload: dict[str, Any] = {}
         for character_id in brief.get("required_cast") or []:
-            entry = dict(relationships.get(str(character_id)) or {"closeness": 0, "register": "vous", "callbacks": []})
+            entry = dict(
+                relationships.get(str(character_id))
+                or {"closeness": 0, "register": courrier.learner_register(thread, str(character_id)), "callbacks": []}
+            )
             feeling = moods.get(str(character_id))
             if isinstance(feeling, dict):
                 entry["mood"] = max(-2, min(2, int(feeling.get("mood") or 0)))
@@ -6510,7 +6513,7 @@ class MissionConversationService:
         Corrections remain in Atelier so they are filed quietly to its errata. This
         method owns only the fictional reply and deliberately carries no tutor voice.
         """
-        name = _compact_text(character.get("name"), max_length=80) or "Votre interlocuteur"
+        name = _compact_text(character.get("name"), max_length=80) or "Ton interlocuteur"
         role = _compact_text(character.get("role"), max_length=120)
         register = _compact_text(character.get("register"), max_length=40) or "vous"
         if not self.llm:
@@ -6834,7 +6837,16 @@ class MissionConversationService:
         has_question = "?" in text or any(token in text.lower() for token in ("est-ce", "pouvez", "peux", "pourriez"))
         has_detail = len(words) >= 10 or any(char.isdigit() for char in text)
         messenger = (mission.prompt_payload or {}).get("messenger") or {}
-        expected_register = " ".join(messenger.get("realism_rules") or []).lower()
+        # The resolved register of this correspondent (``tu / …`` or ``vous / …``, from
+        # ``app.services.address``) outranks a guess from the prose of ``realism_rules``.
+        declared_register = str(
+            messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register") or ""
+        ).strip().lower()
+        expected_register = (
+            declared_register
+            if declared_register.startswith(("tu", "vous"))
+            else " ".join(messenger.get("realism_rules") or []).lower()
+        )
         stakes_level = int(getattr(mission, "stakes_level", None) or (mission.prompt_payload or {}).get("stakes_level") or 1)
         formal_markers = _has_word(text, ("vous", "pourriez", "serait-il", "merci par avance"))
         informal_markers = _has_word(text, ("tu", "coucou", "bisous"))
@@ -6926,17 +6938,17 @@ _ARTEFACT_TASK_TITLES_FR: dict[str, str] = {k: v["fr"] for k, v in _ARTEFACT_TAS
 
 _ARTEFACT_TASK_INSTRUCTIONS: dict[str, dict[str, str]] = {
     "reply": {
-        "fr": "Écrivez votre réponse en français.",
+        "fr": "Écris ta réponse en français.",
         "en": "Write your reply in French.",
         "de": "Schreib deine Antwort auf Französisch.",
     },
     "decide": {
-        "fr": "Écrivez votre choix en français, et dites pourquoi en une phrase.",
+        "fr": "Écris ton choix en français, et dis pourquoi en une phrase.",
         "en": "Write your choice in French, and say why in one sentence.",
         "de": "Schreib deine Wahl auf Französisch und sag in einem Satz, warum.",
     },
     "ask": {
-        "fr": "Écrivez votre question en français.",
+        "fr": "Écris ta question en français.",
         "en": "Write your question in French.",
         "de": "Schreib deine Frage auf Französisch.",
     },
@@ -6989,7 +7001,7 @@ def artefact_mission_payload(
     if kind not in ("reply", "decide", "ask"):
         kind = "reply"
     register = "vous" if str(task.get("register") or "vous") == "vous" else "tu"
-    counterpart = _compact_text(task.get("counterpart_fr"), max_length=80) or "votre correspondant"
+    counterpart = _compact_text(task.get("counterpart_fr"), max_length=80) or "ton correspondant"
     instruction = _compact_text(task.get("instruction_fr"), max_length=280)
     type_label = _compact_text(artefact_payload.get("type_label_fr"), max_length=40) or "Un document"
     title_fr = _compact_text(artefact_payload.get("title_fr"), max_length=120) or type_label
@@ -7028,7 +7040,7 @@ def artefact_mission_payload(
     brief = " ".join(
         part
         for part in (
-            f"{type_label} que vous avez apporté : « {title_fr} ».",
+            f"{type_label} que tu as apporté : « {title_fr} ».",
             summary,
             instruction,
         )
@@ -7057,7 +7069,7 @@ def artefact_mission_payload(
         "contact_role": type_label.lower(),
         "contact_initials": "".join(word[:1].upper() for word in counterpart.split()[:2]) or "DO",
         "channel": "artefact",
-        "channel_label": "Votre document",
+        "channel_label": "Ton document",
         "tone": "calm_specific",
         "register": register,
         "target_register": "vous / registre poli" if register == "vous" else "tu / registre familier",
@@ -7122,7 +7134,7 @@ def artefact_mission_payload(
             "domain_label": type_label,
             "contact": counterpart,
             "channel": "artefact",
-            "channel_label": "Votre document",
+            "channel_label": "Ton document",
             "tone": "calm_specific",
             "twist": "",
             "fuel_source": "learner_artefact",

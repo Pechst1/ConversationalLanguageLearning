@@ -47,7 +47,7 @@ test('the three tables are complete and fill the same placeholders', () => {
 test('A1 reads English, A2 German, B1 French', () => {
   assert.equal(dossierCopy(chromeLanguage('en', 'A1')).level_title, 'Your level');
   assert.equal(dossierCopy(chromeLanguage('de', 'A2')).level_title, 'Dein Niveau');
-  assert.equal(dossierCopy(chromeLanguage('en', 'B1')).level_title, 'Votre niveau');
+  assert.equal(dossierCopy(chromeLanguage('en', 'B1')).level_title, 'Ton niveau');
 });
 
 test('the state sentences follow the language they are given', () => {
@@ -95,9 +95,9 @@ test('the Dossier files read their chrome from the table', () => {
   assert.ok(stateSource.includes("from './dossier-copy'"));
   assert.ok(page.includes("from '@/components/atelier-v2/dossier/dossier-copy'"));
   for (const phrase of [
-    'Votre niveau',
-    'Vos capacités',
-    'Vos fautes notées',
+    'Ton niveau',
+    'Tes capacités',
+    'Tes fautes notées',
     'Je connais déjà',
     'Revenir au dossier',
     'Deux questions, puis c’est réglé',

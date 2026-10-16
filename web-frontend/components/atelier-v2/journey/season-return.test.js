@@ -479,7 +479,7 @@ test('the copy tables carry the same keys, no blanks, and the marks stay French'
     assert.equal(SEASON_RETURN_TABLES[language].season_n, 'Saison {n}');
     assert.equal(SEASON_RETURN_TABLES[language].entre_temps_mark, 'Entre-temps');
   }
-  assert.equal(seasonReturnCopy('fr').absence_title, 'Pendant votre absence');
+  assert.equal(seasonReturnCopy('fr').absence_title, 'Pendant ton absence');
   assert.equal(seasonReturnCopy('fr').absence_resume, 'Reprendre l’histoire');
   assert.equal(seasonReturnCopy('fr').lapsed_title, 'Courrier en souffrance');
   assert.notEqual(seasonReturnCopy('de').absence_title, seasonReturnCopy('fr').absence_title);

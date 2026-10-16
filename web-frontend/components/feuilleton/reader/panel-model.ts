@@ -521,7 +521,7 @@ export function taskPromptLine(task: ReaderTask): string {
   const prompt = String(task?.prompt || '').trim();
   if (prompt) return prompt;
   const instruction = String(task?.instruction || '').trim();
-  return instruction || 'Complétez la tâche.';
+  return instruction || 'Complète la tâche.';
 }
 
 export function taskPromptTranslation(task: ReaderTask): string {

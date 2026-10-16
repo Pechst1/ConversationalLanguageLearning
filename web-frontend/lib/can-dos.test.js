@@ -68,7 +68,7 @@ test('a special edition is read wherever the server put it, and only when it is 
 test('the special list line is in the chrome language, at most three, then «…»', () => {
   assert.equal(
     m.specialListLine(CAN_DOS.slice(0, 2), 'fr'),
-    'Aujourd’hui, montrez que vous savez : commander au café · demander un prix et payer',
+    'Aujourd’hui, montre que tu sais : commander au café · demander un prix et payer',
   );
   assert.equal(m.specialListLine(CAN_DOS, 'en'), 'Today, show that you can: order at a café · ask a price and pay · introduce yourself · …');
   assert.match(m.specialListLine(CAN_DOS.slice(0, 1), 'de'), /^Heute zeigst du, was du kannst: order at a café$/);
@@ -144,7 +144,7 @@ const PAYLOAD = {
           stamped_at: '2026-09-28T09:14:00+00:00',
           source: 'scene',
           scene_id: 's1',
-          scene_title_fr: 'Vous avez commandé au comptoir',
+          scene_title_fr: 'Tu as commandé au comptoir',
           character_id: 'margaux_barman',
           quote_fr: 'Un café, s’il vous plaît.',
         },
@@ -166,7 +166,7 @@ test('the Carnet: bands in order, the current one open, the future locked calmly
   assert.equal(model.selected.count, '2 sur 3 tamponnés');
   const [cafe, prix, soi] = model.selected.items;
   assert.equal(cafe.stamped, true);
-  assert.equal(cafe.line, 'Vous avez commandé au comptoir — Margaux, 28 sept.');
+  assert.equal(cafe.line, 'Tu as commandé au comptoir — Margaux, 28 sept.');
   assert.equal(cafe.characterId, 'margaux_barman');
   assert.equal(cafe.quoteFr, 'Un café, s’il vous plaît.');
   assert.equal(cafe.ariaState, 'Tamponné le 28 sept.');
@@ -186,7 +186,7 @@ test('the Carnet: bands in order, the current one open, the future locked calmly
 
   const future = m.carnetModel(payload, 'A2.1', 'fr');
   assert.equal(future.selected.locked, true);
-  assert.equal(future.selected.lockedNote, 'A2.1 s’ouvre quand A1.2 est bouclé. Voici ce qui vous y attend.');
+  assert.equal(future.selected.lockedNote, 'A2.1 s’ouvre quand A1.2 est bouclé. Voici ce qui t’y attend.');
   assert.equal(future.selected.items[0].rehearsalHref, null);
   assert.equal(future.selected.count, 'Rien de tamponné pour l’instant');
 

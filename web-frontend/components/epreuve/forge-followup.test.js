@@ -140,9 +140,9 @@ test('T8 · after «À corriger»: the wrong sentence quoted, a field, «Passer�
   assert.match(html, /av2-btn--secondary[^>]*disabled/, 'nothing to check yet');
 });
 
-test('T8 · in French: «Corrigez la phrase» and «Passer»', () => {
+test('T8 · in French: «Corrige la phrase» and «Passer»', () => {
   const html = followUp('fr', FIELD, draft());
-  assert.ok(html.includes('Corrigez la phrase'));
+  assert.ok(html.includes('Corrige la phrase'));
   assert.ok(html.includes('>Passer<'));
 });
 
@@ -209,7 +209,7 @@ test('WP-103 · every new Épreuve key exists in en, de and fr', () => {
     }
   }
   assert.equal(epreuveCopy('fr').reading, 'Je relis…');
-  assert.equal(epreuveCopy('fr').follow_title, 'Corrigez la phrase');
+  assert.equal(epreuveCopy('fr').follow_title, 'Corrige la phrase');
   assert.equal(epreuveCopy('fr').follow_skip, 'Passer');
 });
 
@@ -222,7 +222,7 @@ test('#125 a right sentence called wrong is never struck through', () => {
     React.createElement(Ep.EpLabelFix, { old: sentence, fix: sentence }),
   );
   assert.ok(!html.includes('av2-correction__span'), 'no struck span');
-  assert.ok(!html.includes('Votre choix'), 'no «your choice» row');
+  assert.ok(!html.includes('Ton choix'), 'no «your choice» row');
   assert.ok(html.includes('data-already-right'));
   assert.equal(html.split('États-Unis').length - 1, 1, 'the sentence appears once');
   assert.match(html, /déjà juste|already right|schon richtig/);

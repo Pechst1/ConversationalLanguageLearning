@@ -191,10 +191,10 @@ test('turn 1 of 3 from the local copy: opening, the learner, the reply said once
 
   // A next line that is not the reply follows it.
   const follow = model.threadBubbles({
-    prompt: prompt({ turn_index: 1, character_line_fr: 'Vous prenez du sucre ?' }),
+    prompt: prompt({ turn_index: 1, character_line_fr: 'Tu prends du sucre ?' }),
     local,
   });
-  assert.deepEqual(kinds(follow).slice(-2), ['c:Très bien. Au comptoir ou en terrasse ?', 'c:Vous prenez du sucre ?']);
+  assert.deepEqual(kinds(follow).slice(-2), ['c:Très bien. Au comptoir ou en terrasse ?', 'c:Tu prends du sucre ?']);
 });
 
 test('the server thread wins the words; the local copy still supplies the opening', () => {

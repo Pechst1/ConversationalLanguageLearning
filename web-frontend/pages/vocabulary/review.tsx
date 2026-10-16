@@ -149,12 +149,12 @@ function moreWordsParams(n: number) {
 // A2, French from B1).
 const MORE_WORDS_COPY: Record<'one' | 'many', Record<string, { label: string; note: string }>> = {
   one: {
-    fr: { label: 'Encore 1 mot', note: 'Votre rythme prévoit encore 1 mot nouveau aujourd’hui.' },
+    fr: { label: 'Encore 1 mot', note: 'Ton rythme prévoit encore 1 mot nouveau aujourd’hui.' },
     en: { label: '1 more word', note: 'Your rhythm still has 1 new word for today.' },
     de: { label: 'Noch 1 Wort', note: 'Dein Rhythmus sieht heute noch 1 neues Wort vor.' },
   },
   many: {
-    fr: { label: 'Encore {n} mots', note: 'Votre rythme prévoit encore {n} mots nouveaux aujourd’hui.' },
+    fr: { label: 'Encore {n} mots', note: 'Ton rythme prévoit encore {n} mots nouveaux aujourd’hui.' },
     en: { label: '{n} more words', note: 'Your rhythm still has {n} new words for today.' },
     de: { label: 'Noch {n} Wörter', note: 'Dein Rhythmus sieht heute noch {n} neue Wörter vor.' },
   },

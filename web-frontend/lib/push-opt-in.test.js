@@ -87,7 +87,7 @@ test('Capacitor and browser permission states are normalised', () => {
 
 test('the copy is one card in the learner language, with a face and no emoji', () => {
   assert.deepEqual(pushOptInCopy('fr'), {
-    line: 'Marin vous prévient quand la suite arrive.',
+    line: 'Marin te prévient quand la suite arrive.',
     yes: 'Oui',
     later: 'Plus tard',
     label: 'Notifications',

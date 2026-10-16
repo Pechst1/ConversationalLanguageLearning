@@ -19,6 +19,7 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.schemas.serial import EpisodeBrief
+from app.services.address import character_register
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.graphic_novel import (
     GraphicNovelGenerationError,
@@ -2194,16 +2195,21 @@ class SerialThreadService:
     def _relationship_payload(self, *, thread: SerialThread, character_ids: list[Any]) -> dict[str, Any]:
         relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
         return {
-            str(character_id): relationships.get(str(character_id), {"closeness": 0, "register": "vous", "callbacks": []})
+            str(character_id): relationships.get(
+                str(character_id),
+                {
+                    "closeness": 0,
+                    "register": character_register(thread.state if isinstance(thread.state, dict) else None, str(character_id)),
+                    "callbacks": [],
+                },
+            )
             for character_id in character_ids
         }
 
     def _register_for_character(self, thread: SerialThread, character_id: str) -> str:
         if character_id == "landlord_marchand" or character_id.startswith("office_"):
             return "vous / polite formal"
-        relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
-        entry = relationships.get(character_id) if isinstance(relationships, dict) else {}
-        if isinstance(entry, dict) and str(entry.get("register") or "").lower() == "tu":
+        if character_register(thread.state if isinstance(thread.state, dict) else None, character_id) == "tu":
             return "tu / warm informal"
         return "vous / cautious newcomer"
 

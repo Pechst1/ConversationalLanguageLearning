@@ -67,7 +67,7 @@ export const TASTE_ITEMS: TasteItem[] = [
     task: {
       en: 'Say hello back.',
       de: 'Grüß zurück.',
-      fr: 'Répondez-lui.',
+      fr: 'Réponds-lui.',
     },
     options: [
       { id: 'merci', fr: 'Merci !' },
@@ -100,7 +100,7 @@ export const TASTE_ITEMS: TasteItem[] = [
     task: {
       en: 'Order a coffee.',
       de: 'Bestell einen Kaffee.',
-      fr: 'Commandez un café.',
+      fr: 'Commande un café.',
     },
     tiles: [
       { id: 'svp', fr: 's’il vous plaît' },
@@ -193,17 +193,17 @@ export const TASTE_COPY: Record<OnboardingLanguage, TasteCopy> = {
     options_label: 'Deine Antwort',
   },
   fr: {
-    promise: 'Apprenez le français dans une histoire. La première scène prend une minute.',
+    promise: 'Apprends le français dans une histoire. La première scène prend une minute.',
     translate: 'Toucher pour traduire',
     hide_translation: 'Masquer la traduction',
     correct: 'Exact !',
-    wrong: 'Pas tout à fait. Réessayez.',
+    wrong: 'Pas tout à fait. Réessaie.',
     remove_tile: 'Retirer le dernier mot',
-    tiles_hint: 'Touchez les mots dans l’ordre',
-    closing: 'Romy, Marin et Lila vous attendent. Gardez votre histoire.',
+    tiles_hint: 'Touche les mots dans l’ordre',
+    closing: 'Romy, Marin et Lila t’attendent. Garde ton histoire.',
     language: 'Langue',
     status: { selected: 'choisi', correct: 'juste', wrong: 'faux' },
-    options_label: 'Votre réponse',
+    options_label: 'Ta réponse',
   },
 };
 
@@ -244,9 +244,9 @@ export const TASTE_NAV: Record<OnboardingLanguage, TasteNav> = {
     start: 'Commencer',
     have_account: 'J’ai déjà un compte',
     next: 'Continuer',
-    keep: 'Gardez votre histoire',
+    keep: 'Garde ton histoire',
     retry: 'Réessayer',
-    open_edition: 'Ouvrir votre édition',
+    open_edition: 'Ouvrir ton édition',
   },
 };
 

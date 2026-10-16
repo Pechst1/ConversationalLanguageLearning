@@ -12,11 +12,12 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode
 from app.db.models.user import User
+from app.services.address import character_register as resolve_character_register
 
 #: WP-19's title for the morning push. WP-80 replaced it with the speaking
 #: character's name; kept so nothing that imports it breaks, and so a test can
 #: assert that it is no longer sent.
-DAILY_JOURNEY_MORNING_TITLE = "Votre scène du jour est prête"
+DAILY_JOURNEY_MORNING_TITLE = "Ta scène du jour est prête"
 
 
 def _compact(value: Any, max_length: int = 140) -> str:
@@ -47,10 +48,10 @@ def enqueue_serial_edition_notification(db: Session, episode: SerialEpisode, *, 
     teaser = _compact(hook.get("teaser") or hook.get("text") or hook.get("unresolved_question"))
     if episode.kind == "feuilleton":
         title = f"Épisode {int(episode.episode_index) + 1} disponible"
-        message = teaser or "Votre nouvelle édition du Feuilleton est prête."
+        message = teaser or "Ta nouvelle édition du Feuilleton est prête."
     else:
-        title = f"Épisode {int(episode.episode_index) + 1} · à vous"
-        message = teaser or "Romy attend votre réponse dans le prochain acte."
+        title = f"Épisode {int(episode.episode_index) + 1} · à toi"
+        message = teaser or "Romy attend ta réponse dans le prochain acte."
 
     hook["notification_queued_key"] = notification_key
     hook["notification_queued_at"] = datetime.now(UTC).isoformat()
@@ -373,21 +374,20 @@ def _active_thread(db: Session, user: User):
 
 
 def character_register(db: Session, user: User, character_id: Any) -> str:
-    """``tu`` when the learner and this character have switched, else ``vous`` (WP-97).
+    """How this character addresses the learner, ``tu`` or ``vous`` (WP-97).
 
-    Read where the register lives, ``state.relationships[id].register`` — the story
-    engine writes ``tu`` there when «On se tutoie ?» is accepted. The landlord stays
-    «vous» whatever a legacy row says.
+    One resolver for the whole app (``app.services.address.character_register``): the
+    register the relationship records — the story engine writes ``tu`` there when
+    «On se tutoie ?» is accepted — else what the story opens that character with. The
+    landlord stays «vous» whatever a legacy row says.
     """
 
     key = portrait_character(character_id) or str(character_id or "")
-    if not key or key == "landlord_marchand":
+    if not key:
         return "vous"
     thread = _active_thread(db, user)
-    relationships = (getattr(thread, "state", None) or {}).get("relationships") if thread else None
-    entry = (relationships or {}).get(key) if isinstance(relationships, dict) else None
-    register = str((entry or {}).get("register") or "").lower() if isinstance(entry, dict) else ""
-    return "tu" if register.startswith("tu") else "vous"
+    state = getattr(thread, "state", None) if thread else None
+    return resolve_character_register(state if isinstance(state, dict) else None, key)
 
 
 def _latest_journey(db: Session, user: User) -> DailyJourney | None:
@@ -662,7 +662,7 @@ def courrier_push(db: Session, user: User, *, mission: Any, kind: str) -> Charac
 
 
 #: Title for the WP-31 day-before push of a rehearsal whose real event is tomorrow.
-REHEARSAL_READY_TITLE = "Votre répétition est prête"
+REHEARSAL_READY_TITLE = "Ta répétition est prête"
 
 
 def rehearsal_reminder_copy(
@@ -702,7 +702,7 @@ def rehearsal_reminder_copy(
     if row is None:
         return None
     goal = _compact((row.brief or {}).get("goal_fr") or "")
-    return REHEARSAL_READY_TITLE, goal or "C’est demain. Répétez-la une fois."
+    return REHEARSAL_READY_TITLE, goal or "C’est demain. Répète-la une fois."
 
 
 __all__ = [

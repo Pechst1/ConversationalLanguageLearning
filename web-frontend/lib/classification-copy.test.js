@@ -5,8 +5,8 @@ const { classificationCopy, classificationGoal } = require('./classification-cop
 
 test('B1 classification labels and quoted correction keys display in French', () => {
   assert.equal(classificationCopy('future result', 'fr'), 'conséquence au futur');
-  assert.equal(classificationCopy('Vous avez choisi « present condition » ; la réponse est « future result ».', 'fr'),
-    'Vous avez choisi « condition au présent » ; la réponse est « conséquence au futur ».');
+  assert.equal(classificationCopy('Tu as choisi « present condition » ; la réponse est « future result ».', 'fr'),
+    'Tu as choisi « condition au présent » ; la réponse est « conséquence au futur ».');
 });
 
 test('display localization keeps stored grading keys and French sentences intact', () => {
@@ -18,7 +18,7 @@ test('display localization keeps stored grading keys and French sentences intact
 });
 
 test('classification asks for a category rather than a cloze completion', () => {
-  assert.equal(classificationGoal('fr'), 'Classez cette forme.');
+  assert.equal(classificationGoal('fr'), 'Classe cette forme.');
 });
 
 // QA-FORGE (2026-10-03): the owner (German, A1) met «Correct» (English) and

@@ -66,7 +66,7 @@ test('the pages read the table and carry no inline French chrome', () => {
       }
     }
     assert.ok(page.includes('{AUTH_EYEBROW}'), `${name}: the nameplate line is shared, not inline`);
-    for (const phrase of ['Se connecter', 'Mot de passe', 'Réessayez', 'Adresse e-mail', 'Quotidien de français']) {
+    for (const phrase of ['Se connecter', 'Mot de passe', 'Réessaie', 'Adresse e-mail', 'Quotidien de français']) {
       assert.ok(!code.includes(phrase), `${name}: inline French «${phrase}»`);
     }
   }
