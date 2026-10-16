@@ -109,6 +109,7 @@ import {
 } from '@/lib/first-steps';
 import { isRevueDay } from '@/lib/revue-une';
 import { emitCameo } from '@/lib/cameo';
+import { castIdFor } from '@/lib/cast-faces';
 
 export type JourneySessionProps = {
   controller: DailyJourneyController;
@@ -272,6 +273,18 @@ export function JourneySession({
     // WP-78: a practice day opens on warm-ups, so «the first scene», not steps[0].
     firstSceneStepId(journey) === step.id;
   const showCastIntro = castIntro.length > 0 && !castIntroDone && atFirstScene;
+
+  // #155: the cameo cast is whoever the learner has met. A face on screen counts as met.
+  const metKey = [
+    ...(showCastIntro ? castIntro.map((entry) => castIdFor(entry.character_id, entry.name)) : []),
+    speaker ? castIdFor(speaker.id, speaker.name) : null,
+    asker ? castIdFor(asker.id, asker.name) : null,
+  ]
+    .filter(Boolean)
+    .join(',');
+  React.useEffect(() => {
+    if (metKey) emitCameo({ type: 'met', ids: metKey.split(',') });
+  }, [metKey]);
 
   /* GENTLE-ONBOARDING: the learner's first day (the one that meets the cast)
      opens on the walkthrough — the app, the shapes, the progress row, the
@@ -602,7 +615,7 @@ export function JourneySession({
                   onContinue={actions.continueJourney}
                   onRetry={actions.retryLastAnswer}
                   onDismiss={actions.clearFeedback}
-                  speaker={speaker}
+                  speaker={step?.kind === 'recall' && asker ? asker : speaker}
                   stepKind={step?.kind ?? null}
                   faceShown={step?.kind === 'recall' && Boolean(asker)}
                 />

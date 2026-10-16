@@ -26,6 +26,8 @@ import {
   cameoGloss,
   cameosEnabled,
   decideCameo,
+  readMetCast,
+  writeMetCast,
 } from '@/lib/cameo';
 import type { Cameo, CameoEvent, CameoFigure, CameoGag, CameoLang, CameoMood, CameoState } from '@/lib/cameo';
 import { readLearnerLanguage } from '@/lib/learner-language';
@@ -164,6 +166,14 @@ export function CameoLayer() {
   }, [later]);
 
   const play = useCallback((event: CameoEvent, anchor?: Element | null) => {
+    if (director.current.met.length === 0) director.current = { ...director.current, met: readMetCast() };
+    if (event.type === 'met') {
+      const before = director.current.met.length;
+      const { state } = decideCameo(director.current, event, Date.now());
+      director.current = state;
+      if (state.met.length !== before) writeMetCast(state.met);
+      return;
+    }
     if (!cameosEnabled()) return;
     const { state, cameo } = decideCameo(director.current, event, Date.now());
     director.current = state;

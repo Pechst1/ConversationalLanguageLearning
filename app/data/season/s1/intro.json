@@ -54,6 +54,17 @@
       },
       "line_fr": "Moi, c'est Lila. Et toi ?",
       "line_native": {"en": "I'm Lila. And you?", "de": "Ich bin Lila. Und du?", "fr": "Moi, c'est Lila. Et toi ?"}
+    },
+    {
+      "character_id": "camille_marchand",
+      "name": "Camille",
+      "role_native": {
+        "en": "Arrives at the end of the first evening. Handles the sale of the café for their grandfather.",
+        "de": "Kommt am Ende des ersten Abends. Kümmert sich für den Großvater um den Verkauf des Cafés.",
+        "fr": "Arrive à la fin de la première soirée. Gère la vente du café pour son grand-père."
+      },
+      "line_fr": "Bonsoir. Camille Marchand.",
+      "line_native": {"en": "Good evening. Camille Marchand.", "de": "Guten Abend. Camille Marchand.", "fr": "Bonsoir. Camille Marchand."}
     }
   ]
 }

@@ -1,10 +1,10 @@
 /**
  * WP-75 — the sixty-second taste, before any account.
  *
- * Romy greets the learner at Le Mistral; the learner answers with one tap,
+ * Margaux greets the learner at Le Mistral; the learner answers with one tap,
  * then orders a coffee from tiles. Graded on the device the instant the answer
- * is complete: the option turns green or red, Romy's face changes, the phone
- * ticks. No network, no model, no waiting screen. It ends on Romy's reply and
+ * is complete: the option turns green or red, Margaux's face changes, the phone
+ * ticks. No network, no model, no waiting screen. It ends on Margaux's reply and
  * «Gardez votre histoire», which is the sign-up.
  */
 
