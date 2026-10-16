@@ -125,9 +125,9 @@ services:
       - key: PRIMARY_LLM_PROVIDER
         value: openai
       - key: OPENAI_MODEL
-        value: gpt-5-mini
+        value: gpt-6-luna
       - key: OPENAI_ERROR_DETECTION_MODEL
-        value: gpt-5-mini
+        value: gpt-6-luna
       - key: OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL
         value: gpt-5.4-mini
       - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
@@ -138,8 +138,10 @@ services:
       # and falsely rejected a valid answer, and 900 output tokens truncated a
       # full-paragraph assessment (one live retry needed 2,573). Pinned here so
       # the per-submit cost of the most-used endpoint is visible in the manifest.
+      # 2026-10-16: gpt-5-mini shuts down in December; gpt-6-luna graded 97/100
+      # against its 94/100 on 50 answers, at about a fifth of the cost.
       - key: ATELIER_CORRECTION_LLM_MODEL
-        value: gpt-5-mini
+        value: gpt-6-luna
       - key: ATELIER_CORRECTION_LLM_MAX_TOKENS
         value: "5000"
       - key: ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS
@@ -342,7 +344,7 @@ services:
       - key: PRIMARY_LLM_PROVIDER
         value: openai
       - key: OPENAI_MODEL
-        value: gpt-5-mini
+        value: gpt-6-luna
       - key: OPENAI_GRAPHIC_NOVEL_SCRIPT_MODEL
         value: gpt-5.4-mini
       - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
@@ -353,8 +355,10 @@ services:
       # and falsely rejected a valid answer, and 900 output tokens truncated a
       # full-paragraph assessment (one live retry needed 2,573). Pinned here so
       # the per-submit cost of the most-used endpoint is visible in the manifest.
+      # 2026-10-16: gpt-5-mini shuts down in December; gpt-6-luna graded 97/100
+      # against its 94/100 on 50 answers, at about a fifth of the cost.
       - key: ATELIER_CORRECTION_LLM_MODEL
-        value: gpt-5-mini
+        value: gpt-6-luna
       - key: ATELIER_CORRECTION_LLM_MAX_TOKENS
         value: "5000"
       - key: ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS
