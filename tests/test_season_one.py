@@ -917,6 +917,18 @@ def _respond_turns(db, journey_id: str) -> list[dict]:
     return []
 
 
+def _fallback_note(db, journey_id: str) -> list[str]:
+    """Why a day ended on the authored fallback: the lane's reason and the refusals."""
+
+    from app.db.models.daily_journey import DailyJourneyStep
+
+    for step in db.scalars(select(DailyJourneyStep).where(DailyJourneyStep.journey_id == uuid.UUID(journey_id))):
+        lane = (step.private_task or {}).get("story_lane") or {}
+        if str(step.kind) == "resolution" and lane.get("status") == "fallback":
+            return [f"*Fin de secours : {lane.get('reason')} — {lane.get('hint') or 'sans détail'}*", ""]
+    return []
+
+
 @pytest.mark.skipif(not os.environ.get("SEASON_REPORT"), reason="writes the owner's transcript; set SEASON_REPORT=<path>")
 def test_write_the_first_days_for_the_owner(assembled_client, db_session, journey_enabled, clock, season_on, monkeypatch):
     from app.services.season.transcript import render_generated_day, render_tentpole_day
@@ -1038,6 +1050,7 @@ def test_write_the_first_days_for_the_owner(assembled_client, db_session, journe
             lines.extend(
                 render_generated_day(draft, _respond_turns(db_session, journey_id), resolution.get("prompt") or {}, names=names)
             )
+            lines.extend(_fallback_note(db_session, journey_id))
         clock.advance(days=1)
         # Written after every day: a run stopped by its cap or a crash keeps its days.
         Path(os.environ["SEASON_REPORT"]).write_text("\n".join(lines), encoding="utf-8")

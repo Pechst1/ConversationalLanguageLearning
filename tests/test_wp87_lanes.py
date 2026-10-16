@@ -314,6 +314,12 @@ def test_a_failed_story_lane_gets_the_authored_ending_around_the_shown_reply(
     # («La conversation reprendra là où elle s'est arrêtée.»).
     assert settled.payload["status"] == "fallback"
     assert settled.payload["prose_hits"] == {"deferred_ending": 1}
+    # Measured run 2026-10-16: a fallback keeps what was refused, privately.
+    assert settled.payload.get("hint")
+    from app.db.models.daily_journey import DailyJourneyStep
+
+    resolution = db_session.get(DailyJourneyStep, UUID(_resolution(d.journey)["id"]))
+    assert resolution.private_task["story_lane"]["hint"] == settled.payload["hint"]
 
 
 def test_a_released_reply_the_critic_refuses_is_logged_never_retracted(
