@@ -138,6 +138,17 @@ Every generated day must end with **something different from how it began**, and
 2. **«Je peux ?»** Marin, holding the notebook page, asks whether he may use Odile's plan. He cannot ask without a grandmother's saying and three apologies. *The change:* the spreadsheet exists, with your blessing, or without it but with your knowledge.
 3. **«Pour son anniversaire».** It is Gus's birthday (a good day for it). Lila wants to give him his Polaroid at fifteen, framed. You decide with her: give it, keep it, or hide it. *The change:* `s1.gus_photo`. If given, Gus laughs too loudly and takes it home. The costume holds, and the reader sees his hands.
 
+**Day plan** (`days` in `gaps.json`, 2026-10-16, waiting for the owner's review). One planned change per day; *(new)* marks a premise added for the plan.
+
+| Day | Premise | Before → after | Also | Hook |
+|---|---|---|---|---|
+| 10 | «La boîte» *(new)* | The Polaroid box is a closed box under Odile's bed. → The box is open, the learner has read Odile's captions with Lila, and Marin's Polaroid is set aside. | Lila's coffee cup in the sink, if she has a key. | Lila has shown Marin a page from Odile's notebook, and Marin wants to ask the learner something. |
+| 11 | «Je peux ?» | Odile's plan «Le Mistral à nous» is one page in a notebook. → Marin has a spreadsheet, and he asked the learner first. | Marin finds his own Polaroid and cries at it. | Lila: «Ce soir, on cuisine chez toi.» |
+| 12 | «Le dîner raté» | The learner and Lila have never cooked together. → They have a private joke, «ne refais jamais l'omelette», and Margaux came up too fast. | · | It's Gus's birthday tomorrow, and Lila has his Polaroid at fifteen. |
+| 13 | «Pour son anniversaire» · sets `s1.gus_photo` | Gus's Polaroid at fifteen is with Lila. → The photo is given, shown, or kept, and the learner said why. | Gus calls the learner «mon cher». | Gus has heard about Solvel's offer. |
+| 14 | «La pétition» *(new)* | Solvel's offer is the learner's secret, and «pas de fête» is Margaux's last word. → Gus has a petition, and the party on Saturday 5 December is decided. | Margaux looks at the ceiling when the learner mentions upstairs. | An unknown number calls the learner. |
+| 15 | «Bastien appelle» *(new)* | Solvel is a letter and a deadline. → Solvel has a voice and the learner's number, and the learner promised nothing. | Camille emails a deadline for the inventory of the flat. | Gus and Marin each want to talk to the learner, alone. |
+
 ---
 
 ## Gap 3 · Days 18–24 (28 November – 4 December) · «Avant la fête»
@@ -174,6 +185,18 @@ Every generated day must end with **something different from how it began**, and
 1. **«Sur le toit».** Lila takes you up through the fifth-floor skylight to see the canal from the roof at night. M. Marchand's torch finds you: «La succession Ferrand n'a rien à faire sur mon toit.» You must talk your way down in your best *vous* while Lila giggles. *The change:* Marchand has met you both as a pair, and Lila now has a story she tells everyone.
 2. **«Au milieu du mur».** Lila asks which Polaroid goes in the centre of the wall. You choose. The best choice is Odile at the zinc with her café crème, and that is the one Margaux will unpin in T4 P3. *The change:* the wall is ready, and so is its heart.
 3. **«Deux répétitions».** Gus rehearses his petition speech, and an hour later Marin rehearses his pitch, both to you. *The change:* you realise both will speak at the party. *The turn:* you tell one of them what you'll say, or refuse to.
+
+**Day plan** (`days` in `gaps.json`, 2026-10-16, waiting for the owner's review). One planned change per day; *(new)* marks a premise added for the plan.
+
+| Day | Premise | Before → after | Also | Hook |
+|---|---|---|---|---|
+| 18 | «Les petites cartes» *(new)* | Sixty Polaroids and no cards for the wall. → The cards are written in the learner's words, and two photos are stuck together until Saturday. | Margaux buys garlands and says «pas de fête». | The ticket says Wednesday 2 December, before the party. |
+| 19 | «Le billet, encore» *(new)* · sets `user.return_ticket` | The ticket says Wednesday 2 December. → The ticket says a date after the party, and the learner did it alone. | Lila grades it anyway: better than «douze sur vingt». | Lila: «Ce soir, prends un manteau. Je te montre quelque chose.» |
+| 20 | «Sur le toit» | Marchand is a name on the stairs. → Marchand has met the learner and Lila as a pair, on his roof, and Lila has a story. | · | Gus wants to rehearse something with the learner. |
+| 21 | «Deux répétitions» | The learner thinks only one friend will speak at the party. → The learner knows both Gus and Marin will speak, and has told one of them something, or refused to. | Gus rehearses on index cards. | Marin needs a taster. |
+| 22 | «Les canapés» *(new)* | Marin has six recipes and no menu. → There is a menu, and one canapé has a name the learner gave it. | If Marchand was invited, his reply card: «J'y serai. M.» | Lila needs the photo for the centre of the wall. |
+| 23 | «Au milieu du mur» | The wall has no centre. → The wall is ready, and so is its heart. | Lila closes an email too quickly. | A letter for Margaux, the day before the party. |
+| 24 | «Tout va bien» *(new)* | For the learner, Margaux's «pas de fête» is a joke. → The learner has seen her hide a letter, and asked. | A rain forecast for Saturday. | Tomorrow: «Les 25 ans du Mistral». |
 
 ---
 
@@ -217,6 +240,17 @@ Every generated day must end with **something different from how it began**, and
 2. **«Chez le notaire».** Maître Vasseur explains the debt. Camille is in the waiting room for Grand-père's claim against the estate. You disagree precisely, for the first time: «Je comprends. Je ne suis pas d'accord.» *The change:* you know what the flat is worth to the fire, and Camille knows you won't just sign.
 3. **«Vous».** Gus uses *vous* with you. *The turn:* get him back to *tu* without mentioning the party. *The change:* he slips at the end, «Tu… vous… tu veux un café ?», or he doesn't, and the next day says it first.
 
+**Day plan** (`days` in `gaps.json`, 2026-10-16, waiting for the owner's review). One planned change per day; *(new)* marks a premise added for the plan.
+
+| Day | Premise | Before → after | Also | Hook |
+|---|---|---|---|---|
+| 27 | «Le lendemain» *(new)* | The learner doesn't know how the quartier will look at them after the party. → They have faced it at the bakery and know: kind and curious (wall), or careful not to look (margaux). | · | The notary's office calls: Thursday, ten o'clock. |
+| 28 | «Chez le notaire» | The flat's debt is a frightening word. → The learner knows the debt can take the flat and no more, and has disagreed with Camille, politely. | · | Lila hasn't answered since the party. |
+| 29 | «La dispute» | The learner and Lila have never fought. → They have fought, and they are still here. | · | At the zinc, Gus says «vous». |
+| 30 | «Vous» | Gus is back on vous. → Gus slips back to tu, or will say it first tomorrow. | Romy says the memory card is «fermée». | A blue folder on top of the courtyard bin. |
+| 31 | «Le dossier» *(new)* | Marin's folder is in the bin. → The folder is back on his fridge, and the learner has seen the square «ATELIER DE LILA». | Marin's soup at the learner's door, without knocking. | Margaux has stopped talking. |
+| 32 | «L'abattant» *(new)* | Margaux serves in silence, the zinc's flap up. → Margaux has said one word to the learner, or put their usual down unasked. | Lila's phone face down on the table, a message unanswered. | Lila: «Dimanche, il faut que je te parle.» |
+
 ---
 
 ## Gap 5 · Days 35–41 (15–21 December) · «Le départ commence»
@@ -254,6 +288,18 @@ Every generated day must end with **something different from how it began**, and
 1. **«Le dernier jour d'école».** You help Lila carry thirty paintings out of her classroom. A child asks you «Tu vas où, toi, quand elle part ?». *The turn:* answer a seven-year-old honestly. *The change:* the leaving is real, and it has a date on a child's drawing.
 2. **«L'homme au beau manteau».** Bastien measures the back room during lunch service. Gus confronts him with escalating superlatives, and you have to stop Gus before he says something true. *The change:* Solvel's plan becomes concrete: a hotel lobby where the booth is.
 3. **«Trop de far breton».** Marin has baked for a week and can't talk about Lila. *The turn:* get one sentence out of him. *The change:* he says «Elle a raison de partir», and then cries at a train advert.
+
+**Day plan** (`days` in `gaps.json`, 2026-10-16, waiting for the owner's review). One planned change per day; *(new)* marks a premise added for the plan.
+
+| Day | Premise | Before → after | Also | Hook |
+|---|---|---|---|---|
+| 35 | «La lettre recommandée» *(new)* | Margaux's lease is a rumour. → There is a date, 31 March, and the learner knows it. | · | Marin has been baking since Berlin. |
+| 36 | «Trop de far breton» | Marin cannot talk about Lila. → Marin has said «Elle a raison de partir», and cried at a train advert. | · | Romy on the quai, freezing, with a question. |
+| 37 | «La tuque» *(new)* | Romy's Solvel story has no word from the heir. → Romy has the learner's sentence, or their no, and the learner has a tuque. | · | Friday is Lila's last day at school, and she needs arms. |
+| 38 | «Le dernier jour d'école» | Lila's leaving is a date in a message. → The leaving is real, and it is on a child's drawing. | The pupils' drawings: «Maîtresse à Berlin». | A man in a beautiful coat has booked lunch at Le Mistral. |
+| 39 | «L'homme au beau manteau» | Solvel's plan is a figure on a letter. → Solvel's plan is a hotel lobby where the booth is. | · | A message from home: «Tu rentres pour Noël ?» |
+| 40 | «Le billet de Noël» *(new)* · sets `user.return_ticket` | The ticket says a date before Christmas. → The ticket says the date the learner chose, and someone at Le Mistral knows it. | The camp bed glimpsed through the office door on the second floor. | An email from Camille. |
+| 41 | «Une rencontre» *(new)* | Marchand is the man the group calls the villain. → The learner has answered Camille, and will meet Marchand before Christmas. | The learner's coat on the hook under Odile's portrait. | Tuesday evening, the second floor. |
 
 ---
 
@@ -296,6 +342,20 @@ Every generated day must end with **something different from how it began**, and
    - «Margaux ne répond pas» (`lease`): carry Marchand's note down the stairs.
    - «Les verres» (`last_service`): Margaux gives each regular one glass, and you get Odile's.
 
+**Day plan** (`days` in `gaps.json`, 2026-10-16, waiting for the owner's review). One planned change per day; *(new)* marks a premise added for the plan. Day 47 holds one beat per `s1.plan`; only the learner's plan is staged.
+
+| Day | Premise | Before → after | Also | Hook |
+|---|---|---|---|---|
+| 44 | «Le cadeau» | Christmas Eve, and the presents are still wrapped. → An object has passed between the learner and Lila, and its meaning was said. | Margaux's café crème on Odile's stool. | A paper bag at Odile's door in the morning. |
+| 45 | «Deux croissants» | The Sunday ritual belongs to Odile and Marchand. → The learner has left something for Marchand, and the ritual has passed to them. | Marin's father phones, and Marin answers, for once. | Lila's crate has gone. |
+| 46 | «La caisse est partie» *(new)* | Lila's room still looks like Lila's room. → Lila has a suitcase and a date, 8 January at 9:55, and the learner has sat in the empty room. | · | The plan needs its first real step. |
+| 47 | «Cent cinquante» (`coop`) | The co-op is a folder. → The member count climbs, and Mme Diallo has signed. | · | Gus has a present, late. |
+| 47 | «Margaux ne répond pas» (`lease`) | Marchand's note is in the learner's pocket. → Margaux has read it, or refused to. | · | Gus has a present, late. |
+| 47 | «Les verres» (`last_service`) | The café's glasses are on the shelf. → The café is being given away glass by glass, and the learner has Odile's. | · | Gus has a present, late. |
+| 48 | «Règle n°1» *(new)* | Gus has never said he wants the learner to stay. → He has, on an index card, and the learner has answered. | · | The plan hits a wall. |
+| 49 | «L'obstacle» *(new)* | The plan looks possible. → The learner knows what it still lacks, and who has to say yes. | If Romy's article is out, the quartier talks about it at the zinc. | Marin wants a list for New Year's Eve. |
+| 50 | «Le réveillon» *(new)* | Nobody has planned New Year's Eve. → New Year's Eve at Le Mistral is set, and the learner's wish is on the zinc. | · | The last night of the year. |
+
 ---
 
 ## Gap 7 · Days 53–57 (2–6 January) · «La dernière semaine»
@@ -333,6 +393,16 @@ Every generated day must end with **something different from how it began**, and
    - friendship: her terrible cactus.
 
    *The change:* something of hers stays.
+
+**Day plan** (`days` in `gaps.json`, 2026-10-16, waiting for the owner's review). One planned change per day; *(new)* marks a premise added for the plan.
+
+| Day | Premise | Before → after | Also | Hook |
+|---|---|---|---|---|
+| 53 | «Les papiers» *(new)* | The decision is a word said on New Year's night. → The decision has a signature, and the learner understood what they signed. | · | Margaux: «Viens derrière le zinc demain.» |
+| 54 | «La machine» | Nobody touches Margaux's machine. → The learner can make their own usual at Le Mistral. | Gus measures the booth, for reasons he won't give. | Lila is packing. |
+| 55 | «Le dernier billet» *(new)* · sets `user.return_ticket` | The learner's ticket needs a last date. → The ticket says it, and Lila has heard it. | Lila gives her plants to Marin. | Lila is giving her things away. |
+| 56 | «Ce qu'on donne» | Lila's things are hers. → Something of hers stays with the learner. | Marchand visits his new residence with Camille. | Tomorrow, the last bread. |
+| 57 | «La dernière tradition» | Mme Diallo's is Lila's ritual. → The ritual is the learner's. | Snow is forecast for the 8th. | Thursday 7 January. |
 
 ---
 

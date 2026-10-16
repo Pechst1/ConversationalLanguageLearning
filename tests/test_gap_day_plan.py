@@ -126,3 +126,48 @@ def test_the_retry_for_a_dropped_planned_day_names_its_change():
     hint = _season_required_moment(draft, {"season_script": {"brief": brief}})
     assert "'soupe_de_marin'" in hint
     assert brief["today"]["beat"]["before"] in hint and brief["today"]["beat"]["after"] in hint
+
+
+def test_every_gap_plans_a_change_for_every_day():
+    """Gaps 2-7 (2026-10-16): every generated day of the season has a planned change."""
+
+    season = load_season("s1")
+    for segment in season.segments:
+        if segment.kind != "gap":
+            continue
+        days = {beat.day for beat in season.gaps[segment.id].days}
+        assert days == set(range(1, segment.days + 1)), segment.id
+
+
+def test_the_ticket_moves_in_gaps_three_five_and_seven():
+    season = load_season("s1")
+    for gap_id in ("g3", "g5", "g7"):
+        gap = season.gaps[gap_id]
+        planned = {beat.premise for beat in gap.days}
+        movers = [p for p in gap.premises if p.id in planned and "user.return_ticket" in p.sets]
+        assert movers, gap_id
+
+
+def test_gap_six_plans_the_step_of_the_plan_the_learner_chose():
+    gap = load_season("s1").gaps["g6"]
+    done = {"le_cadeau", "deux_croissants", "la_caisse_est_partie"}
+    expected = {"coop": "cent_cinquante", "lease": "margaux_ne_repond_pas", "last_service": "les_verres"}
+    for plan, premise in expected.items():
+        beat = planned_beat(gap, 4, done, {"s1.plan": plan})
+        assert beat is not None and beat.premise == premise
+        later = planned_beat(gap, 5, done | {premise}, {"s1.plan": plan})
+        assert later is not None and later.premise == "regle_numero_un"
+
+
+def test_two_beats_share_a_day_only_when_they_can_never_both_hold():
+    season = load_season("s1")
+    gap = season.gaps["g6"]
+    clash = [
+        beat.model_copy(update={"day": 4}) if beat.premise == "regle_numero_un" else beat
+        for beat in gap.days
+    ]
+    broken = season.model_copy(
+        update={"gaps": {**season.gaps, "g6": gap.model_copy(update={"days": clash})}}
+    )
+    assert "g6: the day plan has two beats on one day" in validate_season(broken)
+    assert validate_season(season) == []

@@ -731,6 +731,19 @@ def _check_tentpole(season: Season, tentpole: Tentpole, *, locations: set[str] |
     return problems
 
 
+def _exclusive(one: Cond, other: Cond) -> bool:
+    """Can two conditions never hold together? Only a flag both name with no value in
+    common counts (gap 6 plans one beat per ``s1.plan`` on the same day)."""
+
+    def values(want: Any) -> set[str]:
+        return {str(item) for item in (want if isinstance(want, list) else [want])}
+
+    return any(
+        key not in {"any", "all"} and key in other and not values(want) & values(other[key])
+        for key, want in one.items()
+    )
+
+
 def _check_day_plan(season: Season, gap: Gap, premise_ids: set[str]) -> list[str]:
     """A gap's day plan: real premises, one beat a day inside the gap, each premise
     once, and every required moment planned inside its own window."""
@@ -739,9 +752,15 @@ def _check_day_plan(season: Season, gap: Gap, premise_ids: set[str]) -> list[str
         return []
     problems: list[str] = []
     length = next((segment.days for segment in season.segments if segment.id == gap.id), None)
-    days = [beat.day for beat in gap.days]
-    if len(set(days)) != len(days):
-        problems.append(f"{gap.id}: the day plan has two beats on one day")
+    when = {premise.id: premise.when for premise in gap.premises}
+    by_day: dict[int, list[str]] = {}
+    for beat in gap.days:
+        by_day.setdefault(beat.day, []).append(beat.premise)
+    for same_day in by_day.values():
+        pairs = [(a, b) for n, a in enumerate(same_day) for b in same_day[n + 1 :]]
+        if any(not _exclusive(when.get(a) or {}, when.get(b) or {}) for a, b in pairs):
+            problems.append(f"{gap.id}: the day plan has two beats on one day")
+            break
     premises = [beat.premise for beat in gap.days]
     if len(set(premises)) != len(premises):
         problems.append(f"{gap.id}: the day plan stages a premise twice")

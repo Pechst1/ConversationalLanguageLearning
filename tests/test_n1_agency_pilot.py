@@ -323,13 +323,13 @@ def test_only_the_day_of_an_authored_premise_shows_the_writer_the_rules(pilot) -
     romy = _gap_day("g1", *_planned("g1", "romy_enquete"))
     assert romy["today"]["required_premise"]["id"] == "romy_enquete"
     assert romy["today"]["learner_agency_rules"] == agency.AGENCY_RULES
-    # A required premise without an authored contract, and a day without one at all
-    # (g2's dinner is owed from day 2): no rules, so the writer leaves learner_agency null.
+    # A required premise without an authored contract, and a planned day of another gap
+    # (g2 opens on the Polaroid box): no rules, so the writer leaves learner_agency null.
     order = _gap_day("g1", *_planned("g1", "la_meme_chose"))
     assert order["today"]["required_premise"]["id"] == "la_meme_chose"
     assert "learner_agency_rules" not in order["today"]
     plain = _gap_day("g2", 1)
-    assert plain["today"]["required_premise"] is None
+    assert plain["today"]["required_premise"]["id"] == "la_boite"
     assert "learner_agency_rules" not in plain["today"]
     # The same premise id in another gap has no contract.
     assert agency.brief_extras("s1", "g2", 1, state={}, seed="s", premise="romy_enquete") == {}
