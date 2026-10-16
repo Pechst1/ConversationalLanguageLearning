@@ -7,7 +7,7 @@
    {"id": "etre-adj-q", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {A|agree:S} ?", "en": "Are you {A.en}?", "de": "{S|g_cl:être:A:o=inv}?", "slots": {"S": "pron:2s|2p"}, "weight": 1},
    {"id": "etre-place", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {P|a}.", "en": "{S|en_sv:être} at {P|en:the}.", "de": "{S|g_s} {S|g_v:être} {P|g_at}.", "slots": {"S": "pron:!on,!2s,!2p", "P": "noun:place,town"}, "weight": 2},
    {"id": "etre-place-q", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {P|a} ?", "en": "Are you at {P|en:the}?", "de": "{S|g_v:être} {S|g_s} {P|g_at}?", "slots": {"S": "pron:2s|2p", "P": "noun:place,town"}, "weight": 1},
-   {"id": "etre-place-with", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {P|a} avec {C}.", "en": "{S|en_sv:être} at {P|en:the} with {C}.", "de": "{S|g_s} {S|g_v:être} mit {C} {P|g_at}.", "slots": {"S": "pron:!on,!2s,!2p", "P": "noun:place,town", "C": "cast"}},
+   {"id": "etre-place-with", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {P|a} avec {C}.", "en": "{S|en_sv:être} at {P|en:the} with {C}.", "de": "{S|g_s} {S|g_v:être} mit {C} {P|g_at}.", "accepted": ["{S} {S|v:être} avec {C} {P|a}."], "slots": {"S": "pron:!on,!2s,!2p", "P": "noun:place,town", "C": "cast"}},
    {"id": "etre-city", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {G.in} cette semaine.", "en": "{S|en_sv:être} in {G.en} this week.", "de": "{S|g_s} {S|g_v:être} diese Woche {G.deu_in}.", "slots": {"S": "pron:!on,!2s,!2p", "G": "geo"}},
    {"id": "etre-city-q", "fr": "{S} [[{S|v:être} // {S|v_x:être}]] {G.in} cette semaine ?", "en": "Are you in {G.en} this week?", "de": "{S|g_v:être} {S|g_s} diese Woche {G.deu_in}?", "slots": {"S": "pron:2s|2p", "G": "geo"}, "weight": 1},
    {"id": "etre-cast-place", "fr": "{C} [[{C|v:être} // {C|v_x:être}]] {P|a}.", "en": "{C|en_sv:être} at {P|en:the}.", "de": "{C|g_s} {C|g_v:être} {P|g_at}.", "slots": {"C": "person3", "P": "noun:place,town"}, "weight": 3}
@@ -154,7 +154,7 @@
    {"id": "aller-place", "fr": "{S} [[{S|v:aller} // {S|v_x:aller}]] {P|a} {T}.", "en": "{S|en_sv:aller:prog} to {P|en:the} {T.en}.", "de": "{S|g_s} {S|g_v:aller} {T} {P|g_to}.", "slots": {"P": "noun:place,town", "T": "time_future"}, "weight": 2},
    {"id": "venir-place", "fr": "{S} [[{S|v:venir} // {S|v_x:venir}]] {P|de}.", "en": "{S|en_sv:venir} from {P|en:the}.", "de": "{S|g_s} {S|g_v:venir} {P|g_from}.", "slots": {"P": "noun:place,town"}},
    {"id": "venir-origin", "fr": "{S} [[{S|v:venir} // {S|v_x:venir}]] {G.de}.", "en": "{S|en_sv:venir} from {G.en}.", "de": "{S|g_s} {S|g_v:venir} {G.deu_from}.", "slots": {"G": "geo"}},
-   {"id": "aller-with", "fr": "{S} [[{S|v:aller} // {S|v_x:aller}]] {P|a} avec {C}.", "en": "{S|en_sv:aller} to {P|en:the} with {C}.", "de": "{S|g_s} {S|g_v:aller} mit {C} {P|g_to}.", "slots": {"P": "noun:place,town", "C": "cast"}}
+   {"id": "aller-with", "fr": "{S} [[{S|v:aller} // {S|v_x:aller}]] {P|a} avec {C}.", "en": "{S|en_sv:aller} to {P|en:the} with {C}.", "de": "{S|g_s} {S|g_v:aller} mit {C} {P|g_to}.", "accepted": ["{S} {S|v:aller} avec {C} {P|a}."], "slots": {"P": "noun:place,town", "C": "cast"}}
   ]
  },
  "FR2_A11_PARTITIVE": {

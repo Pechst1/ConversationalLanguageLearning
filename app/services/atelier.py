@@ -38,6 +38,7 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services.address import address_instruction
+from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 
 # WP-16 additive: the correction call's request bound and its cost row.
@@ -712,6 +713,38 @@ def _normalize(value: Any) -> str:
     return text.strip()
 
 
+def _item_keys(item: dict[str, Any], target: Any, *, mode: str | None = None) -> list[Any]:
+    """#174: the one list of right answers for a keyed item: its key, then every
+    answer it lists as also right (``accepted_answers``/``accepted_fr``, rendered
+    from the frame's authored ``accepted`` orders). A classify item's key is a
+    label, so its sentence variants never apply."""
+
+    if mode == "classify":
+        return [target]
+    keys: list[Any] = [target]
+    for field in ("accepted_answers", "accepted_fr"):
+        for value in item.get(field) or []:
+            if isinstance(value, str) and value.strip() and value not in keys:
+                keys.append(value)
+    return keys
+
+
+def _form_right_only_order_differs(item: dict[str, Any], learner: str, target: str) -> bool:
+    """#174/#173: a tile build that uses exactly the key's words and keeps the
+    rule's form (``target_span``) intact, so only the order of the rest differs.
+
+    When the rule *is* the order (negation, pronoun placement, inversion) the form
+    span itself is broken by a wrong order, and this is False: the rule is cited."""
+
+    span = _normalize(item.get("target_span"))
+    learner_norm, target_norm = _normalize(learner), _normalize(target)
+    if not span or not learner_norm or learner_norm == target_norm:
+        return False
+    if sorted(learner_norm.split()) != sorted(target_norm.split()):
+        return False
+    return f" {span} " in f" {learner_norm} "
+
+
 def _keyed_verdict(
     concept: Any,
     item: dict[str, Any],
@@ -782,6 +815,11 @@ def _drop_noop_errata(errata: list[dict[str, Any]]) -> tuple[list[dict[str, Any]
         learner = _normalize_keeping_accents(erratum.get("learner_text"))
         target = _normalize_keeping_accents(erratum.get("corrected_target"))
         if error_type == "no_error" or (bool(learner) and learner == target):
+            dropped = True
+            continue
+        if is_preference_swap(erratum.get("learner_text"), erratum.get("corrected_target")):
+            # #93/#174: «Vous êtes disponible ?» → «Êtes-vous disponible ?» swaps one
+            # right form for another; it is not a mistake.
             dropped = True
             continue
         kept.append(erratum)
@@ -5604,13 +5642,22 @@ class AtelierCorrectionService:
             # QA-CLOSE: the one acceptance contract — typography never counts; an
             # accent is lenient-but-named unless the item tests it (an option that
             # differs from the key by accents alone, a spelling unit).
-            verdict = _keyed_verdict(concept, item, learner_text, target)
+            # #174: every right answer the item lists counts, not only the key —
+            # a tile build in another authored order («… avec Marin au marché du
+            # canal.») is right (#173).
+            verdict = _keyed_verdict(concept, item, learner_text, target, keys=_item_keys(item, target, mode=mode))
             if verdict.correct:
                 correct_count += 1
+                if verdict.expected and mode != "classify":
+                    corrected[item_id] = verdict.expected
                 if verdict.accent_slip:
-                    accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": target})
+                    accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": verdict.expected or target})
                 continue
-            if mode == "word_bank" and not item.get("lesson_external_id"):
+            if mode == "word_bank" and item.get("lesson_external_id") and _form_right_only_order_differs(item, learner_text, str(target or "")):
+                # #174: the rule's form is placed right; only the order of the rest
+                # differs. Say that, and never blame the day's rule for it.
+                errata.append(self._word_order_erratum(concept, item, learner_text, str(target or "")))
+            elif mode == "word_bank" and not item.get("lesson_external_id"):
                 errata.extend(self._word_bank_errata(concept, item, learner_text, str(target or "")))
             else:
                 errata.append(self._recognize_erratum(concept, mode, item, learner_text, str(target or "")))
@@ -6081,6 +6128,25 @@ class AtelierCorrectionService:
             label = _copy("atelier.word_bank.label_target_sentence", language)
 
         return [self._word_bank_erratum_payload(concept, item, label, learner_text, target, why, repair, task_type)]
+
+    def _word_order_erratum(
+        self,
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        learner_text: str,
+        target: str,
+    ) -> dict[str, Any]:
+        language = self.explanation_language
+        return self._word_bank_erratum_payload(
+            concept,
+            item,
+            _copy("atelier.word_bank.label_word_order", language),
+            learner_text,
+            target,
+            _copy("atelier.word_bank.order_why", language),
+            _copy("atelier.word_bank.order_repair", language, target=target),
+            "word_order",
+        )
 
     def _word_bank_erratum_payload(
         self,
@@ -7146,7 +7212,8 @@ class AtelierCorrectionService:
                     "external_id": concept.external_id if concept else external_id,
                 }
             )
-        errata, _ = _drop_noop_errata(errata)
+        errata, model_noop_dropped = _drop_noop_errata(errata)
+        model_raised_errata = bool(errata)
         if not errata and fallback.get("errata"):
             # The LLM judged the answer clean; only inherit concrete grammar errata
             # from the deterministic matcher, never its "missing target count"
@@ -7201,6 +7268,19 @@ class AtelierCorrectionService:
             score = min(score, 2.5)
         if false_english and not errata and not missing_targets and verdict == "partial":
             # The only fault found was a French word called English: there is none.
+            verdict, score = "correct", 4.0
+        if (
+            model_noop_dropped
+            and not model_raised_errata
+            and not errata
+            and not missing_targets
+            and not lexical_gaps
+            and verdict in {"partial", "incorrect"}
+        ):
+            # #166: every fault the model named was typography (a capital, a final
+            # full stop, an apostrophe) or a swap of one right form for another. With
+            # nothing left to correct the answer is right; a failing verdict with no
+            # correction read as «does not follow the task».
             verdict, score = "correct", 4.0
         return {
             "verdict": verdict,
@@ -7301,6 +7381,9 @@ class AtelierCorrectionService:
             "Task-compliance slips can be shown, but do not mark them recurring unless they are repeated grammar errors. "
             "The deterministic_assessment and deterministic_target are only fallible hints from a string matcher: it ignores accents, "
             "apostrophe style, capitalisation, and accepts alternative correct wordings. You MUST judge correctness yourself. "
+            "A lowercase first letter, a missing final full stop, a missing space before ? or !, and either apostrophe style are never "
+            "errors. Another correct word order, and an intonation question («Vous êtes disponible ?») instead of an inversion, are never "
+            "errors either. "
             "If the submitted answer accomplishes the task in correct French — even when it differs from the deterministic_target or the "
             "matcher flagged it — return it as correct with an empty errata list. Never invent an error for an answer that is actually right. "
             "corrected_answer must preserve the meaning the learner intended; never swap in unrelated wording copied from the prompt. "
