@@ -1072,7 +1072,8 @@ def test_a_test_learner_can_be_put_on_any_season_day(assembled_client, db_sessio
 def test_a_director_that_skips_the_scheduled_moment_never_costs_the_day(assembled_client, db_session, journey_enabled, clock, season_on):
     """A planned day is owed until staged; a draft without it is asked once more, then
     served — the season never stalls on a missed moment. (Gap 2 has a day plan since
-    2026-10-16: jumping to its day 5 with nothing staged, day 1's box is owed first.)"""
+    2026-10-16: jumping to its day 4 with nothing staged, day 1's box is owed first.
+    The gap's last day is kept for its final beat; see test_gap_day_plan.)"""
 
     from app.db.models.user import User
     from app.services.season.admin import jump_to_day
@@ -1089,11 +1090,11 @@ def test_a_director_that_skips_the_scheduled_moment_never_costs_the_day(assemble
     email = f"s1-owed-{uuid.uuid4()}@example.com"
     d = support.Driver(assembled_client, support.register(assembled_client, email, cefr="A2.1"), db=db_session)
     user = db_session.scalar(select(User).where(User.email == email))
-    jump_to_day(db_session, user, day=14)  # g2.5, with none of the gap's days staged
+    jump_to_day(db_session, user, day=13)  # g2.4, with none of the gap's days staged
     db_session.commit()
     journey = _play(d, provider, clock, "Je reste encore un peu.")
     scene = _latest_scene(db_session, _user_id_of(db_session, journey))
-    assert (scene.script_payload or {}).get("season", {}).get("key") == "g2.5", "the day was served, not lost"
+    assert (scene.script_payload or {}).get("season", {}).get("key") == "g2.4", "the day was served, not lost"
     hints = [" ".join(payload.get("previous_rejections") or []) for schema, payload in provider.calls if schema == "SceneDraft"]
     assert any("La boîte" in hint for hint in hints), "the director was asked once more for the owed day"
     brief = gap_brief(

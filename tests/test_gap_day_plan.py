@@ -192,3 +192,13 @@ def test_a_ticket_day_the_learner_let_pass_still_moves_the_ticket():
     chosen = {"outcome": "met", "season_flags": [{"flag": "user.return_ticket", "value": "dimanche 3 janvier"}]}
     assert settle("g3", "le_billet_encore", chosen)["flags"]["user.return_ticket"] == "dimanche 3 janvier"
     assert settle("g7", "le_dernier_billet", {"outcome": "met"})["flags"]["user.return_ticket"] == "samedi 9 janvier"
+
+
+def test_a_gap_the_weekend_shortened_still_ends_on_its_last_beat():
+    """Measured run 2026-10-16: the weekend cut gap 1 to four days and «La même chose ?»,
+    the beat that leads into the next tentpole, never came."""
+    gap = load_season("s1").gaps["g1"]
+    done = {"plusieurs_semaines", "soupe_de_marin", "le_billet"}
+    assert planned_beat(gap, 4, done, {}, length=5).premise != "la_meme_chose"
+    assert planned_beat(gap, 4, done, {}, length=4).premise == "la_meme_chose"
+    assert planned_beat(gap, 3, {"plusieurs_semaines"}, {}, length=4).premise == "soupe_de_marin"

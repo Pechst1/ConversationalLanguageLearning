@@ -232,10 +232,16 @@ def required_schedule(gap: Gap, *, seed: str, length: int | None = None) -> dict
     return schedule
 
 
-def planned_beat(gap: Gap, day: int, done: set[str], flags: dict[str, Any]) -> DayBeat | None:
+def planned_beat(
+    gap: Gap, day: int, done: set[str], flags: dict[str, Any], *, length: int | None = None
+) -> DayBeat | None:
     """Today's beat from the gap's day plan: a beat a refused or missed day still owes
     first, then today's, then the next one (pulled forward, so no planned day is left
-    empty). ``None`` when the plan is spent or the gap has none."""
+    empty). ``None`` when the plan is spent or the gap has none.
+
+    ``length`` is how many days this gap really has. A gap the weekend shortened ends
+    on its plan's last beat all the same: that beat leads into the next tentpole
+    (measured run 2026-10-16: gap 1 lost «La même chose ?» to the calendar)."""
 
     premises = {premise.id: premise for premise in gap.premises}
     open_beats = [
@@ -243,6 +249,11 @@ def planned_beat(gap: Gap, day: int, done: set[str], flags: dict[str, Any]) -> D
         for beat in sorted(gap.days, key=lambda beat: beat.day)
         if beat.premise not in done and beat.premise in premises and holds(premises[beat.premise].when, flags)
     ]
+    if length is not None and day >= length and open_beats:
+        last = max(beat.day for beat in gap.days)
+        final = next((beat for beat in reversed(open_beats) if beat.day == last), None)
+        if final is not None:
+            return final
     return next((beat for beat in open_beats if beat.day <= day), None) or next(iter(open_beats), None)
 
 
@@ -375,7 +386,7 @@ def gap_brief(
     day = pos.day_in_segment
     done = used_premises(state, gap.id)
     # Story plan (2026-10-15): a gap with a day plan stages its beats in order.
-    beat = planned_beat(gap, day, done, flags) if gap.days else None
+    beat = planned_beat(gap, day, done, flags, length=pos.segment.days) if gap.days else None
     if gap.days:
         required = beat.premise if beat else None
     else:
