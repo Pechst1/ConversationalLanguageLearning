@@ -199,10 +199,14 @@ def matches_accepted(text: Any, accepted: Any) -> bool:
     folded; accents are not — «a» for «à» is a slip, not a match.
     """
 
-    said = tokens(text)
-    if not said:
+    # Root cause #174: the one acceptance function. Typography never counts and an
+    # accent slip on a word the item does not test is accepted (and named).
+    from app.services.answer_acceptance import judge
+
+    if not tokens(text):
         return False
-    return any(tokens(answer) == said for answer in accepted or [] if str(answer or "").strip())
+    keys = [answer for answer in accepted or [] if str(answer or "").strip()]
+    return bool(keys) and judge(text, keys, typo=False).correct
 
 
 def _trap_windows(wrong: str, right: str) -> tuple[list[str], list[str]] | None:

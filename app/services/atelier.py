@@ -726,8 +726,12 @@ def _keyed_verdict(
     (:func:`answer_acceptance.accent_policy`); a keyed answer has no typo
     tolerance (a tap or a rewrite of a given line, not free typing)."""
 
-    from app.services.answer_acceptance import accent_policy, judge
+    from app.services.answer_acceptance import accent_policy, item_keys, judge
 
+    # Root cause #174: every keyed path judges against the item's whole list of
+    # right answers (the key, listed variants, a tile build's other correct
+    # orders), never against one stored string.
+    tiles = bool(item.get("answer_tokens") or item.get("tokens"))
     options = [
         *(item.get("choices") or []),
         *(item.get("options") or []),
@@ -736,7 +740,9 @@ def _keyed_verdict(
         *(others or []),
     ]
     policy = accent_policy(unit=concept, item=item, target=target, others=[o for o in options if isinstance(o, str)])
-    return judge(learner, keys or [target], accents=policy, typo=False)
+    accepted = item_keys(item, target, tiles=tiles)
+    accepted += [key for key in (keys or []) if key not in accepted]
+    return judge(learner, accepted, accents=policy, typo=False)
 
 
 def _normalize_keeping_accents(value: Any) -> str:
@@ -5607,7 +5613,12 @@ class AtelierCorrectionService:
                 if verdict.accent_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": target})
                 continue
-            if mode == "word_bank" and not item.get("lesson_external_id"):
+            # Root cause #174: a build with the right words in a wrong order has
+            # the rule's form right, so the rule is never cited for it.
+            order_only = _normalize(learner_text).split() != [] and sorted(_normalize(learner_text).split()) == sorted(
+                _normalize(str(target or "")).split()
+            )
+            if mode == "word_bank" and (not item.get("lesson_external_id") or order_only):
                 errata.extend(self._word_bank_errata(concept, item, learner_text, str(target or "")))
             else:
                 errata.append(self._recognize_erratum(concept, mode, item, learner_text, str(target or "")))

@@ -717,3 +717,63 @@ def is_preference_swap(learner: object, corrected: object) -> bool:
         return False
     changed = [frozenset({x, y}) for x, y in zip(a, b, strict=True) if x != y]
     return len(changed) == 1 and changed[0] in EQUIVALENT_WORD_SWAPS
+
+
+# ---------------------------------------------------------------------------
+# Tile builds: other correct orders (root cause #174)
+# ---------------------------------------------------------------------------
+
+#: A word that opens a free adjunct («avec Marin», «au marché du canal»).
+_ADJUNCT_OPENERS = frozenset(
+    {"avec", "à", "au", "aux", "dans", "sur", "chez", "pour", "devant", "derrière", "après", "avant", "sous", "vers"}
+)
+#: «à côté de», «au milieu de»: the opener belongs to a locution, so the block is not free.
+_LOCUTION_SECOND_WORDS = frozenset({"côté", "cote", "milieu", "bout", "fond", "travers", "cause", "propos", "partir"})
+_MAX_ADJUNCTS = 4
+
+
+def order_variants(sentence: str) -> list[str]:
+    """The same sentence with its trailing adjuncts in another order.
+
+    «Ils sont au marché du canal avec Marin» ↔ «Ils sont avec Marin au marché du
+    canal». Only the prepositional blocks after a subject and a verb move, each
+    kept whole; a sentence this cannot read safely returns ``[]``.
+    """
+
+    from itertools import permutations
+
+    words = fold_typography(sentence).split()
+    start = next((i for i, word in enumerate(words) if i >= 2 and word in _ADJUNCT_OPENERS), None)
+    if start is None:
+        return []
+    blocks: list[list[str]] = []
+    for word in words[start:]:
+        if word in _ADJUNCT_OPENERS:
+            blocks.append([word])
+        else:
+            blocks[-1].append(word)
+    if not 2 <= len(blocks) <= _MAX_ADJUNCTS:
+        return []
+    if any(len(block) < 2 or block[1] in _LOCUTION_SECOND_WORDS for block in blocks):
+        return []
+    head = words[:start]
+    original = " ".join(words)
+    variants = {" ".join([*head, *(w for block in order for w in block)]) for order in permutations(blocks)}
+    variants.discard(original)
+    return sorted(variants)
+
+
+def item_keys(item: dict | None, target: object, *, tiles: bool = False) -> list[str]:
+    """Every sentence an item accepts: the key, its listed variants and, for a tile
+    build, its other correct orders. The one list every exercise path judges against."""
+
+    item = item or {}
+    keys: list[str] = []
+    for value in (target, *(item.get("accepted_answers") or []), *(item.get("accepted_fr") or [])):
+        text = str(value or "").strip()
+        if text and text not in keys:
+            keys.append(text)
+    if tiles:
+        for key in list(keys):
+            keys.extend(variant for variant in order_variants(key) if variant not in keys)
+    return keys
