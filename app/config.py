@@ -653,6 +653,14 @@ class Settings(BaseSettings):
         False,
         description="WP-119: La Revue de Romy — the La Une card, the /revue page and the weekly intake beat.",
     )
+    REVUE_MIN_BAND: str = Field(
+        "A2",
+        description=(
+            "#149: the lowest CEFR band that is dealt a «jour du Papier». Below it the Papier is "
+            "only ever an opt-in extra, never the day (a real-news text far above A1 must not "
+            "replace the scene -> words -> Forge plan). One setting, reversible: set A1 to deal it to everyone."
+        ),
+    )
     REVUE_RADIO_ENABLED: bool = Field(
         False,
         description=(

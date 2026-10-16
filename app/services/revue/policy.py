@@ -428,6 +428,23 @@ def normalize_band(band: str | None) -> str:
     return "A1"
 
 
+def revue_day_allowed_for(level: str | None) -> bool:
+    """#149: may the planner deal this learner a «jour du Papier»?
+
+    The Papier is real news, far above A1. Below ``settings.REVUE_MIN_BAND`` it is an
+    opt-in extra only and never becomes (or replaces a step of) the day. An unknown
+    level counts as a beginner.
+    """
+
+    from app.config import settings
+    from app.services.chrome_language import level_band
+
+    order = list(SUPPORT_DEFAULTS)
+    learner = normalize_band(level_band(level) or "A1")
+    cutoff = normalize_band(getattr(settings, "REVUE_MIN_BAND", "A2"))
+    return order.index(learner) >= order.index(cutoff)
+
+
 def band_support(band: str | None) -> dict[str, Any]:
     """A copy of the §6 defaults for ``band`` (normalised with :func:`normalize_band`)."""
 

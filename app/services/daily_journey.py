@@ -143,6 +143,7 @@ from app.services.journey_latency import (
 )
 from app.services.journey_learning import recall_learner_text, record_daily_practice_streak
 from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
+from app.services.revue.policy import revue_day_allowed_for
 from app.services.seals import edition_no_for, mastery_today_for
 from app.services.spoken_reply import repeat_line_for
 from app.services.vocabulary_pace import JOURNEY_NEW_WORDS_KEY, journey_new_word_room
@@ -4440,6 +4441,9 @@ class DailyJourneyService:
         never a lost day."""
 
         if not getattr(settings, "REVUE_ENABLED", False):
+            return False, False
+        if not revue_day_allowed_for(getattr(user, "cefr_estimate", None)):
+            # #149: below the cutoff the Papier never becomes the day.
             return False, False
 
         def read() -> tuple[bool, bool]:
