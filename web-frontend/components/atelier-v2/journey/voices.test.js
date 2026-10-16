@@ -387,6 +387,30 @@ test('in the thread every character face is a play button, labelled in the learn
   assert.ok(html.includes('data-size="xs"') && html.includes('data-size="md"'));
 });
 
+test('each face in a many-voiced thread is named after its own speaker, not the one addressed', () => {
+  const html = renderToStaticMarkup(
+    h(RespondThread, {
+      bubbles: [
+        { kind: 'character', key: 'c0a', turn: 0, text: 'Ah.', reply: true, latest: false, speaker: { id: 'augustin_de_roncourt', name: 'Gus' } },
+        { kind: 'character', key: 'c0b', turn: 0, text: 'Tu vas monter ?', reply: true, latest: true, speaker: { id: 'margaux_barman', name: 'Margaux' } },
+      ],
+      speaker: { id: 'augustin_de_roncourt', name: 'Gus' },
+      mood: 'neutral',
+      copy: journeyCopy('de'),
+      typingKey: null,
+      typedText: '',
+      waiting: false,
+      openNote: null,
+      onToggleNote: () => {},
+      journeyId: 'j1',
+      stepId: 's3',
+    }),
+  );
+  assert.ok(html.includes('aria-label="Gus anhören"'));
+  assert.ok(html.includes('aria-label="Margaux anhören"'), 'Margaux’s line is not announced as Gus');
+  assert.equal((html.match(/aria-label="Gus anhören"/g) || []).length, 1);
+});
+
 test('in the Courrier the sender’s face reads the letter; without French it stays a face', () => {
   const Cr = require('../../courrier/Courrier.tsx');
   const { AtelierV2Root } = require('../ui/AtelierV2Root.tsx');
