@@ -6519,6 +6519,19 @@ def _season_required_moment(draft: SceneDraft, context: dict) -> str | None:
     return hint
 
 
+def page_shape(context: dict) -> str:
+    """The shape of the chapter today's page belongs to: the open chapter's, or, when the
+    chapter is closed and this page opens the next, the planned hand (``chapter_shape``)."""
+
+    chapter = context.get("chapter") or {}
+    closing = bool(chapter.get("resolved") or chapter.get("exhausted"))
+    return str(
+        (chapter.get("shape") if chapter and not closing else None)
+        or (context.get("chapter_shape") or {}).get("shape")
+        or DEFAULT_SHAPE
+    )
+
+
 def _wrong_beat_hint(draft: SceneDraft, chapter: dict, allowed: tuple[str, ...], closing: bool) -> str:
     """LOSS-RATE 2026-10-06: the retry is told WHICH chapter the scene belongs to.
 
@@ -6672,11 +6685,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     # The shape of the chapter this scene belongs to: the open chapter's, or — when the
     # chapter is closed and this scene opens the next — the planned hand the director
     # was given (``chapter_shape``), which is what ``bind_journey`` stores.
-    shape = str(
-        (chapter.get("shape") if chapter and not closing else None)
-        or (context.get("chapter_shape") or {}).get("shape")
-        or DEFAULT_SHAPE
-    )
+    shape = page_shape(context)
     if shape == "two_hander" and not epreuve:
         voices = {draft.character_id} | {
             line.character_id for panel in draft.panels for line in panel.dialogue
