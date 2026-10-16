@@ -441,7 +441,9 @@ def revue_day_allowed_for(level: str | None) -> bool:
 
     order = list(SUPPORT_DEFAULTS)
     learner = normalize_band(level_band(level) or "A1")
-    cutoff = normalize_band(getattr(settings, "REVUE_MIN_BAND", "A2"))
+    raw_cutoff = str(getattr(settings, "REVUE_MIN_BAND", "A2") or "").strip().upper()
+    # An unknown cutoff is the restrictive default, never «everyone» (normalize_band → A1).
+    cutoff = raw_cutoff if raw_cutoff in SUPPORT_DEFAULTS else "A2"
     return order.index(learner) >= order.index(cutoff)
 
 

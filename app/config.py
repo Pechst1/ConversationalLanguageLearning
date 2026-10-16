@@ -950,6 +950,16 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @field_validator("REVUE_MIN_BAND")
+    @classmethod
+    def validate_revue_min_band(cls, value: str) -> str:
+        """#149: a mistyped band must not silently let every learner be dealt the Papier."""
+
+        normalized = value.strip().upper()
+        if normalized not in {"A1", "A2", "B1", "B2"}:
+            raise ValueError("REVUE_MIN_BAND must be one of: A1, A2, B1, B2")
+        return normalized
+
     @field_validator("GRAPHIC_NOVEL_IMAGE_STORAGE")
     @classmethod
     def validate_graphic_novel_image_storage(cls, value: str) -> str:

@@ -441,3 +441,18 @@ def test_an_a1_learner_gets_no_papier_day_whatever_the_week_holds(db: Session, m
     assert ask(host, learner, day) == (False, False)  # the unasked takeover of 15 Oct
     learner.cefr_estimate = "A2.1"
     assert ask(host, learner, day) == (True, False)  # same week, same kiosk, from A2
+
+
+def test_a_mistyped_cutoff_band_is_refused_and_never_lets_everyone_in(monkeypatch) -> None:
+    from pydantic import ValidationError
+
+    from app.config import Settings
+    from app.services.revue.policy import revue_day_allowed_for
+
+    with pytest.raises(ValidationError):
+        Settings(REVUE_MIN_BAND="A3")
+    assert Settings(REVUE_MIN_BAND=" b1 ").REVUE_MIN_BAND == "B1"
+    # Set at runtime past the validator: the restrictive default holds.
+    monkeypatch.setattr(settings, "REVUE_MIN_BAND", "A3")
+    assert revue_day_allowed_for("A1.1") is False
+    assert revue_day_allowed_for("A2.1") is True
