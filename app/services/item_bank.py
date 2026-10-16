@@ -2364,6 +2364,18 @@ _GOALS_DE_MEANING: dict[str, str] = {
 }
 
 
+#: NATIVE-MEANING (owner, 2026-10-16): from B1 the chrome is French, and a build or
+#: a fill with no meaning at all was guesswork («Un mot est en trop» — but which
+#: sentence?). The French goal then quotes the learner's own language: the meaning
+#: is content, not chrome, and every learner learns from their own language.
+_GOALS_FR_NATIVE_MEANING: dict[str, str] = {
+    "build": "Construisez la phrase : « {meaning} »",
+    "fill": "Complétez la phrase : « {meaning} »",
+    "repair": "La phrase veut dire : « {meaning} »",
+    "pick": "Quelle phrase veut dire « {meaning} » ?",
+}
+
+
 def goal_l10n(kind: str, meaning: str | None = None, meaning_de: str | None = None) -> dict[str, str]:
     """``{en, de, fr}`` for one drill goal (WP-103 T3); with ``meaning_de`` the
     German goal quotes the German meaning (FORGE-DE)."""
@@ -2427,7 +2439,7 @@ def _without_gloss(prompt: Any, meaning: Any) -> Any:
     return stripped[: -len(tail)].rstrip() if stripped.endswith(tail) else prompt
 
 
-def with_goal(item: dict[str, Any], language: Any = None) -> dict[str, Any]:
+def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) -> dict[str, Any]:
     """``item`` with ``goal_native`` in the learner's language, and ``source_fr``
     for a repair (WP-103 T3). An item written before WP-103 — the séance's model
     sets, the curated fallbacks — gets its goal from what it already carries: a
@@ -2436,7 +2448,11 @@ def with_goal(item: dict[str, Any], language: Any = None) -> dict[str, Any]:
     QA-FORGE (2026-10-03): for a German or French learner nothing English is
     served — the meaning cue (an English gloss) is dropped, the instruction is
     the localized one, a gloss in brackets leaves the French prompt, and a
-    judgement's two answers carry their labels (``label_l10n``)."""
+    judgement's two answers carry their labels (``label_l10n``).
+
+    NATIVE-MEANING: a French-chrome learner whose own language is ``native``
+    reads the item's meaning in that language in the goal (build, fill, repair,
+    pick), when the item carries one."""
 
     if not isinstance(item, dict):
         return item
@@ -2444,6 +2460,7 @@ def with_goal(item: dict[str, Any], language: Any = None) -> dict[str, Any]:
     code = str(language or "en").strip().lower()[:2]
     if code not in {"en", "de", "fr"}:
         code = "en"
+    own = str(native or "").strip().lower()[:2]
     kind = _goal_kind(out)
     l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None
     if kind == "judge":
@@ -2465,6 +2482,12 @@ def with_goal(item: dict[str, Any], language: Any = None) -> dict[str, Any]:
         out["instruction_l10n"] = {**INSTRUCTIONS_L10N[key], **{k: v for k, v in table.items() if k == "en"}}
     meanings = out.get("meaning_l10n") if isinstance(out.get("meaning_l10n"), dict) else {}
     native_meaning = str(meanings.get(code) or "").strip() if code != "en" else ""
+    own_meaning = ""
+    if code == "fr" and own in {"en", "de"}:
+        own_meaning = str(meanings.get(own) or "").strip()
+        if not own_meaning and own == "en":
+            # The bank's cues and stored sets' meanings are English glosses.
+            own_meaning = str(out.get("meaning_cue") or out.get("meaning") or "").strip()
     if code != "en":
         # The bank's meaning cues and stored sets' cues are English; FORGE-DE:
         # a German meaning, when the item carries one, takes their place.
@@ -2479,6 +2502,14 @@ def with_goal(item: dict[str, Any], language: Any = None) -> dict[str, Any]:
                 out["prompt"] = out["goal_native"]
             if native_meaning:
                 out["goal_native"] = goal_l10n("build", None, native_meaning).get(code)
+        if own_meaning and kind in _GOALS_FR_NATIVE_MEANING:
+            goal = _GOALS_FR_NATIVE_MEANING[kind].format(meaning=own_meaning)
+            if key == "forge.word_bank":
+                goal = f"{goal} Un mot est en trop."
+            out["goal_native"] = goal
+            if "answer_tokens" in out:
+                # The word bank's one headline cue: the meaning, not the bare ask.
+                out["prompt"] = goal
         if isinstance(key, str) and key in INSTRUCTIONS_L10N and "instruction" in out:
             out["instruction"] = INSTRUCTIONS_L10N[key][code]
         meaning = out.pop("meaning", None)
@@ -2557,28 +2588,28 @@ def without_frames(node: Any) -> Any:
 _PRIVATE_ITEM_KEYS = ("follow_up_key", "judgement_fix_fr")
 
 
-def public_item(item: Any, language: Any = None) -> Any:
+def public_item(item: Any, language: Any = None, native: Any = None) -> Any:
     """A served item: its goal in the learner's language, no retired frame, and none
     of the keys the server keeps for itself (WP-103 T3/T8/T11)."""
 
     if not isinstance(item, dict):
         return item
-    out = with_goal(without_frames(item), language)
+    out = with_goal(without_frames(item), language, native)
     for key in _PRIVATE_ITEM_KEYS:
         out.pop(key, None)
     return out
 
 
-def public_payload(node: Any, language: Any = None) -> Any:
+def public_payload(node: Any, language: Any = None, native: Any = None) -> Any:
     """:func:`public_item` over a whole exercise-set payload."""
 
     if isinstance(node, list):
-        return [public_payload(child, language) for child in node]
+        return [public_payload(child, language, native) for child in node]
     if not isinstance(node, dict):
         return node
-    out = {key: public_payload(value, language) for key, value in node.items()}
+    out = {key: public_payload(value, language, native) for key, value in node.items()}
     if "id" in out and any(key in out for key in ("prompt", "tokens", "source", "labels", "choices")):
-        out = public_item(out, language)
+        out = public_item(out, language, native)
     return out
 
 

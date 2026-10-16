@@ -258,6 +258,19 @@ def line_meanings(scenario: Any) -> dict[str, str]:
     return {text: native for text, native in meanings.items() if fold(native) != fold(text)}
 
 
+def with_meaning(goal: str, meaning: str, language: Any) -> str:
+    """NATIVE-MEANING: «Écris les 2 mots manquants.» + meaning → «Écris les 2 mots manquants : « … »»."""
+
+    code = str(language or "en").strip().lower()[:2]
+    head = goal.strip().rstrip(" .:")
+    meaning = " ".join(meaning.split())
+    if code == "fr":
+        return f"{head} : « {meaning} »"
+    if code == "de":
+        return f"{head}: „{meaning}“"
+    return f'{head}: "{meaning}"'
+
+
 def meaning_of(meanings: dict[str, str], text: str) -> str | None:
     """The translation of ``text`` (typography and accents folded), or ``None``."""
 
@@ -662,6 +675,7 @@ __all__ = [
     "build_line_unscramble_task",
     "line_meanings",
     "meaning_of",
+    "with_meaning",
     "build_who_said_task",
     "tile_words",
     "cast_names",

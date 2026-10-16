@@ -198,7 +198,7 @@ def _public_item(payload: dict[str, Any], user: User | None) -> dict[str, Any]:
     from app.services.chrome_language import user_chrome_language
     from app.services.item_bank import public_item
 
-    return public_item(payload, user_chrome_language(user))
+    return public_item(payload, user_chrome_language(user), getattr(user, "native_language", None))
 
 
 def fingerprint_for(concept_id: int, round_name: str, mode: str, item_id: str) -> str:
