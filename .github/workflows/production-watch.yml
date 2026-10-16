@@ -1,0 +1,36 @@
+name: Production watch
+
+# #134: production was OOM-killed on several nights and nobody heard until the
+# next live walk met a 502. Every ten minutes this checks /health, the worker
+# heartbeat and (with the RENDER_API_KEY repository secret) Render's own events:
+# memory kills, crashes, failed deploys, memory above 90 % and a failing
+# Blueprint sync. Problems land in one "Production alert" issue labelled
+# ops-alert; GitHub notifies the owner, and the issue closes itself once green.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ops
+      - name: Check production
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          ATELIER_API_URL: https://atelier-api-3njh.onrender.com
+          ALERT_MENTION: Pechst1
+        run: python3 scripts/ops/production_watch.py

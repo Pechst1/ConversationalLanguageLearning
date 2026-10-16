@@ -389,9 +389,29 @@ jobs:
           npm run capture:mobile
 
   docker:
-    name: Docker image
+    name: Docker image · boots in production memory
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    # #134: the pre-deploy check. Render deploys main only once every check is
+    # green (autoDeployTrigger: checksPass), so the image must boot here first,
+    # with the manifest's production settings and inside its plan's memory.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: atelier_boot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -403,6 +423,17 @@ jobs:
         with:
           context: .
           push: false
+          load: true
           tags: conversational-language-learning:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # Migrations, reference data and cache warm-up run as on Render, then
+      # /ready, a few real requests and the idle memory against the plan.
+      - name: Boot the image as atelier-api
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 scripts/ops/boot_check.py \
+            --image conversational-language-learning:ci \
+            --service atelier-api \
+            --database-url postgresql+psycopg2://postgres:postgres@localhost:5432/atelier_boot \
+            --redis-url redis://localhost:6379/0

@@ -116,12 +116,27 @@ services:
         value: '["capacitor://localhost","ionic://localhost"]'
       - key: OPENAI_API_KEY
         sync: false
-      # Story models per step (plan decisions 9 and 10). The key alone changes
-      # nothing: Anthropic only answers a call that names a Claude model, and
-      # STORY_WRITER_MODEL / STORY_CRITIC_MODEL / STORY_LIVE_MODEL (app/config.py)
-      # stay unset until the paid measurement picks them.
+      # Story models per step (plan decisions 9 and 10). The paid measurement
+      # (Oct 2026) picked them and they were set by hand in the dashboard; they
+      # are recorded here so the manifest says what production runs.
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: STORY_PLAN_THEN_WRITE
+        value: "true"
+      - key: STORY_WRITER_MODEL
+        value: claude-haiku-5-5
+      - key: STORY_WRITER_REASONING_EFFORT
+        value: medium
+      - key: STORY_CRITIC_MODEL
+        value: gpt-6.1-sol
+      - key: STORY_CRITIC_REASONING_EFFORT
+        value: medium
+      - key: STORY_LIVE_MODEL
+        value: gpt-6-luna
+      - key: ATELIER_EXERCISE_LLM_MODEL
+        value: gpt-6-luna
+      - key: ATELIER_CRITIQUE_LLM_MODEL
+        value: gpt-6-luna
       - key: PRIMARY_LLM_PROVIDER
         value: openai
       - key: OPENAI_MODEL
@@ -273,7 +288,10 @@ services:
     dockerfilePath: ./Dockerfile
     plan: starter
     region: frankfurt
-    dockerCommand: celery -A app.celery_app worker -B --loglevel=info
+    # #134: the worker was killed for memory twice overnight (512 MB). One child
+    # process, replaced after any task that leaves it above ~300 MB resident,
+    # so growth ends in a recycle instead of a container kill.
+    dockerCommand: celery -A app.celery_app worker -B --loglevel=info --concurrency=1 --max-memory-per-child=300000
     envVars:
       - key: RUN_MIGRATIONS
         value: "0"
@@ -285,11 +303,11 @@ services:
       # --- WP-73 observability (begin) ---------------------------------
       - key: LOG_FORMAT
         value: json
+      # Optional keys are the worker's own (sync: false), not fromService: a
+      # fromService on an API key that has no value fails the whole Blueprint
+      # sync, which is why every sync since 12 Oct ended in "error" (#134).
       - key: SENTRY_DSN
-        fromService:
-          type: web
-          name: atelier-api
-          envVarKey: SENTRY_DSN
+        sync: false
       - key: SENTRY_ENVIRONMENT
         value: production
       # --- WP-73 observability (end) -----------------------------------
@@ -341,6 +359,22 @@ services:
           type: web
           name: atelier-api
           envVarKey: ANTHROPIC_API_KEY
+      - key: STORY_PLAN_THEN_WRITE
+        value: "true"
+      - key: STORY_WRITER_MODEL
+        value: claude-haiku-5-5
+      - key: STORY_WRITER_REASONING_EFFORT
+        value: medium
+      - key: STORY_CRITIC_MODEL
+        value: gpt-6.1-sol
+      - key: STORY_CRITIC_REASONING_EFFORT
+        value: medium
+      - key: STORY_LIVE_MODEL
+        value: gpt-6-luna
+      - key: ATELIER_EXERCISE_LLM_MODEL
+        value: gpt-6-luna
+      - key: ATELIER_CRITIQUE_LLM_MODEL
+        value: gpt-6-luna
       - key: PRIMARY_LLM_PROVIDER
         value: openai
       - key: OPENAI_MODEL
@@ -349,8 +383,9 @@ services:
         value: gpt-5.4-mini
       - key: OPENAI_GRAPHIC_NOVEL_PREMIUM_SCRIPT_MODEL
         value: gpt-5.5
+      # The worker paints the story pictures: sunburst since 2026-10-14 (owner OK).
       - key: OPENAI_IMAGE_MODEL
-        value: gpt-image-2.5-flare
+        value: gpt-image-2.5-sunburst
       # Atelier Séance correction (2026-09-07): gpt-5-nano graded weak feedback
       # and falsely rejected a valid answer, and 900 output tokens truncated a
       # full-paragraph assessment (one live retry needed 2,573). Pinned here so
@@ -473,20 +508,11 @@ services:
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
         fromService: {type: web, name: atelier-api, envVarKey: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD}
       - key: APNS_TEAM_ID
-        fromService:
-          type: web
-          name: atelier-api
-          envVarKey: APNS_TEAM_ID
+        sync: false
       - key: APNS_KEY_ID
-        fromService:
-          type: web
-          name: atelier-api
-          envVarKey: APNS_KEY_ID
+        sync: false
       - key: APNS_PRIVATE_KEY
-        fromService:
-          type: web
-          name: atelier-api
-          envVarKey: APNS_PRIVATE_KEY
+        sync: false
       - key: APNS_BUNDLE_ID
         value: com.pixellab.feuilleton
       # Production APNs, as on the API (the worker sends the morning pushes).
