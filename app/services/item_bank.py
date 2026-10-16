@@ -2399,7 +2399,11 @@ def _goal(kind: str, meaning: str | None = None, meaning_de: str | None = None) 
 def _meaning_l10n(item: BankItem) -> dict[str, Any]:
     """FORGE-DE: the item's meaning per language (German only where it is reliable)."""
 
-    return {"meaning_l10n": {"en": item.en, "de": item.de}} if item.de else {}
+    # NATIVE-MEANING: the English meaning always rides along — a French-chrome
+    # learner of any other language reads it when there is no German.
+    if item.de:
+        return {"meaning_l10n": {"en": item.en, "de": item.de}}
+    return {"meaning_l10n": {"en": item.en}} if item.en else {}
 
 
 #: Rounds/modes whose item must say what to produce (the WP-103 contract).
@@ -2483,11 +2487,13 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     meanings = out.get("meaning_l10n") if isinstance(out.get("meaning_l10n"), dict) else {}
     native_meaning = str(meanings.get(code) or "").strip() if code != "en" else ""
     own_meaning = ""
-    if code == "fr" and own in {"en", "de"}:
-        own_meaning = str(meanings.get(own) or "").strip()
-        if not own_meaning and own == "en":
-            # The bank's cues and stored sets' meanings are English glosses.
-            own_meaning = str(out.get("meaning_cue") or out.get("meaning") or "").strip()
+    if code == "fr" and own and own != "fr":
+        # The bank's meanings are German and English; a learner of another
+        # language (Spanish, Italian…) reads the English, as the on-demand
+        # translation's floor does. Stored sets carry it as an English cue.
+        own_meaning = str(
+            meanings.get(own) or meanings.get("en") or out.get("meaning_cue") or out.get("meaning") or ""
+        ).strip()
     if code != "en":
         # The bank's meaning cues and stored sets' cues are English; FORGE-DE:
         # a German meaning, when the item carries one, takes their place.

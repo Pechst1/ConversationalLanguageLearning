@@ -89,7 +89,9 @@ def test_a_french_chrome_word_bank_quotes_the_learners_own_language() -> None:
     assert german["prompt"] == goal
     english = ib.with_goal(_word_bank(), "fr", "en")
     assert "« They can walk along the canal, Gus. »" in english["goal_native"]
-    # A French speaker, or an unknown native language, keeps the French-only goal.
+    # Another language (Spanish) reads the English meaning, the bank's floor.
+    assert "« They can walk along the canal, Gus. »" in ib.with_goal(_word_bank(), "fr", "es")["goal_native"]
+    # A French speaker, or no native language, keeps the French-only goal.
     assert ib.with_goal(_word_bank(), "fr", "fr")["goal_native"] == "Construisez la phrase. Un mot est en trop."
     assert ib.with_goal(_word_bank(), "fr")["goal_native"] == "Construisez la phrase. Un mot est en trop."
     # The German chrome is unchanged.
@@ -97,3 +99,20 @@ def test_a_french_chrome_word_bank_quotes_the_learners_own_language() -> None:
         "Bau den Satz: „Sie können am Kanal entlang spazieren, Gus.“"
     )
     assert ib.public_payload({"items": [_word_bank()]}, "fr", "de")["items"][0]["goal_native"] == goal
+
+
+
+def test_a_pair_without_german_still_quotes_its_english_meaning() -> None:
+    """Codex on #187: a minimal pair with no German kept its English only in its goal."""
+
+    meaning = "I have been waiting for two hours."
+    item = {
+        "id": "pair1",
+        "classify_kind": "minimal_pair",
+        "labels": ["J'attends depuis deux heures.", "J'attends il y a deux heures."],
+        **ib._goal("pick", meaning),
+        "meaning_l10n": {"en": meaning},
+    }
+    assert ib.with_goal(item, "fr", "en")["goal_native"] == f"Quelle phrase veut dire « {meaning} » ?"
+    assert ib.with_goal(item, "fr", "de")["goal_native"] == f"Quelle phrase veut dire « {meaning} » ?"
+    assert ib.with_goal(item, "fr", "fr")["goal_native"] == "Quelle phrase est correcte ?"
