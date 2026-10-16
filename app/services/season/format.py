@@ -524,6 +524,9 @@ class Premise(_Model):
     gate: int | None = None
     #: Flags this premise may set (whitelisted for the day's turn).
     sets: list[str] = Field(default_factory=list)
+    #: What a planned day settles when the learner let it pass and did not set the flag
+    #: themselves (the ticket moves to a date the story picks).
+    settles: dict[str, Any] = Field(default_factory=dict)
     when: Cond = Field(default_factory=dict)
 
 
@@ -808,6 +811,9 @@ def validate_season(season: Season, *, locations: set[str] | None = None) -> lis
             unknown = cond_flags(premise.when) - known_flags
             if unknown:
                 problems.append(f"{gap.id}: premise {premise.id} when names unknown {sorted(unknown)}")
+            loose = set(premise.settles) - (set(premise.sets) & set(gap.sets_allowed))
+            if loose:
+                problems.append(f"{gap.id}: premise {premise.id} settles {sorted(loose)} it may not set")
         for forbidden in gap.must_not:
             unknown = cond_flags(forbidden.unless) - known_flags
             if unknown:

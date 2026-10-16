@@ -171,3 +171,24 @@ def test_two_beats_share_a_day_only_when_they_can_never_both_hold():
     )
     assert "g6: the day plan has two beats on one day" in validate_season(broken)
     assert validate_season(season) == []
+
+
+def test_a_ticket_day_the_learner_let_pass_still_moves_the_ticket():
+    """Owner hand-off 2026-10-16: the ticket days of gaps 3, 5 and 7 stay unrequired;
+    a day that passes without a date from the learner moves the ticket to the story's."""
+
+    def settle(gap_id: str, premise: str, details: dict) -> dict:
+        ctx = {
+            "id": "s1",
+            "kind": "gap",
+            "position": {"segment": gap_id, "day_in_segment": 2},
+            "checklist": {"premise_id": premise},
+        }
+        state = {"id": "s1", "flags": {"user.return_ticket": "mercredi 2 décembre"}}
+        return season_runtime._settle_gap(load_season("s1"), state, ctx, details, event_id="e", day=20)
+
+    passed = settle("g3", "le_billet_encore", {"outcome": "not_yet"})
+    assert passed["flags"]["user.return_ticket"] == "samedi 19 décembre"
+    chosen = {"outcome": "met", "season_flags": [{"flag": "user.return_ticket", "value": "dimanche 3 janvier"}]}
+    assert settle("g3", "le_billet_encore", chosen)["flags"]["user.return_ticket"] == "dimanche 3 janvier"
+    assert settle("g7", "le_dernier_billet", {"outcome": "met"})["flags"]["user.return_ticket"] == "samedi 9 janvier"

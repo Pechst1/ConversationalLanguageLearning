@@ -198,6 +198,8 @@ Every generated day must end with **something different from how it began**, and
 | 23 | «Au milieu du mur» | The wall has no centre. → The wall is ready, and so is its heart. | Lila closes an email too quickly. | A letter for Margaux, the day before the party. |
 | 24 | «Tout va bien» *(new)* | For the learner, Margaux's «pas de fête» is a joke. → The learner has seen her hide a letter, and asked. | A rain forecast for Saturday. | Tomorrow: «Les 25 ans du Mistral». |
 
+If the learner lets «Le billet, encore» pass without giving a date, the ticket moves to **samedi 19 décembre** (`settles` in `gaps.json`; owner hand-off, 2026-10-16).
+
 ---
 
 ## Gap 4 · Days 27–32 (7–12 December) · «Le quartier sait» (or pretends not to)
@@ -301,6 +303,8 @@ Every generated day must end with **something different from how it began**, and
 | 40 | «Le billet de Noël» *(new)* · sets `user.return_ticket` | The ticket says a date before Christmas. → The ticket says the date the learner chose, and someone at Le Mistral knows it. | The camp bed glimpsed through the office door on the second floor. | An email from Camille. |
 | 41 | «Une rencontre» *(new)* | Marchand is the man the group calls the villain. → The learner has answered Camille, and will meet Marchand before Christmas. | The learner's coat on the hook under Odile's portrait. | Tuesday evening, the second floor. |
 
+If the learner lets «Le billet de Noël» pass without giving a date, the ticket moves to **lundi 4 janvier** (`settles` in `gaps.json`; owner hand-off, 2026-10-16).
+
 ---
 
 ## Gap 6 · Days 44–50 (24–30 December) · «Noël, et le plan»
@@ -403,6 +407,8 @@ Every generated day must end with **something different from how it began**, and
 | 55 | «Le dernier billet» *(new)* · sets `user.return_ticket` | The learner's ticket needs a last date. → The ticket says it, and Lila has heard it. | Lila gives her plants to Marin. | Lila is giving her things away. |
 | 56 | «Ce qu'on donne» | Lila's things are hers. → Something of hers stays with the learner. | Marchand visits his new residence with Camille. | Tomorrow, the last bread. |
 | 57 | «La dernière tradition» | Mme Diallo's is Lila's ritual. → The ritual is the learner's. | Snow is forecast for the 8th. | Thursday 7 January. |
+
+If the learner lets «Le dernier billet» pass without giving a date, the ticket moves to **samedi 9 janvier** (`settles` in `gaps.json`; owner hand-off, 2026-10-16).
 
 ---
 
