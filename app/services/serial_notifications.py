@@ -17,7 +17,7 @@ from app.services.address import character_register as resolve_character_registe
 #: WP-19's title for the morning push. WP-80 replaced it with the speaking
 #: character's name; kept so nothing that imports it breaks, and so a test can
 #: assert that it is no longer sent.
-DAILY_JOURNEY_MORNING_TITLE = "Votre scène du jour est prête"
+DAILY_JOURNEY_MORNING_TITLE = "Ta scène du jour est prête"
 
 
 def _compact(value: Any, max_length: int = 140) -> str:
@@ -48,10 +48,10 @@ def enqueue_serial_edition_notification(db: Session, episode: SerialEpisode, *, 
     teaser = _compact(hook.get("teaser") or hook.get("text") or hook.get("unresolved_question"))
     if episode.kind == "feuilleton":
         title = f"Épisode {int(episode.episode_index) + 1} disponible"
-        message = teaser or "Votre nouvelle édition du Feuilleton est prête."
+        message = teaser or "Ta nouvelle édition du Feuilleton est prête."
     else:
-        title = f"Épisode {int(episode.episode_index) + 1} · à vous"
-        message = teaser or "Romy attend votre réponse dans le prochain acte."
+        title = f"Épisode {int(episode.episode_index) + 1} · à toi"
+        message = teaser or "Romy attend ta réponse dans le prochain acte."
 
     hook["notification_queued_key"] = notification_key
     hook["notification_queued_at"] = datetime.now(UTC).isoformat()
@@ -662,7 +662,7 @@ def courrier_push(db: Session, user: User, *, mission: Any, kind: str) -> Charac
 
 
 #: Title for the WP-31 day-before push of a rehearsal whose real event is tomorrow.
-REHEARSAL_READY_TITLE = "Votre répétition est prête"
+REHEARSAL_READY_TITLE = "Ta répétition est prête"
 
 
 def rehearsal_reminder_copy(
@@ -702,7 +702,7 @@ def rehearsal_reminder_copy(
     if row is None:
         return None
     goal = _compact((row.brief or {}).get("goal_fr") or "")
-    return REHEARSAL_READY_TITLE, goal or "C’est demain. Répétez-la une fois."
+    return REHEARSAL_READY_TITLE, goal or "C’est demain. Répète-la une fois."
 
 
 __all__ = [

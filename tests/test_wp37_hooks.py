@@ -424,7 +424,7 @@ def test_a_goalless_brief_falls_back_to_a_line_that_claims_nothing(
     _rehearsal(db_session, user, status="rehearsing", event_date=DAY + timedelta(days=1), goal="")
 
     copy = rehearsal_reminder_copy(db_session, user, today=DAY)
-    assert copy == (REHEARSAL_READY_TITLE, "C’est demain. Répétez-la une fois.")
+    assert copy == (REHEARSAL_READY_TITLE, "C’est demain. Répète-la une fois.")
 
 
 def test_the_push_is_another_learners_business_only(db_session: Session) -> None:

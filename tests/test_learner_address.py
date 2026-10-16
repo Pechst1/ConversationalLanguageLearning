@@ -306,3 +306,52 @@ def test_the_courrier_tone_check_reads_the_resolved_register_not_the_rules_prose
         stakes_level=1,
     )
     assert service.branch_state(mission=formal, user_text=text, assistant_text="")["tone_ok"] is False
+
+
+# ---------------------------------------------------------------------------
+# Push notifications in the app's own voice (#144 review)
+# ---------------------------------------------------------------------------
+
+#: The pushes the app writes in its own voice (titles and fallbacks), by module and
+#: by the function or constant that holds them. A character's own push line is not
+#: here: those tables (``MORNING_LINES``, ``LETTER_*_LINES``…) follow the character's
+#: register with the learner, which ``character_register`` resolves.
+APP_VOICE_PUSHES = {
+    "tasks/notifications.py": ("_morning_copy", "review_reminder_copy"),
+    "services/serial_notifications.py": (
+        "DAILY_JOURNEY_MORNING_TITLE",
+        "REHEARSAL_READY_TITLE",
+        "LETTER_ARRIVED_TITLE",
+        "LETTER_DEADLINE_TITLE",
+        "enqueue_serial_edition_notification",
+        "rehearsal_reminder_copy",
+    ),
+}
+
+
+def _named_strings(path: Path, names: tuple[str, ...]) -> list[tuple[int, str, str]]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found: list[tuple[int, str, str]] = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name in names:
+            body = node.body[1:] if ast.get_docstring(node) else node.body
+            found.extend((line, node.name, text) for stmt in body for line, text in _strings(stmt))
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in names:
+                    found.extend((line, target.id, text) for line, text in _strings(node.value))
+    seen = {name for _, name, _ in found}
+    assert seen == set(names), f"{path.name}: not found {set(names) - seen}"
+    return found
+
+
+@pytest.mark.parametrize("module", sorted(APP_VOICE_PUSHES))
+def test_the_app_pushes_say_tu(module: str) -> None:
+    """A learner who reads «tu» in the app does not read «Votre …» on the lock screen."""
+
+    offenders = [
+        f"{module}:{line} {name} {text[:90]!r} -> {hits}"
+        for line, name, text in _named_strings(APP / module, APP_VOICE_PUSHES[module])
+        if (hits := _address_violations("fr", text))
+    ]
+    assert not offenders, "push copy uses the wrong register:\n" + "\n".join(offenders)

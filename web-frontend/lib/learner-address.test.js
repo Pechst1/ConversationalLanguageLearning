@@ -41,6 +41,7 @@ const OTHER_FILES = [
   'components/atelier-v2/journey/ReplyStage.tsx',
   'components/stories/StoryProgressOverview.tsx',
   'pages/atelier.tsx',
+  'pages/missions.tsx',
   'pages/vocabulary/review.tsx',
 ].map((file) => path.join(ROOT, file));
 
