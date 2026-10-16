@@ -66,9 +66,9 @@ class Settings(BaseSettings):
             "takes the app's other calls when this (or PRIMARY_LLM_PROVIDER) names it."
         ),
     )
-    OPENAI_MODEL: str = Field("gpt-5-mini", description="Default OpenAI text model")
+    OPENAI_MODEL: str = Field("gpt-6-luna", description="Default OpenAI text model")
     OPENAI_ERROR_DETECTION_MODEL: str = Field(
-        "gpt-5-mini",
+        "gpt-6-luna",
         description="OpenAI model for exercise correction and error detection",
     )
     OPENAI_MISSION_FAST_MODEL: str = Field(
@@ -259,7 +259,7 @@ class Settings(BaseSettings):
         description="Use LLM-backed generation and correction for Atelier when a provider is configured.",
     )
     ATELIER_EXERCISE_LLM_MODEL: str = Field(
-        "gpt-5-mini",
+        "gpt-6-luna",
         description="Fast capable model for generating Atelier exercise payloads.",
     )
     ATELIER_EXERCISE_LLM_TIMEOUT_SECONDS: float = Field(
@@ -275,7 +275,7 @@ class Settings(BaseSettings):
         description="Use an AI critic to validate generated Atelier exercise payloads before serving them.",
     )
     ATELIER_CRITIQUE_LLM_MODEL: str = Field(
-        "gpt-5-mini",
+        "gpt-6-luna",
         description="Fast model for AI critique of generated Atelier exercises.",
     )
     ATELIER_CRITIQUE_LLM_TIMEOUT_SECONDS: float = Field(
@@ -344,7 +344,7 @@ class Settings(BaseSettings):
         description="Use AI assessment for open answers; provider failure saves them unassessed. Keyed drills retain deterministic checking.",
     )
     ATELIER_CORRECTION_LLM_MODEL: str = Field(
-        "gpt-5-mini",
+        "gpt-6-luna",
         description="Fast model for low-latency Atelier submit corrections.",
     )
     ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS: float = Field(

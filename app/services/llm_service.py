@@ -253,6 +253,13 @@ def provider_for_model(model: str | None) -> str | None:
 _GPT6_PREFIX = "gpt-6"
 
 
+def takes_reasoning_effort(model: Any) -> bool:
+    """An OpenAI reasoning model (gpt-5, gpt-6): it takes ``reasoning_effort``, and
+    without one it spends a small token budget on reasoning and returns nothing."""
+
+    return str(model or "").startswith(("gpt-5", _GPT6_PREFIX))
+
+
 def openai_reasoning_effort(model: str, effort: str | None) -> str | None:
     if effort == "minimal" and str(model).startswith(_GPT6_PREFIX):
         return "none"
@@ -473,7 +480,7 @@ class OpenAIProvider:
     def _uses_completion_token_limit(model: str) -> bool:
         """Newer OpenAI reasoning models reject the legacy max_tokens field."""
 
-        return model.startswith(("gpt-5", _GPT6_PREFIX))
+        return takes_reasoning_effort(model)
 
     def generate(self, messages: Sequence[dict[str, str]], **kwargs: Any) -> LLMResult:
         """One chat completion, retried only on retryable errors.

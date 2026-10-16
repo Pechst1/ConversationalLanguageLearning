@@ -615,8 +615,12 @@ class Judge:
         return answer, cost, None if answer is not None else "the answer is not a JSON object"
 
     def _reasons(self) -> bool:
-        # gpt-5 models take an effort; gpt-4o rejects the field (graphic_novel's rule).
-        return bool(self.reasoning_effort) and str(self.model).startswith("gpt-5")
+        # gpt-5 and gpt-6 models take an effort; gpt-4o rejects the field.
+        # Lazy, like default_model(): llm_service loads the app settings, and
+        # the provider-free paths (--help, --dry-run) must run without them.
+        from app.services.llm_service import takes_reasoning_effort
+
+        return bool(self.reasoning_effort) and takes_reasoning_effort(self.model)
 
     def fields(self) -> dict[str, Any]:
         return {
