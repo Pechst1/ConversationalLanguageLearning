@@ -146,7 +146,7 @@ Every generated day must end with **something different from how it began**, and
 | 11 | «Je peux ?» | Odile's plan «Le Mistral à nous» is one page in a notebook. → Marin has a spreadsheet, and he asked the learner first. | Marin finds his own Polaroid and cries at it. | Lila: «Ce soir, on cuisine chez toi.» |
 | 12 | «Le dîner raté» | The learner and Lila have never cooked together. → They have a private joke, «ne refais jamais l'omelette», and Margaux came up too fast. | · | It's Gus's birthday tomorrow, and Lila has his Polaroid at fifteen. |
 | 13 | «Pour son anniversaire» · sets `s1.gus_photo` | Gus's Polaroid at fifteen is with Lila. → The photo is given, shown, or kept, and the learner said why. | Gus calls the learner «mon cher». | Gus has heard about Solvel's offer. |
-| 14 | «La pétition» *(new)* | Solvel's offer is the learner's secret, and «pas de fête» is Margaux's last word. → Gus has a petition, and the party on Saturday 5 December is decided. | Margaux looks at the ceiling when the learner mentions upstairs. | An unknown number calls the learner. |
+| 14 | «La pétition» *(new)* | Nobody at the zinc has done anything about Solvel's offer, and «pas de fête» is Margaux's last word. → Gus has a petition, and the party on Saturday 5 December is decided. | Margaux looks at the ceiling when the learner mentions upstairs. | An unknown number calls the learner. |
 | 15 | «Bastien appelle» *(new)* | Solvel is a letter and a deadline. → Solvel has a voice and the learner's number, and the learner promised nothing. | Camille emails a deadline for the inventory of the flat. | Gus and Marin each want to talk to the learner, alone. |
 
 ---

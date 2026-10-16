@@ -1915,7 +1915,9 @@ def _next_budget(exc: BaseException, budget: int | None) -> int | None:
 
     details = getattr(exc, "details", None) or {}
     if details.get("truncated"):
-        return max(int(budget or 0), TRUNCATED_RETRY_TOKENS)
+        # A page written ahead of time already had more than the live retry's room.
+        floor = AHEAD_DRAFT_MAX_TOKENS + TRUNCATED_RETRY_TOKENS if _AHEAD_OF_TIME.get() else TRUNCATED_RETRY_TOKENS
+        return max(int(budget or 0), floor)
     return budget
 
 
