@@ -174,7 +174,7 @@ def test_the_learner_facing_copy_is_french(tab: str, french: str):
         "Envoyer",
         "Passer cette scène",
         "Tout voir",
-        "Ce dont vous vous souvenez",
+        "Ce dont tu te souviens",
         "La scène, telle qu’elle était",
         "Une semaine plus tard",
     ):
@@ -192,7 +192,7 @@ def test_the_learner_facing_copy_is_french(tab: str, french: str):
 def test_an_ungraded_entry_says_so_and_is_never_a_verdict(tab: str, french: str):
     assert "assessment_status !== 'checked'" in tab
     assert "return t.correction_unavailable;" in tab
-    assert "La correction n’a pas pu être faite. Votre texte est gardé tel quel." in french
+    assert "La correction n’a pas pu être faite. Ton texte est gardé tel quel." in french
     # The ungraded branch renders a Notice, not the correction block.
     unavailable = tab.split("entry.correction?.assessment_status === 'unavailable' ? (")[1]
     assert unavailable.split(") : (")[0].strip().startswith("<Notice")
@@ -216,7 +216,7 @@ def test_the_two_verdicts_are_two_blocks_with_two_headings(tab: str, french: str
     assert 'className="av2-label">{t.french_label}<' in tab
     assert 'className="av2-label">{t.recall_label}<' in tab
     assert "french_label: 'Le français'" in french
-    assert "recall_label: 'Ce dont vous vous souvenez'" in french
+    assert "recall_label: 'Ce dont tu te souviens'" in french
     # And the recall sentence never speaks of correctness.
     recall_fn = tab.split("export function recallLine")[1].split("\n}\n")[0]
     assert "faute" not in recall_fn and "correct" not in recall_fn

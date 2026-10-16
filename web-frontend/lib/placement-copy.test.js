@@ -51,7 +51,7 @@ test('the placement page reads its chrome from the table, in the native language
   assert.ok(page.includes('pickByLanguage(prompt.hint_by_language, language)'));
   // The prompt itself is French content.
   assert.match(page, /<h1 className="av2-headline av2-headline--screen" lang="fr">\s*\{prompt\.prompt_fr\}/);
-  for (const phrase of ['Commencer le bilan', 'Passer pour l’instant', '>Niveau non évalué<', 'Envoyer\n', 'Écrivez ici']) {
+  for (const phrase of ['Commencer le bilan', 'Passer pour l’instant', '>Niveau non évalué<', 'Envoyer\n', 'Écris ici']) {
     assert.ok(!page.includes(phrase), `inline French chrome: ${phrase}`);
   }
 });
@@ -61,7 +61,7 @@ test('sign-up and the taste buttons follow the onboarding language', () => {
   assert.equal(SIGNUP_NAV.de.have_account, 'Ich habe schon ein Konto');
   assert.equal(SIGNUP_NAV.fr.submit, 'Créer mon compte');
   assert.equal(TASTE_NAV.en.start, 'Start');
-  assert.equal(TASTE_NAV.fr.keep, 'Gardez votre histoire');
+  assert.equal(TASTE_NAV.fr.keep, 'Garde ton histoire');
   const signup = fs.readFileSync(path.join(WEB_ROOT, 'pages/auth/signup.tsx'), 'utf8');
   assert.ok(!signup.includes('Créer un compte'), 'no inline French screen name');
 });

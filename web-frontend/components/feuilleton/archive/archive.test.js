@@ -120,9 +120,9 @@ const RAW = {
           closed: false,
           days: [
             day('2026-09-15', 4, {
-              learner_lines: ['Je peux vous aider ?'],
+              learner_lines: ['Je peux t’aider ?'],
               margin_notes: [
-                { text_fr: 'Parce que vous avez dit à Marin « vas-y »', cause_scene_id: 's-2026-09-13', cause_date: '2026-09-13', character_id: 'marin' },
+                { text_fr: 'Parce que tu as dit à Marin « vas-y »', cause_scene_id: 's-2026-09-13', cause_date: '2026-09-13', character_id: 'marin' },
                 { text_fr: '' },
               ],
             }),
@@ -274,7 +274,7 @@ test('the register: «tu depuis le 12 sept.» or «vous», in the chrome languag
   assert.equal(trombi.registerLine({ register: 'vous', tu_since: { date: '2026-09-12' } }, 'en'), 'vous · formal');
 });
 
-test('«Ce que … sait de vous»: five at most, newest first, each dated', () => {
+test('«Ce que … sait de toi»: five at most, newest first, each dated', () => {
   const facts = Array.from({ length: 7 }, (_, i) => ({ text_fr: `fait ${i}`, date: `2026-09-1${i}`, scene_id: null }));
   const known = trombi.knownAboutYou({ known_about_you: [...facts, { text_fr: '  ', date: null }] });
   assert.equal(known.length, 5);
@@ -353,12 +353,12 @@ test('a planche reread: the reply in Garamond italic, the ending, the notes', ()
   const d = model.findArchiveDay(ARCHIVE, { date: '2026-09-15' });
   const html = decode(inRoot(h(surface.ArchiveDayPage, { day: { ...d, ending_fr: 'Le plombier arrive.' }, archive: ARCHIVE, language: 'en', episode: null })));
   assert.match(html, /Back to the archive/);
-  assert.match(html, /class="fa-reply__line" lang="fr">«\sJe peux vous aider\s\?\s»/);
+  assert.match(html, /class="fa-reply__line" lang="fr">«\sJe peux t’aider\s\?\s»/);
   assert.match(text(html), /Your reply/);
   assert.match(text(html), /How it ended Le plombier arrive\./);
   // no page to reread: the notes print at the end, signed with the cause's Nº
   assert.match(html, /href="\/graphic-novel\?day=2026-09-13&cause=s-2026-09-13"/);
-  assert.match(text(html), /Parce que vous avez dit à Marin « vas-y » — Nº 2/);
+  assert.match(text(html), /Parce que tu as dit à Marin « vas-y » — Nº 2/);
   // a day with no reply says so, in the chrome language
   const quiet = decode(inRoot(h(surface.ArchiveDayPage, { day: model.findArchiveDay(ARCHIVE, { date: '2026-09-14' }), language: 'de', episode: null }, ), 'de'));
   assert.match(text(quiet), /An diesem Tag hast du nichts geantwortet\./);
@@ -375,7 +375,7 @@ test('WP-110: a finished page is the record — the replies are not repeated und
       a_suivre_fr: null,
       rows: [
         { id: 'turn:0', movement: 'turn', narration_fr: '', image_url: '/a.webp', image_status: 'setting_reference',
-          dialogue: [{ character_id: 'toi', character_name: null, text_fr: 'Je peux vous aider ?', kind: 'you', you: true }] },
+          dialogue: [{ character_id: 'toi', character_name: null, text_fr: 'Je peux t’aider ?', kind: 'you', you: true }] },
       ],
     },
   };
@@ -388,7 +388,7 @@ test('le trombinoscope: face, register, one trust meter, what they know — no c
   const member = {
     id: 'marin', name: 'Marin', role: 'le voisin', accent_colour: null,
     trust: 2, register: 'tu', tu_since: { date: '2026-09-12', scene_id: 's' },
-    known_about_you: [{ text_fr: 'Vous avez un chat.', date: '2026-09-14', scene_id: 's' }],
+    known_about_you: [{ text_fr: 'Tu as un chat.', date: '2026-09-14', scene_id: 's' }],
     relationship: { closeness: 5, register: 'tu', mood: -1 },
   };
   const html = decode(inRoot(h(CastCard, { member, language: 'en' })));
@@ -396,11 +396,11 @@ test('le trombinoscope: face, register, one trust meter, what they know — no c
   assert.equal((html.match(/data-mark="filled"/g) || []).length, 2);
   assert.equal((html.match(/data-mark="empty"/g) || []).length, 3);
   assert.match(text(html), /tu since 12 Sep/);
-  assert.match(text(html), /What Marin knows about you 14 Sep Vous avez un chat\./);
+  assert.match(text(html), /What Marin knows about you 14 Sep Tu as un chat\./);
   assert.doesNotMatch(html, /closeness|cast-closeness/);
   const fresh = decode(inRoot(h(CastCard, { member: { id: 'lila', name: 'Lila', relationship: { register: 'vous' } }, language: 'fr' }), 'fr'));
   assert.match(text(fresh), /Pas encore d’échange/);
-  assert.match(text(fresh), /Lila ne sait encore rien de vous\./);
+  assert.match(text(fresh), /Lila ne sait encore rien de toi\./);
   assert.match(text(fresh), /vous/);
   const list = inRoot(h(Trombinoscope, { cast: [member], withAvatar: false }));
   assert.match(list, /data-trombinoscope/);
@@ -440,7 +440,7 @@ test('the recap: «Fin du chapitre» with the digest, «Tome N» pressed, the ma
   const recap = {
     completion_kind: 'complete', objective_outcome: 'met', practiced_targets: [], capability_evidence: [], next_focus: null,
     collectible_ids: [], story_outcome: null, active_seconds: 300,
-    margin_notes: [{ text_fr: 'Parce que vous avez aidé Lila', cause_scene_id: 's9', cause_date: '2026-09-20', character_id: 'lila', cause_edition_no: 9 }],
+    margin_notes: [{ text_fr: 'Parce que tu as aidé Lila', cause_scene_id: 's9', cause_date: '2026-09-20', character_id: 'lila', cause_edition_no: 9 }],
     chapter_closed: { index: 3, title_fr: 'La clé perdue', digest_fr: 'Qui ? → Marin.' },
     season_finished: { number: 1, title_fr: 'S’installer' },
   };
@@ -450,7 +450,7 @@ test('the recap: «Fin du chapitre» with the digest, «Tome N» pressed, the ma
   assert.match(html, /data-season-finished="1"[\s\S]*Tome 1/);
   assert.match(html, /data-stamp="true"/);
   assert.match(text(html), /Season 1 is finished: it is bound as a volume\./);
-  assert.match(text(html), /Parce que vous avez aidé Lila — Nº 9/);
+  assert.match(text(html), /Parce que tu as aidé Lila — Nº 9/);
   // an older recap draws none of it
   const plain = inRoot(h(JourneyRecap, { journey, recap: { ...recap, margin_notes: undefined, chapter_closed: undefined, season_finished: undefined }, language: 'en' }));
   assert.doesNotMatch(plain, /data-colophon|data-season-finished|data-margin-notes/);

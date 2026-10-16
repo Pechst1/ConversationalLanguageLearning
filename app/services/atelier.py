@@ -37,6 +37,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
+from app.services.address import address_instruction
 from app.services.atelier_assets import AtelierAssetService
 
 # WP-16 additive: the correction call's request bound and its cost row.
@@ -7326,8 +7327,9 @@ class AtelierCorrectionService:
         return (
             f"Write why_wrong, repair_hint and display_label in {language}. "
             "Keep every French fragment (learner_text, corrected_target, corrected_answer, examples) "
-            f"in French — never translate the French itself into {language}."
-        )
+            f"in French — never translate the French itself into {language}. "
+            f"{address_instruction(self.explanation_language)}"
+        ).strip()
 
     def _clean_feedback_text(self, text: Any) -> str:
         cleaned = str(text or "").strip()

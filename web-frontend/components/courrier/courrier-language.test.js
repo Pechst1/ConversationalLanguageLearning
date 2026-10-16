@@ -54,8 +54,8 @@ const noop = () => undefined;
 const TODAY = new Date('2026-09-21T10:00:00Z');
 const SAMIRA = { id: 'samira', name: 'Samira', role: 'boulangère', mood_line: 'Un peu distante en ce moment.' };
 const FRAME = 'La boulangerie ferme plus tôt samedi.';
-const ASK = 'Demandez une heure pour vendredi.';
-const LINE = 'Bonjour ! Vous passez quand ?';
+const ASK = 'Demande une heure pour vendredi.';
+const LINE = 'Bonjour ! Tu passes quand ?';
 
 const decode = (s) => s.replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/&quot;/g, '"');
 const text = (html) => decode(html.replace(/<[^>]+>/g, ' '));
@@ -107,13 +107,13 @@ const FRENCH_CHROME = [
   'Message téléphonique',
   'Répondre',
   'Parole tenue',
-  'Vous avez fait ce que',
+  'Tu as fait ce que',
   'objectifs tenus',
-  'si vous pouvez',
+  'si tu peux',
   'lettre sur 3',
   'lettre précédente',
   'Le délai est passé',
-  'Apportez votre français',
+  'Apporte ton français',
   'Coller un texte',
   'Photographier',
   'Non lu',
@@ -165,7 +165,7 @@ test('a B1 learner reads French chrome, whatever their own language', () => {
   const language = chromeLanguage('en', 'B1');
   assert.equal(language, 'fr');
   const html = heard(renderCourrier(language));
-  for (const phrase of ['Retour à la Une', 'Répondre', 'Parole tenue', '2ᵉ lettre sur 3', 'Répondez avant jeudi, si vous pouvez.', 'Non lu']) {
+  for (const phrase of ['Retour à la Une', 'Répondre', 'Parole tenue', '2ᵉ lettre sur 3', 'Réponds avant jeudi, si tu peux.', 'Non lu']) {
     assert.ok(html.includes(phrase), `missing French chrome: ${phrase}`);
   }
   for (const phrase of ENGLISH_CHROME.filter((p) => !['Use'].includes(p))) {
@@ -179,7 +179,7 @@ test('the letter stays French with lang="fr" at every level', () => {
     assert.match(html, /<h1 class="cr-name" lang="fr">Samira<\/h1>/);
     assert.ok(html.includes(`<p class="cr-sit-frame" lang="fr">${FRAME}</p>`), 'the situation is content');
     assert.ok(html.includes(`<span lang="fr">${ASK}</span>`), 'the ask is content');
-    assert.match(html, /class="av2-bubble" lang="fr">.*Bonjour ! Vous passez quand \?/);
+    assert.match(html, /class="av2-bubble" lang="fr">.*Bonjour ! Tu passes quand \?/);
     assert.match(html, /<span lang="fr">fermer<\/span>/);
     // The correspondent's mood is chrome (2026-09-24): the chrome language.
     assert.match(html, new RegExp(`<p class="cr-corr-mood" lang="${language}">`));
@@ -244,13 +244,13 @@ test('the waiting-letter rows take a language and default to French', () => {
     Corr.crLetterHint({ name: 'Samira', chain: { index: 2, total: 3 }, expiresAt: '2026-09-24T18:00:00Z', now: TODAY, language: 'en' }),
     'Letter 2 of 3, from Samira · reply by Thursday if you can.',
   );
-  assert.equal(Corr.crLetterHint({ name: 'Samira' }), 'Samira attend votre réponse.');
+  assert.equal(Corr.crLetterHint({ name: 'Samira' }), 'Samira attend ta réponse.');
   const letter = { id: 'm1', status: 'in_progress', correspondent: { name: 'Samira' } };
-  assert.equal(Waiting.courrierHomeEntry(letter).label, 'Votre réponse est commencée');
+  assert.equal(Waiting.courrierHomeEntry(letter).label, 'Ta réponse est commencée');
   assert.equal(Waiting.courrierHomeEntry(letter, undefined, 'en').label, 'You started your reply');
   assert.equal(Waiting.courrierHomeEntry({ ...letter, status: 'available' }, undefined, 'de').label, 'Ein Brief wartet auf dich');
   const fr = renderToStaticMarkup(h(Corr.CrLetterRow, { name: 'Samira' }));
-  assert.ok(fr.includes('Une lettre vous attend'));
+  assert.ok(fr.includes('Une lettre t’attend'));
   const en = renderToStaticMarkup(h(Corr.CrLetterRow, { name: 'Samira', language: 'en' }));
   assert.ok(en.includes('A letter is waiting') && en.includes('Samira is waiting for your reply.'));
   assert.equal(Cr.crReadAndReplyLabel(8), 'Lire et répondre · 8 min');
@@ -317,7 +317,7 @@ test('the answered seal wears the correspondent’s face in the mood the letter 
     assert.equal(Corr.crMoodSentence(key, 'Anaïs', t), line);
   }
   // A recap from before the number: read back from the French line.
-  assert.equal(Corr.crMoodKey(Corr.crMoodValue(undefined, 'De bonne humeur avec vous.')), 'happy');
+  assert.equal(Corr.crMoodKey(Corr.crMoodValue(undefined, 'De bonne humeur avec toi.')), 'happy');
   assert.equal(Corr.crMoodKey(Corr.crMoodValue(undefined, 'Quelque chose d’autre')), null);
   assert.equal(courrierCopy('de').seal_mood_happy, '{name} ist zufrieden mit dir');
 
@@ -328,11 +328,11 @@ test('the answered seal wears the correspondent’s face in the mood the letter 
   assert.match(shop, /<p class="cr-seal-mood" data-mood="happy"><span class="av2-portrait"[^>]*>B<\/span><span>Boutique Anaïs is pleased with you<\/span><\/p>/);
   const cast = renderToStaticMarkup(h(AtelierV2Root, { language: 'fr' }, h(Cr.CrSeal, {
     verdict: 'Résolu',
-    mood: { name: 'Romy', characterId: 'romy_tremblay', face: 'cross', line: 'Romy vous en veut' },
+    mood: { name: 'Romy', characterId: 'romy_tremblay', face: 'cross', line: 'Romy t’en veut' },
   })));
   assert.match(cast, /class="ob-portrait" data-size="sm" data-mood="cross"/);
   // One seal, still: no paragraph-long mood, no «Depuis votre lettre».
-  assert.ok(!cast.includes('Depuis votre lettre'));
+  assert.ok(!cast.includes('Depuis ta lettre'));
 });
 
 test('at 320 px the name wins the header line: the status folds to a dot', () => {

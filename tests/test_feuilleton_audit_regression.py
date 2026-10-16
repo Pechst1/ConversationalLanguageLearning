@@ -326,7 +326,7 @@ def test_reader_shows_no_deck_names_or_english_vocabulary_dump():
     # If a credit is needed after the last panel it is exactly one sentence.
     assert "function feuilletonCreditLine" in reader
     copy = (WEB / "components" / "feuilleton" / "feuilleton-copy.ts").read_text(encoding="utf-8")
-    assert "mots de cette édition rejoignent votre révision." in copy
+    assert "mots de cette édition rejoignent ta révision." in copy
     assert "fbPlural(t, 'credit', total)" in reader
 
 

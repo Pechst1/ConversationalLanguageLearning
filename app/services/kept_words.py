@@ -96,7 +96,7 @@ KEEP_REFUSALS: dict[str, dict[str, str]] = {
         "de": "Dieses Wort steht noch nicht im Wörterbuch und kann nicht gespeichert werden.",
     },
     "no_gloss_in_learner_language": {
-        "fr": "Pas encore de traduction dans votre langue pour ce mot.",
+        "fr": "Pas encore de traduction dans ta langue pour ce mot.",
         "en": "There is no English translation for this word yet, so it can't be kept.",
         "de": "Für dieses Wort gibt es noch keine deutsche Übersetzung, deshalb kann es nicht gespeichert werden.",
     },

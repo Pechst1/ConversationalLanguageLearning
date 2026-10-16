@@ -167,7 +167,7 @@ def test_a_paste_that_is_not_a_document_is_refused_in_french(intake_client, fake
     assert response.status_code == 400
     detail = response.json()["detail"]
     assert detail["code"] == "document_too_short"
-    assert "Collez" in detail["message_fr"]
+    assert "Colle" in detail["message_fr"]
     assert fake_provider.calls == 0
 
 

@@ -345,7 +345,7 @@ try {
       });
     });
     await l.walk.page.goto(`${stack.web}/atelier`);
-    const expired = l.walk.page.getByText(/Your session has expired|Deine Sitzung ist abgelaufen|Votre session a expiré/);
+    const expired = l.walk.page.getByText(/Your session has expired|Deine Sitzung ist abgelaufen|Ta session a expiré/);
     await expired.waitFor({ timeout: 15000 });
     findings.check('expired-session-has-reconnect-action',
       await l.walk.page.getByRole('button', { name: /Sign in again|Erneut anmelden|Se reconnecter/ }).count() === 1,

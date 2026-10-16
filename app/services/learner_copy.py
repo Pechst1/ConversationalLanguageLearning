@@ -76,7 +76,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "detect.false_friend_sensible": {
         "en": "“Sensible” means “sensitive”; for “sensible” use “raisonnable”.",
         "de": "„Sensible“ heißt „empfindsam“; für „vernünftig“ nimm „raisonnable“.",
-        "fr": "« Sensible » veut dire « émotif » ; pour « raisonnable », dites « raisonnable ».",
+        "fr": "« Sensible » veut dire « émotif » ; pour « raisonnable », dis « raisonnable ».",
     },
     "detect.false_friend_deception": {
         "en": "“Déception” means “disappointment”; deception is “tromperie”.",
@@ -86,7 +86,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "detect.false_friend_suggestion": {
         "en": "Check what this word actually means before using it again.",
         "de": "Prüfe die tatsächliche Bedeutung dieses Wortes, bevor du es wieder benutzt.",
-        "fr": "Révisez l’usage correct de ce mot avant de le réutiliser.",
+        "fr": "Révise l’usage correct de ce mot avant de le réutiliser.",
     },
     "detect.summary_heuristic_only": {
         "en": "Automated check only — no teacher review on this answer.",
@@ -130,17 +130,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.recognize.chose_requires": {
         "en": "You chose “{learner}”; this item needs “{target}”.",
         "de": "Du hast „{learner}“ gewählt; hier ist „{target}“ nötig.",
-        "fr": "Vous avez choisi « {learner} » ; il faut « {target} » ici.",
+        "fr": "Tu as choisi « {learner} » ; il faut « {target} » ici.",
     },
     "atelier.recognize.blank_needs": {
         "en": "You chose “{learner}”, but this blank needs “{target}”.",
         "de": "Du hast „{learner}“ gewählt, aber in diese Lücke gehört „{target}“.",
-        "fr": "Vous avez choisi « {learner} », mais ce blanc demande « {target} ».",
+        "fr": "Tu as choisi « {learner} », mais ce blanc demande « {target} ».",
     },
     "atelier.recognize.classified_as": {
         "en": "You classified “{prompt}” as “{learner}”, but the target label is “{target}”.",
         "de": "Du hast „{prompt}“ als „{learner}“ eingeordnet; richtig wäre „{target}“.",
-        "fr": "Vous avez classé « {prompt} » comme « {learner} » ; l’étiquette attendue est « {target} ».",
+        "fr": "Tu as classé « {prompt} » comme « {learner} » ; l’étiquette attendue est « {target} ».",
     },
     # Issue #104: a judgement («Correct» / «À corriger») answered wrongly names the
     # sentence, never the buttons.
@@ -167,7 +167,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.recognize.word_bank_rebuild": {
         "en": "Rebuild the sentence as: {target}",
         "de": "Baue den Satz so: {target}",
-        "fr": "Reconstruisez la phrase ainsi : {target}",
+        "fr": "Reconstruis la phrase ainsi : {target}",
     },
     "atelier.recognize.rule_reference": {
         "en": "Rule: {title}.",
@@ -182,12 +182,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.recognize.missing_why": {
         "en": "You left this item blank, so there is no grammar choice to review.",
         "de": "Du hast dieses Element leer gelassen, also gibt es keine Grammatikwahl zu prüfen.",
-        "fr": "Vous avez laissé cet élément vide : il n’y a aucun choix grammatical à revoir.",
+        "fr": "Tu as laissé cet élément vide : il n’y a aucun choix grammatical à revoir.",
     },
     "atelier.recognize.missing_repair": {
         "en": "Answer the item first; a blank item is not filed as an erratum.",
         "de": "Beantworte das Element zuerst; ein leeres Element wird nicht als Erratum abgelegt.",
-        "fr": "Répondez d’abord ; un élément vide n’est pas consigné comme erratum.",
+        "fr": "Réponds d’abord ; un élément vide n’est pas consigné comme erratum.",
     },
     "atelier.recognize.label_classification": {
         "en": "Classification",
@@ -241,17 +241,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.si.fill_present_in_result": {
         "en": "You used present `appelle` in the result clause. In si type 1, the si-clause stays present and the consequence takes future simple, so the blank needs `appellerai`.",
         "de": "Du hast im Folgesatz das Präsens `appelle` benutzt. Beim si-Typ 1 bleibt der si-Satz im Präsens und die Folge steht im Futur simple: hier gehört `appellerai` in die Lücke.",
-        "fr": "Vous avez mis le présent `appelle` dans la principale. Au si de type 1, la subordonnée reste au présent et la conséquence passe au futur simple : ce blanc demande `appellerai`.",
+        "fr": "Tu as mis le présent `appelle` dans la principale. Au si de type 1, la subordonnée reste au présent et la conséquence passe au futur simple : ce blanc demande `appellerai`.",
     },
     "atelier.si.fill_conditional_in_result": {
         "en": "You used conditional `appellerais`, which belongs to a hypothetical si frame. This sentence is a real future condition, so the result needs future simple `appellerai`.",
         "de": "Du hast das Conditionnel `appellerais` benutzt, das zum hypothetischen si-Satz gehört. Hier steht eine reale Bedingung in der Zukunft, also braucht die Folge das Futur simple `appellerai`.",
-        "fr": "Vous avez employé le conditionnel `appellerais`, qui appartient à l’hypothèse. Ici la condition est réelle et future : la conséquence demande le futur simple `appellerai`.",
+        "fr": "Tu as employé le conditionnel `appellerais`, qui appartient à l’hypothèse. Ici la condition est réelle et future : la conséquence demande le futur simple `appellerai`.",
     },
     "atelier.si.fill_past_in_result": {
         "en": "You used past tense `ai appelé`, but the sentence says what will happen if the condition is met. The result needs future simple `appellerai`.",
         "de": "Du hast die Vergangenheit `ai appelé` benutzt, aber der Satz sagt, was geschehen *wird*, wenn die Bedingung eintritt. Die Folge braucht das Futur simple `appellerai`.",
-        "fr": "Vous avez employé le passé `ai appelé`, alors que la phrase dit ce qui arrivera si la condition se réalise. La conséquence demande le futur simple `appellerai`.",
+        "fr": "Tu as employé le passé `ai appelé`, alors que la phrase dit ce qui arrivera si la condition se réalise. La conséquence demande le futur simple `appellerai`.",
     },
     "atelier.si.fill_result_needs_future": {
         "en": "This si-clause is in the present, so the result clause needs future simple here.",
@@ -261,7 +261,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.si.repair_present_then_future": {
         "en": "Keep the verb after si in the present, then put the consequence in future simple.",
         "de": "Lass das Verb nach « si » im Präsens und setze die Folge ins Futur simple.",
-        "fr": "Gardez le verbe après « si » au présent, puis mettez la conséquence au futur simple.",
+        "fr": "Garde le verbe après « si » au présent, puis mets la conséquence au futur simple.",
     },
     "atelier.si.fill_imperative_expected": {
         "en": "Future `prendras` can be grammatical in si type 1, but this blank is a direct instruction: `take your coat`. The expected result is imperative `prends`.",
@@ -271,22 +271,22 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.si.fill_imperative_generic": {
         "en": "You chose `{learner}`, but the result clause is a command, so it needs the imperative `prends`.",
         "de": "Du hast `{learner}` gewählt, aber der Folgesatz ist eine Aufforderung und braucht den Imperativ `prends`.",
-        "fr": "Vous avez choisi `{learner}`, mais la principale est un ordre : il faut l’impératif `prends`.",
+        "fr": "Tu as choisi `{learner}`, mais la principale est un ordre : il faut l’impératif `prends`.",
     },
     "atelier.si.repair_imperative_result": {
         "en": "When the result tells someone what to do, use the imperative after the si-clause.",
         "de": "Wenn die Folge jemandem sagt, was zu tun ist, steht nach dem si-Satz der Imperativ.",
-        "fr": "Quand la conséquence dit quoi faire, employez l’impératif après la subordonnée en « si ».",
+        "fr": "Quand la conséquence dit quoi faire, emploie l’impératif après la subordonnée en « si ».",
     },
     "atelier.si.fill_irons_present": {
         "en": "You used present `allons` in the result clause. With a present si-clause, the consequence should be future simple: `irons`.",
         "de": "Du hast im Folgesatz das Präsens `allons` benutzt. Mit einem si-Satz im Präsens gehört die Folge ins Futur simple: `irons`.",
-        "fr": "Vous avez mis le présent `allons` dans la principale. Avec un « si » au présent, la conséquence passe au futur simple : `irons`.",
+        "fr": "Tu as mis le présent `allons` dans la principale. Avec un « si » au présent, la conséquence passe au futur simple : `irons`.",
     },
     "atelier.si.fill_irons_conditional": {
         "en": "You used conditional `irions`, but this is a real future condition, not a hypothetical one. Use future simple `irons`.",
         "de": "Du hast das Conditionnel `irions` benutzt, aber das ist eine reale, keine hypothetische Bedingung. Nimm das Futur simple `irons`.",
-        "fr": "Vous avez employé le conditionnel `irions`, mais la condition est réelle, pas hypothétique. Employez le futur simple `irons`.",
+        "fr": "Tu as employé le conditionnel `irions`, mais la condition est réelle, pas hypothétique. Emploie le futur simple `irons`.",
     },
     "atelier.si.fill_irons_generic": {
         "en": "The condition is present, so the consequence needs future simple `irons`.",
@@ -301,22 +301,22 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.si.classify_present": {
         "en": "You classified `{prompt}` as `{learner}`, but `{prompt}` is present tense in the si-clause.",
         "de": "Du hast `{prompt}` als `{learner}` eingeordnet, aber `{prompt}` steht im Präsens im si-Satz.",
-        "fr": "Vous avez classé `{prompt}` comme `{learner}`, mais `{prompt}` est au présent dans la subordonnée en « si ».",
+        "fr": "Tu as classé `{prompt}` comme `{learner}`, mais `{prompt}` est au présent dans la subordonnée en « si ».",
     },
     "atelier.si.classify_imperative": {
         "en": "You classified `{prompt}` as `{learner}`, but here `{prompt}` is an imperative command form, which can serve as the result in si type 1.",
         "de": "Du hast `{prompt}` als `{learner}` eingeordnet, aber `{prompt}` ist hier ein Imperativ, der beim si-Typ 1 als Folge stehen kann.",
-        "fr": "Vous avez classé `{prompt}` comme `{learner}`, mais `{prompt}` est ici un impératif, qui peut servir de résultat au si de type 1.",
+        "fr": "Tu as classé `{prompt}` comme `{learner}`, mais `{prompt}` est ici un impératif, qui peut servir de résultat au si de type 1.",
     },
     "atelier.si.classify_future": {
         "en": "You classified `{prompt}` as `{learner}`, but `{prompt}` is future simple; the `-rai` ending marks the future result.",
         "de": "Du hast `{prompt}` als `{learner}` eingeordnet, aber `{prompt}` steht im Futur simple; die Endung `-rai` markiert die Folge in der Zukunft.",
-        "fr": "Vous avez classé `{prompt}` comme `{learner}`, mais `{prompt}` est au futur simple ; la terminaison `-rai` marque le résultat futur.",
+        "fr": "Tu as classé `{prompt}` comme `{learner}`, mais `{prompt}` est au futur simple ; la terminaison `-rai` marque le résultat futur.",
     },
     "atelier.si.repair_name_the_form": {
         "en": "Name the verb form before reading the whole sentence frame.",
         "de": "Bestimme zuerst die Verbform, dann lies den ganzen Satzrahmen.",
-        "fr": "Nommez la forme du verbe avant de lire tout le cadre de la phrase.",
+        "fr": "Nomme la forme du verbe avant de lire tout le cadre de la phrase.",
     },
     "atelier.si.word_bank_conditional_why": {
         "en": "You built the right si-frame, but the result verb is `répondrais`, which is conditional. In a real condition with si + present, the consequence uses future simple: `répondrai`.",
@@ -326,17 +326,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.si.word_bank_conditional_repair": {
         "en": "Keep `Si elle appelle` in the present, then change only the result verb to future simple: `je répondrai`.",
         "de": "Lass `Si elle appelle` im Präsens und setze nur das Verb der Folge ins Futur simple: `je répondrai`.",
-        "fr": "Gardez `Si elle appelle` au présent, puis changez seulement le verbe de la principale : `je répondrai`.",
+        "fr": "Garde `Si elle appelle` au présent, puis change seulement le verbe de la principale : `je répondrai`.",
     },
     "atelier.si.word_bank_future_after_si_why": {
         "en": "You put future `arriverons` inside the si-clause and present `partons` in the result. In si type 1, the condition stays present: `Si nous partons maintenant`; the consequence carries the future: `nous arriverons tôt`.",
         "de": "Du hast das Futur `arriverons` in den si-Satz gesetzt und das Präsens `partons` in die Folge. Beim si-Typ 1 bleibt die Bedingung im Präsens: `Si nous partons maintenant`; die Folge trägt das Futur: `nous arriverons tôt`.",
-        "fr": "Vous avez mis le futur `arriverons` dans la subordonnée et le présent `partons` dans la principale. Au si de type 1, la condition reste au présent : `Si nous partons maintenant` ; la conséquence porte le futur : `nous arriverons tôt`.",
+        "fr": "Tu as mis le futur `arriverons` dans la subordonnée et le présent `partons` dans la principale. Au si de type 1, la condition reste au présent : `Si nous partons maintenant` ; la conséquence porte le futur : `nous arriverons tôt`.",
     },
     "atelier.si.word_bank_future_after_si_repair": {
         "en": "Put the present action after `si`, then put the future action after the comma: `Si nous partons maintenant, nous arriverons tôt`.",
         "de": "Setze die Handlung im Präsens hinter `si` und die Handlung im Futur hinter das Komma: `Si nous partons maintenant, nous arriverons tôt`.",
-        "fr": "Mettez l’action au présent après `si`, puis l’action au futur après la virgule : `Si nous partons maintenant, nous arriverons tôt`.",
+        "fr": "Mets l’action au présent après `si`, puis l’action au futur après la virgule : `Si nous partons maintenant, nous arriverons tôt`.",
     },
     "atelier.si.word_bank_future_result_why": {
         "en": "The result clause uses `{learner_form}`, but si type 1 needs future simple `{target_form}` here.",
@@ -366,7 +366,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.negation.fill_kept_article": {
         "en": "You kept `{learner}` after `pas`. For a negated quantity, du/de la/des/un/une become `de` or `d'` after `pas`, so this blank needs `{target}`.",
         "de": "Du hast `{learner}` nach `pas` stehen lassen. Bei einer verneinten Menge werden du/de la/des/un/une nach `pas` zu `de` oder `d'`: hier gehört `{target}` in die Lücke.",
-        "fr": "Vous avez gardé `{learner}` après `pas`. Devant une quantité niée, du/de la/des/un/une deviennent `de` ou `d'` après `pas` : ce blanc demande `{target}`.",
+        "fr": "Tu as gardé `{learner}` après `pas`. Devant une quantité niée, du/de la/des/un/une deviennent `de` ou `d'` après `pas` : ce blanc demande `{target}`.",
     },
     "atelier.negation.fill_generic": {
         "en": "After `pas`, a negated quantity uses `de` or `d'` before the noun.",
@@ -376,22 +376,22 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.negation.repair_check_quantity": {
         "en": "Check whether the original article expresses quantity; after ne...pas, change it to de/d' unless the verb is être.",
         "de": "Prüfe, ob der ursprüngliche Artikel eine Menge ausdrückt; nach ne…pas wird er zu de/d', außer das Verb ist être.",
-        "fr": "Vérifiez si l’article de départ exprime une quantité ; après ne…pas, il devient de/d', sauf avec le verbe être.",
+        "fr": "Vérifie si l’article de départ exprime une quantité ; après ne…pas, il devient de/d', sauf avec le verbe être.",
     },
     "atelier.negation.classify_etre_exception": {
         "en": "You classified this as `{learner}`, but with `être`, the original article stays: `ce n'est pas du café`.",
         "de": "Du hast das als `{learner}` eingeordnet, aber mit `être` bleibt der ursprüngliche Artikel stehen: `ce n'est pas du café`.",
-        "fr": "Vous avez classé cela comme `{learner}`, mais avec `être` l’article d’origine reste : `ce n'est pas du café`.",
+        "fr": "Tu as classé cela comme `{learner}`, mais avec `être` l’article d’origine reste : `ce n'est pas du café`.",
     },
     "atelier.negation.classify_normal": {
         "en": "You classified this as `{learner}`, but this is a normal negated quantity where the article changes to de/d'.",
         "de": "Du hast das als `{learner}` eingeordnet, aber hier steht eine gewöhnliche verneinte Menge, bei der der Artikel zu de/d' wird.",
-        "fr": "Vous avez classé cela comme `{learner}`, mais c’est une quantité niée ordinaire, où l’article devient de/d'.",
+        "fr": "Tu as classé cela comme `{learner}`, mais c’est une quantité niée ordinaire, où l’article devient de/d'.",
     },
     "atelier.negation.repair_check_etre": {
         "en": "First check whether the verb is être; if it is not, a negated quantity changes to de/d'.",
         "de": "Prüfe zuerst, ob das Verb être ist; wenn nicht, wird die verneinte Menge zu de/d'.",
-        "fr": "Vérifiez d’abord si le verbe est être ; sinon, la quantité niée devient de/d'.",
+        "fr": "Vérifie d’abord si le verbe est être ; sinon, la quantité niée devient de/d'.",
     },
     "atelier.negation.word_bank_why": {
         "en": "After pas, a negated quantity changes du/de la/des/un/une to de or d'.",
@@ -401,7 +401,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.negation.word_bank_repair": {
         "en": "Keep ne...pas around the verb, then use de or d' before the noun unless the verb is être.",
         "de": "Lass ne…pas um das Verb stehen und setze dann de oder d' vor das Substantiv, außer das Verb ist être.",
-        "fr": "Gardez ne…pas autour du verbe, puis mettez de ou d' devant le nom, sauf si le verbe est être.",
+        "fr": "Garde ne…pas autour du verbe, puis mets de ou d' devant le nom, sauf si le verbe est être.",
     },
     "atelier.tense.label_background_vs_event": {
         "en": "Background vs event",
@@ -411,27 +411,27 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.tense.fill_needs_imparfait": {
         "en": "You chose `{learner}`, but this verb describes the ongoing background of the sentence, so it needs imparfait: `{target}`.",
         "de": "Du hast `{learner}` gewählt, aber dieses Verb beschreibt den laufenden Hintergrund des Satzes und braucht das Imparfait: `{target}`.",
-        "fr": "Vous avez choisi `{learner}`, mais ce verbe décrit l’arrière-plan en cours : il demande l’imparfait `{target}`.",
+        "fr": "Tu as choisi `{learner}`, mais ce verbe décrit l’arrière-plan en cours : il demande l’imparfait `{target}`.",
     },
     "atelier.tense.fill_needs_passe_compose": {
         "en": "You chose `{learner}`, but this verb is the bounded completed event, so it needs passé composé: `{target}`.",
         "de": "Du hast `{learner}` gewählt, aber dieses Verb ist das abgeschlossene, begrenzte Ereignis und braucht das Passé composé: `{target}`.",
-        "fr": "Vous avez choisi `{learner}`, mais ce verbe est l’événement borné et achevé : il demande le passé composé `{target}`.",
+        "fr": "Tu as choisi `{learner}`, mais ce verbe est l’événement borné et achevé : il demande le passé composé `{target}`.",
     },
     "atelier.tense.repair_ask_ongoing": {
         "en": "Ask whether the verb is ongoing background or a completed event, then choose imparfait or passé composé.",
         "de": "Frag dich, ob das Verb laufender Hintergrund oder abgeschlossenes Ereignis ist, und wähle dann Imparfait oder Passé composé.",
-        "fr": "Demandez-vous si le verbe est un arrière-plan qui dure ou un événement achevé, puis choisissez l’imparfait ou le passé composé.",
+        "fr": "Demande-te si le verbe est un arrière-plan qui dure ou un événement achevé, puis choisis l’imparfait ou le passé composé.",
     },
     "atelier.tense.classify_background": {
         "en": "You classified `{prompt}` as `{learner}`, but it describes an ongoing scene or state, so it belongs to the background/imparfait side.",
         "de": "Du hast `{prompt}` als `{learner}` eingeordnet, aber es beschreibt eine laufende Szene oder einen Zustand und gehört auf die Seite Hintergrund/Imparfait.",
-        "fr": "Vous avez classé `{prompt}` comme `{learner}`, mais cela décrit une scène ou un état qui dure : c’est le côté arrière-plan/imparfait.",
+        "fr": "Tu as classé `{prompt}` comme `{learner}`, mais cela décrit une scène ou un état qui dure : c’est le côté arrière-plan/imparfait.",
     },
     "atelier.tense.classify_event": {
         "en": "You classified `{prompt}` as `{learner}`, but it is a bounded completed event, so it belongs to the passé composé side.",
         "de": "Du hast `{prompt}` als `{learner}` eingeordnet, aber es ist ein abgeschlossenes, begrenztes Ereignis und gehört auf die Seite Passé composé.",
-        "fr": "Vous avez classé `{prompt}` comme `{learner}`, mais c’est un événement borné et achevé : c’est le côté passé composé.",
+        "fr": "Tu as classé `{prompt}` comme `{learner}`, mais c’est un événement borné et achevé : c’est le côté passé composé.",
     },
     "atelier.tense.repair_background_or_event": {
         "en": "Use background for ongoing scene-setting; use bounded event for a completed interruption or action.",
@@ -466,7 +466,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.word_bank.order_repair": {
         "en": "Move the chips into this order: {target}",
         "de": "Bring die Bausteine in diese Reihenfolge: {target}",
-        "fr": "Remettez les étiquettes dans cet ordre : {target}",
+        "fr": "Remets les étiquettes dans cet ordre : {target}",
     },
     "atelier.word_bank.label_spelling_slip": {
         "en": "Spelling slip",
@@ -476,12 +476,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.word_bank.spelling_why": {
         "en": "You wrote `{learner}`, but the target word here is `{target}`.",
         "de": "Du hast `{learner}` geschrieben, aber das Zielwort ist hier `{target}`.",
-        "fr": "Vous avez écrit `{learner}`, alors que le mot attendu ici est `{target}`.",
+        "fr": "Tu as écrit `{learner}`, alors que le mot attendu ici est `{target}`.",
     },
     "atelier.word_bank.spelling_repair": {
         "en": "Keep the sentence frame, then fix the spelling of `{target}`.",
         "de": "Behalte den Satzrahmen und korrigiere nur die Schreibung von `{target}`.",
-        "fr": "Gardez la structure de la phrase, puis corrigez l’orthographe de `{target}`.",
+        "fr": "Garde la structure de la phrase, puis corrige l’orthographe de `{target}`.",
     },
     # -- the rewrite and output ladders' deterministic errata -----------------
     "atelier.transform.missing_label": {
@@ -497,18 +497,18 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.transform.missing_repair": {
         "en": "Submit the rewrite when you want it reviewed; missed transform rows are not scheduled as grammar errata.",
         "de": "Schick die Umformung ab, wenn du sie geprüft haben willst; ausgelassene Zeilen werden nicht als Grammatik-Erratum eingeplant.",
-        "fr": "Envoyez la réécriture quand vous voulez qu’elle soit relue ; une ligne laissée de côté n’est pas consignée comme erratum de grammaire.",
+        "fr": "Envoie la réécriture quand tu veux qu’elle soit relue ; une ligne laissée de côté n’est pas consignée comme erratum de grammaire.",
     },
     # -- WP-S1 (La Forge): the local token diff names what is wrong -----------
     "forge.diff.ending": {
         "en": "The ending is off: you wrote «{learner}», the form here is «{target}».",
         "de": "Die Endung stimmt nicht: Du hast «{learner}» geschrieben, hier steht «{target}».",
-        "fr": "La terminaison ne va pas : vous avez écrit «{learner}», la forme attendue est «{target}».",
+        "fr": "La terminaison ne va pas : tu as écrit «{learner}», la forme attendue est «{target}».",
     },
     "forge.diff.word": {
         "en": "You wrote «{learner}»; here it is «{target}».",
         "de": "Du hast «{learner}» geschrieben; hier steht «{target}».",
-        "fr": "Vous avez écrit «{learner}» ; ici, c’est «{target}».",
+        "fr": "Tu as écrit «{learner}» ; ici, c’est «{target}».",
     },
     "forge.diff.missing": {
         "en": "«{target}» is missing.",
@@ -538,27 +538,27 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.output.missing_repair": {
         "en": "Produce one sentence or turn before submitting; blank output is not scheduled as grammar errata.",
         "de": "Schreib einen Satz oder eine Replik, bevor du abschickst; eine leere Ausgabe wird nicht als Grammatik-Erratum eingeplant.",
-        "fr": "Produisez une phrase ou une réplique avant d’envoyer ; une production vide n’est pas consignée comme erratum de grammaire.",
+        "fr": "Produis une phrase ou une réplique avant d’envoyer ; une production vide n’est pas consignée comme erratum de grammaire.",
     },
     "atelier.output.target_count_why": {
         "en": "This step is stronger when you use {label} at least {target_count} time(s); this answer used it {detected_count}.",
         "de": "Dieser Schritt wird stärker, wenn du {label} mindestens {target_count}-mal benutzt; diese Antwort benutzt es {detected_count}-mal.",
-        "fr": "Cette étape porte mieux quand vous employez {label} au moins {target_count} fois ; cette réponse l’emploie {detected_count} fois.",
+        "fr": "Cette étape porte mieux quand tu emploies {label} au moins {target_count} fois ; cette réponse l’emploie {detected_count} fois.",
     },
     "atelier.si.output_pattern_hint": {
         "en": "Use si + present, then a future simple or imperative result.",
         "de": "Nimm si + Präsens und als Folge das Futur simple oder den Imperativ.",
-        "fr": "Employez si + présent, puis une conséquence au futur simple ou à l’impératif.",
+        "fr": "Emploie si + présent, puis une conséquence au futur simple ou à l’impératif.",
     },
     "atelier.si.output_future_result_why": {
         "en": "You wrote `{learner_form}` in the result clause. With si + present for a real condition, the result uses future simple, so this should be `{target_form}`.",
         "de": "Du hast `{learner_form}` in die Folge geschrieben. Bei si + Präsens für eine reale Bedingung steht die Folge im Futur simple: hier also `{target_form}`.",
-        "fr": "Vous avez écrit `{learner_form}` dans la principale. Avec si + présent pour une condition réelle, la conséquence prend le futur simple : ce serait donc `{target_form}`.",
+        "fr": "Tu as écrit `{learner_form}` dans la principale. Avec si + présent pour une condition réelle, la conséquence prend le futur simple : ce serait donc `{target_form}`.",
     },
     "atelier.si.output_future_result_repair": {
         "en": "Keep your si-clause, then change only the result verb from conditional to future simple.",
         "de": "Behalte deinen si-Satz und ändere nur das Verb der Folge vom Conditionnel ins Futur simple.",
-        "fr": "Gardez votre subordonnée en « si », puis passez seulement le verbe de la principale du conditionnel au futur simple.",
+        "fr": "Garde ta subordonnée en « si », puis passe seulement le verbe de la principale du conditionnel au futur simple.",
     },
     "atelier.si.label_result_form_needed": {
         "en": "Result form needed",
@@ -568,12 +568,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.si.output_result_missing_why": {
         "en": "Your si-clause is in the present, but the consequence does not show a future simple or imperative result.",
         "de": "Dein si-Satz steht im Präsens, aber die Folge zeigt weder ein Futur simple noch einen Imperativ.",
-        "fr": "Votre subordonnée en « si » est au présent, mais la conséquence ne montre ni futur simple ni impératif.",
+        "fr": "Ta subordonnée en « si » est au présent, mais la conséquence ne montre ni futur simple ni impératif.",
     },
     "atelier.si.output_result_missing_repair": {
         "en": "After the comma, make the consequence future simple or a direct command.",
         "de": "Setze die Folge nach dem Komma ins Futur simple oder in den Imperativ.",
-        "fr": "Après la virgule, mettez la conséquence au futur simple ou à l’impératif.",
+        "fr": "Après la virgule, mets la conséquence au futur simple ou à l’impératif.",
     },
     "atelier.si.label_clause_tense": {
         "en": "Si-clause tense",
@@ -583,12 +583,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.si.output_clause_tense_why": {
         "en": "You put `{learner_form}` inside the si-clause. In si type 1, the verb right after si stays in the present.",
         "de": "Du hast `{learner_form}` in den si-Satz gesetzt. Beim si-Typ 1 bleibt das Verb direkt nach si im Präsens.",
-        "fr": "Vous avez mis `{learner_form}` dans la subordonnée. Au si de type 1, le verbe qui suit « si » reste au présent.",
+        "fr": "Tu as mis `{learner_form}` dans la subordonnée. Au si de type 1, le verbe qui suit « si » reste au présent.",
     },
     "atelier.si.output_clause_tense_repair": {
         "en": "Move the future idea to the result clause; keep the condition after si in the present.",
         "de": "Verschieb die Zukunft in die Folge; die Bedingung nach si bleibt im Präsens.",
-        "fr": "Déplacez l’idée de futur dans la principale ; la condition après « si » reste au présent.",
+        "fr": "Déplace l’idée de futur dans la principale ; la condition après « si » reste au présent.",
     },
     "atelier.si.the_verb_after_si": {
         "en": "the verb after si",
@@ -612,7 +612,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.writing.too_short_repair": {
         "en": "Add {missing_words} to complete the paragraph.",
         "de": "Ergänze noch {missing_words}, um den Absatz zu vervollständigen.",
-        "fr": "Ajoutez encore {missing_words} pour compléter le paragraphe.",
+        "fr": "Ajoute encore {missing_words} pour compléter le paragraphe.",
     },
     "atelier.lexical_gap.label": {
         "en": "French word needed",
@@ -632,17 +632,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.lexical_gap.in_your_language": {
         "en": "in your own language",
         "de": "in deiner eigenen Sprache",
-        "fr": "dans votre langue",
+        "fr": "dans ta langue",
     },
     "atelier.lexical_gap.why": {
         "en": "You wrote « {fragment} » {language}. In French this is « {french} »{gloss}.",
         "de": "Du hast « {fragment} » {language} geschrieben. Auf Französisch heißt das « {french} »{gloss}.",
-        "fr": "Vous avez écrit « {fragment} » {language}. En français, cela donne « {french} »{gloss}.",
+        "fr": "Tu as écrit « {fragment} » {language}. En français, cela donne « {french} »{gloss}.",
     },
     "atelier.lexical_gap.repair": {
         "en": "Replace « {fragment} » with « {french} ».",
         "de": "Ersetze « {fragment} » durch « {french} ».",
-        "fr": "Remplacez « {fragment} » par « {french} ».",
+        "fr": "Remplace « {fragment} » par « {french} ».",
     },
     "atelier.writing.missing_target_label": {
         "en": "Missing writing target",
@@ -657,7 +657,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.writing.missing_target_repair": {
         "en": "Add the target naturally in revision; do not block submission for this.",
         "de": "Ergänze das Ziel beim Überarbeiten ganz natürlich; das Abschicken soll daran nicht scheitern.",
-        "fr": "Ajoutez l’objectif naturellement à la relecture ; cela ne doit pas empêcher d’envoyer.",
+        "fr": "Ajoute l’objectif naturellement à la relecture ; cela ne doit pas empêcher d’envoyer.",
     },
     # The three no-concept floors of the correction service: an erratum filed
     # against no catalogue concept still has to say something readable.
@@ -684,12 +684,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.generic.repair": {
         "en": "Name the trigger, then apply the target form.",
         "de": "Benenne den Auslöser und wende dann die Zielform an.",
-        "fr": "Nommez le déclencheur, puis appliquez la forme visée.",
+        "fr": "Nomme le déclencheur, puis applique la forme visée.",
     },
     "erratum.repair_use_suggestion": {
         "en": "Use “{suggestion}” here, then try the same contrast in a fresh sentence.",
         "de": "Nimm hier „{suggestion}“ und übe denselben Kontrast dann in einem neuen Satz.",
-        "fr": "Employez « {suggestion} » ici, puis reprenez le même contraste dans une autre phrase.",
+        "fr": "Emploie « {suggestion} » ici, puis reprends le même contraste dans une autre phrase.",
     },
     "erratum.source_practice": {
         "en": "Practice",
@@ -700,7 +700,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "brief.repair_review_requested_form": {
         "en": "Review the requested form, then answer a fresh version of this exercise.",
         "de": "Sieh dir die verlangte Form noch einmal an und beantworte dann eine neue Fassung dieser Übung.",
-        "fr": "Revoyez la forme demandée, puis refaites une nouvelle version de cet exercice.",
+        "fr": "Revois la forme demandée, puis refais une nouvelle version de cet exercice.",
     },
     "brief.feedback_correct": {
         "en": "That matches the grammar task.",
@@ -753,7 +753,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "mission.vocabulary_used": {
         "en": "“{word}” appears in your reply.",
         "de": "„{word}“ steht in deiner Antwort.",
-        "fr": "« {word} » figure dans votre réponse.",
+        "fr": "« {word} » figure dans ta réponse.",
     },
     "mission.vocabulary_unused": {
         "en": "“{word}” did not come up this time; the review date for this word is unchanged.",
@@ -765,17 +765,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "mission.target_unpractised": {
         "en": "Not practised this time; nothing counts against you.",
         "de": "Diesmal nicht geübt; das zählt nicht gegen dich.",
-        "fr": "Pas pratiqué cette fois ; rien n’est compté contre vous.",
+        "fr": "Pas pratiqué cette fois ; rien n’est compté contre toi.",
     },
     "mission.vocabulary_translation_why": {
         "en": "You wrote the meaning (“{meaning}”) rather than the French word “{word}”.",
         "de": "Du hast die Bedeutung („{meaning}“) geschrieben statt des französischen Worts „{word}“.",
-        "fr": "Vous avez écrit le sens (« {meaning} ») plutôt que le mot français « {word} ».",
+        "fr": "Tu as écrit le sens (« {meaning} ») plutôt que le mot français « {word} ».",
     },
     "mission.vocabulary_translation_hint": {
         "en": "Write “{word}” itself in a French sentence.",
         "de": "Schreib „{word}“ selbst in einen französischen Satz.",
-        "fr": "Écrivez « {word} » lui-même dans une phrase française.",
+        "fr": "Écris « {word} » lui-même dans une phrase française.",
     },
     "mission.target_generic_label": {
         "en": "Target",
@@ -790,17 +790,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "mission.empty_target": {
         "en": "Write a short French response before submitting.",
         "de": "Schreibe eine kurze französische Antwort, bevor du abschickst.",
-        "fr": "Écrivez une courte réponse en français avant d’envoyer.",
+        "fr": "Écris une courte réponse en français avant d’envoyer.",
     },
     "mission.empty_why": {
         "en": "You submitted an empty response, so there is no French to review.",
         "de": "Du hast eine leere Antwort abgeschickt, es gibt also kein Französisch zu prüfen.",
-        "fr": "Vous avez envoyé une réponse vide : il n’y a pas de français à relire.",
+        "fr": "Tu as envoyé une réponse vide : il n’y a pas de français à relire.",
     },
     "mission.empty_hint": {
         "en": "Write two or three sentences that answer the brief.",
         "de": "Schreibe zwei oder drei Sätze, die den Auftrag beantworten.",
-        "fr": "Écrivez deux ou trois phrases qui répondent à la consigne.",
+        "fr": "Écris deux ou trois phrases qui répondent à la consigne.",
     },
     "mission.short_label": {
         "en": "Too little context",
@@ -810,12 +810,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "mission.short_why": {
         "en": "Your answer is understandable, but it is too short to show the mission targets.",
         "de": "Deine Antwort ist verständlich, aber zu kurz, um die Ziele des Auftrags zu zeigen.",
-        "fr": "Votre réponse se comprend, mais elle est trop courte pour montrer les objectifs.",
+        "fr": "Ta réponse se comprend, mais elle est trop courte pour montrer les objectifs.",
     },
     "mission.short_hint": {
         "en": "Add one reason, one concrete detail, and one target grammar form.",
         "de": "Ergänze einen Grund, ein konkretes Detail und eine Zielform der Grammatik.",
-        "fr": "Ajoutez une raison, un détail concret et une forme de grammaire visée.",
+        "fr": "Ajoute une raison, un détail concret et une forme de grammaire visée.",
     },
     "mission.rule_avoir_vous_label": {
         "en": "Conjugation: vous avez",
@@ -830,7 +830,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "mission.rule_avoir_vous_hint": {
         "en": "Write “vous avez” before a noun or a past participle.",
         "de": "Schreibe „vous avez“ vor einem Substantiv oder Partizip.",
-        "fr": "Écrivez « vous avez » devant un nom ou un participe passé.",
+        "fr": "Écris « vous avez » devant un nom ou un participe passé.",
     },
     "mission.rule_probleme_label": {
         "en": "Spelling: problème",
@@ -845,7 +845,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "mission.rule_probleme_hint": {
         "en": "Write “problème”, or “problèmes” in the plural.",
         "de": "Schreibe „problème“, im Plural „problèmes“.",
-        "fr": "Écrivez « problème », ou « problèmes » au pluriel.",
+        "fr": "Écris « problème », ou « problèmes » au pluriel.",
     },
     # -- app/services/atelier.py: the authored fallback exercises (WP-67) -----
     # These instructions are written once, cached in `atelier_exercise_sets` and
@@ -858,224 +858,224 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "atelier.transform.negation.1": {
         "en": "Make this negative and change the partitive 'du' to its form after 'pas'.",
         "de": "Verneine den Satz und setze das Teilungswort 'du' in die Form nach 'pas'.",
-        "fr": "Mettez la phrase à la négative et changez le partitif « du » en sa forme après « pas ».",
+        "fr": "Mets la phrase à la négative et change le partitif « du » en sa forme après « pas ».",
     },
     "atelier.transform.negation.2": {
         "en": "Negate 'C'est du café' with ne…pas, watching the être exception.",
         "de": "Verneine 'C'est du café' mit ne…pas und achte auf die être-Ausnahme.",
-        "fr": "Niez « C'est du café » avec ne…pas, en surveillant l’exception d’être.",
+        "fr": "Nie « C'est du café » avec ne…pas, en surveillant l’exception d’être.",
     },
     "atelier.transform.negation.3": {
         "en": "Repair the article 'une' after 'pas' to its negated quantity form.",
         "de": "Korrigiere den Artikel 'une' nach 'pas' zur Form der verneinten Menge.",
-        "fr": "Corrigez l’article « une » après « pas » en sa forme de quantité niée.",
+        "fr": "Corrige l’article « une » après « pas » en sa forme de quantité niée.",
     },
     "atelier.transform.tense.1": {
         "en": "Change 'pleut' to the imparfait and 'sors' to the passé composé.",
         "de": "Setze 'pleut' ins Imparfait und 'sors' ins Passé composé.",
-        "fr": "Mettez « pleut » à l’imparfait et « sors » au passé composé.",
+        "fr": "Mets « pleut » à l’imparfait et « sors » au passé composé.",
     },
     "atelier.transform.tense.2": {
         "en": "Turn the habit 'lisais' into a single completed event in the passé composé.",
         "de": "Mach aus der Gewohnheit 'lisais' ein einzelnes abgeschlossenes Ereignis im Passé composé.",
-        "fr": "Transformez l’habitude « lisais » en un seul événement achevé au passé composé.",
+        "fr": "Transforme l’habitude « lisais » en un seul événement achevé au passé composé.",
     },
     "atelier.transform.tense.3": {
         "en": "Repair the contrast: put 'suis' in the imparfait and 'sonnait' in the passé composé.",
         "de": "Korrigiere den Kontrast: 'suis' ins Imparfait, 'sonnait' ins Passé composé.",
-        "fr": "Corrigez le contraste : « suis » à l’imparfait et « sonnait » au passé composé.",
+        "fr": "Corrige le contraste : « suis » à l’imparfait et « sonnait » au passé composé.",
     },
     "atelier.transform.si.1": {
         "en": "Rewrite 'Quand il arrivera, on commencera' to start with a si-clause whose condition is in the present.",
         "de": "Schreibe 'Quand il arrivera, on commencera' so um, dass der Satz mit einem si-Satz im Präsens beginnt.",
-        "fr": "Réécrivez « Quand il arrivera, on commencera » pour commencer par une subordonnée en « si » dont la condition est au présent.",
+        "fr": "Réécris « Quand il arrivera, on commencera » pour commencer par une subordonnée en « si » dont la condition est au présent.",
     },
     "atelier.transform.si.2": {
         "en": "Make this a si type 1: put 'avais' in the present and 'viendrais' in the future.",
         "de": "Mach daraus einen si-Typ 1: 'avais' ins Präsens, 'viendrais' ins Futur.",
-        "fr": "Faites-en un si de type 1 : « avais » au présent et « viendrais » au futur.",
+        "fr": "Fais-en un si de type 1 : « avais » au présent et « viendrais » au futur.",
     },
     "atelier.transform.si.3": {
         "en": "Repair the verb 'viendras' after 'si': the condition must be in the present.",
         "de": "Korrigiere das Verb 'viendras' nach 'si': die Bedingung muss im Präsens stehen.",
-        "fr": "Corrigez le verbe « viendras » après « si » : la condition doit être au présent.",
+        "fr": "Corrige le verbe « viendras » après « si » : la condition doit être au présent.",
     },
     "atelier.transform.conditional_mood.1": {
         "en": "Rewrite 'veux' as 'voudrais' so the request sounds polite.",
         "de": "Schreibe 'veux' als 'voudrais', damit die Bitte höflich klingt.",
-        "fr": "Réécrivez « veux » en « voudrais » pour que la demande soit polie.",
+        "fr": "Réécris « veux » en « voudrais » pour que la demande soit polie.",
     },
     "atelier.transform.conditional_mood.2": {
         "en": "Rewrite as a polite possibility instead of a plain fact: put the verb in the conditional.",
         "de": "Schreibe es als höfliche Möglichkeit statt als schlichte Tatsache: setze das Verb ins Conditionnel.",
-        "fr": "Réécrivez en possibilité polie plutôt qu’en fait brut : mettez le verbe au conditionnel.",
+        "fr": "Réécris en possibilité polie plutôt qu’en fait brut : mets le verbe au conditionnel.",
     },
     "atelier.transform.conditional_mood.3": {
         "en": "Repair the verb: a polite wish needs the conditional, not the present.",
         "de": "Korrigiere das Verb: ein höflicher Wunsch braucht das Conditionnel, nicht das Präsens.",
-        "fr": "Corrigez le verbe : un souhait poli demande le conditionnel, pas le présent.",
+        "fr": "Corrige le verbe : un souhait poli demande le conditionnel, pas le présent.",
     },
     "atelier.transform.mood.1": {
         "en": "Rewrite 'es' as 'sois' after adding 'il faut que'.",
         "de": "Füge 'il faut que' hinzu und schreibe 'es' als 'sois'.",
-        "fr": "Ajoutez « il faut que » et réécrivez « es » en « sois ».",
+        "fr": "Ajoute « il faut que » et réécris « es » en « sois ».",
     },
     "atelier.transform.mood.2": {
         "en": "Rewrite as a wish instead of a certainty: keep 'demain' and put the verb in the subjunctive.",
         "de": "Schreibe es als Wunsch statt als Gewissheit: behalte 'demain' und setze das Verb in den Subjonctif.",
-        "fr": "Réécrivez en souhait plutôt qu’en certitude : gardez « demain » et mettez le verbe au subjonctif.",
+        "fr": "Réécris en souhait plutôt qu’en certitude : garde « demain » et mets le verbe au subjonctif.",
     },
     "atelier.transform.mood.3": {
         "en": "Repair the verb after 'bien que': this trigger requires the subjunctive.",
         "de": "Korrigiere das Verb nach 'bien que': dieser Auslöser verlangt den Subjonctif.",
-        "fr": "Corrigez le verbe après « bien que » : ce déclencheur exige le subjonctif.",
+        "fr": "Corrige le verbe après « bien que » : ce déclencheur exige le subjonctif.",
     },
     "atelier.transform.relative_pronoun.1": {
         "en": "Repair 'qui' to 'que': this relative pronoun replaces a direct object.",
         "de": "Korrigiere 'qui' zu 'que': dieses Relativpronomen vertritt ein direktes Objekt.",
-        "fr": "Corrigez « qui » en « que » : ce pronom relatif remplace un complément d’objet direct.",
+        "fr": "Corrige « qui » en « que » : ce pronom relatif remplace un complément d’objet direct.",
     },
     "atelier.transform.relative_pronoun.2": {
         "en": "Repair the relative pronoun: 'arrive' needs its subject relative pronoun.",
         "de": "Korrigiere das Relativpronomen: 'arrive' braucht das Relativpronomen des Subjekts.",
-        "fr": "Corrigez le pronom relatif : « arrive » demande son pronom relatif sujet.",
+        "fr": "Corrige le pronom relatif : « arrive » demande son pronom relatif sujet.",
     },
     "atelier.transform.relative_pronoun.3": {
         "en": "Repair the relative pronoun: this clause names a place, so it needs the locative relative pronoun.",
         "de": "Korrigiere das Relativpronomen: dieser Nebensatz nennt einen Ort und braucht das Relativpronomen des Ortes.",
-        "fr": "Corrigez le pronom relatif : cette proposition nomme un lieu, il lui faut le relatif de lieu.",
+        "fr": "Corrige le pronom relatif : cette proposition nomme un lieu, il lui faut le relatif de lieu.",
     },
     "atelier.transform.pronoun_choice.1": {
         "en": "Replace 'Marc' with 'le', the direct object pronoun.",
         "de": "Ersetze 'Marc' durch 'le', das direkte Objektpronomen.",
-        "fr": "Remplacez « Marc » par « le », le pronom complément d’objet direct.",
+        "fr": "Remplace « Marc » par « le », le pronom complément d’objet direct.",
     },
     "atelier.transform.pronoun_choice.2": {
         "en": "Replace 'à Paul' with the indirect object pronoun, keeping 'parlons'.",
         "de": "Ersetze 'à Paul' durch das indirekte Objektpronomen und behalte 'parlons'.",
-        "fr": "Remplacez « à Paul » par le pronom complément d’objet indirect, en gardant « parlons ».",
+        "fr": "Remplace « à Paul » par le pronom complément d’objet indirect, en gardant « parlons ».",
     },
     "atelier.transform.pronoun_choice.3": {
         "en": "Repair the pronoun: a quantity taken from a group needs 'en', not a direct object pronoun.",
         "de": "Korrigiere das Pronomen: eine Menge aus einer Gruppe braucht 'en', kein direktes Objektpronomen.",
-        "fr": "Corrigez le pronom : une quantité prise dans un ensemble demande « en », pas un pronom d’objet direct.",
+        "fr": "Corrige le pronom : une quantité prise dans un ensemble demande « en », pas un pronom d’objet direct.",
     },
     "atelier.transform.determiner.1": {
         "en": "Rewrite 'une' as 'la': this gare is a specific, already-known one.",
         "de": "Schreibe 'une' als 'la': diese gare ist eine bestimmte, bereits bekannte.",
-        "fr": "Réécrivez « une » en « la » : cette gare est précise et déjà connue.",
+        "fr": "Réécris « une » en « la » : cette gare est précise et déjà connue.",
     },
     "atelier.transform.determiner.2": {
         "en": "Rewrite for several tickets: change the article and noun to plural.",
         "de": "Schreibe es für mehrere Fahrkarten um: Artikel und Substantiv in den Plural.",
-        "fr": "Réécrivez pour plusieurs billets : mettez l’article et le nom au pluriel.",
+        "fr": "Réécris pour plusieurs billets : mets l’article et le nom au pluriel.",
     },
     "atelier.transform.determiner.3": {
         "en": "Repair the article: ordering one coffee needs the indefinite article, not the definite one.",
         "de": "Korrigiere den Artikel: wer einen Kaffee bestellt, braucht den unbestimmten Artikel, nicht den bestimmten.",
-        "fr": "Corrigez l’article : commander un café demande l’article indéfini, pas le défini.",
+        "fr": "Corrige l’article : commander un café demande l’article indéfini, pas le défini.",
     },
     "atelier.transform.agreement.1": {
         "en": "Rewrite 'maison' as the plural 'maisons', agreeing the rest of the sentence.",
         "de": "Schreibe 'maison' im Plural 'maisons' und passe den Rest des Satzes an.",
-        "fr": "Réécrivez « maison » au pluriel « maisons » et accordez le reste de la phrase.",
+        "fr": "Réécris « maison » au pluriel « maisons » et accorde le reste de la phrase.",
     },
     "atelier.transform.agreement.2": {
         "en": "Rewrite in the feminine, agreeing the determiner and the adjective with the new noun.",
         "de": "Schreibe es im Femininum und passe Begleiter und Adjektiv an das neue Substantiv an.",
-        "fr": "Réécrivez au féminin, en accordant le déterminant et l’adjectif avec le nouveau nom.",
+        "fr": "Réécris au féminin, en accordant le déterminant et l’adjectif avec le nouveau nom.",
     },
     "atelier.transform.agreement.3": {
         "en": "Repair the past participle: with être, it must agree with the plural subject.",
         "de": "Korrigiere das Partizip: mit être richtet es sich nach dem Subjekt im Plural.",
-        "fr": "Corrigez le participe passé : avec être, il s’accorde avec le sujet pluriel.",
+        "fr": "Corrige le participe passé : avec être, il s’accorde avec le sujet pluriel.",
     },
     "atelier.transform.preposition.1": {
         "en": "Rewrite 'au bureau de' as 'chez' to say 'at Marie's place'.",
         "de": "Schreibe 'au bureau de' als 'chez', um „bei Marie“ zu sagen.",
-        "fr": "Réécrivez « au bureau de » en « chez » pour dire « chez Marie ».",
+        "fr": "Réécris « au bureau de » en « chez » pour dire « chez Marie ».",
     },
     "atelier.transform.preposition.2": {
         "en": "Add the preposition 'parler' needs before its topic.",
         "de": "Ergänze die Präposition, die 'parler' vor seinem Thema verlangt.",
-        "fr": "Ajoutez la préposition que « parler » demande devant son sujet de conversation.",
+        "fr": "Ajoute la préposition que « parler » demande devant son sujet de conversation.",
     },
     "atelier.transform.preposition.3": {
         "en": "Repair the preposition: living on a street uses 'dans', not 'à'.",
         "de": "Korrigiere die Präposition: in einer Straße wohnen heißt 'dans', nicht 'à'.",
-        "fr": "Corrigez la préposition : habiter une rue se dit avec « dans », pas « à ».",
+        "fr": "Corrige la préposition : habiter une rue se dit avec « dans », pas « à ».",
     },
     "atelier.transform.comparison.1": {
         "en": "Rewrite 'aussi' as 'plus': she is faster, not equally fast.",
         "de": "Schreibe 'aussi' als 'plus': sie ist schneller, nicht gleich schnell.",
-        "fr": "Réécrivez « aussi » en « plus » : elle est plus rapide, pas aussi rapide.",
+        "fr": "Réécris « aussi » en « plus » : elle est plus rapide, pas aussi rapide.",
     },
     "atelier.transform.comparison.2": {
         "en": "Rewrite to say this coffee costs less, not more.",
         "de": "Schreibe es so um, dass dieser Kaffee weniger kostet, nicht mehr.",
-        "fr": "Réécrivez pour dire que ce café coûte moins cher, pas plus cher.",
+        "fr": "Réécris pour dire que ce café coûte moins cher, pas plus cher.",
     },
     "atelier.transform.comparison.3": {
         "en": "Repair the comparison: equality between two people needs 'aussi… que', not 'si… que'.",
         "de": "Korrigiere den Vergleich: Gleichheit zwischen zwei Personen braucht 'aussi… que', nicht 'si… que'.",
-        "fr": "Corrigez la comparaison : l’égalité entre deux personnes demande « aussi… que », pas « si… que ».",
+        "fr": "Corrige la comparaison : l’égalité entre deux personnes demande « aussi… que », pas « si… que ».",
     },
     "atelier.transform.generic.1": {
         "en": "Rewrite 'Je pratique' as 'Nous pratiquons' for the subject 'we'.",
         "de": "Schreibe 'Je pratique' als 'Nous pratiquons' für das Subjekt „wir“.",
-        "fr": "Réécrivez « Je pratique » en « Nous pratiquons » pour le sujet « nous ».",
+        "fr": "Réécris « Je pratique » en « Nous pratiquons » pour le sujet « nous ».",
     },
     "atelier.transform.generic.2": {
         "en": "Rewrite in the passé composé, as something already done.",
         "de": "Schreibe es im Passé composé, als etwas bereits Getanes.",
-        "fr": "Réécrivez au passé composé, comme quelque chose de déjà fait.",
+        "fr": "Réécris au passé composé, comme quelque chose de déjà fait.",
     },
     "atelier.transform.generic.3": {
         "en": "Repair the verb: it must agree with the singular subject 'elle'.",
         "de": "Korrigiere das Verb: es richtet sich nach dem Subjekt 'elle' im Singular.",
-        "fr": "Corrigez le verbe : il s’accorde avec le sujet singulier « elle ».",
+        "fr": "Corrige le verbe : il s’accorde avec le sujet singulier « elle ».",
     },
     # -- app/services/item_bank.py: WP-S2 La Forge item-bank instructions -----
     "forge.word_bank": {
         "en": "Build it. One word is extra.",
         "de": "Bau den Satz. Ein Wort ist zu viel.",
-        "fr": "Construisez la phrase. Un mot est en trop.",
+        "fr": "Construis la phrase. Un mot est en trop.",
     },
     "forge.word_bank_all": {
         "en": "Build the sentence.",
         "de": "Bau den Satz.",
-        "fr": "Construisez la phrase.",
+        "fr": "Construis la phrase.",
     },
     "forge.transform": {
         "en": "Fix the one mistake.",
         "de": "Korrigiere den einen Fehler.",
-        "fr": "Corrigez la faute.",
+        "fr": "Corrige la faute.",
     },
     "forge.sentence": {
         "en": "Write the sentence in French.",
         "de": "Schreib den Satz auf Französisch.",
-        "fr": "Écrivez la phrase en français.",
+        "fr": "Écris la phrase en français.",
     },
     "forge.speak": {
         "en": "Say it in French.",
         "de": "Sag es auf Französisch.",
-        "fr": "Dites-le en français.",
+        "fr": "Dis-le en français.",
     },
     "forge.conversation": {
         "en": "Reply in French, with today's rule.",
         "de": "Beantworte die Nachricht auf Französisch, mit der Regel von heute.",
-        "fr": "Répondez au message en français, avec la règle du jour.",
+        "fr": "Réponds au message en français, avec la règle du jour.",
     },
     # WP-S5: the free-use rung as a two-line scene with the rule's coach.
     "forge.scene": {
         "en": "Answer in French, with the rule of the day.",
         "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Répondez en français, avec la règle du jour.",
+        "fr": "Réponds en français, avec la règle du jour.",
     },
     "atelier.fallback.output_instruction": {
         "en": "Use the target grammar visibly in your answer.",
         "de": "Benutze die Zielgrammatik sichtbar in deiner Antwort.",
-        "fr": "Employez visiblement la grammaire visée dans votre réponse.",
+        "fr": "Emploie visiblement la grammaire visée dans ta réponse.",
     },
     # -- app/services/vocabulary_credit.py: a word's repair, in the learner's language.
     # EXPERIENCE-REVIEW 2026-10-04: these were English literals; a German learner read
@@ -1083,17 +1083,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "vocabulary.erratum.missed.label": {
         "en": "Use the word: {word}",
         "de": "Benutze das Wort: {word}",
-        "fr": "Placez le mot : {word}",
+        "fr": "Place le mot : {word}",
     },
     "vocabulary.erratum.missed.why": {
         "en": "The task asked for “{word}”, and your answer did not use it.",
         "de": "Die Aufgabe wollte „{word}“, und deine Antwort benutzt es nicht.",
-        "fr": "La tâche demandait « {word} », et votre réponse ne l’emploie pas.",
+        "fr": "La tâche demandait « {word} », et ta réponse ne l’emploie pas.",
     },
     "vocabulary.erratum.missed.hint": {
         "en": "Use “{word}” ({meaning}) naturally in a sentence.",
         "de": "Benutze „{word}“ ({meaning}) ganz natürlich in einem Satz.",
-        "fr": "Employez « {word} » ({meaning}) naturellement dans une phrase.",
+        "fr": "Emploie « {word} » ({meaning}) naturellement dans une phrase.",
     },
     "vocabulary.erratum.wrong.label": {
         "en": "Word: {word}",
@@ -1108,7 +1108,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "vocabulary.erratum.wrong.hint": {
         "en": "Use “{word}” for “{meaning}” in a new sentence.",
         "de": "Benutze „{word}“ für „{meaning}“ in einem neuen Satz.",
-        "fr": "Employez « {word} » pour « {meaning} » dans une nouvelle phrase.",
+        "fr": "Emploie « {word} » pour « {meaning} » dans une nouvelle phrase.",
     },
     # -- app/services/pragmatics.py: WP-33 register and pragmatics ------------
     # Explicit meta-pragmatic instruction: the line names the rule *and* the
@@ -1119,12 +1119,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "pragmatics.register_use_vous": {
         "en": "Here it is “vous”: {counterpart} addresses you with vous. {reason}",
         "de": "Hier gilt „vous“: {counterpart} siezt dich. {reason}",
-        "fr": "Ici, c’est « vous » : {counterpart} vous vouvoie. {reason}",
+        "fr": "Ici, c’est « vous » : {counterpart} te vouvoie. {reason}",
     },
     "pragmatics.register_use_tu": {
         "en": "Here it is “tu”: {counterpart} uses tu with you, and the verb follows it. {reason}",
         "de": "Hier gilt „tu“: {counterpart} duzt dich, und das Verb geht mit. {reason}",
-        "fr": "Ici, c’est « tu » : {counterpart} vous tutoie, et le verbe suit. {reason}",
+        "fr": "Ici, c’est « tu » : {counterpart} te tutoie, et le verbe suit. {reason}",
     },
     "pragmatics.register_mixed": {
         "en": "One register per conversation: this answer uses both tu and vous.",
@@ -1134,7 +1134,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "pragmatics.bare_imperative": {
         "en": "That is an order. Ask instead: “je voudrais…”, or “est-ce que vous pouvez…”.",
         "de": "Das ist ein Befehl. Frag lieber: „je voudrais…“ oder „est-ce que vous pouvez…“.",
-        "fr": "C’est un ordre. Demandez plutôt : « je voudrais… » ou « est-ce que vous pouvez… ».",
+        "fr": "C’est un ordre. Demande plutôt : « je voudrais… » ou « est-ce que vous pouvez… ».",
     },
     "pragmatics.blunt_want": {
         "en": "“Je veux” is blunt in a shop or an office. “Je voudrais” is the request.",
@@ -1196,7 +1196,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "self_repair.explicit_note": {
         "en": "That was the one you were just asked about: it is “{correct}”, not “{wrong}”.",
         "de": "Danach wurde eben gefragt: Es heißt „{correct}“, nicht „{wrong}“.",
-        "fr": "C’est ce qu’on venait de vous demander : on dit « {correct} », pas « {wrong} ».",
+        "fr": "C’est ce qu’on venait de te demander : on dit « {correct} », pas « {wrong} ».",
     },
     # A season day corrects a repeated mistake in the margin only, without asking first.
     "self_repair.margin_note": {

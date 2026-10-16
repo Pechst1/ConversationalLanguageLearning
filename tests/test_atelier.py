@@ -3783,7 +3783,7 @@ def test_recognize_feedback_speaks_the_learners_language_before_the_relecture(db
 
     service.explanation_language = "fr"
     blank = service._fill_erratum(None, {"id": "b", "prompt": "___"}, "petit", "petite")
-    assert blank["why_wrong"] == "Vous avez choisi « petit », mais ce blanc demande « petite »."
+    assert blank["why_wrong"] == "Tu as choisi « petit », mais ce blanc demande « petite »."
     classified = service._classify_erratum(None, {"id": "c", "prompt": "Une petite table"}, "À corriger", "Correct")
     assert classified["display_label"] == "Classement"
-    assert "Vous avez classé" in classified["why_wrong"]
+    assert "Tu as classé" in classified["why_wrong"]

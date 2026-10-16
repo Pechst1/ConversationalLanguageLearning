@@ -484,7 +484,7 @@ def test_the_rehearsal_entry_is_gated_on_the_servers_own_answer() -> None:
 def test_the_dossier_entry_is_on_home_in_french_sentence_case() -> None:
     source = _read(ATELIER_PAGE)
     entries = source.split("const homeEntries: HomeEntry[]", 1)[1].split("const homeTiles", 1)[0]
-    assert "Votre dossier" in entries
+    assert "Ton dossier" in entries
     assert "'/dossier'" in entries
     # An edition that failed to load offers no side doors.
     assert "errorOnlyPage" in entries

@@ -106,7 +106,7 @@ def test_intake_a2_german_serves_its_chrome_in_german(db_session, enabled_intake
     assert task["success_by_language"] == {"fr": task["success_fr"]}
     assert view["artefact"]["type_label"] == "Eine Speisekarte"
     # The document named nobody: the fallback counterpart is chrome.
-    assert task["counterpart_fr"] == "votre correspondant"
+    assert task["counterpart_fr"] == "ton correspondant"
     assert task["counterpart_by_language"]["de"] == "dein Gegenüber"
 
     detail = _refused(IntakeRefused("image_empty"), user_chrome_language(user)).detail

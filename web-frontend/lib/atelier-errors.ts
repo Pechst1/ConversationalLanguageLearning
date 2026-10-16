@@ -25,14 +25,14 @@ export type AtelierErrorNotice = { kind: AtelierErrorKind };
 type Text = { label: string; message: string };
 
 const FR: Record<AtelierErrorKind, Text> = {
-  offline: { label: 'Hors ligne', message: 'Vérifiez la connexion, puis réessayez.' },
-  slow_load: { label: 'Encore un instant', message: 'L’Atelier répond lentement. Réessayez.' },
-  slow_session: { label: 'Encore un instant', message: 'La séance est peut-être déjà prête. Réessayez.' },
-  down_load: { label: 'Pas encore prêt', message: 'La page du jour n’a pas pu être chargée. Réessayez.' },
-  down_session: { label: 'Pas encore prête', message: 'La séance n’a pas pu être préparée. Réessayez.' },
-  failed_load: { label: 'Indisponible', message: 'L’Atelier ne répond pas. Réessayez dans un instant.' },
-  failed_session: { label: 'Pas démarrée', message: 'La séance n’a pas démarré. Réessayez.' },
-  confirm_needed: { label: 'À confirmer', message: 'La séance en cours n’a pas pu être confirmée. Réessayez pour garder votre travail.' },
+  offline: { label: 'Hors ligne', message: 'Vérifie la connexion, puis réessaie.' },
+  slow_load: { label: 'Encore un instant', message: 'L’Atelier répond lentement. Réessaie.' },
+  slow_session: { label: 'Encore un instant', message: 'La séance est peut-être déjà prête. Réessaie.' },
+  down_load: { label: 'Pas encore prêt', message: 'La page du jour n’a pas pu être chargée. Réessaie.' },
+  down_session: { label: 'Pas encore prête', message: 'La séance n’a pas pu être préparée. Réessaie.' },
+  failed_load: { label: 'Indisponible', message: 'L’Atelier ne répond pas. Réessaie dans un instant.' },
+  failed_session: { label: 'Pas démarrée', message: 'La séance n’a pas démarré. Réessaie.' },
+  confirm_needed: { label: 'À confirmer', message: 'La séance en cours n’a pas pu être confirmée. Réessaie pour garder ton travail.' },
 };
 
 const EN: Record<AtelierErrorKind, Text> = {

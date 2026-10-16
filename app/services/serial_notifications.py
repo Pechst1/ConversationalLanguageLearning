@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode
 from app.db.models.user import User
+from app.services.address import character_register as resolve_character_register
 
 #: WP-19's title for the morning push. WP-80 replaced it with the speaking
 #: character's name; kept so nothing that imports it breaks, and so a test can
@@ -373,21 +374,20 @@ def _active_thread(db: Session, user: User):
 
 
 def character_register(db: Session, user: User, character_id: Any) -> str:
-    """``tu`` when the learner and this character have switched, else ``vous`` (WP-97).
+    """How this character addresses the learner, ``tu`` or ``vous`` (WP-97).
 
-    Read where the register lives, ``state.relationships[id].register`` — the story
-    engine writes ``tu`` there when «On se tutoie ?» is accepted. The landlord stays
-    «vous» whatever a legacy row says.
+    One resolver for the whole app (``app.services.address.character_register``): the
+    register the relationship records — the story engine writes ``tu`` there when
+    «On se tutoie ?» is accepted — else what the story opens that character with. The
+    landlord stays «vous» whatever a legacy row says.
     """
 
     key = portrait_character(character_id) or str(character_id or "")
-    if not key or key == "landlord_marchand":
+    if not key:
         return "vous"
     thread = _active_thread(db, user)
-    relationships = (getattr(thread, "state", None) or {}).get("relationships") if thread else None
-    entry = (relationships or {}).get(key) if isinstance(relationships, dict) else None
-    register = str((entry or {}).get("register") or "").lower() if isinstance(entry, dict) else ""
-    return "tu" if register.startswith("tu") else "vous"
+    state = getattr(thread, "state", None) if thread else None
+    return resolve_character_register(state if isinstance(state, dict) else None, key)
 
 
 def _latest_journey(db: Session, user: User) -> DailyJourney | None:

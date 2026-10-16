@@ -130,7 +130,7 @@ test('a placement is printed with its confidence in words and its date', () => {
 
 test('a measured level says it is the application’s own arithmetic', () => {
   const level = { available: true, estimate: 'A2.2', estimate_source: 'measured', verified: true };
-  assert.ok(levelBasisSentence(level).includes('votre travail dans l’application'));
+  assert.ok(levelBasisSentence(level).includes('ton travail dans l’application'));
   assert.ok(verifiedSentence(level).includes('Vérifié'));
 });
 
@@ -209,8 +209,8 @@ test('the word count keeps evidence and assumption apart', () => {
   const sentence = vocabularySentence({
     known: { known_lemmas: 900, nailed_words: 120, core_words: 780 },
   });
-  assert.ok(sentence.includes('120 acquis par vos révisions'));
-  assert.ok(sentence.includes('780 supposés par votre niveau'));
+  assert.ok(sentence.includes('120 acquis par tes révisions'));
+  assert.ok(sentence.includes('780 supposés par ton niveau'));
   assert.ok(vocabularySentence({ known: null }).includes('ne pouvons pas chiffrer'));
 });
 
@@ -260,7 +260,7 @@ test('the screen is on the av2 system, reads its chrome from the table, and hard
   // `dossier-copy.ts`. Checked as whole rendered labels rather than substrings.
   for (const phrase of [
     '>Continue<', 'Your level', 'I already know', 'Check answer', 'Not yet<',
-    'Votre niveau', 'Je connais déjà', 'Revenir au dossier', 'Pas encore tenté',
+    'Ton niveau', 'Je connais déjà', 'Revenir au dossier', 'Pas encore tenté',
     'Niveau déclaré', 'Cette action n’a pas abouti',
   ]) {
     // Comments may quote the French; only shipped code counts.

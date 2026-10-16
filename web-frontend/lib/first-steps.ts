@@ -246,7 +246,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
     stickers: {
       scene: {
         title: 'La scène',
-        body: 'Lisez et écoutez. La traduction est à un geste.',
+        body: 'Lis et écoute. La traduction est à un geste.',
       },
       rule: {
         title: 'La règle',
@@ -257,12 +257,12 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         body: 'De courts exercices. Une erreur montre la réponse.',
       },
       respond: {
-        title: 'Votre réponse',
-        body: 'Répondez en français, à l’écrit ou à l’oral. L’histoire réagit.',
+        title: 'Ta réponse',
+        body: 'Réponds en français, à l’écrit ou à l’oral. L’histoire réagit.',
       },
       resolution: {
         title: 'La fin de l’épisode',
-        body: 'La scène se termine ici. Ensuite viennent vos mots et la grammaire.',
+        body: 'La scène se termine ici. Ensuite viennent tes mots et la grammaire.',
       },
       read: {
         title: 'Une page à lire',
@@ -278,7 +278,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       words: {
         title: 'Le Lexique',
-        body: 'Touchez pour retourner. Dites si vous saviez.',
+        body: 'Touche pour retourner. Dis si tu savais.',
       },
     },
     walkthrough: {
@@ -287,34 +287,34 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       start: 'C’est parti',
       skip: 'Passer',
       welcome_title: 'Bienvenue à l’Atelier',
-      welcome_body: 'Un épisode par jour, à Paris. Vous répondez en français, et l’histoire change.',
+      welcome_body: 'Un épisode par jour, à Paris. Tu réponds en français, et l’histoire change.',
       shapes_title: 'Les quatre formes',
       shapes_body: 'Chaque partie de la journée a sa forme.',
       shapes: {
         story: 'Cercle bleu : la scène. Lire et écouter.',
         reward: 'Carré jaune : les mots. De courts exercices.',
-        action: 'Triangle rouge : votre réponse, écrite ou dite.',
+        action: 'Triangle rouge : ta réponse, écrite ou dite.',
         done: 'Carré noir : la fin. La journée est bouclée.',
       },
-      progress_title: 'Où vous en êtes',
-      progress_body: 'En haut de chaque page, vous voyez où vous en êtes.',
+      progress_title: 'Où tu en es',
+      progress_body: 'En haut de chaque page, tu vois où tu en es.',
       progress_points: [
         'Une forme par étape. Les yeux marquent l’étape en cours.',
         'Fait en couleur, à venir en gris.',
-        'En haut à droite : votre journée se remplit.',
+        'En haut à droite : ta journée se remplit.',
       ],
-      day_title: 'Votre premier jour',
-      day_body: 'La scène, puis vos mots, puis la grammaire. Les notes jaunes expliquent le nouveau.',
+      day_title: 'Ton premier jour',
+      day_body: 'La scène, puis tes mots, puis la grammaire. Les notes jaunes expliquent le nouveau.',
     },
     route: {
-      title: 'Votre premier jour',
+      title: 'Ton premier jour',
       story: 'L’histoire',
       forge: 'La Forge',
-      words: 'Vos mots',
+      words: 'Tes mots',
       forge_hint: 'Grammaire, 5 min environ',
       words_hint: 'Les cartes de la scène',
       next_forge: 'Ensuite : La Forge',
-      next_words: 'Ensuite : vos mots',
+      next_words: 'Ensuite : tes mots',
       all_done: 'Tout est fait. L’histoire continue demain.',
     },
   },
