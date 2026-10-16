@@ -27,7 +27,9 @@ export type CameoEvent =
   | { type: 'answer'; correct: boolean; coachId?: string | null }
   | { type: 'idle' }
   | { type: 'poke'; id: string }
-  | { type: 'finale'; lead?: string | null };
+  | { type: 'finale'; lead?: string | null }
+  /** Somebody the learner has now seen on screen (a speaker, a cast-intro face). */
+  | { type: 'met'; ids: ReadonlyArray<string | null | undefined> };
 
 export type CameoLine = { fr: string; en: string; de: string };
 
@@ -59,6 +61,8 @@ export type CameoState = {
   lastId: string | null;
   poke: { id: string; count: number; at: number } | null;
   seq: number;
+  /** Cast members the learner has met. Only `LATE_CAST` waits on this. */
+  met: readonly string[];
 };
 
 export const INITIAL_CAMEO_STATE: CameoState = {
@@ -69,6 +73,7 @@ export const INITIAL_CAMEO_STATE: CameoState = {
   lastId: null,
   poke: null,
   seq: 0,
+  met: [],
 };
 
 /** Streak lengths that always get a cameo. From six on, the whole troupe. */
@@ -80,6 +85,12 @@ export const IDLE_COOLDOWN_MS = 180_000;
 export const PHOTOBOMB_CHANCE = 0.16;
 /** Pokes closer together than this count as the same poking. */
 export const POKE_WINDOW_MS = 6_000;
+
+/**
+ * #155: a cameo is somebody the learner knows. Romy is not in the first cast intro (she
+ * joins the story later), so she cannot photobomb a drill before she has been on screen.
+ */
+export const LATE_CAST: readonly string[] = ['romy_tremblay'];
 
 type Who = { id: string; name: string; gag: CameoGag };
 
@@ -201,14 +212,19 @@ function pick<T>(items: readonly T[], rand: () => number): T {
   return items[Math.min(items.length - 1, Math.floor(rand() * items.length))];
 }
 
+/** Who may appear for this learner right now. */
+export function castFor(state: Pick<CameoState, 'met'>): readonly Who[] {
+  return CAMEO_CAST.filter((who) => !LATE_CAST.includes(who.id) || state.met.includes(who.id));
+}
+
 function castMember(id: string | null | undefined): Who | null {
   if (!id) return null;
   return CAMEO_CAST.find((who) => who.id === id) ?? null;
 }
 
 /** Anyone but whoever came last, so two cameos in a row are two people. */
-function someone(rand: () => number, avoid: string | null): Who {
-  const pool = CAMEO_CAST.filter((who) => who.id !== avoid);
+function someone(state: CameoState, rand: () => number, avoid: string | null): Who {
+  const pool = castFor(state).filter((who) => who.id !== avoid);
   return pick(pool, rand);
 }
 
@@ -234,7 +250,7 @@ function solo(
 
 function troupe(state: CameoState, trigger: 'troupe' | 'finale', rand: () => number, size: number, lead: Who | null = null): Cameo {
   const words = trigger === 'finale' ? FINALE_WORDS : TROUPE_WORDS;
-  const shuffled = [...CAMEO_CAST].sort(() => rand() - 0.5).slice(0, size);
+  const shuffled = [...castFor(state)].sort(() => rand() - 0.5).slice(0, size);
   // The day's own person takes the bow in the middle of the line.
   if (lead) {
     const rest = shuffled.filter((who) => who.id !== lead.id).slice(0, Math.max(0, size - 1));
@@ -271,15 +287,15 @@ export function decideCameo(
       next.wrongRun = 0;
       if (STREAK_MILESTONES.includes(next.streak)) {
         if (next.streak >= 6) {
-          cameo = troupe(state, 'troupe', rand, Math.min(CAMEO_CAST.length, 2 + Math.floor(next.streak / 5)));
+          cameo = troupe(state, 'troupe', rand, Math.min(castFor(state).length, 2 + Math.floor(next.streak / 5)));
         } else {
           // The rule's own coach is the one who is proudest, when there is one.
           // The rule's coach is already acting in the verdict, so a colleague leans in with the gag.
-          const who = someone(rand, castMember(event.coachId)?.id ?? state.lastId);
+          const who = someone(state, rand, castMember(event.coachId)?.id ?? state.lastId);
           cameo = solo(state, 'streak', who, STREAK, rand, { gag: true, ttl: 4000 });
         }
       } else if (now - state.lastAmbientAt >= AMBIENT_COOLDOWN_MS && rand() < PHOTOBOMB_CHANCE) {
-        cameo = solo(state, 'photobomb', someone(rand, state.lastId), PHOTOBOMB, rand, { gag: true });
+        cameo = solo(state, 'photobomb', someone(state, rand, state.lastId), PHOTOBOMB, rand, { gag: true });
         next.lastAmbientAt = now;
       }
     } else {
@@ -288,13 +304,13 @@ export function decideCameo(
       if (next.wrongRun === 2 && now - state.lastAmbientAt >= AMBIENT_COOLDOWN_MS / 2) {
         // Not the coach: the coach's face in the band is already making the cross one.
         const avoid = castMember(event.coachId)?.id ?? state.lastId;
-        cameo = solo(state, 'comfort', someone(rand, avoid), COMFORT, rand, { ttl: 4200 });
+        cameo = solo(state, 'comfort', someone(state, rand, avoid), COMFORT, rand, { ttl: 4200 });
         next.lastAmbientAt = now;
       }
     }
   } else if (event.type === 'idle') {
     if (now - state.lastIdleAt >= IDLE_COOLDOWN_MS && now - state.lastAmbientAt >= AMBIENT_COOLDOWN_MS / 3) {
-      cameo = solo(state, 'idle', someone(rand, state.lastId), IDLE, rand, { ttl: 4000 });
+      cameo = solo(state, 'idle', someone(state, rand, state.lastId), IDLE, rand, { ttl: 4000 });
       next.lastIdleAt = now;
       next.lastAmbientAt = now;
     }
@@ -313,10 +329,13 @@ export function decideCameo(
       cameo = { key: state.seq + 1, trigger: 'poke', kind: 'poke', edge: 'bottom', figures: [{ id: who.id, name: who.name, mood, line }], ttl: 1800 };
       if (count >= 5) next.poke = null;
     }
+  } else if (event.type === 'met') {
+    const fresh = event.ids.filter((id): id is string => !!id && !next.met.includes(id));
+    if (fresh.length) next.met = [...next.met, ...fresh];
   } else if (event.type === 'finale') {
     next.streak = 0;
     next.wrongRun = 0;
-    cameo = troupe(state, 'finale', rand, CAMEO_CAST.length, castMember(event.lead));
+    cameo = troupe(state, 'finale', rand, castFor(state).length, castFor(state).find((who) => who.id === event.lead) ?? null);
   }
 
   if (cameo) {
@@ -336,6 +355,26 @@ export function cameoGloss(line: CameoLine, lang: CameoLang): string | null {
 
 export const CAMEO_EVENT = 'atelier:cameo';
 export const CAMEO_STORAGE_KEY = 'atelier.cameos';
+
+export const CAMEO_MET_KEY = 'atelier.cameoMet';
+
+/** The cast members this browser has seen on screen. Never throws. */
+export function readMetCast(): string[] {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(CAMEO_MET_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeMetCast(ids: readonly string[]): void {
+  try {
+    window.localStorage.setItem(CAMEO_MET_KEY, JSON.stringify(ids));
+  } catch {
+    // Not remembered: a late cast member waits one more session.
+  }
+}
 
 /** On unless the learner switched it off in Réglages. Never throws. */
 export function cameosEnabled(): boolean {

@@ -236,10 +236,10 @@ NATIVE_SECONDS_PER_TOKEN = 0.27
 TYPING_SECONDS_PER_CHAR = 0.35
 TYPED_START_SECONDS = 3
 TYPED_FORMATS = frozenset({"short_answer", "transform"})
-#: WP-93 (W5/W11). What the landing page's taste («Romy», then «Commandez un
-#: café.») already taught, as in ``web-frontend/lib/onboarding-taste.ts``: the
-#: learner answered «Bonjour !» / «Merci !» to Romy and built «Un café, s'il vous
-#: plaît» for Margaux. Day 1 never drills them again. Kept in sync by hand: the
+#: WP-93 (W5/W11). What the landing page's taste (Margaux greets, then «Commandez
+#: un café.») already taught, as in ``web-frontend/lib/onboarding-taste.ts``: the
+#: learner answered «Bonjour !» to Margaux and built «Un café, s'il vous plaît»
+#: for her. Day 1 never drills them again. Kept in sync by hand: the
 #: taste is authored client-side and has no server copy.
 TASTE_WORDS_FR: tuple[str, ...] = ("un café", "s'il vous plaît", "bonjour", "merci")
 #: Reading the ending, the summary, and closing the day. WP-128: 45 → 12. The
