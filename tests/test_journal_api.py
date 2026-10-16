@@ -405,3 +405,30 @@ def test_the_entries_list_is_the_learners_own_writing(journal_client, db_session
     # `_seed_scene` dates the journey from the UTC day; compare against the same
     # day, not the host's local `date.today()` (a day ahead after local midnight).
     assert rows[0]["scene_date"] == (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+
+
+def test_a_failed_check_can_be_retried_over_the_wire(journal_client, db_session, fake_checker):
+    email = _email()
+    headers = login(journal_client, email)
+    _seed_scene(db_session, email)
+    entry_id = journal_client.get("/api/v1/journal/state", headers=headers).json()["entry"]["id"]
+
+    working = fake_checker.generate_error_detection
+
+    def broken(messages, **kwargs):
+        from app.services.llm_service import LLMProviderError
+
+        raise LLMProviderError("request timeout")
+
+    fake_checker.generate_error_detection = broken
+    body = {"text": "J’ai rapporté la livre à Romy mardi comme promis."}
+    first = journal_client.post(f"/api/v1/journal/{entry_id}/write", headers=headers, json=body)
+    correction = first.json()["entry"]["correction"]
+    assert correction["assessment_status"] == "unavailable"
+    assert correction["failure_reason"] == "timeout"
+
+    fake_checker.generate_error_detection = working
+    second = journal_client.post(f"/api/v1/journal/{entry_id}/retry", headers=headers)
+    assert second.status_code == 200
+    assert second.json()["entry"]["correction"]["assessment_status"] == "checked"
+    assert second.json()["entry"]["entry_text"] == body["text"]

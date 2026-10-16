@@ -302,6 +302,9 @@ export interface JournalCorrection {
   assessment_truncated: boolean;
   verdict?: string | null;
   corrected_answer: string;
+  /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target'.
+   *  'no_check_target' cannot be retried. */
+  failure_reason?: string | null;
   explanation_language?: string | null;
   /** The one correction shown up front, chosen by the journey's own policy. */
   foreground?: JournalCorrectionItem | null;
@@ -3375,6 +3378,12 @@ class ApiService {
       `/journal/${encodeURIComponent(entryId)}/write`,
       { text },
     );
+  }
+
+  /** Runs the French check again on the stored paragraph. A no-op server-side
+   *  once the entry is checked, so a double tap buys one call. */
+  async retryJournalCorrection(entryId: string): Promise<JournalEnvelope> {
+    return this.atelierPost<JournalEnvelope>(`/journal/${encodeURIComponent(entryId)}/retry`);
   }
 
   async skipJournalEntry(entryId: string): Promise<JournalEnvelope> {

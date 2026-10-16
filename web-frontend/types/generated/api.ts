@@ -2118,6 +2118,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/journal/{entry_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Correction
+         * @description Run the French check again on a paragraph whose check failed.
+         *
+         *     No body: the stored text is what gets checked. A no-op on any entry whose
+         *     check already succeeded, so a double tap buys one call.
+         */
+        post: operations["retry_correction_api_v1_journal__entry_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/journal/{entry_id}/skip": {
         parameters: {
             query?: never;
@@ -8862,6 +8885,8 @@ export interface components {
             }[];
             /** Explanation Language */
             explanation_language?: string | null;
+            /** Failure Reason */
+            failure_reason?: string | null;
             /** Foreground */
             foreground?: {
                 [key: string]: unknown;
@@ -18234,6 +18259,37 @@ export interface operations {
                 "application/json": components["schemas"]["FollowupRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_correction_api_v1_journal__entry_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
