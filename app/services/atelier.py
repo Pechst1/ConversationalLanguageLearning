@@ -4398,6 +4398,8 @@ class AtelierCorrectionService:
         self.db = db
         self.llm_service = llm_service
         self._llm_unavailable = False
+        #: «timeout» | «model_error» after a failed paid call, else ``None``.
+        self._llm_failure_reason: str | None = None
         # WP-16 additive: defaults for paths that skip `submit_attempt`.
         self._answer_truncated = False
         self._cost_user_id: UUID | None = None
@@ -6993,6 +6995,10 @@ class AtelierCorrectionService:
             return correction
         except (json.JSONDecodeError, LLMProviderError, ValueError, TypeError) as exc:
             logger.warning("Atelier LLM correction failed; using deterministic fallback", error=str(exc))
+            # Callers that surface a failed check (the journal) need the class of
+            # the failure, not only the fallback: «timed out» and «the model
+            # answered badly» ask the learner for different patience.
+            self._llm_failure_reason = "timeout" if "timeout" in str(exc).lower() else "model_error"
             return None
 
     # WP-16 additive
