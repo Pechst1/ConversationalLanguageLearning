@@ -314,7 +314,7 @@ def test_le_releve_is_french_and_learner_scoped():
 
     # French publication furniture, one section head each.
     # The tab is «Progrès» in French since progress became one place (owner, 2026-10-12).
-    assert "foot: 'Progrès · vos chiffres, rien d’autre'" in french
+    assert "foot: 'Progrès · tes chiffres, rien d’autre'" in french
     assert "cours_title: 'Le cours'" in french
     assert "registre_title: 'Le registre'" in french
     assert "collection_title: 'La collection'" in french

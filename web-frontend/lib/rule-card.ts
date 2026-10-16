@@ -413,7 +413,7 @@ export const RULE_CARD_COPY: Record<ControlLanguage, {
     keyGrey: 'gris',
     keyGreyMeans: 's’écrit, ne se dit pas',
     xray: 'La phrase aux rayons X',
-    xrayHint: 'Touchez une partie colorée : à quoi sert-elle ?',
+    xrayHint: 'Touche une partie colorée : à quoi sert-elle ?',
     xrayMarks: 'Les parties marquées',
     reviewEyebrow: 'Une règle déjà vue, dans la page du jour',
     reviewDone: 'Continuer',

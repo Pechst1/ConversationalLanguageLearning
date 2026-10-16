@@ -370,7 +370,7 @@ _SHORT_ANSWER_INSTRUCTION: dict[str, str] = {
 _ERROR_INSTRUCTION: dict[str, str] = {
     "en": "Write this correctly in French.",
     "de": "Schreib das richtig auf Französisch.",
-    "fr": "Écrivez ceci correctement en français.",
+    "fr": "Écris ceci correctement en français.",
 }
 _HINT_TEMPLATE: dict[str, str] = {
     "en": 'It is {words} long and starts with "{initial}".',
@@ -405,12 +405,12 @@ def word_count_phrase(count: int, control_language: Any) -> str:
 _WORD_BANK_INSTRUCTION_WITH_GLOSS: dict[str, str] = {
     "en": 'Build "{native}". Some words are extra.',
     "de": 'Bau „{native}“. Manche Wörter sind zu viel.',
-    "fr": "Construisez « {native} ». Certains mots sont en trop.",
+    "fr": "Construis « {native} ». Certains mots sont en trop.",
 }
 _WORD_BANK_INSTRUCTION: dict[str, str] = {
     "en": "Build the phrase. Some words are extra.",
     "de": "Bau den Ausdruck. Manche Wörter sind zu viel.",
-    "fr": "Construisez l'expression. Certains mots sont en trop.",
+    "fr": "Construis l'expression. Certains mots sont en trop.",
 }
 #: Gender is asked about the bare noun: the article is what answers it, so the
 #: article is exactly what the prompt may not show.
@@ -437,7 +437,7 @@ _CLASSIFY_ADDRESS_LABELS: tuple[str, str] = ("tu", "vous")
 _TRANSFORM_INSTRUCTION: dict[str, str] = {
     "en": 'Say the same thing with "{pronoun}": change "{span}".',
     "de": "Sag dasselbe mit „{pronoun}“: ändere „{span}“.",
-    "fr": "Dites la même chose avec « {pronoun} » : changez « {span} ».",
+    "fr": "Dis la même chose avec « {pronoun} » : change « {span} ».",
 }
 _TRANSFORM_HINT: dict[str, str] = {
     "en": 'Only the part with "{span}" changes.',
@@ -448,7 +448,7 @@ _TRANSFORM_HINT: dict[str, str] = {
 _MATCH_INSTRUCTION: dict[str, str] = {
     "en": "Tap the pairs that mean the same.",
     "de": "Tippe die Paare an, die dasselbe bedeuten.",
-    "fr": "Touchez les paires qui veulent dire la même chose.",
+    "fr": "Touche les paires qui veulent dire la même chose.",
 }
 _LISTEN_TAP_INSTRUCTION: dict[str, str] = {
     "en": "What does it mean?",
@@ -458,13 +458,13 @@ _LISTEN_TAP_INSTRUCTION: dict[str, str] = {
 _UNSCRAMBLE_INSTRUCTION: dict[str, str] = {
     "en": "Put the sentence from the scene back in order.",
     "de": "Bring den Satz aus der Szene wieder in die richtige Reihenfolge.",
-    "fr": "Remettez dans l'ordre la phrase de la scène.",
+    "fr": "Remets dans l'ordre la phrase de la scène.",
 }
 #: WP-91. The dictation's only public text: the line itself is heard, never shown.
 _DICTATION_INSTRUCTION: dict[str, str] = {
     "en": "Listen and write what you hear.",
     "de": "Hör zu und schreib, was du hörst.",
-    "fr": "Écoutez et écrivez ce que vous entendez.",
+    "fr": "Écoute et écris ce que tu entends.",
 }
 _DICTATION_HINT: dict[str, str] = {
     "en": "The line has {words}.",

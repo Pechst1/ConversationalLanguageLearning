@@ -116,7 +116,7 @@ function respondStep(prompt = {}) {
     prompt: {
       character_id: 'marin',
       character_name: 'Marin',
-      character_line_fr: 'Alors, vous prenez quoi ?',
+      character_line_fr: 'Alors, tu prends quoi ?',
       objective_native: 'Order a coffee.',
       targets: [],
       input_modes: ['text'],
@@ -148,7 +148,7 @@ const graded = (verdict) => ({
 test('the character line sits in the bubble beside their face, which never reacts to a verdict', () => withArtSet('painted', () => {
   const idle = renderToStaticMarkup(h(steps.RespondStepView, respondProps(respondStep())));
   assert.match(idle, /class="av2-speech" data-mood="neutral"/);
-  assert.match(idle, /av2-speech__bubble"><h2 class="av2-headline" lang="fr">Alors, vous prenez quoi\u202f\?<\/h2>/);
+  assert.match(idle, /av2-speech__bubble"><h2 class="av2-headline" lang="fr">Alors, tu prends quoi\u202f\?<\/h2>/);
   assert.ok(idle.includes('marin_leveque/portrait-neutral.webp'));
   assert.ok(idle.includes('data-size="md"'), 'the speaker is the md portrait');
   assert.equal(idle.split('.webp').length - 1, 1, 'one face for the speaker, not a byline disc too');
@@ -216,7 +216,7 @@ test('the bubble has the design shape and the face pops only on a verdict', () =
 // 3. «Marin vous sourit ↑»
 // ===========================================================================
 
-test('a correct verdict adds «Marin vous sourit ↑»; a wrong one does not', () => {
+test('a correct verdict adds «Marin te sourit ↑»; a wrong one does not', () => {
   const band = (verdict) =>
     renderToStaticMarkup(
       h(steps.JourneyFeedbackView, {
@@ -234,7 +234,7 @@ test('a correct verdict adds «Marin vous sourit ↑»; a wrong one does not', (
   assert.ok(right.indexOf('av2-feedback') < right.indexOf('av2-smiles'), 'under the band');
   assert.ok(!band('wrong').includes('av2-smiles'));
   assert.ok(!band('supported').includes('av2-smiles'), 'only a clean correct');
-  assert.equal(replyStage.smileLine('Marin', 'fr'), 'Marin vous sourit');
+  assert.equal(replyStage.smileLine('Marin', 'fr'), 'Marin te sourit');
   assert.equal(replyStage.smileLine('Marin', 'de'), 'Marin lächelt dich an');
   assert.equal(replyStage.smileLine('', 'fr'), null);
 });
@@ -252,20 +252,20 @@ test('the recap puts the mood in a chip beside the face and the callback line', 
   };
   const recap = {
     mood: { character_id: 'marin', character_name: 'Marin', mood: 1, shift: 'warmer' },
-    story_outcome: { callback_fr: 'Marin garde votre table.' },
+    story_outcome: { callback_fr: 'Marin garde ta table.' },
   };
   const painted = withArtSet('painted', () => renderToStaticMarkup(h(JourneyRecap, { journey, recap, language: 'fr' })));
   const face = painted.slice(painted.indexOf('av2-reward__face'));
   assert.ok(face.includes('portrait-happy.webp'));
   assert.match(face, /av2-reward__mood" data-mood="up"><span class="av2-chip">/);
-  assert.ok(face.includes('Marin garde votre table.'));
+  assert.ok(face.includes('Marin garde ta table.'));
 
   const drawn = withArtSet('drawn', () => renderToStaticMarkup(h(JourneyRecap, { journey, recap, language: 'fr' })));
   const drawnFace = drawn.slice(drawn.indexOf('av2-reward__face'));
   assert.match(drawnFace, /data-cast="marin_leveque" data-mood="ravie"/, 'the drawn face is pleased too');
   assert.ok(!drawnFace.includes('.webp'));
   assert.match(drawnFace, /av2-reward__mood" data-mood="up"><span class="av2-chip">/);
-  assert.ok(drawnFace.includes('Marin garde votre table.'));
+  assert.ok(drawnFace.includes('Marin garde ta table.'));
 });
 
 // ===========================================================================

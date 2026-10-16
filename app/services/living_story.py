@@ -30,6 +30,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
+from app.services.address import address_instruction
 from app.services.answer_acceptance import is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
@@ -2267,7 +2268,13 @@ def learner_address(user: User) -> dict:
     value = str(getattr(user, "address_preference", "") or DEFAULT_ADDRESS)
     if value not in ADDRESS_NOTES:
         value = DEFAULT_ADDRESS
-    return {"address": value, "grammatical_gender_note": ADDRESS_NOTES[value]}
+    return {
+        "address": value,
+        "grammatical_gender_note": ADDRESS_NOTES[value],
+        # How the *app* speaks to the learner (narration, task prompts, hints): the
+        # one register setting. A character's own register is theirs (``season_registers``).
+        "register_note": address_instruction("fr"),
+    }
 
 
 def learner_level_band(user: User) -> str:
@@ -7207,7 +7214,7 @@ def describe_next(db: Session, *, user: User, input_mode: InputMode) -> Scenario
     objective = {
         "en": "Continue your story in French.",
         "de": "Setze deine Geschichte auf Französisch fort.",
-        "fr": "Continuez votre histoire en français.",
+        "fr": "Continue ton histoire en français.",
     }[language]
     # WP-51: `title_fr` is the French headline of a French Home (WP-39 D-3 —
     # one chrome language per screen); only the objective speaks the
@@ -9454,7 +9461,7 @@ NO_FALLBACK_REASONS = frozenset(
 _FALLBACK_SUMMARY = {
     "en": "{name} was called away before answering; your words are noted and the scene picks this up next time.",
     "de": "{name} wurde weggerufen, bevor eine Antwort kam; deine Worte sind notiert, die Szene nimmt das nächstes Mal wieder auf.",
-    "fr": "{name} a été appelé ailleurs avant de répondre ; vos mots sont notés et la scène reprendra là.",
+    "fr": "{name} a été appelé ailleurs avant de répondre ; tes mots sont notés et la scène reprendra là.",
 }
 
 

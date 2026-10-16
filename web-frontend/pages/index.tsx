@@ -52,7 +52,7 @@ export default function HomePage() {
         <title>L’Atelier</title>
         <meta
           name="description"
-          content="L’Atelier — un quotidien pour apprendre le français : un feuilleton dont vous êtes un personnage, une courte séance, des progrès consignés noir sur blanc."
+          content="L’Atelier — un quotidien pour apprendre le français : un feuilleton dont tu es un personnage, une courte séance, des progrès consignés noir sur blanc."
         />
       </Head>
 

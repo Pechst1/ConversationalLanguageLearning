@@ -188,7 +188,7 @@ test('WP-82: one Garamond headline — the keepsake title, not also «Scene fini
 
 test('WP-82: one chrome language on the recap — English, German or French, never mixed', () => {
   const en = textOf(render(day()));
-  assert.doesNotMatch(en, /Ranger|Série|La suite demain|vous sourit|Plus de pratique/);
+  assert.doesNotMatch(en, /Ranger|Série|La suite demain|te sourit|Plus de pratique/);
   const de = textOf(render(day(), { language: 'de' }));
   assert.match(de, /Szene 4 Schritte Wörter \+2 Serie 4 Tage/);
   assert.match(de, /Siegel behalten/);
@@ -398,7 +398,7 @@ test('Home after the day: the streak carries the done mark, the Séance tile rea
 
   const after = home({ dayDone: true });
   // WP-D5: the streak opens «Vos sceaux».
-  assert.match(after, /aria-label="4 jours de suite · journée bouclée · vos sceaux"/);
+  assert.match(after, /aria-label="4 jours de suite · journée bouclée · tes sceaux"/);
   assert.match(after, /href="\/notebook\?mode=releve#sceaux"/);
   assert.match(after, /av2-home__streak[^"]*"[^>]*data-state="done"/);
   assert.match(textOf(after), /Séance Journée bouclée/);

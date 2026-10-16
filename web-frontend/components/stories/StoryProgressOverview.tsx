@@ -37,8 +37,8 @@ export default function StoryProgressOverview({ progress, totalChapters }: Story
   ];
 
   return (
-    <section className="av2-surface bib-block" aria-label="Votre progression dans ce texte">
-      <p className="av2-label">{isCompleted ? 'Texte terminé' : 'Votre progression'}</p>
+    <section className="av2-surface bib-block" aria-label="Ta progression dans ce texte">
+      <p className="av2-label">{isCompleted ? 'Texte terminé' : 'Ta progression'}</p>
 
       {!isCompleted && (
         <ProgressRule

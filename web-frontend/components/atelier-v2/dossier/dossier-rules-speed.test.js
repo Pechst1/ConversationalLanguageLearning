@@ -39,7 +39,7 @@ test('shown from three held rules, in the chrome language', () => {
   );
   assert.equal(
     rulesSpeedSentence(level(speed), 'fr'),
-    'Vos règles : 3 tenues, 17 jours en médiane pour en tenir une. Mesuré sur votre propre pratique.',
+    'Tes règles : 3 tenues, 17 jours en médiane pour en tenir une. Mesuré sur ta propre pratique.',
   );
   assert.equal(
     rulesSpeedSentence(level(speed), 'de'),
@@ -56,7 +56,7 @@ test('all held by test-out: the count only, never an invented median', () => {
 test('the line is measured, never a promise, and the screen renders it', () => {
   for (const language of ['en', 'fr', 'de']) {
     const line = rulesSpeedSentence(level({ held: 5, median_days_to_held: 20, show: true }), language);
-    assert.doesNotMatch(line, /will|guarantee|garanti|werden Sie|vous allez/i);
+    assert.doesNotMatch(line, /will|guarantee|garanti|werden Sie|vous allez|tu vas/i);
   }
   const screen = fs.readFileSync(path.join(HERE, 'DossierScreen.tsx'), 'utf8');
   assert.match(screen, /rulesSpeedSentence\(/);

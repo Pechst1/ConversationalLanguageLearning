@@ -102,7 +102,7 @@ function home(language, props = {}) {
       action: { label: 'Continuer', onSelect: () => {} },
       phrase: { text: 'Je reviens.', byline: 'Marin' },
       library: { title: 'Le Livre', chapter: 2, href: '/notebook' },
-      entries: [{ id: 'dossier', label: 'Votre dossier', hint: 'Ce que nous croyons savoir de vous', href: '/dossier' }],
+      entries: [{ id: 'dossier', label: 'Ton dossier', hint: 'Ce que nous croyons savoir de toi', href: '/dossier' }],
       tiles: [],
       colophon: { lead: 'Demain — ', focus: 'le passé composé', focusHref: '/grammar', tail: ', épisode 5.' },
       ...props,
@@ -138,11 +138,11 @@ test('with the journey on, nothing but the day is drawn', () => {
     'Continuer', // a second action
     'Je reviens', // yesterday's phrase
     'Le Livre', // the library
-    'Votre dossier', // the rows (dossier, documents, practice, rehearsal)
+    'Ton dossier', // the rows (dossier, documents, practice, rehearsal)
     'Demain', // the colophon
     'Édition Nº', // the kicker
     'Plus de pratique',
-    'Vos documents',
+    'Tes documents',
   ]) {
     assert.ok(!text.includes(gone), `«${gone}» is not on Home`);
   }
@@ -182,7 +182,7 @@ test('WP-95 / W12: the masthead shows the band and the next can-do, never a perc
   const old = visibleText(home('fr', { level: { band: 'A1.1', percent: 0 } }));
   assert.match(old, /A1\.1/);
   assert.doesNotMatch(old, /%/);
-  assert.match(home('fr'), /Votre niveau : A1\.1/);
+  assert.match(home('fr'), /Ton niveau : A1\.1/);
   // Nothing from the server, no level line.
   assert.doesNotMatch(home('en', { level: null }), /av2-home__level/);
 });
@@ -255,16 +255,16 @@ test('the flag-off Home is unchanged: French, the kicker, the rows and the colop
       streak: 4,
       episode: null,
       action: null,
-      entries: [{ id: 'dossier', label: 'Votre dossier', href: '/dossier' }],
+      entries: [{ id: 'dossier', label: 'Ton dossier', href: '/dossier' }],
       tiles: [],
       colophon: { lead: 'Demain — ', focus: 'le passé composé', focusHref: '/grammar' },
     }),
   );
   const text = visibleText(html);
   assert.match(text, /Édition Nº 4 · A1\.1/);
-  assert.match(text, /Votre dossier/);
+  assert.match(text, /Ton dossier/);
   assert.match(text, /Demain/);
-  assert.match(html, /aria-label="4 jours de suite · vos sceaux"/);
+  assert.match(html, /aria-label="4 jours de suite · tes sceaux"/);
   assert.doesNotMatch(html, /av2-home__chips/);
 });
 

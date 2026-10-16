@@ -24,7 +24,7 @@ export async function reconnectWebSession(callbackUrl: string) {
 }
 
 export const sessionExpiredCopy = {
-  fr: { message: 'Votre session a expiré — reconnectez-vous.', action: 'Se reconnecter' },
+  fr: { message: 'Ta session a expiré — reconnecte-toi.', action: 'Se reconnecter' },
   en: { message: 'Your session has expired — sign in again.', action: 'Sign in again' },
   de: { message: 'Deine Sitzung ist abgelaufen — melde dich erneut an.', action: 'Erneut anmelden' },
 };

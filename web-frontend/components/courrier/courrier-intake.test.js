@@ -90,10 +90,10 @@ const MENU_ARTEFACT = {
   task: {
     kind: 'decide',
     kind_label_fr: 'Choisir',
-    instruction_fr: 'Commandez votre formule du midi auprès du serveur.',
+    instruction_fr: 'Commande ta formule du midi auprès du serveur.',
     counterpart_fr: 'le serveur',
     register: 'vous',
-    success_fr: 'Le serveur sait ce que vous prenez.',
+    success_fr: 'Le serveur sait ce que tu prends.',
   },
   mission_id: 'm1',
   queued_word_count: 3,
@@ -119,8 +119,8 @@ check('the two ways in are two secondary buttons, and neither is a press', () =>
   assert.equal((html.match(/av2-btn--secondary/g) || []).length, 2);
   assert.match(html, /Coller un texte/);
   assert.match(html, /Photographier/);
-  assert.match(html, /Le Courrier · Vos documents/);
-  assert.match(html, /on le lit avec vous/);
+  assert.match(html, /Le Courrier · Tes documents/);
+  assert.match(html, /on le lit avec toi/);
   // The well is there for the screen reader but closed until it is asked for.
   assert.match(html, /id="cr-intake-text"[^>]*hidden/);
 });
@@ -165,7 +165,7 @@ check('a learner at the cap cannot start a read at all', () => {
       pasteOpen: true,
     }),
   );
-  assert.match(html, /Vous avez fait lire tous vos documents de la semaine/);
+  assert.match(html, /Tu as fait lire tous tes documents de la semaine/);
   assert.match(html, /disabled=""/);
 });
 
@@ -197,7 +197,7 @@ check('the glossed words are chips, French in the serif, gloss beside it', () =>
 check('an unread photo says what to do about it, and offers a retry', () => {
   const html = render(h(CrArtefactUnread, { sourceKind: 'image', onRetry: () => {} }));
   assert.match(html, /Non lu/);
-  assert.match(html, /Reprenez la photo/);
+  assert.match(html, /Reprends la photo/);
   assert.match(html, /Réessayer/);
   // No summary, no facts, no task may be invented for a document nobody read.
   assert.ok(!/cr-art-facts/.test(html));
@@ -207,8 +207,8 @@ check('an unread photo says what to do about it, and offers a retry', () => {
 
 check('an unread paste gets its own sentence, not the photo one', () => {
   const html = render(h(CrArtefactUnread, { sourceKind: 'text', onRetry: () => {} }));
-  assert.ok(!/Reprenez la photo/.test(html));
-  assert.match(html, /Réessayez dans un instant/);
+  assert.ok(!/Reprends la photo/.test(html));
+  assert.match(html, /Réessaie dans un instant/);
 });
 
 check('a task with no instruction renders nothing rather than an empty card', () => {
@@ -224,7 +224,7 @@ check('the artefact card is French and marks a gloss the lexicon did not supply'
   const html = render(h(CrArtefactCard, { artefact: MENU_ARTEFACT }));
   assert.match(html, /Un menu/);
   assert.match(html, /Formule du midi/);
-  assert.match(html, /Les mots que vous ne connaissiez pas/);
+  assert.match(html, /Les mots que tu ne connaissais pas/);
   // The app's own gloss is shown in the language it is actually in.
   assert.match(html, /lang="de"[^>]*>Cremesuppe/);
   // A model gloss standing in for a missing entry is labelled, not disguised.
@@ -325,7 +325,7 @@ check('the unread and error states carry words, not just a colour', () => {
 check('the allowance is a French sentence, in every state', () => {
   assert.match(crIntakeCapLine({ limit: 5, used: 0, remaining: 5, enabled: true }), /5 documents/);
   assert.match(crIntakeCapLine({ limit: 5, used: 4, remaining: 1, enabled: true }), /un document/);
-  assert.match(crIntakeCapLine({ limit: 5, used: 5, remaining: 0, enabled: true }), /tous vos documents/);
+  assert.match(crIntakeCapLine({ limit: 5, used: 5, remaining: 0, enabled: true }), /tous tes documents/);
   assert.match(crIntakeCapLine({ limit: 0, used: 0, remaining: 0, enabled: false }), /désactivée/);
   assert.match(crIntakeCapLine(null), /désactivée/);
 });

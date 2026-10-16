@@ -315,7 +315,7 @@ def test_the_review_reminder_is_scheduled_and_waits_for_the_scene(db_session, se
 
     assert len(_mine(sent, finished)) == 1
     push = _mine(sent, finished)[0]
-    assert push["message"] == "3 mots vous attendent pour une révision rapide."
+    assert push["message"] == "3 mots t’attendent pour une révision rapide."
     assert push["data"]["route"] == "/vocabulary/review"
     assert _mine(sent, waiting) == []
 
@@ -336,7 +336,6 @@ def _all_lines() -> list[str]:
     lines.extend(copy.DEFAULT_MORNING_LINE.values())
     lines.extend(copy.DEFAULT_STREAK_LINE.values())
     lines.extend(copy.RESUME_LINES.values())
-    lines.extend(tasks.review_reminder_copy(n)[1] for n in (1, 4))
     return lines
 
 

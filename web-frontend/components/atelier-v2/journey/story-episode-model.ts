@@ -65,9 +65,9 @@ const CHARACTER_NAMES: Record<string, string> = {
   gus: 'Gus',
   margaux: 'Margaux',
   marchand: 'Monsieur Marchand',
-  toi: 'Vous',
-  learner: 'Vous',
-  you: 'Vous',
+  toi: 'Toi',
+  learner: 'Toi',
+  you: 'Toi',
 };
 
 /**

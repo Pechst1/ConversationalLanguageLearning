@@ -421,7 +421,7 @@ def test_le_releve_names_a_placement_as_a_placement() -> None:
     assert "const unverified = declared || placement;" in releve
     # The declared sentence survives untouched: it is still the honest line for
     # a learner who only ever told us.
-    assert "Niveau que vous avez indiqué." in copy
+    assert "Niveau que tu as indiqué." in copy
     assert "copy.status_declared" in releve
     # Neither branch may print a gauge against a level nothing has tested.
     assert "{!unverified && (coursWords[1] > 0 || coursRules[1] > 0) && (" in releve

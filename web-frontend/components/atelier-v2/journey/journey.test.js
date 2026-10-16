@@ -1051,7 +1051,7 @@ const noSleep = () => Promise.resolve();
   // register from its transcript and must not be read as scoring the voice.
   assert.match(journeyCopy('en').voice_hint, /nothing here judges your pronunciation/i);
   assert.match(journeyCopy('de').voice_hint, /nicht bewertet/i);
-  assert.match(journeyCopy('fr').voice_hint, /rien ici ne juge votre prononciation/i);
+  assert.match(journeyCopy('fr').voice_hint, /rien ici ne juge ta prononciation/i);
 
 
   // =========================================================================

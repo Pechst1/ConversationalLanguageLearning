@@ -20,7 +20,7 @@ export function classificationCopy(value: string, language: ControlLanguage): st
 }
 
 export function classificationGoal(language: ControlLanguage): string {
-  return { en: 'Classify this form.', de: 'Ordne die Form zu.', fr: 'Classez cette forme.' }[language];
+  return { en: 'Classify this form.', de: 'Ordne die Form zu.', fr: 'Classe cette forme.' }[language];
 }
 
 /**

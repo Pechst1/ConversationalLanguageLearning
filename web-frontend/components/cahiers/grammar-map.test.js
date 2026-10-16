@@ -152,7 +152,7 @@ test('the map speaks the chrome language by level (A1 en, A2 de, B1 fr); titles 
   const cases = [
     [chromeLanguage('en', 'A1.1'), 'Your grammar map', 'Un, une, des: practising · Review due'],
     [chromeLanguage('de', 'A2.1'), 'Deine Grammatikkarte', 'Un, une, des: in Übung · Wiederholung fällig'],
-    [chromeLanguage('de', 'B1.1'), 'Votre carte de grammaire', 'Un, une, des : en route · Révision prévue'],
+    [chromeLanguage('de', 'B1.1'), 'Ta carte de grammaire', 'Un, une, des : en route · Révision prévue'],
   ];
   for (const [language, title, aria] of cases) {
     const html = renderMap(language);

@@ -86,11 +86,11 @@ function rehearsal(overrides = {}) {
     scene: {
       title_fr: 'Le chauffage',
       place_fr: 'au téléphone',
-      setup_fr: 'Vous appelez le propriétaire.',
+      setup_fr: 'Tu appelles le propriétaire.',
       setup_native: 'You call the landlord.',
-      objective_fr: 'Expliquez le problème et demandez une date.',
+      objective_fr: 'Explique le problème et demande une date.',
       objective_native: 'Explain the problem and ask for a date.',
-      opening_line_fr: 'Allô, oui ? Vous êtes bien chez monsieur Renard.',
+      opening_line_fr: 'Allô, oui ? Tu es bien chez monsieur Renard.',
       register: 'vous',
       level_band: 'A2',
       turns_total: 4,
@@ -186,9 +186,9 @@ test('the cap speaks French and distinguishes off from spent', () => {
   assert.equal(capSentence({ limit: 0, used: 0, remaining: 0 }), 'Les répétitions sont désactivées.');
   assert.equal(
     capSentence({ limit: 2, used: 2, remaining: 0 }),
-    'Vous avez utilisé vos répétitions de la semaine.',
+    'Tu as utilisé tes répétitions de la semaine.',
   );
-  assert.equal(capSentence({ limit: 2, used: 1, remaining: 1 }), 'Il vous reste une répétition cette semaine.');
+  assert.equal(capSentence({ limit: 2, used: 1, remaining: 1 }), 'Il te reste une répétition cette semaine.');
   assert.match(capSentence({ limit: 3, used: 1, remaining: 2 }), /2 répétitions/);
 });
 
@@ -229,7 +229,7 @@ test('the result line reports coverage, never a score', () => {
     status: 'rehearsed',
     result: { outcome: 'partially_met', points_total: 3, points_covered: 1 },
   });
-  assert.equal(resultSentence(partial), 'Vous avez couvert 1 point sur 3.');
+  assert.equal(resultSentence(partial), 'Tu as couvert 1 point sur 3.');
   const none = rehearsal({
     status: 'rehearsed',
     result: { outcome: 'not_yet', points_total: 3, points_covered: 0 },
@@ -333,7 +333,7 @@ test('the declaration field is the av2 field, drawn 120px tall', () => {
   const screen = fs.readFileSync(path.join(HERE, 'RehearsalScreen.tsx'), 'utf8');
   const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/repetition.tsx'), 'utf8');
   assert.ok(screen.includes('label: copy.declare_label,'), 'the field is labelled');
-  assert.equal(FR.declare_label, 'Ce qui vous attend');
+  assert.equal(FR.declare_label, 'Ce qui t’attend');
   assert.ok(screen.includes('className="rp-declare"'), 'the field carries the page hook');
   assert.match(
     page,

@@ -155,8 +155,8 @@ test('validation: email, 8 characters, 72 bytes, and the one question', () => {
   }
 });
 
-test('the question is «Votre français ?» with five answers, A1 to C1 (WP-126)', () => {
-  assert.equal(SIGNUP_COPY.fr.level_question, 'Votre français ?');
+test('the question is «Ton français ?» with five answers, A1 to C1 (WP-126)', () => {
+  assert.equal(SIGNUP_COPY.fr.level_question, 'Ton français ?');
   assert.deepEqual(STARTING_POINTS, ['new', 'some', 'comfortable', 'confident', 'advanced']);
   assert.deepEqual(Object.values(STARTING_POINT_CEFR), ['A1', 'A2', 'B1', 'B2', 'C1']);
   // The scale ends at C1: never an ambiguous «C1+».

@@ -81,9 +81,9 @@ export type BandCheckCopy = {
 const FR: BandCheckCopy = {
   screen_aria: 'Vérification du lexique',
   kicker: 'Vérification du lexique · {band}',
-  intro_title: 'Ces mots, vous les connaissez déjà ?',
+  intro_title: 'Ces mots, tu les connais déjà ?',
   intro_lead:
-    '{n} mots du niveau {band}. Pour chacun, choisissez le sens — ou « Je ne sais pas ». Environ deux minutes.',
+    '{n} mots du niveau {band}. Pour chacun, choisis le sens — ou « Je ne sais pas ». Environ deux minutes.',
   intro_fine:
     'Il faut en reconnaître {needed} sur {n} pour valider le niveau — un seuil encore à l’essai. Ses mots ne reviendront que pour une vérification légère.',
   intro_top_down:
@@ -109,9 +109,9 @@ const FR: BandCheckCopy = {
   passed_title_one: '1 mot déjà acquis',
   passed_none_title: 'Niveau {band} validé',
   passed_lead: 'Ils reviendront pour une vérification légère dans les semaines qui viennent.',
-  passed_none_lead: 'Vous aviez déjà tous ses mots dans vos cartes.',
+  passed_none_lead: 'Tu avais déjà tous ses mots dans tes cartes.',
   score_line: '{correct} sur {total} reconnus.',
-  passed_missed_note: 'Les mots que vous n’avez pas reconnus restent dans le parcours normal.',
+  passed_missed_note: 'Les mots que tu n’as pas reconnus restent dans le parcours normal.',
   failed_title: '{correct} sur {total} reconnus',
   failed_lead:
     'Pas assez pour valider {band} d’un coup — il en fallait {needed}. Ces mots viendront dans le parcours normal, à leur rythme ; rien n’est perdu.',
@@ -120,23 +120,23 @@ const FR: BandCheckCopy = {
   next_down_lead: 'On descend d’un niveau : {band}.',
   passed_split: '{sampled} reconnus dans la vérification, {inferred} déduits du résultat.',
   inferred_note:
-    'Les mots déduits ({bands}) n’ont pas été vérifiés un à un : ils reviendront pour une vérification légère, et ceux que vous ne connaissez pas retourneront dans le parcours normal.',
+    'Les mots déduits ({bands}) n’ont pas été vérifiés un à un : ils reviendront pour une vérification légère, et ceux que tu ne connais pas retourneront dans le parcours normal.',
   paused_title: 'Assez pour aujourd’hui',
   paused_lead:
-    'Deux vérifications, c’est le maximum d’une visite. Reprenez avec {band} un autre jour : ce qui est fait est gardé.',
+    'Deux vérifications, c’est le maximum d’une visite. Reprends avec {band} un autre jour : ce qui est fait est gardé.',
   stop_here: 'M’arrêter ici',
   back_lexique: 'Retour au lexique',
   back_day: 'Continuer',
-  failed_open: 'La vérification n’a pas pu être ouverte. Réessayez dans un instant.',
-  failed_send: 'Vos réponses ne sont pas parties. Elles sont toujours là — réessayez.',
+  failed_open: 'La vérification n’a pas pu être ouverte. Réessaie dans un instant.',
+  failed_send: 'Tes réponses ne sont pas parties. Elles sont toujours là — réessaie.',
   retry: 'Réessayer',
   none_title: 'Rien à vérifier',
   none_lead: 'Les niveaux sous le vôtre sont déjà acquis.',
   entry_cta: 'Vérifier mon vocabulaire (2 min)',
   entry_lead_placement:
-    'Vous connaissez sans doute déjà une partie des mots des niveaux précédents. Une vérification rapide vous évite de les réapprendre.',
-  entry_lead_lexique: 'Commencez par {band} : un niveau validé compte pour ceux d’en dessous.',
-  entry_lead_resume: 'Votre vérification reprend à {band}.',
+    'Tu connais sans doute déjà une partie des mots des niveaux précédents. Une vérification rapide t’évite de les réapprendre.',
+  entry_lead_lexique: 'Commence par {band} : un niveau validé compte pour ceux d’en dessous.',
+  entry_lead_resume: 'Ta vérification reprend à {band}.',
 };
 
 const EN: BandCheckCopy = {
