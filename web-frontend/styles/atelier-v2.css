@@ -1642,7 +1642,7 @@
   margin: 0 auto;
   padding: 0 0 calc(16px + var(--phone-bottom-nav-space, 0px));
 }
-.av2.av2-home > .av2-tabbar.embedded { margin-top: auto; position: sticky; bottom: 0; }
+.av2.av2-home > .av2-tabbar.embedded { margin-top: auto; }
 .av2.av2-home:has(> .av2-tabbar.embedded) { padding-bottom: 0; }
 
 .av2 .av2-home__mast {
@@ -1845,7 +1845,13 @@
   z-index: 70;
   display: none;
 }
-.av2.av2-tabbar.embedded { display: grid; flex: 0 0 auto; }
+/* An embedded bar sits in the page's flow (no reserved strip under the content)
+   but stays pinned to the bottom edge while the page scrolls: on the Cahier the
+   flow ended 20,000px down and the four tabs were only reachable at the very
+   end (owner, 2026-10-14). Sticky rather than fixed, so the last row of content
+   still ends above the bar instead of under it. Under the sheet layer (60), so
+   an open sheet keeps its own actions on top. */
+.av2.av2-tabbar.embedded { display: grid; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 50; }
 @media (max-width: 760px) {
   .av2.av2-tabbar.fixed { display: grid; }
 }
