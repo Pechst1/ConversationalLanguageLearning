@@ -429,7 +429,7 @@
           ],
           "after": [
             {"kind": "panel", "id": "b.turn1.after", "lines": [
-              {"who": "camille_marchand", "say": {"a2": "Jeudi prochain, dix-huit heures.", "native": {"en": "Next Thursday, six o'clock.", "de": "Nächsten Donnerstag, achtzehn Uhr."}}}
+              {"who": "camille_marchand", "say": {"a2": "Jeudi prochain, dix-huit heures. Pour la visite, avec Solvel.", "native": {"en": "Next Thursday, six o'clock. For the visit, with Solvel.", "de": "Nächsten Donnerstag, achtzehn Uhr. Für die Besichtigung, mit Solvel."}}}
             ], "note": "In every route, Camille sets the visit. This is T2 Day B. Camille disagrees with nobody yet, but is precise, and precision is the start of their friction with the learner."}
           ]
         },
@@ -496,6 +496,14 @@
               ]}
             ]}
           ]
+        },
+        {
+          "kind": "panel",
+          "id": "b.r0",
+          "visual": "Closing time at the café. Toi answers with no words: takes the key ring from the table and goes to the street door of the building next door. The learner has said nothing yet, and nobody speaks for Toi.",
+          "location_id": "le_mistral",
+          "in_frame": ["toi"],
+          "silence": true
         },
         {
           "kind": "panel",

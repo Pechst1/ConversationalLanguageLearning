@@ -9115,6 +9115,31 @@ def _same_utterance(left: str, right: str) -> bool:
     return bool(folded_left) and folded_left == folded_right
 
 
+def scene_ledger_problems(reply_fr: str, payload: dict) -> list[str]:
+    """The scene ledger (``season.scene_ledger``) built from an actor payload, and the
+    problems it finds with ``reply_fr``: a settled question asked again, a fact the
+    world already fixed redefined, an order, number or address nobody mentioned."""
+
+    from app.services.season import scene_ledger
+
+    scene = payload.get("scene") or {}
+    history = [h for h in payload.get("history") or [] if isinstance(h, dict)]
+    spoken = [str(scene.get("opening_line_fr") or "")]
+    for panel in scene.get("panels") or []:
+        if isinstance(panel, dict):
+            spoken.extend(
+                str(line.get("text_fr") or "") for line in panel.get("dialogue") or [] if isinstance(line, dict)
+            )
+    for exchange in history:
+        spoken.append(str(exchange.get("character") or ""))
+    ledger = scene_ledger.build_ledger(
+        str(payload.get("learner_text") or ""),
+        spoken=spoken,
+        learner_before=[str(h.get("learner") or "") for h in history],
+    )
+    return scene_ledger.line_problems(reply_fr, ledger, context=" ".join(spoken))
+
+
 def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_checks: bool = True):
     """The ACTOR turn's guards. ``reply_checks`` off: the reply was already shown
     (the story lane re-validates a released reply), so its length and words are not
@@ -9146,6 +9171,12 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
                 "return it."
             ),
         )
+    if reply_checks:
+        # Root cause #145: the reply is held to the scene ledger (what the learner just
+        # settled, what the story already established, what nobody has said).
+        problems = scene_ledger_problems(turn.reply_fr, payload)
+        if problems:
+            raise StoryUnavailable("reply_breaks_scene_ledger", hint=" ".join(problems))
     suggestion = str((payload.get("scene") or {}).get("suggested_response_fr") or "")
     if len(suggestion.split()) >= 3 and _folded(suggestion) in _folded(turn.reply_fr):
         # WP-14F L-3: the reply recited the private suggested answer, handing over the

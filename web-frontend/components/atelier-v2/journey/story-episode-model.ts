@@ -313,14 +313,16 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
   });
 
   // The ending exists only once the server says the exchange has settled.
-  if (episode.resolution && (episode.resolution.text_fr || episode.resolution.summary_native)) {
+  // #168: `summary_native` is the engine's own recap of the scene («The learner says…»).
+  // It is internal state and is never printed as story text: only the French ending is.
+  if (episode.resolution && episode.resolution.text_fr) {
     stages.push({
       kind: 'resolution',
       key: `resolution:${episode.id}`,
       ordinal: stages.length + 1,
       character: 'toi',
       hookQuestion: String(episode.resolution.text_fr || '').trim(),
-      hookBeat: String(episode.resolution.summary_native || '').trim(),
+      hookBeat: '',
       tasks: [],
       ...(episode.page?.a_suivre_fr ? { aSuivre: String(episode.page.a_suivre_fr).trim() } : {}),
     });

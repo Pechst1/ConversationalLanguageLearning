@@ -83,6 +83,33 @@ test('the generated ending appears only once the server exposes a resolution', (
   assert.equal(empty.length, 2, 'an empty resolution is no resolution');
 });
 
+test('#168: the engine recap (summary_native) is never printed as story text', () => {
+  const recap =
+    "The notary's news was shared: the papers will take several weeks. The learner says they will have coffee with Lila, then go to Margaux.";
+  const stages = model.buildStoryStages({
+    ...episode,
+    status: 'completed',
+    resolution: { text_fr: 'Lila sourit.', summary_native: recap },
+  });
+  const ending = stages[stages.length - 1];
+  assert.equal(ending.kind, 'resolution');
+  assert.equal(ending.hookBeat, '');
+  assert.ok(!JSON.stringify(stages).includes('The learner'));
+  // A summary alone makes no ending.
+  const summaryOnly = model.buildStoryStages({
+    ...episode,
+    status: 'completed',
+    resolution: { text_fr: null, summary_native: recap },
+  });
+  assert.equal(summaryOnly.length, 2);
+  // The reader's hook filter drops a recap in any UI language and keeps story text.
+  const { isStateRecap, storyTextOnly } = require('../../feuilleton/reader/state-recap.ts');
+  assert.ok(isStateRecap(recap));
+  assert.ok(isStateRecap('Der Lernende sagt, er bleibt.'));
+  assert.equal(storyTextOnly(recap), '');
+  assert.equal(storyTextOnly('  Tu restes, alors.  '), 'Tu restes, alors.');
+});
+
 test('the server position is restored and clamped to real panels', () => {
   assert.equal(model.storyStartIndex(episode, 2), 1);
   assert.equal(model.storyStartIndex({ ...episode, panel_index: 9 }, 2), 1);

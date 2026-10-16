@@ -10,6 +10,7 @@
 // Relative, not `@/`: the reader's node tests load this model without the alias.
 import { castIdFor, type StageMood } from '../../../lib/cast-faces';
 import type { PortraitMood } from '../../../lib/onboarding-portraits';
+import { storyTextOnly } from './state-recap';
 
 export type ReaderScene = {
   id: string;
@@ -353,8 +354,8 @@ export function buildReaderStages(scene: ReaderScene | null | undefined): Reader
   });
 
   const hook = sceneHook(scene);
-  const hookQuestion = String(hook?.unresolved_question || hook?.teaser || '').trim();
-  const hookBeat = String(hook?.text || '').trim();
+  const hookQuestion = storyTextOnly(hook?.unresolved_question || hook?.teaser);
+  const hookBeat = storyTextOnly(hook?.text);
   const closing = rewardMode ? null : finalSceneTask(scene, panelTaskIds);
 
   if (!stages.length && !closing && !hookQuestion && !hookBeat) return stages;

@@ -28,6 +28,7 @@ from app.services import story_correspondence as courrier
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
+from app.services.correction_guard import drops_question, unlisted_changes
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.glosses import (
@@ -43,6 +44,7 @@ from app.services.learner_copy import learner_text
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
+from app.services.season import scene_ledger
 from app.services.serial_arc_planner import cefr_generation_profile
 from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
 from app.services.vocabulary_credit import (
@@ -3904,7 +3906,14 @@ class MissionCorrectionService:
             candidate = ""
             candidate_words = []
         if candidate and (not learner_words or minimum_words <= len(candidate_words) <= maximum_words):
-            return candidate
+            # Root cause #145 / #133: the corrected form is what the learner copies, so it
+            # may differ from their text only where an erratum says so, and it keeps
+            # their question a question.
+            if not unlisted_changes(submitted, candidate, correction.get("errata") or []) and not drops_question(
+                submitted, candidate
+            ):
+                return candidate
+            candidate = ""
 
         repaired = submitted
         for erratum in correction.get("errata") or []:
@@ -4183,6 +4192,47 @@ class MissionCorrectionService:
                 flags=re.IGNORECASE,
             )
 
+        # #133: a dropped apostrophe («c est», «Qu est-ce que») and «a» for «à» before a
+        # clock time are listed as errata of their own, so the corrected form never
+        # makes a change the notes do not name.
+        elision = re.compile(r"(?<![\w'])(qu|[cdjlmnst])\s+(?=[aeiouyhàâéèêîôû])", re.IGNORECASE)
+        for match in list(elision.finditer(text)):
+            tail = re.match(r"[\w-]+", text[match.end():])
+            wrong_fragment = f"{match.group(1)} {tail.group(0)}" if tail else match.group(0).strip()
+            fixed_fragment = f"{match.group(1)}'{tail.group(0)}" if tail else match.group(1)
+            errata.append(
+                {
+                    "display_label": learner_text("mission.rule_elision_label", language),
+                    "learner_text": wrong_fragment,
+                    "corrected_target": fixed_fragment,
+                    "why_wrong": learner_text("mission.rule_elision_why", language),
+                    "repair_hint": learner_text("mission.rule_elision_hint", language),
+                    "severity": 1,
+                    "recurring": False,
+                    "task_error_type": "orthography",
+                    "external_id": "FR_ORTHO_ELISION_APOSTROPHE",
+                }
+            )
+        corrected = elision.sub(lambda match: f"{match.group(1)}'", corrected)
+        clock = re.compile(
+            r"(?<![\w'])(a)\s+(?=(?:\d{1,2}\s?(?:h|heures?)\b|[a-zéèû-]+\s+heures?\b))", re.IGNORECASE
+        )
+        for match in list(clock.finditer(text)):
+            errata.append(
+                {
+                    "display_label": learner_text("mission.rule_a_accent_label", language),
+                    "learner_text": match.group(0).strip() + " " + (re.match(r"[\w-]+", text[match.end():]) or [""])[0],
+                    "corrected_target": "à " + (re.match(r"[\w-]+", text[match.end():]) or [""])[0],
+                    "why_wrong": learner_text("mission.rule_a_accent_why", language),
+                    "repair_hint": learner_text("mission.rule_a_accent_hint", language),
+                    "severity": 1,
+                    "recurring": False,
+                    "task_error_type": "orthography",
+                    "external_id": "FR_ORTHO_A_ACCENT_TIME",
+                }
+            )
+        corrected = clock.sub(lambda match: preserve_case(match.group(1), "à") + " ", corrected)
+
         return errata, corrected.strip()
 
     def _merge_deterministic_errata(
@@ -4210,7 +4260,14 @@ class MissionCorrectionService:
                 str(item.get("corrected_target") or "").casefold(),
                 str(item.get("task_error_type") or ""),
             )
-            if key not in existing_keys:
+            # The provider already noted the same fragment in its own words (#133): one card.
+            squash = lambda value: _normalized_repair_text(value).replace(" ", "").replace("'", "")  # noqa: E731
+            already = bool(squash(item.get("learner_text"))) and any(
+                squash(item.get("learner_text")) in squash(other.get("learner_text"))
+                and squash(item.get("corrected_target")) in squash(other.get("corrected_target"))
+                for other in existing
+            )
+            if key not in existing_keys and not already:
                 existing.append(item)
                 existing_keys.add(key)
         merged["errata"] = existing
@@ -6479,6 +6536,8 @@ class MissionConversationService:
             "one warm, satisfying closing line that confirms the outcome and the next concrete step, and end with «Bonne journée !» or a "
             "natural sign-off — do NOT ask any further questions. If one or more goals are still open, steer toward the most important "
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
+            "Answer what the other person actually wrote: take a clear yes or no as given and never ask it again, and do not invent "
+            "orders, parcels, tracking or reference numbers, or ask for their address or other personal data. "
             "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
         )
         try:
@@ -6491,7 +6550,45 @@ class MissionConversationService:
                 request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
             )
             _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
-            return result.content
+            reply = result.content
+            # Root cause #145 / #114: the reply is held to the scene ledger. A parcel, a
+            # tracking number or a request for the learner's address that nobody
+            # mentioned, or the question the learner just answered asked again, is
+            # retried once with the reason, then replaced by the honest fallback.
+            ledger = scene_ledger.build_ledger(
+                user_text,
+                spoken=[
+                    str(turn.text or "")
+                    for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
+                    if turn.role != "user"
+                ],
+            )
+            context_text = (
+                f"{mission.brief or ''} {mission.source_snapshot or ''} "
+                f"{messenger.get('opening_message') or ''}"
+            )
+            problems = scene_ledger.line_problems(reply, ledger, context=context_text)
+            if problems:
+                retry = self.llm.generate_chat_completion(
+                    messages=[
+                        *messages,
+                        {"role": "assistant", "content": reply},
+                        {
+                            "role": "user",
+                            "content": "(Scene note, not part of the story: " + " ".join(problems) + " Reply again in character.)",
+                        },
+                    ],
+                    system_prompt=system,
+                    temperature=0.5,
+                    max_tokens=220,
+                    model=settings.OPENAI_MISSION_FAST_MODEL,
+                    request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                )
+                _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=retry, purpose="character_reply_retry", mission_id=getattr(mission, "id", None))
+                reply = retry.content
+                if scene_ledger.line_problems(reply, ledger, context=context_text):
+                    return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+            return reply
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
