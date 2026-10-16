@@ -1153,7 +1153,9 @@ def _session_response(
         )
         # WP-103: every item's goal in the learner's language, no retired frame, no
         # server-only key (the classify follow-up's).
-        payload = public_payload(payload, user_chrome_language(user))
+        payload = public_payload(
+            payload, user_chrome_language(user), getattr(user, "native_language", None)
+        )
         if user_chrome_language(user) == "fr":
             from app.services.grammar_units import french_rule
             payload["rule_panel"] = {

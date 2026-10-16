@@ -84,12 +84,14 @@ from app.services.journey_day_shapes import (
     shape_allows_format,
 )
 from app.services.scene_items import (
+    CLOZE_INSTRUCTION,
     answer_at_band,
     draft_of,
     lexicon_of,
     line_meanings,
     meaning_of,
     scene_lines,
+    with_meaning,
 )
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -3561,6 +3563,19 @@ def practice_entries(
     )
 
 
+#: The written cloze's goal: how many words the gap holds.
+_GAP_GOAL_ONE = {
+    "en": "Write the missing word.",
+    "de": "Schreib das fehlende Wort.",
+    "fr": "Écris le mot manquant.",
+}
+_GAP_GOALS = {
+    "en": "Write the {count} missing words.",
+    "de": "Schreib die {count} fehlenden Wörter.",
+    "fr": "Écris les {count} mots manquants.",
+}
+
+
 def practice_task(
     task_type: str,
     *,
@@ -3587,11 +3602,22 @@ def practice_task(
             match = re.search(r"(?<!\w)" + re.escape(label) + r"(?!\w)", sentence, re.IGNORECASE)
             if match and 3 <= len(sentence.split()) <= 22:
                 prompt = sentence[:match.start()] + "…" + sentence[match.end():]
+                # NATIVE-MEANING (owner, 2026-10-16): «Écrivez les mots manquants»
+                # over a gap many words fit was guesswork. The goal says how many
+                # words are missing and, when the scene translated the line, what
+                # it means (a B1 scene does not: the day's build translates it,
+                # ``recall_meanings``).
+                goal = _localized(_GAP_GOALS, scenario.control_language).format(
+                    count=len(label.split())
+                ) if len(label.split()) > 1 else _localized(_GAP_GOAL_ONE, scenario.control_language)
+                meaning = meaning_of(line_meanings(scenario), sentence)
                 return RecallTask(
-                    task_type="short_answer", instruction_native="Complétez la phrase de la scène.",
+                    task_type="short_answer",
+                    instruction_native=_localized(CLOZE_INSTRUCTION, scenario.control_language),
                     prompt_fr=prompt, options=[], target=target, optional=optional,
                     accepted_answers=[label], solution_fr=label, estimated_seconds=0,
-                    goal_native="Écrivez les mots manquants.", source_fr=prompt,
+                    goal_native=with_meaning(goal, meaning, scenario.control_language) if meaning else goal,
+                    source_fr=prompt,
                 )
         return None
     if task_type == str(RecallFormat.TILES) and target.kind is not TargetKind.ERROR:

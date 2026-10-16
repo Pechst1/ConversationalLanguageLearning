@@ -143,6 +143,7 @@ from app.services.journey_latency import (
 )
 from app.services.journey_learning import recall_learner_text, record_daily_practice_streak
 from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
+from app.services.recall_meanings import apply_meaning, native_meanings
 from app.services.revue.policy import revue_day_allowed_for
 from app.services.seals import edition_no_for, mastery_today_for
 from app.services.spoken_reply import repeat_line_for
@@ -3735,7 +3736,10 @@ class DailyJourneyService:
                 result = bind_journey(self.db, user=user, journey=fresh, brief=result)
             except StoryUnavailable as exc:
                 raise _GenerationFailure(str(exc), fallback_eligible=True) from exc
-        self._persist_plan(fresh, result, plan, input_mode, because=because, fallback=fallback)
+        self._persist_plan(
+            fresh, result, plan, input_mode, because=because, fallback=fallback,
+            native_language=getattr(user, "native_language", None),
+        )
         # WP-93: the «Lecture» remembers what it offers; «coulisses» is asked
         # for now that today's scene is bound (the story lane writes it).
         self._bind_reading_step(user, fresh, result, reading)
@@ -4796,10 +4800,27 @@ class DailyJourneyService:
         *,
         because: dict[str, Any] | None = None,
         fallback: dict[str, Any] | None = None,
+        native_language: Any = None,
     ) -> None:
         for existing in list(journey.steps):
             journey.steps.remove(existing)
         self.db.flush()
+
+        # NATIVE-MEANING (owner, 2026-10-16): a production drill with no meaning
+        # to aim for quotes its sentence in the learner's own language.
+        meanings = (
+            native_meanings(
+                [
+                    _recall_task_to_json(planned.private_task)
+                    for planned in plan.steps
+                    if StepKind(planned.kind) is StepKind.RECALL
+                    and isinstance(planned.private_task, RecallTask)
+                ],
+                native_language,
+            )
+            if native_language
+            else {}
+        )
 
         first_step_id: uuid.UUID | None = None
         for planned in sorted(plan.steps, key=lambda item: item.ordinal):
@@ -4813,6 +4834,12 @@ class DailyJourneyService:
                 private_task["scenario_brief"] = _brief_to_json(brief)
             elif kind is StepKind.RECALL and isinstance(planned.private_task, RecallTask):
                 private_task["recall_task"] = _recall_task_to_json(planned.private_task)
+                goal = apply_meaning(
+                    private_task["recall_task"], meanings, brief.control_language
+                ) if meanings else None
+                if goal:
+                    private_task["recall_task"]["goal_native"] = goal
+                    public_prompt["goal_native"] = goal
             elif kind is StepKind.RESPOND and isinstance(
                 planned.private_task, ResponseTask
             ):
