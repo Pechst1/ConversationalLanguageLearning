@@ -1762,7 +1762,8 @@ def _approved(
                 sized = {"max_tokens": budget} if budget else {}
                 # The workers do not see the ahead-of-time context: the route goes with them.
                 routed = {"route": route} if any(route := story_route(schema)) else {}
-                routed["ahead"] = _AHEAD_OF_TIME.get()
+                if _AHEAD_OF_TIME.get():
+                    routed["ahead"] = True
 
                 def draw(index: int, request=request, collected=collected, sized=sized, routed=routed):
                     return _json_call(
