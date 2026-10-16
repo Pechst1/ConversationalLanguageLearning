@@ -417,11 +417,16 @@ export function stickerFor(kind: string | null | undefined): FirstStepKey | null
 }
 
 // ---------------------------------------------------------------------------
-// The first day's route: story → La Forge → words
+// The first day's route: story → words → La Forge
 // ---------------------------------------------------------------------------
 
 export type RouteStage = 'story' | 'forge' | 'words';
-export const ROUTE_STAGES: readonly RouteStage[] = ['story', 'forge', 'words'];
+/**
+ * #152: the order is the server's day plan (scene, words, grammar), written here
+ * in the route's own names (story, words, forge). `day-plan.test.js` holds the
+ * two to each other.
+ */
+export const ROUTE_STAGES: readonly RouteStage[] = ['story', 'words', 'forge'];
 
 type RouteMemory = { date: string; done: RouteStage[] };
 

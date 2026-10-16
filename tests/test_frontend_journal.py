@@ -89,6 +89,8 @@ def test_the_component_never_fetches_the_scene_from_a_second_endpoint(tab: str):
         "writeJournalEntry",
         "skipJournalEntry",
         "answerJournalFollowup",
+        # Re-checks the stored paragraph; returns the same gated envelope.
+        "retryJournalCorrection",
     }, calls
 
 
@@ -195,7 +197,24 @@ def test_an_ungraded_entry_says_so_and_is_never_a_verdict(tab: str, french: str)
     assert "La correction n’a pas pu être faite. Votre texte est gardé tel quel." in french
     # The ungraded branch renders a Notice, not the correction block.
     unavailable = tab.split("entry.correction?.assessment_status === 'unavailable' ? (")[1]
-    assert unavailable.split(") : (")[0].strip().startswith("<Notice")
+    assert unavailable.split(") : (")[0].strip().removeprefix("<>").strip().startswith("<Notice")
+
+
+def test_a_failed_correction_shows_its_reason_and_a_retry_control(tab: str, french: str):
+    """Done-when of #170: correction call failing -> retry control present."""
+    unavailable = tab.split("entry.correction?.assessment_status === 'unavailable' ? (")[1]
+    branch = unavailable.split(") : (")[0]
+    assert "correctionFailureReason(entry, t)" in branch
+    assert "canRetryCorrection(entry)" in branch
+    assert "api.retryJournalCorrection(entry.id)" in tab
+    # A scene with nothing to check against has nothing a retry could change.
+    assert "failure_reason !== 'no_check_target'" in tab
+    for line in (
+        "Le vérificateur a mis trop de temps à répondre.",
+        "Le vérificateur a renvoyé une réponse inutilisable.",
+        "Relancer la correction",
+    ):
+        assert line in french
 
 
 def test_a_failed_load_is_a_retryable_french_state_not_an_empty_screen(tab: str, french: str):

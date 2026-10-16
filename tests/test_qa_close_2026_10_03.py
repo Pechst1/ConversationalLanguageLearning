@@ -123,21 +123,24 @@ def test_the_french_please_line_is_in_french_with_a_translation_only_below_b1():
     assert not re.search(r"\b(tu|vous|te|toi)\b", FRENCH_PLEASE["fr"], re.IGNORECASE)
 
 
-# -- 3. the French task line says «vous» ---------------------------------------------
+# -- 3. the French task line says «tu» (#144) ------------------------------------
 
-_TU = re.compile(r"\b(tu|te|toi|ton|ta|tes|t')\b|^(Dis|Choisis|Décide|Lis|Touche|Montre|Convaincs|Ajoute|Réponds|Demande)\b")
+_VOUS = re.compile(r"\b(vous|votre|vos)\b|^\w+ez\b")
 
 
-def test_every_french_task_line_says_vous_like_the_chrome():
+def test_every_french_task_line_says_tu():
+    """Vincent's decision (#144): the app says tu to the learner in French. The task
+    lines were vous to match the chrome; the chrome follows the same decision."""
+
     tasks = json.loads((ROOT / "app/data/season/s1/tasks.json").read_text(encoding="utf-8"))["tasks"]
-    tu = {key: row["fr"] for key, row in tasks.items() if _TU.search(row.get("fr") or "")}
-    assert not tu, tu
+    vous = {key: row["fr"] for key, row in tasks.items() if _VOUS.search(row.get("fr") or "")}
+    assert not vous, vous
 
 
-def test_the_c1_objective_reads_vous():
+def test_the_c1_objective_reads_tu():
     page = _page(band="C1", language="fr")
     first = next(m for m in page["movements"] if m.get("kind") == "turn")
-    assert first["task_native"] == "Dites qui vous êtes et pourquoi vous êtes là."
+    assert first["task_native"] == "Dis qui tu es et pourquoi tu es là."
 
 
 # -- 4. a test-out's free use must be acceptable French ------------------------------

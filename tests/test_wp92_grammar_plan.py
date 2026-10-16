@@ -5,13 +5,15 @@ Fake providers only, never a paid call. What these tests pin:
 * the director receives ``grammar_plan`` {introduce, weave, allowed, avoid} chosen before
   it writes (the unit the Règle step will pick), without the detectors' regexes; the actor
   never receives it, and the stored context keeps its provenance only;
-* the validator counts the new form in the cast's lines (≥ 2) and asks for a question that
-  invites it; one hinted retry, then the scene is ACCEPTED with ``woven: false``;
+* the validator counts the new form in the cast's lines (once is enough since the story
+  plan's Phase 1, and the question to the learner is never built around it); one hinted
+  retry, then the scene is ACCEPTED with ``woven: false``;
 * a 14-day run with a director that sometimes forgets: ≥ 80 % of introduction days carry
-  the form ≥ 2 times and an inviting question;
+  the form;
 * «Rayons X» marks per line, with offsets into ``text_fr``; ``grammar_focus`` on the scene;
-* five «mots à placer» from the band's lemma list, and ``placed_lemmas`` /
-  ``recycled_lemmas`` stored, the reuse counted on the scene's cost row.
+* the band's unmet words are read from the finished page (the director never sees them),
+  and ``placed_lemmas`` / ``recycled_lemmas`` stored, the reuse counted on the scene's
+  cost row.
 """
 from __future__ import annotations
 
@@ -42,8 +44,14 @@ one_exchange = story.one_exchange
 DAY0 = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
 
 
+#: A word the compliant director happens to use; tests that read ``placed_lemmas`` make
+#: it one of the learner's unmet band words.
+PLACED_WORD = "clé"
+
+
 def weave(value: dict, source: dict) -> dict:
-    """A compliant director: the new form said twice, asked for, the words placed."""
+    """A compliant director: the new form said in the dialogue, and a line with a word
+    the learner has not met (nobody asked for it: ``word_outcome`` finds it)."""
 
     value = deepcopy(value)
     plan = source.get("grammar_plan") or {}
@@ -63,16 +71,25 @@ def weave(value: dict, source: dict) -> dict:
             {"character_id": speaker, "text_fr": second, "mood": "neutral", "text_native": "[en] 2"}
         ]
         value["suggested_response_fr"] = examples[-1]
-    mots = list(source.get("mots_a_placer") or [])
-    if mots:
-        value["panels"][1]["dialogue"].append(
-            {
-                "character_id": speaker,
-                "text_fr": f"Tu veux {mots[0]} ?",
-                "mood": "neutral",
-                "text_native": "[en] 3",
-            }
-        )
+    value["panels"][1]["dialogue"].append(
+        {
+            "character_id": speaker,
+            "text_fr": f"Tu veux la {PLACED_WORD} ?",
+            "mood": "neutral",
+            "text_native": "[en] 3",
+        }
+    )
+    return value
+
+
+def forget(value: dict) -> dict:
+    """A director that forgets the form: no dialogue line carries any grammar form
+    (the base draft's «Vous avez une idée ?» says an article once, which is enough)."""
+
+    value = deepcopy(value)
+    for panel in value["panels"]:
+        for line in panel.get("dialogue") or []:
+            line["text_fr"] = "Bonjour !"
     return value
 
 
@@ -90,16 +107,18 @@ class WeavingProvider(story.FakeProvider):
         if data["output_schema"]["title"] == "SceneDraft":
             number = self.scene_calls
             self.scene_calls += 1
-            if number not in self.forget:
-                source = data["data"]
-                previous = self.transform
-                self.transform = lambda schema, output: previous(
-                    schema, weave(output, source) if schema == "SceneDraft" else output
-                )
-                try:
-                    return super().generate_chat_completion(messages, **kwargs)
-                finally:
-                    self.transform = previous
+            source = data["data"]
+            change = (lambda output: forget(output)) if number in self.forget else (
+                lambda output: weave(output, source)
+            )
+            previous = self.transform
+            self.transform = lambda schema, output: previous(
+                schema, change(output) if schema == "SceneDraft" else output
+            )
+            try:
+                return super().generate_chat_completion(messages, **kwargs)
+            finally:
+                self.transform = previous
         return super().generate_chat_completion(messages, **kwargs)
 
 
@@ -159,7 +178,7 @@ def test_the_director_gets_the_plan_before_writing_and_never_the_regex(db_sessio
     assert "A2" not in json.dumps(plan["allowed"])
     assert plan["avoid"], "above-band structures are named"
     assert "detectors" not in json.dumps(plan), "the regexes stay server-side"
-    assert len(source["mots_a_placer"]) == engine.MOTS_COUNT
+    assert "mots_a_placer" not in source, "the director never sees the band's unmet words"
 
     stored = brief.story_context["source"]["grammar_plan"]
     assert stored == {
@@ -213,7 +232,7 @@ def test_a_forgotten_form_is_retried_once_with_a_named_hint(db_session, plan_on,
     assert len(sources) == 2
     hint = " ".join(sources[1]["previous_rejections"])
     assert "grammar_not_woven" in hint and "grammar_plan.introduce" in hint
-    assert "opening_line_fr" in hint
+    assert "never in the question to the learner" in hint
     assert brief.story_context["grammar"]["focus"]["woven"] is True
 
 
@@ -243,8 +262,8 @@ def test_a_unit_without_a_regex_is_not_measured():
 
 
 def test_the_fourteen_day_run_weaves_the_new_form(db_session, plan_on, weaver):
-    """Done-when: ≥ 80 % of introduction days carry the form ≥ 2 times and a question
-    that invites it — with a director that forgets on every third day's first draft."""
+    """Done-when: ≥ 80 % of introduction days carry the form — with a director that
+    forgets on every third day's first draft."""
 
     user = _learner(db_session)
     introductions: list[dict] = []
@@ -264,10 +283,7 @@ def test_the_fourteen_day_run_weaves_the_new_form(db_session, plan_on, weaver):
             concept_life.mark_introduced(db_session, user=user, concept_id=int(focus["unit_id"]), now=now)
             db_session.commit()
     assert len(introductions) >= 4, "Régulier introduces two units a week"
-    woven = [
-        g for g in introductions
-        if g["focus"]["woven"] and g["uses"] >= engine.GRAMMAR_MIN_USES and g["invited"]
-    ]
+    woven = [g for g in introductions if g["focus"]["woven"] and g["uses"] >= engine.GRAMMAR_MIN_USES]
     assert len(woven) / len(introductions) >= 0.8
     assert forgotten_days and any(
         "grammar_not_woven" in " ".join(source.get("previous_rejections") or [])
@@ -293,6 +309,10 @@ def test_the_bound_scene_carries_marks_focus_and_words(
             "lexicon_history": ["pluie", "parapluie"],
             "drilled_words": [],
         },
+    )
+    # The learner's unmet band words, most frequent first: the page uses the first one.
+    monkeypatch.setattr(
+        engine, "mots_a_placer", lambda db, user, context, limit=5: [PLACED_WORD, "poche", "sac"]
     )
     d = story.driver(assembled_client, db_session)
     d.create()
@@ -321,15 +341,14 @@ def test_the_bound_scene_carries_marks_focus_and_words(
             marked += len(got)
     assert marked >= engine.GRAMMAR_MIN_USES
 
-    mots = _scene_sources(weaver)[-1]["mots_a_placer"]
-    assert scene.script_payload["placed_lemmas"] == [mots[0]]
+    assert scene.script_payload["placed_lemmas"] == [PLACED_WORD]
     assert scene.script_payload["recycled_lemmas"] == ["affiche", "pluie"]
     cost = db_session.scalar(
         select(PilotEvent).where(
             PilotEvent.user_id == d.user_id, PilotEvent.event_type == "journey_story_scene_cost"
         )
     )
-    assert cost.payload["word_reuse"] == {"offered": 5, "placed": 1, "recycled": 2, "pool": 3}
+    assert cost.payload["word_reuse"] == {"placed": 1, "recycled": 2, "pool": 3}
     assert cost.payload["grammar"]["woven"] is True
     assert cost.payload["grammar"]["uses"] >= 2
 

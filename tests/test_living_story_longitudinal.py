@@ -83,14 +83,12 @@ OBJECTIVES = [
 ]
 
 
-# WP-59: from B1 an objective is a move, not a sentence. Four different moves, so the
-# suffix never makes two days' objectives read as the same situation.
-UPPER_BAND_MOVES = [
-    " Give your reason, and propose an alternative if you cannot.",
-    " Explain what worries you about it, then name a condition.",
-    " Say why it matters to you and offer one concrete plan.",
-    " Take a position, concede one point, and hold your line.",
-]
+# WP-59: from B1 the answer is a move, not a sentence. Since 15 Oct 2026 the task line is
+# at most twelve words at every band and no answer has a floor; this is a natural one.
+UPPER_BAND_ANSWER = (
+    "Je peux apporter les affiches samedi, mais seulement le matin, parce que je "
+    "travaille l'après-midi."
+)
 
 # WP-17: the engine rejects a third consecutive scene with the same (character,
 # location) pair, and a repeated objective for a pair it has already used.
@@ -328,13 +326,7 @@ class ScriptedProvider:
             "title_fr": f"Le quartier {n}",
             "premise_fr": PREMISES[n % len(PREMISES)],
             "setup_native": "A small neighborhood question needs an answer.",
-            # WP-59: from B1 an objective is a move, not a sentence; the fixture grows one.
-        "objective_native": OBJECTIVES[n % len(OBJECTIVES)]
-        + (
-            UPPER_BAND_MOVES[n % len(UPPER_BAND_MOVES)]
-            if str(context.get("level") or "") in ("B1", "B2", "C1")
-            else ""
-        ),
+            "objective_native": OBJECTIVES[n % len(OBJECTIVES)],
             "objective_semantics": "Express an offer, a refusal or a changed plan.",
             "character_id": speaker,
             "location_id": location,
@@ -369,7 +361,10 @@ class ScriptedProvider:
                 *EXTRA_PANELS,
             ],
             "opening_line_fr": "Vous pouvez nous aider ?",
-            "suggested_response_fr": "Je peux apporter les affiches samedi.",
+            # WP-59: from B1 the answer is a move; the fixture's answer grows one.
+            "suggested_response_fr": UPPER_BAND_ANSWER
+            if str(context.get("level") or "") in ("B1", "B2", "C1")
+            else "Je peux apporter les affiches samedi.",
             "hint_native": "Say what you could bring.",
             "translation_native": "Can you help us?",
             "capability_key": None,

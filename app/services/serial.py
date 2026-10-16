@@ -26,7 +26,7 @@ from app.services.graphic_novel import (
     scene_matches_current_contract,
 )
 from app.services.llm_service import LLMService
-from app.services.missions import MissionScheduler, reframe_slim_payload
+from app.services.missions import MissionScheduler, reframe_slim_payload, register_kind
 from app.services.revue import feuilleton_bridge
 from app.services.revue.dossier import EditorialDossier
 from app.services.serial_arc_planner import (
@@ -2092,7 +2092,7 @@ class SerialThreadService:
                 ],
             }
         if mission_format == "email_formal":
-            formal = "vous" in register.lower() or "formal" in register.lower()
+            formal = register_kind(register) == "formal"
             salutation = "Madame, Monsieur," if formal else f"Bonjour {contact},"
             return {
                 "kind": "email_formal",

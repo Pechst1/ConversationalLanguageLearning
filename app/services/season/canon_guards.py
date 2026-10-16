@@ -49,10 +49,32 @@ def issue_class(issue: str) -> str:
     return CORRECTNESS if _CORRECTNESS_ISSUE.search(str(issue or "")) else STORYTELLING
 
 
+#: Phase 1: the rubric items that read the page as its reader will (``StoryReview``).
+#: Failing one is a judgement on the telling, never a canon defect. (``moves_on`` is
+#: not refused for yet; when it is, a refusal for it alone is storytelling too.)
+READER_ITEMS = ("reads_like_people", "one_plain_question", "moves_on")
+#: The other items the verdict refuses for besides the correctness two
+#: (``spoils_next_tentpole``, ``honours_choices``).
+_STORY_ITEMS = ("meaningful_change", "in_character", "obstacle_faced")
+
+
+def _reader_only(review: Any) -> bool:
+    """The refusal fails a reader item and no other item the verdict reads."""
+
+    return all(getattr(review, item, True) for item in _STORY_ITEMS) and not all(
+        getattr(review, item, True) for item in READER_ITEMS
+    )
+
+
 def review_class(review: Any | None, issues: list[str] | None = None) -> str:
     """The class of a refusal: correctness when the rubric says the page contradicts
     the choices or spoils a tentpole, or when any issue names a correctness defect;
     storytelling otherwise (no change, the obstacle off the page, weak stakes).
+
+    A refusal for the reader items alone (Phase 1) is storytelling, whatever words its
+    issues use: «the task contradicts the question» names no canon defect, and every
+    deterministic correctness guard (register, flag holder, forbidden reveals) has
+    passed before the critic reads a draft.
 
     ``review`` is a :class:`~app.services.season.director.StoryReview` or ``None``
     (the offline replay has only the recorded issue sentences)."""
@@ -61,6 +83,8 @@ def review_class(review: Any | None, issues: list[str] | None = None) -> str:
         getattr(review, "spoils_next_tentpole", False) or not getattr(review, "honours_choices", True)
     ):
         return CORRECTNESS
+    if review is not None and _reader_only(review):
+        return STORYTELLING
     texts = list(issues if issues is not None else getattr(review, "issues", None) or [])
     return CORRECTNESS if any(issue_class(text) == CORRECTNESS for text in texts) else STORYTELLING
 

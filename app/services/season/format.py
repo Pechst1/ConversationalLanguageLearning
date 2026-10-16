@@ -536,6 +536,23 @@ class Required(_Model):
     by_day: int = Field(ge=1)
 
 
+class DayBeat(_Model):
+    """One generated day of a gap, planned: the premise it stages and the change it
+    makes (story plan, 2026-10-15). The director still writes the page; it no longer
+    has to invent what moves."""
+
+    #: The gap day (1-based).
+    day: int = Field(ge=1)
+    premise: str = Field(min_length=1)
+    #: The change, «before → after», in plain words.
+    before: str = Field(min_length=1)
+    after: str = Field(min_length=1)
+    #: A small extra the page may carry if it fits (a glimpse, a running gag).
+    also: str = ""
+    #: Where the «À suivre…» points.
+    hook: str = ""
+
+
 class Gap(_Model):
     id: str = Field(pattern=r"^g[1-9]$")
     number: int = Field(ge=1, le=9)
@@ -552,6 +569,9 @@ class Gap(_Model):
     establish: list[str] = Field(default_factory=list)
     #: Plot facts, by flag, the director is told (e.g. by ``s1.fire_photo``).
     by_flag: dict[str, dict[str, str]] = Field(default_factory=dict)
+    #: The day plan: one beat per generated day. A gap without one leaves the day's
+    #: premise to the director (``required`` still holds either way).
+    days: list[DayBeat] = Field(default_factory=list)
 
 
 class CastMember(_Model):
@@ -711,6 +731,35 @@ def _check_tentpole(season: Season, tentpole: Tentpole, *, locations: set[str] |
     return problems
 
 
+def _check_day_plan(season: Season, gap: Gap, premise_ids: set[str]) -> list[str]:
+    """A gap's day plan: real premises, one beat a day inside the gap, each premise
+    once, and every required moment planned inside its own window."""
+
+    if not gap.days:
+        return []
+    problems: list[str] = []
+    length = next((segment.days for segment in season.segments if segment.id == gap.id), None)
+    days = [beat.day for beat in gap.days]
+    if len(set(days)) != len(days):
+        problems.append(f"{gap.id}: the day plan has two beats on one day")
+    premises = [beat.premise for beat in gap.days]
+    if len(set(premises)) != len(premises):
+        problems.append(f"{gap.id}: the day plan stages a premise twice")
+    for beat in gap.days:
+        if beat.premise not in premise_ids:
+            problems.append(f"{gap.id}: day {beat.day} plans {beat.premise!r}, which is not a premise")
+        if length is not None and beat.day > length:
+            problems.append(f"{gap.id}: day {beat.day} is past the gap's {length} days")
+    planned = {beat.premise: beat.day for beat in gap.days}
+    for need in gap.required:
+        day = planned.get(need.premise)
+        if day is None or not need.from_day <= day <= need.by_day:
+            problems.append(
+                f"{gap.id}: required {need.premise!r} is not planned inside days {need.from_day}-{need.by_day}"
+            )
+    return problems
+
+
 def validate_season(season: Season, *, locations: set[str] | None = None) -> list[str]:
     """Every cross-reference a season file makes, checked. Empty means it holds."""
 
@@ -735,6 +784,7 @@ def validate_season(season: Season, *, locations: set[str] | None = None) -> lis
         for need in gap.required:
             if need.premise not in premise_ids:
                 problems.append(f"{gap.id}: required premise {need.premise!r} is not a premise")
+        problems.extend(_check_day_plan(season, gap, premise_ids))
         for premise in gap.premises:
             unknown = cond_flags(premise.when) - known_flags
             if unknown:

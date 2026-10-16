@@ -64,6 +64,9 @@ class JournalCorrectionView(BaseModel):
     assessment_truncated: bool = False
     verdict: str | None = None
     corrected_answer: str = ""
+    #: Only when the check did not happen: 'timeout' | 'model_error' |
+    #: 'no_check_target'. The last one cannot be retried.
+    failure_reason: str | None = None
     explanation_language: str | None = None
     foreground: dict | None = None
     errata: list[dict] = Field(default_factory=list)
@@ -246,6 +249,22 @@ def write_entry(
             detail="Écrivez d’abord quelques phrases.",
         )
     entry = JournalService(db).write(current_user, entry, text=payload.text)
+    return _envelope(db, current_user, entry)
+
+
+@router.post("/{entry_id}/retry", response_model=JournalEnvelope)
+def retry_correction(
+    entry_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> JournalEnvelope:
+    """Run the French check again on a paragraph whose check failed.
+
+    No body: the stored text is what gets checked. A no-op on any entry whose
+    check already succeeded, so a double tap buys one call.
+    """
+    entry = _load(db, current_user, entry_id)
+    entry = JournalService(db).retry_correction(current_user, entry)
     return _envelope(db, current_user, entry)
 
 

@@ -1,13 +1,20 @@
 """N1 — what the learner decides on a generated day stays decided.
 
 Connects :mod:`app.services.season.consequences` to the season's generated
-days, behind ``SEASON_AGENCY_PILOT`` (off by default). Every generated day can
-carry a contract: what the learner may decide in its turn, under which limits.
-It comes from ``agency.json`` when the day stages an authored premise (gap 1's
-«Romy enquête», with its callbacks), and otherwise from the writer, who fills
-``season_checklist.learner_agency`` with the page; :func:`generated_contract`
-checks it deterministically and drops it (the day runs as before) when it
-does not hold.
+days, behind ``SEASON_AGENCY_PILOT`` (off by default). A generated day's turn
+carries a contract: what the learner may decide, under which limits. It comes
+from ``agency.json`` when the day stages an authored premise (gap 1's «Romy
+enquête», with its callbacks); on any other day it is the open contract
+(:func:`open_contract`): the learner goes along with what the character asks,
+or refuses it, under any limit they set in their own words.
+
+Only the day whose required premise has an authored contract shows the writer
+the contract rules (``learner_agency_rules``). Phase 1: given every day, they
+had the writer invent a contract with «conditions» daily, and that vocabulary
+leaked into the dialogue and the task. A ``season_checklist.learner_agency``
+the writer proposes all the same is checked deterministically
+(:func:`generated_contract`) and dropped (the day runs as before) when it does
+not hold.
 
 * **the turn** (:func:`agency_for_turn`) — the voice lane is told what the
   learner may decide, and returns the acts it heard with verbatim quotes;
@@ -19,7 +26,7 @@ does not hold.
 * **the next days** (:func:`brief_extras`) — the director reads the standing
   agreements and, when one is due, a callback that cites the learner's words:
   an authored storylet of the gap when one is due, else the oldest decision no
-  later day has acted on yet.
+  later day has acted on yet (and, on an authored premise's day, the rules).
 
 Nothing here calls a model, and every failure leaves the day as it was before
 the pilot: an act that cannot be committed is logged and dropped.
@@ -144,6 +151,14 @@ def load_agency(season_id: str) -> Agency:
     if not path.is_file():
         return Agency()
     return Agency.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+
+def _authored(agency: Agency, gap: str, premise: str | None) -> Contract | None:
+    """The contract ``agency.json`` writes for this gap's premise, if any."""
+
+    if not premise:
+        return None
+    return next((row for row in agency.contracts if row.gap == gap and row.premise == premise), None)
 
 
 #: What the writer may propose for one day (``season_checklist.learner_agency``).
@@ -277,7 +292,7 @@ def contract_for(season_day: dict | None, *, speaker: str | None = None) -> Cont
     except Exception:  # noqa: BLE001 - a broken pilot file never costs the day
         logger.exception("agency: %s/agency.json could not be read", season_id)
         agency = Agency()
-    authored = next((row for row in agency.contracts if row.gap == gap and row.premise == premise), None)
+    authored = _authored(agency, gap, premise)
     if authored is not None:
         return authored.model_copy(update={"season": season_id})
     try:
@@ -539,7 +554,8 @@ def _owed_callback(world: WorldState) -> dict | None:
     return None
 
 
-#: What the writer reads to fill ``season_checklist.learner_agency`` (pilot on only).
+#: What the writer reads to fill ``season_checklist.learner_agency``: pilot on, and only
+#: on the day of a premise ``agency.json`` writes a contract for (:func:`brief_extras`).
 AGENCY_RULES = {
     "actions": list(ACTIONS),
     "max_subjects": MAX_SUBJECTS,
@@ -563,20 +579,29 @@ AGENCY_RULES = {
 }
 
 
-def brief_extras(season_id: str, gap_id: str, day: int, *, state: dict | None, seed: str) -> dict[str, Any]:
+def brief_extras(
+    season_id: str, gap_id: str, day: int, *, state: dict | None, seed: str, premise: str | None = None
+) -> dict[str, Any]:
     """``{"learner_agency_rules", "agreements", "callback"}`` for the director's ``today``,
-    or ``{}`` with the pilot off."""
+    or ``{}`` with the pilot off.
+
+    ``learner_agency_rules`` only when today's required ``premise`` has an authored
+    contract; any other day's turn runs on the open contract (:func:`contract_for`),
+    so a decision is still recorded. The agreements and the callback come on any day
+    once the learner has decided something."""
 
     if not enabled():
         return {}
-    world = world_of(state)
-    if not world.events:
-        return {"learner_agency_rules": AGENCY_RULES}
     try:
         agency = load_agency(season_id)
     except Exception:  # noqa: BLE001
         agency = Agency()
-    extras: dict[str, Any] = {"learner_agency_rules": AGENCY_RULES}
+    extras: dict[str, Any] = {}
+    if _authored(agency, gap_id, premise) is not None:
+        extras["learner_agency_rules"] = AGENCY_RULES
+    world = world_of(state)
+    if not world.events:
+        return extras
     lines = _standing_lines(world)
     if lines:
         extras["agreements"] = lines

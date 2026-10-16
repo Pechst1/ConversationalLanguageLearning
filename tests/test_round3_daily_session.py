@@ -87,6 +87,20 @@ def test_the_day_is_done_only_when_all_three_are_and_then_offers_ten_more_words(
     assert (view["more_words"], view["more_minutes"]) == (10, 4)
 
 
+def test_the_word_step_names_the_cards_it_will_show_and_the_tally_what_was_done() -> None:
+    # #153: the scene already met 3 of the 20 new words, so the deck holds 17.
+    mid = session_view(_inputs(scene_done=True, introduced=3, reviews_due=0))
+    assert (mid["steps"][1]["count"], mid["steps"][1]["new_left"]) == (17, 17)
+    # No new words left but reviews waiting: the step names the reviews.
+    reviews = session_view(_inputs(scene_done=True, introduced=20, reviews_due=9))
+    assert reviews["steps"][1]["count"] == 9
+    # The end screen counts words reviewed, not the pace's target.
+    done = session_view(
+        _inputs(scene_done=True, introduced=3, words_marked_done=True, words_reviewed_today=17, forge_blocks_today=1)
+    )
+    assert done["tally"]["words"] == 17
+
+
 def test_words_count_as_done_without_the_mark_once_nothing_is_left() -> None:
     view = session_view(_inputs(scene_done=True, introduced=20, reviews_due=0))
     assert view["steps"][1]["state"] == "done"

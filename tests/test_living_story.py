@@ -47,14 +47,13 @@ OBJECTIVES = [
 ]
 
 
-# WP-59: from B1 an objective is a move, not a sentence. Four different moves, so the
-# suffix never makes two days' objectives read as the same situation.
-UPPER_BAND_MOVES = [
-    " Give your reason, and propose an alternative if you cannot.",
-    " Explain what worries you about it, then name a condition.",
-    " Say why it matters to you and offer one concrete plan.",
-    " Take a position, concede one point, and hold your line.",
-]
+# WP-59: from B1 the answer is a move, not a sentence. The task line stays short and the
+# suggested answer shows the move (no length is required of it since the story plan's
+# Phase 1: depth comes from the follow-up question).
+UPPER_BAND_ANSWER = (
+    "Je peux apporter les affiches samedi, mais seulement le matin, parce que je "
+    "travaille l'après-midi."
+)
 
 
 # The engine rotates location and character (WP-17): the same pair may not carry three
@@ -161,13 +160,7 @@ def _draft(context, n=0):
         # overlapping any of the last five situations.
         "premise_fr": PREMISES[n % len(PREMISES)],
         "setup_native": "Romy is arranging a neighborhood exhibition.",
-        # WP-59: from B1 an objective is a move, not a sentence; the fixture grows one.
-        "objective_native": OBJECTIVES[n % len(OBJECTIVES)]
-        + (
-            UPPER_BAND_MOVES[n % len(UPPER_BAND_MOVES)]
-            if str(context.get("level") or "") in ("B1", "B2", "C1")
-            else ""
-        ),
+        "objective_native": OBJECTIVES[n % len(OBJECTIVES)],
         "objective_semantics": "Clearly express an offer or a refusal of help with the exhibition.",
         "character_id": speaker,
         "location_id": location,
@@ -205,7 +198,10 @@ def _draft(context, n=0):
             *EXTRA_PANELS,
         ],
         "opening_line_fr": "Vous pouvez nous aider ?",
-        "suggested_response_fr": "Je peux apporter les affiches samedi.",
+        # WP-59: from B1 the answer is a move; the fixture's answer grows one.
+        "suggested_response_fr": UPPER_BAND_ANSWER
+        if str(context.get("level") or "") in ("B1", "B2", "C1")
+        else "Je peux apporter les affiches samedi.",
         "hint_native": "Say what you could bring.",
         "translation_native": "Can you help us?",
         "capability_key": None,
@@ -1296,13 +1292,15 @@ def test_the_retry_carries_the_hint_not_the_bare_token(
             True,
         ),
         ("A2", "Ask the price and propose another time to come back.", False),
-        # B1 and B2 may negotiate several things at once.
+        # From B1 the answer negotiates; the task line still names one thing
+        # (Vincent, 15 Oct 2026: a checklist of a task read as convoluted).
         (
             "B1",
             "Accept or decline the invitation, give a reason, and ask for the time and "
             "the place, then propose an alternative.",
-            False,
+            True,
         ),
+        ("B1", "Tell Lila whether you will stay for the winter, and why.", False),
     ],
 )
 def test_a1_and_a2_objectives_must_be_one_communicative_act(level, objective, rejected):
@@ -1546,20 +1544,36 @@ def test_a_forbidden_endearment_is_cut_and_the_sentence_kept():
     assert cut("Mon grand, tu viens ?", "neutral") == "Tu viens ?"
 
 
+def test_a_family_word_is_not_a_gendered_address():
+    """Gate 1 run, 2026-10-15: Camille's «mon grand-père» read as «mon grand» and lost
+    every B1 page of the notary chapter. Only a vocative is an address."""
+
+    for line in (
+        "Je dois répondre à mon grand-père.",
+        "La créance de mon grand-père passe avant toute vente.",
+        "Ma petite-fille arrive demain, et ma belle-mère aussi.",
+        "Mon grand frère arrive.",
+        "Ma fille est partie à Lyon.",
+    ):
+        engine._check_address([line], "neutral")
+    for line in ("Merci, mon grand.", "Viens, ma belle !", "« Ça va, ma puce ? »", "Mon vieux, tu viens ?", "Mon grand — viens ici.", "Ma belle – attends !"):
+        with pytest.raises(engine.StoryUnavailable, match="gendered_address"):
+            engine._check_address([line], "neutral")
+    engine._check_address(["Merci, mon grand."], "masculine")
+    assert engine._scrub_endearments("Je parle à mon grand-père.", "neutral") == "Je parle à mon grand-père."
+
+
 # ---------------------------------------------------------------------------
 # WP-59 — loop engineering, per-learner dice, and level-true B1/B2/C1
 # ---------------------------------------------------------------------------
 
 
-def test_upper_bands_are_asked_for_a_move_not_a_sentence():
+def test_upper_bands_are_never_asked_for_one_sentence_and_no_answer_has_a_floor():
     with pytest.raises(engine.StoryUnavailable, match="objective_too_thin"):
         engine._check_objective_scope("Tell Romy in one sentence whether you want to try.", "B1")
-    with pytest.raises(engine.StoryUnavailable, match="objective_too_thin"):
-        engine._check_objective_scope("Accept the invitation.", "B2")
-    engine._check_objective_scope(
-        "Take a position on Romy's offer, give your reason, and propose a condition under which you would say yes.",
-        "B2",
-    )
+    # Story plan, decision 4: a short task, and whatever answer a person would give.
+    engine._check_objective_scope("Accept the invitation.", "B2")
+    engine._check_objective_scope("Tell Romy whether she may use your story.", "C1")
     # A1/A2 keep the one-act rule.
     with pytest.raises(engine.StoryUnavailable, match="objective_too_complex"):
         engine._check_objective_scope("Order a coffee, ask the price, and then thank the waiter.", "A1")
@@ -1592,7 +1606,7 @@ def test_the_resolution_may_not_ask_the_turns_question_again():
         {
             "novelty_key": "turn-1",
             "premise_fr": "Tout autre chose hier soir au parc.",
-            "objective_native": "Tell Romy whether you want to try something real with her or stay friends.",
+            "objective_native": "Tell Romy whether you want something real with her.",
             "chapter_title_fr": chapter["title_fr"],
             "beat": "turn",
         }
@@ -1601,7 +1615,7 @@ def test_the_resolution_may_not_ask_the_turns_question_again():
         {
             **draft(context, 1),
             "beat": "resolution",
-            "objective_native": "Tell Romy whether you want to try something real with her and stay together.",
+            "objective_native": "Tell Romy whether you want something real with her now.",
         }
     ).model_copy(update={"chapter": first.chapter})
     with pytest.raises(engine.StoryUnavailable, match="resolution_repeats_turn"):
@@ -2659,8 +2673,8 @@ def test_a_parenthetical_constraint_is_not_a_second_ask():
     """Paid A2 re-run 2026-09-21: "(one sentence, max two short clauses)" cost a day."""
 
     engine._check_objective_scope(
-        "Write one short sentence in French that Lila can write to Marin to propose a calm, "
-        "private meeting tomorrow (one sentence, max two short clauses).",
+        "Write Lila a line for Marin proposing a calm meeting tomorrow "
+        "(one sentence, max two short clauses).",
         "A2",
     )
     with pytest.raises(engine.StoryUnavailable, match="objective_too_complex"):
@@ -2779,3 +2793,104 @@ def test_a_stage_claim_counts_only_for_the_arcs_next_stage():
     )
     engine._validate_scene(honest, context)
     assert honest.arc_stage_id == "tentpole" and honest.advances_arc is True
+
+
+# ---------------------------------------------------------------------------
+# 15 Oct 2026 (Vincent: «Warum sind die Stories so belanglos, komisch und umständlich
+# geworded?»): the task line was padded by a word floor, written in vous, and built
+# from the agency contract's bookkeeping.
+# ---------------------------------------------------------------------------
+
+THE_SCREENSHOT = (
+    "Proposez à Romy les conditions pour qu'elle écoute et n'écrive rien, et donnez une "
+    "raison brève et convaincante pour ces conditions."
+)
+
+
+@pytest.mark.parametrize("level", ["B1", "B2", "C1"])
+def test_an_upper_band_task_line_that_lists_the_answer_is_refused(level):
+    with pytest.raises(engine.StoryUnavailable, match="objective_too_complex") as refused:
+        engine._check_objective_scope(THE_SCREENSHOT, level)
+    assert "what the character asks" in refused.value.feedback
+
+
+def test_an_upper_band_task_line_is_trimmed_to_its_ask_before_it_costs_a_draft():
+    assert engine._trimmed_objective(THE_SCREENSHOT, "B1") == (
+        "Proposez à Romy les conditions pour qu'elle écoute et n'écrive rien."
+    )
+
+
+def test_the_brief_no_longer_asks_for_a_long_task_line():
+    rules = engine.season_page_rules(
+        None, chapter=None, shape="standard", level="B1", cast=[], resolved_questions=[], recent=[]
+    )["page_rules"]["objective"]
+    assert "ONE short instruction" in rules and "at most 12 words" in rules
+    assert "at least" not in rules, "story plan, decision 4: no answer floor"
+
+
+@pytest.mark.parametrize(
+    ("vous", "tu"),
+    [
+        (THE_SCREENSHOT, "Propose à Romy les conditions pour qu'elle écoute et n'écrive rien, et donne une raison brève et convaincante pour ces conditions."),
+        ("Dites à Lila combien de temps il reste.", "Dis à Lila combien de temps il reste."),
+        ("Demandez à Gus le prix, puis choisissez une table.", "Demande à Gus le prix, puis choisis une table."),
+        ("Excusez-vous auprès de Lila.", "Excuse-toi auprès de Lila."),
+        ("Dites-lui merci.", "Dis-lui merci."),
+        ("Dis à Romy qui tu es.", "Dis à Romy qui tu es."),
+        ("Passe chez Margaux et demande assez de pain.", "Passe chez Margaux et demande assez de pain."),
+        # The -er verbs with a stem change (Codex on #162: «Envoyez» came out «Envoye»).
+        ("Envoyez un message à Romy.", "Envoie un message à Romy."),
+        ("Levez-vous et appelez Lila.", "Lève-toi et appelle Lila."),
+        ("Suggérez une table à Gus, puis achetez du pain.", "Suggère une table à Gus, puis achète du pain."),
+        ("Souvenez-vous de Lila.", "Souviens-toi de Lila."),
+        ("Parlez-en à Lila.", "Parles-en à Lila."),
+        ("Allez-y.", "Vas-y."),
+    ],
+)
+def test_a_french_task_line_says_tu(vous, tu):
+    assert engine.tutoie_task(vous) == tu
+
+
+@pytest.mark.parametrize(
+    ("line", "left"),
+    [("Buvez un café avec Gus.", "Buvez"), ("N'oubliez pas ton carnet.", "oubliez")],
+)
+def test_a_vous_form_the_repair_does_not_know_is_refused_never_guessed(line, left):
+    assert engine.tutoie_task(line) == line
+    with pytest.raises(engine.StoryUnavailable, match="task_says_vous") as refused:
+        engine._check_task_tutoiement(_fr_draft(objective_native=line))
+    assert f"«{left}»" in refused.value.feedback
+    engine._check_task_tutoiement(_fr_draft(objective_native="Dis bonjour à Martinez."))
+
+
+def _fr_draft(**fields):
+    base = engine.SceneDraft.model_validate(_draft(_scene_context(), 0))
+    return base.model_copy(update=fields)
+
+
+def test_a_french_task_line_still_in_vous_is_refused_with_the_reason():
+    with pytest.raises(engine.StoryUnavailable, match="task_says_vous") as refused:
+        engine._check_task_tutoiement(_fr_draft(objective_native="Dis à Romy votre nom."))
+    assert "always says tu" in refused.value.feedback
+    # A quoted line is the scene speaking to a vous character, not the app to the learner.
+    engine._check_task_tutoiement(
+        _fr_draft(objective_native="Dis bonjour à Augustin.", hint_native="Commence par « Vous allez bien ? »")
+    )
+
+
+def test_the_director_keeps_the_task_short_plain_and_in_tu():
+    assert "both speak to the learner as tu" in engine.DIRECTOR
+    assert "never lists the parts of the" in engine.DIRECTOR
+    assert "PLAIN SPEECH" in engine.DIRECTOR
+    assert "The contract is bookkeeping, never dialogue" in engine.DIRECTOR
+    assert "From B1 upward the objective is a MOVE" not in engine.DIRECTOR
+
+
+def test_the_seasons_authored_french_task_lines_say_tu():
+    import json
+    from pathlib import Path
+
+    tasks = json.loads(Path("app/data/season/s1/tasks.json").read_text(encoding="utf-8"))["tasks"]
+    in_vous = {slot: row["fr"] for slot, row in tasks.items() if engine._TASK_VOUS.search(row.get("fr") or "")}
+    assert not in_vous
+    assert not [row["fr"] for row in tasks.values() if engine.tutoie_task(row["fr"]) != row["fr"]]

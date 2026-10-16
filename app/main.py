@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -191,7 +192,9 @@ def create_app() -> FastAPI:
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:
-        return {"status": "ok"}
+        # The deployed commit lets the nightly live walk tell "merged" from "live".
+        release = os.environ.get("RENDER_GIT_COMMIT", "")[:12]
+        return {"status": "ok", "release": release} if release else {"status": "ok"}
 
     @app.get("/ready", include_in_schema=False)
     def ready(db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:

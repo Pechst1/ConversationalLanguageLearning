@@ -20,6 +20,7 @@ Module._resolveFilename = function resolve(request, ...rest) {
 };
 
 const ds = require('./day-session.ts');
+const dp = require('./day-plan.ts');
 
 function session(states, overrides = {}) {
   const [scene, words, grammar, finish] = states;
@@ -109,11 +110,11 @@ test('the Tempo sheet says what each pace holds, costs and reaches', () => {
 });
 
 test('the scene’s ending hands on to the words, La Forge’s recap to the words or Fertig', () => {
-  const afterScene = ds.sessionAfterScene(session(['next', 'todo', 'todo', 'todo']), 'de');
+  const afterScene = dp.handOnAfterScene(session(['next', 'todo', 'todo', 'todo']), 'de');
   assert.equal(afterScene.label, 'Weiter: 20 Wörter');
   assert.equal(afterScene.href, '/vocabulary/review?day=1');
-  assert.equal(ds.sessionAfterScene(session(['done', 'done', 'next', 'todo']), 'de').label, 'Weiter: Grammatik');
-  assert.equal(ds.sessionAfterGrammar(session(['done', 'next', 'todo', 'todo']), 'de').kind, 'words');
-  const finish = ds.sessionAfterGrammar(session(['done', 'done', 'next', 'todo']), 'de');
+  assert.equal(dp.handOnAfterScene(session(['done', 'done', 'next', 'todo']), 'de').label, 'Weiter: Grammatik');
+  assert.equal(dp.handOnAfterGrammar(session(['done', 'next', 'todo', 'todo']), 'de').kind, 'words');
+  const finish = dp.handOnAfterGrammar(session(['done', 'done', 'next', 'todo']), 'de');
   assert.deepEqual([finish.kind, finish.label, finish.href], ['finish', 'Fertig für heute', '/fertig']);
 });

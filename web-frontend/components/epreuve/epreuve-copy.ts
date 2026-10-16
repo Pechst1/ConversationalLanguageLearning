@@ -60,6 +60,7 @@ export type EpreuveCopy = {
   place_here: string;
   labelfix_old: string;
   labelfix_new: string;
+  labelfix_already_right: string;
   transform_placeholder: string;
   sentence_instruction: string;
   speak_instruction: string;
@@ -243,6 +244,7 @@ const FR: EpreuveCopy = {
   place_here: 'Placer ici',
   labelfix_old: 'Votre choix',
   labelfix_new: 'Correct',
+  labelfix_already_right: 'Cette phrase était déjà juste.',
   transform_placeholder: 'Écrivez la nouvelle phrase…',
   sentence_instruction: 'Répondez avec une phrase complète.',
   speak_instruction: 'Dites votre réponse.',
@@ -415,6 +417,7 @@ const EN: EpreuveCopy = {
   place_here: 'Put here',
   labelfix_old: 'Your choice',
   labelfix_new: 'Correct',
+  labelfix_already_right: 'This sentence was already right.',
   transform_placeholder: 'Write the new sentence…',
   sentence_instruction: 'Answer with a full sentence.',
   speak_instruction: 'Say your answer.',
@@ -587,6 +590,7 @@ const DE: EpreuveCopy = {
   place_here: 'Hierhin',
   labelfix_old: 'Deine Wahl',
   labelfix_new: 'Richtig',
+  labelfix_already_right: 'Der Satz war schon richtig.',
   transform_placeholder: 'Schreib den neuen Satz…',
   sentence_instruction: 'Antworte mit einem ganzen Satz.',
   speak_instruction: 'Sprich deine Antwort.',

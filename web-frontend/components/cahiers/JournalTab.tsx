@@ -103,6 +103,28 @@ export function correctionLine(entry: JournalEntryView | null | undefined, t: Jo
   return fill(t.correction_many, { n: correction.errata.length });
 }
 
+/** Why nothing was checked, in the chrome language; `null` when the entry was. */
+export function correctionFailureReason(
+  entry: JournalEntryView | null | undefined,
+  t: JournalCopy = FRENCH_JOURNAL,
+): string | null {
+  const correction = entry?.correction;
+  if (!correction || correction.assessment_status === 'checked') return null;
+  if (correction.failure_reason === 'timeout') return t.correction_why_timeout;
+  if (correction.failure_reason === 'no_check_target') return t.correction_why_no_check_target;
+  return t.correction_why_model_error;
+}
+
+/** A failed check can be run again unless the scene gave it nothing to check against. */
+export function canRetryCorrection(entry: JournalEntryView | null | undefined): boolean {
+  const correction = entry?.correction;
+  return Boolean(
+    correction
+      && correction.assessment_status !== 'checked'
+      && correction.failure_reason !== 'no_check_target',
+  );
+}
+
 export function wordCount(text: string): number {
   return String(text || '').trim().split(/\s+/).filter(Boolean).length;
 }
@@ -117,7 +139,7 @@ export default function JournalTab() {
   const [failed, setFailed] = useState(false);
   const [draft, setDraft] = useState('');
   const [followDraft, setFollowDraft] = useState('');
-  const [pending, setPending] = useState<'write' | 'skip' | 'followup' | null>(null);
+  const [pending, setPending] = useState<'write' | 'skip' | 'followup' | 'retry' | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -161,6 +183,19 @@ export default function JournalTab() {
       setPending(null);
     }
   }, [draft, entry, t]);
+
+  const retryCorrection = useCallback(async () => {
+    if (!entry) return;
+    setPending('retry');
+    setError(null);
+    try {
+      setState(await api.retryJournalCorrection(entry.id));
+    } catch {
+      setError(t.busy_failed);
+    } finally {
+      setPending(null);
+    }
+  }, [entry, t]);
 
   const skip = useCallback(async () => {
     if (!entry) return;
@@ -352,9 +387,21 @@ export default function JournalTab() {
           <Surface as="section" tone="paper" shape="card" className="jn-card">
             <p className="av2-label">{t.french_label}</p>
             {entry.correction?.assessment_status === 'unavailable' ? (
-              <Notice tone="quiet" live="status">
-                {correctionLine(entry, t)}
-              </Notice>
+              <>
+                <Notice tone="quiet" live="status">
+                  {correctionLine(entry, t)} {correctionFailureReason(entry, t)}
+                </Notice>
+                {canRetryCorrection(entry) && (
+                  <Action
+                    tone="secondary"
+                    pending={pending === 'retry'}
+                    pendingLabel={t.retrying}
+                    onClick={() => void retryCorrection()}
+                  >
+                    {t.retry_correction}
+                  </Action>
+                )}
+              </>
             ) : (
               <>
                 <p className="jn-verdict">{correctionLine(entry, t)}</p>

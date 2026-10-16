@@ -122,4 +122,5 @@ def test_an_a2_objective_too_long_only_by_its_qualifiers_keeps_its_ask():
     chained = "Order a coffee and ask the price and say when you leave and thank her."
     assert engine._trimmed_objective(chained, "A2") == chained
     assert engine._trimmed_objective("Say hello.", "A1") == "Say hello."
-    assert engine._trimmed_objective(long, "B1") == long
+    # From B1 too since 15 Oct 2026: the task line is short at every band.
+    assert engine._trimmed_objective(long, "B1") == "Tell Romy who you are and what you think of Solvel."
