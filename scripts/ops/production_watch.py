@@ -40,6 +40,14 @@ KEY_MARKER = "<!-- ops-alert-keys:"
 #: Render plan → instance memory (MiB); the memory metric is compared against it.
 PLAN_MEMORY_MIB = {"starter": 512, "standard": 2048, "pro": 4096, "pro_plus": 8192}
 
+#: Render's memory series carry their unit ("bytes" today; the API docs show "GB").
+UNIT_MIB = {
+    "bytes": 1 / 1048576, "b": 1 / 1048576,
+    "kb": 1000 / 1048576, "kib": 1 / 1024,
+    "mb": 1_000_000 / 1048576, "mib": 1.0,
+    "gb": 1_000_000_000 / 1048576, "gib": 1024.0,
+}
+
 
 @dataclass(frozen=True)
 class Problem:
@@ -159,8 +167,11 @@ def check_render(key: str, since: datetime) -> list[Problem]:
                 "startTime": (datetime.now(UTC) - timedelta(minutes=15)).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "resolutionSeconds": "60",
             })
-            peak = max((value["value"] for series in metrics for value in series.get("values", [])), default=0)  # type: ignore[union-attr]
-            peak_mib = peak / 1048576
+            peak_mib = max(
+                (value["value"] * UNIT_MIB.get(str(series.get("unit", "bytes")).lower(), UNIT_MIB["bytes"])
+                 for series in metrics for value in series.get("values", [])),  # type: ignore[union-attr]
+                default=0.0,
+            )
             if peak_mib > 0.9 * limit_mib:
                 problems.append(Problem(
                     f"memory-high:{name}",
@@ -201,6 +212,12 @@ class Issues:
         if status >= 300 or status == 0:
             raise RuntimeError(f"GitHub {method} {path} answered {status}: {data}")
         return data
+
+    def open_issue(self) -> dict | None:
+        """The current incident, however old: it is never looked up through the history window."""
+
+        rows = self.call("GET", "/issues", params={"labels": LABEL, "state": "open", "per_page": "5"})
+        return next((i for i in rows if "pull_request" not in i), None)  # type: ignore[union-attr]
 
     def recent(self) -> list[dict]:
         since = (datetime.now(UTC) - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -271,10 +288,13 @@ def main() -> int:
         print("::warning::GITHUB_TOKEN or the repository is missing: no issue written.")
         return 0
     issues = Issues(args.repo, token)
-    recent = issues.recent()
-    open_issue = next((i for i in recent if i.get("state") == "open" and "pull_request" not in i), None)
-    reported = issues.reported_keys(recent)
-    new = [p for p in problems if p.key not in reported]
+    open_issue = issues.open_issue()
+    # A live problem (down, stale, memory) is new again once its incident closed;
+    # an event (one kill, one failed deploy) is reported once across recent history.
+    reported_live = issues.reported_keys([open_issue]) if open_issue else set()
+    recent = [i for i in issues.recent() if not open_issue or i["number"] != open_issue["number"]]
+    reported_events = reported_live | issues.reported_keys(recent)
+    new = [p for p in problems if p.key not in (reported_live if p.live else reported_events)]
 
     if new:
         body = render_body(new, args.owner)
