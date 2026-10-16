@@ -148,6 +148,26 @@ def _profile(
     )
 
 
+def _is_tense_contrast(external_id: str, text: str) -> bool:
+    """True only for the unit that teaches choosing between tenses (background vs event).
+
+    A unit that teaches one tense's FORM (passé composé avec avoir, futur simple)
+    is not that contrast: its misses are slips of the form (agreement, participle,
+    auxiliary), so they must not be tagged «Background vs event» (#154, #146).
+    """
+
+    if external_id == "FR_B1_TENSE_001":
+        return True
+    padded = f" {text} "
+    if any(marker in padded for marker in (" aspect ", " bounded event ", " completed event ", " ongoing background ", " imp vs pc ", " narration ")):
+        return True
+    return " imparfait " in padded and " passe compose " in padded
+
+
+def _is_tense_unit(text: str) -> bool:
+    return _contains_any(text, (" tense ", " tenses ", " temps ", " imparfait ", " passe compose ", " futur simple "))
+
+
 def infer_grammar_profile(
     concept: GrammarConcept | None = None,
     *,
@@ -171,6 +191,12 @@ def infer_grammar_profile(
             family = "article_after_negation"
         elif "subjunctive" in lesson["subskill"]:
             family = "mood"
+        elif family == "tense_aspect" and not _is_tense_contrast(lesson["external_id"], normalize_grammar_text(lesson["subskill"])):
+            # #154 / #146: «Background vs event» is the tag of the imparfait / passé
+            # composé CONTRAST. Every other tense unit (passé composé avec avoir,
+            # futur simple...) teaches a form, so a miss in it is tagged with that
+            # unit's own name and rule, never with a contrast the learner has not met.
+            family = "tense_form"
         return _profile(family, concept.name, lesson["core_rule"],
                         lesson["main_traps"].split(" | ")[0], lesson["when_to_use"],
                         lesson["pattern"], lesson["main_traps"].split(" | ")[0])
@@ -204,7 +230,7 @@ def infer_grammar_profile(
             "pas + du/de la/de l'/des/un/une -> pas de/d', except with etre.",
             "After pas, check whether the original article expressed a quantity.",
         )
-    if external_id == "FR_B1_TENSE_001" or _contains_any(combined, (" tense ", " temps ", " aspect ", " imparfait ", " passe compose ", " passé composé ", " completed event ", " bounded event ", " ongoing background ")):
+    if _is_tense_contrast(external_id, combined):
         return _profile(
             "tense_aspect",
             "Background vs event",
@@ -213,6 +239,16 @@ def infer_grammar_profile(
             "Use this when a sentence combines scene-setting background with completed events.",
             "imparfait = background/habit/state; passe compose = bounded completed event.",
             "Ask whether the action is an ongoing setting or a completed event.",
+        )
+    if _is_tense_unit(combined):
+        return _profile(
+            "tense_form",
+            str(fallback_label)[:120],
+            f"Build the verb form this unit teaches: {fallback_feature}.",
+            "Check the auxiliary, the participle or ending, and its agreement, then rewrite the verb.",
+            "Use this when the sentence needs the verb form this unit teaches.",
+            "auxiliary or stem + the ending or participle this unit teaches.",
+            "Check the form of the verb: auxiliary, ending or participle, and agreement.",
         )
     if _contains_any(combined, (" conditionnel ", " conditional ", " polite request ", " hypothetical ")):
         return _profile(
