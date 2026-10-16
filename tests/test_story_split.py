@@ -30,6 +30,7 @@ class SplitProvider(SeasonProvider):
         super().__init__()
         self.plans: list[dict] = []
         self.stranger_once = False
+        self.text_misses_once = False
 
     def generate_chat_completion(self, messages, **kwargs):
         data = json.loads(messages[0]["content"])
@@ -48,6 +49,8 @@ class SplitProvider(SeasonProvider):
         if (source.get("avoid") or {}).get("character_id") == lead:
             lead = "marin_leveque"
         cast = [lead, "marin_leveque" if lead != "marin_leveque" else "lila_bonnet"]
+        if source["brief"].get("shape") == "two_hander":
+            cast = [lead]
         if self.stranger_once:
             self.stranger_once = False
             cast = [lead, "odile"]
@@ -79,6 +82,13 @@ class SplitProvider(SeasonProvider):
 
     def _text(self, source: dict) -> dict:
         lead = source["plan"]["lead_id"]
+        if self.text_misses_once:
+            # Measured run 2026-10-16: a page that ended after its panels.
+            self.text_misses_once = False
+            return {"title_fr": "La boîte", "premise_fr": "Une boîte.", "panels": [
+                {"visual_direction": "A box.", "narration_fr": "Une boîte.", "dialogue": []},
+                {"visual_direction": "A hand.", "narration_fr": "Une main.", "dialogue": []},
+            ]}
         return {
             "title_fr": "La boîte",
             "premise_fr": "Une boîte de photos sous le lit d'Odile.",
@@ -184,6 +194,18 @@ def test_a_plan_with_someone_who_cannot_speak_costs_only_a_new_plan(assembled_cl
     assert any("odile" in hint for hint in second["previous_rejections"])
 
 
+def test_a_page_text_that_misses_a_field_is_asked_again_on_the_same_plan(assembled_client, db_session, journey_enabled, clock, split_on):
+    split_on.text_misses_once = True
+    split_on.critic_refusals_left = 0
+    user = _learner_on_gap_day(assembled_client, db_session)
+    with engine.written_ahead_of_time():
+        brief = engine.generate_scene(db_session, user=user, input_mode=InputMode.TEXT)
+    assert not isinstance(brief, engine.ContentUnavailable), brief
+    assert _schemas(split_on)[:4] == ["PagePlan", "PageText", "PageText", "PageAids"], "one plan, two pages"
+    second = [payload for schema, payload in split_on.calls if schema == "PageText"][1]
+    assert any("opening_line_fr" in hint for hint in second["previous_rejections"])
+
+
 def test_a_live_page_keeps_the_one_call_director(assembled_client, db_session, journey_enabled, clock, split_on):
     user = _learner_on_gap_day(assembled_client, db_session)
     engine.generate_scene(db_session, user=user, input_mode=InputMode.TEXT)
@@ -253,6 +275,19 @@ def _plan(**changes) -> story_split.PagePlan:
 def test_a_plan_that_breaks_a_rule_is_refused_with_the_reason(changes, context_today, words):
     issue = story_split.plan_issue(_plan(**changes), _context(**context_today))
     assert issue and words in issue
+
+
+def test_a_two_hander_plan_leaves_everyone_but_the_lead_off_the_page():
+    """Measured run 2026-10-16: g2.2 was lost to two_hander_crowded after the plan put two
+    people on a two-hander's page."""
+
+    context = {**_context(), "chapter": {**_context()["chapter"], "shape": "two_hander"}}
+    crowded = _plan(cast=["lila_bonnet", "marin_leveque"])
+    issue = story_split.plan_issue(crowded, context)
+    assert issue and "two-hander" in issue and "marin_leveque" in issue
+    assert story_split.plan_issue(_plan(), context) is None
+    assert story_split.plan_issue(crowded, _context()) is None, "a standard chapter may hold two"
+    assert story_split.planner_payload(context, [])["brief"]["shape"] == "two_hander"
 
 
 def test_a_plan_that_keeps_the_rules_passes():
