@@ -59,9 +59,9 @@
       "character_id": "camille_marchand",
       "name": "Camille",
       "role_native": {
-        "en": "Arrives at the end of the first evening. Handles the sale of the café for their grandfather.",
-        "de": "Kommt am Ende des ersten Abends. Kümmert sich für den Großvater um den Verkauf des Cafés.",
-        "fr": "Arrive à la fin de la première soirée. Gère la vente du café pour son grand-père."
+        "en": "Arrives at the end of the first evening, with a key to the first floor.",
+        "de": "Kommt am Ende des ersten Abends, mit einem Schlüssel für den ersten Stock.",
+        "fr": "Arrive à la fin de la première soirée, avec une clé du premier étage."
       },
       "line_fr": "Bonsoir. Camille Marchand.",
       "line_native": {"en": "Good evening. Camille Marchand.", "de": "Guten Abend. Camille Marchand.", "fr": "Bonsoir. Camille Marchand."}
