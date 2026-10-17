@@ -340,7 +340,11 @@ def test_malformed_reports_are_dropped_never_refused():
 def test_every_reader_of_the_name_is_told_a_name_is_not_a_gender(memory):
     """Paid read, 2026-10-17: once the story knew «Lena», a summary for a learner with a
     neutral address read «elle va» and «she is staying», and spoke of «Lena» instead of
-    to them."""
+    to them; the chapter asked «Est-ce que Lena va garder son billet ?» and the alt text
+    read «Lila offers Lena a coffee»."""
+
+    def prompt_has(prompt: str, sentence: str) -> bool:
+        return " ".join(sentence.split()) in " ".join(prompt.split())
 
     from app.services import living_story, story_lanes, story_split
     from app.services.season import turns
@@ -356,6 +360,9 @@ def test_every_reader_of_the_name_is_told_a_name_is_not_a_gender(memory):
     }
     for reader, prompt in readers.items():
         assert prompt.count(memory.NAME_NOTE) == 1, reader
+    # The page's own voice keeps «tu» and «you»: the name is for the characters' lines.
+    for reader in ("director", "planner", "writer"):
+        assert prompt_has(readers[reader], memory.NAME_SCOPE), reader
     for reader in ("actor", "story lane"):
         assert "summary_native still speaks to the learner as you, never by their name" in readers[reader], reader
 

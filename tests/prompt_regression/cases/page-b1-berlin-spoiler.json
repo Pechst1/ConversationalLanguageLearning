@@ -11,7 +11,7 @@
   "PagePlan": [
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:f523531e2b1a910e8af1cd78c622e97a59c72d7d1b0e4da42ae5f3758fdf55cd",
+    "prompt_digest": "sha256:ef5fd4c9eedf7f131000315cb3fd096813898d1a7f2184303633914f200369bd",
     "content": {
      "premise_id": "le_lendemain",
      "location_id": "boulangerie",
@@ -65,7 +65,7 @@
   "PageText": [
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:4fd1a241d6ad433ca9c3c255698fd3f51bd628b84b20838868cfb51faeb2927d",
+    "prompt_digest": "sha256:26e4dced14889e2ee19b7f47e73a0fce0c30973cb72838432f1d0e370dfc43aa",
     "content": {
      "title_fr": "Le lendemain",
      "premise_fr": "Lundi matin, à la boulangerie de Mme Diallo. La file d'attente sort jusque sur le trottoir.",

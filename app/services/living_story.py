@@ -784,7 +784,7 @@ to (to) and who heard it (heard_by); meant is how it was understood. memory.fact
 is settled about the learner, one row per key, in their own words (quote), with who knows
 it (known_by); before, when present, is what they had said earlier, still believed by
 those who only heard that. memory.learner_name is their name and who knows it. """ + story_memory.NAME_NOTE + """
-Use it: a character who heard something may bring it back in their own words, one who
+""" + story_memory.NAME_SCOPE + """ Use it: a character who heard something may bring it back in their own words, one who
 knows the learner's name may use it, and nobody asks the learner again what memory.facts
 settles or what they already told that person; a character missing from known_by or
 heard_by does not know it. memory.open lists questions still open across days: one the

@@ -1,8 +1,8 @@
 # prompt snapshot · page-a2-clean-la-boite · lane page · level A2
-# key: sha256:9d46a1b9352cb46e597c92a03d9da7781d5564ae60ffd37d8a37a30314abec0c
+# key: sha256:cc4ab4268d039617269bf202be95126657e781b3458890ccdaa6cb3f39ee3cd8
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · PagePlan #1 · 7986b40ce9b8bac6 ========
+======== call 1 · PagePlan #1 · 092dc7bdd0f6b00b ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PagePlan", "reasoning_effort": "medium", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PagePlan sha256:1dcc4a9d324e0235
 -------- system --------
@@ -35,7 +35,7 @@ WHAT MAKES A GOOD DAY
 6. The story remembers the learner. memory holds what they told whom, in their own words,
    and what is settled about them: someone who heard it may build on it («You told me
    your sister lives here»), someone who knows their name uses it, and nobody asks again
-   what memory settles. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone. When the learner left a
+   what memory settles. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone. The name is for the characters' own lines: everything the page itself says (narration, visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks to the learner as «tu» and «you», or says «the learner», as if nobody knew it. When the learner left a
    question open (memory.open), today may answer it or come back to it through someone in
    its known_by: set returns_to to its id.
 
@@ -565,7 +565,7 @@ peut écrire ton nom.»
  "previous_rejections": []
 }
 
-======== call 2 · PageText #1 · 18b832d8eaa35ee8 ========
+======== call 2 · PageText #1 · de888f5e9b1992de ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PageText", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PageText sha256:3fcf082adfdc0612
 -------- system --------
@@ -595,7 +595,7 @@ THE PAGE
   what is settled (facts) and what the learner told them (said, verbatim), each with who
   knows it. Someone who knows the learner's name may use it, and someone who heard a
   line may bring it back in their own words; nobody asks what memory already settles,
-  and nobody knows a row they are not listed on. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone.
+  and nobody knows a row they are not listed on. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone. The name is for the characters' own lines: everything the page itself says (narration, visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks to the learner as «tu» and «you», or says «the learner», as if nobody knew it.
   plan.returns_to, when present, is the open question today answers or comes back to:
   the page does.
 - When the plan has a chapter, chapter_title_fr names it and chapter_question_fr asks its

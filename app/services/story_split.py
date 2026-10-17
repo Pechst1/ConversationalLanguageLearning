@@ -195,7 +195,7 @@ WHAT MAKES A GOOD DAY
 6. The story remembers the learner. memory holds what they told whom, in their own words,
    and what is settled about them: someone who heard it may build on it («You told me
    your sister lives here»), someone who knows their name uses it, and nobody asks again
-   what memory settles. """ + story_memory.NAME_NOTE + """ When the learner left a
+   what memory settles. """ + story_memory.NAME_NOTE + " " + story_memory.NAME_SCOPE + """ When the learner left a
    question open (memory.open), today may answer it or come back to it through someone in
    its known_by: set returns_to to its id.
 
@@ -288,7 +288,7 @@ THE PAGE
   what is settled (facts) and what the learner told them (said, verbatim), each with who
   knows it. Someone who knows the learner's name may use it, and someone who heard a
   line may bring it back in their own words; nobody asks what memory already settles,
-  and nobody knows a row they are not listed on. """ + story_memory.NAME_NOTE + """
+  and nobody knows a row they are not listed on. """ + story_memory.NAME_NOTE + " " + story_memory.NAME_SCOPE + """
   plan.returns_to, when present, is the open question today answers or comes back to:
   the page does.
 - When the plan has a chapter, chapter_title_fr names it and chapter_question_fr asks its

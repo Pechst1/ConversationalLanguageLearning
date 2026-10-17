@@ -11,7 +11,7 @@
   "PagePlan": [
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:f523531e2b1a910e8af1cd78c622e97a59c72d7d1b0e4da42ae5f3758fdf55cd",
+    "prompt_digest": "sha256:ef5fd4c9eedf7f131000315cb3fd096813898d1a7f2184303633914f200369bd",
     "content": {
      "premise_id": "le_lendemain",
      "location_id": "boulangerie",
@@ -64,7 +64,7 @@
    },
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:cc6e18240626fb1a46e9da7a8fe7cc2ff8d20e014b8e80f92d18f5480a27c99f",
+    "prompt_digest": "sha256:d4c1ca6142ca3900fb919961cb5d92e61a126a00f9e2133f6dcf66e09b3696b8",
     "content": {
      "premise_id": "le_lendemain",
      "location_id": "boulangerie",

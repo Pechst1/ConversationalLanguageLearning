@@ -11,7 +11,7 @@
   "PagePlan": [
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:7986b40ce9b8bac6f2a00ecfa4f6be7334c429b13c2b26f72af858c95b96681e",
+    "prompt_digest": "sha256:092dc7bdd0f6b00b628e03652159120e9ec59df0d8bd5751393785ef05d00d03",
     "content": {
      "premise_id": "la_boite",
      "location_id": "odile_flat",
@@ -65,7 +65,7 @@
   "PageText": [
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:18b832d8eaa35ee88ffb1cdaf74c3e4d50da23ce03f1a3b947b3bdbf1a1fa86c",
+    "prompt_digest": "sha256:de888f5e9b1992de1675dc2645534a0a6389247326873fbcd31d9d9da21bcd3f",
     "content": {
      "title_fr": "La boîte",
      "premise_fr": "Après l'école, chez Odile. Sous le lit, il y a une vieille boîte.",

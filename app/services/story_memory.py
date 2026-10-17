@@ -313,6 +313,13 @@ NAME_NOTE = (
     "Their name says nothing about their gender: how the learner is gendered, in any language, "
     "follows their address alone."
 )
+#: The page writers: the name goes in a character's mouth, never in the page's own voice
+#: (the same read: «Est-ce que Lena va garder son billet ?», «Lila offers Lena a coffee»).
+NAME_SCOPE = (
+    "The name is for the characters' own lines: everything the page itself says (narration, "
+    "visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks "
+    "to the learner as «tu» and «you», or says «the learner», as if nobody knew it."
+)
 
 #: What the ending reports for the memory: the one-call actor (``ACTOR``) and the
 #: story lane (``STORY``) read the same paragraph.
