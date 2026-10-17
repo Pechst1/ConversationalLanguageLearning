@@ -2141,7 +2141,7 @@ def _fallback_output_prompt_for(concept: GrammarConcept | None, round_name: str)
     }
     fallback = {
         "sentence": "A friend asks for one concrete update about today. Answer in French with one complete sentence.",
-        "speak": "Votre amie demande : « Quel est votre programme pour demain matin ? » Donnez une activité et une heure précises.",
+        "speak": "Ton amie demande : « Quel est ton programme pour demain matin ? » Donne une activité et une heure précises.",
         "conversation": "Message received: « Qu'est-ce qui se passe ? » Reply naturally in French.",
     }
     return prompts.get(profile_key, fallback).get(round_name, fallback["sentence"])
@@ -3475,7 +3475,7 @@ class AtelierExerciseGenerator:
         payload['transform'] = {'items': [{
             'id': f'{prefix}-repair', 'type': 'rewrite',
             'source': lesson['source'],
-            'instruction': f'Corrigez « {foil} » selon la règle « {_concept_label(concept)} ». Gardez le reste du message.',
+            'instruction': f'Corrige « {foil} » selon la règle « {_concept_label(concept)} ». Garde le reste du message.',
             'expected_answer': sentence, 'explanation': lesson['core_rule'],
         }]}
         payload['output_ladder'] = {}
@@ -3485,15 +3485,15 @@ class AtelierExerciseGenerator:
                 prompt=lesson['scene'], example=sentence, min_words=2, max_words=45,
             )
             item['instruction'] = {
-                'sentence': 'Écrivez une réponse complète à la question.',
-                'speak': 'Répondez à voix haute, puis vérifiez la transcription. Essayez sans relire votre première réponse.',
-                'conversation': 'Répondez au message et ajoutez un détail personnel pertinent.',
+                'sentence': 'Écris une réponse complète à la question.',
+                'speak': 'Réponds à voix haute, puis vérifie la transcription. Essaie sans relire ta première réponse.',
+                'conversation': 'Réponds au message et ajoute un détail personnel pertinent.',
             }[round_name]
             item['requirements'] = [dict(requirement)]
             payload['output_ladder'][round_name] = {'items': [item]}
         payload['produce'] = {
             'source_fragment': sentence,
-            'prompt': lesson['scene'] + ' À vous de changer la situation : choisissez un autre détail (objet, lieu, quantité ou moment). Écrivez un bref message adapté à cette variante et ajoutez une raison. Gardez la même règle de grammaire.',
+            'prompt': lesson['scene'] + ' À toi de changer la situation : choisis un autre détail (objet, lieu, quantité ou moment). Écris un bref message adapté à cette variante et ajoute une raison. Garde la même règle de grammaire.',
             'requirements': [dict(requirement)], 'min_words': 10, 'max_words': 65,
         }
         return payload

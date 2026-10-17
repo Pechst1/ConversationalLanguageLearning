@@ -62,7 +62,7 @@ for (const language of ['en', 'de', 'fr']) {
     assert.ok(html.includes(copy.reviewEyebrow.replace(/’/g, '&#x27;')) || html.includes(copy.reviewEyebrow));
     assert.ok(!html.includes(copy.eyebrow), 'never «the rule of today»');
     assert.ok(html.includes(`>${copy.reviewDone}<`));
-    assert.ok(!html.includes('>Essayer<'));
+    assert.ok(!html.includes('>Try it<'));
     assert.match(html, /data-review="true"/);
   });
 }
@@ -70,6 +70,6 @@ for (const language of ['en', 'de', 'fr']) {
 test('the day’s new rule is unchanged', () => {
   const html = render('en', false);
   assert.ok(html.includes(RULE_CARD_COPY.en.eyebrow.replace(/'/g, '&#x27;')));
-  assert.ok(html.includes('>Essayer<'));
+  assert.ok(html.includes('>Try it<'));
   assert.doesNotMatch(html, /data-review/);
 });

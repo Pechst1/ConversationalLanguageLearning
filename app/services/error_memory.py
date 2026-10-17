@@ -188,26 +188,26 @@ class ErrorMemoryService:
     REVIEW_MODE_COPY: dict[str, dict[str, str]] = {
         "grammar": {
             "label": "Grammaire",
-            "instruction": "Réécrivez la forme correcte de mémoire.",
-            "prompt": "Reprenez cette faute de grammaire :",
+            "instruction": "Réécris la forme correcte de mémoire.",
+            "prompt": "Reprends cette faute de grammaire :",
             "placeholder": "La phrase corrigée",
         },
         "vocabulary": {
             "label": "Lexique",
-            "instruction": "Écrivez le mot ou l’expression correcte de mémoire.",
-            "prompt": "Reprenez ce choix de mot :",
+            "instruction": "Écris le mot ou l’expression correcte de mémoire.",
+            "prompt": "Reprends ce choix de mot :",
             "placeholder": "Le mot correct",
         },
         "spelling": {
             "label": "Orthographe",
-            "instruction": "Réécrivez la forme correcte, accents compris.",
-            "prompt": "Reprenez cette orthographe :",
+            "instruction": "Réécris la forme correcte, accents compris.",
+            "prompt": "Reprends cette orthographe :",
             "placeholder": "L’orthographe correcte",
         },
         "speaking": {
             "label": "À l’oral",
             "instruction": "Tapez la phrase que vous diriez ; la relecture porte sur la langue.",
-            "prompt": "Reprenez cette phrase parlée :",
+            "prompt": "Reprends cette phrase parlée :",
             "placeholder": "La phrase à dire",
         },
     }

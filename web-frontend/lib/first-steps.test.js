@@ -136,6 +136,15 @@ test('without localStorage the device store keeps the route in memory for the pa
   }
 });
 
+test('#127: the rule sticker never claims the card quotes the scene', () => {
+  // The sticker is static, but the card's example is only sometimes a scene line;
+  // the card says so itself, with its own «in today’s scene» anchor.
+  for (const language of ['de', 'en', 'fr']) {
+    const { body } = steps.firstStepsCopy(language).stickers.rule;
+    assert.doesNotMatch(body, /\bscene\b|Szene|sc[eè]ne/i, `${language}: ${body}`);
+  }
+});
+
 test('#123: the episode-end sticker does not say the day is done, and names what follows', () => {
   // Round 3: after the scene come the words, then the grammar.
   const expected = { de: /Wörter.*Grammatik/, en: /words.*grammar/, fr: /mots.*grammaire/ };

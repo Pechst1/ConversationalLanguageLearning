@@ -60,7 +60,7 @@ test('the intro card has one Garamond headline, and it is the French example', (
   assert.equal((html.match(/av2-headline/g) || []).length, 1);
   assert.match(html, /<h2 class="av2-headline rc-example" lang="fr">Une petit<span class="rc-mark">e<\/span>/);
   assert.match(html, /The noun decides\./);
-  assert.match(html, /Essayer/);
+  assert.match(html, /Try it/);
   assert.doesNotMatch(html, /Le schéma|Le contrôle|Avoid:/);
 });
 
@@ -75,7 +75,7 @@ test('a German learner reads the rule in German, with a silent-ending table', ()
 test('the inline card sets no headline (the exercise prompt is the one headline)', () => {
   const html = render({ card: cards.FR_A1_NOUN_001, language: 'en', variant: 'inline', conceptId: 1 });
   assert.doesNotMatch(html, /av2-headline/);
-  assert.doesNotMatch(html, /Essayer/);
+  assert.doesNotMatch(html, /Try it/);
 });
 
 test('the card is drawn with av2 tokens only', () => {

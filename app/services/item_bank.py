@@ -2207,12 +2207,12 @@ _CUES: dict[str, dict[str, str]] = {
     "transform_gloss": {
         "en": 'Fix it to say: "{meaning}"',
         "de": "Korrigiere den Fehler im Satz.",
-        "fr": "Corrigez l’erreur dans la phrase.",
+        "fr": "Corrige l’erreur dans la phrase.",
     },
     "say": {
         "en": '{scene} Say in French: "{meaning}"',
         "de": "{scene} Schreib einen eigenen kurzen Satz auf Französisch, mit der Regel von heute.",
-        "fr": "{scene} Écrivez une courte phrase à vous en français, avec la règle du jour.",
+        "fr": "{scene} Écris une courte phrase à toi en français, avec la règle du jour.",
     },
     "message": {
         "en": '{scene} In two or three French sentences: "{meaning}", and why.',
@@ -2235,22 +2235,22 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
     "forge.word_bank": {
         "en": "Build it. One word is extra.",
         "de": "Bau den Satz. Ein Wort ist zu viel.",
-        "fr": "Construisez la phrase. Un mot est en trop.",
+        "fr": "Construis la phrase. Un mot est en trop.",
     },
     "forge.word_bank_all": {
         "en": "Build the sentence.",
         "de": "Bau den Satz.",
-        "fr": "Construisez la phrase.",
+        "fr": "Construis la phrase.",
     },
     "forge.transform": {
         "en": "Fix the one mistake.",
         "de": "Korrigiere den einen Fehler.",
-        "fr": "Corrigez la faute.",
+        "fr": "Corrige la faute.",
     },
     "forge.sentence": {
         "en": "Write the sentence in French.",
         "de": "Schreib den Satz auf Französisch.",
-        "fr": "Écrivez la phrase en français.",
+        "fr": "Écris la phrase en français.",
     },
     "forge.speak": {
         "en": "Say it in French.",
@@ -2260,12 +2260,12 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
     "forge.conversation": {
         "en": "Reply in French, with today's rule.",
         "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Répondez en français, avec la règle du jour.",
+        "fr": "Réponds en français, avec la règle du jour.",
     },
     "forge.scene": {
         "en": "Answer in French, with the rule of the day.",
         "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Répondez en français, avec la règle du jour.",
+        "fr": "Réponds en français, avec la règle du jour.",
     },
 }
 
@@ -2306,22 +2306,22 @@ _SCENES_L10N: dict[str, dict[str, str]] = {
 #: the sentence to produce («Build: "Lila is looking for a big poster."»). The
 #: meaning is the frame's English gloss, kept in the English goal only (QA-FORGE);
 #: a German goal quotes the item's German meaning (FORGE-DE, ``_GOALS_DE_MEANING``),
-#: a French goal says what to do without one («Corrigez l’erreur dans la phrase.»).
+#: a French goal says what to do without one («Corrige l’erreur dans la phrase.»).
 _GOALS: dict[str, dict[str, str]] = {
     "build": {
         "en": 'Build: "{meaning}"',
         "de": "Bau den Satz.",
-        "fr": "Remettez les mots dans l’ordre.",
+        "fr": "Remets les mots dans l’ordre.",
     },
     "fill": {
         "en": 'Complete: "{meaning}"',
         "de": "Ergänze den Satz mit der richtigen Form.",
-        "fr": "Complétez la phrase avec la forme qui convient.",
+        "fr": "Complète la phrase avec la forme qui convient.",
     },
     "repair": {
         "en": 'It should say: "{meaning}"',
         "de": "Korrigiere den Fehler im Satz.",
-        "fr": "Corrigez l’erreur dans la phrase.",
+        "fr": "Corrige l’erreur dans la phrase.",
     },
     "pick": {
         "en": 'Which one says "{meaning}"?',
@@ -2331,17 +2331,17 @@ _GOALS: dict[str, dict[str, str]] = {
     "say": {
         "en": 'Say in French: "{meaning}"',
         "de": "Schreib einen eigenen kurzen Satz auf Französisch, mit der Regel von heute.",
-        "fr": "Écrivez une courte phrase à vous en français, avec la règle du jour.",
+        "fr": "Écris une courte phrase à toi en français, avec la règle du jour.",
     },
     "reply": {
         "en": 'Reply in French: "{meaning}"',
         "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Répondez en français, avec la règle du jour.",
+        "fr": "Réponds en français, avec la règle du jour.",
     },
     "message": {
         "en": 'A short message in French: "{meaning}"',
         "de": "Schreib eine kurze Nachricht auf Französisch, mit der Regel von heute.",
-        "fr": "Écrivez un court message en français, avec la règle du jour.",
+        "fr": "Écris un court message en français, avec la règle du jour.",
     },
     "judge": {
         "en": "Is this sentence correct?",
@@ -2369,8 +2369,8 @@ _GOALS_DE_MEANING: dict[str, str] = {
 #: sentence?). The French goal then quotes the learner's own language: the meaning
 #: is content, not chrome, and every learner learns from their own language.
 _GOALS_FR_NATIVE_MEANING: dict[str, str] = {
-    "build": "Construisez la phrase : « {meaning} »",
-    "fill": "Complétez la phrase : « {meaning} »",
+    "build": "Construis la phrase : « {meaning} »",
+    "fill": "Complète la phrase : « {meaning} »",
     "repair": "La phrase veut dire : « {meaning} »",
     "pick": "Quelle phrase veut dire « {meaning} » ?",
 }

@@ -55,7 +55,7 @@ def test_french_word_bank_does_not_fall_back_to_its_english_prompt():
     }, "fr")
     assert item["meaning_cue"] is None
     assert item["prompt"] == item["goal_native"]
-    assert item["prompt"].startswith("Remettez")
+    assert item["prompt"].startswith("Remets")
 
 
 def test_b1_cloze_without_a_foreign_gloss_uses_the_actual_scene_sentence():

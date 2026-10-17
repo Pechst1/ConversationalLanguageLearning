@@ -37,7 +37,7 @@ def test_the_written_cloze_says_how_many_words_and_speaks_the_chrome_language() 
     task = _cloze()
     assert task is not None and task.prompt_fr == "…, ils veulent acheter tout l'immeuble."
     assert task.goal_native == "Écris les 3 mots manquants."
-    assert task.instruction_native == "Complétez la phrase de la scène."
+    assert task.instruction_native == "Complète la phrase de la scène."
     german = _cloze("de")
     assert german.goal_native == "Schreib die 3 fehlenden Wörter."
     assert german.instruction_native == "Ergänze den Satz aus der Szene."
@@ -84,7 +84,7 @@ def _word_bank() -> dict:
 
 def test_a_french_chrome_word_bank_quotes_the_learners_own_language() -> None:
     german = ib.with_goal(_word_bank(), "fr", "de")
-    goal = "Construisez la phrase : « Sie können am Kanal entlang spazieren, Gus. » Un mot est en trop."
+    goal = "Construis la phrase : « Sie können am Kanal entlang spazieren, Gus. » Un mot est en trop."
     assert german["goal_native"] == goal
     assert german["prompt"] == goal
     english = ib.with_goal(_word_bank(), "fr", "en")
@@ -92,8 +92,8 @@ def test_a_french_chrome_word_bank_quotes_the_learners_own_language() -> None:
     # Another language (Spanish) reads the English meaning, the bank's floor.
     assert "« They can walk along the canal, Gus. »" in ib.with_goal(_word_bank(), "fr", "es")["goal_native"]
     # A French speaker, or no native language, keeps the French-only goal.
-    assert ib.with_goal(_word_bank(), "fr", "fr")["goal_native"] == "Construisez la phrase. Un mot est en trop."
-    assert ib.with_goal(_word_bank(), "fr")["goal_native"] == "Construisez la phrase. Un mot est en trop."
+    assert ib.with_goal(_word_bank(), "fr", "fr")["goal_native"] == "Construis la phrase. Un mot est en trop."
+    assert ib.with_goal(_word_bank(), "fr")["goal_native"] == "Construis la phrase. Un mot est en trop."
     # The German chrome is unchanged.
     assert ib.with_goal(_word_bank(), "de", "de")["goal_native"] == (
         "Bau den Satz: „Sie können am Kanal entlang spazieren, Gus.“"

@@ -94,7 +94,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       rule: {
         title: 'Die Regel',
-        body: 'Eine Regel aus der Szene, gleich danach im Einsatz.',
+        body: 'Die Regel des Tages. Gleich danach kommt sie im Einsatz.',
       },
       recall: {
         title: 'Die Wörter',
@@ -172,7 +172,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       rule: {
         title: 'The rule',
-        body: 'One grammar rule from the scene. It comes up next.',
+        body: 'One grammar rule for today. It comes up next.',
       },
       recall: {
         title: 'The words',
@@ -250,7 +250,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       rule: {
         title: 'La règle',
-        body: 'Une règle tirée de la scène. Elle revient tout de suite.',
+        body: 'La règle du jour. Elle revient tout de suite.',
       },
       recall: {
         title: 'Les mots',
