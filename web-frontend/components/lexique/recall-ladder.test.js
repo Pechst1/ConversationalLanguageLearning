@@ -54,3 +54,25 @@ test('the device folds a line answer with or without its elided clitic', () => {
   assert.equal(ladder.matchesLineForm('nous etais', 'etais'), false);
   assert.equal(ladder.matchesLineForm('', 'etais'), false);
 });
+
+test('#88: the deck count keeps one total; «Again» never raises done, «I know it» never lowers it', () => {
+  const deck = Array.from({ length: 16 }, (_, i) => i + 1);
+  let reviewed = new Set();
+  let again = [];
+  let lastDone = 0;
+  for (let id = 1; id <= 8; id += 1) {
+    reviewed = new Set(reviewed).add(id);
+    again = ladder.nextAgainQueue(again, id, true);
+    const { done, total } = ladder.deckProgress(deck, reviewed, again);
+    assert.equal(total, 16);
+    assert.equal(done, 0, 'a card answered «Again» is back in the queue, not done');
+  }
+  for (let id = 1; id <= 8; id += 1) {
+    again = ladder.nextAgainQueue(again, id, false);
+    const { done, total } = ladder.deckProgress(deck, reviewed, again);
+    assert.equal(total, 16, 'the total never changes');
+    assert.ok(done >= lastDone, 'done only goes up');
+    lastDone = done;
+  }
+  assert.equal(lastDone, 8);
+});

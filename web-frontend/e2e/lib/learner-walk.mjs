@@ -153,17 +153,31 @@ export class LearnerWalk {
   }
 
   async typeInto(locator, text, state) {
-    await locator.click();
-    await locator.fill('');
+    // #197: the field is `.first()` of «any enabled input», so it can vanish while it is
+    // typed into (the item was scored, the séance ended, the screen moved on). A driver
+    // that waits 30 s for it fails the whole day as `day-completes` although the app
+    // did nothing wrong. A field that is gone is a screen that moved on: stop typing,
+    // and the play loop looks at what is on screen now.
+    const SHORT = { timeout: 4000 };
     const half = Math.floor(text.length / 2);
-    state.typing = true;
-    await locator.pressSequentially(text.slice(0, half), { delay: 25 });
-    let s = await snapshot(this.page);
-    this.findings.check('no-server-banner-while-typing', !(s.connection.length || SERVER_BANNER.test(s.text)), `banner mid-typing: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
-    await locator.pressSequentially(text.slice(half), { delay: 25 });
+    let s;
+    try {
+      await locator.click(SHORT);
+      await locator.fill('', SHORT);
+      state.typing = true;
+      await locator.pressSequentially(text.slice(0, half), { delay: 25, ...SHORT });
+      s = await snapshot(this.page);
+      this.findings.check('no-server-banner-while-typing', !(s.connection.length || SERVER_BANNER.test(s.text)), `banner mid-typing: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
+      await locator.pressSequentially(text.slice(half), { delay: 25, ...SHORT });
+    } catch (e) {
+      state.typing = false;
+      if (!/Timeout|detached|not attached|not visible|not enabled/i.test(String(e.message))) throw e;
+      return false;
+    }
     s = await snapshot(this.page);
     this.findings.check('no-server-banner-while-typing', !(s.connection.length || SERVER_BANNER.test(s.text)), `banner after typing: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
     state.typing = false;
+    return true;
   }
 
   /** Reader: the Next button must never move between panels. */
@@ -272,7 +286,7 @@ export class LearnerWalk {
     if (s.fieldEnabled) {
       const field = page.locator('textarea:not([disabled]), input[type=text]:not([disabled])').first();
       const text = kind === 'thread' ? REPLIES[this.replies++ % REPLIES.length] : FREE;
-      await this.typeInto(field, text, state);
+      if (!(await this.typeInto(field, text, state))) return true; // the screen moved on (#197)
       const send = page.locator('.av2-btn--primary:not([disabled])').first();
       if (await send.count()) await send.click({ timeout: 3000 }).catch(() => {});
       return true;

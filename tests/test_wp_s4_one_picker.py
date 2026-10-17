@@ -639,3 +639,40 @@ def test_the_envelope_counts_todays_forge_blocks(
     session.completed_at = datetime.now(UTC) - timedelta(days=1, hours=1)
     db_session.commit()
     assert blocks() == 0, "yesterday's block does not count today"
+
+
+def test_a_failed_rule_check_is_not_the_days_grammar_block(
+    assembled_client: TestClient, journey_enabled: None, db_session: Session
+) -> None:
+    """#175: «Noch nicht. Die Schmiede übernimmt.» leaves the day's grammar step
+    open; a passed rule check, like a finished séance, closes it."""
+
+    from app.core.forge import MODE_TEST_OUT
+    from app.services.forge import FORGE_KEY
+
+    email = f"wp-s4-testout-{uuid.uuid4().hex[:8]}@example.com"
+    headers = register(assembled_client, email)
+    user = db_session.query(User).filter(User.email == email).one()
+
+    def add_rule_check(passed: bool) -> None:
+        db_session.add(
+            AtelierSession(
+                user_id=user.id,
+                selected_concept_ids=[1],
+                status="completed",
+                completed_at=datetime.now(UTC),
+                quote_payload={
+                    FORGE_KEY: {"mode": MODE_TEST_OUT, "tracks": [], "finished": True, "result": {"passed": passed}}
+                },
+            )
+        )
+        db_session.commit()
+
+    def blocks() -> int:
+        envelope = assembled_client.get("/api/v1/daily-journeys/today", headers=headers, params={"timezone": "UTC"}).json()
+        return envelope["forge"]["blocks_today"]
+
+    add_rule_check(False)
+    assert blocks() == 0
+    add_rule_check(True)
+    assert blocks() == 1

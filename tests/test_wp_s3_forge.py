@@ -58,9 +58,11 @@ def _run(state: ForgeState, answer) -> list[core.Slot]:
 # ---------------------------------------------------------------------------
 
 
-def test_staircase_moves_up_on_correct_down_on_error_and_holds_otherwise():
+def test_staircase_moves_up_on_correct_and_never_steps_back():
     assert core.step_rung(Rung.BUILD, Verdict.right()) == Rung.TRANSFORM
-    assert core.step_rung(Rung.BUILD, Verdict.wrong()) == Rung.DISCRIMINATE
+    # #88: a miss keeps the step (the item is re-queued), it never drops one.
+    assert core.step_rung(Rung.BUILD, Verdict.wrong()) == Rung.BUILD
+    assert core.step_rung(Rung.DISCRIMINATE, Verdict.wrong()) == Rung.DISCRIMINATE
     assert core.step_rung(Rung.BUILD, PARTIAL) == Rung.BUILD
     assert core.step_rung(Rung.BUILD, Verdict(core.OUTCOME_INCORRECT, checked=False)) == Rung.BUILD
     assert core.step_rung(Rung.RECOGNISE, Verdict.wrong()) == Rung.RECOGNISE

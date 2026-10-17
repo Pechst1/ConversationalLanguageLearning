@@ -2763,6 +2763,13 @@ class DailyJourneyService:
         for payload, completed_at in rows:
             if not isinstance(payload, dict) or not payload.get(FORGE_KEY):
                 continue
+            forge_state = payload.get(FORGE_KEY)
+            if isinstance(forge_state, dict) and forge_state.get("mode") == "test_out":
+                # #175: a rule check the learner did not pass is no grammar block:
+                # «Die Schmiede übernimmt» — the day's grammar step stays open.
+                result = forge_state.get("result")
+                if not (isinstance(result, dict) and result.get("passed")):
+                    continue
             moment = completed_at if completed_at.tzinfo else completed_at.replace(tzinfo=UTC)
             if moment.astimezone(zone).date() == day:
                 count += 1

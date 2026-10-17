@@ -160,3 +160,30 @@ test('screens ask the plan: no second reader of «the day is done» is left in t
   // A stopped scene hands on too (#153), not only a completed one.
   assert.match(read('components/atelier-v2/journey/JourneySession.tsx'), /ended_early/);
 });
+
+test('#175: a failed rule check from the day hands back to the day’s open grammar step', () => {
+  const p = plan(['done', 'done', 'todo']);
+  const failed = dp.handOnAfterRuleCheck(p, false, 'de');
+  assert.equal(failed.kind, 'grammar');
+  assert.equal(failed.href, FORGE, 'La Forge, from=day, never the Cahier');
+  assert.match(failed.label, /Grammatik/);
+  // The plan still has the grammar step open: Home does not say «done».
+  assert.equal(dp.dayIsDone(p), false);
+});
+
+test('#175: a passed rule check closes the grammar step and the plan’s next step follows', () => {
+  const grammarFirst = plan(['done', 'todo', 'todo']);
+  const passed = dp.handOnAfterRuleCheck(grammarFirst, true, 'en');
+  assert.equal(passed.kind, 'words');
+  assert.equal(passed.href, WORDS);
+  const last = dp.handOnAfterRuleCheck(plan(['done', 'done', 'todo']), true, 'en');
+  assert.equal(last.kind, 'finish');
+  assert.equal(last.href, '/fertig');
+  assert.equal(dp.handOnAfterRuleCheck(null, false, 'en'), null);
+});
+
+test('#175: the rule check carries from=day and leaves through the day plan, not the Cahier', () => {
+  const atelier = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+  assert.match(atelier, /testout=\$\{started\.session_id\}\$\{forgeFromDay \? '&from=day' : ''\}/);
+  assert.match(atelier, /handOnAfterRuleCheck/);
+});

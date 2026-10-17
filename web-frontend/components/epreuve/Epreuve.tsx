@@ -150,9 +150,19 @@ export function EpTopbar({
   const [confirming, setConfirming] = React.useState(false);
   React.useEffect(() => {
     if (!confirming) return;
-    const timer = window.setTimeout(() => setConfirming(false), 4000);
-    return () => window.clearTimeout(timer);
+    // #88: «Stop here?» stays open until it is answered. It used to close by
+    // itself after 4 s, so a second tap could land on the reverted button and
+    // start the question over. Escape (or a séance that is no longer partial)
+    // is the way out without answering.
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setConfirming(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [confirming]);
+  React.useEffect(() => {
+    if (!partial) setConfirming(false);
+  }, [partial]);
 
   const finish = () => {
     if (partial && !confirming) {

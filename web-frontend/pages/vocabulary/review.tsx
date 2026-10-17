@@ -15,6 +15,7 @@ import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
   gradedFormat,
   ladderCue,
+  deckProgress,
   ladderRung,
   lineAnswer,
   linePrompt,
@@ -720,8 +721,11 @@ export default function VocabularyReviewPage() {
     setFirstDayDone(routeDone(store));
   }, [deckEmpty]);
   const currentSlateEntry = current ? slateById.get(current.word_id) || null : null;
-  const completed = reviewedIds.size;
-  const total = remainingItems.length + completed;
+  const { done: completed, total } = deckProgress(
+    allItems.map((item) => item.word_id),
+    reviewedIds,
+    againIds,
+  );
   const sessionRemaining = remainingItems.length;
   const progress = total ? Math.round((completed / total) * 100) : 0;
   const minutesLeft = sessionRemaining

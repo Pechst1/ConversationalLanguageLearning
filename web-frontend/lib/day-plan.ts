@@ -126,6 +126,31 @@ export function afterExit(
   };
 }
 
+/**
+ * #175 — the rule check («Épreuve de la règle») started from the day's grammar
+ * step ends here, not on a screen of its own. Passed: the rule is proven, so the
+ * grammar step is done and the plan's next step follows. Not passed: La Forge
+ * takes over, i.e. the day's own grammar step (the plan's address) stays open
+ * and its button says so. `null` without a plan: the caller keeps its own exit.
+ */
+export function handOnAfterRuleCheck(
+  plan: DaySession | null | undefined,
+  passed: boolean,
+  language: ControlLanguage,
+): DayHandOn | null {
+  if (!plan) return null;
+  if (passed) return afterExit(plan, 'grammar', 'finished', language)?.next ?? null;
+  const grammar = sessionStep(plan, 'grammar');
+  if (!grammar || !grammar.href) return null;
+  const copy = daySessionCopy(language);
+  return {
+    kind: 'grammar',
+    label: copy.next_grammar,
+    meta: grammar.minutes > 0 ? copy.minutes(grammar.minutes) : '',
+    href: grammar.href,
+  };
+}
+
 /** The scene's ending, finished or stopped: where the day goes next. */
 export function handOnAfterScene(
   plan: DaySession | null | undefined,
