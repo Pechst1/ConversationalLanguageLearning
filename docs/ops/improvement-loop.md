@@ -59,6 +59,9 @@ Lanes:
 - **story** (prompts, guards, authored lines): the PR adds a deterministic guard or the
   smallest prompt change, plus a test that feeds the walk's **exact** text and asserts
   it is caught. Always a draft with `needs-owner-review`. No paid model calls in tests.
+  `scripts/prompt_regression.py` replays 10 golden story cases (`tests/prompt_regression/`)
+  through the real planner, writer and reply checks with recorded answers: a changed
+  prompt shows as a snapshot diff the PR must explain.
 
 ## The nightly routines
 
