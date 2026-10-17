@@ -44,7 +44,7 @@ import json
 import re
 import unicodedata
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -189,6 +189,11 @@ class Verdict:
     can see (``elision``, ``gender``, ``accent``, ``form``); ``None`` otherwise.
     ``expected`` is the accepted answer the verdict was measured against, as
     authored, so a miss can always show it.
+
+    A repair answered with only its corrected part (:func:`judge_repair`) also
+    carries ``read_as``, the whole sentence the part stands for (the source with
+    the part put in), and ``expected_part``, the stretch of ``expected`` the part
+    answers. Both are ``None`` for an answer read as a whole sentence.
     """
 
     correct: bool
@@ -199,6 +204,8 @@ class Verdict:
     expected: str | None = None
     learner_word: str | None = None
     expected_word: str | None = None
+    read_as: str | None = None
+    expected_part: str | None = None
 
 
 def _damerau_one(left: str, right: str) -> int | None:
@@ -477,6 +484,130 @@ def judge(
             if best is None or _rank(verdict) > _rank(best):
                 best = verdict
     return best or Verdict(correct=False, expected=candidates[0])
+
+
+# ---------------------------------------------------------------------------
+# A repair answered with its corrected part
+# ---------------------------------------------------------------------------
+
+
+def _repair_bounds(source: list[str], target: list[str]) -> tuple[int, int]:
+    """Words the wrong and the right sentence share at the start and at the end."""
+
+    limit = min(len(source), len(target))
+    head = 0
+    while head < limit and source[head] == target[head]:
+        head += 1
+    tail = 0
+    while tail < limit - head and source[-1 - tail] == target[-1 - tail]:
+        tail += 1
+    return head, tail
+
+
+def repair_readings(answer: object, source: object, target: object) -> list[tuple[str, str, int]]:
+    """Every whole sentence a repair answer may stand for (owner request 2026-10-17).
+
+    «des chaises vert» → «des chaises vertes»: retyping the sentence to fix one
+    word is slow, so the learner may write only the part they corrected («vertes»),
+    with as much of the unchanged words around it as they like («chaises vertes»),
+    or the whole sentence. Each reading puts the answer in place of the stretch of
+    ``source`` that differs from ``target`` (widened by the context the learner
+    may have typed) and returns ``(sentence, target_part, context_words)``. A
+    reading is only right when the whole sentence it makes is ``target``, so a
+    part is accepted exactly when it holds the whole correction.
+    """
+
+    learner = fold_typography(answer).split()
+    wrong = fold_typography(source).split()
+    right = fold_typography(target).split()
+    if not learner or not wrong or not right or wrong == right:
+        return []
+    head, tail = _repair_bounds(wrong, right)
+    readings: list[tuple[str, str, int]] = []
+    for before in range(head + 1):
+        for after in range(tail + 1):
+            sentence = [*wrong[: head - before], *learner, *wrong[len(wrong) - tail + after :]]
+            part = right[head - before : len(right) - tail + after]
+            readings.append((" ".join(sentence), " ".join(part), before + after))
+    return readings
+
+
+def _aligned_reading(answer: object, source: object, target: object) -> tuple[str, str] | None:
+    """The reading whose context words are the ones the learner actually typed.
+
+    A wrong part («verts», «rouge») is shown against the part it stands for
+    («vertes»), not against the whole sentence."""
+
+    learner = fold_typography(answer).split()
+    wrong = fold_typography(source).split()
+    right = fold_typography(target).split()
+    if not learner or len(learner) >= len(wrong):
+        return None
+    head, tail = _repair_bounds(wrong, right)
+    before = 0
+    for count in range(min(head, len(learner)), 0, -1):
+        if [strip_accents(w) for w in learner[:count]] == [strip_accents(w) for w in wrong[head - count : head]]:
+            before = count
+            break
+    after = 0
+    for count in range(min(tail, len(learner) - before), 0, -1):
+        start = len(wrong) - tail
+        if [strip_accents(w) for w in learner[-count:]] == [strip_accents(w) for w in wrong[start : start + count]]:
+            after = count
+            break
+    sentence = [*wrong[: head - before], *learner, *wrong[len(wrong) - tail + after :]]
+    part = right[head - before : len(right) - tail + after]
+    if not part:
+        return None
+    return " ".join(sentence), " ".join(part)
+
+
+def _repair_rank(verdict: Verdict) -> tuple[int, int, int, int]:
+    """:func:`_rank`, except that among misses only the note counts: a part
+    refused for a grammar accent («a» for «à») says so."""
+
+    if verdict.correct:
+        return _rank(verdict)
+    return (0, 0, 0, _NOTE_PRIORITY.get(verdict.note or "", 0))
+
+
+def judge_repair(
+    answer: object,
+    source: object,
+    accepted: Iterable[object],
+    *,
+    accents: AccentPolicy = "lenient",
+    typo: bool = True,
+    article_optional: bool = False,
+) -> Verdict:
+    """A «correct this sentence» answer: the whole sentence, or only the corrected part.
+
+    The whole-sentence verdict is :func:`judge`'s. A shorter answer is read in
+    place in ``source`` (:func:`repair_readings`) and that sentence is judged by the
+    same contract, so typography, accents and typos count exactly as they do for
+    a whole sentence. A verdict reached through a part carries ``read_as`` and
+    ``expected_part``; so does a miss written as a part, for the correction line.
+    """
+
+    keys = [str(item) for item in accepted if item and str(item).strip()]
+    best = judge(answer, keys, accents=accents, typo=typo, article_optional=article_optional)
+    if best.exact or not str(source or "").strip():
+        return best
+    whole = len(fold_typography(answer).split()) >= len(fold_typography(source).split())
+    for key in keys:
+        for sentence, part, _context in repair_readings(answer, source, key):
+            if fold_typography(sentence) == fold_typography(answer):
+                continue
+            verdict = judge(sentence, [key], accents=accents, typo=typo, article_optional=article_optional)
+            if _repair_rank(verdict) > _repair_rank(best):
+                best = replace(verdict, read_as=sentence, expected_part=part)
+    if best.correct or whole or best.read_as is not None:
+        return best
+    expected = best.expected or (keys[0] if keys else None)
+    aligned = _aligned_reading(answer, source, expected) if expected else None
+    if aligned is None:
+        return best
+    return replace(best, read_as=aligned[0], expected_part=aligned[1])
 
 
 def judge_in_line(answer: object, accepted: Iterable[object], *, lemma: object) -> Verdict:

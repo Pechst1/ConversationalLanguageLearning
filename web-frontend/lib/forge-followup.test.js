@@ -135,3 +135,19 @@ test('#115: a tile build without the punctuation the tiles never offered is righ
   assert.equal(F.followUpMatches('Tu es à Toulouse cette semaine, Marin', followUp), true);
   assert.equal(F.followUpMatches('Tu es a Toulouse cette semaine, Marin ?', followUp), false);
 });
+
+// Owner request 2026-10-17: retyping the sentence to fix one word is slow. The
+// corrected part alone, with any of its context, or the whole sentence is right.
+test('a typed correction may be only the corrected part', () => {
+  const { followUp } = F.classifyRepair(WRONG_ITEM, {
+    forge: { follow_up: FOLLOW_UP },
+    corrected_fr: 'Lila cherche un grand poster.',
+  });
+  for (const answer of ['grand poster', 'un grand poster', 'Lila cherche un grand poster.']) {
+    assert.equal(F.followUpOutcome(answer, followUp), 'right', answer);
+  }
+  for (const answer of ['grand', 'poster grand', 'un poster', 'grand poster grand']) {
+    assert.equal(F.followUpOutcome(answer, followUp), 'revealed', answer);
+  }
+  assert.equal(F.followUpOutcome(['grand', 'poster'], followUp), 'revealed', 'tiles still build the whole sentence');
+});

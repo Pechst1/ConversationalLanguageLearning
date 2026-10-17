@@ -1248,6 +1248,11 @@ class Correction:
     span_fr: str
     corrected_fr: str
     note_native: str
+    #: A repair answered with only its corrected part is shown as a part
+    #: («verts → vertes») and saved as the whole sentences it stands for, so the
+    #: saved error can be drilled without guessing its context. ``None`` otherwise.
+    saved_span_fr: str | None = None
+    saved_corrected_fr: str | None = None
 
     def is_valid_for(self, learner_text: str) -> bool:
         """Reject no-op corrections and spans the learner never wrote."""

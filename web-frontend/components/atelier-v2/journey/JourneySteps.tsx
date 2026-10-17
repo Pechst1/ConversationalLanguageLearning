@@ -737,7 +737,11 @@ export function RecallStepView({
             value: text,
             rows: 2,
             disabled: locked,
-            placeholder: copy.answer_placeholder,
+            // Owner 2026-10-17: a sentence to correct takes only the corrected part.
+            placeholder:
+              step.prompt.task_type === 'transform' && (step.prompt.source_fr || step.prompt.prompt_fr)
+                ? copy.repair_placeholder
+                : copy.answer_placeholder,
             invalid: feedback.kind === 'empty',
             onChange: (next) => {
               setText(next);

@@ -31,6 +31,7 @@ export type JourneyCopyKey =
   | 'scene_continue'
   | 'answer_label'
   | 'answer_placeholder'
+  | 'repair_placeholder'
   | 'send'
   | 'sending'
   | 'check'
@@ -217,6 +218,7 @@ export type JourneyCopyKey =
   // WP-103 T3: a drill's header names the drill; a scene-cut item says where from.
   | 'drill_recall'
   | 'drill_warmup'
+  | 'drill_retry'
   | 'drill_rule'
   | 'drill_forge'
   | 'drill_from_scene'
@@ -266,6 +268,7 @@ const EN: CopyTable = {
   scene_continue: 'Continue',
   answer_label: 'Your answer',
   answer_placeholder: 'Write your answer in French',
+  repair_placeholder: 'The corrected part is enough',
   send: 'Send',
   sending: 'Sending…',
   check: 'Check',
@@ -428,6 +431,7 @@ const EN: CopyTable = {
   listen_unavailable_read: 'No sound right now — read the line instead.',
   drill_recall: 'Recall',
   drill_warmup: 'Before the scene',
+  drill_retry: 'Once more',
   drill_rule: 'Rule',
   drill_forge: 'La Forge',
   drill_from_scene: 'From the scene',
@@ -469,6 +473,7 @@ const DE: CopyTable = {
   scene_continue: 'Weiter',
   answer_label: 'Deine Antwort',
   answer_placeholder: 'Schreibe deine Antwort auf Französisch',
+  repair_placeholder: 'Der korrigierte Teil reicht',
   send: 'Senden',
   sending: 'Wird gesendet…',
   check: 'Prüfen',
@@ -631,6 +636,7 @@ const DE: CopyTable = {
   listen_unavailable_read: 'Gerade kein Ton — lies den Satz stattdessen.',
   drill_recall: 'Wiederholung',
   drill_warmup: 'Vor der Szene',
+  drill_retry: 'Noch einmal',
   drill_rule: 'Regel',
   drill_forge: 'La Forge',
   drill_from_scene: 'Aus der Szene',
@@ -672,6 +678,7 @@ const FR: CopyTable = {
   scene_continue: 'Continuer',
   answer_label: 'Ta réponse',
   answer_placeholder: 'Écris ta réponse en français',
+  repair_placeholder: 'La partie corrigée suffit',
   send: 'Envoyer',
   sending: 'Envoi…',
   check: 'Vérifier',
@@ -834,6 +841,7 @@ const FR: CopyTable = {
   listen_unavailable_read: 'Pas de son pour l’instant : lis la phrase.',
   drill_recall: 'Rappel',
   drill_warmup: 'Avant la scène',
+  drill_retry: 'Encore une fois',
   drill_rule: 'Règle',
   drill_forge: 'La Forge',
   drill_from_scene: 'Dans la scène',

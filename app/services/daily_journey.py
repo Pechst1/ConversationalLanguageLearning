@@ -30,6 +30,7 @@ import inspect
 import json
 import logging
 import uuid
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -269,6 +270,8 @@ _HELP_TO_ASSISTANCE: dict[HelpKind, AssistanceLevel] = {
 }
 
 _ANSWERABLE_KINDS = (StepKind.RECALL, StepKind.RESPOND)
+#: A retry step's private key: the step whose miss it asks again.
+RETRY_OF_KEY = "retry_of"
 
 
 def _utcnow() -> datetime:
@@ -4986,8 +4989,15 @@ class DailyJourneyService:
         answer: AttemptAnswer,
         expected_revision: int,
     ) -> AttemptResult:
-        task = _recall_task_from_json(dict(step.private_task or {})["recall_task"])
+        private = dict(step.private_task or {})
+        task = _recall_task_from_json(private["recall_task"])
         assistance = self._step_assistance(step)
+        retry = bool(private.get(RETRY_OF_KEY))
+        if retry:
+            # The answer was shown after the first miss: a hit now is a repair after
+            # a correction, so supported production at most (`classify_evidence`).
+            # Server-side only; the public `assistance_used` stays the learner's own.
+            assistance = strongest_assistance([assistance, AssistanceLevel.SOLUTION])
         evaluation = self.adapters.learning.evaluate_recall(
             self.db, user=user, task=task, answer=answer, assistance=assistance
         )
@@ -4996,12 +5006,20 @@ class DailyJourneyService:
 
         # The provider call is done; only now is the revision verified and taken.
         self._claim_revision(journey, expected_revision)
-        applied = self._apply_evidence(user, journey, step, evaluation, answer.mode)
+        missed = evaluation.outcome is TaskOutcome.NOT_YET and getattr(evaluation, "failure_reason", None) != "empty_answer"
+        recorded = evaluation
+        if retry and missed:
+            # The first miss already booked the lapse and saved the error; missing it
+            # again a few steps later is the same mistake, not a second one.
+            recorded = replace(evaluation, observations=[], correction=None)
+        applied = self._apply_evidence(user, journey, step, recorded, answer.mode)
         step.evidence_ref = applied.evidence_ref
         step.status = str(StepStatus.COMPLETED)
         step.completed_at = _utcnow()
         step.turns_used += 1
-        self._store_step_result(step, evaluation, assistance)
+        self._store_step_result(step, recorded, assistance)
+        if missed and not retry:
+            self._queue_retry(journey, step)
         self.db.flush()
 
         return AttemptResult(
@@ -5017,6 +5035,47 @@ class DailyJourneyService:
             slip_note_native=getattr(evaluation, "slip_note_native", None),
             journey=self.snapshot(journey),
         )
+
+    def _queue_retry(self, journey: DailyJourney, step: DailyJourneyStep) -> DailyJourneyStep | None:
+        """Owner request 2026-10-17: a missed drill comes back once, at the end of
+        its set.
+
+        The learner goes on after a miss; the same item is asked again after the
+        last drill of the unbroken run of drills it belongs to (the Rappel, the
+        Règle's guided items), before the day moves on to its next part. Later
+        steps move down one place. A retry is never queued again, and a miss with
+        no drill still to come in its run is not: asked straight away, under the
+        correction just read, it would be copying, not recall.
+        """
+
+        ordered = sorted(journey.steps, key=lambda item: item.ordinal)
+        start = end = ordered.index(step)
+        while end + 1 < len(ordered) and StepKind(ordered[end + 1].kind) is StepKind.RECALL:
+            end += 1
+        if not any(StepStatus(item.status) is StepStatus.PENDING for item in ordered[start + 1 : end + 1]):
+            return None
+        ordinal = ordered[end].ordinal + 1
+        # One row at a time, last first: (journey_id, ordinal) is unique.
+        for later in reversed(ordered[end + 1 :]):
+            later.ordinal += 1
+            self.db.flush([later])
+        private = dict(step.private_task or {})
+        retry = DailyJourneyStep(
+            id=uuid.uuid4(),
+            ordinal=ordinal,
+            kind=str(StepKind.RECALL),
+            status=str(StepStatus.PENDING),
+            estimated_seconds=step.estimated_seconds,
+            optional=step.optional,
+            target_kind=step.target_kind,
+            target_id=step.target_id,
+            public_prompt={**dict(step.public_prompt or {}), "retry": True},
+            private_task={"recall_task": private["recall_task"], RETRY_OF_KEY: str(step.id)},
+            assistance_used=[],
+        )
+        journey.steps.append(retry)
+        self.db.flush([retry])
+        return retry
 
     def _attempt_respond(
         self,
