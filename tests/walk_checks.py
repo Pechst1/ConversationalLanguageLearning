@@ -326,6 +326,12 @@ def check_duplicates(transcript: dict[str, Any]) -> list[str]:
         target_id = f"{target.get('kind')}:{target.get('id')}" if target else None
         prompt = event["step"].get("prompt") or {}
         face = _item_face(prompt)
+        if prompt.get("retry"):
+            # Owner 2026-10-17: a missed drill asked once more at the end of its
+            # set is the same item on purpose. Only an unexplained one is a bug.
+            if not any(face == other for _, other in faces):
+                problems.append(f"{_label(transcript, index, event)}: a retry of no earlier item")
+            continue
         for other_index, other in faces:
             if face == other:
                 problems.append(f"{_label(transcript, index, event)}: the same item as #{other_index}")
