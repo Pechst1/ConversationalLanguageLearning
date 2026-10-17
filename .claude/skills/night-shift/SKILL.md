@@ -7,8 +7,8 @@ description: Work the improvement loop's queue at night. Take every `queue:ready
 
 The walks fill the queue (`walk-finding` issues with `queue:ready`, see
 `docs/ops/improvement-loop.md`); the night shift empties it. It opens PRs and never
-merges them: the owner merges in the morning, starting with the ones the digest lists
-as ready to merge.
+merges them unless the routine passes `autoMerge: true`: then the digest merges the
+verified small code fixes onto a green main, and the owner reviews the story lane.
 
 ## Run it
 
@@ -23,9 +23,14 @@ Use `scripts/loop/loop_queue.py` (REST through `gh api`): `show N`, `comment N`,
 `open-night-prs`, `pr-create`, `pr-diff N`, `pr-unready N`, plus the queue verbs below;
 or the GitHub MCP tools.
 
-**Test environment:** `bash scripts/loop/setup_env.sh && source ~/.venvs/atelier/bin/activate`
-gives the Python 3.11 venv CI uses and web-frontend's node_modules. In a worktree run
+**Test environment:** the SessionStart hook (`scripts/loop/session_start.sh`) prepares
+it in every cloud session. In a new worktree run `bash scripts/loop/setup_env.sh && source
+~/.venvs/atelier/bin/activate` (seconds: the venv is shared, node_modules is linked), then
 `python -m pytest` from the worktree root.
+
+**Proof:** `python scripts/loop/red_green.py --base origin/main` in a checkout of the PR
+branch. PROVEN means the PR's tests fail with its other changes reverted to main and
+pass with them. The fixer runs it before opening a PR, the verifier runs it again.
 
 Without the Workflow tool, do the same steps with the Agent tool:
 
@@ -39,11 +44,11 @@ Without the Workflow tool, do the same steps with the Agent tool:
    stall). Give each agent the fixer brief from `.claude/workflows/night-shift.js`
    (`fixPrompt`): branch `claude/night-<date>-<first issue>` from origin/main, claim,
    reproduce, fix, add the test that would have caught it, run the focused checks,
-   push, open the PR, `mark-pr`, or `release` with a reason.
+   prove red/green, push, open the PR, `mark-pr`, or `release` with a reason.
 3. **Verify** each PR (never skip this) with a fresh agent that did not write it (`verifyPrompt`): it
-   checks the diff against every done-when. Only the verifier adds
-   `loop:merge-ready`, and only when it is ok; otherwise it turns the PR into a draft
-   and comments why. A PR whose verify did not finish never carries the label.
+   checks the diff against every done-when and re-runs `red_green.py`. Only the verifier
+   adds `loop:merge-ready`, and only when it is ok; otherwise `loop_queue.py pr-reject`
+   closes the PR and gives its issues back to the queue with the notes. A PR whose verify did not finish never carries the label.
 4. **Digest**: `python scripts/loop/loop_queue.py merge-ready` (lists only) and
    `python scripts/loop/loop_queue.py digest --date <date>`.
 
@@ -57,7 +62,8 @@ Without the Workflow tool, do the same steps with the Agent tool:
 
 ## Rules
 
-- Never push to main, merge, deploy or change production settings. Merging is the owner's call; `loop_queue.py merge-ready --merge` exists for the owner, not for the night shift.
+- Never push to main, deploy or change production settings. Merge only through the digest's `merge-ready --merge`, and only when the routine's args say `autoMerge: true`.
+- A fix without a test that fails first is not a fix. Never "fix" a walk failure by loosening the walk driver.
 - Claim before working, and always end an issue in `queue:pr` or back in `queue:ready` with a reason. A `queue:working` issue in the morning digest means an agent stopped mid-way.
 - One cluster per file set: two agents never edit the same file in one night.
 - Run focused tests only (the backend suite runs in random order); CI runs the full suite.

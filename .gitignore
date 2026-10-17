@@ -15,8 +15,8 @@ htmlcov/
 .vscode/
 .DS_Store
 
-# Dependencies
-web-frontend/node_modules/
+# Dependencies (no trailing slash: night-shift worktrees link node_modules from the main checkout)
+web-frontend/node_modules
 web-frontend/.next/
 web-frontend/out/
 web-frontend/build/

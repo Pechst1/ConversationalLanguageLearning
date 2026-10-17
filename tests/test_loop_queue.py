@@ -92,3 +92,82 @@ def test_label_removal_tolerates_a_missing_label(monkeypatch: Any) -> None:
         raise SystemExit("gh api DELETE failed: HTTP 404: Label does not exist")
     monkeypatch.setattr(loop_queue, "api", missing)
     loop_queue.remove_label(5, "queue:ready")
+
+
+def test_failed_verify_label_blocks() -> None:
+    pr = _green_pr(labels=[{"name": "loop:merge-ready"}, {"name": "loop:failed-verify"}])
+    assert "failed verify" in loop_queue.merge_blockers(pr)
+
+
+def test_linked_issues_reads_fixes_part_of_and_refs() -> None:
+    body = "Fixes #175\nfixes #88, Part of #143 and refs #197. Not #12 alone. Fixes #175 again."
+    assert loop_queue.linked_issues(body) == [175, 88, 143, 197]
+
+
+class _FakeGitHub:
+    """Just enough of the REST API for pr_reject: labels and comments live in dicts."""
+
+    def __init__(self, prior_attempts: int) -> None:
+        self.labels: dict[int, set[str]] = {200: {"lane:code", "loop:merge-ready"}, 197: {"queue:pr"}}
+        self.comments: dict[int, list[str]] = {
+            197: [f"{loop_queue.REJECTED_MARK} {i + 1} (#1) failed review." for i in range(prior_attempts)]}
+        self.closed: list[int] = []
+
+    def api(self, method: str, path: str, body: Any = None, accept: str | None = None) -> str:
+        number = int(path.split("/")[1])
+        if method == "POST" and path.endswith("/labels"):
+            self.labels.setdefault(number, set()).update(body["labels"])
+        elif method == "DELETE" and "/labels/" in path:
+            self.labels[number].discard(path.rsplit("/", 1)[1].replace("%3A", ":"))
+        elif method == "POST" and path.endswith("/comments"):
+            self.comments.setdefault(number, []).append(body["body"])
+        elif method == "PATCH" and path.startswith("pulls/"):
+            self.closed.append(number)
+        return "{}"
+
+    def api_json(self, method: str, path: str, body: Any = None) -> Any:
+        number = int(path.split("/")[1])
+        if path.startswith("pulls/"):
+            return {"number": number, "body": "Fixes #197\nFixes #175", "head": {"ref": "claude/night-x-197"}}
+        if number == 175:
+            return {"number": 175, "state": "closed", "labels": []}
+        return {"number": number, "state": "open", "labels": [{"name": n} for n in self.labels[number]]}
+
+    def api_list(self, path: str, limit: int = 1000) -> list[dict[str, Any]]:
+        return [{"body": b} for b in self.comments.get(int(path.split("/")[1]), [])]
+
+
+def _reject(monkeypatch: Any, prior_attempts: int) -> _FakeGitHub:
+    gh = _FakeGitHub(prior_attempts)
+    for name in ("api", "api_json", "api_list"):
+        monkeypatch.setattr(loop_queue, name, getattr(gh, name))
+    loop_queue.pr_reject(200, "The test passes without the fix.")
+    return gh
+
+
+def test_rejected_pr_closes_and_its_issue_goes_back_with_the_notes(monkeypatch: Any) -> None:
+    gh = _reject(monkeypatch, prior_attempts=0)
+    assert gh.closed == [200]
+    assert "loop:failed-verify" in gh.labels[200] and "loop:merge-ready" not in gh.labels[200]
+    assert "queue:ready" in gh.labels[197] and "queue:pr" not in gh.labels[197]
+    assert "The test passes without the fix." in gh.comments[197][-1]
+    assert "claude/night-x-197" in gh.comments[197][-1]
+
+
+def test_second_rejection_hands_the_issue_to_the_owner(monkeypatch: Any) -> None:
+    gh = _reject(monkeypatch, prior_attempts=1)
+    assert "queue:owner" in gh.labels[197] and "queue:ready" not in gh.labels[197]
+    assert "waits for the owner" in gh.comments[197][-1]
+
+
+def test_nothing_merges_onto_a_red_main(monkeypatch: Any, capsys: Any) -> None:
+    merged: list[str] = []
+    monkeypatch.setattr(loop_queue, "api_list", lambda path, limit=1000: [
+        {"number": 160, "labels": [{"name": "loop:merge-ready"}]}])
+    monkeypatch.setattr(loop_queue, "main_is_green", lambda: (False, "main CI abc1234: failure"))
+    monkeypatch.setattr(loop_queue, "pr_rollup", lambda n: {**_green_pr(), "number": n, "title": "fix"})
+    monkeypatch.setattr(loop_queue, "api", lambda method, path, body=None, accept=None: merged.append(path) or "")
+    loop_queue.merge_ready(4, merge=True)
+    assert merged == []
+    out = capsys.readouterr().out
+    assert "nothing merged: main CI abc1234: failure" in out and "#160 ready to merge" in out
