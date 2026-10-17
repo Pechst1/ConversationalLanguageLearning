@@ -10494,6 +10494,8 @@ export interface components {
             options: components["schemas"]["RecallOption"][];
             /** Prompt Fr */
             prompt_fr: string | null;
+            /** Retry */
+            retry?: boolean | null;
             /** Source Fr */
             source_fr: string | null;
             target: components["schemas"]["TargetRef"];

@@ -281,7 +281,7 @@ class RecallMet(JourneyModel):
 class RecallPrompt(JourneyModel):
     # This serializer drops audio_url on silent formats, leaving all other defaults.
     model_config = ConfigDict(
-        json_schema_extra=lambda schema: _drop_required(schema, "audio_url", "met"),
+        json_schema_extra=lambda schema: _drop_required(schema, "audio_url", "met", "retry"),
     )
     #: WP-66 brought three Séance formats into the daily loop. Additive: the
     #: three originals are unchanged, so a step persisted before this package
@@ -340,6 +340,9 @@ class RecallPrompt(JourneyModel):
     #: context line under the prompt («vu au marché d'Aligre, semaine 41»).
     #: Omitted for every other card.
     met: RecallMet | None = None
+    #: Owner request 2026-10-17 (additive): a drill missed earlier in the same run,
+    #: asked once more at the run's end. Omitted on every first ask.
+    retry: bool | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_audio(self, handler: Any):
@@ -353,6 +356,8 @@ class RecallPrompt(JourneyModel):
             data.pop("audio_url", None)
         if isinstance(data, dict) and data.get("met") is None:
             data.pop("met", None)
+        if isinstance(data, dict) and not data.get("retry"):
+            data.pop("retry", None)
         return data
 
 

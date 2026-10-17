@@ -305,6 +305,10 @@ test('T3 · the header of a drill is «Rappel · Genre et nombre», in the chrom
   assert.equal(frame.drillHeaderLabel(noNative, 'en', EN), 'Recall · Les articles');
   const noLabel = recallStep({}, { kind: 'grammar', id: 'g', label_fr: '', label_native: null });
   assert.equal(frame.drillHeaderLabel(noLabel, 'en', EN), 'Recall');
+  // Owner 2026-10-17: a drill missed earlier in the set, asked once more.
+  const retry = recallStep({ retry: true });
+  assert.equal(frame.drillHeaderLabel(retry, 'fr', FR), 'Encore une fois · Genre et nombre');
+  assert.equal(frame.drillHeaderLabel(retry, 'de', DE), 'Noch einmal · Gender and number');
 
   const rule = {
     id: 'r', ordinal: 1, kind: 'rule', status: 'active', estimated_seconds: 30, assistance_used: [],

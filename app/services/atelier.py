@@ -753,14 +753,17 @@ def _keyed_verdict(
     *,
     keys: list[Any] | None = None,
     others: list[Any] | None = None,
+    source: Any = None,
 ) -> Any:
     """QA-CLOSE: a keyed Forge answer through :func:`answer_acceptance.judge`.
 
     Typography never counts; accents are strict where the item tests them
     (:func:`answer_acceptance.accent_policy`); a keyed answer has no typo
-    tolerance (a tap or a rewrite of a given line, not free typing)."""
+    tolerance (a tap or a rewrite of a given line, not free typing). A repair
+    (``source``: the wrong sentence) may be answered with only the corrected part
+    (:func:`answer_acceptance.judge_repair`)."""
 
-    from app.services.answer_acceptance import accent_policy, judge
+    from app.services.answer_acceptance import accent_policy, judge, judge_repair
 
     options = [
         *(item.get("choices") or []),
@@ -770,6 +773,8 @@ def _keyed_verdict(
         *(others or []),
     ]
     policy = accent_policy(unit=concept, item=item, target=target, others=[o for o in options if isinstance(o, str)])
+    if isinstance(source, str) and source.strip():
+        return judge_repair(learner, source, keys or [target], accents=policy, typo=False)
     return judge(learner, keys or [target], accents=policy, typo=False)
 
 
@@ -6315,12 +6320,15 @@ class AtelierCorrectionService:
             # QA-CLOSE: graded by the acceptance contract — an accent slip is
             # forgiven and named unless the item tests the accent (a/à, a final
             # «-é», a spelling unit, a source that differs by an accent alone).
-            verdict = _keyed_verdict(concept, item, learner, target, keys=keys, others=[item.get("source")])
+            source = item.get("source_fr") or item.get("source")
+            verdict = _keyed_verdict(concept, item, learner, target, keys=keys, others=[item.get("source")], source=source)
             if verdict.correct or self._close_enough_transform(concept, learner, target):
                 correct_count += 1
                 if verdict.correct and verdict.accent_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": target})
                 continue
+            # A wrong part («verts») is filed as the sentence it stands for.
+            learner = verdict.read_as or learner
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
             ops = token_diff(learner, target)
             what = describe_diff(ops, self.explanation_language)

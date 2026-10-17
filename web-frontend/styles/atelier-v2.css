@@ -988,8 +988,10 @@
   background: var(--av2-card);
   color: var(--av2-ink);
   font-family: inherit;
-  font-size: var(--av2-t-body-lg); /* never below 16px: iOS zooms the viewport */
-  line-height: 1.45;
+  /* Owner 2026-10-17: the answer is the thing being read on a phone; one step
+     up the scale from the 16px floor (never below it: iOS zooms the viewport). */
+  font-size: var(--av2-t-rule);
+  line-height: 1.4;
   resize: vertical;
 }
 
@@ -1009,8 +1011,8 @@
   border-radius: var(--av2-r-card);
   background: var(--av2-card);
   color: var(--av2-ink-2);
-  font-size: var(--av2-t-body-lg);
-  line-height: 1.45;
+  font-size: var(--av2-t-rule);
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
@@ -1075,12 +1077,15 @@
   padding: 10px 12px;
   border-radius: var(--av2-r-card);
   background: var(--av2-card);
-  font-size: var(--av2-t-label);
+  /* Owner 2026-10-17: the why reads at body size, and the French fix — the
+     line the learner came for — one size larger than the answer field. */
+  font-size: var(--av2-t-body);
   line-height: 1.45;
   color: var(--av2-ink-2);
   min-width: 0;
 }
 
+.av2 .av2-correction__line { font-size: var(--av2-t-option); line-height: 1.3; }
 .av2 .av2-correction__span { text-decoration: line-through; }
 .av2 .av2-correction__fix { font-family: var(--av2-serif); font-style: italic; color: var(--av2-green); }
 
@@ -3461,6 +3466,8 @@
 .av2 .av2-thread__note p { margin: 0; }
 .av2 .av2-thread__note p + p { margin-top: 4px; }
 .av2 .av2-thread__note .av2-correction { margin: 0; padding: 0; background: none; }
+/* In the conversation's margin note the fix stays a margin note, not a headline. */
+.av2 .av2-thread__note .av2-correction__line { font-size: var(--av2-t-body-lg); }
 
 /* WP-103 T3. What a drill asks for, right under its instruction: the goal in
    the learner's language (sans, ink, a card of its own), or the scene line the

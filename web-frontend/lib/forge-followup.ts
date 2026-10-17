@@ -115,9 +115,36 @@ function foldWords(value: string | string[]): string {
 }
 
 /**
+ * Owner request 2026-10-17, as `answer_acceptance.repair_readings` on the server:
+ * a typed correction may be only the part that changed («vertes» for «des chaises
+ * vert»), with any of the unchanged words around it. Each reading puts the answer
+ * in place of the stretch of the source that differs from the target; it is right
+ * only when the whole sentence it makes is the target.
+ */
+export function repairReadings(answer: string, source: string, target: string): string[] {
+  const learner = foldWords(answer).split(' ').filter(Boolean);
+  const wrong = foldWords(source).split(' ').filter(Boolean);
+  const right = foldWords(target).split(' ').filter(Boolean);
+  if (!learner.length || !wrong.length || !right.length) return [];
+  const limit = Math.min(wrong.length, right.length);
+  let head = 0;
+  while (head < limit && wrong[head] === right[head]) head += 1;
+  let tail = 0;
+  while (tail < limit - head && wrong[wrong.length - 1 - tail] === right[right.length - 1 - tail]) tail += 1;
+  const readings: string[] = [];
+  for (let before = 0; before <= head; before += 1) {
+    for (let after = 0; after <= tail; after += 1) {
+      readings.push([...wrong.slice(0, head - before), ...learner, ...wrong.slice(wrong.length - tail + after)].join(' '));
+    }
+  }
+  return readings;
+}
+
+/**
  * True when the answer (typed, or tiles in order) is one of the accepted sentences.
  * Tiles carry words only (live walk #115: no «,» or «?» tile), so a tile build is
- * compared without punctuation; a typed answer still keeps its inner commas.
+ * compared without punctuation; a typed answer still keeps its inner commas, and
+ * may be only the corrected part (:func:`repairReadings`).
  */
 export function followUpMatches(answer: string | string[], followUp: ForgeFollowUp): boolean {
   const said = foldSentence(answer);
@@ -126,7 +153,10 @@ export function followUpMatches(answer: string | string[], followUp: ForgeFollow
     const words = foldWords(answer);
     return followUp.accepted.some((sentence) => foldWords(sentence) === words);
   }
-  return followUp.accepted.some((sentence) => foldSentence(sentence) === said);
+  if (followUp.accepted.some((sentence) => foldSentence(sentence) === said)) return true;
+  return followUp.accepted.some((sentence) =>
+    repairReadings(answer, followUp.sourceFr, sentence).includes(foldWords(sentence)),
+  );
 }
 
 export type FollowUpOutcome = 'right' | 'revealed';

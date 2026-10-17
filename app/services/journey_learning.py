@@ -1918,6 +1918,17 @@ def is_infrastructure_failure(answer: AttemptAnswer) -> bool:
     return not normalize_answer_text(answer.text) and not answer.option_id and not answer.tile_ids
 
 
+def repair_source_of(task: RecallTask) -> str | None:
+    """The wrong sentence a «correct this sentence» item starts from, or ``None``.
+
+    A step planned before WP-103 carries it only as ``prompt_fr``."""
+
+    if task.task_type != "transform":
+        return None
+    source = str(task.source_fr or task.prompt_fr or "").strip()
+    return source or None
+
+
 def _accepted_answers(task: RecallTask) -> list[str]:
     accepted = [text for text in task.accepted_answers if text]
     if task.solution_fr:
@@ -2224,11 +2235,25 @@ def evaluate_recall(
         is_correct = answer_matches(answer.text, _accepted_answers(task), accents=accents)
         learner_text = answer.text
         opportunity = "open_production"
-        from app.services.answer_acceptance import judge
+        from app.services.answer_acceptance import judge, judge_repair
 
-        typed_verdict = judge(
-            answer.text, _accepted_answers(task), article_optional=article_optional(task.target), accents=accents
-        )
+        repair_source = repair_source_of(task)
+        if repair_source:
+            # Owner request 2026-10-17: «Corrige cette phrase» is answered with the
+            # corrected part alone («vertes» for «des chaises vert») or the whole
+            # sentence; the part is read in place and judged by the same contract.
+            typed_verdict = judge_repair(
+                answer.text,
+                repair_source,
+                _accepted_answers(task),
+                article_optional=article_optional(task.target),
+                accents=accents,
+            )
+            is_correct = is_correct or typed_verdict.correct
+        else:
+            typed_verdict = judge(
+                answer.text, _accepted_answers(task), article_optional=article_optional(task.target), accents=accents
+            )
 
     observation = classify_observation(
         target=task.target,
@@ -2282,16 +2307,22 @@ def evaluate_recall(
 
             note = feedback_note(typed, str(user_chrome_language(user))) or note
         expected = task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else None)
-        correction = build_correction(learner_text=learner_text, corrected_fr=expected, note_native=note)
-        if correction is None and typed is not None and typed.note == "accent" and learner_text and expected:
+        # A part answered wrong is corrected as a part («verts → vertes»); the
+        # saved error keeps the whole sentence, so it can be drilled later.
+        part_answer = typed is not None and bool(typed.read_as and typed.expected_part)
+        shown = typed.expected_part if part_answer else expected
+        correction = build_correction(learner_text=learner_text, corrected_fr=shown, note_native=note)
+        if correction is None and typed is not None and typed.note == "accent" and learner_text and shown:
             # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
             # the folds see no difference, the learner must still see the answer.
             candidate = Correction(
                 span_fr=normalize_answer_text(learner_text),
-                corrected_fr=normalize_answer_text(expected),
+                corrected_fr=normalize_answer_text(shown),
                 note_native=note or "",
             )
             correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+        if correction is not None and part_answer and expected:
+            correction = replace(correction, saved_span_fr=typed.read_as, saved_corrected_fr=expected)
         if correction is None and _is_free_sentence(task) and learner_text and expected:
             # WP-129: a free sentence that did not use the unit is not a slip in
             # one span: the learner sees a model sentence that does, whole.
@@ -3139,19 +3170,21 @@ def _record_correction_erratum(
     # WP-L4: when the step itself observed one grammar unit going wrong (a
     # guided item, or a reply the unit's detector saw), the erratum is that
     # unit's — so its lapse is booked once, and its repair credits it.
+    span = correction.saved_span_fr or correction.span_fr
+    corrected = correction.saved_corrected_fr or correction.corrected_fr
     concept_id = concept_id_hint or service.infer_concept_id_for_correction(
-        learner_text=correction.span_fr,
-        corrected_text=correction.corrected_fr,
+        learner_text=span,
+        corrected_text=corrected,
         note=correction.note_native,
     )
     return service.record_erratum(
         user=user,
         erratum={
-            "display_label": f"Reprise : {correction.span_fr}"[:120],
-            "learner_text": correction.span_fr,
-            "corrected_target": correction.corrected_fr,
+            "display_label": f"Reprise : {span}"[:120],
+            "learner_text": span,
+            "corrected_target": corrected,
             "why_wrong": correction.note_native or "Cette forme demande une reprise.",
-            "repair_hint": correction.corrected_fr,
+            "repair_hint": corrected,
             "severity": 2,
             "recurring": True,
             "task_error_type": "journey_correction",

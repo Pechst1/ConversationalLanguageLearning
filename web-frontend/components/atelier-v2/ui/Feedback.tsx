@@ -88,7 +88,7 @@ export function Correction({ label, spanFr, correctedFr, noteNative, notesNative
   return (
     <div className="av2-correction">
       <p className="av2-label">{label}</p>
-      <p style={{ margin: '4px 0 0' }}>
+      <p className="av2-correction__line" style={{ margin: '4px 0 0' }}>
         <span className="av2-correction__span" lang="fr">
           {spanFr}
         </span>{' '}
