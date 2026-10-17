@@ -30,6 +30,7 @@ authored goodbye and no provider is called. A provider failure does the same.
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -136,12 +137,14 @@ Return {"opening_fr": str, "voicemail_fr": str, "reason_en": str}."""
 
 _REPLY = """Write the character's next line answering the learner's last line (lines[-1]).
 React to what the learner actually said; if it was hard to understand, ask once, simply,
-what they mean. turns_left says how many more learner lines the call has: when it is 0,
+what they mean. If the learner did not understand you, say the same thing again in
+simpler, shorter words (never the same sentence twice). turns_left says how many more learner lines the call has: when it is 0,
 or the learner says goodbye, say goodbye warmly and set ends true. reply_fr: at most 2
 sentences. """ + story_memory.ENDING_REPORT + """ Here «this exchange» is the whole call
 (lines). summary_fr (only when ends is true): one French sentence for the story's
 ledger, as the story will remember the call, addressed to the learner as «tu»
-(«Romy t'a téléphoné : …»), never naming or gendering the learner.
+and opening with the caller's own name («{caller} t'a téléphoné : …»), never naming or
+gendering the learner.
 Return {"reply_fr": str, "ends": bool, "learned": [...], "left_open": [...],
 "answered_open_ids": [...], "summary_fr": str|null}."""
 
@@ -183,7 +186,7 @@ class LLMCallProvider:
         return self._ask(_OPENING, context)
 
     def reply(self, context: dict[str, Any]) -> tuple[dict[str, Any], float]:
-        return self._ask(_REPLY, context)
+        return self._ask(_REPLY.replace("{caller}", str(context.get("caller_name") or "")), context)
 
 
 @dataclass
@@ -220,7 +223,9 @@ class FakeCallProvider:
                 "learned": [],
                 "left_open": [],
                 "answered_open_ids": [],
-                "summary_fr": "On t'a téléphoné pour prendre des nouvelles." if ends else None,
+                "summary_fr": f"{context.get('caller_name') or 'Romy'} t'a téléphoné pour prendre des nouvelles."
+                if ends
+                else None,
             },
             self.cost,
         )
@@ -638,8 +643,8 @@ def say(
     call["answered_open_ids"] = sorted(
         set(call.get("answered_open_ids", [])) | {str(item) for item in data.get("answered_open_ids") or [] if str(item) in known_open}
     )
-    if data.get("summary_fr"):
-        call["summary_fr"] = _clip(data.get("summary_fr"))
+    if summary := _caller_summary(call, data.get("summary_fr")):
+        call["summary_fr"] = summary
     call["turns"] = [*call["turns"], {"who": "caller", "text_fr": reply, "clip_id": _speak(db, user, call, reply)}]
     if ends:
         _settle(thread, call)
@@ -663,6 +668,21 @@ def hang_up(db: Session, user: User, call_id: str) -> dict[str, Any]:
     db.add(thread)
     db.flush()
     return public_view(call)
+
+
+def _caller_summary(call: dict[str, Any], text: Any) -> str | None:
+    """The model's ledger sentence, kept only when it names the caller as the one who
+    phoned (a model copying the prompt's example would credit Romy with Lila's call)."""
+
+    summary = _clip(text)
+    name = _caller_view(call["caller"])["name"]
+    if not summary or name not in summary:
+        return None
+    said = _PHONED.search(summary)
+    return summary if said is None or said.group(1) == name else None
+
+
+_PHONED = re.compile(r"([A-ZÀ-Ý][\w'’-]*) (?:t['’]a|m['’]a|a) (?:télé)?phoné")
 
 
 def _summary(call: dict[str, Any]) -> str:

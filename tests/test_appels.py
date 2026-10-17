@@ -421,3 +421,25 @@ def test_the_beat_schedules_the_call_pushes():
     assert "app.tasks.notifications.send_appel_pushes" in {
         entry["task"] for entry in celery_app.conf.beat_schedule.values()
     }
+
+
+def test_the_ledger_sentence_must_credit_the_caller():
+    lila = {"caller": "lila_bonnet"}
+    assert appels._caller_summary(lila, "Lila t'a téléphoné : tu travailles à l'hôpital.")
+    assert appels._caller_summary(lila, "Ce soir, Lila t’a téléphoné pour ton atelier.")
+    # The prompt's example copied as is would credit Romy with Lila's call.
+    assert appels._caller_summary(lila, "Romy t'a téléphoné : tu travailles à l'hôpital.") is None
+    assert appels._caller_summary(lila, "On t'a téléphoné pour prendre des nouvelles.") is None
+    assert appels._caller_summary(lila, None) is None
+
+
+def test_the_reply_prompt_names_this_caller():
+    seen = {}
+
+    class _Probe(appels.LLMCallProvider):
+        def _ask(self, instructions, context):
+            seen["instructions"] = instructions
+            return {}, 0.0
+
+    _Probe().reply({"caller_name": "Lila"})
+    assert "«Lila t'a téléphoné : …»" in seen["instructions"] and "Romy" not in seen["instructions"]
