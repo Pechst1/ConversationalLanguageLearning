@@ -149,6 +149,31 @@ def test_on_a_tentpole_everyone_in_the_room_heard_the_learner(memory):
     assert [row["quote"] for row in memory.narrow(memory.full_view(after), {LILA})["said"]] == ["Non, je ne vends pas."]
 
 
+def test_who_is_in_the_room_is_read_from_the_page():
+    """Everyone in frame or speaking so far, the person asked, and whoever reacts in the
+    reply the learner's words took — never a reply they did not take, nor the hook."""
+
+    from app.services.season.page import present_at_turns
+
+    page = {
+        "movements": [
+            {"kind": "panel", "id": "p1", "in_frame": ["toi", LILA], "lines": [{"who": "caption"}]},
+            {"kind": "solve", "id": "calendar", "mechanic": "enquete", "to": LILA,
+             "nudge": [{"kind": "panel", "id": "n1", "in_frame": [], "lines": [{"who": "marin_leveque"}]}]},
+            {"kind": "turn", "id": "turn1", "to": GUS, "panel": {"in_frame": [GUS, "toi"], "lines": [{"who": GUS}]},
+             "replies": [{"id": "yes", "beats": [{"in_frame": [MARGAUX], "lines": []}]},
+                         {"id": "no", "beats": [{"in_frame": [CAMILLE], "lines": []}]}],
+             "after": [{"in_frame": ["romy_tremblay"], "lines": []}]},
+            {"kind": "turn", "id": "turn2", "to": LILA, "panel": {"in_frame": [], "lines": []}, "replies": []},
+            {"kind": "hook", "id": "hook", "panel": {"in_frame": ["solvel"], "lines": []}},
+        ]
+    }
+    present = present_at_turns(page, {"turn1": "yes"})
+    assert present["calendar"] == [LILA]
+    assert present["turn1"] == sorted([GUS, LILA, MARGAUX, "marin_leveque"])
+    assert present["turn2"] == sorted([GUS, LILA, MARGAUX, "marin_leveque", "romy_tremblay"])
+
+
 def test_the_same_words_to_the_same_person_twice_are_one_line(memory):
     """Asked again («Pardon ?»), the learner says it again: one line, so the readers'
     tail keeps the days before it (paid read: day 1's name had fallen out of it)."""

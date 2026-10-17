@@ -441,6 +441,8 @@ def present_at_turns(page: dict[str, Any], routes: dict[str, str] | None = None)
             present[str(turn.get("id"))] = sorted(room - TEXT_SPEAKERS - {"", "None"})
             enter(turn.get("after") or [])
         elif kind == "solve":
+            # A day with no question of its own asks this solve (``project``).
+            present.setdefault(str(movement.get("id")), sorted((room | {str(movement.get("to") or "")}) - TEXT_SPEAKERS - {"", "None"}))
             enter(_default_beats(movement))
     return present
 
