@@ -7195,6 +7195,45 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_addressee(draft, context)
     _check_reading_aids(draft, context)
     _check_story_words(draft, context)
+    _check_learner_words(draft, context)
+
+
+def _check_learner_words(draft: SceneDraft, context: dict) -> None:
+    """Story engine Phase 3 (soft): a character brings back only what the learner said
+    in their hearing (``story_memory.unheard_tellings``). Refused once with what they
+    did hear; the retry is served either way."""
+
+    from app.services.lexical_coverage import default_resolver
+
+    view = context.get(story_memory.MEMORY_KEY)
+    lines = [(draft.character_id, draft.opening_line_fr)] + [
+        (line.character_id, line.text_fr) for panel in draft.panels for line in panel.dialogue
+    ]
+    told = story_memory.unheard_tellings(
+        view,
+        lines,
+        default_resolver().candidates,
+        cast=_cast_name_set(context.get("world")),
+        learner_name=story_memory.name_in(view),
+    )
+    if not told:
+        return
+    who, sentence = told[0]
+    heard = " ".join(f"«{_one_line(line, 90)}»" for line in story_memory.heard_from_learner(view, who)[-4:])
+    raise SoftRejection(
+        "invented_learner_words",
+        hint=(
+            f"\"{_one_line(sentence, 120)}\": {who} tells the learner they said this, and the learner "
+            f"never said it where {who} could hear. "
+            + (
+                f"What {who} heard from the learner: {heard}. Bring back only that, in "
+                f"{who}'s own words, or cut the sentence."
+                if heard
+                else f"{who} never heard the learner say anything: cut the sentence."
+            )
+        ),
+        proposal=draft,
+    )
 
 
 def _check_story_words(draft: SceneDraft, context: dict) -> None:

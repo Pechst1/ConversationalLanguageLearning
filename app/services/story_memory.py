@@ -761,6 +761,110 @@ def returnable(view: dict | None, row_id: Any, on_page: Iterable[Any]) -> dict |
 
 
 # ---------------------------------------------------------------------------
+# A page brings back what the learner said, never what they did not say
+# ---------------------------------------------------------------------------
+
+#: A character telling the learner what the learner once told them: «tu m'as dit»,
+#: «vous m'aviez dit», «tu as répondu», «tu me disais». A denial («tu ne m'as pas
+#: dit») does not match: it claims nothing.
+_TOLD = re.compile(
+    r"\b(?:tu|vous)\s+(?:m['’]\s*|nous\s+)?(?:as|avais|avez|aviez)\s+(?:dit|répondu|raconté)\b"
+    r"|\b(?:tu|vous)\s+(?:me\s+|m['’]\s*|nous\s+)?(?:disais|disiez)\b",
+    re.IGNORECASE,
+)
+#: What a telling says besides what was said: grammar, être and avoir, when it was
+#: said, and «oui» or «non» (a refusal is «non» in anyone's words).
+_NOT_WHAT = frozenset(
+    """
+    a à ah ai alors as au aussi aux avais avait avec avez aviez avons bien bon c ça ce cela
+    ces cet cette comme d dans de déjà dernier dernière des du eh elle elles en es est et étais
+    était été être eu fois hein hier il ils j je jour l la le les leur lui m ma mais me mes moi
+    mon n ne non nous oh on ont ou où oui par pas plus pour qu que quand qui quoi s sa se ses
+    si son sont suis sur t ta te tes toi ton tout très tu un une vous y
+    """.split()
+)
+
+
+def _bare(word: str) -> str:
+    return "".join(char for char in unicodedata.normalize("NFKD", word) if not unicodedata.combining(char))
+
+
+def _said_words(text: Any, lemmas: Callable[[str], Iterable[str]], names: Collection[str]) -> set[str]:
+    """The words of a telling or of a remembered line that say something, each with
+    its dictionary forms («restais» meets «reste» at «rester»), accents folded."""
+
+    out: set[str] = set()
+    for word in re.findall(r"[^\W\d_]+(?:-[^\W\d_]+)*", str(text or "").casefold()):
+        if len(word) > 1 and word not in _NOT_WHAT and word not in names:
+            out.update(_bare(form) for form in (word, *lemmas(word)))
+    return out
+
+
+def heard_from_learner(view: dict | None, who: Any) -> list[str]:
+    """Everything ``who`` heard the learner say or was told about them, in the version
+    they heard, the newest lines last: the facts, the learner's name, the lines
+    (``said``)."""
+
+    who = str(who or "")
+    view = view or {}
+    texts: list[str] = []
+    for fact in view.get("facts") or []:
+        before = fact.get("before") if isinstance(fact.get("before"), dict) else {}
+        if who in (fact.get("known_by") or ()):
+            texts += [str(fact.get(key)) for key in ("fact_fr", "quote", "value") if fact.get(key)]
+        elif who in (before.get("known_by") or ()):
+            texts += [str(before.get(key)) for key in ("fact_fr", "quote") if before.get(key)]
+    name = view.get("learner_name") if isinstance(view.get("learner_name"), dict) else {}
+    if name.get("value") and who in (name.get("known_by") or ()):
+        texts.append(str(name["value"]))
+    texts += [str(row["quote"]) for row in view.get("said") or [] if row.get("quote") and who in (row.get("heard_by") or ())]
+    return list(dict.fromkeys(texts))
+
+
+def unheard_tellings(
+    view: dict | None,
+    lines: Iterable[tuple[Any, Any]],
+    lemmas: Callable[[str], Iterable[str]] = lambda word: (),
+    *,
+    cast: Collection[str] = (),
+    learner_name: str | None = None,
+) -> list[tuple[str, str]]:
+    """``(character_id, sentence)`` for each sentence of a page in which a character
+    tells the learner what the learner once told them, and no word of it is in what
+    that character heard from the learner (:func:`heard_from_learner`). ``lemmas``
+    gives a word's dictionary forms, so a telling in the character's own words still
+    meets the learner's line. A telling that names someone in ``cast`` («Gus, tu m'as
+    dit…», «tu as dit non à Camille») may be said to them or be about them, and is
+    not read; the learner's name says nothing either.
+
+    The paid read of 2026-10-17: Lila said «Tu m'avais dit : mercredi, tu rentres.» to
+    a learner who had told her «Non, je ne vends pas. Je reste un peu.» and nothing
+    about Wednesday, in two lives of six (never on main, where nobody brought the
+    learner's words back). A question asks, it does not tell; «tu m'as dit non» tells
+    only an answer; and with nothing remembered there is nothing to check."""
+
+    if not view:
+        return []
+    others = {str(name).casefold() for name in cast if len(str(name or "")) > 1}
+    skip = others | ({str(learner_name).casefold()} if learner_name else set())
+    found: list[tuple[str, str]] = []
+    for who, text in lines:
+        for sentence in _SENTENCE_END.split(" ".join(str(text or "").split())):
+            told = _TOLD.search(sentence)
+            if not told or sentence.endswith("?") or others & set(re.findall(r"[^\W\d_]+", sentence.casefold())):
+                continue
+            # What was told follows the verb («tu m'as dit : …»), or comes first when
+            # nothing does («« Je reste », tu m'as dit.»).
+            after = sentence[told.end() :]
+            what = after if re.search(r"[^\W\d_]", after) else sentence[: told.start()]
+            claim = _said_words(what, lemmas, skip)
+            heard = set().union(*(_said_words(line, lemmas, skip) for line in heard_from_learner(view, who)))
+            if claim and not claim & heard:
+                found.append((str(who or ""), sentence))
+    return found
+
+
+# ---------------------------------------------------------------------------
 # The ledger seam: a page may build on what the learner said, and cite it
 # ---------------------------------------------------------------------------
 
@@ -826,6 +930,7 @@ __all__ = [
     "fold",
     "full_view",
     "grounded_facts",
+    "heard_from_learner",
     "known_to",
     "last_question",
     "ledger_rows",
@@ -837,6 +942,7 @@ __all__ = [
     "open_row",
     "row_by_id",
     "stated_name",
+    "unheard_tellings",
     "verbatim",
     "view",
 ]

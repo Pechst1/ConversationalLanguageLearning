@@ -323,6 +323,54 @@ def test_a_remembered_line_is_a_past_a_page_may_cite(memory, day):
     assert memory.row_by_id(after, "said:9:9") is None and memory.row_by_id(after, None) is None
 
 
+def test_a_character_brings_back_only_what_they_heard_the_learner_say(memory, day):
+    from app.services.lexical_coverage import CuratedResolver
+
+    after = memory.after_day(None, day(1, "Je m'appelle Lena.", speaker=GUS, witnesses=[LILA]))
+    after = memory.after_day(
+        after,
+        day(2, "Non, je ne vends pas. Je reste un peu.", "Merci. Je ne sais pas encore.", speaker=CAMILLE, witnesses=[LILA]),
+    )
+    view = memory.full_view(after)
+
+    def told(who, line):
+        lemmas = CuratedResolver().candidates
+        return memory.unheard_tellings(view, [(who, line)], lemmas, cast={"Gus", "Lila", "Camille"}, learner_name="Lena")
+
+    # The paid read of 2026-10-17, in two lives of six: nobody ever said Wednesday to Lila.
+    assert told(LILA, "Alors ? Tu m'avais dit : mercredi, tu rentres.") == [(LILA, "Tu m'avais dit : mercredi, tu rentres.")]
+    assert told(LILA, "Lena, tu m'avais dit : mercredi.") == [(LILA, "Lena, tu m'avais dit : mercredi.")]
+    assert told(MARGAUX, "Tu m'as dit que tu restais un peu.") != [], "Margaux heard none of it"
+    for line in (
+        "Tu m'as dit que tu restais un peu.",  # what she heard, in her own words
+        "Vous aviez dit que vous ne vendiez pas.",
+        "« Je reste un peu », tu m'as dit.",
+        "La dernière fois, tu as dit non. Tu m'aides ?",  # an answer, in anyone's words
+        "Tu ne m'as pas dit pourquoi. Tu m'avais dit mercredi ?",  # a denial, a question
+        "Gus, tu m'as dit que la cave était fermée.",  # said to Gus
+    ):
+        assert told(LILA, line) == [], line
+    assert memory.unheard_tellings(None, [(LILA, "Tu m'as dit : mercredi.")]) == [], "nothing remembered"
+
+
+def test_a_page_that_puts_words_in_the_learners_mouth_is_sent_back_once(memory, day):
+    from app.services import living_story as engine
+    from tests.test_living_story import _scene_context, draft
+
+    romy = "romy_tremblay"
+    context = _scene_context(memory=memory.full_view(memory.after_day(None, day(1, "Non, je ne peux pas samedi.", speaker=romy))))
+    page = draft(context, 0)
+    line = next(line for panel in page["panels"] for line in panel["dialogue"] if line["character_id"] == romy)
+    line["text_fr"] = "Tu m'avais dit : mercredi, tu rentres."
+    proposal = engine.SceneDraft.model_validate(page)
+    with pytest.raises(engine.SoftRejection, match="invented_learner_words") as refused:
+        engine._validate_scene(proposal, context)
+    assert "«Non, je ne peux pas samedi.»" in refused.value.hint, "the retry is told what Romy did hear"
+    assert refused.value.proposal is proposal, "a soft refusal: the retry is served either way"
+    line["text_fr"] = "Tu m'avais dit : pas samedi."
+    engine._validate_scene(engine.SceneDraft.model_validate(page), context)
+
+
 # ---------------------------------------------------------------------------
 # A memory is never the reason a turn or a page is lost
 # ---------------------------------------------------------------------------
