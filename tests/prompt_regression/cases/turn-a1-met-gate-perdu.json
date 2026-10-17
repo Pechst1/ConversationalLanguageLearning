@@ -1,0 +1,113 @@
+{
+ "id": "turn-a1-met-gate-perdu",
+ "lane": "turn",
+ "level": "A1",
+ "source": "WP-136 read, quoted in app/services/met_gate.py: «met» for a learner asked why they stay who answered «C'est gentil. Je suis un peu perdu ici.». Scene and Romy's question from the WP-149 A1 read, g1.2 (evidence/wp149-confirmation/a1/A1.1.md); Romy's reply is the one that read served to this learner line. The met-gate must lower the grade; the reply passes.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "A1",
+    "level_register": "no coarse or vulgar vocabulary",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "romy_tremblay",
+       "name": "Romy Tremblay",
+       "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+       "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+       "wants": "The story that earns her a Paris contract — earned by listening, not by leaving.",
+       "speech_pattern": "«Voyons donc.» «C'est quoi, la vraie histoire ?» «C'est pas pire.»",
+       "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+       "gender": "f",
+       "contradiction": "A journalist who does not want to publish the thing that breaks her friends.",
+       "secret": "She kept her Montréal apartment. From T4 she holds the memory card of the party (romy.footage).",
+       "flaw": "Knows more than she says, and it shows.",
+       "dynamic_with_user": "A source, then a friend. She hates that order. Switches the camera off in front of the learner so they can see her do it.",
+       "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+      }
+     ]
+    },
+    "story_so_far": [
+     "Romy a demandé si tu fais confiance à Solvel. Tu as dit : «Je ne pars pas demain.»"
+    ],
+    "commitments": [],
+    "moods": {
+     "romy_tremblay": {}
+    },
+    "relationships": {
+     "romy_tremblay": {
+      "register": "tu",
+      "closeness": 0
+     }
+    },
+    "secrets": {
+     "romy_tremblay": "hidden"
+    }
+   },
+   "scene": {
+    "character_id": "romy_tremblay",
+    "title_fr": "La question de Romy",
+    "premise_fr": "Au Mistral, Romy montre une courte vidéo. Les voisins chuchotent.",
+    "location_id": "le_mistral",
+    "objective_native": "Say why you are staying.",
+    "objective_semantics": "Romy asks why the learner stays in Paris. Met when the learner gives a reason.",
+    "opening_line_fr": "Toi, pourquoi tu restes ? Tu as peur ?",
+    "suggested_response_fr": "J'ai un appartement ici.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "C'est gentil. Je suis un peu perdu ici.",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "WP-136 grade, as quoted",
+    "prompt_digest": "sha256:16e7d4aeca8170135dcdc4447aa97ef812c5f67e076ac16948724e639ffbec6b",
+    "content": {
+     "outcome": "met",
+     "evidence_quotes": [
+      "Je suis un peu perdu ici."
+     ],
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "WP-149 A1 read, verbatim",
+    "prompt_digest": "sha256:1c58b3d77947f4d97cafee32f96e27207ad393cd640c959981835ac98386bff1",
+    "content": {
+     "reply_fr": "Oh, pauvre toi — ça me serre le cœur de te voir comme ça ici.",
+     "understood_intent": "The learner feels a bit lost.",
+     "needs_clarification": false
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [],
+  "outcome": "partially_met",
+  "gated": [
+   "missing_reason"
+  ]
+ }
+}

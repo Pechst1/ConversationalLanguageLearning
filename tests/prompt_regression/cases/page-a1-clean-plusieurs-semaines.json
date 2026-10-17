@@ -1,0 +1,195 @@
+{
+ "id": "page-a1-clean-plusieurs-semaines",
+ "lane": "page",
+ "level": "A1",
+ "source": "A clean A1 day: g1.3 «Plusieurs semaines» (the owed premise on season day 5), planned, written and aided in one pass. Page written for this fixture in the style of the WP-149 A1 read (docs/implementation/atelier-v2/evidence/wp149-confirmation/a1/A1.1.md).",
+ "input": {
+  "context": "s1-g1.3-a1.json",
+  "patch": {}
+ },
+ "answers": {
+  "PagePlan": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:0ccac425c3b096f843e601014698974fa57185fae49cb2ccc8dd82efbbc5b25b",
+    "content": {
+     "premise_id": "plusieurs_semaines",
+     "location_id": "notaire",
+     "cast": [
+      "lila_bonnet",
+      "maitre_vasseur"
+     ],
+     "lead_id": "lila_bonnet",
+     "beats": [
+      "Maître Vasseur says it plainly: nothing can be sold before the succession papers.",
+      "The papers take weeks.",
+      "The learner looks at the Wednesday plane ticket.",
+      "Outside, Lila waits in the rain with two coffees."
+     ],
+     "change": {
+      "before": "The learner thinks they will sign and fly home on Wednesday 18 November.",
+      "after": "They know nothing can be sold for weeks, and the Wednesday flight is now a question."
+     },
+     "question": "So, what did the notary say, and what about your flight?",
+     "task": "Lila asks what the notary said about your flight.",
+     "replies": [
+      {
+       "gist": "I stay longer",
+       "intent": "yes",
+       "then": "Lila hands over the second coffee"
+      },
+      {
+       "gist": "I keep the flight",
+       "intent": "no",
+       "then": "Lila drinks both coffees, silent"
+      }
+     ],
+     "hook": "The flight: keep it, or move it?",
+     "chapter": {
+      "question": "Will the learner keep the Wednesday flight?",
+      "developments": [
+       "The learner calls the airline.",
+       "Lila coaches the call and makes it worse.",
+       "The ticket moves to 2 December."
+      ]
+     },
+     "threads": [
+      "Settling: the notary explains that nothing can be sold for weeks, and the learner's return ticket moves to 2 December (user.return_ticket). The usual order is established (user.usual_order)."
+     ],
+     "small_moment_id": null,
+     "complication": null,
+     "callback_id": null,
+     "learner_agency": null,
+     "novelty_key": "notaire-plusieurs-semaines",
+     "problem_key": "succession_delay"
+    }
+   }
+  ],
+  "PageText": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:cc08a5cd09396849f3028eddcbed7301287935b236a2bf85797caa44f1d43026",
+    "content": {
+     "title_fr": "Plusieurs semaines",
+     "premise_fr": "Le matin, chez le notaire. Il pleut sur la rue.",
+     "panels": [
+      {
+       "visual_direction": "Maître Vasseur's office, morning. Files, a green desk lamp. Vasseur reads a letter; Toi sits opposite, a plane ticket on the knee.",
+       "narration_fr": "Chez Maître Vasseur.",
+       "dialogue": [
+        {
+         "character_id": "maitre_vasseur",
+         "text_fr": "Vous ne pouvez pas vendre maintenant.",
+         "mood": "neutral"
+        }
+       ]
+      },
+      {
+       "visual_direction": "Close on Vasseur, glasses down, two fingers on the file.",
+       "narration_fr": "",
+       "dialogue": [
+        {
+         "character_id": "maitre_vasseur",
+         "text_fr": "Les papiers, c'est long. Plusieurs semaines.",
+         "mood": "neutral"
+        }
+       ]
+      },
+      {
+       "visual_direction": "Close on the plane ticket in Toi's hand: «Mercredi 18 novembre». No dialogue.",
+       "narration_fr": "Le billet dit : mercredi.",
+       "dialogue": []
+      },
+      {
+       "visual_direction": "Outside in the rain. Lila under the notary's awning with two paper cups; she holds one out.",
+       "narration_fr": "Dehors, Lila attend.",
+       "dialogue": [
+        {
+         "character_id": "lila_bonnet",
+         "text_fr": "Un café. Pour toi.",
+         "mood": "happy"
+        }
+       ]
+      }
+     ],
+     "opening_line_fr": "Alors ? Et ton avion, mercredi ?",
+     "suggested_response_fr": "Je reste. Plusieurs semaines.",
+     "hook_fr": "L'avion de mercredi : on le garde ?",
+     "chapter_title_fr": "Le billet de mercredi",
+     "chapter_question_fr": "L'avion de mercredi, on le garde ?"
+    }
+   }
+  ],
+  "PageAids": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:d4887a20e4b1844911bedf71ee2460c9521832b1cc42b31edb136e9d1c31a33a",
+    "content": {
+     "setup_native": "Morning at the notary's office. Outside, it is raining.",
+     "translation_native": "So? And your plane on Wednesday?",
+     "hint_native": "Lila wants to know if you stay or take your flight.",
+     "alt_native": [
+      "The notary reads a letter across the desk.",
+      "The notary, glasses down, explains.",
+      "A plane ticket for Wednesday 18 November.",
+      "Lila in the rain with two coffees."
+     ],
+     "lines_native": [
+      [
+       "You cannot sell now."
+      ],
+      [
+       "The papers take a long time. Several weeks."
+      ],
+      [],
+      [
+       "A coffee. For you."
+      ]
+     ],
+     "lexicon": [
+      {
+       "surface_fr": "vendre",
+       "lemma": "vendre",
+       "gloss_native": "to sell",
+       "part_of_speech": "verb",
+       "gender": null,
+       "line_ref": "panel:0:line:0"
+      },
+      {
+       "surface_fr": "papiers",
+       "lemma": "papier",
+       "gloss_native": "papers, documents",
+       "part_of_speech": "noun",
+       "gender": "m",
+       "line_ref": "panel:1:line:0"
+      },
+      {
+       "surface_fr": "semaines",
+       "lemma": "semaine",
+       "gloss_native": "week",
+       "part_of_speech": "noun",
+       "gender": "f",
+       "line_ref": "panel:1:line:0"
+      },
+      {
+       "surface_fr": "billet",
+       "lemma": "billet",
+       "gloss_native": "ticket",
+       "part_of_speech": "noun",
+       "gender": "m",
+       "line_ref": "panel:2:narration"
+      }
+     ],
+     "can_do_id": "CD_A11_GOING"
+    }
+   }
+  ]
+ },
+ "expect": {
+  "draw": "ok",
+  "plan_refusals": [],
+  "scene_guard": "pass",
+  "lead": "lila_bonnet",
+  "premise_id": "plusieurs_semaines"
+ }
+}

@@ -1,0 +1,207 @@
+{
+ "id": "page-a2-clean-la-boite",
+ "lane": "page",
+ "level": "A2",
+ "source": "A clean A2 day: g2.5 «La boîte» (the Polaroid box, season day 14), the premise tests/test_story_split.py's fake plays; page written for this fixture.",
+ "input": {
+  "context": "s1-g2.5-a2.json",
+  "patch": {}
+ },
+ "answers": {
+  "PagePlan": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:5aa2e4e51a3965be20b6c6881f03ecaa42b7591de19a60bcff5f0509cf17ef33",
+    "content": {
+     "premise_id": "la_boite",
+     "location_id": "odile_flat",
+     "cast": [
+      "lila_bonnet"
+     ],
+     "lead_id": "lila_bonnet",
+     "beats": [
+      "After school, Lila comes up with the learner; she has no key of her own.",
+      "They pull the Polaroid box from under Odile's bed and sort sixty photos on the floor.",
+      "Lila reads Odile's captions aloud, each drier than the last.",
+      "One Polaroid is Marin at twenty, asleep on the booth; Lila puts it aside «pour plus tard»."
+     ],
+     "change": {
+      "before": "The Polaroid box is a closed box under Odile's bed.",
+      "after": "The box is open, the captions are read, and Marin's Polaroid is set aside."
+     },
+     "question": "Who do you think this caption is about?",
+     "task": "Lila wants to know who the caption is about.",
+     "replies": [
+      {
+       "gist": "a name from the café",
+       "intent": "other",
+       "then": "Lila laughs and checks the back of the photo"
+      },
+      {
+       "gist": "I don't know",
+       "intent": "other",
+       "then": "Lila reads the next caption"
+      }
+     ],
+     "hook": "Lila has shown Marin a page from Odile's notebook, and Marin wants to ask the learner something.",
+     "chapter": {
+      "question": "What do Odile's captions say about the quartier?",
+      "developments": [
+       "A caption about Gus.",
+       "A caption about Margaux.",
+       "Marin's Polaroid comes back."
+      ]
+     },
+     "threads": [],
+     "small_moment_id": null,
+     "complication": null,
+     "callback_id": null,
+     "learner_agency": null,
+     "novelty_key": "la-boite-polaroids",
+     "problem_key": "polaroid_box"
+    }
+   }
+  ],
+  "PageText": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:7d72017649214cf20f5b408b2a73ee75e24a74f474131b84d3352b08784c3561",
+    "content": {
+     "title_fr": "La boîte",
+     "premise_fr": "Après l'école, chez Odile. Sous le lit, il y a une vieille boîte.",
+     "panels": [
+      {
+       "visual_direction": "Odile's bedroom, late afternoon light through the shutters. Lila on her knees pulls a cardboard box from under the bed.",
+       "narration_fr": "Sous le lit, une boîte de photos.",
+       "dialogue": [
+        {
+         "character_id": "lila_bonnet",
+         "text_fr": "Elle est lourde ! Il y a combien de photos ?",
+         "mood": "happy"
+        }
+       ]
+      },
+      {
+       "visual_direction": "Wide shot from above: sixty Polaroids spread on the floorboards, Lila sorting them in rows.",
+       "narration_fr": "Soixante Polaroid sur le parquet.",
+       "dialogue": []
+      },
+      {
+       "visual_direction": "Close on Lila holding a Polaroid, reading the caption written under it, trying not to laugh.",
+       "narration_fr": "",
+       "dialogue": [
+        {
+         "character_id": "lila_bonnet",
+         "text_fr": "«Il a encore oublié son parapluie.» Ha !",
+         "mood": "happy"
+        }
+       ]
+      },
+      {
+       "visual_direction": "Close on a Polaroid: a young man asleep on a café booth. Lila slides it into her pocket.",
+       "narration_fr": "Lila garde une photo dans sa poche.",
+       "dialogue": [
+        {
+         "character_id": "lila_bonnet",
+         "text_fr": "Celle-là, c'est pour plus tard.",
+         "mood": "neutral"
+        }
+       ]
+      },
+      {
+       "visual_direction": "Lila holds up another Polaroid towards Toi, the caption turned outwards.",
+       "narration_fr": "",
+       "dialogue": [
+        {
+         "character_id": "lila_bonnet",
+         "text_fr": "Et celle-ci : «Toujours le même café.»",
+         "mood": "happy"
+        }
+       ]
+      }
+     ],
+     "opening_line_fr": "C'est qui, à ton avis ?",
+     "suggested_response_fr": "C'est Gus, je pense.",
+     "hook_fr": "Demain, Marin veut te demander quelque chose.",
+     "chapter_title_fr": "Les légendes d'Odile",
+     "chapter_question_fr": "Qu'est-ce qu'Odile écrit sur le quartier ?"
+    }
+   }
+  ],
+  "PageAids": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:ee00ff0c3ddea1e33c7f712115dc669a00d6024a75e7807628161d40c5d422c3",
+    "content": {
+     "setup_native": "After school, at Odile's. Under the bed there is an old box.",
+     "translation_native": "Who is it, do you think?",
+     "hint_native": "Lila wants your guess about the person in the photo.",
+     "alt_native": [
+      "Lila pulls a box from under the bed.",
+      "Sixty photos on the floor.",
+      "Lila reads a caption and laughs.",
+      "A photo of a young man asleep; Lila pockets it.",
+      "Lila shows a photo with its caption."
+     ],
+     "lines_native": [
+      [
+       "It's heavy! How many photos are there?"
+      ],
+      [],
+      [
+       "\"He forgot his umbrella again.\" Ha!"
+      ],
+      [
+       "That one is for later."
+      ],
+      [
+       "And this one: \"Always the same coffee.\""
+      ]
+     ],
+     "lexicon": [
+      {
+       "surface_fr": "lourde",
+       "lemma": "lourd",
+       "gloss_native": "heavy",
+       "part_of_speech": "adjective",
+       "gender": null,
+       "line_ref": "panel:0:line:0"
+      },
+      {
+       "surface_fr": "oublié",
+       "lemma": "oublier",
+       "gloss_native": "forgot",
+       "part_of_speech": "verb",
+       "gender": null,
+       "line_ref": "panel:2:line:0"
+      },
+      {
+       "surface_fr": "parapluie",
+       "lemma": "parapluie",
+       "gloss_native": "umbrella",
+       "part_of_speech": "noun",
+       "gender": "m",
+       "line_ref": "panel:2:line:0"
+      },
+      {
+       "surface_fr": "poche",
+       "lemma": "poche",
+       "gloss_native": "pocket",
+       "part_of_speech": "noun",
+       "gender": "f",
+       "line_ref": "panel:3:narration"
+      }
+     ],
+     "can_do_id": null
+    }
+   }
+  ]
+ },
+ "expect": {
+  "draw": "ok",
+  "plan_refusals": [],
+  "scene_guard": "pass",
+  "lead": "lila_bonnet",
+  "premise_id": "la_boite"
+ }
+}

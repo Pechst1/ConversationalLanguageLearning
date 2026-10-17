@@ -1,0 +1,119 @@
+{
+ "id": "turn-b1-clean-lendemain",
+ "lane": "turn",
+ "level": "B1",
+ "source": "A clean B1 turn on g4.4 «Le lendemain» (the page of page-b1-clean-le-lendemain), French screen. Written for this fixture.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "fr",
+    "level": "B1",
+    "level_register": "the cast's own register",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "mme_diallo",
+       "name": "Mme Diallo",
+       "role": "Minor character: the baker on the corner, in her fifties, floured apron, reading glasses on a chain.",
+       "personality": "Brisk and kind. Running line: «Une tradition pas trop cuite, c'est ça ?»",
+       "wants": "Her regulars, and Le Mistral next door.",
+       "speech_pattern": "«Une tradition pas trop cuite, c'est ça ?» «Et demain ?»",
+       "register_with_user": "vous",
+       "gender": "f",
+       "contradiction": null,
+       "secret": null,
+       "flaw": null,
+       "dynamic_with_user": "Knows the learner's face from gap 1."
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {
+     "mme_diallo": {}
+    },
+    "relationships": {
+     "mme_diallo": {
+      "register": "vous"
+     }
+    },
+    "secrets": {
+     "mme_diallo": "hidden"
+    }
+   },
+   "scene": {
+    "character_id": "mme_diallo",
+    "title_fr": "Le lendemain",
+    "premise_fr": "Lundi matin, à la boulangerie de Mme Diallo. La file d'attente sort jusque sur le trottoir.",
+    "location_id": "boulangerie",
+    "objective_native": "Mme Diallo veut savoir comment tu vas depuis samedi.",
+    "objective_semantics": "And you, how are you holding up after Saturday? Met when the learner's words answer it, in any direction.",
+    "opening_line_fr": "Et vous, ça va depuis samedi ?",
+    "suggested_response_fr": "Ça va mieux, merci. Le croissant aide beaucoup.",
+    "panels": [
+     {
+      "visual_direction": "Close on Mme Diallo's hands slipping a croissant into the paper bag.",
+      "narration_fr": "",
+      "dialogue": [
+       {
+        "character_id": "mme_diallo",
+        "text_fr": "Et un croissant. Pour Odile. Elle en prenait toujours un le lundi.",
+        "mood": "moved"
+       }
+      ]
+     }
+    ]
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Ça va mieux, merci. Mais tout le monde me regarde un peu bizarrement depuis la fête.",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:d1cceadb2501d1d055cb1e26cdcd8b075172c1d701e7d57621d3841ba479780b",
+    "content": {
+     "outcome": "met",
+     "evidence_quotes": [
+      "Ça va mieux, merci."
+     ],
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:b2494c176ed409139936c85eeb166a6f7388c74839aa03843648f03d5de03624",
+    "content": {
+     "reply_fr": "Ils regardent, oui. Ils ont vu la photo au mur, et ils ne savent pas encore quoi dire. Laissez-leur une semaine. Et demain ?",
+     "understood_intent": "The learner is better but feels watched since the party.",
+     "needs_clarification": false
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [],
+  "outcome": "met",
+  "gated": []
+ }
+}

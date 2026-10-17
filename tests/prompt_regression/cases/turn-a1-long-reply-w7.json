@@ -1,0 +1,120 @@
+{
+ "id": "turn-a1-long-reply-w7",
+ "lane": "turn",
+ "level": "A1",
+ "source": "Walk 2026-09-28 W7 (docs/implementation/atelier-v2/WORK-PACKAGES-2026-09-28.md §2): Margaux answered an A1.1 learner in 35 words of B1 («Bien sûr, un café arrive tout de suite ; voulez-vous …»). The voice lane's first answer is that reply verbatim; the A1 line (15 words, two sentences) must refuse it once with the reason, and the retry is served.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "A1",
+    "level_register": "no coarse or vulgar vocabulary",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "margaux_barman",
+       "name": "Margaux",
+       "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+       "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+       "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help.",
+       "speech_pattern": "«La même chose ?» «J'ai rien entendu.» «Bois.»",
+       "register_with_user": "tu, at once — as she did with Odile",
+       "gender": "f",
+       "contradiction": "Protects everyone and lets nobody protect her.",
+       "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
+       "flaw": "One sentence too few, always.",
+       "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
+       "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {
+     "margaux_barman": {}
+    },
+    "relationships": {
+     "margaux_barman": {
+      "register": "tu",
+      "closeness": 0
+     }
+    },
+    "secrets": {
+     "margaux_barman": "hidden"
+    }
+   },
+   "scene": {
+    "character_id": "margaux_barman",
+    "title_fr": "Au Mistral",
+    "premise_fr": "Le soir, au Mistral. Il pleut.",
+    "location_id": "le_mistral",
+    "objective_native": "Order something to drink.",
+    "objective_semantics": "Margaux asks what the learner will have. Met when the learner orders anything.",
+    "opening_line_fr": "Vous vous installez ou c'est à emporter ?",
+    "suggested_response_fr": "Un café, s'il vous plaît.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Un café, s'il vous plaît.",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:765158dcb8d6083d644771b184154e8424bab012753d59038c20fb005e5ce061",
+    "content": {
+     "outcome": "met",
+     "evidence_quotes": [
+      "Un café, s'il vous plaît."
+     ],
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "walk W7, verbatim",
+    "prompt_digest": "sha256:728b9b5d57ab0417a4e804747f22795f9ef39a82a6de75794134c0cb92e116b9",
+    "content": {
+     "reply_fr": "Bien sûr, un café arrive tout de suite ; voulez-vous vous asseoir au comptoir, sur la terrasse couverte chauffée ou préférez-vous à emporter ? Bonjour ! On se dit bonjour d'abord ?",
+     "understood_intent": "The learner orders a coffee.",
+     "needs_clarification": false
+    }
+   },
+   {
+    "origin": "hand-written retry",
+    "prompt_digest": "sha256:007275e49ae17c6fcc1a6cd4d0b6998dae2ae5e6faaa44160df50051ed0ec680",
+    "content": {
+     "reply_fr": "Un café. Au comptoir ?",
+     "understood_intent": "The learner orders a coffee.",
+     "needs_clarification": false
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "voice_refusals": [
+   "reply_above_level"
+  ],
+  "tutor_refusals": [],
+  "outcome": "met",
+  "reply_fr": "Un café. Au comptoir ?"
+ }
+}
