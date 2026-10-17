@@ -385,7 +385,12 @@ def merge_ready(limit: int, merge: bool) -> None:
             continue
         if merge:
             api("PUT", f"pulls/{pr['number']}/merge", {"merge_method": "squash"})
-            api("DELETE", f"git/refs/heads/{pr['headRefName']}")
+            try:
+                api("DELETE", f"git/refs/heads/{pr['headRefName']}")
+            except SystemExit as exc:
+                # The cloud proxy refuses ref deletes (403, 17 Oct). A left-over branch is
+                # harmless; stopping here would leave the rest of tonight's ready PRs unmerged.
+                print(f"#{pr['number']}: branch {pr['headRefName']} kept ({exc})", file=sys.stderr)
             print(f"#{pr['number']} merged: {pr['title']}")
         else:
             print(f"#{pr['number']} ready to merge: {pr['title']}")

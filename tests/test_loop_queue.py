@@ -171,3 +171,21 @@ def test_nothing_merges_onto_a_red_main(monkeypatch: Any, capsys: Any) -> None:
     assert merged == []
     out = capsys.readouterr().out
     assert "nothing merged: main CI abc1234: failure" in out and "#160 ready to merge" in out
+
+
+def test_a_refused_branch_delete_does_not_stop_the_merges(monkeypatch: Any) -> None:
+    merged: list[str] = []
+
+    def api(method: str, path: str, body: Any = None, accept: str | None = None) -> str:
+        if method == "DELETE":
+            raise SystemExit("gh api DELETE failed: HTTP 403 Write access to this GitHub API path is not permitted")
+        merged.append(path)
+        return ""
+
+    monkeypatch.setattr(loop_queue, "api_list", lambda path, limit=1000: [
+        {"number": n, "labels": [{"name": "loop:merge-ready"}]} for n in (160, 161)])
+    monkeypatch.setattr(loop_queue, "main_is_green", lambda: (True, "main CI ok"))
+    monkeypatch.setattr(loop_queue, "pr_rollup", lambda n: {**_green_pr(), "number": n, "title": "fix"})
+    monkeypatch.setattr(loop_queue, "api", api)
+    loop_queue.merge_ready(4, merge=True)
+    assert merged == ["pulls/160/merge", "pulls/161/merge"]
