@@ -14,6 +14,7 @@ import json
 from functools import lru_cache
 from typing import Any
 
+from app.services.cast_registry import display_name
 from app.services.season.format import SEASON_ROOT
 
 
@@ -63,7 +64,8 @@ def season_intro(season_id: str | None, language: str) -> dict[str, Any] | None:
     cast = [
         {
             "character_id": str(row.get("character_id") or ""),
-            "name": str(row.get("name") or ""),
+            # #147: the name is the registry's, by id; the file's copy is only a fallback.
+            "name": display_name(row.get("character_id"), str(row.get("name") or "")),
             "role_native": _localized(row.get("role_native"), language),
             "line_fr": str(row.get("line_fr") or ""),
             "line_native": _localized(row.get("line_native"), language),

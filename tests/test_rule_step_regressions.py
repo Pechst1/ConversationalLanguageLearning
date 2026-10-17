@@ -83,6 +83,26 @@ def test_narration_never_takes_the_authored_speaker_away(db_session: Session) ->
     assert card["speaker"] == "margaux_barman"
 
 
+def test_a_card_is_from_the_scene_only_when_its_example_is_a_scene_line() -> None:
+    """#127: «tirée de la scène» is claimed from `from_scene`, never from the card's own example."""
+
+    authored = "Ton livre ? Je te le rends demain, et je lui en parle."
+    brief = {
+        "detectors": [r"\b(?:me|te|nous|vous)\s+(?:le|la|les)\b"],
+        "rule_card": {"example": {"fr": authored}},
+    }
+    scene = ["Bonjour, Lila.", "Le Mistral est presque vide."]
+    card = grammar_items.scene_rule_card(brief, scene)
+    assert not card.get("from_scene")
+    assert card["example"]["fr"] == authored and authored not in scene
+
+    scene = [*scene, "Je te le rends demain."]
+    card = grammar_items.scene_rule_card(brief, scene)
+    assert card["from_scene"] is True
+    quoted = card["example"]["fr"].replace("[", "").replace("]", "")
+    assert quoted in scene
+
+
 def test_a_scene_marks_whole_words() -> None:
     brief = {"detectors": [r"\bl'[aeiouhé]"], "noun_phrase": True, "rule_card": {"example": {"fr": "x"}}}
     card = grammar_items.scene_rule_card(brief, ["Je cherche l'école."])

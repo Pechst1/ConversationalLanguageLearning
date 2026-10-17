@@ -188,19 +188,19 @@ WHO_SAID_INSTRUCTION = {
 CLOZE_INSTRUCTION = {
     "en": "Complete the line from the scene.",
     "de": "Ergänze den Satz aus der Szene.",
-    "fr": "Complétez la phrase de la scène.",
+    "fr": "Complète la phrase de la scène.",
 }
 LINE_UNSCRAMBLE_INSTRUCTION = {
     "en": "Put {name}'s line back in order.",
     "de": "Bring den Satz von {name} wieder in die richtige Reihenfolge.",
-    "fr": "Remettez dans l'ordre la réplique de {name}.",
+    "fr": "Remets dans l'ordre la réplique de {name}.",
 }
 #: EXERCISE-QA: a nameless rebuild, for a line whose speaker the world does not name
 #: (a walk-on «clerk_2» must never reach the learner as a name).
 SCENE_UNSCRAMBLE_INSTRUCTION = {
     "en": "Put the line from the scene back in order.",
     "de": "Bring den Satz aus der Szene wieder in die richtige Reihenfolge.",
-    "fr": "Remettez dans l'ordre la phrase de la scène.",
+    "fr": "Remets dans l'ordre la phrase de la scène.",
 }
 #: EXERCISE-QA: a gap needs a sentence around it. «La ___» or «___.» is a guess, not
 #: a word recalled in context.

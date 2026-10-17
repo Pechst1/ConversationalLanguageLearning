@@ -85,7 +85,7 @@ test('the rule card is the intro variant, in the learner’s language, with one 
   assert.match(html, /<span class="rc-mark">Je suis<\/span>/);
   assert.match(html, /Je es français/);
   assert.match(html, /href="\/grammar\?concept=12"|Warum\?/);
-  assert.match(html, />Essayer</, 'the one primary advances to the guided items');
+  assert.match(html, />Ausprobieren</, 'the one primary advances to the guided items');
 });
 
 test('a card the client cannot draw still lets the learner through', () => {

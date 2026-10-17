@@ -126,28 +126,28 @@ _CAPABILITY_TITLE_FR: dict[str, str] = {
 #: card's furniture in ``error_memory``.
 _ITEM_COPY: dict[str, dict[str, str]] = {
     "repair": {
-        "instruction": "Réécrivez la forme correcte, de mémoire.",
+        "instruction": "Réécris la forme correcte, de mémoire.",
         "placeholder": "La forme correcte",
     },
     "cloze": {
-        "instruction": "Complétez la phrase avec le mot qui manque.",
+        "instruction": "Complète la phrase avec le mot qui manque.",
         "placeholder": "Le mot manquant",
     },
     "production": {
-        "instruction": "Écrivez le mot en français.",
+        "instruction": "Écris le mot en français.",
         "placeholder": "Le mot en français",
     },
     "meaning": {
-        "instruction": "Donnez le sens de ce mot.",
+        "instruction": "Donne le sens de ce mot.",
         "placeholder": "Le sens",
     },
 }
 
 _UNVERIFIABLE_FR = {
-    "not_found": "Cet élément n’est plus dans votre dossier.",
+    "not_found": "Cet élément n’est plus dans ton dossier.",
     "no_two_items": (
         "Nous ne savons pas poser deux questions honnêtes sur cet élément, "
-        "donc nous ne pouvons pas vérifier votre déclaration. Il reste tel quel."
+        "donc nous ne pouvons pas vérifier ta déclaration. Il reste tel quel."
     ),
     "already_mastered": "Cet élément est déjà acquis : il n’y a rien à vérifier.",
 }
@@ -976,7 +976,7 @@ def _erratum_check(db: Session, *, user: User, target_id: str) -> ClaimCheck:
                 kind="repair",
                 instruction_fr=str(task.get("instruction") or _ITEM_COPY["repair"]["instruction"]),
                 prompt_fr=str(
-                    task.get("prompt") or f"Reprenez cette faute : {learner_text or label}"
+                    task.get("prompt") or f"Reprends cette faute : {learner_text or label}"
                 ),
                 placeholder_fr=str(
                     task.get("placeholder") or _ITEM_COPY["repair"]["placeholder"]
@@ -1001,7 +1001,7 @@ def _erratum_check(db: Session, *, user: User, target_id: str) -> ClaimCheck:
                     ),
                     prompt_fr=str(
                         task.get("prompt")
-                        or f"Reprenez cette faute : {sibling.original_text or label}"
+                        or f"Reprends cette faute : {sibling.original_text or label}"
                     ),
                     placeholder_fr=str(
                         task.get("placeholder") or _ITEM_COPY["repair"]["placeholder"]

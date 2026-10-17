@@ -140,6 +140,49 @@ def test_a_wrong_who_said_names_the_right_speaker() -> None:
     assert "Romy" in result.correction.note_native
 
 
+# --- #86 (17 Oct re-test): the reason must survive the public layer ----------
+
+
+def _public(task, option_id: str):
+    """What the learner's screen gets: the evaluator's correction after the public check.
+
+    A tap sends an option id and no text, so the public layer used to compare the
+    correction with an empty string and drop the reason of every wrong tap.
+    """
+    from app.services.daily_journey import DailyJourneyService
+    from app.services.journey_contracts import AttemptAnswer, InputMode
+    from app.services.journey_learning import recall_learner_text
+
+    result = _evaluate(task, option_id=option_id)
+    answer = AttemptAnswer(mode=InputMode.TEXT, text="", option_id=option_id)
+    return DailyJourneyService._public_correction(result.correction, recall_learner_text(task, answer))
+
+
+def test_a_wrong_tap_reaches_the_screen_with_its_reason_in_every_pick_type() -> None:
+    for task in _picked_tasks("en"):
+        public = _public(task, _wrong_option(task))
+        assert public is not None, f"{task.task_type}: the reason was dropped"
+        assert public.note_native.strip()
+
+
+def test_a_wrong_recall_choice_names_the_rule_order_on_a_b1_double_pronoun_unit() -> None:
+    from app.services import grammar_items
+
+    brief = {
+        "concept_id": 5, "external_id": "FR2_B11_DOUBLE_PRON", "level": "B1.1",
+        "title_native": "Double pronouns", "title_fr": "Deux pronoms",
+        "recognition_pair": ("Je le lui donne.", ["Je lui le donne."]),
+        "rule_card": {"rule": {"fr": "Le pronom COD précède le COI.", "en": "Direct before indirect."}},
+        "detectors": [], "contrast_pairs": [],
+    }
+    task = grammar_items.recognise_item(brief, sentences=[], language="fr")
+    assert task is not None
+    public = _public(task, _wrong_option(task))
+    assert public is not None
+    assert public.span_fr == "Je lui le donne." and public.corrected_fr == "Je le lui donne."
+    assert public.note_native == "Le pronom COD précède le COI."
+
+
 def test_a_vocabulary_choice_miss_names_the_word_not_the_letter_clue() -> None:
     """#178 follow-up: a vocabulary choice's hint is the first-letter clue
     («… ça commence par « s »»), not a reason. Only a grammar choice keeps its hint."""

@@ -759,8 +759,8 @@ def test_the_learner_facing_copy_in_the_service_is_french() -> None:
     copy = source[start:end]
     for english in ("Rewrite", "Complete the", "Write the word", "The meaning", "already known"):
         assert english not in copy
-    assert "Réécrivez" in copy
-    assert "Complétez" in copy
+    assert "Réécris" in copy
+    assert "Complète" in copy
 
 
 def test_the_version_is_declared_once() -> None:
