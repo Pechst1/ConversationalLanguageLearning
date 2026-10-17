@@ -314,3 +314,110 @@ def test_pick_caller_prefers_romy_then_falls_back():
     assert appels.pick_caller({"said": [{"to": "landlord_marchand", "heard_by": ["landlord_marchand"]}]}) == "landlord_marchand"
     assert appels.pick_caller({"said": [{"to": "mme_diallo", "heard_by": ["mme_diallo", "odile_ferrand"]}]}) is None
     assert appels.pick_caller(None) is None
+
+
+# ---------------------------------------------------------------------------
+# «Romy t'appelle»: the evening push for a call still ringing
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def pushes(db_session, monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+    import app.services.notification_service as notification_service
+    from app.tasks import notifications as tasks
+
+    sent: list[dict] = []
+
+    class _Fake:
+        def __init__(self, db) -> None:
+            pass
+
+        def send_notification(self, user_id, message, title="L’Atelier", *, data=None) -> int:
+            sent.append({"user_id": user_id, "title": title, "message": message, "data": dict(data or {})})
+            return 1
+
+    class _Session:
+        def __getattr__(self, name):
+            return getattr(db_session, name)
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(notification_service, "NotificationService", _Fake)
+    monkeypatch.setattr(tasks, "SessionLocal", lambda: _Session())
+    return sent
+
+
+def _pushable(client, db_session, **kwargs):
+    from app.db.models.push_subscription import PushSubscription
+    from app.db.models.user import User
+
+    headers, user_id, journey = _learner(client, db_session, **kwargs)
+    user = db_session.get(User, user_id)
+    user.timezone = "UTC"
+    db_session.add(
+        PushSubscription(
+            id=uuid.uuid4(), user_id=user_id, endpoint=f"https://push.test/{uuid.uuid4().hex}",
+            keys={"p256dh": "x", "auth": "y"},
+        )
+    )
+    db_session.commit()
+    return headers, user, journey
+
+
+def _evening(journey, minute: int = 0):
+    from datetime import UTC, datetime, timedelta
+
+    from app.tasks import notifications as tasks
+
+    day = journey.local_date
+    start = datetime(day.year, day.month, day.day, tzinfo=UTC) + timedelta(minutes=tasks.APPEL_PUSH_MINUTE)
+    return (start + timedelta(minutes=minute)).isoformat()
+
+
+def test_a_call_still_ringing_in_the_evening_is_pushed_once(client, db_session, calls_on, pushes):
+    from app.tasks import notifications as tasks
+
+    _, user, journey = _pushable(client, db_session)
+    tasks.send_appel_pushes(now=_evening(journey, -20))
+    assert not [row for row in pushes if row["user_id"] == user.id], "never before the evening"
+    tasks.send_appel_pushes(now=_evening(journey))
+    tasks.send_appel_pushes(now=_evening(journey, 5))
+
+    [push] = [row for row in pushes if row["user_id"] == user.id]
+    assert push["title"] == "Romy t’appelle"
+    assert push["message"] == "« Vous avez une minute ? Je voulais vous parler. »"
+    assert push["data"]["route"] == "/appel" and push["data"]["kind"] == "appel_ringing"
+    # The push rang the call: it is the one the home and /appel show.
+    call = (_thread(db_session, user.id).state.get(appels.STATE_KEY) or {}).get("calls")[-1]
+    assert push["data"]["call_id"] == call["id"] and call["status"] == "ringing"
+    assert tasks.pushes_sent_on(db_session, user, journey.local_date) == 1
+
+
+def test_no_push_once_the_call_was_picked_up_or_declined(client, db_session, calls_on, caller, pushes):
+    from app.tasks import notifications as tasks
+
+    headers, user, journey = _pushable(client, db_session)
+    call = _today(client, headers)
+    client.post(f"{API}/{call['id']}/decline", headers=headers)
+    tasks.send_appel_pushes(now=_evening(journey))
+    assert not [row for row in pushes if row["user_id"] == user.id]
+
+
+def test_no_push_without_a_settled_day_or_with_the_flag_off(client, db_session, calls_on, pushes, monkeypatch):
+    from app.tasks import notifications as tasks
+
+    _, user, journey = _pushable(client, db_session, status="in_progress")
+    tasks.send_appel_pushes(now=_evening(journey))
+    _, other, other_journey = _pushable(client, db_session)
+    monkeypatch.setattr(settings, "ATELIER_CALLS_ENABLED", False)
+    tasks.send_appel_pushes(now=_evening(other_journey))
+    assert not [row for row in pushes if row["user_id"] in {user.id, other.id}]
+
+
+def test_the_beat_schedules_the_call_pushes():
+    from app.celery_app import celery_app
+
+    assert "app.tasks.notifications.send_appel_pushes" in {
+        entry["task"] for entry in celery_app.conf.beat_schedule.values()
+    }
