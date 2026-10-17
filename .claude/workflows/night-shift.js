@@ -173,7 +173,7 @@ for (let w = 0; w < waves.length; w++) {
 phase('Digest')
 const digest = await agent(
   AUTO_MERGE
-    ? `In Pechst1/ConversationalLanguageLearning run \`${Q} merge-ready --merge --max ${MAX_MERGES}\` (it merges only verified, small, green code fixes outside the owner-only paths, and nothing while main's CI is red) and then \`${Q} digest --date ${date}\`. Return both outputs verbatim, the digest first, then a section "Merged tonight" with the merge lines and the reasons the others wait.`
+    ? `In Pechst1/ConversationalLanguageLearning run \`${Q} merge-ready --merge --max ${MAX_MERGES} --wait-minutes 40\` (it merges only verified, small, green code fixes outside the owner-only paths, one at a time, each only after CI passed on main's current head; it can take an hour, so run it in the background and wait for it to finish) and then \`${Q} digest --date ${date}\`. Return both outputs verbatim, the digest first, then a section "Merged tonight" with the merge lines and the reasons the others wait.`
     : `In Pechst1/ConversationalLanguageLearning run \`${Q} merge-ready\` (it only lists; it never merges) and then \`${Q} digest --date ${date}\`. Return both outputs verbatim, the digest first, then a section "Ready to merge once CI is green" with the merge-ready lines.`,
   { label: 'digest', phase: 'Digest', effort: 'low' },
 )

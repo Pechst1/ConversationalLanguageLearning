@@ -37,8 +37,9 @@ PY_TEST = re.compile(r"(^|/)tests?/(.*/)?test_[^/]+\.py$")
 NODE_TEST = re.compile(r"^web-frontend/.+\.test\.(js|mjs)$")
 WALK = re.compile(r"^web-frontend/e2e/")
 NOT_CODE = re.compile(r"\.(md|png|jpe?g|svg|txt)$")
-# pytest exit codes: 1 = tests failed, 2 = interrupted (collection error), 4 = usage, 5 = none run
-PYTEST_FAILED = 1
+# A failure for one of these reasons only shows that a name the fix adds is missing on main.
+MISSING_NAME = re.compile(r"^(ImportError|ModuleNotFoundError|NameError|AttributeError: module)\b")
+PYTEST_FAILED_LINE = re.compile(r"^FAILED \S+(?: - (.*))?$", re.MULTILINE)
 
 
 @dataclass
@@ -46,6 +47,8 @@ class Run:
     command: str
     code: int
     tail: str
+    # Whether at least one test failed on an assertion about behaviour, read from the full output.
+    asserted: bool = False
 
 
 @dataclass
@@ -75,7 +78,7 @@ def run_tests(tests: list[str]) -> list[Run]:
     py = [t for t in tests if t.endswith(".py")]
     node = [t for t in tests if NODE_TEST.search(t)]
     if py:
-        argv = [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly", "-p", "no:cacheprovider", *py]
+        argv = [sys.executable, "-m", "pytest", "-q", "-rf", "-p", "no:randomly", "-p", "no:cacheprovider", *py]
         runs.append(_run(argv, cwd="."))
     if node:
         if not Path("web-frontend/node_modules").is_dir():
@@ -91,8 +94,20 @@ def _run(argv: list[str], cwd: str) -> Run:
     with tempfile.TemporaryDirectory() as pycache:
         env = {**os.environ, "PYTHONPYCACHEPREFIX": pycache}
         proc = subprocess.run(argv, capture_output=True, text=True, cwd=cwd, env=env, check=False)  # noqa: S603 - fixed argv, no shell
-    tail = "\n".join((proc.stdout + proc.stderr).strip().splitlines()[-25:])
-    return Run(" ".join(argv), proc.returncode, tail)
+    output = (proc.stdout + proc.stderr).strip()
+    tail = "\n".join(output.splitlines()[-25:])
+    return Run(" ".join(argv), proc.returncode, tail, asserted=proc.returncode != 0 and asserted(argv, output))
+
+
+def asserted(argv: list[str], output: str) -> bool:
+    """A real red: some test ran and failed on what it asserts, not on a missing import or name.
+
+    A name the fix adds, imported inside a test, fails that test with ImportError, and pytest still
+    counts it as `1 failed`; a node test reading a missing export fails with a TypeError. Neither
+    proves the bug is caught (Codex review on #207)."""
+    if argv[1:3] == ["-m", "pytest"]:
+        return any(reason and not MISSING_NAME.match(reason) for reason in PYTEST_FAILED_LINE.findall(output))
+    return "ERR_ASSERTION" in output
 
 
 def revert_to_base(merge_base: str, sources: list[tuple[str, str]]) -> None:
@@ -109,14 +124,6 @@ def restore_head(sources: list[tuple[str, str]]) -> None:
             Path(path).unlink(missing_ok=True)
         else:
             git("checkout", "HEAD", "--", path)
-
-
-def failed_by_assertion(run: Run) -> bool:
-    """A real red: tests ran and failed, not an import or collection error."""
-    if run.command.split()[1:3] == ["-m", "pytest"]:
-        return run.code == PYTEST_FAILED and re.search(r"\b\d+ failed\b", run.tail) is not None
-    return run.code != 0 and not re.search(r"(Cannot find module|SyntaxError|ERR_MODULE_NOT_FOUND|"
-                                           r"does not provide an export)", run.tail)
 
 
 def prove(base: str) -> Verdict:
@@ -153,7 +160,7 @@ def prove(base: str) -> Verdict:
     if not failing:
         verdict.result = "red-passes"
         verdict.reason = "the tests also pass without the fix: they do not test the bug"
-    elif any(failed_by_assertion(r) for r in failing):
+    elif any(r.asserted for r in failing):
         verdict.result, verdict.reason = "proven", "fails without the fix, passes with it"
     else:
         verdict.result = "weak"

@@ -38,6 +38,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -289,14 +290,27 @@ def pr_reject(number: int, reason: str) -> None:
 
 
 def main_is_green() -> tuple[bool, str]:
-    """Whether the newest finished CI run on main passed. Nothing merges onto a red main: a second
-    change would hide which one broke it, and Render deploys only green commits anyway."""
-    runs = api_json("GET", "actions/workflows/ci.yml/runs?branch=main&per_page=10").get("workflow_runs", [])
-    done = [r for r in runs if r.get("status") == "completed"]
-    if not done:
-        return False, "no finished CI run on main"
-    newest = done[0]
-    return newest.get("conclusion") == "success", f"main CI {newest['head_sha'][:7]}: {newest.get('conclusion')}"
+    """Whether CI passed on main's current head. Nothing merges onto a red or still-unchecked main:
+    a second change would hide which one broke it. Only the run for main's own head counts, never
+    an older green one while the newest is queued (Codex review on #207)."""
+    head = api_json("GET", "git/ref/heads/main")["object"]["sha"]
+    runs = api_json("GET", "actions/workflows/ci.yml/runs?branch=main&per_page=20").get("workflow_runs", [])
+    run = next((r for r in runs if r.get("head_sha") == head), None)
+    if run is None:
+        return False, f"no CI run yet for main {head[:7]}"
+    if run.get("status") != "completed":
+        return False, f"main CI {head[:7]} still {run.get('status')}"
+    return run.get("conclusion") == "success", f"main CI {head[:7]}: {run.get('conclusion')}"
+
+
+def wait_for_green_main(minutes: int) -> tuple[bool, str]:
+    """main_is_green, polled once a minute for up to `minutes` while main's CI is still running."""
+    green, why = main_is_green()
+    deadline = time.monotonic() + minutes * 60
+    while not green and "still" in why and time.monotonic() < deadline:
+        time.sleep(60)
+        green, why = main_is_green()
+    return green, why
 
 
 def pr_rollup(number: int) -> dict[str, Any]:
@@ -366,13 +380,11 @@ def merge_blockers(pr: dict[str, Any]) -> list[str]:
     return blockers
 
 
-def merge_ready(limit: int, merge: bool) -> None:
+def merge_ready(limit: int, merge: bool, wait_minutes: int = 0) -> None:
+    """List, or with `merge` merge, the ready PRs one at a time. Before each merge main's head must
+    have passed CI, so after a merge the next one waits for CI on the new head (up to
+    `wait_minutes`); every merged change is then tested on its own and a red main names its PR."""
     prs = [p for p in api_list("pulls?state=open") if "loop:merge-ready" in label_names(p)]
-    if merge and prs:
-        green, why = main_is_green()
-        if not green:
-            print(f"nothing merged: {why}")
-            merge = False
     merged = 0
     for item in prs:
         if merged >= limit:
@@ -383,6 +395,11 @@ def merge_ready(limit: int, merge: bool) -> None:
         if blockers:
             print(f"#{pr['number']} waits: {'; '.join(blockers)}")
             continue
+        if merge:
+            green, why = wait_for_green_main(wait_minutes)
+            if not green:
+                print(f"#{pr['number']} not merged: {why}; it and the rest wait for the next run")
+                merge = False
         if merge:
             api("PUT", f"pulls/{pr['number']}/merge", {"merge_method": "squash"})
             try:
@@ -450,6 +467,8 @@ def main(argv: list[str]) -> None:
     p = sub.add_parser("merge-ready")
     p.add_argument("--max", type=int, default=4)
     p.add_argument("--merge", action="store_true", help="merge them (owner only); default lists")
+    p.add_argument("--wait-minutes", type=int, default=0,
+                   help="with --merge: wait this long for main's CI after each merge before the next")
     p = sub.add_parser("digest")
     p.add_argument("--date", required=True)
     p = sub.add_parser("show")
@@ -485,7 +504,7 @@ def main(argv: list[str]) -> None:
     elif args.command == "mark-pr":
         mark_pr(args.number, args.pr)
     elif args.command == "merge-ready":
-        merge_ready(args.max, args.merge)
+        merge_ready(args.max, args.merge, args.wait_minutes)
     elif args.command == "digest":
         print(digest(args.date))
     elif args.command == "show":

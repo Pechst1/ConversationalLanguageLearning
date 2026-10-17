@@ -61,6 +61,14 @@ def test_failing_only_on_a_missing_name_is_weak(tmp_path: Path, monkeypatch: Any
     assert red_green.prove("main").result == "weak"
 
 
+def test_a_missing_name_imported_inside_the_test_is_still_weak(tmp_path: Path, monkeypatch: Any) -> None:
+    """pytest counts an ImportError in a test body as `1 failed`; that is not a caught bug."""
+    fix = FIXED + "\ndef triple(x):\n    return x * 3\n"
+    test = "def test_it():\n    from calc import triple\n    assert triple(1) == 3\n"
+    _repo(tmp_path, monkeypatch, fix, test)
+    assert red_green.prove("main").result == "weak"
+
+
 def test_no_test_and_dirty_tree(tmp_path: Path, monkeypatch: Any) -> None:
     repo = _repo(tmp_path, monkeypatch, FIXED, "")
     (repo / "tests" / "test_calc.py").unlink()

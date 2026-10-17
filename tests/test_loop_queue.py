@@ -165,12 +165,13 @@ def test_nothing_merges_onto_a_red_main(monkeypatch: Any, capsys: Any) -> None:
     monkeypatch.setattr(loop_queue, "api_list", lambda path, limit=1000: [
         {"number": 160, "labels": [{"name": "loop:merge-ready"}]}])
     monkeypatch.setattr(loop_queue, "main_is_green", lambda: (False, "main CI abc1234: failure"))
+    monkeypatch.setattr(loop_queue.time, "sleep", lambda _: None)
     monkeypatch.setattr(loop_queue, "pr_rollup", lambda n: {**_green_pr(), "number": n, "title": "fix"})
     monkeypatch.setattr(loop_queue, "api", lambda method, path, body=None, accept=None: merged.append(path) or "")
     loop_queue.merge_ready(4, merge=True)
     assert merged == []
     out = capsys.readouterr().out
-    assert "nothing merged: main CI abc1234: failure" in out and "#160 ready to merge" in out
+    assert "#160 not merged: main CI abc1234: failure" in out
 
 
 def test_a_refused_branch_delete_does_not_stop_the_merges(monkeypatch: Any) -> None:
@@ -189,3 +190,32 @@ def test_a_refused_branch_delete_does_not_stop_the_merges(monkeypatch: Any) -> N
     monkeypatch.setattr(loop_queue, "api", api)
     loop_queue.merge_ready(4, merge=True)
     assert merged == ["pulls/160/merge", "pulls/161/merge"]
+
+
+def test_each_merge_waits_for_ci_on_the_new_main(monkeypatch: Any, capsys: Any) -> None:
+    """After a merge main's head is unchecked: the next PR waits instead of riding along."""
+    merged: list[str] = []
+    monkeypatch.setattr(loop_queue, "api_list", lambda path, limit=1000: [
+        {"number": n, "labels": [{"name": "loop:merge-ready"}]} for n in (160, 161)])
+    monkeypatch.setattr(loop_queue, "main_is_green", lambda: (
+        (False, "main CI abc1234 still in_progress") if merged else (True, "main CI 0000000: success")))
+    monkeypatch.setattr(loop_queue.time, "sleep", lambda _: None)
+    monkeypatch.setattr(loop_queue, "pr_rollup", lambda n: {**_green_pr(), "number": n, "title": "fix"})
+    monkeypatch.setattr(loop_queue, "api", lambda method, path, body=None, accept=None: (
+        merged.append(path) if method == "PUT" else None) or "")
+    loop_queue.merge_ready(4, merge=True, wait_minutes=0)
+    assert merged == ["pulls/160/merge"]
+    assert "#161 not merged: main CI abc1234 still in_progress" in capsys.readouterr().out
+
+
+def test_main_is_green_reads_the_run_for_mains_own_head(monkeypatch: Any) -> None:
+    runs = {"workflow_runs": [
+        {"head_sha": "new", "status": "queued", "conclusion": None},
+        {"head_sha": "old", "status": "completed", "conclusion": "success"},
+    ]}
+    monkeypatch.setattr(loop_queue, "api_json", lambda method, path, body=None: (
+        {"object": {"sha": "new"}} if path == "git/ref/heads/main" else runs))
+    green, why = loop_queue.main_is_green()
+    assert not green and "still queued" in why
+    runs["workflow_runs"][0].update(status="completed", conclusion="success")
+    assert loop_queue.main_is_green()[0]

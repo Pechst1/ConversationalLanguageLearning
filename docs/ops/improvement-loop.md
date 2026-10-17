@@ -104,9 +104,10 @@ those with the owner's login, so CI runs on main and Render deploys. It merges n
 while the newest CI run on main is red.
 
 **Auto-merge (owner switch).** With `autoMerge: true` in the night shift's args, the
-digest step runs `merge-ready --merge --max 4` itself: only code-lane PRs that the
-verifier proved red/green and labelled, all checks green, under 400 lines, outside the
-owner-only paths, onto a green main. Story-lane PRs always wait for the owner. The next
+digest step runs `merge-ready --merge --max 4 --wait-minutes 40` itself: only code-lane
+PRs that the verifier proved red/green and labelled, all checks green, under 400 lines,
+outside the owner-only paths, one at a time, each only after CI passed on main's current
+head, so a red main always names one PR. Story-lane PRs always wait for the owner. The next
 live walk re-tests each merged fix once it is deployed.
 
 **Trend.** `python scripts/loop/rubric_trend.py --write` turns every walk report's score
