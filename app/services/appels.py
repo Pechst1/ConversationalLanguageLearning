@@ -73,6 +73,8 @@ CALLERS = (
     "landlord_marchand",
 )
 LINE_CHARS = 240
+#: The learner's own line is kept whole up to what `/say` accepts.
+LEARNER_CHARS = 600
 
 #: What a caller says when no model may speak (the ceiling, an outage).
 FALLBACK_OPENING = "Allô ? C'est {name}. Tu as une minute ? Je voulais juste savoir comment tu vas."
@@ -479,8 +481,8 @@ def authorize_upload(
 # ---------------------------------------------------------------------------
 
 
-def _clip(text: Any) -> str:
-    return " ".join(str(text or "").split())[:LINE_CHARS]
+def _clip(text: Any, limit: int = LINE_CHARS) -> str:
+    return " ".join(str(text or "").split())[:limit]
 
 
 def _register(thread: SerialThread, caller: str) -> str:
@@ -595,7 +597,7 @@ def say(
     thread, calls, call = _owned(db, user, call_id)
     if call["status"] != "live":
         raise CallRefused(409, "appel_not_live", "This call is not on.")
-    line = _clip(text)
+    line = _clip(text, LEARNER_CHARS)
     if not line:
         raise CallRefused(422, "appel_empty", "Say something first.")
     call["turns"] = [*call.get("turns", []), {"who": "learner", "text_fr": line, "mode": "voice" if mode == "voice" else "text"}]

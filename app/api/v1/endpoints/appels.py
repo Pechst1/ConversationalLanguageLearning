@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.rate_limit import paid_route_guard
 from app.db.models.user import User
 from app.services import appels
 
@@ -22,7 +23,12 @@ def require_calls_enabled() -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
 
 
-router = APIRouter(prefix="/appels", tags=["appels"], dependencies=[Depends(require_calls_enabled)])
+router = APIRouter(
+    prefix="/appels",
+    tags=["appels"],
+    # The flag first, so a disabled feature is a plain 404 even without a token.
+    dependencies=[Depends(require_calls_enabled), Depends(paid_route_guard(get_current_user))],
+)
 
 
 def get_call_provider() -> appels.CallProvider:
@@ -32,7 +38,7 @@ def get_call_provider() -> appels.CallProvider:
 
 
 class SayRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=600)
+    text: str = Field(..., min_length=1, max_length=appels.LEARNER_CHARS)
     mode: str = Field("text", pattern="^(text|voice)$")
 
 

@@ -246,6 +246,22 @@ def test_flag_off_is_a_404(client, db_session, caller, monkeypatch):
     assert client.get(f"{API}/today", headers=headers).status_code == 404
     assert client.post(f"{API}/x/answer", headers=headers).status_code == 404
     assert appels.today(db_session, db_session.get(User, user_id)) is None
+    # The flag runs before auth: without a token the feature is still a plain 404.
+    assert client.get(f"{API}/today").status_code == 404
+    assert client.post(f"{API}/x/say", json={"text": "Allô"}).status_code == 404
+
+
+def test_a_long_typed_line_is_kept_whole(client, db_session, calls_on, caller):
+    headers, user_id, _ = _learner(client, db_session)
+    call = _today(client, headers)
+    client.post(f"{API}/{call['id']}/answer", headers=headers)
+    long_line = ("Je suis restée tard au café parce que la pluie ne s'arrêtait pas. " * 8).strip()
+    assert 240 < len(long_line) <= appels.LEARNER_CHARS
+    after = client.post(f"{API}/{call['id']}/say", headers=headers, json={"text": long_line})
+    assert after.status_code == 200, after.text
+    assert after.json()["call"]["turns"][1]["text_fr"] == long_line
+    too_long = client.post(f"{API}/{call['id']}/say", headers=headers, json={"text": "a" * (appels.LEARNER_CHARS + 1)})
+    assert too_long.status_code == 422
 
 
 def test_another_learners_call_is_not_found(client, db_session, calls_on, caller):
