@@ -1978,8 +1978,13 @@ def recall_learner_text(task: RecallTask, answer: AttemptAnswer) -> str:
 
     if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
         return " ".join(_tile_texts(task, answer.tile_ids))
-    # A pick is corrected on the device (the right card lights up); its typed
-    # text, if any, is what the server's correction is checked against.
+    if task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
+        # #86: a tap sends an option id and no text. The correction is built on the
+        # card the learner tapped, so that card's text is what it is checked against;
+        # with «» here the public layer dropped every wrong-tap reason.
+        picked = _option_text(task, _selected_option_id(task, answer))
+        if picked:
+            return normalize_answer_text(picked)
     return normalize_answer_text(answer.text)
 
 

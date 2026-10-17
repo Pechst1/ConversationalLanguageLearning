@@ -89,17 +89,17 @@ _CHOOSE: dict[str, str] = {
 _BUILD_BANK: dict[str, str] = {
     "en": "Build the sentence. Some words are extra.",
     "de": "Bau den Satz. Manche Wörter sind zu viel.",
-    "fr": "Construisez la phrase. Certains mots sont en trop.",
+    "fr": "Construis la phrase. Certains mots sont en trop.",
 }
 _BUILD_TILES: dict[str, str] = {
     "en": "Put the words in order.",
     "de": "Ordne die Wörter.",
-    "fr": "Remettez les mots dans le bon ordre.",
+    "fr": "Remets les mots dans le bon ordre.",
 }
 _TRANSFORM: dict[str, str] = {
     "en": "Correct this sentence.",
     "de": "Korrigiere diesen Satz.",
-    "fr": "Corrigez cette phrase.",
+    "fr": "Corrige cette phrase.",
 }
 _FIRST_WORD_HINT: dict[str, str] = {
     "en": 'It starts with "{word}".',
@@ -816,12 +816,12 @@ _CONTRAST: dict[str, str] = {
 _FREE_SENTENCE: dict[str, str] = {
     "en": "Write a sentence of your own that uses: {title}.",
     "de": "Schreib einen eigenen Satz mit: {title}.",
-    "fr": "Écrivez une phrase à vous qui utilise : {title}.",
+    "fr": "Écris une phrase à toi qui utilise : {title}.",
 }
 _FREE_SENTENCE_GOAL: dict[str, str] = {
     "en": "Your own sentence, at least {n} words. Any topic.",
     "de": "Ein eigener Satz, mindestens {n} Wörter. Thema frei.",
-    "fr": "Une phrase à vous, au moins {n} mots. Sujet libre.",
+    "fr": "Une phrase à toi, au moins {n} mots. Sujet libre.",
 }
 
 

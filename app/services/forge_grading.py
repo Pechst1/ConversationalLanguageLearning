@@ -647,7 +647,7 @@ def classify_follow_up(
     meaning = str(key.get("meaning") or "").strip()
     meaning_de = str((key.get("meaning_l10n") or {}).get("de") or "").strip() or None
     goal = (goal_l10n("repair", meaning, meaning_de) if meaning else {
-        "en": "Correct the sentence.", "de": "Korrigiere den Satz.", "fr": "Corrigez la phrase.",
+        "en": "Correct the sentence.", "de": "Korrigiere den Satz.", "fr": "Corrige la phrase.",
     })
     source = str(item.get("source_fr") or item.get("prompt") or "").strip()
     accepted = [corrected, *[str(value) for value in key.get("accepted_fr") or [] if str(value).strip()]]
