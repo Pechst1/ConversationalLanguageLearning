@@ -2320,8 +2320,9 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
 #: (``story_correspondence.CORRESPONDENCE_KEY``). Agency pilot 2026-10-12 (B1): a
 #: letter refused as too hard on La Une moved the fingerprint, and an accepted day
 #: was lost to ``story_revision_conflict``. A finished letter still moves it: it
-#: writes the story's own keys.
-FINGERPRINT_IGNORED_STATE_KEYS = frozenset({"courrier"})
+#: writes the story's own keys. Les appels keep their calls the same way
+#: (``appels.STATE_KEY``); a finished call writes the story's keys.
+FINGERPRINT_IGNORED_STATE_KEYS = frozenset({"courrier", "appels"})
 
 
 def _fingerprint(thread: SerialThread | None, *, legacy: bool = False) -> str:

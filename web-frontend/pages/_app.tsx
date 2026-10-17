@@ -41,6 +41,8 @@ import '@/styles/carte.css';
 import '@/styles/correcteur.css';
 // WP-122 A: La Radio (components/radio), scoped under `.av2`.
 import '@/styles/radio.css';
+// Les appels (pages/appel.tsx, components/appels), scoped under `.av2`.
+import '@/styles/appels.css';
 
 // Create a client
 const queryClient = new QueryClient({

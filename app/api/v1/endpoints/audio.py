@@ -12,7 +12,7 @@ from app.api.deps import get_current_user, get_db, get_llm_service
 from app.config import settings
 from app.core.offload import off_event_loop
 from app.db.models.user import User
-from app.services import spoken_reply
+from app.services import appels, spoken_reply
 from app.services.audio_duration import audio_seconds
 from app.services.llm_service import LLMService, estimate_tts_cost_usd
 from app.services.pilot_events import PilotEventService
@@ -70,6 +70,7 @@ async def transcribe_audio(
     surface: Annotated[str, Form()] = "unknown",
     journey_id: Annotated[str | None, Form()] = None,
     step_id: Annotated[str | None, Form()] = None,
+    call_id: Annotated[str | None, Form()] = None,
 ) -> dict[str, str]:
     """Transcribe an audio file to text.
 
@@ -85,6 +86,11 @@ async def transcribe_audio(
     (`app.services.spoken_reply`), and the row is booked against the turn. The
     transcript is returned, never submitted: the client sends it through the
     same reply endpoint as a typed answer.
+
+    Les appels: ``surface="appel"`` is a spoken line on a phone call. It names its
+    ``call_id``; the flag, the call being live, the 30-second cap and the per-call
+    cost ceiling are checked first (`app.services.appels.authorize_upload`), and the
+    row is booked against the call.
     """
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Must be audio.")
@@ -129,6 +135,21 @@ async def transcribe_audio(
             raise HTTPException(
                 status_code=refused.status_code, detail=refused.detail()
             ) from refused
+    call_entity: str | None = None
+    if surface == appels.SURFACE:
+        try:
+            call_entity = appels.authorize_upload(
+                db,
+                user=current_user,
+                call_id=call_id,
+                byte_count=len(content),
+                content_type=file.content_type,
+                measured_seconds=measured_seconds,
+            )
+        except appels.CallRefused as refused:
+            raise HTTPException(
+                status_code=refused.status_code, detail=refused.detail()
+            ) from refused
     if spoken_reply.fake_transcriber_active():
         # WP-158: dev stacks with fake provider keys hear a deterministic transcript.
         llm_service = spoken_reply.FakeTranscriber()  # type: ignore[assignment]
@@ -153,6 +174,8 @@ async def transcribe_audio(
                     "extra": story_upload.ledger_fields(),
                 }
                 if story_upload is not None
+                else {"entity_type": appels.ENTITY_TYPE, "entity_id": call_entity}
+                if call_entity is not None
                 else {}
             ),
         )

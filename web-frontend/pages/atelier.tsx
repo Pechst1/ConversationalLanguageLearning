@@ -199,6 +199,7 @@ import {
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
+import { IncomingCall } from '@/components/appels/IncomingCall';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { castIntroOf } from '@/components/atelier-v2/journey/CastIntro';
 import { deviceStore, firstStepsCopy, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
@@ -2134,6 +2135,8 @@ export default function AtelierPage() {
               journeyCard={
                 journeyEntryVisible ? (
                   <>
+                    {/* Les appels: someone from the story rings once the day is done. */}
+                    <IncomingCall language={journeyChromeLanguage(journey)} />
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
