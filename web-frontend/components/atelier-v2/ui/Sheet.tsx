@@ -35,6 +35,14 @@ const FOCUSABLE = [
  * Focus is restored to whatever was focused *before* the overlay opened, which
  * is nearly always the control that opened it — so a keyboard learner is put
  * back exactly where they were rather than at the top of the document.
+ *
+ * #197: focus moves in once, when the overlay opens — never again while it is
+ * open. Callers pass an inline `onClose`, a new function on every render of the
+ * page behind; with it in the effect's dependencies, each keystroke in a field
+ * inside the sheet re-rendered the page, re-ran the effect and put focus on the
+ * sheet's first control (the close button). The next space pressed that button:
+ * the reprise sheet on Home closed under the learner's typing. The latest
+ * `onClose` is read from a ref instead.
  */
 function useOverlayFocus(
   ref: React.RefObject<HTMLElement>,
@@ -42,6 +50,8 @@ function useOverlayFocus(
   onClose: () => void,
 ) {
   const restoreRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open || typeof document === 'undefined') return undefined;
@@ -60,7 +70,7 @@ function useOverlayFocus(
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !node) return;
@@ -92,7 +102,7 @@ function useOverlayFocus(
       document.body.style.overflow = previousOverflow;
       restoreRef.current?.focus?.();
     };
-  }, [open, onClose, ref]);
+  }, [open, ref]);
 }
 
 export type BottomSheetProps = {
