@@ -414,7 +414,9 @@ def present_at_turns(page: dict[str, Any], routes: dict[str, str] | None = None)
     """Story engine Phase 3 (#145): who heard the learner's answer to each turn of the
     day — everyone in frame or speaking on the page so far, the person asked, and
     whoever reacts in the beats of the reply the learner's words took (``routes``:
-    turn id → reply id). The script has no exits: a tentpole day is one room."""
+    turn id → reply id). The script has no exits: a tentpole day is one room. A
+    flashback is a memory, not the room: nobody in it hears the learner (T4 b's
+    Odile)."""
 
     routes = routes or {}
     room: set[str] = set()
@@ -422,7 +424,7 @@ def present_at_turns(page: dict[str, Any], routes: dict[str, str] | None = None)
 
     def enter(panels: list[dict[str, Any]]) -> None:
         for panel in panels:
-            if isinstance(panel, dict):
+            if isinstance(panel, dict) and not panel.get("flashback"):
                 room.update(str(who) for who in panel.get("in_frame") or [])
                 room.update(str(line.get("who")) for line in panel.get("lines") or [] if isinstance(line, dict))
 

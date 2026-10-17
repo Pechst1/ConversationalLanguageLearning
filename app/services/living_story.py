@@ -782,8 +782,9 @@ WHAT THE LEARNER SAID (memory, when present). memory.said is the learner's own l
 earlier days, verbatim (quote), with the line they answered (asked_fr), whom they said it
 to (to) and who heard it (heard_by); meant is how it was understood. memory.facts is what
 is settled about the learner, one row per key, in their own words (quote), with who knows
-it (known_by); before, when present, is what they had said earlier, still believed by
-those who only heard that. memory.learner_name is their name and who knows it. """ + story_memory.NAME_NOTE + """
+it (known_by); before, when present, lists what they had said earlier, newest first, each
+version with those who only heard that one and still believe it (known_by).
+memory.learner_name is their name and who knows it. """ + story_memory.NAME_NOTE + """
 """ + story_memory.NAME_SCOPE + """ Use it: a character who heard something may bring it back in their own words, one who
 knows the learner's name may use it, and nobody asks the learner again what memory.facts
 settles or what they already told that person; a character missing from known_by or

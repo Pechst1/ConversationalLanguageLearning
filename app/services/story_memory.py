@@ -580,26 +580,45 @@ def after_day(memory: dict | None, day: Day) -> dict:
     }
 
 
+def _versions(fact: dict) -> list[dict]:
+    """A fact's earlier versions (``before``), newest first; one stored on its own
+    reads as the only one."""
+
+    before = fact.get("before")
+    rows = [before] if isinstance(before, dict) else before if isinstance(before, list) else []
+    return [row for row in rows if isinstance(row, dict) and row.get("known_by")]
+
+
 def _merge_fact(facts: list[dict], row: dict) -> list[dict]:
     """One row per key. The same fact again widens who knows it; a different one
-    replaces it and keeps the old version for those who only heard that."""
+    replaces it. Every earlier version stays (``before``, newest first) with those who
+    only heard that one, so each person believes exactly one version: whoever hears
+    this one leaves the older ones, and an older one that says the same is this one."""
 
     existing = next((fact for fact in facts if fact.get("key") == row["key"]), None)
     if existing is None:
         facts = [*facts, row]
     else:
         rest = [fact for fact in facts if fact is not existing]
-        if fold(existing.get("value") or existing.get("fact_fr")) == fold(row.get("value") or row.get("fact_fr")):
-            merged = {
-                **existing,
-                "known_by": sorted({*existing.get("known_by", []), *row["known_by"]}),
-                "confirmed_day": row["day"],
-            }
-            facts = [*rest, merged]
+
+        def says(fact: dict) -> str:
+            return fold(fact.get("value") or fact.get("fact_fr"))
+
+        earlier = _versions(existing)
+        if says(existing) == says(row):
+            current = {**existing, "known_by": sorted({*existing.get("known_by", []), *row["known_by"]}), "confirmed_day": row["day"]}
         else:
-            believers = sorted(set(existing.get("known_by") or []) - set(row["known_by"]))
-            before = {key: existing.get(key) for key in ("fact_fr", "quote", "value", "day") if existing.get(key)}
-            facts = [*rest, {**row, **({"before": {**before, "known_by": believers}} if believers else {})}]
+            current = dict(row)
+            kept = ("fact_fr", "quote", "value", "day", "known_by")
+            earlier = [{key: existing.get(key) for key in kept if existing.get(key)}, *earlier]
+        current.pop("before", None)
+        before = []
+        for version in earlier:
+            if says(version) == says(current):
+                current["known_by"] = sorted({*current["known_by"], *(version.get("known_by") or ())})
+            elif believers := sorted(set(version.get("known_by") or ()) - set(row["known_by"])):
+                before.append({**version, "known_by": believers})
+        facts = [*rest, {**current, **({"before": before} if before else {})}]
     if len(facts) > MAX_FACTS:
         # The learner's name outlives every other fact.
         named = [fact for fact in facts if fact.get("key") == "name"]
@@ -632,10 +651,10 @@ def full_view(memory: dict | None) -> dict | None:
         }
         if row.get("value"):
             fact["value"] = row["value"]
-        if isinstance(row.get("before"), dict):
-            fact["before"] = {
-                key: row["before"].get(key) for key in ("fact_fr", "quote", "known_by") if row["before"].get(key)
-            }
+        if before := _versions(row):
+            fact["before"] = [
+                {key: version.get(key) for key in ("fact_fr", "quote", "known_by") if version.get(key)} for version in before
+            ]
         facts.append(fact)
     said = [
         {
@@ -684,16 +703,18 @@ def narrow(view: dict | None, among: Collection[str]) -> dict | None:
 
     facts = []
     for fact in view.get("facts") or []:
-        if knows(fact.get("known_by")):
-            fact = {key: value for key, value in fact.items() if key != "before"} if not keep_lists else fact
-            facts.append(trimmed(fact, "known_by"))
-        elif isinstance(fact.get("before"), dict) and knows(fact["before"].get("known_by")):
-            # They only heard the old version: that is what they believe.
-            old = {**fact, **{key: fact["before"].get(key) for key in ("fact_fr", "quote")}}
-            old.pop("before", None)
-            old.pop("value", None)
-            old["known_by"] = fact["before"].get("known_by")
-            facts.append(trimmed(old, "known_by"))
+        current = {key: value for key, value in fact.items() if key != "before"}
+        before = [version for version in _versions(fact) if knows(version.get("known_by"))]
+        if not knows(fact.get("known_by")):
+            if not before:
+                continue
+            # They only heard an older version: that is what they believe.
+            current.pop("value", None)
+            current.update({key: before[0].get(key) for key in ("fact_fr", "quote", "known_by")})
+            before = before[1:]
+        if keep_lists and before:
+            current["before"] = before
+        facts.append(trimmed(current, "known_by"))
     limit = VIEW_SAID if keep_lists else CHARACTER_SAID
     said = [trimmed(row, "heard_by") for row in view.get("said") or [] if knows(row.get("heard_by"))][-limit:]
     open_rows = [trimmed(row, "known_by") for row in view.get("open") or [] if knows(row.get("known_by"))]
@@ -772,6 +793,8 @@ _TOLD = re.compile(
     r"|\b(?:tu|vous)\s+(?:me\s+|m['’]\s*|nous\s+)?(?:disais|disiez)\b",
     re.IGNORECASE,
 )
+#: The words a telling quotes («…», “…”, "…").
+_QUOTED = re.compile(r"[«“\"]\s*([^«»“”\"]+?)\s*[»”\"]")
 #: What a telling says besides what was said: grammar, être and avoir, when it was
 #: said, and «oui» or «non» (a refusal is «non» in anyone's words).
 _NOT_WHAT = frozenset(
@@ -789,14 +812,14 @@ def _bare(word: str) -> str:
     return "".join(char for char in unicodedata.normalize("NFKD", word) if not unicodedata.combining(char))
 
 
-def _said_words(text: Any, lemmas: Callable[[str], Iterable[str]], names: Collection[str]) -> set[str]:
+def _said_forms(text: Any, lemmas: Callable[[str], Iterable[str]], names: Collection[str]) -> dict[str, set[str]]:
     """The words of a telling or of a remembered line that say something, each with
     its dictionary forms («restais» meets «reste» at «rester»), accents folded."""
 
-    out: set[str] = set()
+    out: dict[str, set[str]] = {}
     for word in re.findall(r"[^\W\d_]+(?:-[^\W\d_]+)*", str(text or "").casefold()):
         if len(word) > 1 and word not in _NOT_WHAT and word not in names:
-            out.update(_bare(form) for form in (word, *lemmas(word)))
+            out.setdefault(_bare(word), set()).update(_bare(form) for form in (word, *lemmas(word)))
     return out
 
 
@@ -809,11 +832,11 @@ def heard_from_learner(view: dict | None, who: Any) -> list[str]:
     view = view or {}
     texts: list[str] = []
     for fact in view.get("facts") or []:
-        before = fact.get("before") if isinstance(fact.get("before"), dict) else {}
-        if who in (fact.get("known_by") or ()):
-            texts += [str(fact.get(key)) for key in ("fact_fr", "quote", "value") if fact.get(key)]
-        elif who in (before.get("known_by") or ()):
-            texts += [str(before.get(key)) for key in ("fact_fr", "quote") if before.get(key)]
+        believed = fact if who in (fact.get("known_by") or ()) else next(
+            (version for version in _versions(fact) if who in version["known_by"]), None
+        )
+        if believed is not None:
+            texts += [str(believed.get(key)) for key in ("fact_fr", "quote", "value") if believed.get(key)]
     name = view.get("learner_name") if isinstance(view.get("learner_name"), dict) else {}
     if name.get("value") and who in (name.get("known_by") or ()):
         texts.append(str(name["value"]))
@@ -830,12 +853,15 @@ def unheard_tellings(
     learner_name: str | None = None,
 ) -> list[tuple[str, str]]:
     """``(character_id, sentence)`` for each sentence of a page in which a character
-    tells the learner what the learner once told them, and no word of it is in what
-    that character heard from the learner (:func:`heard_from_learner`). ``lemmas``
-    gives a word's dictionary forms, so a telling in the character's own words still
-    meets the learner's line. A telling that names someone in ``cast`` («Gus, tu m'as
-    dit…», «tu as dit non à Camille») may be said to them or be about them, and is
-    not read; the learner's name says nothing either.
+    tells the learner what the learner once told them, and half or more of the words
+    it puts in the learner's mouth are in nothing that character heard from the
+    learner (:func:`heard_from_learner`): one word they did hear does not carry the
+    rest («tu restes à Berlin mercredi» to someone who heard only «je reste un peu»).
+    A quoted telling is read by its quote, so what the character adds after it is
+    theirs. ``lemmas`` gives a word's dictionary forms, so a telling in the
+    character's own words still meets the learner's line. A telling that names
+    someone in ``cast`` («Gus, tu m'as dit…», «tu as dit non à Camille») may be said to
+    them or be about them, and is not read; the learner's name says nothing either.
 
     The paid read of 2026-10-17: Lila said «Tu m'avais dit : mercredi, tu rentres.» to
     a learner who had told her «Non, je ne vends pas. Je reste un peu.» and nothing
@@ -857,9 +883,11 @@ def unheard_tellings(
             # nothing does («« Je reste », tu m'as dit.»).
             after = sentence[told.end() :]
             what = after if re.search(r"[^\W\d_]", after) else sentence[: told.start()]
-            claim = _said_words(what, lemmas, skip)
-            heard = set().union(*(_said_words(line, lemmas, skip) for line in heard_from_learner(view, who)))
-            if claim and not claim & heard:
+            claim = _said_forms(" ".join(_QUOTED.findall(what)) or what, lemmas, skip)
+            heard = set().union(
+                *(forms for line in heard_from_learner(view, who) for forms in _said_forms(line, lemmas, skip).values())
+            )
+            if claim and 2 * sum(bool(forms & heard) for forms in claim.values()) <= len(claim):
                 found.append((str(who or ""), sentence))
     return found
 

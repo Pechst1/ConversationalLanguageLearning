@@ -174,6 +174,23 @@ def test_who_is_in_the_room_is_read_from_the_page():
     assert present["turn2"] == sorted([GUS, LILA, MARGAUX, "marin_leveque", "romy_tremblay"])
 
 
+def test_a_flashback_is_a_memory_and_nobody_in_it_hears_the_learner():
+    """Codex review of #209: T4 b shows Margaux's memory of Odile before Margaux asks
+    her question; Odile is not in the room when the learner answers, then or later."""
+
+    from app.services.season.flags import effective_flags
+    from app.services.season.format import load_season
+    from app.services.season.page import present_at_turns, resolve_day
+
+    season = load_season("s1")
+    page = resolve_day(season, "t4", "b", flags=effective_flags(season, {}, seed="x"), band="A2", language="en")
+    remembered = {who for row in page["movements"] if row.get("flashback") for who in row.get("in_frame") or []}
+    assert "odile" in remembered, "T4 b still opens on the flashback"
+    present = present_at_turns(page)
+    assert MARGAUX in present["b.turn2"]
+    assert [turn for turn, people in present.items() if "odile" in people] == []
+
+
 def test_the_same_words_to_the_same_person_twice_are_one_line(memory):
     """Asked again («Pardon ?»), the learner says it again: one line, so the readers'
     tail keeps the days before it (paid read: day 1's name had fallen out of it)."""
@@ -203,12 +220,42 @@ def test_the_same_fact_again_widens_who_knows_it_and_a_new_one_keeps_the_old_for
     after = memory.after_day(after, day(3, "Finalement je reste un an.", speaker=MARGAUX, learned=(longer,)))
     row = after["facts"][0]
     assert row["value"] == "un an" and row["known_by"] == [MARGAUX]
-    assert row["before"]["known_by"] == sorted([GUS, LILA]) and row["before"]["value"] == "trois semaines"
+    assert [(version["value"], version["known_by"]) for version in row["before"]] == [("trois semaines", sorted([GUS, LILA]))]
     # Each reader believes the version they heard.
     view = memory.full_view(after)
     assert memory.narrow(view, {LILA})["facts"][0]["fact_fr"] == "L'apprenant reste trois semaines."
     assert memory.narrow(view, {MARGAUX})["facts"][0]["fact_fr"] == "L'apprenant reste un an."
     assert memory.narrow(view, {CAMILLE}) is None
+
+
+def test_every_earlier_version_of_a_fact_stays_with_those_who_only_heard_it(memory, day):
+    """Codex review of #209: three versions told to three people, each keeps the one
+    they heard (the third used to drop the first); told again, an earlier version is
+    the one everyone who heard it believes."""
+
+    romy = "romy_tremblay"
+
+    def town(n: int, name: str, who: str):
+        quote = f"Je viens de {name}."
+        fact = {"key": "from", "fact_fr": f"L'apprenant vient de {name}.", "quote": quote, "value": name}
+        return day(n, quote, speaker=who, learned=(fact,))
+
+    after = None
+    for n, (name, who) in enumerate((("Hambourg", romy), ("Berlin", LILA), ("Paris", GUS)), start=1):
+        after = memory.after_day(after, town(n, name, who))
+    view = memory.full_view(after)
+    for who, name in ((romy, "Hambourg"), (LILA, "Berlin"), (GUS, "Paris")):
+        assert memory.narrow(view, {who})["facts"][0]["quote"] == f"Je viens de {name}.", who
+        assert f"Je viens de {name}." in memory.heard_from_learner(view, who), who
+    assert memory.narrow(view, {MARGAUX}) is None
+    # A page with Romy and Lila: each version, with who believes it.
+    both = memory.narrow(view, {romy, LILA})["facts"][0]
+    assert (both["quote"], both["known_by"]) == ("Je viens de Berlin.", [LILA])
+    assert [(version["quote"], version["known_by"]) for version in both["before"]] == [("Je viens de Hambourg.", [romy])]
+    # Back to Hamburg, told to Margaux: Romy and Margaux now believe the same.
+    row = memory.after_day(after, town(4, "Hambourg", MARGAUX))["facts"][0]
+    assert (row["value"], row["known_by"]) == ("Hambourg", sorted([MARGAUX, romy]))
+    assert [(version["value"], version["known_by"]) for version in row["before"]] == [("Paris", [GUS]), ("Berlin", [LILA])]
 
 
 def test_the_name_outlives_every_other_fact(memory, day):
@@ -341,10 +388,14 @@ def test_a_character_brings_back_only_what_they_heard_the_learner_say(memory, da
     assert told(LILA, "Alors ? Tu m'avais dit : mercredi, tu rentres.") == [(LILA, "Tu m'avais dit : mercredi, tu rentres.")]
     assert told(LILA, "Lena, tu m'avais dit : mercredi.") == [(LILA, "Lena, tu m'avais dit : mercredi.")]
     assert told(MARGAUX, "Tu m'as dit que tu restais un peu.") != [], "Margaux heard none of it"
+    # Codex review of #209: one word she heard («rester») does not carry the ones she never did.
+    for line in ("Tu m'avais dit : tu restes à Berlin mercredi.", "Tu m'avais dit : mercredi, tu restes."):
+        assert told(LILA, line) == [(LILA, line)], line
     for line in (
         "Tu m'as dit que tu restais un peu.",  # what she heard, in her own words
         "Vous aviez dit que vous ne vendiez pas.",
         "« Je reste un peu », tu m'as dit.",
+        "Tu m'as dit « je reste un peu », et tu es toujours là.",  # the quote is the learner's, the rest hers
         "La dernière fois, tu as dit non. Tu m'aides ?",  # an answer, in anyone's words
         "Tu ne m'as pas dit pourquoi. Tu m'avais dit mercredi ?",  # a denial, a question
         "Gus, tu m'as dit que la cave était fermée.",  # said to Gus
