@@ -29,7 +29,7 @@ const Q = (args && args.queue) || 'python scripts/loop/loop_queue.py'
 const RED_GREEN = 'python scripts/loop/red_green.py --base origin/main'
 // Cloud sessions block GitHub GraphQL, so `gh issue …` and `gh pr …` fail there. Every
 // GitHub read and write goes through ${Q} (REST via `gh api`) or the GitHub MCP tools.
-const NO_GH = `Never use \`gh issue\` or \`gh pr\` (GraphQL is blocked here). Use ${Q}: \`show N\` (issue or PR with comments), \`comment N --body-file F\`, \`pr-create\`, \`pr-diff N\`, \`pr-unready N --body-file F\`, or the GitHub MCP tools.`
+const NO_GH = `Never use \`gh issue\` or \`gh pr\` (GraphQL is blocked here). Use ${Q}: \`show N\` (issue or PR with comments), \`comment N --body-file F\`, \`pr-create\`, \`pr-diff N\`, \`pr-reject N --body-file F\`, or the GitHub MCP tools.`
 
 const PLAN = {
   type: 'object',
