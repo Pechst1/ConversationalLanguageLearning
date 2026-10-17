@@ -13,6 +13,18 @@ function classifyHeight(height: number): PhoneHeight {
   return 'tall';
 }
 
+/**
+ * How far iOS has panned the visual viewport down inside the layout viewport
+ * (it does this when the keyboard opens to keep the focused field in view).
+ * Anything pinned to `top: 0` of the layout viewport (sticky headers) then
+ * rides up under the status bar and the Dynamic Island. Published as
+ * `--app-viewport-offset-top` so sticky headers can follow the visual top.
+ */
+export function visualViewportOffsetTop(visual?: { offsetTop?: number } | null): number {
+  const raw = Number(visual?.offsetTop ?? 0);
+  return Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 0;
+}
+
 function viewportSize() {
   const root = document.documentElement;
   const visual = window.visualViewport;
@@ -32,6 +44,7 @@ export function installViewportMetrics() {
     const { width, height } = viewportSize();
     root.style.setProperty('--app-viewport-width', `${width}px`);
     root.style.setProperty('--app-viewport-height', `${height}px`);
+    root.style.setProperty('--app-viewport-offset-top', `${visualViewportOffsetTop(window.visualViewport)}px`);
     root.dataset.viewportKind = width <= 760 ? 'phone' : width <= 1024 ? 'tablet' : 'desktop';
     root.dataset.phoneWidth = classifyWidth(width);
     root.dataset.phoneHeight = classifyHeight(height);

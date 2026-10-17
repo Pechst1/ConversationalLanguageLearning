@@ -321,7 +321,8 @@ test('Épreuve: stroke-less word tiles, a full-width footer band, a sticky top b
   assert.match(foot, /margin: auto calc\(-1 \* var\(--av2-gutter\)\) 0;/);
   const top = css.match(/\.av2 \.ep-top \{([^}]*)\}/)[1];
   assert.match(top, /position: sticky;/);
-  assert.match(top, /top: 0;/);
+  // #89: the bar follows the visual viewport when the iOS keyboard pans it; 0px everywhere else.
+  assert.match(top, /top: var\(--app-viewport-offset-top, 0px\);/);
   assert.match(top, /background: var\(--av2-paper\);/);
   assert.match(css, /\.av2 \.ep-sheet > \.ep-feedback:last-child \{ flex: 0 0 auto; \}/);
   // The WP-S6 additions use tokens only.

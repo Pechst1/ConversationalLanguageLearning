@@ -991,7 +991,9 @@ export function LEpreuveStyles() {
 /* WP-S6: the top bar stays put while the sheet scrolls (paper face, no rule). */
 .av2 .ep-top {
   position: sticky;
-  top: 0;
+  /* iOS pans the visual viewport when the keyboard opens; follow it so the
+     header stays under the safe area instead of sliding beneath the island. */
+  top: var(--app-viewport-offset-top, 0px);
   z-index: 6;
   padding-top: calc(12px + env(safe-area-inset-top, 0px));
   padding-bottom: 10px;
