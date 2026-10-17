@@ -365,6 +365,10 @@ def test_every_reader_of_the_name_is_told_a_name_is_not_a_gender(memory):
         assert prompt_has(readers[reader], memory.NAME_SCOPE), reader
     for reader in ("actor", "story lane"):
         assert "summary_native still speaks to the learner as you, never by their name" in readers[reader], reader
+    # The season critic's notes are copied into the rewrite: they never name or gender the learner.
+    from app.services.season.director import STORY_CRITIC
+
+    assert prompt_has(STORY_CRITIC, "it calls the learner «the learner», never by their name and never «il» or «elle»")
 
 
 def test_a_page_that_forgets_what_the_learner_said_is_refused_as_storytelling():
