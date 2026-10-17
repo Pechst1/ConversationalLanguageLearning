@@ -6,6 +6,12 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     PIP_DEFAULT_TIMEOUT=100
 
+# #134: the API was killed for memory on Render's 512 MB plan. glibc gives
+# every thread its own malloc arena; with FastAPI's thread pool that kept
+# freed memory resident after each busy minute. Two arenas are plenty for one
+# uvicorn worker or one Celery child.
+ENV MALLOC_ARENA_MAX=2
+
 WORKDIR /app
 
 COPY pyproject.toml README.md constraints.txt /app/
@@ -26,6 +32,7 @@ COPY docker/entrypoint.sh /app/docker/entrypoint.sh
 RUN export PIP_CONSTRAINT=/app/constraints.txt \
     && pip install --no-cache-dir . \
     && python -m spacy download fr_core_news_sm \
+    && python -m app.services.compact_lemmas fr_core_news_sm \
     && chmod +x /app/docker/entrypoint.sh
 
 EXPOSE 8000

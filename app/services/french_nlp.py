@@ -28,9 +28,23 @@ def french_nlp() -> Any:
 @lru_cache(maxsize=1)
 def _load() -> Any:
     import spacy
+    from loguru import logger
 
     from app.config import settings
+    from app.services import compact_lemmas
 
+    # #134: the lemmatizer's own tables are ~150 MB as spaCy loads them; the
+    # compact copy the Docker build writes next to the model answers the same
+    # lemmas in ~6 MB. Without it (a dev checkout) the plain load stands.
+    try:
+        return compact_lemmas.load(settings.FRENCH_NLP_MODEL)
+    except FileNotFoundError:
+        logger.info(
+            "French pipeline: no compact lemma tables, loading the full ones "
+            "(python -m app.services.compact_lemmas builds them)"
+        )
+    except Exception as exc:  # noqa: BLE001 - a broken compact copy must not cost the pipeline
+        logger.warning("French pipeline: compact lemma tables unusable ({}); loading the full ones", exc)
     return spacy.load(settings.FRENCH_NLP_MODEL)
 
 
