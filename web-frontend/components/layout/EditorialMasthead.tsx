@@ -114,7 +114,7 @@ export default function EditorialMasthead({
            settings, exactly the gear drawn on the HOME artboard. */
         .app-masthead {
           position: sticky;
-          top: 0;
+          top: var(--app-viewport-offset-top, 0px);
           z-index: 40;
           border-bottom: 1px solid var(--app-paper-2);
           background: color-mix(in srgb, var(--app-paper) 92%, transparent);
