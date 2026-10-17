@@ -30,6 +30,14 @@ fi
 "$VENV/bin/python" -c 'import fr_core_news_sm' 2>/dev/null \
   || "$VENV/bin/python" -m spacy download fr_core_news_sm >/dev/null
 
+# A night-shift worktree shares the main checkout's node_modules when the lockfile is the
+# same: a fresh `npm ci` per worktree took minutes, and 5 fixers plus 5 verifiers run at once.
+MAIN_CHECKOUT="$(cd "$(git rev-parse --git-common-dir)/.." && pwd)"
+if [ ! -e web-frontend/node_modules ] && [ "$MAIN_CHECKOUT" != "$PWD" ] \
+  && [ -d "$MAIN_CHECKOUT/web-frontend/node_modules" ] \
+  && cmp -s web-frontend/package-lock.json "$MAIN_CHECKOUT/web-frontend/package-lock.json"; then
+  ln -s "$MAIN_CHECKOUT/web-frontend/node_modules" web-frontend/node_modules
+fi
 if [ ! -d web-frontend/node_modules ]; then
   (cd web-frontend && npm ci --no-audit --no-fund --loglevel=error)
 fi

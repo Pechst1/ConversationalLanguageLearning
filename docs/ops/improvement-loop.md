@@ -59,6 +59,9 @@ Lanes:
 - **story** (prompts, guards, authored lines): the PR adds a deterministic guard or the
   smallest prompt change, plus a test that feeds the walk's **exact** text and asserts
   it is caught. Always a draft with `needs-owner-review`. No paid model calls in tests.
+  `scripts/prompt_regression.py` replays 10 golden story cases (`tests/prompt_regression/`)
+  through the real planner, writer and reply checks with recorded answers: a changed
+  prompt shows as a snapshot diff the PR must explain.
 
 ## The nightly routines
 
@@ -74,22 +77,42 @@ Lanes:
    - takes up to 3 `root-cause` issues first, each with its ready children;
    - fixes up to 15 clusters (at most 3 story) in waves of 5, each agent in its own
      worktree and branch `claude/night-<date>-<issue>`;
-   - has a second agent review every PR against the done-when; only a passing review
-     adds `loop:merge-ready`, and a PR that fails becomes a draft and gets a comment;
+   - writes the test first and shows it failing on the unfixed code; before opening the PR
+     the fixer runs `scripts/loop/red_green.py`, which puts every non-test change back
+     to main and requires the PR's tests to fail there and pass with the fix;
+   - has a second agent review every PR against the done-when and run `red_green.py`
+     again; only a passing review with a proven red/green adds `loop:merge-ready`. A PR
+     that fails is closed with `loop:failed-verify` (`loop_queue.py pr-reject`), and its
+     issues go back to `queue:ready` with the reviewer's notes, so the next night starts
+     from them; after two failed attempts an issue goes to `queue:owner`;
    - posts the digest: queue counts, tonight's PRs, the ones ready to merge, anything
      left `queue:working`, and what waits for the owner.
    With 30 or more night-shift PRs open it opens nothing new.
    Cloud sessions block GitHub GraphQL, so the loop never calls `gh issue` or `gh pr`:
    `loop_queue.py` talks REST through `gh api` and also covers reading an issue,
    commenting, opening a PR, its diff and the verifier's verdict.
-   `scripts/loop/setup_env.sh` sets up the Python 3.11 venv and node_modules the
-   focused checks need.
+   Every cloud session runs `scripts/loop/session_start.sh` on start (the SessionStart
+   hook in `.claude/settings.json`): `setup_env.sh` builds the Python 3.11 venv and
+   node_modules (a worktree links the main checkout's), and the local Postgres starts on
+   :5432 like CI's. No fixer or verifier has to remember it.
 
-Nothing in the loop merges, deploys or pushes to main. The owner merges; for the
-small code fixes, `python scripts/loop/loop_queue.py merge-ready` lists the PRs whose
+The loop never pushes to main. By default it does not merge either: the owner merges;
+for the small code fixes, `python scripts/loop/loop_queue.py merge-ready` lists the PRs whose
 every check is green, that are under 400 lines and touch no owner-only path (story
 engine, data model, deploy, CI, the loop's own rules), and `--merge` merges exactly
-those with the owner's login, so CI runs on main and Render deploys.
+those with the owner's login, so CI runs on main and Render deploys. It merges nothing
+while the newest CI run on main is red.
+
+**Auto-merge (owner switch).** With `autoMerge: true` in the night shift's args, the
+digest step runs `merge-ready --merge --max 4 --wait-minutes 40` itself: only code-lane
+PRs that the verifier proved red/green and labelled, all checks green, under 400 lines,
+outside the owner-only paths, one at a time, each only after CI passed on main's current
+head, so a red main always names one PR. Story-lane PRs always wait for the owner. The next
+live walk re-tests each merged fix once it is deployed.
+
+**Trend.** `python scripts/loop/rubric_trend.py --write` turns every walk report's score
+table into `docs/ops/walks/TREND.md`: each rubric question, night by night, fake-provider
+and live walks apart. The explore walk regenerates it with each report.
 
 **Merged is not live.** Render deploys only after main's checks pass, so the live
 walk compares `GET /health` → `release` (the deployed commit) with the merge commit

@@ -22,6 +22,7 @@ The night shift's GitHub verbs (it has no other way to read or write issues and 
     python scripts/loop/loop_queue.py pr-diff N
     python scripts/loop/loop_queue.py comment N --body-file F    (or --body TEXT)
     python scripts/loop/loop_queue.py pr-unready N --body-file F # drop loop:merge-ready, draft, say why
+    python scripts/loop/loop_queue.py pr-reject N --body-file F  # failed verify: close, issues back to the queue
     python scripts/loop/loop_queue.py add-label N LABEL          # e.g. loop:merge-ready after a passing verify
 
 Everything goes through GitHub's REST API with `gh api` (cloud sessions block GraphQL,
@@ -34,8 +35,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -54,6 +57,7 @@ LABELS: dict[str, tuple[str, str]] = {
     "size:M": ("bfbfbf", "Several files or one subsystem"),
     "loop:merge-ready": ("0e8a16", "Small code fix the owner may merge as soon as every check is green"),
     "needs-owner-review": ("b60205", "PR changes story behaviour or product copy: owner merges"),
+    "loop:failed-verify": ("b60205", "The night-shift verifier rejected this PR; it never merges as it is"),
 }
 STATE_LABELS = ("queue:ready", "queue:working", "queue:pr", "queue:owner")
 SEVERITY_ORDER = {"sev:blocker": 0, "sev:high": 1, "sev:medium": 2, "sev:low": 3}
@@ -80,6 +84,11 @@ MERGE_DENY_PREFIXES = (
     "web-frontend/package-lock.json",
     "ios/",
 )
+# A rejected attempt goes back to the queue with the verifier's notes; after this many the
+# issue waits for the owner instead of failing again every night.
+MAX_ATTEMPTS = 2
+ISSUE_REF = re.compile(r"\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|part of|refs?)\s+#(\d+)", re.IGNORECASE)
+REJECTED_MARK = "Night shift: attempt"
 MERGE_MAX_LINES = 400
 MERGE_MIN_CHECKS = 5
 CHECK_OK = {"SUCCESS", "SKIPPED", "NEUTRAL"}
@@ -245,6 +254,65 @@ def pr_unready(number: int, reason: str) -> None:
     comment(number, reason)
 
 
+def linked_issues(body: str) -> list[int]:
+    """Issues a PR body says it fixes or works on, in order, without repeats."""
+    return list(dict.fromkeys(int(n) for n in ISSUE_REF.findall(body or "")))
+
+
+def pr_reject(number: int, reason: str) -> None:
+    """Verifier verdict 'not ok' on a night-shift PR: say why, close it, and give every issue it
+    claimed back to the queue with the notes, so the next night starts from them. An issue that
+    has failed MAX_ATTEMPTS times goes to the owner instead.
+
+    The REST API cannot turn a PR into a draft (night shift 17 Oct: HTTP 403 on #201 and #205),
+    so a rejected PR used to stay open, ready for review, with a comment nobody saw. Closed with
+    a label, it cannot be merged by mistake and it no longer counts against the PR backlog."""
+    pr = api_json("GET", f"pulls/{number}")
+    remove_label(number, "loop:merge-ready")
+    add_labels(number, ["loop:failed-verify"])
+    comment(number, reason)
+    api("PATCH", f"pulls/{number}", {"state": "closed"})
+    for issue in linked_issues(pr.get("body") or ""):
+        data = api_json("GET", f"issues/{issue}")
+        if "pull_request" in data or data["state"] != "open":
+            continue
+        attempts = 1 + sum(REJECTED_MARK in c["body"] for c in api_list(f"issues/{issue}/comments"))
+        notes = (f"{REJECTED_MARK} {attempts} (#{number}, branch `{pr['head']['ref']}`) failed review. "
+                 f"The next fix starts from these notes:\n\n{reason.strip()}")
+        if attempts >= MAX_ATTEMPTS:
+            set_state(issue, "queue:owner")
+            comment(issue, notes + f"\n\n{attempts} attempts failed, so this waits for the owner: "
+                    "split it, sharpen the done-when, or take it in a daytime thread.")
+        else:
+            set_state(issue, "queue:ready")
+            comment(issue, notes)
+        print(f"#{issue}: attempt {attempts} rejected -> {'queue:owner' if attempts >= MAX_ATTEMPTS else 'queue:ready'}")
+
+
+def main_is_green() -> tuple[bool, str]:
+    """Whether CI passed on main's current head. Nothing merges onto a red or still-unchecked main:
+    a second change would hide which one broke it. Only the run for main's own head counts, never
+    an older green one while the newest is queued (Codex review on #207)."""
+    head = api_json("GET", "git/ref/heads/main")["object"]["sha"]
+    runs = api_json("GET", "actions/workflows/ci.yml/runs?branch=main&per_page=20").get("workflow_runs", [])
+    run = next((r for r in runs if r.get("head_sha") == head), None)
+    if run is None:
+        return False, f"no CI run yet for main {head[:7]}"
+    if run.get("status") != "completed":
+        return False, f"main CI {head[:7]} still {run.get('status')}"
+    return run.get("conclusion") == "success", f"main CI {head[:7]}: {run.get('conclusion')}"
+
+
+def wait_for_green_main(minutes: int) -> tuple[bool, str]:
+    """main_is_green, polled once a minute for up to `minutes` while main's CI is still running."""
+    green, why = main_is_green()
+    deadline = time.monotonic() + minutes * 60
+    while not green and "still" in why and time.monotonic() < deadline:
+        time.sleep(60)
+        green, why = main_is_green()
+    return green, why
+
+
 def pr_rollup(number: int) -> dict[str, Any]:
     """A PR in the shape merge_blockers reads (the field names of `gh pr view --json`)."""
     pr = api_json("GET", f"pulls/{number}")
@@ -285,6 +353,8 @@ def merge_blockers(pr: dict[str, Any]) -> list[str]:
         blockers.append("no loop:merge-ready label")
     if "needs-owner-review" in names:
         blockers.append("needs-owner-review")
+    if "loop:failed-verify" in names:
+        blockers.append("failed verify")
     if not pr.get("headRefName", "").startswith("claude/night-"):
         blockers.append("not a night-shift branch")
     if pr.get("mergeable") != "MERGEABLE":
@@ -310,7 +380,10 @@ def merge_blockers(pr: dict[str, Any]) -> list[str]:
     return blockers
 
 
-def merge_ready(limit: int, merge: bool) -> None:
+def merge_ready(limit: int, merge: bool, wait_minutes: int = 0) -> None:
+    """List, or with `merge` merge, the ready PRs one at a time. Before each merge main's head must
+    have passed CI, so after a merge the next one waits for CI on the new head (up to
+    `wait_minutes`); every merged change is then tested on its own and a red main names its PR."""
     prs = [p for p in api_list("pulls?state=open") if "loop:merge-ready" in label_names(p)]
     merged = 0
     for item in prs:
@@ -323,8 +396,18 @@ def merge_ready(limit: int, merge: bool) -> None:
             print(f"#{pr['number']} waits: {'; '.join(blockers)}")
             continue
         if merge:
+            green, why = wait_for_green_main(wait_minutes)
+            if not green:
+                print(f"#{pr['number']} not merged: {why}; it and the rest wait for the next run")
+                merge = False
+        if merge:
             api("PUT", f"pulls/{pr['number']}/merge", {"merge_method": "squash"})
-            api("DELETE", f"git/refs/heads/{pr['headRefName']}")
+            try:
+                api("DELETE", f"git/refs/heads/{pr['headRefName']}")
+            except SystemExit as exc:
+                # The cloud proxy refuses ref deletes (403, 17 Oct). A left-over branch is
+                # harmless; stopping here would leave the rest of tonight's ready PRs unmerged.
+                print(f"#{pr['number']}: branch {pr['headRefName']} kept ({exc})", file=sys.stderr)
             print(f"#{pr['number']} merged: {pr['title']}")
         else:
             print(f"#{pr['number']} ready to merge: {pr['title']}")
@@ -384,6 +467,8 @@ def main(argv: list[str]) -> None:
     p = sub.add_parser("merge-ready")
     p.add_argument("--max", type=int, default=4)
     p.add_argument("--merge", action="store_true", help="merge them (owner only); default lists")
+    p.add_argument("--wait-minutes", type=int, default=0,
+                   help="with --merge: wait this long for main's CI after each merge before the next")
     p = sub.add_parser("digest")
     p.add_argument("--date", required=True)
     p = sub.add_parser("show")
@@ -401,7 +486,7 @@ def main(argv: list[str]) -> None:
     p = sub.add_parser("add-label")
     p.add_argument("number", type=int)
     p.add_argument("label")
-    for name in ("comment", "pr-unready"):
+    for name in ("comment", "pr-unready", "pr-reject"):
         p = sub.add_parser(name)
         p.add_argument("number", type=int)
         p.add_argument("--body-file")
@@ -419,7 +504,7 @@ def main(argv: list[str]) -> None:
     elif args.command == "mark-pr":
         mark_pr(args.number, args.pr)
     elif args.command == "merge-ready":
-        merge_ready(args.max, args.merge)
+        merge_ready(args.max, args.merge, args.wait_minutes)
     elif args.command == "digest":
         print(digest(args.date))
     elif args.command == "show":
@@ -434,6 +519,8 @@ def main(argv: list[str]) -> None:
         comment(args.number, _text(args))
     elif args.command == "pr-unready":
         pr_unready(args.number, _text(args))
+    elif args.command == "pr-reject":
+        pr_reject(args.number, _text(args))
     elif args.command == "add-label":
         add_labels(args.number, [args.label])
 

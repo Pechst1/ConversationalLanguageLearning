@@ -158,6 +158,20 @@ export class LearnerWalk {
     const half = Math.floor(text.length / 2);
     state.typing = true;
     await locator.pressSequentially(text.slice(0, half), { delay: 25 });
+    // #197: what was typed must be in the field. On 16 Oct the reprise sheet moved
+    // focus to its close button after one key, the next space closed it, and the
+    // second half then waited 30 s for a field that was gone. Name that screen.
+    const held = await this.page.evaluate((typed) => {
+      const field = [...document.querySelectorAll('textarea, input[type=text]')].find((n) => n.value.includes(typed));
+      const at = document.activeElement;
+      return { kept: Boolean(field) && at === field, focus: at ? `${at.tagName.toLowerCase()} «${(at.getAttribute('aria-label') || at.innerText || '').trim().slice(0, 40)}»` : 'nothing' };
+    }, text.slice(0, half));
+    this.findings.check('typing-stays-in-the-field', held.kept, `typed «${text.slice(0, half)}»; the field does not hold it, focus is on ${held.focus}`, this.where({ kind: 'typing' }));
+    if (!held.kept) {
+      state.typing = false;
+      await this.shoot('typing-lost');
+      return;
+    }
     let s = await snapshot(this.page);
     this.findings.check('no-server-banner-while-typing', !(s.connection.length || SERVER_BANNER.test(s.text)), `banner mid-typing: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
     await locator.pressSequentially(text.slice(half), { delay: 25 });

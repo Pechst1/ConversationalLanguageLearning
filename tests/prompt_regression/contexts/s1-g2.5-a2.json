@@ -1,0 +1,1051 @@
+{
+ "_captured": "story_context() of a learner at A2 jumped to season day 14 (g2.5) by tests/test_story_split.py's season harness, 2026-10-17, main @ 59a2706. Dropped: lexicon (frozensets; the coverage guard fails open), mots_a_placer, thread_id, revision. _season is the runtime handle, rebuilt by the harness from season_id + flags.",
+ "season_script": {
+  "id": "s1",
+  "title_fr": "La clé d'Odile",
+  "position": {
+   "season_id": "s1",
+   "segment": "g2",
+   "kind": "gap",
+   "day_in_segment": 5,
+   "season_day": 14,
+   "flex": 0,
+   "key": "g2.5",
+   "finished": false
+  },
+  "brief": {
+   "season": {
+    "id": "s1",
+    "title_fr": "La clé d'Odile",
+    "question_fr": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+    "day": 14,
+    "of": 65
+   },
+   "level": {
+    "band": "A2",
+    "panels": "4-5",
+    "exchanges": "2",
+    "max_words_per_line": 12,
+    "texture": "passé composé and imparfait in short lines; everyday words"
+   },
+   "gap": {
+    "id": "g2",
+    "title_fr": "L'appartement s'ouvre",
+    "day": 5,
+    "days": 6,
+    "days_left_after_today": 1,
+    "threads": [
+     "The Polaroid box: sorting it and reading Odile's captions makes funny days.",
+     "Lila painting upstairs at 7 a.m. (only if s1.lila_has_key).",
+     "Marin starts a spreadsheet after Lila shows him the notebook page. He asks the learner's permission to use «Odile's idea».",
+     "Gus starts his petition.",
+     "The Gus photo may change hands (s1.gus_photo).",
+     "Romy's Solvel story advances.",
+     "Camille emails an inventory deadline.",
+     "Romance/friendship gate 2, the disastrous improvised dinner, belongs here."
+    ],
+    "facts": [
+     "Lila has no key («Pas encore»); she paints at her own flat and comes up only with the learner."
+    ],
+    "complications": [
+     "A water cut announced by the Gérance Marchand.",
+     "Bastien Roux phoning the learner directly.",
+     "Camille's inventory deadline.",
+     "The smoke alarm."
+    ],
+    "must_not": [
+     "«L.», the painter at the rue de Lancry window, is never named, never noticed and never discussed. The painting above the zinc may hang there; nobody reads its back.",
+     "Toi's face is the learner's own (owner decision 2026-10-02, WP-118: made at registration, drawn like the cast). Never describe it in words: no hair, skin, eyes or features in a line, a caption or a panel description; the drawing shows it. Lila's portrait still never gains a face during the season (its payoff is an open owner question).",
+     "WP-113: the price in the notary's letter (trois cent dix mille euros) is never said in a generated day unless it is public (Gus read it out to the café in T1 B). Whoever the learner trusted with the letter may hint that they know, never say the figure.",
+     "WP-149: a generated day never dates a past event the canon does not hold. Day 66 of the WP-136 read invented «la nuit du 14 mars», which no tentpole or flag supports. Refer to what happened by what it was (the fire, the party, the notary's letter), never by an invented date. (A full date-canon check is a later package.)",
+     "The fire's origin (it started upstairs, in Odile's kitchen).",
+     "Anyone separating the stuck Polaroids.",
+     "The notebook's last pages (the handwriting «se casse» after page 40; Lila says «plus tard»).",
+     "Berlin named. Only hints are allowed: an envelope with a German stamp, closed quickly.",
+     "The Sundays explained (who «M.» on the calendar is, or what they did).",
+     "Gus's truth (Créteil, his mother, no château).",
+     "T5 reveals Berlin. Before it, never write «Berlin», «Künstlerhaus», «Allemagne» or «résidence d'artiste», not even as a guess or a question: only hints (her phone turned face down, an unanswered message, an envelope with a German stamp closed quickly)."
+    ],
+    "establish_before_next_tentpole": [
+     "Marin has seen the notebook page «Le Mistral à nous» and built a spreadsheet.",
+     "Gus has heard about Solvel's offer (the exact figure only if s1.price_public).",
+     "The group is planning «Les 25 ans du Mistral» for Saturday 5 December. Margaux says «pas de fête» twice a day.",
+     "Lila is painting upstairs in the mornings (if s1.lila_has_key)."
+    ]
+   },
+   "today": {
+    "required_premise": {
+     "id": "la_boite",
+     "title_fr": "La boîte",
+     "text": "The Polaroid box under Odile's bed, opened at last. The learner and Lila sort sixty photos on the floor and read Odile's captions aloud, each one funnier and drier than the last. One Polaroid is Marin, aged twenty, asleep on the booth; Lila puts it aside «pour plus tard». If Lila has no key, she comes up with the learner after school.",
+     "change": "The box is open, the captions are read, and the learner knows the quartier through Odile's eyes.",
+     "turn": "Read one caption aloud, and say who you think it is about.",
+     "gate": null,
+     "sets": [],
+     "settles": {}
+    },
+    "beat": {
+     "before": "The Polaroid box is a closed box under Odile's bed.",
+     "after": "The box is open, the learner has read Odile's captions with Lila, and Marin's Polaroid is set aside.",
+     "also": "Lila's coffee cup in the sink, if she has a key.",
+     "hook": "Lila has shown Marin a page from Odile's notebook, and Marin wants to ask the learner something."
+    },
+    "premises": [
+     {
+      "id": "le_diner_rate",
+      "title_fr": "Le dîner raté",
+      "text": "The learner and Lila improvise dinner in Odile's kitchen. The omelette burns and the smoke alarm screams. Margaux comes up the stairs running, with the café's fire extinguisher, sees the omelette, and goes back down without a word. The reader has watched Margaux react too fast to smoke from this kitchen; nobody on the page remarks on it.",
+      "change": "A private joke is born: «ne refais jamais l'omelette».",
+      "turn": "The line that saves the evening (bible §7 gate 2): tenderness toward her («C'est le meilleur dîner raté de ma vie.») or complicity («On dit à Marin que c'était exprès.»).",
+      "gate": 2,
+      "sets": [],
+      "settles": {}
+     },
+     {
+      "id": "je_peux",
+      "title_fr": "Je peux ?",
+      "text": "Marin, holding the notebook page, asks whether he may use Odile's plan. He cannot ask without a grandmother's saying and three apologies.",
+      "change": "The spreadsheet exists, with the learner's blessing, or without it but with their knowledge.",
+      "turn": "Tell Marin whether he may use Odile's plan, and why.",
+      "gate": null,
+      "sets": [],
+      "settles": {}
+     },
+     {
+      "id": "pour_son_anniversaire",
+      "title_fr": "Pour son anniversaire",
+      "text": "It is Gus's birthday. Lila wants to give him his Polaroid at fifteen, framed. The learner decides with her: give it, keep it, or hide it. If given, Gus laughs too loudly and takes it home; the costume holds, and the reader sees his hands.",
+      "change": "s1.gus_photo changes (shown, or given to Gus), or stays with Lila by choice.",
+      "turn": "Decide with Lila what to do with Gus's photo, and say why.",
+      "gate": null,
+      "sets": [
+       "s1.gus_photo"
+      ],
+      "settles": {}
+     },
+     {
+      "id": "la_boite",
+      "title_fr": "La boîte",
+      "text": "The Polaroid box under Odile's bed, opened at last. The learner and Lila sort sixty photos on the floor and read Odile's captions aloud, each one funnier and drier than the last. One Polaroid is Marin, aged twenty, asleep on the booth; Lila puts it aside «pour plus tard». If Lila has no key, she comes up with the learner after school.",
+      "change": "The box is open, the captions are read, and the learner knows the quartier through Odile's eyes.",
+      "turn": "Read one caption aloud, and say who you think it is about.",
+      "gate": null,
+      "sets": [],
+      "settles": {}
+     },
+     {
+      "id": "la_petition",
+      "title_fr": "La pétition",
+      "text": "Gus has heard about Solvel's offer. At the zinc he writes a petition on the back of a menu, «Le Mistral ne se vend pas», and wants the heir's name first. Margaux says «pas de fête» while the group decides to hold «Les 25 ans du Mistral» on Saturday 5 December anyway. Gus will read the petition there, not before.",
+      "change": "Gus's petition exists, with or without the learner's name, and the party on 5 December is decided over Margaux's «pas de fête».",
+      "turn": "Tell Gus whether you sign, and why.",
+      "gate": null,
+      "sets": [],
+      "settles": {}
+     },
+     {
+      "id": "bastien_appelle",
+      "title_fr": "Bastien appelle",
+      "text": "An unknown number. Bastien Roux, from Solvel, warm and fast: he has «une offre améliorée» and would love a coffee «loin du café». The learner must handle a sales call in French without promising anything.",
+      "change": "Solvel has a voice and the learner's number, and the learner has said, on the phone, what they will and won't do.",
+      "turn": "Answer Bastien politely, and promise nothing.",
+      "gate": null,
+      "sets": [],
+      "settles": {}
+     }
+    ],
+    "small_moments": [
+     {
+      "id": "tasse_de_lila",
+      "owner": "lila_bonnet",
+      "text": "Lila's coffee cup in the learner's sink (if she has a key).",
+      "sets": {}
+     },
+     {
+      "id": "polaroid_de_marin",
+      "owner": "marin_leveque",
+      "text": "Marin finding his own Polaroid and crying at it.",
+      "sets": {}
+     },
+     {
+      "id": "mon_cher",
+      "owner": "augustin_de_roncourt",
+      "text": "Gus calling the learner «mon cher».",
+      "sets": {}
+     },
+     {
+      "id": "margaux_plafond",
+      "owner": "margaux_barman",
+      "text": "Margaux looking at the ceiling when the learner mentions upstairs, in a silent panel.",
+      "sets": {}
+     },
+     {
+      "id": "diallo_polaroid",
+      "owner": "mme_diallo",
+      "text": "Mme Diallo recognising herself in a Polaroid the learner brings her.",
+      "sets": {}
+     }
+    ],
+    "gate": null,
+    "may_set": [
+     "s1.gus_photo"
+    ],
+    "open_obstacle": null
+   },
+   "next_tentpole": {
+    "id": "t3",
+    "title_fr": "Deux promesses",
+    "state_in": [
+     "From gap 2: Marin has seen the notebook page «Le Mistral à nous» and built a spreadsheet.",
+     "From gap 2: Gus has heard about Solvel's offer. If s1.price_public, he knows the figure to the euro.",
+     "From gap 2: the group is planning «Les 25 ans du Mistral» for Saturday 5 December. Margaux says «pas de fête» twice a day.",
+     "From gap 2: Lila is painting upstairs in the mornings (if s1.lila_has_key).",
+     "Flags read: s1.gus_photo, s1.calendar_contradiction, s1.letter_trusted_to, s1.lila_path."
+    ]
+   },
+   "rules": {
+    "the_rule": "Episodes without meaningful change are refused. Every generated day ends with something different from how it began, and the difference is something the learner can see: a relationship (something said that can't be unsaid, a gesture that becomes a habit, a first tu, a first time someone waits for you), knowledge (the learner or a character learns something true, or something false they now believe), a situation (an object moves, a plan advances or is blocked, a decision is taken, a letter arrives), or the learner's life in Paris (the return ticket moves, the usual order is known, a first time happens). Quiet changes count.",
+    "refused": [
+     "«Une soirée comme une autre»: the group chats about the weather, the playlist or the metro, and nothing moves.",
+     "An errand that could happen on any day with any cast («Help Romy record fifteen minutes on Tuesday»), unless it changes something between you.",
+     "A dramatic investigation that learns nothing: a mystery beat that ends where it began.",
+     "A day that advances a thread the next tentpole owns (the gap's «must not» list)."
+    ],
+    "shape": "One page of 4–6 panels, 2–3 exchanges, and at most one mechanic (Enquête, Convaincre, Choix, Déchiffrer). Every day has a goal (someone wants something today), an obstacle, a turn to the learner (what they must want to say, never a grammar target) and a hook («À suivre…»). At least one panel without dialogue. At least one laugh most days, Gus and Marin first. Two characters in frame on most panels, doing something (carrying, cooking, measuring, painting, arguing). A complication card creates an obstacle in the NEXT day, visibly.",
+    "checklist": [
+     "Thread(s) touched, from the gap's list.",
+     "The change, written as «before → after» in one sentence.",
+     "The turn, and what the learner must want to say (never a grammar target).",
+     "The small moment, and whose it is.",
+     "The hook.",
+     "Forbidden reveals respected: the gap's «must not» list."
+    ],
+    "register": "Lines addressed to Toi are agreement-free («Tu le savais ?», «Tu es en colère ?», «la première personne»). Camille's lines about Camille are agreement-free, and other characters' pronouns for Camille come from s1.camille_gender. Margaux, Lila, Marin and Romy say tu; Gus says vous until T3, then tu; M. Marchand and Camille say vous.",
+    "gates": "Gates 2 and 3 (Lila's path) live in gaps 2 and 4. The director must include the gate's moment; the classifier reads only what the learner expresses. When the learner doesn't take it, nothing is lost: the gate stays open, and a later small moment can still register it. Never generate a second chance the same day. Never show the path: no hearts, no meters, no «Lila s'en souviendra» on romance moments."
+   },
+   "writing_rules": [
+    "Toi is gender-neutral: lines addressed to Toi avoid agreement («Tu le savais ?», «Tu es en colère ?», «la première personne»). The learner's own lines may agree freely, and every form is accepted.",
+    "Camille's own lines never agree an adjective with Camille. Other characters use «il» or «elle» from s1.camille_gender.",
+    "Silence is a tool: every day has at least one panel without dialogue.",
+    "Nobody explains their feelings. People act (they dry a dry glass, lift the flap of the zinc, turn a phone face down) and say one sentence.",
+    "Humour in every day: Gus and Marin first, then Romy's words, Lila's grades and Marchand's procedure.",
+    "Grammar is corrected in the margin, never in the plot. The clumsy, sincere reply must always be able to lead to the best version of a scene.",
+    "Every episode changes something. Episodes without meaningful change are refused.",
+    "The weight is accepted: Odile's memory and the fire's debt are real, never played for pity and never solved by a speech.",
+    "Toi's face is the learner's own, made at registration (owner decision 2026-10-02, WP-118); never describe it in words. The slightly-too-heavy coat."
+   ],
+   "registers": {
+    "lila_bonnet": "tu",
+    "marin_leveque": "tu",
+    "augustin_de_roncourt": "vous",
+    "margaux_barman": "tu",
+    "romy_tremblay": "tu",
+    "landlord_marchand": "vous",
+    "camille_marchand": "vous",
+    "odile": "tu",
+    "mme_diallo": "vous",
+    "maitre_vasseur": "vous",
+    "bastien_roux": "vous",
+    "clerk": "vous",
+    "clerk_2": "vous",
+    "dealer": "vous",
+    "builder": "vous",
+    "child": "tu"
+   },
+   "flags": {
+    "s1.letter_trusted_to": "nobody",
+    "camille.met": true,
+    "user.has_met_group": true,
+    "s1.calendar_contradiction": "found_by_lila",
+    "s1.notebook_found": true,
+    "flat.kitchen_repaint_seen": true,
+    "s1.promised_to": "neither",
+    "s1.fire_photo": "wall",
+    "s1.lila_path": "open",
+    "s1.evidence_shared": "marchand_only",
+    "s1.flat_decision": "sell",
+    "s1.camille_gender": "f",
+    "user.return_ticket": "mercredi 18 novembre",
+    "user.first_entry": "door_closed",
+    "s1.gus_photo": "with_lila",
+    "s1.ending": "laisser_partir",
+    "s1.painting": "lost"
+   },
+   "page_rules": {
+    "checked": "Each rule below is checked on the finished page; a page that breaks one is refused and the learner loses the day. Follow them literally.",
+    "chapter": {
+     "open_new": true,
+     "beat": "setup",
+     "rule": "The last chapter is closed (a tentpole or a resolution ended it). Today OPENS a new chapter: beat is setup; chapter.title_fr is new; chapter.dramatic_question is a new, small question this gap can answer in a few days (from today's premise or one of gap.threads) — never the season's question, never one of retired_questions, never a rewording.",
+     "retired_questions": []
+    },
+    "voices": {
+     "speakers": [
+      "lila_bonnet",
+      "marin_leveque",
+      "augustin_de_roncourt",
+      "margaux_barman",
+      "romy_tremblay",
+      "landlord_marchand",
+      "camille_marchand",
+      "mme_diallo",
+      "maitre_vasseur",
+      "bastien_roux"
+     ],
+     "rule": "Every dialogue character_id is one of speakers. The learner (Toi) never has a dialogue line, and nobody outside speakers speaks on a generated page (Odile and the walk-ons speak only in tentpoles)."
+    },
+    "address": {
+     "registers": {
+      "lila_bonnet": "tu",
+      "marin_leveque": "tu",
+      "augustin_de_roncourt": "vous",
+      "margaux_barman": "tu",
+      "romy_tremblay": "tu",
+      "landlord_marchand": "vous",
+      "camille_marchand": "vous",
+      "mme_diallo": "vous",
+      "maitre_vasseur": "vous",
+      "bastien_roux": "vous"
+     },
+     "rule": "Each character speaks to the learner with their register here. premise_fr and every narration_fr address the learner exactly as character_id does (tu or vous) — or, simplest, not at all (describe, do not address)."
+    },
+    "objective": "objective_native asks for at most two acts: at most 12 words and at most 2 comma, semicolon or «and/et/und».",
+    "limits": "4 to 6 panels; at most 3 dialogue lines per panel; season_checklist.threads at most 4; keep every field under its schema limit."
+   }
+  }
+ },
+ "control_language": "en",
+ "learner": {
+  "address": "neutral",
+  "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+  "register_note": "Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner."
+ },
+ "level": "A2",
+ "level_register": "no coarse or vulgar vocabulary",
+ "world": {
+  "logline": "You come to Paris for a week, to sign the papers for a small flat your grandmother Odile left you and to go home. The flat is above a café called Le Mistral. Everyone downstairs remembers her, and each of them remembers someone different. Keep it, share it, or let it go?",
+  "cast": [
+   {
+    "id": "lila_bonnet",
+    "name": "Lila Bonnet",
+    "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+    "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
+    "wants": "Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021.",
+    "speech_pattern": "«Mais arrête. C'est évident.» «Toi, tu me caches quelque chose.» «Bon, on fait quoi ?» Says «la lumière est fausse» about the painting above the zinc.",
+    "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+    "gender": "f",
+    "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
+    "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
+    "flaw": "Keeps her own secret while resenting everyone else's.",
+    "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "marin_leveque",
+    "name": "Marin Lévêque",
+    "role": "Works at an environmental NGO and writes a novel nobody may read. Son of a Finistère fisherman. Author of the co-op plan «Le Mistral à nous» (from T2 on; it is Odile's idea before it is his).",
+    "personality": "A gentle giant. Sentimental, superstitious, believes in signs. Feeds everyone (far breton, soupe de poisson). Cries at adverts. Conflict-avoidant.",
+    "wants": "That the café survives, even changed. That something he builds holds people together.",
+    "speech_pattern": "«C'est un signe, ça.» «Bon. Qui veut une soupe ?» «Ma grand-mère disait toujours…» (her sayings grow more absurd). Breton words he then explains («Kenavo ! Ça veut dire au revoir. Enfin, à la prochaine.»).",
+    "register_with_user": "tu",
+    "gender": "m",
+    "contradiction": "Wants to hold the group together and is afraid of being the one who breaks it.",
+    "secret": "He has already put €4,000 of savings in as the first share (known from T3).",
+    "flaw": "Cannot ask for anything without a grandmother's saying and three apologies.",
+    "dynamic_with_user": "Brings soup when you're ill. Holds the chair, and later the ladder.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "augustin_de_roncourt",
+    "name": "Augustin « Gus » de Roncourt",
+    "role": "Consultant («du conseil»), showman, inventor of «La Méthode». Wants Le Mistral kept exactly as it is: the zinc, the booth, the plaque. Says his great-grandfather laid the zinc.",
+    "personality": "Superlatives that grow («C'est magnifique. Non : c'est sublime.»). Index cards for every speech; they fall. «Au château» on Sundays. Straightens the salt cellars when upset. Always sits in the booth's corner seat.",
+    "wants": "To keep the booth where he did his homework while his mother worked the room — without ever having to say that sentence.",
+    "speech_pattern": "«Règle numéro un de La Méthode : …» «Mesdames, messieurs !»",
+    "register_with_user": "vous — theatrical, a weapon — until T3; tu after. Gap 1 may show one accidental tu followed by a panicked return to vous.",
+    "gender": "m",
+    "contradiction": "Performs an aristocrat to hide that he is the one who most needs the place as it was.",
+    "secret": "«De Roncourt» was invented at 15; he grew up in Créteil and his mother waited tables at Le Mistral (his confession belongs to T7 — before that, never; the costume may crack, never fall). He pays other people's tabs anonymously.",
+    "flaw": "Would rather be magnificent than true.",
+    "dynamic_with_user": "Charmed, suspicious, then loyal in his fashion. The learner can hurt him, and he knows it.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "margaux_barman",
+    "name": "Margaux",
+    "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+    "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+    "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help.",
+    "speech_pattern": "«La même chose ?» «J'ai rien entendu.» «Bois.»",
+    "register_with_user": "tu, at once — as she did with Odile",
+    "gender": "f",
+    "contradiction": "Protects everyone and lets nobody protect her.",
+    "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
+    "flaw": "One sentence too few, always.",
+    "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "romy_tremblay",
+    "name": "Romy Tremblay",
+    "role": "Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.",
+    "personality": "Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.",
+    "wants": "The story that earns her a Paris contract — earned by listening, not by leaving.",
+    "speech_pattern": "«Voyons donc.» «C'est quoi, la vraie histoire ?» «C'est pas pire.»",
+    "register_with_user": "tu (Québec norm); performs vous badly on purpose",
+    "gender": "f",
+    "contradiction": "A journalist who does not want to publish the thing that breaks her friends.",
+    "secret": "She kept her Montréal apartment. From T4 she holds the memory card of the party (romy.footage).",
+    "flaw": "Knows more than she says, and it shows.",
+    "dynamic_with_user": "A source, then a friend. She hates that order. Switches the camera off in front of the learner so they can see her do it.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "landlord_marchand",
+    "name": "M. Marchand",
+    "role": "Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).",
+    "personality": "Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.",
+    "wants": "A home without stairs, not to be a burden to Camille, and to know why Odile left.",
+    "speech_pattern": "«La succession Ferrand est en retard.» «C'est mon immeuble.»",
+    "register_with_user": "vous, always",
+    "gender": "m",
+    "contradiction": "Plays the villain the café needs and is the loneliest man in the building.",
+    "secret": "Six years of Sunday lunches with Odile, and his question the day before the fire (T6 only — generated days before T6 never mention the Sundays). His pledge «oui, si Margaux reste».",
+    "flaw": "Would rather be right on paper than ask a question.",
+    "dynamic_with_user": "Procedure, then respect. From T4 (mistral.villain_story broken) never written as the villain.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "camille_marchand",
+    "name": "Camille Marchand",
+    "role": "M. Marchand's grandchild, about thirty, an urban planner at a consultancy, born in the 10th and still rooted there. Handles the sale for their grandfather. The second romantic possibility — for season 2; in season 1 Camille stays on vous and the attraction grows through disagreement and earned respect.",
+    "personality": "Precise, dry, never contemptuous. Arrives everywhere by bike, helmet under one arm, slightly rained on. Corrects everyone's numbers, including Gus's superlatives. Knows the year of every building on the quai.",
+    "wants": "For Grand-père to be safe and for the numbers to work. «Un immeuble, ce n'est pas un musée.»",
+    "speech_pattern": "«Les chiffres sont simples.» «Je ne suis pas d'accord.»",
+    "register_with_user": "vous",
+    "gender": "x",
+    "contradiction": "Loved Le Mistral as a child (hot chocolate on Wednesdays) and is selling it.",
+    "secret": "Camille's gender comes from s1.camille_gender (set by the learner in T1); Camille's own lines NEVER agree an adjective with Camille; other characters say «il» or «elle» from the flag.",
+    "flaw": "Trusts numbers more than people, and knows it.",
+    "dynamic_with_user": "An obstacle with an interesting face. Disagreement first, respect earned.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "mme_diallo",
+    "name": "Mme Diallo",
+    "role": "Minor character: the baker on the corner, in her fifties, floured apron, reading glasses on a chain.",
+    "personality": "Brisk and kind. Running line: «Une tradition pas trop cuite, c'est ça ?»",
+    "wants": "Her regulars, and Le Mistral next door.",
+    "speech_pattern": "«Une tradition pas trop cuite, c'est ça ?» «Et demain ?»",
+    "register_with_user": "vous",
+    "gender": "f",
+    "contradiction": null,
+    "secret": null,
+    "flaw": null,
+    "dynamic_with_user": "Knows the learner's face from gap 1.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "maitre_vasseur",
+    "name": "Maître Vasseur",
+    "role": "Minor character: the notary handling Odile's succession. Brisk and kind.",
+    "personality": "Explains the law in two plain sentences («La dette peut prendre l'appartement. Pas plus.»).",
+    "wants": "The papers in order.",
+    "speech_pattern": "«Rien ne peut être vendu avant plusieurs semaines.»",
+    "register_with_user": "vous",
+    "gender": "f",
+    "contradiction": null,
+    "secret": null,
+    "flaw": null,
+    "dynamic_with_user": "Professional, kind.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   },
+   {
+    "id": "bastien_roux",
+    "name": "Bastien Roux",
+    "role": "Minor character: Solvel Immobilier's acquisitions man, in a good camel coat. He measures rooms with a laser whose red dot crosses people's things.",
+    "personality": "Smooth, pleasant, relentless. «Très bien. On ouvre tout, ici.»",
+    "wants": "The whole building, before 8 January.",
+    "speech_pattern": "«L'offre est valable jusqu'au 8 janvier.»",
+    "register_with_user": "vous",
+    "gender": "m",
+    "contradiction": null,
+    "secret": null,
+    "flaw": null,
+    "dynamic_with_user": "Pressure with a smile.",
+    "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+   }
+  ],
+  "locations": [
+   {
+    "id": "le_mistral",
+    "name": "Le Mistral",
+    "name_fr": "Le Mistral",
+    "type": "café-bar",
+    "description": "A narrow corner café-bar with a worn zinc counter near the Canal. The group's headquarters — their booth in the back is unofficially theirs. Open late, smells of coffee and rain.",
+    "use": "home base — but NOT every episode; the anchor, not the default",
+    "image_url": "/assets/serial/locations/le_mistral-booth.webp"
+   },
+   {
+    "id": "user_apartment",
+    "name": "Your apartment",
+    "name_fr": "Votre appartement",
+    "type": "home",
+    "description": "A sixth-floor walk-up studio with a temperamental radiator and a view of zinc rooftops. The arrival point of the whole story.",
+    "image_url": "/assets/serial/locations/user_apartment.webp"
+   },
+   {
+    "id": "marin_lila_flat",
+    "name": "Marin & Lila's flat",
+    "name_fr": "L’appartement de Marin et Lila",
+    "type": "home",
+    "description": "A cramped, art-covered two-room flat near République, always full of people and casserole.",
+    "image_url": "/assets/serial/locations/marin_lila_flat.webp"
+   },
+   {
+    "id": "newsroom",
+    "name": "Romy's newsroom",
+    "name_fr": "La rédaction de Romy",
+    "type": "workplace",
+    "description": "A glass-walled open-plan TV/online newsroom, screens everywhere — the diegetic gateway for the daily news seed.",
+    "image_url": "/assets/serial/locations/newsroom.webp"
+   },
+   {
+    "id": "ngo_office",
+    "name": "Marin's NGO office",
+    "name_fr": "Le bureau de l’ONG de Marin",
+    "type": "workplace",
+    "description": "A cluttered environmental-NGO office with protest posters and dying plants Marin keeps reviving.",
+    "image_url": "/assets/serial/locations/ngo_office.webp"
+   },
+   {
+    "id": "marche_canal",
+    "name": "The Canal market",
+    "name_fr": "Le marché du canal",
+    "type": "outdoor",
+    "description": "An open-air market along the Canal Saint-Martin — fishmongers, cheese stalls, haggling, Sunday crowds.",
+    "image_url": "/assets/serial/locations/marche_canal.webp"
+   },
+   {
+    "id": "buttes_chaumont",
+    "name": "Parc des Buttes-Chaumont",
+    "name_fr": "Le parc des Buttes-Chaumont",
+    "type": "outdoor",
+    "description": "Hilly park with a cliff-top folly; where the group goes to walk off a drama or have the real conversation.",
+    "image_url": "/assets/serial/locations/buttes_chaumont.webp"
+   },
+   {
+    "id": "metro_platform",
+    "name": "Métro / platform",
+    "name_fr": "Le quai du métro",
+    "type": "transit",
+    "description": "Late-night platforms, last trains, missed connections — Paris in motion.",
+    "image_url": "/assets/serial/locations/metro_platform.webp"
+   },
+   {
+    "id": "gus_loft",
+    "name": "Gus's 'château'",
+    "name_fr": "Le « château » de Gus",
+    "type": "home",
+    "description": "An aggressively styled bachelor loft Gus passes off as ancestral. (The real address is in Créteil.)",
+    "image_url": "/assets/serial/locations/gus_loft.webp"
+   },
+   {
+    "id": "brocante",
+    "name": "A flea market / brocante",
+    "name_fr": "La brocante",
+    "type": "outdoor",
+    "description": "Weekend brocante stalls — antiques, junk, and exactly the wrong gift.",
+    "image_url": "/assets/serial/locations/brocante.webp"
+   },
+   {
+    "id": "odile_flat",
+    "name": "Odile's flat",
+    "name_fr": "L'appartement d'Odile",
+    "type": "home",
+    "description": "A small two-room Paris flat on the first floor above Le Mistral, stopped in April 2023: shutters, dust in bars of light, a green coat on its hook, felt slippers under a chair, an old Polaroid camera beside a cup with a dried ring of café crème, a kitchen calendar on April 2023, a patch of whiter white above the stove, a narrow balcony over the canal. A room that waited, never one that rotted.",
+    "image_url": "/assets/serial/locations/user_apartment.webp"
+   },
+   {
+    "id": "stairwell",
+    "name": "The stairwell",
+    "name_fr": "L'escalier",
+    "type": "home",
+    "description": "A narrow old Paris stairwell with worn wooden steps and a timed light (minuterie) that clicks off mid-scene. A brass «1» on Odile's door. Where people sit to say what they cannot say at a table.",
+    "image_url": "/assets/serial/locations/user_apartment.webp"
+   },
+   {
+    "id": "mistral_back_room",
+    "name": "Le Mistral's back room",
+    "name_fr": "L'arrière-salle du Mistral",
+    "type": "café-bar",
+    "description": "Rebuilt after the 2023 fire: new plaster of a slightly different white, the café's electrical board, stacked crates.",
+    "image_url": "/assets/serial/locations/le_mistral-booth.webp"
+   },
+   {
+    "id": "quai_de_valmy",
+    "name": "Quai de Valmy",
+    "name_fr": "Le quai de Valmy",
+    "type": "outdoor",
+    "description": "The Canal Saint-Martin outside Le Mistral: green iron footbridges, locks with black water, plane trees, barges, the red neon MISTRAL on the corner. Where things are said sideways.",
+    "image_url": "/assets/serial/locations/le_mistral-counter.webp"
+   },
+   {
+    "id": "marchand_office",
+    "name": "Gérance Marchand",
+    "name_fr": "La gérance Marchand",
+    "type": "workplace",
+    "description": "M. Marchand's second-floor office: walls of key boards, grey filing cabinets, a desk lamp, a framed photo of his late wife, and a camp bed made with hospital corners.",
+    "image_url": "/assets/serial/locations/office_admin.webp"
+   },
+   {
+    "id": "mairie",
+    "name": "Mairie du 10e",
+    "name_fr": "La mairie du 10e",
+    "type": "institutional",
+    "description": "Stone steps, two counters on two floors, no lift.",
+    "image_url": "/assets/serial/locations/office_admin.webp"
+   },
+   {
+    "id": "notaire",
+    "name": "Maître Vasseur's office",
+    "name_fr": "Chez Maître Vasseur",
+    "type": "institutional",
+    "description": "A notary's office: a polished table, a fountain pen, tall windows on a boulevard.",
+    "image_url": "/assets/serial/locations/office_admin.webp"
+   },
+   {
+    "id": "gare_de_lest",
+    "name": "Gare de l'Est",
+    "name_fr": "La gare de l'Est",
+    "type": "transit",
+    "description": "A glass-roofed platform and a long white high-speed train.",
+    "image_url": "/assets/serial/locations/metro_platform.webp"
+   },
+   {
+    "id": "rue_de_lancry",
+    "name": "Rue de Lancry",
+    "name_fr": "La rue de Lancry",
+    "type": "outdoor",
+    "description": "A narrow street off the quai de Valmy, tall pale façades, wrought-iron balconies. (Background only in season 1.)",
+    "image_url": "/assets/serial/locations/marche_canal.webp"
+   },
+   {
+    "id": "boulangerie",
+    "name": "Mme Diallo's bakery",
+    "name_fr": "La boulangerie de Mme Diallo",
+    "type": "shop",
+    "description": "Baguettes in a wicker rack, a floured counter, paper bags of croissants.",
+    "image_url": "/assets/serial/locations/marche_canal.webp"
+   },
+   {
+    "id": "ecole",
+    "name": "Lila's classroom",
+    "name_fr": "La classe de Lila",
+    "type": "workplace",
+    "description": "A CE1 classroom: small chairs, children's paintings on every wall.",
+    "image_url": "/assets/serial/locations/ngo_office.webp"
+   },
+   {
+    "id": "toit",
+    "name": "The roof",
+    "name_fr": "Le toit de l'immeuble",
+    "type": "outdoor",
+    "description": "Zinc roofs, chimney pots, an open fifth-floor skylight, the canal below.",
+    "image_url": "/assets/serial/locations/buttes_chaumont.webp"
+   }
+  ],
+  "arcs": [],
+  "suggested_arc": null,
+  "complication_card": "a chance to help that would cost the learner their evening",
+  "open_threads": [
+   {
+    "key": "s1:0",
+    "text": "Who was Odile, and why did she leave?",
+    "text_fr": "Qui était Odile, et pourquoi est-elle partie ?",
+    "state": "open",
+    "day": null
+   },
+   {
+    "key": "s1:1",
+    "text": "Lila and Berlin: can you want someone here and want their leaving for them?",
+    "text_fr": "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+    "state": "open",
+    "day": null
+   },
+   {
+    "key": "s1:2",
+    "text": "The future of Le Mistral: keep it as it was, change it, or let it go?",
+    "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+    "state": "open",
+    "day": null
+   }
+  ],
+  "warmth_rule": "Comedy first, but every episode lands one genuine beat of feeling. The bond is the product.",
+  "season_number": 1
+ },
+ "agendas": [],
+ "chapter_shape": {
+  "shape": "standard",
+  "beats": [
+   "setup",
+   "complication",
+   "turn",
+   "resolution"
+  ],
+  "note": "Four beats, the standard chapter.",
+  "letter_beat": null
+ },
+ "season": {
+  "number": 1,
+  "phase": "running",
+  "completion": 0.0,
+  "chapters": 0,
+  "finale": null,
+  "interlude": null,
+  "premiere": null,
+  "first_episode_seed": null
+ },
+ "gap_days": null,
+ "escalated_problems": [],
+ "story_so_far": [],
+ "relationships": {
+  "lila_bonnet": {
+   "register": "tu",
+   "closeness": 0
+  },
+  "marin_leveque": {
+   "register": "tu",
+   "closeness": 0
+  },
+  "augustin_de_roncourt": {
+   "register": "vous",
+   "closeness": 0
+  },
+  "margaux_barman": {
+   "register": "tu",
+   "closeness": 0
+  },
+  "romy_tremblay": {
+   "register": "tu",
+   "closeness": 0
+  },
+  "landlord_marchand": {
+   "register": "vous",
+   "closeness": 0
+  },
+  "camille_marchand": {
+   "register": "vous",
+   "closeness": 0
+  },
+  "odile": {
+   "register": "tu"
+  },
+  "mme_diallo": {
+   "register": "vous"
+  },
+  "maitre_vasseur": {
+   "register": "vous"
+  },
+  "bastien_roux": {
+   "register": "vous"
+  },
+  "clerk": {
+   "register": "vous"
+  },
+  "clerk_2": {
+   "register": "vous"
+  },
+  "dealer": {
+   "register": "vous"
+  },
+  "builder": {
+   "register": "vous"
+  },
+  "child": {
+   "register": "tu"
+  }
+ },
+ "moods": {},
+ "day_index": 13,
+ "chronicle": [],
+ "consequences": [],
+ "plants_due": [],
+ "callback": null,
+ "secrets": {
+  "states": {
+   "lila_bonnet": "hidden",
+   "marin_leveque": "hidden",
+   "augustin_de_roncourt": "hidden",
+   "margaux_barman": "hidden",
+   "romy_tremblay": "hidden",
+   "landlord_marchand": "hidden",
+   "camille_marchand": "hidden",
+   "mme_diallo": "hidden",
+   "maitre_vasseur": "hidden",
+   "bastien_roux": "hidden"
+  },
+  "order": [
+   "lila_bonnet",
+   "marin_leveque",
+   "landlord_marchand",
+   "augustin_de_roncourt",
+   "romy_tremblay",
+   "camille_marchand",
+   "margaux_barman",
+   "mme_diallo",
+   "maitre_vasseur",
+   "bastien_roux"
+  ],
+  "next": "lila_bonnet"
+ },
+ "chapter": null,
+ "resolved_chapter_questions": [],
+ "variety": {
+  "all_characters": [
+   "lila_bonnet",
+   "marin_leveque",
+   "augustin_de_roncourt",
+   "margaux_barman",
+   "romy_tremblay",
+   "landlord_marchand",
+   "camille_marchand",
+   "mme_diallo",
+   "maitre_vasseur",
+   "bastien_roux"
+  ],
+  "all_locations": [
+   "le_mistral",
+   "user_apartment",
+   "marin_lila_flat",
+   "newsroom",
+   "ngo_office",
+   "marche_canal",
+   "buttes_chaumont",
+   "metro_platform",
+   "gus_loft",
+   "brocante",
+   "odile_flat",
+   "stairwell",
+   "mistral_back_room",
+   "quai_de_valmy",
+   "marchand_office",
+   "mairie",
+   "notaire",
+   "gare_de_lest",
+   "rue_de_lancry",
+   "boulangerie",
+   "ecole",
+   "toit"
+  ],
+  "used_objectives": [],
+  "used_problems": [],
+  "unused_characters": [
+   "lila_bonnet",
+   "marin_leveque",
+   "augustin_de_roncourt",
+   "margaux_barman",
+   "romy_tremblay",
+   "landlord_marchand",
+   "camille_marchand",
+   "mme_diallo",
+   "maitre_vasseur",
+   "bastien_roux"
+  ],
+  "unused_locations": [
+   "le_mistral",
+   "user_apartment",
+   "marin_lila_flat",
+   "newsroom",
+   "ngo_office",
+   "marche_canal",
+   "buttes_chaumont",
+   "metro_platform",
+   "gus_loft",
+   "brocante",
+   "odile_flat",
+   "stairwell",
+   "mistral_back_room",
+   "quai_de_valmy",
+   "marchand_office",
+   "mairie",
+   "notaire",
+   "gare_de_lest",
+   "rue_de_lancry",
+   "boulangerie",
+   "ecole",
+   "toit"
+  ],
+  "recent_pairs": [],
+  "previous_lead": null,
+  "recent_acts": [],
+  "act_rule": "Rotate what the learner does, not only where and with whom: refuse politely, apologise, negotiate a condition, tell what happened, ask for information, invite, complain, thank, explain a plan, describe someone or something, comfort without advising, admit something, make a request of your own — and not only arrange a time.",
+  "must_change": null,
+  "rule": "Prefer an unused character or location; the whole cast has a life."
+ },
+ "events": [],
+ "commitments": [],
+ "recent_situations": [],
+ "legacy_beat": null,
+ "errata": [],
+ "kept_words": [],
+ "lexicon_history": [],
+ "drilled_words": [],
+ "line_translation": "en",
+ "can_dos": {
+  "band": "A2.1",
+  "options": [
+   {
+    "id": "CD_A21_TELL_WEEKEND",
+    "title_fr": "raconter son week-end",
+    "title": "tell what you did at the weekend",
+    "words": [
+     "week-end",
+     "partir",
+     "rentrer",
+     "sortir",
+     "visiter",
+     "rester"
+    ],
+    "stamped": false
+   },
+   {
+    "id": "CD_A21_SINCE",
+    "title_fr": "dire depuis quand on fait quelque chose",
+    "title": "say how long you have been doing something",
+    "words": [
+     "depuis",
+     "pendant",
+     "an",
+     "mois",
+     "semaine",
+     "apprendre"
+    ],
+    "stamped": false
+   },
+   {
+    "id": "CD_A21_COMPARE",
+    "title_fr": "comparer deux produits ou deux villes",
+    "title": "compare two products or two cities",
+    "words": [
+     "plus",
+     "moins",
+     "aussi",
+     "cher",
+     "grand",
+     "ville",
+     "pratique"
+    ],
+    "stamped": false
+   },
+   {
+    "id": "CD_A21_REQUEST_POLITELY",
+    "title_fr": "demander un service poliment",
+    "title": "ask for a favour politely",
+    "words": [
+     "pouvoir",
+     "aider",
+     "aimer",
+     "demander",
+     "merci"
+    ],
+    "stamped": false
+   },
+   {
+    "id": "CD_A21_HABITS_NEVER",
+    "title_fr": "parler de ce qu'on ne fait plus ou jamais",
+    "title": "say what you no longer or never do",
+    "words": [
+     "jamais",
+     "plus",
+     "rien",
+     "personne",
+     "souvent"
+    ],
+    "stamped": false
+   },
+   {
+    "id": "CD_A21_EXPLAIN_WHY",
+    "title_fr": "expliquer une raison et une conséquence",
+    "title": "give a reason and a consequence",
+    "words": [
+     "car",
+     "donc",
+     "alors",
+     "comme",
+     "parce",
+     "retard"
+    ],
+    "stamped": false
+   },
+   {
+    "id": "CD_A21_SHOP_QUANTITIES",
+    "title_fr": "acheter en précisant les quantités",
+    "title": "buy things and specify how many",
+    "words": [
+     "en",
+     "prendre",
+     "kilo",
+     "deux",
+     "bouteille",
+     "vouloir"
+    ],
+    "stamped": false
+   }
+  ],
+  "prefer": [
+   "CD_A21_TELL_WEEKEND",
+   "CD_A21_SINCE",
+   "CD_A21_COMPARE",
+   "CD_A21_REQUEST_POLITELY",
+   "CD_A21_HABITS_NEVER",
+   "CD_A21_EXPLAIN_WHY",
+   "CD_A21_SHOP_QUANTITIES"
+  ]
+ },
+ "_season": {
+  "season_id": "s1",
+  "flags": {
+   "s1.letter_trusted_to": "nobody",
+   "s1.price_public": false,
+   "camille.met": true,
+   "camille.disagreements": [],
+   "user.has_met_group": true,
+   "s1.calendar_contradiction": "found_by_lila",
+   "s1.lila_has_key": false,
+   "s1.notebook_found": true,
+   "flat.kitchen_repaint_seen": true,
+   "s1.promised_to": "neither",
+   "s1.promise_gus": "no",
+   "s1.promise_marin": "no",
+   "s1.marchand_invited": false,
+   "gus.costume_cracked": false,
+   "mistral.wall_agreed": false,
+   "s1.fire_photo": "wall",
+   "s1.lied_to_marchand": false,
+   "s1.estate_liable": false,
+   "s1.lila_path": "open",
+   "lila.heard_the_true_thing": false,
+   "lila.berlin_revealed": false,
+   "s1.went_with_lila_to_marin": false,
+   "s1.evidence_shared": "marchand_only",
+   "marchand.knows_why": false,
+   "margaux.exposed_to_insurer": false,
+   "s1.gus_persuaded": false,
+   "s1.margaux_persuaded": false,
+   "gus.aristocracy_exposed": false,
+   "s1.kiss": false,
+   "s1.flat_decision": "sell",
+   "marchand.sundays": false,
+   "lila.in_berlin": false,
+   "register.augustin_de_roncourt": "vous",
+   "s1.camille_gender": "f",
+   "user.return_ticket": "mercredi 18 novembre",
+   "user.first_entry": "door_closed",
+   "s1.gus_photo": "with_lila",
+   "s1.ending": "laisser_partir",
+   "s1.painting": "lost"
+  },
+  "seed": "prompt-regression"
+ }
+}

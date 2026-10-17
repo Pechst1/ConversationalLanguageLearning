@@ -72,7 +72,10 @@ drills, copy, layout, flow.
    1–5 per played day, the worst screen for per-screen questions, beside the last
    walk's scores; every 1 or 2 has a finding), one section per finding (what, where,
    screenshot, expected, suspected cause with `file:line` when found), and the
-   scripted walk's result.
+   scripted walk's result. Keep the score table's header as `| # | question | <walk> | …`
+   with «DD Mon» in each copied column, then run
+   `python scripts/loop/rubric_trend.py --write` so `docs/ops/walks/TREND.md` shows
+   every question night by night, and commit both.
 3. For each finding, search open issues labelled `walk-finding` for the same title
    or screen. Comment on a match ("seen again <date>"); otherwise open an issue with
    labels `walk-finding` + `area:<area>` + `sev:<severity>`.

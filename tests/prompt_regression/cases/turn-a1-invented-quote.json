@@ -1,0 +1,120 @@
+{
+ "id": "turn-a1-invented-quote",
+ "lane": "turn",
+ "level": "A1",
+ "source": "Walk 2026-10-12 #3 (docs/ops/walks/2026-10-12.md): to Camille's «Vous vendez, non ?» the learner wrote «Qui êtes-vous ? Je ne connais pas Odile.» and Camille answered «\"Pas encore\" ? Mon grand-père n'aime pas attendre.», quoting words the learner never wrote. The tutor's first grade quotes them as evidence and must be refused (fabricated_evidence_quote). KNOWN GAP, pinned: no deterministic guard catches the reply's own invented quote, so voice_refusals is []; when a guard lands, this expectation flips.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "A1",
+    "level_register": "no coarse or vulgar vocabulary",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "camille_marchand",
+       "name": "Camille Marchand",
+       "role": "M. Marchand's grandchild, about thirty, an urban planner at a consultancy, born in the 10th and still rooted there. Handles the sale for their grandfather. The second romantic possibility — for season 2; in season 1 Camille stays on vous and the attraction grows through disagreement and earned respect.",
+       "personality": "Precise, dry, never contemptuous. Arrives everywhere by bike, helmet under one arm, slightly rained on. Corrects everyone's numbers, including Gus's superlatives. Knows the year of every building on the quai.",
+       "wants": "For Grand-père to be safe and for the numbers to work. «Un immeuble, ce n'est pas un musée.»",
+       "speech_pattern": "«Les chiffres sont simples.» «Je ne suis pas d'accord.»",
+       "register_with_user": "vous",
+       "gender": "x",
+       "contradiction": "Loved Le Mistral as a child (hot chocolate on Wednesdays) and is selling it.",
+       "secret": "Camille's gender comes from s1.camille_gender (set by the learner in T1); Camille's own lines NEVER agree an adjective with Camille; other characters say «il» or «elle» from the flag.",
+       "flaw": "Trusts numbers more than people, and knows it.",
+       "dynamic_with_user": "An obstacle with an interesting face. Disagreement first, respect earned.",
+       "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {
+     "camille_marchand": {}
+    },
+    "relationships": {
+     "camille_marchand": {
+      "register": "vous",
+      "closeness": 0
+     }
+    },
+    "secrets": {
+     "camille_marchand": "hidden"
+    }
+   },
+   "scene": {
+    "character_id": "camille_marchand",
+    "title_fr": "Deux clés",
+    "premise_fr": "Camille est au zinc, le casque sous le bras. Une carte de Solvel est sur la lettre.",
+    "location_id": "le_mistral",
+    "objective_native": "Tell Camille whether you will sell.",
+    "objective_semantics": "Camille asks if the learner will sell the flat. Met when the learner says yes, no or not yet.",
+    "opening_line_fr": "Vous vendez, non ? C'est plus simple pour nous tous.",
+    "suggested_response_fr": "Je ne sais pas.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Qui êtes-vous ? Je ne connais pas Odile.",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "hand-written from the walk",
+    "prompt_digest": "sha256:0e5e9594a571f016fe8907d6f32128bd62e3469025a27c9b00618380c9f5b4f9",
+    "content": {
+     "outcome": "met",
+     "evidence_quotes": [
+      "Pas encore"
+     ],
+     "demonstrated_target_ids": []
+    }
+   },
+   {
+    "origin": "hand-written retry",
+    "prompt_digest": "sha256:7650b342d0b6333268419441e88eb85dd1726178ef59f5d2d4e92e8f732ceae9",
+    "content": {
+     "outcome": "not_yet",
+     "evidence_quotes": [],
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "walk 2026-10-12 #3, verbatim",
+    "prompt_digest": "sha256:452198a61e109990d697e60fb1c196bec0b5ca34bd7526500bf44fbae8ccb130",
+    "content": {
+     "reply_fr": "«Pas encore» ? Mon grand-père n'aime pas attendre.",
+     "understood_intent": "The learner has not decided yet.",
+     "needs_clarification": false
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [
+   "fabricated_evidence_quote"
+  ],
+  "voice_refusals": [],
+  "outcome": "not_yet",
+  "reply_fr": "«Pas encore» ? Mon grand-père n'aime pas attendre."
+ }
+}

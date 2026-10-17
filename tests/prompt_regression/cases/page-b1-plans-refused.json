@@ -1,0 +1,126 @@
+{
+ "id": "page-b1-plans-refused",
+ "lane": "page",
+ "level": "B1",
+ "source": "Two plans that break the plan's rules cost the attempt before a word of French is paid for. Plan 1: the measured run of 2026-10-16 (#189) lost g2.2 to two_hander_crowded: a second person on a two-hander's page. Plan 2: the task line the WP-149 B1 read served on g4.1, verbatim (evidence/wp149-confirmation/b1/B1.1.md, day 28).",
+ "input": {
+  "context": "s1-g4.4-b1.json",
+  "patch": {}
+ },
+ "answers": {
+  "PagePlan": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:5dc382397b355edbecd3944131f0ed014aa92c733696a333d73eab24f49f9eb9",
+    "content": {
+     "premise_id": "le_lendemain",
+     "location_id": "boulangerie",
+     "cast": [
+      "mme_diallo",
+      "lila_bonnet"
+     ],
+     "lead_id": "mme_diallo",
+     "beats": [
+      "Monday morning after the party: the learner queues for bread at Mme Diallo's.",
+      "The queue goes quiet when the learner reaches the counter.",
+      "Mme Diallo slips a free croissant into the bag, «pour Odile».",
+      "Lila, behind in the queue, joins in."
+     ],
+     "change": {
+      "before": "The learner doesn't know how the quartier will look at them after the party.",
+      "after": "They know: the bakery is kind and curious, and Mme Diallo has chosen her side."
+     },
+     "question": "And you, how are you holding up after Saturday?",
+     "task": "Mme Diallo veut savoir comment tu vas depuis samedi.",
+     "replies": [
+      {
+       "gist": "fine, really",
+       "intent": "other",
+       "then": "Mme Diallo nods and wraps a second croissant"
+      },
+      {
+       "gist": "not great",
+       "intent": "other",
+       "then": "Mme Diallo comes round the counter"
+      }
+     ],
+     "hook": "The notary's office calls: Thursday, ten o'clock.",
+     "chapter": {
+      "question": "How does the quartier treat the learner after the party?",
+      "developments": [
+       "The bakery is kind.",
+       "The café is careful.",
+       "The notary calls."
+      ]
+     },
+     "threads": [],
+     "small_moment_id": null,
+     "complication": null,
+     "callback_id": null,
+     "learner_agency": null,
+     "novelty_key": "boulangerie-lendemain",
+     "problem_key": "quartier_after_party"
+    }
+   },
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:c6571da341b3e962dcf4e7ee7f546dce8cffbacfd99b4cd729fcd7ae2bae3450",
+    "content": {
+     "premise_id": "le_lendemain",
+     "location_id": "boulangerie",
+     "cast": [
+      "mme_diallo"
+     ],
+     "lead_id": "mme_diallo",
+     "beats": [
+      "Monday morning after the party: the learner queues for bread at Mme Diallo's.",
+      "The queue goes quiet when the learner reaches the counter.",
+      "Mme Diallo slips a free croissant into the bag, «pour Odile».",
+      "She leans over the counter: she wants to talk."
+     ],
+     "change": {
+      "before": "The learner doesn't know how the quartier will look at them after the party.",
+      "after": "They know: the bakery is kind and curious, and Mme Diallo has chosen her side."
+     },
+     "question": "And you, how are you holding up after Saturday?",
+     "task": "Donne ton opinion sur pourquoi Lila a fermé son téléphone et propose une condition concrète pour qu'elle se parle à nous.",
+     "replies": [
+      {
+       "gist": "fine, really",
+       "intent": "other",
+       "then": "Mme Diallo nods and wraps a second croissant"
+      },
+      {
+       "gist": "not great",
+       "intent": "other",
+       "then": "Mme Diallo comes round the counter"
+      }
+     ],
+     "hook": "The notary's office calls: Thursday, ten o'clock.",
+     "chapter": {
+      "question": "How does the quartier treat the learner after the party?",
+      "developments": [
+       "The bakery is kind.",
+       "The café is careful.",
+       "The notary calls."
+      ]
+     },
+     "threads": [],
+     "small_moment_id": null,
+     "complication": null,
+     "callback_id": null,
+     "learner_agency": null,
+     "novelty_key": "boulangerie-lendemain",
+     "problem_key": "quartier_after_party"
+    }
+   }
+  ]
+ },
+ "expect": {
+  "draw": "plan_refused",
+  "plan_refusals": [
+   "two-hander",
+   "The task has 21 words"
+  ]
+ }
+}
