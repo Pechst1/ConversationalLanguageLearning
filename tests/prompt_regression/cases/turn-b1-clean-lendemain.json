@@ -100,7 +100,7 @@
   "VoiceReply": [
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:b2494c176ed409139936c85eeb166a6f7388c74839aa03843648f03d5de03624",
+    "prompt_digest": "sha256:a66e6df7a007c8788d01cfba82f2ca47819a6b13d9ccb4da19844a465acbc29e",
     "content": {
      "reply_fr": "Ils regardent, oui. Ils ont vu la photo au mur, et ils ne savent pas encore quoi dire. Laissez-leur une semaine. Et demain ?",
      "understood_intent": "The learner is better but feels watched since the party.",

@@ -126,6 +126,122 @@ def _suggested(context: dict, answer: str) -> str:
     return answer
 
 
+#: How the fake actor and voice read a refusal.
+REFUSAL_MARKERS = ("non", "ne peux pas", "pas possible", "désolé")
+
+
+def _refuses(text: object) -> bool:
+    lowered = str(text or "").lower()
+    return any(marker in lowered for marker in REFUSAL_MARKERS)
+
+
+def _name_in(memory: object, speaker: str | None = None) -> str | None:
+    """The learner's name in a memory view, when the reader knows it: a character's view
+    holds it as a plain string, the writers' view as ``{value, known_by}`` (then only
+    ``speaker``, when given, must be one who knows it)."""
+
+    name = memory.get("learner_name") if isinstance(memory, dict) else None
+    if isinstance(name, dict):
+        name = name.get("value") if speaker is None or speaker in (name.get("known_by") or []) else None
+    return str(name) if name else None
+
+
+def _said(context: dict, speaker: str | None = None) -> list[dict]:
+    """The learner's remembered lines (``memory.said``), only those ``speaker`` heard."""
+
+    memory = context.get("memory") if isinstance(context.get("memory"), dict) else {}
+    return [
+        row
+        for row in memory.get("said") or []
+        if isinstance(row, dict)
+        and row.get("quote")
+        and (speaker is None or speaker == row.get("to") or speaker in (row.get("heard_by") or []))
+    ]
+
+
+def _declined(row: dict) -> bool:
+    """The ledger's intent for a remembered line: the fake actor understood a refusal as
+    «The learner declines.»; a line nobody read is read by its words."""
+
+    meant = str(row.get("meant") or "")
+    return "declines" in meant.lower() if meant else _refuses(row.get("quote"))
+
+
+def _follow_up(context: dict, lead: str, *, allowed: set[str]) -> str:
+    """Story engine Phase 3 (#145): after the learner said «non» to someone, that person
+    comes back to it the next day (never a third day running); otherwise the cast
+    rotates as before."""
+
+    said = _said(context)
+    if not said or not _declined(said[-1]):
+        return lead
+    person = str(said[-1].get("to") or "")
+    leads = [str(row.get("character_id") or "") for row in context.get("recent_situations") or []]
+    return person if person in allowed and leads[-2:] != [person, person] else lead
+
+
+def _remembering(context: dict, speaker: str, *, tu: bool) -> dict:
+    """A page that remembers what ``speaker`` heard: the opening line answers the
+    learner's last «non» or «oui» to them and uses the learner's name when they know
+    it, the callback cites that line (the callback ledger), and the page comes back to a
+    question the learner left open with them."""
+
+    said = _said(context, speaker)
+    memory = context.get("memory") if isinstance(context.get("memory"), dict) else {}
+    name = _name_in(memory, speaker)
+    asked = [
+        row
+        for row in memory.get("open") or []
+        if isinstance(row, dict) and row.get("by") == "learner" and speaker in (row.get("known_by") or [])
+    ]
+    value: dict = {}
+    if said:
+        last = said[-1]
+        you, word = ("tu as" if tu else "vous avez"), ("non" if _declined(last) else "oui")
+        if word == "non":
+            line = f"La dernière fois, {you} dit non. " + ("Tu m'aides aujourd'hui ?" if tu else "Vous pouvez m'aider aujourd'hui ?")
+        else:
+            line = f"La dernière fois, {you} dit oui. Merci ! " + ("Tu m'aides encore ?" if tu else "Vous pouvez encore m'aider ?")
+        value.update(
+            opening_line_fr=line,
+            callback_fr=f"La dernière fois, {you} dit {word}.",
+            callback_ref=last.get("id"),
+        )
+    if name:
+        line = value.get("opening_line_fr") or ("Tu m'aides ?" if tu else "Vous pouvez m'aider ?")
+        value["opening_line_fr"] = f"{name}, {line[:1].lower()}{line[1:]}"
+    if asked:
+        value["returns_to"] = asked[0].get("id")
+    return value
+
+
+def _reported(text: str) -> dict:
+    """What the fake ending reports for the memory: the name the learner gave and a
+    question they asked, each copied from their words."""
+
+    from app.services.story_memory import stated_name
+
+    name = stated_name(text)
+    questions = [part.strip() for part in text.replace("?", "?\n").splitlines() if part.strip().endswith("?")]
+    return {
+        "learned": [{"key": "name", "fact_fr": f"L'apprenant s'appelle {name}.", "quote": text, "value": name}]
+        if name
+        else [],
+        "left_open": questions[:1],
+    }
+
+
+def _reply(*, refused: bool, keep: bool, name: str | None) -> str:
+    """The fake character's answer; a character who was told the learner's name uses it."""
+
+    if refused:
+        if keep:
+            return f"Dommage, {name}. Et demain, alors ?" if name else "Dommage. Et demain, alors ?"
+        return f"Dommage, {name}. Une autre fois alors." if name else "Dommage, une autre fois alors."
+    thanks = f"Merci, {name} !" if name else "Merci !"
+    return f"{thanks} Et après, on fait quoi ?" if keep else f"{thanks} On fait ça ensemble."
+
+
 class FakeStoryProvider:
     """Deterministic, canon-safe answers for the engine's three schemas."""
 
@@ -176,13 +292,10 @@ class FakeStoryProvider:
                 text = str(source.get("learner_text") or "")
                 value = {"outcome": "met", "evidence_quotes": [text] if text.strip() else [], "demonstrated_target_ids": []}
             elif schema == "VoiceReply":
-                text = str(source.get("learner_text") or "").lower()
-                refused = any(marker in text for marker in ("non", "ne peux pas", "pas possible", "désolé"))
+                refused = _refuses(source.get("learner_text"))
                 keep = bool((source.get("turn_plan") or {}).get("keep_talking"))
                 value = {
-                    "reply_fr": ("Dommage. Et demain, alors ?" if refused else "Merci ! Et après, on fait quoi ?")
-                    if keep
-                    else ("Dommage, une autre fois alors." if refused else "Merci ! On fait ça ensemble."),
+                    "reply_fr": _reply(refused=refused, keep=keep, name=_name_in(source.get("memory"))),
                     "understood_intent": "The learner declines." if refused else "The learner offers help.",
                     "needs_clarification": False,
                     "feeling_shift": "steady",
@@ -196,6 +309,7 @@ class FakeStoryProvider:
                     "resolved_commitment_ids": [],
                     "chapter_resolved": False,
                     "development_index": 0,
+                    **_reported(str(source.get("learner_text") or "")),
                 }
             elif schema == "TurnReview":
                 value = {"accepted": True, "issues": [], "released_issues": []}
@@ -212,7 +326,13 @@ class FakeStoryProvider:
 
                 turn = {"replies": source.get("replies") or [], "fallback": source.get("fallback")}
                 reply_id, _ = match_reply(turn, str(source.get("learner_text") or ""))
-                value = {"reply_id": reply_id, "expresses": "none", "value": None, "confidence": 0.6}
+                value = {
+                    "reply_id": reply_id,
+                    "expresses": "none",
+                    "value": None,
+                    "confidence": 0.6,
+                    "learned": _reported(str(source.get("learner_text") or ""))["learned"],
+                }
             elif schema == "CoulissesDraft":
                 # WP-93 «Coulisses»: the same evening, from another cast member's eyes.
                 pov = source.get("pov_character_id") or "romy_tremblay"
@@ -250,6 +370,8 @@ class FakeStoryProvider:
         locations = [place for place in world.get("locations", []) if place.get("id")] or [{"id": "le_mistral"}]
         character = cast[n % len(cast)]["id"]
         location = locations[n % len(locations)]["id"]
+        # Story engine Phase 3: the person the learner said «non» to comes back to it.
+        character = _follow_up(context, character, allowed={member["id"] for member in cast})
         chapter = context.get("chapter") or {}
         events = context.get("events") or []
         # ``n`` is a process counter, and the drain verifier restarts this server
@@ -300,6 +422,7 @@ class FakeStoryProvider:
             "hint_native": "Say yes or no, and when.",
             "translation_native": "Can you help me?",
             "capability_key": None,
+            **_remembering(context, character, tu=False),
         }
 
     @staticmethod
@@ -334,6 +457,18 @@ class FakeStoryProvider:
                 ),
                 character,
             )
+        # Story engine Phase 3: the person the learner said «non» to comes back to it,
+        # when they say «tu» to the learner and may lead today.
+        character = _follow_up(
+            context,
+            character,
+            allowed={
+                member
+                for member in SEASON_CAST
+                if registers.get(member) != "vous"
+                and not (member == must_change.get("character_id") and location == must_change.get("location_id"))
+            },
+        )
         text, objective, semantics, novelty = PREMISES[n % len(PREMISES)]
         retired = {str(q).casefold() for q in context.get("resolved_chapter_questions") or []}
         question = next(
@@ -374,6 +509,7 @@ class FakeStoryProvider:
             "hint_native": "Say yes or no, and when.",
             "translation_native": "Can you help me?",
             "capability_key": None,
+            **_remembering(context, character, tu=True),
             "season_checklist": {
                 "premise_id": premise.get("id"),
                 "threads": [],
@@ -389,13 +525,12 @@ class FakeStoryProvider:
     @staticmethod
     def _turn(payload: dict, n: int) -> dict:
         text = payload["learner_text"]
-        lowered = text.lower()
-        refused = any(marker in lowered for marker in ("non", "ne peux pas", "pas possible", "désolé"))
+        refused = _refuses(text)
         return {
             "outcome": "met",
             "understood_intent": "The learner declines." if refused else "The learner offers help.",
             "evidence_quotes": [text],
-            "reply_fr": "Dommage, une autre fois alors." if refused else "Merci ! On fait ça ensemble.",
+            "reply_fr": _reply(refused=refused, keep=False, name=_name_in((payload.get("story") or {}).get("memory"))),
             "needs_clarification": False,
             "resolution_fr": "Vous refusez poliment." if refused else "Vous promettez de venir aider.",
             "summary_native": "You declined." if refused else "You offered to help.",
@@ -404,6 +539,7 @@ class FakeStoryProvider:
             "resolved_commitment_ids": [],
             "chapter_resolved": (n % 3 == 2),
             "demonstrated_target_ids": [],
+            **_reported(text),
         }
 
 

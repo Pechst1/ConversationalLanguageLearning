@@ -14,7 +14,10 @@ voice, first day), and every surface reads it **by id**:
   (``app/data/season/s1/world.json`` ``cast``), so a pronoun follows the canon;
 * ``voice`` comes from :mod:`app.services.cast_voices`;
 * ``face`` is the drawn portrait directory, found on disk, never typed twice;
-* ``first_day`` is ``(tentpole, day letter)`` of the person's first authored page.
+* ``first_day`` is ``(tentpole, day letter)`` of the person's first authored page;
+* the pronoun the story uses for a person (:func:`pronoun_for`) comes from the same
+  row, and for the one person whose gender the learner picks (Camille) from that
+  life's own choice — every story prompt reads it here (#147, Phase 3).
 
 ``tests/test_cast_registry_147.py`` is the guard: every id the authored season,
 the cast intro and the teasers name must be here, speakers need a face, the
@@ -24,9 +27,11 @@ before their day.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from app.services.cast_voices import CAST_VOICES
 
@@ -76,6 +81,8 @@ _ALIASES: dict[str, str] = {
     "romy": "romy_tremblay",
     "camille": "camille_marchand",
 }
+#: A person whose gender the learner picks: the season flag that holds the choice.
+GENDER_FLAGS: dict[str, str] = {"camille_marchand": "s1.camille_gender"}
 #: Ids in a scene that are not a person with a face: the learner, the narration
 #: and things that «speak» (a letter, an SMS, everyone at once).
 NON_PEOPLE: frozenset[str] = frozenset({"toi", "caption", "letter", "all", "sms"})
@@ -150,6 +157,27 @@ def member(character_id: str | None) -> CastMember | None:
 def display_name(character_id: str | None, default: str = "") -> str:
     found = member(character_id)
     return found.short_name if found else default
+
+
+def pronoun_for(
+    character_id: str | None,
+    *,
+    gender: str | None = None,
+    flags: Mapping[str, Any] | None = None,
+) -> str | None:
+    """«il» or «elle» for a person, as this life's story says it — or ``None`` when
+    nobody has decided (a prompt then uses the name, never a guess).
+
+    The registry's gender; for Camille, the learner's own choice (``flags``, seeded
+    until T1 B poses it); ``gender`` is the world bible's value for a person the
+    registry does not hold (a later season's cast)."""
+
+    found = member(character_id)
+    cast_id = found.id if found else str(character_id or "")
+    value = (flags or {}).get(GENDER_FLAGS[cast_id]) if cast_id in GENDER_FLAGS else None
+    if not value:
+        value = found.gender if found else gender
+    return {"f": "elle", "m": "il"}.get(str(value or "").strip().lower()[:1])
 
 
 def introduced_by(character_id: str | None, tentpole: int, day: str = "z") -> bool:

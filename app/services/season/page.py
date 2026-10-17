@@ -20,6 +20,7 @@ from typing import Any
 from app.services.season.flags import holds
 from app.services.season.format import (
     B1_BANDS,
+    TEXT_SPEAKERS,
     Day,
     Hook,
     Include,
@@ -407,6 +408,45 @@ def posed_choice(movement: dict[str, Any]) -> bool:
 
 def posed_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
     return convince_as_turn(solve) if solve.get("mechanic") in CONVINCE_MECHANICS else solve_as_turn(solve)
+
+
+def present_at_turns(page: dict[str, Any], routes: dict[str, str] | None = None) -> dict[str, list[str]]:
+    """Story engine Phase 3 (#145): who heard the learner's answer to each turn of the
+    day — everyone in frame or speaking on the page so far, the person asked, and
+    whoever reacts in the beats of the reply the learner's words took (``routes``:
+    turn id → reply id). The script has no exits: a tentpole day is one room. A
+    flashback is a memory, not the room: nobody in it hears the learner (T4 b's
+    Odile)."""
+
+    routes = routes or {}
+    room: set[str] = set()
+    present: dict[str, list[str]] = {}
+
+    def enter(panels: list[dict[str, Any]]) -> None:
+        for panel in panels:
+            if isinstance(panel, dict) and not panel.get("flashback"):
+                room.update(str(who) for who in panel.get("in_frame") or [])
+                room.update(str(line.get("who")) for line in panel.get("lines") or [] if isinstance(line, dict))
+
+    for movement in page.get("movements") or []:
+        kind = movement.get("kind")
+        if kind == "hook":
+            break
+        if kind == "panel":
+            enter([movement])
+        elif kind == "turn" or posed_choice(movement):
+            turn = movement if kind == "turn" else posed_as_turn(movement)
+            room.add(str(turn.get("to") or ""))
+            enter([turn.get("panel") or {}])
+            taken = routes.get(str(turn.get("id")))
+            enter(next((row.get("beats") or [] for row in turn.get("replies") or [] if row.get("id") == taken), []))
+            present[str(turn.get("id"))] = sorted(room - TEXT_SPEAKERS - {"", "None"})
+            enter(turn.get("after") or [])
+        elif kind == "solve":
+            # A day with no question of its own asks this solve (``project``).
+            present.setdefault(str(movement.get("id")), sorted((room | {str(movement.get("to") or "")}) - TEXT_SPEAKERS - {"", "None"}))
+            enter(_default_beats(movement))
+    return present
 
 
 def _said_by(who: str | None, say: dict[str, Any] | None, name: str | None = None) -> dict[str, Any]:

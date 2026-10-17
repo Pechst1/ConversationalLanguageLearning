@@ -72,9 +72,9 @@ def test_the_critic_is_told_the_rule_the_verdict_applies():
     prompt = _plain(STORY_CRITIC)
     assert (
         "accepted is true only when meaningful_change, in_character, honours_choices, obstacle_faced, "
-        "reads_like_people and one_plain_question are true and spoils_next_tentpole is false."
+        "reads_like_people, one_plain_question and remembers are true and spoils_next_tentpole is false."
     ) in prompt
-    for item in ("reads_like_people", "one_plain_question", "moves_on"):
+    for item in ("reads_like_people", "one_plain_question", "moves_on", "remembers"):
         assert f"- {item}:" in prompt, item
     assert "at most 12 words" in prompt.split("- one_plain_question:")[1].split("- moves_on:")[0]
     assert "recent_days" in prompt.split("- moves_on:")[1].split("The page is not the whole day")[0]

@@ -5129,6 +5129,8 @@ class DailyJourneyService:
                 **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
                 # QA-STORY: the season route this exchange took (replayed, never re-read).
                 **({"route": dict(evaluation.route)} if getattr(evaluation, "route", None) else {}),
+                # Story engine Phase 3: what the story heard, for the day's memory.
+                **({"heard": dict(evaluation.heard)} if getattr(evaluation, "heard", None) else {}),
             }
         )
         private["turns"] = history

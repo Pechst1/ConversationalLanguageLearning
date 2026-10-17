@@ -52,7 +52,8 @@ def issue_class(issue: str) -> str:
 #: Phase 1: the rubric items that read the page as its reader will (``StoryReview``).
 #: Failing one is a judgement on the telling, never a canon defect. (``moves_on`` is
 #: not refused for yet; when it is, a refusal for it alone is storytelling too.)
-READER_ITEMS = ("reads_like_people", "one_plain_question", "moves_on")
+#: Phase 3: ``remembers`` — the page agrees with what the learner said on earlier days.
+READER_ITEMS = ("reads_like_people", "one_plain_question", "moves_on", "remembers")
 #: The other items the verdict refuses for besides the correctness two
 #: (``spoils_next_tentpole``, ``honours_choices``).
 _STORY_ITEMS = ("meaningful_change", "in_character", "obstacle_faced")

@@ -31,6 +31,7 @@ from functools import lru_cache
 from typing import Any
 
 from app.config import settings
+from app.services import story_memory
 from app.services.season.clock import SEASON_KEY, Position, record_played
 from app.services.season.director import gap_brief
 from app.services.season.epilogue import after_settle, context_extra, position_for, season_finished
@@ -662,9 +663,11 @@ def classify(
     history: list | None = None,
     use_model: bool = True,
     band: str | None = None,
+    known: dict[str, Any] | None = None,
 ) -> ReplyChoice:
     """Which of the turn's replies the learner expressed (model, else matcher), and
-    the addressee's first line back to what the learner actually wrote (model only)."""
+    the addressee's first line back to what the learner actually wrote (model only).
+    ``known``: what the addressee knows of the learner from earlier days (Phase 3)."""
 
     key = _cache_key(scene_id, str(turn.get("id")), text)
     cached = _ROUTE_CACHE.get(key)
@@ -680,7 +683,7 @@ def classify(
         try:
             parsed, _ = engine._json_call(
                 CLASSIFIER,
-                classifier_payload(turn, text, history, band=band),
+                classifier_payload(turn, text, history, band=band, known=known),
                 ReplyChoice,
                 usage.append,
                 deadline=time.monotonic() + 20,
@@ -811,8 +814,15 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             db, user, scenario, task, answer, turn_index, assistance, history, turn, french_please=True
         )
     band = str((season_ctx.get("page") or {}).get("band") or "") or None
+    # Story engine Phase 3: what the addressee knows of the learner from earlier days
+    # (the day's source context, narrowed to them).
+    known = story_memory.known_to(
+        ((scenario.story_context or {}).get("source") or {}).get(story_memory.MEMORY_KEY),
+        str(turn.get("to") or scenario.character_id),
+    )
     choice = carded or classify(
-        db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history, use_model=use_model, band=band
+        db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history, use_model=use_model, band=band,
+        known=known,
     )
     # STORY-LISTENS 2026-10-12: the addressee first answers what the learner actually
     # wrote (a name, a question, a joke), then the authored reaction plays. Only a
@@ -836,7 +846,8 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         # asks its own question again rather than playing the fallback as if the
         # learner had said it.
         evaluation = _ask_again_evaluation(
-            db, user, scenario, task, answer, turn_index, assistance, history, turn, ack=ack
+            db, user, scenario, task, answer, turn_index, assistance, history, turn, ack=ack,
+            heard=_heard(choice, None),
         )
         if evaluation is not None:
             return evaluation
@@ -920,7 +931,21 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             if line.get("text_native")
         ).strip() or None,
         route={"turn": str(turn.get("id")), "reply": str(reply.get("id"))},
+        heard=_heard(choice, reply),
     )
+
+
+def _heard(choice: ReplyChoice | None, reply: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Story engine Phase 3: what this exchange tells the day's memory — the authored
+    meaning of the reply the learner expressed, and what the reader says they
+    established about themselves (checked against their words at settle)."""
+
+    heard: dict[str, Any] = {}
+    if choice is not None and choice.clear and reply and reply.get("means"):
+        heard["meant"] = str(reply["means"])
+    if choice is not None and choice.learned:
+        heard["learned"] = [fact.model_dump() for fact in choice.learned]
+    return heard or None
 
 
 #: The route an «ask again» exchange records: no reply of the turn was expressed.
@@ -956,7 +981,8 @@ def _named_turn(scenario, turn: dict[str, Any]) -> dict[str, Any]:
 
 
 def _ask_again_evaluation(
-    db, user, scenario, task, answer, turn_index, assistance, history, turn, *, french_please=False, ack=None
+    db, user, scenario, task, answer, turn_index, assistance, history, turn, *, french_please=False, ack=None,
+    heard=None,
 ):
     from app.services.journey_contracts import ResponseEvaluation, TaskOutcome
     from app.services.season.page import translates
@@ -1005,6 +1031,7 @@ def _ask_again_evaluation(
         next_choices=choice_cards(turn) if turn.get("choice") else [],
         next_task_native=str(turn.get("task_native") or "") or None,
         route={"turn": str(turn.get("id")), "reply": ASK_AGAIN},
+        heard=heard,
     )
 
 
