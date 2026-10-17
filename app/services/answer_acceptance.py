@@ -737,3 +737,102 @@ def is_real_correction(learner: object, corrected: object) -> bool:
         return False
     return not is_preference_swap(learner, corrected)
 
+
+# ---------------------------------------------------------------------------
+# #193: a correction must be about the sentence the learner actually wrote
+# ---------------------------------------------------------------------------
+#
+# Live walk 2026-10-17: «Ma grand-mère est mort» was answered with «est → es»,
+# explained as «after 'tu' you must use 'es'». There is no «tu» in the sentence.
+# The model writes the correction as free text and nothing checked it against the
+# learner's words (the same flaw as #174: a verdict is not tied to the sentence it
+# judges). `correction_is_grounded` is that check; the tutor and the scene turn
+# both run it, so a correction that fails it is dropped, not shown.
+
+#: The form a correction proposes -> the subject words that may stand right before
+#: the learner's span. «est → es» needs a «tu» in front; there is none after «grand-mère».
+_FORM_SUBJECTS: dict[str, frozenset[str]] = {
+    "es": frozenset({"tu"}),
+    "as": frozenset({"tu"}),
+    "suis": frozenset({"je", "j"}),
+    "ai": frozenset({"je", "j"}),
+    "sommes": frozenset({"nous"}),
+    "avons": frozenset({"nous"}),
+    "êtes": frozenset({"vous"}),
+}
+#: «after 'tu'», «avec je», «with vous», «nach tu»: a note that names the subject
+#: the rule hangs on.
+_CITED_SUBJECT = re.compile(
+    r"\b(?:after|with|following|nach|mit|avec|apr[eè]s|derri[eè]re)\s+[«'‘’\"“]?\s*"
+    r"(je|j|tu|il|elle|on|nous|vous|ils|elles)\b",
+    re.IGNORECASE,
+)
+
+
+def _words(value: object) -> list[str]:
+    return _SWAP_WORDS.findall(fold_typography(value))
+
+
+def _find_span(words: list[str], span: list[str]) -> int | None:
+    if not span:
+        return None
+    for index in range(len(words) - len(span) + 1):
+        if words[index : index + len(span)] == span:
+            return index
+    return None
+
+
+def correction_is_grounded(
+    learner_text: object,
+    span: object,
+    corrected: object,
+    note: object = None,
+) -> bool:
+    """Whether a proposed correction is about what the learner wrote.
+
+    * the quoted ``span`` is found, word for word, in ``learner_text``;
+    * a subject the note leans on («after 'tu'») appears in the sentence;
+    * a form that only one subject takes («es» after «tu», «suis» after «je»)
+      has that subject in front of the span.
+    """
+
+    text_words = _words(learner_text)
+    span_words = _words(span)
+    start = _find_span(text_words, span_words)
+    if start is None:
+        return False
+    present = set(text_words)
+    for match in _CITED_SUBJECT.finditer(str(note or "")):
+        cited = match.group(1).casefold()
+        if cited not in present and not (cited == "je" and "j" in present):
+            return False
+    corrected_words = _words(corrected)
+    if len(span_words) == 1 and len(corrected_words) == 1 and corrected_words[0] != span_words[0]:
+        subjects = _FORM_SUBJECTS.get(corrected_words[0])
+        if subjects is not None:
+            before = text_words[max(0, start - 3) : start]
+            if not subjects & set(before):
+                return False
+    return True
+
+
+_BE_FOR_HAVE = re.compile(
+    r"\bje suis (froid|chaud|faim|soif|peur|sommeil|raison|tort)\b", re.IGNORECASE
+)
+
+
+def known_slip(learner_text: object) -> tuple[str, str, str] | None:
+    """A slip the app can name without a model: «Je suis froid» -> «J'ai froid»
+    (French says «avoir froid», not «être froid»). Returns ``(span, fix, note)``."""
+
+    text = " ".join(str(learner_text or "").replace("’", "'").split())
+    match = _BE_FOR_HAVE.search(text)
+    if not match:
+        return None
+    word = match.group(1).casefold()
+    span = match.group(0)
+    fix = f"j'ai {word}"
+    if span[:1].isupper():
+        fix = fix[:1].upper() + fix[1:]
+    return span, fix, f"In French you «have» cold, hunger or thirst: j'ai {word}, not je suis {word}."
+

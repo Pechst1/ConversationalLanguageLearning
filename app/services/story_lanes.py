@@ -58,7 +58,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import settings
 from app.services import lane_guards
 from app.services import living_story as engine
-from app.services.answer_acceptance import is_preference_swap
+from app.services.answer_acceptance import correction_is_grounded, is_preference_swap, known_slip
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -454,6 +454,19 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
     if verdict.correction_fr and is_preference_swap(verdict.correction_span_fr, verdict.correction_fr):
         # Agency walk run 3: «mais sans mon nom» → «mais pas mon nom». Both are correct.
         verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
+    if verdict.correction_fr and not correction_is_grounded(
+        payload["learner_text"],
+        verdict.correction_span_fr,
+        verdict.correction_fr,
+        verdict.correction_note_native,
+    ):
+        # #193: «Ma grand-mère est mort» → «est → es, after 'tu'». The span, the cited
+        # subject and the proposed form must all be in the learner's own sentence.
+        verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
+    if not verdict.correction_fr and not (payload.get("turn_plan") or {}).get("clarify_form_fr"):
+        slip = known_slip(payload["learner_text"])
+        if slip:
+            verdict.correction_span_fr, verdict.correction_fr, verdict.correction_note_native = slip
     if lane_guards.gender_form_hits(verdict.correction_fr or "") or lane_guards.gender_form_hits(
         verdict.correction_note_native or ""
     ):
