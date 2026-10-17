@@ -52,7 +52,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services import item_semantics as semantics
-from app.services.item_bank_de import GermanFilters, RenderError, german_violations
+from app.services.item_bank_de import GermanFilters, RenderError, g_person, german_violations
 from app.services.item_bank_de import merge_overlay as merge_german
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "data" / "grammar_templates"
@@ -150,6 +150,36 @@ def finish_german(text: str) -> str:
     text = re.sub(r"\s+([.,?!:;])", r"\1", text)
     text = re.sub(r"([.?!]\s+)(\w)", lambda match: match.group(1) + match.group(2).upper(), text)
     return capitalize_first(text)
+
+
+def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> str:
+    """A sentence that opens with the third-person plural «Sie sind …» reads as the polite
+    «you» (vous) to a German reader, while the expected French is ils/elles (#126).
+
+    The app addresses the learner with «du», so a capital «Sie» can only mean «they»;
+    the sentence capital hides that. Opening the sentence with «Sie (alle)» names the
+    plural without a head-count the bank does not know. Mid-sentence «sie» is lowercase
+    and already unambiguous, so only the sentence start is rewritten.
+    """
+
+    if not re.match(r"Sie\s", text):
+        return text
+    plural_subject = any(
+        isinstance(entry, dict) and _german_pronoun_subject(entry) and _german_person(entry) == 5
+        for entry in bindings.values()
+    )
+    return "Sie (alle)" + text[3:] if plural_subject else text
+
+
+def _german_pronoun_subject(entry: dict[str, Any]) -> bool:
+    return str(entry.get("fr", "")).lower() in {"ils", "elles"}
+
+
+def _german_person(entry: dict[str, Any]) -> int:
+    try:
+        return g_person(entry)
+    except RenderError:
+        return -1
 
 
 def capitalize_first(text: str) -> str:
@@ -1975,7 +2005,7 @@ class ItemBank:
             text = self._render_text(frame.de, bindings, german=True)
         except (RenderError, KeyError, IndexError, TypeError):
             return None
-        return finish_german(text)
+        return disambiguate_plural_sie(finish_german(text), bindings)
 
     def _render_ask(self, frame: _Frame, bindings: dict[str, dict[str, Any]]) -> dict[str, str] | None:
         if not frame.ask:
