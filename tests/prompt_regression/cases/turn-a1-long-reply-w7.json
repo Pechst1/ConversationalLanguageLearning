@@ -90,7 +90,7 @@
   "VoiceReply": [
    {
     "origin": "walk W7, verbatim",
-    "prompt_digest": "sha256:728b9b5d57ab0417a4e804747f22795f9ef39a82a6de75794134c0cb92e116b9",
+    "prompt_digest": "sha256:99047c95090ec99fc7a0bf62ac83921c64d69d8fd67cf597fc5b7524726e5b87",
     "content": {
      "reply_fr": "Bien sûr, un café arrive tout de suite ; voulez-vous vous asseoir au comptoir, sur la terrasse couverte chauffée ou préférez-vous à emporter ? Bonjour ! On se dit bonjour d'abord ?",
      "understood_intent": "The learner orders a coffee.",
@@ -99,7 +99,7 @@
    },
    {
     "origin": "hand-written retry",
-    "prompt_digest": "sha256:007275e49ae17c6fcc1a6cd4d0b6998dae2ae5e6faaa44160df50051ed0ec680",
+    "prompt_digest": "sha256:a8b0e9e1db52eb12ddf6bf715ff4f2fecdcdcf0baee7d079a37cf63db65eaa6a",
     "content": {
      "reply_fr": "Un café. Au comptoir ?",
      "understood_intent": "The learner orders a coffee.",

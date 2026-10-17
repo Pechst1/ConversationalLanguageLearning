@@ -959,7 +959,9 @@ def scene_text_from_draft(draft: Any, *, proper_nouns: Any = ()) -> SceneText:
 
 
 def world_proper_nouns(context: Any) -> frozenset[str]:
-    """Cast and location names from a story context, as known-word exemptions."""
+    """Cast and location names from a story context, as known-word exemptions — and
+    the name the learner gave for themselves (``context["memory"]``), which a page
+    may now use."""
 
     world = (context or {}).get("world") if isinstance(context, dict) else None
     names: set[str] = set()
@@ -969,6 +971,11 @@ def world_proper_nouns(context: Any) -> frozenset[str]:
                 value = (entry or {}).get(key) if isinstance(entry, dict) else None
                 if value:
                     names.add(str(value))
+    memory = (context or {}).get("memory") if isinstance(context, dict) else None
+    learner = (memory or {}).get("learner_name") if isinstance(memory, dict) else None
+    learner = learner.get("value") if isinstance(learner, dict) else learner
+    if learner:
+        names.add(str(learner))
     return _target_keys(names)
 
 

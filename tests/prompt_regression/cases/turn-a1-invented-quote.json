@@ -99,7 +99,7 @@
   "VoiceReply": [
    {
     "origin": "walk 2026-10-12 #3, verbatim",
-    "prompt_digest": "sha256:452198a61e109990d697e60fb1c196bec0b5ca34bd7526500bf44fbae8ccb130",
+    "prompt_digest": "sha256:ec8b205f107ed96b2e4445fb95b42e73f452d3a9eec43e37ca56e114cc2179d2",
     "content": {
      "reply_fr": "«Pas encore» ? Mon grand-père n'aime pas attendre.",
      "understood_intent": "The learner has not decided yet.",

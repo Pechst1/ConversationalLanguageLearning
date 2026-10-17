@@ -92,7 +92,7 @@
   "VoiceReply": [
    {
     "origin": "WP-149 A1 read, verbatim",
-    "prompt_digest": "sha256:1c58b3d77947f4d97cafee32f96e27207ad393cd640c959981835ac98386bff1",
+    "prompt_digest": "sha256:e5450eb9ec58aa754bd8b6c079ff9c05bc60b01aa4152a2f1d245696152739ee",
     "content": {
      "reply_fr": "Oh, pauvre toi — ça me serre le cœur de te voir comme ça ici.",
      "understood_intent": "The learner feels a bit lost.",

@@ -1,5 +1,5 @@
 {
- "_captured": "story_context() of a learner at B1 jumped to season day 30 (g4.4) by tests/test_story_split.py's season harness, 2026-10-17, main @ 59a2706. Dropped: lexicon (frozensets; the coverage guard fails open), mots_a_placer, thread_id, revision. _season is the runtime handle, rebuilt by the harness from season_id + flags.",
+ "_captured": "story_context() of a learner at B1 jumped to season day 30 (g4.4) by tests/test_story_split.py's season harness, 2026-10-17, main @ 59a2706. Dropped: lexicon (frozensets; the coverage guard fails open), mots_a_placer, thread_id, revision. _season is the runtime handle, rebuilt by the harness from season_id + flags. Story engine Phase 3 (#147): world.cast[].pronoun_fr added as story_context() now adds it (cast_registry.pronoun_for, Camille's from _season.flags).",
  "season_script": {
   "id": "s1",
   "title_fr": "La clé d'Odile",
@@ -339,7 +339,8 @@
     "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
     "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
     "flaw": "Keeps her own secret while resenting everyone else's.",
-    "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates."
+    "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+    "pronoun_fr": "elle"
    },
    {
     "id": "marin_leveque",
@@ -353,7 +354,8 @@
     "contradiction": "Wants to hold the group together and is afraid of being the one who breaks it.",
     "secret": "He has already put €4,000 of savings in as the first share (known from T3).",
     "flaw": "Cannot ask for anything without a grandmother's saying and three apologies.",
-    "dynamic_with_user": "Brings soup when you're ill. Holds the chair, and later the ladder."
+    "dynamic_with_user": "Brings soup when you're ill. Holds the chair, and later the ladder.",
+    "pronoun_fr": "il"
    },
    {
     "id": "augustin_de_roncourt",
@@ -367,7 +369,8 @@
     "contradiction": "Performs an aristocrat to hide that he is the one who most needs the place as it was.",
     "secret": "«De Roncourt» was invented at 15; he grew up in Créteil and his mother waited tables at Le Mistral (his confession belongs to T7 — before that, never; the costume may crack, never fall). He pays other people's tabs anonymously.",
     "flaw": "Would rather be magnificent than true.",
-    "dynamic_with_user": "Charmed, suspicious, then loyal in his fashion. The learner can hurt him, and he knows it."
+    "dynamic_with_user": "Charmed, suspicious, then loyal in his fashion. The learner can hurt him, and he knows it.",
+    "pronoun_fr": "il"
    },
    {
     "id": "margaux_barman",
@@ -381,7 +384,8 @@
     "contradiction": "Protects everyone and lets nobody protect her.",
     "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
     "flaw": "One sentence too few, always.",
-    "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find."
+    "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
+    "pronoun_fr": "elle"
    },
    {
     "id": "romy_tremblay",
@@ -395,7 +399,8 @@
     "contradiction": "A journalist who does not want to publish the thing that breaks her friends.",
     "secret": "She kept her Montréal apartment. From T4 she holds the memory card of the party (romy.footage).",
     "flaw": "Knows more than she says, and it shows.",
-    "dynamic_with_user": "A source, then a friend. She hates that order. Switches the camera off in front of the learner so they can see her do it."
+    "dynamic_with_user": "A source, then a friend. She hates that order. Switches the camera off in front of the learner so they can see her do it.",
+    "pronoun_fr": "elle"
    },
    {
     "id": "landlord_marchand",
@@ -409,7 +414,8 @@
     "contradiction": "Plays the villain the café needs and is the loneliest man in the building.",
     "secret": "Six years of Sunday lunches with Odile, and his question the day before the fire (T6 only — generated days before T6 never mention the Sundays). His pledge «oui, si Margaux reste».",
     "flaw": "Would rather be right on paper than ask a question.",
-    "dynamic_with_user": "Procedure, then respect. From T4 (mistral.villain_story broken) never written as the villain."
+    "dynamic_with_user": "Procedure, then respect. From T4 (mistral.villain_story broken) never written as the villain.",
+    "pronoun_fr": "il"
    },
    {
     "id": "camille_marchand",
@@ -423,7 +429,8 @@
     "contradiction": "Loved Le Mistral as a child (hot chocolate on Wednesdays) and is selling it.",
     "secret": "Camille's gender comes from s1.camille_gender (set by the learner in T1); Camille's own lines NEVER agree an adjective with Camille; other characters say «il» or «elle» from the flag.",
     "flaw": "Trusts numbers more than people, and knows it.",
-    "dynamic_with_user": "An obstacle with an interesting face. Disagreement first, respect earned."
+    "dynamic_with_user": "An obstacle with an interesting face. Disagreement first, respect earned.",
+    "pronoun_fr": "elle"
    },
    {
     "id": "mme_diallo",
@@ -437,7 +444,8 @@
     "contradiction": null,
     "secret": null,
     "flaw": null,
-    "dynamic_with_user": "Knows the learner's face from gap 1."
+    "dynamic_with_user": "Knows the learner's face from gap 1.",
+    "pronoun_fr": "elle"
    },
    {
     "id": "maitre_vasseur",
@@ -451,7 +459,8 @@
     "contradiction": null,
     "secret": null,
     "flaw": null,
-    "dynamic_with_user": "Professional, kind."
+    "dynamic_with_user": "Professional, kind.",
+    "pronoun_fr": "elle"
    },
    {
     "id": "bastien_roux",
@@ -465,7 +474,8 @@
     "contradiction": null,
     "secret": null,
     "flaw": null,
-    "dynamic_with_user": "Pressure with a smile."
+    "dynamic_with_user": "Pressure with a smile.",
+    "pronoun_fr": "il"
    }
   ],
   "locations": [

@@ -11,7 +11,7 @@
   "PagePlan": [
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:0ccac425c3b096f843e601014698974fa57185fae49cb2ccc8dd82efbbc5b25b",
+    "prompt_digest": "sha256:f17bbeb3cb1a44da2eaaa9cb12ca190862b4b7fac8cd77a4aa8f377bea6ebe14",
     "content": {
      "premise_id": "plusieurs_semaines",
      "location_id": "notaire",
@@ -68,7 +68,7 @@
   "PageText": [
    {
     "origin": "hand-written",
-    "prompt_digest": "sha256:cc08a5cd09396849f3028eddcbed7301287935b236a2bf85797caa44f1d43026",
+    "prompt_digest": "sha256:4a68569b2b738cfe3e904d6b95ec994bd5167ff4f98226f12806c1c1b7adf708",
     "content": {
      "title_fr": "Plusieurs semaines",
      "premise_fr": "Le matin, chez le notaire. Il pleut sur la rue.",

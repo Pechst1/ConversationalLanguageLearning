@@ -1334,6 +1334,11 @@ class ResponseEvaluation:
     next_hint_native: str | None = None
     next_suggested_fr: str | None = None
     next_translation_native: str | None = None
+    #: Story engine Phase 3: what the story heard in this exchange, kept with it for the
+    #: day's memory (``story_memory``) — ``{meant, learned}``: how the learner's words
+    #: were understood, and what they established about themselves (a tentpole's
+    #: reading). Never sent back to a model, never shown.
+    heard: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
