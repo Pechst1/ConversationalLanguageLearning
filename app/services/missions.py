@@ -41,6 +41,7 @@ from app.services.glosses import (
     word_gloss,
 )
 from app.services.learner_copy import learner_text
+from app.services.letter_voice import band_style_line, register_word, voice_problems
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
@@ -352,7 +353,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "opening_message": "Bonjour, votre paquet est arrivé, mais pas chez vous. Quelle est votre rue ?",
         "brief": "Le colis n'est pas chez toi. Explique et demande une solution.",
         "success_signal": "Support has the right address and a clear next step.",
-        "twist": "Sur la photo, la porte est bleue. Ta porte est verte.",
+        "twist": "Sur la photo, la porte est bleue. Votre porte est verte.",
         "ambient_cues": ["une photo du colis", "la mauvaise porte", "un numéro de commande"],
         "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
@@ -2851,7 +2852,17 @@ class MissionGenerator:
                 if tu
                 else ["Bonjour ! Moi, je pense que...", "Pour la suite, je...", "Merci pour votre message !"]
             ),
-            "twist": messenger.get("twist") if generated else None,
+            # A P.S. that contradicts the writer's address form is dropped, not printed.
+            "twist": (
+                messenger.get("twist")
+                if generated
+                and not voice_problems(
+                    [messenger.get("opening_message"), messenger.get("twist")],
+                    register="tu" if tu else "vous",
+                    level=None,
+                )
+                else None
+            ),
             "success_signal": (messenger.get("success_signal") if generated else None) or outcome,
         }
         known = custom_context.get("desired_outcome_i18n")
@@ -3276,6 +3287,15 @@ class MissionGenerator:
                 verdict = letter_level_verdict(known, candidate, targets=vocab)
                 if verdict.rejected:
                     problems.append(str(verdict.hint or verdict.reason))
+            # #117: the character's own words (opening and P.S.) keep one address form
+            # and stay inside the learner's band; the lexical check above sees neither.
+            problems.extend(
+                voice_problems(
+                    [candidate.get("opening_message"), candidate.get("twist")],
+                    register=register_word((story_context or {}).get("register")),
+                    level=str(cefr)[:2],
+                )
+            )
             gap = _objective_language_gap(candidate, user)
             if gap:
                 problems.append(f"Return {gap}: the objective in the learner's own language.")
@@ -6484,17 +6504,35 @@ class MissionConversationService:
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
             "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
         )
+        # #117: the reply is the character's own voice, so it keeps the letter's address
+        # form and the learner's band (a deterministic check, then one rewrite, then the
+        # register-aware acknowledgement).
+        level = _learner_level_code(self.db, user)
+        expected = register_word(
+            messenger.get("target_register") or messenger.get("register") or (mission.prompt_payload or {}).get("target_register")
+        )
+        # The actor is told which French to write, never that its reader is a beginner.
+        style = band_style_line(level)
+        if style:
+            system += f" {style}"
         try:
-            result = self.llm.generate_chat_completion(
-                messages=messages,
-                system_prompt=system,
-                temperature=0.7,
-                max_tokens=220,
-                model=settings.OPENAI_MISSION_FAST_MODEL,
-                request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
-            )
-            _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
-            return result.content
+            hint = ""
+            for attempt in range(2):
+                result = self.llm.generate_chat_completion(
+                    messages=messages,
+                    system_prompt=system + hint,
+                    temperature=0.7,
+                    max_tokens=220,
+                    model=settings.OPENAI_MISSION_FAST_MODEL,
+                    request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                )
+                _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
+                problems = voice_problems([result.content], register=expected, level=level)
+                if not problems:
+                    return result.content
+                logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
+                hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
+            return _unassessed_acknowledgement(mission)
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
