@@ -8,7 +8,8 @@ when the article fetch worked, each article's text (``sources.py``). The builder
    ``participation``/``guest_fit``, a place whose ``brief`` is *name + three landmarks +
    light* (§8.1 rule 1), ``vignette_object_fr``, and the story picture's ``visual``: the one
    moment that says what happened, people by their role, the words it shows, the caption
-   and Romy's look line, §8.4) — :class:`DossierProvider`;
+   and Romy's look line, §8.4) and the ``leads``, the story told at A1 and A2 with a short
+   headline for Home (``leads.py``) — :class:`DossierProvider`;
 2. assembles an :class:`EditorialDossier` around it (id, week, sources, URLs, dates come
    from the feed, never from the model) after the **structural repairs**: a quote over
    :data:`MAX_QUOTE_WORDS` words is trimmed to its first sentence that is still verbatim in
@@ -58,6 +59,7 @@ from app.services.revue.dossier import (
     quote_word_count,
     week_bounds,
 )
+from app.services.revue.leads import LEAD_RULES, LEADS_SPEC, repair_leads
 from app.services.revue.sources import text_hash
 
 #: v2 (WP-119 §8.4): the dossier carries the story picture's ``visual``; v3: its ``kind`` and the picture rules.
@@ -266,14 +268,15 @@ From the INPUT articles about one French news story of the week, write ONE edito
  "places": [{"id": snake_case str, "name_fr": str, "brief": str}] (1 or 2),
  "time_scope": {"happening": "YYYY-MM-DD/YYYY-MM-DD", "relevant_until": "YYYY-MM-DD"},
  "vignette_object_fr": str (one drawable object, with its article: «une urne»),
- "visual": """ + VISUAL_SPEC + """}
+ "visual": """ + VISUAL_SPEC + """,
+ "leads": """ + LEADS_SPEC + """}
 Rules: every quote is copied character for character from that item's text; a fact reports, it never judges
 (no «heureusement», «scandaleux», «il faut»); no relative dates («demain», «jeudi», «la semaine prochaine») —
 write absolute dates; happening must overlap week_monday..week_sunday and relevant_until must be on or after
 week_sunday; a place brief is the place's NAME + three distinctive, checkable landmarks + the light, never a
 type of place, and names no person; participation is how the learner would take part (helps at a stall, works
 on a site, formal role) — "none" when they only watch. 
-""" + PICTURE_RULES
+""" + PICTURE_RULES + "\n" + LEAD_RULES
 
 
 @dataclass
@@ -291,7 +294,7 @@ class LLMDossierProvider:
         if self._llm is None:
             from app.services.revue.encounter import OpenAIRevueProvider
 
-            self._llm = OpenAIRevueProvider(name="openai-revue-builder", max_tokens=3200)
+            self._llm = OpenAIRevueProvider(name="openai-revue-builder", max_tokens=3600)
         return self._llm
 
     def build_dossier(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -371,6 +374,7 @@ class FakeDossierProvider:
             },
             "vignette_object_fr": "un journal",
             "visual": _fake_visual(claims, city),
+            "leads": _fake_leads(lead["title"], claims, city),
         }
 
 
@@ -399,6 +403,23 @@ def _fake_visual(claims: list[dict[str, Any]], city: str) -> dict[str, Any]:
         "caption_fr": f"Un kiosque à journaux à {city}.",
         "look_fr": "Regarde : les gens lisent le journal.",
         "decoys_fr": [f"Un kiosque à journaux fermé à {city}.", f"Une boulangerie pleine de monde à {city}."],
+    }
+
+
+def _fake_leads(title: str, claims: list[dict[str, Any]], city: str) -> dict[str, Any]:
+    """The deterministic leads of a fake dossier: the title's first words, the first claim
+    (A1) and the first two (A2), cut to their bands' lengths, translated as «(en) …»."""
+
+    from app.services.revue.encounter import truncate_to_words
+    from app.services.revue.leads import A1_MAX_WORDS, A2_MAX_WORDS, HEADLINE_MAX_WORDS
+
+    first = [str(c.get("fr") or "") for c in claims[:2]]
+    a1 = truncate_to_words(first[0] if first else f"Il se passe quelque chose à {city}.", A1_MAX_WORDS - 5)
+    a2 = truncate_to_words(" ".join(first) or a1, A2_MAX_WORDS - 10)
+    return {
+        "headline_fr": " ".join(str(title or city).split()[:HEADLINE_MAX_WORDS]),
+        "a1": {"fr": a1, "en": f"(en) {a1}", "de": f"(de) {a1}"},
+        "a2": {"fr": a2, "en": f"(en) {a2}", "de": f"(de) {a2}"},
     }
 
 
@@ -787,6 +808,10 @@ def build_dossier(
         logger.bind(story=story.key, reasons=result.rejected).info("revue_check_failed dossier rejected")
         return result
     dossier = _visual_after_checks(dossier, result)
+    # 2026-10-18: the leads are checked against the claims the checks kept.
+    leads, lead_repairs = repair_leads(raw.get("leads"), dossier)
+    result.repairs.extend(lead_repairs)
+    dossier = dossier.model_copy(update={"leads": leads})
     if geocode is None:
         from app.services.revue.geo import geocode_dossier as geocode
     try:

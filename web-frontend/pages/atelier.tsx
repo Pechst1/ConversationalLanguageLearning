@@ -182,6 +182,7 @@ import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
 // WP-119 phase 1 — La Revue on La Une, as data in Home's slots (lib/revue-une.ts).
 import { RvUneCard } from '@/components/revue/RvUneCard';
+import { RvNewsCard } from '@/components/revue/RvNewsCard';
 import { RvSubjectSheet } from '@/components/revue/RvSubjectSheet';
 import { revueCopy } from '@/components/revue/revue-copy';
 import { revueClient } from '@/lib/revue-api';
@@ -2818,8 +2819,9 @@ function TodayView({
   /**
    * WP-119 — La Revue (design spec §2). On the Revue day (`DayShape.REVUE`,
    * dealt from phase 3, never on a special edition) its card is the hero with
-   * the plan row hidden; on every other day it is one quiet chip until this
-   * week's Revue is filed.
+   * the plan row hidden; on every other day it is the news card under the
+   * day's card (2026-10-18; a quiet chip on a special edition) until the
+   * Papier is filed, then the quiet «Autre Papier ?» chip.
    *
    * Precedence with a Courrier letter on the same day, per §2 («letter first,
    * then Revue, then words due»): the letter keeps its chip, always first; the
@@ -2837,7 +2839,7 @@ function TodayView({
         dayShape: dayShapeFrom(dayJourney, dayEnvelope),
         special: specialEdition,
       })
-    : { chip: null, hero: null };
+    : { chip: null, hero: null, news: null };
   // The programme still names the day's first step «Le Papier» on the Revue
   // day once the Papier is filed and the hero is the day's card again.
   const revueDayToday = Boolean(homeDay) && isRevueDay(dayShapeFrom(dayJourney, dayEnvelope), specialEdition);
@@ -2881,6 +2883,16 @@ function TodayView({
         );
       })()
     : null;
+  // 2026-10-18 (owner): the news is on Home every day, under the day's card, with its
+  // «À la une !» sticker, until today's Papier is filed (the chip it replaces said only «Le Papier»).
+  const revueNews = revueEntry.news ? (
+    <RvNewsCard
+      story={revueEntry.news.story}
+      href={revueEntry.news.href}
+      copy={revueCopy(chromeLanguage)}
+      onOpen={() => { if (revueEntry.news) void router.push(revueEntry.news.href); }}
+    />
+  ) : null;
   // WP-128: each chip carries its own estimate; none of it is the day's minutes.
   const dayTime = (dayEnvelope as TodayEnvelope | null)?.time_estimate ?? null;
   const dayChips: HomeChip[] = homeDay
@@ -3035,6 +3047,12 @@ function TodayView({
     <>
       {revueHero ?? journeyCard}
       <DaySessionNext next={sessionNext} more={sessionExtra} onNavigate={(href) => { void router.push(href); }} />
+      {revueNews}
+    </>
+  ) : revueNews ? (
+    <>
+      {revueHero ?? journeyCard}
+      {revueNews}
     </>
   ) : (revueHero ?? journeyCard);
 
