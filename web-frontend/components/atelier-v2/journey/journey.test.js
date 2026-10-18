@@ -898,6 +898,29 @@ const noSleep = () => Promise.resolve();
     !htmlHas(awaitingTodayHtml, EN.resume),
     'Home never offers to continue a day that cannot continue',
   );
+
+  // Owner 2026-10-18 (PR #232 review): with no picture, the drawn card keeps
+  // the episode's whole cast to the end of the day, not only its lead.
+  const castOfCard = (phase, journey) => {
+    const html = renderToStaticMarkup(
+      React.createElement(JourneyTodayCard, {
+        controller: controller({
+          phase,
+          journey,
+          progress: state.journeyProgress(journey),
+          envelope: { headline: { cast: [{ id: 'gus', name: 'Gus' }] } },
+        }),
+        onOpen: () => {},
+      }),
+    );
+    return (html.match(/data-cast-stage="([^"]*)"/) || [])[1] || '';
+  };
+  const bare = { ...allStepsDone, scenario: { ...allStepsDone.scenario, image_url: null, character_id: 'margaux' } };
+  assert.match(castOfCard(state.phaseFromJourney(bare), bare), /margaux.*gus/);
+  assert.match(
+    castOfCard({ kind: 'finished', journey: bare, recap: null }, bare),
+    /margaux.*gus/,
+  );
   assert.ok(!htmlHas(awaitingTodayHtml, EN.done_today), 'nor does it claim the day is done');
 
   // =========================================================================

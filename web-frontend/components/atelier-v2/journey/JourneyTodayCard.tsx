@@ -425,7 +425,7 @@ function JourneyTodayBody({
           lang="fr"
           imageUrl={scenario.image_url}
           imageAlt={scenario.objective_native}
-          scene={sceneOf(scenario, null)}
+          scene={sceneOf(scenario, headline)}
           special={special}
           byline={scenario.character_name ? <Byline name={scenario.character_name} /> : null}
         >
@@ -483,7 +483,7 @@ function JourneyTodayBody({
           // Owner test 2026-09-30: the day's episode, pictured above «Look again».
           imageUrl={phase.journey?.scenario?.image_url || null}
           imageAlt={titleFr || ''}
-          scene={phase.journey?.scenario ? sceneOf(phase.journey.scenario, null) : null}
+          scene={phase.journey?.scenario ? sceneOf(phase.journey.scenario, headline) : null}
         >
           {teaser && hint && (
             <p className="av2-body journey-today-card__teaser" data-teaser={teaser.source}>
