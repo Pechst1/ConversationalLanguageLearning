@@ -63,7 +63,9 @@ def _scene_turn(text: str, span: str, fix: str, note: str | None = None) -> engi
     return turn
 
 
-def test_the_tutor_drops_est_to_es_and_corrects_j_ai_froid():
+def test_193_tutor():
+    """«est → es» is dropped and «Je suis froid» is what gets corrected."""
+
     verdict = _tutor(TEXT, "est", "es", NOTE)
     assert verdict.correction_fr == "J'ai froid"
     assert verdict.correction_span_fr == "Je suis froid"
@@ -71,13 +73,13 @@ def test_the_tutor_drops_est_to_es_and_corrects_j_ai_froid():
     assert "tu" not in (verdict.correction_note_native or "").lower().split()
 
 
-def test_the_scene_turn_drops_est_to_es_the_same_way():
+def test_193_scene():
     turn = _scene_turn(TEXT, "est", "es", NOTE)
     assert turn.correction_fr == "J'ai froid"
     assert turn.correction_span_fr == "Je suis froid"
 
 
-def test_a_correction_whose_before_form_is_not_in_the_text_is_dropped():
+def test_span_absent():
     verdict = _tutor("Je veux un café.", "tu est", "tu es", "Tu takes es.")
     assert verdict.correction_fr is None and verdict.correction_span_fr is None
     assert verdict.correction_note_native is None
@@ -100,8 +102,11 @@ def test_a_correction_whose_before_form_is_not_in_the_text_is_dropped():
         # a replacement for another person than the subject in front of it
         ("Mes parents est ici.", "est", "es"),
     ],
+    ids=["noun-sg", "noun-pl", "elle", "je", "nous", "ne", "new-clause", "wrong-person"],
 )
-def test_a_form_that_is_right_for_its_subject_is_never_corrected(text, span, fix):
+def test_right_form(text, span, fix):
+    """A form already right for its subject is never corrected."""
+
     assert _tutor(text, span, fix, "Wrong form.").correction_fr is None
     assert _scene_turn(text, span, fix, "Wrong form.").correction_fr is None
 
@@ -121,8 +126,11 @@ def test_a_form_that_is_right_for_its_subject_is_never_corrected(text, span, fix
         ("Je veux une café.", "une café", "un café"),
         ("Je suis allé au marché hier, et tu a faim ?", "a", "as"),
     ],
+    ids=["x-et-moi", "x-et-moi-pl", "tu-et-moi", "toi", "x-et-y", "noun-pl", "tu", "nous", "article", "tu-a"],
 )
-def test_a_genuine_correction_survives_whatever_the_subject_is(text, span, fix):
+def test_real_fix(text, span, fix):
+    """A genuine correction survives whatever the subject is."""
+
     assert _tutor(text, span, fix, "Wrong form.").correction_fr == fix
     assert _scene_turn(text, span, fix, "Wrong form.").correction_fr == fix
 
@@ -134,16 +142,20 @@ def test_a_genuine_correction_survives_whatever_the_subject_is(text, span, fix):
         ("Moi, je suis faim.", "je suis faim", "j'ai faim"),
         ("Il fait chaud mais je suis soif.", "je suis soif", "j'ai soif"),
     ],
+    ids=["froid", "faim", "soif"],
 )
-def test_the_model_may_name_the_être_avoir_slip_itself(text, span, fix):
+def test_model_slip(text, span, fix):
+    """The model may name the être/avoir slip itself."""
+
     assert _tutor(text, span, fix, "Cold is had, not been.").correction_fr == fix
 
 
 @pytest.mark.parametrize(
     "text",
     ["Je suis froid avec elle.", "Je suis chaud pour ça !", "Je suis froid envers lui."],
+    ids=["avec", "chaud", "envers"],
 )
-def test_valid_french_is_not_turned_into_j_ai_froid(text):
+def test_valid_fr(text):
     """#201 review: «être froid avec quelqu'un» and «être chaud pour» are real French."""
 
     verdict = _tutor(text, None, None)
@@ -154,13 +166,18 @@ def test_valid_french_is_not_turned_into_j_ai_froid(text):
 @pytest.mark.parametrize(
     ("language", "word"),
     [("en", "In French you"), ("de", "Auf Französisch"), ("fr", "En français")],
+    ids=["en", "de", "fr"],
 )
-def test_the_slip_note_is_in_the_control_language(language, word):
+def test_slip_note(language, word):
+    """The note is in the story's control language."""
+
     verdict = _tutor("Je suis froid.", None, None, language=language)
     assert verdict.correction_fr == "J'ai froid"
     assert word in verdict.correction_note_native
 
 
-def test_a_slip_is_not_offered_while_the_app_asks_about_the_form():
+def test_no_slip_clarify():
+    """No slip is offered while the app asks about the form."""
+
     verdict = _tutor("Je suis froid.", None, None, turn_plan={"clarify_form_fr": "froid"})
     assert verdict.correction_fr is None
