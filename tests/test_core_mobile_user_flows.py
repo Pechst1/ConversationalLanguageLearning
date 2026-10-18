@@ -54,12 +54,15 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     # stated in the copy table, the payload is the backend contract.
     signup_copy = read(WEB / "lib" / "onboarding-signup.ts")
     assert "Au moins 8 caractères" in signup_copy
-    assert "function authErrorMessage" in signup
-    assert "Array.isArray(detail)" in signup
+    # #215: a server refusal is mapped to the page's own words, under the
+    # field it names, never toasted raw in English.
+    assert "function authErrorMessage" not in signup
+    assert "export function signUpFailure" in signup_copy
+    assert "const failure = signUpFailure(error, copy);" in signup
     assert "useOnboardingLanguage()" in signup
     assert "AuthSteps" not in signup
     assert "buildRegisterPayload(data)" in signup
-    assert "apiService.post('/auth/register', payload)" in signup
+    assert "apiService.post('/auth/register', payload, { suppressGlobalError: true }" in signup
     # WP-47 re-pin: the new account is signed in with what was just typed and
     # lands directly; the sign-in form is the fallback, with the address kept.
     # WP-75 re-pin: it lands in today's scene, never on the placement.
