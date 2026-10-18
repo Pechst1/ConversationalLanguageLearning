@@ -760,7 +760,14 @@ export interface UserAchievementProgress {
   target_progress: number;
   completed: boolean;
   unlocked_at?: string | null;
+  /** The avatar item this achievement unlocks (`lib/avatar.ts` REWARDS), if any. */
+  reward_item?: string | null;
 }
+
+/** GET/PUT /avatar — the learner's drawn character, null until they make one,
+ *  and every item an achievement unlocks with how close they are to it. */
+export type AvatarStatePayload = components['schemas']['AvatarState'];
+export type AvatarRewardState = components['schemas']['AvatarRewardRead'];
 
 export interface VocabularyRecommendationSummary {
   due: number;
@@ -2554,6 +2561,16 @@ class ApiService {
 
   async checkAchievements() {
     return this.post('/achievements/check');
+  }
+
+  // The learner's avatar (Ton personnage)
+  async getAvatar(): Promise<AvatarStatePayload> {
+    return this.get<AvatarStatePayload>('/avatar', { suppressGlobalError: true } as SilentRequestConfig);
+  }
+
+  /** Replaces the whole record. 403 `avatar_item_locked` for an item not yet earned. */
+  async saveAvatar(avatar: Record<string, string | number | boolean>): Promise<AvatarStatePayload> {
+    return this.put<AvatarStatePayload>('/avatar', { avatar }, { suppressGlobalError: true } as SilentRequestConfig);
   }
 
   // Vocabulary endpoints

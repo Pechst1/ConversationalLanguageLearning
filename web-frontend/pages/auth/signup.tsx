@@ -40,6 +40,7 @@ import {
   SIGNUP_NAV,
   STARTING_POINTS,
   afterSignUpDestination,
+  characterFirst,
   startingPointLabel,
   buildRegisterPayload,
   signUpFailure,
@@ -80,6 +81,8 @@ export default function SignUpPage() {
   /* A learner who arrived from a deep link keeps their destination; everyone
      else lands in the day-1 scene, not on Home and not on the placement. */
   const landing = afterSignUpDestination(destination);
+  // Ton personnage: the new account makes its character first, then goes on to the landing.
+  const firstStop = characterFirst(landing);
 
   const legalLanguage = resolveLegalLanguage(language);
   const consent = SIGNUP_CONSENT[legalLanguage];
@@ -115,11 +118,11 @@ export default function SignUpPage() {
         await apiService
           .post('/legal/consent', { version: LEGAL_VERSION, surface: 'signup', language: legalLanguage }, { suppressGlobalError: true } as AxiosRequestConfig)
           .catch(() => undefined);
-        void router.replace(landing);
+        void router.replace(firstStop);
         return;
       }
       toast.success(copy.created_sign_in);
-      void router.push({ pathname: '/auth/signin', query: { callbackUrl: landing, email: payload.email } });
+      void router.push({ pathname: '/auth/signin', query: { callbackUrl: firstStop, email: payload.email } });
     } catch (error: any) {
       const failure = signUpFailure(error, copy);
       setErrors(failure.errors);

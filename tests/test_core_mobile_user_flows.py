@@ -66,10 +66,12 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     # WP-47 re-pin: the new account is signed in with what was just typed and
     # lands directly; the sign-in form is the fallback, with the address kept.
     # WP-75 re-pin: it lands in today's scene, never on the placement.
+    # Ton personnage re-pin: it makes its character first, then goes on there.
     assert "auth.signInWithCredentials(payload.email, data.password)" in signup
-    assert "router.replace(landing);" in signup
-    assert "query: { callbackUrl: landing, email: payload.email }" in signup
+    assert "router.replace(firstStop);" in signup
+    assert "query: { callbackUrl: firstStop, email: payload.email }" in signup
     assert "const landing = afterSignUpDestination(destination);" in signup
+    assert "const firstStop = characterFirst(landing);" in signup
 
 
 def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> None:

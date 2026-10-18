@@ -22,6 +22,7 @@ const {
 const { detectOnboardingLanguage, onboardingLanguageOf } = require('./onboarding-locale.ts');
 const {
   AFTER_SIGNUP_DESTINATION,
+  characterFirst,
   SIGNUP_COPY,
   STARTING_POINTS,
   STARTING_POINT_CEFR,
@@ -262,10 +263,17 @@ test('a new account lands in today’s scene, never on the placement', () => {
   assert.equal(afterSignUpDestination('/vocabulary'), '/vocabulary');
 });
 
+test('a new account makes its character first, then goes on to its landing', () => {
+  assert.equal(characterFirst('/atelier?start=today'), '/personnage?first=1&next=%2Fatelier%3Fstart%3Dtoday');
+  assert.equal(characterFirst('/vocabulary'), '/personnage?first=1&next=%2Fvocabulary');
+});
+
 test('the sign-up page sends the learner to that destination', () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'pages', 'auth', 'signup.tsx'), 'utf8');
   assert.ok(page.includes('afterSignUpDestination(destination)'));
-  assert.ok(page.includes('router.replace(landing)'));
+  // Ton personnage: the character is made first, then the landing.
+  assert.ok(page.includes('characterFirst(landing)'));
+  assert.ok(page.includes('router.replace(firstStop)'));
   assert.ok(!page.includes("'/placement'"));
   assert.ok(!/confirm/i.test(page.replace(/\/\*[\s\S]*?\*\//g, '')), 'no confirm-password field');
 });
