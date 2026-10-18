@@ -353,7 +353,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "opening_message": "Bonjour, votre paquet est arrivé, mais pas chez vous. Quelle est votre rue ?",
         "brief": "Le colis n'est pas chez toi. Explique et demande une solution.",
         "success_signal": "Support has the right address and a clear next step.",
-        "twist": "Sur la photo, la porte est bleue. Votre porte est verte.",
+        "twist": "Sur la photo, la porte est bleue. Ta porte est verte.",
         "ambient_cues": ["une photo du colis", "la mauvaise porte", "un numéro de commande"],
         "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
@@ -2821,6 +2821,7 @@ class MissionGenerator:
             or "Un personnage"
         )
         tu = str(custom_context.get("register") or "").lower().startswith("tu")
+        writer_register = register_word(custom_context.get("register")) or ("tu" if tu else "vous")
         question = str(custom_context.get("open_question_fr") or "").strip()
         generated = bool(messenger.get("success_signal_i18n"))
         # The goal is the app speaking to the learner: «tu» whatever the letter writer's
@@ -2858,7 +2859,7 @@ class MissionGenerator:
                 if generated
                 and not voice_problems(
                     [messenger.get("opening_message"), messenger.get("twist")],
-                    register="tu" if tu else "vous",
+                    register=writer_register,
                     level=None,
                 )
                 else None
