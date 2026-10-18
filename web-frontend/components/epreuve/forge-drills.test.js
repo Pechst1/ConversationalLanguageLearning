@@ -44,6 +44,7 @@ const h = React.createElement;
 const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const render = (language, node) => renderToStaticMarkup(h(Ep.EpShell, { language }, node));
 const PAGE = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+const DRILLS = fs.readFileSync(path.join(__dirname, 'ForgeDrills.tsx'), 'utf8');
 
 // ---------------------------------------------------------------------------
 // 1 · «Tape la forme»
@@ -73,6 +74,17 @@ test('a dictation plays the sentence, or plays it slower', () => {
   assert.match(text(html), /Écouter Plus lent/);
   // The sentence itself is never printed: it is heard.
   assert.doesNotMatch(html, /il est venu/);
+});
+
+test('a dictation asks for the server voice on the tap, never as it shows', () => {
+  // Nothing is synthesized, or paid for, before the learner wants it: on a
+  // deployment without a server voice, every dictation shown answered 500.
+  const hook = DRILLS.slice(DRILLS.indexOf('function useFrenchVoice('), DRILLS.indexOf('export function ForgeListen('));
+  const [mount, tap] = hook.split('const play = ');
+  assert.doesNotMatch(mount, /synthesize\(/);
+  assert.match(tap, /asked\.current = synthesize\(text\)/);
+  // Kept once it has come: a replay, or «Plus lent», plays inside its own tap.
+  assert.match(tap, /if \(clip\.current\) \{\s*sound\(clip\.current\);\s*return;\s*\}/);
 });
 
 // ---------------------------------------------------------------------------

@@ -123,47 +123,66 @@ function browserVoice(text: string, slow: boolean, done: () => void): boolean {
 }
 
 /**
- * The sentence's voice, fetched as soon as the item shows, so a tap plays it
- * at once (iOS plays audio only inside the tap). Without it — no server voice,
- * or not ready yet — the browser reads it.
+ * The sentence's voice, asked for on the first tap, as every listen button in
+ * the app asks: nothing is synthesized (or paid for) before the learner wants
+ * it, and a deployment without a server voice fails that tap, not every
+ * dictation shown. The clip is kept, so a replay or «Plus lent» plays at once,
+ * inside its own tap. Without a clip the browser reads the sentence.
  */
 function useFrenchVoice(text: string, synthesize?: Synthesize) {
   const [playing, setPlaying] = React.useState(false);
-  const url = React.useRef<string | null>(null);
+  const asked = React.useRef<Promise<string | null> | null>(null);
+  const clip = React.useRef<string | null>(null);
   const audio = React.useRef<HTMLAudioElement | null>(null);
-  React.useEffect(() => {
-    let alive = true;
-    if (!text || !synthesize) return undefined;
-    synthesize(text)
-      .then((bytes) => {
-        if (alive) url.current = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
-      })
-      .catch(() => {
-        // The browser's voice reads it instead.
-      });
-    return () => {
-      alive = false;
-      audio.current?.pause();
-      if (url.current) URL.revokeObjectURL(url.current);
-      url.current = null;
-    };
-  }, [text, synthesize]);
+  const turn = React.useRef(0);
+  React.useEffect(() => () => {
+    audio.current?.pause();
+    audio.current = null;
+    const pending = asked.current;
+    asked.current = null;
+    clip.current = null;
+    void pending?.then((url) => {
+      if (url) URL.revokeObjectURL(url);
+    });
+  }, [text]);
   const play = (slow = false) => {
     if (!text) return;
+    turn.current += 1;
+    const mine = turn.current;
     const done = () => setPlaying(false);
-    audio.current?.pause();
-    if (url.current) {
-      const player = new Audio(url.current);
+    const read = () => {
+      if (!browserVoice(text, slow, done)) done();
+    };
+    const sound = (url: string) => {
+      const player = new Audio(url);
       player.playbackRate = slow ? 0.75 : 1;
       player.onended = done;
       audio.current = player;
-      setPlaying(true);
-      player.play().catch(() => {
-        if (!browserVoice(text, slow, done)) done();
-      });
+      player.play().catch(read);
+    };
+    audio.current?.pause();
+    setPlaying(true);
+    if (clip.current) {
+      sound(clip.current);
       return;
     }
-    setPlaying(browserVoice(text, slow, done));
+    if (!synthesize) {
+      read();
+      return;
+    }
+    if (!asked.current) {
+      asked.current = synthesize(text)
+        .then((bytes) => (bytes.byteLength ? URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' })) : null))
+        .catch(() => null);
+    }
+    const pending = asked.current;
+    void pending.then((url) => {
+      // Another tap, or the next item, has come since: it speaks instead.
+      if (asked.current !== pending || turn.current !== mine) return;
+      clip.current = url;
+      if (url) sound(url);
+      else read();
+    });
   };
   return { playing, play };
 }
