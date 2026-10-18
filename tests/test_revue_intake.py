@@ -214,3 +214,62 @@ def test_registry_carries_a_fetch_policy_and_the_new_feeds() -> None:
     assert {"culture", "food", "sport", "city"} <= topics
     refusing = {row["id"] for row in rows if row["fetch_policy"] == "refuses"}
     assert "france24_france" in refusing
+
+
+# --- Daily cadence (owner 2026-10-18: «why not daily?») ------------------------------
+
+
+def run_day(db: Session, web: Web, day: date, *, target: int | None = None):
+    return intake.run_intake(
+        db,
+        day.isoformat(),
+        provider=FakeDossierProvider(),
+        client=web.client(),
+        sources=REGISTRY,
+        target=target,
+        today=day,
+        fetch_enabled=True,
+    )
+
+
+def _urls(row: RevueDossier) -> set[str]:
+    return {source["url"] for source in row.payload.get("sources", [])}
+
+
+def test_a_daily_period_builds_the_days_two_stories(db: Session, monkeypatch) -> None:
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "REVUE_STORIES_PER_DAY", 2)
+    assert intake.stories_per_period("2026-10-02") == 2
+    assert intake.stories_per_period(WEEK) == 6
+    report = run_day(db, Web(), TODAY)
+    assert report.status == "built"
+    assert len(stored(db, TODAY.isoformat())) == 2, report.as_dict()
+
+
+def test_the_next_morning_tells_stories_the_kiosk_does_not_have_yet(db: Session) -> None:
+    day_one, day_two = TODAY, date(2026, 10, 3)
+    run_day(db, Web(), day_one, target=2)
+    first = stored(db, day_one.isoformat())
+    told = set().union(*(_urls(row) for row in first))
+    assert intake.seen_urls_before(db, day_two.isoformat()) == frozenset(told)
+    run_day(db, Web(), day_two, target=2)
+    second = stored(db, day_two.isoformat())
+    assert any(not row.checks.get("evergreen_top_up") for row in second), "the second morning builds news"
+    for row in second:
+        if row.checks.get("evergreen_top_up"):
+            continue
+        assert not (_urls(row) & told), f"{row.id} repeats yesterday's article"
+    # The weekly cadence has no earlier days to avoid.
+    assert intake.seen_urls_before(db, WEEK) == frozenset()
+
+
+def test_a_small_daily_target_reaches_every_topic_group_across_the_week() -> None:
+    groups = len(intake.TOPIC_SPREAD)
+    reached = set()
+    for offset in range(groups):
+        slots = intake.slots_for(2, rotate=offset)
+        assert sum(slots) == 2
+        reached |= {index for index, count in enumerate(slots) if count}
+    assert reached == set(range(groups))
+    assert intake.slots_for(6, rotate=3) == [2, 2, 1, 1], "the week's spread never rotates"

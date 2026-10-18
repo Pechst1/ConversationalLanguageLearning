@@ -75,7 +75,8 @@ test('RvThread renders every wire kind, in an ordered list with speaker prefixes
   assert.match(html, /Romy<span class="av2-sr"> : <\/span>/);
   assert.match(html, /class="rv-unknown"[\s\S]*Les sources ne le disent pas/);
   assert.match(html, /class="rv-shift" role="status">Bouclage</);
-  assert.match(html, /Écouter le résumé/);
+  // The lead is text from the start, under its kicker (it used to hide behind the play button).
+  assert.match(html, /<section class="rv-lead" aria-label="Ce qui s&#x27;est passé"><p class="rv-lead__k">Ce qui s&#x27;est passé<\/p><p class="rv-lead__fr" lang="fr">Paris a 91 marchés\.<\/p>/);
   // The latest Romy line is the headline; the earlier one is the small past bubble.
   assert.equal((html.match(/av2-speech--past/g) || []).length, 1);
   assert.match(html, /class="av2-headline" lang="fr">[^<]*<?[\s\S]*?je n&#x27;ai rien/);
@@ -83,7 +84,7 @@ test('RvThread renders every wire kind, in an ordered list with speaker prefixes
   assert.match(html, /<span class="rv-yours">les prix sont plus bas<sup>toi<\/sup><\/span>/);
 
   // Unfolded (before the learner speaks), each claim is a card: kind by label + shape + rule.
-  const cards = render(h(RvThread, { items: ALL_KINDS.slice(0, 4), support: SUPPORT_TAP, copy: FR, now: new Date(at) }));
+  const cards = render(h(RvThread, { items: ALL_KINDS.slice(0, 4), support: SUPPORT_TAP, copy: FR, band: 'B1', now: new Date(at) }));
   assert.match(cards, /<article class="rv-claim" data-kind="fact">/);
   assert.match(cards, /<article class="rv-claim" data-kind="interpretation">/);
   assert.match(cards, /av2-shape--square[\s\S]*Fait/);
@@ -744,3 +745,32 @@ test('the make picker names «La légende» in every chrome: to choose (A1–A2)
   assert.match(visibleText(picker), /Choisir la légende Trois légendes, une seule dit ce qu’on voit\./);
 });
 
+
+test('2026-10-18 · the lead translates where the band does; at A1–A2 the claim cards wait behind one line', () => {
+  const { RvLead, RvNewsCard, newsHeadline } = require('./index.ts');
+  const lead = { id: '1.s', textFr: 'Paris a 91 marchés.', translation: 'Paris hat 91 Märkte.', glosses: [], copy: FR, glossLanguage: 'de' };
+  assert.match(render(h(RvLead, { ...lead, support: SUPPORT_SHOWN })), /class="rv-chip" aria-pressed="false">[\s\S]*Traduire/);
+  assert.doesNotMatch(render(h(RvLead, { ...lead, support: SUPPORT_NONE })), /Traduire/, 'B1 and up: no translation');
+  assert.doesNotMatch(render(h(RvLead, { ...lead, translation: null, support: SUPPORT_SHOWN })), /Traduire/);
+  assert.match(render(h(RvLead, { ...lead, support: SUPPORT_TAP, copy: EN })), /<p class="rv-lead__k">What happened<\/p>/);
+
+  const claims = ALL_KINDS.slice(0, 4);
+  for (const band of ['A1', 'A2']) {
+    const plain = render(h(RvThread, { items: claims, support: SUPPORT_TAP, copy: FR, band, now: new Date(at) }));
+    // Romy has just said the fact: the cards wait behind one quiet line, closed.
+    assert.match(plain, /<div class="rv-claims" data-plain=""><button type="button" class="rv-folded" aria-expanded="false">/, band);
+    assert.match(visibleText(plain), /2 faits sur la table · d’après Ville de Paris/, band);
+    assert.doesNotMatch(plain, /Interprétation|La citation|rv-claim"|Les marchés sont des lieux de vie/, `${band}: nothing twice until the fold opens`);
+  }
+  const b1 = render(h(RvThread, { items: claims, support: SUPPORT_NONE, copy: FR, band: 'B1', now: new Date(at) }));
+  assert.doesNotMatch(b1, /rv-plain/);
+  assert.match(b1, /Interprétation/);
+
+  // Home's news card: the sticker, the six-word headline, one link with a sentence for its label.
+  const story = { ...types.parseOffer(MOCK.offer).recommended, headlineFr: 'Un marché six matins sur sept', plateUrl: '/static/revue/plates/x.webp' };
+  const card = render(h(RvNewsCard, { story, href: '/revue?dossier=x', copy: EN }));
+  assert.match(card, /^<a class="rv-news" href="\/revue\?dossier=x" data-revue-card="news" aria-label="Today&#x27;s news with Romy: Un marché six matins sur sept">/);
+  assert.match(card, /<span class="rv-news__sticker" aria-hidden="true">À la une !/);
+  assert.match(card, /<img src="[^"]*x\.webp" alt=""/);
+  assert.equal(newsHeadline({ headlineFr: '  ', titleFr: 'Le titre' }), 'Le titre', 'no headline: the title');
+});

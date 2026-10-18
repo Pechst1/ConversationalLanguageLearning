@@ -13,7 +13,9 @@ Runs on Monday 05:00 Europe/Paris (``app/tasks/revue.py``) and on demand with
    (the first named person, else three salient words). A cluster is ranked by
    **recency, cluster size (distinct outlets) and topic spread** — the feuilleton's taste
    (+2 politics, +2 names) stays out of the intake.
-3. **Spread.** :data:`TOPIC_SPREAD` deals the target (``REVUE_STORIES_PER_WEEK``, six):
+3. **Spread.** :data:`TOPIC_SPREAD` deals the target (``REVUE_STORIES_PER_WEEK``, six;
+   ``REVUE_STORIES_PER_DAY``, two, under the daily cadence, which also skips stories an
+   earlier day of the kiosk already told):
    two food or culture, two city or society, one sport or nature, one politics; a slot a
    group cannot fill goes to the best remaining cluster of any topic.
 4. **Build.** For each chosen story the article pages are fetched (``sources.py``: robots,
@@ -317,8 +319,12 @@ def spread(stories: list[Story]) -> list[list[Story]]:
     return [[story for story in stories if story.topic in topics] for topics, _slots in TOPIC_SPREAD]
 
 
-def slots_for(target: int) -> list[int]:
-    """Slots per :data:`TOPIC_SPREAD` group for ``target`` stories (2/2/1/1 at six)."""
+def slots_for(target: int, rotate: int = 0) -> list[int]:
+    """Slots per :data:`TOPIC_SPREAD` group for ``target`` stories (2/2/1/1 at six).
+
+    ``rotate`` turns which groups get the leftover slots first, so a small daily target
+    (two stories a day) reaches every group across the week instead of the first two only.
+    """
 
     base = [slots for _topics, slots in TOPIC_SPREAD]
     total = sum(base)
@@ -326,6 +332,8 @@ def slots_for(target: int) -> list[int]:
         return base
     scaled = [max(0, (slots * target) // total) for slots in base]
     order = sorted(range(len(base)), key=lambda i: (-base[i], i))
+    shift = rotate % len(order)
+    order = order[shift:] + order[:shift]
     index = 0
     while sum(scaled) < target:
         scaled[order[index % len(order)]] += 1
@@ -410,18 +418,24 @@ def build_period(
     today: date | None = None,
     fetch_enabled: bool | None = None,
     report: IntakeReport | None = None,
+    seen_urls: frozenset[str] = frozenset(),
 ) -> tuple[list[tuple[EditorialDossier, BuildResult | None]], IntakeReport]:
-    """Cluster, spread, fetch, build and top up; nothing is persisted here."""
+    """Cluster, spread, fetch, build and top up; nothing is persisted here.
 
-    from app.config import settings
+    ``seen_urls``: articles an earlier day of the daily kiosk already told; a story citing
+    one of them is skipped, so each morning brings stories the kiosk does not have yet.
+    """
 
     week = week_of_period(period)
     window = period_window(period)
     today = today or window[1]
-    target = int(target if target is not None else getattr(settings, "REVUE_STORIES_PER_WEEK", 6))
+    target = int(target if target is not None else stories_per_period(period))
     report = report or IntakeReport(period=period, week=week)
     report.candidates = len(candidates)
-    stories = cluster(candidates, window=window)
+    stories = [
+        story for story in cluster(candidates, window=window)
+        if not any(item.url in seen_urls for item in story.items)
+    ]
     report.clusters = len(stories)
     robots = RobotsCache()
 
@@ -432,7 +446,8 @@ def build_period(
         return (article.text if article.ok else ""), article.status
 
     queues = spread(stories)
-    slots = slots_for(target)
+    rotate = date.fromisoformat(period).toordinal() if is_daily_period(period) else 0
+    slots = slots_for(target, rotate=rotate)
     built: list[tuple[EditorialDossier, BuildResult | None]] = []
     used: set[str] = set()
     ids: set[str] = set()
@@ -513,6 +528,36 @@ def _row_id(period: str, dossier_id: str) -> str:
     return f"{period.lower()}:{dossier_id}"[:120]
 
 
+def stories_per_period(period: str) -> int:
+    """How many stories the intake aims at: the week's six, or the day's two (daily cadence)."""
+
+    from app.config import settings
+
+    if is_daily_period(period):
+        return int(getattr(settings, "REVUE_STORIES_PER_DAY", 2))
+    return int(getattr(settings, "REVUE_STORIES_PER_WEEK", 6))
+
+
+def seen_urls_before(db: Session, period: str) -> frozenset[str]:
+    """Daily cadence: the article URLs the kiosk's earlier days (the rest of its seven) cite."""
+
+    from app.db.models.revue_session import RevueDossier
+    from app.services.revue.weekly import DAILY_KIOSK_DAYS
+
+    if not is_daily_period(period):
+        return frozenset()
+    day = date.fromisoformat(period)
+    earlier = [(day - timedelta(days=offset)).isoformat() for offset in range(1, DAILY_KIOSK_DAYS)]
+    urls: set[str] = set()
+    for payload in db.scalars(select(RevueDossier.payload).where(RevueDossier.period.in_(earlier))):
+        if not isinstance(payload, dict):
+            continue
+        for entry in [*(payload.get("sources") or []), *(payload.get("claims") or [])]:
+            if isinstance(entry, dict) and entry.get("url"):
+                urls.add(str(entry["url"]))
+    return frozenset(urls)
+
+
 def has_period(db: Session, period: str) -> bool:
     from app.db.models.revue_session import RevueDossier
 
@@ -551,6 +596,7 @@ def run_intake(
         today=today,
         fetch_enabled=fetch_enabled,
         report=report,
+        seen_urls=seen_urls_before(db, period),
     )
     persist(db, period, built)
     from app.services.revue import weekly

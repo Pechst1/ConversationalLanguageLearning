@@ -113,7 +113,7 @@ def test_acceptance_unexpected_question_becomes_the_reader_question(db: Session)
     arrive = revue.view(row)
     assert arrive.dossier.evergreen is True
     assert arrive.beat == "arrive"
-    assert [item.kind for item in arrive.thread][:2] == ["narration", "narration"]
+    assert [item.kind for item in arrive.thread][:2] == ["narration", "summary"], "the dateline, then the story"
     assert any(item.kind == "line" and item.role == "purpose" for item in arrive.thread)
     assert any(item.kind == "summary" for item in arrive.thread)
 

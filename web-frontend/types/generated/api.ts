@@ -12165,6 +12165,8 @@ export interface components {
             dossier_id: string;
             /** Evergreen */
             evergreen: boolean;
+            /** Headline Fr */
+            headline_fr?: string | null;
             /** Place Fr */
             place_fr: string;
             /** Plate Url */
@@ -12180,10 +12182,16 @@ export interface components {
              */
             topic: "food" | "culture" | "city" | "sport" | "nature" | "work" | "politics";
         };
-        /** RvSummaryItem */
+        /**
+         * RvSummaryItem
+         * @description What happened (2026-10-18): the lead at the learner's band (B1+: the summary), shown as
+         *     text with its translation where the band has the translate button, read aloud on a tap.
+         */
         RvSummaryItem: {
             /** At */
             at: string;
+            /** Glosses */
+            glosses?: components["schemas"]["RvGloss"][];
             /** Id */
             id: string;
             /**
@@ -12200,6 +12208,8 @@ export interface components {
             speaker?: string;
             /** Text Fr */
             text_fr: string;
+            /** Translation */
+            translation?: string | null;
         };
         /** RvSupport */
         RvSupport: {

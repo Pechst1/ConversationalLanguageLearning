@@ -72,6 +72,8 @@ export type RvStage = {
 export type RvStoryCard = {
   dossierId: string;
   titleFr: string;
+  /** Home's news card (2026-10-18): six words or fewer; null before the dossier's leads were written. */
+  headlineFr: string | null;
   summaryFr: string;
   topic: RvTopic;
   placeFr: string;
@@ -108,7 +110,14 @@ export type RvQuickReply = { label: string; sendFr: string };
 
 type ItemBase = { id: string; seq: number; at: string };
 export type RvNarrationItem = ItemBase & { kind: 'narration'; textFr: string };
-export type RvSummaryItem = ItemBase & { kind: 'summary'; speaker: string; textFr: string };
+/** What happened (2026-10-18): the lead at the learner's band, shown as text, read aloud on a tap. */
+export type RvSummaryItem = ItemBase & {
+  kind: 'summary';
+  speaker: string;
+  textFr: string;
+  translation: string | null;
+  glosses: RvGloss[];
+};
 export type RvLineItem = ItemBase & {
   kind: 'line';
   speaker: string;
@@ -487,6 +496,7 @@ export function parseStoryCard(raw: Json): RvStoryCard {
   return {
     dossierId: str(raw.dossier_id),
     titleFr: str(raw.title_fr),
+    headlineFr: strOrNull(raw.headline_fr),
     summaryFr: str(raw.summary_fr),
     topic: oneOf(raw.topic, TOPICS, 'city'),
     placeFr: str(raw.place_fr),
@@ -579,7 +589,14 @@ export function parseThreadItem(raw: Json): RvThreadItem | null {
     case 'narration':
       return { ...base, kind: 'narration', textFr: str(raw.text_fr) };
     case 'summary':
-      return { ...base, kind: 'summary', speaker: str(raw.speaker) || 'romy_tremblay', textFr: str(raw.text_fr) };
+      return {
+        ...base,
+        kind: 'summary',
+        speaker: str(raw.speaker) || 'romy_tremblay',
+        textFr: str(raw.text_fr),
+        translation: strOrNull(raw.translation),
+        glosses: list(raw.glosses, parseGloss),
+      };
     case 'line':
       return parseLineItem(raw);
     case 'guest':
