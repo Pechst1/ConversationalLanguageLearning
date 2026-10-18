@@ -1,5 +1,5 @@
 # prompt snapshot · page-a1-reasked-question · lane page · level A1
-# key: sha256:01a752540895bd0d2c9985d89e98f1812d30446640f68f98eb78309707c8a8ed
+# key: sha256:26dda660008d9ce60251e8ddf03871319d5236c9d6d812385c488ac4d3398cbd
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
 ======== call 1 · PagePlan #1 · 45c3b8be7a30786c ========
@@ -1166,7 +1166,7 @@ peut écrire ton nom.»
  ]
 }
 
-======== call 3 · PageText #1 · 5b694bfc43bf1d5f ========
+======== call 3 · PageText #1 · 8e9ed960d2ae15a7 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PageText", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PageText sha256:3fcf082adfdc0612
 -------- system --------
@@ -1201,6 +1201,9 @@ THE PAGE
   the page does.
 - When the plan has a chapter, chapter_title_fr names it and chapter_question_fr asks its
   question in French; otherwise both are null.
+- title_fr is this page's own headline, about what happens on it. It is never one of
+  taken_titles (the pages already published), and after a chapter's first page it is never
+  the chapter's title again.
 
 LEVEL A1
 Present tense, everyday words, lines mostly under 10 words, one idea per line.
