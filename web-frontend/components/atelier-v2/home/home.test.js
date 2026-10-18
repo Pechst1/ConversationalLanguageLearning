@@ -115,14 +115,7 @@ test('Home does one thing: ≤ 5 elements and ≤ 25 words, in every learner lan
     const html = home(language);
     const sections = (html.match(/class="av2-home__mast"|class="av2-home__section[ "]/g) || []).length;
     assert.ok(sections <= 5, `${language}: ${sections} elements`);
-    // WP-L7: the level figure («A1.1 · 60 %») is a figure, not prose — it sits
-    // outside the word budget, the way the streak's number does not add a sentence.
-    // WP-95: the next-step line replaces that figure in the same slot; it is
-    // held to its own budget (≤ 9 words) in the WP-95 test below.
-    const prose = html
-      .replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' ')
-      .replace(/<a [^>]*data-next-step=""[^>]*>[\s\S]*?<\/a>/g, ' ');
-    const count = words(visibleText(prose)).length;
+    const count = words(visibleText(html)).length;
     if (process.env.HOME_WORDS) console.log(language, sections, count, visibleText(html));
     assert.ok(count <= 25, `${language}: ${count} words — ${visibleText(html)}`);
     // Exactly one red press: the day's.
@@ -156,50 +149,44 @@ test('with the journey on, nothing but the day is drawn', () => {
   assert.match(html, /aria-label="Review 3 words"/);
 });
 
-const NEXT = {
-  fr: { band: 'A1.1', line: 'Prochaine étape : demander un prix et payer', ariaLabel: 'Niveau A1.1. Prochaine étape : demander un prix et payer. Ouvrir le Carnet', href: '/notebook?mode=releve#carnet' },
-  en: { band: 'A1.1', line: 'Next step: ask a price and pay', ariaLabel: 'Level A1.1. Next step: ask a price and pay. Open the Carnet', href: '/notebook?mode=releve#carnet' },
-  de: { band: 'A1.1', line: 'Nächster Schritt: ask a price and pay', ariaLabel: 'Niveau A1.1. Nächster Schritt: ask a price and pay. Carnet öffnen', href: '/notebook?mode=releve#carnet' },
-};
-
-test('WP-95 / W12: the masthead shows the band and the next can-do, never a percentage', () => {
+test('owner 2026-10-18: the masthead is the mark, the date and the streak, nothing else', () => {
+  // The level line («B1.1 · Prochaine étape : …») and «Cette semaine, on consolide.»
+  // are gone from Home, whatever the server sends; the next can-do lives in the Carnet.
   for (const language of ['en', 'de', 'fr']) {
-    const html = home(language, { nextStep: NEXT[language], level: { band: 'A1.1', percent: 0 } });
-    const text = visibleText(html);
-    assert.doesNotMatch(text, /%/, `${language}: no percentage on Home`);
-    assert.match(text, new RegExp(`A1\\.1 · ${NEXT[language].line}`), language);
-    assert.match(html, /<a class="av2-carnet__home-link"[^>]*href="\/notebook\?mode=releve#carnet"/);
-    const link = html.match(/<a [^>]*data-next-step=""[^>]*>([\s\S]*?)<\/a>/)[1];
-    assert.ok(words(visibleText(link)).length <= 9, `${language}: the next step is one short line`);
-    assert.match(html, /class="av2-home__kicker av2-home__level"/);
-    // One Garamond line on the masthead (the date): the level is a label, not a headline.
+    const html = home(language, {
+      nextStep: { band: 'B1.1', line: 'Prochaine étape : donner son opinion', ariaLabel: 'x', href: '/notebook?mode=releve#carnet' },
+      level: { band: 'B1.1', percent: 40 },
+      consolidating: true,
+    });
     const mast = html.slice(html.indexOf('av2-home__mast"'), html.indexOf('</header>'));
+    assert.doesNotMatch(mast, /B1\.1|Prochaine étape|data-next-step|av2-home__level/, language);
+    assert.doesNotMatch(html, /data-consolidating|on consolide|we consolidate|festigen wir/, language);
     assert.equal((mast.match(/av2-headline[ "]/g) || []).length, 1, `${language}: one headline in the masthead`);
-    // Still one press and ≤ 25 words of prose.
     assert.equal((html.match(/av2-btn--primary/g) || []).length, 1);
   }
-  // An older server (coverage but no can-do): the band code alone — the «0 %» is gone.
-  const old = visibleText(home('fr', { level: { band: 'A1.1', percent: 0 } }));
-  assert.match(old, /A1\.1/);
-  assert.doesNotMatch(old, /%/);
-  assert.match(home('fr'), /Ton niveau : A1\.1/);
-  // Nothing from the server, no level line.
-  assert.doesNotMatch(home('en', { level: null }), /av2-home__level/);
+});
+
+test('owner 2026-10-18: the streak is a pile of saucers beside the number, no phrase', () => {
+  const { saucersFor } = require('./StreakSaucers.tsx');
+  assert.deepEqual([0, 1, 2, 5, 7, 300].map(saucersFor), [0, 1, 2, 5, 5, 5], 'one saucer a day, five at most');
+  const fr = home('fr', { streak: 7 });
+  const streak = fr.slice(fr.indexOf('class="av2-home__streak"'), fr.indexOf('</a>', fr.indexOf('class="av2-home__streak"')));
+  assert.match(streak, /<svg class="av2-saucers"[^>]*aria-hidden="true"[^>]*data-saucers="5"/);
+  assert.match(streak, /aria-label="7 jours de suite · tes sceaux"/);
+  const inner = streak.slice(streak.indexOf('>') + 1);
+  assert.doesNotMatch(visibleText(inner), /jours/, 'the words are the link’s name, not printed');
+  assert.match(visibleText(inner).trim(), /^7$/);
+  // Today's cup steams once today is done; not before.
+  assert.doesNotMatch(streak, /data-steaming/);
+  assert.match(home('fr', { streak: 7, dayDone: true }), /data-steaming=""/);
+  assert.match(home('fr', { streak: 7, dayDone: true }), /aria-label="7 jours de suite · journée bouclée · tes sceaux"/);
+  // No streak, no mark.
+  assert.doesNotMatch(home('fr', { streak: 0 }), /av2-saucers/);
 });
 
 test('WP-94: a special edition double-rules the masthead; an ordinary day does not', () => {
   assert.match(home('fr', { special: true }), /<header class="av2-home__mast" data-special="">/);
   assert.doesNotMatch(home('fr'), /data-special/);
-});
-
-test('WP-L6: «Cette semaine, on consolide.» on Home while the throttle is on, in the chrome language', () => {
-  assert.doesNotMatch(home('fr'), /data-consolidating/);
-  assert.match(visibleText(home('fr', { consolidating: true })), /Cette semaine, on consolide\./);
-  assert.match(visibleText(home('en', { consolidating: true })), /This week, we consolidate\./);
-  assert.match(visibleText(home('de', { consolidating: true })), /Diese Woche festigen wir\./);
-  const mast = home('fr', { consolidating: true });
-  const header = mast.slice(mast.indexOf('av2-home__mast"'), mast.indexOf('</header>'));
-  assert.equal((header.match(/av2-headline[ "]/g) || []).length, 1, 'a label, never a second headline');
 });
 
 test('at most two chips, one once the day is done, and never a press', () => {
@@ -227,13 +214,13 @@ test('one language per element: the streak, the plan and the chips follow the ch
   assert.match(en, /aria-label="4 days · your seals"/);
   assert.match(en, /<ol class="av2-day-plan" aria-label="Today’s plan">/);
   assert.match(en, /aria-label="Today: 0 of 4 — /);
+  assert.match(home('de'), /aria-label="4 Tage · Deine Siegel"/);
   const de = visibleText(home('de'));
-  assert.match(de, /4 Tage/);
   assert.match(de, /Szene Wörter Antwort Fertig/);
   assert.match(de, /Heute starten/);
   assert.doesNotMatch(de, /jours de suite|Commencer|Start today/);
+  assert.match(home('fr'), /aria-label="4 jours de suite · tes sceaux"/);
   const fr = visibleText(home('fr'));
-  assert.match(fr, /jours de suite/);
   assert.match(fr, /Scène Mots Réponse Bouclé/);
   assert.match(fr, /Commencer/);
   // The day's card is one chrome language; its French is the scene's title.

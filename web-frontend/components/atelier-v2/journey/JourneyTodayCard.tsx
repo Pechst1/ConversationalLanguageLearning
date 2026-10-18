@@ -28,13 +28,14 @@ import React from 'react';
 
 import {
   Action,
-  Artwork,
   AtelierV2Root,
   Byline,
   ShapeToken,
   Surface,
 } from '@/components/atelier-v2/ui';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import type { StageMember } from '@/components/cast/PanelStage';
+import { useArtSet } from '@/lib/art-set';
 import { readerCopy } from '@/components/feuilleton/reader/reader-copy';
 import {
   headlineKicker,
@@ -50,7 +51,9 @@ import { gentleReturnLabel } from '@/lib/gentle-return';
 import { preparingLine } from '@/lib/journey-reply-reveal';
 
 import { journeyChromeLanguage } from '@/lib/language-rule';
+import { resolveMediaUrl } from '@/lib/media-url';
 
+import { EpisodeVignette, vignettePlace, type VignettePlace } from './EpisodeVignette';
 import { journeyCopy } from './journey-copy';
 import { InterludeCard, SeasonPremiereCard } from './SeasonPages';
 import { seasonReturnCopy } from './season-return-copy';
@@ -59,6 +62,7 @@ import {
   journeyAtFirstStep,
   premierePoster,
   recapTeaserOf,
+  teaserHint,
   todayInterlude,
   todayPremiere,
   type InterludeView,
@@ -333,6 +337,7 @@ function JourneyTodayBody({
           // engine's generic offer has none of its own).
           imageUrl={scenario.image_url || headline?.image_url || null}
           imageAlt={scenario.objective_native}
+          scene={sceneOf(scenario, headline)}
           preparing={busy}
           special={special}
           byline={
@@ -395,6 +400,7 @@ function JourneyTodayBody({
           // engine's generic offer has none of its own).
           imageUrl={scenario.image_url || headline?.image_url || null}
           imageAlt={scenario.objective_native}
+          scene={sceneOf(scenario, headline)}
           special={special}
           byline={
             scenario.character_name ? <Byline name={scenario.character_name} /> : null
@@ -419,6 +425,7 @@ function JourneyTodayBody({
           lang="fr"
           imageUrl={scenario.image_url}
           imageAlt={scenario.objective_native}
+          scene={sceneOf(scenario, null)}
           special={special}
           byline={scenario.character_name ? <Byline name={scenario.character_name} /> : null}
         >
@@ -461,8 +468,11 @@ function JourneyTodayBody({
       // WP-81: the completed state — the ink «done» square and «Done for
       // today» over the scene's own French title, and one quiet «Revoir».
       const titleFr = phase.journey?.scenario?.title_fr?.trim();
-      // WP-99: «La suite demain» — the engine's own teaser first.
+      // WP-99: «La suite demain» — the engine's own teaser first. Owner,
+      // 2026-10-18: on Home it is a few words, where the story goes tomorrow;
+      // the whole line stays on the recap.
       const teaser = phase.recap?.completion_kind === 'early' ? null : recapTeaserOf(phase.recap);
+      const hint = teaser ? teaserHint(teaser.text_fr) : null;
       return (
         <Card
           copy={copy}
@@ -473,12 +483,21 @@ function JourneyTodayBody({
           // Owner test 2026-09-30: the day's episode, pictured above «Look again».
           imageUrl={phase.journey?.scenario?.image_url || null}
           imageAlt={titleFr || ''}
+          scene={phase.journey?.scenario ? sceneOf(phase.journey.scenario, null) : null}
         >
-          {teaser && (
+          {teaser && hint && (
             <p className="av2-body journey-today-card__teaser" data-teaser={teaser.source}>
-              <span className="av2-label">{seasonReturnCopy(controlLanguage).teaser_label}</span>{' '}
-              <span className="av2-fr" lang="fr">
-                {frenchQuote(teaser.text_fr)}
+              <span className="av2-label">{seasonReturnCopy(controlLanguage).teaser_label}</span>
+              {teaser.character_id ? (
+                <CastPortrait
+                  characterId={teaser.character_id}
+                  name={teaser.character_name ?? undefined}
+                  size="xs"
+                  alt=""
+                />
+              ) : null}
+              <span className="av2-fr journey-today-card__hint" lang="fr">
+                {frenchSpacing(hint)}
               </span>
             </p>
           )}
@@ -528,6 +547,7 @@ function Card({
   lang,
   imageUrl,
   imageAlt,
+  scene = null,
   byline,
   done,
   preparing = false,
@@ -545,6 +565,11 @@ function Card({
   lang?: string;
   imageUrl?: string | null;
   imageAlt?: string;
+  /**
+   * Owner, 2026-10-18: where the scene is and who is in it. A day with no
+   * picture gets its place drawn, with its people in front.
+   */
+  scene?: CardScene | null;
   byline?: React.ReactNode;
   done?: boolean;
   /** WP-76: the scene is being prepared — the place breathes, no spinner. */
@@ -559,15 +584,7 @@ function Card({
       aria-busy={preparing || undefined}
       data-special={special ? 'epreuve' : undefined}
     >
-      {imageUrl && (
-        <Artwork
-          url={imageUrl}
-          alt={imageAlt ?? ''}
-          fallbackLabel={copy.artwork_unavailable}
-          collapseWhenAbsent
-          eager
-        />
-      )}
+      <CardArt url={imageUrl ?? null} alt={imageAlt ?? ''} scene={scene} />
       <div className="journey-today-card__body av2-stack">
         <p className="av2-label av2-label--story">
           {done && <ShapeToken kind="done" size="sm" />}{' '}
@@ -585,7 +602,9 @@ function Card({
           {lang === 'fr' ? frenchSpacing(title) : title}
         </h2>
         {byline}
-        {headline && <HeadlineCast headline={headline} language={controlLanguage} title={title} />}
+        {headline && (
+          <HeadlineCast headline={headline} language={controlLanguage} title={title} faces={Boolean(imageUrl) || !scene} />
+        )}
         {special?.line && (
           <p className="av2-body av2-special__list" data-special-list="">
             {special.line}
@@ -595,6 +614,55 @@ function Card({
       </div>
     </Surface>
   );
+}
+
+/** Where today's scene happens and who is on its page, for the drawn card art. */
+type CardScene = { place: VignettePlace; cast: StageMember[] };
+
+type SceneSource = {
+  character_id?: string | null;
+  character_name?: string | null;
+  location_id?: string | null;
+  location_name?: string | null;
+};
+
+/** The scene's place, and its lead first, then the headline's cast. */
+function sceneOf(scenario: SceneSource, headline: Headline | null | undefined): CardScene {
+  const ids = [scenario.character_id || scenario.character_name, ...(headline?.cast || []).map((member) => member.id)];
+  const cast: StageMember[] = [];
+  for (const id of ids) {
+    const key = String(id || '').trim();
+    if (key && !cast.some((member) => member.id === key)) cast.push({ id: key, speaking: cast.length === 0 });
+  }
+  return { place: vignettePlace(scenario.location_id, scenario.location_name), cast };
+}
+
+/**
+ * The card's picture: the episode's art when there is one; otherwise (or when it
+ * fails to load) its place drawn, with its people in front (owner, 2026-10-18).
+ * A painted-cast device keeps the drawn place and leaves the drawn people out.
+ */
+function CardArt({ url, alt, scene }: { url: string | null; alt: string; scene: CardScene | null }) {
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => setFailed(false), [url]);
+  const drawn = useArtSet() === 'drawn';
+  const resolved = url ? resolveMediaUrl(url) || url : null;
+  if (resolved && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        className="av2-art"
+        src={resolved}
+        alt={alt}
+        onError={() => setFailed(true)}
+        loading="eager"
+        {...{ fetchpriority: 'high' }}
+        decoding="async"
+      />
+    );
+  }
+  if (!scene) return null;
+  return <EpisodeVignette place={scene.place} cast={drawn ? scene.cast : []} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -608,14 +676,18 @@ function HeadlineCast({
   headline,
   language,
   title,
+  faces = true,
 }: {
   headline: Headline;
   language?: DailyJourneyController['controlLanguage'] | null;
   title: string;
+  /** false: the card's drawing already shows who is in it. */
+  faces?: boolean;
 }) {
-  const teaser = headlineTeaser(headline, title);
+  // Owner, 2026-10-18: a few words, never a paragraph, on Home.
+  const teaser = teaserHint(headlineTeaser(headline, title));
   const showTeaser = Boolean(teaser);
-  const cast = headline.cast || [];
+  const cast = faces ? headline.cast || [] : [];
   if (!showTeaser && !cast.length) return null;
   return (
     <div className="journey-today-card__headline av2-stack" data-headline="">
@@ -623,7 +695,7 @@ function HeadlineCast({
         <p className="av2-body" data-headline-teaser="">
           <span className="av2-label">{readerCopy(language ?? null).to_follow}</span>{' '}
           <span className="av2-fr" lang="fr">
-            {frenchQuote(teaser ?? '')}
+            {frenchSpacing(teaser ?? '')}
           </span>
         </p>
       )}

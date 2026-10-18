@@ -897,6 +897,10 @@ trust the learner enough to offer «tu» — until now they say «vous» to each
 that character the addressed character today and let them ask it in opening_line_fr,
 warmly and in their own voice, with the words «On se tutoie ?»; the scene still speaks
 vous. Never presume the learner's answer. When tutoiement is absent, nobody raises it.
+TITLE. title_fr is the page's headline on the learner's home screen, read before the
+page: three to six plain French words that say who and what the page is about, the
+situation and not its outcome (the form of «Margaux perd ses clés» or «Un dimanche au
+marché», never these words). Never a riddle or a mood («Mercredi ne vient plus»).
 FACES AND READING AIDS. Every dialogue line has mood: how the speaker feels saying it —
 neutral, happy, cross, moved or cold (the reader's portrait plays it, so vary it with
 the scene; cold is a dry, frosty or wary line, never played with a smile). When line_translation names a language, every dialogue line also has

@@ -1965,7 +1965,10 @@ const noSleep = () => Promise.resolve();
   // The card no longer carries its own primary: the action sits under it.
   const card = fs.readFileSync(path.join(__dirname, 'JourneyTodayCard.tsx'), 'utf8');
   assert.ok(card.includes('function JourneyPrimary('), 'the primary action is its own block under the card');
-  assert.ok(card.includes('collapseWhenAbsent'), 'no empty art plate on the Home card');
+  // Owner, 2026-10-18: no empty art plate on the Home card — a day with no
+  // picture, or one that fails to load, gets its place drawn instead.
+  assert.ok(card.includes('<EpisodeVignette'), 'a day with no picture is drawn');
+  assert.ok(card.includes('onError={() => setFailed(true)}'), 'a picture that fails gives way to the drawing');
   assert.ok(card.includes('journeyChromeLanguage(controller)'), 'the card resolves its one chrome language');
   const session = fs.readFileSync(path.join(__dirname, 'JourneySession.tsx'), 'utf8');
   assert.ok(!session.includes("atelierCopy('fr')"), 'the step caption follows the chrome language');
@@ -2325,3 +2328,27 @@ const noSleep = () => Promise.resolve();
 }
 
 console.log('WP-66 day shapes and recall formats: ok');
+
+// Owner 2026-10-18: «La suite demain» on Home is a few words, never the whole teaser.
+{
+  const { teaserHint } = require('./season-return-model.ts');
+  assert.equal(teaserHint('Lila et Berlin : est-ce qu’elle part vraiment cet hiver, ou reste-t-elle au Mistral ?'), 'Lila et Berlin');
+  assert.equal(teaserHint('Marin hésite. «Qui était Odile, et pourquoi est-elle partie ?» À suivre…'), 'Qui était Odile, et pourquoi est-elle partie ?');
+  assert.equal(teaserHint('Deux clés pour la même porte.'), 'Deux clés pour la même porte');
+  const long = teaserHint('Je viendrai signer la pétition de la boulangère demain matin avant le marché du quartier');
+  assert.ok(long.endsWith('…') && long.split(/\s+/).length <= 7, long);
+  assert.doesNotMatch(long, /\b(de|la|le) …$/);
+}
+
+// Owner 2026-10-18: a card without a picture draws its place, never an empty slot.
+{
+  const { EpisodeVignette, vignettePlace } = require('./EpisodeVignette.tsx');
+  assert.equal(vignettePlace('canal', null), 'canal');
+  assert.equal(vignettePlace(null, 'La gare de l’Est'), 'station');
+  assert.equal(vignettePlace(null, null), 'cafe');
+  const html = renderToStaticMarkup(React.createElement(EpisodeVignette, { place: 'canal', cast: [], still: true }));
+  assert.match(html, /class="journey-vignette" data-vignette="canal"/);
+  assert.match(html, /<svg[^>]*class="journey-vignette__place"/);
+}
+
+console.log('owner 2026-10-18 home card hint and drawing: ok');

@@ -174,7 +174,7 @@ import { RuleCard, RULE_CARD_SPEAKERS } from '@/components/atelier-v2/rule/RuleC
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { coachFor, coachMood, type ForgeCoach } from '@/lib/forge-coach';
 import { pulseAppHaptic } from '@/lib/haptics';
-import { epreuveOf, nextCanDoOf, nextStepView } from '@/lib/can-dos';
+import { epreuveOf } from '@/lib/can-dos';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
 import { journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
@@ -2712,16 +2712,6 @@ function TodayView({
   // ---- Home (design direction 1a): one story, one action, three tiles. ----
   const levelLabel = cefr?.estimate ? ` · ${cefr.estimate}` : '';
   const editionLabel = `Édition Nº ${episodeNumber}${levelLabel}`;
-  // WP-L7: «A1.1 · 60 %» — the band in force and its coverage, from the server.
-  const homeLevel =
-    cefr?.coverage && typeof cefr.coverage.percent === 'number' && cefr.coverage.band
-      ? { band: String(cefr.coverage.band), percent: Number(cefr.coverage.percent) }
-      : null;
-  // WP-95 / W12: the next can-do replaces the percentage on Home.
-  const homeNextStep = nextStepView(
-    { band: homeLevel?.band ?? null, ...nextCanDoOf(cefr, today) },
-    chromeLanguage,
-  );
   // WP-94: today is a «Numéro spécial» — the masthead is double-ruled.
   const specialEdition = Boolean(epreuveOf(dayJourney) ?? epreuveOf(dayEnvelope));
   // For engine-managed learners `/serial/today` answers `journey_required`
@@ -3044,10 +3034,7 @@ function TodayView({
       hero={homeHero}
       dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
       editionLabel={editionLabel}
-      level={homeLevel}
-      nextStep={homeNextStep}
       special={specialEdition}
-      consolidating={Boolean(today?.intake?.consolidating)}
       streak={streak}
       // WP-79: the server's checked `streak.today_done` (WP-80), never inferred.
       dayDone={Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done)}
