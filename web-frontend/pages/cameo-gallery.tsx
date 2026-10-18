@@ -59,7 +59,11 @@ export default function CameoGallery() {
               key={item.id}
               type="button"
               data-chapter={item.segment}
-              onClick={() => emitCameo({ type: 'chapter', part: { season_id: item.season, segment: item.segment, kind: 'tentpole' }, replay: true })}
+              onClick={() => {
+                // everybody met (the page's first announcement can come before the layer listens)
+                emitCameo({ type: 'met', ids: CAMEO_CAST.map((who) => who.id) });
+                emitCameo({ type: 'chapter', part: { season_id: item.season, segment: item.segment, kind: 'tentpole' }, replay: true });
+              }}
               style={{ display: 'grid', justifyItems: 'center', gap: 4, padding: 6, background: 'var(--app-paper)', border: '1px solid var(--app-rule, #d9cfbb)', borderRadius: 12 }}
             >
               <PlotItem id={item.id} size={60} />

@@ -8,9 +8,10 @@
  *     itself a button or a link: the face wobbles and answers back;
  *   * a long stillness on an exercise screen (`.ep-top`), once in a while.
  *
- * Every cameo says why it came in a small tag over its bubble («5 de suite», «Nouvel objet :
- * la clé à la cigale»), in the learner's language, so it reads as an answer to something the
- * learner did. A `chapter` cameo holds out the season's new object (components/cast/items).
+ * Every cameo says why it came in a small tag over its bubble («5 de suite», «Nouvel objet de la
+ * saison»), in the learner's language, so it reads as an answer to something the learner did. A
+ * `chapter` cameo brings the season's new object in its own hand (components/cast/items), and the
+ * object lands beside the bubble, with its name, as the hand lets go.
  *
  * Whoever has a jointed figure (components/cast/vivant) walks in acting: a bravo
  * for a streak, an «oups» to comfort, their signature move to photobomb.
@@ -42,6 +43,7 @@ import type { Cameo, CameoEvent, CameoFigure, CameoGag, CameoLang, CameoMood, Ca
 import { readLearnerLanguage } from '@/lib/learner-language';
 
 import { CastRig } from './CastRig';
+import { handoverAt, itemOffer } from './items/offer';
 import { PlotItem } from './items/PlotItem';
 import type { ExpressionId, GestureId } from './vivant/kit';
 import { figureFor } from './vivant/registry';
@@ -77,10 +79,25 @@ function gestureFor(cameo: Cameo, figure: CameoFigure): GestureId | null {
   }
 }
 
-/** The jointed figure when the cast member has one (La troupe vivante), else the rig. */
+/**
+ * The jointed figure when the cast member has one (La troupe vivante), else the rig. Bringing the
+ * season's object, the figure holds it out in its own hand.
+ */
 function CameoFace({ cameo, figure, size, crop = 'bust' }: { cameo: Cameo; figure: CameoFigure; size: number; crop?: 'bust' | 'full' }) {
-  if (!figureFor(figure.id)) return <CastRig id={figure.id} mood={figure.mood} crop={crop} size={size} label="" />;
-  return <VivantFigure id={figure.id} expression={FACE[figure.mood]} gesture={gestureFor(cameo, figure)} crop={crop} size={size} label="" />;
+  const fig = figureFor(figure.id);
+  if (!fig) return <CastRig id={figure.id} mood={figure.mood} crop={crop} size={size} label="" />;
+  const offer = cameo.trigger === 'chapter' && cameo.item ? itemOffer(fig.key, cameo.item, figure.mood) : null;
+  return (
+    <VivantFigure
+      id={figure.id}
+      expression={offer?.face ?? FACE[figure.mood]}
+      gesture={gestureFor(cameo, figure)}
+      offer={offer ?? undefined}
+      crop={crop}
+      size={size}
+      label=""
+    />
+  );
 }
 
 function reducedMotion(): boolean {
@@ -149,13 +166,17 @@ function Reason({ cameo, language }: { cameo: Cameo; language: CameoLang }) {
   );
 }
 
-/** The season's new object, held out beside the figure, with its French name. */
+/**
+ * The season's new object, with its French name: it arrives as the figure's hand lets it go, so
+ * it reads as handed over (at once when the figure does not hold it).
+ */
 function HeldItem({ cameo, language, glossed }: { cameo: Cameo; language: CameoLang; glossed: boolean }) {
   const item = seasonItem(cameo.item);
   if (!item) return null;
   const gloss = glossed ? cameoGloss(item.name, language) : null;
+  const at = handoverAt(figureFor(cameo.figures[0]?.id), item.id);
   return (
-    <span className="cameo-item">
+    <span className="cameo-item" data-handover={at === null ? undefined : 'true'} style={{ '--cameo-handover': `${at ?? 0}ms` } as CSSProperties}>
       <PlotItem id={item.id} size={76} />
       <span className="cameo-item__name" lang="fr">
         {item.name.fr}

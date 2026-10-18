@@ -240,6 +240,7 @@ test('a new part of the season: its own person hands over its object, once', () 
   assert.equal(out[0].item, 'cle_cigale');
   assert.equal(out[0].figures[0].id, 'margaux_barman');
   assert.equal(out[0].reason.fr, 'Nouvel objet de la saison');
+  assert.equal(out[0].edge, 'left', 'in from the left, so the hand holding it out reaches into the page');
   assert.equal(out[1], null, 'day B of the same part hands nothing over again');
   assert.deepEqual(state.items, ['s1.cle_cigale']);
   const gap = run([{ type: 'chapter', part: { season_id: 's1', segment: 'g1', kind: 'gap' } }], never, 1_000_000, met);

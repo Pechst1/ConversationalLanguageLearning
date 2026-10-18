@@ -305,13 +305,14 @@ function soloSaying(
   mood: CameoMood,
   line: CameoLine,
   rand: () => number,
-  extras: { gag?: boolean; ttl?: number; item?: SeasonItemId } = {},
+  extras: { gag?: boolean; ttl?: number; item?: SeasonItemId; edge?: 'left' | 'right' } = {},
 ): Cameo {
+  const side: 'left' | 'right' = rand() < 0.5 ? 'left' : 'right';
   return {
     key: state.seq + 1,
     trigger,
     kind: 'solo',
-    edge: rand() < 0.5 ? 'left' : 'right',
+    edge: extras.edge ?? side,
     figures: [{ id: who.id, name: who.name, mood, line }],
     gag: extras.gag ? who.gag : undefined,
     item: extras.item,
@@ -459,9 +460,11 @@ export function decideCameo(
       if (!state.items.includes(itemKey(item))) next.items = [...state.items, itemKey(item)];
       // The object's own person hands it over; somebody from the page if the learner has not met them.
       const who = castFor(state).find((c) => c.id === item.carrier) ?? someone(state, rand, null);
+      // From the left, so the hand holding it out (the figure's right) reaches into the page.
       cameo = soloSaying(state, 'chapter', who, item.mood, who.id === item.carrier ? item.line : HANDOVER, rand, {
         ttl: 6500,
         item: item.id,
+        edge: 'left',
       });
       next.lastAmbientAt = now;
     }

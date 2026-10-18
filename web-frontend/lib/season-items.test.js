@@ -10,9 +10,19 @@ const { test } = require('node:test');
 
 const WEB_ROOT = path.resolve(__dirname, '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
+require(path.join(WEB_ROOT, 'node_modules/sucrase/register/tsx'));
+const Module = require('node:module');
+const resolveFilename = Module._resolveFilename;
+Module._resolveFilename = function resolve(request, ...rest) {
+  if (request.startsWith('@/')) return resolveFilename.call(this, path.join(WEB_ROOT, request.slice(2)), ...rest);
+  return resolveFilename.call(this, request, ...rest);
+};
 
 const { SEASON_ITEMS, itemForPart, itemHandedIn } = require('./season-items.ts');
 const { CAMEO_CAST } = require('./cameo.ts');
+const { ITEM_ART } = require('../components/cast/items/PlotItem.tsx');
+const { handoverAt, itemOffer } = require('../components/cast/items/offer.tsx');
+const { figureFor } = require('../components/cast/vivant/registry.ts');
 
 const season = JSON.parse(
   fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/season.json'), 'utf8'),
@@ -25,9 +35,8 @@ test('every tentpole of season 1 hands over exactly one object', () => {
 });
 
 test('every object is drawn and carried by somebody in the cast', () => {
-  const drawings = fs.readFileSync(path.join(WEB_ROOT, 'components/cast/items/PlotItem.tsx'), 'utf8');
   SEASON_ITEMS.forEach((item) => {
-    assert.match(drawings, new RegExp(`\\b${item.id}: \\(\\) =>`), `${item.id} has a drawing`);
+    assert.ok(ITEM_ART[item.id], `${item.id} has a drawing`);
     assert.ok(CAMEO_CAST.some((who) => who.id === item.carrier), `${item.id}: ${item.carrier}`);
     assert.ok(item.line.fr.length <= 52, `too long for a bubble: ${item.line.fr}`);
     assert.ok(item.line.de && item.line.en && item.name.de && item.name.en, item.id);
@@ -41,4 +50,20 @@ test('a gap carries the object of the tentpole before it, and only a tentpole ha
   assert.equal(itemForPart({ season_id: 's1', segment: 'e1' }), null, 'the epilogue has none of its own yet');
   assert.equal(itemForPart({ season_id: 's2', segment: 't1' }), null, 'another season has its own objects');
   assert.equal(itemForPart(null), null);
+});
+
+test('whoever brings an object holds it out in their own hand, and lets go of it before they leave', () => {
+  SEASON_ITEMS.forEach((item) => {
+    const fig = figureFor(item.carrier);
+    assert.ok(fig, `${item.carrier} acts`);
+    const at = handoverAt(fig, item.id);
+    assert.ok(at !== null, `${item.id} is held by ${fig.key}`);
+    // the cameo stays 6.5 s: the object must reach the card well before that
+    assert.ok(at > 800 && at < 4000, `${item.id}: lets go at ${at} ms`);
+  });
+  // Margaux's own gesture already brings her key; anybody else's object she holds out
+  assert.equal(itemOffer('margaux', 'cle_cigale'), null);
+  assert.equal(itemOffer('margaux', 'polaroid').side, 'L');
+  // anyone without a jointed figure has no hand for it: the card comes at once
+  assert.equal(handoverAt(null, 'polaroid'), null);
 });
