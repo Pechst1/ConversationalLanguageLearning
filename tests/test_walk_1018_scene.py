@@ -74,7 +74,7 @@ def _closing_turn(**overrides) -> engine.SemanticTurn:
 # ---------------------------------------------------------------------------
 
 
-def test_the_closing_panel_never_has_lila_say_lila():
+def test_closing_panel_no_self_name():
     """The exact exchange of the walk: Lila answers «pour voir Lila»."""
 
     turn = _closing_turn(resolution_fr="Je comprends. À demain.")
@@ -83,14 +83,14 @@ def test_the_closing_panel_never_has_lila_say_lila():
     assert "Lila" in refused.value.hint and "moi" in refused.value.hint
 
 
-def test_the_scene_finished_card_never_has_lila_say_lila():
+def test_finished_card_no_self_name():
     turn = _closing_turn(reply_fr="D'accord, je ne te force pas.")
     # The reply was already shown: only the ending is judged again on the story lane.
     with pytest.raises(engine.StoryUnavailable, match="speaker_names_self"):
         lanes.validate_story(turn, _lila_payload())
 
 
-def test_the_voice_lane_refuses_the_same_reply():
+def test_voice_lane_no_self_name():
     voice = lanes.VoiceReply(
         reply_fr="Je sais que tu restes pour voir Lila et la boulangerie.",
         understood_intent="The learner stays in Paris for a friend and the bakery.",
@@ -109,12 +109,12 @@ def test_the_voice_lane_refuses_the_same_reply():
         "Tu restes pour Marin et la boulangerie ?",
     ],
 )
-def test_an_introduction_or_another_name_is_fine(line):
+def test_intro_or_other_name_ok(line):
     turn = _closing_turn(reply_fr=line, resolution_fr="À demain, alors.", feeling_shift="steady")
     engine._validate_turn(turn, _lila_payload())
 
 
-def test_a_character_may_name_the_learner_and_the_others():
+def test_others_may_be_named():
     turn = _closing_turn(
         reply_fr="Marin dit que tu restes.", resolution_fr="Lucas, on se voit demain.", feeling_shift="steady"
     )
@@ -126,7 +126,7 @@ def test_a_character_may_name_the_learner_and_the_others():
 # ---------------------------------------------------------------------------
 
 
-def test_a_character_who_lets_it_go_is_not_cross():
+def test_yielding_is_not_cross():
     turn = _closing_turn(
         reply_fr="D'accord, je ne te force pas. Regarde ce chien !",
         resolution_fr="Ça va, on le laisse tranquille. À demain.",
@@ -136,7 +136,7 @@ def test_a_character_who_lets_it_go_is_not_cross():
     assert turn.feeling_shift == "steady"
 
 
-def test_the_voice_lane_does_not_keep_cross_after_dautord():
+def test_voice_not_cross_after_ok():
     voice = lanes.VoiceReply(
         reply_fr="D'accord, je ne te force pas.",
         understood_intent="The learner declines to talk to the agent.",
@@ -155,7 +155,7 @@ def test_the_voice_lane_does_not_keep_cross_after_dautord():
         "Non. Je ne suis pas contente du tout.",
     ],
 )
-def test_a_character_who_is_really_cold_stays_cold(reply):
+def test_really_cold_stays_cold(reply):
     turn = _closing_turn(reply_fr=reply, resolution_fr="Bon. À demain.")
     engine._validate_turn(turn, _lila_payload())
     assert turn.feeling_shift == "colder"
@@ -171,7 +171,7 @@ def _titled(title: str, n: int = 0) -> engine.SceneDraft:
     return engine.SceneDraft.model_validate({**draft(context, n), "title_fr": title})
 
 
-def test_a_scene_title_that_an_earlier_scene_already_wears_is_not_served_twice():
+def test_taken_title_is_repaired():
     earlier = {"novelty_key": "other", "premise_fr": "Le facteur a livré un colis.", "title_fr": "Une habitude au zinc"}
     proposal = _titled("Une habitude au zinc")
     with pytest.raises(engine.SoftRejection, match="repeated_scene_title") as refused:
@@ -183,13 +183,13 @@ def test_a_scene_title_that_an_earlier_scene_already_wears_is_not_served_twice()
     assert served.title_fr.startswith("Une habitude au zinc")
 
 
-def test_a_taken_title_is_compared_without_case_or_punctuation():
+def test_title_compare_is_folded():
     earlier = {"novelty_key": "other", "premise_fr": "Le facteur a livré un colis.", "title_fr": "La même chose ?"}
     with pytest.raises(engine.SoftRejection, match="repeated_scene_title"):
         engine._validate_scene(_titled("la même chose"), _scene_context(recent_situations=[earlier]))
 
 
-def test_a_repaired_title_never_collides_with_a_repaired_one():
+def test_repaired_title_is_unique():
     taken = [
         {"novelty_key": "a", "premise_fr": "Un colis.", "title_fr": "Une habitude au zinc"},
         {"novelty_key": "b", "premise_fr": "Un chat.", "title_fr": "Une habitude au zinc, II"},
@@ -199,14 +199,14 @@ def test_a_repaired_title_never_collides_with_a_repaired_one():
     assert refused.value.proposal.title_fr == "Une habitude au zinc, III"
 
 
-def test_a_new_title_and_scenes_without_stored_titles_pass():
+def test_new_or_legacy_title_ok():
     legacy = [{"novelty_key": "old", "premise_fr": "Le facteur a livré un colis."}]
     engine._validate_scene(_titled("Une habitude au zinc"), _scene_context(recent_situations=legacy))
     titled = [{"novelty_key": "old", "premise_fr": "Le facteur a livré un colis.", "title_fr": "La même chose ?"}]
     engine._validate_scene(_titled("Une habitude au zinc"), _scene_context(recent_situations=titled))
 
 
-def test_the_published_scene_keeps_its_title_for_the_next_one(
+def test_scene_keeps_its_title(
     assembled_client, db_session, journey_enabled, clock, provider  # noqa: F811
 ):
     """``recent_situations`` is what the next director call is checked against."""
@@ -222,7 +222,7 @@ def test_the_published_scene_keeps_its_title_for_the_next_one(
     assert recent and recent[-1].get("title_fr") == "Les affiches 0", recent
 
 
-def test_the_learners_own_place_is_named_in_the_apps_register():
+def test_place_in_apps_register():
     """The app says tu to the learner (#144); the header's place said «Votre»."""
 
     assert engine.LOCATION_NAMES_FR["user_apartment"] == "Ton appartement"
@@ -230,7 +230,7 @@ def test_the_learners_own_place_is_named_in_the_apps_register():
     assert engine.location_display_name(stored) == "Ton appartement"
 
 
-def test_the_scene_record_is_never_made_with_a_taken_title():
+def test_brief_never_a_taken_title():
     """Whatever path served the draft (a soft rejection accepted after its retry included),
     the brief the learner's day is built from carries a title no earlier scene wears."""
 
