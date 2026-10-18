@@ -242,7 +242,7 @@ def test_respond_costs_max_of_tutor_and_voice_and_the_story_lane_comes_after(
     d.advance()
     shown = _resolution(d.journey)["prompt"]
     assert shown["story_pending"] is False
-    assert shown["character_line_fr"] == "Romy note votre proposition pour samedi."
+    assert shown["character_line_fr"] == "Je note votre proposition pour samedi."
     assert shown["summary_native"] == "You offered to bring posters on Saturday."
 
     # A replay of the same mutation is byte-identical and pays nothing.
@@ -386,7 +386,7 @@ def test_flag_off_is_the_single_actor_path_unchanged(
     assert jobs == []
     prompt = _resolution(result["journey"])["prompt"]
     assert prompt["story_pending"] is False
-    assert prompt["character_line_fr"] == "Romy note votre proposition pour samedi."
+    assert prompt["character_line_fr"] == "Je note votre proposition pour samedi."
 
 
 def test_a_dead_lane_is_healed_by_the_polling_read_without_a_paid_call(

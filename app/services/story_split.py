@@ -293,6 +293,9 @@ THE PAGE
   the page does.
 - When the plan has a chapter, chapter_title_fr names it and chapter_question_fr asks its
   question in French; otherwise both are null.
+- title_fr is this page's own headline, about what happens on it. It is never one of
+  taken_titles (the pages already published), and after a chapter's first page it is never
+  the chapter's title again.
 
 LEVEL {band}
 {level_card}
@@ -562,6 +565,14 @@ def planner_payload(context: dict, rejections: list[str]) -> dict:
     }
 
 
+def _taken_titles(context: dict) -> list[str]:
+    return [
+        str(item["title_fr"])
+        for item in (context.get("recent_situations") or [])[-RECENT_DAYS * 3 :]
+        if item.get("title_fr")
+    ]
+
+
 def author_payload(context: dict, plan: PagePlan, rejections: list[str]) -> dict:
     from app.services import living_story as engine
 
@@ -590,6 +601,8 @@ def author_payload(context: dict, plan: PagePlan, rejections: list[str]) -> dict
         **({"memory": memory} if (memory := story_memory.narrow(context.get("memory"), on_page)) else {}),
         "registers": {member: register for member, register in _registers(context).items() if member in on_page},
         "learner": context.get("learner"),
+        # #194: the headlines the earlier pages wear, so this one is not served under one.
+        **({"taken_titles": titles} if (titles := _taken_titles(context)) else {}),
         "writing_rules": brief.get("writing_rules") or [],
         "concept": _concept(context),
         "story_words": context.get(engine.STORY_WORDS_KEY) or None,

@@ -201,7 +201,10 @@ VOICE = """You are one character of Atelier, speaking back to the learner in a s
 scene. Return only JSON matching output_schema. You do not grade and you do not correct.
 reply_fr is the character answering the learner's actual meaning in their own voice and
 register — agree, refuse, ask back, react — never a restatement or copy of the learner's
-sentence and never the learner's next line. Understand the whole turn: negation, refusal,
+sentence and never the learner's next line. You never name yourself in it: when the
+learner's words are about you («ma amie Lila», said to Lila), say moi, me or toi
+(«tu restes pour me voir»). feeling_shift is colder only when your own words are cold:
+a character who says «D'accord, je ne te force pas» has not cooled. Understand the whole turn: negation, refusal,
 paraphrase, pronouns, revised choices; never turn 'I do not want coffee' into ordering
 coffee. The reply is emotional truth, not customer service: show how the words land on
 you (relief, disappointment, a joke to cover hurt, warmth), answering from mood and
@@ -259,7 +262,8 @@ after met, a success after not_yet). When released.outcome_corrected_from is set
 grade was corrected after release: write the ending of that corrected outcome.
 resolution_fr (French) is how the scene ends after that reply: the app prints it in the
 character's speech bubble, under their name, so it is the character's own last spoken
-line, in the first person, with no narration about them and no quotation marks.
+line, in the first person, with no narration about them and no quotation marks. They never
+name themselves in it: the learner's words about them come back as moi, me or toi.
 summary_native (in story.control_language) says in one or two plain sentences what
 happened in the story and what the character wants or will do next — a refusal or a
 partial result still gets an honest ending, never invented success. It is not feedback:
@@ -535,6 +539,10 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     # («pauvre toi, gelé»), honouring a gender the learner gave.
     lane_guards.check_agreement([voice.reply_fr], address, own=own)
     engine._check_register([voice.reply_fr], level)
+    # #212: the speaker never names themselves, and a cooling the reply itself gives
+    # way on is not printed under their name.
+    engine._check_speaker_not_named([voice.reply_fr], payload)
+    voice.feeling_shift = engine.reconciled_feeling_shift(voice.feeling_shift, [voice.reply_fr])
     expected = _scene_register(scene)
     said = engine._address_register([voice.reply_fr])
     if expected and said and said != expected:

@@ -1,5 +1,5 @@
 # prompt snapshot · page-a2-clean-la-boite · lane page · level A2
-# key: sha256:cc4ab4268d039617269bf202be95126657e781b3458890ccdaa6cb3f39ee3cd8
+# key: sha256:2c1a18b77fa595887ba0ee03c27cd2e5b6e00c2fd4a14a04f47134d9ced348f4
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
 ======== call 1 · PagePlan #1 · 092dc7bdd0f6b00b ========
@@ -565,7 +565,7 @@ peut écrire ton nom.»
  "previous_rejections": []
 }
 
-======== call 2 · PageText #1 · de888f5e9b1992de ========
+======== call 2 · PageText #1 · b370014ce6ea0302 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PageText", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PageText sha256:3fcf082adfdc0612
 -------- system --------
@@ -600,6 +600,9 @@ THE PAGE
   the page does.
 - When the plan has a chapter, chapter_title_fr names it and chapter_question_fr asks its
   question in French; otherwise both are null.
+- title_fr is this page's own headline, about what happens on it. It is never one of
+  taken_titles (the pages already published), and after a chapter's first page it is never
+  the chapter's title again.
 
 LEVEL A2
 Present, passé composé and futur proche; simple reasons with parce que or mais;

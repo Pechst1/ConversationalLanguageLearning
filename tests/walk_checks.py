@@ -46,7 +46,7 @@ def _fake_strings() -> frozenset[str]:
         "Two friends at the zinc.",
         "A glass.",
         "The friend turns to you.",
-        "Romy note votre réponse.",
+        "Je note votre réponse.",
         "Tu en penses quoi ?",
         "Tu as une minute ?",
         "Alors, on fait quoi ?",
