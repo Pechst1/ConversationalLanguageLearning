@@ -95,16 +95,24 @@ import {
 } from '@/components/epreuve/Epreuve';
 import { AtelierV2Root, Notice, useControlLanguage } from '@/components/atelier-v2/ui';
 import {
-  ForgeBestCombo,
-  ForgeCombo,
-  ForgeCount,
+  ForgeBestRun,
+  ForgeDrillTag,
   ForgeHead,
+  ForgeProgress,
   ForgeRareToken,
   ForgeRecapRules,
-  ForgeRuleChange,
+  ForgeSheetTestOut,
   ForgeStyles,
-  type ForgeCoach as ForgeHeadCoach,
+  ForgeTestOutOffer,
 } from '@/components/epreuve/Forge';
+import {
+  ForgeDrillStyles,
+  ForgeListen,
+  ForgeRafale,
+  ForgeRafaleResult,
+  ForgeSpot,
+  ForgeTypedField,
+} from '@/components/epreuve/ForgeDrills';
 import EditorialMasthead from '@/components/layout/EditorialMasthead';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 // Atelier V2 daily journey (WP-07 functional milestone). The V2 branch below is
@@ -149,28 +157,41 @@ import {
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { fillForge, forgeCopy, forgeRungLabel } from '@/lib/forge-copy';
+import { fillForge, forgeCopy } from '@/lib/forge-copy';
 import {
   clampRung,
+  correctionAnchor,
   cueIsLocalized,
   localizedCue,
   recapRuleRows,
-  ruleChanged,
-  ruleShape,
+  seanceCount,
   seanceCountText,
-  stepText,
-  type SeenItem,
+  withoutRuleReference,
 } from '@/lib/forge-progress';
+import {
+  burstItems,
+  burstItemKey,
+  burstRows,
+  dictationText,
+  drillOnScreen,
+  forgeCheer,
+  isNamedDrill,
+  spotAnswer,
+  spotChanged,
+  spotTokens,
+  testOutOffer,
+  type ForgeDrill,
+} from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
-import { comboEnabled, comboFeel, comboOf, comboStep } from '@/lib/forge-combo';
-import { bestComboLine, comboLabel, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
+import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
+import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { usableCard } from '@/lib/rule-card';
-import { RuleCard, RULE_CARD_SPEAKERS } from '@/components/atelier-v2/rule/RuleCard';
+import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { coachFor, coachMood, type ForgeCoach } from '@/lib/forge-coach';
 import { pulseAppHaptic } from '@/lib/haptics';
@@ -676,6 +697,9 @@ function firstMintedCollectible(collectibles: AtelierCollectible[] | undefined, 
 }
 
 const ATELIER_CONFIRM_NEEDED_NOTICE: AtelierErrorNotice = { kind: 'confirm_needed' };
+
+/** «Dictée»: the server's French voice. Module-level, so a sentence is fetched once. */
+const synthesizeFrench = (text: string) => apiService.synthesizeSpeech(text);
 
 // WP-82: the kind is recorded here; the words are chosen at render time, in
 // the chrome language of the screen showing them (`atelierErrorText`).
@@ -1332,13 +1356,18 @@ export default function AtelierPage() {
     }
   };
 
-  const submitAttempt = async () => {
+  /**
+   * Sends the answer on screen. La Forge's «Rafale» sends its four judgements
+   * as one answer (`overrides`): their ids name the exercise, and the answers
+   * come from the burst, not the field.
+   */
+  const sendAttempt = async (overrides?: { answers: Record<string, string>; exerciseId: string; burst?: string[] }) => {
     if (!session) return;
     if (submitted[scopedKey]) {
       say(pageCopy.say_already_done);
       return;
     }
-    if (!currentAttemptReady) {
+    if (!overrides && !currentAttemptReady) {
       say(pageCopy.say_answer_first);
       return;
     }
@@ -1350,15 +1379,20 @@ export default function AtelierPage() {
       const confidence = confidenceByKey[attemptKey];
       const retestSourceAttemptId = activeRetest?.sourceAttemptId || null;
       if (exerciseRound === 'recognize') {
-        const itemAnswers = activeAnswerItemId ? { [activeAnswerItemId]: currentAnswers[activeAnswerItemId] ?? '' } : currentAnswers;
+        const itemAnswers = overrides
+          ? overrides.answers
+          : activeAnswerItemId ? { [activeAnswerItemId]: currentAnswers[activeAnswerItemId] ?? '' } : currentAnswers;
+        if (overrides) setAnswers((prev) => ({ ...prev, [attemptKey]: { ...(prev[attemptKey] || {}), ...overrides.answers } }));
         result = await apiService.submitAtelierAttempt(session.session_id, {
           concept_id: activeConcept?.id,
           round: exerciseRound,
           mode: exerciseMode,
-          exercise_id: activeRetest
-            ? `${activeRetest.exerciseId}:retest:${activeRetest.id}`
-            : scopedExerciseId(activeConcept, exerciseRound, exerciseMode, activeAnswerItemId),
-          answer_payload: { answers: itemAnswers },
+          exercise_id: overrides
+            ? overrides.exerciseId
+            : activeRetest
+              ? `${activeRetest.exerciseId}:retest:${activeRetest.id}`
+              : scopedExerciseId(activeConcept, exerciseRound, exerciseMode, activeAnswerItemId),
+          answer_payload: overrides?.burst ? { answers: itemAnswers, burst: overrides.burst } : { answers: itemAnswers },
           confidence,
           retest_source_attempt_id: retestSourceAttemptId,
           resubmit,
@@ -1475,6 +1509,20 @@ export default function AtelierPage() {
       setSubmitting(false);
     }
   };
+  const submitAttempt = () => {
+    void sendAttempt();
+  };
+  // «Rafale»: graded as one attempt over the four items it names.
+  const submitForgeBurst = (burstAnswers: Record<string, string>, ids: string[]) => {
+    if (exerciseRound !== 'recognize' || exerciseMode !== 'classify' || ids.length < 2) return;
+    // The four are one attempt, named by the lead and their count; their ids
+    // ride in the payload (four of them overflow the exercise id's column).
+    void sendAttempt({
+      answers: burstAnswers,
+      burst: ids,
+      exerciseId: scopedExerciseId(activeConcept, 'recognize', 'classify', `${ids[0]}+${ids.length}`),
+    });
+  };
 
   const retryCurrentAttempt = () => {
     setSubmitted((prev) => ({ ...prev, [scopedKey]: false }));
@@ -1550,16 +1598,18 @@ export default function AtelierPage() {
   };
 
   // WP-S3 — «Épreuve de la règle» from the séance's rule header.
-  const startTestOut = async (conceptId: number) => {
-    if (testOutPending) return;
+  const startTestOut = async (conceptId: number, options?: Parameters<typeof apiService.startForgeTestOut>[1]) => {
+    if (testOutPending) return false;
     setTestOutPending(true);
     try {
-      const started = await apiService.startForgeTestOut(conceptId);
+      const started = await apiService.startForgeTestOut(conceptId, options);
       hydrateSession(started, true);
       void router.replace(`/atelier?testout=${started.session_id}`, undefined, { shallow: true });
+      return true;
     } catch (error) {
       console.error(error);
       say(forgeCopy(pageChromeLanguage).test_out_failed_start, 'alert');
+      return false;
     } finally {
       setTestOutPending(false);
     }
@@ -2277,6 +2327,7 @@ export default function AtelierPage() {
             forgeResultOpen={forgeResultOpen}
             testOutPending={testOutPending}
             onTestOut={startTestOut}
+            onSubmitBurst={submitForgeBurst}
             onLeaveTestOut={() => {
               const conceptId = forge?.rules?.[0]?.concept_id;
               void router.push(conceptId ? `/grammar?concept=${conceptId}` : '/grammar');
@@ -2292,6 +2343,12 @@ export default function AtelierPage() {
             language={pageChromeLanguage}
             recommendation={legacyRecommendation}
             dayHandOn={dayHandOn ? { label: dayHandOn.label } : null}
+            testOutPending={testOutPending}
+            onTestOut={(conceptId) => {
+              void startTestOut(conceptId, { short: true, source: 'forge' }).then((started) => {
+                if (started) setRecap(null);
+              });
+            }}
             onRecommendedAction={() => {
               setRecap(null);
               if (dayHandOn) {
@@ -3582,6 +3639,7 @@ function SessionView({
   testOutPending = false,
   onTestOut,
   onLeaveTestOut,
+  onSubmitBurst,
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
@@ -3625,6 +3683,8 @@ function SessionView({
   testOutPending?: boolean;
   onTestOut?: (conceptId: number) => void;
   onLeaveTestOut?: () => void;
+  /** «Rafale»: the four judgements, sent as one answer. */
+  onSubmitBurst?: (answers: Record<string, string>, ids: string[]) => void;
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
@@ -3663,7 +3723,8 @@ function SessionView({
   const classifyItem = classifyItems.length ? classifyItems[safeDrillItemIndex(activeItemIndex, classifyItems)] : null;
   // The design's primary cycles Vérifier → Continuer → Terminer.
   const feedbackNextLabel = isFinalConversation ? t.finish : t.continue;
-  const feedbackRule = currentFeedback && !currentFeedback.correct
+  // In the forge the rule's name is on the screen once, in its head.
+  const feedbackRule = currentFeedback && !currentFeedback.correct && !forge
     ? feedbackRuleLine(activeSet, activeConcept, t)
     : undefined;
   const feedbackNext = isFinalConversation ? completeSession : goNext;
@@ -3688,8 +3749,9 @@ function SessionView({
   const epGroups = [{ total: Math.max(1, total), set: completedDrills, current: !sessionComplete }];
   const epCap: [string, string] = [`${completedDrills}/${total || '–'}`, ''];
   // The "Manqué · …" note explains why this concept was seated; said once, on
-  // arrival, it is context — repeated above all 15 drills it was clutter.
-  const provenance = roundOrdinal === 1 && activeItemIndex === 0 && !isRetest
+  // arrival, it is context — repeated above all 15 drills it was clutter. The
+  // forge draws none (owner, 2026-10-18): its own mistakes come back as drills.
+  const provenance = !forge && roundOrdinal === 1 && activeItemIndex === 0 && !isRetest
     ? provenanceLine(activeConcept?.due_errata?.[0])
     : null;
   const activeLock = currentCorrection?.adaptive_lock;
@@ -3698,39 +3760,34 @@ function SessionView({
   // a placeholder. WP-S1: only a checked verdict counts — an unchecked answer
   // or a provisional one (its second check still running) neither extends
   // nor breaks the run.
+  // The legacy ladder's red «● n»; La Forge cheers its run under a right answer.
   const correctRun = correctRunFrom(Object.values(correctionsByKey));
-  // WP-S7: in La Forge the run is the combo — tokens in the rule's shape.
   const mc = momentumCopy(language);
-  const combo = comboOf(forge, Object.values(correctionsByKey));
-  const showCombo = Boolean(forge && forge.mode === 'seance' && comboEnabled(forge));
 
-  // ---- WP-S6 La Forge: one human progress, the rule's head, the rule change. ----
-  const forgeShape = ruleShape(activeConcept);
-  const forgeRung = clampRung(forgeNext?.rung ?? forgeRule?.rung ?? 0);
-  const forgeRungName = forgeNext?.rung_name ?? forgeRule?.rung_name;
-  const forgeStep = stepText(fc, forgeRung, forgeRungName);
-  const forgeStairLabel = fillForge(fc.stair_label, { n: forgeRung + 1, rung: forgeRungLabel(fc, forgeRungName) });
-  const seenRef = useRef<SeenItem | null>(null);
-  const [ruleChangeAt, setRuleChangeAt] = useState<number | null>(null);
-  const servedPosition = forge?.mode === 'seance' && forge.next ? Number(forge.next.position) : null;
-  const servedConcept = forge?.mode === 'seance' && forge.next ? Number(forge.next.concept_id) : null;
-  useEffect(() => {
-    if (servedPosition == null || servedConcept == null) return;
-    const seen: SeenItem = { position: servedPosition, conceptId: servedConcept };
-    if (seenRef.current?.position === seen.position) return;
-    if (ruleChanged(seenRef.current, seen)) setRuleChangeAt(seen.position);
-    seenRef.current = seen;
-  }, [servedPosition, servedConcept]);
-  const speaker = ruleCard?.speaker ? String(ruleCard.speaker) : '';
-  // WP-S5's coach (served with the item) wins; the rule card's speaker is the fallback.
-  const forgeCoach: ForgeHeadCoach | null = activeConcept
-    ? ruleCoach
-      ? { id: ruleCoach.id, name: ruleCoach.name }
-      : speaker ? { id: speaker, name: RULE_CARD_SPEAKERS[speaker] ?? null } : null
+  // ---- La Forge (owner, 2026-10-18): one progress bar, the rule once, its level. ----
+  const forgeProgress = forge ? seanceCount(forge, activeItemId) : null;
+  // The level is the rung the item on screen is posed at; once it is answered,
+  // the rung the answer moved it to (a right answer climbs one, a miss drops one).
+  const answeredRung = currentSubmitted ? Number(currentCorrection?.forge?.new_rung) : NaN;
+  const forgeRung = clampRung(Number.isFinite(answeredRung) ? answeredRung : forgeNext?.rung ?? forgeRule?.rung ?? 0);
+  // How the item on screen is posed (`lib/forge-drills.ts`); null: the classic way.
+  const drill: ForgeDrill | null = forge && activeConcept && !isRetest
+    ? drillOnScreen(forge.next, currentCorrection, { conceptId: activeConcept.id, round, mode, itemId: activeItemId })
     : null;
-  const showRuleChange = Boolean(
-    forge && !forgeTestOut && forgeNext && ruleChangeAt === forgeNext.position && !currentSubmitted && !ruleIntro,
-  );
+  // «Rafale»: its four judgements while it is served, its marks once answered.
+  const burstMemo = useRef<Record<string, Array<Record<string, any>>>>({});
+  const [burstMs, setBurstMs] = useState<Record<string, number>>({});
+  const servedBurst = drill === 'rafale' && forgeNext && String(forgeNext.item_id) === String(activeItemId)
+    ? burstItems(forgeNext)
+    : [];
+  if (servedBurst.length && activeItemId) burstMemo.current[activeItemId] = servedBurst;
+  const burstShown = activeItemId ? burstMemo.current[activeItemId] || [] : [];
+  const burstMarks = currentSubmitted ? burstRows(currentCorrection, burstShown) : [];
+  const rafale = drill === 'rafale' && round === 'recognize' && mode === 'classify'
+    && (currentSubmitted ? burstMarks.length > 0 : servedBurst.length > 1);
+  // A typed form shows in its own field; the right one is printed only when it differs.
+  const typedAsIs = drill === 'typed' && Boolean(currentFeedback)
+    && normalizeClient(currentFeedback?.learner) === normalizeClient(currentFeedback?.target);
 
   return (
     <EpShell className="atelier-do-mode" language={language}>
@@ -3740,8 +3797,11 @@ function SessionView({
           screen title here — the concept is the visible headline — so the name
           is announced rather than printed (WP-20 D-11). */}
       <h1 className="av2-sr">{forge ? `${fc.surface_name} · ${fc.surface_action}` : t.screen_name}</h1>
+      {forge && <ForgeDrillStyles />}
       <EpTopbar
-        middle={forge ? <ForgeCount copy={fc} count={seanceCountText(fc, forge, activeItemId)} /> : undefined}
+        middle={forge
+          ? <ForgeProgress n={forgeProgress?.n ?? 0} total={forgeProgress?.total ?? 0} label={seanceCountText(fc, forge, activeItemId)} />
+          : undefined}
         groups={epGroups}
         cap={epCap}
         onClose={onBack}
@@ -3751,10 +3811,7 @@ function SessionView({
         // Only a session with nothing in it has nothing to file.
         finishDisabled={submitting || completedDrills < 1}
         partial={completedDrills < total}
-        run={correctRun}
-        runSlot={showCombo
-          ? <ForgeCombo shape={ruleShape(activeConcept)} run={combo.run} label={comboLabel(mc, combo.run)} />
-          : undefined}
+        run={forge ? 0 : correctRun}
       />
       <div className="ep-body av2-screen__body">
       {notice && (
@@ -3774,7 +3831,7 @@ function SessionView({
             {fillForge(forge.result.passed ? fc.result_passed_sub : fc.result_failed_sub, {
               correct: forge.result.correct,
               total: forge.result.total,
-              rung: forgeRungLabel(fc, forge.result.placement_rung_name),
+              level: clampRung(forge.result.placement_rung) + 1,
             })}
           </p>
           {forge.result.passed && forge.result.token && (
@@ -3786,32 +3843,19 @@ function SessionView({
       {activeSet && activeConcept && !(forgeTestOut && forgeResultOpen) && (
         <section className={forge ? 'ep-sheet forge-sheet' : 'ep-sheet'}>
           {forge ? (
-            <>
-              {/* WP-S6: the rule moved — a small card names the next one. */}
-              {showRuleChange && (
-                <ForgeRuleChange copy={fc} title={activeConceptTitle} shape={forgeShape} coach={forgeCoach} />
-              )}
-              {/* One human progress: the rule's staircase and «Step 3 of 6 ·
-                  build»; the machine counters («Recognize · Word bank · 1/3»)
-                  are gone. */}
-              <ForgeHead
-                copy={fc}
-                title={activeConceptTitle}
-                shape={forgeShape}
-                rung={forgeRung}
-                step={forgeStep}
-                stairLabel={forgeStairLabel}
-                reprise={Boolean(forgeNext?.reprise)}
-                eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
-                ruleLabel={t.rule}
-                ruleOpen={ruleExpanded}
-                onRule={ruleIntro ? undefined : toggleRule}
-                testOut={!forgeTestOut && onTestOut && !ruleIntro
-                  ? { pending: testOutPending, onClick: () => onTestOut(activeConcept.id) }
-                  : null}
-              />
-              {provenance && <EpProvenance>{provenance}</EpProvenance>}
-            </>
+            // The rule's name once, its level, and «La règle»: the step line,
+            // the rule-change card, the épreuve link and the «Manqué» note are
+            // gone (owner, 2026-10-18: «too much text»).
+            <ForgeHead
+              copy={fc}
+              title={activeConceptTitle}
+              rung={forgeRung}
+              eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
+              ruleLabel={t.rule}
+              ruleOpen={ruleExpanded}
+              onRule={ruleIntro ? undefined : toggleRule}
+              itemKey={currentKey}
+            />
           ) : (
             <>
               <EpEyebrow
@@ -3848,8 +3892,42 @@ function SessionView({
               onClose={toggleRule}
             />
           )}
+          {/* The épreuve lives in the rule sheet now, never on every screen. */}
+          {forge && !forgeTestOut && ruleExpanded && !ruleIntro && onTestOut && (
+            <ForgeSheetTestOut copy={fc} pending={testOutPending} onClick={() => onTestOut(activeConcept.id)} />
+          )}
           {!ruleIntro && (<>
-              {round === 'recognize' && (
+              {isNamedDrill(drill) && (drill !== 'rafale' || rafale) && <ForgeDrillTag drill={drill} copy={fc} />}
+              {rafale && (
+                <div className="ep-frame">
+                  {currentSubmitted ? (
+                    <ForgeRafaleResult
+                      rows={burstMarks}
+                      items={burstShown}
+                      ms={activeItemId ? burstMs[activeItemId] : null}
+                      copy={fc}
+                      cheer={forgeCheer(currentCorrection, fc)}
+                      coach={ruleCoach}
+                      coachMood={coachMood(currentCorrection, { correct: burstMarks.every((row) => row.correct) })}
+                      onNext={feedbackNext}
+                      nextLabel={feedbackNextLabel}
+                    />
+                  ) : (
+                    <ForgeRafale
+                      key={burstItemKey(servedBurst)}
+                      items={servedBurst}
+                      copy={fc}
+                      sending={submitting}
+                      resendLabel={t.check}
+                      onDone={(answers, ms) => {
+                        if (activeItemId) setBurstMs((prev) => ({ ...prev, [activeItemId]: ms }));
+                        onSubmitBurst?.(answers, servedBurst.map((item) => String(item.id)));
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+              {round === 'recognize' && !rafale && (
                 <div className="ep-frame">
                     <RecognizePanel
                       payload={activeSet}
@@ -3859,6 +3937,8 @@ function SessionView({
                       updateAnswer={updateAnswer}
                       correction={currentCorrection}
                       submitted={currentSubmitted}
+                      drill={drill}
+                      onSubmit={nextDisabled ? undefined : submitAttempt}
                     />
                     <ActionRow
                       submitting={submitting}
@@ -3866,7 +3946,7 @@ function SessionView({
                       nextDisabled={nextDisabled}
                       submitAttempt={submitAttempt}
                       confidence={confidence}
-                      onPickConfidence={onPickConfidence}
+                      onPickConfidence={forge ? undefined : onPickConfidence}
                     />
                 </div>
               )}
@@ -3879,6 +3959,7 @@ function SessionView({
                     updateAnswer={updateAnswer}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
+                    drill={drill}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -3886,7 +3967,7 @@ function SessionView({
                     nextDisabled={nextDisabled}
                     submitAttempt={submitAttempt}
                     confidence={confidence}
-                    onPickConfidence={onPickConfidence}
+                    onPickConfidence={forge ? undefined : onPickConfidence}
                   />
                 </div>
               )}
@@ -3906,7 +3987,7 @@ function SessionView({
                     nextDisabled={nextDisabled}
                     submitAttempt={submitAttempt}
                     confidence={confidence}
-                    onPickConfidence={onPickConfidence}
+                    onPickConfidence={forge ? undefined : onPickConfidence}
                   />
                 </div>
               )}
@@ -3939,10 +4020,11 @@ function SessionView({
                   motif={<EpMotif prims={epMotifPrims} canvas={76} done />}
                 />
               )}
-              <ExerciseFeedbackMoment
+              {!rafale && <ExerciseFeedbackMoment
                 feedback={currentFeedback}
                 submitted={currentSubmitted}
                 rule={feedbackRule}
+                cheer={forge ? forgeCheer(currentCorrection, fc) : null}
                 onNext={feedbackNext}
                 nextLabel={feedbackNextLabel}
                 onTryAgain={currentFeedback && !currentFeedback.correct ? retryAttempt : undefined}
@@ -3959,8 +4041,11 @@ function SessionView({
                 coach={ruleCoach}
                 production={isProductionRound}
                 classifyItem={classifyItem}
-                picked={round === 'recognize'}
-              />
+                // A right answer already on screen is not set again: a tapped card, a
+                // form typed as it should be, a transform's model line (La Forge).
+                picked={round === 'recognize' ? drill !== 'typed' || typedAsIs : round === 'transform' && Boolean(drill)}
+                ruleShown={forge ? activeConceptTitle : null}
+              />}
           </>)}
         </section>
       )}
@@ -3990,13 +4075,14 @@ function ActionRow({
   nextDisabled: boolean;
   submitAttempt: () => void;
   confidence?: 'sure' | 'unsure';
-  onPickConfidence: (confidence: 'sure' | 'unsure') => void;
+  /** Absent: no «sûr / pas sûr» (La Forge, owner 2026-10-18: «what's the point of that?»). */
+  onPickConfidence?: (confidence: 'sure' | 'unsure') => void;
 }) {
   const t = useEpCopy();
   if (submitted) return null;
   return (
     <>
-      <EpConfidence value={confidence} onPick={onPickConfidence} />
+      {onPickConfidence && <EpConfidence value={confidence} onPick={onPickConfidence} />}
       {/* The one 3D press of the screen, in the footer band: grey face until an
           answer is chosen, spent (spinner + word) while the line is checked. */}
       <EpFoot tone="neutral">
@@ -4012,6 +4098,7 @@ function ExerciseFeedbackMoment({
   feedback,
   submitted,
   rule,
+  cheer = null,
   onTryAgain,
   onNext,
   nextLabel,
@@ -4029,10 +4116,13 @@ function ExerciseFeedbackMoment({
   production = false,
   classifyItem = null,
   picked = false,
+  ruleShown = null,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
   rule?: string;
+  /** La Forge: «Niveau 4 ↑ · 3 d'affilée» under a right answer. */
+  cheer?: string | null;
   onTryAgain?: () => void;
   onNext: () => void;
   nextLabel: string;
@@ -4054,6 +4144,8 @@ function ExerciseFeedbackMoment({
   classifyItem?: Record<string, any> | null;
   /** The answer was a tapped card, which already shows it was right. */
   picked?: boolean;
+  /** La Forge: the rule named in the head, which a correction does not repeat. */
+  ruleShown?: string | null;
 }) {
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
@@ -4139,7 +4231,7 @@ function ExerciseFeedbackMoment({
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
         <EpFoot tone="correct">
-          <EpVerdict tone="go" sub={rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
+          <EpVerdict tone="go" sub={cheer || rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
           {!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>}
         </EpFoot>
       </div>
@@ -4167,8 +4259,10 @@ function ExerciseFeedbackMoment({
         return (
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
-              anchor={issue.display_label || fill(t.correction_n, { n: index + 1 })}
-              why={display(printableWhy(issue.why_wrong || feedback.why))}
+              anchor={ruleShown
+                ? correctionAnchor(issue.display_label, ruleShown) ?? (issues.length > 1 ? fill(t.correction_n, { n: index + 1 }) : undefined)
+                : issue.display_label || fill(t.correction_n, { n: index + 1 })}
+              why={display(printableWhy(withoutRuleReference(issue.why_wrong || feedback.why || '', ruleShown)))}
               repair={display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : ''))) || undefined}
               // One second-look note per correction sheet, not one per erratum.
               relecture={index === 0 ? relecture : undefined}
@@ -4276,6 +4370,8 @@ function RecognizePanel({
   updateAnswer,
   correction,
   submitted,
+  drill = null,
+  onSubmit,
 }: {
   payload: Record<string, any>;
   mode: RecognizeMode;
@@ -4284,6 +4380,10 @@ function RecognizePanel({
   updateAnswer: (key: string, value: any) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
+  /** La Forge: how the item is posed (`lib/forge-drills.ts`); null: the classic way. */
+  drill?: ForgeDrill | null;
+  /** «Tape la forme»: Return on the keyboard checks the answer. */
+  onSubmit?: () => void;
 }) {
   const items = payload.recognize?.[mode]?.items || [];
   const itemIndex = safeDrillItemIndex(activeItemIndex, items);
@@ -4293,32 +4393,52 @@ function RecognizePanel({
   const sourceTokens = Array.isArray(item.tokens) ? item.tokens.map((token: string) => String(token)) : [];
   const t = useEpCopy();
   const cueLanguage = useControlLanguage();
+  const fc = forgeCopy(cueLanguage);
+  // Owner, 2026-10-18: what to do comes first, then the box the answer goes in.
+  // A word bank's cue and goal say the same thing: one line, above the box.
+  const buildCue = stripExpressPrefix(item.meaning_cue) || String(item.prompt || '');
+  const buildGoal = itemGoal(item, '') ?? (buildCue ? { kind: 'goal' as const, text: buildCue } : null);
+  // «Dictée»: the sentence is heard, so its meaning waits for the answer.
+  const dictation = mode === 'word_bank' && drill === 'dictation';
   return (
     <div className="ep-exercise ep-recognize">
       {mode === 'fill' && (
         <>
+          {/* WP-103 T3: every drill says what it asks for. */}
+          <ForgeGoalLine goal={itemGoal(item, '')} />
           <EpPrompt>
             <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={answers[item.id]} />
           </EpPrompt>
-          {/* WP-103 T3: every drill says what it asks for. */}
-          <ForgeGoalLine goal={itemGoal(item, '')} />
-          <EpOpts>
-            {(item.choices || []).map((choice: string) => (
-              <EpOpt
-                key={choice}
-                chosen={answers[item.id] === choice}
-                right={submitted && normalizeClient(choice) === normalizeClient(feedback?.target)}
-                wrong={submitted && answers[item.id] === choice && !feedback?.correct}
-                disabled={submitted}
-                onClick={() => updateAnswer(item.id, choice)}
-              >{choice}</EpOpt>
-            ))}
-          </EpOpts>
+          {drill === 'typed' ? (
+            <ForgeTypedField
+              value={String(answers[item.id] || '')}
+              onChange={(value) => updateAnswer(item.id, value)}
+              onSubmit={onSubmit}
+              submitted={submitted}
+              verdict={submitted && feedback && !feedback.unscored ? (feedback.correct ? 'right' : 'wrong') : null}
+              copy={fc}
+            />
+          ) : (
+            <EpOpts>
+              {(item.choices || []).map((choice: string) => (
+                <EpOpt
+                  key={choice}
+                  chosen={answers[item.id] === choice}
+                  right={submitted && normalizeClient(choice) === normalizeClient(feedback?.target)}
+                  wrong={submitted && answers[item.id] === choice && !feedback?.correct}
+                  disabled={submitted}
+                  onClick={() => updateAnswer(item.id, choice)}
+                >{choice}</EpOpt>
+              ))}
+            </EpOpts>
+          )}
         </>
       )}
       {mode === 'word_bank' && (
         <>
-          <EpPrompt cue={stripExpressPrefix(item.meaning_cue) || item.prompt}>
+          <ForgeGoalLine goal={dictation && !submitted ? { kind: 'goal', text: fc.hint_dictation } : buildGoal} />
+          {dictation && <ForgeListen text={dictationText(item)} copy={fc} synthesize={synthesizeFrench} />}
+          <EpPrompt>
             <EpSetLine empty={wordBankTokens.length === 0}>
               {wordBankTokens.map((token, selectedIndex) => (
                 <EpSlug
@@ -4330,7 +4450,6 @@ function RecognizePanel({
               ))}
             </EpSetLine>
           </EpPrompt>
-          <ForgeGoalLine goal={itemGoal(item, stripExpressPrefix(item.meaning_cue) || item.prompt)} />
           <div className="ep-typecase" aria-label={t.typecase_label}>
             {sourceTokens.map((token: string, tokenIndex: number) => {
               const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
@@ -4346,48 +4465,51 @@ function RecognizePanel({
           </div>
         </>
       )}
-      {mode === 'classify' && (
-        <>
-          {/* WP-S6: a minimal pair's ask is the learner's language when the
-              bank offers it; a sentence to judge stays French. */}
-          <EpPrompt lang={cueIsLocalized(item, 'prompt', cueLanguage) ? cueLanguage : 'fr'}>
-            {localizedCue(item, 'prompt', cueLanguage)}
-          </EpPrompt>
-          {/* QA-FORGE: one question, two (or more) plain answers — buttons in the
-              learner's language for a judgement, the French sentences for a
-              minimal pair, the category names for a sort. No drop zones. */}
-          {(() => {
-            const judgement = item.classify_kind === 'judgement' || (!item.classify_kind && isJudgementLabels(item.labels));
-            const pair = item.classify_kind === 'minimal_pair';
-            const goal = judgement
-              ? drillGoalLine({ goal_native: String(item.goal_native || '').trim() || judgementQuestion(cueLanguage) })
-              : pair
-                ? itemGoal(item, '')
-                : drillGoalLine({ goal_native: classificationGoal(cueLanguage) });
-            return (
-              <>
-                <ForgeGoalLine goal={goal} />
-                <EpOpts>
-                  {(item.labels || []).map((label: string) => (
-                    <EpOpt
-                      key={label}
-                      chosen={answers[item.id] === label}
-                      right={submitted && normalizeClient(label) === normalizeClient(feedback?.target)}
-                      wrong={submitted && answers[item.id] === label && !feedback?.correct}
-                      disabled={submitted}
-                      onClick={() => updateAnswer(item.id, label)}
-                      contentLang={pair ? 'fr' : cueLanguage}
-                    >{judgement ? judgementLabel(label, cueLanguage, item.label_l10n) : pair ? label : classificationCopy(label, cueLanguage)}</EpOpt>
-                  ))}
-                </EpOpts>
-              </>
-            );
-          })()}
-        </>
-      )}
+      {mode === 'classify' && (() => {
+        // QA-FORGE: one question, two (or more) plain answers — buttons in the
+        // learner's language for a judgement, the French sentences for a
+        // minimal pair, the category names for a sort. No drop zones.
+        const judgement = item.classify_kind === 'judgement' || (!item.classify_kind && isJudgementLabels(item.labels));
+        const pair = item.classify_kind === 'minimal_pair';
+        const goal = judgement
+          ? drillGoalLine({ goal_native: String(item.goal_native || '').trim() || judgementQuestion(cueLanguage) })
+          : pair
+            ? itemGoal(item, '')
+            : drillGoalLine({ goal_native: classificationGoal(cueLanguage) });
+        return (
+          <>
+            <ForgeGoalLine goal={goal} />
+            {/* WP-S6: a minimal pair's ask is the learner's language when the
+                bank offers it; a sentence to judge stays French. In La Forge a
+                pair whose goal already asks («Quelle phrase veut dire … ?») is
+                not asked twice. */}
+            {!(pair && goal && drill) && (
+              <EpPrompt lang={cueIsLocalized(item, 'prompt', cueLanguage) ? cueLanguage : 'fr'}>
+                {localizedCue(item, 'prompt', cueLanguage)}
+              </EpPrompt>
+            )}
+            <EpOpts>
+              {(item.labels || []).map((label: string) => (
+                <EpOpt
+                  key={label}
+                  chosen={answers[item.id] === label}
+                  right={submitted && normalizeClient(label) === normalizeClient(feedback?.target)}
+                  wrong={submitted && answers[item.id] === label && !feedback?.correct}
+                  disabled={submitted}
+                  onClick={() => updateAnswer(item.id, label)}
+                  contentLang={pair ? 'fr' : cueLanguage}
+                >{judgement ? judgementLabel(label, cueLanguage, item.label_l10n) : pair ? label : classificationCopy(label, cueLanguage)}</EpOpt>
+              ))}
+            </EpOpts>
+          </>
+        );
+      })()}
     </div>
   );
 }
+
+/** «Trouve l'erreur» · «Ta phrase»: the word fixes ride beside the answer. */
+const spotKey = (itemId: string) => `${itemId}::spot`;
 
 function TransformPanel({
   payload,
@@ -4396,6 +4518,7 @@ function TransformPanel({
   updateAnswer,
   correction,
   submitted,
+  drill = null,
 }: {
   payload: Record<string, any>;
   activeItemIndex: number;
@@ -4403,18 +4526,53 @@ function TransformPanel({
   updateAnswer: (key: string, value: any) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
+  /** La Forge: «spot» and «mine» are tapped and fixed, not retyped. */
+  drill?: ForgeDrill | null;
 }) {
   const items = payload.transform?.items || [];
   const itemIndex = safeDrillItemIndex(activeItemIndex, items);
   const item = items[itemIndex] || {};
   const t = useEpCopy();
   const cueLanguage = useControlLanguage();
+  const fc = forgeCopy(cueLanguage);
+  const instruction = localizedCue(item, 'instruction', cueLanguage);
+  const spotted = drill === 'spot' || drill === 'mine';
+  const sentence = String(item.source_fr || item.source || '');
+  // La Forge says a miss's right line once, in its correction; a right answer
+  // hears it here.
+  const modelAudio = submitted && !(drill && correction?.verdict !== 'correct') && (() => {
+    const corrected = correction?.corrected_answer;
+    const correctedForItem = corrected && typeof corrected === 'object' ? corrected[item.id] : undefined;
+    const modelText = String(correctedForItem || item.expected_answer || answers[item.id] || '').trim();
+    return modelText ? <EpreuveModelAudio text={modelText} /> : null;
+  })();
+  if (spotted) {
+    // The sentence is the exercise: its goal above it, never the sentence twice.
+    const goal = drillGoalLine({ goal_native: item.goal_native }) ?? (instruction ? { kind: 'goal' as const, text: instruction } : null);
+    return (
+      <div className="ep-exercise ep-transform">
+        <ForgeGoalLine goal={goal} />
+        <ForgeSpot
+          sentence={sentence}
+          edits={answers[spotKey(item.id)] || {}}
+          onEdits={(edits) => {
+            const tokens = spotTokens(sentence);
+            updateAnswer(spotKey(item.id), edits);
+            updateAnswer(item.id, spotChanged(tokens, edits) ? spotAnswer(tokens, edits) : '');
+          }}
+          submitted={submitted}
+          copy={fc}
+        />
+        {modelAudio}
+      </div>
+    );
+  }
   return (
     <div className="ep-exercise ep-transform">
-      <EpPrompt cue={localizedCue(item, 'instruction', cueLanguage)}>
+      <ForgeGoalLine goal={itemGoal(item, instruction)} />
+      <EpPrompt cue={instruction}>
         {item.source}
       </EpPrompt>
-      <ForgeGoalLine goal={itemGoal(item, localizedCue(item, 'instruction', cueLanguage))} />
       <textarea
         className="ep-composed-input"
         value={answers[item.id] || ''}
@@ -4422,12 +4580,7 @@ function TransformPanel({
         placeholder={t.transform_placeholder}
         readOnly={submitted}
       />
-      {submitted && (() => {
-        const corrected = correction?.corrected_answer;
-        const correctedForItem = corrected && typeof corrected === 'object' ? corrected[item.id] : undefined;
-        const modelText = String(correctedForItem || item.expected_answer || answers[item.id] || '').trim();
-        return modelText ? <EpreuveModelAudio text={modelText} /> : null;
-      })()}
+      {modelAudio}
     </div>
   );
 }
@@ -4632,12 +4785,7 @@ function EpreuveModelAudio({ text }: { text: string }) {
 function EpreuveWiringStyles() {
   return (
     <style jsx global>{`
-      /* WP-S3 La Forge: the rule's rung line, the test-out action, the result. */
-      .ep .forge-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 10px; }
-      .ep .forge-head .av2-label { color: var(--av2-muted); }
-      .ep .forge-head__reprise { color: var(--av2-blue); }
-      .ep .forge-head__test-out { margin-left: auto; min-height: var(--av2-tap); padding: 0 14px; border: 0; border-radius: var(--av2-r-pill); background: var(--av2-card); color: var(--av2-ink); font: 600 var(--av2-t-label)/1 var(--av2-sans); cursor: pointer; }
-      .ep .forge-head__test-out:disabled { color: var(--av2-muted); cursor: default; }
+      /* WP-S3 La Forge: the test-out's result (its head is components/epreuve/Forge.tsx). */
       .ep .forge-result { display: grid; gap: 12px; padding: 20px 0; }
       .ep .forge-result__sub { margin: 0; color: var(--av2-ink-2); font-size: var(--av2-t-body); }
       .ep .ep-exercise { display: grid; gap: 14px; padding: 4px 0 2px; }
@@ -4879,6 +5027,8 @@ function RecapModal({
   onRecommendedAction,
   onClose,
   language,
+  onTestOut,
+  testOutPending = false,
 }: {
   recap: Record<string, any>;
   /** Round 3: the day's grammar step hands on to the next step, not a suggestion. */
@@ -4891,12 +5041,20 @@ function RecapModal({
   onClose: () => void;
   /** WP-82: the recap's chrome language (`chromeLanguage`). */
   language: ControlLanguage;
+  /** The épreuve the recap offers every few days (`recap.forge.test_out_offer`). */
+  onTestOut?: (conceptId: number) => void;
+  testOutPending?: boolean;
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
   const mc = momentumCopy(language);
   // WP-S6: a forge séance's recap is each rule's progress, not a tally.
   const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
+  const offer = onTestOut ? testOutOffer(recap) : null;
+  const offerConcept = offer ? concepts.find((concept) => Number(concept.id) === offer.conceptId) : null;
+  const offerTitle = offerConcept
+    ? displayConceptTitle(offerConcept)
+    : forgeRows.find((row) => row.conceptId === offer?.conceptId)?.title || '';
   const reviewTotal = recommendation.kind === 'review' ? recommendation.errataDue + recommendation.vocabularyDue : 0;
   const nextLabel = dayHandOn ? { action: dayHandOn.label } : recapActionLabel(recommendation, reviewTotal, t);
   const practiced = concepts.slice(0, 3).map((concept) => displayConceptTitle(concept));
@@ -4934,17 +5092,22 @@ function RecapModal({
         <EpRecapHead date={formatAtelierDatestamp().replace('Classée · ', '')} />
         <div className="ep-recap-body">
           {forgeRows.length ? (
-            // One Garamond line (the headline above); each rule: its shape's
-            // staircase and the step it reached, what changed today, two
-            // proof lines and the next review.
+            // One Garamond line (the headline above); each rule: its level,
+            // what changed today, two proof lines and the next review.
             <>
               <ForgeRecapRules copy={fc} rows={forgeRows} proofRight={t.proof_right} proofFixed={t.proof_fixed} />
+              {/* The épreuve, every few days, for a rule ready to prove. */}
+              {offer && offerTitle && onTestOut && (
+                <ForgeTestOutOffer
+                  copy={fc}
+                  title={offerTitle}
+                  items={offer.items}
+                  pending={testOutPending}
+                  onStart={() => onTestOut(offer.conceptId)}
+                />
+              )}
               {/* WP-S7: the séance's best run, and Éclair when a pair is open. */}
-              <ForgeBestCombo
-                shape={forgeRows[0]?.shape ?? 'circle'}
-                best={Number(recap.forge?.best_combo) || 0}
-                line={bestComboLine(mc, Number(recap.forge?.best_combo) || 0)}
-              />
+              <ForgeBestRun line={bestComboLine(mc, Number(recap.forge?.best_combo) || 0)} />
               {recap.forge?.eclair?.pair && (
                 <Link className="av2-btn av2-btn--secondary av2-btn--inline forge-recap__eclair" href={eclairHref(String(recap.forge.eclair.pair))}>
                   <span>{mc.eclair_action}</span>

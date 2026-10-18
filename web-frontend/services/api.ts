@@ -1160,6 +1160,17 @@ export interface AtelierForgeNext {
   item?: Record<string, any> | null;
   /** WP-S5: the rule's coach. */
   coach?: ForgeCoach | null;
+  /**
+   * How the item is posed (`app/services/forge_drills.py`): choice, judge,
+   * rafale, tiles, dictation, typed, spot, mine, rewrite, write, scene.
+   */
+  drill?: string | null;
+  /** «Rafale»: every judgement of the burst, the lead first. */
+  items?: Array<Record<string, any>> | null;
+  /** «Rafale»: the ids graded with the lead, in order. */
+  group_item_ids?: string[] | null;
+  /** Chosen from the learner's own mistakes. */
+  personal?: boolean;
 }
 
 export interface AtelierForgeTestOutResult {
