@@ -42,6 +42,7 @@ import {
   afterSignUpDestination,
   startingPointLabel,
   buildRegisterPayload,
+  signUpFailure,
   validateSignUp,
   type SignUpErrors,
   type SignUpForm,
@@ -49,19 +50,12 @@ import {
 } from '@/lib/onboarding-signup';
 import apiService from '@/services/api';
 import toast from 'react-hot-toast';
+import type { AxiosRequestConfig } from 'axios';
 
-function authErrorMessage(error: any, fallback: string) {
-  const detail = error?.response?.data?.detail;
-  if (Array.isArray(detail)) {
-    const joined = detail
-      .map((item) => String(item?.msg || item?.message || '').trim())
-      .filter(Boolean)
-      .join(' ');
-    if (joined) return joined;
-  }
-  if (typeof detail === 'string' && detail.trim()) return detail;
-  return fallback;
-}
+/* #215: this page speaks for itself. The shared client toasts a server refusal
+   in English ("loc -> msg") for every call that does not opt out, so the calls
+   below opt out and the refusal is mapped to the page's own words by
+   `signUpFailure`: under the field it names, or one line above the form. */
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -76,6 +70,7 @@ export default function SignUpPage() {
   const [firstName, setFirstName] = React.useState('');
   const [startingPoint, setStartingPoint] = React.useState<StartingPoint | null>(null);
   const [errors, setErrors] = React.useState<SignUpErrors>({});
+  const [notice, setNotice] = React.useState<string | null>(null);
   // WP-72: the terms and the privacy policy open in a sheet, so reading them
   // never costs the learner what they already typed.
   const [legalSheet, setLegalSheet] = React.useState<LegalDocumentKind | null>(null);
@@ -98,6 +93,7 @@ export default function SignUpPage() {
       event.preventDefault();
       const found = validateSignUp(form);
       setErrors(found);
+      setNotice(null);
       if (Object.keys(found).length > 0) return;
       void submit(form);
     };
@@ -106,7 +102,7 @@ export default function SignUpPage() {
     setIsLoading(true);
     try {
       const payload = buildRegisterPayload(data);
-      await apiService.post('/auth/register', payload);
+      await apiService.post('/auth/register', payload, { suppressGlobalError: true } as AxiosRequestConfig);
 
       /* The account exists; the learner has just typed the address and the
          password, so sign them in with those and open the first scene. Only
@@ -117,7 +113,7 @@ export default function SignUpPage() {
         /* WP-72: the consent line was on screen when the account was created;
            record which version it named. Best effort. */
         await apiService
-          .post('/legal/consent', { version: LEGAL_VERSION, surface: 'signup', language: legalLanguage })
+          .post('/legal/consent', { version: LEGAL_VERSION, surface: 'signup', language: legalLanguage }, { suppressGlobalError: true } as AxiosRequestConfig)
           .catch(() => undefined);
         void router.replace(landing);
         return;
@@ -125,9 +121,9 @@ export default function SignUpPage() {
       toast.success(copy.created_sign_in);
       void router.push({ pathname: '/auth/signin', query: { callbackUrl: landing, email: payload.email } });
     } catch (error: any) {
-      toast.error(
-        error?.response?.status === 403 ? copy.invite_only : authErrorMessage(error, copy.failed),
-      );
+      const failure = signUpFailure(error, copy);
+      setErrors(failure.errors);
+      setNotice(failure.notice);
     } finally {
       setIsLoading(false);
     }
@@ -163,6 +159,8 @@ export default function SignUpPage() {
           lang={language}
         >
           <h1 className="av2-headline av2-headline--screen">{copy.title}</h1>
+
+          {notice && <AuthNotice>{notice}</AuthNotice>}
 
           <AuthField
             id="signup-email"
