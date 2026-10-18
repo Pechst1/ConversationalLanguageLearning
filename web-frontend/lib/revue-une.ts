@@ -107,11 +107,14 @@ export function revueUneEntry({
   return { chip: revueHomeChip(week, language), hero: null };
 }
 
-/** Puts the Revue chip right after the letter (or first when there is no letter). */
-export function withRevueChip<T extends { id: string }>(chips: T[], chip: T | null): T[] {
+/**
+ * Puts the Revue chip right after the letter (or first when there is no letter).
+ * `first`: ahead of the letter too — see `revueHomeChips`.
+ */
+export function withRevueChip<T extends { id: string }>(chips: T[], chip: T | null, first = false): T[] {
   if (!chip) return chips;
   const letter = chips.findIndex((entry) => entry.id === 'courrier');
-  const at = letter + 1; // 0 when there is no letter
+  const at = first ? 0 : letter + 1; // 0 when there is no letter
   return [...chips.slice(0, at), chip, ...chips.slice(at)];
 }
 
@@ -124,9 +127,12 @@ export function withRevueChip<T extends { id: string }>(chips: T[], chip: T | nu
  * needs the filed card to budget for it first — RvUneCard's business, not La
  * Une's.)
  */
-export function revueHomeChips<T extends { id: string }>(entry: RevueUneEntry, chips: T[]): T[] {
+export function revueHomeChips<T extends { id: string }>(entry: RevueUneEntry, chips: T[], unfiledAfterDay = false): T[] {
   if (entry.hero) return [];
-  return withRevueChip(chips, entry.chip as T | null);
+  // 2026-10-18 (owner: «the news did not appear for seven days»): once the day is done
+  // HomeScreen keeps one chip, and a waiting letter took it every evening. The letter
+  // has its own tab and push; today's unread Papier has only this chip, so it goes first.
+  return withRevueChip(chips, entry.chip as T | null, unfiledAfterDay);
 }
 
 /** The resume card's one clause: «Commencée hier · ta question attend.» */

@@ -95,7 +95,8 @@ function laUne(language, { week, dayShape = 'standard', special = false, letter 
       copy,
     });
   }
-  const chips = une.revueHomeChips(entry, [...(letter ? [letterChip(language)] : []), wordsChip]);
+  const unfiledAfterDay = dayDone && Boolean(week?.enabled && !week.offer.filed);
+  const chips = une.revueHomeChips(entry, [...(letter ? [letterChip(language)] : []), wordsChip], unfiledAfterDay);
   const html = render(
     h(HomeScreen, {
       dateLabel: 'vendredi 2 octobre',
@@ -192,9 +193,14 @@ test('a letter and a Revue the same day: §2 — the letter first, then the Revu
     assert.deepEqual(shown, ['courrier', 'revue'], `${language}: HomeScreen's two — words due drop`);
     assert.equal((both.html.match(/av2-btn--primary/g) || []).length, 1, 'a chip is never a press');
     assertHomeBudget(both.html, `${language} letter + revue`);
-    // Once the day is done, the one chip is the letter.
+    // Once the day is done HomeScreen keeps one chip: today's unread Papier, not the
+    // letter (it has its own tab and push; 2026-10-18 «the news did not appear»).
     const done = laUne(language, { week: live, dayDone: true });
-    assert.deepEqual([...done.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['courrier']);
+    assert.deepEqual([...done.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['revue']);
+    // A filed Papier gives the one chip back to the letter.
+    const filedWeek = { enabled: true, offer: { ...live.offer, filed: { sessionId: 's', dossierId: live.offer.recommended.dossierId, titleFr: 'x', closedAt: NOW.toISOString(), made: null, dispatch: null } } };
+    const doneFiled = laUne(language, { week: filedWeek, dayDone: true });
+    assert.deepEqual([...doneFiled.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['courrier']);
     // No letter: the Revue leads the row.
     assert.deepEqual(laUne(language, { week: live, letter: false }).chips.map((chip) => chip.id), ['revue', 'lexique']);
     // The Revue day: the Revue is the day's route and takes La Une whole — its
@@ -246,7 +252,7 @@ test('pages/atelier.tsx wires La Une through lib/revue-une.ts, beside the day an
   assert.match(page, /oncePerLoad\('revue\/week', \(\) => revueClient\(\)\.week\(\)\)/);
   assert.match(page, /\.catch\(\(\) => \{ \/\* the Revue is an enrichment/, 'a failed read is swallowed');
   assert.match(page, /revueUneEntry\(\{[\s\S]*?dayShape: dayShapeFrom\(dayJourney, dayEnvelope\),[\s\S]*?special: specialEdition,/);
-  assert.match(page, /revueHomeChips<HomeChip>\(revueEntry, dayChips\)/);
+  assert.match(page, /revueHomeChips<HomeChip>\(revueEntry, dayChips, revueDayDone && Boolean\(revueWeek\?\.enabled && !revueWeek\.offer\.filed\)\)/);
   // Round 3: the hero is the Revue's (else the journey card), with the day's one
   // next-step button under it; on a news day the programme stays, Le Papier first.
   assert.match(page, /const homeHero = [\s\S]*?\{revueHero \?\? journeyCard\}[\s\S]*?: \(revueHero \?\? journeyCard\);/);

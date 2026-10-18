@@ -2935,7 +2935,7 @@ function TodayView({
     : [];
   const radioWeek = useRadioWeek();
   const correcteurWeek = useCorrecteurWeek();
-  const homeChips: HomeChip[] = withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero));
+  const homeChips: HomeChip[] = withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips, revueDayDone && Boolean(revueWeek?.enabled && !revueWeek.offer.filed)), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero));
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [
