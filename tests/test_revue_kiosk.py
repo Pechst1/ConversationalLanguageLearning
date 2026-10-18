@@ -366,6 +366,7 @@ def test_each_morning_the_intake_hands_the_period_to_the_painter(monkeypatch) ->
 
     monkeypatch.setattr(settings, "REVUE_ENABLED", True)
     monkeypatch.setattr(task, "intake_now", lambda refresh=False: {"status": "kept", "period": "2026-W42"})
+    monkeypatch.setattr(task, "leads_now", lambda period=None, now=None: {"status": "ok", "written": []})
     queued: list = []
 
     class Result:

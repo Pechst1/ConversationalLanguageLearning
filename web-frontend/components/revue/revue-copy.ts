@@ -50,9 +50,15 @@ export type RevueCopy = {
   numbers: string[];
   translate: string;
   translation_hide: string;
-  listen_summary: string;
-  listen_meta: string;
   listen_stop: string;
+  /** 2026-10-18 · the lead: what happened, before Romy speaks; `listen_lead` reads it aloud. */
+  lead_kicker: string;
+  listen_lead: string;
+  /** A1–A2: the claim cards open behind one quiet line; this closes them again. */
+  sources_hide: string;
+  /** Home's daily news card: the sticker is French in every table (a publication word); the aria label says the rest. */
+  news_sticker: string;
+  news_aria: string;
   romy: string;
   you: string;
   fact: string;
@@ -218,9 +224,12 @@ const FR: RevueCopy = {
   numbers: ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze'],
   translate: 'Traduire',
   translation_hide: 'Masquer',
-  listen_summary: 'Écouter le résumé',
-  listen_meta: 'Romy · {s} s',
   listen_stop: 'Arrêter',
+  lead_kicker: "Ce qui s'est passé",
+  listen_lead: 'Écouter',
+  sources_hide: 'Masquer les sources',
+  news_sticker: 'À la une !',
+  news_aria: "L'actu du jour avec Romy : {headline}",
   romy: 'Romy',
   you: 'Toi',
   fact: 'Fait',
@@ -381,8 +390,12 @@ const EN: RevueCopy = {
   numbers: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'],
   translate: 'Translate',
   translation_hide: 'Hide',
-  listen_summary: 'Hear the summary',
   listen_stop: 'Stop',
+  lead_kicker: 'What happened',
+  listen_lead: 'Listen',
+  sources_hide: 'Hide sources',
+  news_sticker: 'À la une !',
+  news_aria: "Today's news with Romy: {headline}",
   you: 'You',
   according_to: 'From {source}, {date}',
   per: 'according to {who}',
@@ -537,8 +550,12 @@ const DE: RevueCopy = {
   numbers: ['null', 'einen', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf'],
   translate: 'Übersetzen',
   translation_hide: 'Ausblenden',
-  listen_summary: 'Zusammenfassung hören',
   listen_stop: 'Stopp',
+  lead_kicker: 'Was passiert ist',
+  listen_lead: 'Anhören',
+  sources_hide: 'Quellen ausblenden',
+  news_sticker: 'À la une !',
+  news_aria: 'Nachricht des Tages mit Romy: {headline}',
   you: 'Du',
   according_to: 'Laut {source}, {date}',
   per: 'laut {who}',

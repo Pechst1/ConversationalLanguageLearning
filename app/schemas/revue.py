@@ -106,6 +106,8 @@ class RvStage(RevueModel):
 class RvStoryCard(RevueModel):
     dossier_id: str
     title_fr: str
+    #: Home's news card (2026-10-18): six words or fewer; ``None`` before the leads were written.
+    headline_fr: str | None = None
     summary_fr: str
     topic: Topic
     place_fr: str
@@ -171,9 +173,14 @@ class RvNarrationItem(_Item):
 
 
 class RvSummaryItem(_Item):
+    """What happened (2026-10-18): the lead at the learner's band (B1+: the summary), shown as
+    text with its translation where the band has the translate button, read aloud on a tap."""
+
     kind: Literal["summary"] = "summary"
     speaker: str = "romy_tremblay"
     text_fr: str
+    translation: str | None = None
+    glosses: list[RvGloss] = Field(default_factory=list)
 
 
 class RvLineItem(_Item):

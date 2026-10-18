@@ -6,7 +6,8 @@
 // the page passes; a source check pins the page to that helper.
 //
 //   1. the Revue off (404 → `{ enabled: false }`), unread or failed: no chip, no card;
-//   2. an ordinary day with a live dossier: the chip, after the letter;
+//   2. an ordinary day with a live dossier: the news card under the day's card
+//      (2026-10-18; it replaced the chip), every day until the Papier is filed;
 //      the Revue day (`DayShape.REVUE`): the card in `hero` with `planHidden`;
 //   3. a session to resume: the card's state is `resume`, its press goes to `/revue?session=`;
 //   4. a letter and a Revue the same day: design spec §2 — letter first, then the Revue;
@@ -27,6 +28,7 @@ const { dayMarkState } = require('../journey/day-mark.ts');
 const { atelierCopy } = require('@/lib/atelier-v2-copy.ts');
 const revueTypes = require('@/lib/revue-types.ts');
 const { RvUneCard } = require('@/components/revue/RvUneCard.tsx');
+const { RvNewsCard } = require('@/components/revue/RvNewsCard.tsx');
 const { revueCopy } = require('@/components/revue/revue-copy.ts');
 const une = require('@/lib/revue-une.ts');
 
@@ -95,7 +97,9 @@ function laUne(language, { week, dayShape = 'standard', special = false, letter 
       copy,
     });
   }
-  const chips = une.revueHomeChips(entry, [...(letter ? [letterChip(language)] : []), wordsChip]);
+  if (entry.news) hero = h(React.Fragment, null, hero, h(RvNewsCard, { story: entry.news.story, href: entry.news.href, copy }));
+  const unfiledAfterDay = dayDone && Boolean(week?.enabled && !week.offer.filed);
+  const chips = une.revueHomeChips(entry, [...(letter ? [letterChip(language)] : []), wordsChip], unfiledAfterDay);
   const html = render(
     h(HomeScreen, {
       dateLabel: 'vendredi 2 octobre',
@@ -114,36 +118,58 @@ function laUne(language, { week, dayShape = 'standard', special = false, letter 
   return { entry, chips, html };
 }
 
+const NEWS_CARD = /<a class="rv-news"[\s\S]*?<\/a>/;
+
+/**
+ * WP-81: ≤ 5 elements and ≤ 25 words. 2026-10-18 (owner): the news card sits under
+ * the day's card on top of that budget, and spends at most nine words of its own
+ * (the sticker's three, a headline of six).
+ */
 function assertHomeBudget(html, label) {
   const sections = (html.match(/class="av2-home__mast"|class="av2-home__section[ "]/g) || []).length;
   assert.ok(sections <= 5, `${label}: ${sections} elements`);
-  const count = words(prose(html)).length;
+  const card = html.match(NEWS_CARD);
+  const count = words(prose(html.replace(NEWS_CARD, ' '))).length;
   assert.ok(count <= 25, `${label}: ${count} words — ${visibleText(html)}`);
+  if (card) assert.ok(words(prose(card[0])).length <= 9, `${label}: the news card — ${visibleText(card[0])}`);
 }
 
 test('the Revue off, unread or failed: La Une is exactly as before — no chip, no card', () => {
   for (const week of [{ enabled: false }, null, undefined]) {
     for (const dayShape of ['standard', une.REVUE_DAY_SHAPE]) {
-      assert.deepEqual(une.revueUneEntry({ week, language: 'en', dayShape, special: false }), { chip: null, hero: null });
+      assert.deepEqual(une.revueUneEntry({ week, language: 'en', dayShape, special: false }), { chip: null, hero: null, news: null });
     }
   }
   const off = laUne('en', { week: { enabled: false }, dayShape: une.REVUE_DAY_SHAPE });
-  assert.doesNotMatch(off.html, /data-chip="revue"|data-revue-card|rv-une/);
+  assert.doesNotMatch(off.html, /data-chip="revue"|data-revue-card|rv-une|rv-news/);
   assert.match(off.html, /av2-day-plan/, 'the plan row stays');
   assert.deepEqual(off.chips.map((chip) => chip.id), ['courrier', 'lexique']);
   // And identical to a Home that never heard of the Revue.
   assert.equal(off.html, laUne('en', { week: null }).html);
 });
 
-test('a live dossier: the chip on an ordinary day, the card in hero with planHidden on the Revue day, in en/de/fr', () => {
+test('a live dossier: the news card under the day on an ordinary day, the card in hero with planHidden on the Revue day, in en/de/fr', () => {
   for (const language of ['en', 'de', 'fr']) {
     const ordinary = laUne(language, { week: live });
-    assert.equal(ordinary.entry.hero, null, 'phase 1 / any other day: no hero');
-    assert.equal(ordinary.entry.chip.href, '/revue');
-    assert.match(ordinary.html, /data-chip="revue"/);
-    assert.doesNotMatch(ordinary.html, /data-revue-card/);
+    assert.equal(ordinary.entry.hero, null, 'any other day: no hero');
+    assert.equal(ordinary.entry.chip, null, 'the news card replaced the «Le Papier» chip');
+    assert.equal(ordinary.entry.news.href, '/revue');
+    assert.equal(ordinary.entry.news.story.dossierId, 'dossier-2026-w40-velib');
+    assert.doesNotMatch(ordinary.html, /data-chip="revue"/);
+    assert.match(ordinary.html, /data-revue-card="news"/);
+    assert.match(ordinary.html, /class="rv-news__sticker"[^>]*>À la une !/, 'the sticker says it is the news');
+    assert.match(visibleText(ordinary.html), /Les Vélib’ changent de prix/, 'no short headline yet: the title');
+    assert.ok(ordinary.html.indexOf('av2-journey-today') < ordinary.html.indexOf('rv-news'), 'under the day\'s card');
     assert.match(ordinary.html, /av2-day-plan/);
-    assertHomeBudget(ordinary.html, `${language} chip`);
+    assert.equal((ordinary.html.match(/av2-btn--primary/g) || []).length, 1, 'the card is a link, never a second press');
+    assertHomeBudget(ordinary.html, `${language} news card`);
+    // After the day the card stays until the Papier is filed.
+    assert.match(laUne(language, { week: live, dayDone: true }).html, /data-revue-card="news"/);
+    // The six-word headline when the dossier has one.
+    const short = { enabled: true, offer: { ...liveOffer, recommended: { ...liveOffer.recommended, headlineFr: 'Le Vélib’ coûte plus cher' } } };
+    const withHeadline = laUne(language, { week: short });
+    assert.match(visibleText(withHeadline.html), /Le Vélib’ coûte plus cher/);
+    assert.doesNotMatch(visibleText(withHeadline.html), /changent de prix/);
 
     const revueDay = laUne(language, { week: live, dayShape: une.REVUE_DAY_SHAPE });
     assert.equal(revueDay.entry.hero.state, 'offer');
@@ -179,24 +205,37 @@ test('a session to resume: the card says resume, its press goes to /revue?sessio
   const noQuestion = { ...resumeOffer, resume: { ...resumeOffer.resume, openQuestionFr: null } };
   assert.equal(une.revueResumeLine(noQuestion, revueCopy('en'), NOW), `${revueCopy('en').started_yesterday} · you were on «Follow up».`);
   assert.equal(une.revueResumeLine(liveOffer, fr, NOW), null);
-  // On an ordinary day the chip resumes too.
-  const chip = une.revueUneEntry({ week: { enabled: true, offer: resumeOffer }, language: 'fr', dayShape: 'standard', special: false }).chip;
-  assert.match(chip.href, /^\/revue\?session=/);
+  // On an ordinary day the news card resumes too, on the story being resumed.
+  const news = une.revueUneEntry({ week: { enabled: true, offer: resumeOffer }, language: 'fr', dayShape: 'standard', special: false }).news;
+  assert.match(news.href, /^\/revue\?session=/);
+  assert.equal(news.story.dossierId, resumeOffer.resume.dossierId);
 });
 
 test('a letter and a Revue the same day: §2 — the letter first, then the Revue, then words due', () => {
   for (const language of ['en', 'de', 'fr']) {
+    // 2026-10-18: the Revue is the news card under the day's card, so the chip row is
+    // the letter's and words due's again.
     const both = laUne(language, { week: live });
-    assert.deepEqual(both.chips.map((chip) => chip.id), ['courrier', 'revue', 'lexique']);
+    assert.deepEqual(both.chips.map((chip) => chip.id), ['courrier', 'lexique']);
     const shown = [...both.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]);
-    assert.deepEqual(shown, ['courrier', 'revue'], `${language}: HomeScreen's two — words due drop`);
+    assert.deepEqual(shown, ['courrier', 'lexique'], `${language}: HomeScreen's two`);
+    assert.match(both.html, /data-revue-card="news"/);
     assert.equal((both.html.match(/av2-btn--primary/g) || []).length, 1, 'a chip is never a press');
     assertHomeBudget(both.html, `${language} letter + revue`);
-    // Once the day is done, the one chip is the letter.
+    // Once the day is done HomeScreen keeps one chip, the letter; today's unread
+    // Papier keeps its card (2026-10-18 «the news did not appear»).
     const done = laUne(language, { week: live, dayDone: true });
     assert.deepEqual([...done.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['courrier']);
-    // No letter: the Revue leads the row.
-    assert.deepEqual(laUne(language, { week: live, letter: false }).chips.map((chip) => chip.id), ['revue', 'lexique']);
+    assert.match(done.html, /data-revue-card="news"/);
+    // A filed Papier: no card, the letter keeps the one chip.
+    const filedWeek = { enabled: true, offer: { ...live.offer, filed: { sessionId: 's', dossierId: live.offer.recommended.dossierId, titleFr: 'x', closedAt: NOW.toISOString(), made: null, dispatch: null } } };
+    const doneFiled = laUne(language, { week: filedWeek, dayDone: true });
+    assert.deepEqual([...doneFiled.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['courrier']);
+    assert.doesNotMatch(doneFiled.html, /rv-news/);
+    // A special edition keeps the quiet chip, after the letter (and first without one).
+    const special = laUne(language, { week: live, special: true });
+    assert.deepEqual(special.chips.map((chip) => chip.id), ['courrier', 'revue', 'lexique']);
+    assert.deepEqual(laUne(language, { week: live, letter: false, special: true }).chips.map((chip) => chip.id), ['revue', 'lexique']);
     // The Revue day: the Revue is the day's route and takes La Une whole — its
     // card spends the words a chip would need; the letter waits in the Courrier.
     for (const offer of [liveOffer, resumeOffer]) {
@@ -246,7 +285,10 @@ test('pages/atelier.tsx wires La Une through lib/revue-une.ts, beside the day an
   assert.match(page, /oncePerLoad\('revue\/week', \(\) => revueClient\(\)\.week\(\)\)/);
   assert.match(page, /\.catch\(\(\) => \{ \/\* the Revue is an enrichment/, 'a failed read is swallowed');
   assert.match(page, /revueUneEntry\(\{[\s\S]*?dayShape: dayShapeFrom\(dayJourney, dayEnvelope\),[\s\S]*?special: specialEdition,/);
-  assert.match(page, /revueHomeChips<HomeChip>\(revueEntry, dayChips\)/);
+  assert.match(page, /revueHomeChips<HomeChip>\(revueEntry, dayChips, revueDayDone && Boolean\(revueWeek\?\.enabled && !revueWeek\.offer\.filed\)\)/);
+  // 2026-10-18: the news card goes under the day's card (and its next step), in the hero slot.
+  assert.match(page, /const revueNews = revueEntry\.news \? \(\s*<RvNewsCard/);
+  assert.match(page, /\{revueHero \?\? journeyCard\}\s*<DaySessionNext [\s\S]*?\} \/>\s*\{revueNews\}/);
   // Round 3: the hero is the Revue's (else the journey card), with the day's one
   // next-step button under it; on a news day the programme stays, Le Papier first.
   assert.match(page, /const homeHero = [\s\S]*?\{revueHero \?\? journeyCard\}[\s\S]*?: \(revueHero \?\? journeyCard\);/);

@@ -22,6 +22,10 @@
  *   page has; there is no tentpole/finale flag on the day in the client.
  * - **Any other day of the week**: one quiet chip «Le Papier · sem. 40» until
  *   this week's Revue is filed (`revueHomeChip`).
+ * - **2026-10-18 (owner: «it's not indicated that it's the news-based feature»)**:
+ *   that chip became the news card (`RvNewsCard`, `news`): under the day's card,
+ *   the story's picture, the «À la une !» sticker and its headline, until the
+ *   Papier is filed. A filed Papier is the quiet chip again («Autre Papier ?»).
  *
  * **A letter and a Revue on the same day** (§2: «letter first, then Revue, then
  * words due»): on an ordinary day the letter keeps the first chip and the
@@ -50,14 +54,22 @@ export type RevueUneHero = {
   state: RvUneCardState;
 };
 
+/** Home's daily news card (2026-10-18): the story it shows and where it opens. */
+export type RevueNewsEntry = {
+  story: RvStoryCard;
+  href: string;
+};
+
 export type RevueUneEntry = {
   /** The chip, to be placed right after the letter's (see `withRevueChip`). */
   chip: RevueHomeChip | null;
   /** The hero card's data; the page renders `RvUneCard` and sets `planHidden`. */
   hero: RevueUneHero | null;
+  /** The news card under the day's card; the page renders `RvNewsCard`. Never with `hero`. */
+  news: RevueNewsEntry | null;
 };
 
-const NOTHING: RevueUneEntry = { chip: null, hero: null };
+const NOTHING: RevueUneEntry = { chip: null, hero: null, news: null };
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -102,16 +114,23 @@ export function revueUneEntry({
     // 2026-10-14 (owner): a filed Papier is done and never takes the hero from
     // today's day; it falls back to the chip row like any other day.
     const story = state && state !== 'filed' ? heroStory(offer, state) : null;
-    if (state && story) return { chip: null, hero: { offer, story, state } };
+    if (state && story) return { chip: null, hero: { offer, story, state }, news: null };
   }
-  return { chip: revueHomeChip(week, language), hero: null };
+  // A special edition keeps La Une for itself: the Papier stays a quiet chip that day.
+  const state = special ? null : revueUneState(offer);
+  const story = state && state !== 'filed' ? heroStory(offer, state) : null;
+  if (story) return { chip: null, hero: null, news: { story, href: revueOpenHref(offer) } };
+  return { chip: revueHomeChip(week, language), hero: null, news: null };
 }
 
-/** Puts the Revue chip right after the letter (or first when there is no letter). */
-export function withRevueChip<T extends { id: string }>(chips: T[], chip: T | null): T[] {
+/**
+ * Puts the Revue chip right after the letter (or first when there is no letter).
+ * `first`: ahead of the letter too — see `revueHomeChips`.
+ */
+export function withRevueChip<T extends { id: string }>(chips: T[], chip: T | null, first = false): T[] {
   if (!chip) return chips;
   const letter = chips.findIndex((entry) => entry.id === 'courrier');
-  const at = letter + 1; // 0 when there is no letter
+  const at = first ? 0 : letter + 1; // 0 when there is no letter
   return [...chips.slice(0, at), chip, ...chips.slice(at)];
 }
 
@@ -124,9 +143,12 @@ export function withRevueChip<T extends { id: string }>(chips: T[], chip: T | nu
  * needs the filed card to budget for it first — RvUneCard's business, not La
  * Une's.)
  */
-export function revueHomeChips<T extends { id: string }>(entry: RevueUneEntry, chips: T[]): T[] {
+export function revueHomeChips<T extends { id: string }>(entry: RevueUneEntry, chips: T[], unfiledAfterDay = false): T[] {
   if (entry.hero) return [];
-  return withRevueChip(chips, entry.chip as T | null);
+  // 2026-10-18 (owner: «the news did not appear for seven days»): once the day is done
+  // HomeScreen keeps one chip, and a waiting letter took it every evening. The letter
+  // has its own tab and push; today's unread Papier has only this chip, so it goes first.
+  return withRevueChip(chips, entry.chip as T | null, unfiledAfterDay);
 }
 
 /** The resume card's one clause: «Commencée hier · ta question attend.» */
