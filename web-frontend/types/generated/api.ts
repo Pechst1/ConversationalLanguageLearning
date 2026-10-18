@@ -1131,6 +1131,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Avatar
+         * @description The learner's avatar (``null`` until they make one) and every reward item.
+         */
+        get: operations["read_avatar_api_v1_avatar_get"];
+        /**
+         * Save Avatar
+         * @description Replace the learner's avatar. Locked items are refused with 403.
+         */
+        put: operations["save_avatar_api_v1_avatar_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/can-dos": {
         parameters: {
             query?: never;
@@ -4964,6 +4988,8 @@ export interface components {
             icon_url?: string | null;
             /** Name */
             name: string;
+            /** Reward Item */
+            reward_item?: string | null;
             /** Target Progress */
             target_progress: number;
             /** Tier */
@@ -5421,6 +5447,8 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /** Reward Item */
+            reward_item?: string | null;
             /** Tier */
             tier: string;
             /** Xp Reward */
@@ -6204,6 +6232,59 @@ export interface components {
             opening_message: string;
             /** Session Id */
             session_id: string;
+        };
+        /**
+         * AvatarRewardRead
+         * @description One avatar item an achievement unlocks, and how close the learner is.
+         */
+        AvatarRewardRead: {
+            /** Achievement Key */
+            achievement_key: string;
+            /** Current */
+            current: number;
+            /** Description */
+            description: string | null;
+            /** Item */
+            item: string;
+            /** Name */
+            name: string;
+            /** Slot */
+            slot: string;
+            /** Target */
+            target: number;
+            /** Tier */
+            tier: string;
+            /** Unlocked */
+            unlocked: boolean;
+            /** Unlocked At */
+            unlocked_at: string | null;
+        };
+        /**
+         * AvatarState
+         * @description The learner's avatar, the items they have unlocked, and every reward.
+         */
+        AvatarState: {
+            /** Avatar */
+            avatar: {
+                [key: string]: boolean | number | string;
+            } | null;
+            /** Rewards */
+            rewards: components["schemas"]["AvatarRewardRead"][];
+            /** Unlocked */
+            unlocked: string[];
+        };
+        /**
+         * AvatarUpdate
+         * @description ``PUT /avatar``: the whole avatar config, replacing the stored one.
+         *
+         *     Typed loosely on purpose: the service validates the shape, so every refusal
+         *     is one 422 with a readable ``detail``.
+         */
+        AvatarUpdate: {
+            /** Avatar */
+            avatar: {
+                [key: string]: boolean | number | string;
+            };
         };
         /** BandCheckItem */
         BandCheckItem: {
@@ -16648,6 +16729,66 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_avatar_api_v1_avatar_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarState"];
+                };
+            };
+        };
+    };
+    save_avatar_api_v1_avatar_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarState"];
+                };
+            };
+            /** @description An item not unlocked yet: `{"detail": {"code": "avatar_item_locked", "item": …}}` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

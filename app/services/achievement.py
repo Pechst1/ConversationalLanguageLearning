@@ -18,7 +18,15 @@ measure                source
 ``letters``            Courrier letters answered (``RealWorldMission`` done)
 ``words``              the learner's own Lexique rows (``UserVocabularyProgress``)
 ``chapters``           chapters the living story closed (its chronicle)
+``helps``              times the learner answered or helped someone: Courrier
+                       and phone missions done (``RealWorldMission``) plus
+                       story replies done (``DailyJourneyStep`` of kind
+                       ``respond``, ``completed``, on the learner's journeys)
 =====================  =====================================================
+
+Some achievements carry a ``reward``: the avatar item they unlock
+(:data:`REWARD_SLOTS` names the slot each item is worn in). ``/avatar``
+refuses a locked item until the achievement is earned.
 
 No XP is awarded: nothing on screen spends or shows it, and a number that only
 grows is not a reward. Retired keys stay in the table (their rows are history)
@@ -43,8 +51,8 @@ from sqlalchemy.orm import Session
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.user import User
 
-AchievementCategory = Literal["story", "streak", "courrier", "vocabulary"]
-Measure = Literal["scenes", "streak", "letters", "words", "chapters"]
+AchievementCategory = Literal["story", "streak", "courrier", "vocabulary", "entraide"]
+Measure = Literal["scenes", "streak", "letters", "words", "chapters", "helps"]
 
 
 @dataclass(frozen=True)
@@ -63,7 +71,26 @@ class AchievementDefinition:
     #: by hand (tests); it is never unlocked automatically.
     measure: Measure | None = None
     target: int = 1
+    #: The avatar item this achievement unlocks (a key of :data:`REWARD_SLOTS`),
+    #: or ``None``.
+    reward: str | None = None
 
+
+#: Every avatar item an achievement unlocks -> the avatar config key (slot) it
+#: is worn in. Each item belongs to exactly one achievement in the catalogue.
+REWARD_SLOTS: dict[str, str] = {
+    "pins_atelier": "pin",
+    "montre": "wrist",
+    "soleil": "glasses",
+    "canotier": "hat",
+    "crayon": "ears",
+    "mariniere": "top",
+    "collier_cle": "neck",
+    "badge_presse": "neck",
+    "foulard": "neck",
+    "bracelet": "wrist",
+    "boucles_or": "ears",
+}
 
 #: The one catalogue. French: the Relevé is French, and so is the story.
 CATALOGUE: tuple[AchievementDefinition, ...] = (
@@ -75,6 +102,7 @@ CATALOGUE: tuple[AchievementDefinition, ...] = (
         tier="bronze",
         measure="scenes",
         target=1,
+        reward="pins_atelier",
     ),
     AchievementDefinition(
         key="scenes_10",
@@ -84,6 +112,7 @@ CATALOGUE: tuple[AchievementDefinition, ...] = (
         tier="silver",
         measure="scenes",
         target=10,
+        reward="badge_presse",
     ),
     AchievementDefinition(
         key="session_streak_3",
@@ -93,6 +122,7 @@ CATALOGUE: tuple[AchievementDefinition, ...] = (
         tier="bronze",
         measure="streak",
         target=3,
+        reward="montre",
     ),
     AchievementDefinition(
         key="session_streak_7",
@@ -102,6 +132,7 @@ CATALOGUE: tuple[AchievementDefinition, ...] = (
         tier="silver",
         measure="streak",
         target=7,
+        reward="soleil",
     ),
     AchievementDefinition(
         key="session_streak_30",
@@ -111,6 +142,7 @@ CATALOGUE: tuple[AchievementDefinition, ...] = (
         tier="gold",
         measure="streak",
         target=30,
+        reward="canotier",
     ),
     AchievementDefinition(
         key="first_letter",
@@ -120,6 +152,37 @@ CATALOGUE: tuple[AchievementDefinition, ...] = (
         tier="bronze",
         measure="letters",
         target=1,
+        reward="crayon",
+    ),
+    AchievementDefinition(
+        key="helps_10",
+        name="Un coup de main",
+        description="Dix fois tu as répondu ou aidé quelqu’un.",
+        category="entraide",
+        tier="bronze",
+        measure="helps",
+        target=10,
+        reward="foulard",
+    ),
+    AchievementDefinition(
+        key="helps_50",
+        name="L’entraide",
+        description="Cinquante fois tu as répondu ou aidé quelqu’un.",
+        category="entraide",
+        tier="silver",
+        measure="helps",
+        target=50,
+        reward="bracelet",
+    ),
+    AchievementDefinition(
+        key="helps_100",
+        name="Le cœur sur la main",
+        description="Cent fois tu as répondu ou aidé quelqu’un.",
+        category="entraide",
+        tier="gold",
+        measure="helps",
+        target=100,
+        reward="boucles_or",
     ),
     AchievementDefinition(
         key="words_kept_50",
@@ -129,6 +192,7 @@ CATALOGUE: tuple[AchievementDefinition, ...] = (
         tier="silver",
         measure="words",
         target=50,
+        reward="mariniere",
     ),
     AchievementDefinition(
         key="first_chapter",
@@ -138,6 +202,7 @@ CATALOGUE: tuple[AchievementDefinition, ...] = (
         tier="silver",
         measure="chapters",
         target=1,
+        reward="collier_cle",
     ),
 )
 CATALOGUE_KEYS: frozenset[str] = frozenset(item.key for item in CATALOGUE)
@@ -159,6 +224,8 @@ class AchievementProgress:
     target_progress: int
     completed: bool
     unlocked_at: datetime | None
+    #: The avatar item this achievement unlocks, if any.
+    reward_item: str | None = None
 
 
 class AchievementNotFoundError(ValueError):
@@ -235,12 +302,32 @@ def _chapters(db: Session, user: User) -> int:
     return total
 
 
+def _helps(db: Session, user: User) -> int:
+    """Times the learner answered or helped someone: missions and story replies done."""
+
+    from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
+    from app.services.journey_contracts import StepKind, StepStatus
+
+    replies = db.scalar(
+        select(func.count(DailyJourneyStep.id))
+        .select_from(DailyJourneyStep)
+        .join(DailyJourney, DailyJourney.id == DailyJourneyStep.journey_id)
+        .where(
+            DailyJourney.user_id == user.id,
+            DailyJourneyStep.kind == str(StepKind.RESPOND),
+            DailyJourneyStep.status == str(StepStatus.COMPLETED),
+        )
+    )
+    return _letters(db, user) + int(replies or 0)
+
+
 MEASURES = {
     "scenes": _scenes,
     "streak": _streak,
     "letters": _letters,
     "words": _words,
     "chapters": _chapters,
+    "helps": _helps,
 }
 
 
@@ -354,6 +441,7 @@ class AchievementService:
                     target_progress=defn.target,
                     completed=completed,
                     unlocked_at=held.unlocked_at if completed else None,
+                    reward_item=defn.reward,
                 )
             )
         return items
@@ -403,6 +491,13 @@ class AchievementService:
         return newly
 
 
+def reward_item_for(achievement_key: str) -> str | None:
+    """The avatar item a catalogue entry unlocks; ``None`` for a retired or hand-seeded key."""
+
+    defn = _BY_KEY.get(achievement_key)
+    return defn.reward if defn is not None else None
+
+
 def definition_for(key: str) -> AchievementDefinition:
     try:
         return _BY_KEY[key]
@@ -414,9 +509,11 @@ __all__ = [
     "CATALOGUE",
     "CATALOGUE_KEYS",
     "MEASURES",
+    "REWARD_SLOTS",
     "AchievementDefinition",
     "AchievementNotFoundError",
     "AchievementProgress",
     "AchievementService",
     "definition_for",
+    "reward_item_for",
 ]
