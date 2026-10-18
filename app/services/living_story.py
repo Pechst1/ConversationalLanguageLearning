@@ -32,7 +32,7 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.services import story_memory
 from app.services.address import address_instruction
-from app.services.answer_acceptance import is_preference_swap
+from app.services.answer_acceptance import correction_is_grounded, is_preference_swap, known_slip
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -9487,6 +9487,19 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
         elif is_preference_swap(turn.correction_span_fr, turn.correction_fr):
             # Agency walk run 3: «sans mon nom» → «pas mon nom»; both are correct.
             turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
+        elif not correction_is_grounded(
+            payload["learner_text"],
+            turn.correction_span_fr,
+            turn.correction_fr,
+            turn.correction_note_native,
+        ):
+            # #193: the span, the subject the note cites and the form must be provable
+            # from the learner's own sentence («est → es, after 'tu'» was not).
+            turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
+    if not turn.correction_fr and not (payload.get("turn_plan") or {}).get("clarify_form_fr"):
+        slip = known_slip(payload["learner_text"], story.get("control_language"))
+        if slip:
+            turn.correction_span_fr, turn.correction_fr, turn.correction_note_native = slip
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):
         raise StoryUnavailable(
