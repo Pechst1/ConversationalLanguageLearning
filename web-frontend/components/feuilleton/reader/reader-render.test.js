@@ -444,6 +444,31 @@ test('WP-90: a translated line brings «Translate» into the bar', () => {
   assert.ok(!/fr-tools/.test(markup), 'and not under the panel, where it would move things');
 });
 
+test('a panel the director did not translate still offers «Übersetzen», and shows nothing until asked', () => {
+  const untranslated = {
+    kind: 'panel', key: 'panel:b1', ordinal: 1, panelId: 'b1', panelIndex: 0, title: '', beat: '',
+    imageUrl: '/assets/serial/locations/le_mistral-counter.webp', artStatus: 'ready', character: 'gus',
+    caption: 'Le café est presque vide ; seule une lampe brûle encore derrière le comptoir.', tasks: [],
+    lines: [{ key: 'l0', who: 'Gus', fr: 'Tu reviens tard, toi.', en: '', character: 'gus' }],
+  };
+  const markup = renderStory({ stages: [untranslated], index: 0, panelVariant: () => 'line', language: 'de' });
+  const bar = markup.slice(markup.indexOf('class="fr-bar"'), markup.indexOf('class="fr-head"'));
+  assert.ok(/aria-label="Bild übersetzen"/.test(bar), 'the chip is in the bar for a B1 panel too');
+  assert.ok(/aria-pressed="false"/.test(bar), 'and starts off');
+  assert.ok(!/fr-line-en/.test(markup), 'no translation prints uncalled');
+  assert.ok(!/fr-translate-note/.test(markup));
+});
+
+test('a panel with no French on it has no chip', () => {
+  const silent = {
+    kind: 'panel', key: 'panel:s', ordinal: 1, panelId: 's', panelIndex: 0, title: '', beat: '',
+    imageUrl: '/assets/serial/locations/le_mistral-counter.webp', artStatus: 'ready', character: '',
+    caption: '', tasks: [], lines: [], silent: true,
+  };
+  const markup = renderStory({ stages: [silent], index: 0, panelVariant: () => 'line', language: 'de' });
+  assert.ok(!/Bild übersetzen/.test(markup));
+});
+
 test('WP-90: the ending is the last panel — the case finale', () => {
   const markup = renderPlanche({ index: 2, furthest: 2, onComplete: () => {}, completeLabel: 'Continue', language: 'en' });
   assert.ok(/class="fr-finale"/.test(markup));

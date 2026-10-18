@@ -361,6 +361,17 @@ export function FeuilletonReaderStyles() {
       }
       .av2 .fr-chip[aria-pressed='true'],
       .av2 .fr-chip[data-active='true'] { background: var(--fr-ink); color: var(--av2-on-ink); }
+      /* the translation on its way: the chip's square breathes, nothing moves */
+      .av2 .fr-chip[data-translation='loading'] .sq { animation: fr-translate-wait 1.1s ease-in-out infinite; }
+      @keyframes fr-translate-wait { 50% { opacity: 0.35; } }
+      .av2 .fr-caption-en { padding: 0 2px; }
+      .av2 .fr-translate-note {
+        margin: 0 0 8px;
+        font-family: var(--fr-sans);
+        font-size: 0.8125rem;
+        line-height: 1.35;
+        color: var(--fr-muted);
+      }
 
       /* ---- browse vs act: a revisit is stated, never re-played ---- */
       .av2 .fr-state {
@@ -1263,6 +1274,7 @@ export function FeuilletonReaderStyles() {
 
       @media (prefers-reduced-motion: reduce) {
         .av2 .fr-plate[data-pan='slow'] img { animation: none; transform: none; }
+        .av2 .fr-chip[data-translation='loading'] .sq { animation: none; opacity: 0.5; }
         /* WP-90: the drawing simply appears; the ink simply lifts */
         .av2 .fr-reader .fr-plate .fr-art,
         .av2 .fr-reader .fr-plate .fr-ink { transition: none; }

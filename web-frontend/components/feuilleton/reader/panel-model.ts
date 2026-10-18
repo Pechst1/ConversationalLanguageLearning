@@ -94,6 +94,8 @@ export type ReaderPanelStage = {
   character: string;
   lines: ReaderLine[];
   caption: string;
+  /** The narration in the learner's language, once asked for (`panel-translation`). */
+  captionEn?: string;
   tasks: ReaderTask[];
   /** WP-110: which movement of the page this panel is (act, turn, reaction, solve, ending). */
   movement?: string;
