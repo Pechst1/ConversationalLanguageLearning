@@ -52,6 +52,15 @@ export function afterSignUpDestination(sanitizedCallback: string | null | undefi
   return sanitizedCallback;
 }
 
+/**
+ * Ton personnage: a new account makes its own character before anything else (owner,
+ * 2026-10-18), then goes on to the landing above. The editor in this mode has no way out but
+ * making one; a roll of the dice is already on the stage, so it takes one tap.
+ */
+export function characterFirst(landing: string): string {
+  return `/personnage?first=1&next=${encodeURIComponent(landing)}`;
+}
+
 export type SignUpForm = {
   email: string;
   password: string;

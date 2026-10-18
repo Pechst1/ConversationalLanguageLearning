@@ -2,8 +2,9 @@
 
 Before WP-79, 19 of 20 could not: their fields were never written. This walks
 one learner through the real writers — a finished journey, the practice
-streak, an answered letter, a kept Lexique, a closed chapter — and checks the
-whole catalogue unlocks, each from its own row, and that nothing unlocks early.
+streak, an answered letter, a hundred helping hands, a kept Lexique, a closed
+chapter — and checks the whole catalogue unlocks, each from its own row, and
+that nothing unlocks early.
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.serial import SerialThread
 from app.db.models.vocabulary import VocabularyWord
-from app.services.achievement import CATALOGUE, CATALOGUE_KEYS, AchievementService
+from app.services.achievement import CATALOGUE, CATALOGUE_KEYS, MEASURES, AchievementService
 from app.services.daily_journey import DailyJourneyService
 from app.services.daily_journey_adapters import build_default_adapters
 from app.services.streak import record_practice_day
@@ -83,6 +84,25 @@ def test_every_listed_achievement_is_reachable(db_session: Session, enabled: Non
     db_session.commit()
     assert _unlock(db_session, user) == {"first_letter"}
 
+    # helps_10 / 50 / 100 — answering or helping someone: missions done plus
+    # story replies done (the finished journey's respond step already counts).
+    helped = MEASURES["helps"](db_session, user)
+    assert 1 <= helped < 10
+    for target, key in ((10, "helps_10"), (50, "helps_50"), (100, "helps_100")):
+        for _ in range(target - 1 - helped):
+            db_session.add(
+                RealWorldMission(user_id=user.id, status="completed", title="Un coup de main", brief="Aider.")
+            )
+        db_session.commit()
+        assert _unlock(db_session, user) == set(), f"{target - 1} is not {target}"
+        db_session.add(
+            RealWorldMission(user_id=user.id, status="completed", title="Un coup de main", brief="Aider.")
+        )
+        db_session.commit()
+        helped = target
+        assert MEASURES["helps"](db_session, user) == target
+        assert _unlock(db_session, user) == {key}
+
     # words_kept_50 — fifty words in the learner's own Lexique; 49 is not 50.
     kept_before = db_session.query(UserVocabularyProgress).filter_by(user_id=user.id).count()
     for i in range(50 - kept_before):
@@ -124,9 +144,9 @@ def test_the_catalogue_is_small_honest_and_seeded_idempotently(db_session: Sessi
     rows = db_session.query(Achievement).filter(Achievement.achievement_key.in_(CATALOGUE_KEYS)).all()
     assert sorted(row.achievement_key for row in rows) == sorted(CATALOGUE_KEYS), "one row each"
     assert [row.achievement_key for row in service.list_all_achievements()] == [i.key for i in CATALOGUE]
-    assert len(CATALOGUE) <= 10
+    assert len(CATALOGUE) <= 11
     for item in CATALOGUE:
-        assert item.measure in {"scenes", "streak", "letters", "words", "chapters"}
+        assert item.measure in {"scenes", "streak", "letters", "words", "chapters", "helps"}
         assert item.xp_reward == 0
     # The retired, unreachable ones are gone from the catalogue.
     for retired in ("xp_bronze", "accuracy_perfectionist", "review_champion", "vocabulary_learner"):

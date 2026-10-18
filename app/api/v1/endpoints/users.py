@@ -253,6 +253,8 @@ def export_user_data(
             "current_streak": current_user.current_streak,
             "longest_streak": current_user.longest_streak,
             "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            # The drawn character from the avatar editor (null until made).
+            "avatar": current_user.avatar,
         },
         "vocabulary_progress": [
             {
