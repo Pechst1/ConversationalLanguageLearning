@@ -159,6 +159,20 @@ def display_name(character_id: str | None, default: str = "") -> str:
     return found.short_name if found else default
 
 
+def display_names(cast: Any) -> dict[str, str]:
+    """``{id: what the learner reads}`` for a season's cast rows (anything with ``id`` and
+    ``name``). A person the registry holds is named by the registry; anyone else keeps the
+    name the season gave them.
+
+    Every surface that names a speaker to the learner (the page's lines, the reply thread,
+    the re-read day) builds its ``{id: name}`` map here, never from ``member.name`` — that
+    is the world bible's full name («Augustin « Gus » de Roncourt»), and a thread that took
+    it from there printed one person under two names (#217).
+    """
+
+    return {row.id: display_name(row.id, row.name) for row in cast}
+
+
 def pronoun_for(
     character_id: str | None,
     *,

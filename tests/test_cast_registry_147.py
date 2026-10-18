@@ -16,6 +16,13 @@ from app.services.cast_voices import CAST_ALIASES, CAST_VOICES
 from app.services.missions import FIRST_LETTERS, REAL_WORLD_MISSION_DOMAINS
 from app.services.season.format import SEASON_ROOT
 from app.services.season.intro import season_intro
+from tests import test_journey_end_to_end as _support
+from tests import test_season_one as _season
+
+season_on = _season.season_on  # the fake season provider
+assembled_client = _support.assembled_client
+clock = _support.clock
+journey_enabled = _support.journey_enabled
 
 #: Minor cast whose drawn portraits are not made yet. The test fails the day one
 #: gets a face (remove it here) so this list cannot rot into an excuse.
@@ -117,3 +124,84 @@ def test_94_the_landlord_task_states_the_radiator_problem():
     assert "radiateur" in landlord["opening_message"].lower()
     assert "radiateur" in landlord["brief"].lower()
     assert not landlord["twist"].startswith("Elle ")
+
+
+# ---------------------------------------------------------------------------
+# #217 — one display name per person on the day-1 reply thread
+# ---------------------------------------------------------------------------
+
+
+def test_217_the_day_one_reply_thread_names_each_person_once(monkeypatch):
+    """Gus was «Gus» on the opening line and «Augustin « Gus » de Roncourt» on every
+    later line, with a second «… anhören» button: the thread took the speaker's name
+    from the world bible's full name. Every name the thread prints (the reaction
+    lines the server sends, the page's own lines) is the registry's display name."""
+
+    import app.services.living_story as engine
+    import app.services.story_lanes as lanes
+    from app.services.season import runtime
+    from tests.test_season_story_qa import _lines, _page, _say, _scenario
+
+    real = runtime.classify
+    monkeypatch.setattr(runtime, "classify", lambda db, user, **kw: real(db, user, **{**kw, "use_model": False}))
+    monkeypatch.setattr(lanes, "margin_correction", lambda *a, **k: None)
+    monkeypatch.setattr(engine, "story_revision", lambda *a, **k: "rev")
+    runtime._ROUTE_CACHE.clear()
+
+    page = _page()
+    scenario = _scenario(page)
+    history: list[dict] = []
+    reactions: list[dict] = []
+    for index, text in enumerate(["Odile est ma grand-mère.", "Je suis ici pour la clé.", "Oui, je comprends."]):
+        evaluation = _say(scenario, text, history, index)
+        reactions.extend(evaluation.reply_lines)
+        history.append(
+            {"learner": text, "character": evaluation.character_reply_fr,
+             **({"route": dict(evaluation.route)} if evaluation.route else {})}
+        )
+    assert "augustin_de_roncourt" in {row["speaker_id"] for row in reactions}
+    for row in reactions:
+        expected = reg.display_name(row["speaker_id"])
+        assert row["speaker_name"] == expected, (
+            f"{row['speaker_id']} is «{row['speaker_name']}» in the thread, the registry says «{expected}»"
+        )
+    named = [line for line in _lines(page["movements"]) if line.get("name")]
+    assert named
+    for line in named:
+        assert line["name"] == reg.display_name(line["who"]), line
+
+
+def test_217_the_served_day_one_thread_names_everyone_by_the_registry(
+    assembled_client, db_session, journey_enabled, clock, season_on
+):
+    """Through the real API with the fake provider: the respond step's opening speaker
+    and every speaker of the first reply carry the registry's display name."""
+
+    import uuid
+
+    from tests import test_journey_end_to_end as support
+
+    season_on.routes = {"Odile est ma grand-mère": "a"}
+    d = support.Driver(
+        assembled_client, support.register(assembled_client, f"c217-{uuid.uuid4()}@example.com", cefr="A2.1"), db=db_session
+    )
+    d.create()
+    step = None
+    for _ in range(40):
+        step = d.current()
+        if step is None or step["kind"] == "respond":
+            break
+        if step["kind"] == "recall":
+            d.attempt(d.recall_answer(step, correct=True))
+            if d.journey.get("current_step_id") == step["id"]:
+                d.advance()
+        else:
+            d.advance()
+    assert step and step["kind"] == "respond"
+    prompt = step["prompt"]
+    assert prompt["character_name"] == reg.display_name(prompt["character_id"]), prompt["character_name"]
+    body = d.attempt({"mode": "text", "text": "Odile est ma grand-mère"}).json()
+    lines = body.get("character_lines") or []
+    assert lines
+    for line in lines:
+        assert line["speaker_name"] == reg.display_name(line["speaker_id"]), line

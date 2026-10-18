@@ -563,6 +563,31 @@ test('a many-voiced reply is one bubble per speaker, each with who says it', () 
   assert.ok(!replies.some((b) => b.text.includes('Margaux :')), 'no speaker named inside another’s bubble');
 });
 
+test('#217 the day-1 reply thread names Gus once: speaker labels and listen buttons share one name', () => {
+  const FULL = 'Augustin « Gus » de Roncourt';
+  const gus = (text) => ({ speaker_id: 'augustin_de_roncourt', speaker_name: FULL, text_fr: text });
+  const margaux = (text) => ({ speaker_id: 'margaux_barman', speaker_name: 'Margaux Barman', text_fr: text });
+  const s = step({
+    turn_index: 1,
+    character_id: 'augustin_de_roncourt',
+    character_name: FULL,
+    character_line_fr: 'Tu vas monter ?',
+    thread: [{
+      learner_fr: 'Je suis la petite-fille d’Odile.',
+      character_fr: 'Ah.\nMargaux : Elle prenait ça.\nTu vas monter ?',
+      correction: null,
+      character_lines: [gus('Ah.'), margaux('Elle prenait ça.'), gus('Tu vas monter ?')],
+    }],
+  });
+  const { threadBubbles: bubblesOf } = require('./respond-thread.ts');
+  const spoken = bubblesOf({ prompt: s.prompt }).filter((b) => b.kind === 'character' && b.speaker);
+  assert.deepEqual(spoken.map((b) => b.speaker.name), ['Gus', 'Margaux', 'Gus']);
+  const html = renderRespond(s, DE);
+  assert.ok(!html.includes('Roncourt'), 'the full name is printed nowhere in the thread');
+  assert.ok(html.includes('Gus anhören'), 'the listen button is named Gus');
+  assert.ok(html.includes('Margaux anhören'));
+});
+
 
 // ===========================================================================
 // QA-STORY 2026-10-03 — a story reply is never «Correct»

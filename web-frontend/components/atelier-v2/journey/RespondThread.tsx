@@ -18,7 +18,6 @@
  * itself once when «Les personnages parlent à voix haute» is on.
  */
 
-import { shortSpeakerName } from '@/components/feuilleton/reader/panel-model';
 import React from 'react';
 
 import { ShapeToken } from '@/components/atelier-v2/ui';
@@ -219,7 +218,7 @@ export function RespondThread({
         const label = listenLabel(copy, who?.name || name);
         const other = Boolean(bubble.speaker && speaker && bubble.speaker.id !== speaker.id);
         const whoLabel = other && who ? (
-          <span className="av2-label av2-thread__who">{shortSpeakerName(who.name)}</span>
+          <span className="av2-label av2-thread__who">{who.name}</span>
         ) : null;
         const shown = typingKey === bubble.key ? typedText : bubble.text;
         const words = typing ? (
