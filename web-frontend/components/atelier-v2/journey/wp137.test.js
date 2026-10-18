@@ -164,28 +164,16 @@ test('C-11 · the first-run dateline is never held at opacity 0, and its token r
   }
 });
 
-test('C-11 · the home level line drops the separator when nothing follows it', () => {
+test('C-11 · the home masthead carries no level line at all (owner, 2026-10-18), so «A1.1 ·» cannot stand alone', () => {
   const { HomeScreen } = require('../home/HomeScreen.tsx');
   const { dayMarkState } = require('./day-mark.ts');
-  const level = (nextStep) => {
-    const html = renderToStaticMarkup(React.createElement(HomeScreen, {
-      dateLabel: 'mardi 6 octobre',
-      editionLabel: 'Édition Nº 1 · A1.1',
-      streak: 0,
-      level: { band: 'A1.1', percent: 0 },
-      nextStep,
-      language: 'de',
-      day: dayMarkState(null, 'de'),
-      chips: [],
-    }));
-    const start = html.indexOf('av2-home__level');
-    return start < 0 ? '' : html.slice(start, html.indexOf('</p>', start));
-  };
-  const bare = level({ band: 'A1.1', line: '', ariaLabel: '', href: '/carnet' });
-  assert.ok(/A1\.1/.test(bare), 'the band stays');
-  assert.ok(!/ · /.test(bare), `no dangling separator: ${bare}`);
-  const full = level({ band: 'A1.1', line: 'Nächster Schritt: Sagen, wer du bist', ariaLabel: 'x', href: '/carnet' });
-  assert.ok(/ · <\/span><a /.test(full), 'a separator between two real parts');
-  const css = fs.readFileSync(path.join(WEB_ROOT, 'styles/atelier-v2.css'), 'utf8');
-  assert.match(css, /\.av2-carnet__home-link \{ display: inline;/, 'the link wraps after the dot, never under it');
+  const html = renderToStaticMarkup(React.createElement(HomeScreen, {
+    dateLabel: 'mardi 6 octobre',
+    editionLabel: 'Édition Nº 1 · A1.1',
+    streak: 0,
+    language: 'de',
+    day: dayMarkState(null, 'de'),
+    chips: [],
+  }));
+  assert.doesNotMatch(html, /av2-home__level|A1\.1 · /);
 });
