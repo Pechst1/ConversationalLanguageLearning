@@ -25,6 +25,7 @@ import React from 'react';
 import Link from 'next/link';
 
 import { PlacementOfferChip } from '@/components/onboarding/PlacementOfferChip';
+import { MurEntry } from '@/components/cast/items/MurEntry';
 
 import {
   Action,
@@ -561,6 +562,9 @@ export function HomeScreen({
           </Surface>
         </div>
       )}
+
+      {/* Le mur du Mistral: the season's objects so far. Renders nothing before the first. */}
+      {!oneThing && <MurEntry className="av2-home__section" />}
 
       {!oneThing && library && (
         <div className="av2-home__section">

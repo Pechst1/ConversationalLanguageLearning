@@ -3600,6 +3600,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/serial/season/wall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Serial Season Wall
+         * @description Le mur du Mistral: the season's objects handed over so far, from the pages
+         *     read, and the marks the learner's choices left on them. Read-only.
+         */
+        get: operations["get_serial_season_wall_api_v1_serial_season_wall_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/serial/threads": {
         parameters: {
             query?: never;
@@ -20633,6 +20654,28 @@ export interface operations {
         };
     };
     get_serial_season_api_v1_serial_season_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    get_serial_season_wall_api_v1_serial_season_wall_get: {
         parameters: {
             query?: never;
             header?: never;

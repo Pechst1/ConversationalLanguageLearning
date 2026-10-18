@@ -23,6 +23,7 @@ import { actionWindow } from '../vivant/kit';
 import type { VivantOffer } from '../vivant/VivantFigure';
 import { withOffer } from '../vivant/VivantFigure';
 import { ITEM_ART, ItemDrawing, PLOT_ITEM_CSS } from './PlotItem';
+import type { ItemMarks } from './PlotItem';
 
 type Hold = { side: Side; at: [number, number]; r: number; s: number; face?: ExpressionId };
 
@@ -47,8 +48,15 @@ const HOLDS: Record<string, { base: Hold; own?: SeasonItemId; items?: Partial<Re
 /** The figure's face while it holds the object out, from the object's mood. */
 const FACE: Record<string, ExpressionId> = { neutre: 'neutre', ravie: 'joie', surprise: 'surprise', fachee: 'fache', emue: 'emu' };
 
-/** What a figure holds out for this object, or nothing when it has no hand for it. */
-export function itemOffer(figure: string, id: SeasonItemId, mood?: string): VivantOffer | null {
+export function faceFor(mood: string | null | undefined): ExpressionId {
+  return (mood && FACE[mood]) || 'neutre';
+}
+
+/**
+ * What a figure holds out for this object, or nothing when it has no hand for it; `marks` are
+ * the choices the object shows (the wall hands it over again as the learner left it).
+ */
+export function itemOffer(figure: string, id: SeasonItemId, mood?: string, marks?: ItemMarks): VivantOffer | null {
   const holds = HOLDS[figure];
   const art = ITEM_ART[id];
   if (!holds || !art || holds.own === id) return null;
@@ -60,7 +68,7 @@ export function itemOffer(figure: string, id: SeasonItemId, mood?: string): Viva
     css: PLOT_ITEM_CSS,
     art: (
       <g transform={`translate(${hold.at[0]} ${hold.at[1]}) rotate(${hold.r}) scale(${hold.s}) translate(${-gx} ${-gy})`}>
-        <ItemDrawing id={id} />
+        <ItemDrawing id={id} marks={marks} />
       </g>
     ),
   };

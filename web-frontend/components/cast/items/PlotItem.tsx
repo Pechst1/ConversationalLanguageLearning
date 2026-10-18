@@ -166,7 +166,8 @@ function Calendrier() {
 
 /* T3 · la pétition. On a kraft clipboard from the mairie: «Sauvons le Mistral» in red, rows of
  * signatures in blue, Gus's own across the bottom in red, and his fountain pen. */
-function Petition() {
+function Petition({ marks }: ArtProps) {
+  const promise = marks?.['s1.promise_gus'];
   return (
     <g>
       <rect x="-17" y="-46" width="34" height="46" rx="2.4" fill={KRAFT} />
@@ -209,41 +210,80 @@ function Petition() {
         <path d="M9.1,-9.1 L13.6,-13.3" fill="none" stroke={CREAM} strokeWidth={0.7} strokeLinecap="round" opacity={0.35} />
         <path d="M14.2,-12.7 L15.2,-13.6" fill="none" stroke={BRASS} strokeWidth={3.6} />
       </g>
+      {/* What Gus noted after your promise (T3): a sticky note, ticked in his red, or a pencil
+          question mark for «j'essaie». Nothing when you did not promise. */}
+      {promise === 'yes' || promise === 'half' ? (
+        <g className="pi-mark pi-mark--promise" transform="translate(9.6 -27.4) rotate(9)">
+          <rect x="-6.2" y="-5.4" width="12.4" height="12" fill={KRAFT_DARK} opacity={0.5} transform="translate(0.7 0.7)" />
+          <rect x="-6.2" y="-5.4" width="12.4" height="12" fill={YELLOW} />
+          <path d={scrawl(-4.4, -2.2, [3], 1.1, 1)} fill="none" stroke={promise === 'yes' ? RED : STEEL_DARK} strokeWidth={0.7} strokeLinecap="round" strokeLinejoin="round" />
+          {promise === 'yes' ? (
+            <path d="M-3.4,2.2 L-1.2,4.6 L3.8,-1.4" fill="none" stroke={RED} strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+          ) : (
+            <path d="M-1.6,0.4 C-1.6,-1.6 2,-1.6 1.6,0.6 C1.4,1.8 0,2 0,3.4 M0,5 L0,5.1" fill="none" stroke={STEEL_DARK} strokeWidth={0.9} strokeLinecap="round" />
+          )}
+        </g>
+      ) : null}
     </g>
   );
 }
 
-/* T4 · le Polaroid. One of Odile's: her kitchen at night, the window, the shelf, the stove, and
- * a flame on the pan climbing the wall; the date in orange in the corner, her caption under it.
- * It develops as you look. */
-function Polaroid() {
+/* T4 · le Polaroid. One of Odile's, its corner burnt: her kitchen at night, the window, the
+ * shelf, the stove, and a flame on the pan climbing the wall; the date in orange in the corner,
+ * her caption under it. It develops as you look. Your T4 choice pins it to the wall or tucks it
+ * under Margaux's till tray. */
+function Polaroid({ marks }: ArtProps) {
+  const where = marks?.['s1.fire_photo'];
   return (
-    <g transform="rotate(-4 0 -18.5)">
-      <rect x="-13.8" y="-35.8" width="30" height="37" rx="1" fill={UNDER} />
-      <rect x="-15" y="-37" width="30" height="37" rx="1" fill={PAPER} />
-      <rect x="-12.6" y="-34.6" width="25.2" height="25.2" fill={SOOT} />
-      <circle cx="6.4" cy="-22.4" r="6" fill={RED} opacity={0.3} />
-      <rect x="-10.4" y="-32" width="8.6" height="9.6" fill={NAVY} />
-      <circle cx="-8.4" cy="-29.8" r="1.1" fill={CREAM} />
-      <path d="M-6.1,-32 L-6.1,-22.4 M-10.4,-27.2 L-1.8,-27.2" fill="none" stroke={SOOT} strokeWidth={0.9} />
-      <rect x="1" y="-30.4" width="11.6" height="1.2" fill={STEEL_DARK} />
-      <rect x="2.2" y="-32.6" width="2" height="2.2" fill={BRASS} />
-      <rect x="5.2" y="-32" width="1.8" height="1.6" fill={CREAM} />
-      <rect x="8" y="-33" width="2.4" height="2.6" fill={TEAL} />
-      <rect x="-12.6" y="-12.4" width="25.2" height="3" fill={LEATHER} />
-      <rect x="0.4" y="-18.6" width="12.2" height="6.6" fill={STEEL_DARK} />
-      <rect x="0" y="-19.4" width="12.6" height="1.2" fill={STEEL} />
-      <rect x="2" y="-16.8" width="8.8" height="3.8" rx="0.4" fill={SOOT} />
-      <path d="M2.6,-19.4 L9.4,-19.4 L8.8,-21.6 L3.2,-21.6 Z" fill={INK} />
-      <path d="M9.2,-21 L12.2,-22" fill="none" stroke={INK} strokeWidth={1.1} strokeLinecap="round" />
-      <g className="pi-flame">
-        <path d="M3.4,-21.6 C2.2,-24.4 4.4,-26 3.8,-29.4 C5.8,-27.4 6.2,-25.6 6.8,-27.2 C8.6,-25.2 9.8,-23.6 8.8,-21.6 Z" fill={RED} />
-        <path d="M4.6,-21.6 C4,-23.4 5.4,-24.4 5.2,-26.2 C6.4,-24.8 6.8,-24 7.2,-24.8 C8,-23.6 8.4,-22.6 7.8,-21.6 Z" fill={YELLOW} />
+    <g>
+      <g transform="rotate(-4 0 -18.5)">
+        <rect x="-13.8" y="-35.8" width="30" height="37" rx="1" fill={UNDER} />
+        <rect x="-15" y="-37" width="30" height="37" rx="1" fill={PAPER} />
+        <rect x="-12.6" y="-34.6" width="25.2" height="25.2" fill={SOOT} />
+        <circle cx="6.4" cy="-22.4" r="6" fill={RED} opacity={0.3} />
+        <rect x="-10.4" y="-32" width="8.6" height="9.6" fill={NAVY} />
+        <circle cx="-8.4" cy="-29.8" r="1.1" fill={CREAM} />
+        <path d="M-6.1,-32 L-6.1,-22.4 M-10.4,-27.2 L-1.8,-27.2" fill="none" stroke={SOOT} strokeWidth={0.9} />
+        <rect x="1" y="-30.4" width="11.6" height="1.2" fill={STEEL_DARK} />
+        <rect x="2.2" y="-32.6" width="2" height="2.2" fill={BRASS} />
+        <rect x="5.2" y="-32" width="1.8" height="1.6" fill={CREAM} />
+        <rect x="8" y="-33" width="2.4" height="2.6" fill={TEAL} />
+        <rect x="-12.6" y="-12.4" width="25.2" height="3" fill={LEATHER} />
+        <rect x="0.4" y="-18.6" width="12.2" height="6.6" fill={STEEL_DARK} />
+        <rect x="0" y="-19.4" width="12.6" height="1.2" fill={STEEL} />
+        <rect x="2" y="-16.8" width="8.8" height="3.8" rx="0.4" fill={SOOT} />
+        <path d="M2.6,-19.4 L9.4,-19.4 L8.8,-21.6 L3.2,-21.6 Z" fill={INK} />
+        <path d="M9.2,-21 L12.2,-22" fill="none" stroke={INK} strokeWidth={1.1} strokeLinecap="round" />
+        <g className="pi-flame">
+          <path d="M3.4,-21.6 C2.2,-24.4 4.4,-26 3.8,-29.4 C5.8,-27.4 6.2,-25.6 6.8,-27.2 C8.6,-25.2 9.8,-23.6 8.8,-21.6 Z" fill={RED} />
+          <path d="M4.6,-21.6 C4,-23.4 5.4,-24.4 5.2,-26.2 C6.4,-24.8 6.8,-24 7.2,-24.8 C8,-23.6 8.4,-22.6 7.8,-21.6 Z" fill={YELLOW} />
+        </g>
+        <path d="M6.2,-29.8 C4.4,-31.2 6.6,-32.4 5,-34" fill="none" stroke={STEEL} strokeWidth={1.2} strokeLinecap="round" opacity={0.7} />
+        <path d="M5.4,-10.9 L6.4,-10.9 M7.2,-10.9 L8.2,-10.9 M9.4,-10.9 L10.4,-10.9 M11,-10.9 L12,-10.9" fill="none" stroke={ORANGE} strokeWidth={0.6} strokeLinecap="round" />
+        <rect className="pi-murk" x="-12.6" y="-34.6" width="25.2" height="25.2" fill="#3c4252" opacity={0} />
+        <path d={scrawl(-10.4, -4.2, [3, 4, 2], 1.4, 1.3)} fill="none" stroke={BLUE} strokeWidth={0.75} strokeLinecap="round" strokeLinejoin="round" />
+        {/* the corner the fire took */}
+        <path d="M16.2,-9.6 C13.6,-8.4 14.4,-5.6 12,-4.6 C10.2,-3.8 10,-1.2 7.2,1.2 L16.2,1.2 Z" fill="#3b2f25" />
+        <path d="M16.2,-9.6 C13.6,-8.4 14.4,-5.6 12,-4.6 C10.2,-3.8 10,-1.2 7.2,1.2" fill="none" stroke={ORANGE} strokeWidth={0.6} strokeLinecap="round" opacity={0.75} />
+        {/* T4, back on the wall: pinned alone in the gap Lila made for it */}
+        {where === 'wall' ? (
+          <g className="pi-mark pi-mark--wall">
+            <circle cx="0.6" cy="-35.4" r="2.6" fill={UNDER} />
+            <circle cx="0" cy="-36" r="2.6" fill={RED} />
+            <circle cx="-0.8" cy="-36.8" r="0.8" fill={CREAM} opacity={0.6} />
+          </g>
+        ) : null}
       </g>
-      <path d="M6.2,-29.8 C4.4,-31.2 6.6,-32.4 5,-34" fill="none" stroke={STEEL} strokeWidth={1.2} strokeLinecap="round" opacity={0.7} />
-      <path d="M5.4,-10.9 L6.4,-10.9 M7.2,-10.9 L8.2,-10.9 M9.4,-10.9 L10.4,-10.9 M11,-10.9 L12,-10.9" fill="none" stroke={ORANGE} strokeWidth={0.6} strokeLinecap="round" />
-      <rect className="pi-murk" x="-12.6" y="-34.6" width="25.2" height="25.2" fill="#3c4252" opacity={0} />
-      <path d={scrawl(-10.4, -4.2, [3, 4, 2], 1.4, 1.3)} fill="none" stroke={BLUE} strokeWidth={0.75} strokeLinecap="round" strokeLinejoin="round" />
+      {/* T4, given back to Margaux: half under the till tray, the drawer locked */}
+      {where === 'margaux' ? (
+        <g className="pi-mark pi-mark--till">
+          <rect x="-19.5" y="-10.6" width="39" height="17" rx="1.2" fill={LEATHER} />
+          <rect x="-19.5" y="-10.6" width="39" height="2" rx="1" fill={STEEL} />
+          <rect x="-6" y="-4.6" width="12" height="1.8" rx="0.9" fill={LEATHER_DARK} />
+          <circle cx="0" cy="1.4" r="1.5" fill={BRASS} />
+          <path d="M0,1.9 L0,3.6" fill="none" stroke={LEATHER_DARK} strokeWidth={0.9} strokeLinecap="round" />
+        </g>
+      ) : null}
     </g>
   );
 }
@@ -389,12 +429,20 @@ function Enveloppe() {
 
 /* ------------------------------------------------------------------------------------------ */
 
+/**
+ * The choices an object shows once the learner has made them (`GET /serial/season/wall`),
+ * keyed by the story flag: where the burnt Polaroid went, what Gus noted after your promise.
+ */
+export type ItemMarks = Partial<Record<'s1.fire_photo' | 's1.promise_gus', string>>;
+
+type ArtProps = { marks?: ItemMarks };
+
 export type ItemArt = {
   /** the card's square view of it */
   box: [number, number, number, number];
   /** where a hand holds it (the origin of its drawing) */
   grip: Pt;
-  Art: () => ReactElement;
+  Art: (props: ArtProps) => ReactElement;
 };
 
 export const ITEM_ART: Record<SeasonItemId, ItemArt> = {
@@ -409,13 +457,13 @@ export const ITEM_ART: Record<SeasonItemId, ItemArt> = {
 };
 
 /** The drawing alone, in its own frame: what a card shows and a hand holds. */
-export function ItemDrawing({ id, still = false }: { id: SeasonItemId; still?: boolean }) {
+export function ItemDrawing({ id, still = false, marks }: { id: SeasonItemId; still?: boolean; marks?: ItemMarks }) {
   const art = ITEM_ART[id];
   if (!art) return null;
   const { Art } = art;
   return (
     <g className={['pi-art', `pi-art--${id}`, still ? 'pi-art--still' : ''].filter(Boolean).join(' ')} data-plot-item={id}>
-      <Art />
+      <Art marks={marks} />
     </g>
   );
 }
@@ -468,10 +516,13 @@ export function PlotItem({
   label,
   className,
   css = 'scoped',
+  marks,
 }: {
   id: SeasonItemId;
   size?: number;
   still?: boolean;
+  /** the choices it shows (see ItemMarks) */
+  marks?: ItemMarks;
   /** what a screen reader hears; none when the name is printed beside it */
   label?: string;
   className?: string;
@@ -492,7 +543,7 @@ export function PlotItem({
       focusable="false"
     >
       {css === 'scoped' ? <style dangerouslySetInnerHTML={{ __html: PLOT_ITEM_CSS }} /> : null}
-      <ItemDrawing id={id} still={still} />
+      <ItemDrawing id={id} still={still} marks={marks} />
     </svg>
   );
 }
