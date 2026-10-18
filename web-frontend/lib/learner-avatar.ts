@@ -8,6 +8,9 @@
  *
  * `rewards` lists every item an achievement unlocks, locked or not, with the learner's
  * progress towards it; `unlocked` the ones they may wear.
+ *
+ * The cache key is under `pilot:`, so sign-out and an account switch sweep it with the other
+ * learner caches (`clearPilotResilience`) and a second account never starts from this one's.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -18,7 +21,7 @@ import type { AvatarConfig } from './avatar';
 import { normalizeAvatar, readAvatar } from './avatar';
 import { oncePerLoad } from './once-per-load';
 
-export const AVATAR_STORAGE_KEY = 'atelier.avatar';
+export const AVATAR_STORAGE_KEY = 'pilot:avatar:v1';
 
 export type AvatarLoad = 'loading' | 'ready' | 'failed';
 
@@ -88,12 +91,26 @@ export function saveFailure(error: unknown): Exclude<AvatarSaveResult, { ok: tru
 
 /* Every mounted hook hears a save, so the disc in a header and the profile below it agree. */
 const listeners = new Set<(state: LearnerAvatarState) => void>();
+/* Saves so far this page load: a read that started before the latest one is out of date. */
+let saves = 0;
+
+/**
+ * One coalesced `GET /avatar`, or `null` when a save landed while it was in flight (the save's
+ * answer is newer). The coalescing key moves on with each save, so a read shared from before
+ * it can never be handed to a screen that mounts after it.
+ */
+export async function fetchLearnerAvatar(): Promise<LearnerAvatarState | null> {
+  const generation = saves;
+  const payload = await oncePerLoad(`avatar:${generation}`, () => apiService.getAvatar());
+  return generation === saves ? avatarStateFrom(payload) : null;
+}
 
 /** Save the whole record (only the ids the editor knows, items held or not checked here). */
 export async function saveLearnerAvatar(config: AvatarConfig): Promise<AvatarSaveResult> {
   try {
     const payload = await apiService.saveAvatar({ ...normalizeAvatar(config) });
     const state = avatarStateFrom(payload);
+    saves += 1;
     rememberAvatar(state);
     listeners.forEach((listener) => listener(state));
     return { ok: true, state };
@@ -112,14 +129,14 @@ export function useLearnerAvatar(): LearnerAvatarState & { reload: () => void } 
     if (cached) setState((current) => (current.load === 'ready' ? current : { ...current, ...cached }));
     void (async () => {
       try {
-        const payload = await oncePerLoad('avatar', () => apiService.getAvatar());
-        if (!alive) return;
-        const next = avatarStateFrom(payload);
+        const next = await fetchLearnerAvatar();
+        if (!alive || !next) return;
         rememberAvatar(next);
         setState(next);
       } catch {
         // Offline or signed out: the cached character stays, and the screen says it could not load.
-        if (alive) setState((current) => ({ ...current, load: 'failed' }));
+        // A save that answered meanwhile is the learner's character; it stays as it is.
+        if (alive) setState((current) => (current.load === 'ready' ? current : { ...current, load: 'failed' }));
       }
     })();
     const listener = (next: LearnerAvatarState) => {

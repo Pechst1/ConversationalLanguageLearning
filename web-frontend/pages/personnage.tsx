@@ -45,11 +45,11 @@ export default function PersonnagePage() {
   const tabQuery = firstValue(router.query.tab);
   const initialTab: EditorTab = EDITOR_TABS.some((tab) => tab.id === tabQuery) ? (tabQuery as EditorTab) : 'face';
 
-  // Start from the learner's own character (cached, then the server's); without one, a roll.
+  // Start from the character the server holds, not the cached copy: the editor saves what it
+  // starts from, so it must be this learner's. Offline, the cached one; without any, a roll.
   useEffect(() => {
-    if (initial) return;
-    if (avatar) setInitial(normalizeAvatar(avatar, unlocked));
-    else if (load !== 'loading') setInitial(randomAvatar(Math.random, unlocked));
+    if (initial || load === 'loading') return;
+    setInitial(avatar ? normalizeAvatar(avatar, unlocked) : randomAvatar(Math.random, unlocked));
   }, [avatar, initial, load, unlocked]);
 
   const onSave = useCallback(

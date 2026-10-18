@@ -37,7 +37,16 @@ const {
   readAvatar,
   sameAvatar,
 } = require('@/lib/avatar.ts');
-const { avatarStateFrom, saveFailure } = require('@/lib/learner-avatar.ts');
+const {
+  AVATAR_STORAGE_KEY,
+  avatarStateFrom,
+  fetchLearnerAvatar,
+  saveFailure,
+  saveLearnerAvatar,
+} = require('@/lib/learner-avatar.ts');
+const { clearPilotResilience } = require('@/lib/pilot-resilience.ts');
+const { resetOncePerLoad } = require('@/lib/once-per-load.ts');
+const api = require('@/services/api.ts').default;
 const { Avatar, AvatarDisc } = require('./Avatar.tsx');
 const { AvatarEditor, EDITOR_TABS, SLOT_VIEW, reactionFor, tabForSlot } = require('./AvatarEditor.tsx');
 const { AVATAR_COPY } = require('./avatar-copy.ts');
@@ -235,6 +244,52 @@ test('the server’s answer becomes the hook’s state, and a refused piece is t
   });
   assert.deepEqual(saveFailure({ response: { status: 500 } }), { ok: false, reason: 'failed' });
   assert.deepEqual(saveFailure(new Error('offline')), { ok: false, reason: 'failed' });
+});
+
+/** A `localStorage` stand-in with the key walk the sign-out sweep uses. */
+function memoryStore() {
+  const map = new Map();
+  return {
+    getItem: (key) => (map.has(key) ? map.get(key) : null),
+    setItem: (key, value) => map.set(key, String(value)),
+    removeItem: (key) => map.delete(key),
+    key: (index) => [...map.keys()][index] ?? null,
+    get length() {
+      return map.size;
+    },
+  };
+}
+
+test('the cached character is swept with the other learner caches at sign-out', () => {
+  const store = memoryStore();
+  store.setItem(AVATAR_STORAGE_KEY, JSON.stringify({ avatar: { v: 1 }, unlocked: ['montre'] }));
+  store.setItem('atelier.theme', 'dark');
+  clearPilotResilience(store);
+  assert.equal(store.getItem(AVATAR_STORAGE_KEY), null, 'a second account must not start from this character');
+  assert.equal(store.getItem('atelier.theme'), 'dark', 'device preferences stay');
+});
+
+test('a save is never undone by the read it overtook, nor by a read shared from before it', async () => {
+  const before = { avatar: null, unlocked: [], rewards: [] };
+  const saved = { avatar: { v: 1, hair: 'afro' }, unlocked: [], rewards: [] };
+  const original = { get: api.getAvatar, put: api.saveAvatar };
+  let release = null;
+  api.getAvatar = () => new Promise((resolve) => (release = () => resolve(before)));
+  api.saveAvatar = async () => saved;
+  try {
+    resetOncePerLoad();
+    const overtaken = fetchLearnerAvatar();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal((await saveLearnerAvatar({ ...DEFAULT_AVATAR, hair: 'afro' })).ok, true);
+    release();
+    assert.equal(await overtaken, null, 'the read that started before the save is dropped');
+    api.getAvatar = async () => saved;
+    assert.equal((await fetchLearnerAvatar()).avatar.hair, 'afro', 'a screen mounted after the save reads afresh');
+  } finally {
+    api.getAvatar = original.get;
+    api.saveAvatar = original.put;
+    resetOncePerLoad();
+  }
 });
 
 test('the styles use the design tokens, never a raw colour', () => {
