@@ -154,6 +154,7 @@ def delete_current_user(
     service.delete(current_user)
 
 
+@router.get("", response_model=list[UserRead], include_in_schema=False)
 @router.get("/", response_model=list[UserRead])
 def list_users(
     limit: int = Query(20, ge=1, le=100),
