@@ -12,7 +12,7 @@ import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seanc
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
-import { productionPhase, reviewIsPending, settleShownCorrection } from '@/lib/forge-verdict';
+import { itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
   FOLLOW_UP_EMPTY,
@@ -4113,17 +4113,30 @@ function ExerciseFeedbackMoment({
     : <ForgeCorrectedLine fr={repairOf.correctedFr} />;
 
   if (feedback.correct) {
+    // #213: one verdict per card. A right judgement takes the result of the
+    // repair step: «Well done!» only once the sentence was corrected, «Not yet»
+    // when the right sentence had to be shown, and nothing while it is open.
+    const repairStep: RepairStep = repairOf.followUp ? (followDraft.outcome ?? 'open') : 'none';
+    const verdict = itemVerdict({ judgedRight: feedback.correct, repair: repairStep });
     return (
-      <div className="ep-feedback" data-verdict="correct">
+      <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'}>
         {/* Text diet: a picked answer is already marked right on its card. */}
         {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
-        <EpFoot tone="correct">
-          <EpVerdict tone="go" sub={rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
-          {!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>}
-        </EpFoot>
+        {verdict === 'right' && (
+          <EpFoot tone="correct">
+            <EpVerdict tone="go" sub={rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
+            <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          </EpFoot>
+        )}
+        {verdict === 'wrong' && (
+          <EpFoot tone="wrong">
+            <EpVerdict tone="no" sub={rule} coach={coach} coachMood="cross">{t.verdict_wrong}</EpVerdict>
+            <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          </EpFoot>
+        )}
       </div>
     );
   }

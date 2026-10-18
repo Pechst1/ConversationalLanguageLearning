@@ -30,12 +30,19 @@ GILT_VARIANTS = ("row", "stack", "nested", "quad")
 PLATE_KINDS = {PLATE_SEMAINE, PLATE_CHAPTER, COLOPHON}
 
 # Rounds that reward a logo token when an attempt is flawless. Recognize keeps
-# its original "perfect screen" token; the harder drafting rounds now mint too,
-# with a higher credit weight because they take more effort.
-DRAFTING_ROUNDS = {"transform", "sentence", "speak", "conversation", "produce"}
+# its original "perfect screen" token; the drafting rounds now mint too, with a
+# higher credit weight because they take more effort.
+#
+# "Drafting" is the own-words bonus («In your own words: you used today's form
+# in a sentence of your own»), so a round belongs here only when the learner
+# *composes* the sentence. ``transform`` (correct or rewrite the app's own
+# sentence) is typed and harder than a tile build, but it is not composing: it
+# sat here by effort and told the learner something false (#216). Add a round
+# to this set by asking "does the learner write the sentence?", not "is it
+# hard?".
+DRAFTING_ROUNDS = {"sentence", "speak", "conversation", "produce"}
 ATTEMPT_CREDIT: dict[str, int] = {
     "recognize": 1,
-    "transform": 2,
     "sentence": 3,
     "speak": 3,
     "conversation": 3,
