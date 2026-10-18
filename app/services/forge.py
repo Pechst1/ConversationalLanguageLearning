@@ -19,7 +19,9 @@ on today's code, and is replaced by passing another implementation:
   exclude)`` → a :class:`ForgeItem` with its answer key. Default:
   :class:`BankItemProvider`: the session's exercise set, topped up from the
   item bank when a rung runs dry (:class:`PayloadItemProvider` alone reads the
-  set).
+  set). A provider with ``supports_drills`` also takes ``drill`` (how the item
+  is posed, :mod:`app.services.forge_drills`): the séance asks for the drills
+  the recommender ranks for this learner, best first.
 * :class:`Composer` (WP-S4 picker): ``pick(user, now=…)`` → a list of
   :class:`PickedUnit` ``(concept_id, role: today | due | contrast)``. Default:
   :class:`ForgePlanComposer`, WP-S4's one picker
@@ -34,8 +36,10 @@ on today's code, and is replaced by passing another implementation:
 """
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass, field
+import hashlib
+import re
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 from uuid import UUID
@@ -49,7 +53,9 @@ from app.core.forge import ForgeState, ForgeUnit, Role, Rung, Verdict
 from app.db.models.atelier import AtelierAttempt, AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
+from app.services import forge_drills as drills
 from app.services.forge_coaches import coach_for_concept, coach_mood
+from app.services.item_bank import MINE_INSTRUCTION_L10N
 
 FORGE_KEY = "forge"
 #: Session status of a running / finished «Épreuve de la règle». Kept apart from
@@ -167,9 +173,13 @@ class ForgeItem:
     payload: dict[str, Any] = field(default_factory=dict)
     #: The expected answer when the provider knows it (WP-S2 always does).
     answer_key: Any = None
+    #: How the item is posed (:mod:`app.services.forge_drills`).
+    drill: str | None = None
+    #: A burst's other items: posed with this one, graded in one attempt.
+    group: tuple[ForgeItem, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "concept_id": self.concept_id,
             "rung": self.rung,
             "rung_name": core.rung_name(self.rung),
@@ -179,6 +189,17 @@ class ForgeItem:
             "item_index": self.item_index,
             "fingerprint": self.fingerprint,
         }
+        if self.drill:
+            out["drill"] = self.drill
+        if self.group:
+            members = (self, *self.group)
+            out["group_item_ids"] = [member.item_id for member in members]
+            out["group_fingerprints"] = [member.fingerprint for member in members]
+        return out
+
+
+#: ``accept(drill, item)``: may this item be posed as this drill?
+DrillCheck = Callable[[str | None, dict[str, Any]], bool]
 
 
 class ItemProvider(Protocol):
@@ -187,6 +208,10 @@ class ItemProvider(Protocol):
 
         May answer with a neighbouring rung when the asked one has nothing
         left; the returned item's ``rung`` is the rung actually posed.
+
+        A provider with ``supports_drills = True`` also takes ``drill`` and
+        ``accept``: then only an item of exactly this rung that the drill can
+        pose (``accept(drill, item)``), or ``None``.
         """
 
 
@@ -199,6 +224,23 @@ def _public_item(payload: dict[str, Any], user: User | None) -> dict[str, Any]:
     from app.services.item_bank import public_item
 
     return public_item(payload, user_chrome_language(user), getattr(user, "native_language", None))
+
+
+#: A quoted meaning: an opening quote, then words (``Complete: "…"``, „…“, « … »).
+_QUOTED_MEANING = re.compile(r"[\"“„«]\s*[^\s\"“”„«»]")
+_GLOSS = re.compile(r"\(\s*[^\s)][^)]*\)\s*$")
+
+
+def _meaning_on_screen(item: dict[str, Any]) -> bool:
+    """Does a served item tell the learner what its sentence means?
+
+    Every goal that carries a meaning quotes it; a fill's prompt may carry it
+    as a gloss in brackets instead («Hier, j'___ (I ate)»).
+    """
+
+    if _QUOTED_MEANING.search(str(item.get("goal_native") or "")):
+        return True
+    return _GLOSS.search(str(item.get("prompt") or "")) is not None
 
 
 def fingerprint_for(concept_id: int, round_name: str, mode: str, item_id: str) -> str:
@@ -233,6 +275,8 @@ class PayloadItemProvider:
     sentence → produce, conversation → free use).
     """
 
+    supports_drills = True
+
     def __init__(self, payloads: dict[int, dict[str, Any]]) -> None:
         self.payloads = payloads
 
@@ -254,20 +298,30 @@ class PayloadItemProvider:
             payloads[concept_id] = dict(exercise_set.payload or {})
         return cls(payloads)
 
-    def item_at(self, *, concept_id: int, rung: int, exclude: set[str]) -> ForgeItem | None:
-        """An unused item of exactly this rung, or ``None``."""
+    def candidates(
+        self,
+        *,
+        concept_id: int,
+        rung: int,
+        exclude: set[str],
+        drill: str | None = None,
+        accept: DrillCheck | None = None,
+    ) -> Iterable[ForgeItem]:
+        """Every unused item of this rung (that ``drill`` can pose), in set order."""
 
         payload = self.payloads.get(int(concept_id))
         if not payload:
-            return None
+            return
         rung = core.clamp_rung(rung)
-        for round_name, mode in RUNG_POOLS[Rung(rung)]:
+        check = accept or drills.item_fits
+        pools = (drills.DRILL_POOL[drill],) if drill else RUNG_POOLS[Rung(rung)]
+        for round_name, mode in pools:
             for index, item in enumerate(_payload_items(payload, round_name, mode)):
                 item_id = str(item.get("id") or f"{round_name}-{index}")
                 fingerprint = fingerprint_for(concept_id, round_name, mode, item_id)
-                if fingerprint in exclude:
+                if fingerprint in exclude or not check(drill, item):
                     continue
-                return ForgeItem(
+                yield ForgeItem(
                     concept_id=int(concept_id),
                     rung=int(rung),
                     round=round_name,
@@ -277,17 +331,98 @@ class PayloadItemProvider:
                     fingerprint=fingerprint,
                     payload=item,
                     answer_key=item.get("answer") or item.get("expected_answer") or item.get("correct_answer"),
+                    drill=drill,
                 )
-        return None
 
-    def item_for(self, *, concept_id: int, rung: int, exclude: set[str]) -> ForgeItem | None:
+    def item_at(
+        self,
+        *,
+        concept_id: int,
+        rung: int,
+        exclude: set[str],
+        drill: str | None = None,
+        accept: DrillCheck | None = None,
+    ) -> ForgeItem | None:
+        """An unused item of exactly this rung (that ``drill`` can pose), or ``None``.
+
+        Without a drill, a learner's own sentence («mine») is never served: it
+        is posed only as itself.
+        """
+
+        found = self.candidates(concept_id=concept_id, rung=rung, exclude=exclude, drill=drill, accept=accept)
+        return next(iter(found), None)
+
+    def burst_at(
+        self, *, concept_id: int, rung: int, exclude: set[str], accept: DrillCheck | None = None
+    ) -> list[ForgeItem]:
+        """Every unused judgement a burst («rafale») could take, mixed (see :func:`burst_selection`)."""
+
+        found = self.candidates(
+            concept_id=concept_id, rung=rung, exclude=exclude, drill=drills.DRILL_RAFALE, accept=accept
+        )
+        return list(found)
+
+    def item_for(
+        self,
+        *,
+        concept_id: int,
+        rung: int,
+        exclude: set[str],
+        drill: str | None = None,
+        accept: DrillCheck | None = None,
+    ) -> ForgeItem | None:
         if not self.payloads.get(int(concept_id)):
             return None
+        if drill == drills.DRILL_MINE:
+            return None  # a learner's own sentences come from their saved mistakes (BankItemProvider)
+        if drill == drills.DRILL_RAFALE:
+            burst = burst_selection(self.burst_at(concept_id=concept_id, rung=rung, exclude=exclude, accept=accept))
+            return burst_item(burst)
+        if drill is not None:
+            return self.item_at(concept_id=concept_id, rung=rung, exclude=exclude, drill=drill, accept=accept)
         for candidate_rung in _rung_search_order(rung):
             item = self.item_at(concept_id=concept_id, rung=candidate_rung, exclude=exclude)
             if item is not None:
                 return item
         return None
+
+
+def _judgement_says_correct(item: ForgeItem) -> bool:
+    from app.services.answer_acceptance import fold_typography
+
+    label = (item.payload or {}).get("correct_label") or (item.payload or {}).get("correct_answer")
+    return fold_typography(label) == fold_typography("Correct")
+
+
+def burst_selection(found: list[ForgeItem], size: int = drills.RAFALE_SIZE) -> list[ForgeItem]:
+    """``size`` judgements for a burst, both answers among them when the set has both.
+
+    Right and wrong sentences alternate (so a burst is never four of a kind
+    when it need not be), then a stable hash orders them, so the pattern is not
+    predictable either.
+    """
+
+    right = [item for item in found if _judgement_says_correct(item)]
+    wrong = [item for item in found if not _judgement_says_correct(item)]
+    picked: list[ForgeItem] = []
+    while len(picked) < size and (right or wrong):
+        for pool in (wrong, right):
+            if pool and len(picked) < size:
+                picked.append(pool.pop(0))
+    return sorted(picked, key=lambda item: hashlib.sha256(item.fingerprint.encode()).hexdigest())
+
+
+def burst_item(picked: list[ForgeItem], size: int = drills.RAFALE_SIZE) -> ForgeItem | None:
+    """The burst as one :class:`ForgeItem`: its lead, with the others as its group."""
+
+    if len(picked) < size:
+        return None
+    lead, *rest = picked[:size]
+    return replace(
+        lead,
+        drill=drills.DRILL_RAFALE,
+        group=tuple(replace(member, drill=drills.DRILL_RAFALE) for member in rest),
+    )
 
 
 #: Session-owned copies of a shared exercise set (copy-on-write for a top-up).
@@ -335,10 +470,22 @@ class BankItemProvider:
 
     A concept without templates, or a rung the bank cannot pose, falls back to
     :class:`PayloadItemProvider` (the neighbouring rungs, then retirement).
+
+    Asked for a drill (``supports_drills``), it answers only with an item of
+    exactly the slot's rung that the drill can pose — from the set, else one
+    bank top-up built for that drill — so the séance can try the next drill
+    the recommender ranks. A burst takes four judgements (the set's, then the
+    bank's in one write); «mine» is one of the learner's own saved mistakes of
+    the rule, seated in the set as a repair (:meth:`mine_item`).
     """
+
+    supports_drills = True
 
     #: Candidates tried per top-up before the rung gives up.
     MAX_CANDIDATES = 40
+    #: Saved mistakes of one rule read for «Ta phrase».
+    MINE_MAX_ERRORS = 12
+    MINE_WINDOW_DAYS = 60
 
     def __init__(
         self,
@@ -356,6 +503,7 @@ class BankItemProvider:
         self.concepts = concepts
         self.payloads = PayloadItemProvider({cid: dict(item.payload or {}) for cid, item in sets.items()})
         self._story: frozenset[str] | None = None
+        self._mine: dict[int, list[dict[str, Any]]] = {}
 
     @property
     def story(self) -> frozenset[str]:
@@ -384,38 +532,202 @@ class BankItemProvider:
                 continue
         return cls(db, user=user, session=session, sets=sets, concepts=concepts)
 
-    def item_for(self, *, concept_id: int, rung: int, exclude: set[str]) -> ForgeItem | None:
+    def item_for(
+        self,
+        *,
+        concept_id: int,
+        rung: int,
+        exclude: set[str],
+        drill: str | None = None,
+        accept: DrillCheck | None = None,
+    ) -> ForgeItem | None:
         concept_id = int(concept_id)
-        item = self.payloads.item_at(concept_id=concept_id, rung=rung, exclude=exclude)
+        rung = int(core.clamp_rung(rung))
+        if drill == drills.DRILL_MINE:
+            return self.mine_item(concept_id=concept_id, exclude=exclude)
+        if drill == drills.DRILL_RAFALE:
+            return self.burst(concept_id=concept_id, rung=rung, exclude=exclude, accept=accept)
+        item = self.payloads.item_at(concept_id=concept_id, rung=rung, exclude=exclude, drill=drill, accept=accept)
         if item is not None:
             return item
-        try:
-            topped = self.top_up(concept_id=concept_id, rung=int(core.clamp_rung(rung)))
-        except Exception as exc:  # pragma: no cover - the bank never breaks a séance
-            logger.warning("La Forge bank top-up failed", concept_id=concept_id, rung=rung, error=str(exc))
-            self.db.rollback()
-            topped = None
+        topped = next(iter(self._safe_top_up(concept_id=concept_id, rung=rung, drill=drill, accept=accept)), None)
         if topped is not None and topped.fingerprint not in exclude:
             return topped
+        if drill is not None:
+            return None  # the séance tries the next drill
         return self.payloads.item_for(concept_id=concept_id, rung=rung, exclude=exclude)
+
+    def _safe_top_up(
+        self,
+        *,
+        concept_id: int,
+        rung: int,
+        drill: str | None = None,
+        accept: DrillCheck | None = None,
+        count: int = 1,
+    ) -> list[ForgeItem]:
+        try:
+            return self.top_up_many(concept_id=concept_id, rung=rung, drill=drill, accept=accept, count=count)
+        except Exception as exc:  # pragma: no cover - the bank never breaks a séance
+            logger.warning("La Forge bank top-up failed", concept_id=concept_id, rung=rung, drill=drill, error=str(exc))
+            self.db.rollback()
+            return []
+
+    def burst(
+        self, *, concept_id: int, rung: int, exclude: set[str], accept: DrillCheck | None = None
+    ) -> ForgeItem | None:
+        """Four judgements in one go, or ``None`` when the rule cannot have four.
+
+        The set's unused judgements first; the rest comes from the bank in one
+        top-up (one write), right and wrong sentences in turn.
+        """
+
+        found = self.payloads.burst_at(concept_id=concept_id, rung=rung, exclude=exclude, accept=accept)
+        missing = drills.RAFALE_SIZE - len(found)
+        if missing > 0:
+            extra = self._safe_top_up(
+                concept_id=concept_id, rung=rung, drill=drills.DRILL_RAFALE, accept=accept, count=missing
+            )
+            known = {item.fingerprint for item in found} | set(exclude)
+            found.extend(item for item in extra if item.fingerprint not in known)
+        return burst_item(burst_selection(found))
+
+    # -- «Ta phrase»: the learner's own mistakes ----------------------------------
+
+    def mine_candidates(self, concept_id: int) -> list[dict[str, Any]]:
+        """The learner's saved mistakes of this rule worth posing as a repair (read once).
+
+        Open or repairing errors of the last weeks, due first, then the most
+        repeated; never a recognise-round answer (those sentences are the
+        Atelier's, not the learner's) and never a "correction" that is another
+        answer altogether (:func:`forge_drills.mine_fits`).
+        """
+
+        concept_id = int(concept_id)
+        if concept_id in self._mine:
+            return self._mine[concept_id]
+        from app.db.models.error import UserError
+
+        now = datetime.now(UTC)
+        found: list[dict[str, Any]] = []
+        try:
+            rows = (
+                self.db.query(UserError)
+                .filter(
+                    UserError.user_id == self.user.id,
+                    UserError.concept_id == concept_id,
+                    UserError.state != "mastered",
+                    UserError.updated_at >= now - timedelta(days=self.MINE_WINDOW_DAYS),
+                )
+                .order_by(UserError.updated_at.desc())
+                .limit(self.MINE_MAX_ERRORS * 3)
+                .all()
+            )
+        except Exception as exc:  # pragma: no cover - a read never blocks a séance
+            logger.warning("La Forge could not read the learner's mistakes", error=str(exc))
+            rows = []
+        far = now + timedelta(days=3650)
+
+        def urgency(row: Any) -> tuple[datetime, int]:
+            due = _aware(row.next_review_date) or far
+            return due, -int(row.occurrences or 1)
+
+        seen: set[str] = set()
+        for row in sorted(rows, key=urgency):
+            source_payload = ((row.error_metadata or {}).get("source_payload") or {}) if isinstance(
+                row.error_metadata, dict
+            ) else {}
+            if str(row.source_type or "") == "atelier" and str(source_payload.get("round") or "") == "recognize":
+                continue
+            source, expected = _mine_sentence(self.db, row)
+            if not drills.mine_fits(source, expected):
+                continue
+            key = drills.fold_key(source)
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append({"error_id": str(row.id), "source": source, "expected": expected})
+            if len(found) >= self.MINE_MAX_ERRORS:
+                break
+        self._mine[concept_id] = found
+        return found
+
+    def has_mine(self, *, concept_id: int, exclude: set[str]) -> bool:
+        return any(
+            _mine_fingerprint(concept_id, candidate["error_id"]) not in exclude
+            for candidate in self.mine_candidates(concept_id)
+        )
+
+    def mine_item(self, *, concept_id: int, exclude: set[str]) -> ForgeItem | None:
+        """The learner's own sentence, seated in the set as a repair («Ta phrase»)."""
+
+        concept = self.concepts.get(int(concept_id))
+        if concept is None or self.sets.get(int(concept_id)) is None:
+            return None
+        for candidate in self.mine_candidates(concept_id):
+            item_id = _mine_item_id(candidate["error_id"])
+            fingerprint = _mine_fingerprint(concept_id, candidate["error_id"])
+            if fingerprint in exclude:
+                continue
+            payload = self.payloads.payloads.get(int(concept_id)) or {}
+            items = _payload_items(payload, "transform", "rewrite")
+            index = next((i for i, item in enumerate(items) if str(item.get("id")) == item_id), None)
+            if index is None:
+                built = mine_payload_item(
+                    item_id=item_id,
+                    error_id=candidate["error_id"],
+                    source=candidate["source"],
+                    expected=candidate["expected"],
+                    lesson_external_id=concept.external_id,
+                )
+                index = self._seat(concept, round_name="transform", mode="rewrite", built=built, rung=int(Rung.TRANSFORM))
+                item = built
+            else:
+                item = items[index]
+            return ForgeItem(
+                concept_id=int(concept_id),
+                rung=int(Rung.TRANSFORM),
+                round="transform",
+                mode="rewrite",
+                item_id=item_id,
+                item_index=index,
+                fingerprint=fingerprint,
+                payload=item,
+                answer_key=item.get("expected_answer"),
+                drill=drills.DRILL_MINE,
+            )
+        return None
 
     # -- the top-up ---------------------------------------------------------------
 
-    def _build(self, rung: int, candidate: Any, *, concept: GrammarConcept, requirement: dict[str, Any], index: int):
+    def _build(
+        self,
+        rung: int,
+        candidate: Any,
+        *,
+        concept: GrammarConcept,
+        requirement: dict[str, Any],
+        index: int,
+        drill: str | None = None,
+    ):
         from app.services import item_bank
 
         lesson = concept.external_id
-        if rung == Rung.RECOGNISE:
+        round_name, mode = drills.DRILL_POOL[drill] if drill else RUNG_POOLS[Rung(core.clamp_rung(rung))][0]
+        if mode == "fill":
             return item_bank.fill_item(candidate, lesson_external_id=lesson)
-        if rung == Rung.DISCRIMINATE:
+        if mode == "classify":
+            if drill == drills.DRILL_RAFALE:
+                # A burst is judgements only, right and wrong sentences in turn.
+                return item_bank.classify_item(candidate, show_correct=index % 2 == 0, lesson_external_id=lesson)
             return item_bank.pair_item(candidate, lesson_external_id=lesson) or item_bank.classify_item(
                 candidate, show_correct=index % 2 == 0, lesson_external_id=lesson
             )
-        if rung == Rung.BUILD:
+        if mode == "word_bank":
             return item_bank.word_bank_item(candidate, lesson_external_id=lesson)
-        if rung == Rung.TRANSFORM:
+        if round_name == "transform":
             return item_bank.transform_item(candidate)
-        if rung == Rung.PRODUCE:
+        if round_name == "sentence":
             return item_bank.output_item(candidate, round_name="sentence", requirement=requirement)
         # WP-S5: free use is a two-line scene with the rule's coach; an item
         # that cannot be one (it names the coach, say) gives way to the next.
@@ -467,22 +779,42 @@ class BankItemProvider:
         self.db.add(self.session)
         return copy
 
-    def top_up(self, *, concept_id: int, rung: int) -> ForgeItem | None:
-        """Generate one more item of this rule at this rung and seat it in the set."""
+    def top_up(
+        self, *, concept_id: int, rung: int, drill: str | None = None, accept: DrillCheck | None = None
+    ) -> ForgeItem | None:
+        """Generate one more item of this rule at this rung and seat it in the set.
+
+        With a ``drill``, the item is built for that drill's pool and must be
+        one the drill can pose (``accept``, else :func:`forge_drills.item_fits`).
+        """
+
+        found = self.top_up_many(concept_id=concept_id, rung=rung, drill=drill, accept=accept, count=1)
+        return found[0] if found else None
+
+    def top_up_many(
+        self,
+        *,
+        concept_id: int,
+        rung: int,
+        drill: str | None = None,
+        accept: DrillCheck | None = None,
+        count: int = 1,
+    ) -> list[ForgeItem]:
+        """Up to ``count`` new items of this rule at this rung, seated in one write."""
 
         import random
 
         from app.services import item_bank
-        from app.services.atelier import _record_served_items, served_fingerprints
+        from app.services.atelier import served_fingerprints
         from app.services.grammar_units import examples as unit_examples
 
         concept = self.concepts.get(concept_id)
         exercise_set = self.sets.get(concept_id)
-        if concept is None or exercise_set is None:
-            return None
+        if concept is None or exercise_set is None or drill == drills.DRILL_MINE or count < 1:
+            return []
         units = item_bank.units_for_external_id(concept.external_id)
         if not units:
-            return None
+            return []
         payload = dict(exercise_set.payload or {})
         forge_meta = payload.get("forge") if isinstance(payload.get("forge"), dict) else {}
         appended = list(forge_meta.get("appended") or [])
@@ -494,10 +826,14 @@ class BankItemProvider:
         requirement = self._requirement(concept, payload)
         bank = item_bank.default_bank()
         seed = f"{self.user.id}:{self.session.id}:{concept_id}:topup:{len(appended)}:{rung}"
+        if drill:
+            seed = f"{seed}:{drill}"
+        check = accept or drills.item_fits
         order = units[len(appended) % len(units):] + units[: len(appended) % len(units)]
-        built: dict[str, Any] | None = None
-        chosen = None
+        made: list[tuple[dict[str, Any], Any]] = []
         for unit in order:
+            if len(made) >= count:
+                break
             stream = bank.sample(
                 unit,
                 random.Random(f"{seed}:{unit}"),  # noqa: S311 - reproducible variety, not security
@@ -506,52 +842,100 @@ class BankItemProvider:
                 story=self.story,
             )
             for tries, candidate in enumerate(stream):
-                if tries >= self.MAX_CANDIDATES:
+                if tries >= self.MAX_CANDIDATES * count or len(made) >= count:
                     break
                 if candidate.fingerprint in blocked:
                     continue
-                built = self._build(rung, candidate, concept=concept, requirement=requirement, index=len(appended))
-                if built is not None:
-                    chosen = candidate
-                    break
-            if built is not None:
-                break
-        if built is None or chosen is None:
-            return None
+                built = self._build(
+                    rung,
+                    candidate,
+                    concept=concept,
+                    requirement=requirement,
+                    index=len(appended) + len(made),
+                    drill=drill,
+                )
+                if built is None or (drill is not None and not check(drill, built)):
+                    continue
+                blocked = blocked | {candidate.fingerprint}
+                made.append((built, candidate))
+        if not made:
+            return []
 
-        round_name, mode = RUNG_POOLS[Rung(rung)][0]
-        owned = self._owned_set(concept, exercise_set)
+        round_name, mode = drills.DRILL_POOL[drill] if drill else RUNG_POOLS[Rung(rung)][0]
+        indexes = self._seat_many(concept, round_name=round_name, mode=mode, rows=made, rung=int(rung))
+        return [
+            ForgeItem(
+                concept_id=concept_id,
+                rung=int(rung),
+                round=round_name,
+                mode=mode,
+                item_id=str(built["id"]),
+                item_index=index,
+                fingerprint=fingerprint_for(concept_id, round_name, mode, str(built["id"])),
+                payload=built,
+                answer_key=built.get("expected_answer") or built.get("correct_answer") or built.get("example_answer"),
+                drill=drill,
+            )
+            for (built, _candidate), index in zip(made, indexes, strict=True)
+        ]
+
+    def _seat(self, concept: GrammarConcept, *, round_name: str, mode: str, built: dict[str, Any], rung: int) -> int:
+        """Seat one item that is not a bank sentence (a learner's own line). Commits."""
+
+        return self._seat_many(concept, round_name=round_name, mode=mode, rows=[(built, None)], rung=rung)[0]
+
+    def _seat_many(
+        self,
+        concept: GrammarConcept,
+        *,
+        round_name: str,
+        mode: str,
+        rows: list[tuple[dict[str, Any], Any]],
+        rung: int,
+    ) -> list[int]:
+        """Append items to this session's own copy of the set; their indexes there. Commits.
+
+        ``rows`` pairs each item with its bank item (``None`` for a learner's
+        own sentence). A bank sentence is recorded as served, so it is never
+        posed again within the week; a learner's own sentence is not.
+        """
+
+        from app.services.atelier import _record_served_items
+
+        concept_id = int(concept.id)
+        owned = self._owned_set(concept, self.sets[concept_id])
         new_payload = json_copy(dict(owned.payload or {}))
         container = _payload_container(new_payload, round_name, mode)
         items = container.setdefault("items", [])
-        items.append(built)
         meta = dict(new_payload.get("forge") or {})
         meta.setdefault("owner_session_id", str(self.session.id))
-        meta["appended"] = [
-            *list(meta.get("appended") or []),
-            {"id": built["id"], "round": round_name, "mode": mode, "rung": int(rung), "fingerprint": chosen.fingerprint},
-        ]
-        meta["fingerprints"] = [*list(meta.get("fingerprints") or []), chosen.fingerprint]
+        appended = list(meta.get("appended") or [])
+        fingerprints = list(meta.get("fingerprints") or [])
+        indexes: list[int] = []
+        served: dict[str, list[str]] = {}
+        for built, bank_item in rows:
+            items.append(built)
+            indexes.append(len(items) - 1)
+            entry: dict[str, Any] = {"id": built["id"], "round": round_name, "mode": mode, "rung": int(rung)}
+            if bank_item is not None:
+                entry["fingerprint"] = bank_item.fingerprint
+                fingerprints.append(bank_item.fingerprint)
+                served.setdefault(str(bank_item.unit), []).append(bank_item.fingerprint)
+            if built.get("personal"):
+                entry["personal"] = True
+            appended.append(entry)
+        meta["appended"] = appended
+        meta["fingerprints"] = fingerprints
         new_payload["forge"] = meta
         owned.payload = new_payload
         flag_modified(owned, "payload")
         self.db.add(owned)
-        _record_served_items(self.db, user=self.user, session=self.session, fingerprints=[chosen.fingerprint], unit=chosen.unit)
+        for unit, unit_fingerprints in served.items():
+            _record_served_items(self.db, user=self.user, session=self.session, fingerprints=unit_fingerprints, unit=unit)
         self.db.commit()
         self.sets[concept_id] = owned
         self.payloads.payloads[concept_id] = dict(new_payload)
-        index = len(items) - 1
-        return ForgeItem(
-            concept_id=concept_id,
-            rung=int(rung),
-            round=round_name,
-            mode=mode,
-            item_id=str(built["id"]),
-            item_index=index,
-            fingerprint=fingerprint_for(concept_id, round_name, mode, str(built["id"])),
-            payload=built,
-            answer_key=built.get("expected_answer") or built.get("correct_answer") or built.get("example_answer"),
-        )
+        return indexes
 
 
 def json_copy(value: Any) -> Any:
@@ -570,6 +954,113 @@ def _payload_container(payload: dict[str, Any], round_name: str, mode: str) -> d
         return payload.setdefault("transform", {"items": []})
     ladder = payload.setdefault("output_ladder", {})
     return ladder.setdefault(round_name, {"items": []})
+
+
+# ---------------------------------------------------------------------------
+# «Ta phrase»: a saved mistake as a repair
+# ---------------------------------------------------------------------------
+
+
+def _mine_item_id(error_id: Any) -> str:
+    return f"mine-{str(error_id).replace('-', '')[:12]}"
+
+
+def _mine_fingerprint(concept_id: int, error_id: Any) -> str:
+    return fingerprint_for(int(concept_id), "transform", "rewrite", _mine_item_id(error_id))
+
+
+_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+
+
+def _answer_text(answer_payload: Any) -> str:
+    """The learner's own words in an attempt: a free text, else the first typed answer."""
+
+    if not isinstance(answer_payload, dict):
+        return ""
+    text = answer_payload.get("text")
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    answers = answer_payload.get("answers")
+    if isinstance(answers, dict):
+        for value in answers.values():
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return ""
+
+
+def _mine_sentence(db: Session, error: Any) -> tuple[str, str]:
+    """``(the learner's line, the line corrected)`` for one saved mistake.
+
+    The error keeps the span («j'ai allé» → «je suis allé»); when the answer it
+    came from is at hand (an Atelier attempt, a conversation message) and holds
+    the span, the whole sentence around it is used, so the learner meets their
+    own line again — not a fragment.
+    """
+
+    learner = re.sub(r"\s+", " ", str(error.original_text or "")).strip()
+    corrected = re.sub(r"\s+", " ", str(error.correction or "")).strip()
+    if not learner or not corrected:
+        return learner, corrected
+    context = ""
+    try:
+        if getattr(error, "source_attempt_id", None):
+            attempt = db.get(AtelierAttempt, error.source_attempt_id)
+            context = _answer_text(attempt.answer_payload) if attempt is not None else ""
+        elif getattr(error, "message_id", None):
+            from app.db.models.session import ConversationMessage
+
+            message = db.get(ConversationMessage, error.message_id)
+            context = str(getattr(message, "content", "") or "") if message is not None else ""
+    except Exception:  # pragma: no cover - a context is a nicety
+        context = ""
+    context = re.sub(r"\s+", " ", context).strip()
+    if not context:
+        return learner, corrected
+    pattern = re.compile(rf"(?<![\w']){re.escape(learner)}(?![\w'])", re.IGNORECASE)
+    for sentence in _SENTENCE_END.split(context):
+        match = pattern.search(sentence)
+        if match is None:
+            continue
+        line = sentence.strip()
+        fixed = (sentence[: match.start()] + corrected + sentence[match.end():]).strip()
+        if drills.mine_fits(line, fixed):
+            return line, fixed
+        break
+    return learner, corrected
+
+
+#: The goal of «Ta phrase», in the three chrome languages: its instruction.
+MINE_GOAL_L10N: dict[str, str] = MINE_INSTRUCTION_L10N
+
+
+def mine_payload_item(
+    *, item_id: str, error_id: Any, source: str, expected: str, lesson_external_id: str | None
+) -> dict[str, Any]:
+    """A saved mistake as a repair item: graded by the transform key like any other."""
+
+    from app.services.item_bank import fingerprint as bank_fingerprint
+
+    item: dict[str, Any] = {
+        "id": item_id,
+        "type": "rewrite",
+        "instruction": MINE_GOAL_L10N["en"],
+        "instruction_key": "forge.mine",
+        "source": source,
+        "source_fr": source,
+        "expected_answer": expected,
+        "accepted_answers": [expected],
+        "goal_native": MINE_GOAL_L10N["en"],
+        "goal_l10n": dict(MINE_GOAL_L10N),
+        "personal": True,
+        "error_id": str(error_id),
+        "bank_fingerprint": bank_fingerprint(expected),
+    }
+    window = drills.spot_window(source, expected)
+    if window is not None:
+        item["wrong_span"] = " ".join(drills.fold_key(source).split()[window[0]:window[1]])
+    if lesson_external_id:
+        item["lesson_external_id"] = lesson_external_id
+    return item
 
 
 # ---------------------------------------------------------------------------
@@ -927,6 +1418,73 @@ class ForgeService:
     def provider(self, *, user: User, session: AtelierSession) -> ItemProvider:
         return self._item_provider or BankItemProvider.for_session(self.db, user=user, session=session)
 
+    def signal_for(self, user: User) -> drills.LearnerSignal:
+        """What kinds of mistakes this learner makes lately (read once per service)."""
+
+        cache = self.__dict__.setdefault("_signals", {})
+        key = str(getattr(user, "id", ""))
+        if key not in cache:
+            cache[key] = drills.learner_signal(self.db, user)
+        return cache[key]
+
+    def _acceptor(self, user: User) -> DrillCheck:
+        """``accept(drill, item)`` for this learner: a typed form needs its meaning on screen.
+
+        Without the options to pick from, «Tape la forme» is fair only when the
+        learner reads what the sentence means (which verb, which person) in
+        their own language; an item that shows no meaning is posed otherwise.
+        """
+
+        def accept(drill: str | None, item: dict[str, Any]) -> bool:
+            if not drills.item_fits(drill, item):
+                return False
+            if drill == drills.DRILL_TYPED:
+                return _meaning_on_screen(_public_item(dict(item), user))
+            return True
+
+        return accept
+
+    def _item_for_slot(
+        self,
+        provider: ItemProvider,
+        *,
+        user: User,
+        session: AtelierSession,
+        state: ForgeState,
+        slot: core.Slot,
+        exclude: set[str],
+    ) -> ForgeItem | None:
+        """The slot's item, posed as the best drill the recommender ranks that can be served.
+
+        A séance asks the provider for each ranked drill in turn (only items of
+        the slot's own rung); when none can be posed, the rung's plain item —
+        the neighbouring rungs, then retirement, as before. A test-out keeps
+        each rung's own drill.
+        """
+
+        if state.mode == core.MODE_SEANCE and getattr(provider, "supports_drills", False):
+            has_mine = getattr(provider, "has_mine", None)
+            ranked = drills.rank_drills(
+                rung=slot.rung,
+                concept_id=slot.concept_id,
+                history=state.history,
+                signal=self.signal_for(user),
+                reprise=slot.reprise,
+                mine_ready=bool(has_mine and has_mine(concept_id=slot.concept_id, exclude=exclude)),
+                seed=f"{session.id}:{slot.position}",
+            )
+            accept = self._acceptor(user)
+            for drill in ranked:
+                item = provider.item_for(  # type: ignore[call-arg]
+                    concept_id=slot.concept_id, rung=slot.rung, exclude=exclude, drill=drill, accept=accept
+                )
+                if item is not None:
+                    return item if item.drill else replace(item, drill=drill)
+        item = provider.item_for(concept_id=slot.concept_id, rung=slot.rung, exclude=exclude)
+        if item is None:
+            return None
+        return item if item.drill else replace(item, drill=drills.drill_of_item(item.rung, item.payload, item.round))
+
     def next_item(self, *, user: User, session: AtelierSession) -> dict[str, Any] | None:
         """The item the learner is on (pending) or the next one; stored as pending."""
 
@@ -943,7 +1501,7 @@ class ForgeService:
             slot = state.next_slot()
             if slot is None:
                 break
-            item = provider.item_for(concept_id=slot.concept_id, rung=slot.rung, exclude=exclude)
+            item = self._item_for_slot(provider, user=user, session=session, state=state, slot=slot, exclude=exclude)
             if item is not None:
                 pending = {
                     **slot.to_dict(),
@@ -959,6 +1517,11 @@ class ForgeService:
                     # WP-S5: who teaches this rule.
                     "coach": self.coach_for(slot.concept_id),
                 }
+                if item.group:
+                    # A burst: every judgement of it, the lead first.
+                    pending["items"] = [_public_item(dict(member.payload or {}), user) for member in (item, *item.group)]
+                if (item.payload or {}).get("personal"):
+                    pending["personal"] = True
                 state.pending = pending
                 _store_state(session, state)
                 self.db.add(session)
@@ -1039,12 +1602,16 @@ class ForgeService:
             int(attempt.concept_id), str(attempt.round), _pool_mode(attempt), _attempt_item_id(attempt)
         )
         pending = state.pending or {}
-        if int(pending.get("concept_id", -1)) == int(attempt.concept_id) and (
+        served = int(pending.get("concept_id", -1)) == int(attempt.concept_id) and (
             pending.get("fingerprint") == fingerprint or str(pending.get("round")) == str(attempt.round)
-        ):
+        )
+        if served:
             # The item the forge served: its identity and rung are the forge's.
             fingerprint = str(pending.get("fingerprint") or fingerprint)
             rung = Rung(core.clamp_rung(pending.get("rung", rung)))
+        drill = str(pending.get("drill") or "") if served else ""
+        if not drill:
+            drill = drills.drill_of_item(int(rung), None, str(attempt.round))
         verdict = verdict_from_attempt(attempt)
         decision = state.record(
             concept_id=int(attempt.concept_id),
@@ -1053,13 +1620,22 @@ class ForgeService:
             fingerprint=fingerprint,
         )
         state.served_fingerprints.append(exercise_key)
+        if served:
+            # A burst's other judgements were posed too: never again this séance.
+            for member in pending.get("group_fingerprints") or []:
+                if member not in state.served_fingerprints:
+                    state.served_fingerprints.append(str(member))
         state.history[-1]["exercise_key"] = exercise_key
+        state.history[-1]["drill"] = drill
         now = now or datetime.now(UTC)
         held = self._write_evidence(user=user, state=state, decision=decision, verdict=verdict, attempt=attempt, now=now)
+        if served and pending.get("personal") and verdict.checked and verdict.correct:
+            self._review_own_mistake(user=user, item=pending.get("item") or {}, now=now)
         if state.mode == core.MODE_TEST_OUT and state.finished:
             self._finish_test_out(user=user, session=session, state=state, now=now)
         _store_state(session, state)
         self.db.add(session)
+        run, _best = core.combo_runs(state.history)
         correction = dict(attempt.correction_payload or {})
         correction["forge"] = {
             "rung": int(rung),
@@ -1067,6 +1643,9 @@ class ForgeService:
             "new_rung": decision.new_rung,
             "counted": decision.counted,
             "schedule": decision.schedule,
+            # How the item was posed, and the run of right answers it leaves.
+            "drill": drill,
+            "run": run,
             # WP-S5: the rule's coach, and the face they make at this answer.
             "held": held,
             "coach": self.coach_for(int(attempt.concept_id)),
@@ -1172,6 +1751,25 @@ class ForgeService:
         self.db.add(progress)
         return not was_held and getattr(progress, "held_at", None) is not None
 
+    def _review_own_mistake(self, *, user: User, item: dict[str, Any], now: datetime) -> None:
+        """«Ta phrase» repaired: the saved mistake counts one spaced repair (never commits).
+
+        A miss needs nothing here: the submit path already filed the wrong line
+        against the same mistake (``ErrorMemoryService.record_atelier_attempt``).
+        """
+
+        from app.services.error_memory import ErrorMemoryService
+
+        raw = item.get("error_id") if isinstance(item, dict) else None
+        try:
+            error_id = UUID(str(raw))
+        except (TypeError, ValueError):
+            return
+        try:
+            ErrorMemoryService(self.db).review_error(user=user, error_id=error_id, rating=4, repaired=True, now=now)
+        except Exception as exc:  # pragma: no cover - a repair note never breaks a séance
+            logger.warning("La Forge could not file an own-sentence repair", error=str(exc))
+
     def _finish_test_out(self, *, user: User, session: AtelierSession, state: ForgeState, now: datetime) -> None:
         from app.services.grammar import GrammarService
 
@@ -1248,6 +1846,85 @@ class ForgeService:
                 }
             )
         return rows
+
+
+#: «L'épreuve de la règle» is offered from the recap, not on every screen
+#: (owner, 2026-10-18: prompt the test every few days for a rule): a rule high on
+#: its staircase, never offered or tested in the last few days, one offer a day.
+TEST_OUT_OFFER_EVENT = "forge_test_out_offered"
+TEST_OUT_OFFER_GAP_DAYS = 3
+TEST_OUT_OFFER_MIN_RUNG = int(Rung.TRANSFORM)
+
+
+def offer_test_out(
+    db: Session, *, user: User, concept_ids: Iterable[int], now: datetime | None = None
+) -> dict[str, Any] | None:
+    """The one rule of this séance worth testing out now, or ``None``. Never commits.
+
+    A rule qualifies when it stands on transform or above, is neither held nor
+    tested out, was met on an earlier day (so today is its second day at
+    least), and was neither offered nor tested in the last
+    :data:`TEST_OUT_OFFER_GAP_DAYS` days. At most one offer a day across all
+    rules; the highest rung (then the most stable) wins. The offer is recorded
+    as a pilot event, which is what paces the next one.
+    """
+
+    from app.db.models.pilot_event import PilotEvent
+    from app.services.pilot_events import PilotEventService
+
+    wanted = list(dict.fromkeys(int(cid) for cid in concept_ids))
+    if not wanted:
+        return None
+    now = _aware(now) or datetime.now(UTC)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    since = now - timedelta(days=TEST_OUT_OFFER_GAP_DAYS)
+    try:
+        events = (
+            db.query(PilotEvent.entity_id, PilotEvent.event_type, PilotEvent.occurred_at)
+            .filter(
+                PilotEvent.user_id == user.id,
+                PilotEvent.event_type.in_([TEST_OUT_OFFER_EVENT, "forge_test_out_started"]),
+                PilotEvent.occurred_at >= since,
+            )
+            .all()
+        )
+    except Exception as exc:  # pragma: no cover - an offer never breaks a recap
+        logger.warning("Test-out offer could not read its pace", error=str(exc))
+        return None
+    if any(kind == TEST_OUT_OFFER_EVENT and (_aware(at) or now) >= start_of_day for _cid, kind, at in events):
+        return None
+    recent = {str(cid) for cid, _kind, _at in events}
+    rows = {
+        row.concept_id: row
+        for row in db.query(UserGrammarProgress)
+        .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id.in_(wanted))
+        .all()
+    }
+    candidates: list[tuple[int, float, int]] = []
+    for concept_id in wanted:
+        progress = rows.get(concept_id)
+        if progress is None or progress.held_at is not None or progress.tested_out_at is not None:
+            continue
+        if str(concept_id) in recent:
+            continue
+        rung = core.clamp_rung(progress.forge_rung or 0)
+        introduced = _aware(progress.introduced_at)
+        if rung < TEST_OUT_OFFER_MIN_RUNG or introduced is None or introduced >= start_of_day:
+            continue
+        candidates.append((rung, float(progress.stability or 0.0), concept_id))
+    if not candidates:
+        return None
+    rung, _stability, concept_id = max(candidates)
+    offer = {"concept_id": concept_id, "rung": rung, "short": True, "items": len(core.TEST_OUT_SHORT_RUNGS)}
+    PilotEventService(db).record(
+        TEST_OUT_OFFER_EVENT,
+        user_id=user.id,
+        entity_type="grammar_concept",
+        entity_id=concept_id,
+        payload=offer,
+        occurred_at=now,
+    )
+    return offer
 
 
 def forge_features() -> dict[str, bool]:

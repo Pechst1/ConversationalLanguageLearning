@@ -44,9 +44,22 @@ test('an English A1 learner reads English; unknown languages fall back to Englis
 
 test('placeholders and rung labels fill in', () => {
   const en = forgeCopy('en');
-  assert.equal(fillForge(en.step_of, { n: 3, rung: forgeRungLabel(en, 'build') }), 'Step 3 of 6 · build');
+  // Owner, 2026-10-18: a rung reads as the learner's level on the rule, 1 to 6.
+  assert.equal(fillForge(en.level, { n: 3 }), 'Level 3');
+  assert.equal(fillForge(forgeCopy('de').level, { n: 3 }), 'Stufe 3');
+  assert.equal(fillForge(forgeCopy('fr').level, { n: 3 }), 'Niveau 3');
+  assert.equal(fillForge(en.level_up, { n: 4 }), 'Level 4 ↑');
+  assert.equal(fillForge(forgeCopy('fr').run_cheer, { n: 3 }), '3 d’affilée');
   assert.equal(forgeRungLabel(forgeCopy('fr'), 'free_use'), 'emploi libre');
   assert.equal(forgeRungLabel(en, 'nonsense'), 'recognise');
+});
+
+test('the step line, the rule-change card and the coach line are gone from the tables', () => {
+  for (const language of ['en', 'de', 'fr']) {
+    for (const key of ['step_of', 'stair_label', 'next_rule', 'coach_label', 'reprise']) {
+      assert.equal(FORGE_COPY[language][key], undefined, `${language}.${key}`);
+    }
+  }
 });
 
 test('the Cahier offers the test-out and the séance follows the forge', () => {
@@ -58,7 +71,9 @@ test('the Cahier offers the test-out and the séance follows the forge', () => {
   const atelier = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
   assert.match(atelier, /const forgeView = forgeViewOf\(next\.forge\)/);
   assert.match(atelier, /if \(forge && !activeRetest\) \{/);
-  assert.match(atelier, /apiService\.startForgeTestOut\(conceptId\)/);
-  // WP-S6: the action is drawn by ForgeHead (components/epreuve/Forge.tsx).
-  assert.match(atelier, /onClick: \(\) => onTestOut\(activeConcept\.id\)/);
+  assert.match(atelier, /apiService\.startForgeTestOut\(conceptId, options\)/);
+  // Owner, 2026-10-18: the épreuve is in the rule sheet, never on every screen…
+  assert.match(atelier, /<ForgeSheetTestOut copy=\{fc\} pending=\{testOutPending\} onClick=\{\(\) => onTestOut\(activeConcept\.id\)\} \/>/);
+  // …and the recap offers its short form every few days.
+  assert.match(atelier, /startTestOut\(conceptId, \{ short: true, source: 'forge' \}\)/);
 });

@@ -2211,6 +2211,14 @@ def near_miss_sentences(external_id: str | None, *, seed: str) -> tuple[str, lis
 
 RUNG_TYPES: tuple[str, ...] = ("fill", "classify", "pair", "word_bank", "transform", "production")
 
+#: «Ta phrase», a learner's own saved mistake (the overhaul, 2026-10-18): its
+#: instruction and its goal. It may come from this very séance, so no «the other day».
+MINE_INSTRUCTION_L10N: dict[str, str] = {
+    "en": "You wrote this earlier. Fix the mistake.",
+    "de": "Das hast du schon einmal geschrieben. Korrigiere den Fehler.",
+    "fr": "Tu as écrit ça plus tôt. Corrige l’erreur.",
+}
+
 _INSTRUCTIONS = {
     "forge.word_bank": "Build it. One word is extra.",
     "forge.word_bank_all": "Build the sentence.",
@@ -2219,6 +2227,7 @@ _INSTRUCTIONS = {
     "forge.speak": "Say it in French.",
     "forge.conversation": "Reply in French, with today's rule.",
     "forge.scene": "Answer in French, with the rule of the day.",
+    "forge.mine": MINE_INSTRUCTION_L10N["en"],
 }
 
 
@@ -2297,6 +2306,7 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
         "de": "Antworte auf Französisch, mit der Regel von heute.",
         "fr": "Réponds en français, avec la règle du jour.",
     },
+    "forge.mine": MINE_INSTRUCTION_L10N,
 }
 
 #: QA-FORGE: a judgement item's two answers are keys («Correct», «À corriger»);
@@ -2450,6 +2460,10 @@ def _is_judgement(item: dict[str, Any]) -> bool:
 def _goal_kind(item: dict[str, Any]) -> str | None:
     """Which drill a stored item is, for a goal it does not carry."""
 
+    if item.get("personal"):
+        # «Ta phrase» carries its own goal in every language; it is not a
+        # bank repair whose goal is rebuilt from a meaning.
+        return "mine"
     if _is_judgement(item):
         return "judge"
     if item.get("classify_kind") == "minimal_pair":

@@ -797,6 +797,25 @@ def _normalize_keeping_accents(value: Any) -> str:
 _COMPLIANCE_ERROR_TYPES = {"length_compliance", "task_compliance"}
 
 
+def _is_burst(exercise_id: Any) -> bool:
+    """La Forge's «rafale»: one attempt answering several judgements («…:lead+4»)."""
+
+    return "+" in str(exercise_id or "").split(":")[-1]
+
+
+def _burst_ids(answer_payload: dict[str, Any]) -> list[str]:
+    """A burst's judgements in the order posed: the payload's ``burst``, else its answers'.
+
+    Their ids ride in the payload, not in the exercise id: four of them overflow
+    the 120 characters ``atelier_attempts.exercise_id`` holds.
+    """
+
+    listed = answer_payload.get("burst")
+    answers = answer_payload.get("answers")
+    ids = listed if isinstance(listed, list) else list(answers) if isinstance(answers, dict) else []
+    return list(dict.fromkeys(str(part).strip() for part in ids if str(part or "").strip()))
+
+
 def _drop_noop_errata(errata: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
     """Remove "corrections" that correct nothing.
 
@@ -4481,6 +4500,7 @@ class AtelierCorrectionService:
             exercise_id,
             user=user,
             session=session,
+            item_ids=_burst_ids(answer_payload) if _is_burst(exercise_id) else None,
         )
         target_vocabulary = session_vocabulary_context(session)
         if target_vocabulary:
@@ -5346,7 +5366,12 @@ class AtelierCorrectionService:
             correction["errata"] = kept
         if round_name == "recognize" and mode == "classify":
             correction = self._with_judgement_errata(concept, correction, prompt_payload, answer_payload)
-            correction = self._with_classify_follow_up(correction, prompt_payload, answer_payload)
+            if _is_burst(exercise_id) and len(prompt_payload.get("items") or []) > 1:
+                # La Forge's «rafale»: four judgements at speed. Each gets its
+                # mark and its right sentence; no correction step opens after it.
+                correction = self._with_burst_results(concept, correction, prompt_payload, answer_payload)
+            else:
+                correction = self._with_classify_follow_up(correction, prompt_payload, answer_payload)
         # Pattern hits cannot certify arbitrary French or task relevance.
         if round_name in FREE_PRODUCTION_ROUNDS and (correction.get("correction_debug") or {}).get("fallback_used"):
             local_check: dict[str, Any] | None = None
@@ -5486,6 +5511,44 @@ class AtelierCorrectionService:
             updated["follow_ups"] = follow_ups
         return updated
 
+    def _with_burst_results(
+        self,
+        concept: GrammarConcept | None,
+        correction: dict[str, Any],
+        prompt_payload: dict[str, Any],
+        answer_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """La Forge's «rafale»: each judgement's mark, and a wrong sentence's right form.
+
+        ``burst`` lists the items in the order they were posed; ``corrected_fr``
+        rides on each sentence that needed fixing (whatever the learner said),
+        so the result shows what the rule wants — without a correction step.
+        """
+
+        answers = answer_payload.get("answers") or {}
+        rows: list[dict[str, Any]] = []
+        for item in prompt_payload.get("items") or []:
+            if not isinstance(item, dict) or not item.get("id"):
+                continue
+            learner = str(answers.get(item["id"]) or "")
+            target = str(item.get("correct_label") or item.get("correct_answer") or "")
+            row: dict[str, Any] = {
+                "item_id": str(item["id"]),
+                # The sentence judged, so the result reads without the item.
+                "sentence": str(item.get("prompt") or ""),
+                "answer": learner,
+                "expected": target,
+                "correct": _keyed_verdict(concept, item, learner, target).correct,
+            }
+            key = item.get("follow_up_key") if isinstance(item.get("follow_up_key"), dict) else {}
+            corrected = str(key.get("corrected_fr") or item.get("judgement_fix_fr") or "").strip()
+            if corrected and fold_typography(target) == fold_typography(JUDGEMENT_TO_CORRECT):
+                row["corrected_fr"] = corrected
+            rows.append(row)
+        updated = dict(correction)
+        updated["burst"] = rows
+        return updated
+
     def _correct_for_round(
         self,
         *,
@@ -5525,6 +5588,7 @@ class AtelierCorrectionService:
         *,
         user: User | None = None,
         session: AtelierSession | None = None,
+        item_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         if not concept:
             # Produce attempts are deliberately session-wide, not tied to one
@@ -5572,7 +5636,7 @@ class AtelierCorrectionService:
             "rule_panel": payload.get("rule_panel") or {},
         }
         if round_name == "recognize":
-            return self._scope_prompt_items({**base_payload, **payload["recognize"][mode]}, exercise_id)
+            return self._scope_prompt_items({**base_payload, **payload["recognize"][mode]}, exercise_id, item_ids)
         if round_name == "transform":
             return self._scope_prompt_items({**base_payload, **payload["transform"]}, exercise_id)
         if round_name in {"sentence", "speak", "conversation"}:
@@ -5585,7 +5649,9 @@ class AtelierCorrectionService:
         return {"id": exercise_id, "round": round_name, "mode": mode}
 
     @staticmethod
-    def _scope_prompt_items(prompt_payload: dict[str, Any], exercise_id: str) -> dict[str, Any]:
+    def _scope_prompt_items(
+        prompt_payload: dict[str, Any], exercise_id: str, item_ids: list[str] | None = None
+    ) -> dict[str, Any]:
         items = prompt_payload.get("items")
         if not isinstance(items, list) or not items:
             return prompt_payload
@@ -5593,6 +5659,11 @@ class AtelierCorrectionService:
         if not candidate:
             return prompt_payload
         matched = [item for item in items if str((item or {}).get("id") or "") == candidate]
+        if not matched and item_ids:
+            # La Forge's burst answers several items in one attempt
+            # («…:classify:lead+4»): the items its payload names, in that order.
+            by_id = {str((item or {}).get("id") or ""): item for item in items if isinstance(item, dict)}
+            matched = [by_id[part] for part in item_ids if part in by_id]
         if not matched:
             return prompt_payload
         return {
@@ -7955,6 +8026,15 @@ class AtelierSRSService:
                 )
                 if offer is not None:
                     recap["forge"]["eclair"] = offer
+                # «L'épreuve de la règle» lives here now, every few days, for a
+                # rule the learner is ready to prove (not a link on every item).
+                from app.services.forge import offer_test_out
+
+                test_out = offer_test_out(
+                    self.db, user=user, concept_ids=[track.concept_id for track in forge_state.tracks]
+                )
+                if test_out is not None:
+                    recap["forge"]["test_out_offer"] = test_out
         completed_at = datetime.now(UTC)
         if phrase_candidates:
             _, phrase = max(phrase_candidates, key=lambda item: (item[0], len(item[1])))
