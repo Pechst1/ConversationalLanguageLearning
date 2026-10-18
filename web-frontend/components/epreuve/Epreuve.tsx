@@ -54,6 +54,7 @@ import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 import { epreuveCopy, fill, type EpreuveCopy } from './epreuve-copy';
+import { nextFinishState } from './finish-confirm';
 
 type Node = React.ReactNode;
 
@@ -148,19 +149,23 @@ export function EpTopbar({
   runSlot?: Node;
 }) {
   const [confirming, setConfirming] = React.useState(false);
+  // #88: «Stop here?» stays open until it is answered (finish-confirm.ts).
   React.useEffect(() => {
     if (!confirming) return;
-    const timer = window.setTimeout(() => setConfirming(false), 4000);
-    return () => window.clearTimeout(timer);
-  }, [confirming]);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setConfirming(nextFinishState({ confirming: true }, 'escape', partial).state.confirming);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirming, partial]);
+  React.useEffect(() => {
+    setConfirming((open) => nextFinishState({ confirming: open }, 'partial_changed', partial).state.confirming);
+  }, [partial]);
 
   const finish = () => {
-    if (partial && !confirming) {
-      setConfirming(true);
-      return;
-    }
-    setConfirming(false);
-    onFinish?.();
+    const next = nextFinishState({ confirming }, 'tap', partial);
+    setConfirming(next.state.confirming);
+    if (next.finish) onFinish?.();
   };
 
   const runCount = Math.max(0, Math.floor(Number(run) || 0));

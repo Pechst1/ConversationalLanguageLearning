@@ -639,3 +639,81 @@ def test_the_envelope_counts_todays_forge_blocks(
     session.completed_at = datetime.now(UTC) - timedelta(days=1, hours=1)
     db_session.commit()
     assert blocks() == 0, "yesterday's block does not count today"
+
+
+def _rule_check(db_session: Session, user: User, concept: GrammarConcept, *, passes: bool) -> AtelierSession:
+    """Play a whole rule check («Épreuve de la règle») through the real services."""
+
+    from app.core.forge import Rung
+    from app.services.atelier import AtelierCorrectionService
+    from app.services.forge import ForgeService
+    from tests.test_forge_integration import _right, _wrong
+
+    forge = ForgeService(db_session)
+    session = forge.start_test_out(user=user, concept_id=concept.id, source="forge")
+    service = AtelierCorrectionService(db_session)
+    while (nxt := forge.next_item(user=user, session=session)) is not None:
+        free = nxt["round"] not in {"recognize", "transform"}
+        if passes or nxt["rung"] == Rung.RECOGNISE:
+            # A failing check still gets the recognise item right: it fails from «unterscheiden» on.
+            answer = (
+                {"text": "Je ne mange pas de viande le soir."}
+                if free
+                else _right(nxt["item"], nxt["round"], nxt["mode"])
+            )
+        else:
+            answer = _wrong(nxt["item"], nxt["round"], nxt["mode"])
+        attempt = service.submit_attempt(
+            session=session,
+            user=user,
+            concept=concept,
+            round_name=nxt["round"],
+            mode="rewrite" if nxt["round"] == "transform" else nxt["mode"],
+            exercise_id=f"forge:{concept.id}:{nxt['round']}:{nxt['item_id']}",
+            answer_payload=answer,
+        )
+        forge.observe_attempt(user=user, session=session, attempt=attempt)
+    return session
+
+
+def test_rule_check_ends_the_day(
+    assembled_client: TestClient, journey_enabled: None, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#175: «Noch nicht. Die Schmiede übernimmt.» The rule check played through to its
+    end: failed, it is no grammar block of the day and La Forge seats the rule on the rung
+    the check placed it on («unterscheiden»); passed, it closes the day's grammar step."""
+
+    from app.core.forge import Rung
+    from app.services.atelier import AtelierCorrectionService
+    from app.services.forge import forge_state_of
+    from tests.test_atelier import _concept
+
+    monkeypatch.setattr(settings, "ATELIER_CORRECTION_LLM_ENABLED", False)
+    monkeypatch.setattr(AtelierCorrectionService, "_can_schedule_ai_review", lambda self: False)
+    email = f"wp-s4-testout-{uuid.uuid4().hex[:8]}@example.com"
+    headers = register(assembled_client, email)
+    user = db_session.query(User).filter(User.email == email).one()
+    concept = _concept(db_session, "FR_A2_NEG_001")
+
+    def blocks() -> int:
+        envelope = assembled_client.get("/api/v1/daily-journeys/today", headers=headers, params={"timezone": "UTC"}).json()
+        return envelope["forge"]["blocks_today"]
+
+    assert blocks() == 0
+    failed = _rule_check(db_session, user, concept, passes=False)
+    result = forge_state_of(failed).result
+    assert result["passed"] is False and result["placement_rung"] == Rung.DISCRIMINATE
+    assert blocks() == 0, "a rule check that was not passed is not the day's grammar block"
+    # La Forge continues at the level the check set, not from the start.
+    units = forge_picker_units(db_session, user, concept)
+    assert units[0].rung == result["placement_rung"]
+
+    passed = _rule_check(db_session, user, concept, passes=True)
+    assert forge_state_of(passed).result["passed"] is True
+    assert blocks() == 1, "a passed rule check closes the day's grammar step"
+
+
+def forge_picker_units(db_session: Session, user: User, concept: GrammarConcept):
+    from app.services.forge import PickedUnit, forge_units
+
+    return forge_units(db_session, user, [PickedUnit(concept.id, "today")], now=datetime.now(UTC))

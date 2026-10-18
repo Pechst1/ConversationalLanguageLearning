@@ -126,7 +126,7 @@ import {
   sessionNextAction,
   sessionRows,
 } from '@/lib/day-session';
-import { dayIsDone, handOnAfterGrammar } from '@/lib/day-plan';
+import { dayIsDone, handOnAfterGrammar, handOnAfterRuleCheck, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
 import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
@@ -1555,7 +1555,9 @@ export default function AtelierPage() {
     try {
       const started = await apiService.startForgeTestOut(conceptId);
       hydrateSession(started, true);
-      void router.replace(`/atelier?testout=${started.session_id}`, undefined, { shallow: true });
+      // #175: a rule check opened from the day's La Forge stays the day's: its end
+      // screen asks the plan where to go, so `from=day` rides along.
+      void router.replace(ruleCheckPath(started.session_id, forgeFromDay), undefined, { shallow: true });
     } catch (error) {
       console.error(error);
       say(forgeCopy(pageChromeLanguage).test_out_failed_start, 'alert');
@@ -1752,6 +1754,13 @@ export default function AtelierPage() {
   const dayHandOn = forgeFromDay
     ? handOnAfterGrammar(journey.envelope?.session, pageChromeLanguage)
       ?? { label: daySessionCopy(pageChromeLanguage).next_finish, href: '/fertig' }
+    : null;
+
+  // #175: a rule check started from the day (`?testout=…&from=day`) ends on the
+  // day plan's next step, never in the Cahier. Failed: La Forge takes over.
+  const ruleCheckResult = forgeViewOf(session?.forge)?.result;
+  const ruleCheckHandOn = router.isReady && ruleCheckIsFromDay(router.query) && ruleCheckResult
+    ? handOnAfterRuleCheck(journey.envelope?.session, Boolean(ruleCheckResult.passed), pageChromeLanguage)
     : null;
 
   // WP-S4: a forge block folded into the day hands the learner back to the
@@ -2276,7 +2285,13 @@ export default function AtelierPage() {
             forgeResultOpen={forgeResultOpen}
             testOutPending={testOutPending}
             onTestOut={startTestOut}
+            testOutLeaveLabel={ruleCheckHandOn?.label}
             onLeaveTestOut={() => {
+              if (ruleCheckHandOn) {
+                void journey.actions.refresh();
+                void router.push(ruleCheckHandOn.href);
+                return;
+              }
               const conceptId = forge?.rules?.[0]?.concept_id;
               void router.push(conceptId ? `/grammar?concept=${conceptId}` : '/grammar');
             }}
@@ -3564,6 +3579,7 @@ function SessionView({
   testOutPending = false,
   onTestOut,
   onLeaveTestOut,
+  testOutLeaveLabel,
 }: {
   session: AtelierSessionStart;
   activeConceptIndex: number;
@@ -3607,6 +3623,8 @@ function SessionView({
   testOutPending?: boolean;
   onTestOut?: (conceptId: number) => void;
   onLeaveTestOut?: () => void;
+  /** #175: the day plan's next step as a button label; the Cahier's «back to the rule» without one. */
+  testOutLeaveLabel?: string;
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
@@ -3762,7 +3780,7 @@ function SessionView({
           {forge.result.passed && forge.result.token && (
             <ForgeRareToken title={mc.test_out_token} sub={mc.test_out_token_sub} />
           )}
-          <EpBar onClick={onLeaveTestOut}>{fc.back_to_rule}</EpBar>
+          <EpBar onClick={onLeaveTestOut}>{testOutLeaveLabel || fc.back_to_rule}</EpBar>
         </section>
       )}
       {activeSet && activeConcept && !(forgeTestOut && forgeResultOpen) && (
