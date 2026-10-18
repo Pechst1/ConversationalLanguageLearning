@@ -33,7 +33,7 @@ def _roots_missing_slashless_twin() -> list[str]:
     return missing
 
 
-def test_every_collection_root_answers_without_the_trailing_slash():
+def test_roots_have_slashless_twin():
     missing = _roots_missing_slashless_twin()
     assert not missing, (
         "These routes only answer with a trailing slash, so a client that omits it "
@@ -42,7 +42,7 @@ def test_every_collection_root_answers_without_the_trailing_slash():
 
 
 @pytest.mark.asyncio
-async def test_vocabulary_list_is_served_without_a_redirect(async_client, french_vocabulary):
+async def test_vocabulary_no_redirect(async_client, french_vocabulary):
     response = await async_client.get(
         f"{settings.API_V1_STR}/vocabulary",
         params={"language": "fr", "limit": 80, "offset": 0},
@@ -50,7 +50,7 @@ async def test_vocabulary_list_is_served_without_a_redirect(async_client, french
     )
 
     assert response.status_code == 200, (
-        f"/vocabulary answered {response.status_code} "
+        f"307? got {response.status_code} "
         f"(Location: {response.headers.get('location')})"
     )
     payload = response.json()
