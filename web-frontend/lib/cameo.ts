@@ -2,12 +2,18 @@
  * Les apparitions · the cast leaves its discs.
  *
  * Until now the drawn cast lived in small round portraits and on the story's
- * panels. This module lets them walk in on the rest of the app, uninvited:
- * Romy photobombs a right answer with her camera, Gus notes «génie» in his
- * Carnet after three in a row, Marin cries a little at a long streak, Margaux
- * comforts a second mistake, the whole troupe pops up from the bottom edge for
- * a big streak and takes a bow when a session ends, and anybody you poke on
- * screen pokes back.
+ * panels. This module lets them walk in on the rest of the app, at moments
+ * that belong to the story and to the learner's answers:
+ *
+ *   * whoever walks in is somebody from today's page when there is one (the
+ *     day's scene cast, remembered for the day), so the drills feel like the
+ *     same afternoon at Le Mistral, not a random visit;
+ *   * a run of five right answers brings one of them, ten the whole troupe;
+ *   * a second mistake in a row brings somebody to the learner's side, and the
+ *     next right answer brings that same person back («Tu vois ?»);
+ *   * a new part of the season, once its first page is read, brings the person
+ *     whose object that part turns on, holding it (lib/season-items);
+ *   * a session ends with the troupe's bow, and anybody you poke pokes back.
  *
  * Everything said is French (one short line, the kind of French the learner
  * can read) with a gloss in the learner's own language underneath.
@@ -18,10 +24,14 @@
  * tells the layer that something happened.
  */
 
+import { itemHandedIn, itemKey } from './season-items';
+import type { SeasonItemId, SeasonPart } from './season-items';
+
 export type CameoLang = 'en' | 'de' | 'fr';
 export type CameoMood = 'neutre' | 'ravie' | 'surprise' | 'fachee' | 'emue';
 export type CameoGag = 'flash' | 'note' | 'coffee' | 'tears' | 'phone' | 'sparkle';
-export type CameoTrigger = 'streak' | 'comfort' | 'photobomb' | 'idle' | 'poke' | 'finale' | 'troupe';
+export type CameoTrigger =
+  | 'streak' | 'comfort' | 'rebound' | 'photobomb' | 'idle' | 'poke' | 'finale' | 'troupe' | 'chapter';
 
 export type CameoEvent =
   | { type: 'answer'; correct: boolean; coachId?: string | null }
@@ -29,7 +39,11 @@ export type CameoEvent =
   | { type: 'poke'; id: string }
   | { type: 'finale'; lead?: string | null }
   /** Somebody the learner has now seen on screen (a speaker, a cast-intro face). */
-  | { type: 'met'; ids: ReadonlyArray<string | null | undefined> };
+  | { type: 'met'; ids: ReadonlyArray<string | null | undefined> }
+  /** Who is in today's page: they are the ones who walk in on today's drills. */
+  | { type: 'scene'; ids: ReadonlyArray<string | null | undefined> }
+  /** The learner has read a page of this part of the season. */
+  | { type: 'chapter'; part: SeasonPart; /** the gallery: hand it over even if it was before */ replay?: boolean };
 
 export type CameoLine = { fr: string; en: string; de: string };
 
@@ -48,6 +62,13 @@ export type Cameo = {
   edge: 'left' | 'right' | 'bottom';
   figures: CameoFigure[];
   gag?: CameoGag;
+  /**
+   * Why they came, in a few words over the bubble («5 de suite», «Nouvel objet»), so a cameo
+   * reads as a reward for something the learner did, not a random visit. None for a poke.
+   */
+  reason?: CameoLine;
+  /** The season object the figure is holding out (`chapter`). */
+  item?: SeasonItemId;
   /** How long it stays, in ms. */
   ttl: number;
 };
@@ -63,6 +84,12 @@ export type CameoState = {
   seq: number;
   /** Cast members the learner has met. Only `LATE_CAST` waits on this. */
   met: readonly string[];
+  /** Today's page's cast: whoever is in it comes first, and only they photobomb. */
+  scene: readonly string[];
+  /** Who came to comfort a second mistake, waiting to see the next answer. */
+  comforter: string | null;
+  /** The season objects already handed over (`itemKey`), each only once. */
+  items: readonly string[];
 };
 
 export const INITIAL_CAMEO_STATE: CameoState = {
@@ -74,15 +101,23 @@ export const INITIAL_CAMEO_STATE: CameoState = {
   poke: null,
   seq: 0,
   met: [],
+  scene: [],
+  comforter: null,
+  items: [],
 };
 
-/** Streak lengths that always get a cameo. From six on, the whole troupe. */
-export const STREAK_MILESTONES = [3, 6, 10, 15, 20, 30, 50];
+/**
+ * Streak lengths that always get a cameo. From ten on, the whole troupe.
+ * (Three was too few: a day opens on three short drills, so somebody popped up on nearly every
+ * day's first screen, for answers that had cost nothing.)
+ */
+export const STREAK_MILESTONES = [5, 10, 15, 20, 30, 50];
+export const TROUPE_FROM = 10;
 /** At most one unrequested cameo in this window, so it stays a surprise. */
 export const AMBIENT_COOLDOWN_MS = 45_000;
 export const IDLE_COOLDOWN_MS = 180_000;
-/** Chance that a right answer outside a milestone is photobombed. */
-export const PHOTOBOMB_CHANCE = 0.16;
+/** Chance that a right answer outside a milestone is photobombed (by somebody from today's page). */
+export const PHOTOBOMB_CHANCE = 0.12;
 /** Pokes closer together than this count as the same poking. */
 export const POKE_WINDOW_MS = 6_000;
 
@@ -107,7 +142,7 @@ const L = (fr: string, de: string, en: string): CameoLine => ({ fr, de, en });
 
 type Pool = Record<string, Array<[CameoMood, CameoLine]>>;
 
-/** Three, six, ten right in a row: the person whose rule it is, or anyone. */
+/** Five right in a row: somebody from today's page, proud of you. */
 const STREAK: Pool = {
   romy_tremblay: [
     ['ravie', L('Ne bouge pas… Clic ! C’est pour la Une.', 'Nicht bewegen… Klick! Das kommt auf die Titelseite.', 'Don’t move… Click! That’s for the front page.')],
@@ -115,10 +150,10 @@ const STREAK: Pool = {
   ],
   augustin_de_roncourt: [
     ['ravie', L('Je note : « génie ». Avec un G majuscule.', 'Ich notiere: „Genie“. Mit großem G.', 'Noted: “genius”. Capital G.')],
-    ['surprise', L('Trois de suite ? Même moi, je n’y arrive pas.', 'Drei am Stück? Nicht mal ich schaffe das.', 'Three in a row? Even I can’t do that.')],
+    ['surprise', L('Cinq de suite ? Même moi, je n’y arrive pas.', 'Fünf am Stück? Nicht mal ich schaffe das.', 'Five in a row? Even I can’t do that.')],
   ],
   margaux_barman: [
-    ['ravie', L('Trois de suite ? Le café est pour moi.', 'Drei am Stück? Der Kaffee geht auf mich.', 'Three in a row? Coffee’s on me.')],
+    ['ravie', L('Cinq de suite ? Le café est pour moi.', 'Fünf am Stück? Der Kaffee geht auf mich.', 'Five in a row? Coffee’s on me.')],
     ['ravie', L('Je mets ton nom au tableau du Mistral.', 'Ich schreib deinen Namen an die Tafel im Mistral.', 'Your name goes on the board at Le Mistral.')],
   ],
   marin_leveque: [
@@ -157,7 +192,17 @@ const COMFORT: Pool = {
   ],
 };
 
-/** A right answer, now and then, with somebody walking through the shot. */
+/** The right answer straight after a comfort: the one who comforted comes back. */
+const REBOUND: Pool = {
+  marin_leveque: [['ravie', L('Tu vois ? Moi aussi, je dis bonsoir le soir.', 'Siehst du? Ich sag jetzt auch abends bonsoir.', 'See? I say good evening in the evening now too.')]],
+  margaux_barman: [['ravie', L('Tu vois ? Le brouillon, puis le propre.', 'Siehst du? Erst der Entwurf, dann die Reinschrift.', 'See? First the draft, then the fair copy.')]],
+  augustin_de_roncourt: [['ravie', L('Voilà. Victor Hugo serait jaloux.', 'Na also. Victor Hugo wäre neidisch.', 'There. Victor Hugo would be jealous.')]],
+  lila_bonnet: [['ravie', L('Tu vois ? Tu as respiré !', 'Siehst du? Du hast geatmet!', 'See? You breathed!')]],
+  romy_tremblay: [['ravie', L('Celle-là, je la prends en photo !', 'Das hier fotografiere ich!', 'That one I’m photographing!')]],
+  landlord_marchand: [['ravie', L('Bien. Très bien. Je le note.', 'Gut. Sehr gut. Ich notiere es.', 'Good. Very good. I’ll make a note.')]],
+};
+
+/** A right answer, now and then, with somebody from today's page walking through the shot. */
 const PHOTOBOMB: Pool = {
   romy_tremblay: [['ravie', L('Clic ! Pardon, tu étais trop bien.', 'Klick! Sorry, du sahst zu gut aus.', 'Click! Sorry, you looked too good.')]],
   augustin_de_roncourt: [['neutre', L('Ne fais pas attention à moi. Je passe.', 'Beachte mich nicht. Ich geh nur vorbei.', 'Don’t mind me. Just passing.')]],
@@ -189,6 +234,9 @@ const POKE_FIRST: Record<string, [CameoMood, CameoLine]> = {
 const POKE_AGAIN = L('Encore ?', 'Schon wieder?', 'Again?');
 const POKE_STOP = L('Arrête !', 'Hör auf!', 'Stop it!');
 const POKE_GIVE_UP = L('Bon… d’accord. Je t’aime bien.', 'Na gut… okay. Ich mag dich.', 'Fine… OK. I like you.');
+
+/** Handing over somebody else's object. */
+const HANDOVER = L('Tiens. Ça, c’est à toi maintenant.', 'Hier. Das gehört jetzt dir.', 'Here. This is yours now.');
 
 /** The troupe's interjections: one word each, and every one is French worth having. */
 const TROUPE_WORDS: CameoLine[] = [
@@ -222,10 +270,20 @@ function castMember(id: string | null | undefined): Who | null {
   return CAMEO_CAST.find((who) => who.id === id) ?? null;
 }
 
-/** Anyone but whoever came last, so two cameos in a row are two people. */
+/** Today's page's people the learner may meet in a cameo. */
+function sceneCast(state: CameoState): readonly Who[] {
+  return castFor(state).filter((who) => state.scene.includes(who.id));
+}
+
+/**
+ * Somebody from today's page when there is one, else anyone the learner knows; never whoever
+ * came last, so two cameos in a row are two people.
+ */
 function someone(state: CameoState, rand: () => number, avoid: string | null): Who {
+  const today = sceneCast(state).filter((who) => who.id !== avoid);
+  if (today.length) return pick(today, rand);
   const pool = castFor(state).filter((who) => who.id !== avoid);
-  return pick(pool, rand);
+  return pick(pool.length ? pool : castFor(state), rand);
 }
 
 function solo(
@@ -237,6 +295,18 @@ function solo(
   extras: { gag?: boolean; ttl?: number } = {},
 ): Cameo {
   const [mood, line] = pick(pool[who.id], rand);
+  return soloSaying(state, trigger, who, mood, line, rand, extras);
+}
+
+function soloSaying(
+  state: CameoState,
+  trigger: CameoTrigger,
+  who: Who,
+  mood: CameoMood,
+  line: CameoLine,
+  rand: () => number,
+  extras: { gag?: boolean; ttl?: number; item?: SeasonItemId } = {},
+): Cameo {
   return {
     key: state.seq + 1,
     trigger,
@@ -244,6 +314,7 @@ function solo(
     edge: rand() < 0.5 ? 'left' : 'right',
     figures: [{ id: who.id, name: who.name, mood, line }],
     gag: extras.gag ? who.gag : undefined,
+    item: extras.item,
     ttl: extras.ttl ?? 3600,
   };
 }
@@ -268,6 +339,39 @@ function troupe(state: CameoState, trigger: 'troupe' | 'finale', rand: () => num
   return { key: state.seq + 1, trigger, kind: 'troupe', edge: 'bottom', figures, ttl: trigger === 'finale' ? 4200 : 3000 };
 }
 
+/** Why a cameo came, said over its bubble in the learner's language. */
+function reasonFor(cameo: Cameo, streak: number): CameoLine | undefined {
+  switch (cameo.trigger) {
+    case 'streak':
+    case 'troupe':
+      return { fr: `${streak} de suite`, de: `${streak} am Stück`, en: `${streak} in a row` };
+    case 'comfort':
+      return REASONS.comfort;
+    case 'rebound':
+      return REASONS.rebound;
+    case 'photobomb':
+      return REASONS.photobomb;
+    case 'idle':
+      return REASONS.idle;
+    case 'finale':
+      return REASONS.finale;
+    case 'chapter':
+      // The object's name is on the card it comes on; the tag only says what kind of moment it is.
+      return REASONS.chapter;
+    default:
+      return undefined;
+  }
+}
+
+const REASONS = {
+  comfort: L('Deux erreurs de suite', 'Zwei Fehler am Stück', 'Two mistakes in a row'),
+  rebound: L('Et maintenant, juste !', 'Und jetzt richtig!', 'And now it’s right!'),
+  photobomb: L('Vu dans la page du jour', 'Aus der heutigen Folge', 'From today’s page'),
+  idle: L('Une pause ?', 'Eine Pause?', 'Taking a break?'),
+  finale: L('Fin de la séance', 'Ende der Einheit', 'End of the session'),
+  chapter: L('Nouvel objet de la saison', 'Neuer Gegenstand der Staffel', 'New object of the season'),
+};
+
 /**
  * The director. Pure: same state, event, clock and dice give the same cameo.
  * Returns `cameo: null` when the moment should pass without anybody.
@@ -282,11 +386,16 @@ export function decideCameo(
   let cameo: Cameo | null = null;
 
   if (event.type === 'answer') {
+    const comforter = castFor(state).find((who) => who.id === state.comforter) ?? null;
+    next.comforter = null;
     if (event.correct) {
       next.streak = state.streak + 1;
       next.wrongRun = 0;
-      if (STREAK_MILESTONES.includes(next.streak)) {
-        if (next.streak >= 6) {
+      if (comforter) {
+        // The one who stood beside the learner sees them get it right.
+        cameo = solo(state, 'rebound', comforter, REBOUND, rand, { ttl: 3200 });
+      } else if (STREAK_MILESTONES.includes(next.streak)) {
+        if (next.streak >= TROUPE_FROM) {
           cameo = troupe(state, 'troupe', rand, Math.min(castFor(state).length, 2 + Math.floor(next.streak / 5)));
         } else {
           // The rule's own coach is the one who is proudest, when there is one.
@@ -294,7 +403,12 @@ export function decideCameo(
           const who = someone(state, rand, castMember(event.coachId)?.id ?? state.lastId);
           cameo = solo(state, 'streak', who, STREAK, rand, { gag: true, ttl: 4000 });
         }
-      } else if (now - state.lastAmbientAt >= AMBIENT_COOLDOWN_MS && rand() < PHOTOBOMB_CHANCE) {
+      } else if (
+        sceneCast(state).some((who) => who.id !== state.lastId)
+        && now - state.lastAmbientAt >= AMBIENT_COOLDOWN_MS
+        && rand() < PHOTOBOMB_CHANCE
+      ) {
+        // Only somebody from today's page wanders through: a stranger to the day would be noise.
         cameo = solo(state, 'photobomb', someone(state, rand, state.lastId), PHOTOBOMB, rand, { gag: true });
         next.lastAmbientAt = now;
       }
@@ -306,6 +420,7 @@ export function decideCameo(
         const avoid = castMember(event.coachId)?.id ?? state.lastId;
         cameo = solo(state, 'comfort', someone(state, rand, avoid), COMFORT, rand, { ttl: 4200 });
         next.lastAmbientAt = now;
+        next.comforter = cameo.figures[0].id;
       }
     }
   } else if (event.type === 'idle') {
@@ -332,6 +447,24 @@ export function decideCameo(
   } else if (event.type === 'met') {
     const fresh = event.ids.filter((id): id is string => !!id && !next.met.includes(id));
     if (fresh.length) next.met = [...next.met, ...fresh];
+  } else if (event.type === 'scene') {
+    const ids = event.ids.filter((id): id is string => !!id && CAMEO_CAST.some((who) => who.id === id));
+    next.scene = Array.from(new Set(ids));
+    // Whoever is on today's page has been seen.
+    const fresh = next.scene.filter((id) => !next.met.includes(id));
+    if (fresh.length) next.met = [...next.met, ...fresh];
+  } else if (event.type === 'chapter') {
+    const item = itemHandedIn(event.part);
+    if (item && (event.replay || !state.items.includes(itemKey(item)))) {
+      if (!state.items.includes(itemKey(item))) next.items = [...state.items, itemKey(item)];
+      // The object's own person hands it over; somebody from the page if the learner has not met them.
+      const who = castFor(state).find((c) => c.id === item.carrier) ?? someone(state, rand, null);
+      cameo = soloSaying(state, 'chapter', who, item.mood, who.id === item.carrier ? item.line : HANDOVER, rand, {
+        ttl: 6500,
+        item: item.id,
+      });
+      next.lastAmbientAt = now;
+    }
   } else if (event.type === 'finale') {
     next.streak = 0;
     next.wrongRun = 0;
@@ -339,6 +472,7 @@ export function decideCameo(
   }
 
   if (cameo) {
+    cameo.reason = reasonFor(cameo, next.streak);
     next.seq = cameo.key;
     if (cameo.kind === 'solo') next.lastId = cameo.figures[0].id;
   }
@@ -373,6 +507,51 @@ export function writeMetCast(ids: readonly string[]): void {
     window.localStorage.setItem(CAMEO_MET_KEY, JSON.stringify(ids));
   } catch {
     // Not remembered: a late cast member waits one more session.
+  }
+}
+
+export const CAMEO_SCENE_KEY = 'atelier.cameoScene';
+export const CAMEO_ITEMS_KEY = 'atelier.cameoItems';
+
+function today(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+}
+
+/** Today's page's cast, as remembered for the rest of the local day (a deck after the story). */
+export function readSceneCast(): string[] {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(CAMEO_SCENE_KEY) || '{}');
+    if (!raw || raw.date !== today() || !Array.isArray(raw.ids)) return [];
+    return raw.ids.filter((id: unknown): id is string => typeof id === 'string');
+  } catch {
+    return [];
+  }
+}
+
+export function writeSceneCast(ids: readonly string[]): void {
+  try {
+    window.localStorage.setItem(CAMEO_SCENE_KEY, JSON.stringify({ date: today(), ids }));
+  } catch {
+    // Not remembered: a later deck today draws from everyone the learner knows.
+  }
+}
+
+/** The season objects this device has been handed. Never throws. */
+export function readCameoItems(): string[] {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(CAMEO_ITEMS_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeCameoItems(ids: readonly string[]): void {
+  try {
+    window.localStorage.setItem(CAMEO_ITEMS_KEY, JSON.stringify(ids));
+  } catch {
+    // Not remembered: the object may be handed over once more.
   }
 }
 

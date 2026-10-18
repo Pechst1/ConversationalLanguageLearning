@@ -47,23 +47,26 @@ test('every cameo character has a drawn rig', () => {
   CAMEO_CAST.forEach((who) => assert.ok(rigs.includes(`id: '${who.id}'`), who.id));
 });
 
-test('three right in a row brings a colleague of the coach (who is acting in the verdict), with their gag', () => {
+test('five right in a row (not three) brings a colleague of the coach (who is acting in the verdict), with their gag', () => {
   for (let seed = 0; seed < 6; seed += 1) {
-    const rand = () => 0.3 + seed * 0.11; // high enough that nobody photobombs the first two
-    const { out } = run([right('augustin_de_roncourt'), right('augustin_de_roncourt'), right('augustin_de_roncourt')], rand);
-    assert.equal(out[0], null);
-    assert.equal(out[1], null);
-    assert.equal(out[2].trigger, 'streak');
-    assert.equal(out[2].kind, 'solo');
-    const who = out[2].figures[0].id;
+    const rand = () => 0.3 + seed * 0.11; // high enough that nobody photobombs the first four
+    const { out } = run(Array.from({ length: 5 }, () => right('augustin_de_roncourt')), rand);
+    assert.deepEqual(out.slice(0, 4), [null, null, null, null], 'three in a row is a normal start, not an event');
+    assert.equal(out[4].trigger, 'streak');
+    assert.equal(out[4].kind, 'solo');
+    assert.equal(out[4].reason.fr, '5 de suite', 'it says why it came');
+    assert.equal(out[4].reason.de, '5 am Stück');
+    const who = out[4].figures[0].id;
     assert.notEqual(who, 'augustin_de_roncourt', 'never a second Gus beside the one in the verdict');
-    assert.equal(out[2].gag, CAMEO_CAST.find((c) => c.id === who).gag, 'their own gag');
+    assert.equal(out[4].gag, CAMEO_CAST.find((c) => c.id === who).gag, 'their own gag');
   }
 });
 
-test('six right in a row brings the troupe up from the bottom', () => {
-  const { out } = run(Array.from({ length: 6 }, () => right()));
-  const six = out[5];
+test('ten right in a row brings the troupe up from the bottom', () => {
+  const { out } = run(Array.from({ length: 10 }, () => right()));
+  assert.equal(out[5], null, 'six is no longer a milestone');
+  const six = out[9];
+  assert.equal(six.reason.en, '10 in a row');
   assert.equal(six.kind, 'troupe');
   assert.equal(six.edge, 'bottom');
   assert.ok(six.figures.length >= 3);
@@ -85,6 +88,8 @@ test('the second mistake in a row gets somebody on the learner’s side, never t
   }
 });
 
+const withScene = { ...INITIAL_CAMEO_STATE, scene: ['margaux_barman', 'lila_bonnet', 'augustin_de_roncourt'] };
+
 test('photobombs respect the cooldown', () => {
   const t0 = 5_000_000;
   const { out } = run([
@@ -92,7 +97,7 @@ test('photobombs respect the cooldown', () => {
     { ...right(), at: t0 + 1000 },
     { ...wrong(), at: t0 + 2000 },
     { ...right(), at: t0 + AMBIENT_COOLDOWN_MS + 1 },
-  ], always);
+  ], always, t0, withScene);
   assert.equal(out[0].trigger, 'photobomb');
   assert.equal(out[1], null, 'second right answer, still cooling down');
   assert.equal(out[3].trigger, 'photobomb');
@@ -104,7 +109,7 @@ test('two cameos in a row are two different people', () => {
     { ...right(), at: t0 },
     { ...wrong(), at: t0 + 1 },
     { ...right(), at: t0 + AMBIENT_COOLDOWN_MS + 2 },
-  ], always);
+  ], always, t0, withScene);
   assert.notEqual(out[0].figures[0].id, out[2].figures[0].id);
 });
 
@@ -190,4 +195,61 @@ test('#155: Romy never walks in before the learner has met her, and does after',
   assert.ok(!castFor(INITIAL_CAMEO_STATE).some((who) => who.id === 'romy_tremblay'));
   const finale = decideCameo(state, { type: 'finale' }, 2, () => 0.5).cameo;
   assert.equal(finale.figures.length, castFor(state).length);
+});
+
+test('without anybody from today’s page, nobody photobombs: a stranger to the day would be noise', () => {
+  const { out } = run(Array.from({ length: 4 }, () => right()), always);
+  assert.deepEqual(out, [null, null, null, null]);
+});
+
+test('the walk-ons are today’s page’s people', () => {
+  const scene = decideCameo(INITIAL_CAMEO_STATE, { type: 'scene', ids: ['lila_bonnet', 'marin_leveque', 'user', null] }, 1).state;
+  assert.deepEqual(scene.scene, ['lila_bonnet', 'marin_leveque'], 'only the cameo cast');
+  for (let seed = 0; seed < 10; seed += 1) {
+    const rand = () => 0.3 + seed * 0.06;
+    const { out } = run(Array.from({ length: 5 }, () => right()), rand, 1_000_000, scene);
+    assert.ok(['lila_bonnet', 'marin_leveque'].includes(out[4].figures[0].id), out[4].figures[0].id);
+    const { out: comfort } = run([wrong(), wrong()], rand, 1_000_000, scene);
+    assert.ok(['lila_bonnet', 'marin_leveque'].includes(comfort[1].figures[0].id));
+  }
+  const romyOnPage = decideCameo(INITIAL_CAMEO_STATE, { type: 'scene', ids: ['romy_tremblay'] }, 1).state;
+  assert.ok(romyOnPage.met.includes('romy_tremblay'), 'somebody on today’s page has been met');
+});
+
+test('whoever comforted a second mistake comes back for the next right answer', () => {
+  for (let seed = 0; seed < 6; seed += 1) {
+    const rand = () => seed / 6;
+    const { out, state } = run([wrong(), wrong(), right()], rand);
+    assert.equal(out[1].trigger, 'comfort');
+    assert.equal(out[1].reason.en, 'Two mistakes in a row');
+    assert.equal(out[2].trigger, 'rebound');
+    assert.equal(out[2].figures[0].id, out[1].figures[0].id, 'the same person');
+    assert.match(out[2].figures[0].line.fr, /\S/);
+    assert.equal(state.comforter, null);
+  }
+  const { out } = run([wrong(), wrong(), wrong(), right()]);
+  assert.equal(out[3], null, 'a third mistake in between, and the moment has passed');
+});
+
+const t1 = { season_id: 's1', segment: 't1', kind: 'tentpole', day_in_segment: 1 };
+
+test('a new part of the season: its own person hands over its object, once', () => {
+  const met = { ...INITIAL_CAMEO_STATE, met: CAMEO_CAST.map((c) => c.id) };
+  const { out, state } = run([{ type: 'chapter', part: t1 }, { type: 'chapter', part: { ...t1, day_in_segment: 2 } }], never, 1_000_000, met);
+  assert.equal(out[0].trigger, 'chapter');
+  assert.equal(out[0].item, 'cle_cigale');
+  assert.equal(out[0].figures[0].id, 'margaux_barman');
+  assert.equal(out[0].reason.fr, 'Nouvel objet de la saison');
+  assert.equal(out[1], null, 'day B of the same part hands nothing over again');
+  assert.deepEqual(state.items, ['s1.cle_cigale']);
+  const gap = run([{ type: 'chapter', part: { season_id: 's1', segment: 'g1', kind: 'gap' } }], never, 1_000_000, met);
+  assert.equal(gap.out[0], null, 'a gap only carries the object on');
+});
+
+test('an object whose person the learner has not met is handed over by somebody they know', () => {
+  const t4 = { season_id: 's1', segment: 't4', kind: 'tentpole' };
+  const { out } = run([{ type: 'chapter', part: t4 }]);
+  assert.equal(out[0].item, 'polaroid');
+  assert.notEqual(out[0].figures[0].id, 'romy_tremblay');
+  assert.equal(out[0].figures[0].line.fr, 'Tiens. Ça, c’est à toi maintenant.');
 });
