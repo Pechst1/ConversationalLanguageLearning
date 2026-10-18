@@ -85,6 +85,8 @@ test('a dictation asks for the server voice on the tap, never as it shows', () =
   assert.match(tap, /asked\.current = synthesize\(text\)/);
   // Kept once it has come: a replay, or «Plus lent», plays inside its own tap.
   assert.match(tap, /if \(clip\.current\) \{\s*sound\(clip\.current\);\s*return;\s*\}/);
+  // The next sentence starts silent, even when this one's voice never came.
+  assert.match(mount, /setPlaying\(false\);\s*\}, \[text\]\);/);
 });
 
 // ---------------------------------------------------------------------------

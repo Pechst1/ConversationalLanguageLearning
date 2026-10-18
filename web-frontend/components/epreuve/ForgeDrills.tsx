@@ -144,6 +144,8 @@ function useFrenchVoice(text: string, synthesize?: Synthesize) {
     void pending?.then((url) => {
       if (url) URL.revokeObjectURL(url);
     });
+    // The next sentence starts silent, even if this one's voice never came.
+    setPlaying(false);
   }, [text]);
   const play = (slow = false) => {
     if (!text) return;
