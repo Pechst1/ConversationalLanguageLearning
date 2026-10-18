@@ -368,17 +368,25 @@ export function FeuilletonReader({
 
   /* A panel the director did not translate is translated when the chip is
      pressed, never before: the request goes out once per sentence, and a
-     failed one is asked again on the next press. */
+     failed one is asked again on the next press. A request outlives the
+     panel that asked for it (the same sentence may be on the next one); only
+     leaving the reader drops what has not arrived. */
   const translationOn = Boolean(stage && translated[stage.key]);
   const translationsRef = useRef(translations);
   translationsRef.current = translations;
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   useEffect(() => {
     if (!translationOn || !stage || stage.kind !== 'panel') return;
     const missing = textsToRequest(stage, translationsRef.current);
     if (!missing.length) return;
-    let live = true;
     const settle = (text: string, entry: PanelTranslation) => {
-      if (live) setTranslations((current) => ({ ...current, [text]: entry }));
+      if (mountedRef.current) setTranslations((current) => ({ ...current, [text]: entry }));
     };
     setTranslations((current) => {
       const next = { ...current };
@@ -393,17 +401,6 @@ export function FeuilletonReader({
         .then((result) => settle(text, result.trim() ? { state: 'ready', text: result.trim() } : { state: 'failed' }))
         .catch(() => settle(text, { state: 'failed' }));
     });
-    return () => {
-      live = false;
-      /* left mid-request: what never arrived is asked for again next time */
-      setTranslations((current) => {
-        const next = { ...current };
-        missing.forEach((text) => {
-          if (next[text]?.state === 'loading') delete next[text];
-        });
-        return next;
-      });
-    };
     // The stage's key names the panel; its texts do not change under it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [translationOn, stage?.key]);
