@@ -609,6 +609,12 @@ export default function VocabularyReviewPage() {
   const [deck, setDeck] = useState<DeckProgress>(EMPTY_PROGRESS);
   const deckRef = useRef(deck);
   deckRef.current = deck;
+  // The deck and slate as last loaded: a review's reply can land after the
+  // fresh deck replaced the cached one this render's closure still holds.
+  const contextRef = useRef(context);
+  contextRef.current = context;
+  const wordSlateRef = useRef(wordSlate);
+  wordSlateRef.current = wordSlate;
   // WP-115b: the answer came from the microphone (a spoken production).
   const [spokenAnswer, setSpokenAnswer] = useState(false);
   const [lastRating, setLastRating] = useState<number | null>(null);
@@ -812,6 +818,9 @@ export default function VocabularyReviewPage() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    // Another card is never shown already turned: the fresh deck can put a
+    // different card first while the cached one was turned.
+    setRevealed(false);
     setBiographyOpen(false);
     setBiography(null);
     setBiographyError(null);
@@ -966,10 +975,12 @@ export default function VocabularyReviewPage() {
       // The server's verdict decides; the device's own fold only when it sent none.
       const serverCorrect = typeof response.correct === 'boolean' ? response.correct : typedMatches;
       const wrong = graded ? !serverCorrect : rating === 0;
-      const filed = fileCard(deck, current.word_id, wrong);
+      const filed = fileCard(deckRef.current, current.word_id, wrong);
       setDeck((prev) => fileCard(prev, current.word_id, wrong));
       // A deck reopened later starts after this card, not on it.
-      if (context) writeReviewContextCache(withoutFiled(context, filed.filed), wordSlate);
+      if (contextRef.current) {
+        writeReviewContextCache(withoutFiled(contextRef.current, filed.filed), wordSlateRef.current);
+      }
       emitCameo({ type: 'answer', correct: !wrong });
       setSpokenAnswer(false);
       setLastRating(rating);
