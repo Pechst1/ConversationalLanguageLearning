@@ -205,20 +205,24 @@ export function WordHelpSheet({
             <div className="k">{t.help_kicker}</div>
             <h2 id="fr-word-title" lang="fr">{request.surface}</h2>
           </div>
-          {voice.supported && (
-            <button
-              type="button"
-              className="av2-say"
-              aria-pressed={voice.speakingKey === `word:${request.surface}`}
-              onClick={() => voice.speak({ key: `word:${request.surface}`, text_fr: request.surface })}
-            >
-              <span className="av2-say__glyph" aria-hidden="true" />
-              {sayLabel}
+          {/* One group: when the word and both buttons do not fit on a phone's row, the
+              buttons move under the word together, instead of the word breaking into letters. */}
+          <div className="fr-sheet-tools">
+            {voice.supported && (
+              <button
+                type="button"
+                className="av2-say"
+                aria-pressed={voice.speakingKey === `word:${request.surface}`}
+                onClick={() => voice.speak({ key: `word:${request.surface}`, text_fr: request.surface })}
+              >
+                <span className="av2-say__glyph" aria-hidden="true" />
+                {sayLabel}
+              </button>
+            )}
+            <button type="button" className="fr-sheet-close" onClick={onClose} ref={closeRef}>
+              {t.help_close}
             </button>
-          )}
-          <button type="button" className="fr-sheet-close" onClick={onClose} ref={closeRef}>
-            {t.help_close}
-          </button>
+          </div>
         </div>
         <div className="fr-sheet-body">
           <p className="fr-gloss" aria-live="polite">

@@ -1001,11 +1001,13 @@ export function FeuilletonReaderStyles() {
       }
       .av2 .fr-sheet-head {
         display: flex;
+        flex-wrap: wrap;
         align-items: flex-end;
         justify-content: space-between;
-        gap: 12px;
+        gap: 10px 12px;
       }
       .av2 .fr-sheet-head .lede { min-width: 0; }
+      .av2 .fr-sheet-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; }
       .av2 .fr-sheet-head .k {
         font-size: 0.8125rem;
         font-weight: 600;
