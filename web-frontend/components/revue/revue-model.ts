@@ -50,16 +50,25 @@ export type DisplayOptions = {
 /**
  * The thread → rows. Claims already on the table fold into one quiet line once
  * the learner has spoken after them (design §3.4); consecutive folded groups are
- * one line. Every Romy line but the latest is `past` (the small bubble).
+ * one line. Every Romy line but the latest is `past` (the small bubble). Romy's
+ * close line is not printed again when the line before it already said the same
+ * (2026-10-19: «Je la garde.» twice at the close).
  */
 export function displayThread(items: RvThreadItem[], options: DisplayOptions = {}): RvDisplayItem[] {
   const opened = options.opened ?? new Set<string>();
+  const repeated = new Set<number>();
+  let previousLine: string | null = null;
+  items.forEach((item, index) => {
+    if (item.kind !== 'line') return;
+    if (item.role === 'close' && sameLine(previousLine, item.textFr)) repeated.add(index);
+    previousLine = item.textFr;
+  });
   let lastMine = -1;
   let lastLine = -1;
   items.forEach((item, index) => {
     if (item.kind === 'mine') lastMine = index;
     // A guest's line is a line too: whoever spoke last is the screen's headline.
-    if (item.kind === 'line' || item.kind === 'guest') lastLine = index;
+    if ((item.kind === 'line' || item.kind === 'guest') && !repeated.has(index)) lastLine = index;
   });
   let resumeAt = -1;
   if (options.resumeToday) {
@@ -71,6 +80,7 @@ export function displayThread(items: RvThreadItem[], options: DisplayOptions = {
   const rows: RvDisplayItem[] = [];
   items.forEach((item, index) => {
     if (index === resumeAt) rows.push({ kind: 'resume', id: `resume-${item.id}`, label: options.resumeLabel ?? '' });
+    if (repeated.has(index)) return;
     if (item.kind === 'claims' && index < lastMine) {
       const previous = rows[rows.length - 1];
       if (previous && previous.kind === 'claimsFolded' && !opened.has(previous.id)) {
@@ -214,15 +224,25 @@ const WORD = /[A-Za-zÀ-ÖØ-öø-ÿœŒæÆ]+(?:[-'’][A-Za-zÀ-ÖØ-öø-ÿœ
  * `shown`: the gloss printed under the first occurrence of each target word
  * (ruby), the rest plain. `tap`: every word is a tap-to-gloss control, the
  * target words carrying their gloss for the word sheet. `none`: plain text.
+ *
+ * `tappable` (2026-10-19: words could not be tapped at A1 or B2): every word is
+ * a control whatever the mode — at `shown` the printed target keeps its ruby and
+ * is tappable too; at `none` the targets carry their gloss to the sheet unmarked.
  */
-export function glossSegments(text: string, glosses: RvGloss[], mode: 'shown' | 'tap' | 'none'): GlossSegment[] {
+export function glossSegments(
+  text: string,
+  glosses: RvGloss[],
+  mode: 'shown' | 'tap' | 'none',
+  tappable: boolean = mode === 'tap',
+): GlossSegment[] {
   if (!text) return [];
-  if (mode === 'none') return [{ kind: 'text', text }];
+  const print = mode === 'shown';
+  if (!print && !tappable) return [{ kind: 'text', text }];
   const hits = glossHits(text, glosses);
   const out: GlossSegment[] = [];
   const pushText = (chunk: string) => {
     if (!chunk) return;
-    if (mode === 'shown') {
+    if (!tappable) {
       const last = out[out.length - 1];
       if (last && last.kind === 'text') last.text += chunk;
       else out.push({ kind: 'text', text: chunk });
@@ -242,17 +262,68 @@ export function glossSegments(text: string, glosses: RvGloss[], mode: 'shown' | 
   for (const hit of hits) {
     pushText(text.slice(cursor, hit.start));
     const surface = text.slice(hit.start, hit.end);
-    if (mode === 'shown') {
-      if (used.has(hit.gloss.fr)) pushText(surface);
-      else out.push({ kind: 'gloss', text: surface, gloss: hit.gloss.gloss });
-      used.add(hit.gloss.fr);
-    } else {
-      out.push({ kind: 'word', text: surface, gloss: hit.gloss.gloss });
-    }
+    if (print && !used.has(hit.gloss.fr)) out.push({ kind: 'gloss', text: surface, gloss: hit.gloss.gloss });
+    else if (tappable) out.push({ kind: 'word', text: surface, gloss: hit.gloss.gloss });
+    else pushText(surface);
+    used.add(hit.gloss.fr);
     cursor = hit.end;
   }
   pushText(text.slice(cursor));
   return out;
+}
+
+const LEADING_ARTICLE = /^(?:(?:les|le|la|une|un|des|du|de la)\s+|(?:de l|l)')/;
+
+/**
+ * The gloss the Papier already knows for a tapped word (2026-10-19): the plan's
+ * vocabulary, the picture's words, a line's glosses — matched without accents,
+ * case or the article («la grève» knows «grève»). Null when none does.
+ */
+export function knownGloss(word: string, glosses: RvGloss[]): string | null {
+  const bare = (text: string) => foldText(text.trim()).replace(LEADING_ARTICLE, '');
+  const needle = bare(word);
+  if (!needle) return null;
+  const hit = glosses.find((gloss) => gloss.gloss && bare(gloss.fr) === needle);
+  return hit ? hit.gloss : null;
+}
+
+/** Every gloss the session carries: the plan's vocabulary, the picture's words, then each line's. */
+export function sessionGlosses(view: Pick<RvSessionView, 'plan' | 'stage' | 'thread'>): RvGloss[] {
+  const out: RvGloss[] = [...view.plan.vocabulary, ...(view.stage.pictureWords ?? [])];
+  for (const item of view.thread) {
+    if ((item.kind === 'line' || item.kind === 'guest' || item.kind === 'summary') && item.glosses) out.push(...item.glosses);
+  }
+  return out;
+}
+
+/** A1–A2's one «Sources» fold: every claim on the table so far, once each, in the order shown. */
+export function claimsShown(items: RvThreadItem[]): RvClaim[] {
+  const seen = new Set<string>();
+  const out: RvClaim[] = [];
+  for (const item of items) {
+    if (item.kind !== 'claims') continue;
+    for (const claim of item.claims) {
+      if (seen.has(claim.id)) continue;
+      seen.add(claim.id);
+      out.push(claim);
+    }
+  }
+  return out;
+}
+
+/** The text of Romy's last line in the thread (the close does not print hers twice). */
+export function lastRomyLine(items: RvThreadItem[]): string | null {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index];
+    if (item.kind === 'line') return item.textFr;
+  }
+  return null;
+}
+
+/** Two French lines that say the same thing (spacing, case, accents and typographic quotes aside). */
+export function sameLine(a: string | null | undefined, b: string | null | undefined): boolean {
+  const norm = (text: string | null | undefined) => foldText((text ?? '').replace(/[\s\u00a0\u202f]+/g, ' ').trim());
+  return Boolean(norm(a)) && norm(a) === norm(b);
 }
 
 export type ContributionSegment = { text: string; mine: boolean };
