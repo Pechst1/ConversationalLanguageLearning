@@ -1936,8 +1936,8 @@ def gloss_in_context(
             system_prompt=(
                 "A learner of French tapped one word of a French sentence. Read the word as it is used in "
                 "that sentence and answer with a JSON object with three strings: "
-                '"lemma": its dictionary form in French (the infinitive for a verb, the masculine singular '
-                'for a noun or an adjective); "gloss": what it means here, in natural '
+                '"lemma": its dictionary form in French (the infinitive for a verb, the singular for a noun, '
+                'keeping its gender, the masculine singular for an adjective); "gloss": what it means here, in natural '
                 f'{language_name}, one to four words, no explanation; "translation": the whole sentence in '
                 f"natural, concise {language_name}. Return ONLY the JSON object."
             ),
