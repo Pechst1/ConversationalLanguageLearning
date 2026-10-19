@@ -259,7 +259,10 @@ def main() -> int:
     parser.add_argument("--api-url", default=os.environ.get("ATELIER_API_URL", "https://atelier-api-3njh.onrender.com"))
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
     parser.add_argument("--owner", default=os.environ.get("ALERT_MENTION", ""))
-    parser.add_argument("--lookback-minutes", type=int, default=90)
+    # GitHub runs the */10 schedule only every two to five hours (19 Oct: 21:37, 23:40,
+    # 01:51, 07:27 UTC), so a kill between runs must still be in the window. Events are
+    # reported once across three days of issues, so a long window never repeats one.
+    parser.add_argument("--lookback-minutes", type=int, default=12 * 60)
     parser.add_argument("--tries", type=int, default=3)
     parser.add_argument("--pause", type=float, default=20.0)
     parser.add_argument("--dry-run", action="store_true", help="print the problems; touch no issue")
