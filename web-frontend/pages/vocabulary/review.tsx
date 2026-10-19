@@ -19,9 +19,17 @@ import {
   lineAnswer,
   linePrompt,
   matchesLineForm,
-  nextAgainQueue,
   type CardMode,
 } from '@/components/lexique/recall-ladder';
+import {
+  EMPTY_PROGRESS,
+  fileCard,
+  progressAfterLoad,
+  remainingCards,
+  withoutFiled,
+  type DeckLoad,
+  type DeckProgress,
+} from '@/components/lexique/deck-session';
 import {
   fill,
   formatDate,
@@ -596,10 +604,17 @@ export default function VocabularyReviewPage() {
   const language = useChromeLanguage();
   const t = lexiqueCopy(language);
   const chrome = atelierChrome(language);
-  const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
-  // WP-115b «successive relearning»: a card answered wrong comes back at the end of
-  // the session, until it is right once.
-  const [againIds, setAgainIds] = useState<number[]>([]);
+  // What this sitting has filed. WP-115b «successive relearning»: a card answered
+  // wrong comes back at the end of the session, until it is right once.
+  const [deck, setDeck] = useState<DeckProgress>(EMPTY_PROGRESS);
+  const deckRef = useRef(deck);
+  deckRef.current = deck;
+  // The deck and slate as last loaded: a review's reply can land after the
+  // fresh deck replaced the cached one this render's closure still holds.
+  const contextRef = useRef(context);
+  contextRef.current = context;
+  const wordSlateRef = useRef(wordSlate);
+  wordSlateRef.current = wordSlate;
   // WP-115b: the answer came from the microphone (a spoken production).
   const [spokenAnswer, setSpokenAnswer] = useState(false);
   const [lastRating, setLastRating] = useState<number | null>(null);
@@ -617,7 +632,9 @@ export default function VocabularyReviewPage() {
   const activeWordIdRef = useRef<number | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const loadQueue = useCallback(async (moreWords?: number) => {
+  // `revalidate` is the server's copy of the deck already on screen (the cached
+  // one): what the learner filed meanwhile stays filed and the card stays turned.
+  const loadQueue = useCallback(async (moreWords?: number, load: DeckLoad = 'new-deck') => {
     setLoading(!visibleCacheRef.current);
     setLoadError(null);
     try {
@@ -639,14 +656,16 @@ export default function VocabularyReviewPage() {
       ]);
       setWordSlate(slate);
       setContext(next);
-      writeReviewContextCache(next, slate);
+      writeReviewContextCache(load === 'revalidate' ? withoutFiled(next, deckRef.current.filed) : next, slate);
       visibleCacheRef.current = false;
       setCachedContextAt(null);
-      setReviewedIds(new Set());
-      setLastRating(null);
-      setLastReviewedItem(null);
-      setRevealed(false);
-      setTypedAnswer('');
+      setDeck((prev) => progressAfterLoad(prev, load));
+      if (load === 'new-deck') {
+        setLastRating(null);
+        setLastReviewedItem(null);
+        setRevealed(false);
+        setTypedAnswer('');
+      }
     } catch (error) {
       console.error(error);
       if (!visibleCacheRef.current) setLoadError('unavailable');
@@ -666,7 +685,7 @@ export default function VocabularyReviewPage() {
     }
     const stored = Number(window.localStorage.getItem(REVIEW_WORD_KEY) || 0);
     if (stored) setResumeWordId(stored);
-    void loadQueue();
+    void loadQueue(undefined, 'revalidate');
   }, [loadQueue]);
 
   // "Les mots du jour" ride to the front of the deck: the day's slate words
@@ -698,12 +717,7 @@ export default function VocabularyReviewPage() {
       ...ordered.filter((item) => item.word_id !== resumeWordId),
     ];
   }, [context, resumeWordId, slateById]);
-  const remainingItems = useMemo(() => {
-    const main = allItems.filter((item) => !reviewedIds.has(item.word_id));
-    const byId = new Map(allItems.map((item) => [item.word_id, item]));
-    const again = againIds.map((id) => byId.get(id)).filter(Boolean) as typeof allItems;
-    return [...main, ...again];
-  }, [allItems, reviewedIds, againIds]);
+  const remainingItems = useMemo(() => remainingCards(allItems, deck), [allItems, deck]);
   const current = remainingItems[0] || null;
   /* GENTLE-ONBOARDING: an emptied deck on the first day ticks the words off,
      the last stage of story → words → La Forge. `null` on any other day. */
@@ -720,10 +734,10 @@ export default function VocabularyReviewPage() {
     setFirstDayDone(routeDone(store));
   }, [deckEmpty]);
   const currentSlateEntry = current ? slateById.get(current.word_id) || null : null;
-  const completed = reviewedIds.size;
+  const completed = deck.filed.size;
   const total = remainingItems.length + completed;
   const sessionRemaining = remainingItems.length;
-  const progress = total ? Math.round((completed / total) * 100) : 0;
+  const percent = total ? Math.round((completed / total) * 100) : 0;
   const minutesLeft = sessionRemaining
     ? Math.max(1, Math.round((sessionRemaining * SECONDS_PER_CARD) / 60))
     : 0;
@@ -804,6 +818,9 @@ export default function VocabularyReviewPage() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    // Another card is never shown already turned: the fresh deck can put a
+    // different card first while the cached one was turned.
+    setRevealed(false);
     setBiographyOpen(false);
     setBiography(null);
     setBiographyError(null);
@@ -954,12 +971,16 @@ export default function VocabularyReviewPage() {
       const response = await apiService.submitAnkiReview({ word_id: current.word_id, rating, ...answered });
       toast.success(reviewMessage(t, response));
       if (response.note_native) toast(response.note_native);
-      setReviewedIds((prev) => new Set(prev).add(current.word_id));
       // WP-115b: wrong → again at the end of the session; right → it leaves the loop.
       // The server's verdict decides; the device's own fold only when it sent none.
       const serverCorrect = typeof response.correct === 'boolean' ? response.correct : typedMatches;
       const wrong = graded ? !serverCorrect : rating === 0;
-      setAgainIds((prev) => nextAgainQueue(prev, current.word_id, wrong));
+      const filed = fileCard(deckRef.current, current.word_id, wrong);
+      setDeck((prev) => fileCard(prev, current.word_id, wrong));
+      // A deck reopened later starts after this card, not on it.
+      if (contextRef.current) {
+        writeReviewContextCache(withoutFiled(contextRef.current, filed.filed), wordSlateRef.current);
+      }
       emitCameo({ type: 'answer', correct: !wrong });
       setSpokenAnswer(false);
       setLastRating(rating);
@@ -1083,7 +1104,7 @@ export default function VocabularyReviewPage() {
   // still to come. Beyond MAX_SEGMENTS the same value is one filled rule.
   const dots = allItems.map((item) => ({
     id: item.word_id,
-    state: reviewedIds.has(item.word_id) ? 'done' : item.word_id === current?.word_id ? 'current' : 'pending',
+    state: deck.filed.has(item.word_id) ? 'done' : item.word_id === current?.word_id ? 'current' : 'pending',
   }));
   const countLabel = total ? `${completed}/${total}` : '';
   const progressCaption = sessionRemaining
@@ -1133,10 +1154,10 @@ export default function VocabularyReviewPage() {
                   aria-label={t.progress_aria}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-valuenow={progress}
+                  aria-valuenow={percent}
                   aria-valuetext={loading ? t.opening_deck : progressCaption}
                 >
-                  <div className="av2-progress__fill lx-rule__fill" style={{ width: `${progress}%` }} />
+                  <div className="av2-progress__fill lx-rule__fill" style={{ width: `${percent}%` }} />
                 </div>
               )}
               {countLabel && <span className="av2-progress__count">{countLabel}</span>}
