@@ -1,13 +1,21 @@
 """Concept-aware grammar feedback helpers shared across practice modes."""
 from __future__ import annotations
 
+import csv
 import re
 import unicodedata
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from app.db.models.grammar import GrammarConcept
 from app.services.seance_curriculum import lesson_for
+
+#: The reviewed v2 units (A1-C1): their rule, pattern and slips are authored text.
+#: ``seance_curriculum`` reads the v1 core catalogue only, so before #239 a v2 unit
+#: had no profile of its own and was given a keyword-matched stand-in.
+_V2_CATALOGUE = Path(__file__).resolve().parents[2] / "templates" / "french_core_grammar_v2.tsv"
 
 _STOPWORDS = {
     "about",
@@ -123,6 +131,16 @@ def concept_context_text(concept: GrammarConcept | None) -> str:
     )
 
 
+def _own_pattern(concept: GrammarConcept | None, formula: str) -> str:
+    """A pattern line from the concept's own rule; a plain formula when it has none.
+    Never a sentence with a hole in it («what this unit teaches»): that was printed (#239)."""
+
+    rule = " ".join(str(getattr(concept, "core_rule", "") or "").split())
+    if rule:
+        return rule if len(rule) <= 220 else rule[:217].rsplit(" ", 1)[0] + "…"
+    return formula
+
+
 def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
     padded = f" {text} "
     return any(marker in padded for marker in markers)
@@ -168,6 +186,25 @@ def _is_tense_unit(text: str) -> bool:
     return _contains_any(text, (" tense ", " tenses ", " temps ", " imparfait ", " passe compose ", " futur simple "))
 
 
+@lru_cache(maxsize=1)
+def _v2_units() -> dict[str, dict[str, str]]:
+    try:
+        with _V2_CATALOGUE.open(encoding="utf-8") as source:
+            return {row["external_id"]: row for row in csv.DictReader(source, delimiter="\t")}
+    except OSError:  # pragma: no cover - the catalogue ships with the app
+        return {}
+
+
+def authored_unit(concept: GrammarConcept | None) -> dict[str, str] | None:
+    """The unit's own authored rule, pattern and slips (v1 core or reviewed v2), if it has them."""
+
+    lesson = lesson_for(concept)
+    if lesson:
+        return lesson
+    unit = _v2_units().get(str(getattr(concept, "external_id", "") or ""))
+    return unit if unit and (unit.get("pattern") or "").strip() else None
+
+
 def infer_grammar_profile(
     concept: GrammarConcept | None = None,
     *,
@@ -175,8 +212,39 @@ def infer_grammar_profile(
     feature: str = "",
     label: str = "",
 ) -> GrammarFeedbackProfile:
-    """Infer a concept family from explicit task text plus catalog metadata."""
+    """The feedback profile of a concept: its own authored text, else a family's.
 
+    #239 / #146: the family (``key``) is inferred from the catalogue metadata and
+    the task, as before, because callers branch on it. What a learner *reads* (the
+    rule, the pattern, the slip to avoid) comes from the unit's own authored fields
+    whenever the catalogue has them; a family's generic wording is only the
+    fallback for a concept the catalogue does not know.
+    """
+
+    profile = _infer_family_profile(concept, task_text=task_text, feature=feature, label=label)
+    if lesson_for(concept):
+        return profile
+    unit = authored_unit(concept)
+    if not unit:
+        return profile
+    first_trap = (unit.get("main_traps") or "").split(" | ")[0].strip()
+    return replace(
+        profile,
+        principle=(unit.get("core_rule") or "").strip() or profile.principle,
+        repair=first_trap or profile.repair,
+        when=(unit.get("when_to_use") or "").strip() or profile.when,
+        pattern=(unit.get("pattern") or "").strip(),
+        check=first_trap or profile.check,
+    )
+
+
+def _infer_family_profile(
+    concept: GrammarConcept | None = None,
+    *,
+    task_text: str = "",
+    feature: str = "",
+    label: str = "",
+) -> GrammarFeedbackProfile:
     lesson = lesson_for(concept)
     if lesson:
         family = {
@@ -244,10 +312,10 @@ def infer_grammar_profile(
         return _profile(
             "tense_form",
             str(fallback_label)[:120],
-            f"Build the verb form this unit teaches: {fallback_feature}.",
+            f"Build the verb form of {fallback_feature}.",
             "Check the auxiliary, the participle or ending, and its agreement, then rewrite the verb.",
-            "Use this when the sentence needs the verb form this unit teaches.",
-            "auxiliary or stem + the ending or participle this unit teaches.",
+            f"Use this when the sentence needs {fallback_feature}.",
+            _own_pattern(concept, "auxiliary + participle, or stem + ending, and agreement."),
             "Check the form of the verb: auxiliary, ending or participle, and agreement.",
         )
     if _contains_any(combined, (" conditionnel ", " conditional ", " polite request ", " hypothetical ")):
@@ -333,10 +401,10 @@ def infer_grammar_profile(
     return _profile(
         "grammar_target",
         str(fallback_label)[:120],
-        f"The answer has to make the requested grammar relation visible: {fallback_feature}.",
+        f"The answer has to make this grammar relation visible: {fallback_feature}.",
         "Use the task prompt and the concept rule to choose the exact French form.",
         "Use this when the sentence context calls for this grammar concept.",
-        getattr(concept, "core_rule", None) or "Match the form to the target rule.",
+        _own_pattern(concept, "trigger or controller + the form it requires."),
         "Name the trigger, controller, or sentence role first, then choose the form.",
     )
 
