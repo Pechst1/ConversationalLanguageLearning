@@ -831,6 +831,14 @@ test('2026-10-19 · every word is a control at every band; the Papier\'s glosses
   assert.equal(model.knownGloss('les matins', glosses), 'Vormittage');
   assert.equal(model.knownGloss('grève', glosses), null, 'not a word of this Papier: the sheet looks it up');
   assert.equal(model.knownGloss('lecture', [{ fr: 'cture', gloss: 'x' }]), null, '«le» is an article only before a space');
+  // A homograph of the other gender is not reused: the sentence's article decides.
+  const tower = [{ fr: 'la tour', gloss: 'Turm' }];
+  assert.equal(model.knownGloss('tour', tower, 'Le Tour de France part samedi.'), null, '«le tour» is not «la tour»');
+  assert.equal(model.knownGloss('tour', tower, 'Au tour de Paris !'), null);
+  assert.equal(model.knownGloss('tour', tower, 'La tour Eiffel brille.'), 'Turm');
+  assert.equal(model.knownGloss('tour', tower, 'Les spectateurs regardent la tour.'), 'Turm');
+  assert.equal(model.knownGloss('tour', tower, 'Leur tour arrive.'), 'Turm', 'no gendered article before it: as before');
+  assert.equal(model.knownGloss('tour', tower), 'Turm', 'no sentence: as before');
 });
 
 test('2026-10-19 · «Traduire» asks once per text; a failure is forgotten, so the next press asks again', async () => {

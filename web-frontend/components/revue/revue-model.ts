@@ -274,16 +274,41 @@ export function glossSegments(
 
 const LEADING_ARTICLE = /^(?:(?:les|le|la|une|un|des|du|de la)\s+|(?:de l|l)')/;
 
+type Gender = 'm' | 'f';
+
+/** The gender a form's own article gives it («la tour» → f), or null («les», «l'», none). */
+function articleGender(fr: string): Gender | null {
+  const folded = foldText(fr.trim());
+  if (/^(?:le|un|du|au)\s/.test(folded)) return 'm';
+  if (/^(?:la|une|de la)\s/.test(folded)) return 'f';
+  return null;
+}
+
+/** The gender the article printed right before `word` in `sentence` gives it («le Tour» → m), or null. */
+function genderInSentence(word: string, sentence: string): Gender | null {
+  const needle = foldText(word.trim()).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (!needle) return null;
+  const match = new RegExp(`(?:^|[^a-z0-9])(le|un|du|au|la|une)\\s+${needle}(?![a-z0-9])`).exec(foldText(sentence));
+  return match ? articleGender(`${match[1]} ${word}`) : null;
+}
+
 /**
  * The gloss the Papier already knows for a tapped word (2026-10-19): the plan's
  * vocabulary, the picture's words, a line's glosses — matched without accents,
- * case or the article («la grève» knows «grève»). Null when none does.
+ * case or the article («la grève» knows «grève»). Null when none does. With the
+ * word's `sentence`, a known form whose article says the other gender is not
+ * reused: «la tour» (tower) is not the «tour» of «le Tour de France».
  */
-export function knownGloss(word: string, glosses: RvGloss[]): string | null {
+export function knownGloss(word: string, glosses: RvGloss[], sentence = ''): string | null {
   const bare = (text: string) => foldText(text.trim()).replace(LEADING_ARTICLE, '');
   const needle = bare(word);
   if (!needle) return null;
-  const hit = glosses.find((gloss) => gloss.gloss && bare(gloss.fr) === needle);
+  const printed = sentence ? genderInSentence(word, sentence) : null;
+  const hit = glosses.find((gloss) => {
+    if (!gloss.gloss || bare(gloss.fr) !== needle) return false;
+    const known = articleGender(gloss.fr);
+    return !(known && printed && known !== printed);
+  });
   return hit ? hit.gloss : null;
 }
 

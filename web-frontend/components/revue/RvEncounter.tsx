@@ -182,7 +182,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   const onWord = useCallback(
     (event: RvWordEvent) => {
       const term = event.word.toLowerCase().replace(/^(l|d|qu|j|n|s|c)['’]/, '');
-      const known = event.gloss || knownGloss(event.word, glosses) || knownGloss(term, glosses);
+      const known = event.gloss || knownGloss(event.word, glosses, event.sentence) || knownGloss(term, glosses, event.sentence);
       setWord({
         surface: event.word,
         term,
