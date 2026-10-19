@@ -508,6 +508,15 @@ class SceneDraft(StrictModel):
         # Anything but a plain yes keeps today's question closing today.
         return value is True or str(value).strip().casefold() in ("true", "yes", "1")
 
+    @field_validator("season_thread", "arc_stage_id", mode="before")
+    @classmethod
+    def _key(cls, value: Any) -> str | None:
+        # A key, checked against the season's own later: an overlong one is a
+        # sentence written where the key belongs, so it is dropped (production
+        # 2026-10-19: a 21 s retry lost to «season_thread: at most 80 characters»).
+        text = None if value is None else " ".join(str(value).split())
+        return text if text and len(text) <= 80 else None
+
     @field_validator("epreuve_pass_line_fr", "epreuve_fail_line_fr", mode="before")
     @classmethod
     def _epreuve_line(cls, value: Any) -> str | None:

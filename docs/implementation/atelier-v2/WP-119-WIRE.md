@@ -372,7 +372,7 @@ type RvClosing = {
           claims: RvClaim[] };   // «Pour ton Relevé»: words + claims shown, with source lines
   question_kept_fr: string | null;   // an open question Romy keeps for the desk / next week
   vignette: VignetteView | null;     // WP-120 §4.3: the stamp minted at close; null when minting failed or is off
-  colophon_fr: "La suite la semaine prochaine.";
+  colophon_fr: "La suite la semaine prochaine." | "La suite demain.";  // «demain» when the Papier is daily (§12.2)
 };
 
 // app/schemas/revue_vignette.py — also the items of GET /revue/vignettes ({ vignettes: VignetteView[] })

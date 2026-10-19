@@ -348,3 +348,27 @@ test('WP-119: on other days the Revue is one quiet chip beside the letter, gone 
   const resume = revueHomeChip({ enabled: true, offer: revueTypes.parseOffer(REVUE.offer_resume) }, 'fr');
   assert.match(resume.href, /^\/revue\?session=/);
 });
+
+// Owner, 2026-10-19: a generated day has no title yet, and yesterday's whole
+// «À suivre…» stood in at headline size. The headline is its heart, once.
+test('an untitled day headlines the teaser’s heart, not the whole teaser', () => {
+  const base = fixture('first_day');
+  const envelope = {
+    ...base,
+    control_language: 'fr',
+    available: { ...base.available, title_fr: 'Votre prochain chapitre' },
+    headline: {
+      edition_no: 7,
+      title_fr: '',
+      season_title_fr: 'La clé d’Odile',
+      teaser_fr:
+        'Toi, tu me caches quelque chose… Demain, peut-être, on saura : « Lila et Berlin : peut-on vouloir quelqu’un ici, et vouloir son départ pour elle ? »',
+      cast: [],
+    },
+  };
+  const html = renderToStaticMarkup(h(JourneyTodayCard, { controller: controllerFor(envelope, 'fr'), onOpen: () => {} }));
+  const title = decode((html.match(/<h2 class="av2-headline av2-headline--title"[^>]*>([\s\S]*?)<\/h2>/) || [])[1] || '');
+  assert.equal(title, 'Lila et Berlin');
+  assert.doesNotMatch(visibleText(html), /caches quelque chose/);
+  assert.equal((visibleText(html).match(/Lila et Berlin/g) || []).length, 1);
+});
