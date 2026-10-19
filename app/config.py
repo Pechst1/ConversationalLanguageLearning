@@ -728,6 +728,23 @@ class Settings(BaseSettings):
             "marked before print (/correcteur, /revue/correcteur/*). Off: every route is a 404."
         ),
     )
+    REVUE_COMPTOIR_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-119 «Au comptoir» (owner 2026-10-19): the Papier as five short screens — read, "
+            "three takes from Le Mistral's regulars, the false claim, the learner's opinion edited "
+            "by Romy, the page. On: a new session whose story has takes starts there, and each "
+            "morning the takes desk writes them. Off: nothing changes (no route, no field, no call)."
+        ),
+    )
+    REVUE_COMPTOIR_MODEL: str = Field(
+        "claude-haiku-5-5",
+        description=(
+            "WP-119 «Au comptoir»: the takes desk's model (one shared call per story each morning, "
+            "about $0.006 a story). A Claude model needs ANTHROPIC_API_KEY. Chosen by the desk "
+            "comparison of 2026-10-19 (claude-haiku-5-5 over gpt-6-luna and claude-sonnet-5-5)."
+        ),
+    )
     VOCAB_TARGET_RETENTION: float = Field(
         0.87,
         ge=0.7,
