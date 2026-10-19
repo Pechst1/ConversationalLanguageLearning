@@ -7,8 +7,10 @@ export function seanceAssessment(correction: Record<string, any> | null): 'corre
   // blocks the learner behind a «pending» screen.
   const checked = correction.assessment_status === 'checked' || correction.assessment_status === 'provisional';
   if (!checked && ['pending', 'queued', 'reviewing'].includes(status)) return 'pending';
+  // A rule check («Épreuve») graded on the spot by the rule's detector is
+  // final without the model: it is checked, not a legacy unchecked line.
   const legacyUnchecked = typeof correction.corrected_answer === 'string' && correction.correction_debug?.fallback_used
-    && correction.assessment_status !== 'provisional';
+    && correction.assessment_status !== 'provisional' && correction.graded_by !== 'local_test_out';
   if (correction.assessment_status === 'unavailable' || legacyUnchecked || (!checked && ['failed', 'error'].includes(status))) return 'unavailable';
   if (!['correct', 'accepted'].includes(correction.verdict)) return 'needs_work';
   if (correction.errata?.length || correction.missing_targets?.length || correction.lexical_gaps?.length) return 'needs_work';
