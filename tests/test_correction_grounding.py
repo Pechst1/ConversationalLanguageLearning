@@ -148,6 +148,9 @@ def test_right_form(text, span, fix):
         ("Il nous ont donné le livre.", "ont", "a"),
         ("Il vous ont parlé.", "ont", "a"),
         ("Je ne lui a pas parlé.", "a", "ai"),
+        # a complement's determiner does not make the head noun plural or singular
+        ("La maison de mes parents sont grandes.", "sont", "est"),
+        ("Les parents de la fille est ici.", "est", "sont"),
     ],
     ids=[
         "x-et-moi",
@@ -166,6 +169,8 @@ def test_right_form(text, span, fix):
         "il-nous-ont",
         "il-vous-ont",
         "je-ne-lui-a",
+        "de-mes",
+        "de-la",
     ],
 )
 def test_real_fix(text, span, fix):
@@ -192,8 +197,14 @@ def test_model_slip(text, span, fix):
 
 @pytest.mark.parametrize(
     "text",
-    ["Je suis froid avec elle.", "Je suis chaud pour ça !", "Je suis froid envers lui."],
-    ids=["avec", "chaud", "envers"],
+    [
+        "Je suis froid avec elle.",
+        "Je suis chaud pour ça !",
+        "Je suis froid envers lui.",
+        "Je suis froid et distant.",
+        "Je suis froid de nature.",
+    ],
+    ids=["avec", "chaud", "envers", "et-distant", "de-nature"],
 )
 def test_valid_fr(text):
     """#201 review: «être froid avec quelqu'un» and «être chaud pour» are real French."""
@@ -214,6 +225,17 @@ def test_slip_note(language, word):
     verdict = _tutor("Je suis froid.", None, None, language=language)
     assert verdict.correction_fr == "J'ai froid"
     assert word in verdict.correction_note_native
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Je suis froid.", "Je suis froid ici.", "Je suis froid et je veux rentrer.", "Je suis froid, et toi ?"],
+    ids=["bare", "ici", "et-je", "comma"],
+)
+def test_cold_slip(text):
+    """The temperature reading of «je suis froid» is still corrected."""
+
+    assert _tutor(text, None, None).correction_fr == "J'ai froid"
 
 
 def test_no_slip_clarify():

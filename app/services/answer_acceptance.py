@@ -1054,6 +1054,10 @@ def _subject_person(before: list[str]) -> str | None:
     window = before[-4:]
     if "et" in window[:-1]:
         return None
+    if any(token in {"de", "d", "du", "des"} for token in window[:-1]):
+        # «La maison de mes parents sont»: the determiner seen may be the complement's,
+        # not the head noun's.
+        return None
     if any(token in _PLURAL_DETERMINERS for token in window[:-1]):
         return "3pl"
     if any(token in _SINGULAR_DETERMINERS for token in window[:-1]) and not word.endswith(("s", "x")):
@@ -1126,15 +1130,28 @@ def _swap_holds(before: list[str], old_persons: frozenset[str], new_persons: fro
     return True
 
 
-_BE_FOR_HAVE = re.compile(r"\bje suis (froid|faim|soif|peur|sommeil)\b(?: (\w+))?", re.IGNORECASE)
-#: «Je suis froid avec elle» is French («être froid avec quelqu'un»); only the bare
-#: state is the slip.
-_COLD_AS_CHARACTER = frozenset({"avec", "pour", "envers", "à", "au", "aux", "face", "comme", "dans"})
+_BE_FOR_HAVE = re.compile(
+    r"\bje suis (froid|faim|soif|peur|sommeil)\b(?: (\w+)(?: (\w+))?)?", re.IGNORECASE
+)
+#: «Je suis froid avec elle», «… et distant», «… de nature» are French: «froid» then
+#: describes the person. It is the slip only when nothing follows, a time or place
+#: does («Je suis froid ici»), or a new clause starts («Je suis froid et un peu triste»).
+_COLD_THEN_SETTING = frozenset({"ici", "aujourd", "maintenant", "ce", "cette", "car", "parce", "quand", "depuis"})
+_COLD_THEN_CLAUSE = frozenset(
+    {"je", "j", "il", "elle", "on", "nous", "vous", "un", "une", "ma", "mon", "mes", "le", "la", "les", "ça", "c"}
+)
 _SLIP_NOTE = {
     "en": "In French you «have» cold, hunger or thirst: j'ai {word}, not je suis {word}.",
     "de": "Auf Französisch «hat» man Kälte, Hunger oder Durst: j'ai {word}, nicht je suis {word}.",
     "fr": "En français on « a » froid, faim ou soif : j'ai {word}, pas je suis {word}.",
 }
+
+
+def _cold_is_temperature(next_word: str | None, after: str | None) -> bool:
+    following = (next_word or "").casefold()
+    if not following or following in _COLD_THEN_SETTING:
+        return True
+    return following in {"et", "mais"} and (after or "").casefold() in _COLD_THEN_CLAUSE
 
 
 def known_slip(learner_text: object, language: str | None = "en") -> tuple[str, str, str] | None:
@@ -1146,7 +1163,7 @@ def known_slip(learner_text: object, language: str | None = "en") -> tuple[str, 
     text = " ".join(str(learner_text or "").replace("’", "'").split())
     for match in _BE_FOR_HAVE.finditer(text):
         word = match.group(1).casefold()
-        if word == "froid" and (match.group(2) or "").casefold() in _COLD_AS_CHARACTER:
+        if word == "froid" and not _cold_is_temperature(match.group(2), match.group(3)):
             continue
         span = " ".join(match.group(0).split(" ")[:3])
         fix = f"j'ai {word}"
