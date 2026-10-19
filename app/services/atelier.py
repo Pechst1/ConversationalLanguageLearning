@@ -741,16 +741,22 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
 
 
 def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]]) -> int:
-    """The first whole-word occurrence of ``wrong`` that overlaps no span taken."""
+    """Where ``wrong`` stands in the line as a whole word overlapping no span taken.
 
+    -1 when it is not there, or when it is there more than once: an erratum
+    carries no offset, so «partie» in «Elle est partie et il est partie» could
+    be either, and fixing the wrong one must not pass. That line is retyped whole.
+    """
+
+    found: list[int] = []
     start = folded.find(wrong)
     while start >= 0:
         end = start + len(wrong)
         bounded = (start == 0 or not folded[start - 1].isalnum()) and (end == len(folded) or not folded[end].isalnum())
         if bounded and all(end <= a or start >= b for a, b, _fix, _index in taken):
-            return start
+            found.append(start)
         start = folded.find(wrong, start + 1)
-    return -1
+    return found[0] if len(found) == 1 else -1
 
 
 def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) -> str | None:

@@ -16,15 +16,19 @@ type Erratum = { learner_text?: unknown; corrected_target?: unknown; task_error_
 
 const isWordChar = (char: string | undefined) => !!char && /[0-9A-Za-zÀ-ÖØ-öø-ÿŒœ]/.test(char);
 
+// -1 when absent or there more than once: an erratum carries no offset, so
+// «partie» in «Elle est partie et il est partie» could be either, and fixing
+// the wrong one must not pass. That line is retyped whole.
 function wordFind(folded: string, wrong: string, taken: Array<[number, number]>): number {
+  const found: number[] = [];
   let start = folded.indexOf(wrong);
   while (start >= 0) {
     const end = start + wrong.length;
     const bounded = !isWordChar(folded[start - 1]) && !isWordChar(folded[end]);
-    if (bounded && taken.every(([a, b]) => end <= a || start >= b)) return start;
+    if (bounded && taken.every(([a, b]) => end <= a || start >= b)) found.push(start);
     start = folded.indexOf(wrong, start + 1);
   }
-  return -1;
+  return found.length === 1 ? found[0] : -1;
 }
 
 export function repairParts(learner: string, errata: Erratum[] | null | undefined): RepairPart[] | null {

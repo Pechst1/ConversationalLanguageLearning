@@ -29,6 +29,7 @@ test('a correction that cannot be placed sends the line back to a whole retype',
   assert.equal(repairParts(LINE, [{ learner_text: 'chaises', corrected_target: 'tables' }]), null);
   assert.equal(repairParts(LINE, [{ learner_text: LINE, corrected_target: 'x' }]), null);
   assert.equal(repairParts(LINE, []), null);
+  assert.equal(repairParts('Elle est partie et il est partie', [{ learner_text: 'partie', corrected_target: 'parti' }]), null);
 });
 
 test('a word inside another word is not the word', () => {

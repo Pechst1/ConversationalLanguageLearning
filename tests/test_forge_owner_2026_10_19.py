@@ -84,6 +84,8 @@ def test_a_line_is_cut_into_the_parts_to_fix_and_the_parts_to_keep():
     # A correction the line cannot hold in place: the line is retyped whole.
     assert repair_parts(SC2_LINE, [{"learner_text": "", "corrected_target": "le", "task_error_type": "article"}]) is None
     assert repair_parts(SC2_LINE, [{"learner_text": "chaises", "corrected_target": "tables"}]) is None
+    # A stretch the line holds twice could be either: the line is retyped whole.
+    assert repair_parts("Elle est partie et il est partie", [{"learner_text": "partie", "corrected_target": "parti"}]) is None
     # «a» inside «avec» is not the word «a».
     assert repair_parts("Il avec a fini", [{"learner_text": "a", "corrected_target": "est"}])[1] == {"wrong": "a", "fix": "est", "erratum": 0}
 
