@@ -5736,7 +5736,10 @@ class AtelierCorrectionService:
             elif mode == "word_bank" and not item.get("lesson_external_id"):
                 errata.extend(self._word_bank_errata(concept, item, learner_text, str(target or "")))
             else:
-                errata.append(self._recognize_erratum(concept, mode, item, learner_text, str(target or "")))
+                # #235: a gap lists several right fillers; the miss is measured against
+                # the closest one (a wrong article is told «une peinture», not «un tableau»).
+                shown = verdict.expected if mode == "fill" and verdict.expected else target
+                errata.append(self._recognize_erratum(concept, mode, item, learner_text, str(shown or "")))
         score = round((correct_count / max(len(items), 1)) * 4, 2)
         return {
             "verdict": "correct" if correct_count == len(items) else ("partial" if correct_count else "incorrect"),
