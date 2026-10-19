@@ -15,6 +15,9 @@
                      ?comptoir=1 turns «Au comptoir» on (WP-119-AU-COMPTOIR: the
                      Céline story leads the week and plays as the counter's debate).
 
+   A session in «Au comptoir» mode (WP-119-AU-COMPTOIR) mounts RvComptoir in place
+   of the encounter, with the same props.
+
    States (design §3.7): loading (the 4:3 frame holds its size, «Romy rassemble
    ses notes», skeletons after 400 ms) · choose (from the chip) · the encounter ·
    ended (read-only, this week's Revue is filed) · the Revue switched off · the
@@ -26,7 +29,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 
 import { AtelierV2Root, CastPortrait, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
-import { RvChooser, RvEncounter, RvSessionHead, RvStage, revueCopy } from '@/components/revue';
+import { RvChooser, RvComptoir, RvEncounter, RvSessionHead, RvStage, revueCopy } from '@/components/revue';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { RevueError, revueClient, type RevueClient } from '@/lib/revue-api';
@@ -211,8 +214,10 @@ export default function RevuePage() {
   let body: React.ReactNode;
   if (state.kind === 'session' && client) {
     const week = state.session.week.iso;
+    // «Au comptoir»: a session started with the switch on plays as the counter's debate.
+    const Player = state.session.mode === 'comptoir' ? RvComptoir : RvEncounter;
     body = (
-      <RvEncounter
+      <Player
         key={state.session.id}
         client={client}
         session={state.session}
