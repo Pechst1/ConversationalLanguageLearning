@@ -1073,6 +1073,19 @@ _TASKS: dict[str, str] = {
 _SYSTEMS: dict[str, str] = {"guest": _GUEST_SYSTEM}
 
 
+def first_json_object(text: str) -> Any:
+    """The answer's JSON: the whole text, else the first object in it (2026-10-19, the takes
+    desk: a Claude model once answered two objects back to back, or wrapped one in prose)."""
+
+    try:
+        return json.loads(text)
+    except ValueError:
+        start = text.find("{")
+        if start < 0:
+            raise
+        return json.JSONDecoder().raw_decode(text[start:])[0]
+
+
 @dataclass
 class OpenAIRevueProvider:
     """The app's LLM service (``app.services.llm_service.LLMService``), one JSON call per task.
@@ -1086,6 +1099,8 @@ class OpenAIRevueProvider:
     max_tokens: int = 1600
     spent_usd: float = 0.0
     concurrent: bool = True
+    #: ``None``: the service's default model; the takes desk names its own («Au comptoir»).
+    model: str | None = None
     _service: Any = None
     _lock: Any = field(default_factory=threading.Lock, repr=False)
     _local: Any = field(default_factory=threading.local, repr=False)
@@ -1127,6 +1142,7 @@ class OpenAIRevueProvider:
                 max_tokens=self.max_tokens,
                 response_format={"type": "json_object"},
                 reasoning_effort="low",
+                **({"model": self.model} if self.model else {}),
             )
         except Exception as exc:  # noqa: BLE001 - the service falls back to authored lines
             raise RevueProviderError(str(exc)) from exc
@@ -1135,7 +1151,7 @@ class OpenAIRevueProvider:
             self.spent_usd += cost
         self._local.spent = self.thread_spent() + cost
         try:
-            data = json.loads(result.content or "")
+            data = first_json_object(result.content or "")
         except (TypeError, ValueError) as exc:
             raise RevueProviderError(f"{label}: not JSON") from exc
         if not isinstance(data, dict):

@@ -8,11 +8,12 @@ period already built is kept; ``refresh=True`` (the admin route) rebuilds it. Of
 ``REVUE_ENABLED`` is off.
 
 Each run gives the kiosk's dossiers without leads (built before them, or an evergreen top-up)
-a try at the lead desk (``leads.ensure_leads``, once per dossier, one small call each), then
-queues :func:`paint_pictures`: one picture per story the kiosk is missing (and
-a plate for each new place), painted once and final (``plates.paint_period``), within the
-service's daily cap. A morning that finds everything painted spends nothing; one whose
-painting failed is caught up the next morning.
+a try at the lead desk (``leads.ensure_leads``, once per dossier, one small call each), and,
+while ``REVUE_COMPTOIR_ENABLED`` is on, at the takes desk of «Au comptoir»
+(``comptoir.ensure_comptoir``, once per dossier, WP-119), then queues :func:`paint_pictures`:
+one picture per story the kiosk is missing (and a plate for each new place), painted once and
+final (``plates.paint_period``), within the service's daily cap. A morning that finds
+everything painted spends nothing; one whose painting failed is caught up the next morning.
 """
 
 from __future__ import annotations
@@ -88,6 +89,26 @@ def leads_now(*, period: str | None = None, now: datetime | None = None) -> dict
         db.close()
 
 
+def comptoir_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """Write the «Au comptoir» takes ``period``'s kiosk is missing (WP-119); off with either switch."""
+
+    from app.services.revue.comptoir import comptoir_enabled, ensure_comptoir
+    from app.services.revue.weekly import period_for
+
+    if not comptoir_enabled():
+        return {"status": "disabled"}
+    target = period or period_for(now or datetime.now(UTC))
+    db = SessionLocal()
+    try:
+        return {"status": "ok", "period": target, "written": ensure_comptoir(db, target)}
+    except Exception as exc:  # noqa: BLE001 - the stories stay chats; tomorrow retries
+        logger.exception("revue comptoir failed for {}", target)
+        db.rollback()
+        return {"status": "failed", "period": target, "error": type(exc).__name__}
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.revue.paint_pictures")
 def paint_pictures(period: str | None = None, limit: int | None = None) -> dict[str, Any]:
     """§8.4: the period's missing pictures, one image call each, final."""
@@ -112,12 +133,15 @@ def weekly_intake(refresh: bool = False) -> dict[str, Any]:
     """The beat's entry. Weekly cadence: the first run of the week (Monday 05:00) builds the
     week and every later morning finds it built (``kept``) — a Monday that failed is caught
     up the next morning. Daily cadence: every morning builds that day. Either way the
-    kiosk's missing leads are written (:func:`leads_now`) and its missing pictures are
+    kiosk's missing leads are written (:func:`leads_now`), then its missing «Au comptoir»
+    takes while that switch is on (:func:`comptoir_now`), and its missing pictures are
     painted next (:func:`paint_pictures`)."""
 
     report = intake_now(refresh=refresh)
     if report.get("status") == "disabled":
         return report
     report["leads"] = leads_now(period=report.get("period"))
+    if getattr(settings, "REVUE_COMPTOIR_ENABLED", False):
+        report["comptoir"] = comptoir_now(period=report.get("period"))
     report["pictures"] = _queue_painting(report.get("period"))
     return report
