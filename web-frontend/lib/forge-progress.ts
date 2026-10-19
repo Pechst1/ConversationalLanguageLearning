@@ -2,17 +2,19 @@
  * WP-S6 — La Forge's one human progress, as data.
  *
  * The machine counters («Recognize · Word bank · 1/3», «0/20») are gone. A
- * séance shows two things: the rule's staircase — six steps drawn in the
- * rule's own shape, done steps in ink, the current one in the shape's colour,
- * the rest ghosts — and a quiet «n of N» for the séance. The recap reads each
- * rule's day from the server (`recap.forge.rules`, `app/services/atelier.py`).
+ * séance shows two things: the rule's level and a quiet «n of N» for the
+ * séance. The recap reads each rule's day from the server
+ * (`recap.forge.rules`, `app/services/atelier.py`).
+ *
+ * Owner, 2026-10-18: the staircase of shapes read as decoration, not progress
+ * («I don't know what the triangles indicate»). A rule's rung is now its level,
+ * 1 to 6, drawn as a plain bar and named «Niveau 3»; a tap says what it means.
  *
  * Pure: no React, so node tests read it directly.
  */
 
 import {
   fillForge,
-  forgeRungLabel,
   forgeStageLabel,
   type ForgeCopy,
 } from './forge-copy';
@@ -25,7 +27,8 @@ export const FORGE_STEPS = 6;
  * for the words that fit a noun (articles, determiners, agreement, numbers,
  * comparison, adverbs), the blue circle for how a sentence is built (pronouns,
  * negation, connectors, relatives, prepositions, syntax). The ink square stays
- * «done» and is never a rule's own shape.
+ * «done» and is never a rule's own shape. The grammar map draws rules by it;
+ * La Forge no longer does.
  */
 export type RuleShape = 'circle' | 'square' | 'triangle';
 
@@ -49,17 +52,20 @@ export function ruleShape(concept: ConceptLike): RuleShape {
   return 'circle';
 }
 
-export type StairState = 'done' | 'current' | 'todo';
-
-/** The six steps for a rule on rung `rung` (0-based): ink, colour, ghosts. */
-export function staircase(rung: unknown): StairState[] {
-  const at = clampRung(rung);
-  return Array.from({ length: FORGE_STEPS }, (_, index) => (index < at ? 'done' : index === at ? 'current' : 'todo'));
-}
-
 export function clampRung(rung: unknown): number {
   const value = Math.floor(Number(rung));
   return Number.isFinite(value) ? Math.max(0, Math.min(FORGE_STEPS - 1, value)) : 0;
+}
+
+/** The level's bar: one segment per level, lit up to the rule's own. */
+export function levelSegments(rung: unknown): boolean[] {
+  const at = clampRung(rung);
+  return Array.from({ length: FORGE_STEPS }, (_, index) => index <= at);
+}
+
+/** «Niveau 3»: a rung (0–5) as the learner's level on the rule (1–6). */
+export function levelText(copy: ForgeCopy, rung: unknown): string {
+  return fillForge(copy.level, { n: clampRung(rung) + 1 });
 }
 
 type ForgeViewLike = {
@@ -99,22 +105,6 @@ export function seanceCountText(copy: ForgeCopy, forge: ForgeViewLike, onScreenI
   return count ? fillForge(copy.count_of, count) : '';
 }
 
-/** «Step 3 of 6 · build» — one label, for the head and the recap. */
-export function stepText(copy: ForgeCopy, rung: unknown, rungName: string | null | undefined): string {
-  return fillForge(copy.step_of, { n: clampRung(rung) + 1, rung: forgeRungLabel(copy, rungName) });
-}
-
-export type SeenItem = { position: number; conceptId: number };
-
-/**
- * Did the séance just move to another rule? True on the first item of a rule
- * that follows an item of a different one — never on the séance's first item.
- */
-export function ruleChanged(previous: SeenItem | null | undefined, next: SeenItem | null | undefined): boolean {
-  if (!previous || !next) return false;
-  return next.position !== previous.position && next.conceptId !== previous.conceptId;
-}
-
 // ---------------------------------------------------------------------------
 // The recap
 // ---------------------------------------------------------------------------
@@ -134,9 +124,8 @@ export type RecapRuleIn = {
 export type RecapRuleRow = {
   conceptId: number;
   title: string;
-  shape: RuleShape;
   rung: number;
-  step: string;
+  level: string;
   change: string;
   changed: boolean;
   due: string;
@@ -173,7 +162,7 @@ export function changeText(copy: ForgeCopy, rule: RecapRuleIn): { text: string; 
   return { text: fillForge(copy.recap_unchanged, { stage: forgeStageLabel(copy, after || before) }), changed: false };
 }
 
-type TitledConcept = { id: number; category?: string | null; subskill?: string | null; name?: string | null };
+type TitledConcept = { id: number; name?: string | null };
 
 /** The recap's rows, one per rule the séance forged, in the séance's order. */
 export function recapRuleRows(
@@ -193,9 +182,8 @@ export function recapRuleRows(
       return {
         conceptId: Number(rule.concept_id),
         title: concept ? titleOf(concept) : '',
-        shape: ruleShape(concept),
         rung: clampRung(rule.rung),
-        step: stepText(copy, rule.rung, rule.rung_name),
+        level: levelText(copy, rule.rung),
         change: change.text,
         changed: change.changed,
         due: dueText(copy, rule.next_due, language, now),
@@ -231,4 +219,28 @@ export function localizedCue(
 export function cueIsLocalized(item: Record<string, any> | null | undefined, field: 'prompt' | 'instruction', language: string): boolean {
   const table = item?.[`${field}_l10n`];
   return Boolean(table && typeof table === 'object' && typeof table[language] === 'string' && table[language].trim());
+}
+
+const sameTitle = (a: unknown, b: unknown) => {
+  const fold = (value: unknown) => String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return Boolean(fold(a)) && fold(a) === fold(b);
+};
+
+/**
+ * Owner, 2026-10-18: the rule's name once per screen. La Forge names the rule
+ * in its head, so a correction does not name it again: its card loses the
+ * title when it is that rule, and its line loses «Règle : <title>.».
+ */
+export function correctionAnchor(label: unknown, ruleShown: string | null | undefined): string | undefined {
+  const text = String(label ?? '').trim();
+  if (!text || (ruleShown && sameTitle(text, ruleShown))) return undefined;
+  return text;
+}
+
+export function withoutRuleReference(text: string, ruleShown: string | null | undefined): string {
+  const value = String(text ?? '');
+  const title = String(ruleShown ?? '').trim();
+  if (!title) return value;
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return value.replace(new RegExp(`\\s*(?:Règle|Rule|Regel)\\s*:\\s*${escaped}\\s*\\.?`, 'giu'), '').trim();
 }

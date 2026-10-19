@@ -707,6 +707,15 @@ class Settings(BaseSettings):
         le=20,
         description="WP-119 §4.1: how many editorial dossiers the weekly intake aims to build.",
     )
+    REVUE_STORIES_PER_DAY: int = Field(
+        2,
+        ge=1,
+        le=10,
+        description=(
+            "WP-119 §12.2: under REVUE_CADENCE=daily, how many new stories each morning's intake "
+            "builds (the kiosk shows the last seven days). Each one is painted once (~US$0.06)."
+        ),
+    )
     REVUE_CADENCE: str = Field(
         "weekly",
         pattern=r"^(weekly|daily)$",

@@ -4024,7 +4024,10 @@ def coach_scene_review_task(
     )
     for item in candidates:
         scene = forge_coaches.mini_scene(item, coach)
-        if scene is None:
+        if scene is None or scene["reply"].rstrip().endswith("?"):
+            # Owner, 2026-10-19: «Qu'est-ce que tu me racontes ? — Tu es
+            # tranquille ?». The warm-up's reply answers the coach; a question
+            # back is no answer.
             continue
         line = scene["lines"][0]
         name = str(coach.get("name") or "")
@@ -4048,6 +4051,8 @@ def coach_scene_review_task(
             accepted_answers=accepted,
             solution_fr=scene["reply"],
             translation_native=(str(line.get("en") or "") or None) if language == "en" else None,
+            # A miss names the unit's rule (the instruction is not a reason).
+            hint_native=grammar_items._hint(brief, language),
             estimated_seconds=40,
             evidence_format="conversation",
         )
@@ -4128,6 +4133,7 @@ def _with_coach_scene(
             "accepted_answers": list(task.accepted_answers),
             "solution_fr": task.solution_fr,
             "translation_native": task.translation_native,
+            "hint_native": task.hint_native,
             "estimated_seconds": task.estimated_seconds,
             "evidence_format": task.evidence_format,
         },

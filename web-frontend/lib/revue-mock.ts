@@ -65,11 +65,14 @@ type Band = 'A1' | 'A2' | 'B1' | 'B2';
 // ---------------------------------------------------------------------------
 
 type MockClaim = { id: string; kind: 'fact' | 'interpretation' | 'forecast'; fr: string; quote: string; source_id: string; attributed_to?: string };
+type MockLead = { fr: string; en: string; de: string };
 type MockDossier = {
   id: string;
   title_fr: string;
   short_fr: string;
   summary_fr: string;
+  /** 2026-10-18: «La une en trois phrases» — the story at A1 and A2, and Home's six-word headline. */
+  leads: { headline_fr: string; a1: MockLead; a2: MockLead };
   topic: string;
   place: { id: string; name_fr: string; plate: string; plate_place_id: string; real: boolean; dress: string };
   narration: [string, string];
@@ -101,6 +104,19 @@ const MARCHE: MockDossier = {
   short_fr: 'Le marché d’Aligre',
   summary_fr:
     "Paris a 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre six matins sur sept, week-end compris. Il y a un marché couvert et un marché en plein air.",
+  leads: {
+    headline_fr: 'Un marché six matins sur sept',
+    a1: {
+      fr: "Paris a 91 marchés. Le marché d'Aligre ouvre six matins sur sept. Il y a un marché couvert et un marché dehors.",
+      en: 'Paris has 91 markets. The Aligre market opens six mornings a week. There is a covered market and an outdoor one.',
+      de: 'Paris hat 91 Märkte. Der Markt von Aligre öffnet an sechs Vormittagen pro Woche. Es gibt einen überdachten Markt und einen draußen.',
+    },
+    a2: {
+      fr: "Paris compte 91 marchés. Celui d'Aligre, dans le 12e arrondissement, ouvre tous les matins sauf le lundi. Il y a un marché couvert, ouvert toute la journée, et un marché en plein air, seulement le matin.",
+      en: 'Paris counts 91 markets. The Aligre market, in the 12th arrondissement, opens every morning except Monday. There is a covered market, open all day, and an open-air market, mornings only.',
+      de: 'Paris zählt 91 Märkte. Der Markt von Aligre im 12. Arrondissement öffnet jeden Morgen außer montags. Es gibt eine Markthalle, den ganzen Tag offen, und einen Markt im Freien, nur vormittags.',
+    },
+  },
   topic: 'food',
   place: { id: 'marche_aligre', name_fr: "Le marché d'Aligre, un matin", plate: '/assets/serial/locations/marche_canal.webp', plate_place_id: 'marche_canal', real: false, dress: 'coat' },
   narration: [
@@ -187,6 +203,19 @@ const GREVE: MockDossier = {
   short_fr: 'La grève',
   summary_fr:
     "En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n'est pas une vraie obligation.",
+  leads: {
+    headline_fr: 'Un jour de grève dans le métro',
+    a1: {
+      fr: 'En France, il y a souvent des grèves dans le métro et les trains. Les syndicats préviennent cinq jours avant. Les salariés en grève le disent 48 heures avant.',
+      en: 'In France there are often strikes on the metro and the trains. The unions give notice five days before. Employees on strike say so 48 hours before.',
+      de: 'In Frankreich gibt es oft Streiks in der Metro und bei der Bahn. Die Gewerkschaften kündigen sie fünf Tage vorher an. Streikende Angestellte sagen es 48 Stunden vorher.',
+    },
+    a2: {
+      fr: "En France, les grèves dans les transports reviennent souvent. Elles suivent des règles : un préavis cinq jours avant, et chaque salarié en grève prévient 48 heures avant. On parle de « service minimum », mais ce n'est pas une vraie obligation.",
+      en: 'In France, transport strikes happen often. They follow rules: notice five days before, and each striking employee warns 48 hours before. People talk about a «minimum service», but it is not a real obligation.',
+      de: 'In Frankreich gibt es oft Streiks im Verkehr. Sie folgen Regeln: eine Ankündigung fünf Tage vorher, und jeder Streikende sagt 48 Stunden vorher Bescheid. Man spricht von «Mindestdienst», aber es ist keine echte Pflicht.',
+    },
+  },
   topic: 'work',
   place: { id: 'quai_metro_greve', name_fr: 'Un quai de métro un matin de grève', plate: '/assets/serial/locations/metro_platform.webp', plate_place_id: 'metro_platform', real: false, dress: 'coat' },
   narration: ['Un quai de métro, tôt le matin. Le panneau annonce de longues attentes.', 'Romy est assise sur un banc, son carnet sur les genoux.'],
@@ -265,6 +294,19 @@ const FETE: MockDossier = {
   short_fr: 'La Fête de la musique',
   summary_fr:
     'Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.',
+  leads: {
+    headline_fr: 'La musique dans la rue',
+    a1: {
+      fr: 'Le 21 juin, on joue de la musique dans la rue. C’est gratuit. La fête existe depuis 1982.',
+      en: 'On 21 June, people play music in the street. It is free. The festival has existed since 1982.',
+      de: 'Am 21. Juni macht man auf der Straße Musik. Es ist kostenlos. Das Fest gibt es seit 1982.',
+    },
+    a2: {
+      fr: 'Le 21 juin, des musiciens jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Beaucoup de gens l’aiment, mais elle fait du bruit, et des voisins se plaignent.',
+      en: 'On 21 June, musicians play for free in the streets, bars and squares. The festival has existed since 1982. Many people love it, but it is noisy, and some neighbours complain.',
+      de: 'Am 21. Juni spielen Musiker kostenlos auf Straßen, in Bars und auf Plätzen. Das Fest gibt es seit 1982. Viele mögen es, aber es ist laut, und manche Nachbarn beschweren sich.',
+    },
+  },
   topic: 'culture',
   place: { id: 'place_fete_musique', name_fr: 'Une petite place parisienne le soir du 21 juin', plate: '/assets/serial/locations/le_mistral-counter.webp', plate_place_id: 'le_mistral', real: false, dress: 'coat' },
   narration: ['Le Mistral, un soir de juin. Dehors, on installe une petite scène.', 'Romy t’attend au comptoir, son carnet ouvert.'],
@@ -351,12 +393,15 @@ const STEER_LINE = 'Il me reste peu de place dans la colonne : on fait le titre,
 const FINAL_LINE = "La colonne est pleine ! On boucle avec ce qu'on a : le titre, ou la question pour les lecteurs ?";
 const KEPT_LINE = 'Bonne question. Je la garde pour la semaine prochaine : on boucle avec ce qu\'on a ?';
 const SIMPLIFY_LEAD = 'Pardon, je vais trop vite.';
+// 2026-10-18: as the server (encounter.PURPOSE_LINES): no brief read out; the lead above tells the story.
 const PURPOSE_LINES: Record<string, string> = {
-  understand_change: 'Je dois expliquer ça à mes lecteurs de Montréal : « {angle} ». Tu m’aides ?',
-  explain_disagreement: 'Les gens ne sont pas d’accord, et je dois l’expliquer : « {angle} ». Tu m’aides ?',
-  choose_angle: 'Je ne sais pas par quel bout prendre l’histoire : « {angle} ». Tu m’aides à choisir ?',
-  prepare_dispatch: 'Je dois écrire trois lignes là-dessus : « {angle} ». Tu m’aides ?',
+  understand_change: 'Je dois raconter ça à mes lecteurs de Montréal. Tu m’aides ?',
+  explain_disagreement: 'Tout le monde n’est pas d’accord là-dessus. Tu m’aides à l’expliquer à mes lecteurs ?',
+  choose_angle: 'Je ne sais pas encore comment raconter cette histoire. Tu m’aides à choisir ?',
+  prepare_dispatch: 'Je dois écrire trois lignes là-dessus pour mes lecteurs. Tu m’aides ?',
 };
+const LOST_LEAD = 'Je reprends depuis le début.';
+const MORE_LEAD = 'Il y a autre chose.';
 const CLOSE_LINES: Record<string, string> = {
   reader_question: "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
   headline_choice: 'Je garde ton titre. Il part avec mon papier.',
@@ -403,6 +448,14 @@ const TRANSLATIONS: Record<string, { en: string; de: string }> = {
     de: 'Und da habe ich nichts. Die Quellen sagen es nicht. Formulieren wir die Frage zusammen?',
   },
   [SIMPLIFY_LEAD]: { en: "Sorry, I'm going too fast.", de: 'Entschuldige, ich bin zu schnell.' },
+  [PURPOSE_LINES.understand_change]: {
+    en: 'I have to tell my readers in Montreal about this. Will you help me?',
+    de: 'Ich muss das meinen Lesern in Montreal erzählen. Hilfst du mir?',
+  },
+  [PURPOSE_LINES.explain_disagreement]: {
+    en: 'Not everyone agrees on this. Will you help me explain it to my readers?',
+    de: 'Nicht alle sind sich da einig. Hilfst du mir, es meinen Lesern zu erklären?',
+  },
 };
 
 const BUDGET_TURNS = 6;
@@ -617,6 +670,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   const cardOf = (d: MockDossier) => ({
     dossier_id: d.id,
     title_fr: d.title_fr,
+    headline_fr: d.leads.headline_fr,
     summary_fr: d.summary_fr,
     topic: d.topic,
     place_fr: d.place.name_fr,
@@ -656,6 +710,18 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     return vocabularyOf(d).filter((v) => folded.includes(fold(v.fr))).map((v) => glossOf(v, s.language));
   };
   const isB1 = (s: MockSession) => s.band === 'B1' || s.band === 'B2';
+  /** The band's lead (B1+: the summary); `simpler`: a step down, as Romy retells it to a lost learner. */
+  const leadOf = (s: MockSession, d: MockDossier, simpler = false): MockLead | { fr: string } => {
+    const a1 = s.band === 'A1' || (simpler && s.band === 'A2');
+    const a2 = s.band === 'A2' || (simpler && (s.band === 'B1' || s.band === 'B2'));
+    return a1 ? d.leads.a1 : a2 ? d.leads.a2 : { fr: d.summary_fr };
+  };
+  const leadItem = (s: MockSession, d: MockDossier, seq: number, at: string) => {
+    const lead = leadOf(s, d);
+    const lang = s.language === 'fr' ? null : s.language;
+    const translation = supportOf(s).translation !== 'none' && lang && lang in lead ? (lead as MockLead)[lang] : null;
+    return { id: `${seq}.s`, seq, at, kind: 'summary', speaker: 'romy_tremblay', text_fr: lead.fr, translation, glosses: glossesIn(s, d, lead.fr) };
+  };
   const line = (s: MockSession, d: MockDossier, seq: number, role: string, text: string, suffix = '', reason: string | null = null) => {
     const support = supportOf(s);
     const translated = TRANSLATIONS[text];
@@ -843,13 +909,14 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const seq = nextSeq(s);
     const at = stamp();
     d.narration.forEach((text, index) => s.thread.push({ id: `${seq}.n${index}`, seq, at, kind: 'narration', text_fr: text }));
+    // 2026-10-18: what happened, at the learner's band, before Romy speaks.
+    s.thread.push(leadItem(s, d, seq, at));
     // §8.4: on the story's own picture Romy points at what it shows; nothing stands in.
     const picture = pictureOf(d);
     if (picture) s.thread.push(line(s, d, seq, 'look', picture.look_fr, '.l'));
     else if (d.place_note && !d.place.real) s.thread.push(line(s, d, seq, 'place_note', d.place_note, '.p'));
     if (miss) s.thread.push(line(s, d, seq, 'fallback', missLine(), '.m', 'no_match'));
-    s.thread.push(line(s, d, seq, 'purpose', PURPOSE_LINES[d.angle.purpose].replace('{angle}', d.angle.fr)));
-    s.thread.push({ id: `${seq}.s`, seq, at, kind: 'summary', speaker: 'romy_tremblay', text_fr: d.summary_fr });
+    s.thread.push(line(s, d, seq, 'purpose', PURPOSE_LINES[d.angle.purpose]));
     sessions[s.id] = s;
     save();
     return viewOf(s);
@@ -915,7 +982,15 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         reply(first.fr.split(',')[0].replace(/\.$/, '') + '.');
         flags.simplified = true;
       } else {
-        reply(`Je reformule : ${d.claims[0].fr}`);
+        // 2026-10-18: the story again, a band simpler, and the next fact — never «les sources ne le disent pas».
+        const lead = leadOf(s, d, true);
+        const seq = nextSeq(s);
+        const lang = s.language === 'fr' ? null : s.language;
+        const translated = supportOf(s).translation !== 'none' && lang && lang in lead ? (lead as MockLead)[lang] : null;
+        items.push({
+          ...line(s, d, seq, 'reply', `${LOST_LEAD} ${lead.fr}`),
+          translation: translated ? `${lang === 'de' ? 'Ich fange noch mal von vorne an.' : 'Let me start again from the beginning.'} ${translated}` : null,
+        });
       }
     } else if (folded.includes('formule la question') || folded.includes('on l\'ecrit')) {
       formulateTurn = true;
@@ -940,7 +1015,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       s.confused = 0;
       const next = unshown[0];
       if (next) {
-        reply(next.kind === 'interpretation' ? `Il y a aussi un avis, d'après ${next.attributed_to}.` : 'Il y a autre chose.');
+        // Said in the line itself: at A1–A2 the claim card is folded.
+        reply(`${MORE_LEAD} ${next.fr}`);
         showClaims(s, d, [next.id], items);
       } else {
         reply("C'est tout ce que disent mes sources. On en fait quelque chose ?");

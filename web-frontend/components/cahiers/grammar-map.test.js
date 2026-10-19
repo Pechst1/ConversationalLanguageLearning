@@ -40,6 +40,8 @@ const M = require('@/lib/grammar-map.ts');
 const { MOMENTUM_COPY, momentumCopy, fillMomentum, comboLabel, bestComboLine, sealRingsLabel } = require('@/lib/momentum-copy.ts');
 const { chromeLanguage } = require('@/lib/language-rule.ts');
 const Forge = require('@/components/epreuve/Forge.tsx');
+const { forgeCopy } = require('@/lib/forge-copy.ts');
+const { forgeCheer } = require('@/lib/forge-drills.ts');
 const { Seal, sealRingPaths, SEAL_MAX_RINGS } = require('@/components/ui/Seal.tsx');
 const { rewardView, heldToday } = require('@/components/atelier-v2/journey/journey-recap-model.ts');
 
@@ -227,28 +229,31 @@ test('Éclair grades locally, folding typography, and keeps its clock', () => {
 // The combo tokens in the forge
 // ---------------------------------------------------------------------------
 
-test('the combo is five tokens in the rule’s shape, lit from the left, named for screen readers', () => {
-  const html = renderToStaticMarkup(h(Forge.ForgeCombo, { shape: 'triangle', run: 3, label: comboLabel(momentumCopy('en'), 3) }));
-  assert.match(html, /role="img" aria-label="3 right answers in a row" data-shape="triangle"/);
-  const tokens = [...html.matchAll(/class="forge-combo__token"( data-lit="true")?( data-new="true")?/g)];
-  assert.equal(tokens.length, 5);
-  assert.deepEqual(tokens.map((m) => Boolean(m[1])), [true, true, true, false, false]);
-  assert.deepEqual(tokens.map((m) => Boolean(m[2])), [false, false, true, false, false], 'the newest lit token pops');
-  assert.match(html, /class="forge-combo__n" aria-hidden="true">3</);
-  const none = renderToStaticMarkup(h(Forge.ForgeCombo, { shape: 'circle', run: 0, label: 'No run yet' }));
-  assert.doesNotMatch(none, /data-lit|forge-combo__n/);
+// Owner, 2026-10-18: the run is no longer drawn as shapes in the top bar
+// («I don't know what the triangles indicate»): it is said under a right
+// answer, with the level it climbed to.
+test('the run of right answers is said under the answer, with the level it reached', () => {
+  const fc = forgeCopy('en');
+  assert.equal(forgeCheer({ forge: { rung: 2, new_rung: 3, run: 3 } }, fc), 'Level 4 ↑ · 3 in a row');
+  assert.equal(forgeCheer({ forge: { rung: 3, new_rung: 3, run: 2 } }, fc), '2 in a row');
+  assert.equal(forgeCheer({ forge: { rung: 5, new_rung: 5, run: 6, held: true } }, fc), 'The rule is yours! · 6 in a row');
+  assert.equal(forgeCheer({ forge: { rung: 1, new_rung: 2, run: 1 } }, fc), 'Level 3 ↑');
+  assert.equal(forgeCheer({ forge: { rung: 1, new_rung: 1, run: 1 } }, fc), null);
+  assert.equal(forgeCheer({ forge: { rung: 3, new_rung: 2, run: 0 } }, fc), null, 'a miss is never cheered');
+  assert.equal(forgeCheer(null, fc), null);
+  assert.equal(forgeCheer({ forge: { rung: 0, new_rung: 1, run: 2 } }, forgeCopy('fr')), 'Niveau 2 ↑ · 2 d’affilée');
 });
 
-test('the staircase steps are each readable: ≥ 12 units, with a gap between neighbours', () => {
-  const html = renderToStaticMarkup(h(Forge.ForgeStair, { shape: 'square', rung: 2, label: 'x' }));
-  assert.match(html, /viewBox="0 0 102 28"/);
-  const rects = [...html.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/g)].map((m) => [Number(m[1]), Number(m[2])]);
-  assert.equal(rects.length, 6);
-  for (const [, width] of rects) assert.ok(width >= 12 && width <= 14, `step size ${width}`);
-  for (let i = 1; i < rects.length; i += 1) {
-    const gap = rects[i][0] - (rects[i - 1][0] + rects[i - 1][1]);
-    assert.ok(gap >= 2.5, `gap ${gap} between step ${i} and ${i + 1}`);
-  }
+test('the level is six plain segments, lit up to the rule’s own; its own one pops', () => {
+  const html = renderToStaticMarkup(h(Forge.ForgeLevel, { rung: 2 }));
+  const segments = [...html.matchAll(/class="forge-level__seg"( data-lit="true")?( data-at="true")?/g)];
+  assert.equal(segments.length, 6);
+  assert.deepEqual(segments.map((m) => Boolean(m[1])), [true, true, true, false, false, false]);
+  assert.deepEqual(segments.map((m) => Boolean(m[2])), [false, false, true, false, false, false]);
+  assert.match(html, /data-level="3"/);
+  assert.doesNotMatch(html, /<svg|<rect|data-shape/, 'no shapes');
+  const top = renderToStaticMarkup(h(Forge.ForgeLevel, { rung: 9 }));
+  assert.match(top, /data-level="6"/);
 });
 
 // ---------------------------------------------------------------------------
@@ -297,6 +302,7 @@ test('the new CSS is tokens only and draws no strokes', () => {
     'components/cahiers/GrammarMap.tsx': styleBlock('components/cahiers/GrammarMap.tsx'),
     'pages/eclair.tsx': styleBlock('pages/eclair.tsx'),
     'components/epreuve/Forge.tsx': styleBlock('components/epreuve/Forge.tsx'),
+    'components/epreuve/ForgeDrills.tsx': styleBlock('components/epreuve/ForgeDrills.tsx'),
   };
   const seal = fs.readFileSync(path.join(WEB_ROOT, 'styles/atelier-v2.css'), 'utf8');
   blocks['styles/atelier-v2.css (rings)'] = seal.slice(seal.indexOf('WP-S7: one ring per rule'), seal.indexOf('SealMini: the collection'));
@@ -311,19 +317,22 @@ test('the new CSS is tokens only and draws no strokes', () => {
   const map = blocks['components/cahiers/GrammarMap.tsx'];
   assert.match(map, /\.gm-shape\[data-fill='ghost'\] \.gm-shape__base \{ fill: var\(--av2-line\); \}/);
   assert.match(map, /\.gm-shape\[data-fill='ink'\] \.gm-shape__base \{ fill: var\(--av2-ink\); \}/);
-  // Reduce Motion: the combo's pop and the rings' pop sit under no-preference.
+  // Reduce Motion: the level's pop and the rings' pop sit under no-preference.
   const forge = blocks['components/epreuve/Forge.tsx'];
-  assert.match(forge, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.av2 \.forge-combo__token\[data-new='true'\] \{ animation: av2-pop/);
+  assert.match(forge, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.av2 \.forge-level__seg\[data-at='true'\] \{ animation: av2-pop/);
   assert.match(blocks['styles/atelier-v2.css (rings)'], /prefers-reduced-motion: no-preference/);
 });
 
-test('wiring: the séance draws the combo and feels it, the Cahier shows the map, the day recap rings the Seal', () => {
+test('wiring: the séance cheers the run and feels it, the Cahier shows the map, the day recap rings the Seal', () => {
   const read = (file) => fs.readFileSync(path.join(WEB_ROOT, file), 'utf8');
   const atelier = read('pages/atelier.tsx');
-  assert.match(atelier, /runSlot=\{showCombo\s*\?\s*<ForgeCombo shape=\{ruleShape\(activeConcept\)\} run=\{combo\.run\}/);
+  // The top bar draws no run in the forge; the feedback says it.
+  assert.match(atelier, /run=\{forge \? 0 : correctRun\}/);
+  assert.doesNotMatch(atelier, /ForgeCombo|runSlot=/);
+  assert.match(atelier, /cheer=\{forge \? forgeCheer\(currentCorrection, fc\) : null\}/);
   assert.match(atelier, /comboFeel\(comboStep\(before, after\), after\)/);
   assert.match(atelier, /if \(feltCombo\.tone\) playComboTone\(after\);/);
-  assert.match(atelier, /<ForgeBestCombo/);
+  assert.match(atelier, /<ForgeBestRun line=\{bestComboLine\(mc, Number\(recap\.forge\?\.best_combo\) \|\| 0\)\} \/>/);
   assert.match(atelier, /recap\.forge\?\.eclair\?\.pair/);
   assert.match(atelier, /forge\.result\.passed && forge\.result\.token/);
   assert.match(read('pages/grammar.tsx'), /<GrammarMap language=\{language\} onOpenPage=\{selectConcept\} \/>/);

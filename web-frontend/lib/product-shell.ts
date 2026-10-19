@@ -95,6 +95,8 @@ const OWN_SHELL_ROUTES = new Set([
   '/eclair',
   // Round 3: «Fertig für heute» is the day's last screen, like the recap it follows.
   '/fertig',
+  // Ton personnage: the editor fills the screen, its own close button and «C’est moi !».
+  '/personnage',
   // WP-72: the legal pages draw their own bar (back + language) and are read
   // signed out, so no masthead.
   '/privacy',
