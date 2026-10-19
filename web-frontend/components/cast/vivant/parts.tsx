@@ -83,8 +83,30 @@ export function RestHand({ side, children }: { side: Side; children?: ReactNode 
 }
 
 /**
+ * Something a figure is given to hold out for one gesture (the season's objects, see
+ * components/cast/items/offer.tsx): drawn about the palm of `side`, in the hand's own layer just
+ * under the fingers, kept upright, and shown only while the gesture's `offer` window is open.
+ */
+export type Offer = { side: Side; art: ReactNode };
+
+export const OfferContext = React.createContext<Offer | null>(null);
+
+function OfferSlot({ side, arm }: { side: Side; arm: ArmDef }) {
+  const offer = React.useContext(OfferContext);
+  if (!offer || offer.side !== side) return null;
+  return (
+    <Joint name={`${side.toLowerCase()}hp`} at={arm.palm}>
+      <Shown id="offer">
+        <g transform={`translate(${arm.palm[0]} ${arm.palm[1]})`}>{offer.art}</g>
+      </Shown>
+    </Joint>
+  );
+}
+
+/**
  * One arm in one layer. A figure stacks several layers that share the same joints (sleeve
- * behind the camera, hand in front of it), so the drawing order of the original survives.
+ * behind the camera, hand in front of it), so the drawing order of the original survives. The
+ * layer that draws the hand also carries the hand's offer slot.
  */
 export function ArmLayer({
   side,
@@ -110,6 +132,7 @@ export function ArmLayer({
         {fore}
         <Joint name={`${l}h`} at={arm.palm}>
           {held ? <Joint name={`${l}hp`} at={arm.palm}>{held}</Joint> : null}
+          {hand ? <OfferSlot side={side} arm={arm} /> : null}
           {hand}
         </Joint>
       </Joint>
