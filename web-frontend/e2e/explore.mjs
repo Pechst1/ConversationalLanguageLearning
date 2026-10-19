@@ -6,7 +6,11 @@
 // transcript.jsonl in the output folder, so each finding can point at the screen it is
 // about.
 //
-//   npm run explore -- [--native de] [--level A1.1] [--fresh] [--revue] [--out DIR] [--port 7777]
+//   npm run explore -- [--native de] [--level A1.1] [--fresh] [--revue] [--comptoir] [--out DIR] [--port 7777]
+//                      [--viewport 390x844] [--theme dark]
+//
+// --comptoir: La Revue with «Au comptoir» switched on (REVUE_COMPTOIR_ENABLED, implies --revue).
+// --viewport / --theme: the phone's size (375x812 by default) and its colour scheme.
 //
 // --fresh skips the API sign-up and starts on the sign-in page, as a stranger would.
 // Then, from any shell:
@@ -39,6 +43,8 @@ const opt = (name, dflt) => {
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const outDir = path.resolve(opt('out', path.join(here, 'out', `explore-${stamp}`)));
 const port = Number(opt('port', 7777));
+const [vw, vh] = String(opt('viewport', '375x812')).split('x').map(Number);
+const theme = opt('theme', 'light') === 'dark' ? 'dark' : 'light';
 const SECRET = 'e3-walk-secret-not-for-production';
 mkdirSync(outDir, { recursive: true });
 
@@ -83,7 +89,8 @@ const consoleErrors = [];
 async function newLearner({ native = 'de', level = 'A1.1', fresh = false } = {}) {
   if (context) await context.close();
   context = await browser.newContext({
-    viewport: { width: 375, height: 812 },
+    viewport: { width: vw || 375, height: vh || 812 },
+    colorScheme: theme,
     isMobile: true,
     hasTouch: true,
     locale: native === 'fr' ? 'fr-FR' : native === 'de' ? 'de-DE' : 'en-GB',
@@ -156,6 +163,24 @@ const routes = {
   key: async ({ key }) => { await page.keyboard.press(key); log('transcript.jsonl', { action: 'key', key }); return snap(); },
   goto: async ({ path: p }) => { await page.goto(`${stack.web}${p}`, { waitUntil: 'domcontentloaded' }); log('transcript.jsonl', { action: 'goto', path: p }); return snap(); },
   scroll: async ({ dy = 600 }) => { await page.mouse.wheel(0, dy); return snap(); },
+  // A named screenshot in the output folder (`full`: the whole page), for a walk's record.
+  shot: async ({ name, full = false }) => {
+    await settle();
+    const file = path.join(outDir, `${String(name).replace(/[^\w.-]+/g, '-')}.png`);
+    await page.screenshot({ path: file, fullPage: Boolean(full), animations: 'disabled' });
+    // Phone-first check: anything whose right edge passes the viewport (the body clips, so no scrollbar would show it).
+    const wide = await page.evaluate(() => {
+      const limit = document.documentElement.clientWidth;
+      const out = [];
+      for (const el of document.querySelectorAll('body *')) {
+        const r = el.getBoundingClientRect();
+        if (r.width && r.right > limit + 0.5) out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]} +${Math.round(r.right - limit)}px`);
+      }
+      return out.slice(0, 6);
+    });
+    log('transcript.jsonl', { action: 'shot', file: path.basename(file), full: Boolean(full), wide });
+    return { ok: true, file, wide };
+  },
   wait: async ({ ms = 2000 }) => { await sleep(Number(ms)); return snap(); },
   clock: async ({ days }) => { await stack.setClock(Number(days)); log('transcript.jsonl', { action: 'clock', days }); return { ok: true, days }; },
   learner: (b) => newLearner(b),
@@ -170,7 +195,12 @@ const routes = {
 };
 
 async function main() {
-  stack = await startStack({ logDir: path.join(outDir, 'logs'), secret: SECRET, revue: argv.includes('--revue') });
+  stack = await startStack({
+    logDir: path.join(outDir, 'logs'),
+    secret: SECRET,
+    revue: argv.includes('--revue') || argv.includes('--comptoir'),
+    comptoir: argv.includes('--comptoir'),
+  });
   browser = await chromium.launch(process.env.WALK_CHROMIUM ? { executablePath: process.env.WALK_CHROMIUM } : {});
   await newLearner({ native: opt('native', 'de'), level: opt('level', 'A1.1'), fresh: argv.includes('--fresh') });
   http
