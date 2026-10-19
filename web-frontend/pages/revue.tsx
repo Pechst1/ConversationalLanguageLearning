@@ -1,7 +1,7 @@
 /* WP-119 phase 1 · /revue — La Revue de Romy.
 
    Immersive like the journey session: the encounter draws its own head (× ·
-   beats · the column); the × and the OS back go to La Une with nothing lost.
+   beats); the × and the OS back go to La Une with nothing lost.
 
    Query:
      ?session=<id>   resume (a pure replay of the state)
@@ -38,7 +38,6 @@ type PageState =
   | { kind: 'session'; session: RvSessionView };
 
 const HOME = '/atelier';
-const EMPTY_ROOM = { used: 0, phase: 'open' as const, remainingTurns: 0 };
 
 function queryString(value: string | string[] | undefined): string | null {
   const one = Array.isArray(value) ? value[0] : value;
@@ -224,7 +223,7 @@ export default function RevuePage() {
     body = (
       <>
         <div className="rv-top">
-          <RvSessionHead beat={null} room={EMPTY_ROOM} onExit={exit} copy={copy} />
+          <RvSessionHead beat={null} onExit={exit} copy={copy} />
         </div>
         <div className="rv-body">
           <RvChooser
@@ -255,7 +254,7 @@ export default function RevuePage() {
     body = (
       <div className="rv-loading" role="status" aria-busy="true" aria-label={copy.loading}>
         <div className="rv-top">
-          <RvSessionHead beat={null} room={EMPTY_ROOM} onExit={exit} copy={copy} />
+          <RvSessionHead beat={null} onExit={exit} copy={copy} />
         </div>
         <RvStage plateUrl={null} size="full" cast={[]} />
         <div className="rv-body">

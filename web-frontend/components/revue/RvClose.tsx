@@ -15,7 +15,8 @@
  * none under reduced motion) before «Classer».
  *
  * WP-120 phase D: `RvCloseCarteLink` — «Voir sur la carte», the quiet secondary
- * under «Classer le Papier», to `/carte?focus=<session_id>` (the pin's card opens).
+ * under «Classer le Papier», to `/carte?focus=<session_id>` (the pin's card opens);
+ * since 2026-10-19 it shares one quiet row with «Voir dans le Relevé».
  */
 
 import React from 'react';
@@ -30,7 +31,7 @@ import type { RvVignetteView } from '@/lib/revue-types';
 import { fill, type RevueCopy } from './revue-copy';
 import { wordOutcome, type WordOutcomes } from './revue-model';
 import { RvPicture } from './RvPicture';
-import { ContributedText, RvSourceLine } from './RvThread';
+import { ContributedText, RvGlossText, RvSourceLine, type RvWordEvent } from './RvThread';
 import { RvVignette } from './RvVignette';
 
 export type RvDispatchProps = {
@@ -46,6 +47,8 @@ export type RvDispatchProps = {
   captionByLearner?: boolean;
   readOnly?: boolean;
   copy: RevueCopy;
+  /** The body's words open the word sheet (the headline carries the learner's marks and stays as printed). */
+  onWord?: (event: RvWordEvent) => void;
 };
 
 export function RvDispatch({
@@ -58,6 +61,7 @@ export function RvDispatch({
   captionFr = null,
   captionByLearner = false,
   copy,
+  onWord,
 }: RvDispatchProps) {
   return (
     <article className="rv-dispatch" lang="fr" data-dispatch="">
@@ -74,7 +78,11 @@ export function RvDispatch({
           copy={copy}
         />
       )}
-      {bodyFr.length > 0 && <p className="rv-dispatch__body">{bodyFr.join(' ')}</p>}
+      {bodyFr.length > 0 && (
+        <p className="rv-dispatch__body">
+          <RvGlossText text={bodyFr.join(' ')} glosses={[]} mode="none" onWord={onWord} />
+        </p>
+      )}
       <p className="rv-dispatch__by">
         <CastPortrait characterId="romy_tremblay" name="Romy" size="xs" ring />
         <span>{bylineFr}</span>

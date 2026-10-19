@@ -8,10 +8,14 @@
  *
  *   RvNarration      the narrator, sans, no face
  *   RvLead           what happened, at the learner's band: text first, translate and listen
- *   RvPlainClaims    A1–A2: the claims behind one quiet line (Romy has just said them)
+ *   RvSources        A1–A2: every claim on the table behind one «Sources» fold under the lead
+ *                    (Romy has just said them in her own simple French)
  *   RvLine           a Romy line; the latest is the screen's headline, older ones small
  *   RvGlossText      French with glosses: `shown` (ruby under the first occurrence),
- *                    `tap` (every word opens the word sheet), `none`
+ *                    `tap`, `none`; with a word handler every word opens the word
+ *                    sheet, at every band (2026-10-19)
+ *   RvTranslate      «Traduire» on every French block, at every band: the server's
+ *                    translation, else one fetched on the press (`revue-translate`)
  *   RvClaim          a sourced claim: kind by label + shape + rule, never colour alone
  *   RvSourceLine     «D'après …, 29 sept. ↗» + «La citation» disclosure
  *   RvUncertainty    what the sources do not say (the dashed «absence» surface)
@@ -26,7 +30,7 @@
  *   Fallback lines carry `data-reason`; `model_down` gets the quiet notice first.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { CastPortrait, Notice, ShapeToken } from '@/components/atelier-v2/ui';
 import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
@@ -45,6 +49,7 @@ import type {
 
 import { REGISTER_LINES_FR, fill, guestName, type RevueCopy } from './revue-copy';
 import {
+  claimsShown,
   contributionSegments,
   displayThread,
   foldedLabel,
@@ -54,10 +59,12 @@ import {
   wordCount,
   type GlossSegment,
 } from './revue-model';
+import { knownTranslation, translateOnce } from './revue-translate';
 
 const ROMY_ID = 'romy_tremblay';
 
-export type RvWordEvent = { word: string; gloss: string | null; sentence: string };
+/** `speaker`: whose line the word is in (Romy, a guest), for the sheet's «Dans la réplique de …». */
+export type RvWordEvent = { word: string; gloss: string | null; sentence: string; speaker?: string };
 
 // ---------------------------------------------------------------------------
 // RvGlossText
@@ -69,13 +76,17 @@ export type RvGlossTextProps = {
   mode: 'shown' | 'tap' | 'none';
   /** The language of the printed glosses (`lang` on the ruby). */
   glossLanguage?: RvLanguage;
+  /** With a handler every word is a control, whatever the mode (the printed glosses stay). */
   onWord?: (event: RvWordEvent) => void;
   /** The word whose sheet is open (lit in reward yellow). */
   openWord?: string | null;
+  /** Whose line this is, passed on with a tapped word. */
+  speaker?: string;
 };
 
-export function RvGlossText({ text, glosses, mode, glossLanguage = 'en', onWord, openWord = null }: RvGlossTextProps) {
-  const segments = glossSegments(text, glosses, onWord || mode !== 'tap' ? mode : 'none');
+export function RvGlossText({ text, glosses, mode, glossLanguage = 'en', onWord, openWord = null, speaker }: RvGlossTextProps) {
+  const segments = glossSegments(text, glosses, mode, Boolean(onWord));
+  const word = onWord ? (event: RvWordEvent) => onWord(speaker ? { ...event, speaker } : event) : undefined;
   // Punctuation straight after a word stays on its line («pareil.» never breaks before the stop).
   const glued = new Map<number, string>();
   segments.forEach((segment, index) => {
@@ -97,12 +108,12 @@ export function RvGlossText({ text, glosses, mode, glossLanguage = 'en', onWord,
         if (tail) {
           return (
             <span key={index} className="rv-nb">
-              {renderGlossSegment(segment, index, glossLanguage, openWord, onWord, text)}
+              {renderGlossSegment(segment, index, glossLanguage, openWord, word, text, mode)}
               {tail}
             </span>
           );
         }
-        return renderGlossSegment(segment, index, glossLanguage, openWord, onWord, text);
+        return renderGlossSegment(segment, index, glossLanguage, openWord, word, text, mode);
       })}
     </>
   );
@@ -115,11 +126,25 @@ function renderGlossSegment(
   openWord: string | null,
   onWord: ((event: RvWordEvent) => void) | undefined,
   text: string,
+  mode: RvGlossTextProps['mode'],
 ) {
   if (segment.kind === 'gloss') {
+    // A1: the printed gloss stays under the word, and the word opens the sheet too.
     return (
       <ruby key={index} className="rv-gloss">
-        <span className="rv-target">{segment.text}</span>
+        {onWord ? (
+          <button
+            type="button"
+            className="rv-word"
+            data-target=""
+            data-open={openWord === segment.text ? '' : undefined}
+            onClick={() => onWord({ word: segment.text, gloss: segment.gloss, sentence: text })}
+          >
+            <span className="rv-target">{segment.text}</span>
+          </button>
+        ) : (
+          <span className="rv-target">{segment.text}</span>
+        )}
         <rt lang={glossLanguage}>{segment.gloss}</rt>
       </ruby>
     );
@@ -129,12 +154,96 @@ function renderGlossSegment(
       key={index}
       type="button"
       className="rv-word"
-      data-target={segment.gloss ? '' : undefined}
+      // `none` (B2): the target carries its gloss to the sheet, unmarked on the page.
+      data-target={segment.gloss && mode !== 'none' ? '' : undefined}
       data-open={openWord === segment.text ? '' : undefined}
       onClick={() => onWord?.({ word: segment.text, gloss: segment.gloss, sentence: text })}
     >
       {segment.text}
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RvTranslate
+// ---------------------------------------------------------------------------
+
+type TranslationState = 'idle' | 'loading' | 'ready' | 'failed';
+
+/**
+ * «Traduire» (2026-10-19): on every French block, at every band — help, never a
+ * gate, nothing shown until pressed. The server's translation when the line came
+ * with one; else it is fetched on the first press, once per text (`revue-translate`),
+ * the chip saying so meanwhile; a failure is one quiet line and the chip asks again.
+ * `before`: chips that sit in the same row (the lead's «Écouter»).
+ */
+export function RvTranslate({
+  textFr,
+  translation = null,
+  glossLanguage = 'en',
+  copy,
+  before = null,
+}: {
+  textFr: string;
+  translation?: string | null;
+  glossLanguage?: RvLanguage;
+  copy: RevueCopy;
+  before?: React.ReactNode;
+}) {
+  const supplied = (translation || '').trim() || knownTranslation(textFr, glossLanguage);
+  const [open, setOpen] = useState(false);
+  const [fetched, setFetched] = useState('');
+  const [state, setState] = useState<TranslationState>('idle');
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  const text = supplied || fetched;
+  const toggle = () => {
+    if (state === 'loading') return;
+    if (open && text) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (text) return;
+    setState('loading');
+    translateOnce(textFr, glossLanguage)
+      .then((result) => {
+        if (!alive.current) return;
+        setFetched(result);
+        setState(result ? 'ready' : 'failed');
+      })
+      .catch(() => {
+        if (alive.current) setState('failed');
+      });
+  };
+  const pending = state === 'loading';
+  const shown = open && Boolean(text);
+  if (!textFr.trim()) return null;
+  return (
+    <>
+      <div className="rv-line__tools">
+        {before}
+        <button type="button" className="rv-chip" aria-pressed={shown} aria-busy={pending || undefined} data-translation={state === 'idle' ? undefined : state} onClick={toggle}>
+          <span className="sq" aria-hidden="true" />
+          {pending ? copy.translating : shown ? copy.translation_hide : copy.translate}
+        </button>
+      </div>
+      {shown && (
+        <p className="rv-translation" lang={glossLanguage}>
+          {text}
+        </p>
+      )}
+      {open && !text && state === 'failed' && (
+        <p className="rv-translation" data-failed="" role="status">
+          {copy.translate_failed}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -173,10 +282,10 @@ export function ContributedText({ text, spans, label }: { text: string; spans: A
 // Rows
 // ---------------------------------------------------------------------------
 
-export function RvNarration({ textFr }: { textFr: string }) {
+export function RvNarration({ textFr, onWord }: { textFr: string; onWord?: (event: RvWordEvent) => void }) {
   return (
     <p className="rv-narr" lang="fr">
-      {textFr}
+      <RvGlossText text={textFr} glosses={[]} mode="none" onWord={onWord} />
     </p>
   );
 }
@@ -207,10 +316,8 @@ export function RvLead({
   onWord?: (event: RvWordEvent) => void;
 }) {
   const voice = useLineVoice();
-  const [open, setOpen] = useState(false);
   const key = `revue-summary-${id}`;
   const speaking = voice.speakingKey === key;
-  const canTranslate = Boolean(translation) && support.translation !== 'none';
   const toggle = () => {
     if (speaking) voice.stop();
     else voice.speak({ key, text_fr: textFr, character_id: ROMY_ID });
@@ -221,27 +328,20 @@ export function RvLead({
       <p className="rv-lead__fr" lang="fr">
         <RvGlossText text={textFr} glosses={glosses} mode={support.glosses} glossLanguage={glossLanguage} onWord={onWord} />
       </p>
-      {(voice.supported || canTranslate) && (
-        <div className="rv-line__tools">
-          {voice.supported && (
+      <RvTranslate
+        textFr={textFr}
+        translation={translation}
+        glossLanguage={glossLanguage}
+        copy={copy}
+        before={
+          voice.supported && (
             <button type="button" className="rv-chip rv-lead__listen" aria-pressed={speaking} onClick={toggle}>
               <span className="rv-lead__play" aria-hidden="true" />
               {speaking ? copy.listen_stop : copy.listen_lead}
             </button>
-          )}
-          {canTranslate && (
-            <button type="button" className="rv-chip" aria-pressed={open} onClick={() => setOpen((value) => !value)}>
-              <span className="sq" aria-hidden="true" />
-              {open ? copy.translation_hide : copy.translate}
-            </button>
-          )}
-        </div>
-      )}
-      {canTranslate && open && (
-        <p className="rv-translation" lang={glossLanguage}>
-          {translation}
-        </p>
-      )}
+          )
+        }
+      />
     </section>
   );
 }
@@ -259,8 +359,6 @@ export type RvLineProps = {
 };
 
 export function RvLine({ textFr, past, translation = null, support, glosses, glossLanguage = 'en', copy, onWord }: RvLineProps) {
-  const [open, setOpen] = useState(false);
-  const canTranslate = Boolean(translation) && support.translation !== 'none';
   const long = !past && wordCount(textFr) > 18;
   return (
     <div className={`av2-speech${past ? ' av2-speech--past' : ''}`} data-mood="neutral">
@@ -273,23 +371,9 @@ export function RvLine({ textFr, past, translation = null, support, glosses, glo
           <span className="av2-sr"> : </span>
         </span>
         <p className={past ? 'av2-thread__text av2-fr' : 'av2-headline'} lang="fr">
-          <RvGlossText text={textFr} glosses={glosses} mode={support.glosses} glossLanguage={glossLanguage} onWord={onWord} />
+          <RvGlossText text={textFr} glosses={glosses} mode={support.glosses} glossLanguage={glossLanguage} onWord={onWord} speaker={copy.romy} />
         </p>
-        {canTranslate && (
-          <>
-            <div className="rv-line__tools">
-              <button type="button" className="rv-chip" aria-pressed={open} onClick={() => setOpen((value) => !value)}>
-                <span className="sq" aria-hidden="true" />
-                {open ? copy.translation_hide : copy.translate}
-              </button>
-            </div>
-            {open && (
-              <p className="rv-translation" lang={glossLanguage}>
-                {translation}
-              </p>
-            )}
-          </>
-        )}
+        <RvTranslate textFr={textFr} translation={translation} glossLanguage={glossLanguage} copy={copy} />
       </div>
     </div>
   );
@@ -355,6 +439,7 @@ export function RvClaim({
       <p className="rv-claim__fr" lang="fr" data-band={band === 'B1' || band === 'B2' ? 'b1' : undefined}>
         <RvGlossText text={claim.fr} glosses={own} mode={support.glosses} glossLanguage={glossLanguage} onWord={onWord} />
       </p>
+      <RvTranslate textFr={claim.fr} glossLanguage={glossLanguage} copy={copy} />
       {claim.attributedTo && claim.kind !== 'fact' && (
         // The attribution is the dossier's French («d'après plusieurs vignerons cités»).
         <p className="rv-claim__by" lang="fr">
@@ -367,12 +452,11 @@ export function RvClaim({
 }
 
 /**
- * A1–A2 (2026-10-18): Romy has just said the fact in her own simple French, so the claim
- * cards (the source's harder sentence, Fait / Interprétation, the quote) wait behind one
- * quiet line, «1 fait sur la table · d'après …», that opens them (the walk showed the same
- * sentence twice, Romy's then the card's). B1+ sees the cards (`RvClaim`) as they were.
+ * A1–A2 (2026-10-19): one quiet «Sources» fold under the lead, holding every claim
+ * on the table so far — it replaced a «1 fait sur la table · d'après …» row after
+ * each of Romy's replies, which crowded a phone's thread. B1+ keeps its cards.
  */
-export function RvPlainClaims({
+export function RvSources({
   claims,
   support,
   glosses,
@@ -390,21 +474,32 @@ export function RvPlainClaims({
   now?: Date;
 }) {
   const [open, setOpen] = useState(false);
+  if (!claims.length) return null;
   return (
-    <div className="rv-claims" data-plain="">
+    <div className="rv-claims" data-plain="" data-sources="">
+      <button type="button" className="rv-folded" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <ShapeToken kind="done" size="sm" />
+        {open ? copy.sources_hide : fill(claims.length === 1 ? copy.sources_one : copy.sources_many, { n: claims.length })}
+      </button>
       {open &&
         claims.map((claim) => (
           <RvClaim key={claim.id} claim={claim} support={support} glosses={glosses} band="A2" glossLanguage={glossLanguage} copy={copy} onWord={onWord} now={now} />
         ))}
-      <button type="button" className="rv-folded" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        <ShapeToken kind="done" size="sm" />
-        {open ? copy.sources_hide : foldedLabel(claims, copy)}
-      </button>
     </div>
   );
 }
 
-export function RvUncertainty({ textFr, copy }: { textFr: string; copy: RevueCopy }) {
+export function RvUncertainty({
+  textFr,
+  copy,
+  glossLanguage = 'en',
+  onWord,
+}: {
+  textFr: string;
+  copy: RevueCopy;
+  glossLanguage?: RvLanguage;
+  onWord?: (event: RvWordEvent) => void;
+}) {
   return (
     <div className="rv-unknown">
       <p className="rv-unknown__k">
@@ -412,8 +507,9 @@ export function RvUncertainty({ textFr, copy }: { textFr: string; copy: RevueCop
         {copy.uncertain}
       </p>
       <p className="rv-unknown__fr" lang="fr">
-        {textFr}
+        <RvGlossText text={textFr} glosses={[]} mode="none" onWord={onWord} />
       </p>
+      <RvTranslate textFr={textFr} glossLanguage={glossLanguage} copy={copy} />
     </div>
   );
 }
@@ -433,10 +529,22 @@ export function RvShift({ label }: { label: string }) {
   );
 }
 
-export function RvQuickReplies({ replies, onSend, disabled = false }: { replies: RvQuickReply[]; onSend: (fr: string) => void; disabled?: boolean }) {
-  if (!replies.length) return null;
+/** One row that scrolls sideways, never wraps (2026-10-19); `actions` (the page's own, in the chrome's language) come first. */
+export function RvQuickReplies({
+  replies,
+  onSend,
+  disabled = false,
+  actions = null,
+}: {
+  replies: RvQuickReply[];
+  onSend: (fr: string) => void;
+  disabled?: boolean;
+  actions?: React.ReactNode;
+}) {
+  if (!replies.length && !actions) return null;
   return (
     <div className="rv-quick">
+      {actions}
       {replies.map((reply) => (
         <button key={reply.sendFr} type="button" className="av2-chip" lang="fr" disabled={disabled} onClick={() => onSend(reply.sendFr)}>
           {reply.label}
@@ -513,8 +621,9 @@ export function RvGuestLine({ item, past, support, glossLanguage = 'en', copy, o
           <span className="av2-sr"> : </span>
         </span>
         <p className={past ? 'av2-thread__text av2-fr' : 'av2-headline'} lang="fr">
-          <RvGlossText text={item.textFr} glosses={item.glosses} mode={support.glosses} glossLanguage={glossLanguage} onWord={onWord} />
+          <RvGlossText text={item.textFr} glosses={item.glosses} mode={support.glosses} glossLanguage={glossLanguage} onWord={onWord} speaker={name} />
         </p>
+        <RvTranslate textFr={item.textFr} glossLanguage={glossLanguage} copy={copy} />
       </div>
     </div>
   );
@@ -605,8 +714,21 @@ export function RvThread({
 }: RvThreadProps) {
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const rows = displayThread(items, { opened, resumeToday, resumeLabel });
-  // 2026-10-18: at A1–A2 the story comes first and the method waits behind a fold.
+  // 2026-10-18: at A1–A2 the story comes first and the method waits behind a fold;
+  // 2026-10-19: one fold, under the lead (or where the first claims came, without one).
   const plainClaims = band === 'A1' || band === 'A2';
+  const sources = plainClaims ? claimsShown(items) : [];
+  const hasLead = items.some((item) => item.kind === 'summary');
+  let sourcesShown = false;
+  const sourcesRow = () => {
+    if (sourcesShown || !sources.length) return null;
+    sourcesShown = true;
+    return (
+      <li key="sources" className="av2-thread__line" data-kind="sources">
+        <RvSources claims={sources} support={support} glosses={vocabulary} glossLanguage={glossLanguage} copy={copy} onWord={onWord} now={now} />
+      </li>
+    );
+  };
   const notices = modelDownNotices(items);
   const reopen = (id: string) =>
     setOpened((current) => {
@@ -625,6 +747,7 @@ export function RvThread({
           );
         }
         if (row.kind === 'claimsFolded') {
+          if (plainClaims) return hasLead ? null : sourcesRow();
           return (
             <li key={`fold-${row.id}`} className="av2-thread__line" data-kind="claimsFolded">
               <button type="button" className="rv-folded" aria-expanded={false} onClick={() => reopen(row.id)}>
@@ -639,23 +762,26 @@ export function RvThread({
           case 'narration':
             return (
               <li key={item.id} className="av2-thread__line rv-thread__line" data-kind="narration">
-                <RvNarration textFr={item.textFr} />
+                <RvNarration textFr={item.textFr} onWord={onWord} />
               </li>
             );
           case 'summary':
             return (
-              <li key={item.id} className="av2-thread__line" data-kind="summary">
-                <RvLead
-                  id={item.id}
-                  textFr={item.textFr}
-                  translation={item.translation}
-                  glosses={item.glosses}
-                  support={support}
-                  glossLanguage={glossLanguage}
-                  copy={copy}
-                  onWord={onWord}
-                />
-              </li>
+              <React.Fragment key={item.id}>
+                <li className="av2-thread__line" data-kind="summary">
+                  <RvLead
+                    id={item.id}
+                    textFr={item.textFr}
+                    translation={item.translation}
+                    glosses={item.glosses}
+                    support={support}
+                    glossLanguage={glossLanguage}
+                    copy={copy}
+                    onWord={onWord}
+                  />
+                </li>
+                {sourcesRow()}
+              </React.Fragment>
             );
           case 'line':
             return (
@@ -717,13 +843,7 @@ export function RvThread({
             );
           }
           case 'claims':
-            if (plainClaims) {
-              return (
-                <li key={item.id} className="av2-thread__line" data-kind="claims">
-                  <RvPlainClaims claims={item.claims} support={support} glosses={vocabulary} glossLanguage={glossLanguage} copy={copy} onWord={onWord} now={now} />
-                </li>
-              );
-            }
+            if (plainClaims) return hasLead ? null : sourcesRow();
             return (
               <li key={item.id} className="av2-thread__line" data-kind="claims">
                 <div className="rv-claims">
@@ -746,7 +866,7 @@ export function RvThread({
           case 'uncertainty':
             return (
               <li key={item.id} className="av2-thread__line" data-kind="uncertainty">
-                <RvUncertainty textFr={item.textFr} copy={copy} />
+                <RvUncertainty textFr={item.textFr} copy={copy} glossLanguage={glossLanguage} onWord={onWord} />
               </li>
             );
           case 'shift':
