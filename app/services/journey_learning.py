@@ -2323,6 +2323,9 @@ def evaluate_recall(
             correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
         if correction is not None and part_answer and expected:
             correction = replace(correction, saved_span_fr=typed.read_as, saved_corrected_fr=expected)
+        if correction is not None and task.task_type == "choice" and task.options_kind == "sentences":
+            # #240: the other card is not this card corrected; say which one carries the rule.
+            correction = replace(correction, kind="pick")
         if correction is None and _is_free_sentence(task) and learner_text and expected:
             # WP-129: a free sentence that did not use the unit is not a slip in
             # one span: the learner sees a model sentence that does, whole.

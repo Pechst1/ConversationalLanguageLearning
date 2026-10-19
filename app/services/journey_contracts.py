@@ -657,6 +657,12 @@ class RecallTask:
     #: WP-103 T3: the French the item starts from, when it is shown — the sentence
     #: to correct, the learner's own wording to repair. Never the answer.
     source_fr: str | None = None
+    #: #240: what the options of a ``choice`` are to each other. ``variants``: one
+    #: sentence said two ways («Ils est» / «Ils sont»), so the wrong one is a
+    #: mistake to fix. ``sentences``: different sentences of which exactly one
+    #: carries the rule («Which sentence uses today's rule?»), so the wrong one is
+    #: not a mistake to fix, only not the one.
+    options_kind: Literal["variants", "sentences"] = "variants"
 
 
 #: WP-103 T3 (the owner's test: «Build the sentence. Some chips are not needed.» —
@@ -1253,6 +1259,12 @@ class Correction:
     #: saved error can be drilled without guessing its context. ``None`` otherwise.
     saved_span_fr: str | None = None
     saved_corrected_fr: str | None = None
+    #: #240 / #146: how ``corrected_fr`` relates to ``span_fr``. ``edit``: it is the
+    #: learner's sentence made right (shown «A → B»). ``pick``: the learner tapped
+    #: one of several different sentences and ``corrected_fr`` is the one that
+    #: carries the rule; «fix A → B» between two unrelated sentences reads as
+    #: «rewrite A into B», so the screen names the right sentence instead.
+    kind: Literal["edit", "pick"] = "edit"
 
     def is_valid_for(self, learner_text: str) -> bool:
         """Reject no-op corrections and spans the learner never wrote."""
