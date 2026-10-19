@@ -729,7 +729,7 @@ Response `200 RvComptoirResult {session: RvSessionView, error_fr: string | null}
 (`intox_fix`, `opinion`, `comeback`, the same vote or reaction) returns the session unchanged: a double submit
 never calls the model twice. `error_fr` says why an act the learner can fix was not recorded (an empty reason:
 «Écris ta raison : quelques mots suffisent.»). The opinion at A2+ makes one model call (`comptoir_edit`): Romy's
-edit, at most two notes in the learner's UI language, and the reply of `opponents[side]`, in character; checked
+edit, at most two notes in the learner's gloss language (their UI language when that is French), and the reply of `opponents[side]`, in character; checked
 (an edit at most 1.6× the learner's length with no new number and no app words; a reply of 22 words at most that
 passes the desk's checks), else the learner's own sentence (typography only) and the desk's counter-line.
 

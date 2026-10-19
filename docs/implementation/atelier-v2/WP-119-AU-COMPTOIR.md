@@ -294,3 +294,93 @@ the close's «used words», memory and cost code keep working). Model calls reco
 - Walk: `node e2e/explore.mjs --revue` with the switch on (the harness's backend env), a full run at A1 (EN),
   A2 (DE) and B1 (EN), light and dark, 390×844, plus one A1 run at 375×812. Screenshots of every step to
   `/mnt/project-files/au-comptoir/walk/`, named `<band>-<lang>-<theme>-<nn>-<step>.png`.
+  As built: `node e2e/explore.mjs --comptoir [--viewport 390x844] [--theme dark]` (§8.3).
+
+## 8. As built (2026-10-19)
+
+### 8.1 What is built, by section
+
+- §1 The switch: `REVUE_COMPTOIR_ENABLED` (off) and `REVUE_COMPTOIR_MODEL`; the mode on the first `choice`
+  event; `RvSessionView.mode` / `.comptoir`. Off, the snapshot and the wire are as before.
+- §2 The desk: `app/services/revue/comptoir.py` (`write_comptoir`, `repair_comptoir`, `ensure_comptoir`,
+  `takes_at_start`, `comptoir_guests`); ten evergreens ship their takes in
+  `app/services/revue/evergreen/comptoir/`. Model: `claude-haiku-5-5` (comparison in
+  `/mnt/project-files/au-comptoir/desk-comparison.md`: 10/13 on the first pass, 11/13 after the fixes, about
+  $0.0057 a story; gpt-6-luna 11/13 at $0.0022 with stiffer French; claude-sonnet-5-5 8/13 on the first pass
+  at about $0.058). The comparison cost $0.85 in all.
+- §3 The loop: `app/services/revue/comptoir_loop.py` (acts replayed from `comptoir` events, the step derived
+  from them, the view redacted until its time, Romy's edit in one `comptoir_edit` call at A2+, «La page» at
+  the close with no model call).
+- §4 Wire: `POST /revue/sessions/{id}/comptoir`, WIRE §9; `lib/revue-types.ts` (parsers), `lib/revue-api.ts`
+  (`comptoir(id, body)`), the dev mock (`/revue?mock=1&comptoir=1`, the Céline story).
+- §5 Frontend: `components/revue/comptoir/` — `RvComptoir.tsx` (head, dots, one screen at a time, sticky
+  foot), `RvComptoirRead/Takes/Intox/Opinion/Page.tsx`, `RvComptoirParts.tsx` (bubbles, Romy's lines, the
+  stance tag, ▶), `comptoir-model.ts`, `comptoir-copy.ts`; styles in `styles/revue-comptoir.css` (av2 tokens,
+  light and dark). Mounted by `pages/revue.tsx` and `RvJourneyPapier` (La Carte's «Relire» lands on the filed
+  page, read-only). `RvUneCard` and `RvChooser` show «La question du jour», the question and the three faces;
+  the Relevé and the thread label the new made kind «Ton avis».
+- §6 Never stuck: a refused act (`error_fr`) is said by Romy on the same screen; a 409 re-reads the session
+  and shows its step; a failure is one quiet line; the newest part is scrolled into the band between the head
+  and the foot. §6.5: no errata-recording function exists in the codebase, so Romy's edit is not recorded as
+  errata (phase 3).
+- §7 Tests: backend `tests/test_revue_comptoir*.py`; frontend `components/revue/comptoir/comptoir.test.js`
+  (model, wire, every step rendered at A1 EN, A2 DE and B1 EN, the clipping, La Une). The walk's screenshots
+  are in `/mnt/project-files/au-comptoir/walk/` (A1 EN, A2 DE, B1 EN, light and dark at 390×844) and
+  `walk/375x812/` (A1 EN, light).
+
+### 8.2 Deviations, and why
+
+- **Replies never guess who the learner is.** The desk's example taught Gus to call every learner «mon cher»
+  and Romy to answer the learner with «Voyons donc, Gus !». The prompt now says a reply speaks to the learner
+  (no pet name, no adjective agreeing with «tu») and `address_problem` refuses such a line in the desk and in
+  Romy's edit (the authored line stands in).
+- **Evergreens fixed by hand.** Weak lines in the shipped takes were rewritten (signature lines copied from
+  the prompt's example, a comeback that did not fit its side, the replies' forms of address), in all three
+  languages. The transport strike and Toussaint stay chat-only: the desk judged them unfit for an argument.
+- **No desk call beside the deterministic provider.** In dev and on the walk (the fake provider) a story
+  without takes stays a chat instead of calling the real desk.
+- **The route has its own router**, so it answers 404 before auth while either switch is off.
+- **The close needs the opinion**: `POST /close` on a comptoir session without it is `409
+  revue_comptoir_out_of_order`; «Voir la page» is the only way there.
+- **Comebacks are picked by `index`** (WIRE §9.3), not by text, at A1–A2.
+- **The opinion field is the comptoir's own**, not `RvComposer`: at A2 the frame and the reason are one card
+  (the phrase of the day, the frame, the field, the bank under it), at B1 the field sits under «Réponds à …»;
+  the foot holds the mic and «Donner mon avis». `RvComposer` (which now grows with its text) is used where one
+  line is sent: the B1 correction of the intox and the B1 comeback.
+- **French in every chrome for the publication's words and the feature's name**: «Au comptoir», «La question
+  du jour», POUR / CONTRE / ÇA DÉPEND, the side chips, «Dans le journal · corrigé par Romy», «Le micro-trottoir
+  de Romy», «L'intox du jour», «Toi». The rest of the chrome follows the learner's control language (from B1
+  the app's chrome is French, WP-82).
+- **The step names are French** («Lire», «Les avis», «L'intox», «Ton avis», «La page») and only spoken by the
+  dots' label; the screens are not titled.
+- **«La page»'s foot has two buttons**, «Classer le Papier» and «Voir dans le Relevé»; the chat close's «Voir
+  sur la carte» is not offered there (two at most).
+- **The learner's face** is their «Ton personnage» avatar, else a «Toi» disc (not an initial).
+- **B2** plays the B1 screen (free text, «Réponds à …») with the b2 phrase of the day; Romy's edit may improve
+  register and connectors there. No separate «two or three sentences» screen.
+- **A1's sentence** is shown twice after the opinion (the learner's line and the printed one, «relu par
+  Romy»): it is correct by construction, so the paper's version only confirms it is printed.
+- **A B1 correction already word for word right** is not repeated in the feedback card; its note stays.
+- **Romy's notes are in the gloss language** (the language «Traduire» shows), the UI language only when that
+  is French: a B1 learner whose chrome is French reads «très · accent» in English.
+- **The intox shows its settling claim once**: after a missed guess the claim stays above, and the fix does
+  not print it a second time.
+
+### 8.3 The walk harness
+
+`e2e/explore.mjs --comptoir` starts the Revue's server with `REVUE_COMPTOIR_ENABLED` (it implies `--revue`);
+`--viewport WxH` and `--theme dark` set the phone and its colour scheme; `POST /shot {name, full}` saves a
+named screenshot and lists anything whose right edge passes the viewport. Run with `SECRET_KEY=proto-only` in
+the environment (a Python start without it prints a settings error).
+
+### 8.4 Not done, or uncertain
+
+- Errata memory from Romy's edit (§6.5): no function to record it exists.
+- The intox's distractor is «another true value from the claims»; in several shipped evergreens it does not
+  answer the question («Combien de jours par semaine ?» → «six jours sur sept» / «91 marchés»), which makes the
+  A1–A2 pick easy. A same-kind check (a duration for a duration, a date for a date) is a follow-up.
+- The walk ran on the fake providers: the takes are the shipped evergreens', Romy's edit and the replies are
+  the deterministic provider's. Romy's live edit (`comptoir_edit` on the real model) has not been run yet: its
+  checks are tested with scripted answers only.
+- The Listen chip uses the device's French voice per character (`useLineVoice`); the lead has no recorded
+  audio.
