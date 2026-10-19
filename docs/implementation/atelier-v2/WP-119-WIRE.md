@@ -735,7 +735,7 @@ passes the desk's checks), else the learner's own sentence (typography only) and
 
 | Status | `detail` | When |
 |---|---|---|
-| 404 | `"Not Found"` | `REVUE_ENABLED` or `REVUE_COMPTOIR_ENABLED` is false (before auth) |
+| 404 | `"Not Found"` | `REVUE_ENABLED` is false (before auth). `REVUE_COMPTOIR_ENABLED` only decides which sessions start at the counter: a session started while it was on plays to its end after it is turned off |
 | 409 | `{code: "revue_not_comptoir"}` | a chat session |
 | 409 | `{code: "revue_comptoir_out_of_order", step, act}` | an act before its step, or after the close; re-render from `GET` |
 | 422 | FastAPI validation list, or `{code: "revue_comptoir_bad_act", act}` | an unknown act, guest, side, option or chip |

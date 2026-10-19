@@ -501,6 +501,8 @@ def apply_act(encounter: RevueEncounter, loaded: Loaded, body: RvComptoirRequest
     if act == "intox_who":
         if body.guest_id not in ids:
             raise RevueError(422, "revue_comptoir_bad_act", act=act)
+        if body.guest_id in acts.tries:
+            return None  # a retried request: the guess is already counted
         if step != "intox" or intox is None or acts.who_resolved:
             raise _out_of_order(step, act)
         state.append("comptoir", act="intox_who", guest_id=body.guest_id, correct=body.guest_id == intox.by,

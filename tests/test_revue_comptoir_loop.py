@@ -239,6 +239,8 @@ def test_a1_every_act_in_order_two_wrong_guesses_and_the_page(db: Session) -> No
 
     view = act(revue, row, act="intox_who", guest_id=MARGAUX).session.comptoir
     assert view.intox.resolved is False and view.intox.hint_claim is not None and view.intox.by is None
+    view = act(revue, row, act="intox_who", guest_id=MARGAUX).session.comptoir
+    assert view.intox.resolved is False and view.intox.tries == [MARGAUX], "a retried request spends no try"
     view = act(revue, row, act="intox_who", guest_id=ROMY).session.comptoir
     assert view.intox.resolved and view.intox.found is False and view.intox.by == GUS
     assert sorted(view.intox.options) == ["91 marchés", "six jours sur sept"]
@@ -480,7 +482,7 @@ def login(client: TestClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def test_the_route_is_invisible_while_either_switch_is_off(api: TestClient, monkeypatch) -> None:
+def test_the_route_answers_a_started_session_after_the_switch_is_off(api: TestClient, monkeypatch) -> None:
     headers = login(api)
     session = api.post("/api/v1/revue/sessions", headers=headers, json={"week": WEEK}).json()
     assert session["mode"] == "comptoir" and session["comptoir"]["step"] == "read"
@@ -494,11 +496,13 @@ def test_the_route_is_invisible_while_either_switch_is_off(api: TestClient, monk
     turn = api.post(f"/api/v1/revue/sessions/{session['id']}/turns", headers=headers, json={"text": "Salut"})
     assert turn.status_code == 409 and turn.json()["detail"]["code"] == "revue_comptoir_session"
 
+    # turning the switch off never strands a learner at the counter: their session plays to its end
     monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", False)
-    assert api.post(path, json={"act": "vote", "value": "pour"}).status_code == 404, "before auth"
-    assert api.post(path, headers=headers, json={"act": "vote", "value": "pour"}).status_code == 404
-    monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", True)
+    response = api.post(path, headers=headers, json={"act": "react", "guest_id": ROMY, "value": "agree"})
+    assert response.status_code == 200 and response.json()["session"]["mode"] == "comptoir"
+    assert response.json()["session"]["comptoir"]["cast"][0]["reaction"] == "agree"
     monkeypatch.setattr(settings, "REVUE_ENABLED", False)
+    assert api.post(path, json={"act": "vote", "value": "pour"}).status_code == 404, "before auth"
     assert api.post(path, headers=headers, json={"act": "vote", "value": "pour"}).status_code == 404
     assert ("POST", "/revue/sessions/{session_id}/comptoir") in PAID_ROUTES
 

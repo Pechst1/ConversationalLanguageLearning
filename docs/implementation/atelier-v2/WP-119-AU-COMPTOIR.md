@@ -242,7 +242,8 @@ the close's «used words», memory and cost code keep working). Model calls reco
 
 - `POST /revue/sessions/{id}/comptoir` body `{act, guest_id?, value?, text?, mode?, reason_index?}` →
   `RvComptoirResult {session: RvSessionView, error_fr?: str}`. Add it to `PAID_ROUTES` like the other POSTs.
-  404 while either switch is off; 409 `revue_not_comptoir` on a chat session; 409 on an act out of order (the
+  404 while `REVUE_ENABLED` is off (a session already at the counter plays to its end after
+  `REVUE_COMPTOIR_ENABLED` is turned off); 409 `revue_not_comptoir` on a chat session; 409 on an act out of order (the
   client then re-renders from the returned view; acts are idempotent where they can be).
 - `RvComptoirView` (in the session view): `step: "read" | "takes" | "intox" | "opinion" | "page"`, the band's
   texts only (never another band's, never `wrong_fr`/`right_fr`/`distractor_fr` before the intox is resolved,
@@ -339,7 +340,9 @@ the close's «used words», memory and cost code keep working). Model calls reco
   languages. The transport strike and Toussaint stay chat-only: the desk judged them unfit for an argument.
 - **No desk call beside the deterministic provider.** In dev and on the walk (the fake provider) a story
   without takes stays a chat instead of calling the real desk.
-- **The route has its own router**, so it answers 404 before auth while either switch is off.
+- **The route answers while the comptoir switch is off**, for a session that started at the counter: turning
+  the switch off stops new sessions starting there and never strands a learner mid-session (a chat session
+  answers 409). It answers 404 before auth while `REVUE_ENABLED` is off, like every Revue route.
 - **The close needs the opinion**: `POST /close` on a comptoir session without it is `409
   revue_comptoir_out_of_order`; «Voir la page» is the only way there.
 - **Comebacks are picked by `index`** (WIRE §9.3), not by text, at A1–A2.

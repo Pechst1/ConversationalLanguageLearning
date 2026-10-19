@@ -6,8 +6,9 @@ dependency, before authentication, so the feature stays invisible. Then the exis
 ``get_current_user`` and the paid-route guard (active once the POSTs are listed in
 ``app.core.rate_limit.PAID_ROUTES``).
 
-«Au comptoir» (WP-119, 2026-10-19) has its own router (:data:`comptoir_router`), a 404 while
-either ``REVUE_ENABLED`` or ``REVUE_COMPTOIR_ENABLED`` is off, also before authentication.
+«Au comptoir» (WP-119, 2026-10-19) sits on the same router. ``REVUE_COMPTOIR_ENABLED`` decides
+which sessions start at the counter, not whether its route answers: a session started while the
+switch was on plays to its end after it is turned off (a chat session answers 409).
 """
 
 from __future__ import annotations
@@ -55,24 +56,6 @@ router = APIRouter(
     prefix="/revue",
     tags=["revue"],
     dependencies=[Depends(require_revue_enabled), Depends(paid_route_guard(get_current_user))],
-)
-
-
-def require_comptoir_enabled() -> None:
-    from app.services.revue.comptoir import comptoir_enabled
-
-    if not comptoir_enabled():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
-
-
-comptoir_router = APIRouter(
-    prefix="/revue",
-    tags=["revue"],
-    dependencies=[
-        Depends(require_revue_enabled),
-        Depends(require_comptoir_enabled),
-        Depends(paid_route_guard(get_current_user)),
-    ],
 )
 
 
@@ -218,7 +201,7 @@ def close_session(
         raise _http(error) from error
 
 
-@comptoir_router.post("/sessions/{session_id}/comptoir", response_model=RvComptoirResult)
+@router.post("/sessions/{session_id}/comptoir", response_model=RvComptoirResult)
 def post_comptoir(
     session_id: str,
     body: RvComptoirRequest,

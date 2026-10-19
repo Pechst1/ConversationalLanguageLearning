@@ -93,7 +93,6 @@ api_router.include_router(episode_audio.router, dependencies=_paid)
 # WP-119: La Revue de Romy. The router carries its own flag check (404 while
 # REVUE_ENABLED is off, before auth) and the paid-route guard, in that order.
 api_router.include_router(revue.router)
-api_router.include_router(revue.comptoir_router)  # WP-119 «Au comptoir»
 # WP-120: the learner's vignettes (same flag gate; a read, no paid guard).
 api_router.include_router(revue_vignettes.router)
 # WP-120 phase C: La Carte (same flag gate; a cached read, no paid guard).
