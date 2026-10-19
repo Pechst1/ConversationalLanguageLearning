@@ -41,6 +41,14 @@ import { FrenchLine, TappableFrench } from './TappableFrench';
 import { markedForms, rayonsUnlocked, readRayons, writeRayons } from './grammar-marks';
 import { WordHelpSheet, type WordHelpRequest } from './WordHelpSheet';
 import {
+  panelHasText,
+  panelTranslationState,
+  textsToRequest,
+  translatedStage,
+  type PanelTranslation,
+  type PanelTranslationTable,
+} from './panel-translation';
+import {
   choiceOptions,
   correctionIsBranch,
   readerHeadParts,
@@ -204,6 +212,8 @@ export function FeuilletonReader({
   const t: ReaderCopy = listenLabel ? { ...base, listen_to: listenLabel('{name}') } : base;
   const [help, setHelp] = useState<WordHelpRequest | null>(null);
   const [translated, setTranslated] = useState<Record<string, boolean>>({});
+  /* On-demand translations, keyed by the French (`panel-translation`). */
+  const [translations, setTranslations] = useState<PanelTranslationTable>({});
   /* WP-92: «Rayons X» is off by default and remembered per device — read on
      the client only, so the server render and the first paint agree. */
   const [rayonsOn, setRayonsOn] = useState(false);
@@ -356,14 +366,56 @@ export function FeuilletonReader({
     [],
   );
 
+  /* A panel the director did not translate is translated when the chip is
+     pressed, never before: the request goes out once per sentence, and a
+     failed one is asked again on the next press. A request outlives the
+     panel that asked for it (the same sentence may be on the next one); only
+     leaving the reader drops what has not arrived. */
+  const translationOn = Boolean(stage && translated[stage.key]);
+  const translationsRef = useRef(translations);
+  translationsRef.current = translations;
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!translationOn || !stage || stage.kind !== 'panel') return;
+    const missing = textsToRequest(stage, translationsRef.current);
+    if (!missing.length) return;
+    const settle = (text: string, entry: PanelTranslation) => {
+      if (mountedRef.current) setTranslations((current) => ({ ...current, [text]: entry }));
+    };
+    setTranslations((current) => {
+      const next = { ...current };
+      missing.forEach((text) => {
+        next[text] = { state: 'loading' };
+      });
+      return next;
+    });
+    missing.forEach((text) => {
+      apiService
+        .translateForLearner(text)
+        .then((result) => settle(text, result.trim() ? { state: 'ready', text: result.trim() } : { state: 'failed' }))
+        .catch(() => settle(text, { state: 'failed' }));
+    });
+    // The stage's key names the panel; its texts do not change under it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [translationOn, stage?.key]);
+
   if (!stage) return null;
 
   const stageKey = stage.key;
   const vertical = layout === 'vertical' && Boolean(panelVariant);
   const verticalPanel = vertical && stage.kind === 'panel';
   const showTranslation = Boolean(translated[stageKey]);
-  const hasEnglish =
-    stage.kind === 'panel' && stage.lines.some((line) => Boolean(line.en));
+  /* Every panel with French on it can be translated: the director's own
+     translation when it sent one, else one fetched on the press. */
+  const hasEnglish = stage.kind === 'panel' && panelHasText(stage);
+  const translationState =
+    showTranslation && stage.kind === 'panel' ? panelTranslationState(stage, translations) : 'ready';
 
   const stageTools = renderStageTools ? renderStageTools(stage) : null;
   const stageMargin = renderStageMargin ? renderStageMargin(stage) : null;
@@ -420,12 +472,29 @@ export function FeuilletonReader({
       className="fr-chip"
       aria-pressed={showTranslation}
       aria-label={chipInBar ? t.translate_panel : undefined}
+      aria-busy={translationState === 'loading' || undefined}
+      data-translation={showTranslation ? translationState : undefined}
       onClick={() => setTranslated((current) => ({ ...current, [stageKey]: !current[stageKey] }))}
     >
       <span className="sq" aria-hidden="true" />
-      {chipInBar ? t.translate : showTranslation ? t.hide_translation : t.translate_panel}
+      {translationState === 'loading'
+        ? t.translating
+        : chipInBar
+          ? t.translate
+          : showTranslation
+            ? t.hide_translation
+            : t.translate_panel}
     </button>
   ) : null;
+  /* Said once, under the bar, only when something on the panel could not be
+     translated; the French stays readable and the chip asks again. */
+  const translationNote =
+    translationState === 'failed' ? (
+      <p className="fr-translate-note" role="status">
+        {t.no_translation}
+      </p>
+    ) : null;
+  const shownPanel = stage.kind === 'panel' && showTranslation ? translatedStage(stage, translations) : null;
 
   return (
     /* The av2 root supplies the tokens and the `.av2` ancestor every reader
@@ -464,6 +533,7 @@ export function FeuilletonReader({
           <span>{fillReaderCopy(rayonsPast ? t.rayons_legend_past : t.rayons_legend, { title: rayonsTitle })}</span>
         </p>
       )}
+      {translationNote}
 
       {/* WP-144: on the vertical page the first panel carries the headline as its establishing caption. */}
       {!folded && !verticalPanel && (
@@ -513,7 +583,7 @@ export function FeuilletonReader({
         {stage.kind === 'panel' && verticalPanel ? (
           <VerticalPanel
             key={stage.key}
-            stage={stage}
+            stage={shownPanel ?? stage}
             showTranslation={showTranslation}
             onWord={openHelp}
             voice={lineVoice}
@@ -528,7 +598,7 @@ export function FeuilletonReader({
             /* a new panel is a new plate: no crossfade between panels, only
                between a panel's plate and its own drawing */
             key={stage.key}
-            stage={stage}
+            stage={shownPanel ?? stage}
             showTranslation={showTranslation}
             onWord={openHelp}
             pageArt={pageArt}
@@ -1022,9 +1092,10 @@ function PanelBody({
             text={stage.caption}
             idPrefix={`${stage.key}-cap`}
             wordLabel={t.word_help}
-            onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
+            onWord={(word) => onWord(word, { sentence: stage.caption, sentenceEn: stage.captionEn, character: stage.character })}
           />
         )}
+        {showTranslation && stage.captionEn && <p className="fr-line-en fr-caption-en">{stage.captionEn}</p>}
         {stage.silent && <p className="fr-caption fr-caption--silent">{t.silent_beat}</p>}
 
         {speech.length > 0 && <div className="fr-captions">{speech}</div>}
@@ -1076,9 +1147,10 @@ function PanelBody({
           text={stage.caption}
           idPrefix={`${stage.key}-cap`}
           wordLabel={t.word_help}
-          onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
+          onWord={(word) => onWord(word, { sentence: stage.caption, sentenceEn: stage.captionEn, character: stage.character })}
         />
       )}
+      {showTranslation && stage.captionEn && <p className="fr-line-en fr-caption-en">{stage.captionEn}</p>}
       {stage.silent && <p className="fr-caption fr-caption--silent">{t.silent_beat}</p>}
     </>
   );
