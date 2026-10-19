@@ -3,6 +3,7 @@ and an object shows a choice only once the learner has made it."""
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -37,7 +38,10 @@ def _thread(db, user, flags=None):
 
 
 def _page(db, user, thread, segment, *, status="completed", season="s1"):
+    # pages in one transaction share now(): give each its own time, in the order written
+    _page.count = getattr(_page, "count", 0) + 1
     scene = GraphicNovelScene(
+        created_at=datetime(2026, 1, 1, tzinfo=UTC) + timedelta(minutes=_page.count),
         user_id=user.id,
         serial_thread_id=thread.id,
         episode_index=1,
