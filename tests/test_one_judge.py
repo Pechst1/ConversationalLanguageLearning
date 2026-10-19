@@ -267,7 +267,7 @@ def _fill(item: ib.BankItem, answer: str) -> dict:
     )
 
 
-def test_the_gap_lists_every_french_word_the_gloss_allows() -> None:
+def test_gap_lists_both_nouns() -> None:
     item = _tableau_item()
     assert item.sentence == "Marin a un tableau dans le salon."
     assert "Marin a une peinture dans le salon." in item.accepted
@@ -277,13 +277,13 @@ def test_the_gap_lists_every_french_word_the_gloss_allows() -> None:
 
 
 @pytest.mark.parametrize("answer", ["une peinture", "Une peinture", "une  peinture.", "un tableau", "un Tableau"])
-def test_a_gap_accepts_the_other_noun_the_prompt_allows(answer: str) -> None:
+def test_other_noun_ok(answer: str) -> None:
     result = _fill(_tableau_item(), answer)
     assert result["verdict"] == "correct", result["errata"]
     assert result["errata"] == []
 
 
-def test_a_wrong_article_gets_an_article_specific_reason() -> None:
+def test_wrong_article() -> None:
     result = _fill(_tableau_item(), "un peinture")
     assert result["verdict"] == "incorrect"
     [erratum] = result["errata"]
@@ -295,7 +295,7 @@ def test_a_wrong_article_gets_an_article_specific_reason() -> None:
     assert "masculine or feminine" in erratum["why_wrong"]
 
 
-def test_every_noun_with_a_second_french_word_for_its_gloss_has_decided_about_it() -> None:
+def test_gloss_mates_decided() -> None:
     """The cause of #235: the bank poses «a painting» and keys one French noun. The
     core lexicon knows another noun glossed the same («peinture»); each such pair is
     either accepted (``alt_fr``) or reviewed as a different thing (``distinct_fr``),
