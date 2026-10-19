@@ -49,12 +49,29 @@
  * choose among three captions, B1+ write it), and the dispatch prints the picture
  * under the caption; the band above them has moved on by then (`second_plate`).
  *
+ * «Au comptoir» (`comptoir: true`; `/revue?mock=1&comptoir=1`, WIRE §9): the recommended
+ * story is Céline Dion's last Paris concert with its takes (`lib/revue-mock-comptoir.ts`),
+ * its card carries the question of the day, a session started on it plays the five
+ * screens (`POST …/comptoir`, the same replay rules as the server) and its close prints
+ * «La page». The other stories stay chats.
+ *
  * State lives in memory and in `sessionStorage` (try/catch), so reloading the page
  * replays the session — the resume contract, in miniature.
  */
 
 import type { RevueTransport } from './revue-api';
 import { createRevueClient, type RevueClient } from './revue-api';
+import {
+  CELINE_PICTURE_URL,
+  CELINE_TAKES,
+  COMPTOIR_CLOSE_LINE,
+  applyComptoirAct,
+  comptoirClose,
+  comptoirView,
+  newComptoirState,
+  type ComptoirContext,
+  type MockComptoirState,
+} from './revue-mock-comptoir';
 
 type Json = Record<string, any>;
 type Lang = 'en' | 'de' | 'fr';
@@ -374,6 +391,66 @@ const FETE: MockDossier = {
 
 const DOSSIERS: MockDossier[] = [MARCHE, GREVE, FETE];
 
+/** «Au comptoir»: Céline Dion's last Paris concert (the desk prompt's story), with its takes. */
+const CELINE: MockDossier = {
+  id: '2026-10-19-celine-dion-termine-sa-serie-de-concerts-a-paris',
+  title_fr: 'Céline Dion termine sa série de concerts à Paris',
+  short_fr: 'Céline Dion à Paris',
+  summary_fr:
+    "Céline Dion a donné le dernier concert de sa première série à Paris le 17 octobre. Seize concerts ont attiré plus de 500 000 spectateurs, venus de France et d'autres pays. La chanteuse doit revenir à Paris en mai 2027.",
+  leads: {
+    headline_fr: 'Céline Dion revient en 2027',
+    a1: {
+      fr: 'Céline Dion a fini ses concerts à Paris le 17 octobre. Plus de 500 000 personnes sont venues. Elle revient en mai 2027.',
+      en: 'Céline Dion finished her concerts in Paris on 17 October. More than 500,000 people came. She is coming back in May 2027.',
+      de: 'Céline Dion hat ihre Konzerte in Paris am 17. Oktober beendet. Mehr als 500 000 Menschen sind gekommen. Sie kommt im Mai 2027 zurück.',
+    },
+    a2: {
+      fr: "Le 17 octobre, Céline Dion a donné à Paris le dernier concert de sa première série. Plus de 500 000 spectateurs sont venus, de France et d'autres pays. La chanteuse revient en mai 2027.",
+      en: 'On 17 October, Céline Dion gave the last concert of her first series in Paris. More than 500,000 spectators came, from France and other countries. The singer is coming back in May 2027.',
+      de: 'Am 17. Oktober gab Céline Dion in Paris das letzte Konzert ihrer ersten Reihe. Mehr als 500 000 Zuschauer kamen, aus Frankreich und anderen Ländern. Die Sängerin kommt im Mai 2027 zurück.',
+    },
+  },
+  topic: 'culture',
+  place: { id: 'paris_concert', name_fr: 'Paris', plate: CELINE_PICTURE_URL, plate_place_id: 'le_mistral', real: true, dress: 'coat' },
+  narration: ['Un lundi matin, au comptoir du Mistral.', 'Romy a son carnet ouvert.'],
+  place_note: null,
+  angle: { id: 'a1', fr: 'Céline revient : bonne nouvelle ?', purpose: 'explain_disagreement' },
+  claims: [
+    { id: 'c1', kind: 'fact', fr: 'Céline Dion a terminé sa première série de concerts à Paris le 17 octobre.', quote: 'le dernier des seize concerts parisiens de Céline Dion, le 17 octobre', source_id: 'celine_franceinfo' },
+    { id: 'c2', kind: 'fact', fr: 'Plus de 500 000 personnes sont venues voir Céline Dion à Paris.', quote: 'plus de 500 000 spectateurs', source_id: 'celine_franceinfo' },
+    { id: 'c3', kind: 'fact', fr: 'Céline Dion doit revenir à Paris en mai 2027.', quote: 'la chanteuse reviendra en mai 2027', source_id: 'celine_franceinfo' },
+  ],
+  sources: [{ id: 'celine_franceinfo', name: 'franceinfo', url: 'https://www.francetvinfo.fr/culture/musique/', published_at: '2026-10-18' }],
+  uncertainties: ['Les sources ne disent pas le prix des billets en 2027.'],
+  vocabulary: [
+    { fr: 'concert', claim_id: 'c1', en: 'concert', de: 'Konzert', gloss_fr: 'spectacle de musique' },
+    { fr: 'spectateurs', claim_id: 'c2', en: 'spectators', de: 'Zuschauer', gloss_fr: 'les gens qui regardent' },
+    { fr: 'série', claim_id: 'c1', en: 'series', de: 'Reihe', gloss_fr: 'plusieurs à la suite' },
+    { fr: 'chanteuse', claim_id: 'c3', en: 'singer', de: 'Sängerin', gloss_fr: 'femme qui chante' },
+    { fr: 'revenir', claim_id: 'c3', en: 'to come back', de: 'zurückkommen', gloss_fr: 'venir encore' },
+  ],
+  headlines: [
+    { id: 'h1', text_fr: 'Céline Dion ne revient plus à Paris' },
+    { id: 'h2', text_fr: 'Céline Dion revient à Paris en mai 2027', correct: true },
+    { id: 'h3', text_fr: 'Céline Dion chante un seul soir à Paris' },
+  ],
+  headline_claim: 'c3',
+  reader_question_fr: 'Est-ce que les billets seront plus chers en 2027 ?',
+  picture: {
+    url: CELINE_PICTURE_URL,
+    caption_fr: 'Une chanteuse sur une grande scène, devant une foule, le soir.',
+    look_fr: 'Regarde : la scène, les lumières, et la foule du concert.',
+    words: ['concert'],
+    decoys_fr: ['Une salle vide, un matin.', 'Un petit café, un dimanche.'],
+    // The band moves on to the counter where the regulars argue.
+    second_plate: '/assets/serial/locations/le_mistral-counter.webp',
+  },
+};
+const ALL_DOSSIERS: MockDossier[] = [...DOSSIERS, CELINE];
+/** The takes the mock's counter argues over, by dossier. */
+const TAKES: Record<string, typeof CELINE_TAKES> = { [CELINE.id]: CELINE_TAKES };
+
 /** WP-120 · the authored fallback pictograms (app/services/revue/evergreen/pictograms/*.svg, newlines folded). */
 const PICTOGRAMS: Record<string, string> = {
   city: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="30" y="18" width="40" height="52" rx="2" fill="#C2890F"/><path d="M36 34 Q36 24 50 24 Q64 24 64 34 L64 66 L36 66 Z" fill="#1D3A8A"/><rect x="49" y="24" width="2" height="42" fill="#F1ECE1"/><rect x="36" y="42" width="28" height="2" fill="#F1ECE1"/><rect x="26" y="64" width="48" height="4" rx="1" fill="#14110D"/><rect x="28" y="77" width="44" height="3" rx="1" fill="#14110D"/><rect x="35" y="68" width="2" height="9" fill="#14110D"/><rect x="42" y="68" width="2" height="9" fill="#14110D"/><rect x="49" y="68" width="2" height="9" fill="#14110D"/><rect x="56" y="68" width="2" height="9" fill="#14110D"/><rect x="63" y="68" width="2" height="9" fill="#14110D"/></svg>',
@@ -497,6 +574,8 @@ type MockSession = {
   intro?: Json | null;
   /** WP-120: the vignette minted at the close. */
   vignette?: Json | null;
+  /** «Au comptoir»: the session plays the five screens; the learner's acts so far. */
+  comptoir?: MockComptoirState | null;
 };
 
 export type MockOptions = {
@@ -514,6 +593,8 @@ export type MockOptions = {
   now?: () => Date;
   /** WP-119 §8.4: the recommended story has its own picture (default false; the page turns it on). */
   pictures?: boolean;
+  /** «Au comptoir» (WIRE §9): the switch on — the Céline story leads, with its takes (default false). */
+  comptoir?: boolean;
 };
 
 const STORAGE_KEY = 'revue-mock-v1';
@@ -595,6 +676,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   const now = options.now ?? (() => new Date());
   const persist = options.persist ?? typeof window !== 'undefined';
   const pictureOf = (d: MockDossier) => (options.pictures ? d.picture ?? null : null);
+  const takesOf = (d: MockDossier) => (options.comptoir ? TAKES[d.id] ?? null : null);
   let sessions: Record<string, MockSession> = {};
 
   if (persist) {
@@ -614,7 +696,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     }
   };
 
-  const dossierById = (id: string) => DOSSIERS.find((d) => d.id === id) ?? null;
+  const dossierById = (id: string) => (options.comptoir ? ALL_DOSSIERS : DOSSIERS).find((d) => d.id === id) ?? null;
   const allSessions = () => Object.keys(sessions).map((id) => sessions[id]);
   const active = () => allSessions().find((s) => !s.closing) ?? null;
   const filed = () => allSessions().find((s) => Boolean(s.closing)) ?? null;
@@ -675,8 +757,10 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     topic: d.topic,
     place_fr: d.place.name_fr,
     plate_url: pictureOf(d)?.url ?? d.place.plate,
-    evergreen: true,
+    evergreen: d !== CELINE,
     stage: stageOf(d),
+    // «Au comptoir»: the question of the day and the three regulars, while the switch is on.
+    ...(takesOf(d) ? { question_fr: takesOf(d)?.question.fr, cast: takesOf(d)?.guests.map((g) => g.id) } : {}),
   });
   const supportOf = (s: MockSession) => {
     const a1 = s.band === 'A1' || s.supportLevel > 0;
@@ -779,6 +863,27 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   };
   const NO_FLAGS = { uncertainty: false, simplified: false, proposes: false };
 
+  /** «Au comptoir»: what the scripted loop needs from the session around it. */
+  const comptoirContext = (s: MockSession): ComptoirContext & { lead: { fr: string }; words: string[] } => {
+    const d = dossierById(s.dossierId) as MockDossier;
+    return {
+      takes: TAKES[d.id],
+      band: s.band,
+      language: s.language,
+      sessionId: s.id,
+      closed: Boolean(s.closing),
+      datelineFr: d === CELINE ? 'Paris, le 18 octobre' : d.place.name_fr,
+      lead: leadOf(s, d),
+      sources: d.sources.map((src) => sourceOf(d, src.id)),
+      claim: (id) => {
+        const c = d.claims.find((row) => row.id === id);
+        return c ? claimWire(d, c) : null;
+      },
+      fail: (status, detail) => httpError(status, detail),
+      words: vocabularyOf(d).map((v) => v.fr),
+    };
+  };
+
   const viewOf = (s: MockSession) => {
     const d = dossierById(s.dossierId) as MockDossier;
     const room = roomOf(s);
@@ -788,7 +893,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       status: s.closing ? 'closed' : 'active',
       started_at: s.startedAt,
       closed_at: s.closedAt,
-      dossier: { id: d.id, title_fr: d.title_fr, summary_fr: d.summary_fr, topic: d.topic, evergreen: true, sources: d.sources },
+      dossier: { id: d.id, title_fr: d.title_fr, summary_fr: d.summary_fr, topic: d.topic, evergreen: d !== CELINE, sources: d.sources },
       plan: {
         band: s.band,
         ui_language: s.language,
@@ -811,6 +916,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       steer_to_make: room.phase !== 'open' && !s.artifact && !s.closing,
       artifact: s.artifact,
       closing: s.closing,
+      ...(s.comptoir ? { mode: 'comptoir', comptoir: comptoirView(s.comptoir, comptoirContext(s)) } : {}),
     };
   };
 
@@ -821,9 +927,9 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const done = filed();
     return {
       week: WEEK,
-      recommended: cardOf(MARCHE),
+      recommended: cardOf(options.comptoir ? CELINE : MARCHE),
       recommended_reason: 'interests',
-      alternatives: [cardOf(GREVE), cardOf(FETE)],
+      alternatives: options.comptoir ? [cardOf(MARCHE), cardOf(FETE)] : [cardOf(GREVE), cardOf(FETE)],
       evergreen_only: true,
       resume: current
         ? {
@@ -879,7 +985,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       if (d) chosenBy = 'learner';
       else miss = true;
     }
-    d = d ?? MARCHE;
+    d = d ?? (options.comptoir ? CELINE : MARCHE);
     const s: MockSession = {
       id: `mock-${Math.random().toString(36).slice(2, 10)}`,
       dossierId: d.id,
@@ -905,7 +1011,15 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       guest: null,
       intro: null,
       vignette: null,
+      comptoir: null,
     };
+    // «Au comptoir» (WIRE §9.1): a story with takes starts at the counter, with no thread.
+    if (takesOf(d) && !miss) {
+      s.comptoir = newComptoirState();
+      sessions[s.id] = s;
+      save();
+      return viewOf(s);
+    }
     const seq = nextSeq(s);
     const at = stamp();
     d.narration.forEach((text, index) => s.thread.push({ id: `${seq}.n${index}`, seq, at, kind: 'narration', text_fr: text }));
@@ -1265,9 +1379,52 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     throw httpError(422, [{ loc: ['body'], msg: 'unknown action' }]);
   };
 
+  /** WIRE §9.3: one act at the counter. */
+  const comptoirAct = (id: string, body: Json) => {
+    const s = sessionOr404(id);
+    if (!s.comptoir) throw httpError(409, { code: 'revue_not_comptoir' });
+    const error = applyComptoirAct(s.comptoir, body, comptoirContext(s));
+    save();
+    return { session: viewOf(s), error_fr: error };
+  };
+
+  /** «La page» (spec §3 step 5): no model call; the opinion first. */
+  const closeComptoir = (s: MockSession) => {
+    const d = dossierById(s.dossierId) as MockDossier;
+    const state = s.comptoir as MockComptoirState;
+    const ctx = comptoirContext(s);
+    const { page, dispatch } = comptoirClose(state, ctx);
+    const opinion = state.opinion as Json;
+    s.artifact = { kind: 'opinion', text_fr: opinion.edited_fr, contribution: [], learner_fr: opinion.learner_fr };
+    s.closing = {
+      romy_line_fr: COMPTOIR_CLOSE_LINE,
+      dispatch,
+      kept: { words: vocabularyOf(d).map((v) => ({ ...glossOf(v, s.language), used: fold(String(opinion.learner_fr)).includes(fold(v.fr)) })), claims: d.claims.slice(0, 2).map((c) => claimWire(d, c)) },
+      question_kept_fr: null,
+      colophon_fr: 'La suite la semaine prochaine.',
+      comptoir_page: page,
+    };
+    s.vignette = {
+      id: `vig-${s.id}`,
+      session_id: s.id,
+      dossier_id: d.id,
+      week: WEEK.iso,
+      place_label_fr: d.place.name_fr.split(',')[0],
+      ring: 'report',
+      kept_contribution: true,
+      pictogram_svg: PICTOGRAMS[d.topic] ?? PICTOGRAMS.city,
+      headline_fr: page.question_fr,
+      minted_at: stamp(),
+    };
+    s.closing.vignette = s.vignette;
+    s.closedAt = stamp();
+    save();
+  };
+
   const close = (id: string) => {
     const s = sessionOr404(id);
     const d = dossierById(s.dossierId) as MockDossier;
+    if (!s.closing && s.comptoir) closeComptoir(s);
     if (!s.closing) {
       const made = s.artifact;
       const kind = made ? String(made.kind) : 'none';
@@ -1369,10 +1526,13 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         .sort((a, b) => String(b.minted_at).localeCompare(String(a.minted_at)));
       return { vignettes: minted };
     }
-    const m = path.match(/^\/revue\/sessions\/([^/]+)(?:\/(turns|make|close))?$/);
+    const m = path.match(/^\/revue\/sessions\/([^/]+)(?:\/(turns|make|close|comptoir))?$/);
     if (m) {
       const id = decodeURIComponent(m[1]);
       if (method === 'GET' && !m[2]) return viewOf(sessionOr404(id));
+      if (method === 'POST' && m[2] === 'comptoir' && options.comptoir) return comptoirAct(id, body);
+      // WIRE §9.1: a comptoir session has no chat turn and no make.
+      if ((m[2] === 'turns' || m[2] === 'make') && sessions[id]?.comptoir) throw httpError(409, { code: 'revue_comptoir_session' });
       if (method === 'POST' && m[2] === 'turns') return turn(id, body);
       if (method === 'GET' && m[2] === 'make') return makeOffer(id);
       if (method === 'POST' && m[2] === 'make') return make(id, body);
