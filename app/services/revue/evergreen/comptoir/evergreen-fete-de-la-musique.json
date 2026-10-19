@@ -234,9 +234,9 @@
   "pour": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Toi aussi ? Mon cher, la musique dans la rue, c'est du bruit déguisé. Tu n'as pas honte ?",
-    "en": "You too? My dear, street music is noise in disguise. Aren't you ashamed?",
-    "de": "Du auch? Mein Lieber, Straßenmusik ist Lärm im Kostüm. Schämst du dich nicht?"
+    "fr": "Toi aussi ? La musique dans la rue, c'est du bruit déguisé. Tu n'as pas honte ?",
+    "en": "You too? Street music is noise in disguise. Aren't you ashamed?",
+    "de": "Du auch? Straßenmusik ist Lärm im Kostüm. Schämst du dich nicht?"
    },
    "comeback": {
     "fr": "Toi, tu ne sais pas danser !",
@@ -260,12 +260,12 @@
   "nuance": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Un peu pour, un peu contre ? Mon cher, tu es un tiède. Décide-toi !",
-    "en": "A bit for, a bit against? My dear, you're lukewarm. Decide!",
-    "de": "Ein bisschen dafür, ein bisschen dagegen? Mein Lieber, du bist lauwarm. Entscheide dich!"
+    "fr": "Un peu pour, un peu contre ? C'est tiède, ça. Décide-toi !",
+    "en": "A bit for, a bit against? That's lukewarm. Decide!",
+    "de": "Ein bisschen dafür, ein bisschen dagegen? Das ist lauwarm. Entscheide dich!"
    },
    "comeback": {
-    "fr": "Un tiède, c'est confortable !",
+    "fr": "Tiède, c'est confortable !",
     "en": "Lukewarm is comfortable!",
     "de": "Lauwarm ist bequem!"
    }

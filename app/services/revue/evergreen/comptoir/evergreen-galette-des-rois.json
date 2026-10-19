@@ -234,9 +234,9 @@
   "pour": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Tu manges de la crème d'amande, toi ? Mon cher, la brioche est plus chic. Non ?",
-    "en": "You eat almond cream? My dear, brioche is classier. Isn't it?",
-    "de": "Du isst Mandelcreme? Mein Lieber, Brioche ist schicker. Oder?"
+    "fr": "Tu manges de la crème d'amande, toi ? La brioche est plus chic. Non ?",
+    "en": "You eat almond cream? Brioche is classier. Isn't it?",
+    "de": "Du isst Mandelcreme? Brioche ist schicker. Oder?"
    },
    "comeback": {
     "fr": "Et toi, tu manges du pain sucré !",
@@ -247,22 +247,22 @@
   "contre": {
    "by": "romy_tremblay",
    "line": {
-    "fr": "Voyons donc, Gus ! La brioche, c'est pour le petit-déjeuner, non ?",
-    "en": "Come on, Gus! Brioche is for breakfast, right?",
-    "de": "Ach komm, Gus! Brioche ist fürs Frühstück, oder?"
+    "fr": "Voyons donc ! La brioche, c'est pour le petit-déjeuner, non ?",
+    "en": "Come on! Brioche is for breakfast, isn't it?",
+    "de": "Ach komm! Brioche ist fürs Frühstück, oder?"
    },
    "comeback": {
-    "fr": "La frangipane gagne, tu verras !",
-    "en": "Frangipane wins, you'll see!",
-    "de": "Frangipane gewinnt, du wirst sehen!"
+    "fr": "Non, la brioche, c'est pour la fête !",
+    "en": "No, brioche is for the party!",
+    "de": "Nein, Brioche ist fürs Fest!"
    }
   },
   "nuance": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Ni oui ni non ? Mon cher, choisis ! Une part, une fève, un roi.",
-    "en": "Neither yes nor no? My dear, choose! One slice, one bean, one king.",
-    "de": "Weder ja noch nein? Mein Lieber, wähle! Ein Stück, eine Bohne, ein König."
+    "fr": "Ni oui ni non ? Choisis ! Une part, une fève, un roi.",
+    "en": "Neither yes nor no? Choose! One slice, one bean, one king.",
+    "de": "Weder ja noch nein? Wähle! Ein Stück, eine Bohne, ein König."
    },
    "comeback": {
     "fr": "Le roi du canapé, c'est moi !",

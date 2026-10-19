@@ -231,6 +231,25 @@ def test_small_pieces_are_dropped_and_fall_back_to_authored_lines() -> None:
     assert fallback.by == "romy_tremblay" and fallback.line == comptoir.AUTHORED_REPLIES["romy_tremblay"]
 
 
+def test_a_reply_speaks_to_the_learner_and_never_guesses_who_they_are() -> None:
+    assert comptoir.address_problem("Toi aussi ? Mon cher, les mêmes chansons ?", "augustin_de_roncourt") == "gendered_address"
+    assert comptoir.address_problem("Voyons donc ! Tu es sérieuse ?", "romy_tremblay") == "gendered_address"
+    assert comptoir.address_problem("Voyons donc, Gus ! La brioche ?", "romy_tremblay") == "addresses_other"
+    assert comptoir.address_problem("Gus, tu exagères !", "romy_tremblay") == "addresses_other"
+    for fine in ("Tu te plains comme Gus ?", "Voyons donc ! Pour vrai ?", "Tu es contre Céline ?", "Mon chou, tu restes chez toi ?"):
+        assert comptoir.address_problem(fine, "romy_tremblay") is None, fine
+
+    raw = gold()
+    raw["replies"]["pour"]["line"]["fr"] = "Toi aussi ? Mon cher, les mêmes chansons ? Tu n'en as pas marre ?"
+    raw["replies"]["contre"]["line"]["fr"] = "Voyons donc, Gus ! Tu as déjà écouté sa voix ?"
+    takes, problems = comptoir.repair_comptoir(raw, celine())
+    assert takes is not None
+    assert {"comptoir:reply:pour:line:gendered_address", "comptoir:reply:contre:line:addresses_other"} <= set(problems)
+    assert comptoir.reply_for(takes, "pour").line == comptoir.AUTHORED_REPLIES["augustin_de_roncourt"]
+    for line in comptoir.AUTHORED_REPLIES.values():
+        assert comptoir.address_problem(line.fr, "") is None, line.fr
+
+
 def test_app_words_and_relative_dates_never_reach_the_counter() -> None:
     raw = gold()
     guest(raw, "margaux_barman")["a2"]["fr"] = "Ça dépend. Ce dossier est bon pour la caisse."

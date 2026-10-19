@@ -234,9 +234,9 @@
   "pour": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Tu paies vraiment les cahiers, toi ? Mon cher, l'État est généreux avec toi, pas avec moi.",
-    "en": "You really pay for the notebooks? My dear, the state is generous with you, not with me.",
-    "de": "Zahlst du die Hefte wirklich selbst? Mein Lieber, der Staat ist großzügig mit dir, nicht mit mir."
+    "fr": "Tu paies vraiment les cahiers, toi ? L'État est généreux avec toi, pas avec moi.",
+    "en": "You really pay for the notebooks? The state is generous with you, not with me.",
+    "de": "Zahlst du die Hefte wirklich selbst? Der Staat ist großzügig mit dir, nicht mit mir."
    },
    "comeback": {
     "fr": "Et toi, tu paies le champagne ?",
@@ -247,22 +247,22 @@
   "contre": {
    "by": "romy_tremblay",
    "line": {
-    "fr": "Voyons donc ! Tu veux que les familles paient tout ? Tu es sérieux, là ?",
-    "en": "Come on! You want families to pay for everything? Are you serious?",
-    "de": "Ach komm! Willst du, dass Familien alles zahlen? Meinst du das ernst?"
+    "fr": "Voyons donc ! Tu veux que les familles paient tout ? Pour vrai ?",
+    "en": "Come on! You want families to pay for everything? Really?",
+    "de": "Ach komm! Willst du, dass Familien alles zahlen? Wirklich?"
    },
    "comeback": {
-    "fr": "Non, je paie mon champagne.",
-    "en": "No, I pay for my champagne.",
-    "de": "Nein, ich zahle meinen Champagner."
+    "fr": "Non, mais l'État paie déjà trop !",
+    "en": "No, but the state already pays too much!",
+    "de": "Nein, aber der Staat zahlt schon zu viel!"
    }
   },
   "nuance": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Ça dépend ? Mon cher, choisis ! Tu es pour ou contre ?",
-    "en": "It depends? My dear, choose! Are you for or against?",
-    "de": "Kommt drauf an? Mein Lieber, entscheide dich! Bist du dafür oder dagegen?"
+    "fr": "Ça dépend ? Choisis ! Tu es pour ou contre ?",
+    "en": "It depends? Choose! Are you for or against?",
+    "de": "Kommt drauf an? Entscheide dich! Bist du dafür oder dagegen?"
    },
    "comeback": {
     "fr": "Je reste au milieu, mon cher.",

@@ -86,7 +86,7 @@ from app.services.revue.encounter import (
 if TYPE_CHECKING:  # pragma: no cover
     from app.services.revue.encounter import RevueEncounter
 
-COMPTOIR_EDIT_PROMPT_VERSION = "comptoir-edit-v1"
+COMPTOIR_EDIT_PROMPT_VERSION = "comptoir-edit-v2"
 
 STEPS: tuple[str, ...] = ("read", "takes", "intox", "opinion", "page")
 REACTIONS: tuple[str, ...] = ("agree", "disagree")
@@ -605,7 +605,7 @@ def _opinion(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, *,
                 raw = None
             cost = round(meter(encounter.provider) - before, 6)
         if isinstance(raw, dict):
-            checked = check_edit(raw, learner, dossier, takes)
+            checked = check_edit(raw, learner, dossier, takes, speaker=desk_reply.by)
             if checked.get("edited_fr"):
                 edited, notes, source = checked["edited_fr"], checked["notes"], "model"
             if checked.get("reply_fr"):
@@ -639,8 +639,9 @@ RULES
 - reply_fr: what the guest named in INPUT.reply_by says back to the learner, in character (their sheet), to
   «tu», answering what the learner actually said (not a generic line; the guest disagrees with the learner's
   side), plain French at the learner's band, 20 words at most, ending on a question or a jab. No insult, no
-  swearing, no number, nothing about the app; nothing that INPUT's facts do not say. French typography: a space
-  before ? ! : ;
+  swearing, no number, nothing about the app; nothing that INPUT's facts do not say. Nobody at the counter knows
+  the learner: never call them «mon cher», «ma belle» or any name, and no adjective about them that shows a
+  gender («tu es sérieux», «tu es sûre»); ask what they think instead. French typography: a space before ? ! : ;
 - reply_en and reply_de: faithful translations of reply_fr."""
 
 COMPTOIR_EDIT_SYSTEM = "You edit learners' French like a kind newspaper editor and write lively in-character replies. Answer with one JSON object only."
@@ -668,10 +669,12 @@ def edit_context(dossier: EditorialDossier, takes: ComptoirTakes, *, band: str, 
     }
 
 
-def check_edit(raw: dict[str, Any], learner_fr: str, dossier: EditorialDossier, takes: ComptoirTakes) -> dict[str, Any]:
+def check_edit(raw: dict[str, Any], learner_fr: str, dossier: EditorialDossier, takes: ComptoirTakes, *,
+               speaker: str = "") -> dict[str, Any]:
     """Romy's edit and the reply, checked (spec §3 step 4): an edit at most 1.6× the
     learner's length with no new number and no app words; a reply of 22 words at most that
-    passes the desk's checks. What fails is left out (the caller keeps the fallback)."""
+    passes the desk's checks and speaks to the learner (``speaker`` says it; never another
+    regular by name, never «mon cher»). What fails is left out (the caller keeps the fallback)."""
 
     out: dict[str, Any] = {"_problems": []}
     edited = re.sub(r"\s+", " ", str(raw.get("edited_fr") or "")).strip()
@@ -706,6 +709,8 @@ def check_edit(raw: dict[str, Any], learner_fr: str, dossier: EditorialDossier, 
         out["_problems"].append(f"reply:{why}")
     elif planted and comptoir.contains(reply.fr, planted):
         out["_problems"].append("reply:intox")
+    elif address := comptoir.address_problem(reply.fr, speaker):
+        out["_problems"].append(f"reply:{address}")
     else:
         out.update({"reply_fr": reply.fr, "reply_en": reply.en, "reply_de": reply.de})
     return out

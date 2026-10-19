@@ -229,9 +229,9 @@
   "pour": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Toi aussi ? Mon cher, une tradition de 1570, c'est un peu vieux, non ?",
-    "en": "You too? My dear, a 1570 tradition is a bit old, isn't it?",
-    "de": "Du auch? Mein Lieber, eine Tradition von 1570 ist ziemlich alt, oder?"
+    "fr": "Toi aussi ? Une tradition de 1570, c'est un peu vieux, non ?",
+    "en": "You too? A tradition from 1570 is a bit old, isn't it?",
+    "de": "Du auch? Eine Tradition von 1570 ist ziemlich alt, oder?"
    },
    "comeback": {
     "fr": "Et toi, tu es vieux ?",
@@ -242,27 +242,27 @@
   "contre": {
    "by": "romy_tremblay",
    "line": {
-    "fr": "Voyons donc ! Tu n'aimes pas une tradition de 1570 ? Tu es sérieux ?",
-    "en": "Come on! You don't like a tradition from 1570? Are you serious?",
-    "de": "Ach komm! Du magst eine Tradition von 1570 nicht? Im Ernst?"
+    "fr": "Voyons donc ! Tu n'aimes pas une tradition de 1570 ? Pour vrai ?",
+    "en": "Come on! You don't like a tradition from 1570? Really?",
+    "de": "Ach komm! Du magst eine Tradition von 1570 nicht? Wirklich?"
    },
    "comeback": {
-    "fr": "Oui, et je préfère le silence !",
-    "en": "Yes, and I prefer silence!",
-    "de": "Ja, und ich ziehe die Stille vor!"
+    "fr": "Oui ! Trop de monde, trop de bruit.",
+    "en": "Yes! Too many people, too much noise.",
+    "de": "Ja! Zu viele Leute, zu viel Lärm."
    }
   },
   "nuance": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Ça dépend ? Mon cher, c'est la réponse de ceux qui n'ont pas de carnet. Choisis !",
-    "en": "It depends? My dear, that's the answer of people without a notebook. Choose!",
-    "de": "Kommt drauf an? Mein Lieber, das ist die Antwort von Leuten ohne Notizbuch. Entscheide dich!"
+    "fr": "Ça dépend ? C'est la réponse de ceux qui n'ont pas d'avis. Choisis !",
+    "en": "It depends? That's the answer of people with no opinion. Choose!",
+    "de": "Kommt drauf an? Das ist die Antwort von Leuten ohne Meinung. Entscheide dich!"
    },
    "comeback": {
-    "fr": "Le carnet, c'est pas pour moi !",
-    "en": "The notebook isn't for me!",
-    "de": "Das Notizbuch ist nichts für mich!"
+    "fr": "J'ai un avis : ça dépend !",
+    "en": "I have an opinion: it depends!",
+    "de": "Ich habe eine Meinung: Es kommt drauf an!"
    }
   }
  },

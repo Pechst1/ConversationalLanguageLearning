@@ -234,13 +234,13 @@
   "pour": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Toi aussi ? Un vin jeune, mon cher ? Tu n'as pas honte de cette fête ?",
-    "en": "You too? A young wine, my dear? Aren't you ashamed of this party?",
-    "de": "Du auch? Ein junger Wein, mein Lieber? Schämst du dich nicht für diese Feier?"
+    "fr": "Toi aussi ? Un vin si jeune ? Tu n'as pas honte de cette fête ?",
+    "en": "You too? Such a young wine? Aren't you ashamed of this party?",
+    "de": "Du auch? So ein junger Wein? Schämst du dich nicht für diese Feier?"
    },
    "comeback": {
-    "fr": "Moi, j'ai honte de rien !",
-    "en": "I'm ashamed of nothing!",
+    "fr": "Moi, je n'ai honte de rien !",
+    "en": "I'm not ashamed of anything!",
     "de": "Ich schäme mich für nichts!"
    }
   },
@@ -252,9 +252,9 @@
     "de": "Ach komm! Du verschmähst einen Wein mit Termin? Hast du ihn wenigstens probiert?"
    },
    "comeback": {
-    "fr": "Je bois du champagne, moi !",
-    "en": "I drink champagne, me!",
-    "de": "Ich trinke Champagner!"
+    "fr": "Oui, et je préfère un vieux vin !",
+    "en": "Yes, and I prefer an old wine!",
+    "de": "Ja, und ich mag lieber einen alten Wein!"
    }
   },
   "nuance": {

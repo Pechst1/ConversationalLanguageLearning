@@ -229,9 +229,9 @@
   "pour": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Toi aussi ? Mon cher, des légumes à l'aube ? Tu te lèves à quelle heure, au juste ?",
-    "en": "You too? My dear, vegetables at dawn? What time do you get up, exactly?",
-    "de": "Du auch? Mein Lieber, Gemüse im Morgengrauen? Um wie viel Uhr stehst du eigentlich auf?"
+    "fr": "Toi aussi ? Des légumes à l'aube ? Tu te lèves à quelle heure, au juste ?",
+    "en": "You too? Vegetables at dawn? What time do you get up, exactly?",
+    "de": "Du auch? Gemüse im Morgengrauen? Um wie viel Uhr stehst du eigentlich auf?"
    },
    "comeback": {
     "fr": "Et toi, tu fais la grasse matinée !",
@@ -242,22 +242,22 @@
   "contre": {
    "by": "romy_tremblay",
    "line": {
-    "fr": "Voyons donc, Gus ! Tu te plains du bruit, alors que tu parles plus fort que tout le marché ?",
-    "en": "Come on, Gus! You complain about noise, when you talk louder than the whole market?",
-    "de": "Ach komm, Gus! Du beschwerst dich über Lärm, obwohl du lauter redest als der ganze Markt?"
+    "fr": "Voyons donc ! Tu as peur du bruit ? Un marché, c'est la vie du quartier !",
+    "en": "Come on! Are you afraid of the noise? A market is the life of the neighbourhood!",
+    "de": "Ach komm! Hast du Angst vor dem Lärm? Ein Markt ist das Leben des Viertels!"
    },
    "comeback": {
-    "fr": "Je parle fort, mais je suis élégant !",
-    "en": "I speak loudly, but I'm elegant!",
-    "de": "Ich spreche laut, aber ich bin elegant!"
+    "fr": "La vie, oui. Le bruit, non !",
+    "en": "Life, yes. Noise, no!",
+    "de": "Leben, ja. Lärm, nein!"
    }
   },
   "nuance": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Ça dépend ? Mon cher, tu es une huître. Choisis un camp !",
-    "en": "It depends? My dear, you're an oyster. Pick a side!",
-    "de": "Kommt drauf an? Mein Lieber, du bist eine Auster. Wähl eine Seite!"
+    "fr": "Ça dépend ? Une huître a plus d'avis que toi. Choisis un camp !",
+    "en": "It depends? An oyster has more opinions than you. Pick a side!",
+    "de": "Kommt drauf an? Eine Auster hat mehr Meinung als du. Wähl eine Seite!"
    },
    "comeback": {
     "fr": "Je suis du côté du pain frais !",

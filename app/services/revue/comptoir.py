@@ -53,7 +53,7 @@ from app.services.revue.dossier import (
     fold,
 )
 
-COMPTOIR_PROMPT_VERSION = "comptoir-takes-v1"
+COMPTOIR_PROMPT_VERSION = "comptoir-takes-v2"
 
 ROMY_ID = "romy_tremblay"
 GUS_ID = "augustin_de_roncourt"
@@ -134,14 +134,15 @@ AUTHORED_PHRASE = ComptoirPhrase(
 )
 #: A side whose counter-line the check dropped reads the cast member's own line.
 AUTHORED_REPLIES: dict[str, ComptoirText] = {
-    ROMY_ID: _t("Voyons donc ! Tu es sûr ? Explique-moi ça.", "Come on! Are you sure? Explain that to me.",
-                "Ach komm! Bist du sicher? Erklär mir das."),
-    GUS_ID: _t("Mon cher, laisse-moi t'expliquer la vie : tu as tort. Avec style, mais tort.",
-               "My dear, let me explain life to you: you're wrong. With style, but wrong.",
-               "Mein Lieber, lass mich dir das Leben erklären: Du liegst falsch. Mit Stil, aber falsch."),
+    ROMY_ID: _t("Voyons donc ! Pour vrai ? Explique-moi ça.", "Come on! Really? Explain that to me.",
+                "Ach komm! Wirklich? Erklär mir das."),
+    GUS_ID: _t("Laisse-moi t'expliquer la vie : tu as tort. Avec style, mais tort.",
+               "Let me explain life to you: you're wrong. With style, but wrong.",
+               "Lass mich dir das Leben erklären: Du liegst falsch. Mit Stil, aber falsch."),
     MARGAUX_ID: _t("Chacun son avis. La même chose ?", "Each to their own. Same again?",
                    "Jedem seine Meinung. Nochmal dasselbe?"),
-    "lila_bonnet": _t("Mais arrête ! Tu es sérieux, là ?", "Oh, stop it! Are you serious?", "Hör doch auf! Ist das dein Ernst?"),
+    "lila_bonnet": _t("Mais arrête ! Tu le penses vraiment ?", "Oh, stop it! Do you really think so?",
+                      "Hör doch auf! Meinst du das wirklich?"),
     "marin_leveque": _t("Ah… tu crois ? Ma grand-mère ne serait pas d'accord.", "Ah… you think so? My grandmother wouldn't agree.",
                         "Ach… meinst du? Meine Großmutter wäre nicht einverstanden."),
     "landlord_marchand": _t("Voyez-vous, je ne suis pas d'accord. Mais je vous écoute.",
@@ -263,7 +264,13 @@ COMPTOIR_RULES = """RULES
   avis…, parce que…», b1 «Je ne suis pas d'accord avec…, parce que…», b2 «Certes…, mais…»).
 - replies: for each side the learner may take, what a guest of ANOTHER side says back (by: prefer the opposite
   side; for "nuance", the guest with the strongest opinion), in character, 20 words at most, to «tu», ending on a
-  question or a jab. comeback: one fun A2 comeback the learner can tap back at that guest, eight words at most.
+  question or a jab. The reply speaks to the LEARNER, whom nobody at the counter knows: never another regular's
+  name as the one spoken to («Voyons donc, Gus !» is wrong here), and nothing that guesses the learner's gender:
+  no «mon cher», «ma chère», «ma belle», «mon grand», no adjective or participle about them («tu es sérieux»,
+  «tu es sûre»); ask what they think or do instead («Pour vrai ?», «Tu te lèves à quelle heure ?»).
+  comeback: one fun A2 comeback the learner can tap back at that guest, eight words at most: the learner's own
+  words, consistent with the learner's side, never another regular's catchphrase (not Gus's champagne or
+  silence, not Romy's «voyons donc»).
 - French typography: a space before ? ! : ;
 EXAMPLE (story: Céline Dion ends her first series of concerts in Paris, more than 500 000 spectators, she comes
 back in May 2027; guests romy_tremblay, margaux_barman, augustin_de_roncourt):
@@ -336,19 +343,20 @@ back in May 2027; guests romy_tremblay, margaux_barman, augustin_de_roncourt):
   "b1": {"fr": "Je ne suis pas d'accord avec…, parce que…", "en": "I don't agree with…, because…", "de": "Ich bin nicht einverstanden mit…, weil…"},
   "b2": {"fr": "Certes…, mais…", "en": "Admittedly…, but…", "de": "Zwar…, aber…"}},
  "replies": {"pour": {"by": "augustin_de_roncourt",
-   "line": {"fr": "Toi aussi ? Mon cher, les mêmes chansons, encore et encore ? Tu n'en as pas marre ?",
-    "en": "You too? My dear, the same songs, again and again? Aren't you fed up?",
-    "de": "Du auch? Mein Lieber, immer wieder dieselben Lieder? Hast du nicht genug davon?"},
+   "line": {"fr": "Toi aussi ? Les mêmes chansons, encore et encore ? Tu n'en as pas marre ?",
+    "en": "You too? The same songs, again and again? Aren't you fed up?",
+    "de": "Du auch? Immer wieder dieselben Lieder? Hast du nicht genug davon?"},
    "comeback": {"fr": "Et toi, tu chantes sous la douche !", "en": "And you sing in the shower!", "de": "Und du singst unter der Dusche!"}},
   "contre": {"by": "romy_tremblay",
    "line": {"fr": "Voyons donc ! Tu es contre Céline ? Tu as déjà écouté sa voix, au moins ?",
     "en": "Come on! You're against Céline? Have you ever even listened to her voice?",
     "de": "Ach komm! Du bist gegen Céline? Hast du ihre Stimme überhaupt schon mal gehört?"},
-   "comeback": {"fr": "Oui, et je préfère le silence !", "en": "Yes, and I prefer silence!", "de": "Ja, und ich ziehe die Stille vor!"}},
+   "comeback": {"fr": "Oui, et ses chansons me fatiguent !", "en": "Yes, and her songs tire me out!",
+    "de": "Ja, und ihre Lieder machen mich müde!"}},
   "nuance": {"by": "augustin_de_roncourt",
-   "line": {"fr": "Ni pour ni contre ? Mon cher, c'est la position du canapé. Choisis !",
-    "en": "Neither for nor against? My dear, that's the sofa position. Choose!",
-    "de": "Weder dafür noch dagegen? Mein Lieber, das ist die Sofa-Position. Entscheide dich!"},
+   "line": {"fr": "Ni pour ni contre ? C'est la position du canapé. Choisis !",
+    "en": "Neither for nor against? That's the sofa position. Choose!",
+    "de": "Weder dafür noch dagegen? Das ist die Sofa-Position. Entscheide dich!"},
    "comeback": {"fr": "Le canapé, c'est confortable !", "en": "The sofa is comfortable!", "de": "Das Sofa ist bequem!"}}}}
 Do not reuse the example's lines: write for THIS story and THESE guests."""
 
@@ -428,6 +436,37 @@ def contains(text: str | None, phrase: str | None) -> bool:
 
 def _clean(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+#: A pet name that says who the learner is («mon cher», «ma belle»): nobody at the counter knows.
+_GENDERED_ADDRESS = re.compile(
+    r"(?<![\w-])(?:mon cher|ma chere|mon cheri|ma cherie|ma belle|mon beau|mon grand|ma grande|ma jolie|"
+    r"mon vieux|ma vieille|mon pote|ma pote|mon gars|ma fille|mon garcon|mademoiselle)(?![\w-])"
+)
+#: «tu es» and an adjective that agrees with the learner («tu es sérieux», «tu es sûre»).
+_GENDERED_YOU = re.compile(
+    r"(?<![\w-])(?:tu es|t'es|es-tu|tu etais|tu seras)\s+(?:vraiment\s+|si\s+|trop\s+|bien\s+)?"
+    r"(?:serieux|serieuse|sure?|fou|folle|prete?|certaine?|contente?|heureux|heureuse|fatiguee?|jaloux|jalouse|"
+    r"amoureux|amoureuse|seule?|naif|naive|curieux|curieuse|genereux|genereuse|perdue?|fier|fiere|un tiede|"
+    r"une tiede|gentil|gentille|nul|nulle|malin|maligne)(?![\w-])"
+)
+
+
+def address_problem(fr: str | None, speaker: str) -> str | None:
+    """Why a line said TO the learner speaks to someone else or guesses who they are: another
+    regular's name as the one addressed («Voyons donc, Gus !»), a gendered pet name («mon
+    cher»), an adjective agreeing with «tu» («tu es sérieux»). ``None`` when it is fine."""
+
+    folded = ci(fr)
+    if _GENDERED_ADDRESS.search(folded) or _GENDERED_YOU.search(folded):
+        return "gendered_address"
+    for cast_id, name in NAME_FR.items():
+        if cast_id == speaker:
+            continue
+        key = re.escape(ci(name))
+        if re.search(rf"(?:^|[,.!?…:;]\s*){key}\s*[,!?.…]|,\s*{key}\s*(?:[,!?.…]|$)", folded):
+            return "addresses_other"
+    return None
 
 
 _LOWERED_STARTS = {"plus", "moins", "un", "une", "le", "la", "les", "des", "du", "au", "aux", "a", "en", "dans",
@@ -779,6 +818,9 @@ def _reply(row: Any, stance: str, stance_of: dict[str, str], check: _Checker, pl
         return f"line:{why}"
     if planted and contains(line.fr, planted):
         return "line:intox"
+    address = address_problem(line.fr, by)
+    if address:
+        return f"line:{address}"
     comeback, why = check.text(row.get("comeback"), COMEBACK_MAX_WORDS)
     return ComptoirReply(by=by, line=line, comeback=comeback or AUTHORED_COMEBACK)
 
@@ -974,6 +1016,7 @@ __all__ = [
     "COMPTOIR_PROMPT_VERSION",
     "NAME_FR",
     "ROLE_FR",
+    "address_problem",
     "character_sheets",
     "comptoir_enabled",
     "comptoir_guests",

@@ -234,9 +234,9 @@
   "pour": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Tu danses ? Mon cher, la foule te suit partout. Tu n'as pas peur de te perdre ?",
-    "en": "You dance? My dear, the crowd follows you everywhere. Aren't you afraid of getting lost?",
-    "de": "Du tanzt? Mein Lieber, die Menge folgt dir überall hin. Hast du keine Angst, dich zu verlieren?"
+    "fr": "Tu danses ? Dans cette foule ? Tu n'as pas peur de te perdre ?",
+    "en": "You dance? In that crowd? Aren't you afraid of getting lost?",
+    "de": "Du tanzt? In dieser Menge? Hast du keine Angst, dich zu verlieren?"
    },
    "comeback": {
     "fr": "Et toi, tu danses sous la douche !",
@@ -252,17 +252,17 @@
     "de": "Mein Schatz, du bleibst am 14. Juli zu Hause? Du verpasst den Ball!"
    },
    "comeback": {
-    "fr": "Non, je reste chez moi, avec mon champagne.",
-    "en": "No, I stay home with my champagne.",
-    "de": "Nein, ich bleibe zu Hause, mit meinem Champagner."
+    "fr": "Oui, et je dors bien, moi !",
+    "en": "Yes, and I sleep well!",
+    "de": "Ja, und ich schlafe gut!"
    }
   },
   "nuance": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Tu hésites ? Mon cher, la vie n'attend pas ceux qui réfléchissent. Tu viens ?",
-    "en": "You're hesitating? My dear, life doesn't wait for those who think. Are you coming?",
-    "de": "Du zögerst? Mein Lieber, das Leben wartet nicht auf Grübler. Kommst du?"
+    "fr": "Tu hésites ? La vie n'attend pas ceux qui réfléchissent. Tu viens ?",
+    "en": "You're hesitating? Life doesn't wait for those who think. Are you coming?",
+    "de": "Du zögerst? Das Leben wartet nicht auf Grübler. Kommst du?"
    },
    "comeback": {
     "fr": "Toi, tu ne danses même pas !",

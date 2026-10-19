@@ -229,9 +229,9 @@
   "pour": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Tout le monde a sa chance ? Mon cher, la philo, ce n'est pas un bonbon. Tu le savais ?",
-    "en": "Everyone gets a chance? My dear, philosophy is not a sweet. Did you know?",
-    "de": "Jeder hat eine Chance? Mein Lieber, Philosophie ist kein Bonbon. Wusstest du das?"
+    "fr": "Tout le monde a sa chance ? La philo, ce n'est pas un bonbon. Tu le savais ?",
+    "en": "Everyone gets a chance? Philosophy is not a sweet. Did you know?",
+    "de": "Jeder hat eine Chance? Philosophie ist kein Bonbon. Wusstest du das?"
    },
    "comeback": {
     "fr": "Et toi, tu fais le snob !",
@@ -255,9 +255,9 @@
   "nuance": {
    "by": "augustin_de_roncourt",
    "line": {
-    "fr": "Ça dépend ? Mon cher, tu n'as jamais eu un avis ? Choisis !",
-    "en": "It depends? My dear, have you never had an opinion? Choose!",
-    "de": "Es kommt drauf an? Mein Lieber, hattest du nie eine Meinung? Entscheide dich!"
+    "fr": "Ça dépend ? Tu n'as jamais d'avis, toi ? Choisis !",
+    "en": "It depends? Do you never have an opinion? Choose!",
+    "de": "Kommt drauf an? Hast du nie eine Meinung? Entscheide dich!"
    },
    "comeback": {
     "fr": "J'ai un avis, mon cher !",
