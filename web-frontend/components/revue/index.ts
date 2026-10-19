@@ -15,7 +15,9 @@ export type { RvStageProps } from './RvStage';
 export {
   RvThread,
   RvNarration,
-  RvListen,
+  RvLead,
+  RvSources,
+  RvTranslate,
   RvLine,
   RvGlossText,
   RvClaim,
@@ -47,6 +49,8 @@ export { RvComposer } from './RvComposer';
 export type { RvComposerProps } from './RvComposer';
 export { RvUneCard } from './RvUneCard';
 export type { RvUneCardProps, RvUneCardState } from './RvUneCard';
+export { RvNewsCard, RvNewsSticker, newsHeadline } from './RvNewsCard';
+export type { RvNewsCardProps } from './RvNewsCard';
 export { RvSubjectSheet, RvAltRows, RvAsk } from './RvSubjectSheet';
 export type { RvSubjectSheetProps } from './RvSubjectSheet';
 export { RvChooser } from './RvChooser';

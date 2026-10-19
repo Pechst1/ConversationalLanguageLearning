@@ -71,6 +71,8 @@ export type ReaderCopy = {
   help_in_line_of: string;
   help_in_panel: string;
   help_note: string;
+  /** Before a word's dictionary form, when the word was read in its sentence (`/atelier/gloss`). */
+  help_lemma: string;
   roledescription: string;
   // WP-90 «La planche»
   /** The folio ribbon on a plate whose drawing is still on the press: «Planche {n} · sous presse». */
@@ -154,6 +156,7 @@ const FR: ReaderCopy = {
   help_in_line_of: 'Dans la réplique de {name}',
   help_in_panel: 'Dans la planche',
   help_note: 'Consulter l’aide ne compte pas comme une réponse et ne fait pas avancer l’épisode.',
+  help_lemma: 'Dans le dictionnaire :',
   roledescription: 'planche',
   art_on_press: 'Planche {n} · sous presse',
   listen_to: 'Écouter {name}',
@@ -224,6 +227,7 @@ const EN: ReaderCopy = {
   help_in_line_of: 'In {name}’s line',
   help_in_panel: 'In the panel',
   help_note: 'Looking a word up is not an answer and does not move the episode on.',
+  help_lemma: 'Dictionary form:',
   roledescription: 'panel',
   art_on_press: 'Panel {n} · on the press',
   listen_to: 'Listen to {name}',
@@ -294,6 +298,7 @@ const DE: ReaderCopy = {
   help_in_line_of: 'In der Zeile von {name}',
   help_in_panel: 'Im Bild',
   help_note: 'Nachschlagen zählt nicht als Antwort und bringt die Folge nicht weiter.',
+  help_lemma: 'Grundform:',
   roledescription: 'Bild',
   art_on_press: 'Bild {n} · in Druck',
   listen_to: '{name} anhören',

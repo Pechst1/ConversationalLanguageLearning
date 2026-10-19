@@ -6,7 +6,7 @@
 // transcript.jsonl in the output folder, so each finding can point at the screen it is
 // about.
 //
-//   npm run explore -- [--native de] [--level A1.1] [--fresh] [--out DIR] [--port 7777]
+//   npm run explore -- [--native de] [--level A1.1] [--fresh] [--revue] [--out DIR] [--port 7777]
 //
 // --fresh skips the API sign-up and starts on the sign-in page, as a stranger would.
 // Then, from any shell:
@@ -170,7 +170,7 @@ const routes = {
 };
 
 async function main() {
-  stack = await startStack({ logDir: path.join(outDir, 'logs'), secret: SECRET });
+  stack = await startStack({ logDir: path.join(outDir, 'logs'), secret: SECRET, revue: argv.includes('--revue') });
   browser = await chromium.launch(process.env.WALK_CHROMIUM ? { executablePath: process.env.WALK_CHROMIUM } : {});
   await newLearner({ native: opt('native', 'de'), level: opt('level', 'A1.1'), fresh: argv.includes('--fresh') });
   http

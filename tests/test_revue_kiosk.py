@@ -239,7 +239,9 @@ def test_daily_cadence_uses_the_date_as_the_period(db: Session, monkeypatch) -> 
     # One active Papier per *day*: another day is free while this one is open.
     tomorrow = (date.fromisoformat(today) + timedelta(days=1)).isoformat()
     assert revue.start(user, tomorrow).week == tomorrow
-    revue.close(row)
+    _, closing = revue.close(row)
+    assert closing.colophon_fr == "La suite demain.", "a daily Papier comes back tomorrow"
+    assert enc.colophon_for(WEEK) == "La suite la semaine prochaine."
     assert releve_for(db, user).entries[0].period_label.startswith("Semaine ")
 
 
@@ -366,6 +368,7 @@ def test_each_morning_the_intake_hands_the_period_to_the_painter(monkeypatch) ->
 
     monkeypatch.setattr(settings, "REVUE_ENABLED", True)
     monkeypatch.setattr(task, "intake_now", lambda refresh=False: {"status": "kept", "period": "2026-W42"})
+    monkeypatch.setattr(task, "leads_now", lambda period=None, now=None: {"status": "ok", "written": []})
     queued: list = []
 
     class Result:

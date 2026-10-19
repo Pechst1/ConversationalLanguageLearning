@@ -284,6 +284,10 @@ THE PAGE
   learner, and it is not repeated inside a panel. Nobody tells the learner what to say,
   how to say it, which words to use, or that it is their turn.
 - hook_fr is the «À suivre…» line: the plan's hook, in French, one sentence.
+- title_fr is the page's headline on the learner's home screen, read before the page:
+  three to six plain words that say who and what the page is about, the situation and
+  not its outcome (the form of «Margaux perd ses clés» or «Un dimanche au marché», never
+  these words). Never a riddle or a mood («Mercredi ne vient plus»).
 - memory, when present, is what the people on the page know of the learner: their name,
   what is settled (facts) and what the learner told them (said, verbatim), each with who
   knows it. Someone who knows the learner's name may use it, and someone who heard a
@@ -325,7 +329,7 @@ NOT THIS → THIS (the left side is from real pages)
 
 RETURN ONLY THIS JSON
 {{
-  "title_fr": "...",
+  "title_fr": "three to six plain words: who and what the page is about",
   "premise_fr": "one or two sentences that set the scene, no address",
   "opening_line_fr": "the lead's question to the learner, asked after the last panel",
   "suggested_response_fr": "one answer a learner at this level could really give",

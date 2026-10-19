@@ -312,6 +312,7 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/appels/{call_id}/answer"),
         ("POST", "/appels/{call_id}/decline"),
         ("POST", "/appels/{call_id}/say"),
+        ("POST", "/atelier/gloss"),
         # Courrier, Feuilleton, serial
         ("POST", "/missions"),
         ("POST", "/missions/"),

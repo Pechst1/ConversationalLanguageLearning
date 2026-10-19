@@ -154,6 +154,7 @@ def delete_current_user(
     service.delete(current_user)
 
 
+@router.get("", response_model=list[UserRead], include_in_schema=False)
 @router.get("/", response_model=list[UserRead])
 def list_users(
     limit: int = Query(20, ge=1, le=100),
@@ -252,6 +253,8 @@ def export_user_data(
             "current_streak": current_user.current_streak,
             "longest_streak": current_user.longest_streak,
             "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            # The drawn character from the avatar editor (null until made).
+            "avatar": current_user.avatar,
         },
         "vocabulary_progress": [
             {
