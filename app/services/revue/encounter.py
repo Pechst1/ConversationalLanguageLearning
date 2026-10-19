@@ -160,6 +160,8 @@ KEPT_LINE = "Bonne question. Je la garde pour la semaine prochaine : on boucle a
 #: The first words after "simplify on breakdown" (WP-119-DESIGN §3.3 ``#simplify``).
 SIMPLIFY_LEAD = "Pardon, je vais trop vite."
 COLOPHON = "La suite la semaine prochaine."
+#: §12.2: a daily Papier (its period is a day, ``REVUE_CADENCE=daily``) comes back tomorrow.
+COLOPHON_DAILY = "La suite demain."
 
 GRADER_ID = grading.RUBRIC_ID
 CAPABILITY_ID = grading.CONVERSATION_CAPABILITY
@@ -500,6 +502,17 @@ def _week_of(period: str) -> str:
     from app.services.revue.weekly import week_of_period
 
     return week_of_period(period)
+
+
+def colophon_for(period: str) -> str:
+    """The close's last line: «La suite demain.» for a daily Papier, the weekly line otherwise."""
+
+    from app.services.revue.weekly import is_daily_period
+
+    try:
+        return COLOPHON_DAILY if is_daily_period(period) else COLOPHON
+    except ValueError:
+        return COLOPHON
 
 
 def week_view(week: str) -> RvWeek:
@@ -1515,20 +1528,32 @@ def support_view(plan: SessionPlan, state: ConversationState) -> RvSupport:
     )
 
 
-def quick_replies(state: ConversationState, room: RvRoom) -> list[RvQuickReply]:
+def unshown_claims(dossier: EditorialDossier, state: ConversationState) -> int:
+    """How many of the dossier's claims Romy has not put on the table yet."""
+
+    shown = state.claims_shown
+    return sum(1 for claim in dossier.claims if claim.id not in shown)
+
+
+def quick_replies(state: ConversationState, room: RvRoom, *, unshown: int | None = None) -> list[RvQuickReply]:
+    """The chips under the thread. «Plus» asks for another fact: once every claim is on the
+    table (``unshown == 0``) it is not offered (2026-10-19: it only made Romy say again that
+    the articles say no more); ``None`` (not counted) keeps it."""
+
     if state.closed:
         return []
     if state.turns_used == 0:
         return [QR_AGREE]
+    more = [] if unshown == 0 else [QR_MORE]
     if room.phase != "open":
-        return [] if state.current_artifact else [QR_MORE]
+        return [] if state.current_artifact else more
     recent = [e for e in state.events if e.seq > _last_learner_seq(state)]
     if any(e.kind == "support_changed" for e in recent):
         return [QR_UNDERSTOOD, QR_SIMPLER]
     romy = [e for e in recent if e.kind == "turn_romy"]
     if romy and (romy[-1].payload.get("uncertainty_text") or romy[-1].payload.get("proposes_question")):
-        return [QR_FORMULATE, QR_MORE]
-    return [QR_MORE]
+        return [QR_FORMULATE, *more]
+    return more
 
 
 def _last_learner_seq(state: ConversationState) -> int:
@@ -1585,7 +1610,7 @@ def session_view(loaded: Loaded) -> RvSessionView:
         beat=beat_for(state),  # type: ignore[arg-type]
         room=room,
         thread=thread_items(dossier, plan, state),
-        quick_replies=quick_replies(state, room),
+        quick_replies=quick_replies(state, room, unshown=unshown_claims(dossier, state)),
         steer_to_make=room.phase != "open" and artifact is None and not state.closed,
         artifact=_made(artifact) if artifact else None,
         closing=_closing_of(state),
@@ -2652,7 +2677,7 @@ class RevueEncounter:
             beat=beat_for(state),  # type: ignore[arg-type]
             room=room,
             support=support_view(plan, state),
-            quick_replies=quick_replies(state, room),
+            quick_replies=quick_replies(state, room, unshown=unshown_claims(loaded.dossier, state)),
             steer_to_make=room.phase != "open" and state.current_artifact is None and not state.closed,
             evidence=evidence_view(payload),
         )
@@ -3460,7 +3485,8 @@ class RevueEncounter:
             question_kept = str(artifact.get("text_fr")) if artifact else None
         else:
             question_kept = str(question["text"]) if question else None
-        closing = RvClosing(romy_line_fr=romy_line, dispatch=dispatch, kept=kept, question_kept_fr=question_kept)
+        closing = RvClosing(romy_line_fr=romy_line, dispatch=dispatch, kept=kept, question_kept_fr=question_kept,
+                            colophon_fr=colophon_for(row.week))
         closing.vignette = self._mint_vignette(loaded, kind=kind, kept_contribution=bool(contribution))
         # WP-121 A.0: the kept words enter the learner's SRS, tied to this Papier's place.
         from app.services.revue.carte import keep_papier_words

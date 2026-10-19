@@ -239,7 +239,9 @@ def test_daily_cadence_uses_the_date_as_the_period(db: Session, monkeypatch) -> 
     # One active Papier per *day*: another day is free while this one is open.
     tomorrow = (date.fromisoformat(today) + timedelta(days=1)).isoformat()
     assert revue.start(user, tomorrow).week == tomorrow
-    revue.close(row)
+    _, closing = revue.close(row)
+    assert closing.colophon_fr == "La suite demain.", "a daily Papier comes back tomorrow"
+    assert enc.colophon_for(WEEK) == "La suite la semaine prochaine."
     assert releve_for(db, user).entries[0].period_label.startswith("Semaine ")
 
 
