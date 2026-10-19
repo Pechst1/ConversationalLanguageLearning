@@ -988,6 +988,35 @@ def _clause_before(tokens: list[str], index: int) -> list[str]:
     return before
 
 
+#: Object pronouns that sit between a subject and its verb («je lui ai», «il nous a»).
+_OBJECT_CLITICS = frozenset(
+    {"me", "m", "te", "t", "se", "s", "lui", "leur", "nous", "vous", "le", "la", "l", "les", "moi", "toi"}
+)
+_CLITIC_SUBJECTS = frozenset({"je", "j", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"})
+
+
+def _subject_before_clitics(before: list[str]) -> str | None:
+    """«Je lui a», «il nous ont», «je vous est»: the pronoun right before the verb is
+    its object, and the subject stands in front of it. Returns that subject's person,
+    ``""`` when the subject pronoun is there but its person cannot be told («Marie et
+    elle lui…»), or ``None`` when the words before the verb are not object clitics
+    after a subject pronoun (then the caller reads them as usual: «nous sommes»,
+    «Marie et moi suis»)."""
+
+    index = len(before) - 1
+    skipped = 0
+    while index >= 0 and (before[index] in _OBJECT_CLITICS or before[index] in _BETWEEN):
+        if before[index] in _OBJECT_CLITICS:
+            skipped += 1
+        index -= 1
+        if index >= 0 and before[index] in _CLITIC_SUBJECTS and skipped:
+            subject = before[index]
+            if subject == "elle" and index > 0 and before[index - 1] == "et":
+                return ""
+            return "3sg" if subject == "elle" else _SUBJECT_PRONOUNS[subject]
+    return None
+
+
 def _subject_person(before: list[str]) -> str | None:
     """Who the subject right before a verb is («1sg», «3pl»…), or ``None`` when the
     sentence does not say (a noun phrase it cannot read, a coordination of unknown
@@ -998,6 +1027,9 @@ def _subject_person(before: list[str]) -> str | None:
         before.pop()
     if not before:
         return None
+    clitic_subject = _subject_before_clitics(before)
+    if clitic_subject is not None:
+        return clitic_subject or None
     word, rest = before[-1], before[:-1]
     if word in _SUBJECT_PRONOUNS:
         return _SUBJECT_PRONOUNS[word]

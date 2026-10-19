@@ -99,10 +99,26 @@ def test_span_absent():
         ("Je ne suis pas content.", "suis", "es"),
         # a new clause after «et»: its subject is «ma grand-mère», not the «je» before
         ("Je suis triste et ma grand-mère est morte.", "est", "es"),
+        # an object pronoun before the verb: the subject is the one in front of it
+        ("Je lui ai donné un cadeau.", "ai", "a"),
+        ("Il nous a donné le livre.", "a", "avons"),
+        ("Nous nous sommes vus.", "sommes", "est"),
         # a replacement for another person than the subject in front of it
         ("Mes parents est ici.", "est", "es"),
     ],
-    ids=["noun-sg", "noun-pl", "elle", "je", "nous", "ne", "new-clause", "wrong-person"],
+    ids=[
+        "noun-sg",
+        "noun-pl",
+        "elle",
+        "je",
+        "nous",
+        "ne",
+        "new-clause",
+        "je-lui-ai",
+        "il-nous-a",
+        "nous-nous",
+        "wrong-person",
+    ],
 )
 def test_right_form(text, span, fix):
     """A form already right for its subject is never corrected."""
@@ -125,8 +141,32 @@ def test_right_form(text, span, fix):
         ("Nous suis contents.", "suis", "sommes"),
         ("Je veux une café.", "une café", "un café"),
         ("Je suis allé au marché hier, et tu a faim ?", "a", "as"),
+        # #220 review: an object pronoun before the verb is not its subject
+        ("Je lui a donné un cadeau.", "a", "ai"),
+        ("Je lui est donné un cadeau.", "est", "ai"),
+        ("Je vous est vu hier.", "est", "ai"),
+        ("Il nous ont donné le livre.", "ont", "a"),
+        ("Il vous ont parlé.", "ont", "a"),
+        ("Je ne lui a pas parlé.", "a", "ai"),
     ],
-    ids=["x-et-moi", "x-et-moi-pl", "tu-et-moi", "toi", "x-et-y", "noun-pl", "tu", "nous", "article", "tu-a"],
+    ids=[
+        "x-et-moi",
+        "x-et-moi-pl",
+        "tu-et-moi",
+        "toi",
+        "x-et-y",
+        "noun-pl",
+        "tu",
+        "nous",
+        "article",
+        "tu-a",
+        "je-lui-a",
+        "je-lui-est",
+        "je-vous-est",
+        "il-nous-ont",
+        "il-vous-ont",
+        "je-ne-lui-a",
+    ],
 )
 def test_real_fix(text, span, fix):
     """A genuine correction survives whatever the subject is."""
