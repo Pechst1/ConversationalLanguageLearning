@@ -329,7 +329,7 @@ function JourneyTodayBody({
               scenario.location_name,
             ) || copy.today_eyebrow
           }
-          title={headlineTitle(headline, scenario.title_fr)}
+          title={cardTitle(headline, scenario.title_fr)}
           lang="fr"
           headline={headline}
           controlLanguage={controlLanguage}
@@ -392,7 +392,7 @@ function JourneyTodayBody({
             joinMeta(headlineKicker(headline), gentle, longer, scenario.location_name) ||
             copy.today_eyebrow
           }
-          title={headlineTitle(headline, scenario.title_fr)}
+          title={cardTitle(headline, scenario.title_fr)}
           lang="fr"
           headline={headline}
           controlLanguage={controlLanguage}
@@ -616,6 +616,17 @@ function Card({
   );
 }
 
+/**
+ * The card's headline. A generated day has no title until it is written, and
+ * yesterday's whole «À suivre…» then stood in at headline size (owner,
+ * 2026-10-19: far too big). It is cut to its heart, as the teaser line is.
+ */
+function cardTitle(headline: Headline | null | undefined, fallback: string): string {
+  const title = headlineTitle(headline, fallback);
+  if (title === fallback || String(headline?.title_fr || '').trim()) return title;
+  return teaserHint(title) || title;
+}
+
 /** Where today's scene happens and who is on its page, for the drawn card art. */
 type CardScene = { place: VignettePlace; cast: StageMember[] };
 
@@ -686,7 +697,8 @@ function HeadlineCast({
 }) {
   // Owner, 2026-10-18: a few words, never a paragraph, on Home.
   const teaser = teaserHint(headlineTeaser(headline, title));
-  const showTeaser = Boolean(teaser);
+  // A title cut from the teaser is not printed again under itself.
+  const showTeaser = Boolean(teaser) && teaser !== title;
   const cast = faces ? headline.cast || [] : [];
   if (!showTeaser && !cast.length) return null;
   return (
