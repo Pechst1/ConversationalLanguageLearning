@@ -92,6 +92,29 @@ export function settleShownCorrection(
   };
 }
 
+/** Where the repair step of an item stands. `none`: the item has no repair. */
+export type RepairStep = 'none' | 'open' | 'right' | 'revealed';
+
+/**
+ * The one verdict of an item that has a repair step (#213).
+ *
+ * Live walk 2026-10-18: «Needs fixing» was the right call, the repair was built
+ * wrong, and the card said «Not quite. The right sentence: …» above «Well
+ * done!». The footer's verdict was built from the item's judgement alone and the
+ * card's from the repair. Feedback is built from the part the learner got wrong,
+ * so there is one verdict and it follows the last step that was taken:
+ *
+ *   * a wrong judgement is wrong, whatever the repair does;
+ *   * a right judgement waits while the repair is open (`open`: no verdict yet,
+ *     so nothing is shown that could be reversed), then takes the repair's result
+ *     (`right`, or `revealed`: the right sentence was shown instead).
+ */
+export function itemVerdict({ judgedRight, repair }: { judgedRight: boolean; repair: RepairStep }): 'right' | 'wrong' | 'open' {
+  if (!judgedRight) return 'wrong';
+  if (repair === 'none' || repair === 'right') return 'right';
+  return repair === 'open' ? 'open' : 'wrong';
+}
+
 /** Whether the answer shown now is a verdict (`right`, `settled`) or a wait. */
 export function showsVerdict(phase: ProductionPhase): boolean {
   return phase === 'right' || phase === 'settled';

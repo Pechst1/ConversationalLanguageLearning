@@ -168,14 +168,33 @@ test('T8 · «Passer» shows the corrected sentence', () => {
   assert.ok(!html.includes('>Skip<'));
 });
 
-test('T8 · a wrong try shows the right one, a right try says so — either way the sentence is seen', () => {
+test('T8 · a wrong try shows the right one, a right try shows it too — either way the sentence is seen', () => {
   const wrong = followUp('en', FIELD, draft({ text: 'Lila cherche un poster', outcome: 'revealed' }));
-  assert.ok(wrong.includes('Not quite'));
   assert.ok(wrong.includes(CORRECTED));
   const right = followUp('en', FIELD, draft({ text: 'lila cherche un grand poster', outcome: 'right' }));
-  assert.ok(right.includes('That is the right sentence'));
   assert.ok(right.includes(CORRECTED));
   assert.match(right, /data-outcome="right"/);
+});
+
+test('#213 · the repair card carries no verdict of its own: the footer has the one', () => {
+  for (const state of [
+    draft({ text: 'Lila cherche un poster', outcome: 'revealed' }),
+    draft({ text: 'lila cherche un grand poster', outcome: 'right' }),
+    draft({ outcome: 'revealed', skipped: true }),
+  ]) {
+    const html = followUp('en', FIELD, state);
+    for (const word of ['Not quite', 'That is the right sentence', 'Well done']) {
+      assert.ok(!html.includes(word), `the card says «${word}» next to the footer's verdict`);
+    }
+    assert.ok(html.includes('The right sentence'), 'a plain label for the sentence');
+  }
+});
+
+test('#213 · the page gives a right judgement the repair’s verdict, and holds it while the repair is open', () => {
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages', 'atelier.tsx'), 'utf8');
+  assert.match(page, /itemVerdict\(\{ judgedRight: feedback\.correct, repair:/);
+  // «Well done!» sits only on the verdict that says right.
+  assert.match(page, /verdict === 'right'/);
 });
 
 test('T8 · without a follow-up the corrected sentence is a plain «La bonne phrase» line', () => {
@@ -189,7 +208,9 @@ test('T8 · without a follow-up the corrected sentence is a plain «La bonne phr
 test('T8 · the page gates «Continue» on the follow-up, and never on a payload without one', () => {
   const page = fs.readFileSync(path.join(WEB_ROOT, 'pages', 'atelier.tsx'), 'utf8');
   assert.match(page, /const followGate = Boolean\(repairOf\.followUp\) && followDraft\.outcome === null;/);
-  assert.match(page, /\{!followGate && <EpBar icon="check" onClick=\{onNext\}>\{nextLabel\}<\/EpBar>\}/);
+  // A right judgement shows no footer, hence no «Continue», while its repair is open (#213).
+  assert.match(page, /\{verdict === 'right' && \(\s*<EpFoot tone="correct">/);
+  assert.match(page, /\(!followGate && <EpBar icon="check" onClick=\{onNext\}>\{nextLabel\}<\/EpBar>\)/, 'a wrong judgement is gated too');
   assert.match(page, /classifyRepair\(classifyItem, correction\)/);
   assert.match(page, /<ForgeCorrectedLine fr=\{repairOf\.correctedFr\} \/>/);
   // The gate is per exercise, so a return finds the draft where it was left.
@@ -199,7 +220,7 @@ test('T8 · the page gates «Continue» on the follow-up, and never on a payload
 test('WP-103 · every new Épreuve key exists in en, de and fr', () => {
   const keys = [
     'from_scene', 'reading', 'follow_title', 'follow_wrong_label', 'follow_placeholder',
-    'follow_skip', 'follow_right', 'follow_not_quite', 'corrected_sentence',
+    'follow_skip', 'corrected_sentence',
   ];
   for (const language of ['en', 'de', 'fr']) {
     const table = epreuveCopy(language);
