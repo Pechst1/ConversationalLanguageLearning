@@ -6,6 +6,8 @@
  * close mints (WP-120, `closing.vignette`).
  * WP-119 §8.4 (the story's own picture): `stage.plate_kind` / `picture_words`, Romy's
  * `look` line, the `caption` make («La légende») and the dispatch's picture and caption.
+ * «Au comptoir» (WIRE §9, owner 2026-10-19): the session's `mode` and `comptoir` view,
+ * the act route's result, «La page» on the close, the story card's question of the day.
  *
  * The server speaks `snake_case` (docs/implementation/atelier-v2/WP-119-WIRE.md,
  * app/schemas/revue.py); the components read `camelCase`. Every response goes
@@ -26,6 +28,9 @@ export type RvBeat = 'arrive' | 'facts' | 'pursue' | 'make' | 'close';
 export type RvRoomPhase = 'open' | 'bouclage' | 'boucle';
 export type RvMakeKind = 'headline_choice' | 'headline_write' | 'reader_question' | 'short_report' | 'caption';
 export const RV_MAKE_KINDS = ['headline_choice', 'headline_write', 'reader_question', 'short_report', 'caption'] as const;
+/** What a session files: a make, or `opinion` («Au comptoir»: the learner's quote in Romy's vox pop, never offered as a make). */
+export type RvMadeKind = RvMakeKind | 'opinion';
+export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion'] as const;
 export type RvLanguage = 'en' | 'de' | 'fr';
 export type RvPurpose = 'understand_change' | 'explain_disagreement' | 'choose_angle' | 'prepare_dispatch';
 /** `look` (§8.4): on arrival, Romy points at the story's picture with the words it shows. */
@@ -80,6 +85,9 @@ export type RvStoryCard = {
   plateUrl: string | null;
   evergreen: boolean;
   stage: RvStage;
+  /** «Au comptoir»: the question of the day and the three regulars (seat order); null with the switch off. */
+  questionFr: string | null;
+  cast: string[] | null;
 };
 export type RvSupport = {
   glosses: 'shown' | 'tap' | 'none';
@@ -89,7 +97,7 @@ export type RvSupport = {
   level: number;
 };
 export type RvRoom = { used: number; phase: RvRoomPhase; remainingTurns: number };
-export type RvMade = { kind: RvMakeKind; textFr: string; contribution: RvSpan[]; learnerFr: string | null };
+export type RvMade = { kind: RvMadeKind; textFr: string; contribution: RvSpan[]; learnerFr: string | null };
 export type RvDispatch = {
   kickerFr: string;
   headlineFr: string;
@@ -225,6 +233,8 @@ export type RvClosing = {
   colophonFr: string;
   /** WP-120: the vignette the close minted; null when the server sent none (the close shows no stamp). */
   vignette: RvVignetteView | null;
+  /** «Au comptoir»: «La page»; null for a chat session. */
+  comptoirPage: RvComptoirPage | null;
 };
 export type RvSessionView = {
   id: string;
@@ -242,6 +252,9 @@ export type RvSessionView = {
   steerToMake: boolean;
   artifact: RvMade | null;
   closing: RvClosing | null;
+  /** «Au comptoir»: fixed at the start for the session's life; `chat` with the switch off. */
+  mode: 'chat' | 'comptoir';
+  comptoir: RvComptoirView | null;
 };
 export type RvWordEvidence = { fr: string; outcome: RvOutcome; capabilityKnown: boolean };
 /** WIRE §6.3 · the Papier rubric (`revue-rubric-v1`). */
@@ -358,6 +371,10 @@ export type RvErrorCode =
   | 'revue_session_closed'
   | 'revue_make_unavailable'
   | 'revue_unknown_option'
+  | 'revue_not_comptoir'
+  | 'revue_comptoir_session'
+  | 'revue_comptoir_out_of_order'
+  | 'revue_comptoir_bad_act'
   | 'unauthorized'
   | 'validation'
   | 'rate_limited'
@@ -396,6 +413,10 @@ export function parseRevueError(status: number, data: unknown): RevueError {
       'revue_session_closed',
       'revue_make_unavailable',
       'revue_unknown_option',
+      'revue_not_comptoir',
+      'revue_comptoir_session',
+      'revue_comptoir_out_of_order',
+      'revue_comptoir_bad_act',
       'rate_limited',
     ];
     if ((known as string[]).includes(code)) {
@@ -503,6 +524,8 @@ export function parseStoryCard(raw: Json): RvStoryCard {
     plateUrl: strOrNull(raw.plate_url),
     evergreen: Boolean(raw.evergreen),
     stage: parseStage(isObject(raw.stage) ? raw.stage : {}),
+    questionFr: strOrNull(raw.question_fr) || null,
+    cast: Array.isArray(raw.cast) ? raw.cast.filter((id: unknown): id is string => typeof id === 'string') : null,
   };
 }
 
@@ -530,7 +553,7 @@ const MAKE_KINDS = RV_MAKE_KINDS;
 
 export function parseMade(raw: Json): RvMade {
   return {
-    kind: oneOf(raw.kind, MAKE_KINDS, 'headline_choice'),
+    kind: oneOf(raw.kind, RV_MADE_KINDS, 'headline_choice'),
     textFr: str(raw.text_fr),
     contribution: spans(raw.contribution),
     learnerFr: strOrNull(raw.learner_fr),
@@ -695,6 +718,7 @@ export function parseClosing(raw: Json): RvClosing {
     questionKeptFr: strOrNull(raw.question_kept_fr),
     colophonFr: str(raw.colophon_fr) || 'La suite la semaine prochaine.',
     vignette: isObject(raw.vignette) ? parseVignette(raw.vignette) : null,
+    comptoirPage: isObject(raw.comptoir_page) ? parseComptoirPage(raw.comptoir_page) : null,
   };
 }
 
@@ -744,6 +768,9 @@ export function parseSessionView(raw: Json): RvSessionView {
     steerToMake: Boolean(raw.steer_to_make),
     artifact: isObject(raw.artifact) ? parseMade(raw.artifact) : null,
     closing: isObject(raw.closing) ? parseClosing(raw.closing) : null,
+    // A comptoir session without its view is drawn as a chat: never a player with nothing to show.
+    mode: raw.mode === 'comptoir' && isObject(raw.comptoir) ? 'comptoir' : 'chat',
+    comptoir: raw.mode === 'comptoir' && isObject(raw.comptoir) ? parseComptoirView(raw.comptoir) : null,
   };
 }
 
@@ -937,4 +964,233 @@ export function parseVignette(raw: Json): RvVignetteView {
 
 export function parseVignettes(raw: Json): RvVignetteView[] {
   return list(raw.vignettes, parseVignette);
+}
+
+// ---------------------------------------------------------------------------
+// «Au comptoir» (WIRE §9, owner 2026-10-19)
+// ---------------------------------------------------------------------------
+
+export type RvComptoirStep = 'read' | 'takes' | 'intox' | 'opinion' | 'page';
+export type RvStance = 'pour' | 'contre' | 'nuance';
+export const RV_COMPTOIR_STEPS = ['read', 'takes', 'intox', 'opinion', 'page'] as const;
+export const RV_STANCES = ['pour', 'contre', 'nuance'] as const;
+/** A line and its translation in the learner's gloss language (null for French). */
+export type RvComptoirText = { fr: string; tr: string | null };
+export type RvComptoirCast = {
+  id: string;
+  nameFr: string;
+  roleFr: string;
+  stance: RvStance;
+  /** The take at the learner's band. */
+  take: RvComptoirText;
+  reaction: 'agree' | 'disagree' | null;
+};
+export type RvComptoirQuote = { castId: string; nameFr: string; roleFr: string; stance: RvStance; quoteFr: string };
+export type RvComptoirFix = {
+  correct: boolean;
+  answerFr: string;
+  /** The right sentence, always: «C'est faux, Gus ! C'est six jours sur sept, pas sept jours sur sept.» */
+  lineFr: string;
+  wrongFr: string;
+  rightFr: string;
+  claim: RvClaim | null;
+  caught: RvComptoirText;
+};
+/** Step 3. `by`, the options and the prefill are absent until the liar is named (or two tries are used). */
+export type RvComptoirIntox = {
+  quotes: RvComptoirQuote[];
+  tries: string[];
+  resolved: boolean;
+  found: boolean | null;
+  by: string | null;
+  hintClaim: RvClaim | null;
+  ask: RvComptoirText | null;
+  options: string[];
+  prefillFr: string | null;
+  fix: RvComptoirFix | null;
+};
+export type RvComptoirKit = {
+  input: 'tiles' | 'frame' | 'free';
+  phrase: RvComptoirText;
+  reasons: Record<RvStance, RvComptoirText[]>;
+  frames: Record<RvStance, RvComptoirText>;
+  bank: RvComptoirText[];
+  /** Who answers a learner on each side (B1: «Réponds à …»). */
+  opponents: Record<RvStance, string>;
+};
+export type RvComptoirNote = { spanFr: string; why: string };
+export type RvComptoirComeback = { textFr: string; index: number | null; lastWord: RvComptoirText };
+export type RvComptoirOpinion = {
+  stance: RvStance;
+  learnerFr: string;
+  /** Romy's edit (the learner's own sentence when the edit failed its checks). */
+  editedFr: string;
+  notes: RvComptoirNote[];
+  reply: { by: string; nameFr: string; line: RvComptoirText };
+  /** A1–A2: the three comeback chips; empty from B1 (one free line). */
+  comebacks: RvComptoirText[];
+  comeback: RvComptoirComeback | null;
+};
+export type RvComptoirView = {
+  step: RvComptoirStep;
+  /** The dots: five, or four when the band has no intox. */
+  steps: RvComptoirStep[];
+  band: 'a1' | 'a2' | 'b1';
+  question: RvComptoirText;
+  read: { datelineFr: string; lead: RvComptoirText; sources: RvSource[] };
+  cast: RvComptoirCast[];
+  hasIntox: boolean;
+  vote: RvStance | null;
+  intox: RvComptoirIntox | null;
+  kit: RvComptoirKit | null;
+  opinion: RvComptoirOpinion | null;
+};
+export type RvComptoirVotes = Record<RvStance, number>;
+export type RvComptoirPage = {
+  questionFr: string;
+  datelineFr: string;
+  standfirstFr: string;
+  quotes: RvComptoirQuote[];
+  mine: RvComptoirQuote;
+  votes: RvComptoirVotes;
+  intox: { by: string; nameFr: string; wrongFr: string; rightFr: string; sourceName: string } | null;
+  phraseFr: string;
+  words: string[];
+};
+/** `errorFr`: why an act the learner can fix was not recorded, said on the same screen. */
+export type RvComptoirResult = { session: RvSessionView; errorFr: string | null };
+export type RvComptoirBody =
+  | { act: 'vote'; value: RvStance }
+  | { act: 'react'; guestId: string; value: 'agree' | 'disagree' }
+  | { act: 'intox_who'; guestId: string }
+  | { act: 'intox_fix'; value: string }
+  | { act: 'intox_fix'; text: string }
+  | { act: 'opinion'; value: RvStance; reasonIndex: number }
+  | { act: 'opinion'; value: RvStance; text: string; mode?: 'text' | 'voice' }
+  | { act: 'comeback'; index: number }
+  | { act: 'comeback'; text: string; mode?: 'text' | 'voice' };
+
+function stanceOf(value: unknown): RvStance {
+  return oneOf(value, RV_STANCES, 'nuance');
+}
+function comptoirText(value: unknown): RvComptoirText {
+  const row = isObject(value) ? value : {};
+  return { fr: str(row.fr), tr: strOrNull(row.tr) || null };
+}
+function byStance<T>(value: unknown, parse: (row: unknown) => T): Record<RvStance, T> {
+  const row = isObject(value) ? value : {};
+  return { pour: parse(row.pour), contre: parse(row.contre), nuance: parse(row.nuance) };
+}
+function parseComptoirQuote(raw: Json): RvComptoirQuote {
+  return { castId: str(raw.cast_id), nameFr: str(raw.name_fr), roleFr: str(raw.role_fr), stance: stanceOf(raw.stance), quoteFr: str(raw.quote_fr) };
+}
+
+export function parseComptoirView(raw: Json): RvComptoirView {
+  const read = isObject(raw.read) ? raw.read : {};
+  const intox = isObject(raw.intox) ? raw.intox : null;
+  const fix = intox && isObject(intox.fix) ? intox.fix : null;
+  const kit = isObject(raw.kit) ? raw.kit : null;
+  const opinion = isObject(raw.opinion) ? raw.opinion : null;
+  const reply = opinion && isObject(opinion.reply) ? opinion.reply : {};
+  const comeback = opinion && isObject(opinion.comeback) ? opinion.comeback : null;
+  const steps = Array.isArray(raw.steps)
+    ? raw.steps.filter((step: unknown): step is RvComptoirStep => (RV_COMPTOIR_STEPS as readonly unknown[]).includes(step))
+    : [];
+  return {
+    step: oneOf(raw.step, RV_COMPTOIR_STEPS, 'read'),
+    steps: steps.length ? steps : [...RV_COMPTOIR_STEPS],
+    band: oneOf(raw.band, ['a1', 'a2', 'b1'] as const, 'a2'),
+    question: comptoirText(raw.question),
+    read: { datelineFr: str(read.dateline_fr), lead: comptoirText(read.lead), sources: list(read.sources, parseSource) },
+    cast: list(raw.cast, (row) => ({
+      id: str(row.id),
+      nameFr: str(row.name_fr),
+      roleFr: str(row.role_fr),
+      stance: stanceOf(row.stance),
+      take: comptoirText(row.take),
+      reaction: row.reaction === 'agree' || row.reaction === 'disagree' ? row.reaction : null,
+    })),
+    hasIntox: Boolean(raw.has_intox),
+    vote: raw.vote == null ? null : stanceOf(raw.vote),
+    intox: intox
+      ? {
+          quotes: list(intox.quotes, parseComptoirQuote),
+          tries: Array.isArray(intox.tries) ? intox.tries.map(str) : [],
+          resolved: Boolean(intox.resolved),
+          found: typeof intox.found === 'boolean' ? intox.found : null,
+          by: strOrNull(intox.by) || null,
+          hintClaim: isObject(intox.hint_claim) ? parseClaim(intox.hint_claim) : null,
+          ask: isObject(intox.ask) ? comptoirText(intox.ask) : null,
+          options: Array.isArray(intox.options) ? intox.options.map(str).filter(Boolean) : [],
+          prefillFr: strOrNull(intox.prefill_fr) || null,
+          fix: fix
+            ? {
+                correct: Boolean(fix.correct),
+                answerFr: str(fix.answer_fr),
+                lineFr: str(fix.line_fr),
+                wrongFr: str(fix.wrong_fr),
+                rightFr: str(fix.right_fr),
+                claim: isObject(fix.claim) ? parseClaim(fix.claim) : null,
+                caught: comptoirText(fix.caught),
+              }
+            : null,
+        }
+      : null,
+    kit: kit
+      ? {
+          input: oneOf(kit.input, ['tiles', 'frame', 'free'] as const, 'frame'),
+          phrase: comptoirText(kit.phrase),
+          reasons: byStance(kit.reasons, (rows) => (Array.isArray(rows) ? rows.filter(isObject).map(comptoirText) : [])),
+          frames: byStance(kit.frames, comptoirText),
+          bank: Array.isArray(kit.bank) ? kit.bank.filter(isObject).map(comptoirText) : [],
+          opponents: byStance(kit.opponents, str),
+        }
+      : null,
+    opinion: opinion
+      ? {
+          stance: stanceOf(opinion.stance),
+          learnerFr: str(opinion.learner_fr),
+          editedFr: str(opinion.edited_fr) || str(opinion.learner_fr),
+          notes: list(opinion.notes, (row) => ({ spanFr: str(row.span_fr), why: str(row.why) })).filter((note) => note.spanFr && note.why),
+          reply: { by: str(reply.by), nameFr: str(reply.name_fr), line: comptoirText(reply.line) },
+          comebacks: Array.isArray(opinion.comebacks) ? opinion.comebacks.filter(isObject).map(comptoirText) : [],
+          comeback: comeback
+            ? { textFr: str(comeback.text_fr), index: typeof comeback.index === 'number' ? comeback.index : null, lastWord: comptoirText(comeback.last_word) }
+            : null,
+        }
+      : null,
+  };
+}
+
+export function parseComptoirPage(raw: Json): RvComptoirPage {
+  const votes = isObject(raw.votes) ? raw.votes : {};
+  const intox = isObject(raw.intox) ? raw.intox : null;
+  return {
+    questionFr: str(raw.question_fr),
+    datelineFr: str(raw.dateline_fr),
+    standfirstFr: str(raw.standfirst_fr),
+    quotes: list(raw.quotes, parseComptoirQuote),
+    mine: parseComptoirQuote(isObject(raw.mine) ? raw.mine : {}),
+    votes: { pour: num(votes.pour), contre: num(votes.contre), nuance: num(votes.nuance) },
+    intox: intox
+      ? { by: str(intox.by), nameFr: str(intox.name_fr), wrongFr: str(intox.wrong_fr), rightFr: str(intox.right_fr), sourceName: str(intox.source_name) }
+      : null,
+    phraseFr: str(raw.phrase_fr),
+    words: Array.isArray(raw.words) ? raw.words.map(str).filter(Boolean) : [],
+  };
+}
+
+export function parseComptoirResult(raw: Json): RvComptoirResult {
+  return { session: parseSessionView(isObject(raw.session) ? raw.session : {}), errorFr: strOrNull(raw.error_fr) || null };
+}
+
+export function comptoirBodyWire(body: RvComptoirBody): Json {
+  const wire: Json = { act: body.act };
+  if ('guestId' in body) wire.guest_id = body.guestId;
+  if ('value' in body) wire.value = body.value;
+  if ('text' in body) wire.text = body.text;
+  if ('reasonIndex' in body) wire.reason_index = body.reasonIndex;
+  if ('index' in body) wire.index = body.index;
+  if ('mode' in body && body.mode) wire.mode = body.mode;
+  return wire;
 }

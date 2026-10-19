@@ -3536,6 +3536,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/sessions/{session_id}/comptoir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Comptoir
+         * @description «Au comptoir»: one act of the learner's loop (vote, react, intox_who, intox_fix,
+         *     opinion, comeback). 409 ``revue_not_comptoir`` on a chat session, 409
+         *     ``revue_comptoir_out_of_order`` (with the current ``step``) for an act out of order; an
+         *     act that repeats one already recorded returns the session as it is.
+         */
+        post: operations["post_comptoir_api_v1_revue_sessions__session_id__comptoir_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/sessions/{session_id}/make": {
         parameters: {
             query?: never;
@@ -11504,6 +11527,7 @@ export interface components {
              * @enum {string}
              */
             colophon_fr?: "La suite la semaine prochaine." | "La suite demain.";
+            comptoir_page?: components["schemas"]["RvComptoirPage"] | null;
             dispatch: components["schemas"]["RvDispatch"];
             kept: components["schemas"]["RvKept"];
             /** Question Kept Fr */
@@ -11511,6 +11535,262 @@ export interface components {
             /** Romy Line Fr */
             romy_line_fr: string;
             vignette?: components["schemas"]["VignetteView"] | null;
+        };
+        /** RvComptoirCast */
+        RvComptoirCast: {
+            /** Id */
+            id: string;
+            /** Name Fr */
+            name_fr: string;
+            /** Reaction */
+            reaction?: ("agree" | "disagree") | null;
+            /** Role Fr */
+            role_fr: string;
+            /**
+             * Stance
+             * @enum {string}
+             */
+            stance: "pour" | "contre" | "nuance";
+            take: components["schemas"]["RvComptoirText"];
+        };
+        /** RvComptoirComeback */
+        RvComptoirComeback: {
+            /** Index */
+            index?: number | null;
+            last_word: components["schemas"]["RvComptoirText"];
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvComptoirFix */
+        RvComptoirFix: {
+            /** Answer Fr */
+            answer_fr: string;
+            caught: components["schemas"]["RvComptoirText"];
+            claim?: components["schemas"]["RvClaim"] | null;
+            /** Correct */
+            correct: boolean;
+            /** Line Fr */
+            line_fr: string;
+            /** Right Fr */
+            right_fr: string;
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /**
+         * RvComptoirIntox
+         * @description Step 3. Who lied (``by``), the true value and the distractor are absent until the
+         *     learner named the liar or used their two tries.
+         */
+        RvComptoirIntox: {
+            ask?: components["schemas"]["RvComptoirText"] | null;
+            /** By */
+            by?: string | null;
+            fix?: components["schemas"]["RvComptoirFix"] | null;
+            /** Found */
+            found?: boolean | null;
+            hint_claim?: components["schemas"]["RvClaim"] | null;
+            /** Options */
+            options?: string[];
+            /** Prefill Fr */
+            prefill_fr?: string | null;
+            /** Quotes */
+            quotes: components["schemas"]["RvComptoirQuote"][];
+            /** Resolved */
+            resolved: boolean;
+            /** Tries */
+            tries: string[];
+        };
+        /**
+         * RvComptoirKit
+         * @description Step 4's material: A1 tiles, A2 frame and word bank, B1+ free text.
+         */
+        RvComptoirKit: {
+            /** Bank */
+            bank: components["schemas"]["RvComptoirText"][];
+            /** Frames */
+            frames: {
+                [key: string]: components["schemas"]["RvComptoirText"];
+            };
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frame" | "free";
+            /** Opponents */
+            opponents: {
+                [key: string]: string;
+            };
+            phrase: components["schemas"]["RvComptoirText"];
+            /** Reasons */
+            reasons: {
+                [key: string]: components["schemas"]["RvComptoirText"][];
+            };
+        };
+        /** RvComptoirNote */
+        RvComptoirNote: {
+            /** Span Fr */
+            span_fr: string;
+            /** Why */
+            why: string;
+        };
+        /** RvComptoirOpinion */
+        RvComptoirOpinion: {
+            comeback?: components["schemas"]["RvComptoirComeback"] | null;
+            /** Comebacks */
+            comebacks: components["schemas"]["RvComptoirText"][];
+            /** Edited Fr */
+            edited_fr: string;
+            /** Learner Fr */
+            learner_fr: string;
+            /** Notes */
+            notes: components["schemas"]["RvComptoirNote"][];
+            reply: components["schemas"]["RvComptoirReply"];
+            /**
+             * Stance
+             * @enum {string}
+             */
+            stance: "pour" | "contre" | "nuance";
+        };
+        /**
+         * RvComptoirPage
+         * @description «La page»: Romy's vox pop, the learner's quote printed with the regulars'.
+         */
+        RvComptoirPage: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            intox?: components["schemas"]["RvComptoirPageIntox"] | null;
+            mine: components["schemas"]["RvComptoirQuote"];
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Question Fr */
+            question_fr: string;
+            /** Quotes */
+            quotes: components["schemas"]["RvComptoirQuote"][];
+            /** Standfirst Fr */
+            standfirst_fr: string;
+            votes: components["schemas"]["RvComptoirVotes"];
+            /** Words */
+            words: string[];
+        };
+        /** RvComptoirPageIntox */
+        RvComptoirPageIntox: {
+            /** By */
+            by: string;
+            /** Name Fr */
+            name_fr: string;
+            /** Right Fr */
+            right_fr: string;
+            /** Source Name */
+            source_name: string;
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /** RvComptoirQuote */
+        RvComptoirQuote: {
+            /** Cast Id */
+            cast_id: string;
+            /** Name Fr */
+            name_fr: string;
+            /** Quote Fr */
+            quote_fr: string;
+            /** Role Fr */
+            role_fr: string;
+            /**
+             * Stance
+             * @enum {string}
+             */
+            stance: "pour" | "contre" | "nuance";
+        };
+        /** RvComptoirRead */
+        RvComptoirRead: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            lead: components["schemas"]["RvComptoirText"];
+            /** Sources */
+            sources: components["schemas"]["RvSource"][];
+        };
+        /** RvComptoirReply */
+        RvComptoirReply: {
+            /** By */
+            by: string;
+            line: components["schemas"]["RvComptoirText"];
+            /** Name Fr */
+            name_fr: string;
+        };
+        /** RvComptoirRequest */
+        RvComptoirRequest: {
+            /**
+             * Act
+             * @enum {string}
+             */
+            act: "vote" | "react" | "intox_who" | "intox_fix" | "opinion" | "comeback";
+            /** Guest Id */
+            guest_id?: string | null;
+            /** Index */
+            index?: number | null;
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Reason Index */
+            reason_index?: number | null;
+            /** Text */
+            text?: string | null;
+            /** Value */
+            value?: string | null;
+        };
+        /** RvComptoirResult */
+        RvComptoirResult: {
+            /** Error Fr */
+            error_fr?: string | null;
+            session: components["schemas"]["RvSessionView"];
+        };
+        /**
+         * RvComptoirText
+         * @description A line and its translation in the learner's gloss language (``None`` for French).
+         */
+        RvComptoirText: {
+            /** Fr */
+            fr: string;
+            /** Tr */
+            tr?: string | null;
+        };
+        /** RvComptoirView */
+        RvComptoirView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            /** Cast */
+            cast: components["schemas"]["RvComptoirCast"][];
+            /** Has Intox */
+            has_intox: boolean;
+            intox?: components["schemas"]["RvComptoirIntox"] | null;
+            kit?: components["schemas"]["RvComptoirKit"] | null;
+            opinion?: components["schemas"]["RvComptoirOpinion"] | null;
+            question: components["schemas"]["RvComptoirText"];
+            read: components["schemas"]["RvComptoirRead"];
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "takes" | "intox" | "opinion" | "page";
+            /** Steps */
+            steps: ("read" | "takes" | "intox" | "opinion" | "page")[];
+            /** Vote */
+            vote?: ("pour" | "contre" | "nuance") | null;
+        };
+        /** RvComptoirVotes */
+        RvComptoirVotes: {
+            /** Contre */
+            contre: number;
+            /** Nuance */
+            nuance: number;
+            /** Pour */
+            pour: number;
         };
         /** RvDispatch */
         RvDispatch: {
@@ -11789,7 +12069,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption";
+            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion";
             /** Learner Fr */
             learner_fr?: string | null;
             /** Text Fr */
@@ -11819,7 +12099,7 @@ export interface components {
              * Recommended
              * @enum {string}
              */
-            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption";
+            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion";
         };
         /** RvMatchRequest */
         RvMatchRequest: {
@@ -11911,7 +12191,7 @@ export interface components {
              */
             gloss_language: "en" | "de" | "fr";
             /** Make Options */
-            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption")[];
+            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion")[];
             support: components["schemas"]["RvSupport"];
             /**
              * Ui Language
@@ -12046,9 +12326,16 @@ export interface components {
             /** Closed At */
             closed_at?: string | null;
             closing?: components["schemas"]["RvClosing"] | null;
+            comptoir?: components["schemas"]["RvComptoirView"] | null;
             dossier: components["schemas"]["RvDossierView"];
             /** Id */
             id: string;
+            /**
+             * Mode
+             * @default chat
+             * @enum {string}
+             */
+            mode?: "chat" | "comptoir";
             plan: components["schemas"]["RvPlanView"];
             /** Quick Replies */
             quick_replies: components["schemas"]["RvQuickReply"][];
@@ -12199,6 +12486,8 @@ export interface components {
         };
         /** RvStoryCard */
         RvStoryCard: {
+            /** Cast */
+            cast?: string[] | null;
             /** Dossier Id */
             dossier_id: string;
             /** Evergreen */
@@ -12209,6 +12498,8 @@ export interface components {
             place_fr: string;
             /** Plate Url */
             plate_url: string | null;
+            /** Question Fr */
+            question_fr?: string | null;
             stage: components["schemas"]["RvStage"];
             /** Summary Fr */
             summary_fr: string;
@@ -20654,6 +20945,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RvCloseResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_comptoir_api_v1_revue_sessions__session_id__comptoir_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvComptoirRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvComptoirResult"];
                 };
             };
             /** @description Validation Error */
