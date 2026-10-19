@@ -112,6 +112,9 @@ const ACHIEVEMENT_COPY: Record<string, { title: string; note: keyof ReleveCopy }
   session_streak_7: { title: 'Une semaine de suite', note: 'note_session_streak_7' },
   session_streak_30: { title: 'Trente jours de suite', note: 'note_session_streak_30' },
   first_letter: { title: 'Première lettre', note: 'note_first_letter' },
+  helps_10: { title: 'Un coup de main', note: 'note_helps_10' },
+  helps_50: { title: 'L’entraide', note: 'note_helps_50' },
+  helps_100: { title: 'Le cœur sur la main', note: 'note_helps_100' },
   words_kept_50: { title: 'Cinquante mots gardés', note: 'note_words_kept_50' },
   first_chapter: { title: 'Premier chapitre bouclé', note: 'note_first_chapter' },
 };

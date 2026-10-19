@@ -54,6 +54,7 @@ import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 import { epreuveCopy, fill, type EpreuveCopy } from './epreuve-copy';
+import { gapIsFixed, type RepairPart } from '@/lib/repair-parts';
 
 type Node = React.ReactNode;
 
@@ -706,6 +707,78 @@ export function EpRepair({
   );
 }
 
+/* Owner, 2026-10-19: a long line is repaired where it is wrong. The learner's
+   own line stays as written; each wrong stretch is a small field holding what
+   they wrote, to fix in place. The whole line is checked as one. */
+export function EpPartsRepair({
+  parts,
+  typed,
+  status,
+  onChange,
+  onSubmit,
+  submitting,
+}: {
+  parts: RepairPart[];
+  typed: Record<number, string>;
+  status?: 'ok' | 'no' | null;
+  onChange?: (typed: Record<number, string>) => void;
+  onSubmit?: () => void;
+  submitting?: boolean;
+}) {
+  const t = useEpCopy();
+  const done = status === 'ok';
+  return (
+    <Surface className="ep-repair ep-repair--parts" data-status={status || undefined}>
+      <p className="av2-field__label">{t.repair_parts_label}</p>
+      <p className="ep-parts" lang="fr">
+        {parts.map((part, index) => {
+          if ('text' in part) return <span key={index}>{part.text}</span>;
+          const value = typed[index] ?? (done ? part.fix : part.wrong);
+          const wrong = status === 'no' && !gapIsFixed(value, part.fix);
+          return (
+            <input
+              key={index}
+              className="ep-parts__gap"
+              data-state={wrong ? 'wrong' : undefined}
+              value={value}
+              size={Math.max(value.length, part.fix.length, 2) + 1}
+              onChange={(event) => onChange?.({ ...typed, [index]: event.target.value })}
+              aria-label={`${t.repair_parts_gap} ${part.wrong}`}
+              aria-invalid={wrong || undefined}
+              disabled={done || !onChange}
+              autoCapitalize="off"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          );
+        })}
+      </p>
+      {onSubmit && !done && (
+        <button
+          type="button"
+          className="av2-btn av2-btn--secondary av2-btn--inline ep-repair__submit"
+          onClick={onSubmit}
+          disabled={submitting || Object.keys(typed).length === 0}
+          aria-busy={submitting || undefined}
+        >
+          {submitting ? t.repair_submitting : t.repair_submit}
+        </button>
+      )}
+      {done && (
+        <Notice tone="quiet" shape="done">
+          <p>{t.repair_ok}</p>
+        </Notice>
+      )}
+      {status === 'no' && (
+        <Notice tone="alert" live="alert" shape="action">
+          <p>{t.repair_parts_no}</p>
+        </Notice>
+      )}
+    </Surface>
+  );
+}
+
 /* ---------- écouter + shadowing ---------- */
 export function EpListen({ fr, disabled, playing, onPlay }: { fr: Node; disabled?: boolean; playing?: boolean; onPlay?: () => void }) {
   const t = useEpCopy();
@@ -1350,6 +1423,11 @@ export function LEpreuveStyles() {
 .av2 .ep-repair__ghost { color: var(--av2-muted); }
 .av2 .ep-repair__submit { align-self: flex-start; }
 .av2 .ep-repair .av2-notice { padding: 8px 12px; }
+.av2 .ep-parts { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.9; }
+.av2 .ep-parts__gap { font: inherit; color: var(--av2-red); background: transparent; border: 0; border-bottom: 2px solid currentColor; border-radius: 0; padding: 0 2px; margin: 0 1px; min-height: var(--av2-tap); width: auto; max-width: 100%; }
+.av2 .ep-parts__gap:focus { outline: none; color: var(--av2-ink); border-bottom-color: var(--av2-blue); }
+.av2 .ep-parts__gap:disabled { color: var(--av2-ink); border-bottom-color: transparent; }
+.av2 .ep-parts__gap[data-state="wrong"] { color: var(--av2-red-deep); text-decoration: underline wavy var(--av2-red); }
 
 /* ============================================================
    LISTEN · RECORD

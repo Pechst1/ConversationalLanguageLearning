@@ -49,3 +49,15 @@ assert.equal(seanceAssessment({ verdict: 'incorrect', assessment_status: 'checke
   assert.equal(secondCheckChange({ verdict: 'accepted', second_check: { status: 'complete', verdict_changed: true, verdict: 'accepted' } }), 'better');
   console.log('Séance run and second-check checks passed');
 }
+
+// Owner, 2026-10-19: a rule check («Regelprüfung») whose free answer the rule's
+// detector passed on the spot read as «Die zweite Prüfung brach ab».
+{
+  const testOut = {
+    verdict: 'correct', score_0_4: 4, errata: [], assessment_status: 'checked', graded_by: 'local_test_out',
+    corrected_answer: 'Ils ont envoyé un message à Romy le dernier samedi.',
+    correction_debug: { fallback_used: true }, ai_review: { status: 'not_applicable' },
+  };
+  assert.equal(seanceAssessment(testOut), 'correct');
+  assert.equal(seanceAssessment({ ...testOut, verdict: 'incorrect' }), 'needs_work');
+}

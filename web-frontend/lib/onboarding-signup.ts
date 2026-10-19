@@ -52,6 +52,15 @@ export function afterSignUpDestination(sanitizedCallback: string | null | undefi
   return sanitizedCallback;
 }
 
+/**
+ * Ton personnage: a new account makes its own character before anything else (owner,
+ * 2026-10-18), then goes on to the landing above. The editor in this mode has no way out but
+ * making one; a roll of the dice is already on the stage, so it takes one tap.
+ */
+export function characterFirst(landing: string): string {
+  return `/personnage?first=1&next=${encodeURIComponent(landing)}`;
+}
+
 export type SignUpForm = {
   email: string;
   password: string;
@@ -87,7 +96,11 @@ export type SignUpErrorKey =
   | 'password_required'
   | 'password_short'
   | 'password_long'
-  | 'starting_point_required';
+  | 'starting_point_required'
+  /* #215: what the server refused after our own checks passed. */
+  | 'email_rejected'
+  | 'email_taken'
+  | 'password_rejected';
 
 export type SignUpErrors = Partial<Record<'email' | 'password' | 'startingPoint', SignUpErrorKey>>;
 
@@ -112,6 +125,38 @@ export function validateSignUp(form: SignUpForm): SignUpErrors {
 
   if (!form.startingPoint) errors.startingPoint = 'starting_point_required';
   return errors;
+}
+
+export type SignUpFailure = {
+  /** Field errors, in the page's own words (`copy.errors[code]`) under the field. */
+  errors: SignUpErrors;
+  /** A line for the whole form when no field is to blame; null when a field says it. */
+  notice: string | null;
+};
+
+/**
+ * #215: a refusal from the server, turned into the page's own words. The
+ * server's text (`detail`, `msg`, the `loc` path) is English and written for a
+ * developer; it never reaches the learner. A 422 names the field in `loc`, so
+ * the matching field gets its localized message; anything we cannot place is
+ * the page's general «failed» line, once.
+ */
+export function signUpFailure(error: unknown, copy: SignUpCopy): SignUpFailure {
+  const response = (error as { response?: { status?: number; data?: { detail?: unknown } } } | null)?.response;
+  const status = response?.status;
+  if (status === 403) return { errors: {}, notice: copy.invite_only };
+  if (status === 400) return { errors: { email: 'email_taken' }, notice: null };
+  if (status === 422) {
+    const detail = response?.data?.detail;
+    const errors: SignUpErrors = {};
+    for (const item of Array.isArray(detail) ? detail : []) {
+      const loc: unknown[] = Array.isArray(item?.loc) ? item.loc : [];
+      if (loc.includes('email')) errors.email = 'email_rejected';
+      else if (loc.includes('password')) errors.password = 'password_rejected';
+    }
+    if (Object.keys(errors).length > 0) return { errors, notice: null };
+  }
+  return { errors: {}, notice: copy.failed };
 }
 
 export type SignUpCopy = {
@@ -162,6 +207,9 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
       password_short: 'At least 8 characters.',
       password_long: 'Too long: 72 bytes at most.',
       starting_point_required: 'Pick one.',
+      email_rejected: 'We can’t use this email address.',
+      email_taken: 'There is already an account with this email.',
+      password_rejected: 'This password isn’t accepted. Try another.',
     },
   },
   de: {
@@ -192,6 +240,9 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
       password_short: 'Mindestens 8 Zeichen.',
       password_long: 'Zu lang: höchstens 72 Bytes.',
       starting_point_required: 'Bitte wählen.',
+      email_rejected: 'Diese E-Mail-Adresse geht nicht.',
+      email_taken: 'Zu dieser E-Mail gibt es schon ein Konto.',
+      password_rejected: 'Dieses Passwort geht nicht. Versuch ein anderes.',
     },
   },
   fr: {
@@ -222,6 +273,9 @@ export const SIGNUP_COPY: Record<OnboardingLanguage, SignUpCopy> = {
       password_short: 'Au moins 8 caractères.',
       password_long: 'Trop long : 72 octets au plus.',
       starting_point_required: 'Choisis une réponse.',
+      email_rejected: 'Cette adresse e-mail n’est pas acceptée.',
+      email_taken: 'Un compte existe déjà avec cette adresse.',
+      password_rejected: 'Ce mot de passe n’est pas accepté. Essaie-en un autre.',
     },
   },
 };

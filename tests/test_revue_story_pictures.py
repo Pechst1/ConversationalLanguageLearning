@@ -122,7 +122,9 @@ def test_the_stage_shows_the_picture_with_its_words_and_romy_points_at_it(db: Se
 
     kinds = [(item.kind, getattr(item, "role", None)) for item in view.thread]
     look_at = kinds.index(("line", "look"))
-    assert kinds[:look_at] == [("narration", None), ("narration", None)], "Romy points at it once the scene is set"
+    assert kinds[:look_at] == [("narration", None), ("summary", None)], (
+        "Romy points at it once the scene is set and the story told"
+    )
     assert kinds.index(("line", "purpose")) > look_at
     look = view.thread[look_at]
     assert look.text_fr == "Regarde : le marché en plein air, et derrière, le marché couvert."

@@ -1,5 +1,5 @@
 # prompt snapshot · page-a1-reasked-question · lane page · level A1
-# key: sha256:01a752540895bd0d2c9985d89e98f1812d30446640f68f98eb78309707c8a8ed
+# key: sha256:cdaf1a9aced05db9ec21282569aa55bb3013b16531a6ec16a75d0cdc147e0f43
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
 ======== call 1 · PagePlan #1 · 45c3b8be7a30786c ========
@@ -1166,7 +1166,7 @@ peut écrire ton nom.»
  ]
 }
 
-======== call 3 · PageText #1 · 5b694bfc43bf1d5f ========
+======== call 3 · PageText #1 · 9615dc20c5c0cc40 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PageText", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PageText sha256:3fcf082adfdc0612
 -------- system --------
@@ -1192,6 +1192,10 @@ THE PAGE
   learner, and it is not repeated inside a panel. Nobody tells the learner what to say,
   how to say it, which words to use, or that it is their turn.
 - hook_fr is the «À suivre…» line: the plan's hook, in French, one sentence.
+- title_fr is the page's headline on the learner's home screen, read before the page:
+  three to six plain words that say who and what the page is about, the situation and
+  not its outcome (the form of «Margaux perd ses clés» or «Un dimanche au marché», never
+  these words). Never a riddle or a mood («Mercredi ne vient plus»).
 - memory, when present, is what the people on the page know of the learner: their name,
   what is settled (facts) and what the learner told them (said, verbatim), each with who
   knows it. Someone who knows the learner's name may use it, and someone who heard a
@@ -1238,7 +1242,7 @@ NOT THIS → THIS (the left side is from real pages)
 
 RETURN ONLY THIS JSON
 {
-  "title_fr": "...",
+  "title_fr": "three to six plain words: who and what the page is about",
   "premise_fr": "one or two sentences that set the scene, no address",
   "opening_line_fr": "the lead's question to the learner, asked after the last panel",
   "suggested_response_fr": "one answer a learner at this level could really give",

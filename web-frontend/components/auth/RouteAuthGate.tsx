@@ -25,6 +25,7 @@ const PUBLIC_PATHNAMES = new Set([
   '/atelier-v2-gallery',
   '/cameo-gallery',
   '/troupe-vivante',
+  '/personnage-gallery',
 ]);
 
 const GUEST_ONLY_PATHNAMES = new Set([

@@ -15,6 +15,10 @@
 //   8. WP-119 §8.4: RvPicture printed like a press photograph (frame, caption on
 //      its rule, «Illustration · Le Papier»), «La légende» chosen or written
 //      (RvCaption), the dispatch's picture, Romy's «Regarde» on the arrive screen.
+//   9. 2026-10-19 (the Papier walk): every word tappable at every band, the
+//      Papier's own glosses handed to the word sheet, «Traduire» fetched once per
+//      text, «Écrire le papier →» once the learner has spoken, the band out of the
+//      pinned top, the close line printed once and the two links on one row.
 
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
@@ -68,14 +72,19 @@ test('RvThread renders every wire kind, in an ordered list with speaker prefixes
   const html = render(h(RvThread, { items: ALL_KINDS, support: SUPPORT_TAP, copy: FR, glossLanguage: 'de', now: new Date(at) }));
   assert.match(html, /^<ol class="av2-thread rv-thread"/);
   const kinds = [...html.matchAll(/data-kind="([a-zA-Z]+)"/g)].map((m) => m[1]);
-  // The claims came before the learner spoke: they fold into one quiet line.
-  assert.deepEqual(kinds, ['narration', 'line', 'summary', 'claimsFolded', 'mine', 'line', 'uncertainty', 'shift', 'made']);
-  assert.match(visibleText(html), /2 faits sur la table · d’après Ville de Paris/);
+  // A2: the claims wait behind one «Sources» fold under the lead.
+  assert.deepEqual(kinds, ['narration', 'line', 'summary', 'sources', 'mine', 'line', 'uncertainty', 'shift', 'made']);
+  assert.match(visibleText(html), /Sources · 2 faits/);
+  // B1: the claims came before the learner spoke: they fold into one quiet line.
+  const b1 = render(h(RvThread, { items: ALL_KINDS, support: SUPPORT_TAP, copy: FR, band: 'B1', glossLanguage: 'de', now: new Date(at) }));
+  assert.deepEqual([...b1.matchAll(/data-kind="([a-zA-Z]+)"/g)].map((m) => m[1]), ['narration', 'line', 'summary', 'claimsFolded', 'mine', 'line', 'uncertainty', 'shift', 'made']);
+  assert.match(visibleText(b1), /2 faits sur la table · d’après Ville de Paris/);
   assert.match(html, /<span class="av2-sr">Toi : <\/span>Et les prix \?/);
   assert.match(html, /Romy<span class="av2-sr"> : <\/span>/);
   assert.match(html, /class="rv-unknown"[\s\S]*Les sources ne le disent pas/);
   assert.match(html, /class="rv-shift" role="status">Bouclage</);
-  assert.match(html, /Écouter le résumé/);
+  // The lead is text from the start, under its kicker (it used to hide behind the play button).
+  assert.match(html, /<section class="rv-lead" aria-label="Ce qui s&#x27;est passé"><p class="rv-lead__k">Ce qui s&#x27;est passé<\/p><p class="rv-lead__fr" lang="fr">Paris a 91 marchés\.<\/p>/);
   // The latest Romy line is the headline; the earlier one is the small past bubble.
   assert.equal((html.match(/av2-speech--past/g) || []).length, 1);
   assert.match(html, /class="av2-headline" lang="fr">[^<]*<?[\s\S]*?je n&#x27;ai rien/);
@@ -83,7 +92,7 @@ test('RvThread renders every wire kind, in an ordered list with speaker prefixes
   assert.match(html, /<span class="rv-yours">les prix sont plus bas<sup>toi<\/sup><\/span>/);
 
   // Unfolded (before the learner speaks), each claim is a card: kind by label + shape + rule.
-  const cards = render(h(RvThread, { items: ALL_KINDS.slice(0, 4), support: SUPPORT_TAP, copy: FR, now: new Date(at) }));
+  const cards = render(h(RvThread, { items: ALL_KINDS.slice(0, 4), support: SUPPORT_TAP, copy: FR, band: 'B1', now: new Date(at) }));
   assert.match(cards, /<article class="rv-claim" data-kind="fact">/);
   assert.match(cards, /<article class="rv-claim" data-kind="interpretation">/);
   assert.match(cards, /av2-shape--square[\s\S]*Fait/);
@@ -123,13 +132,25 @@ test('RvGlossText: shown prints the gloss once, tap makes every word a control, 
   assert.equal((tap.match(/data-target=""/g) || []).length, 2, 'the target words carry their gloss');
   assert.doesNotMatch(tap, /<ruby/);
 
+  // 2026-10-19: with a word handler every word opens the sheet at every band.
   const none = render(h('p', null, h(RvGlossText, { text, glosses, mode: 'none', onWord: () => {} })));
-  assert.equal(none, `<p>${text}</p>`);
+  assert.equal((none.match(/<button type="button" class="rv-word"/g) || []).length, 9, 'B2: every word');
+  assert.doesNotMatch(none, /data-target|<ruby/, 'B2: the targets are not marked on the page');
+  assert.equal(render(h('p', null, h(RvGlossText, { text, glosses, mode: 'none' }))), `<p>${text}</p>`, 'no handler: plain');
+  // A1: the printed gloss stays under the first target, which is a control too; so is every other word.
+  const shownTap = render(h('p', null, h(RvGlossText, { text, glosses, mode: 'shown', glossLanguage: 'de', onWord: () => {} })));
+  assert.equal((shownTap.match(/<ruby class="rv-gloss">/g) || []).length, 1);
+  assert.match(shownTap, /<ruby class="rv-gloss"><button type="button" class="rv-word" data-target=""><span class="rv-target">marché couvert<\/span><\/button><rt lang="de">Markthalle<\/rt><\/ruby>/);
+  assert.equal((shownTap.match(/<button type="button" class="rv-word"/g) || []).length, 9, 'A1: every word');
   // Tap without a word handler is plain text (nothing to open).
   assert.doesNotMatch(render(h('p', null, h(RvGlossText, { text, glosses, mode: 'tap' }))), /<button/);
 
   const segments = model.glossSegments('Le marché, le Marché.', [{ fr: 'marché', gloss: 'market', claimId: 'c1' }], 'shown');
   assert.deepEqual(segments.map((s) => s.kind), ['text', 'gloss', 'text']);
+  const tapped = model.glossSegments('Le marché, le Marché.', [{ fr: 'marché', gloss: 'market', claimId: 'c1' }], 'shown', true);
+  assert.deepEqual(tapped.filter((s) => s.kind !== 'text').map((s) => [s.kind, s.text, s.gloss]), [
+    ['word', 'Le', null], ['gloss', 'marché', 'market'], ['word', 'le', null], ['word', 'Marché', 'market'],
+  ], 'the repeated target carries its gloss to the sheet');
 });
 
 test('RvColumn: seven lines, no number, the word only at bouclage and bouclé', () => {
@@ -152,8 +173,9 @@ test('RvColumn: seven lines, no number, the word only at bouclage and bouclé', 
   assert.match(boucle, /aria-label="La colonne : La colonne est pleine."/);
   assert.match(render(h(RvColumn, { room: { used: 2, phase: 'open', remainingTurns: 5 }, copy: EN })), /Room for about five exchanges/);
 
-  const head = render(h(RvSessionHead, { beat: 'pursue', room: { used: 2, phase: 'open', remainingTurns: 5 }, onExit: () => {}, copy: FR }));
+  const head = render(h(RvSessionHead, { beat: 'pursue', onExit: () => {}, copy: FR }));
   assert.match(head, /aria-label="Quitter le Papier — Romy garde tes notes"/);
+  assert.doesNotMatch(head, /rv-col/, '2026-10-19: the column is no longer drawn in the head');
   assert.deepEqual([...head.matchAll(/data-beat="(\w+)" data-state="(\w+)"/g)].map((m) => `${m[1]}:${m[2]}`), [
     'arrive:done', 'facts:done', 'pursue:active', 'make:pending', 'close:pending',
   ]);
@@ -702,7 +724,7 @@ test('the dispatch prints the story\'s picture under the headline, the caption m
   }));
   assert.ok(live.indexOf('data-picture=""') > live.indexOf('data-dispatch=""'));
   assert.ok(live.indexOf('data-picture=""') < live.indexOf('data-kind="kept"'));
-  assert.match(visibleText(live), /Ta légende part sous l'image, avec mon papier\./);
+  assert.match(visibleText(live).replace(/ ([,.])/g, '$1'), /Ta légende part sous l'image, avec mon papier\./);
   const { RvMadeCard } = require('./index.ts');
   assert.match(visibleText(render(h(RvMadeCard, { made: types.parseMakeResult(MOCK.make_caption_write).made, copy: FR }))), /^Ta légende Un marché en plein air/);
 });
@@ -744,3 +766,147 @@ test('the make picker names «La légende» in every chrome: to choose (A1–A2)
   assert.match(visibleText(picker), /Choisir la légende Trois légendes, une seule dit ce qu’on voit\./);
 });
 
+
+test('2026-10-18 · the lead translates at every band; at A1–A2 the claim cards wait behind one «Sources» fold', () => {
+  const { RvLead, RvNewsCard, newsHeadline } = require('./index.ts');
+  const lead = { id: '1.s', textFr: 'Paris a 91 marchés.', translation: 'Paris hat 91 Märkte.', glosses: [], copy: FR, glossLanguage: 'de' };
+  assert.match(render(h(RvLead, { ...lead, support: SUPPORT_SHOWN })), /class="rv-chip" aria-pressed="false">[\s\S]*Traduire/);
+  // 2026-10-19: help at every band, with or without the server's translation (it is fetched on the press).
+  assert.match(render(h(RvLead, { ...lead, support: SUPPORT_NONE })), /Traduire/, 'B1 and up too');
+  assert.match(render(h(RvLead, { ...lead, translation: null, support: SUPPORT_SHOWN })), /Traduire/);
+  assert.doesNotMatch(render(h(RvLead, { ...lead, support: SUPPORT_SHOWN })), /Paris hat 91 Märkte/, 'nothing shown until pressed');
+  assert.match(render(h(RvLead, { ...lead, support: SUPPORT_TAP, copy: EN })), /<p class="rv-lead__k">What happened<\/p>/);
+
+  const claims = ALL_KINDS.slice(0, 4);
+  for (const band of ['A1', 'A2']) {
+    const plain = render(h(RvThread, { items: claims, support: SUPPORT_TAP, copy: FR, band, now: new Date(at) }));
+    // Romy has just said the fact: the cards wait behind one quiet line under the lead, closed.
+    assert.match(plain, /data-kind="summary"[\s\S]*<li class="av2-thread__line" data-kind="sources"><div class="rv-claims" data-plain="" data-sources=""><button type="button" class="rv-folded" aria-expanded="false">/, band);
+    assert.match(visibleText(plain), /Sources · 2 faits/, band);
+    assert.doesNotMatch(plain, /Interprétation|La citation|rv-claim"|Les marchés sont des lieux de vie/, `${band}: nothing twice until the fold opens`);
+  }
+  // One fold for the whole thread, not a row after each of Romy's replies; it lists every claim so far.
+  const reply = (id, claimIds) => [
+    { id: `${id}.m`, seq: id, at, kind: 'mine', textFr: 'Et après ?', mode: 'text' },
+    { id: `${id}.r`, seq: id, at, kind: 'line', speaker: 'romy_tremblay', role: 'reply', textFr: 'Voilà.', translation: null, glosses: [] },
+    { id: `${id}.c`, seq: id, at, kind: 'claims', claims: ALL_KINDS[3].claims.filter((claim) => claimIds.includes(claim.id)) },
+  ];
+  const long = render(h(RvThread, { items: [...ALL_KINDS.slice(0, 3), ...reply(5, ['c1']), ...reply(6, ['c4', 'c1'])], support: SUPPORT_TAP, copy: EN, band: 'A1', now: new Date(at) }));
+  assert.equal((long.match(/data-kind="sources"/g) || []).length, 1);
+  assert.doesNotMatch(long, /claimsFolded|facts on the table/);
+  assert.match(visibleText(long), /Sources · 2 facts/);
+  assert.deepEqual(model.claimsShown([...reply(5, ['c1']), ...reply(6, ['c4', 'c1'])]).map((claim) => claim.id), ['c1', 'c4']);
+  const b1 = render(h(RvThread, { items: claims, support: SUPPORT_NONE, copy: FR, band: 'B1', now: new Date(at) }));
+  assert.doesNotMatch(b1, /rv-plain/);
+  assert.match(b1, /Interprétation/);
+
+  // Home's news card: the sticker, the six-word headline, one link with a sentence for its label.
+  const story = { ...types.parseOffer(MOCK.offer).recommended, headlineFr: 'Un marché six matins sur sept', plateUrl: '/static/revue/plates/x.webp' };
+  const card = render(h(RvNewsCard, { story, href: '/revue?dossier=x', copy: EN }));
+  assert.match(card, /^<a class="rv-news" href="\/revue\?dossier=x" data-revue-card="news" aria-label="Today&#x27;s news with Romy: Un marché six matins sur sept">/);
+  assert.match(card, /<span class="rv-news__sticker" aria-hidden="true">À la une !/);
+  assert.match(card, /<img src="[^"]*x\.webp" alt=""/);
+  assert.equal(newsHeadline({ headlineFr: '  ', titleFr: 'Le titre' }), 'Le titre', 'no headline: the title');
+});
+
+test('2026-10-19 · every word is a control at every band; the Papier\'s glosses reach the sheet; one «Traduire» per bubble', () => {
+  const items = ALL_KINDS.slice(0, 3);
+  for (const [band, support] of [['A1', SUPPORT_SHOWN], ['A2', SUPPORT_TAP], ['B2', SUPPORT_NONE]]) {
+    const html = render(h(RvThread, { items, support, copy: FR, band, glossLanguage: 'de', onWord: () => {}, now: new Date(at) }));
+    for (const kind of ['narration', 'line', 'summary']) {
+      const row = html.match(new RegExp(`data-kind="${kind}"[\\s\\S]*?</li>`))[0];
+      assert.match(row, /<button type="button" class="rv-word"/, `${band} ${kind}: the words are tappable`);
+    }
+    for (const kind of ['line', 'summary']) {
+      const row = html.match(new RegExp(`data-kind="${kind}"[\\s\\S]*?</li>`))[0];
+      assert.equal((row.match(/Traduire/g) || []).length, 1, `${band} ${kind}: one «Traduire»`);
+    }
+  }
+
+  // The gloss the Papier already knows: accents, case and the article aside.
+  const session = types.parseSessionView(MOCK.session_resume);
+  const glosses = model.sessionGlosses(session);
+  assert.equal(model.knownGloss('Marché couvert', glosses), 'Markthalle');
+  assert.equal(model.knownGloss('l’arrondissement', glosses), 'Bezirk');
+  assert.equal(model.knownGloss('les matins', glosses), 'Vormittage');
+  assert.equal(model.knownGloss('grève', glosses), null, 'not a word of this Papier: the sheet looks it up');
+  assert.equal(model.knownGloss('lecture', [{ fr: 'cture', gloss: 'x' }]), null, '«le» is an article only before a space');
+  // A homograph of the other gender is not reused: the sentence's article decides.
+  const tower = [{ fr: 'la tour', gloss: 'Turm' }];
+  assert.equal(model.knownGloss('tour', tower, 'Le Tour de France part samedi.'), null, '«le tour» is not «la tour»');
+  assert.equal(model.knownGloss('tour', tower, 'Au tour de Paris !'), null);
+  assert.equal(model.knownGloss('tour', tower, 'La tour Eiffel brille.'), 'Turm');
+  assert.equal(model.knownGloss('tour', tower, 'Les spectateurs regardent la tour.'), 'Turm');
+  assert.equal(model.knownGloss('tour', tower, 'Leur tour arrive.'), 'Turm', 'no gendered article before it: as before');
+  assert.equal(model.knownGloss('tour', tower), 'Turm', 'no sentence: as before');
+});
+
+test('2026-10-19 · «Traduire» asks once per text; a failure is forgotten, so the next press asks again', async () => {
+  const { translateOnce, knownTranslation } = require('./revue-translate.ts');
+  const asked = [];
+  const fetcher = async (text) => {
+    asked.push(text);
+    return 'Paris has 91 markets.';
+  };
+  const [first, twin] = await Promise.all([translateOnce(' Paris a 91 marchés. ', 'en', fetcher), translateOnce('Paris a 91 marchés.', 'en', fetcher)]);
+  assert.equal(first, 'Paris has 91 markets.');
+  assert.equal(twin, first);
+  assert.equal(await translateOnce('Paris a 91 marchés.', 'en', fetcher), first);
+  assert.deepEqual(asked, ['Paris a 91 marchés.'], 'the same sentence, on any bubble, is fetched once');
+  assert.equal(knownTranslation('Paris a 91 marchés.', 'en'), first);
+  assert.equal(knownTranslation('Paris a 91 marchés.', 'de'), '', 'kept per language');
+
+  let calls = 0;
+  const flaky = async () => {
+    calls += 1;
+    if (calls === 1) throw new Error('down');
+    return calls === 2 ? '' : 'Another market.';
+  };
+  await assert.rejects(translateOnce('Un autre marché.', 'en', flaky));
+  assert.equal(await translateOnce('Un autre marché.', 'en', flaky), '', 'an empty answer is a failure too');
+  assert.equal(await translateOnce('Un autre marché.', 'en', flaky), 'Another market.');
+  assert.equal(calls, 3);
+});
+
+test('2026-10-19 · the way forward: «Écrire le papier →» once the learner has spoken; the band scrolls with the page', () => {
+  const client = createMockRevueClient({ persist: false });
+  const arrive = render(h(RvEncounter, { client, session: types.parseSessionView(MOCK.session_arrive), language: 'en', onExit: () => {}, now: new Date(at) }));
+  assert.doesNotMatch(arrive, /rv-quick__go/, 'nothing to write before the first word');
+
+  const resume = render(h(RvEncounter, { client, session: types.parseSessionView(MOCK.session_resume), language: 'en', onExit: () => {}, now: new Date(at) }));
+  // The make, first in the one row of quick replies.
+  assert.match(resume, /<div class="rv-quick"[^>]*><button type="button" class="av2-chip rv-quick__go">Write the piece →<\/button>/);
+  for (const language of ['fr', 'en', 'de']) assert.ok(revueCopy(language).write_paper.endsWith('→'), language);
+  assert.match(revueCopy('fr').write_paper, /^Écrire le papier/);
+  // Only the head row is pinned: the band comes after it, in the page.
+  assert.match(resume, /<div class="rv-top"><div class="rv-head">[\s\S]*?<\/div><\/div><div class="rv-stage" data-size="band"/);
+  assert.doesNotMatch(resume, /rv-col/);
+  // A1–A2: one «Sources» line in the thread, no fold row after each reply.
+  assert.equal((resume.match(/data-kind="sources"/g) || []).length, 1);
+});
+
+test('2026-10-19 · the close: Romy\'s close line once, the colophon from the server, the two links on one row', () => {
+  const close = types.parseCloseResult(MOCK.close);
+  const resume = types.parseSessionView(MOCK.session_resume);
+  const closeLine = { id: '13', seq: 13, at, kind: 'line', speaker: 'romy_tremblay', role: 'close', textFr: close.closing.romyLineFr, translation: null, glosses: [] };
+  const page = (thread, closing = close.closing) =>
+    render(h(RvEncounter, {
+      client: createMockRevueClient({ persist: false }),
+      session: { ...resume, thread, closing },
+      language: 'fr',
+      onExit: () => {},
+      onReleve: () => {},
+      now: new Date(at),
+    }));
+  const count = (html) => visibleText(html).replace(/ ([,.!?])/g, '$1').split(close.closing.romyLineFr).length - 1;
+  assert.equal(count(page(resume.thread)), 1, 'the client prints it when the thread does not');
+  assert.equal(count(page([...resume.thread, closeLine])), 1, 'the server replayed it: not twice');
+  // The make's done line already said it: the server's close line is not printed again.
+  const done = { ...closeLine, id: '12', role: 'make_done' };
+  const rows = model.displayThread([...resume.thread, done, closeLine]);
+  assert.deepEqual(rows.slice(-1).map((row) => row.kind === 'item' && [row.item.id, row.past]), [['12', false]]);
+
+  const daily = page(resume.thread, { ...close.closing, colophonFr: 'La suite demain.' });
+  assert.match(visibleText(daily), /La suite demain\./);
+  assert.match(daily, /av2-btn--done[\s\S]*Classer le Papier[\s\S]*<div class="rv-foot__links"><a [^>]*>[\s\S]*?<\/a><button[^>]*>[\s\S]*Voir dans le Relevé/);
+});
