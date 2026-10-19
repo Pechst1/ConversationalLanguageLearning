@@ -3111,12 +3111,15 @@ class ApiService {
     surface?: string,
     // WP-158: a spoken story reply names its turn, so the server can check the
     // flag, the owner and the per-turn cost ceiling before transcribing.
-    context?: { journeyId: string; stepId: string },
+    // Les appels: a spoken line on a call names the call instead.
+    context?: { journeyId: string; stepId: string } | { callId: string },
   ): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, audioUploadFilename(audioBlob));
     if (surface) formData.append('surface', surface);
-    if (context) {
+    if (context && 'callId' in context) {
+      formData.append('call_id', context.callId);
+    } else if (context) {
       formData.append('journey_id', context.journeyId);
       formData.append('step_id', context.stepId);
     }

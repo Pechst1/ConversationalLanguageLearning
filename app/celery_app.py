@@ -87,6 +87,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.notifications.send_courrier_pushes",
         "schedule": crontab(minute="*/15"),
     },
+    # Les appels: a call still ringing at 19:30 in the learner's own zone.
+    "send-appel-pushes": {
+        "task": "app.tasks.notifications.send_appel_pushes",
+        "schedule": crontab(minute="*/15"),
+    },
     "sync-anki-cards-daily": {
         "task": "app.tasks.anki_sync.sync_anki_cards_for_all_users",
         "schedule": crontab(hour=4, minute=0),  # 4 AM daily
