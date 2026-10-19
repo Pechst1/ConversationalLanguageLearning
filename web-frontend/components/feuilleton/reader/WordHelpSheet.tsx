@@ -5,8 +5,10 @@
    no attempt, and — crucially — does not move the learner's place in the
    episode. Closing it returns focus to the word that was tapped.
 
-   Honest about what it knows: a word with no dictionary entry says so, and
-   offers the line's translation instead of inventing a gloss.
+   Honest about what it knows: a word with no dictionary entry is read in its
+   sentence (`/atelier/gloss`: its meaning here, its dictionary form); failing
+   that, the sheet says so and offers the line's translation instead of
+   inventing a gloss (the order: `word-help.ts`).
 
    WP-91 «Les voix»: the word says itself — a small «Écouter le mot» beside it,
    in the device's French voice (no server needed, works offline). */
@@ -15,13 +17,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
 import { useLineVoice } from '@/components/atelier-v2/journey/useLineVoice';
-import { learnerGloss } from '@/lib/glosses';
 import { canKeep, keepCopy, keepRefusal, keepStatusLine, type KeepState } from '@/lib/kept-words';
 import { useLearnerLanguage } from '@/lib/learner-language';
 import apiService from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { fillReaderCopy, readerCopy } from './reader-copy';
+import { resolveWordHelp, type WordHelpGloss } from './word-help';
 
 export type WordHelpRequest = {
   /** the surface form as printed */
@@ -41,13 +43,11 @@ export type WordHelpRequest = {
   speakerId?: string | null;
   panelId?: string;
   lineKey?: string;
+  /** 2026-10-19: the meaning the surface already knows (Le Papier's target words): shown at once, no lookup. */
+  knownGloss?: string | null;
+  /** The language `knownGloss` is written in (whether «Garder» may keep it). */
+  knownGlossLanguage?: string | null;
 };
-
-type GlossState =
-  | { kind: 'loading' }
-  | { kind: 'gloss'; text: string; language: string | null }
-  | { kind: 'sentence'; text: string }
-  | { kind: 'none' };
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
@@ -56,11 +56,17 @@ export function WordHelpSheet({
   request,
   onClose,
   language = null,
+  note,
+  quoteLabel,
 }: {
   request: WordHelpRequest | null;
   onClose: () => void;
   /** WP-82: the chrome's language; absent keeps French. */
   language?: ControlLanguage | null;
+  /** The footnote; absent: the reader's («… ne fait pas avancer l'épisode»); `null`: none (Le Papier has no episode). */
+  note?: string | null;
+  /** Over the quoted line when it has no speaker; absent: the reader's «Dans la planche». */
+  quoteLabel?: string;
 }) {
   const t = readerCopy(language);
   const keepT = keepCopy(language);
@@ -69,7 +75,7 @@ export function WordHelpSheet({
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
-  const [gloss, setGloss] = useState<GlossState>({ kind: 'loading' });
+  const [gloss, setGloss] = useState<WordHelpGloss>({ kind: 'loading' });
   const [sentenceEn, setSentenceEn] = useState('');
   const [keep, setKeep] = useState<KeepState>({ kind: 'idle' });
   const voice = useLineVoice();
@@ -132,55 +138,29 @@ export function WordHelpSheet({
   }, [open]);
 
   const term = request?.term || '';
+  const surface = request?.surface || '';
   const sentence = request?.sentence || '';
   const suppliedEn = request?.sentenceEn || '';
+  const knownGloss = request?.knownGloss || '';
+  const knownGlossLanguage = request?.knownGlossLanguage ?? null;
 
   useEffect(() => {
     if (!term) return undefined;
     let alive = true;
-    setGloss({ kind: 'loading' });
     setKeep({ kind: 'idle' });
     setSentenceEn(suppliedEn);
-    (async () => {
-      try {
-        const entry = (await apiService.lookupVocabulary(term)) as Record<string, any>;
-        const text = learnerGloss(entry as any, '');
-        if (!alive) return;
-        if (text) {
-          const glossLanguage = typeof entry?.translation_language === 'string' ? entry.translation_language : null;
-          setGloss({ kind: 'gloss', text, language: glossLanguage });
-          return;
-        }
-      } catch {
-        /* 404 is the ordinary answer for a word that is not a catalogue entry. */
-      }
+    setGloss({ kind: 'loading' });
+    // A meaning the surface already knows is shown as is (below): nothing to ask.
+    if (knownGloss) return undefined;
+    void resolveWordHelp({ term, surface, sentence, sentenceEn: suppliedEn }, apiService).then((answer) => {
       if (!alive) return;
-      // No dictionary entry: translate the line instead of guessing the word.
-      if (suppliedEn) {
-        setGloss({ kind: 'sentence', text: suppliedEn });
-        return;
-      }
-      if (!sentence) {
-        setGloss({ kind: 'none' });
-        return;
-      }
-      try {
-        const translated = await apiService.translateForLearner(sentence);
-        if (!alive) return;
-        if (translated) {
-          setSentenceEn(translated);
-          setGloss({ kind: 'sentence', text: translated });
-        } else {
-          setGloss({ kind: 'none' });
-        }
-      } catch {
-        if (alive) setGloss({ kind: 'none' });
-      }
-    })();
+      setGloss(answer.gloss);
+      setSentenceEn(answer.sentenceEn);
+    });
     return () => {
       alive = false;
     };
-  }, [sentence, suppliedEn, term]);
+  }, [knownGloss, sentence, suppliedEn, surface, term]);
 
   const handleScrim = useCallback(() => onClose(), [onClose]);
 
@@ -206,6 +186,8 @@ export function WordHelpSheet({
   }, [language, request]);
 
   if (!request) return null;
+  // Known at once (no «Recherche…» frame before it); «Garder» keeps it like a catalogue meaning.
+  const shown: WordHelpGloss = knownGloss ? { kind: 'gloss', text: knownGloss, language: knownGlossLanguage } : gloss;
 
   return (
     <div className="fr-sheet-root" data-char={request.character || undefined}>
@@ -240,21 +222,27 @@ export function WordHelpSheet({
         </div>
         <div className="fr-sheet-body">
           <p className="fr-gloss" aria-live="polite">
-            {gloss.kind === 'loading' && t.help_searching}
-            {gloss.kind === 'gloss' && gloss.text}
-            {gloss.kind === 'sentence' && t.help_sentence_only}
-            {gloss.kind === 'none' && t.no_translation}
+            {shown.kind === 'loading' && t.help_searching}
+            {(shown.kind === 'gloss' || shown.kind === 'context') && shown.text}
+            {shown.kind === 'sentence' && t.help_sentence_only}
+            {shown.kind === 'none' && t.no_translation}
           </p>
+          {shown.kind === 'context' && shown.lemma && (
+            <p className="fr-gloss-lemma">
+              {t.help_lemma} <span lang="fr">{shown.lemma}</span>
+            </p>
+          )}
           {sentence && (
             <blockquote className="fr-quote">
               <p className="fr-quote-k">
-                {request.speaker ? fillReaderCopy(t.help_in_line_of, { name: request.speaker }) : t.help_in_panel}
+                {request.speaker ? fillReaderCopy(t.help_in_line_of, { name: request.speaker }) : quoteLabel ?? t.help_in_panel}
               </p>
               <p className="fr-quote-fr">« {sentence} »</p>
               {sentenceEn && <p className="fr-quote-en">{sentenceEn}</p>}
             </blockquote>
           )}
-          {canKeep(gloss.kind, sentence, gloss.kind === 'gloss' ? gloss.language : null, learnerLanguage) && (
+          {/* A meaning read in the sentence is no catalogue row: the server could not keep it. */}
+          {canKeep(shown.kind, sentence, shown.kind === 'gloss' ? shown.language : null, learnerLanguage) && (
             <div className="fr-keep">
               {keep.kind === 'idle' || keep.kind === 'saving' || (keep.kind === 'refused' && keep.retryable) ? (
                 <button
@@ -277,9 +265,7 @@ export function WordHelpSheet({
               )}
             </div>
           )}
-          <p className="fr-sheet-note">
-            {t.help_note}
-          </p>
+          {note !== null && note !== '' && <p className="fr-sheet-note">{note ?? t.help_note}</p>}
         </div>
       </div>
     </div>

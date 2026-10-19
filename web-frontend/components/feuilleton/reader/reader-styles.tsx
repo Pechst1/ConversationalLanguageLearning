@@ -1073,6 +1073,8 @@ export function FeuilletonReaderStyles() {
         color: var(--fr-muted);
       }
       .av2 .fr-sheet-note { margin: 0; font-size: 0.875rem; color: var(--fr-muted); line-height: 1.5; }
+      .av2 .fr-gloss-lemma { margin: -6px 0 0; font-size: 0.875rem; color: var(--fr-muted); line-height: 1.4; }
+      .av2 .fr-gloss-lemma span { font-family: var(--fr-serif); font-style: italic; font-size: 1rem; color: var(--fr-ink); }
       /* WP-78 «Garder»: one soft pill, sentence case, then a quiet status line. */
       .av2 .fr-keep { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
       .av2 .fr-keep-btn {

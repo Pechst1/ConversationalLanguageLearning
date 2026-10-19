@@ -2217,6 +2217,26 @@ class ApiService {
   }
 
   /**
+   * One French word as used in its sentence (`/atelier/gloss`): its dictionary form, its
+   * meaning here in the learner's own language, and the sentence's translation. Empty
+   * strings when the server could not say; the word-help sheet then falls back to the line.
+   */
+  async glossInContext(word: string, sentence: string): Promise<{ lemma: string; gloss: string; language: string; translation: string }> {
+    const trimmed = (word || '').trim();
+    if (!trimmed) return { lemma: '', gloss: '', language: '', translation: '' };
+    const response = await this.atelierPost<Partial<Record<'lemma' | 'gloss' | 'language' | 'translation', string>>>('/atelier/gloss', {
+      word: trimmed.slice(0, 80),
+      sentence: (sentence || '').trim().slice(0, 2000),
+    });
+    return {
+      lemma: response?.lemma || '',
+      gloss: response?.gloss || '',
+      language: response?.language || '',
+      translation: response?.translation || '',
+    };
+  }
+
+  /**
    * WP-78 «Garder»: keep a word tapped in the story, with the sentence it was
    * in, in the learner's own Lexique. WP-138: a 422 is a permanent refusal,
    * `detail = {code, retryable: false, message (French), message_native}`, that
