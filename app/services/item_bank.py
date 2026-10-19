@@ -2746,6 +2746,27 @@ def _checked(mode: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     return None if _item_errors(mode, payload) else payload
 
 
+def target_answers(item: BankItem) -> list[str]:
+    """#174/#235: every way to fill the item's gap that is right, the key first.
+
+    ``item.accepted`` lists whole sentences (the frame's authored orders and a
+    noun's French alternatives: «un tableau» / «une peinture» for «a painting»).
+    A gap is answered with the target span only, so each accepted sentence that
+    differs from the key only inside the gap gives the span that stood there. One
+    list per item, whatever the rung that poses it."""
+
+    spans = [item.target]
+    for sentence in item.accepted:
+        if not (sentence.startswith(item.prefix) and sentence.endswith(item.suffix)):
+            continue
+        if len(sentence) <= len(item.prefix) + len(item.suffix):
+            continue
+        span = sentence[len(item.prefix): len(sentence) - len(item.suffix)].strip()
+        if span and normalize(span) not in {normalize(known) for known in spans}:
+            spans.append(span)
+    return spans
+
+
 def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
     prompt = f"{item.prefix}___{item.suffix}".strip()
     if contains_phrase(prompt.replace("___", " "), item.target):
@@ -2765,7 +2786,7 @@ def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[
         **_goal("fill", item.en, item.de),
         **_answer_key(item),
     }
-    payload["accepted_answers"] = [item.target]
+    payload["accepted_answers"] = target_answers(item)
     if lesson_external_id:
         payload["lesson_external_id"] = lesson_external_id
     return _checked("fill", payload)
