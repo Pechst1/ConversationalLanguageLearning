@@ -27,6 +27,7 @@ from app.schemas.atelier import (
     AtelierTodayResponse,
 )
 from app.schemas.auth import LogoutRequest, RefreshTokenRequest, Token, TokenPayload
+from app.schemas.avatar import AvatarRewardRead, AvatarState, AvatarUpdate
 from app.schemas.feedback import FeedbackReportCreate, FeedbackReportRead
 from app.schemas.graphic_novel import (
     GraphicNovelAttemptRequest,
@@ -133,6 +134,9 @@ __all__ = [
     "AchievementUnlockResponse",
     "AnalyticsStatisticsResponse",
     "AnalyticsSummary",
+    "AvatarRewardRead",
+    "AvatarState",
+    "AvatarUpdate",
     "Token",
     "TokenPayload",
     "RefreshTokenRequest",

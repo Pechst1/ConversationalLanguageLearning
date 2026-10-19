@@ -16,6 +16,8 @@ class AchievementRead(BaseModel):
     tier: str
     xp_reward: int
     icon_url: str | None = None
+    #: The avatar item this achievement unlocks, if any.
+    reward_item: str | None = None
 
 
 class AchievementProgressResponse(BaseModel):
@@ -32,6 +34,8 @@ class AchievementProgressResponse(BaseModel):
     target_progress: int
     completed: bool
     unlocked_at: datetime | None = None
+    #: The avatar item this achievement unlocks, if any.
+    reward_item: str | None = None
 
 
 class AchievementUnlockResponse(BaseModel):

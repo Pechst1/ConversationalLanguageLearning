@@ -372,3 +372,56 @@ export function recapTeaserOf(recap: (JourneyRecap & { next_teaser_fr?: unknown 
   }
   return structured;
 }
+
+/** Words in a hint: anything with a letter or a digit. */
+const hintWords = (value: string): string[] => value.split(/\s+/).filter((token) => /[0-9A-Za-zÀ-ÖØ-öø-ÿŒœ]/.test(token));
+
+/** At most this many words on Home's «La suite demain» (owner, 2026-10-18). */
+export const TEASER_HINT_WORDS = 7;
+
+/**
+ * Home's «La suite demain» in a few words: where the story goes tomorrow, not
+ * the whole line (owner, 2026-10-18: «just a few words, not so much to read»).
+ * The recap keeps the line; Home prints only its heart.
+ *
+ * The engine's teaser is a voice opener, a frame and, in «», the open row it
+ * names («Toi, tu me caches quelque chose… Demain, peut-être, on saura : « Lila
+ * et Berlin : peut-on vouloir quelqu'un ici… ? »»). The heart is that row, and
+ * a row headed «Lila et Berlin : …» is named by its head. A line with no «» is
+ * read the same way. Too long still, the first sentence is kept, else the
+ * first words with «…». Pure; nothing is invented, every word is the line's.
+ */
+export function teaserHint(line: unknown): string | null {
+  let heart = text(line).replace(/\s+/g, ' ');
+  if (!heart) return null;
+  // The innermost «…»: the last opening guillemet and the first closing one after it.
+  const open = heart.lastIndexOf('«');
+  const close = open >= 0 ? heart.indexOf('»', open) : -1;
+  if (open >= 0 && close > open + 1) heart = heart.slice(open + 1, close).trim();
+  heart = heart
+    .replace(/^[«"“\s]+|[»"”\s]+$/g, '')
+    .replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/i, '')
+    .trim();
+  if (!heart) return null;
+  // «Lila et Berlin : peut-on…» → «Lila et Berlin».
+  const head = heart.match(/^([^:?!.…]{2,60}?)\s*:\s+\S/);
+  if (head && hintWords(head[1]).length <= 5) return head[1].trim();
+  const bare = heart.replace(/[\s.,;:]+$/, '');
+  if (hintWords(bare).length <= TEASER_HINT_WORDS) return bare;
+  const sentence = (heart.match(/^.+?[.!?…](?=\s|$)/) || [''])[0].replace(/[\s.]+$/, '');
+  if (sentence && hintWords(sentence).length <= TEASER_HINT_WORDS) return sentence;
+  const kept: string[] = [];
+  for (const token of heart.split(' ')) {
+    if (hintWords(kept.join(' ')).length >= TEASER_HINT_WORDS - 1) break;
+    kept.push(token);
+  }
+  // Never stop on «de» or «la»: the cut falls after a word that carries meaning.
+  while (kept.length > 2 && HINT_DANGLING.has(kept[kept.length - 1].toLowerCase().replace(/[,;:.]+$/, ''))) kept.pop();
+  return `${kept.join(' ').replace(/[\s,;:.]+$/, '')}…`;
+}
+
+const HINT_DANGLING = new Set([
+  'à', 'au', 'aux', 'avec', 'dans', 'de', 'des', 'du', 'en', 'et', 'la', 'le', 'les', 'l’', "l'",
+  'mais', 'ou', 'par', 'pour', 'que', 'qui', 'sa', 'se', 'ses', 'son', 'sur', 'ta', 'te', 'tes',
+  'ton', 'un', 'une', 'ma', 'mon', 'mes', 'ne', 'ce', 'cette',
+]);

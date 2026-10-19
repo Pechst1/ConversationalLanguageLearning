@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     audio,
     audio_session,
     auth,
+    avatar,
     can_dos,
     daily_journey,
     dossier,
@@ -63,6 +64,8 @@ api_router.include_router(sessions_ws.router)
 api_router.include_router(vocabulary.router)
 api_router.include_router(analytics.router)
 api_router.include_router(achievements.router)
+# The learner's avatar: free for everyone, onboarding included (no paid guard).
+api_router.include_router(avatar.router)
 api_router.include_router(anki.router)
 api_router.include_router(audio.router, prefix="/audio", tags=["audio"], dependencies=_paid)
 api_router.include_router(grammar.router)

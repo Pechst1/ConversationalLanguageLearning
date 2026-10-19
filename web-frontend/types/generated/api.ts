@@ -699,6 +699,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/atelier/gloss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gloss In Context
+         * @description The meaning of one French word *as used in its sentence*, for the word-help sheet.
+         *
+         *     The catalogue (``/vocabulary/lookup``) knows dictionary entries; a news word or an
+         *     inflected form («grévistes», «plagiat», «spectateurs») misses it, and the sheet used
+         *     to fall back to translating the whole line. Here the model reads the word in its
+         *     sentence and answers with its dictionary form (``lemma``), a meaning of one to four
+         *     words in the learner's own language (``gloss``, the ``/translate`` rule) and the
+         *     sentence's translation (``translation``). Best-effort like ``/translate``: empty
+         *     strings when the model fails, and the sheet falls back to the sentence.
+         */
+        post: operations["gloss_in_context_api_v1_atelier_gloss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/atelier/sessions": {
         parameters: {
             query?: never;
@@ -1125,6 +1153,30 @@ export interface paths {
          * @description Register a new user and return the created entity.
          */
         post: operations["register_user_api_v1_auth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Avatar
+         * @description The learner's avatar (``null`` until they make one) and every reward item.
+         */
+        get: operations["read_avatar_api_v1_avatar_get"];
+        /**
+         * Save Avatar
+         * @description Replace the learner's avatar. Locked items are refused with 403.
+         */
+        put: operations["save_avatar_api_v1_avatar_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4985,6 +5037,8 @@ export interface components {
             icon_url?: string | null;
             /** Name */
             name: string;
+            /** Reward Item */
+            reward_item?: string | null;
             /** Target Progress */
             target_progress: number;
             /** Tier */
@@ -5442,6 +5496,8 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /** Reward Item */
+            reward_item?: string | null;
             /** Tier */
             tier: string;
             /** Xp Reward */
@@ -6225,6 +6281,59 @@ export interface components {
             opening_message: string;
             /** Session Id */
             session_id: string;
+        };
+        /**
+         * AvatarRewardRead
+         * @description One avatar item an achievement unlocks, and how close the learner is.
+         */
+        AvatarRewardRead: {
+            /** Achievement Key */
+            achievement_key: string;
+            /** Current */
+            current: number;
+            /** Description */
+            description: string | null;
+            /** Item */
+            item: string;
+            /** Name */
+            name: string;
+            /** Slot */
+            slot: string;
+            /** Target */
+            target: number;
+            /** Tier */
+            tier: string;
+            /** Unlocked */
+            unlocked: boolean;
+            /** Unlocked At */
+            unlocked_at: string | null;
+        };
+        /**
+         * AvatarState
+         * @description The learner's avatar, the items they have unlocked, and every reward.
+         */
+        AvatarState: {
+            /** Avatar */
+            avatar: {
+                [key: string]: boolean | number | string;
+            } | null;
+            /** Rewards */
+            rewards: components["schemas"]["AvatarRewardRead"][];
+            /** Unlocked */
+            unlocked: string[];
+        };
+        /**
+         * AvatarUpdate
+         * @description ``PUT /avatar``: the whole avatar config, replacing the stored one.
+         *
+         *     Typed loosely on purpose: the service validates the shape, so every refusal
+         *     is one 422 with a readable ``detail``.
+         */
+        AvatarUpdate: {
+            /** Avatar */
+            avatar: {
+                [key: string]: boolean | number | string;
+            };
         };
         /** BandCheckItem */
         BandCheckItem: {
@@ -8072,6 +8181,16 @@ export interface components {
             ordinal: number;
             prompt: components["schemas"]["ForgePrompt"];
             status: components["schemas"]["StepStatus"];
+        };
+        /** GlossRequest */
+        GlossRequest: {
+            /**
+             * Sentence
+             * @default
+             */
+            sentence?: string;
+            /** Word */
+            word: string;
         };
         /**
          * GoalCheckRequest
@@ -11403,9 +11522,9 @@ export interface components {
             /**
              * Colophon Fr
              * @default La suite la semaine prochaine.
-             * @constant
+             * @enum {string}
              */
-            colophon_fr?: "La suite la semaine prochaine.";
+            colophon_fr?: "La suite la semaine prochaine." | "La suite demain.";
             dispatch: components["schemas"]["RvDispatch"];
             kept: components["schemas"]["RvKept"];
             /** Question Kept Fr */
@@ -12105,6 +12224,8 @@ export interface components {
             dossier_id: string;
             /** Evergreen */
             evergreen: boolean;
+            /** Headline Fr */
+            headline_fr?: string | null;
             /** Place Fr */
             place_fr: string;
             /** Plate Url */
@@ -12120,10 +12241,16 @@ export interface components {
              */
             topic: "food" | "culture" | "city" | "sport" | "nature" | "work" | "politics";
         };
-        /** RvSummaryItem */
+        /**
+         * RvSummaryItem
+         * @description What happened (2026-10-18): the lead at the learner's band (B1+: the summary), shown as
+         *     text with its translation where the band has the translate button, read aloud on a tap.
+         */
         RvSummaryItem: {
             /** At */
             at: string;
+            /** Glosses */
+            glosses?: components["schemas"]["RvGloss"][];
             /** Id */
             id: string;
             /**
@@ -12140,6 +12267,8 @@ export interface components {
             speaker?: string;
             /** Text Fr */
             text_fr: string;
+            /** Translation */
+            translation?: string | null;
         };
         /** RvSupport */
         RvSupport: {
@@ -16046,6 +16175,41 @@ export interface operations {
             };
         };
     };
+    gloss_in_context_api_v1_atelier_gloss_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GlossRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     start_session_api_v1_atelier_sessions_post: {
         parameters: {
             query?: never;
@@ -16684,6 +16848,66 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_avatar_api_v1_avatar_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarState"];
+                };
+            };
+        };
+    };
+    save_avatar_api_v1_avatar_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarState"];
+                };
+            };
+            /** @description An item not unlocked yet: `{"detail": {"code": "avatar_item_locked", "item": …}}` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

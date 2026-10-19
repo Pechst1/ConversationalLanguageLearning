@@ -22,6 +22,7 @@ const {
 const { detectOnboardingLanguage, onboardingLanguageOf } = require('./onboarding-locale.ts');
 const {
   AFTER_SIGNUP_DESTINATION,
+  characterFirst,
   SIGNUP_COPY,
   STARTING_POINTS,
   STARTING_POINT_CEFR,
@@ -187,6 +188,70 @@ test('every starting point goes out as itself; an older three-value client still
   assert.ok(page.includes('startingPointLabel(copy, point)'), 'with its CEFR label');
 });
 
+// --- a server refusal answers in the learner's language (#215) -------------
+
+const SERVER_EMAIL_MSG =
+  'value is not a valid email address: The part after the @-sign is a special-use or reserved name that cannot be used with email.';
+
+function refusal(status, detail) {
+  return { response: { status, data: { detail } } };
+}
+
+test('a 422 on the email field shows the localized email error under the field, never the server text (#215)', () => {
+  const { signUpFailure } = require('./onboarding-signup.ts');
+  const error = refusal(422, [{ type: 'value_error', loc: ['body', 'email'], msg: SERVER_EMAIL_MSG }]);
+  const expected = {
+    de: 'Diese E-Mail-Adresse geht nicht.',
+    en: 'We can’t use this email address.',
+    fr: 'Cette adresse e-mail n’est pas acceptée.',
+  };
+  for (const language of LANGUAGES) {
+    const copy = SIGNUP_COPY[language];
+    const failure = signUpFailure(error, copy);
+    assert.equal(failure.errors.email, 'email_rejected', language);
+    assert.equal(copy.errors[failure.errors.email], expected[language], language);
+    assert.equal(failure.notice, null, `${language}: the field says it once, no second message`);
+    const everything = JSON.stringify([failure, copy.errors[failure.errors.email]]);
+    assert.ok(!everything.includes('special-use'), `${language}: no server text reaches the learner`);
+    assert.ok(!everything.includes('body'), `${language}: no field path reaches the learner`);
+  }
+});
+
+test('every other refusal is localized too: password, taken address, closed sign-up, the rest (#215)', () => {
+  const { signUpFailure } = require('./onboarding-signup.ts');
+  for (const language of LANGUAGES) {
+    const copy = SIGNUP_COPY[language];
+    assert.equal(
+      signUpFailure(refusal(422, [{ loc: ['body', 'password'], msg: 'Password too weak' }]), copy).errors.password,
+      'password_rejected',
+    );
+    assert.equal(signUpFailure(refusal(400, 'A user with this email already exists.'), copy).errors.email, 'email_taken');
+    assert.equal(signUpFailure(refusal(403, 'Registration is closed'), copy).notice, copy.invite_only);
+    // A 422 on a field the form does not show, a 500 and a dropped network: the page's own words.
+    for (const other of [
+      refusal(422, [{ loc: ['body', 'native_language'], msg: 'Input should be en' }]),
+      refusal(500, 'Internal Server Error'),
+      new Error('Network Error'),
+    ]) {
+      const failure = signUpFailure(other, copy);
+      assert.deepEqual(failure.errors, {});
+      assert.equal(failure.notice, copy.failed);
+    }
+    for (const code of ['email_rejected', 'email_taken', 'password_rejected']) {
+      assert.ok(copy.errors[code], `${language}.${code}`);
+    }
+  }
+});
+
+test('the sign-up page keeps the global English toast off and shows the failure itself (#215)', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'pages', 'auth', 'signup.tsx'), 'utf8');
+  const at = (needle, length) => page.slice(page.indexOf(needle), page.indexOf(needle) + length);
+  assert.ok(/suppressGlobalError:\s*true/.test(at("'/auth/register'", 160)), 'register is posted with suppressGlobalError');
+  assert.ok(/suppressGlobalError:\s*true/.test(at("'/legal/consent'", 260)), 'the best-effort consent post stays silent too');
+  assert.ok(!page.includes('authErrorMessage'), 'the server detail is no longer joined into a toast');
+  assert.ok(page.includes('signUpFailure(error, copy)'), 'the page maps the refusal through the shared helper');
+});
+
 // --- redirect target -------------------------------------------------------
 
 test('a new account lands in today’s scene, never on the placement', () => {
@@ -198,10 +263,17 @@ test('a new account lands in today’s scene, never on the placement', () => {
   assert.equal(afterSignUpDestination('/vocabulary'), '/vocabulary');
 });
 
+test('a new account makes its character first, then goes on to its landing', () => {
+  assert.equal(characterFirst('/atelier?start=today'), '/personnage?first=1&next=%2Fatelier%3Fstart%3Dtoday');
+  assert.equal(characterFirst('/vocabulary'), '/personnage?first=1&next=%2Fvocabulary');
+});
+
 test('the sign-up page sends the learner to that destination', () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'pages', 'auth', 'signup.tsx'), 'utf8');
   assert.ok(page.includes('afterSignUpDestination(destination)'));
-  assert.ok(page.includes('router.replace(landing)'));
+  // Ton personnage: the character is made first, then the landing.
+  assert.ok(page.includes('characterFirst(landing)'));
+  assert.ok(page.includes('router.replace(firstStop)'));
   assert.ok(!page.includes("'/placement'"));
   assert.ok(!/confirm/i.test(page.replace(/\/\*[\s\S]*?\*\//g, '')), 'no confirm-password field');
 });

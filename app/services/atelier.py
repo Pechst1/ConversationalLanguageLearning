@@ -698,6 +698,76 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
+    """The learner's line cut into kept text and the wrong stretches to fix in place.
+
+    ``[{"text": …}, {"wrong": …, "fix": …, "erratum": i}, …]``, in line order, or
+    ``None`` when a correction cannot be placed in the line (a missing word, a
+    stretch the line does not contain, the whole line): that line is retyped
+    whole. Mirrored by ``web-frontend/lib/repair-parts.ts``.
+    """
+
+    line = str(learner or "")
+    folded = line.lower()
+    if len(folded) != len(line):
+        return None  # offsets into the line must survive the fold
+    spans: list[tuple[int, int, str, int]] = []
+    for index, erratum in enumerate(errata or []):
+        if not isinstance(erratum, dict) or erratum.get("task_error_type") == "task_compliance":
+            continue
+        wrong = str(erratum.get("learner_text") or "").strip()
+        fix = str(erratum.get("corrected_target") or "").strip()
+        if wrong and wrong == fix:
+            continue  # a no-op erratum asks nothing of the line
+        if not wrong or not fix or wrong.lower() == folded.strip():
+            return None
+        start = _word_find(folded, wrong.lower(), spans)
+        if start < 0:
+            return None
+        spans.append((start, start + len(wrong), fix, index))
+    if not spans:
+        return None
+    spans.sort()
+    parts: list[dict[str, Any]] = []
+    cursor = 0
+    for start, end, fix, index in spans:
+        if start > cursor:
+            parts.append({"text": line[cursor:start]})
+        parts.append({"wrong": line[start:end], "fix": fix, "erratum": index})
+        cursor = end
+    if cursor < len(line):
+        parts.append({"text": line[cursor:]})
+    return parts
+
+
+def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]]) -> int:
+    """Where ``wrong`` stands in the line as a whole word overlapping no span taken.
+
+    -1 when it is not there, or when it is there more than once: an erratum
+    carries no offset, so «partie» in «Elle est partie et il est partie» could
+    be either, and fixing the wrong one must not pass. That line is retyped whole.
+    """
+
+    found: list[int] = []
+    start = folded.find(wrong)
+    while start >= 0:
+        end = start + len(wrong)
+        bounded = (start == 0 or not folded[start - 1].isalnum()) and (end == len(folded) or not folded[end].isalnum())
+        if bounded and all(end <= a or start >= b for a, b, _fix, _index in taken):
+            found.append(start)
+        start = folded.find(wrong, start + 1)
+    return found[0] if len(found) == 1 else -1
+
+
+def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) -> str | None:
+    """The learner's line with every wrong stretch replaced by its fix."""
+
+    parts = repair_parts(learner, errata)
+    if parts is None:
+        return None
+    return "".join(str(part.get("text", part.get("fix")) or "") for part in parts)
+
+
 def _normalize(value: Any) -> str:
     text = "" if value is None else str(value)
     # Fold every smart/curly apostrophe and prime variant to a straight quote so a
@@ -795,6 +865,25 @@ def _normalize_keeping_accents(value: Any) -> str:
 
 
 _COMPLIANCE_ERROR_TYPES = {"length_compliance", "task_compliance"}
+
+
+def _is_burst(exercise_id: Any) -> bool:
+    """La Forge's «rafale»: one attempt answering several judgements («…:lead+4»)."""
+
+    return "+" in str(exercise_id or "").split(":")[-1]
+
+
+def _burst_ids(answer_payload: dict[str, Any]) -> list[str]:
+    """A burst's judgements in the order posed: the payload's ``burst``, else its answers'.
+
+    Their ids ride in the payload, not in the exercise id: four of them overflow
+    the 120 characters ``atelier_attempts.exercise_id`` holds.
+    """
+
+    listed = answer_payload.get("burst")
+    answers = answer_payload.get("answers")
+    ids = listed if isinstance(listed, list) else list(answers) if isinstance(answers, dict) else []
+    return list(dict.fromkeys(str(part).strip() for part in ids if str(part or "").strip()))
 
 
 def _drop_noop_errata(errata: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
@@ -4452,6 +4541,8 @@ class AtelierCorrectionService:
         # wrong* is instruction, and instruction only works in a language the
         # learner already reads. Set per attempt from the learner's profile.
         self.explanation_language = DEFAULT_GLOSS_LANGUAGE
+        #: The learner's own language, for the task as their screen showed it.
+        self._learner_native: str | None = None
 
     def submit_attempt(
         self,
@@ -4468,6 +4559,7 @@ class AtelierCorrectionService:
     ) -> AtelierAttempt:
         from app.services.chrome_language import user_chrome_language
         self.explanation_language = user_chrome_language(user)
+        self._learner_native = getattr(user, "native_language", None)
         # WP-103 T8: an A1 learner corrects a sorted sentence with tiles.
         self._learner_band = str(getattr(user, "cefr_estimate", "") or "A1").strip().upper()[:2]
         # WP-16 additive: per-attempt state for the answer bound and the cost row.
@@ -4481,6 +4573,7 @@ class AtelierCorrectionService:
             exercise_id,
             user=user,
             session=session,
+            item_ids=_burst_ids(answer_payload) if _is_burst(exercise_id) else None,
         )
         target_vocabulary = session_vocabulary_context(session)
         if target_vocabulary:
@@ -4584,9 +4677,10 @@ class AtelierCorrectionService:
         if correction.get("assessment_status") == "unavailable":
             raise ValueError("An unchecked answer cannot be repaired yet.")
         corrected_line = correction.get("corrected_answer")
-        if attempt.round in ATELIER_AI_AUTO_ROUNDS and isinstance(corrected_line, str) and corrected_line.strip() and any(
+        line_repair = attempt.round in ATELIER_AI_AUTO_ROUNDS and isinstance(corrected_line, str) and corrected_line.strip() and any(
             item.get("task_error_type") != "task_compliance" for item in errata
-        ):
+        )
+        if line_repair:
             # The freeform UI presents one complete rewrite, not separate spans.
             targets = [corrected_line.strip()]
         else:
@@ -4608,7 +4702,19 @@ class AtelierCorrectionService:
 
         target = targets[erratum_index]
         typed = str(text or "").strip()
-        is_correct = bool(typed) and _normalize(typed) == _normalize(target)
+        if line_repair:
+            # Owner, 2026-10-19: a long line is repaired by fixing only its wrong
+            # parts in place. The learner's own line with each wrong stretch
+            # replaced is right too, even when the model's rewrite also tidied
+            # something it did not mark. Accents count: often they are the fix.
+            from app.services.answer_acceptance import fold_typography
+
+            accepted = [target, repair_line_from_parts(self._answer_text(attempt.answer_payload or {}), errata)]
+            is_correct = bool(typed) and any(
+                fold_typography(typed) == fold_typography(line) for line in accepted if line
+            )
+        else:
+            is_correct = bool(typed) and _normalize(typed) == _normalize(target)
         repairs = dict(correction.get("micro_repairs") or {})
         repairs[str(erratum_index)] = {
             "target": target,
@@ -4936,6 +5042,9 @@ class AtelierCorrectionService:
         status = str(review.get("status") or "")
         if status in {"pending", "complete"}:
             return attempt, False
+        if correction.get("graded_by") == "local_test_out":
+            # A rule check's verdict is final: no relecture amends a placement.
+            return attempt, False
         if status == "not_applicable" and not (
             attempt.round in ATELIER_AI_AUTO_ROUNDS and (correction.get("correction_debug") or {}).get("fallback_used")
         ):
@@ -4997,6 +5106,7 @@ class AtelierCorrectionService:
 
         from app.services.chrome_language import user_chrome_language
         self.explanation_language = user_chrome_language(user)
+        self._learner_native = getattr(user, "native_language", None)
         started = time.perf_counter()
         try:
             ai_correction = self.correct(
@@ -5346,7 +5456,12 @@ class AtelierCorrectionService:
             correction["errata"] = kept
         if round_name == "recognize" and mode == "classify":
             correction = self._with_judgement_errata(concept, correction, prompt_payload, answer_payload)
-            correction = self._with_classify_follow_up(correction, prompt_payload, answer_payload)
+            if _is_burst(exercise_id) and len(prompt_payload.get("items") or []) > 1:
+                # La Forge's «rafale»: four judgements at speed. Each gets its
+                # mark and its right sentence; no correction step opens after it.
+                correction = self._with_burst_results(concept, correction, prompt_payload, answer_payload)
+            else:
+                correction = self._with_classify_follow_up(correction, prompt_payload, answer_payload)
         # Pattern hits cannot certify arbitrary French or task relevance.
         if round_name in FREE_PRODUCTION_ROUNDS and (correction.get("correction_debug") or {}).get("fallback_used"):
             local_check: dict[str, Any] | None = None
@@ -5486,6 +5601,44 @@ class AtelierCorrectionService:
             updated["follow_ups"] = follow_ups
         return updated
 
+    def _with_burst_results(
+        self,
+        concept: GrammarConcept | None,
+        correction: dict[str, Any],
+        prompt_payload: dict[str, Any],
+        answer_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """La Forge's «rafale»: each judgement's mark, and a wrong sentence's right form.
+
+        ``burst`` lists the items in the order they were posed; ``corrected_fr``
+        rides on each sentence that needed fixing (whatever the learner said),
+        so the result shows what the rule wants — without a correction step.
+        """
+
+        answers = answer_payload.get("answers") or {}
+        rows: list[dict[str, Any]] = []
+        for item in prompt_payload.get("items") or []:
+            if not isinstance(item, dict) or not item.get("id"):
+                continue
+            learner = str(answers.get(item["id"]) or "")
+            target = str(item.get("correct_label") or item.get("correct_answer") or "")
+            row: dict[str, Any] = {
+                "item_id": str(item["id"]),
+                # The sentence judged, so the result reads without the item.
+                "sentence": str(item.get("prompt") or ""),
+                "answer": learner,
+                "expected": target,
+                "correct": _keyed_verdict(concept, item, learner, target).correct,
+            }
+            key = item.get("follow_up_key") if isinstance(item.get("follow_up_key"), dict) else {}
+            corrected = str(key.get("corrected_fr") or item.get("judgement_fix_fr") or "").strip()
+            if corrected and fold_typography(target) == fold_typography(JUDGEMENT_TO_CORRECT):
+                row["corrected_fr"] = corrected
+            rows.append(row)
+        updated = dict(correction)
+        updated["burst"] = rows
+        return updated
+
     def _correct_for_round(
         self,
         *,
@@ -5525,6 +5678,7 @@ class AtelierCorrectionService:
         *,
         user: User | None = None,
         session: AtelierSession | None = None,
+        item_ids: list[str] | None = None,
     ) -> dict[str, Any]:
         if not concept:
             # Produce attempts are deliberately session-wide, not tied to one
@@ -5572,7 +5726,7 @@ class AtelierCorrectionService:
             "rule_panel": payload.get("rule_panel") or {},
         }
         if round_name == "recognize":
-            return self._scope_prompt_items({**base_payload, **payload["recognize"][mode]}, exercise_id)
+            return self._scope_prompt_items({**base_payload, **payload["recognize"][mode]}, exercise_id, item_ids)
         if round_name == "transform":
             return self._scope_prompt_items({**base_payload, **payload["transform"]}, exercise_id)
         if round_name in {"sentence", "speak", "conversation"}:
@@ -5585,7 +5739,9 @@ class AtelierCorrectionService:
         return {"id": exercise_id, "round": round_name, "mode": mode}
 
     @staticmethod
-    def _scope_prompt_items(prompt_payload: dict[str, Any], exercise_id: str) -> dict[str, Any]:
+    def _scope_prompt_items(
+        prompt_payload: dict[str, Any], exercise_id: str, item_ids: list[str] | None = None
+    ) -> dict[str, Any]:
         items = prompt_payload.get("items")
         if not isinstance(items, list) or not items:
             return prompt_payload
@@ -5593,6 +5749,11 @@ class AtelierCorrectionService:
         if not candidate:
             return prompt_payload
         matched = [item for item in items if str((item or {}).get("id") or "") == candidate]
+        if not matched and item_ids:
+            # La Forge's burst answers several items in one attempt
+            # («…:classify:lead+4»): the items its payload names, in that order.
+            by_id = {str((item or {}).get("id") or ""): item for item in items if isinstance(item, dict)}
+            matched = [by_id[part] for part in item_ids if part in by_id]
         if not matched:
             return prompt_payload
         return {
@@ -5665,7 +5826,10 @@ class AtelierCorrectionService:
             elif mode == "word_bank" and not item.get("lesson_external_id"):
                 errata.extend(self._word_bank_errata(concept, item, learner_text, str(target or "")))
             else:
-                errata.append(self._recognize_erratum(concept, mode, item, learner_text, str(target or "")))
+                # #235: a gap lists several right fillers; the miss is measured against
+                # the closest one (a wrong article is told «une peinture», not «un tableau»).
+                shown = verdict.expected if mode == "fill" and verdict.expected else target
+                errata.append(self._recognize_erratum(concept, mode, item, learner_text, str(shown or "")))
         score = round((correct_count / max(len(items), 1)) * 4, 2)
         return {
             "verdict": "correct" if correct_count == len(items) else ("partial" if correct_count else "incorrect"),
@@ -6852,9 +7016,52 @@ class AtelierCorrectionService:
                     )
                     if raw_item.get(key) is not None
                 }
-                compact_items.append(item)
+                compact_items.append(self._task_as_shown(raw_item, item))
             compact["items"] = compact_items
         return compact
+
+    def _task_as_shown(self, raw_item: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
+        """The item as the learner's screen asked it (owner, 2026-10-19).
+
+        A French- or German-chrome learner is often asked for «a short sentence of
+        your own» with no meaning quoted (QA-FORGE keeps the English gloss off their
+        screen), while the stored item still carries the English «Say in French:
+        "I booked a table at Le Mistral last week."». The grader read that and
+        marked «Ta phrase ne dit pas que tu as réservé une table au Mistral».
+        When the meaning was not on screen, the grader gets the ask the learner
+        read, and ``own_sentence``: the content is the learner's to choose.
+        """
+
+        language = str(self.explanation_language or "en").strip().lower()[:2]
+        if language == "en" or item.get("type") not in {"short_sentence", "spoken_response", "conversation_turn"}:
+            return item
+        meanings = [
+            str(value).strip()
+            for value in [
+                *((raw_item.get("meaning_l10n") or {}).values() if isinstance(raw_item.get("meaning_l10n"), dict) else []),
+                raw_item.get("meaning"),
+                raw_item.get("meaning_cue"),
+            ]
+            if isinstance(value, str) and value.strip()
+        ]
+        if not meanings:
+            return item
+        from app.services.item_bank import public_item
+
+        shown = public_item(dict(raw_item), language, self._learner_native)
+        on_screen = " ".join(
+            str(shown.get(key) or "") for key in ("goal_native", "prompt", "instruction")
+        )
+        if any(meaning in on_screen for meaning in meanings):
+            return item
+        out = dict(item)
+        asked = [str(shown.get(key) or "").strip() for key in ("prompt", "goal_native")]
+        asked = [text for index, text in enumerate(asked) if text and text not in asked[:index]]
+        out["prompt"] = " ".join(asked) or out.get("prompt")
+        out["instruction"] = shown.get("instruction") or out.get("instruction")
+        out.pop("expected_answer", None)
+        out["own_sentence"] = True
+        return out
 
     @staticmethod
     def _compact_llm_answer(answer_payload: dict[str, Any]) -> dict[str, Any]:
@@ -6920,6 +7127,8 @@ class AtelierCorrectionService:
             "requirements": ((prompt_payload.get("items") or [{}])[0] or {}).get("requirements") or [],
             "instructions": [
                 "This is part of a guided output ladder: short sentence, spoken transcript, or conversation turn.",
+                "If an item has own_sentence true, its prompt is exactly what the learner was asked: a sentence of their own "
+                "with today's rule. Any content is fine; never flag that the line does not say what example_answer says.",
                 "corrected_answer MUST be the learner's own line rewritten correctly and naturally as one clean, complete French sentence "
                 "that keeps their meaning — never a grammar rule, a placeholder, a question, or a list of alternatives.",
                 "Accept natural original French if it uses the target concept correctly; it does not need to match the example answer.",
@@ -7955,6 +8164,15 @@ class AtelierSRSService:
                 )
                 if offer is not None:
                     recap["forge"]["eclair"] = offer
+                # «L'épreuve de la règle» lives here now, every few days, for a
+                # rule the learner is ready to prove (not a link on every item).
+                from app.services.forge import offer_test_out
+
+                test_out = offer_test_out(
+                    self.db, user=user, concept_ids=[track.concept_id for track in forge_state.tracks]
+                )
+                if test_out is not None:
+                    recap["forge"]["test_out_offer"] = test_out
         completed_at = datetime.now(UTC)
         if phrase_candidates:
             _, phrase = max(phrase_candidates, key=lambda item: (item[0], len(item[1])))

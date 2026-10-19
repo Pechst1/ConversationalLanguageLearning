@@ -117,7 +117,6 @@ export type AtelierCopyKey =
   | 'home_streak_done'
   | 'home_streak_seals'
   | 'home_level_aria'
-  | 'home_consolidating'
   | 'home_letter'
   | 'home_words_one'
   | 'home_practice'
@@ -208,7 +207,6 @@ const EN: Table = {
   home_streak_done: 'day done',
   home_streak_seals: 'your seals',
   home_level_aria: 'Your level: {band}, {percent} % of the way through',
-  home_consolidating: 'This week, we consolidate.',
   home_letter: 'New letter',
   home_letter_aria: 'A letter is waiting',
   home_words_one: '1 word',
@@ -298,7 +296,6 @@ const DE: Table = {
   home_streak_done: 'Tag geschafft',
   home_streak_seals: 'Deine Siegel',
   home_level_aria: 'Dein Niveau: {band}, zu {percent} % geschafft',
-  home_consolidating: 'Diese Woche festigen wir.',
   home_letter: 'Neuer Brief',
   home_letter_aria: 'Ein Brief wartet auf dich',
   home_words_one: '1 Wort',
@@ -388,7 +385,6 @@ const FR: Table = {
   home_streak_done: 'journée bouclée',
   home_streak_seals: 'tes sceaux',
   home_level_aria: 'Ton niveau : {band}, parcouru à {percent} %',
-  home_consolidating: 'Cette semaine, on consolide.',
   home_letter: 'Nouvelle lettre',
   home_letter_aria: 'Une lettre t’attend',
   home_words_one: '1 mot',
