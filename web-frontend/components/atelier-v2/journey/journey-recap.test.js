@@ -439,3 +439,29 @@ test('WP-L6: the recap says «Cette semaine, on consolide.» while the throttle 
   assert.match(textOf(render(day({ consolidating: true }))), /This week, we consolidate\./);
   assert.match(textOf(render(day({ consolidating: true }), { language: 'fr' })), /Cette semaine, on consolide\./);
 });
+
+test('#237: «Fin du chapitre» never prints a second question, and the day summary only once', () => {
+  const callback = 'Marin se souvient que le sac chaud s’appelle une bouillotte.';
+  const digest = `Quel est ton « ordre » au Mistral, et est-ce que tu restes pour toi ou pour eux ? → ${callback}`;
+  // The card says the callback once (the character's line); the colophon does not repeat it,
+  // and its question half is the Feuilleton's, not a rival of «La suite demain».
+  assert.equal(model.colophonDigest(digest, [callback]), null);
+  assert.equal(model.colophonDigest(digest, [`${callback.slice(0, 40)}…`, callback]), null);
+  // A different resolution is kept, alone, without the question.
+  assert.equal(model.colophonDigest(digest, ['Autre chose.']), callback);
+  assert.equal(model.colophonDigest('La clé est retrouvée.', []), 'La clé est retrouvée.');
+  assert.equal(model.colophonDigest(null, []), null);
+
+  const html = render(
+    day({
+      story_outcome: { callback_fr: callback },
+      chapter_closed: { index: 1, title_fr: 'Le Mistral', digest_fr: digest },
+      next_teaser_fr: 'Dis, j’y repense… Demain, peut-être, on saura : « Qui était Odile ? »',
+    }),
+  );
+  const said = textOf(html);
+  assert.match(said, /Fin du chapitre/);
+  assert.doesNotMatch(said, /Quel est ton/);
+  assert.equal(said.split(callback).length - 1, 1, 'the day summary is printed once');
+  assert.match(said, /Qui était Odile/);
+});

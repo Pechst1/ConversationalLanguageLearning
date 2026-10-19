@@ -364,6 +364,22 @@ test('a planche reread: the reply in Garamond italic, the ending, the notes', ()
   assert.match(text(quiet), /An diesem Tag hast du nichts geantwortet\./);
 });
 
+test('#237: a filed day carries the one «À suivre…» hook it was settled with', () => {
+  const hook = 'Dis, j’y repense… Demain, peut-être, on saura : « Qui était Odile ? »';
+  const raw = day('2026-09-15', 3, { hook_fr: hook });
+  const d = model.normalizeArchive({
+    seasons: [{ number: 1, chapters: [{ index: 1, title_fr: 'C', closed: false, days: [raw] }] }],
+  }).seasons[0].chapters[0].days[0];
+  assert.equal(d.hook_fr, hook);
+  const html = decode(inRoot(h(surface.ArchiveDayPage, { day: d, archive: ARCHIVE, language: 'fr', episode: null })));
+  assert.match(html, /data-hook/);
+  assert.match(text(html), /À suivre… Dis, j’y repense… Demain, peut-être, on saura/);
+  // A day filed without a hook prints none.
+  const none = model.findArchiveDay(ARCHIVE, { date: '2026-09-14' });
+  assert.equal(none.hook_fr, null);
+  assert.doesNotMatch(decode(inRoot(h(surface.ArchiveDayPage, { day: none, language: 'fr', episode: null }))), /data-hook/);
+});
+
 test('WP-110: a finished page is the record — the replies are not repeated under it', () => {
   const d = model.findArchiveDay(ARCHIVE, { date: '2026-09-15' });
   const episode = {
@@ -446,7 +462,9 @@ test('the recap: «Fin du chapitre» with the digest, «Tome N» pressed, the ma
   };
   const html = decode(inRoot(h(JourneyRecap, { journey, recap, language: 'en', onExit: () => {} })));
   assert.match(html, /data-chapter-closed="3"[\s\S]*Fin du chapitre/);
-  assert.match(text(html), /Qui \? → Marin\./);
+  // #237: the card keeps the resolution half only; the question is the Feuilleton's.
+  assert.match(text(html), /Fin du chapitre Marin\./);
+  assert.doesNotMatch(text(html), /Qui \?/);
   assert.match(html, /data-season-finished="1"[\s\S]*Tome 1/);
   assert.match(html, /data-stamp="true"/);
   assert.match(text(html), /Season 1 is finished: it is bound as a volume\./);

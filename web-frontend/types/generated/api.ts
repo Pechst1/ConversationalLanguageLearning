@@ -5649,6 +5649,8 @@ export interface components {
             edition_no?: number | null;
             /** Ending Fr */
             ending_fr?: string | null;
+            /** Hook Fr */
+            hook_fr?: string | null;
             /** Image Url */
             image_url?: string | null;
             /** Journey Id */
