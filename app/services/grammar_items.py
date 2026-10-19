@@ -463,6 +463,9 @@ def recognise_item(
         solution_fr=answer,
         estimated_seconds=0,
         goal_native=_hint(brief, language) if review else None,
+        # Up to A2 the options are different sentences, one of which uses the rule;
+        # from B1 they are the right and the wrong form of one sentence.
+        options_kind="variants" if contrast else "sentences",
     )
 
 

@@ -417,6 +417,8 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         # WP-103 T3: likewise.
         **({"goal_native": task.goal_native} if task.goal_native else {}),
         **({"source_fr": task.source_fr} if task.source_fr else {}),
+        # #240: only when not the default, so every stored task reads as before.
+        **({"options_kind": task.options_kind} if task.options_kind != "variants" else {}),
     }
 
 
@@ -438,6 +440,7 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         evidence_format=payload.get("evidence_format") or None,
         goal_native=payload.get("goal_native") or None,
         source_fr=payload.get("source_fr") or None,
+        options_kind="sentences" if payload.get("options_kind") == "sentences" else "variants",
     )
 
 
@@ -5753,6 +5756,7 @@ class DailyJourneyService:
             span_fr=correction.span_fr,
             corrected_fr=correction.corrected_fr,
             note_native=correction.note_native,
+            kind=correction.kind,
         )
 
     def _reply_source(self, evaluation: Any) -> str:

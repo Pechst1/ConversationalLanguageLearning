@@ -387,6 +387,10 @@ class JourneyCorrection(JourneyModel):
     #: each, in the learner's language — a journey correction is one issue, so one
     #: note: ``note_native`` with any sentence it repeats removed.
     notes_native: list[str] = Field(default_factory=list)
+    #: #240: ``edit`` is «span → corrected» (the corrected sentence is the learner's, made
+    #: right); ``pick`` is a wrong tap among different sentences, where ``corrected_fr``
+    #: is the one that carries the rule and the screen must not draw an arrow.
+    kind: Literal["edit", "pick"] = "edit"
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:

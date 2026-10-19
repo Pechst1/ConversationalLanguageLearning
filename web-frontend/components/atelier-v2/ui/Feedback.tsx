@@ -80,23 +80,54 @@ export type CorrectionProps = {
    * empty) it replaces `noteNative`; each note is its own line.
    */
   notesNative?: string[] | null;
+  /**
+   * #240: `edit` (the default) says `spanFr` is the learner's sentence and
+   * `correctedFr` the same sentence made right, so the two are shown as «A → B».
+   * `pick` says they are two different sentences: `correctedFr` is the one that
+   * carries the rule and `spanFr` is the one the learner tapped instead. An arrow
+   * between those would read as «rewrite A into B», so the right sentence is
+   * shown on its own and the tapped one is named as not it.
+   */
+  kind?: 'edit' | 'pick';
+  /** The label before the tapped sentence of a `pick`: «Not this one:». */
+  pickNotItLabel?: string;
 };
 
 /** At most one correction, under the verdict, never a second headline. */
-export function Correction({ label, spanFr, correctedFr, noteNative, notesNative }: CorrectionProps) {
+export function Correction({
+  label, spanFr, correctedFr, noteNative, notesNative, kind = 'edit', pickNotItLabel,
+}: CorrectionProps) {
   const notes = (notesNative ?? []).filter((note) => typeof note === 'string' && note.trim());
   return (
-    <div className="av2-correction">
+    <div className="av2-correction" data-kind={kind}>
       <p className="av2-label">{label}</p>
-      <p className="av2-correction__line" style={{ margin: '4px 0 0' }}>
-        <span className="av2-correction__span" lang="fr">
-          {spanFr}
-        </span>{' '}
-        <span aria-hidden="true">→</span>{' '}
-        <span className="av2-correction__fix" lang="fr">
-          {correctedFr}
-        </span>
-      </p>
+      {kind === 'pick' ? (
+        <>
+          <p className="av2-correction__line" style={{ margin: '4px 0 0' }}>
+            <span className="av2-correction__fix" lang="fr">
+              {correctedFr}
+            </span>
+          </p>
+          {spanFr && (
+            <p className="av2-correction__other" style={{ margin: '4px 0 0' }}>
+              {pickNotItLabel ? `${pickNotItLabel} ` : ''}
+              <span className="av2-correction__span" lang="fr">
+                {spanFr}
+              </span>
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="av2-correction__line" style={{ margin: '4px 0 0' }}>
+          <span className="av2-correction__span" lang="fr">
+            {spanFr}
+          </span>{' '}
+          <span aria-hidden="true">→</span>{' '}
+          <span className="av2-correction__fix" lang="fr">
+            {correctedFr}
+          </span>
+        </p>
+      )}
       {notes.length > 0 ? (
         <ul className="av2-correction__notes">
           {notes.map((note, index) => (

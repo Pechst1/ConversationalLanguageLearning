@@ -691,3 +691,35 @@ console.log('atelier v2 design system tests passed');
   const settingsCopy = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'lib', 'settings-copy.ts'), 'utf8');
   assert.ok(settingsCopy.includes('Signaler un problème') && settings.includes('FEEDBACK_OPEN_EVENT'), 'the Réglages row exists');
 }
+
+// ===========================================================================
+// #240 / #146: a correction says how its two sentences relate
+// ===========================================================================
+//
+// A wrong tap on «Which sentence uses today's rule?» came back as «One thing to
+// fix: Vous allez vraiment vendre… → Il a dit ça ?». The two are different
+// sentences; the arrow told the learner to rewrite the first into the second.
+// Only an `edit` (B is A made right) keeps the arrow.
+{
+  const tapped = 'Vous allez vraiment vendre l’appartement d’Odile ?';
+  const right = 'Il a dit ça ?';
+  const edit = render(h(ui.Correction, { label: 'One thing to fix', spanFr: 'Ils est', correctedFr: 'Ils sont', noteNative: 'être' }));
+  assert.ok(edit.includes('→') && edit.includes('Ils est') && edit.includes('Ils sont'), 'a variant keeps «A → B»');
+  assert.ok(edit.includes('data-kind="edit"'), 'an edit is marked as one');
+
+  const pick = render(h(ui.Correction, {
+    label: 'This sentence uses the rule', kind: 'pick', pickNotItLabel: 'Not this one:',
+    spanFr: tapped, correctedFr: right, noteNative: 'avoir + participle',
+  }));
+  assert.ok(!pick.includes('→'), 'two different sentences are never joined by an arrow');
+  assert.ok(pick.includes(right), 'the sentence that carries the rule is named');
+  assert.ok(pick.includes('Not this one:') && pick.includes('vendre'), 'the tapped sentence is named as not it');
+  assert.ok(pick.includes('avoir + participle'), 'and the rule is the reason');
+  assert.ok(pick.indexOf(right) < pick.indexOf('vendre'), 'the right sentence comes first');
+
+  const copy = require('@/components/atelier-v2/journey/journey-copy.ts');
+  for (const language of ['en', 'de', 'fr']) {
+    const table = copy.journeyCopy(language);
+    assert.ok(table.correction_pick && table.pick_not_it, `pick copy exists in ${language}`);
+  }
+}
