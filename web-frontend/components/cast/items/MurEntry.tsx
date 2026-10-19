@@ -1,6 +1,7 @@
 /**
- * Home's way onto Le mur du Mistral: a row with the objects handed over so far, shown once there
- * is at least one (components/cast/items/MurDuMistral).
+ * Home's way onto Le mur du Mistral, shown once there is at least one object
+ * (components/cast/items/MurDuMistral): a row on the full Home, a chip in the journey Home's
+ * quiet row when it has room.
  */
 import Link from 'next/link';
 import React from 'react';
@@ -38,6 +39,27 @@ export function MurEntry({ className }: { className?: string }) {
       </Link>
     </div>
   );
+}
+
+/**
+ * The journey Home's chip. `className` goes on a wrapper only when given (the chip alone, with
+ * no other chips around it); otherwise the chip sits in the existing chips row.
+ */
+export function MurChip({ className }: { className?: string }) {
+  const lang = toCameoLang(useLearnerLanguage());
+  const { wall, hooks } = useSeasonWall();
+  const owned = hooks.filter((hook) => hook.owned);
+  if (!owned.length) return null;
+  const last = owned[owned.length - 1];
+  const count = wallText(WALL_COPY.count, lang, { n: owned.length, total: hooks.length });
+  const chip = (
+    <Link className="av2-chip" data-chip="mur" href={MUR_HREF} aria-label={`${WALL_COPY.title} · ${count}`}>
+      <PlotItem id={last.item.id} size={20} still css="none" marks={marksFor(last.item, wall.marks)} />
+      <span>{WALL_COPY.title}</span>
+      <span className="av2-chip__meta">{`${owned.length}/${hooks.length}`}</span>
+    </Link>
+  );
+  return className ? <div className={className}>{chip}</div> : chip;
 }
 
 export default MurEntry;

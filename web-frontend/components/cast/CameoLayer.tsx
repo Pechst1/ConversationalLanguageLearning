@@ -41,6 +41,7 @@ import {
 import { seasonItem } from '@/lib/season-items';
 import type { Cameo, CameoEvent, CameoFigure, CameoGag, CameoLang, CameoMood, CameoState } from '@/lib/cameo';
 import { readLearnerLanguage } from '@/lib/learner-language';
+import { readAccountScope } from '@/lib/pilot-resilience';
 
 import { CastRig } from './CastRig';
 import { handoverAt, itemOffer } from './items/offer';
@@ -200,8 +201,9 @@ function Bubble({ cameo, language, figureIndex = 0, glossed = false }: { cameo: 
 
 export function CameoLayer() {
   const director = useRef<CameoState>(INITIAL_CAMEO_STATE);
-  // What this device remembers (who was met, today's page, the objects handed over), read once.
-  const remembered = useRef(false);
+  // What this device remembers (who was met, today's page, the objects handed over), read once
+  // per learner: a new account scope starts the director over.
+  const remembered = useRef<string | null>(null);
   const [shown, setShown] = useState<Cameo | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [flash, setFlash] = useState(0);
@@ -228,9 +230,11 @@ export function CameoLayer() {
   }, [later]);
 
   const play = useCallback((event: CameoEvent, anchor?: Element | null) => {
-    if (!remembered.current) {
-      remembered.current = true;
-      director.current = { ...director.current, met: readMetCast(), scene: readSceneCast(), items: readCameoItems() };
+    const scope = readAccountScope() ?? '';
+    if (remembered.current !== scope) {
+      const base = remembered.current === null ? director.current : INITIAL_CAMEO_STATE;
+      remembered.current = scope;
+      director.current = { ...base, met: readMetCast(), scene: readSceneCast(), items: readCameoItems() };
     }
     if (event.type === 'met' || event.type === 'scene') {
       const before = director.current.met.length;

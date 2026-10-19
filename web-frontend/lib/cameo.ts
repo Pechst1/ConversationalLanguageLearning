@@ -280,8 +280,11 @@ function sceneCast(state: CameoState): readonly Who[] {
  * came last, so two cameos in a row are two people.
  */
 function someone(state: CameoState, rand: () => number, avoid: string | null): Who {
-  const today = sceneCast(state).filter((who) => who.id !== avoid);
+  const scene = sceneCast(state);
+  const today = scene.filter((who) => who.id !== avoid);
   if (today.length) return pick(today, rand);
+  // a one-person page keeps its one person, even twice in a row, before a stranger walks in
+  if (scene.length) return pick(scene, rand);
   const pool = castFor(state).filter((who) => who.id !== avoid);
   return pick(pool.length ? pool : castFor(state), rand);
 }
@@ -513,8 +516,10 @@ export function writeMetCast(ids: readonly string[]): void {
   }
 }
 
-export const CAMEO_SCENE_KEY = 'atelier.cameoScene';
-export const CAMEO_ITEMS_KEY = 'atelier.cameoItems';
+// Under `pilot:` so sign-out and an account switch sweep them (lib/pilot-resilience): the next
+// learner on this browser never inherits the last one's page or objects.
+export const CAMEO_SCENE_KEY = 'pilot:cameo-scene:v1';
+export const CAMEO_ITEMS_KEY = 'pilot:cameo-items:v1';
 
 function today(): string {
   const now = new Date();

@@ -216,6 +216,13 @@ test('the walk-ons are today’s page’s people', () => {
   assert.ok(romyOnPage.met.includes('romy_tremblay'), 'somebody on today’s page has been met');
 });
 
+test('a one-person page keeps its one person, even when they are the rule’s coach', () => {
+  const solo = { ...INITIAL_CAMEO_STATE, scene: ['lila_bonnet'] };
+  const { out } = run(Array.from({ length: 5 }, () => right('lila_bonnet')), never, 1_000_000, solo);
+  assert.equal(out[4].trigger, 'streak');
+  assert.equal(out[4].figures[0].id, 'lila_bonnet', 'not a stranger to the day');
+});
+
 test('whoever comforted a second mistake comes back for the next right answer', () => {
   for (let seed = 0; seed < 6; seed += 1) {
     const rand = () => seed / 6;

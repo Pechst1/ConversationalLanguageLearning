@@ -28,7 +28,7 @@ import React from 'react';
 import Link from 'next/link';
 
 import { PlacementOfferChip } from '@/components/onboarding/PlacementOfferChip';
-import { MurEntry } from '@/components/cast/items/MurEntry';
+import { MurChip, MurEntry } from '@/components/cast/items/MurEntry';
 
 import {
   Action,
@@ -288,7 +288,8 @@ export function HomeScreen({
   const copy = atelierCopy(language);
   // WP-81: with the journey on, Home does one thing — the day.
   const oneThing = Boolean(day);
-  const shownChips = (chips || []).slice(0, dayDone ? 1 : 2);
+  const chipRoom = dayDone ? 1 : 2;
+  const shownChips = (chips || []).slice(0, chipRoom);
   const streakWord = streak === 1 ? copy.home_streak_first : copy.home_streak_days;
   const [quickOpen, setQuickOpen] = React.useState(false);
   const quickLabel = settingsCopy(resolveSettingsLanguage(language)).quick_open;
@@ -413,6 +414,7 @@ export function HomeScreen({
       ) : null}
 
       {/* WP-81: at most one quiet row — a letter waiting, words due. */}
+      {oneThing && shownChips.length === 0 && <MurChip className="av2-home__section av2-home__chips" />}
       {oneThing && shownChips.length > 0 && (
         <div className="av2-home__section av2-home__chips">
           {shownChips.map((chip) => {
@@ -446,6 +448,7 @@ export function HomeScreen({
               </Link>
             );
           })}
+          {shownChips.length < chipRoom && <MurChip />}
         </div>
       )}
 
