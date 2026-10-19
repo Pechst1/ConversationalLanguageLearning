@@ -1,5 +1,5 @@
 /**
- * WP-119 · RvSessionHead (× · five beats · the column) and RvColumn.
+ * WP-119 · RvSessionHead (× · five beats) and RvColumn.
  *
  * The × leaves for La Une with no confirm: the state is append-only, nothing is
  * lost («Quitter la Revue — Romy garde tes notes»). After the close — and on a
@@ -11,7 +11,9 @@
  * RvColumn (design §3.8): seven short lines inked as the room is used, never a
  * number or a clock. The word shows only at 80 % («Bouclage», the last inked line
  * red) and at 100 % («Bouclé»). A tap shows one line for 3 s; screen readers get
- * that sentence as the label.
+ * that sentence as the label. 2026-10-19: no longer in the head — the beat bar is
+ * enough on a phone, and on the chooser it said «La colonne est pleine» before
+ * anything had begun; the thread's «Bouclage» marker and Romy's steer still say it.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -49,7 +51,6 @@ export function RvColumn({ room, copy }: { room: RvRoom; copy: RevueCopy }) {
 
 export type RvSessionHeadProps = {
   beat: RvBeat | null;
-  room: RvRoom;
   onExit: () => void;
   /** The session is closed: every beat is filled. */
   ended?: boolean;
@@ -58,7 +59,7 @@ export type RvSessionHeadProps = {
   copy: RevueCopy;
 };
 
-export function RvSessionHead({ beat, room, onExit, ended = false, back = ended, copy }: RvSessionHeadProps) {
+export function RvSessionHead({ beat, onExit, ended = false, back = ended, copy }: RvSessionHeadProps) {
   const segments = beatSegments(beat, ended);
   const at = segments.findIndex((segment) => segment.state === 'active');
   return (
@@ -79,7 +80,6 @@ export function RvSessionHead({ beat, room, onExit, ended = false, back = ended,
           <li key={segment.beat} className="av2-progress__segment" data-beat={segment.beat} data-state={segment.state} />
         ))}
       </ol>
-      <RvColumn room={room} copy={copy} />
     </div>
   );
 }

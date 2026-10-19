@@ -425,6 +425,33 @@ def test_bouclage_steer_at_eighty_percent_then_the_column_closes(db: Session) ->
     assert state_of(row).questions[-1]["kept"] is True
 
 
+def test_plus_is_not_offered_once_every_claim_is_on_the_table(db: Session) -> None:
+    """2026-10-19: «Plus» with nothing left only made Romy say again that the articles say no more."""
+
+    user = make_user(db)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(user, WEEK, dossier_id=MARCHE)
+    facts = revue.turn(row, "D'accord, je t'aide.")
+    more = enc.QR_MORE.send_fr
+    assert more in [reply.send_fr for reply in facts.quick_replies]
+
+    dossier = next(d for d in evergreens_for_week(WEEK) if d.id == MARCHE)
+    state = state_of(row)
+    assert enc.unshown_claims(dossier, state) > 0
+    state.append("claim_shown", claim_ids=[claim.id for claim in dossier.claims])
+    row.state = state.to_json()
+    db.commit()
+    assert enc.unshown_claims(dossier, state) == 0
+
+    assert more not in [reply.send_fr for reply in revue.view(row).quick_replies]
+    after = revue.turn(row, "Le marché ouvre le matin ?")
+    assert more not in [reply.send_fr for reply in after.quick_replies]
+    # Not counted (an older caller): «Plus» stays.
+    room = enc.RvRoom(used=1, phase="bouclage", remaining_turns=2)
+    assert enc.quick_replies(state, room) == [enc.QR_MORE]
+    assert enc.quick_replies(state, room, unshown=0) == []
+
+
 def test_simplify_after_two_incomprehension_turns(db: Session) -> None:
     user = make_user(db)
     revue = RevueEncounter(db, FakeRevueProvider())

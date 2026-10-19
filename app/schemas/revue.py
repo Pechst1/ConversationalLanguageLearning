@@ -368,7 +368,8 @@ class RvClosing(RevueModel):
     question_kept_fr: str | None = None
     #: WP-120 §4.3: the vignette minted at close (None when minting failed or is off).
     vignette: VignetteView | None = None
-    colophon_fr: Literal["La suite la semaine prochaine."] = "La suite la semaine prochaine."
+    #: «La suite demain.» when the Papier is daily (its period is a day, §12.2).
+    colophon_fr: Literal["La suite la semaine prochaine.", "La suite demain."] = "La suite la semaine prochaine."
 
 
 class RvSessionView(RevueModel):

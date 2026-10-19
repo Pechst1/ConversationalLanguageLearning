@@ -699,6 +699,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/atelier/gloss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gloss In Context
+         * @description The meaning of one French word *as used in its sentence*, for the word-help sheet.
+         *
+         *     The catalogue (``/vocabulary/lookup``) knows dictionary entries; a news word or an
+         *     inflected form («grévistes», «plagiat», «spectateurs») misses it, and the sheet used
+         *     to fall back to translating the whole line. Here the model reads the word in its
+         *     sentence and answers with its dictionary form (``lemma``), a meaning of one to four
+         *     words in the learner's own language (``gloss``, the ``/translate`` rule) and the
+         *     sentence's translation (``translation``). Best-effort like ``/translate``: empty
+         *     strings when the model fails, and the sheet falls back to the sentence.
+         */
+        post: operations["gloss_in_context_api_v1_atelier_gloss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/atelier/sessions": {
         parameters: {
             query?: never;
@@ -8133,6 +8161,16 @@ export interface components {
             prompt: components["schemas"]["ForgePrompt"];
             status: components["schemas"]["StepStatus"];
         };
+        /** GlossRequest */
+        GlossRequest: {
+            /**
+             * Sentence
+             * @default
+             */
+            sentence?: string;
+            /** Word */
+            word: string;
+        };
         /**
          * GoalCheckRequest
          * @description Request to check narrative goal completion.
@@ -11463,9 +11501,9 @@ export interface components {
             /**
              * Colophon Fr
              * @default La suite la semaine prochaine.
-             * @constant
+             * @enum {string}
              */
-            colophon_fr?: "La suite la semaine prochaine.";
+            colophon_fr?: "La suite la semaine prochaine." | "La suite demain.";
             dispatch: components["schemas"]["RvDispatch"];
             kept: components["schemas"]["RvKept"];
             /** Question Kept Fr */
@@ -16088,6 +16126,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AtelierSessionStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gloss_in_context_api_v1_atelier_gloss_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GlossRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */

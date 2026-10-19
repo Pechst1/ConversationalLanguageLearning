@@ -4,8 +4,15 @@
  * The one implementation of the encounter: `/revue` mounts it, and the journey
  * player will mount the same component for `DayShape.REVUE` (phase 3). It owns
  * the session head, the stage (full 4:3 until the learner first speaks, then the
- * pinned band), the thread, the foot (the press / quick replies / composer) and
- * the make and close steps.
+ * band at the top of the scrolling page — 2026-10-19: no longer pinned under the
+ * head, a phone has too little room), the thread, the foot (the press / quick
+ * replies / composer) and the make and close steps.
+ *
+ * 2026-10-19 (the walk got stuck): once the learner has spoken, the foot always
+ * has a way forward — «Écrire le papier →» opens the make with no model turn; the
+ * 80 % steer asks once per session, and a make offer that fails says so quietly
+ * (and offers to file the Papier as it is); a refused headline or caption can be
+ * passed, and a failed draft or close can be filed anyway.
  *
  * Resume is a replay: the session the server sends (`GET /revue/sessions/{id}`)
  * is rendered as is — the same thread, the same ids — and when it started on an
@@ -33,6 +40,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Action, Notice } from '@/components/atelier-v2/ui';
+import { FeuilletonReaderStyles } from '@/components/feuilleton/reader/reader-styles';
 import { WordHelpSheet, type WordHelpRequest } from '@/components/feuilleton/reader/WordHelpSheet';
 import { RevueError, newClientTurnId, type RevueClient } from '@/lib/revue-api';
 import type {
@@ -58,11 +66,14 @@ import {
   applyTurn,
   castWithGuests,
   enteringGuest,
+  knownGloss,
+  lastRomyLine,
   lastSpeaker,
   localDay,
   mergeWordOutcomes,
   openQuestion,
-  shownRoom,
+  sameLine,
+  sessionGlosses,
   sourceDate,
   type WordOutcomes,
 } from './revue-model';
@@ -114,6 +125,10 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   const [modelDown, setModelDown] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [steerDismissed, setSteerDismissed] = useState(false);
+  // The make offer failed or came back empty: a quiet notice, and the way out stays open.
+  const [makeFailed, setMakeFailed] = useState(false);
+  // The session the 80 % steer already asked for (once per session, whatever the answer).
+  const steered = useRef<string | null>(null);
   const [word, setWord] = useState<WordHelpRequest | null>(null);
   const [reread, setReread] = useState(false);
   // `ended`: opened after the close this week — read-only. A close made here shows the close page instead.
@@ -161,10 +176,25 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, make.step, closing]);
 
-  const onWord = useCallback((event: RvWordEvent) => {
-    const term = event.word.toLowerCase().replace(/^(l|d|qu|j|n|s|c)['’]/, '');
-    setWord({ surface: event.word, term, sentence: event.sentence, speakerId: 'romy_tremblay' });
-  }, []);
+  // 2026-10-19: what the Papier already knows (its target words, the picture's words) shows at
+  // once in the sheet; any other word is looked up there, then read in its sentence.
+  const glosses = useMemo(() => sessionGlosses(session), [session]);
+  const onWord = useCallback(
+    (event: RvWordEvent) => {
+      const term = event.word.toLowerCase().replace(/^(l|d|qu|j|n|s|c)['’]/, '');
+      const known = event.gloss || knownGloss(event.word, glosses, event.sentence) || knownGloss(term, glosses, event.sentence);
+      setWord({
+        surface: event.word,
+        term,
+        sentence: event.sentence,
+        speaker: event.speaker,
+        speakerId: 'romy_tremblay',
+        knownGloss: known,
+        knownGlossLanguage: known ? glossLanguage : null,
+      });
+    },
+    [glossLanguage, glosses],
+  );
 
   const noteEvidence = useCallback((evidence: RvEvidence | null | undefined, mineId: string | null) => {
     if (!evidence) return;
@@ -187,12 +217,15 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         }
         const kinds = offer.options.map((option) => option.kind);
         if (!kinds.length) {
+          setMakeFailed(true);
           setMake({ step: 'none' });
           return;
         }
         const value = prefer && kinds.includes(prefer) ? prefer : kinds.includes(offer.recommended) ? offer.recommended : kinds[0];
+        setMakeFailed(false);
         setMake({ step: 'choose', offer, value });
       } catch {
+        setMakeFailed(true);
         setMake({ step: 'none' });
       }
     },
@@ -219,11 +252,14 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     }
   };
 
-  // At 80 % Romy steers to the make herself (design §3.5 #choose).
+  // At 80 % Romy steers to the make herself (design §3.5 #choose) — once per session: an
+  // offer that failed or came back empty used to be asked for again on every render.
   useEffect(() => {
     if (readOnly || ended || closing || busy || steerDismissed || make.step !== 'none') return;
-    if (session.steerToMake && !session.artifact) void openMake();
-  }, [busy, closing, ended, make.step, openMake, readOnly, session.artifact, session.steerToMake, steerDismissed]);
+    if (!session.steerToMake || session.artifact || steered.current === session.id) return;
+    steered.current = session.id;
+    void openMake();
+  }, [busy, closing, ended, make.step, openMake, readOnly, session.artifact, session.id, session.steerToMake, steerDismissed]);
 
   /** A filed artefact: the make step shows it; the server's `made` item arrives with the close's replay. */
   const fileLocally = (made: RvMade) => {
@@ -375,6 +411,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       const result = await client.turn(session.id, { text, mode, clientTurnId: newClientTurnId() });
       setSession((current) => applyTurn(current, result));
       setModelDown(false);
+      setMakeFailed(false);
       const mine = result.items.find((item) => item.kind === 'mine');
       noteEvidence(result.evidence, mine ? mine.id : null);
       const guest = enteringGuest(result.items);
@@ -411,7 +448,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   const after: React.ReactNode[] = [];
   const romyRow = (key: string, text: string) => (
     <li key={key} className="av2-thread__line" data-kind="line" data-role="client" data-speaker="romy">
-      <RvLine textFr={text} past={false} support={support} glosses={[]} glossLanguage={glossLanguage} copy={copy} />
+      <RvLine textFr={text} past={false} support={support} glosses={[]} glossLanguage={glossLanguage} copy={copy} onWord={onWord} />
     </li>
   );
   if (modelDown && !closing && !readOnly) {
@@ -422,6 +459,15 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         </Notice>
       </li>,
       romyRow('model-down-line', ROMY_CLIENT_LINES.model_down),
+    );
+  }
+  if (makeFailed && make.step === 'none' && !closing && !readOnly) {
+    after.push(
+      <li key="make-failed" className="av2-thread__line" data-kind="notice">
+        <Notice tone="quiet" shape="action">
+          <p>{copy.make_failed}</p>
+        </Notice>
+      </li>,
     );
   }
   if (make.step === 'choose') {
@@ -476,7 +522,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   if (doneLine && !closing && (make.step === 'headline' || make.step === 'headline_write' || make.step === 'report' || make.step === 'caption')) {
     after.push(
       <li key={`done-${doneLine.id}`} className="av2-thread__line" data-kind="line" data-role="make_done" data-speaker="romy">
-        <RvLine textFr={doneLine.textFr} past={false} translation={doneLine.translation} support={support} glosses={doneLine.glosses} glossLanguage={glossLanguage} copy={copy} />
+        <RvLine textFr={doneLine.textFr} past={false} translation={doneLine.translation} support={support} glosses={doneLine.glosses} glossLanguage={glossLanguage} copy={copy} onWord={onWord} />
       </li>,
     );
   }
@@ -505,10 +551,11 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     );
   }
   if (closing && !ended) {
+    // Romy's close line, unless the thread already ends on it (the server replays it as an item).
+    if (!sameLine(lastRomyLine(session.thread), closing.romyLineFr)) after.push(romyRow('close-line', closing.romyLineFr));
     after.push(
-      romyRow('close-line', closing.romyLineFr),
       <li key="dispatch" className="av2-thread__line" data-kind="dispatch">
-        <RvDispatch {...closing.dispatch} copy={copy} />
+        <RvDispatch {...closing.dispatch} copy={copy} onWord={onWord} />
       </li>,
       <li key="kept" className="av2-thread__line" data-kind="kept">
         <RvKept words={closing.kept.words} claims={closing.kept.claims} glossLanguage={glossLanguage} copy={copy} now={now} outcomes={outcomes} />
@@ -536,17 +583,20 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   if (ended || readOnly) {
     foot = null;
   } else if (closing) {
+    // The ink press, then one quiet row of two links (the third button fell below a 375 × 812 screen).
     foot = (
       <>
         <Action tone="done" onClick={onExit}>
           {copy.file_revue}
         </Action>
-        <RvCloseCarteLink sessionId={session.id} language={chrome} />
-        {onReleve && (
-          <Action tone="quiet" onClick={onReleve}>
-            {copy.see_releve}
-          </Action>
-        )}
+        <div className="rv-foot__links">
+          <RvCloseCarteLink sessionId={session.id} language={chrome} />
+          {onReleve && (
+            <Action tone="quiet" onClick={onReleve}>
+              {copy.see_releve}
+            </Action>
+          )}
+        </div>
       </>
     );
   } else if (make.step === 'choose') {
@@ -576,9 +626,15 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         : make.step === 'headline_write'
           ? Boolean(make.result?.accepted)
           : Boolean(make.result?.accepted && make.result.made);
+    // A refused headline or caption may be written again — or left: the close needs no artefact.
+    const refused = !filed && Boolean(make.result);
     foot = filed ? (
       <Action tone="primary" pending={busy} pendingLabel={copy.continue} onClick={() => void doClose()}>
         {copy.continue}
+      </Action>
+    ) : refused || modelDown ? (
+      <Action tone="quiet" disabled={busy} onClick={() => void doClose()}>
+        {modelDown ? copy.close_anyway : copy.skip_make}
       </Action>
     ) : null;
   } else if (make.step === 'write') {
@@ -593,6 +649,13 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         copy={copy}
         autoFocus
       />
+    );
+  } else if (make.step === 'draft' && modelDown) {
+    // Sending the question (or the close after it) failed: file the Papier with what exists.
+    foot = (
+      <Action tone="quiet" disabled={busy} onClick={() => void doClose()}>
+        {copy.close_anyway}
+      </Action>
     );
   } else if (make.step === 'draft' || make.step === 'loading') {
     foot = null;
@@ -617,9 +680,22 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       </>
     );
   } else {
+    // Once the learner has spoken, the way forward is always there: the make, with no model turn.
+    const actions = hasSpoken ? (
+      <>
+        <button type="button" className="av2-chip rv-quick__go" disabled={busy} onClick={() => void openMake()}>
+          {copy.write_paper}
+        </button>
+        {makeFailed && (
+          <button type="button" className="av2-chip rv-quick__quiet" disabled={busy} onClick={() => void doClose()}>
+            {copy.close_anyway}
+          </button>
+        )}
+      </>
+    ) : null;
     foot = (
       <>
-        <RvQuickReplies replies={session.quickReplies} onSend={(fr) => void sendTurn(fr)} disabled={busy} />
+        <RvQuickReplies replies={session.quickReplies} onSend={(fr) => void sendTurn(fr)} disabled={busy} actions={actions} />
         <RvComposer key="turn" disabled={busy} onSend={(text, mode) => void sendTurn(text, mode)} copy={copy} autoFocus={composerOpen} />
       </>
     );
@@ -637,15 +713,14 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       still={busy}
     />
   );
-  const room = shownRoom(session.room, session.thread);
 
   return (
     <div className="rv-encounter" data-beat={session.beat} data-ended={ended ? '' : undefined} data-readonly={readOnly ? '' : undefined}>
       <div className="rv-top">
-        <RvSessionHead beat={ended || closing ? 'close' : make.step !== 'none' || session.artifact ? 'make' : session.beat} room={room} onExit={onExit} ended={ended} back={ended || readOnly} copy={copy} />
-        {(hasSpoken || ended) && stage}
+        <RvSessionHead beat={ended || closing ? 'close' : make.step !== 'none' || session.artifact ? 'make' : session.beat} onExit={onExit} ended={ended} back={ended || readOnly} copy={copy} />
       </div>
-      {!hasSpoken && !ended && stage}
+      {/* 2026-10-19: the band scrolls away with the thread; only the head row stays pinned. */}
+      {stage}
       <div className="rv-body">
         {session.dossier.evergreen && !ended && (
           <p className="rv-kicker">{copy.evergreen_label}</p>
@@ -670,7 +745,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
             vocabulary={session.plan.vocabulary}
             band={session.plan.band}
             glossLanguage={glossLanguage}
-            onWord={support.glosses === 'none' ? undefined : onWord}
+            onWord={onWord}
             typing={busy && Boolean(pendingMine) && make.step !== 'write'}
             pendingMine={pendingMine}
             resumeToday={today}
@@ -692,7 +767,11 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
           {foot}
         </div>
       )}
-      <WordHelpSheet request={word} onClose={() => setWord(null)} language={chrome} />
+      {/* Help, never a step: the reader's footnote about the episode has nothing to say here.
+          The sheet's styles are the reader's: /revue never mounted them, so the sheet fell
+          unstyled into the page's flow under the foot (2026-10-19). */}
+      <FeuilletonReaderStyles />
+      <WordHelpSheet request={word} onClose={() => setWord(null)} language={chrome} note={null} quoteLabel={copy.word_in_text} />
     </div>
   );
 }
