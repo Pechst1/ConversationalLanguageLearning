@@ -199,6 +199,11 @@ def test_beside_the_deterministic_provider_no_desk_is_called(db: Session, monkey
     monkeypatch.setattr(enc, "available_dossiers", lambda week: [story])
     revue = Revue(db, FakeRevueProvider())
     assert revue._comptoir_desk() is None
+
+    def no_desk(*args: object, **kwargs: object) -> None:
+        raise AssertionError("no desk call beside the deterministic provider")
+
+    monkeypatch.setattr(comptoir, "desk_provider", no_desk)
     assert revue.view(revue.start(make_user(db), week=WEEK)).mode == "chat"
 
 

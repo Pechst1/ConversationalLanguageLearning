@@ -961,7 +961,8 @@ def takes_at_start(db: Any, dossier: EditorialDossier, period: str, *, provider:
     """The takes a session on ``dossier`` plays (spec §2.6), and what a desk call cost: the
     dossier's own, the evergreen's shipped ones, the kiosk row's; else, unless a refusal is
     recorded, one synchronous desk call whose answer is stored on the row (or, without a
-    row, kept for the process). ``None``: the session is a chat."""
+    row, kept for the process). ``None``: the session is a chat. Without a ``provider``
+    (the deterministic provider of dev and the walk) no desk is called: only stored takes play."""
 
     from app.services.revue.evergreen import evergreen_takes
 
@@ -986,7 +987,8 @@ def takes_at_start(db: Any, dossier: EditorialDossier, period: str, *, provider:
                 logger.bind(dossier=dossier.id).warning("revue comptoir: stored takes unreadable ({})", exc)
     if not rows and dossier.id in _ROWLESS:
         return _ROWLESS[dossier.id], 0.0
-    provider = provider if provider is not None else desk_provider()
+    if provider is None:
+        return None, 0.0
     before = float(getattr(provider, "spent_usd", 0.0) or 0.0)
     takes, problems = write_comptoir(dossier, provider)
     cost = round(float(getattr(provider, "spent_usd", 0.0) or 0.0) - before, 6)
