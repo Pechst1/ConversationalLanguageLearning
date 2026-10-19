@@ -7,6 +7,8 @@
      while it offers to move on, so it is never a wall.
    - ForgeFollowUp (T8): after «À corriger», «Corrigez la phrase» — the wrong
      sentence quoted, a field (or tiles at A1), «Passer» to see the right one.
+     The card carries no verdict of its own (#213): the screen's one verdict
+     is the footer's, from `itemVerdict` in `lib/forge-verdict.ts`.
    - ForgeCorrectedLine (T8): «La bonne phrase», when the server sent the
      corrected sentence but no follow-up.
 
@@ -139,8 +141,6 @@ export function ForgeFollowUp({
     onDraft({ ...draft, outcome: 'revealed', skipped: true });
   };
   const options = followUp.options;
-  const label =
-    draft.outcome === 'right' ? t.follow_right : draft.skipped ? t.corrected_sentence : t.follow_not_quite;
 
   return (
     <section className="ep-follow" data-outcome={draft.outcome ?? 'open'} aria-label={t.follow_title}>
@@ -213,7 +213,7 @@ export function ForgeFollowUp({
 
       {settled && (
         <div className="ep-follow__answer" role="status" aria-live="polite">
-          <p className="av2-label">{label}</p>
+          <p className="av2-label">{t.corrected_sentence}</p>
           {(followUp.correctedFr || followUp.accepted[0]) && (
             <p className="av2-fr ep-follow__fixed" lang="fr">
               {frenchSpacing(followUp.correctedFr || followUp.accepted[0])}

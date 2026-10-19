@@ -102,8 +102,6 @@ export type EpreuveCopy = {
   follow_wrong_label: string;
   follow_placeholder: string;
   follow_skip: string;
-  follow_right: string;
-  follow_not_quite: string;
   corrected_sentence: string;
   retry_line: string;
   retry: string;
@@ -286,8 +284,6 @@ const FR: EpreuveCopy = {
   follow_wrong_label: 'La phrase à corriger',
   follow_placeholder: 'Écris la phrase corrigée…',
   follow_skip: 'Passer',
-  follow_right: 'C’est bien la bonne phrase',
-  follow_not_quite: 'Pas tout à fait. La bonne phrase :',
   corrected_sentence: 'La bonne phrase',
   retry_line: 'Réessayer la ligne',
   retry: 'Réessayer',
@@ -462,8 +458,6 @@ const EN: EpreuveCopy = {
   follow_wrong_label: 'The sentence to correct',
   follow_placeholder: 'Write the corrected sentence…',
   follow_skip: 'Skip',
-  follow_right: 'That is the right sentence',
-  follow_not_quite: 'Not quite. The right sentence:',
   corrected_sentence: 'The right sentence',
   retry_line: 'Try the line again',
   retry: 'Try again',
@@ -638,8 +632,6 @@ const DE: EpreuveCopy = {
   follow_wrong_label: 'Der Satz zum Korrigieren',
   follow_placeholder: 'Schreib den korrigierten Satz …',
   follow_skip: 'Überspringen',
-  follow_right: 'Das ist der richtige Satz',
-  follow_not_quite: 'Nicht ganz. Der richtige Satz:',
   corrected_sentence: 'Der richtige Satz',
   retry_line: 'Zeile neu versuchen',
   retry: 'Erneut versuchen',
