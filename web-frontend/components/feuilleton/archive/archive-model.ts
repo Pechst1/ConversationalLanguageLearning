@@ -40,6 +40,8 @@ export type ArchiveDay = {
   image_url: string | null;
   learner_lines: string[];
   ending_fr: string | null;
+  /** The day's one «À suivre…» line: the string the last panel, Home and the card said (#237). */
+  hook_fr: string | null;
   margin_notes: ArchiveMarginNote[];
   can_do_id: string | null;
   special: 'epreuve' | null;
@@ -118,6 +120,7 @@ function normalizeDay(raw: any): ArchiveDay | null {
     image_url: textOrNull(raw?.image_url),
     learner_lines: list(raw?.learner_lines).map(text).filter(Boolean),
     ending_fr: textOrNull(raw?.ending_fr),
+    hook_fr: textOrNull(raw?.hook_fr),
     margin_notes: marginNotes(raw?.margin_notes),
     can_do_id: textOrNull(raw?.can_do_id),
     special: raw?.special === 'epreuve' ? 'epreuve' : null,
@@ -436,6 +439,7 @@ export function archiveFromSeason(season: SeasonPayload | null | undefined): Arc
       image_url: textOrNull(episode.image_url),
       learner_lines: [],
       ending_fr: null,
+      hook_fr: null,
       margin_notes: [],
       can_do_id: null,
       special: null,

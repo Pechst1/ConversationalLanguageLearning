@@ -42,6 +42,8 @@ class ArchiveDay(_Model):
     #: «La réplique de l'abonné·e» — the learner's own lines, oldest first.
     learner_lines: list[str] = Field(default_factory=list)
     ending_fr: str | None = None
+    #: The day's one «À suivre…» line (``script_payload.next_teaser_fr``), as filed.
+    hook_fr: str | None = None
     margin_notes: list[MarginNote] = Field(default_factory=list)
     can_do_id: str | None = None
     special: Literal["epreuve"] | None = None

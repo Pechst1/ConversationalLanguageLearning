@@ -24,6 +24,19 @@ from app.services.season.world import plate_for
 
 YOU = "toi"
 
+#: Where a settled day keeps its one «tomorrow» line (#237): written once, when the
+#: resolution settles, and read by every surface that speaks of tomorrow — the last
+#: panel's «À suivre…», Home, the finished card's «La suite demain» and the Feuilleton's
+#: filed day. A surface never composes a hook of its own.
+HOOK_PAYLOAD_KEY = "next_teaser_fr"
+
+
+def hook_of(payload: Any) -> str | None:
+    """The one tomorrow-hook a scene's ``script_payload`` holds, or None."""
+
+    value = str((payload or {}).get(HOOK_PAYLOAD_KEY) or "").strip() if isinstance(payload, dict) else ""
+    return value or None
+
 
 def _line(line: dict[str, Any], names: dict[str, str]) -> dict[str, Any] | None:
     text = str(line.get("text_fr") or "").strip()
@@ -233,7 +246,7 @@ def episode_page(scene: Any, scene_panels: list[dict[str, Any]], names: dict[str
         return None
     payload = scene.script_payload or {}
     recap = scene.recap_payload or {}
-    a_suivre = str(payload.get("next_teaser_fr") or "").strip() or None
+    a_suivre = hook_of(payload)
     season_page = payload.get("season_page")
     if isinstance(season_page, dict) and season_page.get("movements"):
         ending_fr = str(recap.get("resolution_fr") or "").strip()

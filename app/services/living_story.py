@@ -10193,6 +10193,7 @@ def settle_resolution(
     # names a real open row — or none at all.
     world_after = thread.world_bible if isinstance(thread.world_bible, dict) else {}
     from app.services.season.runtime import season_teaser
+    from app.services.story_page import HOOK_PAYLOAD_KEY
 
     # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
     teaser = season_teaser(brief.story_context, date=_journey_date(journey)) or next_teaser(
@@ -10250,7 +10251,10 @@ def settle_resolution(
         **({"season_routing": season_routing} if season_routing else {}),
         **({"chapter": chapter_block} if chapter_block else {}),
         **({TUTOIEMENT_KEY: tutoiement} if tutoiement else {}),
-        **({"next_teaser_fr": teaser["text_fr"]} if teaser else {}),
+        # #237: the day's ONE tomorrow-hook, filed here and read (story_page.hook_of)
+        # by the last panel, the finished card, Home and the Feuilleton's filed day.
+        # No surface composes a hook of its own.
+        **({HOOK_PAYLOAD_KEY: teaser["text_fr"]} if teaser else {}),
         # WP-110: the conversation as it was had, so the finished page draws it.
         **({"page_thread": page_thread} if (page_thread := _page_thread(journey, brief)) else {}),
         "estimated_cost": {

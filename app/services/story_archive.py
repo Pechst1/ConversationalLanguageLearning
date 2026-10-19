@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialThread
+from app.services.story_page import hook_of
 
 logger = logging.getLogger(__name__)
 
@@ -697,6 +698,9 @@ def _day_payloads(
             "character_id": str(snapshot.get("character_id") or "") or None,
             "learner_lines": _learner_lines(kinds.get("respond")),
             "ending_fr": ending,
+            # #237: the day's one tomorrow-hook, the very string the last panel,
+            # Home and the finished card said — not a second one written for the volume.
+            "hook_fr": hook_of(payload),
             "margin_notes": notes,
             "can_do_id": str(can_do) if can_do else None,
             "special": SPECIAL_EPREUVE if payload.get("special") == SPECIAL_EPREUVE else None,

@@ -37,7 +37,7 @@ import { CAST_WITH_PORTRAITS } from '@/lib/onboarding-portraits';
 import type { ControlLanguage, JourneyRecap as JourneyRecapPayload, JourneySnapshot } from '@/types/daily-journey';
 
 import { journeyCopy } from './journey-copy';
-import { keepsakeDate, rewardView } from './journey-recap-model';
+import { colophonDigest, keepsakeDate, rewardView } from './journey-recap-model';
 import { ENCORE_HREF, recapChrome } from './recap-copy';
 
 export type JourneyRecapProps = {
@@ -307,7 +307,13 @@ export function JourneyRecap({
                   {frenchSpacing(chapterClosed.title_fr)}
                 </p>
               )}
-              <ChapterColophon digest={chapterClosed.digest_fr} />
+              <ChapterColophon
+                digest={colophonDigest(chapterClosed.digest_fr, [
+                  recap?.story_outcome?.callback_fr,
+                  view?.face?.lineFr,
+                  view?.teaser?.text_fr,
+                ])}
+              />
             </>
           )}
           {seasonFinished && (
