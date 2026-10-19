@@ -1,6 +1,7 @@
 """Atelier grammar practice API."""
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, time, timedelta
 from time import perf_counter
 from typing import Any
@@ -8,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -1842,6 +1843,17 @@ class TranslateRequest(BaseModel):
     text: str
 
 
+def _learner_help_language(user: User) -> tuple[str, str]:
+    """The language help is written in: the account's ``native_language``, English as the floor."""
+
+    from app.services.glosses import EXPLANATION_LANGUAGE_NAMES
+
+    language = normalize_language(getattr(user, "native_language", None))
+    if language == "fr" or language not in EXPLANATION_LANGUAGE_NAMES:
+        language = "en"
+    return language, EXPLANATION_LANGUAGE_NAMES[language]
+
+
 @router.post("/translate")
 def translate_for_learner(
     request: TranslateRequest,
@@ -1857,13 +1869,9 @@ def translate_for_learner(
     text = (request.text or "").strip()
     if not text:
         return {"translation": "", "language": ""}
-    from app.services.glosses import EXPLANATION_LANGUAGE_NAMES, normalize_language
     from app.services.llm_service import LLMService
 
-    language = normalize_language(getattr(current_user, "native_language", None))
-    if language == "fr" or language not in EXPLANATION_LANGUAGE_NAMES:
-        language = "en"
-    language_name = EXPLANATION_LANGUAGE_NAMES[language]
+    language, language_name = _learner_help_language(current_user)
 
     try:
         result = LLMService().generate_chat_completion(
@@ -1881,3 +1889,82 @@ def translate_for_learner(
         return {"translation": (result.content or "").strip(), "language": language}
     except Exception:  # pragma: no cover - translation is best-effort
         return {"translation": "", "language": language}
+
+
+class GlossRequest(BaseModel):
+    word: str = Field(..., min_length=1, max_length=80)
+    sentence: str = Field("", max_length=2000)
+
+
+#: A word's meaning in one sentence does not change: a week, per (word, sentence, language).
+GLOSS_CACHE_SECONDS = 7 * 24 * 3600
+GLOSS_MAX_CHARS = 60
+
+
+@router.post("/gloss")
+def gloss_in_context(
+    request: GlossRequest,
+    current_user: User = Depends(get_atelier_user),
+) -> dict[str, str]:
+    """The meaning of one French word *as used in its sentence*, for the word-help sheet.
+
+    The catalogue (``/vocabulary/lookup``) knows dictionary entries; a news word or an
+    inflected form («grévistes», «plagiat», «spectateurs») misses it, and the sheet used
+    to fall back to translating the whole line. Here the model reads the word in its
+    sentence and answers with its dictionary form (``lemma``), a meaning of one to four
+    words in the learner's own language (``gloss``, the ``/translate`` rule) and the
+    sentence's translation (``translation``). Best-effort like ``/translate``: empty
+    strings when the model fails, and the sheet falls back to the sentence.
+    """
+    word = " ".join((request.word or "").split())
+    sentence = " ".join((request.sentence or "").split())
+    language, language_name = _learner_help_language(current_user)
+    empty = {"lemma": "", "gloss": "", "language": language, "translation": ""}
+    if not word:
+        return empty
+    from app.services.llm_service import LLMService
+    from app.utils.cache import build_cache_key, cache_backend
+
+    cache_key = build_cache_key(word=word.casefold(), sentence=sentence, language=language)
+    cached = cache_backend.get("atelier:gloss", cache_key)
+    if isinstance(cached, dict) and cached.get("gloss"):
+        return {**empty, **cached}
+
+    try:
+        result = LLMService().generate_chat_completion(
+            messages=[{"role": "user", "content": json.dumps({"word": word, "sentence": sentence}, ensure_ascii=False)}],
+            system_prompt=(
+                "A learner of French tapped one word of a French sentence. Read the word as it is used in "
+                "that sentence and answer with a JSON object with three strings: "
+                '"lemma": its dictionary form in French (the infinitive for a verb, the masculine singular '
+                'for a noun or an adjective); "gloss": what it means here, in natural '
+                f'{language_name}, one to four words, no explanation; "translation": the whole sentence in '
+                f"natural, concise {language_name}. Return ONLY the JSON object."
+            ),
+            temperature=0.0,
+            max_tokens=300,
+            response_format={"type": "json_object"},
+            model=settings.ATELIER_CORRECTION_LLM_MODEL,
+            reasoning_effort="minimal",
+            request_timeout=8.0,
+            disable_retries=True,
+        )
+        raw = json.loads(result.content or "{}")
+    except Exception:  # noqa: BLE001 - word help is best-effort, never a 500
+        return empty
+    if not isinstance(raw, dict):
+        return empty
+
+    def text_of(key: str, limit: int) -> str:
+        value = raw.get(key)
+        return " ".join(value.split())[:limit] if isinstance(value, str) else ""
+
+    answer = {
+        "lemma": text_of("lemma", 80),
+        "gloss": text_of("gloss", GLOSS_MAX_CHARS),
+        "language": language,
+        "translation": text_of("translation", 2000),
+    }
+    if answer["gloss"]:
+        cache_backend.set("atelier:gloss", cache_key, answer, ttl_seconds=GLOSS_CACHE_SECONDS)
+    return answer
