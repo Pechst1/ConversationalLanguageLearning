@@ -1,0 +1,277 @@
+{
+ "question": {
+  "fr": "Tu aimes la Fête de la musique ?",
+  "en": "Do you like the Fête de la musique?",
+  "de": "Magst du die Fête de la musique?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! C'est gratuit, et ça fait du bien.",
+     "en": "I'm for it! It's free, and it feels good.",
+     "de": "Ich bin dafür! Es ist gratis, und es tut gut."
+    },
+    "a2": {
+     "fr": "C'est pas pire, ton truc ! La musique gratuite dans la rue, j'adore. Voyons donc.",
+     "en": "It's not bad, your thing! Free music in the street, I love it. Come on.",
+     "de": "Gar nicht schlecht, deine Sache! Gratismusik auf der Straße, ich liebe das. Ach komm."
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que la musique gratuite, c'est la ville qui respire. Le bruit ? Voyons donc, une fois par an. Lila, tu exagères.",
+     "en": "I'm for it, because free music is the city breathing. The noise? Come on, once a year. Lila, you're exaggerating.",
+     "de": "Ich bin dafür, weil Gratismusik die Stadt atmen lässt. Der Lärm? Ach komm, einmal im Jahr. Lila, du übertreibst."
+    }
+   },
+   "quote": {
+    "fr": "La ville respire, gratuitement.",
+    "en": "The city breathes, for free.",
+    "de": "Die Stadt atmet, gratis."
+   }
+  },
+  {
+   "id": "lila_bonnet",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend, mon chou. La musique, oui. Le bruit, non.",
+     "en": "It depends, sweetie. Music, yes. Noise, no.",
+     "de": "Kommt drauf an, Schatz. Musik ja. Lärm nein."
+    },
+    "a2": {
+     "fr": "Ça dépend, mon chou ! La musique dans la rue, c'est beau. Mais le bruit la nuit, non.",
+     "en": "It depends, sweetie! Music in the street is lovely. But noise at night, no.",
+     "de": "Kommt drauf an, Schatz! Musik auf der Straße ist schön. Aber Lärm nachts, nein."
+    },
+    "b1": {
+     "fr": "D'un côté, la musique gratuite dans la rue fait du bien. De l'autre, mes voisins se plaignent, et Romy chante faux. Bon, on fait quoi alors ?",
+     "en": "On the one hand, free music in the street does good. On the other, my neighbours complain, and Romy sings out of tune. So, what do we do?",
+     "de": "Einerseits tut Gratismusik auf der Straße gut. Andererseits beschweren sich meine Nachbarn, und Romy singt falsch. Also, was machen wir?"
+    }
+   },
+   "quote": {
+    "fr": "Beau dans la rue, mais bruyant la nuit.",
+    "en": "Lovely in the street, but noisy at night.",
+    "de": "Schön auf der Straße, aber nachts laut."
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. Le 21 juin 1972 déjà, du bruit partout !",
+     "en": "I'm against it. Already on 21 June 1972, noise everywhere!",
+     "de": "Ich bin dagegen. Schon am 21. Juni 1972, überall Lärm!"
+    },
+    "a2": {
+     "fr": "Depuis le 21 juin 1972, du bruit partout ! Moi, je préfère le silence. Et le champagne.",
+     "en": "Since 21 June 1972, noise everywhere! I prefer silence. And champagne.",
+     "de": "Seit dem 21. Juni 1972 überall Lärm! Ich ziehe die Stille vor. Und Champagner."
+    },
+    "b1": {
+     "fr": "Mon cher, depuis le 21 juin 1972, c'est du bruit partout, parce que la foule ne sait pas écouter. Règle numéro un de La Méthode : la musique s'écoute assis. Je préfère le silence.",
+     "en": "My dear, since 21 June 1972 it's been noise everywhere, because the crowd doesn't know how to listen. Rule number one of The Method: music is listened to sitting down. I prefer silence.",
+     "de": "Mein Lieber, seit dem 21. Juni 1972 ist überall Lärm, weil die Menge nicht zuhören kann. Regel Nummer eins der Methode: Musik hört man im Sitzen. Ich ziehe die Stille vor."
+    }
+   },
+   "quote": {
+    "fr": "La rue n'est pas une salle de concert.",
+    "en": "The street is not a concert hall.",
+    "de": "Die Straße ist kein Konzertsaal."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "le 21 juin 1972",
+  "right_fr": "le 21 juin 1982",
+  "claim_id": "c1",
+  "distractor_fr": "le jour le plus long de l'année",
+  "ask": {
+   "fr": "En quelle année a commencé la fête, en vrai ?",
+   "en": "What year did the festival really start?",
+   "de": "In welchem Jahr begann das Fest, wirklich?"
+  },
+  "caught": {
+   "fr": "Le 21 juin 1972 ? Bon, c'est 1982. Je suis généreux avec les dates.",
+   "en": "21 June 1972? Fine, it's 1982. I'm generous with dates.",
+   "de": "21. Juni 1972? Gut, es ist 1982. Ich bin großzügig mit Daten."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "c'est gratuit",
+    "en": "it's free",
+    "de": "es ist gratis"
+   },
+   {
+    "fr": "ça fait du bien",
+    "en": "it feels good",
+    "de": "es tut gut"
+   },
+   {
+    "fr": "la ville chante",
+    "en": "the city sings",
+    "de": "die Stadt singt"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "trop de bruit",
+    "en": "too much noise",
+    "de": "zu viel Lärm"
+   },
+   {
+    "fr": "les voisins se plaignent",
+    "en": "the neighbours complain",
+    "de": "die Nachbarn beschweren sich"
+   },
+   {
+    "fr": "je préfère le silence",
+    "en": "I prefer silence",
+    "de": "ich ziehe die Stille vor"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est beau mais bruyant",
+    "en": "it's lovely but noisy",
+    "de": "es ist schön, aber laut"
+   },
+   {
+    "fr": "une fois, c'est bien",
+    "en": "once is fine",
+    "de": "einmal ist gut"
+   },
+   {
+    "fr": "les voisins, aussi",
+    "en": "the neighbours too",
+    "de": "die Nachbarn auch"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est une bonne nouvelle, parce que",
+   "en": "In my opinion, it's good news, because",
+   "de": "Meiner Meinung nach ist das eine gute Nachricht, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas une bonne nouvelle, parce que",
+   "en": "In my opinion, it's not good news, because",
+   "de": "Meiner Meinung nach ist das keine gute Nachricht, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "la fête",
+   "en": "the festival",
+   "de": "das Fest"
+  },
+  {
+   "fr": "la musique",
+   "en": "the music",
+   "de": "die Musik"
+  },
+  {
+   "fr": "le bruit",
+   "en": "the noise",
+   "de": "der Lärm"
+  },
+  {
+   "fr": "les voisins",
+   "en": "the neighbours",
+   "de": "die Nachbarn"
+  },
+  {
+   "fr": "la rue",
+   "en": "the street",
+   "de": "die Straße"
+  },
+  {
+   "fr": "les plaintes",
+   "en": "the complaints",
+   "de": "die Beschwerden"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Toi aussi ? Mon cher, la musique dans la rue, c'est du bruit déguisé. Tu n'as pas honte ?",
+    "en": "You too? My dear, street music is noise in disguise. Aren't you ashamed?",
+    "de": "Du auch? Mein Lieber, Straßenmusik ist Lärm im Kostüm. Schämst du dich nicht?"
+   },
+   "comeback": {
+    "fr": "Toi, tu ne sais pas danser !",
+    "en": "You can't even dance!",
+    "de": "Du kannst ja nicht mal tanzen!"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc ! Tu te plains du bruit ? Au Québec, on chante dans la rue !",
+    "en": "Come on! You're complaining about noise? In Québec, we sing in the street!",
+    "de": "Ach komm! Du beschwerst dich über Lärm? In Québec singt man auf der Straße!"
+   },
+   "comeback": {
+    "fr": "Et toi, tu chantes faux !",
+    "en": "And you sing out of tune!",
+    "de": "Und du singst falsch!"
+   }
+  },
+  "nuance": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Un peu pour, un peu contre ? Mon cher, tu es un tiède. Décide-toi !",
+    "en": "A bit for, a bit against? My dear, you're lukewarm. Decide!",
+    "de": "Ein bisschen dafür, ein bisschen dagegen? Mein Lieber, du bist lauwarm. Entscheide dich!"
+   },
+   "comeback": {
+    "fr": "Un tiède, c'est confortable !",
+    "en": "Lukewarm is comfortable!",
+    "de": "Lauwarm ist bequem!"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

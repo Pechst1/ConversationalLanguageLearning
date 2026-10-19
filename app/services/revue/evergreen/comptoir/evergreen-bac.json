@@ -1,0 +1,272 @@
+{
+ "question": {
+  "fr": "Le bac sans échec, c'est une bonne idée ?",
+  "en": "A bac where almost nobody fails, is that a good idea?",
+  "de": "Ein Abi, bei dem fast niemand durchfällt, eine gute Idee?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! Tout le monde mérite sa chance.",
+     "en": "I'm for it! Everyone deserves a chance.",
+     "de": "Ich bin dafür! Jeder verdient eine Chance."
+    },
+    "a2": {
+     "fr": "Voyons donc, oui ! Tout le monde mérite sa chance, parce que l'école doit aider les jeunes.",
+     "en": "Come on, yes! Everyone deserves a chance, because school must help young people.",
+     "de": "Ach komm, ja! Jeder verdient eine Chance, weil die Schule den Jungen helfen muss."
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que l'école doit donner sa chance à tout le monde. Le bac ouvre des portes, voyons donc. Gus l'a eu, et il s'en vante encore.",
+     "en": "I'm for it, because school must give everyone a chance. The bac opens doors, come on. Gus passed it, and he still brags about it.",
+     "de": "Ich bin dafür, weil die Schule allen eine Chance geben muss. Das Abi öffnet Türen, ach komm. Gus hat es bestanden, und er prahlt immer noch damit."
+    }
+   },
+   "quote": {
+    "fr": "Tout le monde mérite sa chance.",
+    "en": "Everyone deserves a chance.",
+    "de": "Jeder verdient eine Chance."
+   }
+  },
+  {
+   "id": "lila_bonnet",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend. Mes élèves, ils sont super fiers, mon chou.",
+     "en": "It depends. My pupils are so proud, sweetie.",
+     "de": "Kommt drauf an. Meine Schüler sind so stolz, mein Schatz."
+    },
+    "a2": {
+     "fr": "Ça dépend, mon chou ! Les élèves sont fiers, mais le bac doit rester sérieux.",
+     "en": "It depends, sweetie! The pupils are proud, but the bac must stay serious.",
+     "de": "Kommt drauf an, mein Schatz! Die Schüler sind stolz, aber das Abi muss ernst bleiben."
+    },
+    "b1": {
+     "fr": "Ça dépend, parce que mes élèves travaillent dur, mais le bac doit rester juste. D'un côté, c'est la fête ; de l'autre, la philo, c'est sérieux. Mais arrête, Gus, tu exagères !",
+     "en": "It depends, because my pupils work hard, but the bac must stay fair. On the one hand, it's a party; on the other, philosophy is serious. But stop it, Gus, you're exaggerating!",
+     "de": "Kommt drauf an, weil meine Schüler hart arbeiten, aber das Abi muss fair bleiben. Einerseits ist es ein Fest; andererseits ist Philosophie ernst. Aber hör auf, Gus, du übertreibst!"
+    }
+   },
+   "quote": {
+    "fr": "Le bac doit rester sérieux.",
+    "en": "The bac must stay serious.",
+    "de": "Das Abi muss ernst bleiben."
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. 80 % de la note finale ? Trop facile, mon cher.",
+     "en": "I'm against it. 80% of the final grade? Too easy, my dear.",
+     "de": "Ich bin dagegen. 80 % der Endnote? Zu leicht, mein Lieber."
+    },
+    "a2": {
+     "fr": "Mon cher, 80 % de la note finale pour un bac facile ? Non merci, je préfère le champagne.",
+     "en": "My dear, 80% of the final grade for an easy bac? No thanks, I prefer champagne.",
+     "de": "Mein Lieber, 80 % der Endnote für ein leichtes Abi? Nein danke, ich ziehe Champagner vor."
+    },
+    "b1": {
+     "fr": "Mon cher, l'épreuve de philosophie compte pour 80 % de la note finale, et presque tous réussissent. Ce n'est plus un examen, c'est un cadeau. Même si on applaudit, je reste contre.",
+     "en": "My dear, the philosophy exam counts for 80% of the final grade, and almost everyone passes. It's no longer an exam, it's a gift. Even if we applaud, I stay against it.",
+     "de": "Mein Lieber, die Philosophieprüfung zählt zu 80 % der Endnote, und fast alle bestehen. Das ist keine Prüfung mehr, das ist ein Geschenk. Auch wenn man applaudiert, bleibe ich dagegen."
+    }
+   },
+   "quote": {
+    "fr": "Ce n'est plus un examen.",
+    "en": "It's no longer an exam.",
+    "de": "Das ist keine Prüfung mehr."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "80 % de la note finale",
+  "right_fr": "8 % de la note finale",
+  "claim_id": "c2",
+  "distractor_fr": "95,7 % en 2023",
+  "ask": {
+   "fr": "Quel pourcentage, en vrai ?",
+   "en": "What percentage, really?",
+   "de": "Welcher Prozentsatz, wirklich?"
+  },
+  "caught": {
+   "fr": "8 %, 80 %… Bon, je suis généreux avec les chiffres.",
+   "en": "8%, 80%… Fine, I'm generous with numbers.",
+   "de": "8 %, 80 %… Gut, ich bin großzügig mit Zahlen."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "c'est une porte ouverte",
+    "en": "it opens a door",
+    "de": "es öffnet eine Tür"
+   },
+   {
+    "fr": "les élèves travaillent beaucoup",
+    "en": "pupils work hard",
+    "de": "Schüler arbeiten hart"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "c'est trop facile",
+    "en": "it's too easy",
+    "de": "es ist zu leicht"
+   },
+   {
+    "fr": "la philo est sérieuse",
+    "en": "philosophy is serious",
+    "de": "Philosophie ist ernst"
+   },
+   {
+    "fr": "le diplôme perd sa valeur",
+    "en": "the diploma loses its value",
+    "de": "das Diplom verliert an Wert"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est bien, mais pas assez",
+    "en": "it's good, but not enough",
+    "de": "es ist gut, aber nicht genug"
+   },
+   {
+    "fr": "les élèves méritent le bac",
+    "en": "pupils deserve the bac",
+    "de": "Schüler verdienen das Abi"
+   },
+   {
+    "fr": "il faut être juste",
+    "en": "it must be fair",
+    "de": "es muss fair sein"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est une bonne idée, parce que",
+   "en": "In my opinion, it's a good idea, because",
+   "de": "Meiner Meinung nach ist das eine gute Idee, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas une bonne idée, parce que",
+   "en": "In my opinion, it's not a good idea, because",
+   "de": "Meiner Meinung nach ist das keine gute Idee, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "le bac",
+   "en": "the bac",
+   "de": "das Abi"
+  },
+  {
+   "fr": "la philosophie",
+   "en": "philosophy",
+   "de": "die Philosophie"
+  },
+  {
+   "fr": "la note finale",
+   "en": "the final grade",
+   "de": "die Endnote"
+  },
+  {
+   "fr": "le diplôme",
+   "en": "the diploma",
+   "de": "das Diplom"
+  },
+  {
+   "fr": "réussir",
+   "en": "to pass",
+   "de": "bestehen"
+  },
+  {
+   "fr": "l'élève",
+   "en": "the pupil",
+   "de": "der Schüler"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Tout le monde a sa chance ? Mon cher, la philo, ce n'est pas un bonbon. Tu le savais ?",
+    "en": "Everyone gets a chance? My dear, philosophy is not a sweet. Did you know?",
+    "de": "Jeder hat eine Chance? Mein Lieber, Philosophie ist kein Bonbon. Wusstest du das?"
+   },
+   "comeback": {
+    "fr": "Et toi, tu fais le snob !",
+    "en": "And you're being snobby!",
+    "de": "Und du gibst dich snobistisch!"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc ! Tu veux un bac sans effort ? Bon, c'est quoi la vraie histoire ?",
+    "en": "Come on! You want a bac with no effort? So what's the real story?",
+    "de": "Ach komm! Du willst ein Abi ohne Anstrengung? Also, was ist die wahre Geschichte?"
+   },
+   "comeback": {
+    "fr": "Non, je veux un bac juste !",
+    "en": "No, I want a fair bac!",
+    "de": "Nein, ich will ein faires Abi!"
+   }
+  },
+  "nuance": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Ça dépend ? Mon cher, tu n'as jamais eu un avis ? Choisis !",
+    "en": "It depends? My dear, have you never had an opinion? Choose!",
+    "de": "Es kommt drauf an? Mein Lieber, hattest du nie eine Meinung? Entscheide dich!"
+   },
+   "comeback": {
+    "fr": "J'ai un avis, mon cher !",
+    "en": "I have an opinion, my dear!",
+    "de": "Ich habe eine Meinung, mein Lieber!"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

@@ -1,0 +1,277 @@
+{
+ "question": {
+  "fr": "Tu préfères la galette à la frangipane ?",
+  "en": "Do you prefer frangipane galette?",
+  "de": "Magst du die Galette mit Frangipane lieber?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! La frangipane, c'est du vrai beurre.",
+     "en": "I'm for it! Frangipane is real butter.",
+     "de": "Ich bin dafür! Frangipane ist echte Butter."
+    },
+    "a2": {
+     "fr": "La frangipane, c'est crémeux, voyons donc. La brioche, c'est pour le petit-déjeuner.",
+     "en": "Frangipane is creamy, come on. Brioche is for breakfast.",
+     "de": "Frangipane ist cremig, ach komm. Brioche ist fürs Frühstück."
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que la frangipane est crémeuse, et la brioche, c'est juste du pain sucré. Gus fait son show, mais moi, je mange la vraie galette.",
+     "en": "I'm for it, because frangipane is creamy, and brioche is just sweet bread. Gus is putting on a show, but I eat the real galette.",
+     "de": "Ich bin dafür, weil Frangipane cremig ist, und Brioche ist nur süßes Brot. Gus macht wieder Show, aber ich esse die echte Galette."
+    }
+   },
+   "quote": {
+    "fr": "La frangipane, c'est pas pire !",
+    "en": "Frangipane isn't bad!",
+    "de": "Frangipane ist nicht schlecht!"
+   }
+  },
+  {
+   "id": "lila_bonnet",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend, mon chou. La frangipane, oui. La brioche, aussi.",
+     "en": "It depends, sweetie. Frangipane, yes. Brioche, too.",
+     "de": "Kommt drauf an, Schatz. Frangipane, ja. Brioche auch."
+    },
+    "a2": {
+     "fr": "Mon chou, ça dépend ! La frangipane, c'est crémeux. La brioche, c'est léger. Toi, tu choisis quoi ?",
+     "en": "Sweetie, it depends! Frangipane is creamy. Brioche is light. What do you choose?",
+     "de": "Schatz, kommt drauf an! Frangipane ist cremig. Brioche ist leicht. Was wählst du?"
+    },
+    "b1": {
+     "fr": "D'un côté, la frangipane est crémeuse et bonne. De l'autre, la brioche est légère, même si Romy dit que c'est du pain. Mais arrête, on mange les deux !",
+     "en": "On the one hand, frangipane is creamy and good. On the other, brioche is light, even if Romy says it's just bread. Oh come on, let's eat both!",
+     "de": "Einerseits ist Frangipane cremig und gut. Andererseits ist Brioche leicht, auch wenn Romy sagt, es sei nur Brot. Ach komm, wir essen beides!"
+    }
+   },
+   "quote": {
+    "fr": "La frangipane, oui. La brioche, aussi.",
+    "en": "Frangipane, yes. Brioche too.",
+    "de": "Frangipane, ja. Brioche auch."
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Non. Dans le sud de la France, la frangipane ? Quelle horreur !",
+     "en": "No. In the south of France, frangipane? How dreadful!",
+     "de": "Nein. Im Süden Frankreichs, Frangipane? Welch Schrecken!"
+    },
+    "a2": {
+     "fr": "Non, mon cher. Dans le sud de la France, on mange la frangipane. Moi, je préfère la brioche.",
+     "en": "No, my dear. In the south of France, people eat frangipane. I prefer brioche.",
+     "de": "Nein, mein Lieber. Im Süden Frankreichs isst man Frangipane. Ich bevorzuge die Brioche."
+    },
+    "b1": {
+     "fr": "Je suis contre, parce que dans le sud de la France, la frangipane n'a rien à faire. Règle numéro un de La Méthode : la brioche, c'est pour les vrais.",
+     "en": "I'm against it, because in the south of France, frangipane has no business being there. Rule number one of The Method: brioche is for the real ones.",
+     "de": "Ich bin dagegen, weil im Süden Frankreichs Frangipane nichts verloren hat. Regel Nummer eins der Methode: Brioche ist für die Echten."
+    }
+   },
+   "quote": {
+    "fr": "Pas de frangipane pour moi.",
+    "en": "No frangipane for me.",
+    "de": "Keine Frangipane für mich."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "dans le sud de la France",
+  "right_fr": "dans le nord de la France",
+  "claim_id": "c2",
+  "distractor_fr": "à Toulouse",
+  "ask": {
+   "fr": "Dans quelle partie de la France, en vrai ?",
+   "en": "Which part of France, really?",
+   "de": "In welchem Teil Frankreichs, wirklich?"
+  },
+  "caught": {
+   "fr": "Le nord, le sud, on s'en fiche. Je suis généreux avec la géographie.",
+   "en": "North, south, who cares. I'm generous with geography.",
+   "de": "Nord, Süd, egal. Ich bin großzügig mit Geografie."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "c'est crémeux",
+    "en": "it's creamy",
+    "de": "es ist cremig"
+   },
+   {
+    "fr": "j'aime le beurre",
+    "en": "I love butter",
+    "de": "ich liebe Butter"
+   },
+   {
+    "fr": "c'est la tradition",
+    "en": "it's tradition",
+    "de": "es ist Tradition"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "la brioche est meilleure",
+    "en": "brioche is better",
+    "de": "Brioche ist besser"
+   },
+   {
+    "fr": "c'est trop sucré",
+    "en": "it's too sweet",
+    "de": "es ist zu süß"
+   },
+   {
+    "fr": "je n'aime pas la crème",
+    "en": "I don't like cream",
+    "de": "ich mag keine Creme"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est bon mais lourd",
+    "en": "it's good but heavy",
+    "de": "es ist gut, aber schwer"
+   },
+   {
+    "fr": "ça dépend du goût",
+    "en": "it depends on taste",
+    "de": "es hängt vom Geschmack ab"
+   },
+   {
+    "fr": "une part suffit",
+    "en": "one slice is enough",
+    "de": "ein Stück reicht"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est un bon choix, parce que",
+   "en": "In my opinion, it's a good choice, because",
+   "de": "Meiner Meinung nach ist es eine gute Wahl, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas un bon choix, parce que",
+   "en": "In my opinion, it's not a good choice, because",
+   "de": "Meiner Meinung nach ist es keine gute Wahl, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "la frangipane",
+   "en": "the frangipane",
+   "de": "die Frangipane"
+  },
+  {
+   "fr": "la brioche",
+   "en": "the brioche",
+   "de": "die Brioche"
+  },
+  {
+   "fr": "la galette",
+   "en": "the galette",
+   "de": "die Galette"
+  },
+  {
+   "fr": "la fève",
+   "en": "the bean",
+   "de": "die Bohne"
+  },
+  {
+   "fr": "la pâte feuilletée",
+   "en": "the puff pastry",
+   "de": "der Blätterteig"
+  },
+  {
+   "fr": "les amandes",
+   "en": "the almonds",
+   "de": "die Mandeln"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Tu manges de la crème d'amande, toi ? Mon cher, la brioche est plus chic. Non ?",
+    "en": "You eat almond cream? My dear, brioche is classier. Isn't it?",
+    "de": "Du isst Mandelcreme? Mein Lieber, Brioche ist schicker. Oder?"
+   },
+   "comeback": {
+    "fr": "Et toi, tu manges du pain sucré !",
+    "en": "And you eat sweet bread!",
+    "de": "Und du isst süßes Brot!"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc, Gus ! La brioche, c'est pour le petit-déjeuner, non ?",
+    "en": "Come on, Gus! Brioche is for breakfast, right?",
+    "de": "Ach komm, Gus! Brioche ist fürs Frühstück, oder?"
+   },
+   "comeback": {
+    "fr": "La frangipane gagne, tu verras !",
+    "en": "Frangipane wins, you'll see!",
+    "de": "Frangipane gewinnt, du wirst sehen!"
+   }
+  },
+  "nuance": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Ni oui ni non ? Mon cher, choisis ! Une part, une fève, un roi.",
+    "en": "Neither yes nor no? My dear, choose! One slice, one bean, one king.",
+    "de": "Weder ja noch nein? Mein Lieber, wähle! Ein Stück, eine Bohne, ein König."
+   },
+   "comeback": {
+    "fr": "Le roi du canapé, c'est moi !",
+    "en": "I'm the king of the sofa!",
+    "de": "Ich bin der König der Couch!"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

@@ -1,0 +1,272 @@
+{
+ "question": {
+  "fr": "Aligre ouvre six jours sur sept. Bonne idée ?",
+  "en": "Aligre opens six days a week. Good idea?",
+  "de": "Aligre hat sechs Tage die Woche geöffnet. Eine gute Idee?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! Un marché, c'est la vraie vie. Pas un centre commercial.",
+     "en": "I'm for it! A market is real life. Not a shopping centre.",
+     "de": "Ich bin dafür! Ein Markt ist das echte Leben. Kein Einkaufszentrum."
+    },
+    "a2": {
+     "fr": "Un marché, c'est le Québec sans la neige. Des vrais légumes, des vrais rires. Voyons donc, c'est pas pire.",
+     "en": "A market is Québec without the snow. Real vegetables, real laughter. Come on, it's not bad.",
+     "de": "Ein Markt ist Québec ohne Schnee. Echtes Gemüse, echtes Lachen. Ach komm, das ist gar nicht schlecht."
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que le marché d'Aligre, c'est un vrai lieu de vie, pas un magasin. On y parle, on y goûte, on y reste. Gus, viens goûter les fraises !",
+     "en": "I'm for it, because the Aligre market is a real place to live, not a shop. You talk there, you taste there, you stay there. Gus, come and taste the strawberries!",
+     "de": "Ich bin dafür, weil der Markt Aligre ein echter Lebensort ist, kein Laden. Man redet dort, probiert dort, bleibt dort. Gus, komm die Erdbeeren probieren!"
+    }
+   },
+   "quote": {
+    "fr": "Un marché, c'est la vraie vie.",
+    "en": "A market is real life.",
+    "de": "Ein Markt ist das echte Leben."
+   }
+  },
+  {
+   "id": "margaux_barman",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend. Des légumes frais, bien. Des poussettes partout, moins.",
+     "en": "It depends. Fresh vegetables, good. Prams everywhere, less so.",
+     "de": "Kommt drauf an. Frisches Gemüse, gut. Kinderwagen überall, weniger gut."
+    },
+    "a2": {
+     "fr": "Des légumes frais au marché ? Bien. Des chariots dans mes pieds ? Moins.",
+     "en": "Fresh vegetables at the market? Good. Trolleys around my feet? Less so.",
+     "de": "Frisches Gemüse auf dem Markt? Gut. Rollwagen um meine Füße? Weniger."
+    },
+    "b1": {
+     "fr": "D'un côté, le marché d'Aligre rend la rue vivante, et le pain est bon. De l'autre, les chariots font mal aux pieds. La même chose ?",
+     "en": "On the one hand, the Aligre market makes the street lively, and the bread is good. On the other, the trolleys hurt your feet. Same again?",
+     "de": "Einerseits macht der Markt Aligre die Straße lebendig, und das Brot ist gut. Andererseits tun die Einkaufswagen den Füßen weh. Nochmal dasselbe?"
+    }
+   },
+   "quote": {
+    "fr": "Des légumes frais, bien.",
+    "en": "Fresh vegetables, good.",
+    "de": "Frisches Gemüse, gut."
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. Sept jours sur sept ? Mon cher, c'est trop de bruit.",
+     "en": "I'm against it. Seven days a week? My dear, that's too much noise.",
+     "de": "Ich bin dagegen. Sieben Tage die Woche? Mein Lieber, das ist zu laut."
+    },
+    "a2": {
+     "fr": "Sept jours sur sept ? Mon cher, les paniers m'épuisent. Je préfère les bouteilles livrées.",
+     "en": "Seven days a week? My dear, shopping baskets exhaust me. I prefer delivered bottles.",
+     "de": "Sieben Tage die Woche? Mein Lieber, die Einkaufskörbe erschöpfen mich. Ich bevorzuge die gelieferten Flaschen."
+    },
+    "b1": {
+     "fr": "Mon cher, un marché ouvert sept jours sur sept est une fête permanente, pas un marché. Règle numéro un de La Méthode : on ne se fait pas bousculer. Je passe mon tour, parce que la foule me fatigue.",
+     "en": "My dear, a market open seven days a week is a permanent party, not a market. Rule number one of The Method: you don't get jostled. I'm passing, because the crowd wears me out.",
+     "de": "Mein Lieber, ein Markt, der sieben Tage die Woche offen ist, ist ein ewiges Fest, kein Markt. Regel Nummer eins der Methode: Man lässt sich nicht anrempeln. Ich verzichte, weil die Menge mich ermüdet."
+    }
+   },
+   "quote": {
+    "fr": "Trop de foule, trop de bruit.",
+    "en": "Too much crowd, too much noise.",
+    "de": "Zu viel Menge, zu viel Lärm."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "sept jours sur sept",
+  "right_fr": "six jours sur sept",
+  "claim_id": "c2",
+  "distractor_fr": "91 marchés",
+  "ask": {
+   "fr": "Combien de jours par semaine, en vrai ?",
+   "en": "How many days a week, really?",
+   "de": "Wie viele Tage pro Woche, wirklich?"
+  },
+  "caught": {
+   "fr": "Six jours sur sept ? Bon, j'ai arrondi. Je suis généreux avec le calendrier.",
+   "en": "Six days a week? Well, I rounded up. I'm generous with the calendar.",
+   "de": "Sechs Tage die Woche? Na ja, ich habe aufgerundet. Ich bin großzügig mit dem Kalender."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "le marché est vivant",
+    "en": "the market is lively",
+    "de": "der Markt lebt"
+   },
+   {
+    "fr": "les légumes sont frais",
+    "en": "the vegetables are fresh",
+    "de": "das Gemüse ist frisch"
+   },
+   {
+    "fr": "on y parle entre voisins",
+    "en": "neighbours chat there",
+    "de": "Nachbarn reden dort miteinander"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "les chariots gênent partout",
+    "en": "trolleys get in the way everywhere",
+    "de": "Rollwagen stören überall"
+   },
+   {
+    "fr": "la foule me fatigue",
+    "en": "the crowd tires me out",
+    "de": "die Menge ermüdet mich"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est bien, mais bruyant",
+    "en": "it's good, but noisy",
+    "de": "es ist gut, aber laut"
+   },
+   {
+    "fr": "le pain est bon",
+    "en": "the bread is good",
+    "de": "das Brot ist gut"
+   },
+   {
+    "fr": "ça dépend du jour",
+    "en": "it depends on the day",
+    "de": "es kommt auf den Tag an"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est une bonne idée, parce que",
+   "en": "In my opinion, it's a good idea, because",
+   "de": "Meiner Meinung nach ist das eine gute Idee, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas une bonne idée, parce que",
+   "en": "In my opinion, it's not a good idea, because",
+   "de": "Meiner Meinung nach ist das keine gute Idee, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "les légumes",
+   "en": "the vegetables",
+   "de": "das Gemüse"
+  },
+  {
+   "fr": "le pain",
+   "en": "the bread",
+   "de": "das Brot"
+  },
+  {
+   "fr": "la foule",
+   "en": "the crowd",
+   "de": "die Menge"
+  },
+  {
+   "fr": "les chariots",
+   "en": "the trolleys",
+   "de": "die Rollwagen"
+  },
+  {
+   "fr": "le bruit",
+   "en": "the noise",
+   "de": "der Lärm"
+  },
+  {
+   "fr": "le marché couvert",
+   "en": "the covered market",
+   "de": "die überdachte Markthalle"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Toi aussi ? Mon cher, des légumes à l'aube ? Tu te lèves à quelle heure, au juste ?",
+    "en": "You too? My dear, vegetables at dawn? What time do you get up, exactly?",
+    "de": "Du auch? Mein Lieber, Gemüse im Morgengrauen? Um wie viel Uhr stehst du eigentlich auf?"
+   },
+   "comeback": {
+    "fr": "Et toi, tu fais la grasse matinée !",
+    "en": "And you sleep in late!",
+    "de": "Und du schläfst aus!"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc, Gus ! Tu te plains du bruit, alors que tu parles plus fort que tout le marché ?",
+    "en": "Come on, Gus! You complain about noise, when you talk louder than the whole market?",
+    "de": "Ach komm, Gus! Du beschwerst dich über Lärm, obwohl du lauter redest als der ganze Markt?"
+   },
+   "comeback": {
+    "fr": "Je parle fort, mais je suis élégant !",
+    "en": "I speak loudly, but I'm elegant!",
+    "de": "Ich spreche laut, aber ich bin elegant!"
+   }
+  },
+  "nuance": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Ça dépend ? Mon cher, tu es une huître. Choisis un camp !",
+    "en": "It depends? My dear, you're an oyster. Pick a side!",
+    "de": "Kommt drauf an? Mein Lieber, du bist eine Auster. Wähl eine Seite!"
+   },
+   "comeback": {
+    "fr": "Je suis du côté du pain frais !",
+    "en": "I'm on the fresh bread side!",
+    "de": "Ich bin auf der Seite des frischen Brots!"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

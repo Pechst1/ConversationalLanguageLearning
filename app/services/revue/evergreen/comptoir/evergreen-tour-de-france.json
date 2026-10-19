@@ -1,0 +1,277 @@
+{
+ "question": {
+  "fr": "Le Tour commence à Barcelone : bonne idée ?",
+  "en": "The Tour starts in Barcelona: good idea?",
+  "de": "Die Tour startet in Barcelona: gute Idee?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! Le Tour, c'est gratuit. Voyons donc, c'est pas pire.",
+     "en": "I'm for it! The Tour is free. Come on, it's not bad.",
+     "de": "Ich bin dafür! Die Tour ist kostenlos. Komm schon, das ist nicht schlecht."
+    },
+    "a2": {
+     "fr": "Je suis pour, parce que le spectacle est gratuit. Gus, pour une fois, tu ne paies rien.",
+     "en": "I'm for it, because the show is free. Gus, for once you pay nothing.",
+     "de": "Ich bin dafür, weil die Show kostenlos ist. Gus, für einmal zahlst du nichts."
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que le Tour est gratuit, et ça, c'est rare. Barcelone, c'est loin, mais ça reste le Tour. Gus, tu viens l'applaudir ?",
+     "en": "I'm for it, because the Tour is free, and that's rare. Barcelona is far, but it's still the Tour. Gus, are you coming to cheer?",
+     "de": "Ich bin dafür, weil die Tour kostenlos ist, und das ist selten. Barcelona ist weit weg, aber es bleibt die Tour. Gus, kommst du zum Anfeuern?"
+    }
+   },
+   "quote": {
+    "fr": "Le spectacle est gratuit.",
+    "en": "The show is free.",
+    "de": "Die Show ist kostenlos."
+   }
+  },
+  {
+   "id": "margaux_barman",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend. Bon pour la caisse. Pas pour la terrasse.",
+     "en": "It depends. Good for the till. Not for the terrace.",
+     "de": "Kommt drauf an. Gut für die Kasse. Nicht für die Terrasse."
+    },
+    "a2": {
+     "fr": "Des touristes au comptoir, bon pour la caisse. Mais la terrasse est pleine toute la journée.",
+     "en": "Tourists at the counter, good for the till. But the terrace is full all day.",
+     "de": "Touristen an der Theke, gut für die Kasse. Aber die Terrasse ist den ganzen Tag voll."
+    },
+    "b1": {
+     "fr": "D'un côté, les spectateurs achètent des cafés au bord de la route. De l'autre, ils prennent toutes mes tables. La même chose ?",
+     "en": "On the one hand, spectators buy coffees by the road. On the other, they take all my tables. The same again?",
+     "de": "Einerseits kaufen die Zuschauer Kaffee am Straßenrand. Andererseits nehmen sie mir alle Tische weg. Dasselbe nochmal?"
+    }
+   },
+   "quote": {
+    "fr": "Bon pour la caisse.",
+    "en": "Good for the till.",
+    "de": "Gut für die Kasse."
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. Plus de 20 millions de spectateurs ? Trop.",
+     "en": "I'm against it. More than 20 million spectators? Too many.",
+     "de": "Ich bin dagegen. Mehr als 20 Millionen Zuschauer? Zu viele."
+    },
+    "a2": {
+     "fr": "Plus de 20 millions de spectateurs au bord des routes ? Moi, je préfère le champagne.",
+     "en": "More than 20 million spectators along the roads? I prefer champagne.",
+     "de": "Mehr als 20 Millionen Zuschauer am Straßenrand? Ich ziehe Champagner vor."
+    },
+    "b1": {
+     "fr": "Mon cher, plus de 20 millions de spectateurs, c'est une foule, pas un public. Comme les routes sont étroites, je reste chez moi.",
+     "en": "My dear, more than 20 million spectators is a crowd, not an audience. Since the roads are narrow, I stay home.",
+     "de": "Mein Lieber, mehr als 20 Millionen Zuschauer sind eine Menge, kein Publikum. Da die Straßen eng sind, bleibe ich zu Hause."
+    }
+   },
+   "quote": {
+    "fr": "Les routes sont étroites, mon cher.",
+    "en": "The roads are narrow, my dear.",
+    "de": "Die Straßen sind eng, mein Lieber."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "plus de 20 millions de spectateurs",
+  "right_fr": "plus de 12 millions de spectateurs",
+  "claim_id": "c3",
+  "distractor_fr": "du 4 au 26 juillet",
+  "ask": {
+   "fr": "Il y a combien de spectateurs, vraiment ?",
+   "en": "How many spectators are there, really?",
+   "de": "Wie viele Zuschauer sind es wirklich?"
+  },
+  "caught": {
+   "fr": "Vingt millions, douze, bon… je compte à ma façon.",
+   "en": "Twenty million, twelve, well… I count my own way.",
+   "de": "Zwanzig Millionen, zwölf, na ja… ich zähle auf meine Art."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "c'est gratuit",
+    "en": "it's free",
+    "de": "es ist kostenlos"
+   },
+   {
+    "fr": "c'est beau à voir",
+    "en": "it's beautiful to watch",
+    "de": "es ist schön anzusehen"
+   },
+   {
+    "fr": "c'est une fête",
+    "en": "it's a celebration",
+    "de": "es ist ein Fest"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "c'est trop de monde",
+    "en": "there are too many people",
+    "de": "es sind zu viele Leute"
+   },
+   {
+    "fr": "je n'aime pas la foule",
+    "en": "I don't like crowds",
+    "de": "ich mag keine Menge"
+   },
+   {
+    "fr": "c'est trop commercial",
+    "en": "it's too commercial",
+    "de": "es ist zu kommerziell"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est bien, mais pas trop",
+    "en": "it's good, but not too much",
+    "de": "es ist gut, aber nicht zu viel"
+   },
+   {
+    "fr": "gratuit mais bruyant",
+    "en": "free but noisy",
+    "de": "kostenlos, aber laut"
+   },
+   {
+    "fr": "une fois, c'est bien",
+    "en": "once is fine",
+    "de": "einmal ist gut"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est une bonne idée, parce que",
+   "en": "In my opinion, it's a good idea, because",
+   "de": "Meiner Meinung nach ist das eine gute Idee, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas une bonne idée, parce que",
+   "en": "In my opinion, it's not a good idea, because",
+   "de": "Meiner Meinung nach ist das keine gute Idee, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "le spectacle",
+   "en": "the show",
+   "de": "die Show"
+  },
+  {
+   "fr": "les spectateurs",
+   "en": "the spectators",
+   "de": "die Zuschauer"
+  },
+  {
+   "fr": "la route",
+   "en": "the road",
+   "de": "die Straße"
+  },
+  {
+   "fr": "le départ",
+   "en": "the start",
+   "de": "der Start"
+  },
+  {
+   "fr": "la foule",
+   "en": "the crowd",
+   "de": "die Menge"
+  },
+  {
+   "fr": "le champagne",
+   "en": "the champagne",
+   "de": "der Champagner"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Toi, gratuit ? Mon cher, une foule n'est pas un spectacle. Tu as déjà vu une foule élégante ?",
+    "en": "You, free? My dear, a crowd is not a show. Have you ever seen an elegant crowd?",
+    "de": "Du, gratis? Mein Lieber, eine Menge ist keine Show. Hast du je eine elegante Menge gesehen?"
+   },
+   "comeback": {
+    "fr": "Et toi, tu as peur des vélos ?",
+    "en": "And you, are you scared of bikes?",
+    "de": "Und du, hast du Angst vor Fahrrädern?"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc ! Tu trouves ça trop commercial ? Tu as déjà vu le spectacle, toi ?",
+    "en": "Come on! You find it too commercial? Have you ever even seen the show?",
+    "de": "Ach komm! Findest du das zu kommerziell? Hast du die Show überhaupt schon gesehen?"
+   },
+   "comeback": {
+    "fr": "Oui, et c'est trop de monde !",
+    "en": "Yes, and it's too crowded!",
+    "de": "Ja, und es ist zu voll!"
+   }
+  },
+  "nuance": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Ça dépend ? Mon cher, on ne vit pas à mi-chemin. Tu es pour ou contre ?",
+    "en": "It depends? My dear, one does not live halfway. Are you for or against?",
+    "de": "Kommt drauf an? Mein Lieber, man lebt nicht auf halbem Weg. Bist du dafür oder dagegen?"
+   },
+   "comeback": {
+    "fr": "Mi-chemin, c'est mon équilibre !",
+    "en": "Halfway is my balance!",
+    "de": "Die Mitte ist mein Gleichgewicht!"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

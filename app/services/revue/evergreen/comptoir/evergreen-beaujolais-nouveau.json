@@ -1,0 +1,277 @@
+{
+ "question": {
+  "fr": "Tu bois du beaujolais nouveau en novembre ?",
+  "en": "Do you drink Beaujolais nouveau in November?",
+  "de": "Trinkst du im November Beaujolais nouveau?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! Ça fait une fête en novembre, voyons donc.",
+     "en": "I'm for it! It makes a party in November, come on.",
+     "de": "Ich bin dafür! Das gibt eine Feier im November, ach komm."
+    },
+    "a2": {
+     "fr": "C'est pas pire, ce vin jeune. Une fête en novembre, c'est bon pour le moral.",
+     "en": "It's not bad, this young wine. A party in November is good for morale.",
+     "de": "Das ist gar nicht schlecht, dieser junge Wein. Eine Feier im November tut der Stimmung gut."
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que le vin est jeune et joyeux, même si Gus fait la tête. Il est vendu le même jour partout, c'est un vrai rendez-vous. Au Québec, on n'a pas ça !",
+     "en": "I'm for it, because the wine is young and cheerful, even if Gus is sulking. It's sold on the same day everywhere, it's a real date. In Québec, we don't have that!",
+     "de": "Ich bin dafür, weil der Wein jung und fröhlich ist, auch wenn Gus schmollt. Er wird überall am selben Tag verkauft, das ist ein echtes Rendezvous. In Québec gibt es so was nicht!"
+    }
+   },
+   "quote": {
+    "fr": "Une fête en novembre, ça fait du bien.",
+    "en": "A party in November does you good.",
+    "de": "Ein Fest im November tut gut."
+   }
+  },
+  {
+   "id": "margaux_barman",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend. Pour la caisse, c'est bon. Pour le goût, bof.",
+     "en": "It depends. For the till, it's good. For the taste, meh.",
+     "de": "Kommt drauf an. Für die Kasse ist es gut. Für den Geschmack, na ja."
+    },
+    "a2": {
+     "fr": "Ça dépend. Le vin est joli, mais tout le monde en veut le même jour. Bon pour la caisse.",
+     "en": "It depends. The wine is nice, but everyone wants it the same day. Good for the till.",
+     "de": "Kommt drauf an. Der Wein ist hübsch, aber alle wollen ihn am selben Tag. Gut für die Kasse."
+    },
+    "b1": {
+     "fr": "D'un côté, le beaujolais nouveau attire les clients en novembre. De l'autre, il est jeune, et je préfère un vin qui a vécu. La même chose ?",
+     "en": "On the one hand, Beaujolais nouveau draws customers in November. On the other, it's young, and I prefer a wine that has lived. The same again?",
+     "de": "Einerseits lockt der Beaujolais nouveau die Gäste im November. Andererseits ist er jung, und ich mag lieber einen Wein, der gelebt hat. Nochmal dasselbe?"
+    }
+   },
+   "quote": {
+    "fr": "Ça dépend. Bon pour la caisse.",
+    "en": "It depends. Good for the till.",
+    "de": "Kommt drauf an. Gut für die Kasse."
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. Jusqu'en 1995, on attendait. Moi, j'attends le champagne.",
+     "en": "I'm against it. Until 1995, people waited. Me, I wait for champagne.",
+     "de": "Ich bin dagegen. Bis 1995 wartete man. Ich warte auf Champagner."
+    },
+    "a2": {
+     "fr": "Ce vin jeune, mon cher, c'est une blague. Jusqu'en 1995, on attendait. Moi, je préfère le champagne.",
+     "en": "This young wine, my dear, is a joke. Until 1995, people waited. Me, I prefer champagne.",
+     "de": "Dieser junge Wein, mein Lieber, ist ein Witz. Bis 1995 wartete man. Ich ziehe Champagner vor."
+    },
+    "b1": {
+     "fr": "Mon cher, un vin jeune qu'on boit tout de suite, c'est trop simple. Jusqu'en 1995, on attendait, parce que le vin méritait son temps. Règle numéro un de La Méthode : le champagne.",
+     "en": "My dear, a young wine you drink right away is far too simple. Until 1995, people waited, because the wine deserved its time. Rule number one of The Method: champagne.",
+     "de": "Mein Lieber, ein junger Wein, den man sofort trinkt, ist viel zu einfach. Bis 1995 wartete man, denn der Wein verdiente seine Zeit. Regel Nummer eins der Methode: Champagner."
+    }
+   },
+   "quote": {
+    "fr": "Je préfère le champagne.",
+    "en": "I prefer champagne.",
+    "de": "Ich ziehe Champagner vor."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "jusqu'en 1995",
+  "right_fr": "jusqu'en 1985",
+  "claim_id": "c3",
+  "distractor_fr": "le jeudi 19 novembre",
+  "ask": {
+   "fr": "En quelle année la date a-t-elle changé ?",
+   "en": "In what year did the date change?",
+   "de": "In welchem Jahr hat sich das Datum geändert?"
+  },
+  "caught": {
+   "fr": "1985, pas 1995… Bon, je me suis trompé d'un peu.",
+   "en": "1985, not 1995… Fine, I was a little off.",
+   "de": "1985, nicht 1995… Gut, ich habe mich ein bisschen vertan."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "c'est une fête",
+    "en": "it's a party",
+    "de": "es ist eine Feier"
+   },
+   {
+    "fr": "le vin est jeune",
+    "en": "the wine is young",
+    "de": "der Wein ist jung"
+   },
+   {
+    "fr": "c'est le même jour partout",
+    "en": "it's the same day everywhere",
+    "de": "es ist überall am selben Tag"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "le vin est trop jeune",
+    "en": "the wine is too young",
+    "de": "der Wein ist zu jung"
+   },
+   {
+    "fr": "je préfère le champagne",
+    "en": "I prefer champagne",
+    "de": "ich ziehe Champagner vor"
+   },
+   {
+    "fr": "le vin n'a pas vécu",
+    "en": "the wine hasn't lived",
+    "de": "der Wein hat nicht gelebt"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est bon, mais jeune",
+    "en": "it's good, but young",
+    "de": "es ist gut, aber jung"
+   },
+   {
+    "fr": "ça dépend du vin",
+    "en": "it depends on the wine",
+    "de": "es kommt auf den Wein an"
+   },
+   {
+    "fr": "une fois, c'est bien",
+    "en": "once is fine",
+    "de": "einmal ist gut"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est une bonne idée, parce que",
+   "en": "In my opinion, it's a good idea, because",
+   "de": "Meiner Meinung nach ist das eine gute Idee, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas une bonne idée, parce que",
+   "en": "In my opinion, it's not a good idea, because",
+   "de": "Meiner Meinung nach ist das keine gute Idee, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "le vin",
+   "en": "the wine",
+   "de": "der Wein"
+  },
+  {
+   "fr": "le jour",
+   "en": "the day",
+   "de": "der Tag"
+  },
+  {
+   "fr": "les cavistes",
+   "en": "the wine shops",
+   "de": "die Weinhändler"
+  },
+  {
+   "fr": "le gamay",
+   "en": "the gamay grape",
+   "de": "die Gamay-Traube"
+  },
+  {
+   "fr": "le vignoble",
+   "en": "the vineyard",
+   "de": "der Weinberg"
+  },
+  {
+   "fr": "la caisse",
+   "en": "the till",
+   "de": "die Kasse"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Toi aussi ? Un vin jeune, mon cher ? Tu n'as pas honte de cette fête ?",
+    "en": "You too? A young wine, my dear? Aren't you ashamed of this party?",
+    "de": "Du auch? Ein junger Wein, mein Lieber? Schämst du dich nicht für diese Feier?"
+   },
+   "comeback": {
+    "fr": "Moi, j'ai honte de rien !",
+    "en": "I'm ashamed of nothing!",
+    "de": "Ich schäme mich für nichts!"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc ! Tu boudes un vin qui a une date ? Tu l'as déjà goûté, au moins ?",
+    "en": "Come on! You're snubbing a wine that has a date? Have you even tasted it?",
+    "de": "Ach komm! Du verschmähst einen Wein mit Termin? Hast du ihn wenigstens probiert?"
+   },
+   "comeback": {
+    "fr": "Je bois du champagne, moi !",
+    "en": "I drink champagne, me!",
+    "de": "Ich trinke Champagner!"
+   }
+  },
+  "nuance": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Ça dépend ? Tu ne choisis jamais ? Bon, c'est quoi la vraie histoire ?",
+    "en": "It depends? You never choose? Well, what's the real story?",
+    "de": "Kommt darauf an? Du entscheidest nie? Also, was ist die wahre Geschichte?"
+   },
+   "comeback": {
+    "fr": "Je choisis plus tard !",
+    "en": "I'll choose later!",
+    "de": "Ich entscheide später!"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

@@ -1,0 +1,277 @@
+{
+ "question": {
+  "fr": "Le 14 juillet, tu sors danser ?",
+  "en": "On 14 July, are you going out to dance?",
+  "de": "Gehst du am 14. Juli tanzen?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend. Le défilé, c'est beau, mais le bal, c'est bruyant.",
+     "en": "It depends. The parade is beautiful, but the dance is noisy.",
+     "de": "Kommt drauf an. Die Parade ist schön, aber der Ball ist laut."
+    },
+    "a2": {
+     "fr": "D'un côté, le défilé est beau. De l'autre, le bal est bruyant. Mais voyons donc, c'est la fête.",
+     "en": "On one hand, the parade is beautiful. On the other, the dance is noisy. But come on, it's a party.",
+     "de": "Einerseits ist die Parade schön. Andererseits ist der Ball laut. Aber komm schon, es ist ein Fest."
+    },
+    "b1": {
+     "fr": "Le défilé est beau, même si je préfère les feux d'artifice. Le bal, par contre, c'est bruyant. J'y vais, mais une heure, pas plus.",
+     "en": "The parade is beautiful, even if I prefer the fireworks. The ball, though, is noisy. I'll go, but for an hour, no more.",
+     "de": "Der Umzug ist schön, auch wenn ich das Feuerwerk lieber mag. Der Ball dagegen ist laut. Ich gehe hin, aber eine Stunde, nicht mehr."
+    }
+   },
+   "quote": {
+    "fr": "Ça dépend du bruit.",
+    "en": "It depends on the noise.",
+    "de": "Es kommt auf den Lärm an."
+   }
+  },
+  {
+   "id": "lila_bonnet",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! Mon chou, on danse au bal des pompiers.",
+     "en": "I'm for it! My dear, we dance at the firefighters' ball.",
+     "de": "Ich bin dafür! Mein Schatz, wir tanzen beim Feuerwehrball."
+    },
+    "a2": {
+     "fr": "Mon chou, le bal des pompiers, c'est la fête ! On danse, on rit, et on oublie le travail.",
+     "en": "My dear, the firefighters' ball is a party! We dance, we laugh, and we forget work.",
+     "de": "Mein Schatz, der Feuerwehrball ist ein Fest! Wir tanzen, wir lachen und vergessen die Arbeit."
+    },
+    "b1": {
+     "fr": "Mon chou, le bal des pompiers, c'est joyeux, parce que tout le monde danse. Gus dit que la foule le fatigue, mais il ne sait pas danser. Bon, on y va ?",
+     "en": "My dear, the firefighters' ball is joyful, because everyone dances. Gus says the crowd tires him, but he can't dance. Well, shall we go?",
+     "de": "Mein Schatz, der Feuerwehrball ist fröhlich, weil alle tanzen. Gus sagt, die Menge macht ihn müde, aber er kann nicht tanzen. Also, gehen wir?"
+    }
+   },
+   "quote": {
+    "fr": "Mon chou, on danse au bal !",
+    "en": "My dear, let's dance at the ball!",
+    "de": "Mein Schatz, wir tanzen beim Ball!"
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. Dès le soir du 12 juillet, la foule ? Non, merci.",
+     "en": "I'm against it. From the evening of 12 July, the crowd? No, thanks.",
+     "de": "Ich bin dagegen. Schon ab dem Abend des 12. Juli, die Menge? Nein, danke."
+    },
+    "a2": {
+     "fr": "Dès le soir du 12 juillet, des feux, des bals, des foules ? Moi, je reste chez moi, avec mon champagne.",
+     "en": "From the evening of 12 July, fireworks, dances, crowds? I stay home, with my champagne.",
+     "de": "Schon ab dem Abend des 12. Juli Feuerwerk, Bälle, Menschenmassen? Ich bleibe zu Hause, mit meinem Champagner."
+    },
+    "b1": {
+     "fr": "Mon cher, dès le soir du 12 juillet, les feux d'artifice commencent, et la foule suit. Règle numéro un de La Méthode : on ne danse jamais en public. Je reste au calme, parce que le bruit me fatigue.",
+     "en": "My dear, from the evening of 12 July the fireworks start, and the crowd follows. Rule number one of The Method: you never dance in public. I stay somewhere quiet, because the noise tires me.",
+     "de": "Mein Lieber, schon ab dem Abend des 12. Juli beginnt das Feuerwerk, und die Menge folgt. Regel Nummer eins der Methode: Man tanzt nie in der Öffentlichkeit. Ich bleibe in Ruhe, weil der Lärm mich ermüdet."
+    }
+   },
+   "quote": {
+    "fr": "Je préfère le calme. Et le champagne.",
+    "en": "I prefer calm. And champagne.",
+    "de": "Ich bevorzuge die Ruhe. Und den Champagner."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "dès le soir du 12 juillet",
+  "right_fr": "dès le soir du 13 juillet",
+  "claim_id": "c2",
+  "distractor_fr": "le soir du 14 juillet",
+  "ask": {
+   "fr": "Quel jour, en vrai ?",
+   "en": "Which day, really?",
+   "de": "Welcher Tag, wirklich?"
+  },
+  "caught": {
+   "fr": "Dès le 12 ? Bon, le 13, je suis généreux avec les dates.",
+   "en": "From the 12th? Well, the 13th, I'm generous with dates.",
+   "de": "Ab dem 12.? Na gut, der 13., ich bin großzügig mit Daten."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "j'aime danser",
+    "en": "I love dancing",
+    "de": "ich liebe Tanzen"
+   },
+   {
+    "fr": "c'est la fête",
+    "en": "it's a party",
+    "de": "es ist ein Fest"
+   },
+   {
+    "fr": "les pompiers sont gentils",
+    "en": "the firefighters are nice",
+    "de": "die Feuerwehrleute sind nett"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "la foule me fatigue",
+    "en": "crowds tire me out",
+    "de": "die Menge macht mich müde"
+   },
+   {
+    "fr": "le bruit me gêne",
+    "en": "the noise bothers me",
+    "de": "der Lärm stört mich"
+   },
+   {
+    "fr": "je préfère le champagne",
+    "en": "I prefer champagne",
+    "de": "ich bevorzuge Champagner"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est beau mais bruyant",
+    "en": "it's beautiful but noisy",
+    "de": "es ist schön, aber laut"
+   },
+   {
+    "fr": "une fois, c'est bien",
+    "en": "once is fine",
+    "de": "einmal ist gut"
+   },
+   {
+    "fr": "ça dépend du bruit",
+    "en": "it depends on the noise",
+    "de": "es kommt auf den Lärm an"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est une bonne idée, parce que",
+   "en": "In my opinion, it's a good idea, because",
+   "de": "Meiner Meinung nach ist das eine gute Idee, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas une bonne idée, parce que",
+   "en": "In my opinion, it's not a good idea, because",
+   "de": "Meiner Meinung nach ist das keine gute Idee, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "le défilé",
+   "en": "the parade",
+   "de": "die Parade"
+  },
+  {
+   "fr": "le feu d'artifice",
+   "en": "the fireworks",
+   "de": "das Feuerwerk"
+  },
+  {
+   "fr": "la caserne",
+   "en": "the fire station",
+   "de": "die Feuerwache"
+  },
+  {
+   "fr": "le bal",
+   "en": "the dance",
+   "de": "der Ball"
+  },
+  {
+   "fr": "les pompiers",
+   "en": "the firefighters",
+   "de": "die Feuerwehrleute"
+  },
+  {
+   "fr": "la foule",
+   "en": "the crowd",
+   "de": "die Menge"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Tu danses ? Mon cher, la foule te suit partout. Tu n'as pas peur de te perdre ?",
+    "en": "You dance? My dear, the crowd follows you everywhere. Aren't you afraid of getting lost?",
+    "de": "Du tanzt? Mein Lieber, die Menge folgt dir überall hin. Hast du keine Angst, dich zu verlieren?"
+   },
+   "comeback": {
+    "fr": "Et toi, tu danses sous la douche !",
+    "en": "And you dance in the shower!",
+    "de": "Und du tanzt unter der Dusche!"
+   }
+  },
+  "contre": {
+   "by": "lila_bonnet",
+   "line": {
+    "fr": "Mon chou, tu restes chez toi le 14 juillet ? Tu rates le bal !",
+    "en": "My dear, you're staying home on 14 July? You'll miss the ball!",
+    "de": "Mein Schatz, du bleibst am 14. Juli zu Hause? Du verpasst den Ball!"
+   },
+   "comeback": {
+    "fr": "Non, je reste chez moi, avec mon champagne.",
+    "en": "No, I stay home with my champagne.",
+    "de": "Nein, ich bleibe zu Hause, mit meinem Champagner."
+   }
+  },
+  "nuance": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Tu hésites ? Mon cher, la vie n'attend pas ceux qui réfléchissent. Tu viens ?",
+    "en": "You're hesitating? My dear, life doesn't wait for those who think. Are you coming?",
+    "de": "Du zögerst? Mein Lieber, das Leben wartet nicht auf Grübler. Kommst du?"
+   },
+   "comeback": {
+    "fr": "Toi, tu ne danses même pas !",
+    "en": "You don't even dance!",
+    "de": "Du tanzt ja nicht mal!"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}
