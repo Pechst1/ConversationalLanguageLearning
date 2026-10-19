@@ -77,6 +77,7 @@ import {
   EpRelecture,
   EpCorrect,
   EpRepair,
+  EpPartsRepair,
   EpListen,
   EpRecord,
   EpLock,
@@ -139,7 +140,7 @@ import { todayInterlude } from '@/components/atelier-v2/journey/season-return-mo
 import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Confetti, LogoToken, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
+import { Confetti, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
 import {
   buildDayProgress,
   dayQueryString,
@@ -183,6 +184,7 @@ import {
   type ForgeDrill,
 } from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
+import { assembleRepair, repairParts } from '@/lib/repair-parts';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
@@ -241,7 +243,7 @@ type RoadmapNode = {
 };
 type RewardMoment = {
   id: string;
-  kind: 'logo_token' | 'gilt_seal';
+  kind: 'gilt_seal';
   collectible?: AtelierCollectible;
 };
 type RepairRetest = {
@@ -1494,7 +1496,8 @@ export default function AtelierPage() {
       }
       const mintedLogoToken = firstMintedCollectible(result.minted_collectibles, 'logo_token');
       if (mintedLogoToken) {
-        setRewardMoment({ id: `${mintedLogoToken.id}:${Date.now()}`, kind: 'logo_token', collectible: mintedLogoToken });
+        // Owner, 2026-10-19: no pop-up over the séance for a token; the quiet
+        // line and the haptic say it, and it waits in the Almanach.
         pulseAtelierHaptic('token');
         say(pageCopy.say_token_won);
       } else if (comboHaptic) {
@@ -2414,33 +2417,25 @@ function RewardMomentOverlay({
   language: unknown;
   onClose: () => void;
 }) {
-  const isLogoToken = moment.kind === 'logo_token';
-  const isDrafting = isLogoToken && moment.collectible?.metadata?.effort === 'drafting';
-  const credit = Number(moment.collectible?.metadata?.credit || 0);
   const rc = rewardMomentCopy(language);
-  const { eyebrow, title, body } = rc[isLogoToken ? (isDrafting ? 'drafting' : 'logo') : 'seal'];
+  const { eyebrow, title, body } = rc.seal;
   return (
     <div className="reward-moment-layer" role="status" aria-live="polite">
-      <Confetti count={isLogoToken ? (isDrafting ? 30 : 24) : 30} />
-      <section className={cn('reward-moment-card', isDrafting && 'drafting')} aria-label={title}>
-        {isLogoToken ? (
-          <LogoToken pop />
-        ) : (
-          // WP-D4: the Seal is an av2 component; outside the av2 shell it
-          // brings its own token scope.
-          <div className="av2 av2-seal-host">
-            <Seal
-              stamp
-              tone="gilt"
-              variant={(moment.collectible?.metadata?.seal_variant as SealVariant) || 'row'}
-              date={String(moment.collectible?.metadata?.date || '')}
-            />
-          </div>
-        )}
+      <Confetti count={30} />
+      <section className="reward-moment-card" aria-label={title}>
+        {/* WP-D4: the Seal is an av2 component; outside the av2 shell it
+            brings its own token scope. */}
+        <div className="av2 av2-seal-host">
+          <Seal
+            stamp
+            tone="gilt"
+            variant={(moment.collectible?.metadata?.seal_variant as SealVariant) || 'row'}
+            date={String(moment.collectible?.metadata?.date || '')}
+          />
+        </div>
         <div>
           <span>{eyebrow}</span>
           <h2>{title}</h2>
-          {isDrafting && credit > 0 && <p className="reward-credit-line">{rc.credit(credit)}</p>}
           <p>{body}</p>
         </div>
         <button type="button" onClick={onClose}>
@@ -4144,6 +4139,8 @@ function ExerciseFeedbackMoment({
     ? judgementLabel(value, language, classifyItem?.label_l10n)
     : isLabelCompare ? classificationCopy(value, language) : value;
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
+  // Owner, 2026-10-19: what the learner typed in each wrong part of their line.
+  const [partsTyped, setPartsTyped] = useState<Record<string, Record<number, string>>>({});
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
   // verdict to show — the grading character says so, and a verdict shown later
@@ -4169,6 +4166,11 @@ function ExerciseFeedbackMoment({
       ? [{ display_label: t.corrected_line, learner_text: feedback.learner, corrected_target: feedback.target, why_wrong: feedback.why } as AtelierErratum]
       : [];
   const repairs = correction?.micro_repairs || {};
+  // A free line's correction is fixed in place, part by part, when every wrong
+  // stretch can be found in it; otherwise the corrected line is retyped whole.
+  const lineParts = production && !isLabelCompare && typeof correction?.corrected_answer === 'string'
+    ? repairParts(String(feedback.learner || ''), Array.isArray(correction?.errata) ? correction.errata : [])
+    : null;
   // The typed retype only gates Next for corrections that are real lines;
   // one-word fixes are settled by the galley marks alone.
   const needsNewAnswer = issues.some((issue) => issue.task_error_type === 'task_compliance' || !issue.corrected_target);
@@ -4260,7 +4262,20 @@ function ExerciseFeedbackMoment({
                   ? <EpLineFix old={learner} fix={target || t.corrected} />
                   : learner ? <EpFix old={learner} fix={target || t.corrected} /> : <EpIns fix={target || t.corrected} />}
             </EpGalley>
-            {!isLabelCompare && target && isRepairableLine(target) && (
+            {index === 0 && lineParts && (
+              <EpPartsRepair
+                parts={lineParts}
+                typed={partsTyped[repairKey] || {}}
+                status={repair?.status || null}
+                onChange={(next) => {
+                  setPartsTyped((prev) => ({ ...prev, [repairKey]: next }));
+                  onSetRepairDraft(repairKey, assembleRepair(lineParts, next));
+                }}
+                onSubmit={() => onSubmitRepair(index)}
+                submitting={!!repairSubmitting[repairKey]}
+              />
+            )}
+            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && (
               <EpRepair
                 target={target}
                 typed={repair?.typed || repairDrafts[repairKey] || ''}
@@ -5838,8 +5853,6 @@ function AtelierStyles() {
       .produce-panel textarea,
       .output-ladder-panel textarea { width: 100%; border: 1px solid var(--ink); background: var(--paper); outline: none; padding: 13px 15px; font-family: var(--serif); font-style: italic; font-size: 19px; }
 
-      .reward-credit-line { margin: 2px 0 0; font-family: var(--mono); font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--blue); }
-      .reward-moment-card.drafting { border-color: var(--blue); }
       .output-ladder-panel { display: grid; gap: 18px; }
 
       .spin { animation: spin .7s linear infinite; }
