@@ -5,6 +5,9 @@ plain 404 while ``settings.REVUE_ENABLED`` is off — the flag check is the rout
 dependency, before authentication, so the feature stays invisible. Then the existing
 ``get_current_user`` and the paid-route guard (active once the POSTs are listed in
 ``app.core.rate_limit.PAID_ROUTES``).
+
+«Au comptoir» (WP-119, 2026-10-19) has its own router (:data:`comptoir_router`), a 404 while
+either ``REVUE_ENABLED`` or ``REVUE_COMPTOIR_ENABLED`` is off, also before authentication.
 """
 
 from __future__ import annotations
@@ -21,6 +24,8 @@ from app.db.models.user import User
 from app.schemas.revue import (
     WEEK_PATTERN,
     RvCloseResult,
+    RvComptoirRequest,
+    RvComptoirResult,
     RvMakeOffer,
     RvMakeRequest,
     RvMakeResult,
@@ -50,6 +55,24 @@ router = APIRouter(
     prefix="/revue",
     tags=["revue"],
     dependencies=[Depends(require_revue_enabled), Depends(paid_route_guard(get_current_user))],
+)
+
+
+def require_comptoir_enabled() -> None:
+    from app.services.revue.comptoir import comptoir_enabled
+
+    if not comptoir_enabled():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+
+
+comptoir_router = APIRouter(
+    prefix="/revue",
+    tags=["revue"],
+    dependencies=[
+        Depends(require_revue_enabled),
+        Depends(require_comptoir_enabled),
+        Depends(paid_route_guard(get_current_user)),
+    ],
 )
 
 
@@ -191,5 +214,25 @@ def close_session(
         row = owned_session(db, current_user, session_id, lock=True)
         view, closing = encounter.close(row)
         return RvCloseResult(session=view, closing=closing)
+    except RevueError as error:
+        raise _http(error) from error
+
+
+@comptoir_router.post("/sessions/{session_id}/comptoir", response_model=RvComptoirResult)
+def post_comptoir(
+    session_id: str,
+    body: RvComptoirRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    encounter: RevueEncounter = Depends(get_encounter),
+) -> RvComptoirResult:
+    """«Au comptoir»: one act of the learner's loop (vote, react, intox_who, intox_fix,
+    opinion, comeback). 409 ``revue_not_comptoir`` on a chat session, 409
+    ``revue_comptoir_out_of_order`` (with the current ``step``) for an act out of order; an
+    act that repeats one already recorded returns the session as it is."""
+
+    try:
+        row = owned_session(db, current_user, session_id, lock=True)
+        return encounter.comptoir(row, body)
     except RevueError as error:
         raise _http(error) from error

@@ -19,6 +19,9 @@ Payload conventions the replay reads (other keys are kept and ignored):
 - ``evidence``: ``word`` or ``words``, ``correct`` (bool) — the evidence itself is
   written through the existing evidence policy (Credit check, §4.2); this is the record
 - ``support_changed``: optional ``level`` (int); without it each event counts one level
+- ``comptoir`` («Au comptoir», 2026-10-19): ``act`` (``vote`` | ``react`` | ``intox_who`` |
+  ``intox_fix`` | ``opinion`` | ``comeback``) and that act's fields; replayed by
+  ``comptoir_loop.Acts``
 
 No DB code here. See ``docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md``.
 """
@@ -46,6 +49,7 @@ EventKind = Literal[
     "evidence",
     "support_changed",
     "closed",
+    "comptoir",
 ]
 
 

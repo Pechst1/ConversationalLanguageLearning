@@ -652,3 +652,107 @@ within the service's daily cap. `?period=` (default the current one), `?limit=1.
 report `{"period", "status": "painted" | "limit" | "budget" | "off: <reason>", "painted", "pictures": {dossier_id:
 {"story": url | reason, <place_id>: url | reason}}, "cost_usd"}`). The morning intake queues the same painting.
 
+
+## 9. «Au comptoir» (WP-119, owner 2026-10-19)
+
+The Papier as five short screens (spec `WP-119-AU-COMPTOIR.md`). Behind `REVUE_COMPTOIR_ENABLED` (off): while
+it is off nothing below is served — no route, the new fields keep their defaults (`mode: "chat"`, `comptoir:
+null`, `question_fr: null`, `cast: null`, `comptoir_page: null`), no morning call.
+
+### 9.1 What changes on the existing shapes
+```ts
+type RvStoryCard = { /* §3.1 */
+  question_fr: string | null;   // the question of the day, when the switch is on and the story has takes
+  cast: string[] | null;        // the three regulars at the counter, in seat order (Romy, the topic's guest, Gus)
+};
+type RvSessionView = { /* §3.4 */
+  mode: "chat" | "comptoir";    // fixed at the start (the first `choice` event), for the session's life
+  comptoir: RvComptoirView | null;
+};
+type RvClosing = { /* §3.8 */ comptoir_page: RvComptoirPage | null };
+type RvMade = { kind: /* … */ | "opinion" };  // the learner's quote; text_fr = Romy's edit, learner_fr = theirs
+```
+A comptoir session has no thread (no Romy arrival): `thread: []`, and `turns`, `GET/POST make` answer `409
+{code: "revue_comptoir_session"}`. `POST /close` builds «La page» without a model call (needs the opinion: else
+`409 revue_comptoir_out_of_order`).
+
+### 9.2 `RvComptoirView`
+Only the learner's band (`a1`, `a2`, `b1`; B2 reads b1) and translations in the learner's gloss language (`tr`,
+`null` for a French gloss language). Nothing is sent before its step: the liar (`intox.by`), the true value and
+the distractor (`options`, `prefill_fr`, `fix`) only once the learner named the liar or used two tries; the
+step-4 material (`kit`) from the opinion step; the reply only after the opinion.
+```ts
+type RvComptoirText = { fr: string; tr: string | null };
+type RvComptoirView = {
+  step: "read" | "takes" | "intox" | "opinion" | "page";   // derived from the acts by replay
+  steps: ("read" | "takes" | "intox" | "opinion" | "page")[];  // the dots: four when the band has no intox
+  band: "a1" | "a2" | "b1";
+  question: RvComptoirText;                     // «Aligre ouvre six jours sur sept. Bonne idée ?»
+  read: { dateline_fr: string; lead: RvComptoirText; sources: RvSource[] };
+  cast: { id: string; name_fr: string; role_fr: string; stance: "pour" | "contre" | "nuance";
+          take: RvComptoirText; reaction: "agree" | "disagree" | null }[];   // seat order
+  has_intox: boolean;                           // «3 avis · 1 intox cachée»
+  vote: "pour" | "contre" | "nuance" | null;    // the gut vote
+  intox: {                                      // from the intox step on, when the band has one
+    quotes: { cast_id: string; name_fr: string; role_fr: string; stance: string; quote_fr: string }[];
+    tries: string[]; resolved: boolean; found: boolean | null; by: string | null;
+    hint_claim: RvClaim | null;                 // after a wrong guess: the claim to reread
+    ask: RvComptoirText | null;                 // «Combien de jours par semaine, en vrai ?»
+    options: string[];                          // A1–A2: right and distractor, in a per-session order
+    prefill_fr: string | null;                  // B1+: «C'est faux, Gus ! C'est …, pas sept jours sur sept.»
+    fix: { correct: boolean; answer_fr: string; line_fr: string /* the right sentence, always */;
+           wrong_fr: string; right_fr: string; claim: RvClaim | null; caught: RvComptoirText } | null;
+  } | null;
+  kit: { input: "tiles" | "frame" | "free"; phrase: RvComptoirText;
+         reasons: Record<Stance, RvComptoirText[]>; frames: Record<Stance, RvComptoirText>;
+         bank: RvComptoirText[] /* A2 only */; opponents: Record<Stance, string> /* who answers each side */ } | null;
+  opinion: { stance: Stance; learner_fr: string; edited_fr: string; notes: { span_fr: string; why: string }[];
+             reply: { by: string; name_fr: string; line: RvComptoirText };
+             comebacks: RvComptoirText[] /* A1–A2: «Pas du tout !», «Un peu…», the desk's */;
+             comeback: { text_fr: string; index: number | null; last_word: RvComptoirText } | null } | null;
+};
+```
+
+### 9.3 `POST /revue/sessions/{id}/comptoir` — one act
+Body `RvComptoirRequest {act, guest_id?, value?, text?, mode?: "text" | "voice", reason_index?, index?}`:
+
+| act | fields | when |
+|---|---|---|
+| `vote` | `value`: pour · contre · nuance | until the opinion is given (may change) |
+| `react` | `guest_id`, `value`: agree · disagree | after the vote; a guest only after the ones before them |
+| `intox_who` | `guest_id` | the intox step; two tries, then `by` is revealed |
+| `intox_fix` | A1–A2 `value` (one of `options`); B1+ `text` | after the liar is named or revealed; once |
+| `opinion` | `value` (the side, default the vote); A1 `reason_index`; A2+ `text` | after the reactions and the fix; once |
+| `comeback` | A1–A2 `index` (0–2); B1+ `text` | after the opinion; once |
+
+Response `200 RvComptoirResult {session: RvSessionView, error_fr: string | null}`. An act already recorded
+(`intox_fix`, `opinion`, `comeback`, the same vote or reaction) returns the session unchanged: a double submit
+never calls the model twice. `error_fr` says why an act the learner can fix was not recorded (an empty reason:
+«Écris ta raison : quelques mots suffisent.»). The opinion at A2+ makes one model call (`comptoir_edit`): Romy's
+edit, at most two notes in the learner's UI language, and the reply of `opponents[side]`, in character; checked
+(an edit at most 1.6× the learner's length with no new number and no app words; a reply of 22 words at most that
+passes the desk's checks), else the learner's own sentence (typography only) and the desk's counter-line.
+
+| Status | `detail` | When |
+|---|---|---|
+| 404 | `"Not Found"` | `REVUE_ENABLED` or `REVUE_COMPTOIR_ENABLED` is false (before auth) |
+| 409 | `{code: "revue_not_comptoir"}` | a chat session |
+| 409 | `{code: "revue_comptoir_out_of_order", step, act}` | an act before its step, or after the close; re-render from `GET` |
+| 422 | FastAPI validation list, or `{code: "revue_comptoir_bad_act", act}` | an unknown act, guest, side, option or chip |
+
+Listed in `PAID_ROUTES`.
+
+### 9.4 `RvComptoirPage` («La page», at the close)
+```ts
+type RvComptoirPage = {
+  question_fr: string; dateline_fr: string; standfirst_fr: string;   // the lead's first sentence
+  quotes: { cast_id: string; name_fr: string; role_fr: string; stance: Stance; quote_fr: string }[];  // ×3
+  mine: { cast_id: "user"; name_fr: "Toi"; role_fr: ""; stance: Stance; quote_fr: string };  // Romy's edit
+  votes: { pour: number; contre: number; nuance: number };   // the three regulars and the learner
+  intox: { by: string; name_fr: string; wrong_fr: string; right_fr: string; source_name: string } | null;
+  phrase_fr: string;   // the phrase of the day at the learner's band
+  words: string[];     // the kept words (also in `kept.words`)
+};
+```
+The dispatch: kicker «Le micro-trottoir de Romy», headline = the question, body = [the standfirst, «Toi : « … »»],
+`contribution: []`. Romy's line: «Merci ! Ta voix est dans le micro-trottoir.» The vignette rings `report`.

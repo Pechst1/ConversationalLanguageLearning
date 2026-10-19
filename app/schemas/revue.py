@@ -24,7 +24,8 @@ Outfit = Literal["coat", "suit", "apron", "raincoat", "sport", "scarf_only", "ch
 Beat = Literal["arrive", "facts", "pursue", "make", "close"]
 RoomPhase = Literal["open", "bouclage", "boucle"]
 #: ``caption`` (WP-119 §8.4, «La légende»): the caption under the story's picture.
-MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report", "caption"]
+#: ``opinion`` («Au comptoir», 2026-10-19): the learner's quote in Romy's vox pop.
+MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report", "caption", "opinion"]
 #: WP-119 §8.4: what the site's plate is — the story's own picture, a painted place, a season plate, a stand-in.
 PlateKind = Literal["story", "painted", "season", "stand_in"]
 FallbackReason = Literal["model_down", "knowledge_refused", "budget", "no_match"]
@@ -114,6 +115,10 @@ class RvStoryCard(RevueModel):
     plate_url: str | None
     evergreen: bool
     stage: RvStage
+    #: «Au comptoir» (WP-119, 2026-10-19): the question of the day and the three regulars
+    #: (cast ids, in seat order) when the switch is on and the story has takes; else ``None``.
+    question_fr: str | None = None
+    cast: list[str] | None = None
 
 
 class RvSupport(RevueModel):
@@ -361,6 +366,178 @@ class RvKept(RevueModel):
     claims: list[RvClaim]
 
 
+# ---------------------------------------------------------------------------
+# «Au comptoir» (WP-119, owner 2026-10-19; WIRE §3.9)
+# ---------------------------------------------------------------------------
+
+ComptoirStep = Literal["read", "takes", "intox", "opinion", "page"]
+ComptoirStance = Literal["pour", "contre", "nuance"]
+ComptoirAct = Literal["vote", "react", "intox_who", "intox_fix", "opinion", "comeback"]
+
+
+class RvComptoirText(RevueModel):
+    """A line and its translation in the learner's gloss language (``None`` for French)."""
+
+    fr: str
+    tr: str | None = None
+
+
+class RvComptoirCast(RevueModel):
+    id: str
+    name_fr: str
+    role_fr: str
+    stance: ComptoirStance
+    #: The take at the learner's band.
+    take: RvComptoirText
+    reaction: Literal["agree", "disagree"] | None = None
+
+
+class RvComptoirRead(RevueModel):
+    #: «Paris, le 18 octobre» (the place alone for an evergreen).
+    dateline_fr: str
+    #: What happened, at the learner's band.
+    lead: RvComptoirText
+    sources: list[RvSource]
+
+
+class RvComptoirQuote(RevueModel):
+    cast_id: str
+    name_fr: str
+    role_fr: str
+    stance: ComptoirStance
+    quote_fr: str
+
+
+class RvComptoirFix(RevueModel):
+    correct: bool
+    answer_fr: str
+    #: «C'est faux, Gus ! C'est plus de 500 000 personnes, pas un million de personnes.»
+    line_fr: str
+    wrong_fr: str
+    right_fr: str
+    claim: RvClaim | None = None
+    caught: RvComptoirText
+
+
+class RvComptoirIntox(RevueModel):
+    """Step 3. Who lied (``by``), the true value and the distractor are absent until the
+    learner named the liar or used their two tries."""
+
+    quotes: list[RvComptoirQuote]
+    tries: list[str]
+    resolved: bool
+    found: bool | None = None
+    by: str | None = None
+    #: The claim to reread, after a wrong guess.
+    hint_claim: RvClaim | None = None
+    ask: RvComptoirText | None = None
+    #: A1–A2: the true value and the distractor, in a per-session order.
+    options: list[str] = Field(default_factory=list)
+    #: B1+: «C'est faux, Gus ! C'est …, pas un million de personnes.»
+    prefill_fr: str | None = None
+    fix: RvComptoirFix | None = None
+
+
+class RvComptoirKit(RevueModel):
+    """Step 4's material: A1 tiles, A2 frame and word bank, B1+ free text."""
+
+    input: Literal["tiles", "frame", "free"]
+    phrase: RvComptoirText
+    reasons: dict[ComptoirStance, list[RvComptoirText]]
+    frames: dict[ComptoirStance, RvComptoirText]
+    bank: list[RvComptoirText]
+    #: Who answers a learner on each side (B1: «Réponds à …»).
+    opponents: dict[ComptoirStance, str]
+
+
+class RvComptoirNote(RevueModel):
+    span_fr: str
+    why: str
+
+
+class RvComptoirReply(RevueModel):
+    by: str
+    name_fr: str
+    line: RvComptoirText
+
+
+class RvComptoirComeback(RevueModel):
+    text_fr: str
+    index: int | None = None
+    #: The guest's last word.
+    last_word: RvComptoirText
+
+
+class RvComptoirOpinion(RevueModel):
+    stance: ComptoirStance
+    learner_fr: str
+    #: Romy's edit (the learner's own sentence when the edit failed its checks).
+    edited_fr: str
+    notes: list[RvComptoirNote]
+    reply: RvComptoirReply
+    #: A1–A2: the three comeback chips; empty from B1 (one free line).
+    comebacks: list[RvComptoirText]
+    comeback: RvComptoirComeback | None = None
+
+
+class RvComptoirView(RevueModel):
+    step: ComptoirStep
+    #: The dots: five, or four when the learner's band has no intox.
+    steps: list[ComptoirStep]
+    band: Literal["a1", "a2", "b1"]
+    question: RvComptoirText
+    read: RvComptoirRead
+    cast: list[RvComptoirCast]
+    has_intox: bool
+    vote: ComptoirStance | None = None
+    intox: RvComptoirIntox | None = None
+    kit: RvComptoirKit | None = None
+    opinion: RvComptoirOpinion | None = None
+
+
+class RvComptoirVotes(RevueModel):
+    pour: int
+    contre: int
+    nuance: int
+
+
+class RvComptoirPageIntox(RevueModel):
+    by: str
+    name_fr: str
+    wrong_fr: str
+    right_fr: str
+    source_name: str
+
+
+class RvComptoirPage(RevueModel):
+    """«La page»: Romy's vox pop, the learner's quote printed with the regulars'."""
+
+    question_fr: str
+    dateline_fr: str
+    standfirst_fr: str
+    quotes: list[RvComptoirQuote]
+    mine: RvComptoirQuote
+    votes: RvComptoirVotes
+    intox: RvComptoirPageIntox | None = None
+    phrase_fr: str
+    words: list[str]
+
+
+class RvComptoirRequest(RevueRequest):
+    act: ComptoirAct
+    guest_id: str | None = Field(None, min_length=1, max_length=40)
+    #: vote: the side; react: agree | disagree; intox_fix (A1–A2): the value picked;
+    #: opinion: the side.
+    value: str | None = Field(None, max_length=200)
+    #: intox_fix (B1+), opinion (A2+), comeback (B1+).
+    text: str | None = Field(None, max_length=600)
+    mode: Literal["text", "voice"] = "text"
+    #: opinion at A1: the reason tile.
+    reason_index: int | None = Field(None, ge=0, le=9)
+    #: comeback at A1–A2: the chip.
+    index: int | None = Field(None, ge=0, le=9)
+
+
 class RvClosing(RevueModel):
     romy_line_fr: str
     dispatch: RvDispatch
@@ -370,6 +547,8 @@ class RvClosing(RevueModel):
     vignette: VignetteView | None = None
     #: «La suite demain.» when the Papier is daily (its period is a day, §12.2).
     colophon_fr: Literal["La suite la semaine prochaine.", "La suite demain."] = "La suite la semaine prochaine."
+    #: «Au comptoir»: «La page» (``None`` for a chat session).
+    comptoir_page: RvComptoirPage | None = None
 
 
 class RvSessionView(RevueModel):
@@ -388,6 +567,15 @@ class RvSessionView(RevueModel):
     steer_to_make: bool
     artifact: RvMade | None = None
     closing: RvClosing | None = None
+    #: «Au comptoir» (WP-119, 2026-10-19): the mode the session started in, for its whole life.
+    mode: Literal["chat", "comptoir"] = "chat"
+    comptoir: RvComptoirView | None = None
+
+
+class RvComptoirResult(RevueModel):
+    session: RvSessionView
+    #: A reason the act was not recorded, said on the same screen («Choisis une raison.»).
+    error_fr: str | None = None
 
 
 # ---------------------------------------------------------------------------

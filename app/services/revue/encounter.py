@@ -74,6 +74,7 @@ from app.schemas.revue import (
     RvClaimsItem,
     RvClosedWord,
     RvClosing,
+    RvComptoirResult,
     RvDispatch,
     RvDossierView,
     RvEvidence,
@@ -678,7 +679,11 @@ def _known_plate(place_id: str) -> str | None:
 
 
 def story_card(dossier: EditorialDossier, db: Any = None) -> RvStoryCard:
+    from app.services.revue.comptoir import comptoir_enabled
+
     stage = stage_for(dossier, db=db)
+    # «Au comptoir»: the Une card's «question du jour» and the three faces (switch on only).
+    takes = dossier.comptoir if comptoir_enabled() else None
     return RvStoryCard(
         dossier_id=dossier.id,
         title_fr=dossier.title_fr,
@@ -689,6 +694,8 @@ def story_card(dossier: EditorialDossier, db: Any = None) -> RvStoryCard:
         plate_url=stage.plate_url,
         evergreen=dossier.evergreen,
         stage=stage,
+        question_fr=takes.question.fr if takes is not None else None,
+        cast=[guest.id for guest in takes.guests] if takes is not None else None,
     )
 
 
@@ -914,6 +921,28 @@ class FakeRevueProvider:
             "body_lines": body,
         }
 
+    def comptoir_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Au comptoir»: Romy's edit from a small table of learners' usual slips (agreement,
+        accents, capitals, the final stop), a note per fix in ``notes_language``, and the
+        desk's own counter-line as the reply. Deterministic, for the tests and the walk."""
+
+        self.calls.append(("comptoir_edit", context))
+        text = re.sub(r"\s+", " ", str(context.get("learner_fr") or "")).strip()
+        language = str(context.get("notes_language") or "en")
+        notes: list[dict[str, str]] = []
+        for pattern, fixed, why in _FAKE_EDITS:
+            if re.search(pattern, text) and len(notes) < 2:
+                text = re.sub(pattern, fixed, text)
+                notes.append({"span_fr": fixed, "why": why.get(language, why["en"])})
+            elif re.search(pattern, text):
+                text = re.sub(pattern, fixed, text)
+        text = text[:1].upper() + text[1:]
+        if text and not re.search(r"[.!?…]$", text):
+            text += "."
+        example = str(context.get("example_reply_fr") or "")
+        return {"edited_fr": text, "notes": notes, "reply_fr": example,
+                "reply_en": context.get("example_reply_en"), "reply_de": context.get("example_reply_de")}
+
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         """Entry: the guest's reason, ``against`` on a disagreement angle, else ``for``.
         Later: a learner's point («parce que», «mais», «car»…) moves an ``against`` guest;
@@ -930,6 +959,19 @@ class FakeRevueProvider:
         if point and context.get("position") == "against":
             return {"line_fr": "Hmm. Vu comme ça… je change d'avis.", "position": "moved", "move": "moved"}
         return {"line_fr": None, "position": context.get("position"), "move": "follow_up"}
+
+
+#: The fake edit's table: (slip, fix, why per language).
+_FAKE_EDITS: tuple[tuple[str, str, dict[str, str]], ...] = (
+    (r"\b[Ll]e gens\b", "les gens", {"en": "plural: les gens", "de": "Plural: les gens", "fr": "pluriel : les gens"}),
+    (r"\bsont content\b", "sont contents", {"en": "agreement: plural", "de": "Angleichung: Plural",
+                                            "fr": "accord : pluriel"}),
+    (r"\btres\b", "très", {"en": "accent", "de": "Akzent", "fr": "accent"}),
+    (r"\bc'est tres\b", "c'est très", {"en": "accent", "de": "Akzent", "fr": "accent"}),
+    (r"\bmusique est trop fort\b", "musique est trop forte", {"en": "agreement: feminine",
+                                                               "de": "Angleichung: feminin", "fr": "accord : féminin"}),
+    (r"\ba Paris\b", "à Paris", {"en": "accent: à", "de": "Akzent: à", "fr": "accent : à"}),
+)
 
 
 def _fake_contradiction(fr: str, index: int) -> str:
@@ -1184,6 +1226,17 @@ class OpenAIRevueProvider:
     def close(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask("close", context)
 
+    def comptoir_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Au comptoir»: Romy's edit of the learner's opinion and a regular's reply (one call)."""
+
+        from app.services.revue.comptoir_loop import (
+            COMPTOIR_EDIT_INSTRUCTIONS,
+            COMPTOIR_EDIT_SYSTEM,
+        )
+
+        return self.ask_json(COMPTOIR_EDIT_INSTRUCTIONS, context, system=COMPTOIR_EDIT_SYSTEM, temperature=0.5,
+                             label="comptoir_edit")
+
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask(
             "guest",
@@ -1294,6 +1347,15 @@ class RevueError(Exception):
     @property
     def detail(self) -> dict[str, Any]:
         return {"code": self.code, **self.extra}
+
+
+def _require_chat(loaded: Any) -> None:
+    """«Au comptoir»: a comptoir session has no chat turn and no make."""
+
+    from app.services.revue.comptoir_loop import session_mode
+
+    if session_mode(loaded.state) == "comptoir":
+        raise RevueError(409, "revue_comptoir_session")
 
 
 # ---------------------------------------------------------------------------
@@ -1630,7 +1692,18 @@ def session_view(loaded: Loaded) -> RvSessionView:
         steer_to_make=room.phase != "open" and artifact is None and not state.closed,
         artifact=_made(artifact) if artifact else None,
         closing=_closing_of(state),
+        **_comptoir_fields(loaded),
     )
+
+
+def _comptoir_fields(loaded: Loaded) -> dict[str, Any]:
+    """«Au comptoir»: ``mode`` and the player's view, for a session that started there."""
+
+    from app.services.revue import comptoir_loop
+
+    if comptoir_loop.session_mode(loaded.state) != "comptoir" or loaded.dossier.comptoir is None:
+        return {}
+    return {"mode": "comptoir", "comptoir": comptoir_loop.comptoir_view(loaded)}
 
 
 def served_make_options(plan: SessionPlan) -> list[str]:
@@ -1916,10 +1989,23 @@ class RevueEncounter:
         db: Session,
         provider: RevueProvider | None = None,
         scorer: grading.RubricScorer | None = None,
+        desk: Any = None,
     ) -> None:
         self.db = db
         self.provider = provider or default_provider()
         self.scorer = scorer or scorer_for(self.provider)
+        #: «Au comptoir»: the takes desk for a story the morning did not write (``ask_json``).
+        self.desk = desk
+
+    def _comptoir_desk(self) -> Any:
+        """The takes desk a session start may call: the injected one, the real one beside a
+        real provider, none beside the deterministic provider (dev, the walk: no call)."""
+
+        if self.desk is None and isinstance(self.provider, OpenAIRevueProvider):
+            from app.services.revue.comptoir import desk_provider
+
+            self.desk = desk_provider()
+        return self.desk
 
     # -- entry -------------------------------------------------------------
 
@@ -1957,6 +2043,11 @@ class RevueEncounter:
             for index, d in enumerate(dossiers)
         ]
         keyed.sort(key=lambda pair: pair[0])
+        from app.services.revue.comptoir import comptoir_enabled
+
+        if comptoir_enabled():
+            # «Au comptoir»: the stories the regulars argue about come first (a stable sort).
+            keyed.sort(key=lambda pair: pair[1].comptoir is None)
         ordered = [d for _, d in keyed]
         reason = "first"
         if len(keyed) > 1:
@@ -2074,12 +2165,22 @@ class RevueEncounter:
             raise RevueError(404, "revue_dossier_not_found", dossier_id=dossier.id, angle_id=angle_id)
 
         spent_before = self._spent()
+        takes, desk_cost = self._takes_at_start(dossier, week)
         plan = self._plan(user, dossier, angle_id=angle_id, chosen_by=chosen_by)
         state = ConversationState()
-        state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
-                     free_request=(free_request or None), snapshot=dossier.model_dump(mode="json"),
-                     cost_usd=round(self._spent() - spent_before, 6), prompt_version=VOCABULARY_PROMPT_VERSION)
-        self._arrive(state, dossier, plan, request_miss=request_miss)
+        if takes is not None:
+            # «Au comptoir» (WP-119, 2026-10-19): the mode is fixed here for the session's life.
+            state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
+                         free_request=(free_request or None), mode="comptoir",
+                         snapshot=dossier.model_copy(update={"comptoir": takes}).model_dump(mode="json"),
+                         cost_usd=round(self._spent() - spent_before + desk_cost, 6),
+                         prompt_version=VOCABULARY_PROMPT_VERSION)
+        else:
+            state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
+                         free_request=(free_request or None), snapshot=dossier.model_dump(mode="json", exclude={"comptoir"}),
+                         cost_usd=round(self._spent() - spent_before + desk_cost, 6),
+                         prompt_version=VOCABULARY_PROMPT_VERSION)
+            self._arrive(state, dossier, plan, request_miss=request_miss)
 
         row = RevueSession(
             id=uuid.uuid4(),
@@ -2104,6 +2205,21 @@ class RevueEncounter:
     def _spent(self) -> float:
         # This thread's spend: a critic still running in the pool never lands on a request's event.
         return meter(self.provider)
+
+    def _takes_at_start(self, dossier: EditorialDossier, period: str) -> tuple[Any, float]:
+        """«Au comptoir»: the takes a new session plays, and what a desk call cost; ``None``
+        (a chat) while the switch is off, or when the story has none and the desk refused,
+        skipped or failed."""
+
+        from app.services.revue.comptoir import comptoir_enabled, takes_at_start
+
+        if not comptoir_enabled():
+            return None, 0.0
+        try:
+            return takes_at_start(self.db, dossier, period, provider=self._comptoir_desk())
+        except Exception as exc:  # noqa: BLE001 - never lose a start to the desk: a chat
+            logger.bind(dossier=dossier.id).warning("revue comptoir: takes at start failed ({}); a chat", exc)
+            return None, 0.0
 
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language
@@ -2219,6 +2335,7 @@ class RevueEncounter:
         state, plan, dossier = loaded.state, loaded.plan, loaded.dossier
         if row.status != "active" or state.closed:
             raise RevueError(409, "revue_session_closed")
+        _require_chat(loaded)
 
         learner_turns = [e for e in state.events if e.kind == "turn_learner"]
         if client_turn_id and learner_turns and learner_turns[-1].payload.get("client_turn_id") == client_turn_id:
@@ -3043,6 +3160,7 @@ class RevueEncounter:
         loaded = load(row)
         if row.status != "active" or loaded.state.closed:
             raise RevueError(409, "revue_session_closed")
+        _require_chat(loaded)
         if any(e.kind == "evidence" and e.payload.get("pending") for e in loaded.state.events):
             self._settle_evidence(loaded)
             self._save(loaded)
@@ -3150,6 +3268,7 @@ class RevueEncounter:
         state = loaded.state
         if row.status != "active" or state.closed:
             raise RevueError(409, "revue_session_closed")
+        _require_chat(loaded)
         action = payload.get("action")
         if option == "headline_choice" and action == "pick":
             return self._pick_headline(loaded, str(payload.get("option_id") or ""))
@@ -3372,6 +3491,10 @@ class RevueEncounter:
         existing = _closing_of(state)
         if existing is not None:
             return session_view(loaded), existing
+        from app.services.revue import comptoir_loop
+
+        if comptoir_loop.session_mode(state) == "comptoir":
+            return comptoir_loop.close_comptoir(self, loaded)
         self._settle_evidence(loaded)  # §10e.8: a late critic's words count in the kept words
 
         artifact = state.current_artifact
@@ -3566,6 +3689,9 @@ class RevueEncounter:
         elif kind == "caption" and artifact:
             verb = "écrit" if artifact.get("learner_fr") else "choisi"
             content += f" Tu as {verb} la légende de l'image : « {artifact.get('text_fr')} »."
+        elif kind == "opinion" and artifact:
+            content = (f"Semaine {number}, au Mistral : on a parlé de « {dossier.title_fr} » pour mon "
+                       f"micro-trottoir. Tu as dit : « {artifact.get('text_fr')} ».")
         else:
             content += " On n'a rien bouclé de plus."
         learner_turns = [e for e in loaded.state.events if e.kind == "turn_learner"]
@@ -3639,6 +3765,25 @@ class RevueEncounter:
             )
         except Exception as exc:  # noqa: BLE001 - defensive, like the correction cost row
             logger.warning("revue: cost row could not be written ({})", exc)
+
+    # -- «Au comptoir» -------------------------------------------------------------
+
+    def comptoir(self, row: RevueSession, body: Any) -> RvComptoirResult:
+        """One act of the comptoir's loop (``comptoir_loop.apply_act``); the session's view
+        after it, with the reason when the act was not recorded."""
+
+        from app.services.revue import comptoir_loop
+
+        loaded = load(row)
+        if comptoir_loop.session_mode(loaded.state) != "comptoir":
+            raise RevueError(409, "revue_not_comptoir")
+        if row.status != "active" and not loaded.state.closed:
+            raise RevueError(409, "revue_session_closed")
+        seq = loaded.state.events[-1].seq if loaded.state.events else 0
+        error = comptoir_loop.apply_act(self, loaded, body)
+        if (loaded.state.events[-1].seq if loaded.state.events else 0) != seq:
+            self._save(loaded)
+        return RvComptoirResult(session=session_view(loaded), error_fr=error)
 
     # -- read ----------------------------------------------------------------------
 
