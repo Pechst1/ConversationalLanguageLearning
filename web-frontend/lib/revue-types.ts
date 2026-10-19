@@ -1064,7 +1064,7 @@ export type RvComptoirBody =
   | { act: 'react'; guestId: string; value: 'agree' | 'disagree' }
   | { act: 'intox_who'; guestId: string }
   | { act: 'intox_fix'; value: string }
-  | { act: 'intox_fix'; text: string }
+  | { act: 'intox_fix'; text: string; mode?: 'text' | 'voice' }
   | { act: 'opinion'; value: RvStance; reasonIndex: number }
   | { act: 'opinion'; value: RvStance; text: string; mode?: 'text' | 'voice' }
   | { act: 'comeback'; index: number }

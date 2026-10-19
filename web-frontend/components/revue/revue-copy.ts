@@ -148,6 +148,11 @@ export type RevueCopy = {
   caption_word_add: string;
   caption_word_used: string;
   made_caption: string;
+  /** «Au comptoir»: the learner's quote in Romy's vox pop. */
+  made_opinion: string;
+  /** «Au comptoir» on La Une: the faces' label («Romy, Lila et Gus en parlent déjà»), and the list's last «and». */
+  comptoir_faces: string;
+  comptoir_and: string;
   /** WP-120 · the vignette. */
   vignette_label: string;
   vignettes_title: string;
@@ -334,6 +339,9 @@ const FR: RevueCopy = {
   caption_word_add: 'Ajouter « {word} » à ta légende',
   caption_word_used: 'dans ta légende',
   made_caption: 'Ta légende',
+  made_opinion: 'Ton avis',
+  comptoir_faces: '{names} en parlent déjà',
+  comptoir_and: 'et',
   vignette_label: 'Ta vignette · {week}',
   vignettes_title: 'Tes vignettes',
   one_more_question: 'Encore une question',
@@ -503,6 +511,9 @@ const EN: RevueCopy = {
   caption_word_add: 'Add «{word}» to your caption',
   caption_word_used: 'in your caption',
   made_caption: 'Your caption',
+  made_opinion: 'Your opinion',
+  comptoir_faces: '{names} are already arguing',
+  comptoir_and: 'and',
   vignette_label: 'Your vignette · {week}',
   vignettes_title: 'Your vignettes',
   one_more_question: 'One more question',
@@ -672,6 +683,9 @@ const DE: RevueCopy = {
   caption_word_add: '„{word}“ in deine Bildunterschrift einfügen',
   caption_word_used: 'in deiner Bildunterschrift',
   made_caption: 'Deine Bildunterschrift',
+  made_opinion: 'Deine Meinung',
+  comptoir_faces: '{names} streiten schon',
+  comptoir_and: 'und',
   vignette_label: 'Deine Vignette · {week}',
   vignettes_title: 'Deine Vignetten',
   one_more_question: 'Noch eine Frage',

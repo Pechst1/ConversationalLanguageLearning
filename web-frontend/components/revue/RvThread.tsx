@@ -558,6 +558,7 @@ export function madeLabel(kind: RvMade['kind'], copy: RevueCopy): string {
   if (kind === 'reader_question') return copy.made_question;
   if (kind === 'short_report') return copy.made_report;
   if (kind === 'caption') return copy.made_caption;
+  if (kind === 'opinion') return copy.made_opinion;
   return copy.made_headline;
 }
 
