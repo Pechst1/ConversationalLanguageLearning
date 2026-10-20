@@ -205,6 +205,21 @@ def authored_unit(concept: GrammarConcept | None) -> dict[str, str] | None:
     return unit if unit and (unit.get("pattern") or "").strip() else None
 
 
+def authored_repair(concept: GrammarConcept | None) -> str:
+    """The unit's own first slip, «✗ Je es français. → ✓ Je suis français.», or ``""``.
+
+    #239 / #146: the line a learner reads after a miss came from the interface
+    language (a fixed «name the trigger» sentence for German and French) instead of
+    from the concept. The catalogue's slips are French sentences, so they read the
+    same in every language and need no translation.
+    """
+
+    unit = authored_unit(concept)
+    if not unit:
+        return ""
+    return (unit.get("main_traps") or "").split(" | ")[0].strip()
+
+
 def infer_grammar_profile(
     concept: GrammarConcept | None = None,
     *,

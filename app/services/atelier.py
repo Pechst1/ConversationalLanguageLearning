@@ -78,7 +78,7 @@ from app.services.glosses import (
 )
 from app.services.grammar import GrammarService
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog, concept_sub_band
-from app.services.grammar_feedback import count_concept_hits, infer_grammar_profile
+from app.services.grammar_feedback import authored_repair, count_concept_hits, infer_grammar_profile
 from app.services.item_bank import (
     ITEM_BANK_VERSION,
     VARIETY_WINDOW_DAYS,
@@ -7808,6 +7808,11 @@ class AtelierCorrectionService:
         return _copy("atelier.generic.why", self.explanation_language)
 
     def _repair_for(self, concept: GrammarConcept | None) -> str:
+        # #239 / #146: the unit's own slip first, in every language; the fixed
+        # «name the trigger» line is only for a concept the catalogue does not know.
+        authored = authored_repair(concept) if concept else ""
+        if authored:
+            return authored
         if self.explanation_language in {"fr", "de"}:
             return _copy("atelier.generic.repair", self.explanation_language)
         if concept:
