@@ -240,6 +240,29 @@ class StoryVisual(_Model):
         )
 
 
+class StoryLead(_Model):
+    """What happened, told for one band (owner, 2026-10-18: «it's not clear what happened»):
+    plain French the learner reads before anyone talks, and its translations for the
+    translate button (``leads.py`` keeps the French short and checks it)."""
+
+    fr: str = Field(min_length=1)
+    en: str | None = None
+    de: str | None = None
+
+    def translation(self, language: str) -> str | None:
+        return {"en": self.en, "de": self.de}.get(language)
+
+
+class StoryLeads(_Model):
+    """«La une en trois phrases»: ``a1`` (three short present-tense sentences, at most 30
+    words) and ``a2`` tell the story at those bands; B1 and up read ``summary_fr``.
+    ``headline_fr`` (six words or fewer) is what Home's news card says."""
+
+    headline_fr: str | None = Field(None, max_length=80)
+    a1: StoryLead | None = None
+    a2: StoryLead | None = None
+
+
 class TimeScope(_Model):
     """When the story happens (``happening``, an ISO interval) and until when it matters."""
 
@@ -301,6 +324,9 @@ class EditorialDossier(_Model):
     #: WP-119 §8.4: the story picture's brief; ``None`` on dossiers built before it (they keep
     #: the place plate) and when the builder's brief was refused.
     visual: StoryVisual | None = None
+    #: «La une en trois phrases» (2026-10-18); ``None`` until the builder or the lead desk
+    #: (``leads.py``) wrote them — every band then reads ``summary_fr``.
+    leads: StoryLeads | None = None
 
     @field_validator("week")
     @classmethod
@@ -371,3 +397,19 @@ class EditorialDossier(_Model):
 
     def source_by_id(self, source_id: str) -> Source | None:
         return next((source for source in self.sources if source.id == source_id), None)
+
+    def lead_for(self, band: str) -> StoryLead:
+        """What happened, for ``band``: A1 its lead (else A2's), A2 its lead (else A1's), B1
+        and up — or a dossier without leads — the summary."""
+
+        leads = self.leads
+        if leads is not None:
+            for lead in {"A1": (leads.a1, leads.a2), "A2": (leads.a2, leads.a1)}.get(band, ()):
+                if lead is not None:
+                    return lead
+        return StoryLead(fr=self.summary_fr)
+
+    def simpler_lead(self, band: str) -> StoryLead:
+        """The lead a step below ``band`` (A1 stays A1): Romy retells it when the learner is lost."""
+
+        return self.lead_for("A1" if band in {"A1", "A2"} else "A2")

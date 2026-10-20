@@ -1172,6 +1172,7 @@
    "id": "table",
    "fr": "table",
    "g": "f",
+   "distinct_fr": ["tableau"],
    "en": "table",
    "kind": "obj",
    "tags": [
@@ -1340,6 +1341,7 @@
    "id": "carte",
    "fr": "carte",
    "g": "f",
+   "distinct_fr": ["plan"],
    "en": "map",
    "kind": "obj",
    "tags": [
@@ -1405,6 +1407,12 @@
    "id": "voiture",
    "fr": "voiture",
    "g": "f",
+   "alt_fr": [
+     {
+      "fr": "auto",
+      "g": "f"
+     }
+   ],
    "en": "car",
    "kind": "obj",
    "tags": [
@@ -1469,6 +1477,7 @@
    "id": "stylo",
    "fr": "stylo",
    "g": "m",
+   "distinct_fr": ["plume"],
    "en": "pen",
    "kind": "obj",
    "tags": [
@@ -1664,6 +1673,12 @@
    "id": "billet",
    "fr": "billet",
    "g": "m",
+   "alt_fr": [
+     {
+      "fr": "ticket",
+      "g": "m"
+     }
+   ],
    "en": "ticket",
    "kind": "obj",
    "tags": [
@@ -1715,6 +1730,12 @@
    "id": "tableau",
    "fr": "tableau",
    "g": "m",
+   "alt_fr": [
+     {
+      "fr": "peinture",
+      "g": "f"
+     }
+   ],
    "en": "painting",
    "kind": "obj",
    "tags": [
@@ -2021,6 +2042,12 @@
    "id": "miroir",
    "fr": "miroir",
    "g": "m",
+   "alt_fr": [
+     {
+      "fr": "glace",
+      "g": "f"
+     }
+   ],
    "en": "mirror",
    "kind": "obj",
    "tags": [
@@ -2168,6 +2195,7 @@
    "id": "chanson",
    "fr": "chanson",
    "g": "f",
+   "distinct_fr": ["chant"],
    "en": "song",
    "kind": "topic",
    "tags": [
@@ -2240,6 +2268,12 @@
    "id": "émission",
    "fr": "émission",
    "g": "f",
+   "alt_fr": [
+     {
+      "fr": "programme",
+      "g": "m"
+     }
+   ],
    "en": "programme",
    "kind": "topic",
    "tags": [
@@ -2356,6 +2390,7 @@
    "id": "dossier",
    "fr": "dossier",
    "g": "m",
+   "distinct_fr": ["fichier"],
    "en": "file",
    "kind": "topic",
    "tags": [
@@ -2381,6 +2416,7 @@
    "id": "examen",
    "fr": "examen",
    "g": "m",
+   "distinct_fr": ["épreuve"],
    "en": "exam",
    "kind": "topic",
    "tags": [
@@ -2433,6 +2469,7 @@
    "id": "rapport",
    "fr": "rapport",
    "g": "m",
+   "distinct_fr": ["constat"],
    "en": "report",
    "kind": "topic",
    "tags": [
@@ -2458,6 +2495,7 @@
    "id": "fête",
    "fr": "fête",
    "g": "f",
+   "distinct_fr": ["soirée"],
    "en": "party",
    "kind": "topic",
    "tags": [
@@ -2716,6 +2754,7 @@
    "id": "école",
    "fr": "école",
    "g": "f",
+   "distinct_fr": ["établissement"],
    "en": "school",
    "kind": "place",
    "tags": [
@@ -3104,6 +3143,12 @@
    "id": "immeuble",
    "fr": "immeuble",
    "g": "m",
+   "alt_fr": [
+     {
+      "fr": "bâtiment",
+      "g": "m"
+     }
+   ],
    "en": "building",
    "kind": "place",
    "tags": [
@@ -3125,6 +3170,7 @@
    "id": "quartier",
    "fr": "quartier",
    "g": "m",
+   "distinct_fr": ["voisinage"],
    "en": "neighbourhood",
    "kind": "place",
    "tags": [
@@ -3297,6 +3343,13 @@
    "id": "magasin",
    "fr": "magasin",
    "g": "m",
+   "alt_fr": [
+     {
+      "fr": "boutique",
+      "g": "f"
+     }
+   ],
+   "distinct_fr": ["commerce"],
    "en": "shop",
    "kind": "place",
    "tags": [
@@ -3588,6 +3641,7 @@
    "id": "voisine",
    "fr": "voisine",
    "g": "f",
+   "distinct_fr": ["voisin"],
    "en": "neighbour",
    "kind": "person",
    "tags": [
@@ -3604,6 +3658,7 @@
    "id": "collègue_m",
    "fr": "collègue",
    "g": "m",
+   "distinct_fr": ["confrère"],
    "en": "colleague",
    "kind": "person",
    "tags": [
@@ -3620,6 +3675,7 @@
    "id": "collègue_f",
    "fr": "collègue",
    "g": "f",
+   "distinct_fr": ["confrère"],
    "en": "colleague",
    "kind": "person",
    "tags": [
@@ -3742,6 +3798,7 @@
    "id": "serveur",
    "fr": "serveur",
    "g": "m",
+   "distinct_fr": ["garçon"],
    "en": "waiter",
    "kind": "person",
    "tags": [
@@ -3841,6 +3898,12 @@
    "id": "professeur",
    "fr": "professeur",
    "g": "m",
+   "alt_fr": [
+     {
+      "fr": "enseignant",
+      "g": "m"
+     }
+   ],
    "en": "teacher",
    "kind": "person",
    "tags": [
@@ -3883,6 +3946,16 @@
    "id": "carton",
    "fr": "carton",
    "g": "m",
+   "alt_fr": [
+     {
+      "fr": "caisse",
+      "g": "f"
+     },
+     {
+      "fr": "boîte",
+      "g": "f"
+     }
+   ],
    "en": "box",
    "kind": "obj",
    "tags": [

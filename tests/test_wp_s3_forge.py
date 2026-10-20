@@ -295,6 +295,10 @@ def _wrong_for(item: dict, round_name: str, mode: str) -> dict:
 
 
 def _item(session_payload: dict, nxt: dict) -> dict:
+    if isinstance(nxt.get("item"), dict):
+        # The forge sends the item it serves: a bank top-up (a «rafale»'s
+        # judgements, a typed fill) is not in the set the session started with.
+        return nxt["item"]
     exercise_set = next(s for s in session_payload["exercise_sets"] if s["concept_id"] == nxt["concept_id"])
     payload = exercise_set["payload"]
     if nxt["round"] == "recognize":

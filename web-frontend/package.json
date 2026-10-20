@@ -57,6 +57,7 @@
     "explore:live": "node e2e/explore-live.mjs",
     "walk:reload": "node e2e/reload-boundaries.mjs",
     "walk:day": "node e2e/day-session.mjs",
+    "walk:lexique": "node e2e/lexique-reopen.mjs",
     "types:generate": "node scripts/generate-api-types.mjs",
     "types:check": "node scripts/generate-api-types.mjs --check"
   },

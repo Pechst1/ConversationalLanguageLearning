@@ -2494,14 +2494,14 @@ class DailyJourneyService:
 
         context = _journey_story_context(journey)
         if not context.get("scene_id"):
-            return {"previously_fr": None, "premise_native": None, "margin_notes": None}
+            return {"previously_fr": None, "premise_native": None, "margin_notes": None, "season_part": None}
         from app.services.story_archive import scene_step_story_fields
 
         fields = run_best_effort(
             self.db,
             "daily_journey: précédemment and margin notes",
             lambda: scene_step_story_fields(self.db, journey),
-            default={"previously_fr": [], "premise_native": None, "margin_notes": []},
+            default={"previously_fr": [], "premise_native": None, "margin_notes": [], "season_part": None},
             log=logger,
         )
         # The learner's first season day opens on the season intro, which says the

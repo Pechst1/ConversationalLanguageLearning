@@ -237,3 +237,87 @@ def test_a_right_sentence_is_never_saved_as_an_error(db_session) -> None:
     real = {**swap, "learner_text": "la appartement", "corrected_target": "l'appartement", "task_error_type": "elision"}
     assert service.record_erratum(user=user, erratum=real, source_type="journal") is not None
     assert db_session.query(UserError).filter(UserError.user_id == user.id).count() == 1
+
+
+# --- #235: a gap whose gloss names a noun with more than one French word ----------
+
+UN_UNE = "FR2_A11_UN_UNE"
+
+
+def _tableau_item() -> ib.BankItem:
+    """«Marin has a painting in the living room.» as the bank poses it."""
+
+    bank = ib.default_bank()
+    frame = next(f for f in bank.frames(UN_UNE) if f.frame_id == "unune-has")
+    bindings = {
+        "C": next(e for e in bank.lex.pool("cast") if "Marin" in str(e.get("fr"))),
+        "N": next(e for e in bank.lex.pool("noun") if e.get("id") == "tableau"),
+        "R": next(e for e in bank.lex.pool("noun") if e.get("fr") == "salon"),
+    }
+    return bank.render(frame, bindings)
+
+
+def _fill(item: ib.BankItem, answer: str) -> dict:
+    payload = ib.fill_item(item, lesson_external_id=UN_UNE)
+    assert payload is not None
+    service = AtelierCorrectionService(None)
+    service.explanation_language = "en"
+    return service._correct_recognize(
+        _concept(UN_UNE), "fill", {"items": [payload]}, {"answers": {payload["id"]: answer}}
+    )
+
+
+def test_gap_lists_both_nouns() -> None:
+    item = _tableau_item()
+    assert item.sentence == "Marin a un tableau dans le salon."
+    assert "Marin a une peinture dans le salon." in item.accepted
+    payload = ib.fill_item(item, lesson_external_id=UN_UNE)
+    assert payload["correct_answer"] == "un tableau"
+    assert set(payload["accepted_answers"]) == {"un tableau", "une peinture"}
+
+
+@pytest.mark.parametrize("answer", ["une peinture", "Une peinture", "une  peinture.", "un tableau", "un Tableau"])
+def test_other_noun_ok(answer: str) -> None:
+    result = _fill(_tableau_item(), answer)
+    assert result["verdict"] == "correct", result["errata"]
+    assert result["errata"] == []
+
+
+def test_wrong_article() -> None:
+    result = _fill(_tableau_item(), "un peinture")
+    assert result["verdict"] == "incorrect"
+    [erratum] = result["errata"]
+    assert erratum["corrected_target"] == "une peinture"
+    # The noun was allowed: the miss is about the article's gender, not «this item
+    # needs un tableau», and it names the form that goes with the noun typed.
+    assert "un tableau" not in erratum["why_wrong"]
+    assert "“une peinture”" in erratum["why_wrong"]
+    assert "masculine or feminine" in erratum["why_wrong"]
+
+
+def test_gloss_mates_decided() -> None:
+    """The cause of #235: the bank poses «a painting» and keys one French noun. The
+    core lexicon knows another noun glossed the same («peinture»); each such pair is
+    either accepted (``alt_fr``) or reviewed as a different thing (``distinct_fr``),
+    so a new noun cannot ship with a second right answer nobody listed."""
+
+    import json
+
+    from app.services.answer_acceptance import fold_all
+
+    core = json.loads((ib.TEMPLATE_DIR.parent / "lexical" / "fr_core_lexicon.json").read_text(encoding="utf-8"))["lemmas"]
+    by_gloss: dict[str, set[str]] = {}
+    for lemma, entry in core.items():
+        if entry.get("pos") != "noun":
+            continue
+        for segment in (entry.get("gloss") or {}).get("en", "").split(";"):
+            by_gloss.setdefault(segment.strip().lower(), set()).add(fold_all(lemma))
+    lexicon = json.loads((ib.TEMPLATE_DIR / "lexicon.json").read_text(encoding="utf-8"))
+    undecided: list[str] = []
+    for noun in lexicon["nouns"]:
+        own = {fold_all(noun["fr"]), fold_all(noun.get("lemma") or noun["fr"])}
+        decided = {fold_all(alt["fr"] if isinstance(alt, dict) else alt) for alt in noun.get("alt_fr") or []}
+        decided |= {fold_all(word) for word in noun.get("distinct_fr") or []}
+        for mate in sorted(by_gloss.get(str(noun["en"]).lower(), set()) - own - decided):
+            undecided.append(f"{noun['fr']} ({noun['en']}) / {mate}")
+    assert not undecided, undecided

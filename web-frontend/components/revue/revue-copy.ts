@@ -50,9 +50,23 @@ export type RevueCopy = {
   numbers: string[];
   translate: string;
   translation_hide: string;
-  listen_summary: string;
-  listen_meta: string;
+  /** 2026-10-19 · «Traduire» on every block: the chip while a translation is fetched, and the line when none came. */
+  translating: string;
+  translate_failed: string;
   listen_stop: string;
+  /** 2026-10-18 · the lead: what happened, before Romy speaks; `listen_lead` reads it aloud. */
+  lead_kicker: string;
+  listen_lead: string;
+  /** A1–A2: the claim cards open behind one quiet line; this closes them again. */
+  sources_hide: string;
+  /** A1–A2 (2026-10-19): that one line, under the lead, for every claim on the table so far. */
+  sources_one: string;
+  sources_many: string;
+  /** The word sheet's label over a tapped word's line when nobody speaks it (the lead, a claim). */
+  word_in_text: string;
+  /** Home's daily news card: the sticker is French in every table (a publication word); the aria label says the rest. */
+  news_sticker: string;
+  news_aria: string;
   romy: string;
   you: string;
   fact: string;
@@ -138,6 +152,16 @@ export type RevueCopy = {
   vignette_label: string;
   vignettes_title: string;
   one_more_question: string;
+  /**
+   * 2026-10-19 · the way forward: «Écrire le papier →» opens the make from the foot once the
+   * learner has spoken; `make_failed` when Romy could not set it up; `skip_make` leaves a
+   * refused headline or caption behind; `close_anyway` files the Papier when the make or the
+   * close call failed.
+   */
+  write_paper: string;
+  make_failed: string;
+  skip_make: string;
+  close_anyway: string;
   headline_label: string;
   headline_right: string;
   headline_wrong: string;
@@ -218,9 +242,17 @@ const FR: RevueCopy = {
   numbers: ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze'],
   translate: 'Traduire',
   translation_hide: 'Masquer',
-  listen_summary: 'Écouter le résumé',
-  listen_meta: 'Romy · {s} s',
+  translating: 'Traduction…',
+  translate_failed: 'Pas de traduction pour le moment.',
   listen_stop: 'Arrêter',
+  lead_kicker: "Ce qui s'est passé",
+  listen_lead: 'Écouter',
+  sources_hide: 'Masquer les sources',
+  sources_one: 'Sources · 1 fait',
+  sources_many: 'Sources · {n} faits',
+  word_in_text: 'Dans le texte',
+  news_sticker: 'À la une !',
+  news_aria: "L'actu du jour avec Romy : {headline}",
   romy: 'Romy',
   you: 'Toi',
   fact: 'Fait',
@@ -305,6 +337,10 @@ const FR: RevueCopy = {
   vignette_label: 'Ta vignette · {week}',
   vignettes_title: 'Tes vignettes',
   one_more_question: 'Encore une question',
+  write_paper: 'Écrire le papier →',
+  make_failed: 'Romy ne peut pas préparer le papier pour le moment. Réessaie, ou classe le Papier tel quel.',
+  skip_make: 'Passer',
+  close_anyway: 'Classer quand même',
   headline_label: 'Le titre',
   headline_right: "C'est notre titre.",
   headline_wrong: 'Pas celui-là : les sources disent autre chose.',
@@ -381,8 +417,17 @@ const EN: RevueCopy = {
   numbers: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'],
   translate: 'Translate',
   translation_hide: 'Hide',
-  listen_summary: 'Hear the summary',
+  translating: 'Translating…',
+  translate_failed: 'No translation right now.',
   listen_stop: 'Stop',
+  lead_kicker: 'What happened',
+  listen_lead: 'Listen',
+  sources_hide: 'Hide sources',
+  sources_one: 'Sources · 1 fact',
+  sources_many: 'Sources · {n} facts',
+  word_in_text: 'In the text',
+  news_sticker: 'À la une !',
+  news_aria: "Today's news with Romy: {headline}",
   you: 'You',
   according_to: 'From {source}, {date}',
   per: 'according to {who}',
@@ -461,6 +506,10 @@ const EN: RevueCopy = {
   vignette_label: 'Your vignette · {week}',
   vignettes_title: 'Your vignettes',
   one_more_question: 'One more question',
+  write_paper: 'Write the piece →',
+  make_failed: "Romy can't set up the piece right now. Try again, or file the Papier as it is.",
+  skip_make: 'Skip',
+  close_anyway: 'File it anyway',
   headline_label: 'The headline',
   headline_right: 'That is our headline.',
   headline_wrong: 'Not that one: the sources say otherwise.',
@@ -537,8 +586,17 @@ const DE: RevueCopy = {
   numbers: ['null', 'einen', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf'],
   translate: 'Übersetzen',
   translation_hide: 'Ausblenden',
-  listen_summary: 'Zusammenfassung hören',
+  translating: 'Wird übersetzt…',
+  translate_failed: 'Gerade keine Übersetzung.',
   listen_stop: 'Stopp',
+  lead_kicker: 'Was passiert ist',
+  listen_lead: 'Anhören',
+  sources_hide: 'Quellen ausblenden',
+  sources_one: 'Quellen · 1 Fakt',
+  sources_many: 'Quellen · {n} Fakten',
+  word_in_text: 'Im Text',
+  news_sticker: 'À la une !',
+  news_aria: 'Nachricht des Tages mit Romy: {headline}',
   you: 'Du',
   according_to: 'Laut {source}, {date}',
   per: 'laut {who}',
@@ -617,6 +675,10 @@ const DE: RevueCopy = {
   vignette_label: 'Deine Vignette · {week}',
   vignettes_title: 'Deine Vignetten',
   one_more_question: 'Noch eine Frage',
+  write_paper: 'Den Artikel schreiben →',
+  make_failed: 'Romy kann den Artikel gerade nicht vorbereiten. Versuch es noch einmal oder leg das Papier so ab.',
+  skip_make: 'Überspringen',
+  close_anyway: 'Trotzdem ablegen',
   headline_label: 'Die Schlagzeile',
   headline_right: 'Das ist unsere Schlagzeile.',
   headline_wrong: 'Nicht diese: Die Quellen sagen etwas anderes.',

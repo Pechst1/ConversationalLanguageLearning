@@ -566,6 +566,28 @@ class Settings(BaseSettings):
         ),
     )
     # ---- WP-158 (end) ------------------------------------------------------------
+    # ---- Les appels: the cast phones the learner (begin) -------------------------
+    ATELIER_CALLS_ENABLED: bool = Field(
+        False,
+        description=(
+            "Les appels: once the day's scene is settled, someone who heard the learner "
+            "phones them for a short spoken conversation (push to talk, their voice back). "
+            "What the learner says goes into the story memory. Off: nothing rings and the "
+            "routes answer 404."
+        ),
+    )
+    ATELIER_CALLS_MAX_TURNS: int = Field(
+        4, ge=1, le=8, description="Les appels: the learner's lines in one call before the caller says goodbye."
+    )
+    ATELIER_CALLS_MAX_USD: float = Field(
+        0.06,
+        description=(
+            "Les appels: the estimated cost ceiling of one call (the caller's lines and the "
+            "transcriptions; speech goes through line audio's own daily cap). Above it the "
+            "caller says an authored goodbye and no provider is called."
+        ),
+    )
+    # ---- Les appels (end) ----------------------------------------------------------
     SERIAL_WORLD_ENABLED: bool = Field(
         False,
         description="Enable the serial Missions x Feuilleton spine. Defaults dark for staged rollout.",
@@ -706,6 +728,15 @@ class Settings(BaseSettings):
         ge=1,
         le=20,
         description="WP-119 §4.1: how many editorial dossiers the weekly intake aims to build.",
+    )
+    REVUE_STORIES_PER_DAY: int = Field(
+        2,
+        ge=1,
+        le=10,
+        description=(
+            "WP-119 §12.2: under REVUE_CADENCE=daily, how many new stories each morning's intake "
+            "builds (the kiosk shows the last seven days). Each one is painted once (~US$0.06)."
+        ),
     )
     REVUE_CADENCE: str = Field(
         "weekly",

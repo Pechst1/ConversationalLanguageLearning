@@ -7,27 +7,29 @@ const { rewardMomentCopy } = require('./reward-moment-copy.ts');
 
 test('English and German sessions get their own words, not French', () => {
   const en = rewardMomentCopy('en');
-  assert.equal(en.drafting.title, 'Bonus token earned');
+  assert.equal(en.seal.title, 'Gold seal earned');
   assert.equal(en.continue, 'Continue');
-  assert.equal(en.credit(2), '+2 credit');
   const de = rewardMomentCopy('de');
-  assert.equal(de.drafting.title, 'Bonus-Token verdient');
+  assert.equal(de.seal.title, 'Goldsiegel verdient');
   assert.equal(de.continue, 'Weiter');
-  for (const kind of ['drafting', 'logo', 'seal']) {
-    for (const copy of [en, de]) {
-      const text = Object.values(copy[kind]).join(' ');
-      assert.doesNotMatch(text, /Jeton|crédit|Vous|vous/, `${kind}: ${text}`);
-    }
-    // German says du, never Sie.
-    assert.doesNotMatch(Object.values(de[kind]).join(' '), /\b(Sie|Ihr|Ihre|Ihnen)\b/);
+  for (const copy of [en, de]) {
+    assert.doesNotMatch(Object.values(copy.seal).join(' '), /Jeton|crédit|Vous|vous/);
   }
+  // German says du, never Sie.
+  assert.doesNotMatch(Object.values(de.seal).join(' '), /\b(Sie|Ihr|Ihre|Ihnen)\b/);
 });
 
 test('French says tu, and an unknown language falls back to English', () => {
   const fr = rewardMomentCopy('fr');
-  assert.equal(fr.drafting.title, 'Jeton bonus gagné');
-  for (const kind of ['drafting', 'logo', 'seal']) {
-    assert.doesNotMatch(Object.values(fr[kind]).join(' '), /\b(vous|Vous|votre|vos)\b/);
-  }
+  assert.equal(fr.seal.title, 'Sceau doré gagné');
+  assert.doesNotMatch(Object.values(fr.seal).join(' '), /\b(vous|Vous|votre|vos)\b/);
   assert.equal(rewardMomentCopy(undefined).continue, 'Continue');
+});
+
+test('Owner, 2026-10-19: the bonus token pop-up is gone', () => {
+  for (const language of ['en', 'de', 'fr']) {
+    const copy = rewardMomentCopy(language);
+    assert.equal(copy.drafting, undefined);
+    assert.equal(copy.logo, undefined);
+  }
 });

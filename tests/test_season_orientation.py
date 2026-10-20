@@ -92,6 +92,12 @@ def test_day_one_says_where_you_are_and_reads_the_scene_first(assembled_client, 
     scene = lambda journey: next(step for step in journey["steps"] if step["kind"] == "scene")  # noqa: E731
     assert scene(day_one)["prompt"]["premise_native"] is None
     assert scene(day_two)["prompt"]["premise_native"]
+    # The part of the season each page belongs to, so the client can hand over its object.
+    assert scene(day_one)["prompt"]["season_part"] == {
+        "season_id": "s1", "segment": "t1", "kind": "tentpole", "day_in_segment": 1,
+    }
+    assert scene(day_two)["prompt"]["season_part"]["segment"] == "t1"
+    assert scene(day_two)["prompt"]["season_part"]["day_in_segment"] == 2
 
 
 def _plan(season: dict | None):
@@ -209,3 +215,14 @@ def test_a_page_introduces_only_a_unit_it_uses(db_session, catalogue_v2):
     assert brief is not None and brief["concept_id"] == upcoming[1].id
     assert concept_life.introduction_for_today(db_session, user, units=[]) is None
     assert concept_life.introduction_for_today(db_session, user, units=["FR2_NOT_A_UNIT"]) is None
+
+
+def test_season_part_reads_the_scene_payload_and_nothing_else():
+    from app.services.story_archive import season_part_of
+
+    payload = {"season": {"id": "s1", "season_id": "s1", "segment": "g2", "kind": "gap", "day_in_segment": 3, "key": "g2.3"}}
+    assert season_part_of(payload) == {"season_id": "s1", "segment": "g2", "kind": "gap", "day_in_segment": 3}
+    assert season_part_of({"season": {"id": "s1", "segment": "t1", "kind": "odd"}})["kind"] is None
+    assert season_part_of({}) is None
+    assert season_part_of({"season": {"segment": None}}) is None
+    assert season_part_of(None) is None

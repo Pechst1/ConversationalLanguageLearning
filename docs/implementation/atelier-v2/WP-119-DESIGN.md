@@ -83,8 +83,10 @@ page. Sources are cited the way a paper cites a confrère: «D'après Le Monde, 
   - two narrator sentences (sans, `--av2-ink-2`, no face);
   - in phase 1, Romy's honest fallback line («On n'est pas en Bourgogne, hein…»);
   - her purpose, as the screen's one headline in her bubble.
-- **Summary.** `HeardLine`, where the face is the play button, shows «Écouter le résumé · Romy · 20 s». While it plays
-  (`#listen`), the summary text is shown and the sentence being heard is underlined in story blue. The summary is never a gate.
+- **Summary.** ~~`HeardLine`, where the face is the play button, shows «Écouter le résumé · Romy · 20 s».~~ Since
+  2026-10-18 (owner: «it's not clear what happened») the lead is `RvLead`: «Ce qui s'est passé» over the text at the
+  learner's band (A1 three short sentences, A2 a little more, B1+ the summary), with «Écouter» and, at A1–A2, «Traduire».
+  At A1–A2 the claims read as plain sentences, the labels and quote links folded under «Les sources». Never a gate.
 - **The press is the learner's French.** «D'accord, je t'aide.» posts that line into the thread. «Répondre autrement» opens
   the composer.
 - **A1** (`#arrive-a1`):

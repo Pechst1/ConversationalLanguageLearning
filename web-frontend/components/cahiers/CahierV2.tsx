@@ -31,7 +31,8 @@ import { ArrowLeftIcon, Chip } from '@/components/atelier-v2/ui';
 
 import { useCahierCopy, type CahierCopy } from './cahier-copy';
 
-export type CahierMode = 'grammar' | 'vocabulary' | 'journal' | 'releve' | 'library';
+/* «Moi» (Ton personnage) is no pill tab: the learner's own disc beside the headline opens it. */
+export type CahierMode = 'grammar' | 'vocabulary' | 'journal' | 'releve' | 'library' | 'moi';
 
 /* WP-82 — the pill's labels are chrome, read from the Cahier copy table in the
    language of the surrounding `AtelierV2Root`. WP-30's «Journal» is the recap
@@ -42,6 +43,7 @@ const CAHIER_MODE_KEYS: Record<CahierMode, keyof CahierCopy['cahier']> = {
   journal: 'mode_journal',
   releve: 'mode_releve',
   library: 'mode_library',
+  moi: 'mode_moi',
 };
 
 /** The pill label of a Cahier mode, in the copy table's language. */
@@ -61,17 +63,28 @@ export function cahierStandaloneHref(mode: CahierMode): string {
 export function CahierHead({
   kicker,
   title = 'Le cahier',
+  aside,
   children,
 }: {
   kicker: string;
   title?: string;
+  /** beside the headline: the learner's own disc on /notebook */
+  aside?: React.ReactNode;
   children?: React.ReactNode;
 }) {
+  const headline = <h1 className="av2-headline av2-headline--screen">{title}</h1>;
   return (
     <header className="nb-head">
       <div className="nb-head__main">
         <p className="nb-kicker">{kicker}</p>
-        <h1 className="av2-headline av2-headline--screen">{title}</h1>
+        {aside ? (
+          <div className="nb-head__row">
+            {headline}
+            {aside}
+          </div>
+        ) : (
+          headline
+        )}
       </div>
       {children}
     </header>

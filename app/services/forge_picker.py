@@ -33,6 +33,11 @@ journey and the séance can never disagree about what today is:
 * **contrast** — introduced contrast partners (WP-L2 ``contrast_partners``) of
   the anchor and the due rules; the queue's own contrast items come first.
 
+**The weak spot** (the overhaul, owner 2026-10-18: use what we know of the
+learner's mistakes): the introduced rule the learner's recent saved mistakes
+point at most (:func:`weak_spot_id`) takes the first due slot, due today or
+not — the learner's own errors are the fastest thing to fix.
+
 **New rules come only from the quota.** A due rule has a schedule, a contrast
 partner must already be introduced, and the anchor is new only through step 4
 (or the learner's own explicit choice). There is no padding from teaching
@@ -58,7 +63,7 @@ composer reads the same plan the start endpoint seated.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from sqlalchemy.orm import Session
@@ -79,6 +84,8 @@ REASON_WEAKEST_IN_PROGRESS = "weakest_in_progress"
 REASON_MOST_DUE = "most_due"
 REASON_KEEP_WARM = "keep_warm"
 REASON_EMPTY = "empty"
+#: A due unit's reason when it is the learner's weak spot (:func:`weak_spot_id`).
+REASON_WEAK_SPOT = "weak_spot"
 ANCHOR_REASONS = (
     REASON_PREFERRED,
     REASON_INTRODUCED_TODAY,
@@ -422,6 +429,64 @@ def _partners(
     return ordered
 
 
+#: The weak spot reads the saved mistakes of this many days; a mistake's weight
+#: halves every :data:`WEAK_SPOT_HALF_LIFE_DAYS`, a repeated one counts up to three
+#: times, and a rule needs :data:`WEAK_SPOT_MIN_WEIGHT` to be one: two slips of the
+#: last few days, or one made twice — never a single slip.
+WEAK_SPOT_WINDOW_DAYS = 21
+WEAK_SPOT_HALF_LIFE_DAYS = 7.0
+WEAK_SPOT_MIN_WEIGHT = 1.5
+
+
+def weak_spot_id(
+    db: Session,
+    user: Any,
+    *,
+    now: datetime,
+    language: str,
+    introduced: dict[int, UserGrammarProgress],
+) -> int | None:
+    """The introduced rule the learner's recent mistakes point at most, or ``None``.
+
+    Open and repairing saved errors of the last :data:`WEAK_SPOT_WINDOW_DAYS`
+    days, recent and repeated ones weighing more. Never a rule the learner has
+    not met (a mistake does not introduce a rule) and never one below
+    :data:`WEAK_SPOT_MIN_WEIGHT`: a single old slip is not a weak spot.
+    """
+
+    from app.db.models.error import UserError
+
+    since = now - timedelta(days=WEAK_SPOT_WINDOW_DAYS)
+    try:
+        rows = (
+            db.query(UserError.concept_id, UserError.occurrences, UserError.updated_at)
+            .filter(
+                UserError.user_id == user.id,
+                UserError.concept_id.isnot(None),
+                UserError.state != "mastered",
+                UserError.updated_at >= since,
+            )
+            .all()
+        )
+    except Exception:  # pragma: no cover - a read never blocks a plan
+        return None
+    weights: dict[int, float] = {}
+    for concept_id, occurrences, updated_at in rows:
+        stamp = _aware(updated_at) or now
+        age_days = max(0.0, (now - stamp).total_seconds() / 86400.0)
+        weight = min(max(int(occurrences or 1), 1), 3) * 0.5 ** (age_days / WEAK_SPOT_HALF_LIFE_DAYS)
+        weights[int(concept_id)] = weights.get(int(concept_id), 0.0) + weight
+    for concept_id, weight in sorted(weights.items(), key=lambda pair: (-pair[1], pair[0])):
+        if weight < WEAK_SPOT_MIN_WEIGHT:
+            break
+        progress = introduced.get(concept_id)
+        if progress is None or not _introduced(progress):
+            continue
+        if _usable(db.get(GrammarConcept, concept_id), language):
+            return concept_id
+    return None
+
+
 def forge_plan(
     db: Session,
     user: Any,
@@ -461,8 +526,11 @@ def forge_plan(
         seen.add(anchor_id)
 
     due_cap, contrast_cap = unit_caps(budget)
-    due_units: list[int] = []
-    for concept_id in due_ids:
+    weak_spot = weak_spot_id(db, user, now=now, language=language, introduced=progress_by_id)
+    due_candidates = [(weak_spot, REASON_WEAK_SPOT)] if weak_spot is not None else []
+    due_candidates.extend((concept_id, "due") for concept_id in due_ids)
+    due_units: list[tuple[int, str]] = []
+    for concept_id, why in due_candidates:
         if len(due_units) >= due_cap:
             break
         if concept_id in seen:
@@ -470,9 +538,9 @@ def forge_plan(
         concept = db.get(GrammarConcept, concept_id)
         if not _usable(concept, language):
             continue
-        due_units.append(concept_id)
+        due_units.append((concept_id, why))
         seen.add(concept_id)
-    units.extend(ForgeUnit(concept_id, ROLE_DUE, "due") for concept_id in due_units)
+    units.extend(ForgeUnit(concept_id, ROLE_DUE, why) for concept_id, why in due_units)
 
     contrast_candidates = [
         *queue_contrast,
@@ -571,6 +639,7 @@ __all__ = [
     "ROLE_DUE",
     "ROLE_TODAY",
     "FORGE_RESERVE_SECONDS",
+    "REASON_WEAK_SPOT",
     "forge_anchor_brief",
     "forge_anchor_id",
     "forge_budget_seconds",
@@ -578,4 +647,5 @@ __all__ = [
     "story_review_concept_id",
     "forge_plan",
     "unit_caps",
+    "weak_spot_id",
 ]
