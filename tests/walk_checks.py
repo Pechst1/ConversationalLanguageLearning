@@ -499,6 +499,9 @@ def _story_text(event: dict[str, Any]) -> str:
     """Everything the story itself says in this step (scene, reply, ending)."""
 
     texts = [text for _path, _key, text in _iter_strings(event["step"].get("prompt") or {})]
+    # The scene step's page is what the reader draws: its speakers and lines (#217:
+    # the reply thread now says «Gus» where the page says «Augustin « Gus » …»).
+    texts.extend(text for _path, _key, text in _iter_strings(event.get("page") or []))
     result = event.get("result") or {}
     texts.extend(text for _path, _key, text in _iter_strings({"r": result.get("character_reply_fr"), "l": result.get("character_lines"), "n": result.get("next_turn")}))
     return " ".join(texts)

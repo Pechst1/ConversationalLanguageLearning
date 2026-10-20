@@ -460,7 +460,8 @@ def test_the_benchmark_reads_each_tentpole_page_at_b1_in_french():
     text = t1.text
     # The B1 line where the bible wrote one (levels.py, page.py), not the A2 line.
     assert "Caption: Paris, un 11 novembre sous la pluie." in text
-    assert "Augustin « Gus » de Roncourt: «Alors, dites-moi. Qui êtes-vous, exactement ?»" in text
+    # The speaker by the cast registry's name, as the app labels him (#217).
+    assert "Gus: «Alors, dites-moi. Qui êtes-vous, exactement ?»" in text
     # From B1 the task line is French, as the app serves it.
     assert "Task line: Dis qui tu es et pourquoi tu es là." in text
     assert re.search(r"^Learner \(scripted\): «.+»$", text, re.M), "the bible's own example answer"
