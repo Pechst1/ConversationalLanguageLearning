@@ -186,10 +186,88 @@ def test_a_quoted_span_that_is_not_in_the_sentence_is_rejected():
         "Je suis fatigué et il mange.",
         "Ma grand-mère est morte.",
         "Je suis perdu ici.",
+        # Night-shift review of #259, problem 1: avoir + rentré/sorti/monté/descendu/
+        # retourné with a direct object is French.
+        "Elle a rentré tout le linge avant la pluie.",
+        "Elle a sorti cette lettre de sa poche.",
+        "Il a monté ce meuble hier.",
+        "Elle a sorti de l'argent.",
+        "Il a sorti du pain.",
+        "Nous avons monté tout le matériel.",
+        "Il a retourné ce fichier.",
+        "Il a descendu les escaliers.",
+        "J'ai entré mon mot de passe.",
+        "Ils ont monté une entreprise.",
+        # problem 2: a noun that is right with either gender.
+        "Il fait le tour de la tour.",
+        "Je vais à la poste.",
+        "Il a un poste à Lyon.",
+        "La mode change vite.",
+        "Elle lit une page du livre.",
+        "La critique est dure.",
+        "Une enfant joue dans le parc.",
+        "La ministre arrive demain.",
+        "La propriétaire est gentille.",
+        "Un crème, s'il vous plaît.",
+        "Il fallait bien que quelqu'un veille sur le quartier.",
+        "Pour la porte-parole du gouvernement, c'est trop cher.",
+        # «le/la» as a pronoun, whatever follows it.
+        "Je vais la manger ce soir.",
+        "Il a décidé de le vendre.",
+        "Lila le porte tous les jours.",
+        "Le chat la regarde.",
+        "Tu peux la goûter ?",
+        # «nous/vous» after a noun is an object, not the subject.
+        "Marie nous a invités.",
+        "Le chef vous a appelé hier.",
+        "Odile nous a donné la clé.",
+        # a present after a passé composé is often right.
+        "J'ai fini mes devoirs et elle regarde la télé.",
+        "Hier, j'ai rencontré Paul et il habite à Lyon.",
+        "J'ai vu Lila et elle aime le café.",
+        # plain A1 sentences.
+        "Je suis froid avec elle.",
+        "Il y a un chat sur la table.",
+        "C'est le café de Margaux.",
+        "Nous sommes contents.",
+        "Vous êtes très gentil.",
+        "Je lui ai donné un cadeau.",
+        "Elle est arrivée hier soir.",
+        "Ils sont allés au marché.",
+        "On va au cinéma ce soir.",
+        "Je vais manger une pomme.",
+        "Le restaurant est fermé.",
+        "Ma mère est française.",
+        "Mon amie Lila est là.",
     ],
 )
 def test_correct_french_gets_no_model_free_edit(sentence):
     assert _contract().deterministic_edits(sentence) == []
+
+
+@pytest.mark.parametrize(
+    ("sentence", "span", "fix"),
+    [
+        # The 20 Oct Journal: an être-verb with avoir before a place.
+        ("Lila a rentré dans le café.", "a rentré", "est rentrée"),
+        ("Il a sorti dans la rue.", "a sorti", "est sorti"),
+        ("Elle a entré dans le café.", "a entré", "est entrée"),
+        ("Gus a monté.", "a monté", "est monté"),
+        ("Odile a parti hier.", "a parti", "est partie"),
+        # gender, still caught where the noun has one gender.
+        ("Odile est partie parce que la restaurant était difficile.", "la", "le"),
+        ("Je mange une croissant.", "une", "un"),
+        # #193 on every surface.
+        ("Je suis froid.", "Je suis froid", "J'ai froid"),
+        ("Ce soir je suis faim.", "je suis faim", "j'ai faim"),
+        # a conjunction does not hide the subject.
+        ("Mais nous est contents.", "est", "sommes"),
+        # contraction, but never in front of an infinitive.
+        ("Je parle de le restaurant.", "de le", "du"),
+    ],
+)
+def test_the_model_free_pass_still_marks_real_mistakes(sentence, span, fix):
+    assert (span, fix) in _pairs(_contract().deterministic_edits(sentence))
 
 
 # ---------------------------------------------------------------------------

@@ -38,7 +38,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
-from app.services.answer_acceptance import is_real_correction
+from app.services.answer_acceptance import correction_is_grounded, is_real_correction, known_slip
 
 # ---------------------------------------------------------------------------
 # Tokens
@@ -115,6 +115,7 @@ _PREPOSITIONS = frozenset(
     {"pour", "avec", "chez", "à", "de", "d", "sans", "sur", "sous", "par", "contre", "comme", "entre", "vers"}
 )
 _BETWEEN = frozenset({"ne", "n", "toujours", "déjà", "aussi", "vraiment", "bien", "jamais", "pas"})
+_CONJUNCTIONS = frozenset({"et", "mais", "ou", "donc", "puis", "alors"})
 #: A person's subject marker: a first/second-person form needs its pronoun somewhere.
 _PERSON_MARKERS: dict[str, frozenset[str]] = {
     "1sg": frozenset({"je", "j", "moi"}),
@@ -148,7 +149,10 @@ def _subject_person(tokens: list[Tok], text: str, index: int) -> str | None:
     word = tokens[i].low
     before = tokens[i - 1] if i > 0 and _same_clause(text, tokens[i - 1], tokens[i]) else None
     if word in {"nous", "vous"}:
-        if before is not None and before.low in _CLITIC_CONTEXT:
+        # «Marie nous a invités», «Le chef vous a appelé»: after a noun «nous/vous»
+        # is an object. The model-free pass reads them as the subject only where
+        # nothing else can be: at the start of the clause, or after a conjunction.
+        if before is not None and before.low not in _CONJUNCTIONS:
             return None
         return "1pl" if word == "nous" else "2pl"
     person = _SUBJECT_PRONOUNS.get(word)
@@ -209,8 +213,15 @@ def edit_is_grounded(
         # another («Vous êtes … ?» -> «Êtes-vous … ?»), is not an error.
         return False
     places = _find_span(tokens, span_words)
-    if strict_span and not places:
+    if places:
+        # #193 / #248: the one grounding every surface shares (span, cited subject,
+        # and a swapped être/avoir/aller form checked against the subject in front
+        # of it, object pronouns included: «Je lui a» -> «ai» stays a fix).
+        return correction_is_grounded(source, span, replacement, note)
+    if strict_span:
         return False
+    # Near-quote (the Courrier accepts «une photo» for «un photo»): the cited subject
+    # and a person swap are judged against the whole sentence.
     present = {t.low for t in tokens}
     for match in _CITED_SUBJECT.finditer(_norm(note)):
         cited = match.group(1).casefold()
@@ -221,33 +232,10 @@ def edit_is_grounded(
     changed = [i for i, (a, b) in enumerate(zip(span_words, new_words, strict=True)) if a != b]
     if len(changed) != 1:
         return True
-    position = changed[0]
-    old, new = span_words[position], new_words[position]
-    old_persons, new_persons = _FORM_PERSONS.get(old), _FORM_PERSONS.get(new)
-    if old_persons is None or new_persons is None:
+    old, new = span_words[changed[0]], new_words[changed[0]]
+    if _FORM_PERSONS.get(old) is None or (new_persons := _FORM_PERSONS.get(new)) is None:
         return True
-    if not places:
-        # Near-quote: the swap is judged against the whole sentence.
-        return all(_markers_present(p, present) or p in {"3sg", "3pl"} for p in new_persons)
-    return any(_swap_holds(tokens, source, place + position, old_persons, new_persons, present) for place in places)
-
-
-def _swap_holds(
-    tokens: list[Tok],
-    text: str,
-    index: int,
-    old_persons: frozenset[str],
-    new_persons: frozenset[str],
-    present: set[str],
-) -> bool:
-    person = _subject_person(tokens, text, index)
-    if person is not None:
-        return person not in old_persons and person in new_persons
-    # Subject unreadable: a first/second-person replacement still needs its pronoun
-    # somewhere in the sentence («est → es» with no «tu» was the #193 bug).
-    if new_persons & {"3sg", "3pl"}:
-        return True
-    return any(_markers_present(p, present) for p in new_persons)
+    return all(_markers_present(p, present) or p in {"3sg", "3pl"} for p in new_persons)
 
 
 # ---------------------------------------------------------------------------
@@ -295,15 +283,26 @@ _ETRE_PARTICIPLES = frozenset(
 )
 #: These take «avoir» with a direct object («a rentré la voiture», «a sorti son
 #: téléphone»). They are flagged only when a place or time word follows.
-_AMBIGUOUS_PARTICIPLES = frozenset({"rentré", "sorti", "monté", "descendu", "retourné"})
-_PLACE_WORDS = frozenset(
-    {"dans", "à", "au", "aux", "chez", "en", "hier", "tard", "tôt", "tout", "ensuite", "enfin", "vers",
-     "de", "du", "par", "sur", "avant", "après", "ce", "cette", "puis", "et", "mais", "parce"}
-)
+#: «entré» too: «J'ai entré mon mot de passe» is French.
+_AMBIGUOUS_PARTICIPLES = frozenset({"rentré", "sorti", "monté", "descendu", "retourné", "entré"})
+#: Night-shift review of #259: only a word after which no direct object can stand.
+#: Determiners («ce», «tout», «du», «de»), «en», «par», «sur» and conjunctions start
+#: objects («Elle a sorti cette lettre», «Il a sorti du pain») and are not here.
+_PLACE_WORDS = frozenset({"dans", "à", "au", "aux", "chez", "vers", "hier", "tard", "tôt", "enfin"})
 _AVOIR_TO_ETRE = {"a": "est", "as": "es", "ai": "suis", "avons": "sommes", "avez": "êtes", "ont": "sont"}
 _PRESENT_MARKERS = frozenset(
-    {"maintenant", "aujourd'hui", "toujours", "souvent", "chaque", "demain", "d'habitude", "habituellement",
-     "généralement", "tous", "toutes"}
+    {"maintenant", "aujourd'hui", "aujourd", "toujours", "souvent", "chaque", "demain", "d'habitude",
+     "habituellement", "généralement", "tous", "toutes", "encore", "actuellement", "désormais", "depuis",
+     "moment"}
+)
+_PAST_MARKERS = frozenset({"hier", "avant-hier", "dernier", "dernière", "veille", "autrefois"})
+#: A state or a habit holds now as well («… et elle aime le café», «… et il habite à
+#: Lyon»): never a tense slip.
+_STATE_VERBS = frozenset(
+    {"aimer", "adorer", "détester", "préférer", "penser", "trouver", "sembler", "espérer", "habiter",
+     "travailler", "parler", "porter", "ressembler", "coûter", "peser", "mesurer", "compter", "rêver",
+     "exister", "durer", "posséder", "désirer", "souhaiter", "apprécier", "ignorer", "manquer",
+     "étudier", "jouer", "chanter", "danser", "cuisiner", "garder", "rester", "continuer"}
 )
 _PC_PARTICIPLES = frozenset(
     {"eu", "fait", "dit", "pris", "mis", "vu", "su", "pu", "voulu", "dû", "bu", "lu", "écrit", "ouvert",
@@ -325,6 +324,28 @@ _ACCENTS = {
     "etudiant": "étudiant", "etudiante": "étudiante", "arrivee": "arrivée", "journee": "journée",
     "soiree": "soirée", "idee": "idée", "annee": "année", "equipe": "équipe", "eglise": "église",
 }
+#: Night-shift review of #259: a noun that is right with either gender, so its
+#: determiner is never «corrected». Homographs whose meaning sets the gender («le
+#: tour / la tour», «le poste / la poste»), and person nouns French uses for a woman
+#: too while the core lexicon stores one gender («une enfant», «la ministre»).
+_TWO_GENDER_NOUNS = frozenset(
+    {
+        # homographs
+        "tour", "poste", "livre", "mode", "page", "voile", "manche", "critique", "vase", "mémoire",
+        "moule", "somme", "solde", "aide", "physique", "pendule", "office", "œuvre", "espace", "gens",
+        "mousse", "manœuvre", "parallèle", "finale", "geste", "mort", "après-midi", "foudre", "hymne",
+        "crêpe", "garde", "merci", "pupille", "enseigne", "greffe", "radio", "relâche", "orge", "période",
+        "faux", "physionomie", "interligne", "chose", "personne", "crème", "porte-parole",
+        # person nouns used for women and men
+        "enfant", "propriétaire", "ministre", "juge", "membre", "stagiaire", "guide", "médecin",
+        "professeur", "prof", "peintre", "poète", "auteur", "écrivain", "chef", "témoin", "maire",
+        "docteur", "ingénieur", "pompier", "auteure", "élève", "artiste", "journaliste", "collègue",
+        "touriste", "camarade", "secrétaire", "libraire", "concierge", "dentiste", "adulte", "malade",
+        "architecte", "pianiste", "photographe", "interprète", "pilote", "bibliothécaire", "locataire",
+        "fonctionnaire", "responsable", "célibataire", "partenaire", "astronaute", "comptable", "fleuriste",
+        "bénévole", "complice", "convive", "cadre", "mannequin", "bébé", "star", "vedette",
+    }
+)
 _MASC_DET = {"le": "la", "un": "une", "ce": "cette", "mon": "ma", "ton": "ta", "son": "sa"}
 _FEM_DET = {"la": "le", "une": "un", "cette": "ce", "ma": "mon", "ta": "ton", "sa": "son"}
 #: «je la porte», «il le mange»: in front of a verb form that is also a noun, «le/la» is
@@ -355,12 +376,27 @@ def _is_verb(infinitive: str) -> bool:
     return bool(entry and entry.get("pos") == "verb")
 
 
+def _names_a_subject(text: str, tok: Tok) -> bool:
+    """A name or a noun right before «le/la» is the subject of a verb that follows
+    («Lila le porte», «le chat la regarde»), so the «le/la» is a pronoun."""
+    original = text[tok.start : tok.end]
+    starts_sentence = not text[: tok.start].strip() or bool(_SENTENCE_BREAK.search(text[: tok.start].rstrip()[-1:]))
+    if original[:1].isupper() and (not starts_sentence or tok.low in _cast_first_names() or _lemma(tok.low) is None):
+        return True  # a name (mid-sentence, a cast member, or no French word)
+    return _noun_gender(tok.low) is not None
+
+
 def _noun_gender(word: str) -> str | None:
     entry = _lemma(word)
     if not entry or entry.get("pos") != "noun":
         return None
     gender = entry.get("gender")
     return gender if gender in {"m", "f"} else None
+
+
+@lru_cache(maxsize=1)
+def _cast_first_names() -> frozenset[str]:
+    return frozenset(known_people())
 
 
 def known_people() -> dict[str, str]:
@@ -586,8 +622,9 @@ def deterministic_edits(
             participle = nxt.low
             if aux_is_avoir and participle in _ETRE_PARTICIPLES and _same_clause(source, tok, nxt):
                 after = tokens[i + 2] if i + 2 < len(tokens) else None
+                clause_ends = after is None or not _same_clause(source, nxt, after)
                 if participle in _AMBIGUOUS_PARTICIPLES and not (
-                    after is not None and _same_sentence(source, nxt, after) and after.low in _PLACE_WORDS
+                    clause_ends or (_joined(source, nxt, after) and after.low in _PLACE_WORDS)
                 ):
                     continue
                 gender, plural = _subject_gender(tokens, source, i, cast)
@@ -628,8 +665,14 @@ def deterministic_edits(
 
         # --- determiner / noun gender --------------------------------------------------
         if joined_next and nxt is not None and tok.low in (_MASC_DET.keys() | _FEM_DET.keys()):
-            if tok.low in {"le", "la"} and prev is not None and joined_prev and prev.low in _PRONOUN_CONTEXT:
-                pass  # «je la porte», «il le mange»: a pronoun, not a determiner
+            if prev is not None and source[prev.end : tok.start] in {"'", "’"}:
+                pass  # «quelqu'un veille»: the «un» belongs to the word before it
+            elif tok.low in {"le", "la"} and prev is not None and joined_prev and (
+                prev.low in _PRONOUN_CONTEXT or _names_a_subject(source, prev)
+            ):
+                pass  # «je la porte», «Lila le porte»: a pronoun, not a determiner
+            elif _is_verb(nxt.low) or nxt.low in _TWO_GENDER_NOUNS:
+                pass  # «la manger» (a pronoun); «la tour» / «le tour», «une enfant»
             else:
                 gender = _noun_gender(nxt.low)
                 vowel = nxt.low[:1] in "aeiouhéèêâîôû"
@@ -648,7 +691,13 @@ def deterministic_edits(
         # --- de le / à le ---------------------------------------------------------------
         if tok.low in {"de", "à"} and joined_next and nxt is not None and nxt.low == "le":
             after = tokens[i + 2] if i + 2 < len(tokens) else None
-            if after is not None and _joined(source, nxt, after) and _noun_gender(after.low) == "m":
+            if (
+                after is not None
+                and _joined(source, nxt, after)
+                and not _is_verb(after.low)  # «de le vendre»: «le» is a pronoun
+                and after.low not in _TWO_GENDER_NOUNS
+                and _noun_gender(after.low) == "m"
+            ):
                 right = "du" if tok.low == "de" else "au"
                 add(_edit("FR_CONTRACTION", source, tok.start, nxt.end, _case(source[tok.start:tok.start+1], right) if source[tok.start].isupper() else right,
                           right=right, wrong=f"{tok.low} le"))
@@ -670,8 +719,45 @@ def deterministic_edits(
             continue
 
     _tense_edits(source, tokens, cast, add)
+    _known_slip_edit(source, add)
     found.sort(key=lambda e: e.start)
     return found
+
+
+def _known_slip_edit(text: str, add) -> None:
+    """#193: «Je suis froid / faim / soif / peur / sommeil» -> «J'ai …», on every
+    surface (``answer_acceptance.known_slip`` holds the unambiguous cases)."""
+
+    notes = {lang: known_slip(text, lang) for lang in ("en", "de", "fr")}
+    first = notes["en"]
+    if first is None:
+        return
+    span, fix, _ = first
+    match = re.search(r"\s+".join(re.escape(part) for part in span.split()), text.translate(_APOSTROPHES), re.IGNORECASE)
+    if match is None:
+        return
+    original = text[match.start() : match.end()]
+    replacement = fix if original[:1].isupper() else fix[:1].lower() + fix[1:]
+    add(
+        Edit(
+            span=original,
+            replacement=replacement,
+            rule_id="FR_AVOIR_STATE",
+            label=_RULE_TEXT["FR_PERSON_AUX"]["label"],
+            note={lang: slip[2] for lang, slip in notes.items() if slip},
+            start=match.start(),
+            end=match.end(),
+            task_error_type="verb_conjugation",
+            severity=2,
+        )
+    )
+
+
+def _first_sentence_end(text: str, tokens: list[Tok]) -> int:
+    for i in range(1, len(tokens)):
+        if not _same_sentence(text, tokens[i - 1], tokens[i]):
+            return i
+    return len(tokens)
 
 
 def _tense_edits(text: str, tokens: list[Tok], cast: Mapping[str, str], add) -> None:
@@ -696,6 +782,15 @@ def _tense_edits(text: str, tokens: list[Tok], cast: Mapping[str, str], add) -> 
         sentence = tokens[sentence_start:i]
         words = {t.low for t in tokens[sentence_start:]}
         if words & _PRESENT_MARKERS:
+            continue
+        # A present after a passé composé is very often right («J'ai fini et elle
+        # regarde la télé»). It is a slip only when the story is told in the past:
+        # «puis» (a next event), or a past time word in the sentence or opening the
+        # text («Hier, …» — the Journal's retelling).
+        anchored = tok.low == "puis" or bool(
+            ({t.low for t in sentence} | {t.low for t in tokens[: _first_sentence_end(text, tokens)]}) & _PAST_MARKERS
+        )
+        if not anchored:
             continue
         # a passé composé earlier in the same sentence
         has_pc = False
@@ -725,7 +820,7 @@ def _tense_edits(text: str, tokens: list[Tok], cast: Mapping[str, str], add) -> 
                 continue
             stem = low[:-1]
         infinitive = stem + "er"
-        if not _is_verb(infinitive) or low in {"être", "mène"}:
+        if not _is_verb(infinitive) or low in {"être", "mène"} or infinitive in _STATE_VERBS:
             continue
         participle = stem + "é"
         gender = "f" if pron.low in {"elle", "elles"} else None
