@@ -934,12 +934,15 @@ def test_the_20_oct_entry_gets_its_two_mistakes_marked_with_no_model_and_no_gram
 def test_the_journal_memory_check_counts_the_kept_word_not_the_whole_kept_sentence(db_session):
     """«None of what the scene kept appears (0/1)» although «bouillotte» was written."""
     user = _user(db_session)
-    _journey(
+    journey = _journey(
         db_session,
         user,
         local_date=TODAY - timedelta(days=1),
         callback="Marin se souvient que le sac chaud s’appelle une bouillotte.",
     )
+    # The scene's character is Marin: his name is on the prompt, so it is not evidence.
+    journey.scenario_snapshot = {**journey.scenario_snapshot, "character_name": "Marin"}
+    db_session.commit()
     entry = _write(db_session, user, _FakeCorrector(fail=True), _OCT_20)
 
     recall = entry.content_recall
@@ -950,12 +953,14 @@ def test_the_journal_memory_check_counts_the_kept_word_not_the_whole_kept_senten
 
 def test_a_common_word_alone_still_does_not_prove_a_memory(db_session):
     user = _user(db_session)
-    _journey(
+    journey = _journey(
         db_session,
         user,
         local_date=TODAY - timedelta(days=1),
         callback="Marin se souvient que le sac chaud s’appelle une bouillotte.",
     )
+    journey.scenario_snapshot = {**journey.scenario_snapshot, "character_name": "Marin"}
+    db_session.commit()
     entry = _write(
         db_session, user, _FakeCorrector(fail=True), "Hier j’ai vu un sac dans le café avec Lila et Gus."
     )
