@@ -494,6 +494,22 @@ def _character_name(payload: dict) -> str | None:
     return str(member.get("name") or cid) if member else (cid or None)
 
 
+def thread_voices(payload: dict) -> tuple[list[str], list[str]]:
+    """What the learner said and what the scene's characters said so far, as plain text:
+    the facts a reply is checked against (who owns which relative)."""
+
+    scene = payload.get("scene") or {}
+    history = payload.get("history") or []
+    learner = [str(payload.get("learner_text") or ""), *[str(h.get("learner") or "") for h in history]]
+    speaker = [str(scene.get("opening_line_fr") or ""), *[str(h.get("character") or "") for h in history]]
+    for panel in scene.get("panels") or []:
+        if not isinstance(panel, dict):
+            continue
+        speaker.append(str(panel.get("narration_fr") or ""))
+        speaker.extend(str(line.get("text_fr") or "") for line in panel.get("dialogue") or [] if isinstance(line, dict))
+    return [t for t in learner if t.strip()], [t for t in speaker if t.strip()]
+
+
 def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     """The guards the critic used to backstop, now synchronous on the reply.
 
@@ -534,6 +550,12 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     # WP-133b finding 3: the shared address check plus participles and apposition
     # («pauvre toi, gelé»), honouring a gender the learner gave.
     lane_guards.check_agreement([voice.reply_fr], address, own=own)
+    # #253 (root cause #145): once the scene has put a relative with the learner («ta
+    # grand-mère»), the character does not take her for her own.
+    learner_texts, speaker_texts = thread_voices(payload)
+    voice.reply_fr = lane_guards.settle_kin_owner(
+        voice.reply_fr, learner_texts=learner_texts, speaker_texts=speaker_texts
+    )
     engine._check_register([voice.reply_fr], level)
     expected = _scene_register(scene)
     said = engine._address_register([voice.reply_fr])
@@ -545,7 +567,7 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     voice.understood_intent = _neutral_intent(voice.understood_intent, payload, address, own)
     if (payload.get("turn_plan") or {}).get("clarify_form_fr"):
         voice.needs_clarification = True
-    engine.reply_soft_check(voice, level, lexical)
+    engine.reply_soft_check(voice, level, lexical, payload["learner_text"])
 
 
 def _neutral_intent(intent: str, payload: dict, address: str | None, own: frozenset[str]) -> str:

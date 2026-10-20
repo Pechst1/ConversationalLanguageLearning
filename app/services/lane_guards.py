@@ -554,3 +554,153 @@ def check_ending_voice(resolution_fr: str, summary_native: str, character_name: 
     issue = ending_voice_issue(resolution_fr, summary_native, character_name)
     if issue:
         raise engine.StoryUnavailable("ending_voice", hint=issue)
+
+
+# ---------------------------------------------------------------------------
+# #253 — whose relative it is (root cause #145: the thread's established facts)
+# ---------------------------------------------------------------------------
+
+#: The relatives a thread settles the owner of. «Ta grand-mère» said by the character
+#: and «ma grand-mère» said by the learner both put the grandmother with the learner;
+#: the character then does not say «ma grand-mère» of her own (Courrier 20 Oct:
+#: «La boulangerie de ta grand-mère est là aussi.» → «…de ma grand-mère est juste au coin»).
+_KIN = (
+    r"grand-m[èe]re|grand-p[èe]re|grands-parents|grand-maman|grand-papa|mamie|papi|m[ée]m[ée]|p[ée]p[ée]"
+    r"|m[èe]re|p[èe]re|parents|fr[èe]re|s[œo]eur|tante|oncle|cousine|cousin|mari|[ée]pouse|femme|fils|fille"
+)
+_MINE = r"ma|mon|mes"
+_YOURS = r"ta|ton|tes|votre|vos"
+_KIN_PHRASE = re.compile(rf"(?<![\w-])({_MINE}|{_YOURS})\s+({_KIN})(?![\w-])", re.IGNORECASE)
+_SHARED = re.compile(r"\b(?:aussi|également|egalement|non plus|même chose)\b", re.IGNORECASE)
+_TU_MARKER = re.compile(r"\b(?:tu|toi|ton|ta|tes|t')", re.IGNORECASE)
+_VOUS_MARKER = re.compile(r"\b(?:vous|votre|vos)\b", re.IGNORECASE)
+_TO_TU = {"ma": "ta", "mon": "ton", "mes": "tes"}
+_TO_VOUS = {"ma": "votre", "mon": "votre", "mes": "vos"}
+
+
+def _kin_key(noun: str) -> str:
+    return engine._folded(noun).replace("œ", "oe")
+
+
+def _kin_phrases(texts: list[str]) -> list[tuple[str, str]]:
+    return [
+        (match.group(1).casefold(), _kin_key(match.group(2)))
+        for text in texts
+        for match in _KIN_PHRASE.finditer(text or "")
+    ]
+
+
+def _learner_owned_kin(learner_texts: list[str], speaker_texts: list[str]) -> set[str]:
+    """The relatives the thread has put with the learner and not with the speaker."""
+
+    owned = {kin for poss, kin in _kin_phrases(learner_texts) if poss in _TO_TU}
+    owned |= {kin for poss, kin in _kin_phrases(speaker_texts) if poss not in _TO_TU}
+    speaker_own = {kin for poss, kin in _kin_phrases(speaker_texts) if poss in _TO_TU}
+    return owned - speaker_own
+
+
+def kin_owner_flips(reply: str, *, learner_texts: list[str], speaker_texts: list[str]) -> list[str]:
+    """The «ma / mon / mes + relative» phrases ``reply`` says of the speaker's own that
+    the thread has already put with the learner. A phrase in a sentence that shares it
+    («Ma grand-mère aussi…») or in a reply that also names the learner's («Ta
+    grand-mère… Ma grand-mère…», a contrast) is not a flip."""
+
+    owned = _learner_owned_kin(learner_texts, speaker_texts)
+    if not owned or not reply:
+        return []
+    phrases = list(_KIN_PHRASE.finditer(reply))
+    if any(m.group(1).casefold() not in _TO_TU and _kin_key(m.group(2)) in owned for m in phrases):
+        return []
+    hits = []
+    for sentence in _SENTENCE.findall(reply):
+        if _SHARED.search(sentence):
+            continue
+        for match in _KIN_PHRASE.finditer(sentence):
+            if match.group(1).casefold() in _TO_TU and _kin_key(match.group(2)) in owned:
+                hits.append(match.group(0))
+    return hits
+
+
+def settle_kin_owner(reply: str, *, learner_texts: list[str], speaker_texts: list[str]) -> str:
+    """``reply`` with every flipped possessive handed back to the learner («ma» → «ta»,
+    or «votre» when the thread has said vous). Unchanged when nothing flipped."""
+
+    if not kin_owner_flips(reply, learner_texts=learner_texts, speaker_texts=speaker_texts):
+        return reply
+    owned = _learner_owned_kin(learner_texts, speaker_texts)
+    said = " ".join(speaker_texts)
+    mapping = _TO_VOUS if _VOUS_MARKER.search(said) and not _TU_MARKER.search(said) else _TO_TU
+
+    def one(match: re.Match[str]) -> str:
+        poss = match.group(1)
+        if poss.casefold() not in _TO_TU or _kin_key(match.group(2)) not in owned:
+            return match.group(0)
+        new = mapping[poss.casefold()]
+        new = new.capitalize() if poss[:1].isupper() else new
+        return new + match.group(0)[len(poss):]
+
+    return "".join(
+        sentence if _SHARED.search(sentence) else _KIN_PHRASE.sub(one, sentence)
+        for sentence in _SENTENCE.findall(reply)
+    ) or reply
+
+
+def kin_owner_hint(hits: list[str]) -> str:
+    return (
+        f"The reply says «{hits[0]}» of the speaker's own, but the thread has already put that "
+        "person with the learner (they said «ma …», or the character said «ta …»). Speak of "
+        "the learner's relative as «ta … / ton …» and never claim them."
+    )
+
+
+# ---------------------------------------------------------------------------
+# #254 — a reasoned reply is picked up
+# ---------------------------------------------------------------------------
+
+#: A learner turn that GIVES A REASON («…parce que la restaurant était très difficile»)
+#: with at least this many content words is a reasoned reply: the character's line has
+#: to take at least one of them up. Only reasons: «Oui, je viens samedi» is rightly
+#: answered by «Merci ! On prépare la salle», sharing no word, and a retry on every
+#: such reaction would double the voice lane's cost for nothing.
+REASONED_REPLY_CONTENT_WORDS = 2
+_STEM = 5
+_REASON = re.compile(
+    r"\b(?:parce qu|parce que|puisque|puisqu|car|[àa] cause|gr[âa]ce [àa])\b", re.IGNORECASE
+)
+_FILLER = frozenset(
+    "parce beaucoup etait etais sera serait tres peut-etre vraiment pense crois sais comprends "
+    "pourquoi faire avoir cela cette alors aussi encore toujours jamais souvent quelque quelques "
+    "puisque cause grace".split()
+)
+
+
+def _reason_stems(text: str) -> set[str]:
+    return {
+        token[:_STEM]
+        for token in _content(_tokens(text))
+        if len(token) >= 4 and token not in _FILLER
+    }
+
+
+def ignored_reply_hint(reply: str, learner_text: str) -> str | None:
+    """A hint when ``reply`` takes up none of a reason the learner just gave, else None.
+
+    Live walk 20 Oct (#254): «Odile est parti parce que la restaurant était très
+    difficile» was answered «Fatiguée. Ici : « courageuse ».» — nothing in it refers to
+    the difficulty, the restaurant or the guess. Shared stems are the test (the first
+    five letters of a content word, so «restaurant» meets «restaurants» and «partie»
+    meets «parti»). A turn without a stated reason has nothing the reply must take up
+    and passes."""
+
+    if not _REASON.search(learner_text or ""):
+        return None
+    learner = _reason_stems(learner_text)
+    if len(learner) < REASONED_REPLY_CONTENT_WORDS or not (reply or "").strip():
+        return None
+    if learner & _reason_stems(reply):
+        return None
+    words = ", ".join(sorted({t for t in _content(_tokens(learner_text)) if t[:_STEM] in learner})[:6])
+    return (
+        "The reply does not pick up the reason the learner just gave. Answer it: take up one "
+        f"thing from it (for instance: {words}) before you move on."
+    )

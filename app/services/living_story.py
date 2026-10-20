@@ -5716,8 +5716,8 @@ def trim_reply(reply: str | None, level: Any) -> str:
     return " ".join(words[:cap]).rstrip(" ,;:") + "…"
 
 
-def reply_soft_check(model: Any, level: Any, lexical: Any = None) -> None:
-    """The two reply checks that never cost a turn (WP-103 T5), run last.
+def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: str | None = None) -> None:
+    """The reply checks that never cost a turn (WP-103 T5), run last.
 
     Length: above the band's line → :class:`SoftRejection` carrying the reply trimmed
     at a sentence boundary. Words (WP-89's budget, ``lexical(reply) -> hint | None``):
@@ -5741,11 +5741,20 @@ def reply_soft_check(model: Any, level: Any, lexical: Any = None) -> None:
             lexical_hint = None
     if lexical_hint:
         hints.append(str(lexical_hint))
+    ignored = None
+    if learner_text and not getattr(model, "needs_clarification", False):
+        # #254 (root cause #145): a reasoned learner turn is picked up — a reply that
+        # takes up none of its words is asked again once, then served as it is.
+        from app.services import lane_guards
+
+        ignored = lane_guards.ignored_reply_hint(reply, learner_text)
+        if ignored:
+            hints.append(ignored)
     if not hints:
         return
     served = model.model_copy(update={"reply_fr": trimmed}) if trimmed != reply else model
     raise SoftRejection(
-        "reply_above_level" if issue else "reply_off_lexicon",
+        "reply_above_level" if issue else ("reply_off_lexicon" if lexical_hint else "reply_ignores_learner"),
         hint=" ".join(hints),
         proposal=served,
     )
@@ -9564,7 +9573,7 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
     if reply_checks:
         # WP-103 T5: last, on a turn every hard guard has accepted — length and words
         # are refused once with the reason, then the trimmed reply is served.
-        reply_soft_check(turn, story.get("level"), lexical)
+        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"])
 
 
 def _transfer_target_ids(task: Any) -> set[int]:

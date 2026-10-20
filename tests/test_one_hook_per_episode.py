@@ -48,13 +48,16 @@ def test_the_last_panel_home_the_finished_card_and_the_feuilleton_say_one_hook(
     assembled_client, db_session, journey_enabled, clock, provider
 ):
     d = story.driver(assembled_client, db_session, cefr="A1.1")
+    # Chapter length follows the life's arc order (a hash of its random thread id), so
+    # no fixed day closes a chapter. Play days until one does; the cap only guards a loop.
     recap = None
-    for day in range(1, 5):  # day 4 closes the chapter, as day 8 did in the live walk
+    for day in range(1, 11):
         recap = _play(d, provider, day)["recap"]
-        if day < 4:
-            clock.advance(days=1)
+        if recap["chapter_closed"]:
+            break
+        clock.advance(days=1)
     journey_id = d.journey["id"]
-    assert recap["chapter_closed"], "the walk's day closed a chapter"
+    assert recap["chapter_closed"], "no day within ten closed a chapter"
 
     scene = story.scenes_of(db_session, d)[-1]
     stored = (scene.script_payload or {}).get("next_teaser_fr")
