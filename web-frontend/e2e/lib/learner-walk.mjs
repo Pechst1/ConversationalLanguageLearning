@@ -29,6 +29,8 @@ export class LearnerWalk {
     this.seq = 0;
     this.kindsSeen = new Set();
     this.replies = 0;
+    /** #143: every «Step n of m» the header showed, in order (one entry per change). */
+    this.stepCaptions = [];
     mkdirSync(outDir, { recursive: true });
     this.timelines = new Map();
   }
@@ -134,6 +136,7 @@ export class LearnerWalk {
     const hasVerdict = s.graded.length + s.epFeedback.length > 0;
     if (!hasVerdict) this.questionSig = s.text.slice(0, 140);
     const step = (s.text.match(STEP_RE) || ['none'])[0];
+    if (step !== 'none' && this.stepCaptions[this.stepCaptions.length - 1] !== step) this.stepCaptions.push(step);
     const key = kind === 'thread' ? `thread ${step}` : `${step} ${this.questionSig || ''}`;
     const t = this.timelines.get(`${this.day}:${key}`) || { states: [], pending: false };
     for (const g of s.graded) if (t.states[t.states.length - 1] !== g.state) t.states.push(g.state);
