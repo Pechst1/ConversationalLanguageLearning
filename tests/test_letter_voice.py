@@ -87,6 +87,46 @@ def test_the_future_is_above_a1_only() -> None:
         assert above_band_tenses(line, "A2") == []
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        # Codex on #222: every person of the irregular stems, and «-ir» / «-re» verbs.
+        "Vous aurez la clé.",
+        "Vous pourrez venir.",
+        "Tu viendras samedi ?",
+        "Vous ferez comment ?",
+        "Je finirai demain.",
+        "Vous répondrez vite ?",
+        "Tu reviendras ?",
+        "Nous irons au café.",
+        "Ils partiront à huit heures.",
+        "Elle vendra la bouillotte.",
+    ],
+)
+def test_every_person_of_the_future_is_above_a1(line: str) -> None:
+    from app.services.letter_voice import above_band_tenses
+
+    assert above_band_tenses(line, "A1") == ["futur simple"]
+    assert above_band_tenses(line, "A2") == []
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Vous désirez ?",  # the present of «désirer», not a future of an «-ir» verb
+        "Nous admirons la vue.",
+        "Ils répondent.",
+        "Tu peux attendre.",
+        "Elle s'appelle Cassandra.",
+        "Le calendrier est là.",
+    ],
+)
+def test_a_present_that_ends_like_a_future_is_not_flagged(line: str) -> None:
+    from app.services.letter_voice import above_band_tenses
+
+    assert above_band_tenses(line, "A1") == []
+
+
 @pytest.mark.parametrize("line", PLAIN_A1)
 def test_plain_a1_french_is_never_flagged(line: str) -> None:
     """The indicative present of «venir/prendre/partir/devoir» in the 3rd person plural
@@ -186,6 +226,25 @@ def test_a_story_born_letter_drops_a_ps_that_contradicts_its_opening() -> None:
     assert story_messenger["twist"] == messenger["twist"]
     # #117: the writer's own P.S., so the Courrier prints it as «P.S.».
     assert story_messenger["twist_is_ps"] is True
+
+
+def test_a_story_born_reply_is_held_to_the_characters_register_not_the_domains(monkeypatch) -> None:
+    """Codex on #222: Marin writes «tu», but the Courrier domain the frame came from was
+    «vous / registre poli»; his correct «tu» reply was refused twice for it."""
+
+    generator = _generator()
+    context = {"relationship": "marin", "character_name": "Marin Lévêque", "register": "tu", "scenario": "La porte."}
+    messenger = {"contact_name": "Marin Lévêque", "target_register": "vous / registre poli"}
+    _title, _brief, story_messenger, _objectives = generator._story_born_mission(
+        title="Un mot de Marin", brief="", messenger=messenger, custom_context=context
+    )
+    assert story_messenger["target_register"].startswith("tu")
+
+    good = "Ah, merci ! Tu viens au café ?"
+    service, llm, mission = _reply_service(monkeypatch, [good])
+    mission.prompt_payload = {"messenger": story_messenger, "target_register": "vous / registre poli"}
+    assert service.respond(user=SimpleNamespace(id=None), mission=mission, user_text="Oui") == good
+    assert len(llm.systems) == 1, "a correct «tu» reply was sent back for a rewrite"
 
 
 def test_the_letter_writer_is_told_why_a_mixed_draft_was_refused(monkeypatch) -> None:

@@ -2873,6 +2873,11 @@ class MissionGenerator:
         # The one P.S. the writer wrote themselves (in their own address form, checked
         # above); an authored letter's complication is the narrator's note, not a P.S.
         story_messenger["twist_is_ps"] = bool(story_messenger["twist"])
+        # #117: the writer's own address form, not the Courrier domain's the frame was
+        # drawn from; the reply's actor and its guard both read it.
+        story_messenger["target_register"] = (
+            "tu / registre familier" if writer_register == "tu" else "vous / registre poli"
+        )
         known = custom_context.get("desired_outcome_i18n")
         if not generated and isinstance(known, dict) and known.get("fr") == story_messenger["success_signal"]:
             story_messenger["success_signal_i18n"] = dict(known)

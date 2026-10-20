@@ -62,10 +62,23 @@ _SUBJUNCTIVE = re.compile(
     r"|\b(?:bien que|il faut que|pour que|avant que|à moins que|jusqu['’]à ce que)\b",
     re.IGNORECASE,
 )
+_FUTURE_ENDING = r"(?:ai|as|a|ons|ez|ont)"
+#: Future stems spelt like no present: «ser-», «aur-», «ir-», «pourr-»… (every person).
+_FUTURE_SHORT_STEMS = (
+    r"(?:ser|aur|ir|fer|pourr|devr|voudr|verr|saur|enverr|faudr|vaudr|courr|mourr|recevr"
+    r"|dir|lir|rir|croir|boir|vivr|suivr|plair)"
+)
+#: Longer ones, also behind a prefix («reviendra», «comprendrez», «découvrira»). Only the
+#: listed «-ir» verbs: «désirez», «admirons» are the present of «-irer» verbs.
+_FUTURE_LONG_STEMS = (
+    r"(?:viendr|tiendr|prendr|mettr|[ée]crir|uir|connaîtr|connaitr|paraîtr|paraitr|battr|rompr"
+    r"|ondr|endr|perdr|mordr|tordr|coudr|moudr|joindr|peindr|craindr|plaindr"
+    r"|finir|choisir|partir|sortir|dormir|ouvrir|offrir|souffrir|servir|sentir|r[ée]ussir|grandir"
+    r"|r[ée]fl[ée]chir|agir|ob[ée]ir|remplir|bâtir|batir|nourrir|guérir|guerir|rougir|maigrir|grossir)"
+)
 _FUTURE = re.compile(
-    r"\b(?:sera|serai|seras|serons|serez|seront|aura|auras|aurai|auront|ira|irai|iras|irons|iront"
-    r"|fera|ferai|feras|feront|viendra|viendrai|prendra|prendrai|pourra|pourrai|pourront|devra|faudra"
-    r"|voudra|verra|saura|enverra|attendra)\b"
+    rf"\b(?:re|ré)?{_FUTURE_SHORT_STEMS}{_FUTURE_ENDING}\b"
+    rf"|\b\w*{_FUTURE_LONG_STEMS}{_FUTURE_ENDING}\b"
     r"|\b\w{3,}(?:erai|eras|era|erons|erez|eront)\b",
     re.IGNORECASE,
 )
