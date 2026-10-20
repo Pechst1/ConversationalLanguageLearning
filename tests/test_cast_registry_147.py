@@ -205,3 +205,88 @@ def test_217_the_served_day_one_thread_names_everyone_by_the_registry(
     assert lines
     for line in lines:
         assert line["speaker_name"] == reg.display_name(line["speaker_id"]), line
+
+
+def _world_names() -> dict[str, str]:
+    world = json.loads(reg.WORLD_PATH.read_text(encoding="utf-8"))
+    names = {str(row["id"]): str(row["name"]) for row in world["cast"]}
+    names.setdefault("odile_ferrand", "Odile Ferrand")
+    return names
+
+
+def test_217_the_reply_thread_names_every_cast_member_by_the_registry():
+    """A reaction line that still carries the world bible's full name («Augustin « Gus » de
+    Roncourt») is printed under the registry's one name, for every person of the cast."""
+
+    from app.services.season.turns import reaction_lines
+
+    world = _world_names()
+    panels = [
+        {"lines": [{"kind": "speech", "who": cast_id, "name": world.get(cast_id, cast_id), "text_fr": "Bonjour."}]}
+        for cast_id in reg.all_members()
+    ]
+    lines = reaction_lines(panels, addressee="margaux_barman", names=world)
+    assert {line["speaker_id"] for line in lines} == set(reg.all_members())
+    for line in lines:
+        assert line["speaker_name"] == reg.display_name(line["speaker_id"]), line
+        assert "«" not in line["speaker_name"], line
+
+
+def test_217_the_courrier_header_and_letter_name_every_cast_member_once(db_session):
+    """20 Oct walk: «Un mot de Augustin « Gus » de Roncourt» and, in his own letter,
+    «Bonjour, c'est Augustin « Gus » de Roncourt.» A story-born letter names its writer
+    by the registry on every line (header, thread title, cue, title), says the spoken
+    form when the writer names themselves, and elides «de» before a vowel («d'Odile»)."""
+
+    from types import SimpleNamespace
+
+    from app.services import story_correspondence as courrier
+    from app.services.missions import MissionGenerator
+
+    world = _world_names()
+    thread = SimpleNamespace(world_bible={"cast": [{"id": cid, "name": name} for cid, name in world.items()]})
+    generator = MissionGenerator(db_session)
+    for cast_id, person in reg.all_members().items():
+        label, spoken = person.short_name, person.spoken_name
+        # The letter's writer as the story records them.
+        assert courrier._cast_name(thread, cast_id) == label
+        context = courrier.story_letter_context(
+            {"character_id": cast_id, "character_name": courrier._cast_name(thread, cast_id), "summary_fr": "Le chat est parti."}
+        )
+        assert world.get(cast_id) == label or world.get(cast_id, "") not in context["scenario"], context["scenario"]
+        # A context stored before the fix still carries the full name; the registry wins.
+        title, _brief, messenger, _objectives = generator._story_born_mission(
+            title="",
+            brief="",
+            messenger={},
+            custom_context={**context, "character_name": world.get(cast_id, label)},
+        )
+        assert messenger["contact_name"] == label, (cast_id, messenger["contact_name"])
+        assert messenger["thread_title"].startswith(f"{label} ·"), messenger["thread_title"]
+        assert f"c'est {spoken}." in messenger["opening_message"], messenger["opening_message"]
+        de = f"d'{label}" if label[0] in "AEIOUÉ" else f"de {label}"
+        assert title == f"Un mot {de}", title
+        assert f"un message {de}" in messenger["ambient_cues"], messenger["ambient_cues"]
+        everything = " ".join([title, *(str(v) for v in messenger.values())])
+        assert "«" not in label and "Roncourt" not in everything, everything
+        assert "de O" not in everything and "de A" not in everything, everything
+    assert reg.with_de("Odile") == "d'Odile" and reg.with_de("Gus") == "de Gus"
+    assert reg.spoken_name("landlord_marchand") == "Monsieur Marchand"
+
+
+def test_217_pushes_and_the_client_use_the_registry_names():
+    """The push copy's names and the client's net (``castDisplayName``) agree with the registry."""
+
+    import re
+    from pathlib import Path
+
+    for cast_id, name in sn.CHARACTER_NAMES.items():
+        assert name == reg.display_name(cast_id), (cast_id, name)
+    source = (Path(__file__).resolve().parents[1] / "web-frontend/components/atelier-v2/journey/journey-faces.ts").read_text(
+        encoding="utf-8"
+    )
+    block = source.split("const COACH_NAMES", 1)[1].split("};", 1)[0]
+    client = dict(re.findall(r"(\w+): '([^']+)'", block))
+    assert client
+    for cast_id, name in client.items():
+        assert name == reg.display_name(cast_id), (cast_id, name)

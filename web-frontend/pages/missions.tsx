@@ -8,6 +8,7 @@ import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
+import { castDisplayName } from '@/components/atelier-v2/journey/journey-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { LogoToken } from '@/components/ui/Seal';
@@ -154,7 +155,9 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   // level, rendered with `lang="fr"`. None of them is chrome.
   return {
     channel_label: String(raw.channel_label || missionVariety(mission).channel_label || 'Message'),
-    contact_name: String(raw.contact_name || 'Camille'),
+    // #217: a person of the cast goes by the registry's one name, also in a letter stored
+    // before the server sent it («Augustin « Gus » de Roncourt» is «Gus»).
+    contact_name: castDisplayName(null, raw.contact_name) || String(raw.contact_name || 'Camille'),
     scene_anchor: String(slim.frame || raw.scene_anchor || mission?.brief || 'Un moment de la vraie vie, en français.'),
     dispatch_note: String(slim.ask || raw.dispatch_note || mission?.brief || 'Une réponse naturelle en français.'),
     opening_message: String(raw.opening_message || prompt.conversation_opening || 'Bonjour, vous pouvez me répondre ?'),

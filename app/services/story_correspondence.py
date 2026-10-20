@@ -40,6 +40,7 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.db.savepoint import run_best_effort
+from app.services import cast_registry
 from app.services.address import character_register
 
 # The living story's own ledger keys. Imported rather than re-spelled so a rename
@@ -1143,6 +1144,13 @@ LETTER_REGISTERS = {"tu": "tu / warm informal", "vous": "vous / warm but polite"
 
 
 def _cast_name(thread: SerialThread, character_id: str) -> str:
+    """The name a letter's writer goes by: the cast registry's (#217), so Gus writes as
+    «Gus» and not as the world bible's «Augustin « Gus » de Roncourt»; anyone the
+    registry does not hold keeps the season's name."""
+
+    registered = cast_registry.display_name(character_id)
+    if registered:
+        return registered
     world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
     for member in world.get("cast") or []:
         if isinstance(member, dict) and str(member.get("id")) == character_id:

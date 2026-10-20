@@ -53,6 +53,14 @@ _SHORT_NAMES: dict[str, str] = {
     "bastien_roux": "Bastien Roux",
     "odile_ferrand": "Odile",
 }
+#: What a person says when they name themselves («Bonjour, c'est …», a voicemail): the
+#: label without its written abbreviations, and the first name where the label is a full
+#: name. Anyone not listed says their label (#217).
+_SPOKEN_NAMES: dict[str, str] = {
+    "landlord_marchand": "Monsieur Marchand",
+    "mme_diallo": "Madame Diallo",
+    "bastien_roux": "Bastien",
+}
 #: When the story first puts each person on a page: ``(tentpole, day letter)``.
 #: The guard test re-derives it from ``t*.json`` and fails if this drifts.
 _FIRST_APPEARANCE: dict[str, tuple[int, str]] = {
@@ -95,6 +103,7 @@ class CastMember:
     id: str
     name: str  # the world bible's full name
     short_name: str  # what the learner reads
+    spoken_name: str  # what the person says when naming themselves
     gender: str  # "f", "m", or "x" (the learner picks: Camille)
     voice: str | None
     face: str | None  # drawn portrait directory name; None when no art exists yet
@@ -123,6 +132,9 @@ def _registry() -> dict[str, CastMember]:
             id=cast_id,
             name=str(row.get("name") or cast_id),
             short_name=_SHORT_NAMES.get(cast_id, str(row.get("name") or cast_id)),
+            spoken_name=_SPOKEN_NAMES.get(
+                cast_id, _SHORT_NAMES.get(cast_id, str(row.get("name") or cast_id))
+            ),
             gender=gender if gender in ("f", "m", "x") else "x",
             voice=CAST_VOICES.get(cast_id),
             face=_face_for(cast_id),
@@ -157,6 +169,24 @@ def member(character_id: str | None) -> CastMember | None:
 def display_name(character_id: str | None, default: str = "") -> str:
     found = member(character_id)
     return found.short_name if found else default
+
+
+def spoken_name(character_id: str | None, default: str = "") -> str:
+    """What a person says when naming themselves: «Bonjour, c'est Gus.», «… c'est Monsieur
+    Marchand.» — never the world bible's «Augustin « Gus » de Roncourt» (#217)."""
+
+    found = member(character_id)
+    return found.spoken_name if found else default
+
+
+_VOWELS = frozenset("aeiouàâäéèêëîïôöùûüœæ")
+
+
+def with_de(name: str) -> str:
+    """«de» in front of a name, elided before a vowel: «d'Odile», «d'Augustin», «de Gus»."""
+
+    text = str(name or "").strip()
+    return f"d'{text}" if text[:1].casefold() in _VOWELS else f"de {text}"
 
 
 def display_names(cast: Any) -> dict[str, str]:

@@ -620,3 +620,19 @@ test('a story reply gets no verdict word and no smile, only its margin correctio
   // A drill keeps its verdict.
   assert.ok(view(result(), 'correct', 'recall').includes(DE.correct));
 });
+
+test('#217 every cast member keeps one name, also in a payload with the world bible name (Courrier header too)', () => {
+  const fs = require('node:fs');
+  const { castDisplayName } = require('./journey-faces.ts');
+  const world = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/world.json'), 'utf8'));
+  const people = [...world.cast, { id: 'odile_ferrand', name: 'Odile Ferrand' }];
+  for (const person of people) {
+    // The Courrier names its writer from the name alone (messenger.contact_name).
+    const byName = castDisplayName(null, person.name) || person.name;
+    const byId = castDisplayName(person.id, person.name) || person.name;
+    assert.equal(byName, byId, `${person.id}: «${byName}» by name, «${byId}» by id`);
+    assert.ok(!byName.includes('«'), `${person.id} is «${byName}»`);
+  }
+  assert.equal(castDisplayName(null, 'Augustin « Gus » de Roncourt'), 'Gus');
+  assert.equal(castDisplayName(null, 'Mme Lefèvre'), null, 'someone outside the cast keeps their own name');
+});
