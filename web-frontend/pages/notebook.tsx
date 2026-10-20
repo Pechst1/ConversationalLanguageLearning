@@ -12,6 +12,7 @@ import {
   Skeleton,
   StateBlock,
   Surface,
+  useControlLanguage,
 } from '@/components/atelier-v2/ui';
 import {
   CahierHead,
@@ -25,6 +26,11 @@ import { cahierCopy, countLabel, fill, useCahierCopy, type CahierCopy } from '@/
 import JournalTab from '@/components/cahiers/JournalTab';
 import { NOTEBOOK_MODE_STORAGE_KEY } from '@/components/mobile';
 import Releve from '@/components/releve/Releve';
+import { AvatarDisc } from '@/components/avatar/Avatar';
+import { AvatarStyles } from '@/components/avatar/AvatarStyles';
+import ProfileTab from '@/components/avatar/ProfileTab';
+import { avatarCopy } from '@/components/avatar/avatar-copy';
+import { useLearnerAvatar } from '@/lib/learner-avatar';
 import { Button } from '@/components/ui/Button';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { FeedbackSheet } from '@/components/ui/FeedbackSheet';
@@ -83,6 +89,7 @@ function storedNotebookMode(): NotebookMode {
     if (stored === 'journal') return 'journal';
     // The Carnet folded into Fortschritt; an old stored «carnet» opens it there.
     if (stored === 'releve' || stored === 'carnet') return 'releve';
+    if (stored === 'moi') return 'moi';
     if (STORY_FEATURE_VISIBLE && stored === 'library') return 'library';
     return 'grammar';
   } catch {
@@ -106,6 +113,7 @@ function notebookModeFromQuery(query: NotebookQuery): NotebookMode | null {
     || explicitMode === 'vocabulary'
     || explicitMode === 'journal'
     || explicitMode === 'releve'
+    || explicitMode === 'moi'
   ) return explicitMode;
   // Old links to the Carnet tab open Fortschritt, where the Carnet now lives.
   if (explicitMode === 'carnet') return 'releve';
@@ -125,9 +133,9 @@ function queryForMode(query: NotebookQuery, requestedMode: NotebookMode): Notebo
   if (mode === 'grammar') {
     const concept = firstQueryValue(query.concept) || firstQueryValue(query.review);
     if (concept) nextQuery.concept = concept;
-  } else if (mode === 'releve' || mode === 'journal') {
-    // Le Relevé is a read-only ledger and Le journal de bord is the learner's
-    // own writing; neither carries deep-link parameters.
+  } else if (mode === 'releve' || mode === 'journal' || mode === 'moi') {
+    // Le Relevé is a read-only ledger, Le journal de bord is the learner's
+    // own writing and «Moi» their own page; none carries deep-link parameters.
     return nextQuery;
   } else {
     if (mode === 'library') {
@@ -151,6 +159,7 @@ const MODE_TITLE_KEYS: Record<NotebookMode, keyof CahierCopy['notebook']> = {
   journal: 'title_journal',
   releve: 'title_releve',
   library: 'title_library',
+  moi: 'title_moi',
 };
 
 export default function NotebookEntryPage() {
@@ -282,10 +291,14 @@ export default function NotebookEntryPage() {
         <title>{`${t.notebook[MODE_TITLE_KEYS[visibleMode]]} · L’Atelier`}</title>
       </Head>
       <CahierStyles />
+      <AvatarStyles />
       <AtelierV2Root as="main" language={language} className="nb-page" aria-label="Le cahier">
         {/* Settings, in the same corner on every tab (2026-10-01). */}
         <ShellCorner />
-        <CahierHead kicker={kicker}>
+        <CahierHead
+          kicker={kicker}
+          aside={<CahierDisc active={visibleMode === 'moi'} onOpen={() => switchMode('moi')} />}
+        >
           <NotebookModeTabs
             active={visibleMode}
             library={STORY_FEATURE_VISIBLE}
@@ -314,6 +327,8 @@ export default function NotebookEntryPage() {
               <JournalTab />
             ) : visibleMode === 'releve' ? (
               <Releve />
+            ) : visibleMode === 'moi' ? (
+              <ProfileTab />
             ) : (
               <LibraryNotebookSurface
                 bookId={firstQueryValue(queryBook)}
@@ -325,6 +340,26 @@ export default function NotebookEntryPage() {
       </AtelierV2Root>
       <PhoneProductNav active="notebook" placement="embedded" />
     </>
+  );
+}
+
+/** The learner's own face beside «Le cahier» — a «+» until they make one; it opens «Moi». */
+function CahierDisc({ active, onOpen }: { active: boolean; onOpen: () => void }) {
+  const copy = avatarCopy(useControlLanguage());
+  const { avatar } = useLearnerAvatar();
+  const label = avatar ? copy.disc_label : copy.disc_label_empty;
+  return (
+    <button
+      type="button"
+      className="nb-disc"
+      aria-label={label}
+      title={label}
+      aria-current={active ? 'page' : undefined}
+      onClick={onOpen}
+      data-cahier-disc=""
+    >
+      <AvatarDisc config={avatar} size={44} />
+    </button>
   );
 }
 

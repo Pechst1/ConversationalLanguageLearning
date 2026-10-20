@@ -230,6 +230,8 @@ def _word_payload(word: Any, viewer_language: str) -> dict[str, Any]:
     return payload
 
 
+# The web app asks for `/vocabulary`; both spellings are served, not redirected (#211).
+@router.get("", response_model=VocabularyListResponse, include_in_schema=False)
 @router.get("/", response_model=VocabularyListResponse)
 def list_vocabulary(
     language: str | None = Query(default=None, max_length=10, description="Language code to filter by"),

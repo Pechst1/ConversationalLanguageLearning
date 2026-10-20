@@ -23,10 +23,13 @@ def test_signup_lands_in_the_scene_not_on_the_placement():
     # A learner who arrived from a deep link keeps their own destination.
     assert "const landing = afterSignUpDestination(destination);" in page
     # WP-47: the account is signed in with the credentials just typed and sent
-    # straight to that landing; the sign-in form is the fallback, address kept.
+    # on; the sign-in form is the fallback, address kept. Ton personnage: the
+    # first stop is making the character, which then goes on to the landing.
     assert "auth.signInWithCredentials(payload.email, data.password)" in page
-    assert "router.replace(landing);" in page
-    assert "query: { callbackUrl: landing, email: payload.email }" in page
+    assert "const firstStop = characterFirst(landing);" in page
+    assert "router.replace(firstStop);" in page
+    assert "query: { callbackUrl: firstStop, email: payload.email }" in page
+    assert "return `/personnage?first=1&next=${encodeURIComponent(landing)}`;" in helper
     assert "'/placement'" not in page
 
 

@@ -19,12 +19,16 @@
  * `pages/atelier.tsx`, which maps them from the real `/atelier/today` payload,
  * so nothing here can print a value the server did not send. The streak is
  * drawn only when it is a real count; otherwise the slot holds the gear.
+ * Owner, 2026-10-18: no level line and no «on consolide» under the date; the
+ * streak is the saucer pile (`StreakSaucers`) and its number, the words being
+ * the link's name only.
  */
 
 import React from 'react';
 import Link from 'next/link';
 
 import { PlacementOfferChip } from '@/components/onboarding/PlacementOfferChip';
+import { MurChip, MurEntry } from '@/components/cast/items/MurEntry';
 
 import {
   Action,
@@ -46,12 +50,11 @@ import {
   type DayMarkState,
 } from '@/components/atelier-v2/journey/day-mark';
 import { atelierChrome, atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
-import { canDoCopy } from '@/lib/can-do-copy';
-import type { NextStepView } from '@/lib/can-dos';
 import { frenchQuote } from '@/lib/french-typography';
 import type { ControlLanguage } from '@/types/daily-journey';
 import { ShellCorner } from '@/components/layout/ShellCorner';
 import { DaySessionPlan } from '@/components/atelier-v2/home/DaySession';
+import { StreakSaucers } from '@/components/atelier-v2/home/StreakSaucers';
 import type { SessionRow } from '@/lib/day-session';
 import { QuickSettings } from '@/components/layout/QuickSettings';
 import { resolveSettingsLanguage, settingsCopy } from '@/lib/settings-copy';
@@ -176,27 +179,10 @@ export type HomeScreenProps = {
   /** Real consecutive-day count. 0 hides the slot entirely. */
   streak: number;
   /**
-   * WP-L7: the sub-band in force and how much of it is covered («A1.1 · 60 %»),
-   * from the server's `coverage`. Drawn as one quiet label line in the masthead
-   * while the journey owns the day; omitted, nothing is drawn.
-   */
-  level?: { band: string; percent: number } | null;
-  /**
-   * WP-95 / W12: the next can-do («Prochaine étape : demander un prix et
-   * payer»), linking to the Carnet. It replaces the percentage, which read
-   * «A1.1 · 0 %» after a finished first day. The band code stays, small.
-   */
-  nextStep?: NextStepView | null;
-  /**
    * WP-94: today is a «Numéro spécial» (the band's épreuve). The masthead is
    * double-ruled; the day's card carries the kicker and the can-dos.
    */
   special?: boolean;
-  /**
-   * WP-L6 §2.2: the auto-throttle is on (the server's `intake.consolidating`):
-   * one quiet label, «Cette semaine, on consolide.», under the level.
-   */
-  consolidating?: boolean;
   /**
    * WP-79: today's practice is done (the server's `streak.today_done`). The
    * streak carries the ink «done» square, and the Séance tile — extra practice
@@ -275,10 +261,7 @@ export function HomeScreen({
   dateLabel,
   editionLabel,
   streak,
-  level = null,
-  nextStep = null,
   special = false,
-  consolidating = false,
   dayDone = false,
   settingsHref = '/settings',
   streakHref = '/notebook?mode=releve#sceaux',
@@ -305,11 +288,9 @@ export function HomeScreen({
   const copy = atelierCopy(language);
   // WP-81: with the journey on, Home does one thing — the day.
   const oneThing = Boolean(day);
-  const shownChips = (chips || []).slice(0, dayDone ? 1 : 2);
+  const chipRoom = dayDone ? 1 : 2;
+  const shownChips = (chips || []).slice(0, chipRoom);
   const streakWord = streak === 1 ? copy.home_streak_first : copy.home_streak_days;
-  const levelBand = nextStep?.band || level?.band || null;
-  // WP-137 C-11: the separator joins two real parts — never «A1.1 ·» alone.
-  const nextLine = nextStep?.line?.trim() || '';
   const [quickOpen, setQuickOpen] = React.useState(false);
   const quickLabel = settingsCopy(resolveSettingsLanguage(language)).quick_open;
   return (
@@ -335,40 +316,11 @@ export function HomeScreen({
           {/* WP-81: with the day on, the mark and the date are the header; the
               edition kicker is cut (≤ 25 words on Home). */}
           {!oneThing && <p className="av2-home__kicker">{editionLabel}</p>}
-          {/* WP-L7: the level, back as one quiet label — never a second
-              Garamond line (the date is the screen's one headline). */}
-          {/* WP-95 / W12: the band code, small, and the next can-do linking
-              to the Carnet — never a percentage («A1.1 · 0 %» after day 1). */}
-          {oneThing && (levelBand || nextLine) && (
-            <p className="av2-home__kicker av2-home__level">
-              {levelBand && (
-                <>
-                  <span className="av2-sr">{canDoCopy(language).level_band_aria.replace('{band}', levelBand)}</span>
-                  <span aria-hidden="true" data-level-figure="">
-                    {levelBand}
-                  </span>
-                </>
-              )}
-              {levelBand && nextLine && <span aria-hidden="true"> · </span>}
-              {nextStep && nextLine && (
-                <Link
-                  className="av2-carnet__home-link"
-                  href={nextStep.href}
-                  aria-label={nextStep.ariaLabel}
-                  data-next-step=""
-                >
-                  {nextLine}
-                </Link>
-              )}
-            </p>
-          )}
           <h1 className="av2-headline av2-headline--screen av2-home__date">{dateLabel}</h1>
-          {/* WP-L6 §2.2: new intake halves while the reviews catch up. */}
-          {oneThing && consolidating && (
-            <p className="av2-home__kicker av2-home__consolidating" data-consolidating="">
-              {copy.home_consolidating}
-            </p>
-          )}
+          {/* Owner, 2026-10-18: the masthead is the mark, the date and the streak.
+              The level line («B1.1 · Prochaine étape : …», WP-95) and «Cette
+              semaine, on consolide.» (WP-L6) are gone from Home; the next can-do
+              is in the Carnet, where a level belongs. */}
         </div>
         {/* Settings, in the same corner on every tab (2026-10-01). The streak
             keeps its own place beside the date; at 0 it is not drawn (WP-79). */}
@@ -380,11 +332,11 @@ export function HomeScreen({
             data-state={dayDone ? 'done' : undefined}
             aria-label={`${streak === 1 ? streakWord : `${streak} ${streakWord}`}${dayDone ? ` · ${copy.home_streak_done}` : ''} · ${copy.home_streak_seals}`}
           >
+            {/* Owner, 2026-10-18: the streak is a mark, not a phrase: the café's
+                pile of saucers, today's cup on top, steaming once today is done.
+                The words are the link's name. */}
+            <StreakSaucers streak={streak} steaming={dayDone} />
             <span className="av2-home__streak-n">{streak}</span>
-            <span className="av2-home__streak-l">
-              {dayDone && <ShapeToken kind="done" size="sm" />}
-              {streakWord}
-            </span>
           </Link>
         ) : null}
       </header>
@@ -462,6 +414,7 @@ export function HomeScreen({
       ) : null}
 
       {/* WP-81: at most one quiet row — a letter waiting, words due. */}
+      {oneThing && shownChips.length === 0 && <MurChip className="av2-home__section av2-home__chips" />}
       {oneThing && shownChips.length > 0 && (
         <div className="av2-home__section av2-home__chips">
           {shownChips.map((chip) => {
@@ -495,6 +448,7 @@ export function HomeScreen({
               </Link>
             );
           })}
+          {shownChips.length < chipRoom && <MurChip />}
         </div>
       )}
 
@@ -561,6 +515,9 @@ export function HomeScreen({
           </Surface>
         </div>
       )}
+
+      {/* Le mur du Mistral: the season's objects so far. Renders nothing before the first. */}
+      {!oneThing && <MurEntry className="av2-home__section" />}
 
       {!oneThing && library && (
         <div className="av2-home__section">

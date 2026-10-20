@@ -16,6 +16,8 @@
  *   running     panel 3 of 4, three lines: the running head, compact captions,
  *               the pinned nav — the "fits without scrolling" specimen
  *   translated  «Translate the panel» open on a ≤A2 line
+ *   translate-b1  the same chip on a B1 panel the director sent no translation
+ *               for: the narration and the lines are fetched on the tap
  *   finale      the ending as the last panel — the «case finale»
  *   finale-wait the ending still being written: the speaker's face, no primary
  *   rayons-off  WP-92: a re-read page with a rule focus — the «Rayons X» chip, off
@@ -146,6 +148,22 @@ function episodeAt(panelIndex: number, rendering: number | null = null): StoryEp
   };
 }
 
+/* From B1 the director sends no `text_native`, and the narration runs longer. */
+function b1Episode(): StoryEpisode {
+  const episode = episodeAt(1);
+  return {
+    ...episode,
+    panels: episode.panels.map((panel) => ({
+      ...panel,
+      narration_fr:
+        panel.index === 1
+          ? 'Vous regardez le tableau noir derrière le comptoir. Les prix ont été effacés à moitié, et quelqu’un a écrit à la craie, d’une main pressée : « Fermé demain, pour raisons familiales. »'
+          : panel.narration_fr,
+      dialogue: (panel.dialogue as Line[]).map(({ text_native: _native, ...line }) => line),
+    })) as unknown as StoryPanel[],
+  };
+}
+
 const RESOLUTION: ResolutionStep = {
   id: 'g-res',
   kind: 'resolution',
@@ -261,6 +279,7 @@ export const READER_GALLERY_STATES = [
   'drawn',
   'running',
   'translated',
+  'translate-b1',
   'finale',
   'finale-wait',
   'rayons-off',
@@ -288,7 +307,7 @@ function Specimen({ state, language }: { state: ReaderGalleryState; language: Co
   }, [state]);
   // «Translate the panel» is the learner's tap; the specimen taps it for them.
   useEffect(() => {
-    if (state !== 'translated') return undefined;
+    if (state !== 'translated' && state !== 'translate-b1') return undefined;
     const timer = window.setTimeout(() => {
       document.querySelector<HTMLButtonElement>('.fr-bar .fr-chip')?.click();
     }, 50);
@@ -305,6 +324,8 @@ function Specimen({ state, language }: { state: ReaderGalleryState; language: Co
         return episodeAt(0);
       case 'translated':
         return episodeAt(1);
+      case 'translate-b1':
+        return b1Episode();
       default:
         return episodeAt(2);
     }

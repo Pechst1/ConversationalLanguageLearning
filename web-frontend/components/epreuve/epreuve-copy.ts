@@ -126,6 +126,9 @@ export type EpreuveCopy = {
   repair_submitting: string;
   repair_ok: string;
   repair_no: string;
+  repair_parts_label: string;
+  repair_parts_gap: string;
+  repair_parts_no: string;
   // listen + record
   listen: string;
   listen_playing: string;
@@ -305,6 +308,9 @@ const FR: EpreuveCopy = {
   repair_submitting: 'Comparaison…',
   repair_ok: 'Juste.',
   repair_no: 'Pas tout à fait — reprends la ligne.',
+  repair_parts_label: 'Corrige seulement les mots soulignés',
+  repair_parts_gap: 'À corriger :',
+  repair_parts_no: 'Pas encore : les mots en rouge sont encore à corriger.',
   listen: 'Écouter',
   listen_playing: 'Lecture…',
   listen_unavailable: 'Voix indisponible',
@@ -478,6 +484,9 @@ const EN: EpreuveCopy = {
   repair_submitting: 'Comparing…',
   repair_ok: 'Right.',
   repair_no: 'Not quite — try the line again.',
+  repair_parts_label: 'Fix only the underlined words',
+  repair_parts_gap: 'To fix:',
+  repair_parts_no: 'Not yet: the words in red still need fixing.',
   listen: 'Listen',
   listen_playing: 'Playing…',
   listen_unavailable: 'Voice unavailable',
@@ -651,6 +660,9 @@ const DE: EpreuveCopy = {
   repair_submitting: 'Wird verglichen…',
   repair_ok: 'Richtig.',
   repair_no: 'Nicht ganz — versuch die Zeile noch einmal.',
+  repair_parts_label: 'Korrigiere nur die unterstrichenen Wörter',
+  repair_parts_gap: 'Zu korrigieren:',
+  repair_parts_no: 'Noch nicht: die roten Wörter sind noch falsch.',
   listen: 'Anhören',
   listen_playing: 'Wird abgespielt…',
   listen_unavailable: 'Stimme nicht verfügbar',

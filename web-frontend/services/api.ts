@@ -760,7 +760,14 @@ export interface UserAchievementProgress {
   target_progress: number;
   completed: boolean;
   unlocked_at?: string | null;
+  /** The avatar item this achievement unlocks (`lib/avatar.ts` REWARDS), if any. */
+  reward_item?: string | null;
 }
+
+/** GET/PUT /avatar — the learner's drawn character, null until they make one,
+ *  and every item an achievement unlocks with how close they are to it. */
+export type AvatarStatePayload = components['schemas']['AvatarState'];
+export type AvatarRewardState = components['schemas']['AvatarRewardRead'];
 
 export interface VocabularyRecommendationSummary {
   due: number;
@@ -1160,6 +1167,17 @@ export interface AtelierForgeNext {
   item?: Record<string, any> | null;
   /** WP-S5: the rule's coach. */
   coach?: ForgeCoach | null;
+  /**
+   * How the item is posed (`app/services/forge_drills.py`): choice, judge,
+   * rafale, tiles, dictation, typed, spot, mine, rewrite, write, scene.
+   */
+  drill?: string | null;
+  /** «Rafale»: every judgement of the burst, the lead first. */
+  items?: Array<Record<string, any>> | null;
+  /** «Rafale»: the ids graded with the lead, in order. */
+  group_item_ids?: string[] | null;
+  /** Chosen from the learner's own mistakes. */
+  personal?: boolean;
 }
 
 export interface AtelierForgeTestOutResult {
@@ -2199,6 +2217,26 @@ class ApiService {
   }
 
   /**
+   * One French word as used in its sentence (`/atelier/gloss`): its dictionary form, its
+   * meaning here in the learner's own language, and the sentence's translation. Empty
+   * strings when the server could not say; the word-help sheet then falls back to the line.
+   */
+  async glossInContext(word: string, sentence: string): Promise<{ lemma: string; gloss: string; language: string; translation: string }> {
+    const trimmed = (word || '').trim();
+    if (!trimmed) return { lemma: '', gloss: '', language: '', translation: '' };
+    const response = await this.atelierPost<Partial<Record<'lemma' | 'gloss' | 'language' | 'translation', string>>>('/atelier/gloss', {
+      word: trimmed.slice(0, 80),
+      sentence: (sentence || '').trim().slice(0, 2000),
+    });
+    return {
+      lemma: response?.lemma || '',
+      gloss: response?.gloss || '',
+      language: response?.language || '',
+      translation: response?.translation || '',
+    };
+  }
+
+  /**
    * WP-78 «Garder»: keep a word tapped in the story, with the sentence it was
    * in, in the learner's own Lexique. WP-138: a 422 is a permanent refusal,
    * `detail = {code, retryable: false, message (French), message_native}`, that
@@ -2554,6 +2592,16 @@ class ApiService {
 
   async checkAchievements() {
     return this.post('/achievements/check');
+  }
+
+  // The learner's avatar (Ton personnage)
+  async getAvatar(): Promise<AvatarStatePayload> {
+    return this.get<AvatarStatePayload>('/avatar', { suppressGlobalError: true } as SilentRequestConfig);
+  }
+
+  /** Replaces the whole record. 403 `avatar_item_locked` for an item not yet earned. */
+  async saveAvatar(avatar: Record<string, string | number | boolean>): Promise<AvatarStatePayload> {
+    return this.put<AvatarStatePayload>('/avatar', { avatar }, { suppressGlobalError: true } as SilentRequestConfig);
   }
 
   // Vocabulary endpoints
@@ -3063,12 +3111,15 @@ class ApiService {
     surface?: string,
     // WP-158: a spoken story reply names its turn, so the server can check the
     // flag, the owner and the per-turn cost ceiling before transcribing.
-    context?: { journeyId: string; stepId: string },
+    // Les appels: a spoken line on a call names the call instead.
+    context?: { journeyId: string; stepId: string } | { callId: string },
   ): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, audioUploadFilename(audioBlob));
     if (surface) formData.append('surface', surface);
-    if (context) {
+    if (context && 'callId' in context) {
+      formData.append('call_id', context.callId);
+    } else if (context) {
       formData.append('journey_id', context.journeyId);
       formData.append('step_id', context.stepId);
     }

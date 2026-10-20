@@ -194,6 +194,15 @@ class MarginNote(JourneyModel):
     panel_id: str | None = None
 
 
+class SeasonPart(JourneyModel):
+    """Which part of a scripted season a page belongs to (``t1``, ``g1``, ``e1``…)."""
+
+    season_id: str
+    segment: str
+    kind: Literal["tentpole", "gap"] | None = None
+    day_in_segment: int | None = None
+
+
 class ScenePrompt(JourneyModel):
     setup_fr: str
     setup_native: str
@@ -222,6 +231,10 @@ class ScenePrompt(JourneyModel):
     premise_native: str | None = None
     #: WP-97: the margin notes this page prints. ``None`` on authored days.
     margin_notes: list[MarginNote] | None = None
+    #: The part of the season this page belongs to: the client draws that part's
+    #: object, and its carrier walks in when a new part begins. ``None`` off a
+    #: scripted season.
+    season_part: SeasonPart | None = None
 
 
 class RecallOption(JourneyModel):

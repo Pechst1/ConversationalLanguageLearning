@@ -2,7 +2,7 @@
  * WP-94 / WP-95 gallery specimens (dev only, `/atelier-v2-gallery`):
  *
  *   · Home on a «Numéro spécial» day — the double-ruled masthead, the card's
- *     kicker and the can-dos, and the next-step line;
+ *     kicker and the can-dos;
  *   · the recap on `epreuve_result: passed` (the oversized seal, the whole
  *     cast) and on `failed` (the kind line and the next date);
  *   · the Carnet with mixed stamps, and a locked future band.
@@ -21,7 +21,7 @@ import { journeyProgress, phaseFromEnvelope } from '@/components/atelier-v2/jour
 import type { DailyJourneyController } from '@/components/atelier-v2/journey/useDailyJourney';
 import { AtelierV2Root } from '@/components/atelier-v2/ui';
 import { CarnetView } from '@/components/cahiers/CarnetTab';
-import { carnetModel, nextStepView, readCanDos } from '@/lib/can-dos';
+import { carnetModel, readCanDos } from '@/lib/can-dos';
 import type { ControlLanguage, JourneyRecap as Recap, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 
 const CAN_DOS = [
@@ -180,7 +180,6 @@ export function CanDoGallerySections({
   Section: React.ComponentType<{ title: string; children: React.ReactNode }>;
 }) {
   const [band, setBand] = useState<string | null>(null);
-  const next = nextStepView({ band: 'A1.1', next: { ...CAN_DOS[1], band: 'A1.1' } }, language);
   return (
     <>
       <Section title="WP-94 · Home — «Numéro spécial»">
@@ -189,7 +188,6 @@ export function CanDoGallerySections({
           editionLabel="Édition Nº 12 · A1.1"
           streak={12}
           language={language}
-          nextStep={next}
           special
           day={dayMarkState(null, language)}
           hero={<JourneyTodayCard controller={offerController(language)} onOpen={() => {}} />}

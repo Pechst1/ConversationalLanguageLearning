@@ -40,6 +40,9 @@ COURRIER_PUSH_FALLBACK_MINUTE = 12 * 60 + 30
 #: WP-99: the per-day cap on scheduled pushes. The optional ones (the Courrier)
 #: stay silent once a learner's local day already carries this many.
 DAILY_PUSH_CAP = 3
+#: Les appels: a call still ringing at this local time is pushed, once a day.
+APPEL_PUSH_EVENT = "appel_push_sent"
+APPEL_PUSH_MINUTE = 19 * 60 + 30
 #: Every scheduled push the cap counts (each one keyed on the local date).
 SCHEDULED_PUSH_EVENTS = (
     MORNING_EVENT,
@@ -47,6 +50,7 @@ SCHEDULED_PUSH_EVENTS = (
     REVIEW_REMINDER_EVENT,
     "rehearsal_reminder_sent",
     COURRIER_PUSH_EVENT,
+    APPEL_PUSH_EVENT,
 )
 FRENCH_MONTHS = (
     "janvier", "février", "mars", "avril", "mai", "juin",
@@ -559,6 +563,76 @@ def send_courrier_pushes(now: str | None = None) -> dict[str, int]:
             except Exception:
                 db.rollback()
                 logger.exception("Failed to send Courrier push", user_id=str(user.id))
+        return {"eligible_users": eligible, "notifications_sent": delivered}
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Les appels — «Romy t'appelle»
+# ---------------------------------------------------------------------------
+
+
+def _send_appel_push(db, user: User, moment: datetime, today: date) -> int:
+    """One learner's call push for ``today``, or nothing. Returns deliveries.
+
+    Only a call that is still ringing: the day is done, someone who heard the
+    learner wants to talk, and the learner has neither picked up nor declined.
+    Asking for today's call rings it when it is due, with no provider call."""
+
+    from app.services import appels
+    from app.services.notification_service import NotificationService
+    from app.services.serial_notifications import appel_push
+
+    key = today.isoformat()
+    if _already_sent(db, user, APPEL_PUSH_EVENT, key):
+        return 0
+    if pushes_sent_on(db, user, today) >= DAILY_PUSH_CAP:
+        return 0
+    call = appels.today(db, user, now=moment)
+    db.commit()
+    if not call or call.get("status") != "ringing":
+        return 0
+    push = appel_push(db, user, call=call)
+    data = push.data("appel_ringing", key)
+    data["call_id"] = str(call["id"])
+    count = NotificationService(db).send_notification(user.id, push.message, push.title, data=data)
+    if not count:
+        return 0
+    _record_sent(
+        db, user, APPEL_PUSH_EVENT, key,
+        {"title": push.title, "message": push.message, "call_id": str(call["id"]),
+         "caller": push.character_id, "deliveries": count},
+    )
+    return count
+
+
+@celery_app.task(name="app.tasks.notifications.send_appel_pushes")
+def send_appel_pushes(now: str | None = None) -> dict[str, int]:
+    """Les appels: «Romy t'appelle» at :data:`APPEL_PUSH_MINUTE` in each learner's
+    zone, for a call still ringing. Every 15 minutes; nothing while
+    ``ATELIER_CALLS_ENABLED`` is off, and silent under :data:`DAILY_PUSH_CAP`."""
+
+    from app.services import appels
+
+    if not appels.calls_enabled():
+        return {"eligible_users": 0, "notifications_sent": 0}
+    moment = _utc_now(now)
+    db = SessionLocal()
+    eligible = delivered = 0
+    try:
+        for user in _push_users(db):
+            if not getattr(user, "practice_reminders", True):
+                continue
+            local = _local_now(user, moment)
+            if not _in_window(_minute_of(local), APPEL_PUSH_MINUTE):
+                continue
+            eligible += 1
+            try:
+                delivered += _send_appel_push(db, user, moment, local.date())
+            except Exception:
+                db.rollback()
+                logger.exception("Failed to send a call push", user_id=str(user.id))
         return {"eligible_users": eligible, "notifications_sent": delivered}
     finally:
         db.close()

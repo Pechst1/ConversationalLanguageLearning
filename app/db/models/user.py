@@ -83,6 +83,10 @@ class User(Base):
     # Settings - Appearance
     theme = Column(String(20), default="system")
     font_size = Column(String(20), default="medium")
+    #: The learner's drawn character: the part ids and colour ids chosen in the
+    #: avatar editor (``app.services.avatar`` validates it). Null until they
+    #: make one.
+    avatar = Column(JSONB().with_variant(JSON(), "sqlite"), nullable=True)
 
     # Settings - Audio
     voice_input_enabled = Column(Boolean, default=True)

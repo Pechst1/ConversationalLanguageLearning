@@ -361,6 +361,17 @@ export function FeuilletonReaderStyles() {
       }
       .av2 .fr-chip[aria-pressed='true'],
       .av2 .fr-chip[data-active='true'] { background: var(--fr-ink); color: var(--av2-on-ink); }
+      /* the translation on its way: the chip's square breathes, nothing moves */
+      .av2 .fr-chip[data-translation='loading'] .sq { animation: fr-translate-wait 1.1s ease-in-out infinite; }
+      @keyframes fr-translate-wait { 50% { opacity: 0.35; } }
+      .av2 .fr-caption-en { padding: 0 2px; }
+      .av2 .fr-translate-note {
+        margin: 0 0 8px;
+        font-family: var(--fr-sans);
+        font-size: 0.8125rem;
+        line-height: 1.35;
+        color: var(--fr-muted);
+      }
 
       /* ---- browse vs act: a revisit is stated, never re-played ---- */
       .av2 .fr-state {
@@ -1001,11 +1012,13 @@ export function FeuilletonReaderStyles() {
       }
       .av2 .fr-sheet-head {
         display: flex;
+        flex-wrap: wrap;
         align-items: flex-end;
         justify-content: space-between;
-        gap: 12px;
+        gap: 10px 12px;
       }
       .av2 .fr-sheet-head .lede { min-width: 0; }
+      .av2 .fr-sheet-tools { display: flex; align-items: center; gap: 12px; margin-left: auto; }
       .av2 .fr-sheet-head .k {
         font-size: 0.8125rem;
         font-weight: 600;
@@ -1073,6 +1086,8 @@ export function FeuilletonReaderStyles() {
         color: var(--fr-muted);
       }
       .av2 .fr-sheet-note { margin: 0; font-size: 0.875rem; color: var(--fr-muted); line-height: 1.5; }
+      .av2 .fr-gloss-lemma { margin: -6px 0 0; font-size: 0.875rem; color: var(--fr-muted); line-height: 1.4; }
+      .av2 .fr-gloss-lemma span { font-family: var(--fr-serif); font-style: italic; font-size: 1rem; color: var(--fr-ink); }
       /* WP-78 «Garder»: one soft pill, sentence case, then a quiet status line. */
       .av2 .fr-keep { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
       .av2 .fr-keep-btn {
@@ -1263,6 +1278,7 @@ export function FeuilletonReaderStyles() {
 
       @media (prefers-reduced-motion: reduce) {
         .av2 .fr-plate[data-pan='slow'] img { animation: none; transform: none; }
+        .av2 .fr-chip[data-translation='loading'] .sq { animation: none; opacity: 0.5; }
         /* WP-90: the drawing simply appears; the ink simply lifts */
         .av2 .fr-reader .fr-plate .fr-art,
         .av2 .fr-reader .fr-plate .fr-ink { transition: none; }

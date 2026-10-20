@@ -6,8 +6,12 @@
  *
  * WP-S6: the surface's name («La Forge», a place name, French in every
  * language) and its action («Forge today's rule», owner decision 1), the
- * séance's one human count, the rule's staircase, the rule-change card and
- * the recap's per-rule progress.
+ * séance's one human count and the recap's per-rule progress.
+ *
+ * Owner, 2026-10-18: the staircase of shapes became a level («Niveau 3», a
+ * tap explains it), the rule-change card and the step line are gone, the
+ * épreuve is offered in the recap, and the new formats name themselves
+ * («Trouve l'erreur», «Dictée», «Rafale»…).
  */
 
 import type { ControlLanguage } from '@/types/daily-journey';
@@ -19,16 +23,44 @@ export type ForgeCopy = {
   surface_name: string;
   surface_action: string;
   count_of: string;
-  stair_label: string;
-  next_rule: string;
-  coach_label: string;
   test_out_action: string;
   test_out_hint: string;
   test_out_starting: string;
   test_out_failed_start: string;
   test_out_eyebrow: string;
-  step_of: string;
-  reprise: string;
+  /** The rule sheet's quiet way to the épreuve. */
+  sheet_test_out: string;
+  /** The rule's level (a rung, 1–6), its screen-reader name and what it means. */
+  level: string;
+  level_label: string;
+  level_explain: string;
+  /** The line under a right answer. */
+  level_up: string;
+  run_cheer: string;
+  cheer_held: string;
+  /** The formats that name themselves, and their one-line hint. */
+  drill_typed: string;
+  drill_dictation: string;
+  drill_spot: string;
+  drill_mine: string;
+  drill_rafale: string;
+  hint_typed: string;
+  hint_dictation: string;
+  hint_spot: string;
+  hint_rafale: string;
+  typed_placeholder: string;
+  accents_label: string;
+  listen: string;
+  listen_slow: string;
+  spot_edit_label: string;
+  spot_undo: string;
+  rafale_score: string;
+  rafale_perfect: string;
+  rafale_time: string;
+  /** The recap's épreuve offer. */
+  offer_title: string;
+  offer_sub: string;
+  offer_action: string;
   result_passed_title: string;
   result_passed_sub: string;
   result_failed_title: string;
@@ -51,20 +83,43 @@ const EN: ForgeCopy = {
   surface_name: 'La Forge',
   surface_action: 'Forge today’s rule',
   count_of: '{n} of {total}',
-  stair_label: 'The rule’s staircase: step {n} of 6, {rung}',
-  next_rule: 'Next rule',
-  coach_label: 'With {name}',
   test_out_action: 'Test out this rule',
   test_out_hint: 'Five items, one of them your own sentence. Pass, and the rule is yours.',
   test_out_starting: 'Preparing the test…',
   test_out_failed_start: 'The test could not start. Try again.',
   test_out_eyebrow: 'Test out',
-  step_of: 'Step {n} of 6 · {rung}',
-  reprise: 'Again, in a new sentence',
+  sheet_test_out: 'Know it already? Take the test',
+  level: 'Level {n}',
+  level_label: 'Your level on this rule: {n} of 6. Tap to see how it works.',
+  level_explain: 'Your level on this rule, from 1 to 6. Right: up one. Wrong: down one, and the rule comes back soon.',
+  level_up: 'Level {n} ↑',
+  run_cheer: '{n} in a row',
+  cheer_held: 'The rule is yours!',
+  drill_typed: 'Type it',
+  drill_dictation: 'Dictation',
+  drill_spot: 'Find the mistake',
+  drill_mine: 'Your sentence',
+  drill_rafale: 'Rapid fire',
+  hint_typed: 'Type the missing form.',
+  hint_dictation: 'Listen, then build what you hear.',
+  hint_spot: 'Tap the wrong word and fix it.',
+  hint_rafale: 'Right or wrong? Four sentences, as fast as you can.',
+  typed_placeholder: 'Type here',
+  accents_label: 'Accents',
+  listen: 'Listen',
+  listen_slow: 'Slower',
+  spot_edit_label: 'Fix “{word}”',
+  spot_undo: 'Undo',
+  rafale_score: '{correct} of {total} right',
+  rafale_perfect: 'Four out of four!',
+  rafale_time: 'in {s} s',
+  offer_title: 'Ready for the test?',
+  offer_sub: '{n} questions. Pass, and the rule is yours.',
+  offer_action: 'Take the test',
   result_passed_title: 'The rule is yours.',
   result_passed_sub: '{correct} of {total} right, your own sentence included. It counts as held from today.',
   result_failed_title: 'Not yet. The forge takes it from here.',
-  result_failed_sub: '{correct} of {total} right. Your practice starts at the “{rung}” step.',
+  result_failed_sub: '{correct} of {total} right. Your practice picks up at level {level}.',
   back_to_rule: 'Back to the rule',
   recap_title: 'Today’s rules, forged.',
   recap_rules_label: 'Your rules today',
@@ -86,7 +141,7 @@ const EN: ForgeCopy = {
   stages: {
     new: 'new',
     introduced: 'introduced',
-    practising: 'proficient',
+    practising: 'practising',
     held: 'held',
   },
 };
@@ -95,20 +150,43 @@ const DE: ForgeCopy = {
   surface_name: 'La Forge',
   surface_action: 'Regel des Tages schmieden',
   count_of: '{n} von {total}',
-  stair_label: 'Die Treppe der Regel: Stufe {n} von 6, {rung}',
-  next_rule: 'Nächste Regel',
-  coach_label: 'Mit {name}',
   test_out_action: 'Diese Regel direkt prüfen',
   test_out_hint: 'Fünf Aufgaben, eine davon ein eigener Satz. Bestanden, und die Regel sitzt.',
   test_out_starting: 'Die Prüfung wird vorbereitet …',
   test_out_failed_start: 'Die Prüfung konnte nicht starten. Bitte noch einmal.',
   test_out_eyebrow: 'Regelprüfung',
-  step_of: 'Stufe {n} von 6 · {rung}',
-  reprise: 'Noch einmal, in einem neuen Satz',
+  sheet_test_out: 'Kannst du sie schon? Direkt prüfen',
+  level: 'Stufe {n}',
+  level_label: 'Deine Stufe bei dieser Regel: {n} von 6. Tippen für die Erklärung.',
+  level_explain: 'Deine Stufe bei dieser Regel, von 1 bis 6. Richtig: eine hoch. Falsch: eine runter, und die Regel kommt bald wieder.',
+  level_up: 'Stufe {n} ↑',
+  run_cheer: '{n} in Folge',
+  cheer_held: 'Die Regel sitzt!',
+  drill_typed: 'Eintippen',
+  drill_dictation: 'Diktat',
+  drill_spot: 'Finde den Fehler',
+  drill_mine: 'Dein Satz',
+  drill_rafale: 'Schnellrunde',
+  hint_typed: 'Tipp die fehlende Form ein.',
+  hint_dictation: 'Hör zu und bau, was du hörst.',
+  hint_spot: 'Tipp auf das falsche Wort und korrigiere es.',
+  hint_rafale: 'Richtig oder falsch? Vier Sätze, so schnell du kannst.',
+  typed_placeholder: 'Hier eintippen',
+  accents_label: 'Akzente',
+  listen: 'Anhören',
+  listen_slow: 'Langsamer',
+  spot_edit_label: '„{word}“ korrigieren',
+  spot_undo: 'Zurück',
+  rafale_score: '{correct} von {total} richtig',
+  rafale_perfect: 'Vier von vier!',
+  rafale_time: 'in {s} s',
+  offer_title: 'Bereit für die Prüfung?',
+  offer_sub: '{n} Fragen. Bestanden, und die Regel sitzt.',
+  offer_action: 'Prüfung starten',
   result_passed_title: 'Die Regel sitzt.',
   result_passed_sub: '{correct} von {total} richtig, der eigene Satz inklusive. Ab heute gilt sie als gefestigt.',
   result_failed_title: 'Noch nicht. Die Schmiede übernimmt.',
-  result_failed_sub: '{correct} von {total} richtig. Dein Training beginnt auf der Stufe „{rung}“.',
+  result_failed_sub: '{correct} von {total} richtig. Dein Training geht auf Stufe {level} weiter.',
   back_to_rule: 'Zurück zur Regel',
   recap_title: 'Die Regeln von heute sind geschmiedet.',
   recap_rules_label: 'Deine Regeln heute',
@@ -130,7 +208,7 @@ const DE: ForgeCopy = {
   stages: {
     new: 'neu',
     introduced: 'eingeführt',
-    practising: 'sicher',
+    practising: 'in Übung',
     held: 'gefestigt',
   },
 };
@@ -139,20 +217,43 @@ const FR: ForgeCopy = {
   surface_name: 'La Forge',
   surface_action: 'Forger la règle du jour',
   count_of: '{n} sur {total}',
-  stair_label: 'L’escalier de la règle : marche {n} sur 6, {rung}',
-  next_rule: 'Règle suivante',
-  coach_label: 'Avec {name}',
   test_out_action: 'Passer l’épreuve de la règle',
   test_out_hint: 'Cinq exercices, dont une phrase à toi. Réussie, la règle est acquise.',
   test_out_starting: 'Préparation de l’épreuve…',
   test_out_failed_start: 'L’épreuve n’a pas pu démarrer. Réessaie.',
   test_out_eyebrow: 'Épreuve de la règle',
-  step_of: 'Marche {n} sur 6 · {rung}',
-  reprise: 'Encore une fois, dans une nouvelle phrase',
+  sheet_test_out: 'Tu la connais déjà ? Passe l’épreuve',
+  level: 'Niveau {n}',
+  level_label: 'Ton niveau sur cette règle : {n} sur 6. Touche pour l’explication.',
+  level_explain: 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : un de moins, et la règle revient bientôt.',
+  level_up: 'Niveau {n} ↑',
+  run_cheer: '{n} d’affilée',
+  cheer_held: 'Règle acquise !',
+  drill_typed: 'Tape la forme',
+  drill_dictation: 'Dictée',
+  drill_spot: 'Trouve l’erreur',
+  drill_mine: 'Ta phrase',
+  drill_rafale: 'Rafale',
+  hint_typed: 'Tape la forme qui manque.',
+  hint_dictation: 'Écoute, puis construis ce que tu entends.',
+  hint_spot: 'Touche le mot faux et corrige-le.',
+  hint_rafale: 'Juste ou faux ? Quatre phrases, le plus vite possible.',
+  typed_placeholder: 'Tape ici',
+  accents_label: 'Accents',
+  listen: 'Écouter',
+  listen_slow: 'Plus lent',
+  spot_edit_label: 'Corriger « {word} »',
+  spot_undo: 'Annuler',
+  rafale_score: '{correct} sur {total}',
+  rafale_perfect: 'Quatre sur quatre !',
+  rafale_time: 'en {s} s',
+  offer_title: 'Prêt pour l’épreuve ?',
+  offer_sub: '{n} questions. Réussie, la règle est acquise.',
+  offer_action: 'Passer l’épreuve',
   result_passed_title: 'La règle est acquise.',
   result_passed_sub: '{correct} sur {total}, ta phrase comprise. Elle est tenue dès aujourd’hui.',
   result_failed_title: 'Pas encore. La forge prend le relais.',
-  result_failed_sub: '{correct} sur {total}. Ton entraînement commence à la marche « {rung} ».',
+  result_failed_sub: '{correct} sur {total}. Ton entraînement reprend au niveau {level}.',
   back_to_rule: 'Retour à la règle',
   recap_title: 'Les règles du jour sont forgées.',
   recap_rules_label: 'Tes règles du jour',
@@ -174,7 +275,7 @@ const FR: ForgeCopy = {
   stages: {
     new: 'nouvelle',
     introduced: 'découverte',
-    practising: 'maîtrisée',
+    practising: 'en route',
     held: 'tenue',
   },
 };
@@ -196,7 +297,11 @@ export function forgeRungLabel(copy: ForgeCopy, rungName: string | null | undefi
   return copy.rungs[key] || copy.rungs.recognise;
 }
 
-/** A life stage's word (`practising` reads «proficient»); unknown → «new». */
+/**
+ * A life stage's word, the grammar map's own (`lib/grammar-stages.ts`): a rule
+ * not held is never «mastered» beside an épreuve that would make it so.
+ * Unknown → «new».
+ */
 export function forgeStageLabel(copy: ForgeCopy, stage: string | null | undefined): string {
   const key = String(stage || '') as ForgeStage;
   return copy.stages[key] || copy.stages.new;

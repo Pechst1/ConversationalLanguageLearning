@@ -6,10 +6,12 @@ from app.api.v1.endpoints import (
     achievements,
     analytics,
     anki,
+    appels,
     atelier,
     audio,
     audio_session,
     auth,
+    avatar,
     can_dos,
     daily_journey,
     dossier,
@@ -63,6 +65,8 @@ api_router.include_router(sessions_ws.router)
 api_router.include_router(vocabulary.router)
 api_router.include_router(analytics.router)
 api_router.include_router(achievements.router)
+# The learner's avatar: free for everyone, onboarding included (no paid guard).
+api_router.include_router(avatar.router)
 api_router.include_router(anki.router)
 api_router.include_router(audio.router, prefix="/audio", tags=["audio"], dependencies=_paid)
 api_router.include_router(grammar.router)
@@ -78,6 +82,9 @@ api_router.include_router(notifications.router)
 # WP-91: before the journey's router, so `/daily-journeys/line-audio/…` is never
 # read as a journey id.
 api_router.include_router(line_audio.router, dependencies=_paid)
+# Les appels: the router carries its flag check (404 while ATELIER_CALLS_ENABLED is
+# off, before auth) and the paid-route guard, in that order.
+api_router.include_router(appels.router)
 api_router.include_router(daily_journey.router, dependencies=_paid)
 api_router.include_router(dossier.router)
 api_router.include_router(placement.router, dependencies=_paid)

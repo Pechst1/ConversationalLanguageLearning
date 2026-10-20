@@ -137,7 +137,10 @@ def test_feuilleton_translations_stay_hidden_until_requested() -> None:
     # The paged reader owns both affordances: one per panel, one per task.
     # WP-82: the affordances' words come from the reader's copy table.
     # WP-90: in the story reader the chip sits in the bar as «Traduire».
-    assert "{chipInBar ? t.translate : showTranslation ? t.hide_translation : t.translate_panel}" in reader
+    # The chip's word is «Traduction…» while an on-demand translation is on its way.
+    assert "{translationState === 'loading'\n        ? t.translating\n        : chipInBar\n          ? t.translate\n          : showTranslation\n            ? t.hide_translation\n            : t.translate_panel}" in reader
+    # The narration's translation, like a line's, renders only once asked for.
+    assert '{showTranslation && stage.captionEn && <p className="fr-line-en fr-caption-en">{stage.captionEn}</p>}' in reader
     assert '{showTranslation && line.en && <p className="fr-line-en">{line.en}</p>}' in reader
     assert "{open ? t.hide_translation : t.translate}" in reader
     reader_copy = read_web("components/feuilleton/reader/reader-copy.ts")
