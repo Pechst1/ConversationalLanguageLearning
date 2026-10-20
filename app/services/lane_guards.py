@@ -30,6 +30,7 @@ lane now receives who said what and the scene's facts); nothing here detects the
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from app.services import living_story as engine
 
@@ -590,20 +591,43 @@ def _kin_phrases(texts: list[str]) -> list[tuple[str, str]]:
     ]
 
 
-def _learner_owned_kin(learner_texts: list[str], speaker_texts: list[str]) -> set[str]:
-    """The relatives the thread has put with the learner and not with the speaker."""
+def _anchors(sentence: str) -> set[str]:
+    """What a sentence says about a relative, the relative left out: its content
+    words by their first five letters («boulangerie» → «boula»)."""
 
-    owned = {kin for poss, kin in _kin_phrases(learner_texts) if poss in _TO_TU}
-    owned |= {kin for poss, kin in _kin_phrases(speaker_texts) if poss not in _TO_TU}
+    return {token[:5] for token in _content(_tokens(_KIN_PHRASE.sub(" ", sentence))) if len(token) >= 4}
+
+
+def _learner_owned_kin(learner_texts: list[str], speaker_texts: list[str]) -> dict[str, set[str]]:
+    """The relatives the thread has put with the learner and not with the speaker,
+    each with the anchors of the sentences that put them there."""
+
+    owned: dict[str, set[str]] = {}
+    for texts, learners in ((learner_texts, True), (speaker_texts, False)):
+        for sentence in (sentence for text in texts for sentence in _SENTENCE.findall(text or "")):
+            for match in _KIN_PHRASE.finditer(sentence):
+                # The learner's «ma grand-mère», or the speaker's «ta grand-mère».
+                if (match.group(1).casefold() in _TO_TU) == learners:
+                    owned.setdefault(_kin_key(match.group(2)), set()).update(_anchors(sentence))
     speaker_own = {kin for poss, kin in _kin_phrases(speaker_texts) if poss in _TO_TU}
-    return owned - speaker_own
+    return {kin: anchors for kin, anchors in owned.items() if kin not in speaker_own}
+
+
+def _is_flip(match: re.Match[str], anchors: set[str], owned: dict[str, set[str]]) -> bool:
+    kin = _kin_key(match.group(2))
+    return match.group(1).casefold() in _TO_TU and kin in owned and bool(anchors & owned[kin])
 
 
 def kin_owner_flips(reply: str, *, learner_texts: list[str], speaker_texts: list[str]) -> list[str]:
     """The «ma / mon / mes + relative» phrases ``reply`` says of the speaker's own that
     the thread has already put with the learner. A phrase in a sentence that shares it
     («Ma grand-mère aussi…») or in a reply that also names the learner's («Ta
-    grand-mère… Ma grand-mère…», a contrast) is not a flip."""
+    grand-mère… Ma grand-mère…», a contrast) is not a flip.
+
+    Only a sentence that says again something the thread said of the learner's
+    relative is one: «La boulangerie de ma grand-mère…» after «La boulangerie de ta
+    grand-mère…». The speaker may have a brother too: «Mon frère est pâtissier.» after
+    the learner's «Mon frère habite à Paris.» shares nothing and stays as written."""
 
     owned = _learner_owned_kin(learner_texts, speaker_texts)
     if not owned or not reply:
@@ -615,9 +639,8 @@ def kin_owner_flips(reply: str, *, learner_texts: list[str], speaker_texts: list
     for sentence in _SENTENCE.findall(reply):
         if _SHARED.search(sentence):
             continue
-        for match in _KIN_PHRASE.finditer(sentence):
-            if match.group(1).casefold() in _TO_TU and _kin_key(match.group(2)) in owned:
-                hits.append(match.group(0))
+        anchors = _anchors(sentence)
+        hits.extend(match.group(0) for match in _KIN_PHRASE.finditer(sentence) if _is_flip(match, anchors, owned))
     return hits
 
 
@@ -631,18 +654,22 @@ def settle_kin_owner(reply: str, *, learner_texts: list[str], speaker_texts: lis
     said = " ".join(speaker_texts)
     mapping = _TO_VOUS if _VOUS_MARKER.search(said) and not _TU_MARKER.search(said) else _TO_TU
 
-    def one(match: re.Match[str]) -> str:
-        poss = match.group(1)
-        if poss.casefold() not in _TO_TU or _kin_key(match.group(2)) not in owned:
-            return match.group(0)
-        new = mapping[poss.casefold()]
-        new = new.capitalize() if poss[:1].isupper() else new
-        return new + match.group(0)[len(poss):]
+    def settle(sentence: str) -> str:
+        if _SHARED.search(sentence):
+            return sentence
+        anchors = _anchors(sentence)
 
-    return "".join(
-        sentence if _SHARED.search(sentence) else _KIN_PHRASE.sub(one, sentence)
-        for sentence in _SENTENCE.findall(reply)
-    ) or reply
+        def one(match: re.Match[str]) -> str:
+            if not _is_flip(match, anchors, owned):
+                return match.group(0)
+            poss = match.group(1)
+            new = mapping[poss.casefold()]
+            new = new.capitalize() if poss[:1].isupper() else new
+            return new + match.group(0)[len(poss):]
+
+        return _KIN_PHRASE.sub(one, sentence)
+
+    return "".join(settle(sentence) for sentence in _SENTENCE.findall(reply)) or reply
 
 
 def kin_owner_hint(hits: list[str]) -> str:
@@ -667,19 +694,32 @@ _STEM = 5
 _REASON = re.compile(
     r"\b(?:parce qu|parce que|puisque|puisqu|car|[àa] cause|gr[âa]ce [àa])\b", re.IGNORECASE
 )
+#: Compared without accents: «était» and «très» are filler as much as «etait».
 _FILLER = frozenset(
-    "parce beaucoup etait etais sera serait tres peut-etre vraiment pense crois sais comprends "
+    "parce beaucoup etait etais sera serait tres peut etre vraiment pense crois sais comprends "
     "pourquoi faire avoir cela cette alors aussi encore toujours jamais souvent quelque quelques "
     "puisque cause grace".split()
 )
+
+
+def _bare(token: str) -> str:
+    return unicodedata.normalize("NFKD", token).encode("ascii", "ignore").decode()
 
 
 def _reason_stems(text: str) -> set[str]:
     return {
         token[:_STEM]
         for token in _content(_tokens(text))
-        if len(token) >= 4 and token not in _FILLER
+        if len(token) >= 4 and _bare(token) not in _FILLER
     }
+
+
+def _reasons(text: str) -> str:
+    """The reasons a turn gives: each sentence from its «parce que», «car», … on."""
+
+    return " ".join(
+        sentence[match.start() :] for sentence in _SENTENCE.findall(text or "") if (match := _REASON.search(sentence))
+    )
 
 
 def ignored_reply_hint(reply: str, learner_text: str) -> str | None:
@@ -688,18 +728,20 @@ def ignored_reply_hint(reply: str, learner_text: str) -> str | None:
     Live walk 20 Oct (#254): «Odile est parti parce que la restaurant était très
     difficile» was answered «Fatiguée. Ici : « courageuse ».» — nothing in it refers to
     the difficulty, the restaurant or the guess. Shared stems are the test (the first
-    five letters of a content word, so «restaurant» meets «restaurants» and «partie»
-    meets «parti»). A turn without a stated reason has nothing the reply must take up
-    and passes."""
+    five letters of a content word, so «restaurant» meets «restaurants»), taken from
+    the reason itself: «Elle était fatiguée» shares «était» with the turn and «Odile ?
+    Elle aimait les chats.» shares «Odile», and neither takes up why. A turn without a
+    stated reason has nothing the reply must take up and passes."""
 
-    if not _REASON.search(learner_text or ""):
+    reasons = _reasons(learner_text)
+    if not reasons:
         return None
-    learner = _reason_stems(learner_text)
+    learner = _reason_stems(reasons)
     if len(learner) < REASONED_REPLY_CONTENT_WORDS or not (reply or "").strip():
         return None
     if learner & _reason_stems(reply):
         return None
-    words = ", ".join(sorted({t for t in _content(_tokens(learner_text)) if t[:_STEM] in learner})[:6])
+    words = ", ".join(sorted({t for t in _content(_tokens(reasons)) if t[:_STEM] in learner})[:6])
     return (
         "The reply does not pick up the reason the learner just gave. Answer it: take up one "
         f"thing from it (for instance: {words}) before you move on."

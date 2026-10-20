@@ -20,6 +20,7 @@ Exact texts are the ones quoted in the issues. Fake models only: nothing is spen
 
 from __future__ import annotations
 
+import re
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -27,10 +28,13 @@ import pytest
 
 from app.db.models.mission import RealWorldMission, RealWorldMissionTurn
 from app.db.models.user import User
-from app.services import lane_guards
+from app.services import lane_guards, story_page
 from app.services import living_story as engine
 from app.services import story_lanes as lanes
 from app.services.missions import MissionConversationService
+from app.services.season.flags import effective_flags
+from app.services.season.format import load_season
+from app.services.season.page import project, resolve_day
 
 # ---------------------------------------------------------------------------
 # #253: Lila, the Courrier «Un message à Lila»
@@ -127,6 +131,8 @@ def test_a_clean_reply_costs_one_call(db_session):
             "Ta grand-mère a un four. Ma grand-mère n'en avait pas.",
             "Ta grand-mère a un four. Ma grand-mère n'en avait pas.",  # a deliberate contrast
         ),
+        # Her own grandmother, in a sentence about something the thread never said of the learner's.
+        ("Ma grand-mère habite à Lyon.", "Ma grand-mère habite à Lyon."),
     ],
 )
 def test_the_owner_repair_is_narrow(reply, repaired):
@@ -134,15 +140,29 @@ def test_the_owner_repair_is_narrow(reply, repaired):
 
 
 def test_the_learner_naming_their_relative_settles_the_owner_too():
-    learner = ["Mon frère vend le café."]
-    assert lane_guards.kin_owner_flips("Mon frère est gentil.", learner_texts=learner, speaker_texts=[])
-    assert lane_guards.settle_kin_owner("Mon frère est gentil.", learner_texts=learner, speaker_texts=[]) == (
-        "Ton frère est gentil."
+    learner = ["Mon frère vend le café au marché."]
+    flipped = "Mon frère vend le café ? C'est bien."
+    assert lane_guards.kin_owner_flips(flipped, learner_texts=learner, speaker_texts=[])
+    assert lane_guards.settle_kin_owner(flipped, learner_texts=learner, speaker_texts=[]) == (
+        "Ton frère vend le café ? C'est bien."
     )
     # In the vous register the learner's relative is «votre».
     assert lane_guards.settle_kin_owner(
-        "Ma mère le sait.", learner_texts=[], speaker_texts=["Et votre mère, elle vient ?"]
-    ) == "Votre mère le sait."
+        "Ma mère vient samedi, c'est sûr.", learner_texts=[], speaker_texts=["Et votre mère, elle vient samedi ?"]
+    ) == "Votre mère vient samedi, c'est sûr."
+
+
+@pytest.mark.parametrize(
+    "learner, reply",
+    [
+        # Review of #257: the repair rewrote a character's own brother into the learner's.
+        (["Mon frère habite à Paris."], "Mon frère est pâtissier."),
+        (["Ma mère est malade."], "Ma mère m'appelle tous les jours."),
+    ],
+)
+def test_a_relative_of_the_speakers_own_is_left_as_written(learner, reply):
+    assert lane_guards.kin_owner_flips(reply, learner_texts=learner, speaker_texts=[]) == []
+    assert lane_guards.settle_kin_owner(reply, learner_texts=learner, speaker_texts=[]) == reply
 
 
 def test_the_scene_voice_lane_repairs_the_owner_too():
@@ -191,6 +211,20 @@ def test_a_line_about_something_else_is_refused_once_with_the_reason():
 @pytest.mark.parametrize(
     "reply",
     [
+        # Sharing a word of the turn is not taking up its reason: «était», or the name asked about.
+        "Elle était fatiguée. Ici : « courageuse ».",
+        "Odile ? Elle aimait les chats.",
+    ],
+)
+def test_a_line_that_shares_only_a_word_outside_the_reason_is_refused_too(reply):
+    voice = lanes.VoiceReply(reply_fr=reply, understood_intent="Lila reflects.", needs_clarification=False)
+    with pytest.raises(engine.SoftRejection):
+        lanes.validate_voice(voice, _scene_payload(LEARNER_REASON))
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
         "Le restaurant, oui. C'était dur pour elle.",
         "Difficile, tu dis ? Elle ne parlait jamais de ça.",
     ],
@@ -211,3 +245,50 @@ def test_a_turn_without_a_reason_and_a_clarification_are_not_held_to_it():
     lanes.validate_voice(thanks, _scene_payload("Oui, je viens samedi avec des affiches."))
     asking = lanes.VoiceReply(reply_fr="Pardon ? Tu peux répéter ?", understood_intent="x", needs_clarification=True)
     lanes.validate_voice(asking, _scene_payload(LEARNER_REASON))
+
+
+# ---------------------------------------------------------------------------
+# #254: the finished page of Nº 9 «Là-haut» — the day it names, and its last panel
+# ---------------------------------------------------------------------------
+
+_WEEKDAY = re.compile(r"\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b", re.IGNORECASE)
+
+
+def _la_haut_page(band: str = "A1") -> tuple[dict, str]:
+    """T2 day a as the reader's finished page («Là-haut · 16/16»)."""
+
+    season = load_season("s1")
+    day = resolve_day(season, "t2", "a", flags=effective_flags(season, {}, seed="x"), band=band, language="en")
+    ending = project(day)["ending"]["text_fr"]
+    scene = SimpleNamespace(
+        status="completed",
+        script_payload={"season_page": day, "season_routing": [], story_page.HOOK_PAYLOAD_KEY: ending},
+        recap_payload={"resolution_fr": ending},
+    )
+    return story_page.episode_page(scene, [], {}), ending
+
+
+@pytest.mark.parametrize("band", ["A1", "A2", "B1"])
+def test_the_page_names_one_day_and_a_polaroids_caption_reads_as_written_on_it(band):
+    """«Mercredi» in panel 1, then «Mardi. Marin pleure devant une pub.»: Odile's old
+    Polaroid, read under the place's plate as if the narrator said it."""
+
+    page, _ending = _la_haut_page(band)
+    narration = [row["narration_fr"] for row in page["rows"] if row["narration_fr"]]
+    outside_quotes = [re.sub(r"«[^»]*»", "", text) for text in narration]
+    named = {day.casefold() for text in outside_quotes for day in _WEEKDAY.findall(text)}
+    assert named <= {"mercredi"}, outside_quotes
+    assert any("«Mardi. Marin pleure devant une pub. Encore.»" in text for text in narration)
+
+
+def test_the_last_panel_is_the_polaroid_and_the_hook_one_sentence_that_sets_the_question():
+    """Live, A1: «Lila. Elle part ou elle reste ? — juin 2021 Odile savait une chose sur
+    Lila. Lila aussi. À suivre…» — the Polaroid glued to the hook, and the hook two
+    fragments that answer nothing."""
+
+    page, ending = _la_haut_page("A1")
+    last = page["rows"][-1]
+    assert last["movement"] == "ending"
+    assert last["narration_fr"] == "«Lila. Elle part ou elle reste ? — juin 2021»"
+    body = ending.removesuffix("À suivre…").strip()
+    assert body.endswith("?") and not re.search(r"[.!?…]", body[:-1]), ending

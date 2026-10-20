@@ -58,13 +58,26 @@ def _line(line: dict[str, Any], names: dict[str, str]) -> dict[str, Any] | None:
     }
 
 
-def _narration(panel: dict[str, Any]) -> str:
-    parts = [str(text).strip() for text in panel.get("diegetic") or [] if str(text).strip()]
-    parts += [
+def _inscription(text: str) -> str:
+    """Text written on something in the picture, quoted: the page's art is the place's
+    plate, so a Polaroid's caption is read under it, and unquoted it read as the
+    narrator's (#254: «Mardi. Marin pleure…» after the scene's «Mercredi»)."""
+
+    return text if text.startswith("«") else f"«{text}»"
+
+
+def _captions(panel: dict[str, Any]) -> str:
+    return " ".join(
         str(line.get("text_fr") or "").strip()
         for line in panel.get("lines") or []
         if line.get("kind") == "caption" and str(line.get("text_fr") or "").strip()
-    ]
+    )
+
+
+def _narration(panel: dict[str, Any], *, captions: bool = True) -> str:
+    parts = [_inscription(str(text).strip()) for text in panel.get("diegetic") or [] if str(text).strip()]
+    if captions and _captions(panel):
+        parts.append(_captions(panel))
     return " ".join(parts)
 
 
@@ -92,10 +105,11 @@ class _Tentpole:
                     "you": True,
                 }
             )
-        narration = _narration(panel)
-        if movement == "ending" and narration.strip() == self.ending_fr:
-            # The reader's «case finale» says the hook; the drawn ending does not repeat it.
-            narration = ""
+        # The reader's «case finale» says the hook; the drawn ending does not repeat it.
+        # #254: it keeps what is written in its picture, and only that, not glued to the
+        # hook («Lila. Elle part ou elle reste ? — juin 2021 Odile savait…»).
+        repeats_hook = movement == "ending" and _captions(panel) == self.ending_fr
+        narration = _narration(panel, captions=not repeats_hook)
         image = plate_for(self.location)
         self.rows.append(
             {
