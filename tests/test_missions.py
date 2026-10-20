@@ -1633,6 +1633,83 @@ def test_a_clean_courrier_reply_with_the_corrector_down_is_not_called_unavailabl
         assert "unavailable" not in line and "disponible" not in line and "verfügbar" not in line
 
 
+def test_a_courrier_reply_the_corrector_could_not_check_can_be_checked_again(
+    client: TestClient, db_session, monkeypatch
+):
+    """#251: «No corrections found» after a failed check offers «Check again», and asking
+    again marks the mistake the model-free pass cannot see."""
+    monkeypatch.setattr(NewsService, "fetch_france_context", _fake_france_context)
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    mission_id = client.post(
+        "/api/v1/missions/",
+        json={"mission_type": "message", "cadence": "ad_hoc", "use_news": False},
+        headers=headers,
+    ).json()["mission"]["id"]
+    text = "Hier, j'ai acheté des pommes rouge au marché pour ma grand-mère."
+
+    down = {"value": True}
+
+    def _llm_correction(self, *, user, mission, text, mode):  # type: ignore[no-untyped-def]
+        if down["value"]:
+            return None
+        return {
+            "verdict": "needs_revision",
+            "score_0_4": 2,
+            "corrected_answer": text.replace("pommes rouge", "pommes rouges"),
+            "objective_progress": [],
+            "concept_hits": [],
+            "missing_targets": [],
+            "errata": [
+                {
+                    "display_label": "Agreement",
+                    "learner_text": "pommes rouge",
+                    "corrected_target": "pommes rouges",
+                    "why_wrong": "« rouge » agrees with « pommes »: plural.",
+                    "repair_hint": "Add -s to the adjective.",
+                    "severity": 2,
+                    "recurring": False,
+                    "task_error_type": "agreement",
+                    "external_id": "",
+                }
+            ],
+            "vocabulary_links": [],
+            "_fallback_used": False,
+        }
+
+    monkeypatch.setattr(MissionCorrectionService, "_llm_correction", _llm_correction)
+    turn = client.post(f"/api/v1/missions/{mission_id}/turns", json={"text": text, "mode": "chat"}, headers=headers)
+    assert turn.status_code == 200
+    user_turn = turn.json()["user_turn"]
+    assert user_turn["correction"]["verdict"] == "unassessed"
+
+    # Still down: the reply keeps its first correction, nothing is filed twice.
+    still_down = client.post(f"/api/v1/missions/{mission_id}/turns/{user_turn['id']}/correction", headers=headers)
+    assert still_down.status_code == 200
+    assert still_down.json()["correction"]["verdict"] == "unassessed"
+    assert still_down.json()["errata"] == []
+
+    down["value"] = False
+    again = client.post(f"/api/v1/missions/{mission_id}/turns/{user_turn['id']}/correction", headers=headers)
+    assert again.status_code == 200
+    body = again.json()
+    assert body["correction"]["verdict"] == "needs_revision"
+    assert [(item["learner_text"], item["corrected_target"]) for item in body["correction"]["errata"]] == [
+        ("pommes rouge", "pommes rouges")
+    ]
+    assert body["correction"]["persistence"]["repair_count"] == 1
+    stored = [item for item in body["mission"]["turns"] if item["id"] == user_turn["id"]]
+    assert stored and stored[0]["correction"]["verdict"] == "needs_revision"
+
+    # A checked reply is handed back as it stands: no second ask, no second erratum.
+    twice = client.post(f"/api/v1/missions/{mission_id}/turns/{user_turn['id']}/correction", headers=headers)
+    assert twice.json()["errata"] == []
+    assert twice.json()["correction"]["persistence"] == body["correction"]["persistence"]
+
+    other = client.post(f"/api/v1/missions/{mission_id}/turns/{uuid4()}/correction", headers=headers)
+    assert other.status_code == 404
+
+
 def test_a_courrier_correction_citing_a_subject_that_is_not_in_the_reply_is_dropped(db_session):
     """#193 on the Courrier: «With « tu », « est » must be « es »» about a reply with no «tu»."""
     user = User(id=uuid4(), email="courrier-tu@example.com", hashed_password="x", proficiency_level="A1")

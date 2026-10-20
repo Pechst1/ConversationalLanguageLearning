@@ -1836,6 +1836,14 @@ export interface MissionTurnResult {
   outcome?: Record<string, any>;
 }
 
+/** #251: a reply the corrector could not check, asked again. */
+export interface MissionTurnCorrectionResult {
+  user_turn: Record<string, any>;
+  correction: VocabularyCorrectionPayload;
+  errata: LinkedVocabularyErratum[];
+  mission: RealWorldMission;
+}
+
 export interface GraphicNovelPanel {
   id: string;
   panel_index: number;
@@ -2867,6 +2875,10 @@ class ApiService {
 
   async submitMissionTurn(missionId: string, data: { text: string; mode?: 'chat' | 'voice'; transcript_metadata?: Record<string, any> }) {
     return this.atelierPost<MissionTurnResult>(`/missions/${missionId}/turns`, data);
+  }
+
+  async retryMissionTurnCorrection(missionId: string, turnId: string) {
+    return this.atelierPost<MissionTurnCorrectionResult>(`/missions/${missionId}/turns/${turnId}/correction`);
   }
 
   async completeMission(missionId: string) {

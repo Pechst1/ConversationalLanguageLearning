@@ -3938,6 +3938,7 @@ class MissionCorrectionService:
         correction: dict[str, Any],
         mode: str,
         source_id: str,
+        include_vocabulary: bool = True,
     ) -> list[dict[str, Any]]:
         memory = ErrorMemoryService(self.db)
         persisted: list[dict[str, Any]] = []
@@ -3965,6 +3966,8 @@ class MissionCorrectionService:
             )
             if update:
                 persisted.append(update)
+        if not include_vocabulary:
+            return persisted
         persisted.extend(
             self._apply_vocabulary_events(
                 user=user,
