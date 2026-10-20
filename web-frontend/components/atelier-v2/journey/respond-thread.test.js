@@ -588,6 +588,29 @@ test('#217 the day-1 reply thread names Gus once: speaker labels and listen butt
   assert.ok(html.includes('Margaux anhören'));
 });
 
+test('#217 a speaker without a drawn face keeps the whole registry name in a many-voiced reply', () => {
+  const s = step({
+    turn_index: 1,
+    character_id: 'camille_marchand',
+    character_name: 'Camille',
+    character_line_fr: 'Tu viens ?',
+    thread: [{
+      learner_fr: 'Oui, je viens.',
+      character_fr: 'Super.\nBastien Roux : Moi aussi.\nMme Diallo : Bonjour.',
+      correction: null,
+      character_lines: [
+        { speaker_id: 'camille_marchand', speaker_name: 'Camille', text_fr: 'Super.' },
+        { speaker_id: 'bastien_roux', speaker_name: 'Bastien Roux', text_fr: 'Moi aussi.' },
+        { speaker_id: 'mme_diallo', speaker_name: 'Mme Diallo', text_fr: 'Bonjour.' },
+      ],
+    }],
+  });
+  const { threadBubbles: bubblesOf } = require('./respond-thread.ts');
+  const spoken = bubblesOf({ prompt: s.prompt }).filter((b) => b.kind === 'character' && b.speaker && b.reply);
+  // Before: «Bastien» and «Mme», the first word of the name the server sent.
+  assert.deepEqual(spoken.map((b) => b.speaker.name), ['Camille', 'Bastien Roux', 'Mme Diallo']);
+});
+
 
 // ===========================================================================
 // QA-STORY 2026-10-03 — a story reply is never «Correct»

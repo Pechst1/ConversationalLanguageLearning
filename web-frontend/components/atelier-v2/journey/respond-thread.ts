@@ -41,7 +41,7 @@ function spokenLines(value: unknown): SpokenLine[] {
 import { correctionNotes, dedupeNotes } from '@/lib/correction-notes';
 
 import type { JourneyFeedback } from './journey-state';
-import { shortCharacterName } from './reply-task';
+import { speakerOf } from './journey-faces';
 
 // ---------------------------------------------------------------------------
 // Local copy of the thread (servers that predate WP-89 send no `thread`)
@@ -357,11 +357,9 @@ export function threadBubbles(input: {
           text: spoken.text_fr,
           reply: true,
           latest: false,
-          // One name per person (#217): the cast's display name, whatever the payload carried.
-          speaker: {
-            id: spoken.speaker_id ?? null,
-            name: shortCharacterName(spoken.speaker_name ?? '', spoken.speaker_id),
-          },
+          // One name per person (#217): the cast's display name, whatever the payload carried;
+          // anyone without a face keeps the registry name the server sent («Bastien Roux»).
+          speaker: speakerOf(spoken.speaker_id, spoken.speaker_name ?? ''),
         });
       });
       // The next line may repeat the joined reply: said once.
