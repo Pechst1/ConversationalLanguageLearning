@@ -87,6 +87,11 @@ const intOrNull = (value: unknown): number | null => {
   return Number.isFinite(n) ? Math.trunc(n) : null;
 };
 const list = (value: unknown): any[] => (Array.isArray(value) ? value : []);
+/** The same line, spaced or typed differently («Lila ?» / «Lila?», ’ / '). */
+const sameLine = (a: string, b: string): boolean => {
+  const bare = (line: string) => line.normalize('NFC').replace(/\s+/g, '').replace(/’/g, "'").toLowerCase();
+  return bare(a) === bare(b);
+};
 
 export function normalizeMarginNote(raw: any): ArchiveMarginNote | null {
   const sentence = text(raw?.text_fr);
@@ -111,6 +116,8 @@ function normalizeDay(raw: any): ArchiveDay | null {
   const sceneId = textOrNull(raw?.scene_id);
   const date = text(raw?.date);
   if (!journeyId && !sceneId && !date) return null;
+  const ending = textOrNull(raw?.ending_fr);
+  const hook = textOrNull(raw?.hook_fr);
   return {
     date,
     journey_id: journeyId,
@@ -119,8 +126,9 @@ function normalizeDay(raw: any): ArchiveDay | null {
     edition_no: intOrNull(raw?.edition_no),
     image_url: textOrNull(raw?.image_url),
     learner_lines: list(raw?.learner_lines).map(text).filter(Boolean),
-    ending_fr: textOrNull(raw?.ending_fr),
-    hook_fr: textOrNull(raw?.hook_fr),
+    ending_fr: ending,
+    // #237: a day whose ending already is its hook says the line once.
+    hook_fr: hook && ending && sameLine(hook, ending) ? null : hook,
     margin_notes: marginNotes(raw?.margin_notes),
     can_do_id: textOrNull(raw?.can_do_id),
     special: raw?.special === 'epreuve' ? 'epreuve' : null,

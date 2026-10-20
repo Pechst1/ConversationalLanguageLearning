@@ -380,6 +380,21 @@ test('#237: a filed day carries the one «À suivre…» hook it was settled wit
   assert.doesNotMatch(decode(inRoot(h(surface.ArchiveDayPage, { day: none, language: 'fr', episode: null }))), /data-hook/);
 });
 
+test('#237: a day whose ending already is its hook says the line once', () => {
+  const filed = (extra) =>
+    model.normalizeArchive({
+      seasons: [{ number: 1, chapters: [{ index: 1, title_fr: 'C', closed: false, days: [day('2026-09-15', 3, extra)] }] }],
+    }).seasons[0].chapters[0].days[0];
+  const hook = 'Qu’est-ce qu’Odile savait sur Lila ? À suivre…';
+  const same = filed({ ending_fr: "Qu'est-ce qu'Odile savait sur Lila?  À suivre…", hook_fr: hook });
+  assert.equal(same.hook_fr, null);
+  const html = text(decode(inRoot(h(surface.ArchiveDayPage, { day: same, archive: ARCHIVE, language: 'fr', episode: null }))));
+  assert.equal(html.split('Odile savait sur Lila').length - 1, 1, html);
+  // An ending that says something else keeps the hook under it.
+  const other = filed({ ending_fr: 'Lila garde la photo.', hook_fr: hook });
+  assert.equal(other.hook_fr, hook);
+});
+
 test('WP-110: a finished page is the record — the replies are not repeated under it', () => {
   const d = model.findArchiveDay(ARCHIVE, { date: '2026-09-15' });
   const episode = {

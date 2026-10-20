@@ -55,7 +55,7 @@ class _ScriptedLLM:
         return SimpleNamespace(content=self.replies.pop(0), usage=None)
 
 
-def _lila_thread(db_session, *, learner_says: str):
+def _lila_thread(db_session, *, learner_says: str, opening: str = LILA_OPENING, register: str | None = None):
     user = User(id=uuid4(), email="lila-thread@example.com", hashed_password="x", proficiency_level="A2")
     db_session.add(user)
     db_session.flush()
@@ -71,13 +71,19 @@ def _lila_thread(db_session, *, learner_says: str):
         target_vocabulary_ids=[],
         source_snapshot={},
         objectives=[],
-        prompt_payload={"messenger": {"contact_name": "Lila", "contact_role": "une amie"}},
+        prompt_payload={
+            "messenger": {
+                "contact_name": "Lila",
+                "contact_role": "une amie",
+                **({"target_register": register} if register else {}),
+            }
+        },
         recap_payload={},
     )
     mission.turns = [
         RealWorldMissionTurn(
             mission_id=mission.id, user_id=user.id, turn_index=1, role="assistant", mode="chat",
-            text=LILA_OPENING, correction_payload={},
+            text=opening, correction_payload={},
         ),
         RealWorldMissionTurn(
             mission_id=mission.id, user_id=user.id, turn_index=2, role="user", mode="chat",
@@ -119,6 +125,26 @@ def test_a_clean_reply_costs_one_call(db_session):
     )
     assert reply == "Ta grand-mère devait avoir de belles choses."
     assert len(llm.calls) == 1
+
+
+def test_a_polite_correspondent_hands_the_relative_back_with_votre(db_session):
+    """Review of #257: the mission's register outranks a guess from the earlier lines. A
+    polite correspondent who has not said «vous» yet hands the learner's grandmother back
+    as «votre grand-mère», not «ta»."""
+
+    learner_says = "Ma grand-mère avait une boulangerie rue Victor-Hugo."
+    flipped = "La boulangerie de ma grand-mère, rue Victor-Hugo ? Je connais bien la rue."
+    user, mission = _lila_thread(
+        db_session,
+        learner_says=learner_says,
+        opening="Bonjour. J'ai une vieille photo du quartier.",
+        register="vous / registre poli",
+    )
+    llm = _ScriptedLLM(flipped, flipped)
+    reply = MissionConversationService(db_session, llm_service=llm).respond(
+        user=user, mission=mission, user_text=learner_says
+    )
+    assert reply == "La boulangerie de votre grand-mère, rue Victor-Hugo ? Je connais bien la rue."
 
 
 @pytest.mark.parametrize(
@@ -245,6 +271,25 @@ def test_a_turn_without_a_reason_and_a_clarification_are_not_held_to_it():
     lanes.validate_voice(thanks, _scene_payload("Oui, je viens samedi avec des affiches."))
     asking = lanes.VoiceReply(reply_fr="Pardon ? Tu peux répéter ?", understood_intent="x", needs_clarification=True)
     lanes.validate_voice(asking, _scene_payload(LEARNER_REASON))
+
+
+@pytest.mark.parametrize(
+    "learner",
+    [
+        "Le car était en retard ce matin, avec beaucoup de touristes.",
+        "J'ai pris un car pour Marseille avec ma valise rouge.",
+    ],
+)
+def test_the_coach_is_not_a_reason(learner):
+    """Review of #257: «car» after a determiner is the coach, not «because»: the turn gives
+    no reason the reply has to take up."""
+
+    assert lane_guards.ignored_reply_hint("Bonjour ! Tu viens samedi ?", learner) is None
+
+
+def test_a_reason_after_the_coach_is_still_one():
+    hint = lane_guards.ignored_reply_hint("Bonjour ! Tu viens samedi ?", "Je prends le car car il pleut sur la ville.")
+    assert hint is not None and "pleut" in hint
 
 
 # ---------------------------------------------------------------------------

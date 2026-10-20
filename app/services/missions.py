@@ -6545,7 +6545,12 @@ class MissionConversationService:
                 reply = retry.content
             except LLMProviderError:
                 logger.debug("Mission relative-owner retry failed")
-        return lane_guards.settle_kin_owner(reply, learner_texts=learner_texts, speaker_texts=speaker_texts)
+        return lane_guards.settle_kin_owner(
+            reply,
+            learner_texts=learner_texts,
+            speaker_texts=speaker_texts,
+            register=str(messenger.get("target_register") or payload.get("target_register") or ""),
+        )
 
     def respond_for_atelier(
         self,

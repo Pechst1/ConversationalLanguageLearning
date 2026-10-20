@@ -644,15 +644,26 @@ def kin_owner_flips(reply: str, *, learner_texts: list[str], speaker_texts: list
     return hits
 
 
-def settle_kin_owner(reply: str, *, learner_texts: list[str], speaker_texts: list[str]) -> str:
+def settle_kin_owner(
+    reply: str, *, learner_texts: list[str], speaker_texts: list[str], register: str | None = None
+) -> str:
     """``reply`` with every flipped possessive handed back to the learner («ma» → «ta»,
-    or «votre» when the thread has said vous). Unchanged when nothing flipped."""
+    or «votre» when the thread says vous). Unchanged when nothing flipped.
+
+    ``register`` is how the speaker addresses the learner («tu / …» or «vous / …», as a
+    mission's ``target_register`` holds it). It outranks a guess from the earlier lines,
+    which may hold no «vous» yet: a polite correspondent's first reply would otherwise
+    hand back «ta grand-mère»."""
 
     if not kin_owner_flips(reply, learner_texts=learner_texts, speaker_texts=speaker_texts):
         return reply
     owned = _learner_owned_kin(learner_texts, speaker_texts)
-    said = " ".join(speaker_texts)
-    mapping = _TO_VOUS if _VOUS_MARKER.search(said) and not _TU_MARKER.search(said) else _TO_TU
+    declared = (register or "").strip().casefold()
+    if declared.startswith(("tu", "vous")):
+        mapping = _TO_VOUS if declared.startswith("vous") else _TO_TU
+    else:
+        said = " ".join(speaker_texts)
+        mapping = _TO_VOUS if _VOUS_MARKER.search(said) and not _TU_MARKER.search(said) else _TO_TU
 
     def settle(sentence: str) -> str:
         if _SHARED.search(sentence):
@@ -714,11 +725,32 @@ def _reason_stems(text: str) -> set[str]:
     }
 
 
+#: «car» after one of these is the noun, the coach: «le car était en retard».
+_CAR_NOUN_BEFORE = frozenset(
+    "le un du au ce mon ton son notre votre leur des les aux ces mes tes ses nos vos leurs "
+    "quel en par dans".split()
+)
+_WORD = re.compile(r"\w+")
+
+
+def _reason_start(sentence: str) -> int | None:
+    """Where a sentence's reason starts, or None when it gives none."""
+
+    for match in _REASON.finditer(sentence):
+        before = _WORD.findall(sentence[: match.start()])[-1:]
+        if match.group(0).casefold() == "car" and before and before[0].casefold() in _CAR_NOUN_BEFORE:
+            continue
+        return match.start()
+    return None
+
+
 def _reasons(text: str) -> str:
     """The reasons a turn gives: each sentence from its «parce que», «car», … on."""
 
     return " ".join(
-        sentence[match.start() :] for sentence in _SENTENCE.findall(text or "") if (match := _REASON.search(sentence))
+        sentence[start:]
+        for sentence in _SENTENCE.findall(text or "")
+        if (start := _reason_start(sentence)) is not None
     )
 
 

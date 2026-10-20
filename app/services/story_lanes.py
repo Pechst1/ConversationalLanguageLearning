@@ -553,11 +553,11 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     # #253 (root cause #145): once the scene has put a relative with the learner («ta
     # grand-mère»), the character does not take her for her own.
     learner_texts, speaker_texts = thread_voices(payload)
+    expected = _scene_register(scene)
     voice.reply_fr = lane_guards.settle_kin_owner(
-        voice.reply_fr, learner_texts=learner_texts, speaker_texts=speaker_texts
+        voice.reply_fr, learner_texts=learner_texts, speaker_texts=speaker_texts, register=expected
     )
     engine._check_register([voice.reply_fr], level)
-    expected = _scene_register(scene)
     said = engine._address_register([voice.reply_fr])
     if expected and said and said != expected:
         raise engine.StoryUnavailable(
