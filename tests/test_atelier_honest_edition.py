@@ -58,7 +58,9 @@ def test_finish_is_available_once_anything_is_banked():
 def test_partial_finish_confirms_once_and_says_so():
     topbar = _source("components/epreuve/Epreuve.tsx")
     assert "partial = false" in topbar
-    assert "if (partial && !confirming)" in topbar
+    # #88: the tap goes through the two-tap seam, which asks first when partial.
+    assert "nextFinishState({ confirming }, 'tap', partial)" in topbar
+    assert "if (partial && !state.confirming)" in _source("components/epreuve/finish-confirm.ts")
     # WP-82: the confirm and the early-close line follow the chrome language.
     assert "{confirming ? t.finish_confirm : t.finish}" in topbar
     copy = _source("components/epreuve/epreuve-copy.ts")
