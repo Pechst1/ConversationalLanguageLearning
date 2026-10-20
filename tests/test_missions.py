@@ -1586,3 +1586,94 @@ def test_an_intonation_question_is_never_corrected_to_an_inversion(db_session):
     )
 
     assert [item["corrected_target"] for item in correction["errata"]] == ["Le radiateur est froid"]
+
+
+class _DownLLM:
+    """A corrector that is down: every call fails the way a provider fails."""
+
+    def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+        from app.services.llm_service import LLMProviderError
+
+        raise LLMProviderError("provider unavailable")
+
+
+def test_a_courrier_reply_with_the_corrector_down_still_gets_the_real_corrections(db_session):
+    """#251/#250: «Not corrected yet: the corrector was unavailable» left the mistakes unmarked."""
+    user = User(id=uuid4(), email="courrier-down@example.com", hashed_password="x", proficiency_level="A1")
+    text = "Je vais sonné la cloche et je vend la bouillotte à Lila, elle est parti."
+    correction = MissionCorrectionService(db_session, llm_service=_DownLLM()).correct_submission(
+        user=user, mission=_mission_for_correction(), text=text, mode="chat"
+    )
+
+    pairs = {(item["learner_text"], item["corrected_target"]) for item in correction["errata"]}
+    assert ("sonné", "sonner") in pairs
+    assert ("vend", "vends") in pairs
+    assert all(item["learner_text"] in text for item in correction["errata"])
+    assert correction["verdict"] != "unassessed"
+    assert correction["corrected_answer"] != text
+
+
+def test_a_clean_courrier_reply_with_the_corrector_down_is_not_called_unavailable(db_session):
+    """The 20 Oct reply was correct French: nothing to mark, and no dead-end line."""
+    user = User(id=uuid4(), email="courrier-down-2@example.com", hashed_password="x", proficiency_level="A1")
+    text = "Non, ce n’est pas un projet artistique. C’est la bouillotte de ma grand-mère, pas la tienne !"
+    correction = MissionCorrectionService(db_session, llm_service=_DownLLM()).correct_submission(
+        user=user, mission=_mission_for_correction(), text=text, mode="chat"
+    )
+    assert correction["errata"] == []
+
+    from pathlib import Path
+
+    copy = (Path(__file__).resolve().parents[1] / "web-frontend/components/courrier/courrier-copy.ts").read_text(
+        encoding="utf-8"
+    )
+    lines = [line for line in copy.splitlines() if line.strip().startswith("unassessed:")]
+    assert len(lines) == 3
+    for line in lines:
+        assert "unavailable" not in line and "disponible" not in line and "verfügbar" not in line
+
+
+def test_a_courrier_correction_citing_a_subject_that_is_not_in_the_reply_is_dropped(db_session):
+    """#193 on the Courrier: «With « tu », « est » must be « es »» about a reply with no «tu»."""
+    user = User(id=uuid4(), email="courrier-tu@example.com", hashed_password="x", proficiency_level="A1")
+
+    class _TuLLM:
+        def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+            return LLMResult(
+                provider="stub",
+                model="stub-correction",
+                content=json.dumps(
+                    {
+                        "verdict": "needs_revision",
+                        "score_0_4": 2,
+                        "corrected_answer": "Odile est parti.",
+                        "objective_progress": [],
+                        "concept_hits": [],
+                        "missing_targets": [],
+                        "errata": [
+                            {
+                                "display_label": "Verb form",
+                                "learner_text": "est",
+                                "corrected_target": "es",
+                                "why_wrong": "With « tu », « est » must be « es ».",
+                                "repair_hint": "es",
+                                "severity": 2,
+                                "recurring": False,
+                                "task_error_type": "verb_conjugation",
+                                "external_id": "",
+                            }
+                        ],
+                        "vocabulary_links": [],
+                    }
+                ),
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0,
+                raw_response={},
+            )
+
+    correction = MissionCorrectionService(db_session, llm_service=_TuLLM()).correct_submission(
+        user=user, mission=_mission_for_correction(), text="Odile est parti hier soir avec nous.", mode="chat"
+    )
+    assert ("est", "es") not in {(item["learner_text"], item["corrected_target"]) for item in correction["errata"]}
