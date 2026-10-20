@@ -1889,6 +1889,10 @@ class MissionGenerator:
                 learner_band=band,
             )
             objectives = [*custom_objectives, *objectives]
+            if custom_context.get("source") == "story_born":
+                # #117: a cast member's note is not the domain's letter, so the domain's
+                # complication («Il reste un seul article à ta taille») is not their P.S.
+                variety = {**variety, "twist": None}
         letter_fit, messenger = self._letter_fit(
             band=band,
             rotation=rotation,
@@ -2866,6 +2870,9 @@ class MissionGenerator:
             ),
             "success_signal": (messenger.get("success_signal") if generated else None) or outcome,
         }
+        # The one P.S. the writer wrote themselves (in their own address form, checked
+        # above); an authored letter's complication is the narrator's note, not a P.S.
+        story_messenger["twist_is_ps"] = bool(story_messenger["twist"])
         known = custom_context.get("desired_outcome_i18n")
         if not generated and isinstance(known, dict) and known.get("fr") == story_messenger["success_signal"]:
             story_messenger["success_signal_i18n"] = dict(known)

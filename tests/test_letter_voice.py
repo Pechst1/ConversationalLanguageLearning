@@ -177,12 +177,15 @@ def test_a_story_born_letter_drops_a_ps_that_contradicts_its_opening() -> None:
         title="Un mot de Marin", brief="", messenger=messenger, custom_context=context
     )
     assert not story_messenger.get("twist"), story_messenger.get("twist")
+    assert story_messenger["twist_is_ps"] is False
     # A consistent P.S. is kept.
     messenger["twist"] = "Sur la photo, la porte est bleue. Ta porte est verte."
     _title, _brief, story_messenger, _objectives = generator._story_born_mission(
         title="Un mot de Marin", brief="", messenger=messenger, custom_context=context
     )
     assert story_messenger["twist"] == messenger["twist"]
+    # #117: the writer's own P.S., so the Courrier prints it as «P.S.».
+    assert story_messenger["twist_is_ps"] is True
 
 
 def test_the_letter_writer_is_told_why_a_mixed_draft_was_refused(monkeypatch) -> None:
