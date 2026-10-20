@@ -210,6 +210,41 @@ export class LearnerWalk {
     await face.click().catch(() => {});
   }
 
+  /**
+   * #239: after a La Forge miss the correction card (the right sentence and why) is
+   * fully visible between the sticky header and the sticky verdict sheet, without
+   * the learner scrolling. Measured once the page has had time to scroll it there.
+   */
+  async forgeMissInView(kind) {
+    await sleep(900);
+    const box = await this.page.evaluate(() => {
+      const feedback = document.querySelector('.ep-feedback[data-verdict="wrong"]');
+      const foot = feedback && (feedback.querySelector('.ep-foot') || document.querySelector('.ep-foot'));
+      const card = feedback && [...feedback.children].find((el) => !el.classList.contains('ep-foot'));
+      if (!foot || !card) return null;
+      const top = document.querySelector('.ep-top');
+      const c = card.getBoundingClientRect();
+      return {
+        cardTop: Math.round(c.top),
+        cardBottom: Math.round(c.bottom),
+        sheetTop: Math.round(Math.min(foot.getBoundingClientRect().top, window.innerHeight)),
+        headerBottom: Math.round(top ? Math.max(0, top.getBoundingClientRect().bottom) : 0),
+        text: (card.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+      };
+    }).catch(() => null);
+    if (!box) return;
+    const fits = box.cardBottom - box.cardTop <= box.sheetTop - box.headerBottom;
+    const inView = fits
+      ? box.cardTop >= box.headerBottom - 1 && box.cardBottom <= box.sheetTop + 1
+      : box.cardTop >= box.headerBottom - 1 && box.cardTop < box.sheetTop;
+    this.findings.check(
+      'forge-miss-correction-above-the-sheet',
+      inView,
+      `the correction runs under the verdict sheet: card ${box.cardTop}–${box.cardBottom}, header ends ${box.headerBottom}, sheet starts ${box.sheetTop}: «${box.text}»`,
+      this.where({ kind }),
+    );
+  }
+
   async act(s, kind, state) {
     const page = this.page;
     if (kind === 'reader') {
@@ -352,6 +387,7 @@ export class LearnerWalk {
           if (verdict === 'wrong') {
             const gt = (s.graded[0]?.text || '').replace(/Continue|Weiter|Continuer|Not yet|Noch nicht|Pas encore/gi, '').trim();
             this.findings.check('wrong-verdict-shows-the-right-form', gt.length >= 8 || s.frTexts.length > 0, `«Not yet» with no correct form on screen: «${s.text.slice(0, 140)}»`, this.where({ kind }));
+            if (s.epFeedback.length) await this.forgeMissInView(kind);
           }
         }
         const shotKey = `${kind}|${verdict || ''}|${kind === 'reader' ? s.reader.map((r) => r.text).join() : s.text.slice(0, 60)}`;

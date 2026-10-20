@@ -13,6 +13,7 @@ import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
 import { itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
   FOLLOW_UP_EMPTY,
@@ -4144,6 +4145,21 @@ function ExerciseFeedbackMoment({
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   // Owner, 2026-10-19: what the learner typed in each wrong part of their line.
   const [partsTyped, setPartsTyped] = useState<Record<string, Record<number, string>>>({});
+  // #239: the correction (the right sentence and why) is scrolled above the
+  // sticky verdict sheet as it appears, never left running on under it.
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
+  // (A free line first shows «Je relis…»; its card mounts when the model's verdict
+  // lands, so the phase is part of what the effect waits for.)
+  const shownVerdict = submitted && feedback
+    ? `${feedback.unscored ? 'unscored' : feedback.correct ? 'correct' : 'wrong'}|${production ? productionPhase(correction) : 'settled'}`
+    : null;
+  useEffect(() => {
+    if (!shownVerdict) return undefined;
+    let frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => keepCardAboveSheet(feedbackRef.current));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [feedbackKey, shownVerdict]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
   // verdict to show — the grading character says so, and a verdict shown later
@@ -4221,7 +4237,7 @@ function ExerciseFeedbackMoment({
     const repairStep: RepairStep = repairOf.followUp ? (followDraft.outcome ?? 'open') : 'none';
     const verdict = itemVerdict({ judgedRight: feedback.correct, repair: repairStep });
     return (
-      <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'}>
+      <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
         {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
         {relecture}
@@ -4244,7 +4260,7 @@ function ExerciseFeedbackMoment({
   }
 
   return (
-    <div className="ep-feedback" data-verdict="wrong">
+    <div className="ep-feedback" data-verdict="wrong" ref={feedbackRef}>
       {issues.map((issue, index) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
