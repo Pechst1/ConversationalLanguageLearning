@@ -80,7 +80,7 @@ def _strong_brief(unit: str) -> dict:
 
 
 def test_every_coach_unit_keeps_its_rappel_free_use_and_a_line_is_the_items_own_question() -> None:
-    """Night-shift review of #258: dropping the generic openers left 59 of the 78
+    """Night-shift review of #258: dropping the generic openers left 60 of the 78
     coach units with no Rappel scene at all (``coach_scene_review_task`` returned
     ``None``), so a strong unit never got its free-use re-use check. Every unit now
     poses the scene when an item asks its own question, and otherwise the plain task,
