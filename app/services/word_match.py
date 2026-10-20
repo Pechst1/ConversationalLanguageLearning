@@ -51,7 +51,6 @@ _VERB_ENDINGS = {
 _AUXILIARY_FORMS = frozenset(
     {"ai", "as", "a", "avons", "avez", "ont", "suis", "es", "est", "sommes", "etes", "sont"}
 )
-_AUXILIARY_LEMMAS = frozenset({"avoir", "etre"})
 #: The verbs whose real forms are one or two letters long (a, ai, as, es, va).
 _SHORT_FORM_VERBS = frozenset({"avoir", "etre", "aller"})
 #: A form built from a stem and an ending must have at least this many letters.
@@ -78,7 +77,7 @@ def _forms(word: str) -> frozenset[str]:
     forms = {word, f"{word}s", f"{word}x", f"{word}e", f"{word}es"}
     if word.endswith("al") and len(word) > 3:
         forms.add(f"{word[:-2]}aux")
-    if len(word) > 3 and word[-2:] in _VERB_ENDINGS:
+    if len(word) > 3 and word[-2:] in _VERB_ENDINGS and _may_be_verb(word):
         stem = word[:-2]
         # The table synthesises a conjugation for any word ending in -er/-ir/-re
         # (the noun «aire» "conjugates" to «ai»); a form of one or two letters is
@@ -97,12 +96,37 @@ def _forms(word: str) -> frozenset[str]:
     return frozenset(forms)
 
 
+@lru_cache(maxsize=1)
+def _lexicon_parts() -> dict[str, frozenset[str]]:
+    """Folded lemma → its parts of speech in the core lexicon («livre»: noun)."""
+
+    try:
+        from app.services.lexical_coverage import load_lexicon
+    except Exception:  # pragma: no cover - the lexicon is an extra, never a requirement
+        return {}
+    parts: dict[str, set[str]] = {}
+    for lemma, entry in load_lexicon().lemmas.items():
+        if isinstance(entry, dict) and entry.get("pos"):
+            parts.setdefault(fold(lemma), set()).add(str(entry["pos"]))
+    return {word: frozenset(found) for word, found in parts.items()}
+
+
+def _may_be_verb(word: str) -> bool:
+    """A word ending in -er/-ir/-re conjugates only if it can be a verb: the core
+    lexicon's «livre», «centre», «soir» are nouns, so «livrons», «cent», «soit» are
+    not their forms. A word the lexicon does not list keeps the ending's rule."""
+
+    parts = _lexicon_parts().get(word)
+    return not parts or "verb" in parts
+
+
 def _irregular_forms(word: str) -> set[str]:
     """The conjugation table's forms for an irregular verb (être, aller, prendre...).
 
-    Only the verb's own forms: a compound cell («j'ai vendu», «nous sommes allés»)
-    contributes its participle, never the auxiliary in front of it, or every verb
-    would be "used" by «J'ai faim». The verb avoir / être keeps its own forms.
+    Only the verb's own forms: a compound cell («j'ai vendu», «nous sommes allés»,
+    «j'ai été») contributes its participle, never the auxiliary in front of it, or
+    every verb would be "used" by «J'ai faim», «être» included. Avoir and être keep
+    their simple forms, which are cells of one word.
     """
 
     try:
@@ -114,13 +138,11 @@ def _irregular_forms(word: str) -> set[str]:
         table = fallback_conjugation_table(canonicalize_lemma(word))
     except Exception:  # pragma: no cover
         return found
-    own_auxiliary = word in _AUXILIARY_LEMMAS or fold(canonicalize_lemma(word)) in _AUXILIARY_LEMMAS
     for row in table.values():
         for cell in row.values():
             cell_tokens = tokens(cell)
-            if not own_auxiliary:
-                while len(cell_tokens) > 1 and cell_tokens[0] in _AUXILIARY_FORMS:
-                    cell_tokens = cell_tokens[1:]
+            while len(cell_tokens) > 1 and cell_tokens[0] in _AUXILIARY_FORMS:
+                cell_tokens = cell_tokens[1:]
             found.update(cell_tokens)
     return found
 

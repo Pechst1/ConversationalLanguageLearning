@@ -122,3 +122,21 @@ def test_every_coach_unit_keeps_its_rappel_free_use_and_a_line_is_the_items_own_
             silent.append(unit)
     assert silent == [], f"units whose Rappel poses no free use on any of 28 days: {silent}"
     assert stray == [], "a character line that is not the item's own question:\n" + "\n".join(stray[:10])
+
+
+def test_the_plain_task_never_poses_an_english_gloss_in_french_chrome() -> None:
+    """Codex on #260: from B1 the chrome is French (``user_chrome_language``), and the
+    plain task's cue was the item's English («Dis-le en français : « They… » »). French
+    chrome poses only a scene, whose line is French; else the reply asks for the unit."""
+
+    from app.services.journey_learning import coach_scene_review_task
+
+    posed = 0
+    for unit in _units():
+        task = coach_scene_review_task(_strong_brief(unit), language="fr", day_key="2026-10-01")
+        if task is None:
+            continue
+        posed += 1
+        assert task.prompt_fr, f"{unit}: a plain task in French chrome: {task.instruction_native}"
+        assert "Dis-le en français" not in task.instruction_native, unit
+    assert posed > 0, "French chrome still poses the scenes"

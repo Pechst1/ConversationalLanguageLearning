@@ -31,3 +31,14 @@ test('a card taller than the space shows its first lines, under the header', () 
 test('a card scrolled up under the header comes back down', () => {
   assert.equal(scrollToKeepAbove({ cardTop: 20, cardBottom: 200, sheetTop: 550, headerBottom: 70 }), 20 - 82);
 });
+
+// Codex on #260: a right classification with its repair open shows no sheet; the
+// sheet mounts when the repair is done or shown, and nothing else changes then.
+test('the scroll runs again when the repair under a verdict settles', () => {
+  const fs = require('node:fs');
+  const page = fs.readFileSync(path.join(__dirname, '..', 'pages/atelier.tsx'), 'utf8');
+  const effect = page.match(/keepCardAboveSheet\(feedbackRef\.current\)[\s\S]*?\}, \[([^\]]*)\]\);/);
+  assert.ok(effect, 'the effect that keeps the card above the sheet');
+  assert.match(effect[1], /repairOutcome/);
+  assert.match(page, /const repairOutcome = followUps\[feedbackKey\]\?\.outcome \?\? null;/);
+});

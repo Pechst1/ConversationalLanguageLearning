@@ -3996,6 +3996,9 @@ _PLAIN_REUSE_INSTRUCTION: dict[str, str] = {
     "de": "Sag es auf Französisch: „{meaning}“",
     "fr": "Dis-le en français : « {meaning} »",
 }
+#: The chromes the plain task is posed in. Not French: its cue would be the item's
+#: English gloss (the reply asks instead).
+_PLAIN_REUSE_CHROMES = frozenset({"en", "de"})
 
 
 def coach_scene_review_task(
@@ -4051,7 +4054,7 @@ def coach_scene_review_task(
             # item is kept as the plain task, posed when no candidate is a scene;
             # a question to say is kept last (a question unit has nothing else).
             is_question = item.sentence.rstrip().endswith("?")
-            if (plain_question if is_question else plain) is None:
+            if language in _PLAIN_REUSE_CHROMES and (plain_question if is_question else plain) is None:
                 accepted = list(dict.fromkeys([item.sentence, *[a for a in item.accepted if a]]))
                 if fits_level(accepted):
                     task = _plain_reuse_task(brief, item, accepted, language=language)
@@ -4101,7 +4104,7 @@ def _plain_reuse_task(brief: dict[str, Any], item: Any, accepted: list[str], *, 
 
     from app.services import grammar_items
 
-    template = _PLAIN_REUSE_INSTRUCTION.get(language, _PLAIN_REUSE_INSTRUCTION["en"])
+    template = _PLAIN_REUSE_INSTRUCTION[language]
     meaning = (getattr(item, "de", None) if language == "de" else None) or item.en
     return RecallTask(
         task_type="short_answer",

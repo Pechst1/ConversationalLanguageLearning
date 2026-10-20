@@ -4153,13 +4153,16 @@ function ExerciseFeedbackMoment({
   const shownVerdict = submitted && feedback
     ? `${feedback.unscored ? 'unscored' : feedback.correct ? 'correct' : 'wrong'}|${production ? productionPhase(correction) : 'settled'}`
     : null;
+  // A right classification with its repair open has no sheet yet; the sheet mounts
+  // when the repair is done or shown, so its outcome is part of what the effect waits for.
+  const repairOutcome = followUps[feedbackKey]?.outcome ?? null;
   useEffect(() => {
     if (!shownVerdict) return undefined;
     let frame = window.requestAnimationFrame(() => {
       frame = window.requestAnimationFrame(() => keepCardAboveSheet(feedbackRef.current));
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [feedbackKey, shownVerdict]);
+  }, [feedbackKey, shownVerdict, repairOutcome]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
   // verdict to show — the grading character says so, and a verdict shown later

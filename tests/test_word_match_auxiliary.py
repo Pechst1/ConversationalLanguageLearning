@@ -66,3 +66,26 @@ def test_no_verb_of_the_core_lexicon_is_used_by_a_bare_auxiliary():
                 leaks.append((lemma, word))
     assert checked > 50, "the sweep must cover the verb list"
     assert leaks == []
+
+
+@pytest.mark.parametrize("text", ["J'ai faim", "Il a froid", "Nous avons un chat"])
+def test_etre_is_not_used_by_avoir(text):
+    """Codex on #260: «être»'s compound cells are «ai été», so its auxiliary was kept
+    as one of its forms and «J'ai faim» "used" être."""
+    from app.services.word_match import target_occurs_in
+
+    assert target_occurs_in("être", text) is False
+    assert target_occurs_in("être", "Il a été malade") is True
+    assert target_occurs_in("avoir", text) is True
+
+
+@pytest.mark.parametrize(
+    ("noun", "text"),
+    [("livre", "Nous livrons demain."), ("centre", "Cent euros."), ("soir", "Que ce soit vrai."), ("ventre", "Il y a du vent.")],
+)
+def test_a_noun_ending_like_a_verb_is_not_conjugated(noun, text):
+    """Codex on #260: «livre» ends in -re, so «livrons» (livrer) counted as the noun."""
+    from app.services.word_match import target_occurs_in
+
+    assert target_occurs_in(noun, text) is False
+    assert target_occurs_in(noun, f"Les {noun}s") is True
