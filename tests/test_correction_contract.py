@@ -198,6 +198,13 @@ def test_a_quoted_span_that_is_not_in_the_sentence_is_rejected():
         "Il a descendu les escaliers.",
         "J'ai entré mon mot de passe.",
         "Ils ont monté une entreprise.",
+        # Codex on #261: the direct object stands before the auxiliary as a pronoun.
+        "Je l'ai sorti.",
+        "Je les ai montés hier.",
+        "Il en a descendu deux.",
+        "Tu m'as monté la valise.",
+        # Codex on #261: an acronym in capitals is not «ça».
+        "Le CA se réunit demain.",
         # problem 2: a noun that is right with either gender.
         "Il fait le tour de la tour.",
         "Je vais à la poste.",
@@ -264,6 +271,9 @@ def test_correct_french_gets_no_model_free_edit(sentence):
         ("Mais nous est contents.", "est", "sommes"),
         # contraction, but never in front of an infinitive.
         ("Je parle de le restaurant.", "de le", "du"),
+        # «ça» without its cedilla, also in a line typed in capitals.
+        ("Ca va ?", "Ca", "Ça"),
+        ("CA VA ?", "CA", "ÇA"),
     ],
 )
 def test_the_model_free_pass_still_marks_real_mistakes(sentence, span, fix):

@@ -285,6 +285,8 @@ _ETRE_PARTICIPLES = frozenset(
 #: téléphone»). They are flagged only when a place or time word follows.
 #: «entré» too: «J'ai entré mon mot de passe» is French.
 _AMBIGUOUS_PARTICIPLES = frozenset({"rentré", "sorti", "monté", "descendu", "retourné", "entré"})
+#: A direct object before the auxiliary makes those verbs transitive: «Je l'ai sorti.»
+_OBJECT_CLITICS = frozenset({"l", "le", "la", "les", "en", "m", "me", "t", "te"})
 #: Night-shift review of #259: only a word after which no direct object can stand.
 #: Determiners («ce», «tout», «du», «de»), «en», «par», «sur» and conjunctions start
 #: objects («Elle a sorti cette lettre», «Il a sorti du pain») and are not here.
@@ -623,8 +625,9 @@ def deterministic_edits(
             if aux_is_avoir and participle in _ETRE_PARTICIPLES and _same_clause(source, tok, nxt):
                 after = tokens[i + 2] if i + 2 < len(tokens) else None
                 clause_ends = after is None or not _same_clause(source, nxt, after)
-                if participle in _AMBIGUOUS_PARTICIPLES and not (
-                    clause_ends or (_joined(source, nxt, after) and after.low in _PLACE_WORDS)
+                if participle in _AMBIGUOUS_PARTICIPLES and (
+                    not (clause_ends or (_joined(source, nxt, after) and after.low in _PLACE_WORDS))
+                    or (prev is not None and joined_prev and prev.low in _OBJECT_CLITICS)
                 ):
                     continue
                 gender, plural = _subject_gender(tokens, source, i, cast)
@@ -713,7 +716,10 @@ def deterministic_edits(
                 continue
 
         # --- missing accents -----------------------------------------------------------
-        if tok.low in _ACCENTS:
+        # A word in capitals inside a sentence that is not is an acronym («Le CA se
+        # réunit»), not «ça» typed without its cedilla.
+        written = source[tok.start:tok.end]
+        if tok.low in _ACCENTS and not (written.isupper() and len(written) > 1 and not source.isupper()):
             right = _ACCENTS[tok.low]
             add(_edit("FR_ACCENT", source, tok.start, tok.end, _case(source[tok.start:tok.end], right), right=right))
             continue
