@@ -122,7 +122,9 @@ export type EpreuveCopy = {
   repair_placeholder: string;
   repair_submit: string;
   repair_submitting: string;
+  /** #213: after a miss, the copied line is acknowledged, never a second verdict. */
   repair_ok: string;
+  repair_parts_ok: string;
   repair_no: string;
   repair_parts_label: string;
   repair_parts_gap: string;
@@ -302,7 +304,8 @@ const FR: EpreuveCopy = {
   repair_placeholder: 'Tape la ligne corrigée…',
   repair_submit: 'Comparer',
   repair_submitting: 'Comparaison…',
-  repair_ok: 'Juste.',
+  repair_ok: 'Phrase recopiée. Elle reviendra plus tard.',
+  repair_parts_ok: 'Phrase corrigée. Elle reviendra plus tard.',
   repair_no: 'Pas tout à fait — reprends la ligne.',
   repair_parts_label: 'Corrige seulement les mots soulignés',
   repair_parts_gap: 'À corriger :',
@@ -476,7 +479,8 @@ const EN: EpreuveCopy = {
   repair_placeholder: 'Type the corrected line…',
   repair_submit: 'Compare',
   repair_submitting: 'Comparing…',
-  repair_ok: 'Right.',
+  repair_ok: 'Line copied. It comes back later.',
+  repair_parts_ok: 'Line fixed. It comes back later.',
   repair_no: 'Not quite — try the line again.',
   repair_parts_label: 'Fix only the underlined words',
   repair_parts_gap: 'To fix:',
@@ -650,7 +654,8 @@ const DE: EpreuveCopy = {
   repair_placeholder: 'Tippe die korrigierte Zeile…',
   repair_submit: 'Vergleichen',
   repair_submitting: 'Wird verglichen…',
-  repair_ok: 'Richtig.',
+  repair_ok: 'Abgeschrieben. Der Satz kommt später wieder.',
+  repair_parts_ok: 'Ausgebessert. Der Satz kommt später wieder.',
   repair_no: 'Nicht ganz — versuch die Zeile noch einmal.',
   repair_parts_label: 'Korrigiere nur die unterstrichenen Wörter',
   repair_parts_gap: 'Zu korrigieren:',

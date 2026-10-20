@@ -255,3 +255,22 @@ test('#125 a right sentence called wrong is never struck through', () => {
   const real = renderToStaticMarkup(React.createElement(Ep.EpLabelFix, { old: 'tu es', fix: 'tu as' }));
   assert.ok(real.includes('av2-correction__span'));
 });
+
+// #213 — walk 2026-10-20: after a build miss the learner copied the right line, and
+// the card said «Richtig.» above «Noch nicht». The item was a miss and comes back; the
+// copy is acknowledged in words that are not a verdict, so the card has one verdict.
+test('#213 a copied correction after a miss is acknowledged, never a second verdict', () => {
+  for (const language of ['en', 'de', 'fr']) {
+    const t = epreuveCopy(language);
+    for (const key of ['repair_ok', 'repair_parts_ok']) {
+      const said = t[key];
+      assert.ok(said && said.length > 8, `${language}.${key} is empty`);
+      for (const verdict of [t.verdict_correct, t.verdict_wrong, t.line_set, 'Right.', 'Richtig.', 'Juste.']) {
+        assert.ok(!said.includes(verdict), `${language}.${key} «${said}» repeats the verdict «${verdict}»`);
+      }
+    }
+  }
+  const html = renderToStaticMarkup(React.createElement(Ep.EpRepair, { target: 'Tu es contente ?', typed: 'Tu es contente ?', status: 'ok' }));
+  assert.match(html, /comes back later/);
+  assert.doesNotMatch(html, /Right\./);
+});
