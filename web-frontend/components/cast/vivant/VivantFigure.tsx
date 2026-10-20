@@ -9,16 +9,59 @@
  * `css="none"`), so `still`, Reduce Motion or no JavaScript all show the gesture's clearest pose.
  */
 import React from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { RigCrop } from '../rig-kit';
-import type { ExpressionId, FaceDef, FigureDef, GestureId } from './kit';
+import type { ExpressionId, FaceDef, FigureDef, GestureId, Side } from './kit';
 import { EXPRESSIONS, GESTURES, faceValues, figureCss, gestureFaces } from './kit';
+import { OfferContext } from './parts';
 import { figureFor } from './registry';
+
+/**
+ * Something handed to the figure for one gesture: it holds `art` out in its `side` hand while
+ * that gesture's props would show (in place of them), with its own face if given.
+ */
+export interface VivantOffer {
+  side: Side;
+  art: ReactNode;
+  /** the gesture it is held out in (default `montre`) */
+  gesture?: GestureId;
+  face?: ExpressionId;
+  /** stylesheet the art needs, added to the figure's own */
+  css?: string;
+}
+
+/**
+ * The figure with its gesture holding the offer instead of its own props: the offer shows in
+ * the props' window (the whole action when there were none), and the figure gets a key of its
+ * own so its generated CSS never meets the plain figure's on the same page.
+ */
+export function withOffer(fig: FigureDef, offer: VivantOffer): FigureDef {
+  const id = offer.gesture ?? 'montre';
+  const g = fig.gestures[id];
+  if (!g) return fig;
+  const win = Object.values(g.show ?? {}).find((w): w is [number, number] => Array.isArray(w)) ?? true;
+  return {
+    ...fig,
+    key: `${fig.key}-offer`,
+    gestures: {
+      ...fig.gestures,
+      [id]: {
+        ...g,
+        show: { offer: win },
+        // the hand holding it out comes in front of the head, toward the learner
+        front: Array.from(new Set([...(g.front ?? []), offer.side])),
+        ...(offer.face ? { face: offer.face, then: undefined } : {}),
+      },
+    },
+  };
+}
 
 export interface VivantFigureProps {
   id: string;
   /** a figure not (yet) in the registry: a preview, a test */
   figure?: FigureDef;
+  /** something to hold out in a gesture (a season's object) */
+  offer?: VivantOffer;
   expression?: ExpressionId;
   gesture?: GestureId | null;
   /** play the gesture over and over (a sheet, a gallery) instead of once */
@@ -39,6 +82,7 @@ export interface VivantFigureProps {
 export function VivantFigure({
   id,
   figure,
+  offer,
   expression = 'neutre',
   gesture = null,
   loop = false,
@@ -51,8 +95,9 @@ export function VivantFigure({
   className,
   style,
 }: VivantFigureProps) {
-  const fig = figure ?? figureFor(id);
-  if (!fig) return null;
+  const base = figure ?? figureFor(id);
+  if (!base) return null;
+  const fig = offer ? withOffer(base, offer) : base;
   const g = gesture ? fig.gestures[gesture] : null;
   // the faces this render carries: the figure's own first, then the gesture's
   const list: Array<[string, FaceDef]> = [[expression, fig.expressions[expression]]];
@@ -109,8 +154,14 @@ export function VivantFigure({
       data-gesture={gesture || undefined}
       focusable="false"
     >
-      {css === 'scoped' ? <style dangerouslySetInnerHTML={{ __html: figureCss(fig, { expression, gesture }) }} /> : null}
-      <Art faces={rendered} base={expression} />
+      {css === 'scoped' ? <style dangerouslySetInnerHTML={{ __html: figureCss(fig, { expression, gesture }) + (offer?.css ?? '') }} /> : null}
+      {offer ? (
+        <OfferContext.Provider value={{ side: offer.side, art: offer.art }}>
+          <Art faces={rendered} base={expression} />
+        </OfferContext.Provider>
+      ) : (
+        <Art faces={rendered} base={expression} />
+      )}
     </svg>
   );
 }

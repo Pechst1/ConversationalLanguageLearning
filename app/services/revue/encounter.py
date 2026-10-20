@@ -122,6 +122,7 @@ from app.schemas.revue_vignette import VignetteView
 from app.services.revue import grading, knowledge, policy, voice
 from app.services.revue.checks import (
     RELATIVE_DATE_PHRASES,
+    _content_words,
     check_distinguishable,
     check_knowledge,
     failures,
@@ -159,6 +160,8 @@ KEPT_LINE = "Bonne question. Je la garde pour la semaine prochaine : on boucle a
 #: The first words after "simplify on breakdown" (WP-119-DESIGN §3.3 ``#simplify``).
 SIMPLIFY_LEAD = "Pardon, je vais trop vite."
 COLOPHON = "La suite la semaine prochaine."
+#: §12.2: a daily Papier (its period is a day, ``REVUE_CADENCE=daily``) comes back tomorrow.
+COLOPHON_DAILY = "La suite demain."
 
 GRADER_ID = grading.RUBRIC_ID
 CAPABILITY_ID = grading.CONVERSATION_CAPABILITY
@@ -219,12 +222,32 @@ LATE_EVIDENCE_WAIT_SECONDS = 20.0
 
 _MONTHS = ("janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc.")
 
+_MONTHS_LONG = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
+                "novembre", "décembre")
+
+#: Romy's first line, by the angle's purpose. 2026-10-18 (owner: «it's not clear what it's
+#: about»): she no longer reads the angle out (an instruction to a writer, in quotes); the
+#: lead above her tells the story, and she asks for help like a colleague.
 PURPOSE_LINES: dict[str, str] = {
-    "understand_change": "Je dois expliquer ça à mes lecteurs de Montréal : « {angle} ». Tu m'aides ?",
-    "explain_disagreement": "Les gens ne sont pas d'accord, et je dois l'expliquer : « {angle} ». Tu m'aides ?",
-    "choose_angle": "Je ne sais pas par quel bout prendre l'histoire : « {angle} ». Tu m'aides à choisir ?",
-    "prepare_dispatch": "Je dois écrire trois lignes là-dessus : « {angle} ». Tu m'aides ?",
+    "understand_change": "Je dois raconter ça à mes lecteurs de Montréal. Tu m'aides ?",
+    "explain_disagreement": "Tout le monde n'est pas d'accord là-dessus. Tu m'aides à l'expliquer à mes lecteurs ?",
+    "choose_angle": "Je ne sais pas encore comment raconter cette histoire. Tu m'aides à choisir ?",
+    "prepare_dispatch": "Je dois écrire trois lignes là-dessus pour mes lecteurs. Tu m'aides ?",
 }
+PURPOSE_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "understand_change": {"en": "I have to tell my readers in Montreal about this. Will you help me?",
+                          "de": "Ich muss das meinen Lesern in Montreal erzählen. Hilfst du mir?"},
+    "explain_disagreement": {"en": "Not everyone agrees on this. Will you help me explain it to my readers?",
+                             "de": "Nicht alle sind sich da einig. Hilfst du mir, es meinen Lesern zu erklären?"},
+    "choose_angle": {"en": "I don't know yet how to tell this story. Will you help me choose?",
+                     "de": "Ich weiß noch nicht, wie ich diese Geschichte erzählen soll. Hilfst du mir bei der Wahl?"},
+    "prepare_dispatch": {"en": "I have to write three lines about this for my readers. Will you help me?",
+                         "de": "Ich muss für meine Leser drei Zeilen darüber schreiben. Hilfst du mir?"},
+}
+#: When the learner is lost Romy starts the story again (2026-10-18), in its simpler lead.
+LOST_LEAD = "Je reprends depuis le début."
+LOST_LEAD_TRANSLATIONS = {"en": "Let me start again from the beginning.", "de": "Ich fange noch mal von vorne an."}
+MORE_LEAD = "Il y a autre chose."
 
 CLOSE_LINES: dict[str, str] = {
     "reader_question": "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
@@ -361,6 +384,24 @@ def is_incomprehension(text: str) -> bool:
     return bare in _BARE_CONFUSION or any(phrase in folded for phrase in _INCOMPREHENSION)
 
 
+_MORE = {"dis-m'en plus", "dis m'en plus", "plus", "encore", "et apres", "et alors", "la suite", "continue",
+         "tell me more", "more", "mehr", "erzahl mehr"}
+
+
+def wants_more(text: str) -> bool:
+    """«Plus» («Dis-m'en plus.») and its kin: the learner asks for the next fact."""
+
+    return fold_keep_length(text).strip(" ?!.…") in _MORE
+
+
+def told_in(claim_fr: str, lead_fr: str) -> bool:
+    """A claim the lead already tells (most of its content words are in it): «Plus» wants
+    one the learner has not read yet."""
+
+    words = _content_words(claim_fr)
+    return bool(words) and len(words & _content_words(lead_fr)) >= 0.6 * len(words)
+
+
 def is_question(text: str) -> bool:
     stripped = (text or "").strip()
     if stripped in _META_LINES or is_incomprehension(stripped):
@@ -422,6 +463,22 @@ def _french_day(day: date) -> str:
     return f"{'1er' if day.day == 1 else day.day} {_MONTHS[day.month - 1]}"
 
 
+def _french_long_day(day: date) -> str:
+    return f"{'1er' if day.day == 1 else day.day} {_MONTHS_LONG[day.month - 1]}"
+
+
+def dateline(dossier: EditorialDossier, place: Any) -> str:
+    """The opening narration, as a newspaper prints it: «Montréal, le 14 octobre.» — the day
+    of the latest source; the place alone for an evergreen or a story that runs for months."""
+
+    name = place.name_fr.rstrip(". ")
+    scope = dossier.time_scope
+    if dossier.evergreen or not dossier.sources or (scope.end - scope.start).days > 60:
+        return f"{name}."
+    latest = max(source.published_at for source in dossier.sources)
+    return f"{name}, le {_french_long_day(latest)}."
+
+
 # ---------------------------------------------------------------------------
 # Weeks and dossiers
 # ---------------------------------------------------------------------------
@@ -445,6 +502,17 @@ def _week_of(period: str) -> str:
     from app.services.revue.weekly import week_of_period
 
     return week_of_period(period)
+
+
+def colophon_for(period: str) -> str:
+    """The close's last line: «La suite demain.» for a daily Papier, the weekly line otherwise."""
+
+    from app.services.revue.weekly import is_daily_period
+
+    try:
+        return COLOPHON_DAILY if is_daily_period(period) else COLOPHON
+    except ValueError:
+        return COLOPHON
 
 
 def week_view(week: str) -> RvWeek:
@@ -614,6 +682,7 @@ def story_card(dossier: EditorialDossier, db: Any = None) -> RvStoryCard:
     return RvStoryCard(
         dossier_id=dossier.id,
         title_fr=dossier.title_fr,
+        headline_fr=dossier.leads.headline_fr if dossier.leads is not None else None,
         summary_fr=dossier.summary_fr,
         topic=dossier.topic,  # type: ignore[arg-type]
         place_fr=stage.place_fr,
@@ -778,7 +847,9 @@ class FakeRevueProvider:
         if is_incomprehension(text):
             first = next((c for c in claims if c.get("kind") == "fact"), claims[0] if claims else None)
             reply = "Pas de souci. On reprend doucement."
-            if first:
+            if context.get("story_lead"):
+                reply += f" {context['story_lead']}"
+            elif first:
                 reply += f" {first['fr']}"
             return {"reply_fr": reply, "claims_cited": [first["id"]] if first else [], "uncertainty_cited": None,
                     "proposes_question": None, "shift": "simplify"}
@@ -875,7 +946,7 @@ def _fake_contradiction(fr: str, index: int) -> str:
 # compared with the next. Bump a version whenever its text changes.
 # ---------------------------------------------------------------------------
 
-REPLY_PROMPT_VERSION = "revue-reply-v2"
+REPLY_PROMPT_VERSION = "revue-reply-v3"
 GUEST_PROMPT_VERSION = "revue-guest-v2"
 CLOSE_PROMPT_VERSION = "revue-close-v3"
 QUESTION_PROMPT_VERSION = "revue-question-v2"
@@ -928,10 +999,15 @@ _TASKS: dict[str, str] = {
     "reply": (
         "Write Romy's next line in a conversation with the learner (CEFR {band}, at most {max_words} words). "
         "Rules, in order: "
-        "(1) Answer the learner's last line (learner_text) first. A question gets its answer, or «les sources ne "
-        "le disent pas»; an opinion gets a reaction to that opinion in Romy's own words (she agrees, adds one "
-        "fact that changes the picture, or asks why) before anything new; «d'accord» or «dis-m'en plus» gets one "
-        "new fact. "
+        "(1) Answer the learner's last line (learner_text) first. When learner_is_lost is true the learner did "
+        "not understand the story: tell story_lead again in even simpler words (short sentences, present tense), "
+        "then at most one new claim; never answer it with «les sources ne le disent pas». A question gets its "
+        "answer from the claims, or «les sources ne le disent pas» only when no claim answers it; an opinion gets "
+        "a reaction to that opinion in Romy's own words (she agrees, adds one fact that changes the picture, or "
+        "asks why) before anything new; «d'accord» or «dis-m'en plus» gets one new fact (when learner_wants_more "
+        "is true there is one in `claims` with in_story_lead false: bring that one and cite it, never what "
+        "story_lead already told). story_lead is what happened, in the plainest "
+        "words: build on it. "
         "(2) At most two NEW claims per reply, from `claims` (not said yet). `claims_already_said` were said: do "
         "not repeat their content or numbers; refer to them in a few words if needed. "
         "(3) Never write ids in reply_fr or translation. Put the ids you used in claims_cited, and the "
@@ -1360,6 +1436,11 @@ def thread_items(dossier: EditorialDossier, plan: SessionPlan, state: Conversati
         elif event.kind == "turn_romy" and payload.get("beat") == "arrive":
             for index, sentence in enumerate(payload.get("narration") or []):
                 items.append(RvNarrationItem(id=f"{event.seq}.n{index}", seq=event.seq, at=at, text_fr=str(sentence)))
+            # 2026-10-18: what happened comes first, as text; Romy's lines follow it.
+            if payload.get("summary_fr"):
+                items.append(RvSummaryItem(id=f"{event.seq}.s", seq=event.seq, at=at, text_fr=str(payload["summary_fr"]),
+                                           translation=payload.get("summary_translation"),
+                                           glosses=_glosses(str(payload["summary_fr"]), plan)))
             if payload.get("look_fr"):
                 items.append(_line(event, plan, suffix=".l", role="look", text=str(payload["look_fr"])))
             if payload.get("place_note"):
@@ -1367,9 +1448,8 @@ def thread_items(dossier: EditorialDossier, plan: SessionPlan, state: Conversati
             if payload.get("request_miss"):
                 items.append(_line(event, plan, suffix=".m", role="fallback", text=str(payload["request_miss"]),
                                    reason="no_match"))
-            items.append(_line(event, plan, role="purpose", text=str(payload.get("text_fr") or "")))
-            if payload.get("summary_fr"):
-                items.append(RvSummaryItem(id=f"{event.seq}.s", seq=event.seq, at=at, text_fr=str(payload["summary_fr"])))
+            items.append(_line(event, plan, role="purpose", text=str(payload.get("text_fr") or ""),
+                               translation=payload.get("translation")))
         elif event.kind == "turn_romy":
             role = _romy_role(payload)
             items.append(_line(event, plan, role=role, text=str(payload.get("text_fr") or ""),
@@ -1448,20 +1528,32 @@ def support_view(plan: SessionPlan, state: ConversationState) -> RvSupport:
     )
 
 
-def quick_replies(state: ConversationState, room: RvRoom) -> list[RvQuickReply]:
+def unshown_claims(dossier: EditorialDossier, state: ConversationState) -> int:
+    """How many of the dossier's claims Romy has not put on the table yet."""
+
+    shown = state.claims_shown
+    return sum(1 for claim in dossier.claims if claim.id not in shown)
+
+
+def quick_replies(state: ConversationState, room: RvRoom, *, unshown: int | None = None) -> list[RvQuickReply]:
+    """The chips under the thread. «Plus» asks for another fact: once every claim is on the
+    table (``unshown == 0``) it is not offered (2026-10-19: it only made Romy say again that
+    the articles say no more); ``None`` (not counted) keeps it."""
+
     if state.closed:
         return []
     if state.turns_used == 0:
         return [QR_AGREE]
+    more = [] if unshown == 0 else [QR_MORE]
     if room.phase != "open":
-        return [] if state.current_artifact else [QR_MORE]
+        return [] if state.current_artifact else more
     recent = [e for e in state.events if e.seq > _last_learner_seq(state)]
     if any(e.kind == "support_changed" for e in recent):
         return [QR_UNDERSTOOD, QR_SIMPLER]
     romy = [e for e in recent if e.kind == "turn_romy"]
     if romy and (romy[-1].payload.get("uncertainty_text") or romy[-1].payload.get("proposes_question")):
-        return [QR_FORMULATE, QR_MORE]
-    return [QR_MORE]
+        return [QR_FORMULATE, *more]
+    return more
 
 
 def _last_learner_seq(state: ConversationState) -> int:
@@ -1518,7 +1610,7 @@ def session_view(loaded: Loaded) -> RvSessionView:
         beat=beat_for(state),  # type: ignore[arg-type]
         room=room,
         thread=thread_items(dossier, plan, state),
-        quick_replies=quick_replies(state, room),
+        quick_replies=quick_replies(state, room, unshown=unshown_claims(dossier, state)),
         steer_to_make=room.phase != "open" and artifact is None and not state.closed,
         artifact=_made(artifact) if artifact else None,
         closing=_closing_of(state),
@@ -1712,6 +1804,39 @@ class _ReplyJob:
     translation_language: str | None
     learner_text: str
     session_id: str
+    #: 2026-10-18: the learner says they are lost (Romy retells ``lead``), or asks for more
+    #: while a claim is left that the lead did not tell (``unheard``: Romy brings one);
+    #: ``lead_translation`` is in ``translation_language``.
+    lost: bool = False
+    wants_more: bool = False
+    unheard: frozenset[str] = frozenset()
+    lead_fr: str = ""
+    lead_translation: str | None = None
+
+
+def _authored_reply(job: _ReplyJob, base: dict[str, Any]) -> dict[str, Any]:
+    """2026-10-18: the line Romy says when the model, asked twice, still answered a lost
+    learner «les sources ne le disent pas» or met «Plus» with no new fact: the story again
+    in its simpler lead («Je reprends depuis le début.»), or «Il y a autre chose.» and the
+    next fact the lead has not told, said in the line itself (at A1–A2 its card is folded)."""
+
+    language = job.translation_language or ""
+    if job.lost:
+        text = f"{LOST_LEAD} {job.lead_fr}"
+        lead_in = LOST_LEAD_TRANSLATIONS.get(language)
+        translation = f"{lead_in} {job.lead_translation}" if lead_in and job.lead_translation else None
+        cited: list[str] = []
+        repaired = ["authored_lost"]
+    else:
+        claims = [c for c in job.context.get("claims") or [] if isinstance(c, dict) and c.get("id") in job.unheard]
+        fresh = next((c for c in claims if c.get("kind") == "fact"), claims[0] if claims else None)
+        text = f"{MORE_LEAD} {fresh['fr']}" if fresh else MORE_LEAD
+        translation = None  # the claim has no translation of its own
+        cited = [str(fresh["id"])] if fresh else []
+        repaired = ["authored_more"]
+    return {**base, "role": "reply", "text_fr": voice.french_typography(text), "translation": translation,
+            "claims_cited": cited, "claims_restated": [], "answer_ids": cited,
+            "shift": "simplify" if job.lost else None, "repaired": repaired}
 
 
 @dataclass
@@ -2043,19 +2168,22 @@ class RevueEncounter:
     def _arrive(self, state: ConversationState, dossier: EditorialDossier, plan: SessionPlan, *, request_miss: str | None) -> None:
         place = next((p for p in dossier.places if p.id == plan.stage.place_id), dossier.places[0])
         stage = stage_for(dossier, plan, db=self.db)
-        scope = dossier.time_scope
-        if (scope.end - scope.start).days > 60:
-            when = "une histoire de tous les jours."
-        else:
-            when = f"ça se passe du {_french_day(scope.start)} au {_french_day(scope.end)}."
-        narration = [f"{place.name_fr.rstrip('.')}.", f"Romy est déjà là, son carnet à la main : {when}"]
+        # One line: where and when. The lead says what happened, right under it (a second line
+        # pushed Romy's question under the fold on a phone).
+        narration = [dateline(dossier, place)]
         place_note = None if stage.place_is_real else f"Ce n'est pas vraiment {_lower_first(place.name_fr)}, hein… mais on fait comme si."
         angle = dossier.angle_by_id(plan.angle_id) or dossier.angles[0]
-        purpose = PURPOSE_LINES.get(angle.purpose, PURPOSE_LINES["understand_change"]).format(angle=angle.fr)
+        purpose = angle.purpose if angle.purpose in PURPOSE_LINES else "understand_change"
+        # 2026-10-18: the story is told before anyone talks, at the learner's band, with its
+        # translation where the band has the translate button.
+        lead = dossier.lead_for(plan.learner.band)
+        language = _gloss_language_of(plan) if current_support(plan, state).translation != "none" else None
         # §8.4: on the story's own picture, Romy points at what it shows, with its words.
         look = look_line(dossier) if stage.plate_kind == "story" else None
         state.append("turn_romy", beat="arrive", role="purpose", narration=narration, place_note=place_note,
-                     request_miss=request_miss, look_fr=look, text_fr=purpose, summary_fr=dossier.summary_fr)
+                     request_miss=request_miss, look_fr=look, text_fr=PURPOSE_LINES[purpose],
+                     translation=PURPOSE_TRANSLATIONS[purpose].get(language or ""),
+                     summary_fr=lead.fr, summary_translation=lead.translation(language or ""))
 
     # -- a turn ----------------------------------------------------------------
 
@@ -2549,7 +2677,7 @@ class RevueEncounter:
             beat=beat_for(state),  # type: ignore[arg-type]
             room=room,
             support=support_view(plan, state),
-            quick_replies=quick_replies(state, room),
+            quick_replies=quick_replies(state, room, unshown=unshown_claims(loaded.dossier, state)),
             steer_to_make=room.phase != "open" and state.current_artifact is None and not state.closed,
             evidence=evidence_view(payload),
         )
@@ -2597,15 +2725,26 @@ class RevueEncounter:
         translation_language = _gloss_language_of(plan) if support.translation != "none" else None
         shown = set(state.claims_shown)
         sources = {s.id: s.name for s in dossier.sources}
+        # 2026-10-18: «je ne comprends pas» is a request to tell the story again, more simply,
+        # and «Plus» one for the next fact, never a question for the sources.
+        lost = is_incomprehension(text)
+        read = dossier.lead_for(plan.learner.band).fr  # the lead the learner read on arrival
+        told = {c.id for c in dossier.claims if told_in(c.fr, read)}
+        unheard = frozenset(c.id for c in dossier.claims if c.id not in shown and c.id not in told)
+        more = wants_more(text) and bool(unheard)
+        lead = dossier.simpler_lead(plan.learner.band) if lost else dossier.lead_for(plan.learner.band)
         context: dict[str, Any] = {
             "task": "reply",
             "learner_text": text,
+            "story_lead": lead.fr,
+            "learner_is_lost": lost,
+            "learner_wants_more": more,
             "who_is_who": {"tu": "the learner", "romy": "Romy, the journalist",
                            "guest_on_stage": state.guest_on_stage},
             "claims": [
                 {"id": c.id, "kind": c.kind, "fr": c.fr, "attributed_to": c.attributed_to,
-                 "source": sources.get(c.source_id, "")}
-                for c in dossier.claims if c.id not in shown
+                 "source": sources.get(c.source_id, ""), "in_story_lead": c.id in told}
+                for c in sorted((c for c in dossier.claims if c.id not in shown), key=lambda c: c.id in told)
             ],
             "claims_already_said": [{"id": c.id, "fr": c.fr} for c in dossier.claims if c.id in shown],
             "uncertainties": [{"id": u.id, "fr": u.fr} for u in dossier.uncertainties],
@@ -2620,9 +2759,15 @@ class RevueEncounter:
             "guest_on_stage": state.guest_on_stage,
             "knowledge": (knowledge_context or {}).get(ROMY_ID),
         }
+        if lost:
+            # The retold story must fit: the lead is the floor of the line's length.
+            limit = max(limit, word_count(lead.fr) + word_count(LOST_LEAD) + 4)
+            context["max_words"] = limit
         return _ReplyJob(context=context, limit=limit, simplified=simplified, band=plan.learner.band, shown=shown,
                          question_proposed=question_proposed(state), dossier=dossier, position=position,
-                         translation_language=translation_language, learner_text=text, session_id=str(loaded.row.id))
+                         translation_language=translation_language, learner_text=text, session_id=str(loaded.row.id),
+                         lost=lost, wants_more=more, unheard=unheard, lead_fr=lead.fr,
+                         lead_translation=lead.translation(translation_language or ""))
 
     def _generate_reply(self, job: _ReplyJob) -> dict[str, Any]:
         """Romy's line, pure (no DB). Checked every attempt: empty, length, relative dates, the
@@ -2674,6 +2819,10 @@ class RevueEncounter:
                 problems.append("app_words")
             if len(new_ids) > MAX_NEW_CLAIMS:
                 problems.append("too_many_claims")
+            if job.lost and says_sources_silent(reply_text):
+                problems.append("silent_when_lost")
+            if job.wants_more and not set(new_ids) & job.unheard:
+                problems.append("no_new_fact")
             if not problems:
                 break
             regenerated_for = regenerated_for or list(problems)
@@ -2689,7 +2838,8 @@ class RevueEncounter:
                 "max_new_claims": MAX_NEW_CLAIMS,
                 "app_words": voice.meta_words(reply_text),
                 "rules": "No ids or symbols in the text, no orders to the learner, at most two new claims, never "
-                         "mention the dossier.",
+                         "mention the dossier. When learner_is_lost, retell story_lead more simply and never say the "
+                         "sources are silent; when learner_wants_more, bring one new claim (in_story_lead false) and cite it.",
             }}
         cost = meter(self.provider) - spent_before
         base = {"translation": None, "claims_cited": [], "claims_restated": [], "answer_ids": [], "uncertainty_id": None,
@@ -2701,6 +2851,8 @@ class RevueEncounter:
             reason = "knowledge_refused" if "knowledge" in problems else "model_down"
             return {**base, "role": "fallback", "reason": reason, "text_fr": FALLBACK_LINE,
                     "refused": problems or ["model_down"]}
+        if "silent_when_lost" in problems or "no_new_fact" in problems:
+            return _authored_reply(job, base)
         reply = parsed["text_fr"]
         translation = parsed["translation"]
         repaired: list[str] = []
@@ -3333,7 +3485,8 @@ class RevueEncounter:
             question_kept = str(artifact.get("text_fr")) if artifact else None
         else:
             question_kept = str(question["text"]) if question else None
-        closing = RvClosing(romy_line_fr=romy_line, dispatch=dispatch, kept=kept, question_kept_fr=question_kept)
+        closing = RvClosing(romy_line_fr=romy_line, dispatch=dispatch, kept=kept, question_kept_fr=question_kept,
+                            colophon_fr=colophon_for(row.week))
         closing.vignette = self._mint_vignette(loaded, kind=kind, kept_contribution=bool(contribution))
         # WP-121 A.0: the kept words enter the learner's SRS, tied to this Papier's place.
         from app.services.revue.carte import keep_papier_words

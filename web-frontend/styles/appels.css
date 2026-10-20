@@ -1,0 +1,131 @@
+/* ===========================================================================
+   Les appels (pages/appel.tsx, components/appels/*).
+   Scoped under `.av2`; `--av2-*` tokens only. The call is ink on paper like
+   every surface: the face, the clock, one round press to talk, a red hang-up.
+   =========================================================================== */
+
+.av2.ap-page {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--av2-paper);
+  width: 100%;
+  max-width: var(--phone-shell-max, 460px);
+  margin: 0 auto;
+}
+.av2 .ap-mock { position: fixed; left: 50%; bottom: 6px; transform: translateX(-50%); margin: 0; opacity: 0.6; font-size: 0.6875rem; font-weight: 700; color: var(--av2-muted); pointer-events: none; }
+.av2 .ap-loading { display: flex; flex-direction: column; gap: 14px; padding: calc(env(safe-area-inset-top, 0px) + 60px) 16px 16px; }
+
+.av2 .ap-ring,
+.av2 .ap-live,
+.av2 .ap-end {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: calc(env(safe-area-inset-top, 0px) + 56px) 16px calc(var(--av2-safe-bottom) + 20px);
+  text-align: center;
+}
+.av2 .ap-ring { justify-content: center; }
+.av2 .ap-ring__actions { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 18px; }
+
+.av2 .ap-title { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-title); font-weight: 500; line-height: 1.15; color: var(--av2-ink); }
+.av2 .ap-name { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-title); font-weight: 500; color: var(--av2-ink); }
+.av2 .ap-clock { margin: -8px 0 0; font-size: var(--av2-t-meta); font-weight: 700; letter-spacing: 0.08em; color: var(--av2-muted); font-variant-numeric: tabular-nums; }
+.av2 .ap-hint { margin: 0; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-muted); }
+.av2 .ap-meta { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--av2-muted); }
+.av2 .ap-failure { margin: 0; font-size: var(--av2-t-body); color: var(--av2-red-deep); }
+.av2 .ap-why { margin: 0; font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink); }
+.av2 .ap-why > span { font-weight: 700; }
+.av2 .ap-said { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-rule); line-height: 1.45; color: var(--av2-ink); }
+
+/* --- the face ------------------------------------------------------------- */
+.av2 .ap-face {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  background: var(--av2-card);
+  border: 3px solid var(--av2-ink);
+  overflow: visible;
+  display: grid;
+  place-items: center;
+}
+.av2 .ap-face > img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.av2 .ap-face > span { font-family: var(--av2-serif); font-size: 3rem; color: var(--av2-ink); }
+.av2 .ap-face[data-ringing]::after,
+.av2 .ap-face[data-speaking]::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 3px solid var(--av2-green);
+  animation: ap-ring 1.4s ease-out infinite;
+}
+.av2 .ap-face[data-speaking]::after { border-color: var(--av2-yellow); animation-duration: 0.9s; }
+@keyframes ap-ring { from { opacity: 0.9; transform: scale(0.96); } to { opacity: 0; transform: scale(1.18); } }
+@media (prefers-reduced-motion: reduce) {
+  .av2 .ap-face[data-ringing]::after,
+  .av2 .ap-face[data-speaking]::after { animation: none; opacity: 0.8; }
+}
+
+/* --- the line, the transcript ----------------------------------------------- */
+.av2 .ap-line { display: flex; gap: 18px; justify-content: center; min-height: var(--av2-tap); align-items: center; }
+.av2 .ap-link {
+  min-height: var(--av2-tap); padding: 0 6px; border: 0; background: none; cursor: pointer;
+  font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); color: var(--av2-ink);
+  text-decoration: underline; text-decoration-color: var(--av2-muted); text-underline-offset: 4px;
+}
+.av2 .ap-transcript { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.av2 .ap-transcript__line { display: flex; flex-direction: column; gap: 2px; }
+.av2 .ap-transcript__who { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .ap-transcript__line[data-who='learner'] .ap-transcript__who { color: var(--av2-blue); }
+.av2 .ap-transcript__line p { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-rule); line-height: 1.45; color: var(--av2-ink); overflow-wrap: anywhere; }
+
+/* --- talking ----------------------------------------------------------------- */
+.av2 .ap-talk {
+  margin-top: auto;
+  width: 132px; height: 132px; border-radius: 50%;
+  border: 3px solid var(--av2-ink);
+  background: var(--av2-yellow); color: var(--av2-on-yellow);
+  box-shadow: 0 var(--av2-press) 0 var(--av2-ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.2; padding: 12px;
+  cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.av2 .ap-talk[data-recording] { background: var(--av2-red); color: var(--av2-on-red); transform: translateY(var(--av2-press)); box-shadow: none; }
+.av2 .ap-talk:disabled { opacity: 0.5; cursor: default; }
+.av2 .ap-type { margin-top: auto; display: flex; gap: 8px; width: 100%; }
+.av2 .ap-type__field {
+  flex: 1 1 auto; min-width: 0; min-height: var(--av2-tap); padding: 0 14px;
+  border: 2px solid var(--av2-ink); border-radius: var(--av2-r-button); background: var(--av2-card);
+  font-family: var(--av2-serif); font-size: var(--av2-t-option); color: var(--av2-ink);
+}
+.av2 .ap-live__foot { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; }
+.av2 .ap-hangup {
+  margin-left: auto; min-height: var(--av2-tap); padding: 0 22px; border-radius: var(--av2-r-pill);
+  border: 2px solid var(--av2-ink); background: var(--av2-red); color: var(--av2-on-red);
+  font-weight: 700; font-size: var(--av2-t-label); cursor: pointer;
+}
+.av2 .ap-hangup:disabled { opacity: 0.5; }
+
+/* --- the home card ------------------------------------------------------------ */
+.av2 .ap-card {
+  display: flex; gap: 14px; align-items: center;
+  padding: 14px; margin: 0 0 12px;
+  border: 2px solid var(--av2-ink); border-radius: var(--av2-r-card); background: var(--av2-card);
+}
+.av2 .ap-card__face { position: relative; flex: none; width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--av2-ink); background: var(--av2-paper); }
+.av2 .ap-card__face > img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.av2 .ap-card__face[data-ringing]::after {
+  content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--av2-green);
+  animation: ap-ring 1.4s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .av2 .ap-card__face[data-ringing]::after { animation: none; } }
+.av2 .ap-card__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.av2 .ap-card__title { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-option); font-weight: 600; color: var(--av2-ink); }
+.av2 .ap-card__hint { margin: 0; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+.av2 .ap-card__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }

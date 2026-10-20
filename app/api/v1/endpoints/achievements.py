@@ -11,7 +11,7 @@ from app.schemas.achievement import (
     AchievementRead,
     AchievementUnlockResponse,
 )
-from app.services.achievement import AchievementService
+from app.services.achievement import AchievementService, reward_item_for
 
 router = APIRouter(prefix="/achievements", tags=["achievements"])
 
@@ -35,6 +35,7 @@ def list_achievements(
             tier=achievement.tier,
             xp_reward=achievement.xp_reward,
             icon_url=achievement.icon_url,
+            reward_item=reward_item_for(achievement.achievement_key),
         )
         for achievement in achievements
     ]
@@ -70,6 +71,7 @@ def get_my_achievements(
             target_progress=item.target_progress,
             completed=item.completed,
             unlocked_at=item.unlocked_at,
+            reward_item=item.reward_item,
         )
         for item in progress
     ]
@@ -96,6 +98,7 @@ def check_achievements(
                 tier=achievement.tier,
                 xp_reward=achievement.xp_reward,
                 icon_url=achievement.icon_url,
+                reward_item=reward_item_for(achievement.achievement_key),
             )
             for achievement in newly_unlocked
         ],

@@ -75,6 +75,9 @@ export type ReleveCopy = {
   note_session_streak_7: string;
   note_session_streak_30: string;
   note_first_letter: string;
+  note_helps_10: string;
+  note_helps_50: string;
+  note_helps_100: string;
   note_words_kept_50: string;
   note_first_chapter: string;
   foot_dated: string;
@@ -160,6 +163,9 @@ const FR: ReleveCopy = {
   note_session_streak_7: 'Sept jours d’affilée à l’Atelier.',
   note_session_streak_30: 'Trente jours d’affilée à l’Atelier.',
   note_first_letter: 'Une première réponse au Courrier.',
+  note_helps_10: 'Dix fois tu as répondu ou aidé quelqu’un.',
+  note_helps_50: 'Cinquante fois tu as répondu ou aidé quelqu’un.',
+  note_helps_100: 'Cent fois tu as répondu ou aidé quelqu’un.',
   note_words_kept_50: 'Cinquante mots dans ton Lexique.',
   note_first_chapter: 'Le premier chapitre du feuilleton s’est refermé.',
   foot_dated: 'Progrès · arrêté au {date}',
@@ -244,6 +250,9 @@ const EN: ReleveCopy = {
   note_session_streak_7: 'Seven days in a row at L’Atelier.',
   note_session_streak_30: 'Thirty days in a row at L’Atelier.',
   note_first_letter: 'Your first reply in the Courrier.',
+  note_helps_10: 'Ten times you answered or helped someone.',
+  note_helps_50: 'Fifty times you answered or helped someone.',
+  note_helps_100: 'A hundred times you answered or helped someone.',
   note_words_kept_50: 'Fifty words in your Lexique.',
   note_first_chapter: 'The first chapter of the Feuilleton has closed.',
   foot_dated: 'Progress · as of {date}',
@@ -328,6 +337,9 @@ const DE: ReleveCopy = {
   note_session_streak_7: 'Sieben Tage in Folge im Atelier.',
   note_session_streak_30: 'Dreißig Tage in Folge im Atelier.',
   note_first_letter: 'Eine erste Antwort im Courrier.',
+  note_helps_10: 'Zehnmal hast du jemandem geantwortet oder geholfen.',
+  note_helps_50: 'Fünfzigmal hast du jemandem geantwortet oder geholfen.',
+  note_helps_100: 'Hundertmal hast du jemandem geantwortet oder geholfen.',
   note_words_kept_50: 'Fünfzig Wörter in deinem Lexique.',
   note_first_chapter: 'Das erste Kapitel des Feuilleton ist abgeschlossen.',
   foot_dated: 'Fortschritt · Stand {date}',

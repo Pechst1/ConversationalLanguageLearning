@@ -406,13 +406,16 @@ export function VerticalPanel({
     }
     if (entry.role === 'silent') return <p className="vp-caption__line vp-caption__line--silent">{t.silent_beat}</p>;
     return (
-      <FrenchLine
-        className="fr-line vp-caption__line"
-        text={stage.caption}
-        idPrefix={`${stage.key}-cap`}
-        wordLabel={t.word_help}
-        onWord={(word) => onWord(word, { sentence: stage.caption, character: stage.character })}
-      />
+      <>
+        <FrenchLine
+          className="fr-line vp-caption__line"
+          text={stage.caption}
+          idPrefix={`${stage.key}-cap`}
+          wordLabel={t.word_help}
+          onWord={(word) => onWord(word, { sentence: stage.caption, sentenceEn: stage.captionEn, character: stage.character })}
+        />
+        {showTranslation && stage.captionEn && <p className="fr-line-en vp-en">{stage.captionEn}</p>}
+      </>
     );
   };
 

@@ -55,6 +55,7 @@ type RvStage = {
 type RvStoryCard = {
   dossier_id: string;
   title_fr: string;
+  headline_fr: string | null;  // 2026-10-18: six words or fewer, for Home's «À la une !» card (else title_fr)
   summary_fr: string;
   topic: "food" | "culture" | "city" | "sport" | "nature" | "work" | "politics";
   place_fr: string;
@@ -115,7 +116,7 @@ type RvItemBase = { id: string /* "<seq>" or "<seq>.<n>" — stable across repla
 | `kind` | Extra fields | Renders as | Comes from |
 |---|---|---|---|
 | `narration` | `text_fr` | `RvNarration` (sans, no face) | the `arrive` beat: two sentences from place + time scope |
-| `summary` | `speaker: "romy_tremblay"`, `text_fr` | `HeardLine` «Écouter le résumé» | the `arrive` beat: the dossier's `summary_fr` |
+| `summary` | `speaker: "romy_tremblay"`, `text_fr`, `translation: string \| null`, `glosses: RvGloss[]` | `RvLead` «Ce qui s'est passé»: the text, a listen chip and, where the band translates, «Traduire» (2026-10-18; it was `HeardLine` «Écouter le résumé») | the `arrive` beat: the dossier's lead at the learner's band (`leads.a1` / `leads.a2`), B1+ its `summary_fr` |
 | `line` | `speaker`, `text_fr`, `role`, `translation: string \| null`, `glosses: RvGloss[]` | `RvLine` (speech bubble) | every Romy turn |
 | `mine` | `text_fr`, `mode: "text" \| "voice"`, `register_note: "vous_to_tu" \| "tu_to_vous" \| null` | the learner's bubble (and, with a note, the register note under it) | every learner turn; `register_note` from that turn's `evidence` event (2026-10-03), so the note survives a reload |
 | `claims` | `claims: RvClaim[]` (1–2) | `RvClaim` cards (the client folds them into «2 faits sur la table» once the learner speaks) | the claims Romy cites in that turn, first time shown only |
@@ -371,7 +372,7 @@ type RvClosing = {
           claims: RvClaim[] };   // «Pour ton Relevé»: words + claims shown, with source lines
   question_kept_fr: string | null;   // an open question Romy keeps for the desk / next week
   vignette: VignetteView | null;     // WP-120 §4.3: the stamp minted at close; null when minting failed or is off
-  colophon_fr: "La suite la semaine prochaine.";
+  colophon_fr: "La suite la semaine prochaine." | "La suite demain.";  // «demain» when the Papier is daily (§12.2)
 };
 
 // app/schemas/revue_vignette.py — also the items of GET /revue/vignettes ({ vignettes: VignetteView[] })

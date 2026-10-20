@@ -110,6 +110,7 @@ import {
 import { isRevueDay } from '@/lib/revue-une';
 import { emitCameo } from '@/lib/cameo';
 import { castIdFor } from '@/lib/cast-faces';
+import { chapterReached, dayCast } from './day-cast';
 
 export type JourneySessionProps = {
   controller: DailyJourneyController;
@@ -285,6 +286,19 @@ export function JourneySession({
   React.useEffect(() => {
     if (metKey) emitCameo({ type: 'met', ids: metKey.split(',') });
   }, [metKey]);
+
+  // Les apparitions, tied to the day: today's page's people are the ones who walk in on its
+  // drills, and once the page of a new part of the season is read, that part's object is handed over.
+  const dayEpisode = useStoryEpisodeEntry(journeyId || null);
+  const dayCastKey = dayCast(journey, dayEpisode?.kind === 'episode' ? dayEpisode.episode : null).join(',');
+  React.useEffect(() => {
+    if (dayCastKey) emitCameo({ type: 'scene', ids: dayCastKey.split(',') });
+  }, [dayCastKey]);
+  const chapter = chapterReached(journey);
+  const chapterKey = chapter ? `${chapter.season_id}.${chapter.segment}` : null;
+  React.useEffect(() => {
+    if (chapter) emitCameo({ type: 'chapter', part: chapter });
+  }, [chapterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* GENTLE-ONBOARDING: the learner's first day (the one that meets the cast)
      opens on the walkthrough — the app, the shapes, the progress row, the
