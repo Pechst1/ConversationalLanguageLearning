@@ -182,6 +182,19 @@ test('#175: a passed rule check closes the grammar step and the plan’s next st
   assert.equal(dp.handOnAfterRuleCheck(null, false, 'en'), null);
 });
 
+test('review of #221: a rule check from the day never offers the Cahier, even before the plan is read', () => {
+  const early = dp.ruleCheckExitFromDay(undefined, false, 'de');
+  assert.equal(early.href, '/fertig', 'a reloaded result page stays in the day');
+  assert.doesNotMatch(early.href, /^\/grammar/);
+  assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'done', 'todo']), false, 'de').href, FORGE);
+  assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'todo', 'todo']), true, 'en').href, WORDS);
+  // The page reads the live forge view (where the result lands after the last answer),
+  // not the session's copy from the start, and asks this helper for the exit.
+  const page = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'pages', 'atelier.tsx'), 'utf8');
+  assert.match(page, /const ruleCheckResult = \(forge \?\? forgeViewOf\(session\?\.forge\)\)\?\.result;/);
+  assert.match(page, /ruleCheckExitFromDay\(journey\.envelope\?\.session/);
+});
+
 test('#175: the rule check carries from=day from the day’s La Forge, and only from there', () => {
   assert.equal(dp.ruleCheckPath('abc', true), '/atelier?testout=abc&from=day');
   assert.equal(dp.ruleCheckPath('abc', false), '/atelier?testout=abc');

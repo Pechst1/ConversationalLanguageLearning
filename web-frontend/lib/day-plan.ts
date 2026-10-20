@@ -165,6 +165,20 @@ export function handOnAfterRuleCheck(
   };
 }
 
+/**
+ * The rule check's exit when the day started it (`from=day`): the plan's next step, or,
+ * while the plan is not read yet (a reloaded result page), «Fertig», which says what is
+ * left. Never the Cahier: a quick tap before the plan landed lost the day (review of #221).
+ */
+export function ruleCheckExitFromDay(
+  plan: DaySession | null | undefined,
+  passed: boolean,
+  language: ControlLanguage,
+): DayHandOn {
+  return handOnAfterRuleCheck(plan, passed, language)
+    ?? { kind: 'finish', label: daySessionCopy(language).next_finish, meta: '', href: '/fertig' };
+}
+
 /** The scene's ending, finished or stopped: where the day goes next. */
 export function handOnAfterScene(
   plan: DaySession | null | undefined,

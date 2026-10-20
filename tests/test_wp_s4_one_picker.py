@@ -712,6 +712,25 @@ def test_rule_check_ends_the_day(
     assert forge_state_of(passed).result["passed"] is True
     assert blocks() == 1, "a passed rule check closes the day's grammar step"
 
+    # Review of #221: failed rule checks taken later the same day must not push the
+    # passed one out of a row limit and reopen the grammar step.
+    from app.services.forge import TEST_OUT_DONE_STATUS
+
+    later = datetime.now(UTC)
+    for minute in range(25):
+        db_session.add(
+            AtelierSession(
+                user_id=user.id,
+                selected_concept_ids=[concept.id],
+                quote_payload={},
+                status=TEST_OUT_DONE_STATUS,
+                recap_payload={"test_out": {"passed": False}},
+                completed_at=later + timedelta(seconds=minute),
+            )
+        )
+    db_session.commit()
+    assert blocks() == 1, "25 later failed rule checks do not hide the passed one"
+
 
 def forge_picker_units(db_session: Session, user: User, concept: GrammarConcept):
     from app.services.forge import PickedUnit, forge_units

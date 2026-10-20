@@ -2757,6 +2757,11 @@ class DailyJourneyService:
 
         from app.services.forge import FORGE_KEY, TEST_OUT_DONE_STATUS
 
+        zone = ZoneInfo(resolve_timezone(timezone_name))
+        # The learner's own day, as an UTC window: every séance of that day is read, so
+        # failed rule checks can never push a finished block out of a row limit.
+        start = datetime.combine(day, datetime.min.time(), tzinfo=zone).astimezone(UTC)
+        end = datetime.combine(day + timedelta(days=1), datetime.min.time(), tzinfo=zone).astimezone(UTC)
         rows = self.db.execute(
             select(
                 AtelierSession.status,
@@ -2768,12 +2773,11 @@ class DailyJourneyService:
                 AtelierSession.user_id == user.id,
                 AtelierSession.status.in_(("completed", TEST_OUT_DONE_STATUS)),
                 AtelierSession.completed_at.is_not(None),
-                AtelierSession.completed_at >= _utcnow() - timedelta(days=2),
+                AtelierSession.completed_at >= start,
+                AtelierSession.completed_at < end,
             )
             .order_by(AtelierSession.completed_at.desc())
-            .limit(20)
         ).all()
-        zone = ZoneInfo(resolve_timezone(timezone_name))
         count = 0
         for status, payload, recap, completed_at in rows:
             if status == TEST_OUT_DONE_STATUS:

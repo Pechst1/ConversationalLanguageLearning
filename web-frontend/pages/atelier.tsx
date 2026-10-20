@@ -135,7 +135,7 @@ import {
   sessionNextAction,
   sessionRows,
 } from '@/lib/day-session';
-import { dayIsDone, handOnAfterGrammar, handOnAfterRuleCheck, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
+import { dayIsDone, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
 import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
@@ -1813,9 +1813,11 @@ export default function AtelierPage() {
 
   // #175: a rule check started from the day (`?testout=…&from=day`) ends on the
   // day plan's next step, never in the Cahier. Failed: La Forge takes over.
-  const ruleCheckResult = forgeViewOf(session?.forge)?.result;
+  // The live forge view: the result lands there after the last answer, while the
+  // session's own copy keeps the one it started with.
+  const ruleCheckResult = (forge ?? forgeViewOf(session?.forge))?.result;
   const ruleCheckHandOn = router.isReady && ruleCheckIsFromDay(router.query) && ruleCheckResult
-    ? handOnAfterRuleCheck(journey.envelope?.session, Boolean(ruleCheckResult.passed), pageChromeLanguage)
+    ? ruleCheckExitFromDay(journey.envelope?.session, Boolean(ruleCheckResult.passed), pageChromeLanguage)
     : null;
 
   // WP-S4: a forge block folded into the day hands the learner back to the
