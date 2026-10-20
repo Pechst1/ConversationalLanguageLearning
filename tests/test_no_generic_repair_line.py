@@ -43,7 +43,7 @@ def _service(db_session, language: str) -> AtelierCorrectionService:
 def test_no_concept_of_the_catalogue_gets_the_generic_repair_line(db_session, language: str) -> None:
     AtelierScheduler(db_session).ensure_catalog()
     service = _service(db_session, language)
-    generic = {text for text in LEARNER_COPY["atelier.generic.repair"].values()}
+    generic = set(LEARNER_COPY["atelier.generic.repair"].values())
     concepts = [*db_session.query(GrammarConcept).all(), *_v2_concepts()]
     assert len(concepts) > 250
     bad: list[str] = []
