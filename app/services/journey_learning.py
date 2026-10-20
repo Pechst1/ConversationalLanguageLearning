@@ -4023,7 +4023,8 @@ def coach_scene_review_task(
         return None
     unit = units[0]
     candidates = item_bank.default_bank().generate(
-        unit, 8, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
+        # A scene needs an item that carries its own question (#176): look further.
+        unit, 24, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
     )
     for item in candidates:
         scene = forge_coaches.mini_scene(item, coach)
