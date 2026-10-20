@@ -67,3 +67,58 @@ def test_a_unit_whose_items_ask_no_question_still_has_a_free_use_prompt(unit: st
         assert built is not None and built["example_answer"]
         assert built["type"] == "conversation_turn"
 
+
+
+def _strong_brief(unit: str) -> dict:
+    return {
+        "concept_id": 4242,
+        "external_id": unit,
+        "title_fr": unit,
+        "stability": 12.0,
+        "rule_short_native": "The unit's rule.",
+    }
+
+
+def test_every_coach_unit_keeps_its_rappel_free_use_and_a_line_is_the_items_own_question() -> None:
+    """Night-shift review of #258: dropping the generic openers left 59 of the 78
+    coach units with no Rappel scene at all (``coach_scene_review_task`` returned
+    ``None``), so a strong unit never got its free-use re-use check. Every unit now
+    poses the scene when an item asks its own question, and otherwise the plain task,
+    and a posed character line is always the question of the item it is posed with."""
+
+    from app.services.journey_learning import coach_scene_review_task
+
+    silent: list[str] = []
+    stray: list[str] = []
+    for unit in _units():
+        coach = fc.coach_for_concept(unit)
+        posed = 0
+        for day in range(1, 29):
+            if posed == 3:  # (three posed days per unit keep the sweep fast; a silent unit tries all 28)
+                break
+            day_key = f"2026-10-{day:02d}"
+            task = coach_scene_review_task(_strong_brief(unit), language="en", day_key=day_key)
+            if task is None:
+                continue
+            posed += 1
+            assert task.evidence_format == "conversation" and task.accepted_answers, unit
+            assert task.hint_native == "The unit's rule.", unit
+            if not task.prompt_fr:
+                assert "talking to you" not in task.instruction_native, (unit, task.instruction_native)
+                continue
+            candidates = ib.default_bank().generate(
+                unit, 24, seed=f"rappel-scene|{unit}|{day_key}", detector=ib.unit_detector(unit)
+            )
+            pairs = {
+                (f"{coach['name']} : « {line['fr']} »", scene["reply"])
+                for item in candidates
+                if (scene := fc.mini_scene(item, coach)) is not None
+                for line in scene["lines"][:1]
+                if (line["fr"], line["en"]) in _own_questions(item)
+            }
+            if (task.prompt_fr, task.solution_fr) not in pairs:
+                stray.append(f"{unit} {day_key}: {task.prompt_fr} -> {task.solution_fr}")
+        if not posed:
+            silent.append(unit)
+    assert silent == [], f"units whose Rappel poses no free use on any of 28 days: {silent}"
+    assert stray == [], "a character line that is not the item's own question:\n" + "\n".join(stray[:10])
