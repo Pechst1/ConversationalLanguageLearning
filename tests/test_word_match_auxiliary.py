@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.word_match import fold, target_occurs_in
-
 _AVOIR_TEXTS = [
     "J'ai faim",
     "Il a froid",
@@ -22,15 +20,21 @@ _AVOIR_TEXTS = [
 
 @pytest.mark.parametrize("text", _AVOIR_TEXTS)
 def test_the_auxiliary_of_the_passe_compose_does_not_stand_for_the_verb(text):
+    from app.services.word_match import target_occurs_in
+
     assert target_occurs_in("vendre", text) is False
 
 
 @pytest.mark.parametrize("text", ["Elle a vendu un tableau", "je vends", "Nous avons vendu la table"])
 def test_the_participle_and_the_conjugated_forms_still_count(text):
+    from app.services.word_match import target_occurs_in
+
     assert target_occurs_in("vendre", text) is True
 
 
 def test_etre_is_not_the_word_et():
+    from app.services.word_match import target_occurs_in
+
     assert target_occurs_in("être", "Pierre et Marie mangent.") is False
     assert target_occurs_in("être", "Je suis fatigué") is True
     assert target_occurs_in("avoir", "Il a froid") is True
@@ -38,6 +42,7 @@ def test_etre_is_not_the_word_et():
 
 @pytest.mark.parametrize("text", ["J'ai faim", "Il a froid"])
 def test_the_courrier_counter_ignores_the_auxiliary(text):
+
     from app.services.missions import MissionCorrectionService, _normalize_phrase
 
     item = {"word": "vendre", "normalized_word": "vendre"}
@@ -47,6 +52,7 @@ def test_the_courrier_counter_ignores_the_auxiliary(text):
 def test_no_verb_of_the_core_lexicon_is_used_by_a_bare_auxiliary():
     """Sweep: a, ai, as, ont, avons, avez, et belong to avoir / être only."""
     from app.services.core_lexicon import _entries
+    from app.services.word_match import fold, target_occurs_in
 
     leaks = []
     checked = 0
