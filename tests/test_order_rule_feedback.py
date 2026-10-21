@@ -12,7 +12,11 @@ from __future__ import annotations
 import pytest
 
 from app.db.models.grammar import GrammarConcept
-from app.services.atelier import AtelierCorrectionService, _join_french_tokens, _tokenize_french_sentence
+from app.services.atelier import (
+    AtelierCorrectionService,
+    _join_french_tokens,
+    _tokenize_french_sentence,
+)
 
 PRONOUNS = "FR2_B11_DOUBLE_PRONOUNS"
 NEGATION = "FR2_A21_PC_NEGATION"

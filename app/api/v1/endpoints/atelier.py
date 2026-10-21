@@ -244,6 +244,14 @@ def _with_learner_instructions(payload: dict[str, Any], *, native_language: Any)
         if not isinstance(node, dict):
             return node
         next_node = {key: localize(value) for key, value in node.items()}
+        if "correct_label" in next_node and not next_node.get("label_l10n"):
+            # #196: a classify item cached before it carried its label table: each stored
+            # answer key that is a copy row is shown in the learner's language.
+            from app.services.item_bank import label_table
+
+            table = label_table(next_node.get("labels"))
+            if table:
+                next_node["label_l10n"] = table
         instruction = next_node.get("instruction")
         if not isinstance(instruction, str) or not instruction.strip():
             return next_node

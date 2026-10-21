@@ -37,6 +37,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
+from app.services import order_rules
 from app.services.address import address_instruction
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
@@ -84,10 +85,11 @@ from app.services.item_bank import (
     VARIETY_WINDOW_DAYS,
     _is_judgement,
     build_bank_set,
+    judgement_item,
+    label_table,
     units_for_external_id,
 )
 from app.services.item_bank import fingerprint as bank_fingerprint
-from app.services import order_rules
 from app.services.learner_copy import learner_text as _copy
 from app.services.learner_copy import word_count as _word_count
 from app.services.llm_service import LLMProviderError, LLMService
@@ -3987,39 +3989,73 @@ class AtelierExerciseGenerator:
         return items
 
     def _fallback_classify_items(self, concept: GrammarConcept, *, prefix: str) -> list[dict[str, Any]]:
+        """The fallback set's «sort this» items.
+
+        #196 / #144 / #146: the labels are stored answer keys, and each is a
+        ``learner_copy`` row (``atelier.classify.*``) whose English column is the key
+        and whose ``label_l10n`` is what the learner reads in the chrome language, so no
+        English label reaches a French or German learner. A unit with no authored
+        labels is not sorted «its own label / a different grammar role» (the answer was
+        the label of every sentence): its sentences are sorted right or wrong, with the
+        unit's own ✗/✓ pairs, which can be wrong for the sentence.
+        """
+
         profile = infer_grammar_profile(concept)
+
+        def labelled(index: int, prompt: str, labels: list[str], correct: str) -> dict[str, Any]:
+            return {
+                "id": f"{prefix}-fallback-classify-{index}",
+                "prompt": prompt,
+                "labels": labels,
+                "correct_label": correct,
+                "correct_answer": correct,
+                "label_l10n": label_table(labels),
+            }
+
+        def key(name: str) -> str:
+            return _copy(f"atelier.classify.{name}", "en")
+
         if profile.key == "article_after_negation":
-            labels = ["article changes", "être exception"]
+            labels = [key("article_changes"), key("etre_exception")]
             return [
-                {"id": f"{prefix}-fallback-classify-1", "prompt": "pas de café", "labels": labels, "correct_label": "article changes", "correct_answer": "article changes"},
-                {"id": f"{prefix}-fallback-classify-2", "prompt": "Ce n'est pas du café", "labels": labels, "correct_label": "être exception", "correct_answer": "être exception"},
-                {"id": f"{prefix}-fallback-classify-3", "prompt": "pas d'idée", "labels": labels, "correct_label": "article changes", "correct_answer": "article changes"},
+                labelled(1, "pas de café", labels, labels[0]),
+                labelled(2, "Ce n'est pas du café", labels, labels[1]),
+                labelled(3, "pas d'idée", labels, labels[0]),
             ]
         if profile.key == "tense_aspect":
+            labels = [key("background_habit"), key("bounded_event")]
             return [
-                {"id": f"{prefix}-fallback-classify-1", "prompt": "marchais", "labels": ["background/habit", "bounded event"], "correct_label": "background/habit", "correct_answer": "background/habit"},
-                {"id": f"{prefix}-fallback-classify-2", "prompt": "a ouvert", "labels": ["background/habit", "bounded event"], "correct_label": "bounded event", "correct_answer": "bounded event"},
-                {"id": f"{prefix}-fallback-classify-3", "prompt": "allions", "labels": ["background/habit", "bounded event"], "correct_label": "background/habit", "correct_answer": "background/habit"},
+                labelled(1, "marchais", labels, labels[0]),
+                labelled(2, "a ouvert", labels, labels[1]),
+                labelled(3, "allions", labels, labels[0]),
             ]
         if profile.key == "si_present_result_form":
-            labels = ["present condition", "future result", "imperative result"]
+            labels = [key("present_condition"), key("future_result"), key("imperative_result")]
             return [
-                {"id": f"{prefix}-fallback-classify-1", "prompt": "si tu viens", "labels": labels, "correct_label": "present condition", "correct_answer": "present condition"},
-                {"id": f"{prefix}-fallback-classify-2", "prompt": "je répondrai", "labels": labels, "correct_label": "future result", "correct_answer": "future result"},
-                {"id": f"{prefix}-fallback-classify-3", "prompt": "prends ton manteau", "labels": labels, "correct_label": "imperative result", "correct_answer": "imperative result"},
+                labelled(1, "si tu viens", labels, labels[0]),
+                labelled(2, "je répondrai", labels, labels[1]),
+                labelled(3, "prends ton manteau", labels, labels[2]),
             ]
-        labels = [profile.label, "different grammar role"]
-        sentences = self._fallback_sentences(concept)
-        return [
-            {
-                "id": f"{prefix}-fallback-classify-{index}",
-                "prompt": sentence,
-                "labels": labels,
-                "correct_label": profile.label,
-                "correct_answer": profile.label,
-            }
-            for index, sentence in enumerate(sentences[:3], start=1)
-        ]
+        from app.services.grammar_units import contrast_pairs
+
+        pairs = contrast_pairs(concept)
+        wrongs = [pair["wrong"] for pair in pairs]
+        rights: list[str] = []
+        for sentence in [*(pair["right"] for pair in pairs[1:]), *self._fallback_sentences(concept), *(pair["right"] for pair in pairs[:1])]:
+            if sentence not in rights and sentence not in wrongs:
+                rights.append(sentence)
+        fixes = {pair["wrong"]: pair["right"] for pair in pairs}
+        plan: list[tuple[str, str | None]] = []
+        if wrongs:
+            plan.append((wrongs[0], fixes[wrongs[0]]))
+        plan.append((rights[0], None))
+        plan.append((wrongs[1], fixes[wrongs[1]]) if len(wrongs) > 1 else (rights[1 % len(rights)], None))
+        items: list[dict[str, Any]] = []
+        for index, (sentence, fix) in enumerate(plan[:3], start=1):
+            item = judgement_item(f"{prefix}-fallback-classify-{index}", sentence, fix=fix)
+            if item is not None:
+                items.append(item)
+        return items
 
     def _fallback_transform_items(
         self,
