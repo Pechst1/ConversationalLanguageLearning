@@ -16,13 +16,12 @@ The coach shows on the rule card and on each answer's feedback, with a mood:
 
 The free-use rung becomes a two-line scene with the coach
 (:func:`mini_scene`): the coach's line — the item's own question («Tu prends
-la confiture ?»), its authored ``ask``, or one of the coach's openers — and
+la confiture ?») or its authored ``ask`` — and
 the learner's reply, which needs the rule. It is graded like any production
 (WP-S1: the local check, then the asynchronous relecture).
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from functools import lru_cache
@@ -131,18 +130,20 @@ def _split_question(text: str) -> tuple[str, str] | None:
     return None
 
 
-def _opener(coach_id: str, key: str) -> dict[str, str]:
-    openers = _data()["cast"][coach_id]["openers"]
-    index = int(hashlib.sha256(key.encode("utf-8")).hexdigest()[:6], 16) % len(openers)
-    return dict(openers[index])
-
-
 def mini_scene(item: Any, coach_payload: dict[str, Any] | None) -> dict[str, Any] | None:
     """The coach's line and the learner's reply for one bank item, or ``None``.
 
-    ``None`` when the item cannot be a scene with this coach: the reply would
-    name the coach in the third person («Marin est à la brocante», said to
-    Marin), or the rule's span would not be in the reply.
+    The coach's line is the question **the item itself carries**: the question in
+    its sentence («Tu prends la confiture ? — Oui, je la prends.») or its authored
+    ``ask``. ``None`` when the item has neither, when the reply would name the coach
+    in the third person («Marin est à la brocante», said to Marin), or when the
+    rule's span would not be in the reply.
+
+    #176 / #146: a line used to be drawn from the coach's list of generic openers
+    («Qu'est-ce que tu me racontes ?») and put above any sentence to translate, so
+    the line and the task came from two sources and did not belong together. A line
+    and its task now come from one item record, or there is no line (the caller poses
+    the plain task: :func:`item_bank.output_item`, :func:`journey_learning.coach_scene_review_task`).
     """
 
     if not coach_payload:
@@ -163,9 +164,7 @@ def mini_scene(item: Any, coach_payload: dict[str, Any] | None) -> dict[str, Any
         line, line_en = item.ask["fr"], item.ask["en"]
         reply, reply_en = sentence, english
     else:
-        opener = _opener(coach_id, str(item.fingerprint))
-        line, line_en = opener["fr"], opener["en"]
-        reply, reply_en = sentence, english
+        return None
     if re.search(rf"\b{re.escape(first_name)}\b", f"{line} {reply}"):
         return None
     if str(item.target) not in reply:
@@ -192,6 +191,31 @@ def mini_scene(item: Any, coach_payload: dict[str, Any] | None) -> dict[str, Any
     }
 
 
+def plain_free_use(item: Any, *, question: bool = False) -> dict[str, Any] | None:
+    """An item's sentence as a free-use task with no character line, or ``None``.
+
+    #176: what an item that asks no question of its own is (the scene's other
+    half). One sentence the learner says in French from its meaning, which holds
+    the rule's span; a statement, since a question back is no answer, unless
+    ``question`` (a unit that teaches questions has no other sentence).
+    """
+
+    sentence = _strip_vocative(str(item.sentence), french=True)
+    english = _strip_vocative(str(item.en), french=False)
+    if _split_question(sentence) or re.search(r"[.!]\s", sentence):
+        return None
+    if sentence.rstrip().endswith("?") and not question:
+        return None
+    if str(item.target) not in sentence:
+        return None
+    german = getattr(item, "de", None)
+    return {
+        "reply": sentence,
+        "reply_en": english,
+        "reply_de": _strip_vocative(str(german), french=False) if german else None,
+    }
+
+
 __all__ = [
     "MOODS",
     "cast_ids",
@@ -201,4 +225,5 @@ __all__ = [
     "coach_mood",
     "family_for_unit",
     "mini_scene",
+    "plain_free_use",
 ]

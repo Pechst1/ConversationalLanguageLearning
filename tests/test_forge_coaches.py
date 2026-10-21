@@ -101,8 +101,9 @@ def test_the_coach_face_follows_the_answer(correct, checked, held, mood) -> None
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("unit", ["FR2_A21_COD", "FR2_A11_IL_Y_A", "FR2_A21_PC_AVOIR", "FR2_A11_JE_VOUDRAIS", "FR2_A12_TIME"])
+@pytest.mark.parametrize("unit", ["FR2_A21_COD", "FR2_A11_IL_Y_A"])
 def test_free_use_is_a_two_line_scene_with_the_coach(unit: str) -> None:
+    """Units whose items carry a question of their own (#176: no other item gets a line)."""
     coach = fc.coach_for_unit(unit)
     detector = ib.unit_detector(unit)
     scenes = [
@@ -158,8 +159,12 @@ def test_the_scene_is_valid_in_a_seance_set(db_session: Session) -> None:
     assert AtelierExerciseGenerator.validate_payload(payload, concept=concept)
     assert payload["coach"]["id"] == "margaux_barman"
     turn = payload["output_ladder"]["conversation"]["items"][0]
-    assert turn["scene"]["lines"][0]["speaker"] == "margaux_barman"
-    assert turn["character"]["name"] == "Margaux"
+    # #176: a line only when the item asks its own question; otherwise the plain task.
+    if "scene" in turn:
+        assert turn["scene"]["lines"][0]["speaker"] == "margaux_barman"
+        assert turn["character"]["name"] == "Margaux"
+    else:
+        assert "character" not in turn
 
 
 def test_a_coached_scene_keeps_its_coach_over_the_legacy_serial_character() -> None:

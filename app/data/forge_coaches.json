@@ -1,53 +1,24 @@
 {
  "version": "forge-coaches-1",
- "_about": "WP-S5 (2026-09-24): La Forge's coaches. One cast member of the world bible (app/prompts/serial/world_bible_paris_v2.json) per family of v2 units; every A1–A2 unit (and every B1 unit with templates) belongs to exactly one family. A v1 concept with an authored rule card keeps its card's speaker (app/data/grammar_rule_cards.json) as its coach, so the face on the card and the face on the feedback are the same. `openers` are the coach's first line of a free-use two-line scene when the item carries no line of its own (tu, or vous for the landlord). Characters: app/services/forge_coaches.py.",
+ "_about": "WP-S5 (2026-09-24): La Forge's coaches. One cast member of the world bible (app/prompts/serial/world_bible_paris_v2.json) per family of v2 units; every A1–A2 unit (and every B1 unit with templates) belongs to exactly one family. A v1 concept with an authored rule card keeps its card's speaker (app/data/grammar_rule_cards.json) as its coach, so the face on the card and the face on the feedback are the same.  A coach's line in a free-use scene is always the item's own question or `ask` (#176), so the coaches carry no generic openers. Characters: app/services/forge_coaches.py.",
  "cast": {
   "margaux_barman": {
-   "name": "Margaux", "lexicon": "margaux", "register": "tu",
-   "openers": [
-    {"fr": "Alors, je t'écoute.", "en": "So, I'm listening."},
-    {"fr": "Qu'est-ce que tu me racontes ?", "en": "What's new with you?"},
-    {"fr": "Vas-y, dis-moi.", "en": "Go on, tell me."}
-   ]
+   "name": "Margaux", "lexicon": "margaux", "register": "tu"
   },
   "augustin_de_roncourt": {
-   "name": "Gus", "lexicon": "gus", "register": "tu",
-   "openers": [
-    {"fr": "Raconte-moi tout.", "en": "Tell me everything."},
-    {"fr": "Et alors ? La suite !", "en": "And then? What happened next?"},
-    {"fr": "Je note ça dans mon carnet. Vas-y.", "en": "I'm writing it in my notebook. Go on."}
-   ]
+   "name": "Gus", "lexicon": "gus", "register": "tu"
   },
   "romy_tremblay": {
-   "name": "Romy", "lexicon": "romy", "register": "tu",
-   "openers": [
-    {"fr": "J'enregistre. Une phrase pour mon reportage ?", "en": "I'm recording. One sentence for my report?"},
-    {"fr": "Question pour l'article : et toi ?", "en": "A question for the article: what about you?"},
-    {"fr": "Vas-y, je t'écoute.", "en": "Go on, I'm listening."}
-   ]
+   "name": "Romy", "lexicon": "romy", "register": "tu"
   },
   "lila_bonnet": {
-   "name": "Lila", "lexicon": "lila", "register": "tu",
-   "openers": [
-    {"fr": "À toi. Une phrase !", "en": "Your turn. One sentence!"},
-    {"fr": "Dis-le-moi en français.", "en": "Tell me in French."},
-    {"fr": "Allez, je t'écoute.", "en": "Come on, I'm listening."}
-   ]
+   "name": "Lila", "lexicon": "lila", "register": "tu"
   },
   "marin_leveque": {
-   "name": "Marin", "lexicon": "marin", "register": "tu",
-   "openers": [
-    {"fr": "Et toi, alors ?", "en": "And you?"},
-    {"fr": "Raconte, ça m'intéresse.", "en": "Tell me, I'm interested."},
-    {"fr": "Vas-y, je t'écoute.", "en": "Go on, I'm listening."}
-   ]
+   "name": "Marin", "lexicon": "marin", "register": "tu"
   },
   "landlord_marchand": {
-   "name": "M. Marchand", "lexicon": "marchand", "register": "vous",
-   "openers": [
-    {"fr": "Oui ? Je vous écoute.", "en": "Yes? I'm listening."},
-    {"fr": "Qu'est-ce qu'il y a ?", "en": "What is it?"}
-   ]
+   "name": "M. Marchand", "lexicon": "marchand", "register": "vous"
   }
  },
  "families": [

@@ -3988,6 +3988,15 @@ _COACH_SCENE_INSTRUCTION: dict[str, str] = {
 }
 
 
+#: The free-use opportunity of a unit none of whose items asks a question of its own:
+#: the sentence to say, no character line (#176).
+_FREE_USE_PLAIN_INSTRUCTION: dict[str, str] = {
+    "en": "Say it in French: “{meaning}”",
+    "de": "Sag es auf Französisch: „{meaning}“",
+    "fr": "Dis-le en français : « {meaning} »",
+}
+
+
 def coach_scene_review_task(
     brief: dict[str, Any], *, language: str, day_key: str, level: str | None = None
 ) -> RecallTask | None:
@@ -4020,8 +4029,17 @@ def coach_scene_review_task(
         return None
     unit = units[0]
     candidates = item_bank.default_bank().generate(
-        unit, 8, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
+        # A scene needs an item that carries its own question (#176): look further.
+        unit, 24, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
     )
+
+    def in_band(accepted: list[str]) -> bool:
+        if not level:
+            return True
+        from app.services.practice_level import within_band
+
+        return all(within_band(text, level) for text in accepted)
+
     for item in candidates:
         scene = forge_coaches.mini_scene(item, coach)
         if scene is None or scene["reply"].rstrip().endswith("?"):
@@ -4033,11 +4051,8 @@ def coach_scene_review_task(
         name = str(coach.get("name") or "")
         template = _COACH_SCENE_INSTRUCTION.get(language, _COACH_SCENE_INSTRUCTION["en"])
         accepted = list(dict.fromkeys([scene["reply"], *[a for a in item.accepted if a]]))
-        if level:
-            from app.services.practice_level import within_band
-
-            if not all(within_band(text, level) for text in accepted):
-                continue
+        if not in_band(accepted):
+            continue
         return RecallTask(
             task_type="short_answer",
             # FORGE-DE: a German learner reads the German meaning when the item has one.
@@ -4052,6 +4067,33 @@ def coach_scene_review_task(
             solution_fr=scene["reply"],
             translation_native=(str(line.get("en") or "") or None) if language == "en" else None,
             # A miss names the unit's rule (the instruction is not a reason).
+            hint_native=grammar_items._hint(brief, language),
+            estimated_seconds=40,
+            evidence_format="conversation",
+        )
+    # No item of this unit asks a question of its own (most do not): the free-use
+    # opportunity is the plain task, with no character line (#176 / #146). A line
+    # is shown only when the task answers it.
+    # (a statement first; a unit that teaches questions has only questions to say)
+    for item, question in [(item, False) for item in candidates] + [(item, True) for item in candidates]:
+        plain = forge_coaches.plain_free_use(item, question=question)
+        if plain is None:
+            continue
+        accepted = list(dict.fromkeys([plain["reply"], *[a for a in item.accepted if a]]))
+        if not in_band(accepted):
+            continue
+        template = _FREE_USE_PLAIN_INSTRUCTION.get(language, _FREE_USE_PLAIN_INSTRUCTION["en"])
+        return RecallTask(
+            task_type="short_answer",
+            instruction_native=template.format(
+                meaning=(plain.get("reply_de") if language == "de" else None) or plain["reply_en"]
+            ),
+            prompt_fr=None,
+            options=[],
+            target=grammar_items.grammar_target(brief),
+            optional=False,
+            accepted_answers=accepted,
+            solution_fr=plain["reply"],
             hint_native=grammar_items._hint(brief, language),
             estimated_seconds=40,
             evidence_format="conversation",

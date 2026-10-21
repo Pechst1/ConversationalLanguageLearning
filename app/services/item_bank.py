@@ -2963,10 +2963,13 @@ def output_item(
     coach: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """A production item. With a ``coach`` the conversation rung is a two-line
-    scene (WP-S5), or ``None`` when this item cannot be one with that coach."""
+    scene (WP-S5) when the item carries its own question for the coach to ask;
+    an item that does not (#176) is the plain task, with no character line."""
 
     if round_name == "conversation" and coach:
-        return scene_item(item, coach=coach, requirement=requirement)
+        scene = scene_item(item, coach=coach, requirement=requirement)
+        if scene is not None:
+            return scene
     kind = {"sentence": "short_sentence", "speak": "spoken_response", "conversation": "conversation_turn"}[round_name]
     words = len(item.sentence.split())
     return {
@@ -3211,8 +3214,6 @@ def build_bank_set(
         queue.insert(2, queue.pop(scene_index))
     sentence_item, speak_item, conversation_item, produce_idea, produce_model = queue[:5]
     conversation = output_item(conversation_item, round_name="conversation", requirement=requirement, coach=coach)
-    if conversation is None:
-        conversation = output_item(conversation_item, round_name="conversation", requirement=requirement)
     payload = dict(base)
     if coach:
         payload["coach"] = dict(coach)
