@@ -486,3 +486,47 @@ test('WP-110: the ending step closes the finished page on «À suivre…»', () 
   assert.deepEqual(stages.map((stage) => stage.kind), ['panel', 'panel', 'panel', 'resolution']);
   assert.equal(stages[3].aSuivre, 'Demain, Camille.');
 });
+
+// ---------------------------------------------------------------------------
+// Night shift 2026-10-21 (#263, #269)
+// ---------------------------------------------------------------------------
+
+const PLANNING_NOTE =
+  'Le Mistral à nous 40 × 1 000 € Margaux Mme Diallo le petit Augustin (!) Marin — il dira oui en pleurant M. M. : oui, si Margaux reste.';
+
+test('#263: the director’s planning note is never a reader caption', () => {
+  const noted = {
+    ...episode,
+    panels: [
+      { id: 'n1', index: 0, narration_fr: PLANNING_NOTE, dialogue: [], image_url: null, image_status: 'unavailable' },
+      { id: 'n2', index: 1, narration_fr: 'Le lendemain, au marché.', dialogue: [], image_url: null, image_status: 'unavailable' },
+    ],
+  };
+  const stages = model.buildStoryStages(noted).filter((stage) => stage.kind === 'panel');
+  assert.equal(stages[0].caption, '', 'the note is not printed under the picture');
+  assert.equal(stages[1].caption, 'Le lendemain, au marché.', 'real narration is kept');
+  assert.equal(model.stripPanelPrefix(PLANNING_NOTE), '');
+  assert.equal(
+    model.stripPanelPrefix('Margaux compte quarante euros dans la caisse.'),
+    'Margaux compte quarante euros dans la caisse.',
+  );
+});
+
+test('#269: a replayed exchange lists the speaker’s question before the learner’s reply', () => {
+  const question = { key: 'q', who: 'Lila Bonnet', fr: 'Combien de temps tu restes ?', en: '', character: 'lila' };
+  const reply = { key: 'r', who: 'Toi', fr: 'Trois jours.', en: '', character: 'toi', you: true };
+  const exchange = { ...bubblePanel, lines: [question, reply] };
+  // The reply stays the balloon on the picture (WP-110)…
+  assert.equal(model.panelReaderVariant(exchange), 'bubble');
+  // …and the reader draws, top to bottom, the question, then the picture with the reply.
+  const { replyReadingOrder } = require('../../feuilleton/reader/panel-model.ts');
+  const order = replyReadingOrder(exchange.lines);
+  assert.deepEqual(order.before.map((line) => line.fr), ['Combien de temps tu restes ?']);
+  assert.equal(order.bubble.fr, 'Trois jours.');
+  assert.deepEqual(order.after, []);
+  // A reply that opens the panel has nothing above it; a later line stays below.
+  const first = replyReadingOrder([reply, question]);
+  assert.deepEqual(first.before, []);
+  assert.equal(first.bubble.fr, 'Trois jours.');
+  assert.deepEqual(first.after.map((line) => line.fr), ['Combien de temps tu restes ?']);
+});

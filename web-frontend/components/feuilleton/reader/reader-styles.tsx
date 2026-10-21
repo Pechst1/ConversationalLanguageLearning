@@ -743,6 +743,8 @@ export function FeuilletonReaderStyles() {
         flex-direction: column;
         gap: 6px;
       }
+      /* #269: what was said before the reply on the picture, read above it */
+      .av2 .fr-reader[data-story] .fr-captions--before { margin-bottom: 8px; }
       .av2 .fr-reader[data-story] .fr-speech {
         border-left: 0;
         border-radius: 16px;

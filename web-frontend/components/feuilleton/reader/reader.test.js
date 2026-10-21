@@ -383,3 +383,14 @@ test('WP-90: the new reader words exist in all three chrome languages', () => {
   assert.equal(fillReaderCopy(readerCopy('de').art_on_press, { n: 3 }), 'Bild 3 · in Druck');
   assert.equal(readerCopy('fr').translate_panel, 'Traduire la case');
 });
+
+test('#263: a planning note is not a panel caption, in the beat or in the caption field', () => {
+  const note =
+    'Le Mistral à nous 40 × 1 000 € Margaux Mme Diallo le petit Augustin (!) Marin — il dira oui en pleurant M. M. : oui, si Margaux reste.';
+  const viaCaption = { id: 'n1', overlay_payload: { bubbles: [], caption: { fr: note } } };
+  const viaBeat = { id: 'n2', beat: note, overlay_payload: { bubbles: [] } };
+  assert.equal(panelCaption(viaCaption, panelLines(viaCaption)), '');
+  assert.equal(panelCaption(viaBeat, panelLines(viaBeat)), '');
+  const plain = { id: 'n3', beat: 'La pluie glisse sur la vitre.', overlay_payload: { bubbles: [] } };
+  assert.equal(panelCaption(plain, panelLines(plain)), 'La pluie glisse sur la vitre.');
+});
