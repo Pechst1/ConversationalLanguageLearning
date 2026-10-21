@@ -468,6 +468,16 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Bring die Bausteine in diese Reihenfolge: {target}",
         "fr": "Remets les étiquettes dans cet ordre : {target}",
     },
+    "atelier.word_bank.rule_order_why": {
+        "en": "The order of these words is today's rule, and yours breaks it. {rule}",
+        "de": "Die Reihenfolge dieser Wörter ist die Regel von heute, und deine bricht sie. {rule}",
+        "fr": "L’ordre de ces mots est la règle du jour, et le tien la brise. {rule}",
+    },
+    "atelier.word_bank.rule_order_repair": {
+        "en": "Put them in the rule's order: {target}",
+        "de": "Bring sie in die Reihenfolge der Regel: {target}",
+        "fr": "Remets-les dans l’ordre de la règle : {target}",
+    },
     "atelier.word_bank.label_spelling_slip": {
         "en": "Spelling slip",
         "de": "Schreibfehler",
