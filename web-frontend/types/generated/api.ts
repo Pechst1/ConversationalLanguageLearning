@@ -9114,6 +9114,8 @@ export interface components {
              * @default
              */
             corrected_answer?: string;
+            /** Checker */
+            checker?: string | null;
             /** Errata */
             errata?: {
                 [key: string]: unknown;
@@ -9126,6 +9128,8 @@ export interface components {
             foreground?: {
                 [key: string]: unknown;
             } | null;
+            /** Retryable */
+            retryable?: boolean;
             /** Verdict */
             verdict?: string | null;
         };

@@ -1189,8 +1189,8 @@ export default function MissionsPage() {
                       >
                         {turn.text}
                       </CrSlip>
-                      {/* WP-74: the corrector was unavailable. Not a pass, not a
-                          fault — say plainly that nobody has corrected it yet. */}
+                      {/* WP-74 / #250: no grader ran and the shared model-free pass found
+                          nothing. Not a pass and not a dead end: «No corrections found». */}
                       {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
                         <p className="cr-unassessed" role="status">{t.unassessed}</p>
                       )}

@@ -1,0 +1,260 @@
+"""#250: one corrector contract for the scene reply, the Courrier and the Journal.
+
+The corrector's output used to be trusted as-is and a failure was a dead-end line.
+These tests feed the exact sentences from the 20 Oct live walk (#193, #251, #252) and
+the rule that would have caught them: an edit is accepted only when it is about the
+learner's sentence, and a model-free pass finds the real mistakes when the model
+fails or is rejected. No model call is made anywhere in this file.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from app.services import living_story as engine
+from app.services import story_lanes as lanes
+
+ODILE = "Odile est parti parce que la restaurant était très difficile."
+EST_CE_QUE = "Mais est-ce que le gâteau est pour le chat ?"
+EST_CE_QUE_WRONG = "Mais est-ce que la gâteau est pour le chat ?"
+SONNE = "Je vais sonné la cloche et je vend le gâteau."
+JOURNAL = (
+    "Hier, Marin Lévêque a donné une bouillotte à Lila. Gus dit qu’il est comte, mais il a "
+    "un scooter. Lila a rentré dans le café et elle mange un croissant."
+)
+TU_NOTE = "With « tu », « est » must be « es »"
+
+
+def _contract():
+    from app.services import correction_contract
+
+    return correction_contract
+
+
+def _payload(learner_text: str) -> dict:
+    return {
+        "learner_text": learner_text,
+        "history": [],
+        "scene": {},
+        "story": {"learner": {"address": "neutral"}, "level": "A2", "commitments": [], "control_language": "en"},
+        "targets": [],
+        "turn_plan": {},
+    }
+
+
+def _pairs(edits):
+    return {(e.span, e.replacement) for e in edits}
+
+
+# ---------------------------------------------------------------------------
+# the three 20 Oct sentences: no «tu / es», the real errors present, spans in the input
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("sentence", [ODILE, EST_CE_QUE, EST_CE_QUE_WRONG, SONNE, JOURNAL])
+def test_no_edit_ever_turns_est_into_es_and_every_span_is_in_the_sentence(sentence):
+    contract = _contract()
+    edits = contract.deterministic_edits(sentence)
+    for edit in edits:
+        assert edit.replacement.casefold() != "es", f"{edit.span!r} -> {edit.replacement!r}"
+        assert edit.span in sentence
+        assert sentence[edit.start : edit.end] == edit.span
+
+
+def test_odile_est_parti_marks_the_real_errors_not_a_tu_es_card():
+    edits = _contract().deterministic_edits(ODILE)
+    pairs = _pairs(edits)
+    assert ("la", "le") in pairs, "la restaurant -> le restaurant"
+    assert ("parti", "partie") in pairs, "Odile is a woman in the cast: parti -> partie"
+    assert not any("tu" in e.note_for("en") for e in edits)
+
+
+def test_est_ce_que_is_not_a_verb_form_to_correct():
+    contract = _contract()
+    assert contract.deterministic_edits(EST_CE_QUE) == []
+    assert _pairs(contract.deterministic_edits(EST_CE_QUE_WRONG)) == {("la", "le")}
+
+
+def test_je_vais_sonne_je_vend_are_both_marked():
+    pairs = _pairs(_contract().deterministic_edits(SONNE))
+    assert ("sonné", "sonner") in pairs
+    assert ("vend", "vends") in pairs
+
+
+@pytest.mark.parametrize("sentence", [ODILE, EST_CE_QUE])
+def test_the_model_est_to_es_card_is_rejected_for_a_sentence_with_no_tu(sentence):
+    contract = _contract()
+    assert not contract.edit_is_grounded(sentence, "est", "es", TU_NOTE)
+    # without the note too: a second-person form needs a «tu» somewhere
+    assert not contract.edit_is_grounded(sentence, "est", "es", None)
+
+
+def test_the_scene_reply_drops_the_tu_es_card_and_shows_a_real_correction():
+    """The tutor lane: the model's «est -> es» is replaced by the first real edit."""
+    verdict = lanes.TutorVerdict(
+        outcome="met",
+        evidence_quotes=[ODILE],
+        correction_span_fr="est",
+        correction_fr="es",
+        correction_note_native=TU_NOTE,
+    )
+    lanes.validate_tutor(verdict, _payload(ODILE))
+    assert verdict.correction_fr != "es"
+    assert verdict.correction_span_fr in ODILE
+    assert verdict.correction_fr in {"partie", "le"}
+    assert "tu" not in (verdict.correction_note_native or "")
+
+
+def test_the_scene_reply_keeps_a_grounded_model_correction():
+    verdict = lanes.TutorVerdict(
+        outcome="met",
+        evidence_quotes=["Tu est gentil."],
+        correction_span_fr="est",
+        correction_fr="es",
+        correction_note_native="After « tu » the verb is « es ».",
+    )
+    lanes.validate_tutor(verdict, _payload("Tu est gentil."))
+    assert (verdict.correction_span_fr, verdict.correction_fr) == ("est", "es")
+
+
+def test_the_scene_turn_guard_uses_the_same_contract():
+    turn = engine.SemanticTurn.model_construct(
+        reply_fr="Bien sûr.",
+        resolution_fr="",
+        understood_intent="",
+        evidence_quotes=[],
+        outcome="not_yet",
+        needs_clarification=True,
+        correction_span_fr="est",
+        correction_fr="es",
+        correction_note_native=TU_NOTE,
+    )
+    payload = _payload(ODILE)
+    engine._validate_turn(turn, payload)
+    assert turn.correction_fr != "es"
+    assert turn.correction_span_fr in ODILE
+
+
+# ---------------------------------------------------------------------------
+# the reviewer's rejection of the first #193 attempt: object pronouns are not subjects
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("sentence", "span", "fix"),
+    [
+        ("Je lui a donné un cadeau.", "a", "ai"),
+        ("Je lui est donné un cadeau.", "est", "ai"),
+        ("Je vous est vu hier.", "est", "ai"),
+        ("Il nous ont donné le livre.", "ont", "a"),
+        ("Il vous ont parlé.", "ont", "a"),
+        ("Marie et moi suis contents.", "suis", "sommes"),
+        ("Toi est gentil.", "est", "es"),
+        ("Tu est gentil.", "est", "es"),
+    ],
+)
+def test_a_genuine_person_fix_is_never_dropped(sentence, span, fix):
+    assert _contract().edit_is_grounded(sentence, span, fix, None)
+
+
+@pytest.mark.parametrize(
+    ("sentence", "span", "fix"),
+    [
+        ("Elle est gentille.", "est", "es"),
+        ("Ma grand-mère est morte.", "est", "es"),
+        ("Il est là.", "est", "suis"),
+        ("Tu es gentil.", "es", "est"),
+    ],
+)
+def test_a_form_that_is_right_for_its_subject_is_never_changed(sentence, span, fix):
+    assert not _contract().edit_is_grounded(sentence, span, fix, None)
+
+
+def test_a_quoted_span_that_is_not_in_the_sentence_is_rejected():
+    assert not _contract().edit_is_grounded("Je suis content.", "tu es", "tu as", None)
+    assert not _contract().edit_is_grounded("Je suis content.", "suis", "suis", None)
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Je le porte tous les jours.",
+        "Il la mange avec plaisir.",
+        "J’ai rentré la voiture.",
+        "Elle a sorti son téléphone.",
+        "Vous êtes disponible jeudi matin ?",
+        "Je suis fatigué et il mange.",
+        "Ma grand-mère est morte.",
+        "Je suis perdu ici.",
+    ],
+)
+def test_correct_french_gets_no_model_free_edit(sentence):
+    assert _contract().deterministic_edits(sentence) == []
+
+
+# ---------------------------------------------------------------------------
+# a model that fails or is rejected leaves the model-free corrections
+# ---------------------------------------------------------------------------
+
+
+def test_merge_keeps_grounded_model_edits_and_adds_the_ones_it_missed():
+    contract = _contract()
+    model = [
+        {
+            "learner_text": "la restaurant",
+            "corrected_target": "le restaurant",
+            "why_wrong": "restaurant is masculine",
+            "task_error_type": "gender_agreement",
+        },
+        {"learner_text": "est", "corrected_target": "es", "why_wrong": TU_NOTE, "task_error_type": "verb_conjugation"},
+    ]
+    merged = contract.merge_deterministic_errata(ODILE, model, language="en")
+    targets = {(e["learner_text"], e["corrected_target"]) for e in merged}
+    assert ("est", "es") not in targets
+    assert ("la restaurant", "le restaurant") in targets
+    assert ("parti", "partie") in targets
+    # the model's quote of «la restaurant» already covers the gender edit: no second card
+    assert ("la", "le") not in targets
+
+
+# ---------------------------------------------------------------------------
+# #93: an intonation question is correct French, on every surface that corrects
+# ---------------------------------------------------------------------------
+
+INTONATION = "Vous êtes disponible jeudi matin ?"
+
+
+def test_an_intonation_question_gets_no_edit_from_the_model_free_pass():
+    assert _contract().deterministic_edits(INTONATION) == []
+
+
+def test_the_contract_rejects_an_inversion_as_a_correction_of_an_intonation_question():
+    contract = _contract()
+    assert not contract.edit_is_grounded(INTONATION, INTONATION, "Êtes-vous disponible jeudi matin ?", "Inversion is required.")
+    assert not contract.edit_is_grounded(
+        INTONATION, "Est-ce que vous", "Êtes-vous", "Use inversion."
+    )
+
+
+def test_two_near_duplicate_notes_on_one_fragment_collapse_to_one():
+    contract = _contract()
+    text = "Mon carte est jolie."
+    errata = [
+        {"learner_text": "Mon carte", "corrected_target": "Ma carte", "why_wrong": "carte is feminine.", "task_error_type": "gender_agreement"},
+        {"learner_text": "mon carte", "corrected_target": "ma carte", "why_wrong": "Use ma.", "task_error_type": "gender_agreement"},
+    ]
+    kept = contract.merge_deterministic_errata(text, errata, language="en")
+    assert [item["corrected_target"] for item in kept] == ["Ma carte"]
+
+
+def test_the_tutor_lane_never_corrects_the_intonation_question():
+    verdict = lanes.TutorVerdict(
+        outcome="met",
+        evidence_quotes=[INTONATION],
+        correction_span_fr=INTONATION,
+        correction_fr="Êtes-vous disponible jeudi matin ?",
+        correction_note_native="Inversion is required in a formal question.",
+    )
+    lanes.validate_tutor(verdict, _payload(INTONATION))
+    assert verdict.correction_span_fr is None and verdict.correction_fr is None
+    assert verdict.correction_note_native is None

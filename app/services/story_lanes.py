@@ -56,7 +56,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
-from app.services import lane_guards, story_memory
+from app.services import correction_contract, lane_guards, story_memory
 from app.services import living_story as engine
 from app.services.answer_acceptance import is_preference_swap
 from app.services.journey_contracts import (
@@ -479,6 +479,19 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
     ):
         # WP-155: «engagé·e» in a correction imposes no gender only by being dropped.
         verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
+    if not (payload.get("turn_plan") or {}).get("clarify_form_fr"):
+        # #250: the same contract as the scene reply (see living_story._validate_turn).
+        (
+            verdict.correction_span_fr,
+            verdict.correction_fr,
+            verdict.correction_note_native,
+        ) = correction_contract.first_valid_edit(
+            payload["learner_text"],
+            verdict.correction_span_fr,
+            verdict.correction_fr,
+            verdict.correction_note_native,
+            language=(payload.get("story") or {}).get("control_language"),
+        )
 
 
 def _learner_own_forms(payload: dict) -> frozenset[str]:

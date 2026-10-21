@@ -21,6 +21,7 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.savepoint import best_effort
+from app.services import correction_contract
 
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
@@ -40,7 +41,7 @@ from app.services.glosses import (
     resolve_gloss,
     word_gloss,
 )
-from app.services.learner_copy import learner_text
+from app.services.learner_copy import copy_language, learner_text
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
@@ -3786,6 +3787,16 @@ class MissionCorrectionService:
                 continue
             if not self._quote_is_grounded(erratum, submission_text=submission_text):
                 continue
+            if not correction_contract.edit_is_grounded(
+                submission_text,
+                erratum.get("learner_text"),
+                erratum.get("corrected_target"),
+                erratum.get("why_wrong"),
+                strict_span=False,
+            ):
+                # #250: the note cites a subject that is not in the reply, or the
+                # swapped form is wrong for the subject in front of it.
+                continue
             narrowed = self._narrow_erratum(erratum, submission_text=submission_text)
             if narrowed is None:
                 continue
@@ -4119,7 +4130,8 @@ class MissionCorrectionService:
         }
 
     def _deterministic_errata(self, text: str, *, language: Any = None) -> tuple[list[dict[str, Any]], str]:
-        corrected = text
+        contract_edits = correction_contract.deterministic_edits(text)
+        corrected = correction_contract.apply_edits(text, contract_edits)
         errata: list[dict[str, Any]] = []
 
         def preserve_case(original: str, replacement: str) -> str:
@@ -4185,6 +4197,17 @@ class MissionCorrectionService:
                 flags=re.IGNORECASE,
             )
 
+        # #250: the model-free pass of the shared corrector contract. The same rules
+        # serve the scene reply and the Journal, so a model that fails (or is rejected)
+        # leaves real corrections here, never an "unavailable" card.
+        for edit in contract_edits:
+            if any(
+                edit.span.casefold() in item["learner_text"].casefold()
+                or item["learner_text"].casefold() in edit.span.casefold()
+                for item in errata
+            ):
+                continue
+            errata.append(correction_contract.to_erratum(edit, language=copy_language(language)))
         return errata, corrected.strip()
 
     def _merge_deterministic_errata(
@@ -4206,12 +4229,18 @@ class MissionCorrectionService:
             )
             for item in existing
         }
+        quoted = [str(item.get("learner_text") or "").casefold() for item in existing]
         for item in deterministic_errata:
             key = (
                 str(item.get("learner_text") or "").casefold(),
                 str(item.get("corrected_target") or "").casefold(),
                 str(item.get("task_error_type") or ""),
             )
+            span = key[0]
+            # #250: the model already quoted this fragment (or a longer one around it):
+            # one card per fragment, not «Mon carte» and «Mon» both.
+            if span and any(span in other or (other and other in span) for other in quoted):
+                continue
             if key not in existing_keys:
                 existing.append(item)
                 existing_keys.add(key)
