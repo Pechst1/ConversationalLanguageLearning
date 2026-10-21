@@ -48,7 +48,11 @@ export type ReaderCopy = {
   page_alt: string;
   art_printing: string;
   art_missing: string;
-  /** WP-137 C-5: the caption of a panel where nobody speaks (a beat on a detail). */
+  /**
+   * WP-137 C-5: the caption of a panel where nobody speaks (a beat on a detail).
+   * Story, not chrome: set once from `SILENT_BEAT_FR` for every language (#269), so no
+   * translation table can put English under a French panel.
+   */
   silent_beat: string;
   /** WP-144: the sheet that holds the lines a full-bleed panel had no room for. */
   sheet_label: string;
@@ -106,7 +110,13 @@ export type ReaderCopy = {
   mood_moved_f: string;
 };
 
-const FR: ReaderCopy = {
+/** The caption of a silent panel. The story is French whatever the chrome language is. */
+export const SILENT_BEAT_FR = 'Un silence.';
+
+/** What a language table writes: everything but the story's own words. */
+type ChromeCopy = Omit<ReaderCopy, 'silent_beat'>;
+
+const FR: ChromeCopy = {
   reader_label: 'Lecteur du feuilleton',
   exit: 'Quitter la lecture',
   progress: 'Avancement dans l’épisode',
@@ -137,7 +147,6 @@ const FR: ReaderCopy = {
   page_alt: 'La page illustrée de cette édition',
   art_printing: 'L’illustration de cette planche est encore sous presse. Le texte est complet.',
   art_missing: 'Cette planche est parue sans illustration.',
-  silent_beat: 'Un silence.',
   sheet_label: 'Suite de la case',
   answer_sent: 'Ta réponse, déjà envoyée',
   verdict_branch: 'Choix pris en compte',
@@ -177,7 +186,7 @@ const FR: ReaderCopy = {
   mood_moved_f: 'émue',
 };
 
-const EN: ReaderCopy = {
+const EN: ChromeCopy = {
   reader_label: 'Story reader',
   exit: 'Leave the reader',
   progress: 'Progress through the episode',
@@ -208,7 +217,6 @@ const EN: ReaderCopy = {
   page_alt: 'This edition’s illustrated page',
   art_printing: 'This panel’s picture is still being drawn. The text is complete.',
   art_missing: 'This panel came out without a picture.',
-  silent_beat: 'A moment of silence.',
   sheet_label: 'More of this panel',
   answer_sent: 'Your answer, already sent',
   verdict_branch: 'Choice noted',
@@ -248,7 +256,7 @@ const EN: ReaderCopy = {
   mood_moved_f: 'moved',
 };
 
-const DE: ReaderCopy = {
+const DE: ChromeCopy = {
   reader_label: 'Geschichte lesen',
   exit: 'Lesen beenden',
   progress: 'Fortschritt in der Folge',
@@ -279,7 +287,6 @@ const DE: ReaderCopy = {
   page_alt: 'Die illustrierte Seite dieser Ausgabe',
   art_printing: 'Das Bild zu dieser Szene wird noch gezeichnet. Der Text ist vollständig.',
   art_missing: 'Dieses Bild ist ohne Illustration erschienen.',
-  silent_beat: 'Einen Moment lang Stille.',
   sheet_label: 'Mehr aus diesem Bild',
   answer_sent: 'Deine Antwort, schon gesendet',
   verdict_branch: 'Wahl übernommen',
@@ -319,11 +326,17 @@ const DE: ReaderCopy = {
   mood_moved_f: 'gerührt',
 };
 
-const TABLES: Record<ControlLanguage, ReaderCopy> = { en: EN, de: DE, fr: FR };
+const withStoryWords = (chrome: ChromeCopy): ReaderCopy => ({ ...chrome, silent_beat: SILENT_BEAT_FR });
+const FR_COPY = withStoryWords(FR);
+const TABLES: Record<ControlLanguage, ReaderCopy> = {
+  en: withStoryWords(EN),
+  de: withStoryWords(DE),
+  fr: FR_COPY,
+};
 
 /** The reader's chrome in `language`; French when none is given. */
 export function readerCopy(language?: ControlLanguage | null): ReaderCopy {
-  return (language && TABLES[language]) || FR;
+  return (language && TABLES[language]) || FR_COPY;
 }
 
 /** Fill `{name}` placeholders. */

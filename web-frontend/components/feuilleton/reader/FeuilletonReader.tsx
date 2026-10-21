@@ -52,6 +52,7 @@ import {
   choiceOptions,
   correctionIsBranch,
   readerHeadParts,
+  replyReadingOrder,
   correctionIsPositive,
   correctionLine,
   stageReadState,
@@ -1027,23 +1028,28 @@ function PanelBody({
   if (variant) {
     // WP-110: when the learner spoke in this panel, their line is the balloon;
     // the characters keep their captions (S-2/F-2).
-    const bubbleLine =
-      variant === 'bubble' ? stage.lines.find((line) => line.you) ?? stage.lines[0] : null;
-    const speech = stage.lines.filter((line) => line !== bubbleLine).map((line) => (
-      <SpeechBody
-        key={line.key}
-        line={line}
-        stage={stage}
-        showTranslation={showTranslation}
-        onWord={onWord}
-        compact
-        voice={voice}
-        rayons={rayons}
-        t={t}
-      />
-    ));
+    // #269: the question the reply answers is read above the picture, the reply on it.
+    const order = variant === 'bubble' ? replyReadingOrder(stage.lines) : null;
+    const bubbleLine = order ? order.bubble : null;
+    const speechOf = (rows: ReaderLine[]) =>
+      rows.map((line) => (
+        <SpeechBody
+          key={line.key}
+          line={line}
+          stage={stage}
+          showTranslation={showTranslation}
+          onWord={onWord}
+          compact
+          voice={voice}
+          rayons={rayons}
+          t={t}
+        />
+      ));
+    const speechBefore = order ? speechOf(order.before) : [];
+    const speech = speechOf(order ? order.after : stage.lines);
     return (
       <>
+        {speechBefore.length > 0 && <div className="fr-captions fr-captions--before">{speechBefore}</div>}
         {artReady && src ? (
           <PlateArt
             src={src}

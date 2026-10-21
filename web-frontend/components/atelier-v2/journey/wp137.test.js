@@ -127,6 +127,8 @@ test('C-5 · a panel with nothing said and nothing narrated is silent; the other
 test('C-5 · the silent caption exists in all three languages; the pan stops under Reduce Motion', () => {
   for (const language of ['fr', 'en', 'de']) {
     assert.ok(readerCopy(language).silent_beat.trim(), language);
+    // #269: the story is French whatever the chrome language is.
+    assert.equal(readerCopy(language).silent_beat, 'Un silence.', language);
   }
   const css = fs.readFileSync(path.join(WEB_ROOT, 'components/feuilleton/reader/reader-styles.tsx'), 'utf8');
   assert.match(css, /\.fr-plate\[data-pan='slow'\] img \{\s*animation: fr-slow-pan/);

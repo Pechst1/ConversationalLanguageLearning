@@ -58,6 +58,12 @@ from app.services.lexical_coverage import (
 )
 from app.services.llm_service import LLMService, provider_for_model
 from app.services.season.director import SeasonChecklist
+from app.services.sentence_line import (
+    drop_cut_tail,
+    is_planning_note,
+    question_line,
+    whole_sentences,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +204,8 @@ CHRONICLE_SEASON_HEAD_FACTS = 3
 # middle, never from the beginning and never from the last chapters.
 CHRONICLE_PROMPT_CHARS = 1200
 CHRONICLE_LINE_CHARS = 150
+#: One half of a chapter's «question → résolution» line: whole sentences within this (#268).
+DIGEST_PART_CHARS = 160
 CHRONICLE_HEAD_LINES = 3
 CHRONICLE_TAIL_LINES = 3
 # `consequences[]` — the durable ledger. A branch the learner made true, a character
@@ -2819,6 +2827,10 @@ def _one_line(text: Any, limit: int = CHRONICLE_LINE_CHARS) -> str:
     return value if len(value) <= limit else value[: limit - 1].rstrip() + "…"
 
 
+def _question_key(text: Any) -> str:
+    return " ".join(re.findall(r"\w+", str(text or "").casefold()))
+
+
 def chapter_digest(
     chapter: dict,
     draft: SceneDraft,
@@ -2849,8 +2861,9 @@ def chapter_digest(
         "season": int(season),
         "day": int(day),
         "title_fr": _one_line(chapter.get("title_fr"), 80),
-        "question": _one_line(chapter.get("dramatic_question"), 120),
-        "resolved_fr": _one_line(turn.callback_fr or turn.resolution_fr, 120),
+        # #268: cut on a sentence, never on a character («… Alors,… →»).
+        "question": question_line(chapter.get("dramatic_question"), DIGEST_PART_CHARS),
+        "resolved_fr": whole_sentences(turn.callback_fr or turn.resolution_fr, DIGEST_PART_CHARS),
         "development": _one_line(chapter.get("last_development") or "", 100),
         "characters": characters,
         "location_id": draft.location_id,
@@ -2950,11 +2963,19 @@ def chronicle_after_chapter(
         return rows
     if any(row.get("event_id") == event_id for row in rows):
         return rows
-    rows.append(
-        chapter_digest(
-            chapter, draft, turn, event_id=event_id, day=day, season=season, scene_id=scene_id, date=date
-        )
+    row = chapter_digest(
+        chapter, draft, turn, event_id=event_id, day=day, season=season, scene_id=scene_id, date=date
     )
+    # #268: every season tentpole carries the season's one question, so a second closed
+    # chapter would file the first one's blurb. It is filed under its own scene's opening.
+    asked = {_question_key(earlier.get("question")) for earlier in rows if earlier.get("question")}
+    if _question_key(row.get("question")) in asked:
+        row["question"] = (
+            whole_sentences(draft.premise_fr, DIGEST_PART_CHARS)
+            or _one_line(draft.chapter.title_fr, 80)
+            or row["question"]
+        )
+    rows.append(row)
     return fold_chronicle(rows)
 
 
@@ -3716,8 +3737,9 @@ def chapter_digest_line(row: dict | None) -> str | None:
 
     if not row:
         return None
-    question = _one_line(row.get("question"), 110)
-    resolved = _one_line(row.get("resolved_fr") or row.get("development"), 110)
+    # A row an older version cut mid-sentence is read back without its fragment.
+    question = drop_cut_tail(question_line(row.get("question"), DIGEST_PART_CHARS))
+    resolved = drop_cut_tail(whole_sentences(row.get("resolved_fr") or row.get("development"), DIGEST_PART_CHARS))
     if question and resolved:
         return f"{question} → {resolved}"
     return question or resolved or None
@@ -6819,7 +6841,10 @@ def _validate_scene(draft: SceneDraft, context: dict):
     draft.chapter.title_fr = clean(draft.chapter.title_fr)
     draft.chapter.dramatic_question = clean(draft.chapter.dramatic_question)
     for panel in draft.panels:
-        panel.narration_fr = clean(panel.narration_fr)
+        # #263: a caption is a line of the scene. The model's scratch note about it («(!)»,
+        # «40 × 1 000 €», «M. M. :») is dropped, never printed under the picture; a panel
+        # left with no caption is a legal panel (the reader draws the picture alone).
+        panel.narration_fr = "" if is_planning_note(panel.narration_fr) else clean(panel.narration_fr)
         for line in panel.dialogue:
             line.text_fr = clean(line.text_fr)
     learner_text = [
