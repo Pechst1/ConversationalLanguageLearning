@@ -293,13 +293,13 @@ _ETRE_PARTICIPLES = frozenset(
     {"allé", "venu", "arrivé", "parti", "entré", "resté", "tombé", "devenu", "revenu", "né", "mort",
      "rentré", "sorti", "monté", "descendu", "retourné"}
 )
-#: These take «avoir» with a direct object («a rentré la voiture», «a sorti son
-#: téléphone»). They are flagged only when a place or time word follows.
+#: These take «avoir» with a direct object («a rentré la voiture», «a sorti cette
+#: lettre», «a monté tout le matériel»). They are flagged only when the very next word
+#: can start a place or time phrase and never a direct object, so a determiner, «de»,
+#: «en», «sur», «par» or a conjunction is NOT in this set: an open-ended trigger list
+#: marked correct French wrong (PR #259 review). Where unsure the pass stays silent.
 _AMBIGUOUS_PARTICIPLES = frozenset({"rentré", "sorti", "monté", "descendu", "retourné"})
-_PLACE_WORDS = frozenset(
-    {"dans", "à", "au", "aux", "chez", "en", "hier", "tard", "tôt", "tout", "ensuite", "enfin", "vers",
-     "de", "du", "par", "sur", "avant", "après", "ce", "cette", "puis", "et", "mais", "parce"}
-)
+_PLACE_WORDS = frozenset({"dans", "à", "au", "aux", "chez", "vers", "hier", "tard", "tôt", "enfin"})
 _AVOIR_TO_ETRE = {"a": "est", "as": "es", "ai": "suis", "avons": "sommes", "avez": "êtes", "ont": "sont"}
 _PRESENT_MARKERS = frozenset(
     {"maintenant", "aujourd'hui", "toujours", "souvent", "chaque", "demain", "d'habitude", "habituellement",
@@ -355,10 +355,36 @@ def _is_verb(infinitive: str) -> bool:
     return bool(entry and entry.get("pos") == "verb")
 
 
+#: Nouns that are right with «le» AND «la» (or «un» AND «une»): two meanings
+#: («le tour» / «la tour», «le livre» / «la livre»), or one person of either sex
+#: («un enfant» / «une enfant»). The lexicon stores one gender per spelling, so
+#: for these the determiner proves nothing and is never corrected.
+_TWO_GENDER_NOUNS = frozenset(
+    {
+        "tour", "poste", "mode", "livre", "voile", "page", "manche", "critique", "vase", "mousse",
+        "pendule", "somme", "solde", "garde", "moule", "office", "mémoire", "œuvre", "oeuvre", "guide",
+        "merci", "aide", "greffe", "pose", "radio", "parallèle", "manœuvre", "manoeuvre", "physique",
+        "slip", "souris", "foudre", "gîte", "gite", "crêpe", "vapeur", "barbe", "cache", "carpe",
+        "enfant", "ami", "camarade", "collègue", "élève", "juge", "pilote", "professeur", "médecin",
+        "ingénieur", "auteur", "témoin", "parent", "secrétaire", "propriétaire", "locataire", "adulte",
+        "concierge", "touriste", "artiste", "journaliste", "photographe", "dentiste", "pianiste",
+        "cousin", "voisin", "gosse", "libraire", "bibliothécaire", "interprète", "architecte", "patron",
+        "après-midi", "automne", "couple", "orgue", "amour", "délice", "gens", "aigle", "espace",
+    }
+)
+
+
 def _noun_gender(word: str) -> str | None:
+    """The one gender this spelling has, or ``None`` when it is not a noun or has
+    more than one (a two-meaning noun or a person noun of either sex)."""
+    if word in _TWO_GENDER_NOUNS or word.endswith("iste"):
+        return None
     entry = _lemma(word)
     if not entry or entry.get("pos") != "noun":
         return None
+    gloss = str((entry.get("gloss") or {}).get("de") or "")
+    if re.match(r"^der [^;]+, die ", gloss):
+        return None  # «der Sekretär, die Sekretärin»: a person noun of either sex
     gender = entry.get("gender")
     return gender if gender in {"m", "f"} else None
 

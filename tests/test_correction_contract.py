@@ -192,6 +192,50 @@ def test_correct_french_gets_no_model_free_edit(sentence):
     assert _contract().deterministic_edits(sentence) == []
 
 
+#: Night-shift review of PR #259: correct French that the first model-free pass marked
+#: wrong. A verb that takes «avoir» with a direct object («a sorti cette lettre») and a
+#: noun that exists in both genders («la tour») are not errors.
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Elle a rentré tout le linge avant la pluie.",
+        "Elle a sorti cette lettre de sa poche.",
+        "Il a monté ce meuble hier.",
+        "Elle a sorti de l’argent.",
+        "Il a sorti du pain.",
+        "Nous avons monté tout le matériel.",
+        "Il a retourné ce fichier.",
+        "Elle a descendu les poubelles et elle a rentré le chat.",
+        "Il a sorti la clé dans la poche.",
+    ],
+)
+def test_avoir_with_a_direct_object_is_not_turned_into_etre(sentence):
+    assert _contract().deterministic_edits(sentence) == []
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Il fait le tour de la tour.",
+        "Elle lit la page et le page arrive.",
+        "Il a une enfant et un enfant.",
+        "C’est une élève, et c’est un élève aussi.",
+        "Il écoute la critique et le critique.",
+        "Le voile et la voile.",
+        "Un poste et une poste.",
+    ],
+)
+def test_a_noun_that_has_both_genders_is_never_corrected_on_its_determiner(sentence):
+    assert [e for e in _contract().deterministic_edits(sentence) if e.rule_id == "FR_GENDER_DET"] == []
+
+
+def test_the_etre_verb_and_gender_rules_still_catch_the_real_errors():
+    contract = _contract()
+    assert ("a rentré", "est rentrée") in _pairs(contract.deterministic_edits("Lila a rentré dans le café."))
+    assert ("a monté", "est monté") in _pairs(contract.deterministic_edits("Il a monté à la tour."))
+    assert ("la", "le") in _pairs(contract.deterministic_edits(ODILE))
+
+
 # ---------------------------------------------------------------------------
 # a model that fails or is rejected leaves the model-free corrections
 # ---------------------------------------------------------------------------
