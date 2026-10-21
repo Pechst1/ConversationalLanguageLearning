@@ -211,6 +211,10 @@ class SceneFact:
         return 2 if len(self.cues) > CUE_THRESHOLD_WIDTH else 1
 
 
+#: The cliffhanger line a scene ends on; it points forward and records nothing.
+_TEASER = re.compile(r"(?<!\w)[àa]\s+suivre\b", re.IGNORECASE)
+
+
 def scene_facts_for(
     journey: DailyJourney, *, story_context: dict[str, Any] | None = None
 ) -> list[SceneFact]:
@@ -237,6 +241,11 @@ def scene_facts_for(
 
     outcome = recap.get("story_outcome") or {}
     callback = str(outcome.get("callback_fr") or "").strip()
+    if callback and _TEASER.search(callback):
+        # «Odile savait une chose sur Lila. Lila aussi. À suivre…» is the hook for the
+        # NEXT scene, not something that happened in this one: no learner can remember
+        # it, so scoring against it showed «0/1» for a good entry (#252, 21 Oct).
+        callback = ""
     if callback:
         facts.append(
             SceneFact(

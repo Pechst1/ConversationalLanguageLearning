@@ -366,6 +366,21 @@ def test_the_reveal_is_the_scene_and_the_facts_are_its_commitments(db_session):
     assert "romy" not in facts[0].cues
 
 
+def test_a_cliffhanger_hook_is_never_the_fact_the_learner_is_asked_to_remember(db_session):
+    """#252, 21 Oct: «None of what the scene kept appears (0/1)» against
+    «Odile savait une chose sur Lila. Lila aussi. À suivre…», the hook of the NEXT scene."""
+    user = _user(db_session)
+    journey = _journey(
+        db_session,
+        user,
+        local_date=TODAY - timedelta(days=1),
+        callback="Odile savait une chose sur Lila. Lila aussi. À suivre…",
+    )
+    facts = scene_facts_for(journey, story_context={})
+    assert all("suivre" not in fact.text_fr.casefold() for fact in facts)
+    assert all("odile" not in fact.cues for fact in facts)
+
+
 def test_a_commitment_from_another_episode_is_not_this_scenes_fact(db_session):
     user = _user(db_session)
     journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=None)
