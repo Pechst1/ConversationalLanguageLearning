@@ -108,11 +108,24 @@ def test_a_reply_that_does_not_answer_is_still_asked_again(reading):
         assert evaluation.turn_consumed is False
 
 
-def test_answers_question_reads_the_question_not_the_authored_replies():
-    from app.services.season.turns import answers_question
+def test_the_offline_matcher_hears_the_same_answers(monkeypatch):
+    """No model (the fake provider, an outage): the matcher finds no authored reply, and the
+    scene still hears a reply that answers the question."""
 
-    _, turns = _t2b_scenario()
-    for text in ("Je m'appelle Vincent.", "Bonjour !", "Qu'est-ce que vous gardez, vous ?", "Il pleut beaucoup."):
-        assert not answers_question(turns[0], text), text
-    assert answers_question(turns[0], "Je garde la cuisine… je ne veux pas vendre les meubles")
-    assert answers_question(turns[1], "Je reste trois jours, parce que je dois décider si je vends le café.")
+    real = runtime.classify
+    monkeypatch.setattr(runtime, "classify", lambda db, user, **kw: real(db, user, **{**kw, "use_model": False}))
+    import app.services.living_story as engine
+    import app.services.story_lanes as lanes
+
+    monkeypatch.setattr(lanes, "margin_correction", lambda *a, **k: None)
+    monkeypatch.setattr(engine, "story_revision", lambda *a, **k: "rev")
+    runtime._ROUTE_CACHE.clear()
+    scenario, turns = _t2b_scenario()
+    scenario.character_id = turns[0]["to"]
+    history: list[dict] = []
+    first = _say(scenario, "Je garde la cuisine… je ne veux pas vendre les meubles", history, 0)
+    assert first.route["reply"] != ASK_AGAIN and first.turn_consumed is True, first.character_reply_fr
+    _record(history, "Je garde la cuisine… je ne veux pas vendre les meubles", first)
+    scenario.character_id = turns[1]["to"]
+    second = _say(scenario, "Je reste trois jours, parce que je dois décider si je vends le café.", history, 1)
+    assert second.route["reply"] != ASK_AGAIN and second.turn_consumed is True, second.character_reply_fr
