@@ -100,11 +100,10 @@ def test_a_voice_persona_uses_the_same_role_as_the_courrier():
 def test_the_cast_intro_files_do_not_keep_a_second_copy_of_a_registry_role():
     import json
 
-    from app.services.cast_roles import ROLES
     from app.services.journey_content import FIRST_DAY_DATA_PATH
     from app.services.season.format import SEASON_ROOT
 
     for path in (SEASON_ROOT / "s1" / "intro.json", FIRST_DAY_DATA_PATH):
         for row in json.loads(path.read_text(encoding="utf-8"))["cast_intro" if path == FIRST_DAY_DATA_PATH else "cast"]:
-            if row["character_id"] in ROLES:
+            if row["character_id"] in missions.CAST_ROLES_FR:
                 assert "role_native" not in row, f"{path.name}: {row['character_id']} types its own role"
