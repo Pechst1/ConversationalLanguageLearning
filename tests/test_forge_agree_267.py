@@ -48,19 +48,19 @@ def _decorated(prompt: str, character: dict) -> dict:
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize("prompt", [HOTEL, ROOMMATE, COLLEAGUE])
-def test_a_tu_badge_is_not_put_over_a_text_in_vous(prompt: str) -> None:
+@pytest.mark.parametrize("prompt", [HOTEL, ROOMMATE, COLLEAGUE], ids=["hotel", "roommate", "colleague"])
+def test_tu_badge_vous(prompt: str) -> None:
     item = _decorated(prompt, LILA_TU)
     assert "character" not in item, f"«{LILA_TU['name']} · tu» was set over: {prompt}"
     assert item["prompt"] == prompt, "the situation itself is kept"
 
 
-def test_a_vous_badge_is_not_put_over_a_text_in_tu() -> None:
+def test_vous_badge_tu() -> None:
     prompt = "Ton voisin te demande : « Tu as vu mon chat ? » Réponds que non."
     assert "character" not in _decorated(prompt, GUS_VOUS)
 
 
-def test_a_badge_that_agrees_with_its_text_is_kept() -> None:
+def test_badge_kept() -> None:
     assert _decorated("Ton amie te demande : « Tu viens ? » Réponds que oui.", LILA_TU)["character"]["name"] == "Lila Bonnet"
     assert _decorated("Votre voisin vous demande : « Vous avez vu mon chat ? »", GUS_VOUS)["character"]["name"] == "Gus"
     # No address at all: any badge agrees.
@@ -80,19 +80,19 @@ def _errors_with_conversation_prompt(db_session, prompt: str) -> list[str]:
     return AtelierExerciseGenerator._payload_validation_errors(payload, concept=concept)
 
 
-def test_a_shop_assistant_who_asks_the_customer_the_price_is_rejected(db_session) -> None:
+def test_seller_asks(db_session) -> None:
     errors = _errors_with_conversation_prompt(db_session, BOOKSHOP)
     assert any("asks the customer the price" in error for error in errors), errors
 
 
-def test_a_price_for_several_things_must_say_per_item_or_in_total(db_session) -> None:
+def test_price_basis(db_session) -> None:
     errors = _errors_with_conversation_prompt(
         db_session, "À la librairie, vous achetez les deux livres, affichés à 21 euros. Dites le prix au vendeur."
     )
     assert any("per item or in total" in error for error in errors), errors
 
 
-def test_a_price_that_says_its_basis_and_a_customer_who_asks_are_accepted(db_session) -> None:
+def test_fine_prices(db_session) -> None:
     for prompt in (
         "À la librairie, les deux livres coûtent 21 euros en tout. Demandez au vendeur si vous pouvez payer par carte.",
         "À la librairie, vous demandez : « Combien coûtent les deux livres ? » Le vendeur répond : 21 euros au total.",
@@ -101,7 +101,7 @@ def test_a_price_that_says_its_basis_and_a_customer_who_asks_are_accepted(db_ses
         assert _errors_with_conversation_prompt(db_session, prompt) == [], prompt
 
 
-def test_the_english_role_label_inside_a_quote_is_rejected(db_session) -> None:
+def test_role_label(db_session) -> None:
     errors = _errors_with_conversation_prompt(db_session, COLLEAGUE)
     assert any("role label" in error for error in errors), errors
 
@@ -134,18 +134,18 @@ def _react(db_session, text: str, learner: str, register: str = "tu") -> str:
     )
 
 
-def test_a_reaction_to_il_does_not_turn_into_ils_and_an_invented_paul(db_session) -> None:
+def test_il_not_ils_paul(db_session) -> None:
     reply = _react(db_session, LIVE_REACTION, "Il est en Angleterre cette semaine.")
     assert "Paul" not in reply, reply
     assert "Ils " not in reply, reply
 
 
-def test_a_reaction_keeps_a_name_the_scene_or_the_cast_gave(db_session) -> None:
+def test_known_name(db_session) -> None:
     kept = "Ah, en Angleterre ! Lila sera jalouse. Il y reste longtemps ?"
     assert _react(db_session, kept, "Il est en Angleterre cette semaine.") == kept
 
 
-def test_a_reaction_may_say_ils_when_the_learner_said_ils(db_session) -> None:
+def test_ils_kept(db_session) -> None:
     kept = "Ils ont de la chance ! Ils rentrent quand ?"
     assert _react(db_session, kept, "Ils sont en Angleterre cette semaine.") == kept
 
@@ -174,7 +174,7 @@ def _conversation_attempt(db_session, items: list[dict], exercise_id: str):
     return user, attempt
 
 
-def test_the_reaction_is_spoken_by_the_speaker_of_the_item_that_was_answered(db_session, monkeypatch) -> None:
+def test_speaker(db_session, monkeypatch) -> None:
     """Lila's serial badge sits on the set's first item; the learner answered Margaux's scene."""
 
     seen: dict = {}
@@ -210,7 +210,7 @@ def test_the_reaction_is_spoken_by_the_speaker_of_the_item_that_was_answered(db_
 # --------------------------------------------------------------------------- #
 
 
-def test_a_forge_scene_is_graded_and_answered_as_itself_not_as_the_sets_first_item(client, db_session, monkeypatch) -> None:
+def test_scoped_submit(client, db_session, monkeypatch) -> None:
     """With a serial thread the submit rebuilt the prompt from the set's conversation
     items and kept all of them: the correction read the first item's model answer
     and the reaction took Lila, the serial cast member, over Margaux's scene."""
@@ -282,7 +282,7 @@ def test_a_forge_scene_is_graded_and_answered_as_itself_not_as_the_sets_first_it
     assert attempt.prompt_payload["items"][0]["character"]["name"] == "Margaux"
 
 
-def test_every_coach_opener_agrees_with_its_coach() -> None:
+def test_openers() -> None:
     """The bank's own scene lines pass the same check the model's prompts do."""
 
     from app.services import forge_coaches
@@ -294,7 +294,7 @@ def test_every_coach_opener_agrees_with_its_coach() -> None:
             assert item_problems(opener["fr"], register=payload["register"]) == [], (coach_id, opener["fr"])
 
 
-def test_a_coach_line_in_the_wrong_register_is_not_made_a_scene() -> None:
+def test_scene_register() -> None:
     from app.services.forge_coaches import mini_scene
 
     item = SimpleNamespace(
