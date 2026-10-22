@@ -53,6 +53,12 @@ def _t2b_scenario():
     return scenario, scenario.story_context[runtime.SEASON_CONTEXT_KEY]["turns"]
 
 
+def _flat(evaluation) -> str:
+    """What the scene said, on one line (pytest's summary drops a multi-line reason)."""
+
+    return "re-asked: " + " / ".join(line["text_fr"] for line in evaluation.reply_lines)
+
+
 def _said(evaluation) -> str:
     return " ".join(line["text_fr"] for line in evaluation.reply_lines).casefold()
 
@@ -68,7 +74,7 @@ def test_a_full_answer_that_fits_no_authored_reply_is_not_asked_again(reading):
         ack_fr="Vous voulez garder la cuisine et les meubles. C'est noté.",
     )
     evaluation = _say(scenario, "Je garde la cuisine… je ne veux pas vendre les meubles", [], 0)
-    assert evaluation.route["reply"] != ASK_AGAIN
+    assert evaluation.route["reply"] != ASK_AGAIN, _flat(evaluation)
     assert evaluation.turn_consumed is True, "the beat advances after one answer"
     assert evaluation.reply_lines[0]["text_fr"] == "Vous voulez garder la cuisine et les meubles. C'est noté."
     said = _said(evaluation)
@@ -90,7 +96,7 @@ def test_a_duration_that_fits_no_authored_reply_is_not_asked_again(reading):
     )
     text = "Je reste trois jours, parce que je dois décider si je vends le café."
     evaluation = _say(scenario, text, history, 1)
-    assert evaluation.route["reply"] != ASK_AGAIN
+    assert evaluation.route["reply"] != ASK_AGAIN, _flat(evaluation)
     assert evaluation.turn_consumed is True
     said = _said(evaluation)
     assert "je demande" not in said and "combien de temps" not in said and "pardon" not in said
@@ -104,7 +110,7 @@ def test_a_reply_that_does_not_answer_is_still_asked_again(reading):
         runtime._ROUTE_CACHE.clear()
         reading.choice = ReplyChoice(reply_id=str(turn["fallback"]), confidence=0.2, clear=False)
         evaluation = _say(scenario, text, [], 0)
-        assert evaluation.route == {"turn": turn["id"], "reply": ASK_AGAIN}, (text, evaluation.character_reply_fr)
+        assert evaluation.route == {"turn": turn["id"], "reply": ASK_AGAIN}, _flat(evaluation)
         assert evaluation.turn_consumed is False
 
 
@@ -124,8 +130,8 @@ def test_the_offline_matcher_hears_the_same_answers(monkeypatch):
     scenario.character_id = turns[0]["to"]
     history: list[dict] = []
     first = _say(scenario, "Je garde la cuisine… je ne veux pas vendre les meubles", history, 0)
-    assert first.route["reply"] != ASK_AGAIN and first.turn_consumed is True
+    assert first.route["reply"] != ASK_AGAIN and first.turn_consumed is True, _flat(first)
     _record(history, "Je garde la cuisine… je ne veux pas vendre les meubles", first)
     scenario.character_id = turns[1]["to"]
     second = _say(scenario, "Je reste trois jours, parce que je dois décider si je vends le café.", history, 1)
-    assert second.route["reply"] != ASK_AGAIN and second.turn_consumed is True
+    assert second.route["reply"] != ASK_AGAIN and second.turn_consumed is True, _flat(second)
