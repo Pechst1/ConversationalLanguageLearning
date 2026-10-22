@@ -12,7 +12,11 @@ from __future__ import annotations
 import pytest
 
 from app.db.models.grammar import GrammarConcept
-from app.services.atelier import AtelierCorrectionService, _join_french_tokens, _tokenize_french_sentence
+from app.services.atelier import (
+    AtelierCorrectionService,
+    _join_french_tokens,
+    _tokenize_french_sentence,
+)
 
 PRONOUNS = "FR2_B11_DOUBLE_PRONOUNS"
 NEGATION = "FR2_A21_PC_NEGATION"
@@ -95,3 +99,13 @@ def test_the_shown_correction_keeps_the_space_before_a_question_mark() -> None:
     erratum = _miss(_concept(PRONOUNS), _item("Tu peux me le prêter demain ?"), "Tu peux le me prêter demain ?", "fr")
     assert erratum["corrected_target"].endswith("demain ?"), erratum["corrected_target"]
     assert erratum["learner_text"].endswith("demain ?"), erratum["learner_text"]
+
+
+def test_moving_only_the_subject_vous_is_word_order_not_the_pronoun_rule() -> None:
+    """The reviewer's case: «vous» opening the sentence is the subject, not a clitic."""
+
+    item = _item("Vous le lui donnez demain.")
+    moved = _miss(_concept(PRONOUNS), item, "Le lui donnez vous demain.", "fr")
+    assert moved["task_error_type"] == "word_order", moved
+    swapped = _miss(_concept(PRONOUNS), item, "Vous lui le donnez demain.", "fr")
+    assert swapped["task_error_type"] != "word_order", swapped

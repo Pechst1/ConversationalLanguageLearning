@@ -37,6 +37,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
+from app.services import order_rules
 from app.services.address import address_instruction
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
@@ -87,7 +88,6 @@ from app.services.item_bank import (
     units_for_external_id,
 )
 from app.services.item_bank import fingerprint as bank_fingerprint
-from app.services import order_rules
 from app.services.learner_copy import learner_text as _copy
 from app.services.learner_copy import word_count as _word_count
 from app.services.llm_service import LLMProviderError, LLMService
@@ -5240,6 +5240,8 @@ class AtelierCorrectionService:
         if correction.get("evidence_applied"):
             return True
         outcome = ForgeService(self.db).amend_attempt(user=user, session=session, attempt=attempt, commit=False)
+        # The forge settles the level shown on the correction itself: build on that.
+        correction = {**dict(attempt.correction_payload or {})}
         if outcome.get("amended"):
             correction["evidence_applied"] = {"mode": "forge", "at": self._now_iso()}
             attempt.correction_payload = correction

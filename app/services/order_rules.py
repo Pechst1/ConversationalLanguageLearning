@@ -47,10 +47,14 @@ def order_kind(external_id: Any) -> str | None:
 
 
 def _pronoun_runs(words: list[str]) -> list[list[str]]:
+    """Runs of two or more clitics. A sentence-initial «nous»/«vous» is the subject
+    («Vous le lui donnez»), not a clitic, so it starts no run; the cost is that an
+    inverted question's «vous» after the verb is still read as a clitic."""
+
     runs: list[list[str]] = []
     current: list[str] = []
-    for word in [*words, ""]:
-        if word in _CLITICS:
+    for index, word in enumerate([*words, ""]):
+        if word in _CLITICS and not (index == 0 and word in {"nous", "vous"}):
             current.append(word)
             continue
         if len(current) >= 2:
