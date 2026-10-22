@@ -63,6 +63,7 @@ import apiService, {
 } from '@/services/api';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { serialQueryString, writeLocalDayProgressFlag } from '@/lib/atelier-next';
+import { targetOccursIn } from '@/lib/word-match';
 import { clearResumeActivity, readLocalJson, saveResumeActivity, writeLocalJson } from '@/lib/pilot-resilience';
 import { ShellCorner } from '@/components/layout/ShellCorner';
 
@@ -230,7 +231,7 @@ function ribbonWords(mission: RealWorldMission | null): { t: string; used?: bool
     : [];
   const said = missionTurns(mission)
     .filter((turn) => turn.role === 'user')
-    .map((turn) => String(turn.text || '').toLowerCase())
+    .map((turn) => String(turn.text || ''))
     .join(' ');
   // WP-115d: the week's letter asks for due words by their meaning — the reply is
   // where the learner recalls the French, which the ribbon shows once it is used.
@@ -242,8 +243,8 @@ function ribbonWords(mission: RealWorldMission | null): { t: string; used?: bool
     const key = word.toLowerCase();
     if (!word || seen.has(key) || result.length >= 3) return;
     seen.add(key);
-    const head = key.replace(/^(?:le|la|les|un|une|l['’])\s*/, '');
-    const used = key.length > 1 && (said.includes(key) || (head.length > 2 && said.includes(head)));
+    // #236: the word or a real inflection, never a longer word that starts like it.
+    const used = key.length > 1 && targetOccursIn(word, said);
     const meaning = String(item.translation || '').trim();
     result.push({ t: word, used, ...(recall && meaning ? { recall: meaning } : {}) });
   });
