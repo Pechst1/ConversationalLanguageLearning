@@ -17,6 +17,7 @@ import React from 'react';
 import { ArrowRightIcon } from '@/components/atelier-v2/ui';
 import { resolveMediaUrl } from '@/lib/media-url';
 import type { RvStoryCard } from '@/lib/revue-types';
+import { useImageFailed } from '@/lib/use-image-failed';
 
 import { fill, type RevueCopy } from './revue-copy';
 
@@ -49,6 +50,9 @@ export function RvNewsCard({ story, href, copy, onOpen }: RvNewsCardProps) {
   const headline = newsHeadline(story);
   const plate = story.plateUrl ?? story.stage.plateUrl;
   const src = plate ? resolveMediaUrl(plate) ?? plate : null;
+  // #283: a picture, or no frame. A plate that is missing or fails to load leaves the card
+  // as headline + sticker, never the browser's broken-image glyph in an empty frame.
+  const picture = useImageFailed(src);
   return (
     <a
       className="rv-news"
@@ -61,14 +65,12 @@ export function RvNewsCard({ story, href, copy, onOpen }: RvNewsCardProps) {
         onOpen();
       }}
     >
-      <span className="rv-news__pic" aria-hidden="true">
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="" decoding="async" loading="lazy" />
-        ) : (
-          <span className="rv-news__pic-fallback" />
-        )}
-      </span>
+      {src && !picture.failed && (
+        <span className="rv-news__pic" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" decoding="async" loading="lazy" onError={picture.onError} />
+        </span>
+      )}
       <RvNewsSticker label={copy.news_sticker} />
       <span className="rv-news__hl" lang="fr" aria-hidden="true">
         {headline}
