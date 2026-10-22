@@ -10731,6 +10731,8 @@ export interface components {
             prompt_fr: string | null;
             /** Retry */
             retry?: boolean | null;
+            /** Slip Fr */
+            slip_fr?: string | null;
             /** Source Fr */
             source_fr: string | null;
             target: components["schemas"]["TargetRef"];

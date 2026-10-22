@@ -83,6 +83,7 @@ from app.services.journey_day_shapes import (
     rotate_recall_formats,
     shape_allows_format,
 )
+from app.services.repair_context import RepairContext, clean_text, find_slip, repair_context_of
 from app.services.scene_items import (
     CLOZE_INSTRUCTION,
     answer_at_band,
@@ -1095,6 +1096,7 @@ def build_recall_task(
     affordances: list[str],
     optional: bool,
     learner_text: str | None = None,
+    repair: RepairContext | None = None,
 ) -> RecallTask | None:
     """One recall opportunity — a single task, never a fifteen-item ladder.
 
@@ -1107,6 +1109,10 @@ def build_recall_task(
     say <explanation>". Its ``label_native`` is an explanation, not a gloss, so
     it is not offered as the translation help either. Without the learner's
     wording there is no honest repair question, and the target gets no step.
+
+    #278: a repair is not a bare word. With the sentence the slip sat in (``repair``)
+    the card prints that sentence with the slip marked (``slip_fr``) and names the
+    rule it broke (``rule_native``); the learner still types the corrected part.
     """
 
     language = scenario.control_language
@@ -1130,6 +1136,8 @@ def build_recall_task(
     instruction_override: str | None = None
 
     goal: str | None = None
+    slip_fr: str | None = None
+    rule_native: str | None = None
     if target.kind is TargetKind.ERROR:
         learner = " ".join(str(learner_text or "").split())
         if not learner or _fold(learner) == _fold(label_fr):
@@ -1153,6 +1161,15 @@ def build_recall_task(
         instruction_override = _localized(_ERROR_INSTRUCTION, language)
         gloss = None
         goal = recall_goal("repair_own", language)
+        sentence = clean_text(repair.sentence) if repair else ""
+        if sentence and find_slip(sentence, learner) and _fold(sentence) != _fold(learner):
+            # The slip is marked inside the sentence it was made in.
+            prompt_fr = sentence
+            slip_fr = learner
+        rule = clean_text(repair.rule) if repair else ""
+        if rule:
+            rule_native = recall_goal("repair_rule", language, rule=rule)
+            goal = f"{goal} {rule_native}"
     elif gloss and len(distractors) >= 2:
         task_type = "choice"
     elif _is_phrase(tokens) and gloss:
@@ -1217,6 +1234,8 @@ def build_recall_task(
             estimated_seconds=0,
             goal_native=goal,
             source_fr=prompt_fr,
+            slip_fr=slip_fr,
+            rule_native=rule_native,
             **common,
         )
 
@@ -1230,6 +1249,8 @@ def build_recall_task(
         estimated_seconds=0,
         goal_native=goal,
         source_fr=prompt_fr,
+        slip_fr=slip_fr,
+        rule_native=rule_native,
         **common,
     )
 
@@ -2030,6 +2051,7 @@ def build_recall_task_in_format(
     learner_text: str | None = None,
     pool: list[TargetRef] | tuple[TargetRef, ...] = (),
     sentences: list[str] | tuple[str, ...] = (),
+    repair: RepairContext | None = None,
 ) -> RecallTask | None:
     """One recall opportunity in one named format, or ``None``.
 
@@ -2074,6 +2096,7 @@ def build_recall_task_in_format(
         affordances=affordances,
         optional=optional,
         learner_text=learner_text,
+        repair=repair,
     )
     return legacy if legacy is not None and legacy.task_type == task_type else None
 
@@ -2087,6 +2110,7 @@ def build_rotated_recall_task(
     formats: list[str],
     day_shape: DayShape = DEFAULT_DAY_SHAPE,
     learner_text: str | None = None,
+    repair: RepairContext | None = None,
 ) -> RecallTask | None:
     """Walk today's seeded format order and take the first honest fit.
 
@@ -2105,6 +2129,7 @@ def build_rotated_recall_task(
             affordances=affordances,
             optional=optional,
             learner_text=learner_text,
+            repair=repair,
         )
         if task is not None:
             return task
@@ -2114,6 +2139,7 @@ def build_rotated_recall_task(
         affordances=affordances,
         optional=optional,
         learner_text=learner_text,
+        repair=repair,
     )
     if fallback is not None and not shape_allows_format(day_shape, fallback.task_type):
         if (
@@ -3120,6 +3146,7 @@ def plan_journey(
                 optional = bool(entry.demonstrated)
             metadata = entry.candidate.metadata or {}
             learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
+            repair = repair_context_of(metadata)
             if first_day:
                 recall = _first_day_recall(
                     target=entry.target,
@@ -3133,12 +3160,14 @@ def plan_journey(
                     "short_answer", target=entry.target, scenario=scenario,
                     affordances=affordances, optional=optional, learner_text=learner_wording,
                     pool=[], sentences=scene_sentences(scenario.setup_fr, scenario.opening_line_fr),
+                    repair=repair,
                 ) if scenario.level_band in {"B1", "B2", "C1", "C2"} else build_recall_task(
                     target=entry.target,
                     scenario=scenario,
                     affordances=affordances,
                     optional=optional,
                     learner_text=learner_wording,
+                    repair=repair,
                 )
                 if recall is not None and not shape_allows_format(shape, recall.task_type):
                     recall = None
@@ -3158,6 +3187,7 @@ def plan_journey(
                     formats=formats,
                     day_shape=shape,
                     learner_text=learner_wording,
+                    repair=repair,
                 )
             if recall is None:
                 used_targets.append(entry)
@@ -3288,6 +3318,7 @@ def plan_journey(
                     # WP-103 T3: what to produce, and what it starts from.
                     "goal_native": recall.goal_native,
                     "source_fr": recall.source_fr,
+                    **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
                     **recall_met(entry.candidate),
                 },
                 private_task=replace(recall, estimated_seconds=cost),
@@ -3586,6 +3617,7 @@ def practice_task(
     learner_text: str | None,
     pool: list[TargetRef],
     sentences: list[str],
+    repair: RepairContext | None = None,
 ) -> RecallTask | None:
     """One quick item in one named format, or ``None``.
 
@@ -3651,6 +3683,7 @@ def practice_task(
         learner_text=learner_text,
         pool=pool,
         sentences=sentences,
+        repair=repair,
     )
 
 
@@ -3946,6 +3979,7 @@ def fill_practice_items(
             identity = target_identity(entry.target)
             metadata = entry.candidate.metadata or {}
             learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
+            repair = repair_context_of(metadata)
             kept_example = str(metadata.get("example_fr") or "").strip()
             readable = list(sentences if slot == "post" else safe_sentences)
             if kept_example:
@@ -3971,6 +4005,7 @@ def fill_practice_items(
                     learner_text=learner_wording,
                     pool=pool,
                     sentences=readable,
+                    repair=repair,
                 )
                 if task is None:
                     continue
@@ -4899,6 +4934,7 @@ def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
         # WP-103 T3: what to produce, and what it starts from.
         "goal_native": recall.goal_native,
         "source_fr": recall.source_fr,
+        **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
         **recall_met(item.entry.candidate),
     }
     if recall.task_type in LISTENING_RECALL_FORMATS:

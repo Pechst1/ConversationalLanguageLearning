@@ -185,6 +185,7 @@ import {
 } from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
 import { assembleRepair, repairParts } from '@/lib/repair-parts';
+import { clearTheSheet } from '@/lib/sheet-clearance';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
@@ -4144,6 +4145,16 @@ function ExerciseFeedbackMoment({
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   // Owner, 2026-10-19: what the learner typed in each wrong part of their line.
   const [partsTyped, setPartsTyped] = useState<Record<string, Record<number, string>>>({});
+  // #282: a miss opens with its correction, field and «Compare» clear of the verdict sheet.
+  const missRef = useRef<HTMLDivElement | null>(null);
+  const missOpen = Boolean(submitted && feedback && !feedback.correct && !feedback.unscored);
+  useEffect(() => {
+    if (!missOpen) return undefined;
+    clearTheSheet(missRef.current);
+    // Fonts and the coach's portrait settle a moment later and push the correction down.
+    const later = [150, 600].map((ms) => window.setTimeout(() => clearTheSheet(missRef.current), ms));
+    return () => later.forEach((id) => window.clearTimeout(id));
+  }, [missOpen, feedbackKey]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
   // verdict to show — the grading character says so, and a verdict shown later
@@ -4231,7 +4242,7 @@ function ExerciseFeedbackMoment({
   }
 
   return (
-    <div className="ep-feedback" data-verdict="wrong">
+    <div className="ep-feedback" data-verdict="wrong" ref={missRef}>
       {issues.map((issue, index) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
