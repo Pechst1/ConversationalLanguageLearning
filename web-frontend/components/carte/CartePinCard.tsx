@@ -21,6 +21,7 @@ import type { CartePin } from '@/lib/carte-types';
 
 import type { CarteCopy } from './carte-copy';
 import { markSpans, weekNo } from './carte-model';
+import { CartePlate } from './CartePlate';
 import { relectureAction } from './palais-model';
 
 export type CartePinCardProps = {
@@ -77,12 +78,7 @@ export function CartePinCard({ pin, copy, onClose, onRelire, onReleve, onReview,
             />
           </div>
         )}
-        {pin.plateUrl && (
-          <div className="carte-card__plate" aria-hidden="true">
-            {/* eslint-disable-next-line @next/next/no-img-element -- a static plate, already sized */}
-              <img src={pin.plateUrl} alt="" loading="lazy" decoding="async" />
-          </div>
-        )}
+        <CartePlate url={pin.plateUrl} />
         {contribution.length > 0 && (
           <section className="carte-card__part" aria-label={contributionLabel ?? undefined}>
             {contributionLabel && <p className="av2-label">{contributionLabel}</p>}

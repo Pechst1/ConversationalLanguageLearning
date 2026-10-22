@@ -30,6 +30,8 @@ type Copy = {
   scene: string;
   papier: string;
   words: (n: number) => string;
+  /** «10 new · 8 to review»: the deck's two halves, named apart (#279). */
+  words_split: (fresh: number, due: number) => string;
   grammar: string;
   finish: string;
   minutes: (n: number) => string;
@@ -66,6 +68,7 @@ const DE: Copy = {
   scene: 'Szene',
   papier: 'Le Papier',
   words: (n) => `${n} Wörter`,
+  words_split: (fresh, due) => `${fresh} neu · ${due} zum Wiederholen`,
   grammar: 'Grammatik',
   finish: 'Fertig',
   minutes: (n) => `${n} Min.`,
@@ -103,6 +106,7 @@ const FR: Copy = {
   scene: 'Scène',
   papier: 'Le Papier',
   words: (n) => `${n} mots`,
+  words_split: (fresh, due) => `${fresh} nouveaux · ${due} à revoir`,
   grammar: 'Grammaire',
   finish: 'Fin',
   minutes: (n) => `${n} min`,
@@ -140,6 +144,7 @@ const EN: Copy = {
   scene: 'Scene',
   papier: 'Le Papier',
   words: (n) => `${n} words`,
+  words_split: (fresh, due) => `${fresh} new · ${due} to review`,
   grammar: 'Grammar',
   finish: 'Done',
   minutes: (n) => `${n} min`,
@@ -206,6 +211,18 @@ export type SessionRow = {
   shape: (typeof SESSION_SHAPE)[DaySessionStepKind];
 };
 
+/**
+ * What the words step spends: its minutes, and when the deck holds both new
+ * words and reviews, how it splits («10 neu · 8 zum Wiederholen · 5 Min.»), so
+ * the count above it is never read as new words alone.
+ */
+function wordsMeta(step: DaySessionStep, copy: Copy): string {
+  const fresh = Number(step.new_left || 0);
+  const due = Number(step.reviews || 0);
+  const parts = [fresh > 0 && due > 0 ? copy.words_split(fresh, due) : '', step.minutes > 0 ? copy.minutes(step.minutes) : ''];
+  return parts.filter(Boolean).join(' · ');
+}
+
 /** Home's programme: one row per step, with the minutes it still costs. */
 export function sessionRows(
   session: DaySession,
@@ -224,7 +241,8 @@ export function sessionRows(
           : step.kind === 'grammar'
             ? copy.grammar
             : copy.finish;
-    const meta = step.state !== 'done' && step.minutes > 0 ? copy.minutes(step.minutes) : '';
+    const meta =
+      step.state === 'done' ? '' : step.kind === 'words' ? wordsMeta(step, copy) : step.minutes > 0 ? copy.minutes(step.minutes) : '';
     return { kind: step.kind, state: step.state, label, meta, shape: SESSION_SHAPE[step.kind] };
   });
 }
@@ -252,7 +270,8 @@ export function sessionNextAction(
       : step.kind === 'grammar'
         ? copy.next_grammar
         : copy.next_finish;
-  return { kind: step.kind, label, meta: step.minutes > 0 ? copy.minutes(step.minutes) : '', href: step.href };
+  const meta = step.kind === 'words' ? wordsMeta(step, copy) : step.minutes > 0 ? copy.minutes(step.minutes) : '';
+  return { kind: step.kind, label, meta, href: step.href };
 }
 
 /** After the day, the one optional extra: «Noch 10 Wörter · 4 Min.». */

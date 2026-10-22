@@ -910,3 +910,50 @@ test('2026-10-19 · the close: Romy\'s close line once, the colophon from the se
   assert.match(visibleText(daily), /La suite demain\./);
   assert.match(daily, /av2-btn--done[\s\S]*Classer le Papier[\s\S]*<div class="rv-foot__links"><a [^>]*>[\s\S]*?<\/a><button[^>]*>[\s\S]*Voir dans le Relevé/);
 });
+
+// #283 (22 Oct live walk): Home's «À la une» thumbnail showed the browser's broken-image
+// glyph in an empty frame. Server markup cannot fire `onError`, so the card is called as a
+// function with `useState` held in a slot table: render, fail the picture, render again.
+function renderWithState(Component, props, afterFirst) {
+  const slots = [];
+  let cursor = 0;
+  const original = React.useState;
+  React.useState = (initial) => {
+    const index = cursor++;
+    if (!(index in slots)) slots[index] = typeof initial === 'function' ? initial() : initial;
+    return [slots[index], (value) => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
+  };
+  try {
+    const first = Component(props);
+    afterFirst(first);
+    cursor = 0;
+    return Component(props);
+  } finally {
+    React.useState = original;
+  }
+}
+
+function findElements(node, predicate, found = []) {
+  if (node == null || typeof node !== 'object') return found;
+  if (Array.isArray(node)) { node.forEach((child) => findElements(child, predicate, found)); return found; }
+  if (predicate(node)) found.push(node);
+  findElements(node.props && node.props.children, predicate, found);
+  return found;
+}
+
+test('#283 · a news picture that fails to load leaves no broken glyph and no empty frame', () => {
+  const { RvNewsCard } = require('./index.ts');
+  const story = { ...types.parseOffer(MOCK.offer).recommended, headlineFr: 'Le PSG bat le Barça 4-2', plateUrl: '/static/revue/plates/gone.webp' };
+  const isImg = (el) => el.type === 'img';
+  const isFrame = (el) => el.props && String(el.props.className || '').includes('rv-news__pic');
+
+  const after = renderWithState(RvNewsCard, { story, href: '/revue?dossier=x', copy: EN }, (first) => {
+    const [img] = findElements(first, isImg);
+    assert.ok(img, 'a picture is printed while it may still load');
+    assert.equal(typeof img.props.onError, 'function', 'the picture hears its own failure');
+    img.props.onError();
+  });
+  assert.equal(findElements(after, isImg).length, 0, 'a dead picture URL prints no <img>: no broken-image glyph');
+  assert.equal(findElements(after, isFrame).length, 0, 'and no empty frame in its place');
+  assert.equal(findElements(after, (el) => el.props && el.props['data-revue-card'] === 'news').length, 1, 'the card itself stays');
+});

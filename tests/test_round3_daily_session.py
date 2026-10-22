@@ -52,8 +52,8 @@ def test_a_fresh_day_is_four_steps_and_the_scene_comes_first() -> None:
     assert [step["state"] for step in view["steps"]] == ["next", "todo", "todo", "todo"]
     assert view["next_kind"] == "scene"
     words = view["steps"][1]
-    # 20 new words at 20 s and 12 reviews at 6 s: 400 + 72 s, eight minutes.
-    assert (words["count"], words["new_left"], words["reviews"], words["minutes"]) == (20, 20, 12, 8)
+    # 20 new words at 20 s and 12 reviews at 6 s: 400 + 72 s, eight minutes; 32 cards (#279).
+    assert (words["count"], words["new_left"], words["reviews"], words["minutes"]) == (32, 20, 12, 8)
     grammar = view["steps"][2]
     # 300 s at 25 s an item: twelve items, five minutes.
     assert (grammar["count"], grammar["minutes"]) == (12, 5)
