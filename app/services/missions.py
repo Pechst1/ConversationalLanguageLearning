@@ -29,6 +29,8 @@ from app.services.address import address_instruction
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
+from app.services.cast_roles import ROLES as CAST_ROLES
+from app.services.cast_roles import role_of
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.glosses import (
@@ -822,13 +824,8 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
 FIRST_LETTER_WRITERS: tuple[str, ...] = ("margaux_barman", "romy_tremblay")
 
 #: The cast's roles as the Courrier prints them (French, the letter's language).
-CAST_ROLES_FR: dict[str, str] = {
-    "marin_leveque": "ton premier ami à Paris",
-    "romy_tremblay": "journaliste, nouvelle à Paris",
-    "lila_bonnet": "institutrice et peintre",
-    "margaux_barman": "serveuse au Mistral",
-    "landlord_marchand": "ton propriétaire",
-}
+#: #265: read from the one role per person in ``cast_roles``, never typed here.
+CAST_ROLES_FR: dict[str, str] = {cast_id: role_of(cast_id, "fr") for cast_id in CAST_ROLES}
 
 #: The authored first letter per band group (``A`` = A1–A2, ``B`` = B1 and up),
 #: served without a model call when the story has nothing yet to write about.
@@ -842,7 +839,7 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "character_id": "margaux_barman",
         "title": "Ton écharpe au Mistral",
         "contact_name": "Margaux",
-        "contact_role": "serveuse au Mistral",
+        "contact_role": role_of("margaux_barman", "fr"),
         "contact_initials": "MA",
         "channel": "sms",
         "channel_label": "SMS",
@@ -873,7 +870,7 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "character_id": "romy_tremblay",
         "title": "Trois questions de Romy",
         "contact_name": "Romy",
-        "contact_role": "journaliste, nouvelle à Paris",
+        "contact_role": role_of("romy_tremblay", "fr"),
         "contact_initials": "RO",
         "channel": "email",
         "channel_label": "Court e-mail",

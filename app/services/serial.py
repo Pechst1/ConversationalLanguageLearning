@@ -2234,6 +2234,12 @@ class SerialThreadService:
         }.get(character_id, character_id.replace("_", " ").title())
 
     def _character_role(self, thread: SerialThread, character_id: str) -> str:
+        # #265: the registry's role, the one every other surface prints; the bible's
+        # `role` is a paragraph for the director, not a header for the learner.
+        from app.services.cast_registry import role
+
+        if role(character_id):
+            return role(character_id)
         member = self._cast_member(thread, character_id)
         if member and member.get("role"):
             return _compact(member.get("role"), 80)
