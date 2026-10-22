@@ -54,9 +54,9 @@ def _t2b_scenario():
 
 
 def _flat(evaluation) -> str:
-    """What the scene said, on one line (pytest's summary drops a multi-line reason)."""
+    """A short reason: pytest drops a long one from its summary line."""
 
-    return "re-asked: " + " / ".join(line["text_fr"] for line in evaluation.reply_lines)
+    return "re-asked" if evaluation.route["reply"] == ASK_AGAIN else "advanced"
 
 
 def _said(evaluation) -> str:
