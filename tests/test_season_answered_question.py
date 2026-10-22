@@ -68,11 +68,11 @@ def test_a_full_answer_that_fits_no_authored_reply_is_not_asked_again(reading):
         ack_fr="Vous voulez garder la cuisine et les meubles. C'est noté.",
     )
     evaluation = _say(scenario, "Je garde la cuisine… je ne veux pas vendre les meubles", [], 0)
-    assert evaluation.route["reply"] != ASK_AGAIN, evaluation.character_reply_fr
+    assert evaluation.route["reply"] != ASK_AGAIN
     assert evaluation.turn_consumed is True, "the beat advances after one answer"
     assert evaluation.reply_lines[0]["text_fr"] == "Vous voulez garder la cuisine et les meubles. C'est noté."
     said = _said(evaluation)
-    assert "pardon" not in said and "gardez" not in said and "garder quelque chose" not in said, said
+    assert "pardon" not in said and "gardez" not in said and "garder quelque chose" not in said
 
 
 def test_a_duration_that_fits_no_authored_reply_is_not_asked_again(reading):
@@ -90,10 +90,10 @@ def test_a_duration_that_fits_no_authored_reply_is_not_asked_again(reading):
     )
     text = "Je reste trois jours, parce que je dois décider si je vends le café."
     evaluation = _say(scenario, text, history, 1)
-    assert evaluation.route["reply"] != ASK_AGAIN, evaluation.character_reply_fr
+    assert evaluation.route["reply"] != ASK_AGAIN
     assert evaluation.turn_consumed is True
     said = _said(evaluation)
-    assert "je demande" not in said and "combien de temps" not in said and "pardon" not in said, said
+    assert "je demande" not in said and "combien de temps" not in said and "pardon" not in said
 
 
 def test_a_reply_that_does_not_answer_is_still_asked_again(reading):
@@ -124,8 +124,8 @@ def test_the_offline_matcher_hears_the_same_answers(monkeypatch):
     scenario.character_id = turns[0]["to"]
     history: list[dict] = []
     first = _say(scenario, "Je garde la cuisine… je ne veux pas vendre les meubles", history, 0)
-    assert first.route["reply"] != ASK_AGAIN and first.turn_consumed is True, first.character_reply_fr
+    assert first.route["reply"] != ASK_AGAIN and first.turn_consumed is True
     _record(history, "Je garde la cuisine… je ne veux pas vendre les meubles", first)
     scenario.character_id = turns[1]["to"]
     second = _say(scenario, "Je reste trois jours, parce que je dois décider si je vends le café.", history, 1)
-    assert second.route["reply"] != ASK_AGAIN and second.turn_consumed is True, second.character_reply_fr
+    assert second.route["reply"] != ASK_AGAIN and second.turn_consumed is True
