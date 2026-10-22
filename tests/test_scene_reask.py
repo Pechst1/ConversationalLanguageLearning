@@ -56,14 +56,14 @@ def _t2b_scenario():
 def _flat(evaluation) -> str:
     """A short reason: pytest drops a long one from its summary line."""
 
-    return "re-asked" if evaluation.route["reply"] == ASK_AGAIN else "advanced"
+    return "reask" if evaluation.route["reply"] == ASK_AGAIN else "advanced"
 
 
 def _said(evaluation) -> str:
     return " ".join(line["text_fr"] for line in evaluation.reply_lines).casefold()
 
 
-def test_a_full_answer_that_fits_no_authored_reply_is_not_asked_again(reading):
+def test_kitchen_answer(reading):
     scenario, turns = _t2b_scenario()
     turn = turns[0]
     scenario.character_id = turn["to"]
@@ -81,7 +81,7 @@ def test_a_full_answer_that_fits_no_authored_reply_is_not_asked_again(reading):
     assert "pardon" not in said and "gardez" not in said and "garder quelque chose" not in said
 
 
-def test_a_duration_that_fits_no_authored_reply_is_not_asked_again(reading):
+def test_duration_answer(reading):
     scenario, turns = _t2b_scenario()
     history: list[dict] = []
     scenario.character_id = turns[0]["to"]
@@ -102,7 +102,7 @@ def test_a_duration_that_fits_no_authored_reply_is_not_asked_again(reading):
     assert "je demande" not in said and "combien de temps" not in said and "pardon" not in said
 
 
-def test_a_reply_that_does_not_answer_is_still_asked_again(reading):
+def test_non_answers_ask_again(reading):
     scenario, turns = _t2b_scenario()
     turn = scenario.story_context[runtime.SEASON_CONTEXT_KEY]["turns"][0]
     scenario.character_id = turn["to"]
@@ -114,7 +114,7 @@ def test_a_reply_that_does_not_answer_is_still_asked_again(reading):
         assert evaluation.turn_consumed is False
 
 
-def test_the_offline_matcher_hears_the_same_answers(monkeypatch):
+def test_matcher_answers(monkeypatch):
     """No model (the fake provider, an outage): the matcher finds no authored reply, and the
     scene still hears a reply that answers the question."""
 
