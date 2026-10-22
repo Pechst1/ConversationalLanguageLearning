@@ -15,6 +15,9 @@ voice, first day), and every surface reads it **by id**:
 * ``voice`` comes from :mod:`app.services.cast_voices`;
 * ``face`` is the drawn portrait directory, found on disk, never typed twice;
 * ``first_day`` is ``(tentpole, day letter)`` of the person's first authored page;
+* the role the learner reads (:func:`role`, #265) lives in :mod:`app.services.cast_roles`
+  and is printed by the Courrier, both cast intros, the director's cast rows and the
+  voice persona alike;
 * the pronoun the story uses for a person (:func:`pronoun_for`) comes from the same
   row, and for the one person whose gender the learner picks (Camille) from that
   life's own choice — every story prompt reads it here (#147, Phase 3).
@@ -33,6 +36,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.services.cast_roles import role_of
 from app.services.cast_voices import CAST_VOICES
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -157,6 +161,14 @@ def member(character_id: str | None) -> CastMember | None:
 def display_name(character_id: str | None, default: str = "") -> str:
     found = member(character_id)
     return found.short_name if found else default
+
+
+def role(character_id: str | None, language: str = "fr") -> str:
+    """The role the learner reads for a person («institutrice et peintre»), by id or
+    alias, in ``fr``, ``en`` or ``de``; ``""`` when nobody has written one (#265)."""
+
+    cast_id = resolve_id(character_id)
+    return role_of(cast_id, language) if cast_id else ""
 
 
 def pronoun_for(

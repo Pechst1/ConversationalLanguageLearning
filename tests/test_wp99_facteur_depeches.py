@@ -552,7 +552,7 @@ def test_the_first_letter_is_story_born_when_romy_or_margaux_was_there(db_sessio
     assert letter.prompt_payload["correspondence"]["origin"] == "story_born"
     assert "comptoir" in letter.brief and not letter.title.startswith("Real Mission")
     messenger = letter.prompt_payload["messenger"]
-    assert messenger["contact_role"] == "serveuse au Mistral"
+    assert messenger["contact_role"] == "patronne du Mistral"
     for key in ("scene_anchor", "channel_label", "thread_title"):
         assert not _ENGLISH.search(str(messenger.get(key) or "")), (key, messenger.get(key))
     ledger = courrier.correspondence_state(db_session.get(SerialThread, letter_thread(db_session, user))).get("story_born")
