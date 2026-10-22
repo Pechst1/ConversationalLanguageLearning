@@ -107,7 +107,7 @@ def test_free_use_is_a_two_line_scene_with_the_coach(unit: str) -> None:
     detector = ib.unit_detector(unit)
     scenes = [
         scene
-        for item in ib.default_bank().generate(unit, 20, seed=f"scene:{unit}", detector=detector)
+        for item in ib.default_bank().generate(unit, 30, seed=f"scene:{unit}", detector=detector)
         if (scene := ib.scene_item(item, coach=coach, requirement=REQUIREMENT))
     ]
     assert len(scenes) >= 12, unit

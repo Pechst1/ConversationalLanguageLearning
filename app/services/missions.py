@@ -31,6 +31,7 @@ from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
+from app.services.forge_item_validator import cast_names, reaction_problems
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -6516,10 +6517,15 @@ class MissionConversationService:
         name = _compact_text(character.get("name"), max_length=80) or "Ton interlocuteur"
         role = _compact_text(character.get("role"), max_length=120)
         register = _compact_text(character.get("register"), max_length=40) or "vous"
-        if not self.llm:
+
+        def calm_acknowledgement() -> str:
+            # Says nothing that could be wrong: no fact, no name, no number.
             if register == "tu":
                 return f"{name} hoche la tête. « Je comprends. Et maintenant, qu'est-ce que tu proposes ? »"
             return f"{name} acquiesce. « Je comprends. Et maintenant, qu'est-ce que vous proposez ? »"
+
+        if not self.llm:
+            return calm_acknowledgement()
 
         context = json.dumps(
             {
@@ -6536,7 +6542,10 @@ class MissionConversationService:
             "character, in natural French, in 1-3 short sentences. React to the learner's meaning, "
             "add one concrete in-world detail, and move the scene forward. You are never a language "
             "teacher: never correct, grade, praise, mention grammar, or reveal that this is an exercise. "
-            "If the French is imperfect but understandable, simply answer in character."
+            "If the French is imperfect but understandable, simply answer in character. "
+            "Keep the learner's own person and number: if they said «il», you speak of «il», not «ils», and "
+            "the other way round. Name only people the learner or the scene already named, or these: "
+            f"{', '.join(sorted(cast_names()))}. Never invent a person, a place or a fact."
         )
         try:
             result = self.llm.generate_chat_completion(
@@ -6552,7 +6561,15 @@ class MissionConversationService:
                 request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
             )
             _record_mission_llm_cost(self.db, user_id=user_id, result=result, purpose="atelier_character_reply")
-            return _compact_text(result.content, max_length=600)
+            reply = _compact_text(result.content, max_length=600)
+            # ROOT CAUSE #145/#147: the reaction had no ledger. A reply that invents a
+            # person or changes the learner's person/number is not shown: the character
+            # nods instead, which is always true.
+            problems = reaction_problems(reply, learner_text=user_text, grounded=(scene_context, opener, name))
+            if problems:
+                logger.info("Atelier reaction held back", problems=[problem.kind for problem in problems])
+                return calm_acknowledgement()
+            return reply
         except LLMProviderError as exc:
             logger.debug("Atelier serial conversation fallback", error=str(exc))
             if register == "tu":
