@@ -147,6 +147,50 @@ def match_reply(turn: dict[str, Any], learner_text: str) -> tuple[str, float]:
     return best, best_score
 
 
+#: Words of a question that say nothing about its subject: a reply echoing only these
+#: has not answered it.
+_QUESTION_FILLER = frozenset(
+    "combien pourquoi comment quand alors chose quelque quelqu fait ici avis bien".split()
+)
+
+
+def _same_stem(left: str, right: str) -> bool:
+    """«garde» and «gardez», «reste» and «restes»: one verb, two endings."""
+
+    shorter = min(len(left), len(right))
+    if shorter < 4:
+        return False
+    common = 0
+    for a, b in zip(left, right, strict=False):
+        if a != b:
+            break
+        common += 1
+    return common >= max(4, shorter - 1)
+
+
+def answers_question(turn: dict[str, Any], learner_text: str) -> bool:
+    """Whether the learner's words ANSWER what this turn asks, whichever authored reply
+    (if any) they match (walk 21 Oct, #262).
+
+    The turn knows a closed set of replies, so «matches none of them» is not «did not
+    answer»: «Je reste trois jours» answers «Tu restes combien de temps ?» though no
+    authored reply is a duration. A reply answers when it is a statement (not a question
+    back) that takes up the question's own subject, its verb or noun in any ending. A
+    name alone, a greeting or another subject does not."""
+
+    text = str(learner_text or "")
+    if "?" in text:
+        return False
+    said = {word for word in content_words(text) if word not in _QUESTION_FILLER}
+    asked: set[str] = set()
+    for line in (turn.get("panel") or {}).get("lines") or []:
+        if "?" in str(line.get("text_fr") or ""):
+            asked |= content_words(str(line.get("text_fr")))
+    asked |= content_words(str((turn.get("ask_again") or {}).get("text_fr") or ""))
+    asked -= _QUESTION_FILLER
+    return any(_same_stem(word, theirs) for word in said for theirs in asked)
+
+
 _NAME = re.compile(
     r"(?:je m['’ ]?appelle|moi,?\s*c['’]est|mon (?:pr[ée])?nom(?:,)?\s*(?:est|c['’]est)|je suis)\s+([A-ZÀ-Ý][\w'’-]{1,30})",
     re.IGNORECASE,

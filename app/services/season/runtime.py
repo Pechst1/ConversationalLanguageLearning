@@ -63,6 +63,7 @@ from app.services.season.turns import (
     MATCH_THRESHOLD,
     ReplyChoice,
     ack_panel,
+    answers_question,
     classifier_payload,
     clean_ack,
     gate_signal,
@@ -838,6 +839,11 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         and turn.get("from_solve") != "convaincre"
         and str(turn.get("id")) not in asked
         and (turn.get("ask_again") or not (turn.get("gate") or turn.get("convince")))
+        # #262: «matches none of the authored replies» is not «did not answer». A reply
+        # that takes up the question's own subject («Je garde la cuisine», «Je reste
+        # trois jours») was an answer: the scene hears it (the fallback route plays, the
+        # ack answers the content) and moves on, never re-asking it.
+        and not answers_question(turn, answer.text)
     ):
         # QA-STORY: the reply said none of what the turn is about (a name alone, a
         # greeting, another subject). The addressee asks once for the missing part;
