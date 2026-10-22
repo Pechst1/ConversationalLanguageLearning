@@ -486,3 +486,26 @@ test('WP-110: the ending step closes the finished page on «À suivre…»', () 
   assert.deepEqual(stages.map((stage) => stage.kind), ['panel', 'panel', 'panel', 'resolution']);
   assert.equal(stages[3].aSuivre, 'Demain, Camille.');
 });
+
+test('#276: «Read the scene» leaves the listening cycle on a planner-dealt listening day too', () => {
+  // The Guess step's third exit. «Lire plutôt» used to write only the learner's
+  // remembered choice, so on a «jour d’écoute» (dealt) the placement stayed
+  // 'cycle' and the tap changed nothing at all.
+  const placement = (args) => model.listenFirstPlacement({ audioAvailable: true, ...args });
+  assert.equal(placement({ dealt: true }), 'cycle', 'a dealt day opens on the cycle');
+  assert.notEqual(
+    placement({ dealt: true, preferred: false, declined: true }),
+    'cycle',
+    'tapping «Read the scene» on a dealt day must leave the cycle for the text',
+  );
+  assert.notEqual(
+    placement({ dealt: true, preferred: true, declined: true }),
+    'cycle',
+    'and so must it when the learner had also chosen to listen first',
+  );
+  assert.equal(
+    model.listenFirstPlacement({ audioAvailable: false, dealt: true, declined: true }),
+    'none',
+    'a silent deployment still makes no offer',
+  );
+});

@@ -60,7 +60,8 @@ def test_the_addressee_first_answers_what_the_learner_wrote(reading):
         reply_id="a", confidence=0.9, ack_fr="De Berlin, sous cette pluie ? Vous êtes courageux."
     )
     evaluation = _say(scenario, "Je viens de Berlin. Odile est ma grand-mère.", [], 0)
-    assert evaluation.route == {"turn": "a.turn1", "reply": "a"}
+    assert {k: evaluation.route[k] for k in ("turn", "reply")} == {"turn": "a.turn1", "reply": "a"}
+    assert evaluation.route["say_fr"], "what the learner meant is kept as a sentence to say"
     first = evaluation.reply_lines[0]
     assert first["speaker_id"] == "augustin_de_roncourt"
     assert first["text_fr"] == "De Berlin, sous cette pluie ? Vous êtes courageux."

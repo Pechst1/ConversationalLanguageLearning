@@ -221,7 +221,7 @@ def test_only_a_name_is_asked_again_in_character_never_routed_as_family(offline)
 def test_a_clear_reply_routes_at_once(offline):
     scenario = _scenario(_page())
     evaluation = _say(scenario, "Odile est ma grand-mère.", [], 0)
-    assert evaluation.route == {"turn": "a.turn1", "reply": "a"}
+    assert {k: evaluation.route[k] for k in ("turn", "reply")} == {"turn": "a.turn1", "reply": "a"}
     assert evaluation.turn_consumed is True
 
 
