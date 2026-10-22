@@ -1088,6 +1088,8 @@
 .av2 .av2-correction__line { font-size: var(--av2-t-option); line-height: 1.3; }
 .av2 .av2-correction__span { text-decoration: line-through; }
 .av2 .av2-correction__fix { font-family: var(--av2-serif); font-style: italic; color: var(--av2-green); }
+/* #278: the wrong part of the learner's own sentence on a repair card. */
+.av2 .av2-slip { background: var(--av2-tint-wrong); color: inherit; border-radius: 4px; padding: 0 0.15em; }
 
 /* ===========================================================================
    Notices — connection, retry, reconciled, unscored, error.

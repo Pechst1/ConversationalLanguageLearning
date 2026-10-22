@@ -657,6 +657,13 @@ class RecallTask:
     #: WP-103 T3: the French the item starts from, when it is shown — the sentence
     #: to correct, the learner's own wording to repair. Never the answer.
     source_fr: str | None = None
+    #: #278: on a repair, the wrong part of ``source_fr`` the learner wrote, so the
+    #: card marks it. Public (``RecallPrompt.slip_fr``); never the answer.
+    slip_fr: str | None = None
+    #: #278: on a repair, the rule the slip broke, in one line in the learner's
+    #: language («Rule: Le verbe être au présent.»). Shown with the answer, so a
+    #: repair never ends on a bare «Correct».
+    rule_native: str | None = None
 
 
 #: WP-103 T3 (the owner's test: «Build the sentence. Some chips are not needed.» —
@@ -718,6 +725,12 @@ RECALL_GOALS: dict[str, dict[str, str]] = {
         "en": "Write what you said, correctly.",
         "de": "Schreib richtig, was du gesagt hast.",
         "fr": "Écris correctement ce que tu as dit.",
+    },
+    # #278: the rule a slip broke, named beside the sentence it sat in.
+    "repair_rule": {
+        "en": "Rule: {rule}",
+        "de": "Regel: {rule}",
+        "fr": "Règle : {rule}",
     },
     "readdress": {
         "en": 'Say the same thing to someone you call "{pronoun}".',
@@ -1253,6 +1266,10 @@ class Correction:
     #: saved error can be drilled without guessing its context. ``None`` otherwise.
     saved_span_fr: str | None = None
     saved_corrected_fr: str | None = None
+    #: #278: the sentence the wrong span sat in (the learner's own answer, or the
+    #: item's gap filled with it), so the saved error can be drilled later as that
+    #: sentence with the slip marked, not as a bare word. ``None`` when unknown.
+    context_fr: str | None = None
 
     def is_valid_for(self, learner_text: str) -> bool:
         """Reject no-op corrections and spans the learner never wrote."""

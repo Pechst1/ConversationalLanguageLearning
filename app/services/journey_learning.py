@@ -2311,6 +2311,9 @@ def evaluate_recall(
         # saved error keeps the whole sentence, so it can be drilled later.
         part_answer = typed is not None and bool(typed.read_as and typed.expected_part)
         shown = typed.expected_part if part_answer else expected
+        if task.rule_native:
+            # #278: a missed repair ends on the rule it was about, whatever else it says.
+            note = f"{note} {task.rule_native}".strip() if note else task.rule_native
         correction = build_correction(learner_text=learner_text, corrected_fr=shown, note_native=note)
         if correction is None and typed is not None and typed.note == "accent" and learner_text and shown:
             # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
@@ -2332,6 +2335,18 @@ def evaluate_recall(
                 note_native=note or "",
             )
             correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+    if correction is not None and correction.saved_span_fr is None:
+        # #278: the saved error remembers the sentence the slip sat in, so a repair
+        # drilled later can print it with the slip marked, not a bare word.
+        from app.services.repair_context import context_sentence
+
+        context = context_sentence(
+            slip=correction.span_fr,
+            answer=learner_text,
+            prompt=task.source_fr or task.prompt_fr,
+        )
+        if context:
+            correction = replace(correction, context_fr=context)
     slip_note = None
     if is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
         # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
@@ -3183,6 +3198,7 @@ def _record_correction_erratum(
             "display_label": f"Reprise : {span}"[:120],
             "learner_text": span,
             "corrected_target": corrected,
+            "context_fr": correction.context_fr,
             "why_wrong": correction.note_native or "Cette forme demande une reprise.",
             "repair_hint": corrected,
             "severity": 2,

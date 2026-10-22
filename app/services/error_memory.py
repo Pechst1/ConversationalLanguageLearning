@@ -24,6 +24,7 @@ from app.services.answer_acceptance import is_real_correction
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
 from app.services.learner_copy import learner_text
 from app.services.progress import ProgressService
+from app.services.repair_context import context_sentence
 
 
 def _normalize(value: Any) -> str:
@@ -255,7 +256,18 @@ class ErrorMemoryService:
     ) -> list[dict[str, Any]]:
         updates: list[dict[str, Any]] = []
         correction = attempt.correction_payload or {}
+        items = [item for item in (attempt.prompt_payload or {}).get("items") or [] if isinstance(item, dict)]
         for index, erratum in enumerate(correction.get("errata") or []):
+            if not erratum.get("context_fr"):
+                # #278: the item the slip was made in gives the sentence it sat in.
+                item = next((entry for entry in items if entry.get("id") and entry.get("id") == erratum.get("item_id")), None)
+                context = context_sentence(
+                    slip=erratum.get("learner_text"),
+                    answer=erratum.get("learner_text"),
+                    prompt=(item or {}).get("source_fr") or (item or {}).get("source") or (item or {}).get("prompt"),
+                )
+                if context:
+                    erratum = {**erratum, "context_fr": context}
             update = self.record_erratum(
                 user=user,
                 erratum=erratum,
@@ -395,11 +407,7 @@ class ErrorMemoryService:
                         review_mode=review_mode,
                         memory_key=memory_key,
                         linked_word_id=linked_word.id if linked_word else None,
-                        metadata={
-                            "severity": severity,
-                            "external_id": erratum.get("external_id"),
-                            "source_payload": source_payload or {},
-                        },
+                        metadata=self._metadata_for(erratum, severity=severity, source_payload=source_payload),
                     )
                     return self._serialize_update(already_recorded, action="refined")
                 return self._serialize_update(already_recorded, action="already_recorded")
@@ -430,11 +438,7 @@ class ErrorMemoryService:
                 memory_key = legacy_key
         now = datetime.now(UTC)
         next_review = self._next_review(now=now, severity=severity, repeated=bool(existing), source_type=source_type)
-        metadata = {
-            "severity": severity,
-            "external_id": erratum.get("external_id"),
-            "source_payload": source_payload or {},
-        }
+        metadata = self._metadata_for(erratum, severity=severity, source_payload=source_payload)
         if existing:
             existing.occurrences = (existing.occurrences or 1) + 1
             existing.lapses = (existing.lapses or 0) + 1
@@ -503,6 +507,26 @@ class ErrorMemoryService:
         self.db.flush([record])
         self._update_error_concept(user=user, task_type=task_type, category=category)
         return self._serialize_update(record, action="created")
+
+    @staticmethod
+    def _metadata_for(
+        erratum: dict[str, Any], *, severity: int, source_payload: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        """What a saved erratum keeps beside its two halves.
+
+        #278: ``context_fr`` is the sentence the wrong fragment sat in. Without
+        it a repair drilled later has only the fragment to print.
+        """
+
+        metadata: dict[str, Any] = {
+            "severity": severity,
+            "external_id": erratum.get("external_id"),
+            "source_payload": source_payload or {},
+        }
+        context = " ".join(str(erratum.get("context_fr") or "").split())
+        if context:
+            metadata["context_fr"] = context
+        return metadata
 
     def _merge_same_attempt_erratum(
         self,

@@ -3,7 +3,8 @@
 // and runs the learner-clarity assertions as it goes.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { snapshot, sleep } from './driver.mjs';
+import { snapshot, sleep, TYPEABLE_FIELD } from './driver.mjs';
+import { missLayoutChecks } from './miss-layout.mjs';
 import { englishWords, PENDING_VERDICT, SERVER_BANNER } from './assertions.mjs';
 
 /**
@@ -284,7 +285,9 @@ export class LearnerWalk {
       return true;
     }
     if (s.fieldEnabled) {
-      const field = page.locator('textarea:not([disabled]), input[type=text]:not([disabled])').first();
+      // The same definition as `fieldEnabled`: a graded, read-only gap above the repair field
+      // is not the field a learner types into (#285).
+      const field = page.locator(TYPEABLE_FIELD).filter({ visible: true }).first();
       const text = kind === 'thread' ? REPLIES[this.replies++ % REPLIES.length] : FREE;
       await this.typeInto(field, text, state);
       const send = page.locator('.av2-btn--primary:not([disabled])').first();
@@ -350,7 +353,15 @@ export class LearnerWalk {
         if (verdict) {
           this.findings.check('one-verdict-on-screen', s.graded.length + s.epFeedback.length === 1, `${s.graded.length + s.epFeedback.length} verdicts at once`, this.where({ kind }));
           if (verdict === 'wrong') {
-            const gt = (s.graded[0]?.text || '').replace(/Continue|Weiter|Continuer|Not yet|Noch nicht|Pas encore/gi, '').trim();
+            // #282: a miss at phone size covers neither the prompt nor «Compare», and the field
+            // holds the words the instruction names. A cameo and the scroll to the repair arrive
+            // a moment after the verdict, so the screen is read once more.
+            await sleep(700);
+            const settled = await snapshot(page);
+            for (const check of missLayoutChecks(settled.layout)) {
+              this.findings.check(check.name, check.ok, check.detail, this.where({ kind }));
+            }
+            const gt =(s.graded[0]?.text || '').replace(/Continue|Weiter|Continuer|Not yet|Noch nicht|Pas encore/gi, '').trim();
             this.findings.check('wrong-verdict-shows-the-right-form', gt.length >= 8 || s.frTexts.length > 0, `«Not yet» with no correct form on screen: «${s.text.slice(0, 140)}»`, this.where({ kind }));
           }
         }

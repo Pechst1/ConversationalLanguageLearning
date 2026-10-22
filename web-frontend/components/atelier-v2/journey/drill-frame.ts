@@ -65,6 +65,39 @@ export function drillGoalLine(prompt: GoalPrompt | null | undefined): DrillGoal 
   return null;
 }
 
+export type SlipSegment = { text: string; slip: boolean };
+
+const WORD_CHAR = /[0-9A-Za-zÀ-ÖØ-öø-ÿŒœ'’-]/;
+
+/**
+ * #278: a repair card prints the learner's own sentence with the wrong part marked.
+ * `sentence` cut into the text around `slip` and `slip` itself (whole words, any
+ * case, the first place it stands), or `null` when the slip is not in the sentence:
+ * the card then prints the sentence plain rather than marking a guess.
+ */
+export function slipSegments(sentence: unknown, slip: unknown): SlipSegment[] | null {
+  const line = clean(sentence);
+  const wrong = clean(slip);
+  if (!line || !wrong) return null;
+  const folded = line.toLowerCase();
+  const target = wrong.toLowerCase();
+  // Same length as the line: lower-casing French keeps every offset.
+  if (folded.length !== line.length) return null;
+  let at = folded.indexOf(target);
+  while (at >= 0) {
+    const end = at + target.length;
+    if (!WORD_CHAR.test(line[at - 1] ?? '') && !WORD_CHAR.test(line[end] ?? '')) {
+      const parts: SlipSegment[] = [];
+      if (at > 0) parts.push({ text: line.slice(0, at), slip: false });
+      parts.push({ text: line.slice(at, end), slip: true });
+      if (end < line.length) parts.push({ text: line.slice(end), slip: false });
+      return parts;
+    }
+    at = folded.indexOf(target, at + 1);
+  }
+  return null;
+}
+
 /**
  * WP-121 A.4: «vu au marché d'Aligre, semaine 41» — the small context line under a
  * recall prompt whose word was kept in a Papier (`prompt.met.place_label_fr`), or null.

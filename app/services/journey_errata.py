@@ -86,6 +86,10 @@ class ErrataTarget:
     overdue_days: int
     priority: float
     payload: dict[str, Any] = field(default_factory=dict)
+    #: #278: the sentence the wrong wording sat in, and the title of the rule it
+    #: broke. A repair prints both; without them it is a bare word.
+    context_fr: str | None = None
+    rule: str | None = None
 
     @property
     def reason(self) -> str:
@@ -136,6 +140,8 @@ class ErrataTarget:
                 "erratum_why": self.why,
                 "concept_id": self.concept_id,
                 "memory_key": self.memory_key,
+                "erratum_context": self.context_fr,
+                "erratum_rule": self.rule,
             },
         )
 
@@ -174,6 +180,15 @@ def _priority(*, state: str, occurrences: int, lapses: int, overdue_days: int, s
         + 0.5 * max(0, min(severity, 4)),
         4,
     )
+
+
+def _rule_title(error: UserError) -> str | None:
+    """The title of the grammar rule the slip broke, when it has one."""
+
+    if not error.concept_id:
+        return None
+    concept = getattr(error, "concept", None)
+    return str(getattr(concept, "name", "") or "").strip() or None
 
 
 def build_errata_target(error: UserError, *, now: datetime | None = None) -> ErrataTarget | None:
@@ -218,6 +233,8 @@ def build_errata_target(error: UserError, *, now: datetime | None = None) -> Err
             severity=severity,
         ),
         payload=payload,
+        context_fr=str(metadata.get("context_fr") or "").strip() or None if isinstance(metadata, dict) else None,
+        rule=_rule_title(error),
     )
 
 
