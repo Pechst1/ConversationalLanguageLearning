@@ -51,16 +51,16 @@ def _generated_courrier_role(character_id: str) -> str:
     return service._character_role(_Thread(), character_id).casefold()
 
 
-@pytest.mark.parametrize("character_id", sorted(missions.CAST_ROLES_FR))
-def test_the_courrier_prints_the_same_role_whether_authored_or_generated(character_id):
+@pytest.mark.parametrize("character_id", sorted(missions.CAST_ROLES_FR), ids=lambda c: c.split("_")[0][:6])
+def test_courrier_role(character_id):
     authored = missions.CAST_ROLES_FR[character_id].casefold()
     assert _generated_courrier_role(character_id) == authored, (
         f"{character_id}: the generated Courrier header says one thing, the authored one another"
     )
 
 
-@pytest.mark.parametrize("character_id", sorted(missions.CAST_ROLES_FR))
-def test_the_cast_intro_and_the_courrier_agree_on_a_role(character_id):
+@pytest.mark.parametrize("character_id", sorted(missions.CAST_ROLES_FR), ids=lambda c: c.split("_")[0][:6])
+def test_intro_role(character_id):
     courrier = missions.CAST_ROLES_FR[character_id].casefold()
     intro = _intro_roles("fr").get(character_id)
     if intro is not None:
@@ -71,7 +71,7 @@ def test_the_cast_intro_and_the_courrier_agree_on_a_role(character_id):
 
 
 @pytest.mark.parametrize("language", LANGUAGES)
-def test_both_cast_intros_print_the_same_role_in_every_language(language):
+def test_intros_role(language):
     season, first_day = _intro_roles(language), _first_day_roles(language)
     for character_id in sorted(set(season) & set(first_day)):
         assert season[character_id] == first_day[character_id], (
@@ -79,25 +79,25 @@ def test_both_cast_intros_print_the_same_role_in_every_language(language):
         )
 
 
-def test_the_first_letters_print_the_registry_role():
+def test_letters_role():
     for band, letter in missions.FIRST_LETTERS.items():
         cast_id = letter["character_id"]
         assert letter["contact_role"] == missions.CAST_ROLES_FR[cast_id], (band, cast_id)
 
 
-def test_the_scene_prompt_hands_the_director_each_persons_role():
+def test_scene_role():
     cast = [{"id": cid, "name": cid, "role": "free text from the bible"} for cid in missions.CAST_ROLES_FR]
     rows = {row["id"]: row for row in _cast_with_pronouns(cast, flags={})}
     for cast_id, role in missions.CAST_ROLES_FR.items():
         assert rows[cast_id].get("role_fr") == role, f"{cast_id}: the scene prompt has no registry role"
 
 
-def test_a_voice_persona_uses_the_same_role_as_the_courrier():
+def test_voice_role():
     persona = speech_instructions("lila_bonnet", "a2")
     assert missions.CAST_ROLES_FR["lila_bonnet"] in persona
 
 
-def test_the_cast_intro_files_do_not_keep_a_second_copy_of_a_registry_role():
+def test_no_second_copy():
     import json
 
     from app.services.journey_content import FIRST_DAY_DATA_PATH
