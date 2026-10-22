@@ -346,8 +346,11 @@ export function threadBubbles(input: {
       pending: slot.pending,
     });
     lastCharacter = null;
-    if (slot.lines.length > 1) {
-      // A many-voiced reply: every speaker is their own bubble, with their face.
+    if (slot.lines.length > 0) {
+      // Every speaker is their own bubble, with their face. Even a single line:
+      // the joined `character_fr` names a speaker other than the scene's character
+      // with a «Name : » prefix, and drawing that as one bubble printed Lila’s
+      // answer, with her name inside it, under Camille’s face (#264).
       slot.lines.forEach((spoken, index) => {
         bubbles.push({
           kind: 'character',

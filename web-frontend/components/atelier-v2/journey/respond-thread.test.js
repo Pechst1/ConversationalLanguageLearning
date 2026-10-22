@@ -563,6 +563,30 @@ test('a many-voiced reply is one bubble per speaker, each with who says it', () 
   assert.ok(!replies.some((b) => b.text.includes('Margaux :')), 'no speaker named inside another’s bubble');
 });
 
+test('a reply with one voice that is not the scene’s character is drawn as that voice, never as a «Name :» line', () => {
+  // Night shift #264: «Pas encore», tapped on Lila’s card, was answered inside
+  // Camille’s bubble as «Lila : Pas encore. D’accord.» — one speaker, so the
+  // thread fell back to the joined text and its name prefix.
+  const { threadBubbles: bubblesOf } = require('./respond-thread.ts');
+  const joined = 'Lila : Pas encore. D’accord. J’aime bien « encore ».';
+  const prompt = {
+    turn_index: 1, max_turns: 3, repair_allowed: false, character_id: 'camille_marchand',
+    character_name: 'Camille', character_line_fr: joined, objective_native: '', input_modes: ['text'],
+    thread: [{
+      learner_fr: 'Pas encore',
+      character_fr: joined,
+      correction: null,
+      character_lines: [
+        { speaker_id: 'lila_bonnet', speaker_name: 'Lila Bonnet', text_fr: 'Pas encore. D’accord. J’aime bien « encore ».' },
+      ],
+    }],
+  };
+  const replies = bubblesOf({ prompt }).filter((b) => b.kind === 'character' && b.reply);
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0].speaker && replies[0].speaker.id, 'lila_bonnet', 'drawn as Lila');
+  assert.ok(!replies[0].text.includes('Lila :'), `no speaker named inside the line: ${replies[0].text}`);
+});
+
 
 // ===========================================================================
 // QA-STORY 2026-10-03 — a story reply is never «Correct»
