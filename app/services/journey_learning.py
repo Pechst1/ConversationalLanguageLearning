@@ -2323,6 +2323,9 @@ def evaluate_recall(
             correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
         if correction is not None and part_answer and expected:
             correction = replace(correction, saved_span_fr=typed.read_as, saved_corrected_fr=expected)
+        if correction is not None and task.task_type == "choice" and task.options_kind == "sentences":
+            # #240: the other card is not this card corrected; say which one carries the rule.
+            correction = replace(correction, kind="pick")
         if correction is None and _is_free_sentence(task) and learner_text and expected:
             # WP-129: a free sentence that did not use the unit is not a slip in
             # one span: the learner sees a model sentence that does, whole.
@@ -3986,6 +3989,16 @@ _COACH_SCENE_INSTRUCTION: dict[str, str] = {
     "de": "{name} spricht dich an. Antworte auf Französisch: „{meaning}“",
     "fr": "{name} te parle. Réponds en français : « {meaning} »",
 }
+# #176: the same Rappel when no candidate carries a question of its own for the
+# coach to ask. No character line and no «… is talking to you»: a plain task.
+_PLAIN_REUSE_INSTRUCTION: dict[str, str] = {
+    "en": "Say it in French: “{meaning}”",
+    "de": "Sag es auf Französisch: „{meaning}“",
+    "fr": "Dis-le en français : « {meaning} »",
+}
+#: The chromes the plain task is posed in. Not French: its cue would be the item's
+#: English gloss (the reply asks instead).
+_PLAIN_REUSE_CHROMES = frozenset({"en", "de"})
 
 
 def coach_scene_review_task(
@@ -4001,8 +4014,10 @@ def coach_scene_review_task(
     a ``short_answer`` on the wire (every client renders one), graded by
     :func:`answer_matches` against the scene's reply and the frame's accepted
     variants, and credited as free use (``evidence_format="conversation"``).
-    ``None`` when the unit has no bank templates, no coach, or no item that
-    can be a scene with that coach — then the reply asks for it, as before.
+    ``None`` when the unit has no bank templates or no coach — then the reply
+    asks for it, as before. #176: the coach's line is only ever the question an
+    item carries itself; when no candidate carries one, the same opportunity is
+    posed as the plain task (no character line), so no unit loses its free use.
 
     WP-130 B: with the learner's ``level``, a scene whose answer holds a word
     more than one band above it is passed over (the scene now carries the
@@ -4020,11 +4035,35 @@ def coach_scene_review_task(
         return None
     unit = units[0]
     candidates = item_bank.default_bank().generate(
-        unit, 8, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
+        # A scene needs an item that carries its own question (#176): look further.
+        unit, 24, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
     )
+    def fits_level(texts: list[str]) -> bool:
+        if not level:
+            return True
+        from app.services.practice_level import within_band
+
+        return all(within_band(text, level) for text in texts)
+
+    plain: RecallTask | None = None
+    plain_question: RecallTask | None = None
     for item in candidates:
         scene = forge_coaches.mini_scene(item, coach)
-        if scene is None or scene["reply"].rstrip().endswith("?"):
+        if scene is None:
+            # #176: no question of its own, so no character line. The first such
+            # item is kept as the plain task, posed when no candidate is a scene;
+            # a question to say is kept last (a question unit has nothing else).
+            is_question = item.sentence.rstrip().endswith("?")
+            if language in _PLAIN_REUSE_CHROMES and (plain_question if is_question else plain) is None:
+                accepted = list(dict.fromkeys([item.sentence, *[a for a in item.accepted if a]]))
+                if fits_level(accepted):
+                    task = _plain_reuse_task(brief, item, accepted, language=language)
+                    if is_question:
+                        plain_question = task
+                    else:
+                        plain = task
+            continue
+        if scene["reply"].rstrip().endswith("?"):
             # Owner, 2026-10-19: «Qu'est-ce que tu me racontes ? — Tu es
             # tranquille ?». The warm-up's reply answers the coach; a question
             # back is no answer.
@@ -4033,11 +4072,8 @@ def coach_scene_review_task(
         name = str(coach.get("name") or "")
         template = _COACH_SCENE_INSTRUCTION.get(language, _COACH_SCENE_INSTRUCTION["en"])
         accepted = list(dict.fromkeys([scene["reply"], *[a for a in item.accepted if a]]))
-        if level:
-            from app.services.practice_level import within_band
-
-            if not all(within_band(text, level) for text in accepted):
-                continue
+        if not fits_level(accepted):
+            continue
         return RecallTask(
             task_type="short_answer",
             # FORGE-DE: a German learner reads the German meaning when the item has one.
@@ -4056,7 +4092,34 @@ def coach_scene_review_task(
             estimated_seconds=40,
             evidence_format="conversation",
         )
-    return None
+    return plain or plain_question
+
+
+def _plain_reuse_task(brief: dict[str, Any], item: Any, accepted: list[str], *, language: str) -> RecallTask:
+    """#176: the free-use Rappel for an item that asks no question of its own.
+
+    The same opportunity as the scene (graded against the item's sentence, credited
+    as free use), without a character line that the task would not answer.
+    """
+
+    from app.services import grammar_items
+
+    template = _PLAIN_REUSE_INSTRUCTION[language]
+    meaning = (getattr(item, "de", None) if language == "de" else None) or item.en
+    return RecallTask(
+        task_type="short_answer",
+        instruction_native=template.format(meaning=meaning),
+        prompt_fr=None,
+        options=[],
+        target=grammar_items.grammar_target(brief),
+        optional=False,
+        accepted_answers=accepted,
+        solution_fr=item.sentence,
+        translation_native=None,
+        hint_native=grammar_items._hint(brief, language),
+        estimated_seconds=40,
+        evidence_format="conversation",
+    )
 
 
 def spaced_item_pending(db: Session, *, user: User, brief: dict[str, Any]) -> dict[str, Any]:

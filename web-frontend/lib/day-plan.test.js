@@ -160,3 +160,57 @@ test('screens ask the plan: no second reader of «the day is done» is left in t
   // A stopped scene hands on too (#153), not only a completed one.
   assert.match(read('components/atelier-v2/journey/JourneySession.tsx'), /ended_early/);
 });
+
+test('#175: a failed rule check from the day hands back to the day’s open grammar step', () => {
+  const p = plan(['done', 'done', 'todo']);
+  const failed = dp.handOnAfterRuleCheck(p, false, 'de');
+  assert.equal(failed.kind, 'grammar');
+  assert.equal(failed.href, FORGE, 'La Forge, from=day, never the Cahier');
+  assert.match(failed.label, /Grammatik/);
+  // The plan still has the grammar step open: Home does not say «done».
+  assert.equal(dp.dayIsDone(p), false);
+});
+
+test('#175: a passed rule check closes the grammar step and the plan’s next step follows', () => {
+  const grammarFirst = plan(['done', 'todo', 'todo']);
+  const passed = dp.handOnAfterRuleCheck(grammarFirst, true, 'en');
+  assert.equal(passed.kind, 'words');
+  assert.equal(passed.href, WORDS);
+  const last = dp.handOnAfterRuleCheck(plan(['done', 'done', 'todo']), true, 'en');
+  assert.equal(last.kind, 'finish');
+  assert.equal(last.href, '/fertig');
+  assert.equal(dp.handOnAfterRuleCheck(null, false, 'en'), null);
+});
+
+test('review of #221: a rule check from the day never offers the Cahier, even before the plan is read', () => {
+  const early = dp.ruleCheckExitFromDay(undefined, false, 'de');
+  assert.equal(early.href, '/fertig', 'a reloaded result page stays in the day');
+  assert.doesNotMatch(early.href, /^\/grammar/);
+  assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'done', 'todo']), false, 'de').href, FORGE);
+  assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'todo', 'todo']), true, 'en').href, WORDS);
+  // The page reads the live forge view (where the result lands after the last answer),
+  // not the session's copy from the start, and asks this helper for the exit.
+  const page = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'pages', 'atelier.tsx'), 'utf8');
+  assert.match(page, /const ruleCheckResult = \(forge \?\? forgeViewOf\(session\?\.forge\)\)\?\.result;/);
+  assert.match(page, /ruleCheckExitFromDay\(journey\.envelope\?\.session/);
+});
+
+test('#175: the rule check carries from=day from the day’s La Forge, and only from there', () => {
+  assert.equal(dp.ruleCheckPath('abc', true), '/atelier?testout=abc&from=day');
+  assert.equal(dp.ruleCheckPath('abc', false), '/atelier?testout=abc');
+  assert.equal(dp.ruleCheckIsFromDay({ testout: 'abc', from: 'day' }), true);
+  assert.equal(dp.ruleCheckIsFromDay({ testout: 'abc' }), false, 'from the Cahier it keeps its own exit');
+  assert.equal(dp.ruleCheckIsFromDay({ mode: 'forge', from: 'day' }), false, 'La Forge itself is not a rule check');
+});
+
+test('#175: the whole exit — start from the day, fail, and La Forge is the next step', () => {
+  // The rule check opens at its own address with from=day …
+  const address = new URL(dp.ruleCheckPath('s1', true), 'https://x.test');
+  const query = Object.fromEntries(address.searchParams.entries());
+  assert.equal(dp.ruleCheckIsFromDay(query), true);
+  // … fails, and its only button names the day's open grammar step: La Forge from=day, not /grammar.
+  const exit = dp.handOnAfterRuleCheck(plan(['done', 'done', 'todo']), false, 'de');
+  assert.equal(exit.href, FORGE);
+  assert.doesNotMatch(exit.href, /^\/grammar/);
+  assert.match(exit.label, /Grammatik/);
+});

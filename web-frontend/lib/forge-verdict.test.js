@@ -136,3 +136,35 @@ test('one correction block: notes are deduplicated whichever way they arrive', (
   assert.deepEqual(forgeCorrectionNotes({ errata: [] }), []);
   assert.deepEqual(forgeCorrectionNotes(null), []);
 });
+
+// ---------------------------------------------------------------------------
+// #213 · one verdict per repair card
+//
+// Live walk 2026-10-18: «Needs fixing» was right, the repair was built wrong,
+// and the card said «Not quite. The right sentence: …» above «Well done!».
+// The footer's verdict came from the judgement alone, the card's from the
+// repair. Feedback is built from the part the learner got wrong.
+// ---------------------------------------------------------------------------
+
+test('#213 · a wrong repair after a right judgement is not «Well done!»', () => {
+  assert.equal(typeof V.itemVerdict, 'function', 'the verdict is derived from the judgement AND the repair step');
+  const verdict = (judgedRight, repair) => V.itemVerdict({ judgedRight, repair });
+  // The guard: right judgement, repair shown instead of done -> not right.
+  assert.equal(verdict(true, 'revealed'), 'wrong');
+  // Right judgement, right repair -> right.
+  assert.equal(verdict(true, 'right'), 'right');
+  // The repair is still to do: no verdict yet (and so none to reverse later).
+  assert.equal(verdict(true, 'open'), 'open');
+  // Nothing to repair: the judgement is the item.
+  assert.equal(verdict(true, 'none'), 'right');
+  // A wrong judgement is wrong whatever the repair does.
+  for (const repair of ['none', 'open', 'right', 'revealed']) assert.equal(verdict(false, repair), 'wrong', repair);
+});
+
+test('#213 · a verdict is never shown and then reversed across the repair steps', () => {
+  assert.equal(typeof V.itemVerdict, 'function');
+  const shown = ['open', 'revealed']
+    .map((repair) => V.itemVerdict({ judgedRight: true, repair }))
+    .filter((verdict) => verdict !== 'open');
+  assert.deepEqual(shown, ['wrong'], 'one verdict, shown once the repair has settled');
+});

@@ -41,6 +41,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from functools import lru_cache
 from typing import Any
 from uuid import UUID
 
@@ -53,6 +54,7 @@ from app.db.models.journal import JournalEntry
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services import correction_contract
 from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
 from app.services.daily_journey import local_date_for
@@ -326,6 +328,48 @@ def scene_reveal(journey: DailyJourney) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@lru_cache(maxsize=1)
+def _rarity_table() -> dict[str, int]:
+    """Accent-folded core word -> how common it is (0 = A1 … 5 = C2).
+
+    Read from the vendored core lexicon (lemmas and their inflected forms). A word
+    the lexicon does not know is rarer than any word it does.
+    """
+    from app.services.lexical_coverage import BAND_ORDER, load_lexicon
+
+    lexicon = load_lexicon()
+    table: dict[str, int] = {}
+
+    def put(word: str, band: str) -> None:
+        key = fold_for_comparison(word)
+        rank = BAND_ORDER.index(band) if band in BAND_ORDER else len(BAND_ORDER)
+        if key and rank < table.get(key, len(BAND_ORDER) + 1):
+            table[key] = rank
+
+    for lemma, entry in lexicon.lemmas.items():
+        put(lemma, str(entry.get("band") or ""))
+    for form, lemma in lexicon.forms.items():
+        entry = lexicon.lemmas.get(lemma)
+        if entry:
+            put(form, str(entry.get("band") or ""))
+    return table
+
+
+def anchor_cue(cues: list[str]) -> str | None:
+    """The cue a fact turns on: its rarest word, the longest on a tie.
+
+    «Marin se souvient que le sac chaud s’appelle une bouillotte» is about the
+    *bouillotte*. A learner who writes the word has remembered the fact, whether or
+    not they also repeat «sac» and «chaud» (#252: the check wanted the whole kept
+    sentence, not the fact).
+    """
+    if not cues:
+        return None
+    table = _rarity_table()
+    unknown = 6
+    return max(cues, key=lambda cue: (table.get(cue, unknown), len(cue)))
+
+
 def score_content_recall(text: str, facts: list[dict[str, Any]]) -> dict[str, Any]:
     """How much of the scene the writing actually remembered.
 
@@ -353,7 +397,10 @@ def score_content_recall(text: str, facts: list[dict[str, Any]]) -> dict[str, An
             "text_fr": raw.get("text_fr"),
             "cues_hit": hits,
         }
-        (matched if len(hits) >= needed else missed).append(entry)
+        anchor = anchor_cue(cues)
+        # The fact's own word is evidence enough; otherwise the usual cue count.
+        recalled = len(hits) >= needed or (anchor is not None and anchor in hits)
+        (matched if recalled else missed).append(entry)
 
     total = len(matched) + len(missed)
     if total == 0:
@@ -711,7 +758,8 @@ class JournalService:
         (recall, the character's line) does not depend on the provider, so it
         stays as it was.
         """
-        if entry.status != "unavailable" or not str(entry.entry_text or "").strip():
+        retryable = entry.status == "unavailable" or bool((entry.correction or {}).get("retryable"))
+        if not retryable or not str(entry.entry_text or "").strip():
             return entry
         bounded, truncated = bound_learner_answer(
             {"text": entry.entry_text}, max_chars=ENTRY_MAX_CHARS
@@ -734,27 +782,57 @@ class JournalService:
         status) and the two cannot drift apart.
         """
         correction, corrector = self._correct(user, entry, written, truncated=truncated)
-        checked = correction.get("assessment_status") == "checked"
-        entry.assessment_status = "checked" if checked else "unavailable"
-        entry.status = "written" if checked else "unavailable"
-
-        if checked:
-            entry.errata_ids = self._record_errata(user, entry, correction)
+        by_model = correction.get("assessment_status") == "checked"
+        if by_model:
+            correction = {**correction, "checker": "model"}
+        else:
+            # #250/#252: a model that fails (or a scene with no grammar point to anchor
+            # it) is not a dead end. The shared model-free pass still marks the
+            # learner's real mistakes; the card says what it checked and offers the
+            # model again when a retry could help.
+            reason = self._failure_reason(user, entry, corrector)
+            correction = self._deterministic_correction(
+                user, written, truncated=truncated, reason=reason
+            )
+        entry.assessment_status = "checked"
+        entry.status = "written"
+        entry.errata_ids = self._record_errata(user, entry, correction)
+        if by_model:
             entry.vocabulary_credit = self._credit_vocabulary(user, entry, written, correction)
         else:
-            # No verdict, so no erratum and no credit. An uncertified sentence
-            # must not move a schedule in either direction.
-            entry.errata_ids = []
-            entry.vocabulary_credit = {"status": "skipped", "reason": "assessment_unavailable"}
-            correction = {
-                **correction,
-                "failure_reason": self._failure_reason(user, entry, corrector),
-            }
+            # A model-free pass can find mistakes but cannot certify a sentence as
+            # right, so it earns no "produced correctly" credit.
+            entry.vocabulary_credit = {"status": "skipped", "reason": "deterministic_check_only"}
 
         previous_calls = int((entry.correction or {}).get("paid_calls") or 0)
         entry.correction = {
             **correction,
             "paid_calls": previous_calls + int(getattr(corrector, "paid_calls", 0)),
+        }
+
+    def _deterministic_correction(
+        self, user: User, text: str, *, truncated: bool, reason: str
+    ) -> dict[str, Any]:
+        """The correction when no model verdict exists: the shared model-free pass."""
+        language = normalize_language(user.native_language)
+        edits = correction_contract.deterministic_edits(text)
+        shaped = self._shape_correction(
+            user,
+            {
+                "assessment_status": "checked",
+                "errata": [correction_contract.to_erratum(e, language=language) for e in edits],
+                "corrected_answer": correction_contract.apply_edits(text, edits),
+                "verdict": "needs_revision" if edits else None,
+            },
+            text,
+            truncated=truncated,
+            merge_deterministic=False,
+        )
+        return {
+            **shaped,
+            "checker": "deterministic",
+            "failure_reason": reason,
+            "retryable": reason != "no_check_target",
         }
 
     def _failure_reason(self, user: User, entry: JournalEntry, corrector: Any) -> str:
@@ -890,10 +968,22 @@ class JournalService:
         return self._shape_correction(user, correction, text, truncated=truncated), corrector
 
     def _shape_correction(
-        self, user: User, correction: dict[str, Any], text: str, *, truncated: bool
+        self,
+        user: User,
+        correction: dict[str, Any],
+        text: str,
+        *,
+        truncated: bool,
+        merge_deterministic: bool = True,
     ) -> dict[str, Any]:
         """The wire shape: one foreground correction and the full list behind it."""
         errata = [item for item in (correction.get("errata") or []) if isinstance(item, dict)]
+        if merge_deterministic:
+            # #250: the model's edits must be about this text, and the model-free pass
+            # adds the mistakes it did not list.
+            errata = correction_contract.merge_deterministic_errata(
+                text, errata, language=normalize_language(user.native_language)
+            )
         keep = [
             item
             for item in errata

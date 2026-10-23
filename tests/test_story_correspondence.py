@@ -637,3 +637,40 @@ def test_serialized_mission_carries_the_courrier_block(db_session, monkeypatch):
     assert payload["thread_history"] == [{"summary_fr": "Le pain d'hier", "outcome": "kept"}]
     assert payload["courrier"]["outcome"] == "kept"
     assert payload["courrier"]["origin"] == "chain"
+
+
+def test_a_cast_members_note_does_not_carry_the_domains_ps(db_session, monkeypatch):
+    """#117, 20 Oct walk: Gus's note «Et vous, qu'en pensez-vous ?» ended on «P.S. — Il reste
+    un seul article à ta taille, jusqu'à ce soir.»: the shop domain's complication, in «tu»,
+    under a cast member's «vous» note. A story-born letter carries only its writer's P.S."""
+
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: None)
+    real = MissionGenerator._choose_variety
+    monkeypatch.setattr(
+        MissionGenerator,
+        "_choose_variety",
+        lambda self, **kwargs: real(self, **{**kwargs, "forced_domain": "shopping"}),
+    )
+    user = _user(db_session)
+    thread = _living_thread(db_session, user, thread_id=SEEDS[0])
+    for index in range(6):
+        _journey_event(thread, event_id=f"journey:{index}:story")
+    db_session.add(thread)
+    db_session.commit()
+    candidate = courrier.story_letter_candidate(db_session, user=user)
+    assert candidate is not None
+
+    mission = asyncio.run(
+        MissionScheduler(db_session).create(
+            user=user, mission_type="message", cadence="ad_hoc", use_news=False, story_letter=candidate
+        )
+    )
+
+    payload = mission.prompt_payload
+    assert payload["correspondence"]["origin"] == "story_born"
+    assert payload["variety"]["domain"] == "shopping"
+    shop_ps = "Il reste un seul article à ta taille"
+    assert shop_ps not in str(payload), [
+        key for key in ("variety", "slim_payload", "messenger") if shop_ps in str(payload.get(key))
+    ]
+    assert not payload["messenger"].get("twist_is_ps")

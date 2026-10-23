@@ -50,6 +50,7 @@ import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
 import Router from 'next/router';
 import { handOnAfterScene } from '@/lib/day-plan';
+import { daySessionCopy } from '@/lib/day-session';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
@@ -248,8 +249,10 @@ export function JourneySession({
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
   // WP-D1: the mark is the day's plan, in the head's right-hand slot.
   const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;
-  const caption = journeyHeaderCaption(journey, (position, total) =>
-    stepOfLabel(chrome, position, total),
+  const caption = journeyHeaderCaption(
+    journey,
+    (position, total) => stepOfLabel(chrome, position, total),
+    daySessionCopy(chromeLanguage).scene,
   );
 
   /* The story-engine reader is a full-screen surface with its own exit and its

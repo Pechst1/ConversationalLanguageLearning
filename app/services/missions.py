@@ -24,6 +24,7 @@ from app.db.savepoint import best_effort
 
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
+from app.services import cast_registry, correction_contract
 from app.services import story_correspondence as courrier
 from app.services.address import address_instruction
 from app.services.answer_acceptance import is_preference_swap
@@ -40,7 +41,8 @@ from app.services.glosses import (
     resolve_gloss,
     word_gloss,
 )
-from app.services.learner_copy import learner_text
+from app.services.learner_copy import copy_language, learner_text
+from app.services.letter_voice import band_style_line, register_word, voice_problems
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
@@ -52,6 +54,7 @@ from app.services.vocabulary_credit import (
     UNUSED_TARGET_EVENT_TYPES,
     VocabularyCreditService,
 )
+from app.services.word_match import target_occurs_in
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v2"
 
@@ -1888,6 +1891,10 @@ class MissionGenerator:
                 learner_band=band,
             )
             objectives = [*custom_objectives, *objectives]
+            if custom_context.get("source") == "story_born":
+                # #117: a cast member's note is not the domain's letter, so the domain's
+                # complication («Il reste un seul article à ta taille») is not their P.S.
+                variety = {**variety, "twist": None}
         letter_fit, messenger = self._letter_fit(
             band=band,
             rotation=rotation,
@@ -2813,13 +2820,19 @@ class MissionGenerator:
         from app.services.serial_notifications import CHARACTER_NAMES, portrait_character
 
         key = portrait_character(character_id) or character_id
+        # #217: a person of the cast is named by the registry on every line of the letter,
+        # whatever the model or an older context carried («Augustin « Gus » de Roncourt»).
         name = (
-            str(messenger.get("contact_name") or "").strip()
+            cast_registry.display_name(character_id)
+            or str(messenger.get("contact_name") or "").strip()
             or custom_context.get("character_name")
             or CHARACTER_NAMES.get(key)
             or "Un personnage"
         )
+        # What they say about themselves («Bonjour, c'est Monsieur Marchand.»).
+        spoken = cast_registry.spoken_name(character_id) or name
         tu = str(custom_context.get("register") or "").lower().startswith("tu")
+        writer_register = register_word(custom_context.get("register")) or ("tu" if tu else "vous")
         question = str(custom_context.get("open_question_fr") or "").strip()
         generated = bool(messenger.get("success_signal_i18n"))
         # The goal is the app speaking to the learner: «tu» whatever the letter writer's
@@ -2839,25 +2852,43 @@ class MissionGenerator:
             # left open is asked again in its own words.
             "opening_message": (messenger.get("opening_message") if generated else None)
             or (
-                str(OPEN_QUESTION_FRAME["tu" if tu else "vous"]).format(name=name, question=question)
+                str(OPEN_QUESTION_FRAME["tu" if tu else "vous"]).format(name=spoken, question=question)
                 if question
-                else str(story_frame_for(learner_band)[1]["tu" if tu else "vous"]).format(name=name)
+                else str(story_frame_for(learner_band)[1]["tu" if tu else "vous"]).format(name=spoken)
             ),
             "ambient_cues": (messenger.get("ambient_cues") if generated else None)
-            or [f"un message de {name}", "la dernière scène", "une réponse courte"],
+            or [f"un message {cast_registry.with_de(name)}", "la dernière scène", "une réponse courte"],
             "quick_replies": (messenger.get("quick_replies") if generated else None)
             or (
                 ["Salut ! Moi, je pense que...", "Pour la suite, je...", "Merci pour ton message !"]
                 if tu
                 else ["Bonjour ! Moi, je pense que...", "Pour la suite, je...", "Merci pour votre message !"]
             ),
-            "twist": messenger.get("twist") if generated else None,
+            # A P.S. that contradicts the writer's address form is dropped, not printed.
+            "twist": (
+                messenger.get("twist")
+                if generated
+                and not voice_problems(
+                    [messenger.get("opening_message"), messenger.get("twist")],
+                    register=writer_register,
+                    level=None,
+                )
+                else None
+            ),
             "success_signal": (messenger.get("success_signal") if generated else None) or outcome,
         }
+        # The one P.S. the writer wrote themselves (in their own address form, checked
+        # above); an authored letter's complication is the narrator's note, not a P.S.
+        story_messenger["twist_is_ps"] = bool(story_messenger["twist"])
+        # #117: the writer's own address form, not the Courrier domain's the frame was
+        # drawn from; the reply's actor and its guard both read it.
+        story_messenger["target_register"] = (
+            "tu / registre familier" if writer_register == "tu" else "vous / registre poli"
+        )
         known = custom_context.get("desired_outcome_i18n")
         if not generated and isinstance(known, dict) and known.get("fr") == story_messenger["success_signal"]:
             story_messenger["success_signal_i18n"] = dict(known)
-        story_title = (title if generated and title else None) or f"Un mot de {name}"
+        story_title = (title if generated and title else None) or f"Un mot {cast_registry.with_de(name)}"
         summary = str(custom_context.get("summary_fr") or "").strip()
         if summary and summary[-1] not in ".!?…":
             summary += "."
@@ -3276,6 +3307,15 @@ class MissionGenerator:
                 verdict = letter_level_verdict(known, candidate, targets=vocab)
                 if verdict.rejected:
                     problems.append(str(verdict.hint or verdict.reason))
+            # #117: the character's own words (opening and P.S.) keep one address form
+            # and stay inside the learner's band; the lexical check above sees neither.
+            problems.extend(
+                voice_problems(
+                    [candidate.get("opening_message"), candidate.get("twist")],
+                    register=register_word((story_context or {}).get("register")),
+                    level=str(cefr)[:2],
+                )
+            )
             gap = _objective_language_gap(candidate, user)
             if gap:
                 problems.append(f"Return {gap}: the objective in the learner's own language.")
@@ -3786,6 +3826,16 @@ class MissionCorrectionService:
                 continue
             if not self._quote_is_grounded(erratum, submission_text=submission_text):
                 continue
+            if not correction_contract.edit_is_grounded(
+                submission_text,
+                erratum.get("learner_text"),
+                erratum.get("corrected_target"),
+                erratum.get("why_wrong"),
+                strict_span=False,
+            ):
+                # #250: the note cites a subject that is not in the reply, or the
+                # swapped form is wrong for the subject in front of it.
+                continue
             narrowed = self._narrow_erratum(erratum, submission_text=submission_text)
             if narrowed is None:
                 continue
@@ -3927,6 +3977,7 @@ class MissionCorrectionService:
         correction: dict[str, Any],
         mode: str,
         source_id: str,
+        include_vocabulary: bool = True,
     ) -> list[dict[str, Any]]:
         memory = ErrorMemoryService(self.db)
         persisted: list[dict[str, Any]] = []
@@ -3954,6 +4005,8 @@ class MissionCorrectionService:
             )
             if update:
                 persisted.append(update)
+        if not include_vocabulary:
+            return persisted
         persisted.extend(
             self._apply_vocabulary_events(
                 user=user,
@@ -4119,7 +4172,8 @@ class MissionCorrectionService:
         }
 
     def _deterministic_errata(self, text: str, *, language: Any = None) -> tuple[list[dict[str, Any]], str]:
-        corrected = text
+        contract_edits = correction_contract.deterministic_edits(text)
+        corrected = correction_contract.apply_edits(text, contract_edits)
         errata: list[dict[str, Any]] = []
 
         def preserve_case(original: str, replacement: str) -> str:
@@ -4185,6 +4239,17 @@ class MissionCorrectionService:
                 flags=re.IGNORECASE,
             )
 
+        # #250: the model-free pass of the shared corrector contract. The same rules
+        # serve the scene reply and the Journal, so a model that fails (or is rejected)
+        # leaves real corrections here, never an "unavailable" card.
+        for edit in contract_edits:
+            if any(
+                edit.span.casefold() in item["learner_text"].casefold()
+                or item["learner_text"].casefold() in edit.span.casefold()
+                for item in errata
+            ):
+                continue
+            errata.append(correction_contract.to_erratum(edit, language=copy_language(language)))
         return errata, corrected.strip()
 
     def _merge_deterministic_errata(
@@ -4206,12 +4271,18 @@ class MissionCorrectionService:
             )
             for item in existing
         }
+        quoted = [str(item.get("learner_text") or "").casefold() for item in existing]
         for item in deterministic_errata:
             key = (
                 str(item.get("learner_text") or "").casefold(),
                 str(item.get("corrected_target") or "").casefold(),
                 str(item.get("task_error_type") or ""),
             )
+            span = key[0]
+            # #250: the model already quoted this fragment (or a longer one around it):
+            # one card per fragment, not «Mon carte» and «Mon» both.
+            if span and any(span in other or (other and other in span) for other in quoted):
+                continue
             if key not in existing_keys:
                 existing.append(item)
                 existing_keys.add(key)
@@ -4549,7 +4620,8 @@ class MissionCorrectionService:
             item.get("normalized_word"),
             item.get("french_translation"),
         ]
-        return any(self._contains_normalized_phrase(normalized_text, form) for form in forms)
+        # #236: the word or one of its inflections, never a longer word that starts like it.
+        return any(target_occurs_in(form, normalized_text) for form in forms)
 
     def _translation_hit(self, normalized_text: str, item: dict[str, Any]) -> str:
         translation = str(item.get("translation") or "")
@@ -6484,20 +6556,91 @@ class MissionConversationService:
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
             "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
         )
+        # #117: the reply is the character's own voice, so it keeps the letter's address
+        # form and the learner's band (a deterministic check, then one rewrite, then the
+        # register-aware acknowledgement).
+        level = _learner_level_code(self.db, user)
+        expected = register_word(
+            messenger.get("target_register") or messenger.get("register") or (mission.prompt_payload or {}).get("target_register")
+        )
+        # The actor is told which French to write, never that its reader is a beginner.
+        style = band_style_line(level)
+        if style:
+            system += f" {style}"
         try:
-            result = self.llm.generate_chat_completion(
-                messages=messages,
-                system_prompt=system,
-                temperature=0.7,
-                max_tokens=220,
-                model=settings.OPENAI_MISSION_FAST_MODEL,
-                request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
-            )
-            _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
-            return result.content
+            hint = ""
+            for attempt in range(2):
+                result = self.llm.generate_chat_completion(
+                    messages=messages,
+                    system_prompt=system + hint,
+                    temperature=0.7,
+                    max_tokens=220,
+                    model=settings.OPENAI_MISSION_FAST_MODEL,
+                    request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                )
+                _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
+                problems = voice_problems([result.content], register=expected, level=level)
+                if not problems:
+                    return self._keep_relatives_with_their_owner(
+                        result.content,
+                        mission=mission,
+                        user_text=user_text,
+                        user=user,
+                        call=lambda extra, prompt=system + hint: self.llm.generate_chat_completion(
+                            messages=messages,
+                            system_prompt=f"{prompt} {extra}",
+                            temperature=0.7,
+                            max_tokens=220,
+                            model=settings.OPENAI_MISSION_FAST_MODEL,
+                            request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                        ),
+                    )
+                logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
+                hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
+            return _unassessed_acknowledgement(mission)
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+
+    def _keep_relatives_with_their_owner(
+        self, reply: str, *, mission: RealWorldMission, user_text: str, user: User, call: Any
+    ) -> str:
+        """#253 (root cause #145): the thread's established facts bind the next line.
+
+        Once the thread has said «ta grand-mère» (the character) or «ma grand-mère»
+        (the learner), the character does not say «ma grand-mère» of her own: one retry
+        with the reason, then the possessive is handed back to the learner."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        payload = mission.prompt_payload or {}
+        turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+        messenger = payload.get("messenger") or {}
+        learner_texts = [user_text, *[t.text for t in turns if t.role == "user"]]
+        speaker_texts = [
+            str(payload.get("conversation_opening") or ""),
+            str(messenger.get("opening_message") or ""),
+            *[t.text for t in turns if t.role != "user"],
+        ]
+        learner_texts = [str(t) for t in learner_texts if t]
+        speaker_texts = [str(t) for t in speaker_texts if t]
+        hits = lane_guards.kin_owner_flips(reply, learner_texts=learner_texts, speaker_texts=speaker_texts)
+        if hits:
+            try:
+                retry = call(lane_guards.kin_owner_hint(hits))
+                _record_mission_llm_cost(
+                    self.db, user_id=getattr(user, "id", None), result=retry,
+                    purpose="character_reply", mission_id=getattr(mission, "id", None),
+                )
+                reply = retry.content
+            except LLMProviderError:
+                logger.debug("Mission relative-owner retry failed")
+        return lane_guards.settle_kin_owner(
+            reply,
+            learner_texts=learner_texts,
+            speaker_texts=speaker_texts,
+            register=str(messenger.get("target_register") or payload.get("target_register") or ""),
+        )
 
     def respond_for_atelier(
         self,

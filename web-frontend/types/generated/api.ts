@@ -2499,6 +2499,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/missions/{mission_id}/turns/{turn_id}/correction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Mission Turn Correction
+         * @description #251: ask the corrector again for a reply it could not check.
+         *
+         *     Only an ``unassessed`` reply is asked again: the model failed and the model-free
+         *     pass found nothing. Anything else is handed back as it stands. When the model fails
+         *     a second time, the reply keeps its first correction.
+         */
+        post: operations["retry_mission_turn_correction_api_v1_missions__mission_id__turns__turn_id__correction_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/missions/audio/transcribe": {
         parameters: {
             query?: never;
@@ -5649,6 +5673,8 @@ export interface components {
             edition_no?: number | null;
             /** Ending Fr */
             ending_fr?: string | null;
+            /** Hook Fr */
+            hook_fr?: string | null;
             /** Image Url */
             image_url?: string | null;
             /** Journey Id */
@@ -9109,6 +9135,8 @@ export interface components {
              * @default false
              */
             assessment_truncated?: boolean;
+            /** Checker */
+            checker?: string | null;
             /**
              * Corrected Answer
              * @default
@@ -9126,6 +9154,11 @@ export interface components {
             foreground?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable?: boolean;
             /** Verdict */
             verdict?: string | null;
         };
@@ -9286,6 +9319,12 @@ export interface components {
         JourneyCorrection: {
             /** Corrected Fr */
             corrected_fr: string;
+            /**
+             * Kind
+             * @default edit
+             * @enum {string}
+             */
+            kind?: "edit" | "pick";
             /** Note Native */
             note_native: string;
             /** Notes Native */
@@ -9956,6 +9995,17 @@ export interface components {
             /** Recent Completed */
             recent_completed?: components["schemas"]["MissionRead"][];
             weekly_mission?: components["schemas"]["MissionRead"] | null;
+        };
+        /** MissionTurnCorrectionResponse */
+        MissionTurnCorrectionResponse: {
+            correction: components["schemas"]["MissionCorrectionRead"];
+            /** Errata */
+            errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
+            mission: components["schemas"]["MissionRead"];
+            /** User Turn */
+            user_turn: {
+                [key: string]: unknown;
+            };
         };
         /** MissionTurnRequest */
         MissionTurnRequest: {
@@ -19191,6 +19241,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MissionTurnResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_mission_turn_correction_api_v1_missions__mission_id__turns__turn_id__correction_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mission_id: string;
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissionTurnCorrectionResponse"];
                 };
             };
             /** @description Validation Error */

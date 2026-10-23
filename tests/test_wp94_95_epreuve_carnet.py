@@ -338,12 +338,12 @@ def test_the_checkpoint_view_says_whether_a_story_stages_the_epreuve(monkeypatch
 # ---------------------------------------------------------------------------
 
 
-def _strong_brief(external_id: str = "FR2_A11_JE_VOUDRAIS") -> dict:
+def _strong_brief(external_id: str = "FR2_A21_COD") -> dict:
     return {
         "concept_id": 4242,
         "external_id": external_id,
-        "title_fr": "je voudrais",
-        "title_native": "I would like",
+        "title_fr": "le pronom COD",
+        "title_native": "direct object pronouns",
         "stability": 12.0,
     }
 

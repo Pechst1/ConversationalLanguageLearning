@@ -1586,3 +1586,171 @@ def test_an_intonation_question_is_never_corrected_to_an_inversion(db_session):
     )
 
     assert [item["corrected_target"] for item in correction["errata"]] == ["Le radiateur est froid"]
+
+
+class _DownLLM:
+    """A corrector that is down: every call fails the way a provider fails."""
+
+    def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+        from app.services.llm_service import LLMProviderError
+
+        raise LLMProviderError("provider unavailable")
+
+
+def test_a_courrier_reply_with_the_corrector_down_still_gets_the_real_corrections(db_session):
+    """#251/#250: «Not corrected yet: the corrector was unavailable» left the mistakes unmarked."""
+    user = User(id=uuid4(), email="courrier-down@example.com", hashed_password="x", proficiency_level="A1")
+    text = "Je vais sonné la cloche et je vend la bouillotte à Lila, elle est parti."
+    correction = MissionCorrectionService(db_session, llm_service=_DownLLM()).correct_submission(
+        user=user, mission=_mission_for_correction(), text=text, mode="chat"
+    )
+
+    pairs = {(item["learner_text"], item["corrected_target"]) for item in correction["errata"]}
+    assert ("sonné", "sonner") in pairs
+    assert ("vend", "vends") in pairs
+    assert all(item["learner_text"] in text for item in correction["errata"])
+    assert correction["verdict"] != "unassessed"
+    assert correction["corrected_answer"] != text
+
+
+def test_a_clean_courrier_reply_with_the_corrector_down_is_not_called_unavailable(db_session):
+    """The 20 Oct reply was correct French: nothing to mark, and no dead-end line."""
+    user = User(id=uuid4(), email="courrier-down-2@example.com", hashed_password="x", proficiency_level="A1")
+    text = "Non, ce n’est pas un projet artistique. C’est la bouillotte de ma grand-mère, pas la tienne !"
+    correction = MissionCorrectionService(db_session, llm_service=_DownLLM()).correct_submission(
+        user=user, mission=_mission_for_correction(), text=text, mode="chat"
+    )
+    assert correction["errata"] == []
+
+    from pathlib import Path
+
+    copy = (Path(__file__).resolve().parents[1] / "web-frontend/components/courrier/courrier-copy.ts").read_text(
+        encoding="utf-8"
+    )
+    lines = [line for line in copy.splitlines() if line.strip().startswith("unassessed:")]
+    assert len(lines) == 3
+    for line in lines:
+        assert "unavailable" not in line and "disponible" not in line and "verfügbar" not in line
+
+
+def test_a_courrier_reply_the_corrector_could_not_check_can_be_checked_again(
+    client: TestClient, db_session, monkeypatch
+):
+    """#251: «No corrections found» after a failed check offers «Check again», and asking
+    again marks the mistake the model-free pass cannot see."""
+    monkeypatch.setattr(NewsService, "fetch_france_context", _fake_france_context)
+    token = _token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    mission_id = client.post(
+        "/api/v1/missions/",
+        json={"mission_type": "message", "cadence": "ad_hoc", "use_news": False},
+        headers=headers,
+    ).json()["mission"]["id"]
+    text = "Hier, j'ai acheté des pommes rouge au marché pour ma grand-mère."
+
+    down = {"value": True}
+
+    def _llm_correction(self, *, user, mission, text, mode):  # type: ignore[no-untyped-def]
+        if down["value"]:
+            return None
+        return {
+            "verdict": "needs_revision",
+            "score_0_4": 2,
+            "corrected_answer": text.replace("pommes rouge", "pommes rouges"),
+            "objective_progress": [],
+            "concept_hits": [],
+            "missing_targets": [],
+            "errata": [
+                {
+                    "display_label": "Agreement",
+                    "learner_text": "pommes rouge",
+                    "corrected_target": "pommes rouges",
+                    "why_wrong": "« rouge » agrees with « pommes »: plural.",
+                    "repair_hint": "Add -s to the adjective.",
+                    "severity": 2,
+                    "recurring": False,
+                    "task_error_type": "agreement",
+                    "external_id": "",
+                }
+            ],
+            "vocabulary_links": [],
+            "_fallback_used": False,
+        }
+
+    monkeypatch.setattr(MissionCorrectionService, "_llm_correction", _llm_correction)
+    turn = client.post(f"/api/v1/missions/{mission_id}/turns", json={"text": text, "mode": "chat"}, headers=headers)
+    assert turn.status_code == 200
+    user_turn = turn.json()["user_turn"]
+    assert user_turn["correction"]["verdict"] == "unassessed"
+
+    # Still down: the reply keeps its first correction, nothing is filed twice.
+    still_down = client.post(f"/api/v1/missions/{mission_id}/turns/{user_turn['id']}/correction", headers=headers)
+    assert still_down.status_code == 200
+    assert still_down.json()["correction"]["verdict"] == "unassessed"
+    assert still_down.json()["errata"] == []
+
+    down["value"] = False
+    again = client.post(f"/api/v1/missions/{mission_id}/turns/{user_turn['id']}/correction", headers=headers)
+    assert again.status_code == 200
+    body = again.json()
+    assert body["correction"]["verdict"] == "needs_revision"
+    assert [(item["learner_text"], item["corrected_target"]) for item in body["correction"]["errata"]] == [
+        ("pommes rouge", "pommes rouges")
+    ]
+    assert body["correction"]["persistence"]["repair_count"] == 1
+    stored = [item for item in body["mission"]["turns"] if item["id"] == user_turn["id"]]
+    assert stored and stored[0]["correction"]["verdict"] == "needs_revision"
+
+    # A checked reply is handed back as it stands: no second ask, no second erratum.
+    twice = client.post(f"/api/v1/missions/{mission_id}/turns/{user_turn['id']}/correction", headers=headers)
+    assert twice.json()["errata"] == []
+    assert twice.json()["correction"]["persistence"] == body["correction"]["persistence"]
+
+    other = client.post(f"/api/v1/missions/{mission_id}/turns/{uuid4()}/correction", headers=headers)
+    assert other.status_code == 404
+
+
+def test_a_courrier_correction_citing_a_subject_that_is_not_in_the_reply_is_dropped(db_session):
+    """#193 on the Courrier: «With « tu », « est » must be « es »» about a reply with no «tu»."""
+    user = User(id=uuid4(), email="courrier-tu@example.com", hashed_password="x", proficiency_level="A1")
+
+    class _TuLLM:
+        def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+            return LLMResult(
+                provider="stub",
+                model="stub-correction",
+                content=json.dumps(
+                    {
+                        "verdict": "needs_revision",
+                        "score_0_4": 2,
+                        "corrected_answer": "Odile est parti.",
+                        "objective_progress": [],
+                        "concept_hits": [],
+                        "missing_targets": [],
+                        "errata": [
+                            {
+                                "display_label": "Verb form",
+                                "learner_text": "est",
+                                "corrected_target": "es",
+                                "why_wrong": "With « tu », « est » must be « es ».",
+                                "repair_hint": "es",
+                                "severity": 2,
+                                "recurring": False,
+                                "task_error_type": "verb_conjugation",
+                                "external_id": "",
+                            }
+                        ],
+                        "vocabulary_links": [],
+                    }
+                ),
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0,
+                raw_response={},
+            )
+
+    correction = MissionCorrectionService(db_session, llm_service=_TuLLM()).correct_submission(
+        user=user, mission=_mission_for_correction(), text="Odile est parti hier soir avec nous.", mode="chat"
+    )
+    assert ("est", "es") not in {(item["learner_text"], item["corrected_target"]) for item in correction["errata"]}

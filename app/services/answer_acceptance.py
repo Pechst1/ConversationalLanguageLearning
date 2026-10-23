@@ -868,3 +868,308 @@ def is_real_correction(learner: object, corrected: object) -> bool:
         return False
     return not is_preference_swap(learner, corrected)
 
+
+# ---------------------------------------------------------------------------
+# #193: a correction must be about the sentence the learner actually wrote
+# ---------------------------------------------------------------------------
+#
+# Live walk 2026-10-17: «Ma grand-mère est mort» was answered with «est → es»,
+# explained as «after 'tu' you must use 'es'». There is no «tu» in the sentence and
+# «Ma grand-mère est» is right. The tutor and the scene turn take the correction
+# (span, replacement, note) as model-written free text, and «copy the span from the
+# learner's text» was only a sentence in the prompt: nothing in code compared the
+# correction with the sentence it judges (the same flaw as #174, a verdict not tied to
+# the sentence). `correction_is_grounded` is that comparison; a correction that fails
+# it is dropped, never shown, never saved as an erratum.
+#
+# The rule is deliberately one-sided. It drops a correction only when it can PROVE it
+# wrong from the sentence: the quoted span is not there, the note cites a subject that
+# is not there, or the «before» form is already right for the subject in front of it
+# (or the replacement is wrong for that subject). Whenever the subject cannot be read
+# from the sentence the correction stands: #201 dropped genuine fixes («Marie et moi
+# suis → sommes», «Toi est → es») by demanding a bare pronoun next to the span.
+
+_PERSON_FORMS: dict[str, frozenset[str]] = {
+    "1sg": frozenset({"suis", "ai", "vais"}),
+    "2sg": frozenset({"es", "as", "vas"}),
+    "3sg": frozenset({"est", "a", "va"}),
+    "1pl": frozenset({"sommes", "avons", "allons"}),
+    "2pl": frozenset({"êtes", "avez", "allez"}),
+    "3pl": frozenset({"sont", "ont", "vont"}),
+}
+#: A conjugated form of être/avoir/aller -> the persons it is right for.
+_FORM_PERSONS: dict[str, frozenset[str]] = {}
+for _person, _forms in _PERSON_FORMS.items():
+    for _form in _forms:
+        _FORM_PERSONS[_form] = _FORM_PERSONS.get(_form, frozenset()) | {_person}
+
+_SUBJECT_PRONOUNS: dict[str, str] = {
+    "je": "1sg",
+    "j": "1sg",
+    "tu": "2sg",
+    "il": "3sg",
+    "on": "3sg",
+    "ce": "3sg",
+    "c": "3sg",
+    "ça": "3sg",
+    "nous": "1pl",
+    "vous": "2pl",
+    "ils": "3pl",
+    "elles": "3pl",
+}
+_DISJUNCTIVE = {"moi": "1sg", "toi": "2sg", "lui": "3sg", "eux": "3pl"}
+#: Words between a subject and its verb that do not change who the subject is.
+_BETWEEN = frozenset({"ne", "n", "y", "en", "toujours", "déjà", "aussi", "vraiment", "bien", "jamais"})
+_PLURAL_DETERMINERS = frozenset(
+    {"les", "mes", "tes", "ses", "nos", "vos", "leurs", "des", "ces", "plusieurs", "deux", "trois", "quatre", "cinq"}
+)
+_SINGULAR_DETERMINERS = frozenset(
+    {"le", "la", "l", "un", "une", "mon", "ma", "ton", "ta", "son", "sa", "notre", "votre", "leur", "cet", "cette"}
+)
+_PREPOSITIONS = frozenset({"pour", "avec", "chez", "à", "de", "d", "sans", "sur", "sous", "par", "contre", "comme"})
+#: A person's subject marker: the replacement «suis» needs a «je» (or «moi») in the clause.
+_PERSON_MARKERS: dict[str, frozenset[str]] = {
+    "1sg": frozenset({"je", "j", "moi"}),
+    "2sg": frozenset({"tu", "toi"}),
+    "1pl": frozenset({"nous", "moi"}),
+    "2pl": frozenset({"vous", "toi", "tu"}),
+}
+#: «after 'tu'», «avec je», «with vous», «nach tu»: a note that hangs its rule on a subject.
+_CITED_SUBJECT = re.compile(
+    r"\b(?:after|with|following|nach|mit|avec|apr[eè]s|derri[eè]re)\s+[«'‘’\"“]?\s*"
+    r"(je|j|tu|il|elle|on|nous|vous|ils|elles)\b",
+    re.IGNORECASE,
+)
+_CITED_EQUIVALENTS: dict[str, frozenset[str]] = {
+    "je": frozenset({"je", "j", "moi"}),
+    "j": frozenset({"je", "j", "moi"}),
+    "tu": frozenset({"tu", "toi"}),
+}
+_CLAUSE_TOKEN = re.compile(r"[^\W_]+(?:-[^\W_]+)*|[.,;:!?…()]")
+
+
+def _clause_tokens(value: object) -> list[str]:
+    """Words and clause-ending punctuation, lower-cased, elisions split («j'ai» ->
+    «j», «ai»). Unlike :func:`fold_typography` the punctuation stays: a subject two
+    sentences back is not the subject of this verb."""
+
+    text = unicodedata.normalize("NFC", "" if value is None else str(value)).translate(_TRANSLATE)
+    return _CLAUSE_TOKEN.findall(text.casefold())
+
+
+def _is_word(token: str) -> bool:
+    return token[:1].isalnum()
+
+
+def _find_spans(tokens: list[str], span: list[str]) -> list[list[int]]:
+    """Every place the words of ``span`` stand in ``tokens`` (punctuation ignored), as
+    the token index of each of its words."""
+
+    if not span:
+        return []
+    positions = [i for i, token in enumerate(tokens) if _is_word(token)]
+    words = [tokens[i] for i in positions]
+    return [
+        positions[index : index + len(span)]
+        for index in range(len(words) - len(span) + 1)
+        if words[index : index + len(span)] == span
+    ]
+
+
+def _clause_before(tokens: list[str], index: int) -> list[str]:
+    """The words of the clause in front of ``tokens[index]`` (stops at punctuation)."""
+
+    before: list[str] = []
+    for token in reversed(tokens[:index]):
+        if not _is_word(token):
+            break
+        before.append(token)
+    before.reverse()
+    return before
+
+
+#: Object pronouns that sit between a subject and its verb («je lui ai», «il nous a»).
+_OBJECT_CLITICS = frozenset(
+    {"me", "m", "te", "t", "se", "s", "lui", "leur", "nous", "vous", "le", "la", "l", "les", "moi", "toi"}
+)
+_CLITIC_SUBJECTS = frozenset({"je", "j", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"})
+
+
+def _subject_before_clitics(before: list[str]) -> str | None:
+    """«Je lui a», «il nous ont», «je vous est»: the pronoun right before the verb is
+    its object, and the subject stands in front of it. Returns that subject's person,
+    ``""`` when the subject pronoun is there but its person cannot be told («Marie et
+    elle lui…»), or ``None`` when the words before the verb are not object clitics
+    after a subject pronoun (then the caller reads them as usual: «nous sommes»,
+    «Marie et moi suis»)."""
+
+    index = len(before) - 1
+    skipped = 0
+    while index >= 0 and (before[index] in _OBJECT_CLITICS or before[index] in _BETWEEN):
+        if before[index] in _OBJECT_CLITICS:
+            skipped += 1
+        index -= 1
+        if index >= 0 and before[index] in _CLITIC_SUBJECTS and skipped:
+            subject = before[index]
+            if subject == "elle" and index > 0 and before[index - 1] == "et":
+                return ""
+            return "3sg" if subject == "elle" else _SUBJECT_PRONOUNS[subject]
+    return None
+
+
+def _subject_person(before: list[str]) -> str | None:
+    """Who the subject right before a verb is («1sg», «3pl»…), or ``None`` when the
+    sentence does not say (a noun phrase it cannot read, a coordination of unknown
+    people). Only a subject read with confidence may prove a form right or wrong."""
+
+    before = list(before)
+    while before and before[-1] in _BETWEEN:
+        before.pop()
+    if not before:
+        return None
+    clitic_subject = _subject_before_clitics(before)
+    if clitic_subject is not None:
+        return clitic_subject or None
+    word, rest = before[-1], before[:-1]
+    if word in _SUBJECT_PRONOUNS:
+        return _SUBJECT_PRONOUNS[word]
+    if word == "elle":
+        # «Marie et elle sont» is plural; «… et elle est» may start a new clause.
+        return None if rest and rest[-1] == "et" else "3sg"
+    if word in _DISJUNCTIVE:
+        if rest and rest[-1] in _PREPOSITIONS:
+            return None  # «pour moi est…»: not a subject
+        if rest and rest[-1] == "et":
+            other = rest[-2] if len(rest) >= 2 else ""
+            if word == "moi" or other in {"moi", "nous", "je", "j"}:
+                return "1pl"
+            if word == "toi" or other in {"toi", "tu", "vous"}:
+                return "2pl"
+            return "3pl"
+        return _DISJUNCTIVE[word]
+    # A noun phrase: only read when a determiner shows its number and no «et» can make
+    # it a coordination («Marie et Anna est» is plural; «ma sœur et mon frère» too).
+    if word in _PREPOSITIONS or word in {"et", "que", "qui", "où", "mais", "ou", "si", "quand", "pas"}:
+        return None
+    window = before[-4:]
+    if "et" in window[:-1]:
+        return None
+    if any(token in {"de", "d", "du", "des"} for token in window[:-1]):
+        # «La maison de mes parents sont»: the determiner seen may be the complement's,
+        # not the head noun's.
+        return None
+    if any(token in _PLURAL_DETERMINERS for token in window[:-1]):
+        return "3pl"
+    if any(token in _SINGULAR_DETERMINERS for token in window[:-1]) and not word.endswith(("s", "x")):
+        return "3sg"
+    return None
+
+
+def _word_swap(span_tokens: list[str], corrected_tokens: list[str]) -> tuple[int, str, str] | None:
+    """When the correction changes exactly one word of the span, ``(position, before,
+    after)``."""
+
+    if len(span_tokens) != len(corrected_tokens):
+        return None
+    changed = [i for i, (a, b) in enumerate(zip(span_tokens, corrected_tokens, strict=True)) if a != b]
+    if len(changed) != 1:
+        return None
+    i = changed[0]
+    return i, span_tokens[i], corrected_tokens[i]
+
+
+def correction_is_grounded(
+    learner_text: object,
+    span: object,
+    corrected: object,
+    note: object = None,
+) -> bool:
+    """Whether a proposed correction is about what the learner wrote.
+
+    * the quoted ``span`` is found, word for word, in ``learner_text``;
+    * a subject the note leans on («after 'tu'») appears in the sentence;
+    * when the correction changes a single être/avoir/aller form, that form is
+      wrong for the subject in front of it and the replacement is right for it.
+      A subject the sentence does not make clear never rejects.
+    """
+
+    text_tokens = _clause_tokens(learner_text)
+    span_words = [t for t in _clause_tokens(span) if _is_word(t)]
+    places = _find_spans(text_tokens, span_words)
+    if not places:
+        return False
+    present = {t for t in text_tokens if _is_word(t)}
+    for match in _CITED_SUBJECT.finditer(str(note or "")):
+        cited = match.group(1).casefold()
+        if not (_CITED_EQUIVALENTS.get(cited, frozenset({cited})) & present):
+            return False
+    swap = _word_swap(span_words, [t for t in _clause_tokens(corrected) if _is_word(t)])
+    if swap is None:
+        return True
+    position, old, new = swap
+    old_persons, new_persons = _FORM_PERSONS.get(old), _FORM_PERSONS.get(new)
+    if old_persons is None or new_persons is None:
+        return True
+    # The span may stand twice («Elle est là. Toi est gentil.»): one place where the
+    # correction holds is enough.
+    return any(
+        _swap_holds(_clause_before(text_tokens, place[position]), old_persons, new_persons)
+        for place in places
+    )
+
+
+def _swap_holds(before: list[str], old_persons: frozenset[str], new_persons: frozenset[str]) -> bool:
+    person = _subject_person(before)
+    if person is not None:
+        return person not in old_persons and person in new_persons
+    # Subject unreadable: a first/second-person replacement still needs its pronoun
+    # somewhere in the clause («est → es» with no «tu» or «toi» in it was the #193 bug).
+    if not any(p in {"3sg", "3pl"} for p in new_persons):
+        wanted = frozenset().union(*(_PERSON_MARKERS.get(p, frozenset()) for p in new_persons))
+        return bool(wanted & set(before))
+    return True
+
+
+_BE_FOR_HAVE = re.compile(
+    r"\bje suis (froid|faim|soif|peur|sommeil)\b(?: (\w+)(?: (\w+))?)?", re.IGNORECASE
+)
+#: «Je suis froid avec elle», «… et distant», «… de nature» are French: «froid» then
+#: describes the person. It is the slip only when nothing follows, a time or place
+#: does («Je suis froid ici»), or a new clause starts («Je suis froid et un peu triste»).
+_COLD_THEN_SETTING = frozenset({"ici", "aujourd", "maintenant", "ce", "cette", "car", "parce", "quand", "depuis"})
+_COLD_THEN_CLAUSE = frozenset(
+    {"je", "j", "il", "elle", "on", "nous", "vous", "un", "une", "ma", "mon", "mes", "le", "la", "les", "ça", "c"}
+)
+_SLIP_NOTE = {
+    "en": "In French you «have» cold, hunger or thirst: j'ai {word}, not je suis {word}.",
+    "de": "Auf Französisch «hat» man Kälte, Hunger oder Durst: j'ai {word}, nicht je suis {word}.",
+    "fr": "En français on « a » froid, faim ou soif : j'ai {word}, pas je suis {word}.",
+}
+
+
+def _cold_is_temperature(next_word: str | None, after: str | None) -> bool:
+    following = (next_word or "").casefold()
+    if not following or following in _COLD_THEN_SETTING:
+        return True
+    return following in {"et", "mais"} and (after or "").casefold() in _COLD_THEN_CLAUSE
+
+
+def known_slip(learner_text: object, language: str | None = "en") -> tuple[str, str, str] | None:
+    """A slip the app can name without a model: «Je suis froid» -> «J'ai froid»
+    (French says «avoir froid», not «être froid»). Returns ``(span, fix, note)``, the
+    note in the learner's language. Unambiguous cases only: «je suis froid avec elle»
+    and «je suis chaud pour ça» are valid French and never match."""
+
+    text = " ".join(str(learner_text or "").replace("’", "'").split())
+    for match in _BE_FOR_HAVE.finditer(text):
+        word = match.group(1).casefold()
+        if word == "froid" and not _cold_is_temperature(match.group(2), match.group(3)):
+            continue
+        span = " ".join(match.group(0).split(" ")[:3])
+        fix = f"j'ai {word}"
+        if span[:1].isupper():
+            fix = fix[:1].upper() + fix[1:]
+        table = _SLIP_NOTE.get(str(language or "en")[:2].lower()) or _SLIP_NOTE["en"]
+        return span, fix, table.format(word=word)
+    return None
+

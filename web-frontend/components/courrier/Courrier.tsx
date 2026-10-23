@@ -182,13 +182,16 @@ export function CrSituation({
   );
 }
 
-/* ---------- P.S. ← slim_payload.twist → the design's hint pill ---------- */
-export function CrPS({ text }: { text?: string | null }) {
+/* ---------- the letter's twist → the design's hint pill ----------
+   #117: «P.S.» only when the writer wrote it (`ps`). An authored complication is the
+   narrator's note («Elle n'est pas contente, mais…», «Vendredi matin, tu as cours.»),
+   in the app's «tu»: printed as the writer's P.S. it mixed «tu» into a «vous» letter. */
+export function CrPS({ text, ps = false }: { text?: string | null; ps?: boolean }) {
   if (!text) return null;
   return (
     <p className="cr-hint" lang="fr">
       <ShapeToken kind="reward" size="sm" />
-      <span>P.S. — {text}</span>
+      <span>{ps ? `P.S. — ${text}` : text}</span>
     </p>
   );
 }
@@ -1348,6 +1351,7 @@ export function CourrierStyles() {
       .av2 .cr-turn .av2-bubble { white-space: pre-wrap; max-width: 100%; overflow-wrap: anywhere; }
       .av2 .cr-turn-time { font-size: var(--av2-t-meta); color: var(--av2-muted); font-variant-numeric: tabular-nums; padding: 0 6px; }
       .av2 .cr-unassessed { margin: 4px 0 0 auto; max-width: 80%; text-align: right; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+      .av2 .cr-unassessed + .cr-trad-btn { margin: -6px 0 0 auto; }
       .av2 .cr-typing {
         display: inline-flex; align-items: center; gap: 8px;
         font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-blue);
