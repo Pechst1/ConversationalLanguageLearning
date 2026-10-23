@@ -5717,8 +5717,8 @@ def trim_reply(reply: str | None, level: Any) -> str:
     return " ".join(words[:cap]).rstrip(" ,;:") + "…"
 
 
-def reply_soft_check(model: Any, level: Any, lexical: Any = None) -> None:
-    """The two reply checks that never cost a turn (WP-103 T5), run last.
+def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: str | None = None) -> None:
+    """The reply checks that never cost a turn (WP-103 T5), run last.
 
     Length: above the band's line → :class:`SoftRejection` carrying the reply trimmed
     at a sentence boundary. Words (WP-89's budget, ``lexical(reply) -> hint | None``):
@@ -5742,11 +5742,20 @@ def reply_soft_check(model: Any, level: Any, lexical: Any = None) -> None:
             lexical_hint = None
     if lexical_hint:
         hints.append(str(lexical_hint))
+    ignored = None
+    if learner_text and not getattr(model, "needs_clarification", False):
+        # #254 (root cause #145): a reasoned learner turn is picked up — a reply that
+        # takes up none of its words is asked again once, then served as it is.
+        from app.services import lane_guards
+
+        ignored = lane_guards.ignored_reply_hint(reply, learner_text)
+        if ignored:
+            hints.append(ignored)
     if not hints:
         return
     served = model.model_copy(update={"reply_fr": trimmed}) if trimmed != reply else model
     raise SoftRejection(
-        "reply_above_level" if issue else "reply_off_lexicon",
+        "reply_above_level" if issue else ("reply_off_lexicon" if lexical_hint else "reply_ignores_learner"),
         hint=" ".join(hints),
         proposal=served,
     )
@@ -9590,7 +9599,7 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
     if reply_checks:
         # WP-103 T5: last, on a turn every hard guard has accepted — length and words
         # are refused once with the reason, then the trimmed reply is served.
-        reply_soft_check(turn, story.get("level"), lexical)
+        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"])
 
 
 def _transfer_target_ids(task: Any) -> set[int]:
@@ -10229,6 +10238,7 @@ def settle_resolution(
     # names a real open row — or none at all.
     world_after = thread.world_bible if isinstance(thread.world_bible, dict) else {}
     from app.services.season.runtime import season_teaser
+    from app.services.story_page import HOOK_PAYLOAD_KEY
 
     # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
     teaser = season_teaser(brief.story_context, date=_journey_date(journey)) or next_teaser(
@@ -10286,7 +10296,10 @@ def settle_resolution(
         **({"season_routing": season_routing} if season_routing else {}),
         **({"chapter": chapter_block} if chapter_block else {}),
         **({TUTOIEMENT_KEY: tutoiement} if tutoiement else {}),
-        **({"next_teaser_fr": teaser["text_fr"]} if teaser else {}),
+        # #237: the day's ONE tomorrow-hook, filed here and read (story_page.hook_of)
+        # by the last panel, the finished card, Home and the Feuilleton's filed day.
+        # No surface composes a hook of its own.
+        **({HOOK_PAYLOAD_KEY: teaser["text_fr"]} if teaser else {}),
         # WP-110: the conversation as it was had, so the finished page draws it.
         **({"page_thread": page_thread} if (page_thread := _page_thread(journey, brief)) else {}),
         "estimated_cost": {

@@ -35,6 +35,7 @@ import { momentumCopy, sealRingsLabel } from '@/lib/momentum-copy';
 import { formatDuration } from './journey-state';
 import { measuredBesidePlanned } from './time-estimate';
 import { fill, recapChrome, recapStatusCopy } from './recap-copy';
+import { digestParts } from '@/components/feuilleton/archive/archive-model';
 import { recapTeaserOf } from './season-return-model';
 
 export type RecapFact = { id: 'streak' | 'words' | 'scene'; label: string; value: string };
@@ -242,6 +243,33 @@ function sameLine(a: string, b: string): boolean {
 function withoutTeaserLine(face: RecapFace | null, teaser: RecapTeaser | null): RecapFace | null {
   if (!face?.lineFr || !teaser?.text_fr || !sameLine(face.lineFr, teaser.text_fr)) return face;
   return { ...face, lineFr: null };
+}
+
+const foldLine = (t: string) =>
+  t.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+/** The same sentence, one of them possibly cut at the chronicle's 120 characters. */
+function saysTheSame(a: string, b: string): boolean {
+  const [short, long] = foldLine(a).length <= foldLine(b).length ? [foldLine(a), foldLine(b)] : [foldLine(b), foldLine(a)];
+  return short !== '' && (short === long || (short.length >= 24 && long.startsWith(short)));
+}
+
+/**
+ * What «Fin du chapitre» prints on the finished card (#237). The card already says
+ * the day's summary (the character's line) once, and tomorrow's one open question
+ * under «La suite demain»; the chapter digest «question → résolution» is the
+ * Feuilleton's retrospective. So the card keeps only the resolution half, never a
+ * second question that reads as tomorrow's, and nothing the card has already said.
+ */
+export function colophonDigest(
+  digest: string | null | undefined,
+  alreadySaid: ReadonlyArray<string | null | undefined>,
+): string | null {
+  const parts = digestParts(digest);
+  if (!parts) return null;
+  const line = parts.resolution || parts.question;
+  const said = alreadySaid.map((value) => String(value ?? '').trim()).filter(Boolean);
+  return said.some((value) => saysTheSame(value, line)) ? null : line;
 }
 
 /** «22 sept.» for the keepsake caption. `null` for an unreadable date. */

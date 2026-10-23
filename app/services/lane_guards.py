@@ -30,6 +30,7 @@ lane now receives who said what and the scene's facts); nothing here detects the
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from app.services import living_story as engine
 
@@ -554,3 +555,226 @@ def check_ending_voice(resolution_fr: str, summary_native: str, character_name: 
     issue = ending_voice_issue(resolution_fr, summary_native, character_name)
     if issue:
         raise engine.StoryUnavailable("ending_voice", hint=issue)
+
+
+# ---------------------------------------------------------------------------
+# #253 — whose relative it is (root cause #145: the thread's established facts)
+# ---------------------------------------------------------------------------
+
+#: The relatives a thread settles the owner of. «Ta grand-mère» said by the character
+#: and «ma grand-mère» said by the learner both put the grandmother with the learner;
+#: the character then does not say «ma grand-mère» of her own (Courrier 20 Oct:
+#: «La boulangerie de ta grand-mère est là aussi.» → «…de ma grand-mère est juste au coin»).
+_KIN = (
+    r"grand-m[èe]re|grand-p[èe]re|grands-parents|grand-maman|grand-papa|mamie|papi|m[ée]m[ée]|p[ée]p[ée]"
+    r"|m[èe]re|p[èe]re|parents|fr[èe]re|s[œo]eur|tante|oncle|cousine|cousin|mari|[ée]pouse|femme|fils|fille"
+)
+_MINE = r"ma|mon|mes"
+_YOURS = r"ta|ton|tes|votre|vos"
+_KIN_PHRASE = re.compile(rf"(?<![\w-])({_MINE}|{_YOURS})\s+({_KIN})(?![\w-])", re.IGNORECASE)
+_SHARED = re.compile(r"\b(?:aussi|également|egalement|non plus|même chose)\b", re.IGNORECASE)
+_TU_MARKER = re.compile(r"\b(?:tu|toi|ton|ta|tes|t')", re.IGNORECASE)
+_VOUS_MARKER = re.compile(r"\b(?:vous|votre|vos)\b", re.IGNORECASE)
+_TO_TU = {"ma": "ta", "mon": "ton", "mes": "tes"}
+_TO_VOUS = {"ma": "votre", "mon": "votre", "mes": "vos"}
+
+
+def _kin_key(noun: str) -> str:
+    return engine._folded(noun).replace("œ", "oe")
+
+
+def _kin_phrases(texts: list[str]) -> list[tuple[str, str]]:
+    return [
+        (match.group(1).casefold(), _kin_key(match.group(2)))
+        for text in texts
+        for match in _KIN_PHRASE.finditer(text or "")
+    ]
+
+
+def _anchors(sentence: str) -> set[str]:
+    """What a sentence says about a relative, the relative left out: its content
+    words by their first five letters («boulangerie» → «boula»)."""
+
+    return {token[:5] for token in _content(_tokens(_KIN_PHRASE.sub(" ", sentence))) if len(token) >= 4}
+
+
+def _learner_owned_kin(learner_texts: list[str], speaker_texts: list[str]) -> dict[str, set[str]]:
+    """The relatives the thread has put with the learner and not with the speaker,
+    each with the anchors of the sentences that put them there."""
+
+    owned: dict[str, set[str]] = {}
+    for texts, learners in ((learner_texts, True), (speaker_texts, False)):
+        for sentence in (sentence for text in texts for sentence in _SENTENCE.findall(text or "")):
+            for match in _KIN_PHRASE.finditer(sentence):
+                # The learner's «ma grand-mère», or the speaker's «ta grand-mère».
+                if (match.group(1).casefold() in _TO_TU) == learners:
+                    owned.setdefault(_kin_key(match.group(2)), set()).update(_anchors(sentence))
+    speaker_own = {kin for poss, kin in _kin_phrases(speaker_texts) if poss in _TO_TU}
+    return {kin: anchors for kin, anchors in owned.items() if kin not in speaker_own}
+
+
+def _is_flip(match: re.Match[str], anchors: set[str], owned: dict[str, set[str]]) -> bool:
+    kin = _kin_key(match.group(2))
+    return match.group(1).casefold() in _TO_TU and kin in owned and bool(anchors & owned[kin])
+
+
+def kin_owner_flips(reply: str, *, learner_texts: list[str], speaker_texts: list[str]) -> list[str]:
+    """The «ma / mon / mes + relative» phrases ``reply`` says of the speaker's own that
+    the thread has already put with the learner. A phrase in a sentence that shares it
+    («Ma grand-mère aussi…») or in a reply that also names the learner's («Ta
+    grand-mère… Ma grand-mère…», a contrast) is not a flip.
+
+    Only a sentence that says again something the thread said of the learner's
+    relative is one: «La boulangerie de ma grand-mère…» after «La boulangerie de ta
+    grand-mère…». The speaker may have a brother too: «Mon frère est pâtissier.» after
+    the learner's «Mon frère habite à Paris.» shares nothing and stays as written."""
+
+    owned = _learner_owned_kin(learner_texts, speaker_texts)
+    if not owned or not reply:
+        return []
+    phrases = list(_KIN_PHRASE.finditer(reply))
+    if any(m.group(1).casefold() not in _TO_TU and _kin_key(m.group(2)) in owned for m in phrases):
+        return []
+    hits = []
+    for sentence in _SENTENCE.findall(reply):
+        if _SHARED.search(sentence):
+            continue
+        anchors = _anchors(sentence)
+        hits.extend(match.group(0) for match in _KIN_PHRASE.finditer(sentence) if _is_flip(match, anchors, owned))
+    return hits
+
+
+def settle_kin_owner(
+    reply: str, *, learner_texts: list[str], speaker_texts: list[str], register: str | None = None
+) -> str:
+    """``reply`` with every flipped possessive handed back to the learner («ma» → «ta»,
+    or «votre» when the thread says vous). Unchanged when nothing flipped.
+
+    ``register`` is how the speaker addresses the learner («tu / …» or «vous / …», as a
+    mission's ``target_register`` holds it). It outranks a guess from the earlier lines,
+    which may hold no «vous» yet: a polite correspondent's first reply would otherwise
+    hand back «ta grand-mère»."""
+
+    if not kin_owner_flips(reply, learner_texts=learner_texts, speaker_texts=speaker_texts):
+        return reply
+    owned = _learner_owned_kin(learner_texts, speaker_texts)
+    declared = (register or "").strip().casefold()
+    if declared.startswith(("tu", "vous")):
+        mapping = _TO_VOUS if declared.startswith("vous") else _TO_TU
+    else:
+        said = " ".join(speaker_texts)
+        mapping = _TO_VOUS if _VOUS_MARKER.search(said) and not _TU_MARKER.search(said) else _TO_TU
+
+    def settle(sentence: str) -> str:
+        if _SHARED.search(sentence):
+            return sentence
+        anchors = _anchors(sentence)
+
+        def one(match: re.Match[str]) -> str:
+            if not _is_flip(match, anchors, owned):
+                return match.group(0)
+            poss = match.group(1)
+            new = mapping[poss.casefold()]
+            new = new.capitalize() if poss[:1].isupper() else new
+            return new + match.group(0)[len(poss):]
+
+        return _KIN_PHRASE.sub(one, sentence)
+
+    return "".join(settle(sentence) for sentence in _SENTENCE.findall(reply)) or reply
+
+
+def kin_owner_hint(hits: list[str]) -> str:
+    return (
+        f"The reply says «{hits[0]}» of the speaker's own, but the thread has already put that "
+        "person with the learner (they said «ma …», or the character said «ta …»). Speak of "
+        "the learner's relative as «ta … / ton …» and never claim them."
+    )
+
+
+# ---------------------------------------------------------------------------
+# #254 — a reasoned reply is picked up
+# ---------------------------------------------------------------------------
+
+#: A learner turn that GIVES A REASON («…parce que la restaurant était très difficile»)
+#: with at least this many content words is a reasoned reply: the character's line has
+#: to take at least one of them up. Only reasons: «Oui, je viens samedi» is rightly
+#: answered by «Merci ! On prépare la salle», sharing no word, and a retry on every
+#: such reaction would double the voice lane's cost for nothing.
+REASONED_REPLY_CONTENT_WORDS = 2
+_STEM = 5
+_REASON = re.compile(
+    r"\b(?:parce qu|parce que|puisque|puisqu|car|[àa] cause|gr[âa]ce [àa])\b", re.IGNORECASE
+)
+#: Compared without accents: «était» and «très» are filler as much as «etait».
+_FILLER = frozenset(
+    "parce beaucoup etait etais sera serait tres peut etre vraiment pense crois sais comprends "
+    "pourquoi faire avoir cela cette alors aussi encore toujours jamais souvent quelque quelques "
+    "puisque cause grace".split()
+)
+
+
+def _bare(token: str) -> str:
+    return unicodedata.normalize("NFKD", token).encode("ascii", "ignore").decode()
+
+
+def _reason_stems(text: str) -> set[str]:
+    return {
+        token[:_STEM]
+        for token in _content(_tokens(text))
+        if len(token) >= 4 and _bare(token) not in _FILLER
+    }
+
+
+#: «car» after one of these is the noun, the coach: «le car était en retard».
+_CAR_NOUN_BEFORE = frozenset(
+    "le un du au ce mon ton son notre votre leur des les aux ces mes tes ses nos vos leurs "
+    "quel en par dans".split()
+)
+_WORD = re.compile(r"\w+")
+
+
+def _reason_start(sentence: str) -> int | None:
+    """Where a sentence's reason starts, or None when it gives none."""
+
+    for match in _REASON.finditer(sentence):
+        before = _WORD.findall(sentence[: match.start()])[-1:]
+        if match.group(0).casefold() == "car" and before and before[0].casefold() in _CAR_NOUN_BEFORE:
+            continue
+        return match.start()
+    return None
+
+
+def _reasons(text: str) -> str:
+    """The reasons a turn gives: each sentence from its «parce que», «car», … on."""
+
+    return " ".join(
+        sentence[start:]
+        for sentence in _SENTENCE.findall(text or "")
+        if (start := _reason_start(sentence)) is not None
+    )
+
+
+def ignored_reply_hint(reply: str, learner_text: str) -> str | None:
+    """A hint when ``reply`` takes up none of a reason the learner just gave, else None.
+
+    Live walk 20 Oct (#254): «Odile est parti parce que la restaurant était très
+    difficile» was answered «Fatiguée. Ici : « courageuse ».» — nothing in it refers to
+    the difficulty, the restaurant or the guess. Shared stems are the test (the first
+    five letters of a content word, so «restaurant» meets «restaurants»), taken from
+    the reason itself: «Elle était fatiguée» shares «était» with the turn and «Odile ?
+    Elle aimait les chats.» shares «Odile», and neither takes up why. A turn without a
+    stated reason has nothing the reply must take up and passes."""
+
+    reasons = _reasons(learner_text)
+    if not reasons:
+        return None
+    learner = _reason_stems(reasons)
+    if len(learner) < REASONED_REPLY_CONTENT_WORDS or not (reply or "").strip():
+        return None
+    if learner & _reason_stems(reply):
+        return None
+    words = ", ".join(sorted({t for t in _content(_tokens(reasons)) if t[:_STEM] in learner})[:6])
+    return (
+        "The reply does not pick up the reason the learner just gave. Answer it: take up one "
+        f"thing from it (for instance: {words}) before you move on."
+    )

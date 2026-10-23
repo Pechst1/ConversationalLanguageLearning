@@ -6581,13 +6581,66 @@ class MissionConversationService:
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
                 if not problems:
-                    return result.content
+                    return self._keep_relatives_with_their_owner(
+                        result.content,
+                        mission=mission,
+                        user_text=user_text,
+                        user=user,
+                        call=lambda extra, prompt=system + hint: self.llm.generate_chat_completion(
+                            messages=messages,
+                            system_prompt=f"{prompt} {extra}",
+                            temperature=0.7,
+                            max_tokens=220,
+                            model=settings.OPENAI_MISSION_FAST_MODEL,
+                            request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                        ),
+                    )
                 logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
                 hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
             return _unassessed_acknowledgement(mission)
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+
+    def _keep_relatives_with_their_owner(
+        self, reply: str, *, mission: RealWorldMission, user_text: str, user: User, call: Any
+    ) -> str:
+        """#253 (root cause #145): the thread's established facts bind the next line.
+
+        Once the thread has said «ta grand-mère» (the character) or «ma grand-mère»
+        (the learner), the character does not say «ma grand-mère» of her own: one retry
+        with the reason, then the possessive is handed back to the learner."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        payload = mission.prompt_payload or {}
+        turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+        messenger = payload.get("messenger") or {}
+        learner_texts = [user_text, *[t.text for t in turns if t.role == "user"]]
+        speaker_texts = [
+            str(payload.get("conversation_opening") or ""),
+            str(messenger.get("opening_message") or ""),
+            *[t.text for t in turns if t.role != "user"],
+        ]
+        learner_texts = [str(t) for t in learner_texts if t]
+        speaker_texts = [str(t) for t in speaker_texts if t]
+        hits = lane_guards.kin_owner_flips(reply, learner_texts=learner_texts, speaker_texts=speaker_texts)
+        if hits:
+            try:
+                retry = call(lane_guards.kin_owner_hint(hits))
+                _record_mission_llm_cost(
+                    self.db, user_id=getattr(user, "id", None), result=retry,
+                    purpose="character_reply", mission_id=getattr(mission, "id", None),
+                )
+                reply = retry.content
+            except LLMProviderError:
+                logger.debug("Mission relative-owner retry failed")
+        return lane_guards.settle_kin_owner(
+            reply,
+            learner_texts=learner_texts,
+            speaker_texts=speaker_texts,
+            register=str(messenger.get("target_register") or payload.get("target_register") or ""),
+        )
 
     def respond_for_atelier(
         self,

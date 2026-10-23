@@ -24,6 +24,19 @@ from app.services.season.world import plate_for
 
 YOU = "toi"
 
+#: Where a settled day keeps its one «tomorrow» line (#237): written once, when the
+#: resolution settles, and read by every surface that speaks of tomorrow — the last
+#: panel's «À suivre…», Home, the finished card's «La suite demain» and the Feuilleton's
+#: filed day. A surface never composes a hook of its own.
+HOOK_PAYLOAD_KEY = "next_teaser_fr"
+
+
+def hook_of(payload: Any) -> str | None:
+    """The one tomorrow-hook a scene's ``script_payload`` holds, or None."""
+
+    value = str((payload or {}).get(HOOK_PAYLOAD_KEY) or "").strip() if isinstance(payload, dict) else ""
+    return value or None
+
 
 def _line(line: dict[str, Any], names: dict[str, str]) -> dict[str, Any] | None:
     text = str(line.get("text_fr") or "").strip()
@@ -45,13 +58,26 @@ def _line(line: dict[str, Any], names: dict[str, str]) -> dict[str, Any] | None:
     }
 
 
-def _narration(panel: dict[str, Any]) -> str:
-    parts = [str(text).strip() for text in panel.get("diegetic") or [] if str(text).strip()]
-    parts += [
+def _inscription(text: str) -> str:
+    """Text written on something in the picture, quoted: the page's art is the place's
+    plate, so a Polaroid's caption is read under it, and unquoted it read as the
+    narrator's (#254: «Mardi. Marin pleure…» after the scene's «Mercredi»)."""
+
+    return text if text.startswith("«") else f"«{text}»"
+
+
+def _captions(panel: dict[str, Any]) -> str:
+    return " ".join(
         str(line.get("text_fr") or "").strip()
         for line in panel.get("lines") or []
         if line.get("kind") == "caption" and str(line.get("text_fr") or "").strip()
-    ]
+    )
+
+
+def _narration(panel: dict[str, Any], *, captions: bool = True) -> str:
+    parts = [_inscription(str(text).strip()) for text in panel.get("diegetic") or [] if str(text).strip()]
+    if captions and _captions(panel):
+        parts.append(_captions(panel))
     return " ".join(parts)
 
 
@@ -79,10 +105,11 @@ class _Tentpole:
                     "you": True,
                 }
             )
-        narration = _narration(panel)
-        if movement == "ending" and narration.strip() == self.ending_fr:
-            # The reader's «case finale» says the hook; the drawn ending does not repeat it.
-            narration = ""
+        # The reader's «case finale» says the hook; the drawn ending does not repeat it.
+        # #254: it keeps what is written in its picture, and only that, not glued to the
+        # hook («Lila. Elle part ou elle reste ? — juin 2021 Odile savait…»).
+        repeats_hook = movement == "ending" and _captions(panel) == self.ending_fr
+        narration = _narration(panel, captions=not repeats_hook)
         image = plate_for(self.location)
         self.rows.append(
             {
@@ -233,7 +260,7 @@ def episode_page(scene: Any, scene_panels: list[dict[str, Any]], names: dict[str
         return None
     payload = scene.script_payload or {}
     recap = scene.recap_payload or {}
-    a_suivre = str(payload.get("next_teaser_fr") or "").strip() or None
+    a_suivre = hook_of(payload)
     season_page = payload.get("season_page")
     if isinstance(season_page, dict) and season_page.get("movements"):
         ending_fr = str(recap.get("resolution_fr") or "").strip()
