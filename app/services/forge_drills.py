@@ -382,6 +382,19 @@ def spot_window(source: Any, expected: Any) -> tuple[int, int] | None:
     return head, head + span
 
 
+def fix_words(source: Any, expected: Any) -> int:
+    """How many words of ``source`` the learner has to touch (``0``: not a spot).
+
+    One wrong stretch can hold several words («nous sommes cherchés» for «nous
+    avons cherché»: a wrong auxiliary and the agreement it dragged along). The
+    item carries the number, so the card says it instead of promising «the one
+    mistake» (#300).
+    """
+
+    window = spot_window(source, expected)
+    return 0 if window is None else window[1] - window[0]
+
+
 #: An authored transform that changes a right sentence into another (a tense, a
 #: negation): there is no mistake in it to find.
 REWRITE_KINDS = frozenset({"directed_rewrite", "contrast_rewrite"})
@@ -624,6 +637,7 @@ __all__ = [
     "drill_of_item",
     "drill_scores",
     "error_kind",
+    "fix_words",
     "fold_key",
     "is_repair",
     "item_fits",

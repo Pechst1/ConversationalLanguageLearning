@@ -19,7 +19,7 @@ import React from 'react';
 import { CheckIcon, RepairIcon, useControlLanguage } from '@/components/atelier-v2/ui';
 import { EpBar, EpFoot, EpIco, EpOpt, EpOpts, EpPrompt, EpVerdict } from '@/components/epreuve/Epreuve';
 import { judgementLabel } from '@/lib/classification-copy';
-import { fillForge, type ForgeCopy } from '@/lib/forge-copy';
+import { fillForge, spotHint, type ForgeCopy } from '@/lib/forge-copy';
 import {
   ACCENTS,
   burstSeconds,
@@ -212,12 +212,15 @@ export function ForgeSpot({
   onEdits,
   submitted = false,
   copy,
+  fixWords,
 }: {
   sentence: string;
   edits: Record<number, string>;
   onEdits: (edits: Record<number, string>) => void;
   submitted?: boolean;
   copy: ForgeCopy;
+  /** How many words are wrong, when it is more than one (#300). */
+  fixWords?: number | null;
 }) {
   const tokens = React.useMemo(() => spotTokens(sentence), [sentence]);
   const [editing, setEditing] = React.useState<number | null>(null);
@@ -296,7 +299,7 @@ export function ForgeSpot({
         </button>
       ) : editing === null && (
         // The gesture is said until it is made.
-        <p className="forge-spot__hint">{copy.hint_spot}</p>
+        <p className="forge-spot__hint">{spotHint(copy, fixWords)}</p>
       ))}
     </div>
   );

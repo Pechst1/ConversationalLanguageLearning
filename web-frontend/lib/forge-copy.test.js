@@ -77,3 +77,18 @@ test('the Cahier offers the test-out and the séance follows the forge', () => {
   // …and the recap offers its short form every few days.
   assert.match(atelier, /startTestOut\(conceptId, \{ short: true, source: 'forge' \}\)/);
 });
+
+test('#300 a spot with several wrong words says how many, in all three languages', () => {
+  const { spotHint } = require('./forge-copy.ts');
+  for (const language of ['en', 'de', 'fr']) {
+    const copy = forgeCopy(language);
+    assert.equal(spotHint(copy, undefined), copy.hint_spot, language);
+    assert.equal(spotHint(copy, 1), copy.hint_spot, language);
+    assert.match(spotHint(copy, 2), /\b2\b/, language);
+    assert.notEqual(spotHint(copy, 2), copy.hint_spot, language);
+  }
+  assert.equal(spotHint(forgeCopy('en'), 2), 'Tap the 2 wrong words and fix them.');
+  // The item carries the number and the spot card shows it.
+  const atelier = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+  assert.match(atelier, /fixWords=\{item\.fix_words\}/);
+});

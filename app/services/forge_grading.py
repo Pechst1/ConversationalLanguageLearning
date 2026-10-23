@@ -128,6 +128,21 @@ def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
     return ops
 
 
+def mark_given(ops: list[dict[str, str]], source: Any) -> list[dict[str, str]]:
+    """Flag the ops whose learner word is a word the item showed (``given``).
+
+    A repair shows a sentence with a wrong stretch in it. A word the learner left
+    as it was shown is not one they wrote: «you wrote» would blame them for the
+    app's own word (#300). Words of a line they typed from scratch stay theirs.
+    """
+
+    shown = {strip_accents(token) for token in tokens(source)}
+    return [
+        {**op, "given": "1"} if op.get("learner") and strip_accents(op["learner"]) in shown else op
+        for op in ops
+    ]
+
+
 def describe_diff(ops: list[dict[str, str]], language: Any) -> str:
     """One or two short sentences, in the learner's language, naming the difference."""
 
@@ -138,6 +153,8 @@ def describe_diff(ops: list[dict[str, str]], language: Any) -> str:
             continue
         if kind == "order":
             sentences.append(_copy("forge.diff.order", language))
+        elif kind in {"ending", "word"} and op.get("given"):
+            sentences.append(_copy("forge.diff.left", language, learner=op["learner"], target=op["target"]))
         elif kind == "ending":
             sentences.append(_copy("forge.diff.ending", language, learner=op["learner"], target=op["target"]))
         elif kind == "word":
@@ -688,6 +705,7 @@ __all__ = [
     "drop_false_english",
     "fold_typography",
     "is_french_word",
+    "mark_given",
     "matches_accepted",
     "notes_native",
     "production_local_check",
