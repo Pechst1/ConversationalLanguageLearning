@@ -102,8 +102,6 @@ export type EpreuveCopy = {
   follow_wrong_label: string;
   follow_placeholder: string;
   follow_skip: string;
-  follow_right: string;
-  follow_not_quite: string;
   corrected_sentence: string;
   retry_line: string;
   retry: string;
@@ -124,7 +122,9 @@ export type EpreuveCopy = {
   repair_placeholder: string;
   repair_submit: string;
   repair_submitting: string;
+  /** #213: after a miss, the copied line is acknowledged, never a second verdict. */
   repair_ok: string;
+  repair_parts_ok: string;
   repair_no: string;
   repair_parts_label: string;
   repair_parts_gap: string;
@@ -286,8 +286,6 @@ const FR: EpreuveCopy = {
   follow_wrong_label: 'La phrase à corriger',
   follow_placeholder: 'Écris la phrase corrigée…',
   follow_skip: 'Passer',
-  follow_right: 'C’est bien la bonne phrase',
-  follow_not_quite: 'Pas tout à fait. La bonne phrase :',
   corrected_sentence: 'La bonne phrase',
   retry_line: 'Réessayer la ligne',
   retry: 'Réessayer',
@@ -306,7 +304,8 @@ const FR: EpreuveCopy = {
   repair_placeholder: 'Tape la ligne corrigée…',
   repair_submit: 'Comparer',
   repair_submitting: 'Comparaison…',
-  repair_ok: 'Juste.',
+  repair_ok: 'Phrase recopiée. Elle reviendra plus tard.',
+  repair_parts_ok: 'Phrase corrigée. Elle reviendra plus tard.',
   repair_no: 'Pas tout à fait — reprends la ligne.',
   repair_parts_label: 'Corrige seulement les mots soulignés',
   repair_parts_gap: 'À corriger :',
@@ -462,8 +461,6 @@ const EN: EpreuveCopy = {
   follow_wrong_label: 'The sentence to correct',
   follow_placeholder: 'Write the corrected sentence…',
   follow_skip: 'Skip',
-  follow_right: 'That is the right sentence',
-  follow_not_quite: 'Not quite. The right sentence:',
   corrected_sentence: 'The right sentence',
   retry_line: 'Try the line again',
   retry: 'Try again',
@@ -482,7 +479,8 @@ const EN: EpreuveCopy = {
   repair_placeholder: 'Type the corrected line…',
   repair_submit: 'Compare',
   repair_submitting: 'Comparing…',
-  repair_ok: 'Right.',
+  repair_ok: 'Line copied. It comes back later.',
+  repair_parts_ok: 'Line fixed. It comes back later.',
   repair_no: 'Not quite — try the line again.',
   repair_parts_label: 'Fix only the underlined words',
   repair_parts_gap: 'To fix:',
@@ -638,8 +636,6 @@ const DE: EpreuveCopy = {
   follow_wrong_label: 'Der Satz zum Korrigieren',
   follow_placeholder: 'Schreib den korrigierten Satz …',
   follow_skip: 'Überspringen',
-  follow_right: 'Das ist der richtige Satz',
-  follow_not_quite: 'Nicht ganz. Der richtige Satz:',
   corrected_sentence: 'Der richtige Satz',
   retry_line: 'Zeile neu versuchen',
   retry: 'Erneut versuchen',
@@ -658,7 +654,8 @@ const DE: EpreuveCopy = {
   repair_placeholder: 'Tippe die korrigierte Zeile…',
   repair_submit: 'Vergleichen',
   repair_submitting: 'Wird verglichen…',
-  repair_ok: 'Richtig.',
+  repair_ok: 'Abgeschrieben. Der Satz kommt später wieder.',
+  repair_parts_ok: 'Ausgebessert. Der Satz kommt später wieder.',
   repair_no: 'Nicht ganz — versuch die Zeile noch einmal.',
   repair_parts_label: 'Korrigiere nur die unterstrichenen Wörter',
   repair_parts_gap: 'Zu korrigieren:',

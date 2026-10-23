@@ -187,7 +187,8 @@ def test_the_ask_again_line_names_its_speaker() -> None:
 
     scenario = SimpleNamespace(story_context={SEASON_CONTEXT_KEY: {"id": "s1"}})
     turn = _named_turn(scenario, {"id": "t2.b.key", "to": "lila_bonnet", "to_name": None})
-    assert turn["to_name"] == "Lila Bonnet"
+    # The cast registry's name, as every other surface names her (#217).
+    assert turn["to_name"] == "Lila"
 
 
 def test_a_season_hint_is_the_opening_of_the_example_not_the_whole_reply() -> None:

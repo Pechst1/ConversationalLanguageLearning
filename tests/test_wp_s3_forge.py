@@ -58,9 +58,11 @@ def _run(state: ForgeState, answer) -> list[core.Slot]:
 # ---------------------------------------------------------------------------
 
 
-def test_staircase_moves_up_on_correct_down_on_error_and_holds_otherwise():
+def test_staircase_never_steps_back():
     assert core.step_rung(Rung.BUILD, Verdict.right()) == Rung.TRANSFORM
-    assert core.step_rung(Rung.BUILD, Verdict.wrong()) == Rung.DISCRIMINATE
+    # #88: a miss keeps the step (the item is re-queued), it never drops one.
+    assert core.step_rung(Rung.BUILD, Verdict.wrong()) == Rung.BUILD
+    assert core.step_rung(Rung.DISCRIMINATE, Verdict.wrong()) == Rung.DISCRIMINATE
     assert core.step_rung(Rung.BUILD, PARTIAL) == Rung.BUILD
     assert core.step_rung(Rung.BUILD, Verdict(core.OUTCOME_INCORRECT, checked=False)) == Rung.BUILD
     assert core.step_rung(Rung.RECOGNISE, Verdict.wrong()) == Rung.RECOGNISE
@@ -79,6 +81,27 @@ def test_rung_evidence_uses_the_wp_l3_formats():
     assert free_use.format is EvidenceFormat.PRODUCE and not free_use.assisted
     assert core.evidence_for(Rung.TRANSFORM, PARTIAL).assisted
     assert core.evidence_for(Rung.TRANSFORM, Verdict(core.OUTCOME_CORRECT, checked=False)) is None
+
+
+def test_a_miss_keeps_step_two():
+    """#88: «Stufe 2 von 6 · unterscheiden» must not turn into «Stufe 1 von 6» after a miss."""
+
+    state = ForgeState.seance([ForgeUnit(1, Role.TODAY.value, Rung.DISCRIMINATE)], length=12)
+    slot = state.next_slot()
+    assert slot.rung == Rung.DISCRIMINATE
+    state.record(concept_id=1, rung=slot.rung, verdict=Verdict.wrong(), fingerprint="a")
+    track = state.track(1)
+    assert track.rung == Rung.DISCRIMINATE, "a miss never takes the learner down a step"
+    assert track.reprise_at is not None, "the missed item is re-queued"
+    # Whatever the learner answers afterwards, the step shown never goes down.
+    seen = [track.rung]
+    for verdict in (Verdict.wrong(), PARTIAL, Verdict.right(), Verdict.wrong(), Verdict.wrong()):
+        nxt = state.next_slot()
+        if nxt is None:
+            break
+        state.record(concept_id=nxt.concept_id, rung=nxt.rung, verdict=verdict, fingerprint=f"{nxt.position}")
+        seen.append(track.rung)
+    assert seen == sorted(seen), seen
 
 
 def test_an_error_books_a_reprise_three_to_five_items_later():

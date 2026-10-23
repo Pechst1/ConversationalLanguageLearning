@@ -30,6 +30,7 @@ per daily new word: 57 a day at Normal's 20.
 """
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -37,6 +38,8 @@ from typing import Any, Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 PaceName = Literal["ruhig", "normal", "schnell"]
 
@@ -72,6 +75,8 @@ DEFAULT_SCENE_SECONDS = 8 * 60
 MORE_WORDS = 10
 #: One deck holds at most this many waiting reviews; the rest come tomorrow.
 DAY_DECK_MAX_REVIEWS = 100
+#: The day deck asks for up to this many new words (``review.tsx``'s ``DAY_DECK_NEW_WORDS``).
+DAY_DECK_NEW_WORDS = 50
 
 WORDS_HREF = "/vocabulary/review?day=1"
 MORE_WORDS_HREF = f"/vocabulary/review?more={MORE_WORDS}"
@@ -162,14 +167,21 @@ class SessionInputs:
     exercises_today: int
     #: Distinct words reviewed today, every surface together (the end screen's «Words»).
     words_reviewed_today: int = 0
+    #: ``(new, reviews)``: the cards the day deck holds right now (:func:`day_deck`).
+    #: ``None`` when it could not be read: the quota less today's words, and the reviews due.
+    deck: tuple[int, int] | None = None
 
 
 def session_view(inputs: SessionInputs) -> dict[str, Any]:
     """The day's steps with their state (done / next / todo), minutes and links."""
 
-    new_left = max(0, inputs.quota - inputs.introduced)
-    reviews = min(max(0, inputs.reviews_due), DAY_DECK_MAX_REVIEWS)
+    new_left, reviews = inputs.deck or (
+        max(0, inputs.quota - inputs.introduced),
+        min(max(0, inputs.reviews_due), DAY_DECK_MAX_REVIEWS),
+    )
     words_done = inputs.words_marked_done or (new_left == 0 and reviews == 0)
+    # What was done, not what was planned: new words met or words reviewed.
+    words_met = max(inputs.introduced, inputs.words_reviewed_today)
     grammar_done = inputs.forge_blocks_today > 0
     items = forge_items(inputs.forge_seconds)
     raw = [
@@ -186,8 +198,10 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
             "href": WORDS_HREF,
             # #153: the number the learner will meet, not the pace's target. The
             # scene already introduced some of the quota; «20 words» over a
-            # deck of 17 was the plan and the screen disagreeing.
-            "count": (new_left or reviews) if not words_done else inputs.quota,
+            # deck of 17 was the plan and the screen disagreeing. #143: every
+            # card of the deck counts, its reviews too, and once done the step
+            # says what the end screen says, not the pace's 20.
+            "count": words_met if words_done else new_left + reviews,
             "new_left": new_left,
             "reviews": reviews,
         },
@@ -223,8 +237,7 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
         "done": all_done,
         "tally": {
             "scenes": 1 if inputs.scene_done else 0,
-            # What was done, not what was planned: new words met or words reviewed.
-            "words": max(inputs.introduced, inputs.words_reviewed_today),
+            "words": words_met,
             "exercises": max(0, inputs.exercises_today),
         },
         "more_words": MORE_WORDS,
@@ -348,6 +361,48 @@ def mark_words_done(db: Session, journey: Any) -> None:
     db.flush([journey])
 
 
+def day_deck(db: Session, user: Any, *, reviews_due: int, now: datetime | None = None) -> tuple[int, int]:
+    """#143: ``(new, reviews)`` — the cards the day deck (``WORDS_HREF``) holds
+    if it is opened now, read the way ``GET /vocabulary/due-context`` deals it.
+
+    «Weiter: 20 Wörter» opened «0/19»: Home took the quota less today's
+    introductions, while the drill also leaves out the new words today's journey
+    reserved and has not introduced yet (WP-L6). The deck's own reads decide
+    here: the rest of today's dealt batch and the day's words it was not dealt
+    with (the batch the Lexique dealt first, eight new words, is topped up to
+    the day's dose when the day deck opens it), else a fresh deal's — the
+    drill's room for new words and the reviews due.
+    """
+
+    from app.services import drill_batch
+    from app.services.streak import local_today
+    from app.services.vocabulary_pace import drill_new_word_room, reviews_left_today
+
+    now = now or datetime.now(UTC)
+    room, reserved = drill_new_word_room(db, user, now=now)
+    batch = drill_batch.load_batch(db, user, local_today(user, now))
+    new_limit = min(room, DAY_DECK_NEW_WORDS)
+    if batch is not None:
+        remaining = drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved)
+        if remaining:
+            new = sum(1 for item in remaining if item.get("list") == "new_words")
+            top_up = drill_batch.top_up_new_words(room, batch, remaining, new_limit)
+            return new + top_up, len(remaining) - new
+    reviews = min(max(0, reviews_due), DAY_DECK_MAX_REVIEWS, reviews_left_today(db, user, now=now))
+    return new_limit, reviews
+
+
+def _day_deck_or_none(db: Session, user: Any, *, reviews_due: int, now: datetime) -> tuple[int, int] | None:
+    if not getattr(user, "id", None):
+        return None
+    try:
+        with db.begin_nested():
+            return day_deck(db, user, reviews_due=reviews_due, now=now)
+    except Exception:  # noqa: BLE001 - a count that cannot be read never costs Home its day
+        logger.warning("daily_session: the day deck could not be read", exc_info=True)
+        return None
+
+
 def build_session(
     db: Session,
     user: Any,
@@ -378,6 +433,7 @@ def build_session(
             forge_href=forge_href,
             exercises_today=exercises_today(db, user, now=now),
             words_reviewed_today=words_reviewed_today(db, user, now=now),
+            deck=_day_deck_or_none(db, user, reviews_due=reviews_due, now=now),
         )
     )
 
@@ -451,6 +507,7 @@ __all__ = [
     "PaceName",
     "SessionInputs",
     "build_session",
+    "day_deck",
     "goal_gap",
     "goal_weeks",
     "mark_words_done",

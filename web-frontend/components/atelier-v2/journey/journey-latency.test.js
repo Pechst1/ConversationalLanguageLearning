@@ -58,7 +58,7 @@ const {
   typingLine,
   verdictDelayMs,
 } = require('../../../lib/journey-reply-reveal');
-const { journeyHeaderCaption, journeyProgress } = require('./journey-state');
+const { dayPlanIsStale, journeyHeaderCaption, journeyProgress } = require('./journey-state');
 
 // ---------------------------------------------------------------------------
 // WP-76 fixtures — a three-step day, before and after the reply turn
@@ -476,6 +476,57 @@ async function main() {
     };
     assert.equal(journeyHeaderCaption(advanced, stepOf), 'Étape 3 sur 3');
     assert.equal(journeyHeaderCaption(null, stepOf), undefined);
+  });
+
+  await test('#143: a drill asked once more never grows the count, and the count names its part', () => {
+    const stepOf = (position, total) => `Schritt ${position} von ${total}`;
+    const drills = (current, { retried = false } = {}) => {
+      const steps = [
+        { id: 's-scene', kind: 'scene', status: 'completed', prompt: {} },
+        { id: 's-respond', kind: 'respond', status: 'completed', prompt: {} },
+        { id: 's-rule', kind: 'rule', status: 'completed', prompt: {} },
+        { id: 's-d1', kind: 'recall', status: 'completed', prompt: {} },
+        { id: 's-d2', kind: 'recall', status: 'pending', prompt: {} },
+      ];
+      // `_queue_retry`: the missed d1 comes back after the last drill of its run.
+      if (retried) steps.push({ id: 's-d1-again', kind: 'recall', status: 'pending', prompt: { retry: true } });
+      steps.push({ id: 's-resolution', kind: 'resolution', status: 'pending', prompt: {} });
+      return {
+        id: 'j-143',
+        status: 'active',
+        current_step_id: current,
+        steps: steps.map((step) => (step.id === current ? { ...step, status: 'active' } : step)),
+      };
+    };
+    const captions = [
+      drills('s-d1'),
+      drills('s-d2', { retried: true }),
+      drills('s-d1-again', { retried: true }),
+      drills('s-resolution', { retried: true }),
+    ].map((journey) => journeyHeaderCaption(journey, stepOf, 'Szene'));
+    // Before: «4 von 6», «5 von 7», «6 von 7», «7 von 7» — the total grew when the
+    // drill came back, and «7 von 7» read as the end with the words still ahead.
+    assert.deepEqual(captions, [
+      'Szene · Schritt 4 von 6',
+      'Szene · Schritt 5 von 6',
+      'Szene · Schritt 5 von 6',
+      'Szene · Schritt 6 von 6',
+    ]);
+    // Between steps (no current step), the retry is not counted as done either.
+    const between = { ...drills('s-resolution', { retried: true }), current_step_id: null };
+    between.steps = between.steps.map((step) =>
+      step.id === 's-resolution' ? { ...step, status: 'pending' } : { ...step, status: 'completed' },
+    );
+    assert.equal(journeyHeaderCaption(between, stepOf), 'Schritt 6 von 6');
+  });
+
+  await test('#143: the day plan read before the scene is read again once the scene has ended', () => {
+    // Walk 20 Oct: the ending's «Weiter: 16 Wörter» was Today's plan from before the
+    // scene introduced its words; the deck it opened held 19.
+    assert.equal(dayPlanIsStale('active', 'completed'), true);
+    assert.equal(dayPlanIsStale(null, 'ended_early'), true);
+    assert.equal(dayPlanIsStale('active', 'active'), false, 'mid-scene the plan stays');
+    assert.equal(dayPlanIsStale('completed', 'completed'), false, 'read after the ending: already fresh');
   });
 
   // -------------------------------------------------------------------------

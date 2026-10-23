@@ -73,6 +73,10 @@ async function playTheDay(native) {
   // 2 · The scene, to its ending.
   const kinds = await walk.playJourney();
   findings.check('day-scene-reaches-its-ending', kinds.includes('recap'), `kinds: ${kinds.join(' > ')}`, where('recap'));
+  // #143: the scene's count never grows (a drill asked again is not a step) and never goes back.
+  const counts = walk.stepCaptions.map((caption) => (caption.match(/\d+/g) || []).map(Number));
+  const steady = counts.every(([n, m], i) => m === counts[0][1] && (i === 0 || n >= counts[i - 1][0]));
+  findings.check('scene-step-count-holds', counts.length > 0 && steady, `captions: ${walk.stepCaptions.join(' > ') || 'none'}`, where('recap'));
   await sleep(1500);
   await walk.shoot('scene-ending');
   const handOn = page.locator('.journey-recap .av2-btn--primary, .av2-reward .av2-btn--primary').first();
@@ -85,6 +89,10 @@ async function playTheDay(native) {
   findings.check('words-open-the-day-deck', page.url().includes('/vocabulary/review?day=1'), page.url(), where('drill'));
   await page.locator('.lx-card, [data-day-next]').first().waitFor({ timeout: 45000 }).catch(() => {});
   await walk.shoot('words-first-card');
+  // #143: «Weiter: 20 Wörter» opened «0/19». The deck is the count the button promised.
+  const promised = Number((handOnText.match(/\d+/) || [])[0]);
+  const deckCount = (await page.locator('.av2-progress__count').first().innerText().catch(() => '')).trim();
+  findings.check('words-deck-is-the-count-promised', deckCount === `0/${promised}`, `«${handOnText.trim()}» opened a deck of «${deckCount}»`, where('drill'));
   let presses = 0;
   while (presses < 260 && (await page.locator('[data-day-next]').count()) === 0) {
     const rate = page.locator('.lx-review__foot .lx-rate').last();
@@ -143,6 +151,9 @@ async function playTheDay(native) {
   await sleep(1500);
   const after = await programme(page);
   findings.check('la-une-after-the-day', after.join() === 'scene:done,words:done,grammar:done,finish:done', `programme: ${after.join(' ') || 'none'}`, where('home'));
+  // #143: «20 Wörter — erledigt» on La Une after «Fertig» counted 19.
+  const wordsRow = await page.locator('[data-day-session] [data-part="words"]').first().innerText().catch(() => '');
+  findings.check('la-une-words-match-fertig', Number((wordsRow.match(/\d+/) || [])[0]) === Number(tally[1]), `La Une «${wordsRow.trim()}», Fertig ${tally[1]}`, where('home'));
   await walk.shoot('home-after');
   await context.close();
 }

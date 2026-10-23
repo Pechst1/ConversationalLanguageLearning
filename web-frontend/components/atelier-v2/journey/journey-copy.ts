@@ -78,6 +78,9 @@ export type JourneyCopyKey =
   | 'nearly'
   | 'wrong'
   | 'correction'
+  // #240: a wrong tap on «which sentence uses the rule» is not a correction of that sentence.
+  | 'correction_pick'
+  | 'pick_not_it'
   | 'reply_authored_note'
   | 'progress_label'
   | 'time_left'
@@ -313,6 +316,8 @@ const EN: CopyTable = {
   nearly: 'Nearly — one more thing next time',
   wrong: 'Not yet',
   correction: 'One thing to fix',
+  correction_pick: 'This sentence uses the rule',
+  pick_not_it: 'Not this one:',
   reply_authored_note: 'Written reply from the script',
   progress_label: 'Progress in today’s scene',
   time_left: 'left',
@@ -518,6 +523,8 @@ const DE: CopyTable = {
   nearly: 'Fast — beim nächsten Mal noch eine Sache',
   wrong: 'Noch nicht',
   correction: 'Eine Sache zum Korrigieren',
+  correction_pick: 'In diesem Satz steckt die Regel',
+  pick_not_it: 'Nicht dieser:',
   reply_authored_note: 'Vorgeschriebene Antwort aus dem Skript',
   progress_label: 'Fortschritt in der heutigen Szene',
   time_left: 'übrig',
@@ -723,6 +730,8 @@ const FR: CopyTable = {
   nearly: 'Presque — encore un détail la prochaine fois',
   wrong: 'Pas encore',
   correction: 'Une chose à corriger',
+  correction_pick: 'La règle est dans cette phrase',
+  pick_not_it: 'Pas celle-ci :',
   reply_authored_note: 'Réponse écrite, tirée du scénario',
   progress_label: 'Progression dans la scène du jour',
   time_left: 'restant',

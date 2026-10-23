@@ -779,7 +779,15 @@ def _drill_deck(
     if drill == drill_batch.DRILL_SESSION and batch is not None:
         items = list(batch.items or [])
         remaining = drill_batch.remaining_items(db, user, items, reserved_new=reserved_new)
-        if remaining:
+        top_up = drill_batch.top_up_new_words(new_room, batch, remaining, new_limit)
+        if top_up:
+            # #143: the day deck (up to the day's whole dose) resumes a smaller
+            # deck dealt first, the Lexique's eight. The rest of the day's words
+            # join it now: the deck opens on the count Home promised, not «0/8»
+            # that grows by a continuation at its end.
+            drill, new_limit = drill_batch.DRILL_MORE, top_up
+            context_kwargs = {**context_kwargs, "new_limit": top_up}
+        elif remaining:
             batch.cursor = len(items) - len(remaining)
             db.commit()
             payload = service.vocabulary_due_context_from_batch(user=user, items=remaining, now=now)

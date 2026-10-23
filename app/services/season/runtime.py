@@ -32,6 +32,7 @@ from typing import Any
 
 from app.config import settings
 from app.services import story_memory
+from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, record_played
 from app.services.season.director import gap_brief
 from app.services.season.epilogue import after_settle, context_extra, position_for, season_finished
@@ -976,7 +977,7 @@ def _named_turn(scenario, turn: dict[str, Any]) -> dict[str, Any]:
         season = load_season(str(season_ctx.get("id") or "s1"))
     except Exception:  # noqa: BLE001 - a missing name never costs the turn
         return turn
-    name = next((member.name for member in season.cast if member.id == turn.get("to")), None)
+    name = display_names(season.cast).get(str(turn.get("to")))
     return {**turn, "to_name": name} if name else turn
 
 

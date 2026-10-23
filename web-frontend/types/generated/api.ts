@@ -9317,6 +9317,12 @@ export interface components {
         JourneyCorrection: {
             /** Corrected Fr */
             corrected_fr: string;
+            /**
+             * Kind
+             * @default edit
+             * @enum {string}
+             */
+            kind?: "edit" | "pick";
             /** Note Native */
             note_native: string;
             /** Notes Native */

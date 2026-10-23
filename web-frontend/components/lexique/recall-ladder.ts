@@ -87,6 +87,27 @@ export function matchesLineForm(typed: string, expected: string): boolean {
   return ELIDED.has(clitic) && rest.join(' ') === expected;
 }
 
+/**
+ * #88 — the deck's count is `done / total` with a total fixed for the session.
+ * A card answered «Again» is back in the queue, so it is not done yet; a card
+ * answered right is done and never leaves that state. Counting the re-queued
+ * cards on top of the reviewed ones (the old `remaining + reviewed`) made the
+ * total grow with every «Again» and shrink with every «I know it».
+ */
+export function deckProgress(
+  deckIds: readonly number[],
+  reviewedIds: ReadonlySet<number>,
+  againQueue: readonly number[],
+): { done: number; total: number } {
+  const total = new Set(deckIds).size;
+  const again = new Set(againQueue);
+  let done = 0;
+  reviewedIds.forEach((id) => {
+    if (!again.has(id)) done += 1;
+  });
+  return { done: Math.min(done, total), total };
+}
+
 /** Successive relearning: a wrong card goes (back) to the end; a right one leaves. */
 export function nextAgainQueue(queue: number[], wordId: number, wrong: boolean): number[] {
   const rest = queue.filter((id) => id !== wordId);

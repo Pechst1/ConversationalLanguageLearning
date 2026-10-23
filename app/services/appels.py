@@ -527,7 +527,8 @@ def _speak(db: Session, user: User, call: dict[str, Any], text: str) -> str | No
 
 def _fallback(kind: str, thread: SerialThread, call: dict[str, Any]) -> str:
     vous = _register(thread, call["caller"]) == "vous"
-    name = _caller_view(call["caller"])["name"]
+    # The caller says their own name («Allô, c'est Monsieur Marchand.»), #217.
+    name = cast_registry.spoken_name(call["caller"], _caller_view(call["caller"])["name"])
     table = {
         "opening": FALLBACK_OPENING_VOUS if vous else FALLBACK_OPENING,
         "voicemail": FALLBACK_VOICEMAIL_VOUS if vous else FALLBACK_VOICEMAIL,

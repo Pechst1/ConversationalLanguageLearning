@@ -42,6 +42,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, played_log
 from app.services.season.page import choice_cards, project, resolve_day
 
@@ -342,7 +343,7 @@ def reprise_brief(db, user, *, input_mode: Any = None, now: Any = None, reason: 
     ending = draft.pop("_ending", {}) or {}
     # A re-read stamps no can-do: the day it was performed already did.
     draft["can_do_id"] = None
-    names = {member.id: member.name for member in season.cast}
+    names = display_names(season.cast)
     character_id = str(draft["character_id"])
     character_name = names.get(character_id) or character_id
     note = reprise_text("season_reprise_note", language)

@@ -61,6 +61,7 @@ from app.services.forge_grading import (
     drop_false_english,
     fold_typography,
     free_use_acceptable,
+    mark_given,
     notes_native,
     production_local_check,
     refine_production_correction,
@@ -78,7 +79,7 @@ from app.services.glosses import (
 )
 from app.services.grammar import GrammarService
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog, concept_sub_band
-from app.services.grammar_feedback import count_concept_hits, infer_grammar_profile
+from app.services.grammar_feedback import authored_repair, count_concept_hits, infer_grammar_profile
 from app.services.item_bank import (
     ITEM_BANK_VERSION,
     VARIETY_WINDOW_DAYS,
@@ -6494,7 +6495,7 @@ class AtelierCorrectionService:
             # A wrong part («verts») is filed as the sentence it stands for.
             learner = verdict.read_as or learner
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
-            ops = token_diff(learner, target)
+            ops = mark_given(token_diff(learner, target), source)
             what = describe_diff(ops, self.explanation_language)
             if what:
                 # Name the exact difference first (the ending, the missing word),
@@ -7808,6 +7809,11 @@ class AtelierCorrectionService:
         return _copy("atelier.generic.why", self.explanation_language)
 
     def _repair_for(self, concept: GrammarConcept | None) -> str:
+        # #239 / #146: the unit's own slip first, in every language; the fixed
+        # «name the trigger» line is only for a concept the catalogue does not know.
+        authored = authored_repair(concept) if concept else ""
+        if authored:
+            return authored
         if self.explanation_language in {"fr", "de"}:
             return _copy("atelier.generic.repair", self.explanation_language)
         if concept:

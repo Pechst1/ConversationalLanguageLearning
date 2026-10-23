@@ -15,6 +15,7 @@ import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
   gradedFormat,
   ladderCue,
+  deckProgress,
   ladderRung,
   lineAnswer,
   linePrompt,
@@ -734,8 +735,13 @@ export default function VocabularyReviewPage() {
     setFirstDayDone(routeDone(store));
   }, [deckEmpty]);
   const currentSlateEntry = current ? slateById.get(current.word_id) || null : null;
-  const completed = deck.filed.size;
-  const total = remainingItems.length + completed;
+  // #88: a fixed total for the sitting (the deck plus anything filed from it), and a
+  // card asked again is not done until it is answered right.
+  const { done: completed, total } = deckProgress(
+    [...allItems.map((item) => item.word_id), ...Array.from(deck.filed)],
+    deck.filed,
+    deck.again,
+  );
   const sessionRemaining = remainingItems.length;
   const percent = total ? Math.round((completed / total) * 100) : 0;
   const minutesLeft = sessionRemaining
