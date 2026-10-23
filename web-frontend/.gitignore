@@ -32,3 +32,6 @@ yarn-error.log*
 
 # Ignore Next.js build artifacts
 .next/
+
+# Le Quartier standalone builds
+/out-quartier/
