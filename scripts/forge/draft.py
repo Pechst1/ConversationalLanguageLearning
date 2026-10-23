@@ -296,11 +296,11 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
     layers = survey["layers"]
     r_walk = float(brief.get("radius", {}).get("walk", 110))
     r_build = float(brief.get("radius", {}).get("build", 170))
-    O = Point(0, 0)
-    disc_build = O.buffer(r_build, 96)
-    disc_walk = O.buffer(r_walk, 96)
+    centre = Point(0, 0)
+    disc_build = centre.buffer(r_build, 96)
+    disc_walk = centre.buffer(r_walk, 96)
     seed = sum(ord(c) for c in brief["id"]) * 7919
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 - a seeded layout, not security
     warnings: list[str] = []
     level = set(brief.get("level_streets", []))
 
@@ -316,7 +316,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
         g = L.geom(row)
         for p in polygons(g):
             p = Polygon(p.exterior).buffer(0)
-            if p.is_empty or p.area < 10 or p.centroid.distance(O) > r_build:
+            if p.is_empty or p.area < 10 or p.centroid.distance(centre) > r_build:
                 continue
             nm = name_of(row)
             mark = next((m for m in marks if nm and m["match"].lower() in nm.lower()), None)
@@ -337,7 +337,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
             continue
         cls = row.get("class") or ""
         g = L.geom(row)
-        if g.distance(O) > r_build + 40:
+        if g.distance(centre) > r_build + 40:
             continue
         for ln in lines(g):
             roads.append((row, ln, name_of(row), cls))
@@ -373,7 +373,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
     for row in layers["landuse"]:
         cls = row.get("class")
         g = L.geom(row)
-        if g.distance(O) > r_build:
+        if g.distance(centre) > r_build:
             continue
         if cls == "pedestrian" or (row.get("subtype") == "pedestrian"):
             squares += polygons(g)
@@ -381,7 +381,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
             gravel += polygons(g)
         elif cls in ("grass", "flowerbed", "garden"):
             green += polygons(g)
-    for row, ln, nm, cls in roads:
+    for _row, ln, nm, cls in roads:
         if cls == "pedestrian" or (nm and nm in level and cls in STREETS):
             squares.append(ln.buffer(4.5, quad_segs=3))
     squares_u = unary_union(squares).intersection(street).difference(carriage) if squares else Polygon()
@@ -542,7 +542,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
         if conf < 0.45:
             continue
         g = L.geom(row)
-        if g.distance(O) > r_build:
+        if g.distance(centre) > r_build:
             continue
         hit = run_at(g.x, g.y, 9.0)
         if not hit:
@@ -573,7 +573,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
         if not num or not re.match(r"^\d+( ?(bis|ter))?$", num):
             continue
         g = L.geom(row)
-        if g.distance(O) > r_build:
+        if g.distance(centre) > r_build:
             continue
         hit = run_at(g.x, g.y, 7.0)
         if not hit:
@@ -618,7 +618,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
         ln = run["_len"]
         nx, nz = -(b[1] - a[1]) / ln, (b[0] - a[0]) / ln  # the kit's outward normal (street side)
         mid = Point((a[0] + b[0]) / 2 + nx * 3, (a[1] + b[1]) / 2 + nz * 3)
-        if mid.distance(O) > r_walk + 12:
+        if mid.distance(centre) > r_walk + 12:
             continue
         best = None
         for nm, sl in named:
@@ -648,7 +648,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
             if x.is_empty:
                 continue
             q = x.centroid
-            if q.distance(O) > r_walk + 8:
+            if q.distance(centre) > r_walk + 8:
                 continue
             got = next((j for j in junctions if j[0].distance(q) < 6), None)
             if got:
@@ -702,7 +702,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
     for row in layers["infra"]:
         cls = row.get("class")
         g = L.geom(row)
-        if not isinstance(g, Point) or g.distance(O) > r_walk + 25:
+        if not isinstance(g, Point) or g.distance(centre) > r_walk + 25:
             continue
         x, z = g.x, g.y
         inside_walk = street_p.contains(g) and not carriage.contains(g)
@@ -722,7 +722,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
         if row.get("class") != "tree":
             continue
         g = L.geom(row)
-        if isinstance(g, Point) and g.distance(O) < r_build - 5 and street_p.contains(g) and not carriage.buffer(0.6).contains(g):
+        if isinstance(g, Point) and g.distance(centre) < r_build - 5 and street_p.contains(g) and not carriage.buffer(0.6).contains(g):
             trees.append((g.x, g.y))
     trees = spaced(trees, 3.2)
 
@@ -732,7 +732,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
         if row.get("class") != "crossing":
             continue
         g = L.geom(row)
-        if not isinstance(g, Point) or g.distance(O) > r_walk + 10 or not carriage.contains(g):
+        if not isinstance(g, Point) or g.distance(centre) > r_walk + 10 or not carriage.contains(g):
             continue
         best = min(drive_lines, key=lambda ln: ln.distance(g), default=None)
         if best is None or best.distance(g) > 4:
@@ -882,7 +882,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
     st = brief.get("start", {})
     start = None
     toward = next((lm for lm in landmarks if lm["name"] == st.get("toward")), None)
-    target = Point(*toward["c"]) if toward else O
+    target = Point(*toward["c"]) if toward else centre
     st_classes = set(st.get("classes") or [])
     segs = [ln for _, ln, nm, cls in roads if nm == st.get("street") and (not st_classes or cls in st_classes)]
     cands = []
@@ -896,7 +896,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
         q = max(cands, key=lambda c: c.distance(target)) if st.get("far", True) else min(cands, key=lambda c: c.distance(target))
         start = {"pos": [r2(q.x), r2(q.y)], "look": [r2(target.x), 3.0, r2(target.y)]}
     else:
-        q = nearest_points(walk_area, O)[0]
+        q = nearest_points(walk_area, centre)[0]
         start = {"pos": [r2(q.x), r2(q.y)], "look": [0, 3.0, 0]}
         warnings.append("start street not found; starting at the centre")
 
