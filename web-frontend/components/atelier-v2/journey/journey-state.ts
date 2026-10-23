@@ -392,7 +392,7 @@ export function stepPositionOnScreen(journey: JourneySnapshot | null): number | 
 }
 
 /**
- * «Étape 2 sur 3» and nothing else.
+ * «Scène · Étape 2 sur 3» and nothing else.
  *
  * The header used to append the plan's remaining estimate («3 min restant»).
  * That number drops by a whole step's estimate the moment a turn is graded, so
@@ -405,14 +405,45 @@ export function stepPositionOnScreen(journey: JourneySnapshot | null): number | 
 export function journeyHeaderCaption(
   journey: JourneySnapshot | null,
   stepOf: (position: number, total: number) => string,
+  part?: string,
 ): string | undefined {
   if (!journey || journey.steps.length === 0) return undefined;
-  const total = journey.steps.length;
+  // #143: a missed drill asked once more is not a step of its own. Counting it
+  // made the total grow mid-day («4 of 9 → 4 of 10»); it keeps the number of
+  // the last step before it, and the drill names it («Once more»).
+  const counted = journey.steps.map((step) => !isRetryStep(step));
+  const total = counted.filter(Boolean).length || journey.steps.length;
+  const onScreen = stepPositionOnScreen(journey);
   const done = journey.steps.filter(
-    (step) => step.status === 'completed' || step.status === 'skipped',
+    (step, index) => counted[index] && (step.status === 'completed' || step.status === 'skipped'),
   ).length;
-  const position = stepPositionOnScreen(journey) ?? Math.min(done + 1, total);
-  return stepOf(position, total);
+  const position =
+    onScreen === null
+      ? Math.min(done + 1, total)
+      : Math.max(1, counted.slice(0, onScreen).filter(Boolean).length);
+  const label = stepOf(position, total);
+  // The scene's steps are one part of the day: «6 of 6» alone read as the end
+  // of the day with the words and La Forge still ahead.
+  return part ? `${part} · ${label}` : label;
+}
+
+/**
+ * #143: the day's plan (`TodayEnvelope.session`) is read with Today, before the
+ * scene. The scene introduces its words and plans its own, so once it has ended
+ * that plan is stale: the ending's «Weiter: 16 Wörter» opened a deck of 19. The
+ * plan is read again when the scene the envelope was read before has ended.
+ */
+export function dayPlanIsStale(
+  statusWhenRead: JourneySnapshot['status'] | null | undefined,
+  status: JourneySnapshot['status'] | null | undefined,
+): boolean {
+  const ended = (value: typeof status) => value === 'completed' || value === 'ended_early';
+  return ended(status) && !ended(statusWhenRead);
+}
+
+/** `_queue_retry`'s copy of a missed drill, asked again at the end of its run. */
+export function isRetryStep(step: PublicStep): boolean {
+  return (step.prompt as { retry?: boolean | null } | null | undefined)?.retry === true;
 }
 
 // ---------------------------------------------------------------------------

@@ -75,6 +75,7 @@ from app.services.journey_contracts import (
 )
 from app.services.met_gate import DOWNGRADED, met_gate
 from app.services.season import agency
+from app.services.word_match import target_occurs_in
 
 logger = logging.getLogger(__name__)
 
@@ -1208,7 +1209,7 @@ def evaluate_turn_lanes(
             )
             for target in task.targets
             if target.id in tutor.demonstrated_target_ids
-            and target.label_fr.casefold() in answer.text.casefold()
+            and target_occurs_in(target.label_fr, answer.text)
         ]
         proposal = (
             None

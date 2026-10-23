@@ -58,6 +58,7 @@ from app.services.lexical_coverage import (
 )
 from app.services.llm_service import LLMService, provider_for_model
 from app.services.season.director import SeasonChecklist
+from app.services.word_match import target_occurs_in
 
 logger = logging.getLogger(__name__)
 
@@ -9736,7 +9737,7 @@ def evaluate_turn(
             )
             for target in task.targets
             if target.id in turn.demonstrated_target_ids
-            and target.label_fr.casefold() in answer.text.casefold()
+            and target_occurs_in(target.label_fr, answer.text)
         ]
         proposal = (
             None

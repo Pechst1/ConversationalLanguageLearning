@@ -30,9 +30,21 @@ GILT_VARIANTS = ("row", "stack", "nested", "quad")
 PLATE_KINDS = {PLATE_SEMAINE, PLATE_CHAPTER, COLOPHON}
 
 # Rounds that reward a logo token when an attempt is flawless. Recognize keeps
-# its original "perfect screen" token; the harder drafting rounds now mint too,
-# with a higher credit weight because they take more effort.
-DRAFTING_ROUNDS = {"transform", "sentence", "speak", "conversation", "produce"}
+# its original "perfect screen" token; the drafting rounds now mint too, with a
+# higher credit weight because they take more effort.
+#
+# "Drafting" is the own-words bonus («In your own words: you used today's form
+# in a sentence of your own»), so a round belongs here only when the learner
+# *composes* the sentence. ``transform`` (correct or rewrite the app's own
+# sentence) is typed and harder than a tile build, but it is not composing: it
+# sat here by effort and told the learner something false (#216). Add a round
+# to this set by asking "does the learner write the sentence?", not "is it
+# hard?".
+DRAFTING_ROUNDS = {"sentence", "speak", "conversation", "produce"}
+#: Rounds where the learner types, but into the app's own sentence (correct it,
+#: rewrite it). They still earn a logo token and weigh more than a tap, but the
+#: plain one, without the «In your own words» line (#216).
+TYPED_ROUNDS = {"transform"}
 ATTEMPT_CREDIT: dict[str, int] = {
     "recognize": 1,
     "transform": 2,
@@ -105,8 +117,9 @@ class AtelierRewardService:
             metadata={
                 "name": "Logo token",
                 "date": self._date_for(attempt.created_at),
-                # "recognize" for the classic perfect screen, "drafting" for the
-                # harder output rounds that now also earn credit.
+                # "recognize" for the classic perfect screen, "typed" for a typed
+                # correction of the app's sentence, "drafting" only where the
+                # learner composes (the own-words bonus).
                 "effort": effort,
                 "credit": credit,
                 "screen": {
@@ -127,6 +140,8 @@ class AtelierRewardService:
             return "recognize"
         if attempt.round in DRAFTING_ROUNDS and cls._is_flawless_attempt(attempt):
             return "drafting"
+        if attempt.round in TYPED_ROUNDS and cls._is_flawless_attempt(attempt):
+            return "typed"
         return None
 
     def mint_gilt_seal_for_session(self, session: AtelierSession) -> list[dict[str, Any]]:

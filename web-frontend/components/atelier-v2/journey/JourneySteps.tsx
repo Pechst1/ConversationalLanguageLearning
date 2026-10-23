@@ -1752,7 +1752,9 @@ export function JourneyFeedbackView({
           <div className="av2-graded" data-state="story" ref={gradedRef} tabIndex={-1}>
             {result.correction && (
               <Correction
-                label={copy.correction}
+                label={result.correction.kind === 'pick' ? copy.correction_pick : copy.correction}
+                kind={result.correction.kind}
+                pickNotItLabel={copy.pick_not_it}
                 spanFr={result.correction.span_fr}
                 correctedFr={result.correction.corrected_fr}
                 noteNative={result.correction.note_native}
@@ -1789,7 +1791,9 @@ export function JourneyFeedbackView({
           >
             {result.correction && (
               <Correction
-                label={copy.correction}
+                label={result.correction.kind === 'pick' ? copy.correction_pick : copy.correction}
+                kind={result.correction.kind}
+                pickNotItLabel={copy.pick_not_it}
                 spanFr={result.correction.span_fr}
                 correctedFr={result.correction.corrected_fr}
                 noteNative={result.correction.note_native}

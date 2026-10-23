@@ -510,6 +510,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast «{learner}» geschrieben; hier steht «{target}».",
         "fr": "Tu as écrit «{learner}» ; ici, c’est «{target}».",
     },
+    # #300: a word the line showed and the learner left as it was is not one they wrote.
+    "forge.diff.left": {
+        "en": "«{learner}» was left as shown, but it is wrong: here it is «{target}».",
+        "de": "«{learner}» blieb stehen, ist aber falsch: Hier steht «{target}».",
+        "fr": "«{learner}» est resté tel quel, mais c’est faux : ici, c’est «{target}».",
+    },
     "forge.diff.missing": {
         "en": "«{target}» is missing.",
         "de": "«{target}» fehlt.",

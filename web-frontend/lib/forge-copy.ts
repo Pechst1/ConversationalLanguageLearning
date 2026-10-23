@@ -47,6 +47,8 @@ export type ForgeCopy = {
   hint_typed: string;
   hint_dictation: string;
   hint_spot: string;
+  /** #300: a stretch of several wrong words says how many ({n}). */
+  hint_spot_n: string;
   hint_rafale: string;
   typed_placeholder: string;
   accents_label: string;
@@ -103,6 +105,7 @@ const EN: ForgeCopy = {
   hint_typed: 'Type the missing form.',
   hint_dictation: 'Listen, then build what you hear.',
   hint_spot: 'Tap the wrong word and fix it.',
+  hint_spot_n: 'Tap the {n} wrong words and fix them.',
   hint_rafale: 'Right or wrong? Four sentences, as fast as you can.',
   typed_placeholder: 'Type here',
   accents_label: 'Accents',
@@ -170,6 +173,7 @@ const DE: ForgeCopy = {
   hint_typed: 'Tipp die fehlende Form ein.',
   hint_dictation: 'Hör zu und bau, was du hörst.',
   hint_spot: 'Tipp auf das falsche Wort und korrigiere es.',
+  hint_spot_n: 'Tipp auf die {n} falschen Wörter und korrigiere sie.',
   hint_rafale: 'Richtig oder falsch? Vier Sätze, so schnell du kannst.',
   typed_placeholder: 'Hier eintippen',
   accents_label: 'Akzente',
@@ -237,6 +241,7 @@ const FR: ForgeCopy = {
   hint_typed: 'Tape la forme qui manque.',
   hint_dictation: 'Écoute, puis construis ce que tu entends.',
   hint_spot: 'Touche le mot faux et corrige-le.',
+  hint_spot_n: 'Touche les {n} mots faux et corrige-les.',
   hint_rafale: 'Juste ou faux ? Quatre phrases, le plus vite possible.',
   typed_placeholder: 'Tape ici',
   accents_label: 'Accents',
@@ -290,6 +295,12 @@ export function forgeCopy(language: ControlLanguage | string | null | undefined)
 /** «{n}» style placeholders. */
 export function fillForge(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_match, name: string) => String(values[name] ?? ''));
+}
+
+/** The spot hint for an item that needs ``fixWords`` words fixed (one: the plain hint). */
+export function spotHint(copy: ForgeCopy, fixWords: unknown): string {
+  const n = Number(fixWords);
+  return Number.isInteger(n) && n > 1 ? fillForge(copy.hint_spot_n, { n }) : copy.hint_spot;
 }
 
 export function forgeRungLabel(copy: ForgeCopy, rungName: string | null | undefined): string {

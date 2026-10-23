@@ -195,18 +195,22 @@ class Verdict:
 
 
 def step_rung(rung: int, verdict: Verdict) -> int:
-    """The staircase: up on correct, down on error, stay on partial/unchecked."""
+    """The staircase: up on correct, stay on anything else.
+
+    #88 (owner decision, 15 Oct): the ladder never steps backwards inside a
+    session. A miss keeps the learner on the same step and the item comes back
+    (``reprise_at``); losing ground is the spaced review's job on a later day.
+    Stepping down read as punishment and made «Step N of 6» jump back.
+    """
 
     rung = clamp_rung(rung)
     if not verdict.checked:
         # A provisional «uses the rule» moves on; a provisional miss is only a
         # hint and never takes a rung away.
         return clamp_rung(rung + 1) if verdict.local == OUTCOME_CORRECT else rung
-    if verdict.partial:
-        return rung
     if verdict.correct:
         return clamp_rung(rung + 1)
-    return clamp_rung(rung - 1)
+    return rung
 
 
 def evidence_for(rung: int, verdict: Verdict) -> Evidence | None:

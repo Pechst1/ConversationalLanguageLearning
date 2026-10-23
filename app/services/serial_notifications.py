@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode
 from app.db.models.user import User
+from app.services import cast_registry
 from app.services.address import character_register as resolve_character_register
 
 #: WP-19's title for the morning push. WP-80 replaced it with the speaking
@@ -100,14 +101,18 @@ PORTRAIT_CHARACTERS: dict[str, str] = {
     "marchand": "landlord_marchand",
 }
 
-#: The display name when nothing else names the character.
+#: The display name when nothing else names the character: the cast registry's, so a
+#: push says «Gus» like every other surface (#217), not «Augustin».
 CHARACTER_NAMES: dict[str, str] = {
-    "marin_leveque": "Marin",
-    "romy_tremblay": "Romy",
-    "lila_bonnet": "Lila",
-    "margaux_barman": "Margaux",
-    "augustin_de_roncourt": "Augustin",
-    "landlord_marchand": "M. Marchand",
+    character_id: cast_registry.display_name(character_id, character_id)
+    for character_id in (
+        "marin_leveque",
+        "romy_tremblay",
+        "lila_bonnet",
+        "margaux_barman",
+        "augustin_de_roncourt",
+        "landlord_marchand",
+    )
 }
 
 #: Who speaks when the learner has no scene yet (WP-80's pre-prompt names him).
