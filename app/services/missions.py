@@ -24,6 +24,7 @@ from app.db.savepoint import best_effort
 
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
+from app.services import cast_registry
 from app.services import story_correspondence as courrier
 from app.services.address import address_instruction
 from app.services.answer_acceptance import is_preference_swap
@@ -2818,12 +2819,17 @@ class MissionGenerator:
         from app.services.serial_notifications import CHARACTER_NAMES, portrait_character
 
         key = portrait_character(character_id) or character_id
+        # #217: a person of the cast is named by the registry on every line of the letter,
+        # whatever the model or an older context carried («Augustin « Gus » de Roncourt»).
         name = (
-            str(messenger.get("contact_name") or "").strip()
+            cast_registry.display_name(character_id)
+            or str(messenger.get("contact_name") or "").strip()
             or custom_context.get("character_name")
             or CHARACTER_NAMES.get(key)
             or "Un personnage"
         )
+        # What they say about themselves («Bonjour, c'est Monsieur Marchand.»).
+        spoken = cast_registry.spoken_name(character_id) or name
         tu = str(custom_context.get("register") or "").lower().startswith("tu")
         writer_register = register_word(custom_context.get("register")) or ("tu" if tu else "vous")
         question = str(custom_context.get("open_question_fr") or "").strip()
@@ -2845,12 +2851,12 @@ class MissionGenerator:
             # left open is asked again in its own words.
             "opening_message": (messenger.get("opening_message") if generated else None)
             or (
-                str(OPEN_QUESTION_FRAME["tu" if tu else "vous"]).format(name=name, question=question)
+                str(OPEN_QUESTION_FRAME["tu" if tu else "vous"]).format(name=spoken, question=question)
                 if question
-                else str(story_frame_for(learner_band)[1]["tu" if tu else "vous"]).format(name=name)
+                else str(story_frame_for(learner_band)[1]["tu" if tu else "vous"]).format(name=spoken)
             ),
             "ambient_cues": (messenger.get("ambient_cues") if generated else None)
-            or [f"un message de {name}", "la dernière scène", "une réponse courte"],
+            or [f"un message {cast_registry.with_de(name)}", "la dernière scène", "une réponse courte"],
             "quick_replies": (messenger.get("quick_replies") if generated else None)
             or (
                 ["Salut ! Moi, je pense que...", "Pour la suite, je...", "Merci pour ton message !"]
@@ -2881,7 +2887,7 @@ class MissionGenerator:
         known = custom_context.get("desired_outcome_i18n")
         if not generated and isinstance(known, dict) and known.get("fr") == story_messenger["success_signal"]:
             story_messenger["success_signal_i18n"] = dict(known)
-        story_title = (title if generated and title else None) or f"Un mot de {name}"
+        story_title = (title if generated and title else None) or f"Un mot {cast_registry.with_de(name)}"
         summary = str(custom_context.get("summary_fr") or "").strip()
         if summary and summary[-1] not in ".!?…":
             summary += "."

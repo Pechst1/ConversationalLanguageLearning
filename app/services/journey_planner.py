@@ -34,6 +34,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 from app.services import grammar_items, pragmatics
+from app.services.cast_registry import display_name
 from app.services.cast_voices import NARRATOR_ID, line_audio_url, voice_for_character
 from app.services.journey_content import (
     SPOILER_SIMILARITY,
@@ -3319,7 +3320,7 @@ def plan_journey(
                 "max_turns": turns,
                 "repair_allowed": bool(task.repair_allowed),
                 "character_id": task.character_id,
-                "character_name": task.character_name,
+                "character_name": display_name(task.character_id, task.character_name),
                 "character_line_fr": task.opening_line_fr,
                 "character_line_audio_url": None,
                 "objective_native": task.objective_native,
@@ -5610,7 +5611,7 @@ def _plan_practice_day(
                 "max_turns": turns,
                 "repair_allowed": bool(task.repair_allowed),
                 "character_id": task.character_id,
-                "character_name": task.character_name,
+                "character_name": display_name(task.character_id, task.character_name),
                 "character_line_fr": task.opening_line_fr,
                 "character_line_audio_url": None,
                 "objective_native": task.objective_native,

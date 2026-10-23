@@ -40,6 +40,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.services.cast_registry import display_names
 from app.services.season.format import (
     LANGUAGES,
     SEASON_ROOT,
@@ -312,7 +313,7 @@ def bridge_page(
     blocks = moments_for(bridge, missing)
     if not blocks:
         return None
-    names = {member.id: member.name for member in season.cast}
+    names = display_names(season.cast)
     ctx = _Ctx(flags=flags, band=band, language=language, neutral=False, names=names)
     # ``_movement`` reads a tentpole only for its shared blocks; a bridge has none.
     holder = SimpleNamespace(shared={})
