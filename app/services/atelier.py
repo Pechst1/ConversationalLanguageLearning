@@ -724,7 +724,8 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
         start = _word_find(folded, wrong.lower(), spans)
         if start < 0:
             return None
-        spans.append((start, start + len(wrong), fix, index))
+        skip, length, fix = narrow_repair(wrong, fix)
+        spans.append((start + skip, start + skip + length, fix, index))
     if not spans:
         return None
     spans.sort()
@@ -738,6 +739,33 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
     if cursor < len(line):
         parts.append({"text": line[cursor:]})
     return parts
+
+
+def narrow_repair(wrong: str, fix: str) -> tuple[int, int, str]:
+    """``(offset, length, fix)`` of the words of ``wrong`` that differ from ``fix`` (#282).
+
+    An erratum may carry a stretch wider than what is wrong («à le marché aux puces»
+    → «au marché aux puces» for the one slip «à le» → «au»); a gap holding all of it
+    asked the learner to retype words that were right. The leading and trailing
+    words both sides share stay as text, at least one word being kept on each side.
+    Mirrored by ``narrowRepair`` in ``web-frontend/lib/repair-parts.ts``.
+    """
+
+    words = [(match.start(), match.group()) for match in re.finditer(r"\S+", wrong)]
+    fixed = fix.split()
+    lead = 0
+    while lead < len(words) - 1 and lead < len(fixed) - 1 and words[lead][1].lower() == fixed[lead].lower():
+        lead += 1
+    trail = 0
+    while (
+        trail < len(words) - 1 - lead
+        and trail < len(fixed) - 1 - lead
+        and words[-1 - trail][1].lower() == fixed[-1 - trail].lower()
+    ):
+        trail += 1
+    first_at = words[lead][0]
+    last_at, last_word = words[len(words) - 1 - trail]
+    return first_at, last_at + len(last_word) - first_at, " ".join(fixed[lead : len(fixed) - trail])
 
 
 def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]]) -> int:

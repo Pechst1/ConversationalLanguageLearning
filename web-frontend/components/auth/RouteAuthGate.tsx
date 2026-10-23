@@ -24,6 +24,7 @@ const PUBLIC_PATHNAMES = new Set([
   // production build and listing it here widens nothing.
   '/atelier-v2-gallery',
   '/cameo-gallery',
+  '/dev/miss-layout',
   '/troupe-vivante',
   '/personnage-gallery',
 ]);
