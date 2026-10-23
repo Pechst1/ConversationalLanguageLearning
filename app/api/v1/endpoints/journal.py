@@ -67,6 +67,11 @@ class JournalCorrectionView(BaseModel):
     #: Only when the check did not happen: 'timeout' | 'model_error' |
     #: 'no_check_target'. The last one cannot be retried.
     failure_reason: str | None = None
+    #: 'model' | 'deterministic' (#250). A deterministic check is the model-free pass of the
+    #: shared corrector: it marks real mistakes, it cannot certify a text as right.
+    checker: str | None = None
+    #: Whether asking the model again could change a deterministic check.
+    retryable: bool = False
     explanation_language: str | None = None
     foreground: dict | None = None
     errata: list[dict] = Field(default_factory=list)

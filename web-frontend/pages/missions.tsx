@@ -641,6 +641,7 @@ export default function MissionsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [rechecking, setRechecking] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<LoadErrorKind | null>(null);
   const [reply, setReply] = useState('');
@@ -887,6 +888,23 @@ export default function MissionsPage() {
       toast.error(t.toast_send_failed);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // #251: the corrector failed on this reply and the model-free pass found nothing.
+  // Ask again; a second failure keeps the reply as it was.
+  const recheckReply = async (turnId: string) => {
+    if (!mission || rechecking || completed) return;
+    setRechecking(turnId);
+    try {
+      const result = await apiService.retryMissionTurnCorrection(mission.id, turnId);
+      setMission((current) => ({ ...result.mission, outcome: current?.outcome ?? result.mission.outcome }));
+      if (result.correction?.verdict === 'unassessed') toast(t.toast_recheck_failed);
+    } catch (recheckError) {
+      console.error(recheckError);
+      toast.error(t.toast_recheck_failed);
+    } finally {
+      setRechecking(null);
     }
   };
 
@@ -1202,10 +1220,23 @@ export default function MissionsPage() {
                       >
                         {turn.text}
                       </CrSlip>
-                      {/* WP-74: the corrector was unavailable. Not a pass, not a
-                          fault — say plainly that nobody has corrected it yet. */}
+                      {/* WP-74 / #250 / #251: no grader ran and the shared model-free pass found
+                          nothing. Not a pass and not a dead end: «No corrections found», and
+                          the corrector can be asked again while the thread is open. */}
                       {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
-                        <p className="cr-unassessed" role="status">{t.unassessed}</p>
+                        <>
+                          <p className="cr-unassessed" role="status">{t.unassessed}</p>
+                          {!completed && turn.id && (
+                            <button
+                              type="button"
+                              className="cr-trad-btn"
+                              disabled={rechecking !== null}
+                              onClick={() => { void recheckReply(String(turn.id)); }}
+                            >
+                              {rechecking === turn.id ? t.rechecking : t.recheck}
+                            </button>
+                          )}
+                        </>
                       )}
                       {isUser && (lines.length > 0 || correctedAnswer) && (
                         <CrRepair

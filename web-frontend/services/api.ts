@@ -305,6 +305,11 @@ export interface JournalCorrection {
   /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target'.
    *  'no_check_target' cannot be retried. */
   failure_reason?: string | null;
+  /** 'model' | 'deterministic'. A deterministic check is the model-free pass of the shared corrector
+   *  (#250): it marks real mistakes but cannot say a text is right, so a clean result reads
+   *  «No corrections found», and `retryable` says whether the model could be asked again. */
+  checker?: string | null;
+  retryable?: boolean;
   explanation_language?: string | null;
   /** The one correction shown up front, chosen by the journey's own policy. */
   foreground?: JournalCorrectionItem | null;
@@ -1831,6 +1836,14 @@ export interface MissionTurnResult {
   outcome?: Record<string, any>;
 }
 
+/** #251: a reply the corrector could not check, asked again. */
+export interface MissionTurnCorrectionResult {
+  user_turn: Record<string, any>;
+  correction: VocabularyCorrectionPayload;
+  errata: LinkedVocabularyErratum[];
+  mission: RealWorldMission;
+}
+
 export interface GraphicNovelPanel {
   id: string;
   panel_index: number;
@@ -2862,6 +2875,10 @@ class ApiService {
 
   async submitMissionTurn(missionId: string, data: { text: string; mode?: 'chat' | 'voice'; transcript_metadata?: Record<string, any> }) {
     return this.atelierPost<MissionTurnResult>(`/missions/${missionId}/turns`, data);
+  }
+
+  async retryMissionTurnCorrection(missionId: string, turnId: string) {
+    return this.atelierPost<MissionTurnCorrectionResult>(`/missions/${missionId}/turns/${turnId}/correction`);
   }
 
   async completeMission(missionId: string) {

@@ -30,9 +30,9 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
-from app.services import story_memory
+from app.services import correction_contract, story_memory
 from app.services.address import address_instruction
-from app.services.answer_acceptance import is_preference_swap
+from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -9502,6 +9502,31 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
         elif is_preference_swap(turn.correction_span_fr, turn.correction_fr):
             # Agency walk run 3: «sans mon nom» → «pas mon nom»; both are correct.
             turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
+        elif not correction_is_grounded(
+            payload["learner_text"],
+            turn.correction_span_fr,
+            turn.correction_fr,
+            turn.correction_note_native,
+        ):
+            # #193: the span, the subject the note cites and the form must be provable
+            # from the learner's own sentence («est → es, after 'tu'» was not).
+            turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
+    if not (payload.get("turn_plan") or {}).get("clarify_form_fr"):
+        # #250: one corrector contract. A model correction that survived the checks
+        # above stands; when there is none, the first model-free edit stands in
+        # («Je suis froid» → «J'ai froid» among them, #193). The learner never sees
+        # «With « tu », « est » must be « es »» about a sentence with no «tu».
+        (
+            turn.correction_span_fr,
+            turn.correction_fr,
+            turn.correction_note_native,
+        ) = correction_contract.first_valid_edit(
+            payload["learner_text"],
+            turn.correction_span_fr,
+            turn.correction_fr,
+            turn.correction_note_native,
+            language=story.get("control_language"),
+        )
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):
         raise StoryUnavailable(

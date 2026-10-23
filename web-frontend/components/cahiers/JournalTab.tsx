@@ -98,7 +98,10 @@ export function correctionLine(entry: JournalEntryView | null | undefined, t: Jo
   if (!correction || correction.assessment_status !== 'checked') {
     return t.correction_unavailable;
   }
-  if (!correction.errata?.length) return t.correction_clean;
+  if (!correction.errata?.length) {
+    // The model-free pass cannot certify a text as right, so it never says «nothing to correct».
+    return correction.checker === 'deterministic' ? t.correction_clean_basic : t.correction_clean;
+  }
   if (correction.errata.length === 1) return t.correction_one;
   return fill(t.correction_many, { n: correction.errata.length });
 }
@@ -120,8 +123,8 @@ export function canRetryCorrection(entry: JournalEntryView | null | undefined): 
   const correction = entry?.correction;
   return Boolean(
     correction
-      && correction.assessment_status !== 'checked'
-      && correction.failure_reason !== 'no_check_target',
+      && (correction.retryable === true
+        || (correction.assessment_status !== 'checked' && correction.failure_reason !== 'no_check_target')),
   );
 }
 
@@ -440,6 +443,16 @@ export default function JournalTab() {
                       </ul>
                     )}
                   </>
+                )}
+                {entry.correction?.checker === 'deterministic' && canRetryCorrection(entry) && (
+                  <Action
+                    tone="quiet"
+                    pending={pending === 'retry'}
+                    pendingLabel={t.retrying}
+                    onClick={() => void retryCorrection()}
+                  >
+                    {t.retry_correction}
+                  </Action>
                 )}
                 {entry.errata_recorded > 0 && (
                   <p className="jn-hint">

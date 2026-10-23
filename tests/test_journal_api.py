@@ -424,8 +424,10 @@ def test_a_failed_check_can_be_retried_over_the_wire(journal_client, db_session,
     body = {"text": "J’ai rapporté la livre à Romy mardi comme promis."}
     first = journal_client.post(f"/api/v1/journal/{entry_id}/write", headers=headers, json=body)
     correction = first.json()["entry"]["correction"]
-    assert correction["assessment_status"] == "unavailable"
+    assert correction["assessment_status"] == "checked"
+    assert correction["checker"] == "deterministic"
     assert correction["failure_reason"] == "timeout"
+    assert correction["retryable"] is True
 
     fake_checker.generate_error_detection = working
     second = journal_client.post(f"/api/v1/journal/{entry_id}/retry", headers=headers)
