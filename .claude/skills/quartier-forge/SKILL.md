@@ -85,7 +85,9 @@ the cloud; never run `playwright install`).
    open `out-quartier/le-quartier.html?place=<id>&debug`, begin, follow the errands, buy
    something, leave, go home.
 10. **PR.** Branch `claude/forge-<date>-<id>` from origin/main. Commit the brief, its notes, the
-    site file, `world.json`, `sites/index.ts` and any kit change (never `var/`). Open a PR titled
+    site file, `world.json`, `sites/index.ts` and any kit change (never `var/`). A place that
+    stays `en_chantier` commits its brief, its notes and its world entry, not the site file: the
+    tests load every site file as an open place, and the brief drafts it again. Open a PR titled
     «Le Quartier forge: <place name>» with: the article, what was built (the draft's counts),
     each round in a line, what is still plain, open or `en_chantier` and why, and how to play it
     (`?place=<id>`). End with one short summary: the place, its status, the PR link.
