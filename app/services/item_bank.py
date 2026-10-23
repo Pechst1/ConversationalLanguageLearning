@@ -1491,6 +1491,63 @@ _FILTER_ALIASES = {"def": "def_", "en": "en_"}
 # Rendering
 # --------------------------------------------------------------------------- #
 
+#: Subjects whose English names no one French person (#295): «I» and «we» only
+#: matter for the agreement of a participle or adjective, «you» and «they» for the
+#: person itself.
+_UNDERSPECIFIED_SUBJECTS = frozenset({"I", "we", "you", "they"})
+
+#: What else in a frame's own text would name the same person as a subject slot
+#: (a literal «Tu», «ton», «ils»): a frame with one cannot swap the slot alone.
+_PERSON_FAMILY = {
+    "tu": re.compile(r"\b(?:tu|toi|ton|ta|tes|te|t|vous|votre|vos)\b", re.IGNORECASE),
+    "vous": re.compile(r"\b(?:tu|toi|ton|ta|tes|te|t|vous|votre|vos)\b", re.IGNORECASE),
+    "ils": re.compile(r"\b(?:ils|elles|eux)\b", re.IGNORECASE),
+    "elles": re.compile(r"\b(?:ils|elles|eux)\b", re.IGNORECASE),
+    "je": re.compile(r"\b(?:je|j|moi|mon|ma|mes|me|m|nous|notre|nos)\b", re.IGNORECASE),
+    "nous": re.compile(r"\b(?:je|j|moi|mon|ma|mes|me|m|nous|notre|nos)\b", re.IGNORECASE),
+}
+
+
+#: The English «you» / «they» of a sentence whose French person the key cannot vary
+#: (the frame writes «Tu …» itself): the gloss then says which person is meant.
+_PERSON_NAMES: tuple[tuple[str, str, str, str], ...] = (
+    ("tu", "vous", r"\byou\b", "you (informal)"),
+    ("vous", "tu", r"\byou\b", "you (formal or plural)"),
+    ("ils", "elles", r"\bthey\b", "they (m.)"),
+    ("elles", "ils", r"\bthey\b", "they (f.)"),
+)
+
+
+def name_the_person(english: str, sentence: str, accepted: Iterable[str]) -> str:
+    """#295: ``english`` with its first «you» / «they» told apart («you (informal)»)
+    when the French sentence has a second-person or third-person plural subject and
+    no accepted answer uses the other one. English names no person; where the key
+    cannot list them all (:meth:`ItemBank._person_variants`), the prompt must say
+    which one it means — the learner who reads «You have dinner» cannot know."""
+
+    written = _words(sentence)
+    listed: set[str] = set()
+    for answer in accepted:
+        listed |= _words(answer)
+    for french, other, pattern, label in _PERSON_NAMES:
+        if french not in written or other in listed or other in written:
+            continue
+        named, count = re.subn(pattern, label, english, count=1, flags=re.IGNORECASE)
+        if count:
+            first = re.search(pattern, english, re.IGNORECASE)
+            if first and first.group(0)[:1].isupper():
+                named = named.replace(label, label[0].upper() + label[1:], 1)
+            return named
+    return english
+
+
+def _words(text: str) -> set[str]:
+    """The words of a French line, a hyphenated inverted subject («rentrez-vous») in
+    its parts — except «rendez-vous», a noun."""
+
+    return set(re.findall(r"[\wÀ-ÿ]+", re.sub(r"rendez-vous", " ", str(text or "").casefold())))
+
+
 _SLOT_RE = re.compile(r"\{([A-Z][A-Z0-9]*)(?:\.([a-z_0-9]+))?(?:\|([^{}]+))?\}")
 _TARGET_RE = re.compile(r"\[\[(.+?)\]\]")
 _SENTINEL = "§§"
@@ -1922,6 +1979,48 @@ class ItemBank:
                 sentences.append(rendered.sentence)
         return sentences
 
+    def _person_variants(self, frame: _Frame, bindings: dict[str, dict[str, Any]], sentence: str) -> list[str]:
+        """#295: ``sentence`` again with each other person the English allows.
+
+        English «they» is «ils» or «elles», «you» is «tu» or «vous» (and, with an
+        agreeing adjective or participle, a man or a woman): the gloss names no
+        one of them, so the key may not either. The frame redoes the agreement.
+        The naturalness checker is not asked: it keeps odd sentences out of what
+        the learner is *shown* (a «vous» to a friend), not out of what is right.
+
+        Only a slot the sentence really writes as its subject is varied, and only
+        in a frame that does not also hard-code that person in its own text (the
+        «Tu {TU|v:V} …» of a question): such a swap would make a wrong sentence
+        that the key then accepts."""
+
+        sentences: list[str] = []
+        written = _words(sentence)
+        literal = re.sub(r"\[\[.*?\]\]|\{.*?\}", " ", frame.fr)
+        for slot, entry in bindings.items():
+            tags = entry.get("tags") or []
+            english, french = entry.get("en"), entry.get("fr")
+            if "pron" not in tags or "on" in tags or not isinstance(english, str) or english not in _UNDERSPECIFIED_SUBJECTS:
+                continue
+            family = _PERSON_FAMILY.get(str(french))
+            if french not in written or (family and family.search(literal)):
+                continue
+            for other in self.lex.pool("pron"):
+                if (
+                    other.get("en") != english
+                    or other.get("id") == entry.get("id")
+                    or "on" in (other.get("tags") or [])
+                ):
+                    continue
+                try:
+                    rendered = self.render(frame, {**bindings, slot: other}, alternatives=False)
+                except (RenderError, KeyError, IndexError):
+                    continue
+                now = _words(rendered.sentence)
+                if other.get("fr") != french and (french in now or other.get("fr") not in now):
+                    continue
+                sentences.append(rendered.sentence)
+        return sentences
+
     def render(self, frame: _Frame, bindings: dict[str, dict[str, Any]], *, alternatives: bool = True) -> BankItem:
         target_match = _TARGET_RE.search(frame.fr)
         if not target_match:
@@ -2049,7 +2148,8 @@ class ItemBank:
         while misses < 400:
             frame = rng.choices(frames, weights=weights, k=1)[0]
             try:
-                item = self.render(frame, self._bind(frame, rng, known_set, story_set))
+                bindings = self._bind(frame, rng, known_set, story_set)
+                item = self.render(frame, bindings)
             except (RenderError, KeyError, IndexError):
                 misses += 1
                 continue
@@ -2065,6 +2165,12 @@ class ItemBank:
             if key in seen or (detector is not None and not detector(item.sentence)):
                 misses += 1
                 continue
+            variants = self._person_variants(frame, bindings, item.sentence)
+            if variants:
+                item = replace(item, accepted=tuple(dict.fromkeys([*item.accepted, *variants])))
+            named = name_the_person(item.en, item.sentence, item.accepted)
+            if named != item.en:
+                item = replace(item, en=named)
             misses = 0
             seen.add(key)
             yield item
@@ -2416,23 +2522,43 @@ _GOALS_FR_NATIVE_MEANING: dict[str, str] = {
 }
 
 
-def goal_l10n(kind: str, meaning: str | None = None, meaning_de: str | None = None) -> dict[str, str]:
+def goal_l10n(
+    kind: str,
+    meaning: str | None = None,
+    meaning_de: str | None = None,
+    context: dict[str, str] | None = None,
+) -> dict[str, str]:
     """``{en, de, fr}`` for one drill goal (WP-103 T3); with ``meaning_de`` the
-    German goal quotes the German meaning (FORGE-DE)."""
+    German goal quotes the German meaning (FORGE-DE).
+
+    ``context`` (#296) is what the learner reads *before* the quote when the item
+    sits in a short exchange («Marin asks how old you are.» «Build: "I am 41 years
+    old."»): said in the goal, never inside the quotation marks, so the quote is
+    exactly the sentence to produce. A language whose goal quotes no meaning has
+    nothing to set the context against and gets none."""
 
     table = _GOALS[kind]
     out = {language: template.format(meaning=meaning or "").strip() for language, template in table.items()}
     if meaning_de and kind in _GOALS_DE_MEANING:
         out["de"] = _GOALS_DE_MEANING[kind].format(meaning=meaning_de.strip())
+        if (context or {}).get("de"):
+            out["de"] = f"{context['de']} {out['de']}"
+    if (context or {}).get("en") and meaning:
+        out["en"] = f"{context['en']} {out['en']}"
     return out
 
 
-def _goal(kind: str, meaning: str | None = None, meaning_de: str | None = None) -> dict[str, Any]:
+def _goal(
+    kind: str,
+    meaning: str | None = None,
+    meaning_de: str | None = None,
+    context: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """The goal fields a bank item carries: ``goal_native`` (English, the default)
     and ``goal_l10n``; the learner's language is picked on the way out
     (:func:`with_goal`)."""
 
-    l10n = goal_l10n(kind, meaning, meaning_de)
+    l10n = goal_l10n(kind, meaning, meaning_de, context)
     return {"goal_native": l10n["en"], "goal_l10n": l10n}
 
 
@@ -2541,8 +2667,9 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     if code != "en":
         # The bank's meaning cues and stored sets' cues are English; FORGE-DE:
         # a German meaning, when the item carries one, takes their place.
+        context = out.get("context_l10n") if isinstance(out.get("context_l10n"), dict) else None
         if kind in {"build", "repair", "fill", "pick"}:
-            out["goal_native"] = goal_l10n(kind, None, native_meaning or None).get(code)
+            out["goal_native"] = goal_l10n(kind, None, native_meaning or None, context).get(code)
         if "answer_tokens" in out:
             out["meaning_cue"] = native_meaning or None
             if isinstance(key, str) and key in INSTRUCTIONS_L10N:
@@ -2551,9 +2678,12 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
             else:
                 out["prompt"] = out["goal_native"]
             if native_meaning:
-                out["goal_native"] = goal_l10n("build", None, native_meaning).get(code)
+                out["goal_native"] = goal_l10n("build", None, native_meaning, context).get(code)
         if own_meaning and kind in _GOALS_FR_NATIVE_MEANING:
             goal = _GOALS_FR_NATIVE_MEANING[kind].format(meaning=own_meaning)
+            said_before = str((context or {}).get(own) or (context or {}).get("en") or "").strip()
+            if said_before and kind == "build":
+                goal = f"{said_before} {goal}"
             if key == "forge.word_bank":
                 goal = f"{goal} Un mot est en trop."
             out["goal_native"] = goal
@@ -2574,6 +2704,8 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
             out["meaning_l10n"] = {code: native_meaning} if native_meaning else None
             if out["meaning_l10n"] is None:
                 out.pop("meaning_l10n")
+        # The English column of the context stays on the server too (#296).
+        out.pop("context_l10n", None)
         # The English column of every table stays on the server: the served
         # prompt and instruction are the learner's own.
         for field in ("prompt", "instruction"):
@@ -2693,11 +2825,67 @@ def _item_id(unit: str, item: BankItem, mode: str) -> str:
     return f"{unit.lower().replace('_', '-')}-{mode}-{item.fingerprint[:10]}"
 
 
-def _answer_key(item: BankItem) -> dict[str, Any]:
+#: A title's full stop («M. Marchand», «Mme Dupont») ends no sentence.
+_TITLE = r"(?<!\bM\.)(?<!\bMM\.)(?<!\bMme\.)(?<!\bMlle\.)(?<!\bDr\.)(?<!\bMr\.)(?<!\bMrs\.)(?<!\bMs\.)"
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?…])" + _TITLE + r"\s+")
+_SENTENCE_END = re.compile(r"(?:(?<=[!?…])|(?<=\.)" + _TITLE + r")(?:\s+|$)")
+
+
+def _split_sentences(text: str) -> list[str]:
+    return [part for part in _SENTENCE_BREAK.split(str(text or "").strip()) if part.strip()]
+
+
+@dataclass(frozen=True)
+class AnswerScope:
+    """#296: what a production prompt asks the learner to write, out of an item whose
+    frame is a short exchange («Marin demande ton âge. J'ai quarante et un ans.»).
+
+    The *answer sentence* is the one that carries the rule's target; the sentences
+    before it are *context*, read in the goal but never built or typed. Every
+    answer the learner is asked for is judged against this sentence, so the
+    prompt's quotation marks, the tray and the key are the same sentence."""
+
+    sentence: str
+    accepted: tuple[str, ...]
+    en: str
+    de: str | None
+    context: dict[str, str]
+
+
+def answer_scope(item: BankItem) -> AnswerScope | None:
+    """The answer sentence of ``item`` with its context, or ``None`` when the
+    French and English sentences cannot be told apart one for one (such an item
+    is not posed as a build: its target would be longer than its prompt)."""
+
+    french = _split_sentences(item.sentence)
+    if len(french) <= 1:
+        return AnswerScope(item.sentence, item.accepted, item.en, item.de, {})
+    english = _split_sentences(item.en)
+    if len(english) != len(french):
+        return None
+    index = min(len(_SENTENCE_END.findall(item.prefix)), len(french) - 1)
+    if item.target.casefold() not in french[index].casefold():
+        return None
+    german = _split_sentences(item.de) if item.de else []
+    de_ok = len(german) == len(french)
+    accepted: list[str] = [french[index]]
+    for sentence in item.accepted:
+        parts = _split_sentences(sentence)
+        if len(parts) == len(french) and parts[index] not in accepted:
+            accepted.append(parts[index])
+    context: dict[str, str] = {}
+    if index:
+        context["en"] = " ".join(english[:index])
+        if de_ok:
+            context["de"] = " ".join(german[:index])
+    return AnswerScope(french[index], tuple(accepted), english[index], german[index] if de_ok else None, context)
+
+
+def _answer_key(item: BankItem, accepted: Iterable[str] | None = None) -> dict[str, Any]:
     return {
         "bank_unit": item.unit,
         "target_span": item.target,
-        "accepted_answers": list(item.accepted),
+        "accepted_answers": list(item.accepted if accepted is None else accepted),
         "bank_frame": item.frame_id,
         "bank_fingerprint": item.fingerprint,
     }
@@ -2869,8 +3057,27 @@ def _join(tokens: list[str]) -> str:
 
 
 def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
-    answer_tokens = _tokens(item.sentence)
-    if normalize(_join(answer_tokens)) != normalize(item.sentence):
+    """A tile build of ``item``.
+
+    #296: the tray, the key and the quoted meaning are one sentence — the one the
+    prompt asks for. An exchange's context sentence is said before the quote
+    (:func:`answer_scope`). When the answer sentence alone is too short to be a
+    build («Quelle journée !»), or the two languages' sentences cannot be matched,
+    the whole exchange is the build and the quote holds all of it: the target is
+    never longer than what the prompt quotes."""
+
+    scope = answer_scope(item)
+    if scope is not None and scope.context:
+        built = _word_bank_payload(item, scope, lesson_external_id)
+        if built is not None:
+            return built
+    whole = AnswerScope(item.sentence, item.accepted, item.en, item.de, {})
+    return _word_bank_payload(item, whole, lesson_external_id)
+
+
+def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: str | None) -> dict[str, Any] | None:
+    answer_tokens = _tokens(scope.sentence)
+    if normalize(_join(answer_tokens)) != normalize(scope.sentence):
         return None
     counts: dict[str, int] = {}
     for token in answer_tokens:
@@ -2890,19 +3097,21 @@ def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> 
     chips = _scramble([*answer_tokens, *spares[:2]], item.fingerprint)
     while chips and chips[0] in {",", ".", ";", ":", "!", "?"}:
         chips = chips[1:] + chips[:1]
-    if normalize(_join(chips)) == normalize(item.sentence) and len(chips) > 2:
+    if normalize(_join(chips)) == normalize(scope.sentence) and len(chips) > 2:
         chips = chips[1:] + chips[:1]
+    meaning_l10n: dict[str, Any] = {"en": scope.en, **({"de": scope.de} if scope.de else {})}
     payload = {
         "id": _item_id(item.unit, item, "build"),
         "prompt": _INSTRUCTIONS["forge.word_bank" if spares else "forge.word_bank_all"],
         "instruction_key": "forge.word_bank" if spares else "forge.word_bank_all",
-        "meaning_cue": item.en,
-        **_meaning_l10n(item),
-        **_goal("build", item.en, item.de),
+        "meaning_cue": scope.en,
+        **({"meaning_l10n": meaning_l10n} if scope.en else {}),
+        **({"context_l10n": dict(scope.context)} if scope.context else {}),
+        **_goal("build", scope.en, scope.de, scope.context),
         "answer_tokens": answer_tokens,
         "tokens": chips,
-        "correct_answer": item.sentence,
-        **_answer_key(item),
+        "correct_answer": scope.sentence,
+        **_answer_key(item, scope.accepted),
     }
     if lesson_external_id:
         payload["lesson_external_id"] = lesson_external_id

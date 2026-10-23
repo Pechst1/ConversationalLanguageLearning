@@ -205,6 +205,29 @@ def matches_accepted(text: Any, accepted: Any) -> bool:
     return any(tokens(answer) == said for answer in accepted or [] if str(answer or "").strip())
 
 
+def accent_slip(text: Any, accepted: Any) -> tuple[str, str, str] | None:
+    """``(accepted answer, word written, word expected)`` when ``text`` is an accepted
+    answer up to typography *and* accents — «gus a un telephone dans le salon» for
+    «Gus a un téléphone dans le salon.» — else ``None``.
+
+    #297/#174: the same words in the same order are not a different answer. The
+    keyed rungs already accept such a line and name the accent
+    (``answer_acceptance.judge``); free production shares that reading here."""
+
+    said = tokens(text)
+    if not said:
+        return None
+    for answer in accepted or []:
+        target = tokens(answer)
+        if len(target) != len(said) or target == said:
+            continue
+        if [strip_accents(token) for token in target] != [strip_accents(token) for token in said]:
+            continue
+        written, expected = next((a, b) for a, b in zip(said, target, strict=True) if a != b)
+        return str(answer), written, expected
+    return None
+
+
 def _trap_windows(wrong: str, right: str) -> tuple[list[str], list[str]] | None:
     """The ✗ and ✓ token windows of one contrast pair: the words that differ, after
     up to two words of left context («n'ai pas une» / «n'ai pas de»). A pair that
@@ -424,6 +447,46 @@ def drop_false_english(
     return kept, kept_gaps, dropped
 
 
+#: A note written for whoever authored the item, not for the learner: «the prompt gives
+#: no subject … add a subject to the prompt» (#295). The model sometimes explains why
+#: it cannot decide instead of deciding; the learner cannot act on that and a key that
+#: accepts every right answer (:func:`item_bank.ItemBank._person_variants`) makes it moot.
+_AUTHOR_NOTE = re.compile(
+    r"\b(?:add|include|give|name|specify|mention|provide)\b[^.!?]{0,80}\b(?:to|in|into) the "
+    r"(?:prompt|item|exercise|question|task|cue)\b"
+    r"|\bthe (?:prompt|item|exercise|question|task|cue)\s+(?:gives|names|offers|contains|has|provides|specifies)\s+no\b"
+    r"|\bthe (?:prompt|item|exercise|question|task|cue)\s+(?:does\s*n[o']t|doesn'?t|do\s+not)\s+"
+    r"(?:give|name|say|specify|state|show|indicate)\b"
+    r"|\b(?:prompt|item|exercise|question|task|cue)\b[^.!?]{0,40}\b(?:is|are)\s+(?:ambiguous|underspecified|unclear)\b"
+    r"|\bso (?:that )?only one answer is (?:correct|possible|valid)\b"
+    r"|\b(?:die )?(?:aufgabe|aufgabenstellung|frage)\s+(?:gibt|nennt)\s+kein"
+    r"|\b(?:l[’']énoncé|la consigne)\s+(?:ne\s+(?:donne|précise|nomme|dit)|est\s+ambigu)",
+    re.IGNORECASE,
+)
+
+
+def is_author_note(text: Any) -> bool:
+    """Does ``text`` speak to the item's author («add a subject to the prompt»)?"""
+
+    return bool(_AUTHOR_NOTE.search(" ".join(str(text or "").split())))
+
+
+def drop_author_notes(errata: list[dict[str, Any]] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """``(errata, dropped)`` without the corrections whose explanation or hint is a
+    note to the item's author — the learner is never told to fix the prompt."""
+
+    kept: list[dict[str, Any]] = []
+    dropped: list[dict[str, Any]] = []
+    for erratum in errata or []:
+        if isinstance(erratum, dict) and (
+            is_author_note(erratum.get("why_wrong")) or is_author_note(erratum.get("repair_hint"))
+        ):
+            dropped.append(erratum)
+        else:
+            kept.append(erratum)
+    return kept, dropped
+
+
 _NOTE_SENTENCE = re.compile(r"(?<=[.!?…])\s+")
 _NOTE_SENTENCES = 2
 
@@ -462,6 +525,8 @@ def notes_native(errata: list[dict[str, Any]] | None, *, extra: Any = ()) -> lis
         for item in [*(errata or []), *(extra or [])]
     ]
     for candidate in candidates:
+        if is_author_note(candidate):
+            continue
         note = clip_note(candidate)
         key = _fold_note(note)
         if not key:
@@ -529,6 +594,10 @@ def reordering_correction(
             continue
         if sorted(strip_accents(token) for token in target) != sorted(strip_accents(token) for token in said):
             continue
+        if [strip_accents(token) for token in target] == [strip_accents(token) for token in said]:
+            # #297: the same words in the same order — only an accent differs. That
+            # is a spelling slip (:func:`accent_slip`), never «Word order».
+            continue
         start = 0
         while start < len(said) and strip_accents(said[start]) == strip_accents(target[start]):
             start += 1
@@ -583,6 +652,30 @@ def refine_production_correction(
             {"learner_text": item.get("learner_text"), "reason": "french_word_called_english"}
             for item in dropped
         ]
+    slipped = accent_slip(learner_text, accepted)
+    if slipped is not None:
+        # #297: right words, right order, an accent missing: accepted, with the accent named.
+        from app.services.answer_acceptance import Verdict, feedback_note
+
+        answer, written, expected = slipped
+        note = feedback_note(
+            Verdict(correct=True, accent_slip=True, note="accent", expected=answer, learner_word=written, expected_word=expected),
+            _language(language),
+        )
+        refined.update(
+            {
+                "verdict": "correct",
+                "score_0_4": 4.0,
+                "errata": [],
+                "lexical_gaps": [],
+                "missing_targets": [],
+                "corrected_answer": answer,
+                "accent_notes": [{"item_id": "", "learner_text": str(learner_text or ""), "corrected_target": answer}],
+                "feedback_notes_native": [note] if note else [],
+                "notes_native": [note] if note else [],
+            }
+        )
+        return refined
     reordered = reordering_correction(learner_text, accepted, language)
     if reordered is not None:
         answer, erratum = reordered
@@ -685,7 +778,10 @@ __all__ = [
     "clip_note",
     "describe_diff",
     "detector_check",
+    "accent_slip",
+    "drop_author_notes",
     "drop_false_english",
+    "is_author_note",
     "fold_typography",
     "is_french_word",
     "matches_accepted",
