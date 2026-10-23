@@ -1,0 +1,60 @@
+{
+ "_doc": "#298: the line under a character's name on the Trombinoscope (and the studio header), written for the learner in the interface language. It is the ONLY text a cast card shows about who someone is: never copy world.json cast[].role / dynamic_with_user, which are briefs for the writers. Say only what the learner has seen by that person's first page, name nobody who comes later, no plot, no planning notation. tests/test_cast_card_298.py guards it.",
+ "cards": {
+  "margaux_barman": {
+   "en": "Runs Le Mistral. Says very little, sees everything.",
+   "de": "Führt das Mistral. Sagt wenig, sieht alles.",
+   "fr": "Tient Le Mistral. Parle peu, voit tout."
+  },
+  "augustin_de_roncourt": {
+   "en": "A regular. Theatrical, always in the middle of a story.",
+   "de": "Stammgast. Theatralisch, immer mitten in einer Geschichte.",
+   "fr": "Un habitué. Théâtral, toujours au milieu d'une histoire."
+  },
+  "marin_leveque": {
+   "en": "A regular. Kind, sentimental, feeds everyone.",
+   "de": "Stammgast. Herzlich, sentimental, kocht für alle.",
+   "fr": "Un habitué. Gentil, sentimental, il nourrit tout le monde."
+  },
+  "lila_bonnet": {
+   "en": "A teacher and painter. Quick, and hard to impress.",
+   "de": "Lehrerin und Malerin. Schlagfertig und schwer zu beeindrucken.",
+   "fr": "Institutrice et peintre. Vive, et difficile à impressionner."
+  },
+  "camille_marchand": {
+   "en": "Precise and dry. Comes in with a key to the first floor.",
+   "de": "Präzise und trocken. Kommt mit einem Schlüssel für den ersten Stock.",
+   "fr": "Précis et pince-sans-rire. Arrive avec une clé du premier étage."
+  },
+  "romy_tremblay": {
+   "en": "A journalist from Québec. Warm and curious.",
+   "de": "Journalistin aus Québec. Herzlich und neugierig.",
+   "fr": "Journaliste québécoise. Chaleureuse et curieuse."
+  },
+  "landlord_marchand": {
+   "en": "Owns the building. Formal, and wants everything in writing.",
+   "de": "Besitzt das Haus. Förmlich und will alles schriftlich.",
+   "fr": "Propriétaire de l'immeuble. Formel, veut tout par écrit."
+  },
+  "mme_diallo": {
+   "en": "The baker on the corner. Brisk and kind.",
+   "de": "Die Bäckerin an der Ecke. Flink und freundlich.",
+   "fr": "La boulangère du coin. Vive et gentille."
+  },
+  "maitre_vasseur": {
+   "en": "A notary. Explains the law in plain words.",
+   "de": "Notarin. Erklärt das Recht in einfachen Worten.",
+   "fr": "Notaire. Explique la loi avec des mots simples."
+  },
+  "bastien_roux": {
+   "en": "Works in real estate. Smooth and polite.",
+   "de": "Arbeitet in der Immobilienbranche. Glatt und höflich.",
+   "fr": "Travaille dans l'immobilier. Lisse et poli."
+  },
+  "odile_ferrand": {
+   "en": "Your grandmother. The flat above the café was hers.",
+   "de": "Deine Großmutter. Die Wohnung über dem Café gehörte ihr.",
+   "fr": "Ta grand-mère. L'appartement au-dessus du café était à elle."
+  }
+ }
+}
