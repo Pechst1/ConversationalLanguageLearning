@@ -7,14 +7,46 @@
  * what lies on the zinc. It publishes what the screen should show (a caption, a line, a goal, the
  * answer sheet) and waits for you: a tap to go on, a walk to the door, a reply in French.
  *
+ * Between the season's beats you act (`agency.ts`): refuse to answer, drink or refuse the café
+ * crème, take the key or leave it with Margaux, walk out (the scene waits for you), and talk to
+ * anyone in the moment before the bell and in the free walk after. What you do goes into the
+ * quarter's memory (`memory.ts`), and the end card says what it will change.
+ *
  * Replies are read by a small local reader (`classify`) that knows the two turns of this day; in
  * the app the same choice comes from the backend's classifier, with the same reply ids.
  */
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import type { Object3D } from 'three';
 
+import {
+  BARK_PLACES,
+  CAFE,
+  CAFE_OUTCOMES,
+  EXTRA_REPLIES,
+  KEY,
+  KEY_OUTCOMES,
+  LEAVE,
+  MOMENT,
+  NAMES,
+  PEOPLE as TALKERS,
+  REPLY_EFFECTS,
+  STREET_BARKS,
+  TEXT_SUITCASE,
+  TOMORROW,
+  chipsFor,
+  helloOf,
+  isRefusal,
+  readCafe,
+  readKey,
+  registerOf,
+  respond,
+} from './agency';
+import type { Choice, Line as Said } from './agency';
 import type { Hit, Quartier } from './engine';
+import { Memory, eligible } from './memory';
+import type { CastId, Effect, Value, Words } from './memory';
 import { CHAIR, MARKS } from './mistral';
+import { AMBIANCES } from './palette';
 import { PLAN } from './quai';
 import scene from './scenes/t1-a.json';
 
@@ -81,6 +113,9 @@ export interface SceneData {
 
 export const T1A = scene as unknown as SceneData;
 
+/** The day's id in the quarter's memory. */
+export const DAY = 't1a';
+
 /* ------------------------------------------------------------------------------------------ */
 /* what the screen shows                                                                      */
 /* ------------------------------------------------------------------------------------------ */
@@ -90,7 +125,7 @@ export type Native = 'en' | 'de';
 export type Phase = 'title' | 'scene' | 'answer' | 'end' | 'roam';
 
 /** The short keys the app's stylesheets use for each person's accent (`--char-*`). */
-export type CharKey = 'gus' | 'marin' | 'lila' | 'margaux' | 'camille' | 'toi';
+export type CharKey = 'gus' | 'marin' | 'lila' | 'margaux' | 'camille' | 'toi' | 'passant';
 
 export interface SpeechUi {
   who: string;
@@ -103,11 +138,36 @@ export interface SpeechUi {
 
 export interface AnswerUi {
   id: string;
+  /** a turn of the season, or one of the day's choices (the café, the key) */
+  kind: 'turn' | 'choice';
   char: CharKey;
   to: string;
   task: string;
   taskNative: string;
   chips: string[];
+}
+
+export interface TalkUi {
+  who: string;
+  char: CharKey;
+  name: string;
+  /** what they said last (a slip of register comes first) */
+  lines: Array<{ text: string; native: string; direction: string | null }>;
+  /** what you said to them */
+  you: string | null;
+  chips: string[];
+}
+
+export interface PhoneUi {
+  from: string;
+  char: CharKey;
+  text: string;
+  native: string;
+  chips: string[];
+  /** your answer, once sent */
+  sent: string | null;
+  /** theirs */
+  reply: { text: string; native: string } | null;
 }
 
 export interface StageUi {
@@ -128,15 +188,37 @@ export interface StageUi {
   progress: number;
   /** in the free walk afterwards: who you last tapped */
   met: { char: CharKey; name: string; at: number } | null;
+  /** you may walk out of the scene now */
+  canLeave: boolean;
+  /** you walked out: the scene waits */
+  away: boolean;
+  /** a line outside the script (asking why you leave, greeting you back): a tap clears it */
+  aside: SpeechUi | null;
+  /** the moment before the bell: talk to anyone, then go on */
+  moment: { text: string; native: string } | null;
+  talk: TalkUi | null;
+  /** a line someone says as you pass */
+  bark: (SpeechUi & { at: number }) | null;
+  phone: PhoneUi | null;
+  /** the end card: what you did tonight, and what it changes tomorrow */
+  recap: { did: Array<{ text: string; native: string }>; tomorrow: Array<{ text: string; native: string }> } | null;
 }
 
-export type Cue = 'bell' | 'door' | 'key' | 'cup' | 'chair' | 'paper';
+export type Cue = 'bell' | 'door' | 'key' | 'cup' | 'chair' | 'paper' | 'phone';
+
+/** What the director may ask of the passers-by (`crowd.ts`). */
+export interface Street {
+  hop(key: string): void;
+}
 
 export interface StageOptions {
   level?: Level;
   native?: Native;
   /** sounds the director asks for (the screen plays them, `audio.ts`) */
   onCue?: (cue: Cue) => void;
+  /** what the quarter remembers (the screen passes the phone's; tests a fresh one) */
+  memory?: Memory;
+  street?: Street;
 }
 
 const PEOPLE: Record<string, { char: CharKey; name: string }> = {
@@ -148,6 +230,11 @@ const PEOPLE: Record<string, { char: CharKey; name: string }> = {
   toi: { char: 'toi', name: 'Toi' },
 };
 
+/** Who someone is on the screen: their accent and the name the cards print. */
+export function personOf(key: string): { char: CharKey; name: string } | null {
+  return PEOPLE[key] ?? null;
+}
+
 /** The app's moods as the troupe's faces (the same table as `MOOD_EXPRESSION` in CastActor). */
 const MOOD_EXPRESSION: Record<string, string> = {
   neutral: 'neutre',
@@ -156,6 +243,7 @@ const MOOD_EXPRESSION: Record<string, string> = {
   moved: 'emu',
   surprised: 'surprise',
   cold: 'neutre',
+  malice: 'malice',
 };
 
 const UP = new Vector3(0, 1, 0);
@@ -175,6 +263,20 @@ export const SILENT_BEATS: Record<string, RegExp> = {
 
 /** The day's movements this director stages, in order. */
 export const STAGED = ['a.p1', 'a.p2', 'a.p3', 'a.p4', 'a.p5', 'a.turn1', 'a.turn2', 'a.hook'];
+
+/** Where the cast spend the rest of the evening, once the day is played. */
+const EVENING: Array<[string, Vector3]> = [
+  ['augustin_de_roncourt', MARKS.boothCorner],
+  ['marin_leveque', MARKS.boothMiddle],
+  ['lila_bonnet', MARKS.boothLeft],
+  ['margaux_barman', MARKS.zincInside],
+  ['camille_marchand', new Vector3(-33.95, MARKS.atZinc.y, -11.0)],
+];
+
+/** On the zinc in front of Odile's stool, where a cup nobody drinks ends up. */
+const ODILE_PLACE = new Vector3(-35.0, MARKS.zincTop.y - 0.018, -16.45);
+/** Behind the till, at the zinc's far end. */
+const BEHIND_TILL = new Vector3(-35.62, MARKS.zincTop.y + 0.0, -16.85);
 
 class Cancelled extends Error {}
 
@@ -197,11 +299,13 @@ const first = (t: string, re: RegExp) => {
 /**
  * Which of a turn's replies a French answer is closest to. A prototype's reader: a handful of
  * patterns per turn, enough for the chips and for what a beginner types; it never refuses an
- * answer, it falls back the way the season says to.
+ * answer, it falls back the way the season says to. A refusal (`agency.isRefusal`) is a reply
+ * of its own at either turn.
  */
 export function classify(turnId: string, text: string): string {
   const t = fold(text);
   const halting = /\.\.\.|…/.test(text);
+  if ((turnId === 'a.turn1' || turnId === 'a.turn2') && isRefusal(text)) return 'refuse';
   if (turnId === 'a.turn1') {
     const family = first(t, /grand ?-?(mere|pere|maman)|mamie|famille|petite?-?(fille|fils|enfant)|(ma|mon) [^.]*odile|odile[^.]*(ma|mon) |heritier|heritiere/);
     const sell = first(t, /vend|vente|a moi|proprietaire|mon appartement|l'appartement est/);
@@ -236,15 +340,36 @@ const BLANK: StageUi = {
   beat: null,
   progress: 0,
   met: null,
+  canLeave: false,
+  away: false,
+  aside: null,
+  moment: null,
+  talk: null,
+  bark: null,
+  phone: null,
+  recap: null,
 };
+
+/** What the script shows; while you are away it waits in the snapshot instead of the screen. */
+const SCRIPT_KEYS: Array<keyof StageUi> = ['caption', 'speech', 'you', 'answer', 'silent', 'waitingTap', 'moment', 'phase'];
+
+const toLine = (s: Said | { who: CastId; say: Words; mood?: string; direction?: string }): Line => ({
+  who: s.who,
+  mood: s.mood,
+  direction: s.direction,
+  say: { a2: s.say.fr, native: { en: s.say.en, de: s.say.de } },
+});
 
 export class Stage {
   ui: StageUi = { ...BLANK };
+  readonly memory: Memory;
   private listeners = new Set<(ui: StageUi) => void>();
   private gen = 0;
   private tapWait: { gen: number; resolve: () => void } | null = null;
   private answerWait: { gen: number; resolve: (text: string) => void } | null = null;
-  private goalAt: { to: Vector3; radius: number; look: Vector3 } | null = null;
+  private momentWait: { gen: number; resolve: () => void } | null = null;
+  /** where you are going; `outFirst`: only once you have been out on the quai (the way back in) */
+  private goalAt: { to: Vector3; radius: number; look: Vector3; outFirst?: boolean } | null = null;
   private goalResolve: (() => void) | null = null;
   private wayAt = 0;
   private stopTick: () => void;
@@ -252,17 +377,30 @@ export class Stage {
   private level: Level;
   private native: Native;
   private onCue?: (cue: Cue) => void;
+  private street?: Street;
   private moves = new Map<string, Movement>();
   /** where the key lies on the zinc, in front of you, and how it lies */
   private keyHome = new Vector3();
   private keyFlat = new Quaternion().setFromEuler(new Euler(0, -0.4, 0));
+  /** who has the key ring once the second turn is played */
+  private keyWith: 'zinc' | 'toi' | 'margaux' = 'zinc';
   /** lets go of whatever you are holding up */
   private holding: (() => void) | null = null;
+  /** the scene as you left it, and when */
+  private away: { snapshot: Partial<StageUi>; feet: Vector3; since: number; texted: boolean; beat: string | null; wentOut: boolean } | null = null;
+  private restore: Partial<StageUi> | null = null;
+  /** whether the script wants you held still (it is applied when you are not away) */
+  private frozenWanted = false;
+  private talking: { who: CastId; day: string; used: string[]; slipped: boolean; turns: number } | null = null;
+  private barkAt = 0;
+  private barkedBy = new Map<string, number>();
 
   constructor(private q: Quartier, private data: SceneData = T1A, opts: StageOptions = {}) {
     this.level = opts.level ?? 'a2';
     this.native = opts.native ?? 'en';
     this.onCue = opts.onCue;
+    this.street = opts.street;
+    this.memory = opts.memory ?? new Memory(false);
     data.movements.forEach((m) => this.moves.set(m.id, m));
     this.stopTick = q.onTick(() => this.tick());
     this.stopHit = q.on((hit) => this.hit(hit));
@@ -284,9 +422,46 @@ export class Stage {
     this.native = native;
   }
 
+  setStreet(street: Street | undefined) {
+    this.street = street;
+  }
+
+  /** The script's changes: while you are away, what it shows waits for your return. */
   private set(patch: Partial<StageUi>) {
+    if (this.away) {
+      const live: Partial<StageUi> = {};
+      (Object.keys(patch) as Array<keyof StageUi>).forEach((k) => {
+        if (SCRIPT_KEYS.includes(k)) (this.away!.snapshot as Record<string, unknown>)[k] = patch[k];
+        else (live as Record<string, unknown>)[k] = patch[k];
+      });
+      this.show(live);
+      return;
+    }
+    if (this.restore) {
+      // a line was greeting you back: what the script shows now replaces the scene you left
+      Object.assign(this.restore, patch);
+    }
+    this.show(patch);
+  }
+
+  /** Straight to the screen. */
+  private show(patch: Partial<StageUi>) {
+    if (!Object.keys(patch).length) return;
     this.ui = { ...this.ui, ...patch };
     this.listeners.forEach((fn) => fn(this.ui));
+  }
+
+  private say(words: Words) {
+    return { text: words.fr, native: words[this.native] };
+  }
+
+  private speechOf(who: string, words: Words, direction: string | null = null): SpeechUi {
+    const p = PEOPLE[who] ?? { char: 'passant' as CharKey, name: 'Quelqu’un' };
+    return { who, char: p.char, name: p.name, text: words.fr, native: words[this.native], direction };
+  }
+
+  private remember(effects: Effect | Effect[] | undefined, day = DAY) {
+    this.memory.apply(day, effects);
   }
 
   /* ---- what the screen calls ------------------------------------------------------------- */
@@ -304,6 +479,11 @@ export class Stage {
 
   /** Go on (a tap on the card or anywhere on the street). */
   tap() {
+    if (this.ui.aside) {
+      this.dismissAside();
+      return;
+    }
+    if (this.away) return;
     const w = this.tapWait;
     if (w) {
       this.tapWait = null;
@@ -311,8 +491,9 @@ export class Stage {
     }
   }
 
-  /** Your reply to the current turn. */
+  /** Your reply to the current turn (or choice). */
   answer(text: string) {
+    if (this.away) return;
     const w = this.answerWait;
     if (w && text.trim()) {
       this.answerWait = null;
@@ -335,26 +516,226 @@ export class Stage {
     }
   }
 
+  /** «Continuer», from the moment before the bell. */
+  goOn() {
+    const m = this.momentWait;
+    if (m && !this.away) {
+      this.momentWait = null;
+      m.resolve();
+    }
+  }
+
   replay() {
     void this.play();
   }
 
   /** After the end card: the quarter is yours to walk. */
   roam() {
-    this.gen++;
+    const gen = ++this.gen;
     this.clearWaits();
-    // you put the key ring down where it was
+    this.away = null;
+    this.restore = null;
+    this.talking = null;
+    // you put the key ring down where it was, unless it is in your pocket or behind the till
     this.letGo();
     const key = this.prop('key');
     if (key) {
       key.position.copy(this.keyHome);
       key.quaternion.copy(this.keyFlat);
+      key.visible = this.keyWith === 'zinc';
     }
     this.q.frozen = false;
+    this.frozenWanted = false;
     this.q.look(null);
     this.q.lens(60);
     this.q.showWay(null);
-    this.set({ ...BLANK, phase: 'roam', progress: 1 });
+    this.q.openDoor(false);
+    this.show({ ...BLANK, phase: 'roam', progress: 1 });
+    // the evening goes on: everyone back to their place
+    for (const [k, at] of EVENING) {
+      const f = this.fig(k);
+      if (!f || !f.visible) continue;
+      f.seat = 0;
+      f.lift = 0;
+      void this.walkFig(gen, k, at, 0.9).catch(() => undefined);
+    }
+  }
+
+  /** Walk out of the scene. It waits: come back through the door to pick it up where it was. */
+  leave() {
+    if (!this.ui.canLeave || this.away) return;
+    const s = this.ui;
+    this.away = {
+      snapshot: { caption: s.caption, speech: s.speech, you: s.you, answer: s.answer, silent: s.silent, waitingTap: s.waitingTap, moment: s.moment, phase: s.phase },
+      feet: this.q.feet.clone(),
+      since: performance.now(),
+      texted: false,
+      beat: s.beat,
+      wentOut: false,
+    };
+    if (!this.memory.fact('t1.walked_out')) this.remember(LEAVE.effects);
+    this.talking = null;
+    this.letGo();
+    this.q.frozen = false;
+    this.q.look(null);
+    this.q.lens(60);
+    this.q.openDoor(true);
+    this.onCue?.('bell');
+    // the way back in is the doorway you walk out through: it counts once you have been outside
+    this.goalAt = { to: MARKS.doorIn.clone(), radius: 0.9, look: MARKS.atZinc.clone().setY(1.6), outFirst: true };
+    this.goalResolve = () => this.comeBack();
+    this.wayAt = performance.now() + 2500;
+    this.show({
+      caption: null,
+      speech: null,
+      you: null,
+      answer: null,
+      silent: false,
+      waitingTap: false,
+      moment: null,
+      talk: null,
+      phase: 'scene',
+      away: true,
+      canLeave: false,
+      aside: this.speechOf(LEAVE.asked.who, LEAVE.asked.say),
+      goal: { label: LEAVE.goal.fr, native: LEAVE.goal[this.native] },
+    });
+    void this.q.walkTo(MARKS.doorOut, 1.6).then(() => {
+      if (this.away && this.ui.aside) this.show({ aside: null });
+    });
+  }
+
+  private comeBack() {
+    const a = this.away;
+    if (!a) return;
+    this.away = null;
+    this.q.openDoor(false);
+    this.onCue?.('door');
+    const resume = a.beat === 'a.p2' ? LEAVE.resumeGus : LEAVE.resume;
+    this.restore = a.snapshot;
+    const f = this.fig(resume.who);
+    if (f) {
+      f.talk(1.6);
+      this.q.look(f.face(), 2.6);
+    }
+    this.show({ away: false, goal: null, aside: this.speechOf(resume.who, resume.say) });
+    void this.q.walkTo(a.feet, 1.9).then(() => {
+      if (!this.away) this.q.frozen = this.frozenWanted;
+    });
+  }
+
+  private dismissAside() {
+    const r = this.restore;
+    this.restore = null;
+    this.show({ aside: null, ...(r ?? {}) });
+    if (r && !this.away) this.q.frozen = this.frozenWanted && !this.q.walking ? true : this.q.frozen;
+  }
+
+  /** Talk to someone in the room (in the moment before the bell, or in the free walk). */
+  talkTo(key: string) {
+    const id = key as CastId;
+    if (!TALKERS[id] || this.away) return;
+    const f = this.fig(key);
+    if (!f || !f.visible) return;
+    const day = this.ui.phase === 'roam' ? 'roam' : DAY;
+    if (!this.memory.state()[`met.${id}`]) this.remember({ kind: 'meet', who: id }, day);
+    const state = this.memory.state();
+    const h = helloOf(id, state);
+    this.talking = { who: id, day, used: [], slipped: false, turns: 0 };
+    f.hop();
+    f.talk(1.2);
+    this.face(id, h.mood);
+    this.lookAbove(f.face());
+    this.onCue?.('paper');
+    const p = PEOPLE[key];
+    this.show({ talk: { who: key, char: p.char, name: p.name, lines: [{ ...this.say(h.say), direction: null }], you: null, chips: chipsFor(id, state) }, bark: null });
+  }
+
+  /** What you say to them. */
+  talkSay(text: string) {
+    const t = this.talking;
+    const talk = this.ui.talk;
+    if (!t || !talk || !text.trim()) return;
+    const r = respond(t.who, text, this.memory.state(), { slipped: t.slipped, turn: t.turns, used: t.used });
+    const reg = registerOf(text);
+    if (reg && reg !== TALKERS[t.who].register) t.slipped = true;
+    t.turns++;
+    if (r.intent) t.used.push(r.intent);
+    this.remember(r.effects, t.day);
+    const last = r.lines[r.lines.length - 1];
+    this.face(t.who, last?.mood);
+    const f = this.fig(t.who);
+    f?.talk(0.9 + r.lines.reduce((s, l) => s + l.say.fr.length, 0) * 0.045);
+    this.show({
+      talk: {
+        ...talk,
+        you: text.trim(),
+        lines: r.lines.map((l) => ({ ...this.say(l.say), direction: l.direction ?? null })),
+        chips: chipsFor(t.who, this.memory.state(), t.used),
+      },
+    });
+  }
+
+  endTalk() {
+    if (!this.talking && !this.ui.talk) return;
+    this.talking = null;
+    this.q.look(null);
+    this.show({ talk: null });
+  }
+
+  /** A passer-by (`crowd.ts`) you passed close to, or tapped: maybe a line. */
+  passerby(key: string, tapped: boolean) {
+    const now = performance.now();
+    const ui = this.ui;
+    if (ui.phase === 'title' || ui.phase === 'end' || ui.talk || ui.answer || ui.aside || ui.phone || ui.caption || ui.speech) return;
+    if (tapped) this.street?.hop(key);
+    if (!tapped && (now - this.barkAt < 9000 || now - (this.barkedBy.get(key) ?? -1e9) < 60000)) return;
+    if (tapped && now - (this.barkedBy.get(key) ?? -1e9) < 1500) return;
+    const a = AMBIANCES[this.q.ambiance];
+    const state: Record<string, Value> = { ...this.memory.state(), rain: a.rain, night: a.night > 0.5 };
+    const list = eligible(STREET_BARKS, state);
+    if (!list.length) return;
+    // a weighted draw: the more salient, the likelier; never the same line twice in a row
+    const pool = list.filter((b) => b.id !== this.lastBark);
+    const total = pool.reduce((s, b) => s + 1 + (b.salience ?? 0), 0);
+    let roll = Math.random() * total;
+    const b = pool.find((x) => (roll -= 1 + (x.salience ?? 0)) < 0) ?? pool[0];
+    this.lastBark = b.id;
+    this.barkAt = now;
+    this.barkedBy.set(key, now);
+    this.show({ bark: { ...this.speechOf(key, b.say), at: now } });
+    const place = BARK_PLACES[b.id];
+    if (place && !state[`place.${place}`]) this.remember({ kind: 'place', id: place, status: 'noticed' }, 'roam');
+  }
+
+  private lastBark = '';
+
+  /** Your answer to a text. */
+  phoneReply(text: string) {
+    const p = this.ui.phone;
+    if (!p || p.sent || !text.trim()) return;
+    const sent = text.trim();
+    this.show({ phone: { ...p, sent } });
+    this.remember({ kind: 'journal', who: TEXT_SUITCASE.who, words: { fr: `Tu as répondu à Margaux : « ${sent} »`, en: `You replied to Margaux: “${sent}”`, de: `Du hast Margaux geantwortet: „${sent}“` } });
+    const gen = this.gen;
+    const at = performance.now() + 1500;
+    const stop = this.q.onTick(() => {
+      if (gen !== this.gen) {
+        stop();
+        return;
+      }
+      if (performance.now() < at) return;
+      stop();
+      const now = this.ui.phone;
+      if (now && now.sent === sent) {
+        this.onCue?.('phone');
+        this.show({ phone: { ...now, reply: this.say(TEXT_SUITCASE.answer) } });
+      }
+    });
+  }
+
+  closePhone() {
+    this.show({ phone: null });
   }
 
   dispose() {
@@ -369,20 +750,37 @@ export class Stage {
   /* ---- input and the frame --------------------------------------------------------------- */
 
   private hit(hit: Hit) {
-    if (this.tapWait) {
+    if (this.ui.aside && !this.away) {
+      this.tap();
+      return;
+    }
+    if (this.tapWait && !this.away) {
       this.tap();
       return;
     }
     const phase = this.ui.phase;
-    if (phase === 'roam') {
+    const free = phase === 'roam' || Boolean(this.ui.moment) || this.away;
+    if (free) {
       if (hit.kind === 'person') {
+        if (hit.key.startsWith('passant:')) {
+          this.passerby(hit.key, true);
+          return;
+        }
+        if (this.away) return;
+        if (TALKERS[hit.key as CastId]) {
+          this.talkTo(hit.key);
+          return;
+        }
         const f = this.q.troupe.get(hit.key);
         f?.hop();
         this.onCue?.('paper');
         const who = PEOPLE[hit.key];
-        if (who) this.set({ met: { char: who.char, name: who.name, at: performance.now() } });
+        if (who) this.show({ met: { char: who.char, name: who.name, at: performance.now() } });
       } else if (hit.kind === 'ground') {
+        if (this.ui.talk) this.endTalk();
         void this.q.walkTo(hit.point);
+      } else if (hit.kind === 'spot' && this.away) {
+        this.go();
       }
       return;
     }
@@ -393,19 +791,55 @@ export class Stage {
   }
 
   private tick() {
-    if (!this.goalAt) return;
     const now = performance.now();
-    if (now - this.wayAt > 900 && !this.q.walking) {
-      this.wayAt = now;
-      this.q.showWay(this.goalAt.to);
+    if (this.goalAt) {
+      if (now - this.wayAt > 900 && !this.q.walking) {
+        this.wayAt = now;
+        this.q.showWay(this.goalAt.to);
+      }
+      this.checkGoal(false);
     }
-    this.checkGoal(false);
+    // a passing line fades by itself
+    if (this.ui.bark && now - this.ui.bark.at > 6500) this.show({ bark: null });
+    // a text from Margaux, if you stay away
+    const a = this.away;
+    if (a && !a.wentOut && !this.q.indoors) a.wentOut = true;
+    if (a && !a.texted && now - a.since > LEAVE.textAfter * 1000) {
+      a.texted = true;
+      this.textFromMargaux();
+    }
+    // may you walk out now?
+    const phase = this.ui.phase;
+    const canLeave = !this.away && !this.goalAt && this.q.indoors && !this.ui.talk && (phase === 'scene' || phase === 'answer' || Boolean(this.ui.moment)) && this.data.movements.length > 0;
+    if (canLeave !== this.ui.canLeave) this.show({ canLeave });
+    // in the free walk, the cast notice you as you pass
+    if (phase === 'roam' && !this.ui.talk && now - this.barkAt > 6000) {
+      const state = this.memory.state();
+      this.q.troupe.people.forEach((f, key) => {
+        if (now - this.barkAt < 6000 || !TALKERS[key as CastId] || !f.visible) return;
+        const d = Math.hypot(f.pos.x - this.q.feet.x, f.pos.z - this.q.feet.z);
+        if (d > 2.4 || now - (this.barkedBy.get(key) ?? -1e9) < 40000) return;
+        const h = helloOf(key as CastId, state);
+        this.barkAt = now;
+        this.barkedBy.set(key, now);
+        f.talk(1.4);
+        this.show({ bark: { ...this.speechOf(key, h.say), at: now } });
+      });
+    }
+  }
+
+  private textFromMargaux() {
+    const t = TEXT_SUITCASE;
+    this.remember(t.effects);
+    this.onCue?.('phone');
+    this.show({ phone: { from: t.from, char: 'margaux', text: t.say.fr, native: t.say[this.native], chips: t.chips, sent: null, reply: null } });
   }
 
   private checkGoal(force: boolean) {
     const g = this.goalAt;
     if (!g) return;
     const d = Math.hypot(this.q.feet.x - g.to.x, this.q.feet.z - g.to.z);
+    if (!force && g.outFirst && !this.away?.wentOut) return;
     if (force || d < g.radius) {
       this.goalAt = null;
       this.q.showWay(null);
@@ -419,8 +853,30 @@ export class Stage {
   private clearWaits() {
     this.tapWait = null;
     this.answerWait = null;
+    this.momentWait = null;
     this.goalAt = null;
     this.goalResolve = null;
+  }
+
+  /* ---- what the script may do to you, unless you walked out --------------------------------- */
+
+  private look(target: Vector3 | null, strength?: number) {
+    if (!this.away) this.q.look(target, strength);
+  }
+
+  private lens(fov: number) {
+    if (!this.away) this.q.lens(fov);
+  }
+
+  private freeze(on: boolean) {
+    this.frozenWanted = on;
+    if (!this.away && !this.restore) this.q.frozen = on;
+  }
+
+  /** Look so that `p` sits in the top half of the frame, clear of the sheet at the bottom. */
+  private lookAbove(p: Vector3, strength = 2.4) {
+    const d = this.q.camera.position.distanceTo(p);
+    this.look(p.clone().add(new Vector3(0, -d * 0.26, 0)), strength);
   }
 
   /* ---- the waits the script is made of ----------------------------------------------------- */
@@ -471,8 +927,8 @@ export class Stage {
   /** A place to reach on foot, with the dotted way and «Y aller». */
   private async reach(gen: number, goal: keyof typeof GOALS, to: Vector3, radius: number, look: Vector3) {
     const g = GOALS[goal];
-    this.q.frozen = false;
-    this.q.look(null);
+    this.freeze(false);
+    this.look(null);
     this.goalAt = { to: to.clone(), radius, look };
     this.wayAt = 0;
     this.set({ goal: { label: g.label, native: g.native[this.native] } });
@@ -481,21 +937,38 @@ export class Stage {
     });
     this.alive(gen);
     this.set({ goal: null });
-    this.q.frozen = true;
+    this.freeze(true);
   }
 
   private async replyFrom(gen: number, turn: Turn) {
     const who = PEOPLE[turn.to] ?? PEOPLE.toi;
-    const chips = turn.replies.map((r) => r.examples[0]).filter(Boolean);
+    const chips = [...turn.replies, ...(EXTRA_REPLIES[turn.id] ?? [])].map((r) => r.examples[0]).filter(Boolean);
     this.set({
       phase: 'answer',
-      answer: { id: turn.id, char: who.char, to: who.name, task: turn.task.fr, taskNative: turn.task[this.native], chips },
+      answer: { id: turn.id, kind: 'turn', char: who.char, to: who.name, task: turn.task.fr, taskNative: turn.task[this.native], chips },
     });
     const text = await new Promise<string>((resolve) => {
       this.answerWait = { gen, resolve };
     });
     this.alive(gen);
     this.set({ phase: 'scene', answer: null, you: text, speech: null });
+    return text;
+  }
+
+  /** One of the day's choices: the same sheet as a turn, with its own chips. */
+  private async choose(gen: number, c: Choice) {
+    const who = PEOPLE[c.who];
+    this.set({
+      phase: 'answer',
+      answer: { id: c.id, kind: 'choice', char: who.char, to: who.name, task: c.task.fr, taskNative: c.task[this.native], chips: c.chips },
+    });
+    const text = await new Promise<string>((resolve) => {
+      this.answerWait = { gen, resolve };
+    });
+    this.alive(gen);
+    this.set({ phase: 'scene', answer: null, you: text, speech: null });
+    await this.wait(gen, 1.0);
+    this.set({ you: null });
     return text;
   }
 
@@ -507,6 +980,13 @@ export class Stage {
 
   private faceOf(key: string) {
     return this.fig(key)?.face() ?? MARKS.zincTop.clone();
+  }
+
+  private face(key: string, mood?: string) {
+    const f = this.fig(key);
+    if (!f) return;
+    const expression = MOOD_EXPRESSION[mood ?? 'neutral'] ?? 'neutre';
+    if (expression !== f.expression) void this.q.troupe.face(key, expression, f.gesture);
   }
 
   private text(say: Say) {
@@ -524,11 +1004,11 @@ export class Stage {
     const f = this.fig(line.who);
     const text = this.text(line.say);
     if (f) {
-      const expression = MOOD_EXPRESSION[line.mood ?? 'neutral'] ?? 'neutre';
-      if (expression !== f.expression) void this.q.troupe.face(line.who, expression, f.gesture);
+      this.face(line.who, line.mood);
       f.talk(0.9 + text.length * 0.045);
-      this.q.look(f.face(), 3.4);
+      this.look(f.face(), 3.4);
     }
+    if (TALKERS[line.who as CastId] && !this.memory.state()[`met.${line.who}`]) this.remember({ kind: 'meet', who: line.who as CastId });
     const name = line.who === 'camille_marchand' && !this.camilleNamed ? 'Quelqu’un' : who.name;
     if (line.who === 'camille_marchand') this.camilleNamed = true;
     this.set({
@@ -647,6 +1127,7 @@ export class Stage {
     const q = this.q;
     q.stop();
     q.frozen = false;
+    this.frozenWanted = false;
     q.look(null);
     q.lens(60);
     q.openDoor(false);
@@ -675,6 +1156,7 @@ export class Stage {
     }
     // the zinc, empty; the chair tucked in
     this.keyHome.set(MARKS.atZinc.x - 1.25, MARKS.zincTop.y + 0.008, MARKS.atZinc.z + 0.05);
+    this.keyWith = 'zinc';
     this.letGo();
     for (const k of ['key', 'envelope', 'cup']) {
       const p = this.prop(k);
@@ -687,6 +1169,9 @@ export class Stage {
       chair.rotation.set(0, 0, 0);
     }
     this.camilleNamed = false;
+    this.away = null;
+    this.restore = null;
+    this.talking = null;
   }
 
   private progress(id: string) {
@@ -698,21 +1183,46 @@ export class Stage {
     const gen = ++this.gen;
     this.clearWaits();
     this.reset();
-    this.set({ ...BLANK, phase: 'scene' });
+    this.memory.beginDay(DAY);
+    this.remember([
+      { kind: 'place', id: 'quai_de_valmy', status: 'visited' },
+      { kind: 'item', id: 'cle_cigale', holder: 'toi' },
+      { kind: 'item', id: 'enveloppe', holder: 'toi' },
+    ]);
+    this.show({ ...BLANK, phase: 'scene' });
     try {
       await this.p1(gen);
+      this.remember({ kind: 'place', id: 'le_mistral', status: 'visited' });
       await this.p2(gen);
       await this.p3(gen);
       await this.p4(gen);
       await this.p5(gen);
       await this.turn1(gen);
       await this.turn2(gen);
+      await this.moment(gen);
       await this.hook(gen);
-      this.q.frozen = false;
+      this.freeze(false);
       this.set({ phase: 'end', speech: null, caption: null, silent: false, progress: 1 });
+      this.show({ recap: this.recap(), canLeave: false });
     } catch (e) {
       if (!(e instanceof Cancelled)) throw e;
     }
+  }
+
+  /** The end card: tonight's choices in the order you made them, and what tomorrow holds. */
+  private recap(): StageUi['recap'] {
+    const did = this.memory
+      .journal()
+      .filter((j) => j.day === DAY)
+      .slice(0, 4)
+      .reverse()
+      .map((j) => this.say(j.words));
+    const seen = new Set<string>();
+    const tomorrow = eligible(TOMORROW, this.memory.state())
+      .filter((b) => !seen.has(b.say.fr) && seen.add(b.say.fr))
+      .slice(0, 2)
+      .map((b) => this.say(b.say));
+    return { did, tomorrow };
   }
 
   private panelOf(id: string): Panel {
@@ -725,21 +1235,21 @@ export class Stage {
   private async p1(gen: number) {
     this.progress('a.p1');
     const q = this.q;
-    q.frozen = true;
+    this.freeze(true);
     // your eyes go to the window where Gus is holding forth, then they are yours
-    q.look(new Vector3(-28.6, 2.6, -14.5), 0.9);
+    this.look(new Vector3(-28.6, 2.6, -14.5), 0.9);
     await this.lines(gen, this.panelOf('a.p1'));
     this.set({ caption: null });
     await this.reach(gen, 'door', MARKS.doorOut, 1.25, new Vector3(-30.5, 1.7, -10.5));
     // the bell, the warmth; two steps in and the door swings shut behind you
     q.openDoor(true);
     this.onCue?.('bell');
-    q.look(this.faceOf('augustin_de_roncourt'), 1.6);
+    this.look(this.faceOf('augustin_de_roncourt'), 1.6);
     await this.wait(gen, 0.7);
-    q.frozen = false;
+    this.freeze(false);
     await q.walkTo(MARKS.doorIn, 1.15);
     this.alive(gen);
-    q.frozen = true;
+    this.freeze(true);
     q.openDoor(false);
     this.onCue?.('door');
   }
@@ -759,9 +1269,8 @@ export class Stage {
     this.progress('a.p3');
     this.set({ speech: null });
     await this.reach(gen, 'zinc', MARKS.atZinc, 0.75, MARKS.zincTop);
-    const q = this.q;
-    q.look(this.keyHome, 2.6);
-    q.lens(42);
+    this.look(this.keyHome, 2.6);
+    this.lens(42);
     await this.silent(gen, 2.6, async () => {
       await this.wait(gen, 0.5);
       const env = this.prop('envelope');
@@ -783,7 +1292,7 @@ export class Stage {
       await this.wait(gen, 0.6);
       this.fig('margaux_barman')?.hop();
     });
-    q.lens(60);
+    this.lens(60);
   }
 
   /** a.p4 · Gus steps down from the bench and crosses the room, bowing far too deep. */
@@ -793,8 +1302,8 @@ export class Stage {
     const panel = this.panelOf('a.p4');
     if (gus) {
       void this.q.troupe.face('augustin_de_roncourt', 'neutre', null);
-      this.q.look(gus.face(), 2.2);
-      const follow = this.q.onTick(() => this.q.look(gus.face(), 2.2));
+      this.look(gus.face(), 2.2);
+      const follow = this.q.onTick(() => this.look(gus.face(), 2.2));
       await this.walkFig(gen, 'augustin_de_roncourt', MARKS.bowStop, 1.05);
       follow();
       gus.bow(0.72, 1.8);
@@ -816,7 +1325,7 @@ export class Stage {
     const marin = this.fig('marin_leveque');
     if (marin) {
       marin.hop();
-      this.q.look(marin.face(), 2.4);
+      this.look(marin.face(), 2.4);
       await this.walkFig(gen, 'marin_leveque', MARKS.pulledChair, 1.0);
       const chair = this.prop('chair');
       if (chair) {
@@ -832,7 +1341,7 @@ export class Stage {
     await this.lines(gen, panel, async (line, i) => {
       // Lila's line is a deduction from the evidence: she looks at your feet, and so do you
       if (line.who === 'lila_bonnet' && i === 2) {
-        this.q.look(new Vector3(this.q.feet.x, 0.1, this.q.feet.z).add(this.towardRoom(0.5)), 2.6);
+        this.look(new Vector3(this.q.feet.x, 0.1, this.q.feet.z).add(this.towardRoom(0.5)), 2.6);
         await this.wait(gen, 0.9);
       }
     });
@@ -843,12 +1352,28 @@ export class Stage {
     return d.multiplyScalar(len);
   }
 
+  private replyOf(turn: Turn, replyId: string): Reply {
+    const all = [...turn.replies, ...((EXTRA_REPLIES[turn.id] ?? []) as unknown as Reply[])];
+    return all.find((r) => r.id === replyId) ?? turn.replies.find((r) => r.id === turn.fallback) ?? turn.replies[0];
+  }
+
   private async turnBeats(gen: number, turn: Turn, replyId: string) {
-    const reply = turn.replies.find((r) => r.id === replyId) ?? turn.replies.find((r) => r.id === turn.fallback) ?? turn.replies[0];
+    const reply = this.replyOf(turn, replyId);
     this.set({ beat: `${turn.id}.${reply.id}` });
+    this.remember(REPLY_EFFECTS[`${turn.id}.${reply.id}`]);
     await this.wait(gen, 1.2);
     this.set({ you: null });
     for (const beat of reply.beats) await this.beat(gen, beat);
+    return reply.id;
+  }
+
+  /** Speak a few of the prototype's own lines (agency.ts), as the season's are spoken. */
+  private async said(gen: number, lines: Said[], before?: (line: Said) => Promise<void> | void) {
+    for (const l of lines) {
+      if (before) await before(l);
+      this.alive(gen);
+      await this.speak(gen, toLine(l));
+    }
   }
 
   /** a.turn1 · Gus at the zinc beside you: who are you, exactly? */
@@ -857,13 +1382,72 @@ export class Stage {
     const turn = this.moves.get('a.turn1') as Turn;
     const gus = this.fig('augustin_de_roncourt');
     if (gus) {
-      const follow = this.q.onTick(() => this.q.look(gus.face(), 2.0));
+      const follow = this.q.onTick(() => this.look(gus.face(), 2.0));
       await this.walkFig(gen, 'augustin_de_roncourt', MARKS.zincBeside, 0.9);
       follow();
     }
     await this.lines(gen, turn.panel);
     const text = await this.replyFrom(gen, turn);
-    await this.turnBeats(gen, turn, classify(turn.id, text));
+    const replyId = await this.turnBeats(gen, turn, classify(turn.id, text));
+    // the cup is in front of you: drink it, or not
+    const cup = this.prop('cup');
+    if ((replyId === 'a' || replyId === 'c') && cup?.visible) await this.cafe(gen);
+  }
+
+  /** The café crème nobody ordered: drink it, refuse it politely, or refuse it curtly. */
+  private async cafe(gen: number) {
+    const cup = this.prop('cup');
+    if (cup) this.lookAbove(cup.position);
+    const outcome = readCafe(await this.choose(gen, CAFE));
+    const out = CAFE_OUTCOMES[outcome];
+    this.set({ beat: `a.cafe.${outcome}` });
+    if (outcome === 'drink') {
+      await this.said(gen, out.lines.slice(0, 1));
+      if (cup) {
+        // a sip: the cup comes up to you, and back down
+        this.onCue?.('cup');
+        const home = cup.position.clone();
+        const flat = cup.quaternion.clone();
+        await this.carry(gen, cup, 0.7, () => {
+          const g = this.inView(0.0, 0.42, 0.42);
+          return { pos: g.pos, turn: flat };
+        });
+        await this.wait(gen, 0.9);
+        await this.carry(gen, cup, 0.6, () => ({ pos: home, turn: flat }));
+      }
+      await this.said(gen, out.lines.slice(1));
+    } else if (outcome === 'polite') {
+      // nobody says anything: Margaux slides the cup to the end of the zinc, in front of Odile's stool
+      await this.silent(gen, 2.0, async () => {
+        const margaux = this.fig('margaux_barman');
+        if (margaux) this.look(margaux.face(), 2.4);
+        await this.wait(gen, 0.4);
+        if (cup) {
+          this.look(ODILE_PLACE, 2.0);
+          const from = cup.position.clone();
+          await this.tween(gen, 1.1, (t) => cup.position.lerpVectors(from, ODILE_PLACE, t));
+        }
+      });
+    } else {
+      // an eyebrow; the cup goes back; Gus shrugs
+      void this.q.troupe.face('margaux_barman', 'surprise', null);
+      await this.silent(gen, 1.6, async () => {
+        const margaux = this.fig('margaux_barman');
+        if (margaux) this.look(margaux.face(), 2.6);
+        await this.wait(gen, 0.6);
+        if (cup) {
+          const from = cup.position.clone();
+          const to = from.clone().add(new Vector3(-0.6, 0, 0));
+          await this.tween(gen, 0.6, (t) => cup.position.lerpVectors(from, to, t));
+          cup.visible = false;
+        }
+      });
+      void this.q.troupe.face('margaux_barman', 'neutre', null);
+      await this.said(gen, out.lines, (l) => {
+        if (l.who === 'augustin_de_roncourt') this.fig(l.who)?.bow(0.18, 0.9);
+      });
+    }
+    this.remember(out.effects);
   }
 
   /** a.turn2 · Margaux turns the cicada in her fingers: are you going up? */
@@ -884,8 +1468,62 @@ export class Stage {
     await this.lines(gen, turn.panel);
     const text = await this.replyFrom(gen, turn);
     await this.turnBeats(gen, turn, classify(turn.id, text));
-    // whatever was said, the key ends up back on the zinc in front of you
+    // whatever was said, the key ends up back on the zinc in front of you: yours to take, or not
     await this.keyBack(gen);
+    await this.takeKey(gen);
+  }
+
+  /** The key ring on the zinc: take it, or leave it with Margaux (behind the till). */
+  private async takeKey(gen: number) {
+    this.lookAbove(this.keyHome);
+    const outcome = readKey(await this.choose(gen, KEY));
+    const out = KEY_OUTCOMES[outcome];
+    this.set({ beat: `a.key.${outcome}` });
+    const key = this.prop('key');
+    if (outcome === 'take') {
+      if (key) {
+        this.onCue?.('key');
+        await this.carry(gen, key, 0.5, () => this.inView(0.25, 0.55, 0.45));
+        await this.wait(gen, 0.5);
+        await this.carry(gen, key, 0.35, () => this.inView(0.3, 1.4, 0.45));
+        key.visible = false;
+      }
+      this.keyWith = 'toi';
+    } else {
+      const margaux = this.fig('margaux_barman');
+      if (key && margaux) {
+        this.onCue?.('key');
+        const hand = margaux.pos.clone().add(new Vector3(0.42, 0.98, 0.3));
+        await this.carry(gen, key, 0.7, () => ({ pos: hand, turn: this.keyFlat }));
+      }
+      await this.said(gen, out.lines);
+      if (key) {
+        await this.carry(gen, key, 0.6, () => ({ pos: BEHIND_TILL, turn: this.keyFlat }));
+        key.visible = false;
+      }
+      this.keyWith = 'margaux';
+    }
+    this.remember(out.effects);
+  }
+
+  /** The moment before the bell: the room is yours to walk, anyone to talk to. */
+  private async moment(gen: number) {
+    this.progress('a.turn2');
+    this.set({ beat: 'a.moment', moment: this.say(MOMENT.caption), speech: null, caption: null });
+    this.freeze(false);
+    this.look(null);
+    await new Promise<void>((resolve) => {
+      this.momentWait = { gen, resolve };
+    });
+    this.alive(gen);
+    this.endTalk();
+    this.set({ moment: null });
+    // back to the zinc for the bell
+    if (Math.hypot(this.q.feet.x - MARKS.atZinc.x, this.q.feet.z - MARKS.atZinc.z) > 0.6) {
+      await this.q.walkTo(MARKS.atZinc, 2.2);
+      this.alive(gen);
+    }
+    this.freeze(true);
   }
 
   /** a.hook · the bell again: someone in a wet helmet holds up a key. Two keys, one door. */
@@ -901,14 +1539,14 @@ export class Stage {
       camille.visible = true;
     }
     for (const k of ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet']) this.fig(k)?.hop();
-    q.look(this.faceOf('camille_marchand'), 2.4);
+    this.look(this.faceOf('camille_marchand'), 2.4);
     await this.wait(gen, 1.0);
     await this.lines(gen, panel, async (line) => {
       if (line.who === 'augustin_de_roncourt') {
         const gus = this.fig('augustin_de_roncourt');
         if (gus) {
           gus.seat = 0;
-          // he stops short of her and to one side, so you still see her past him
+          // he stops short of Camille and to one side, so you still see Camille past him
           const stop = this.before(MARKS.doorway, MARKS.atZinc, 1.5);
           const d = MARKS.doorway.clone().sub(MARKS.atZinc).setY(0).normalize();
           stop.addScaledVector(new Vector3(-d.z, 0, d.x), 0.95);
@@ -918,19 +1556,35 @@ export class Stage {
         }
       }
       if (line.who === 'caption') {
-        // two keys in one frame: yours, held up in front of you; hers, in the doorway
-        q.look(this.faceOf('camille_marchand'), 2.0);
-        q.lens(52);
         const key = this.prop('key');
-        if (key) {
-          this.onCue?.('key');
-          await this.carry(gen, key, 0.7, () => this.inView(-0.42, 0.42, 0.5));
-          this.hold(key, -0.42, 0.42, 0.5);
+        if (this.keyWith === 'margaux') {
+          // two keys in one frame: Camille's in the doorway, and yours, held up behind the till
+          const margaux = this.fig('margaux_barman');
+          if (key && margaux) {
+            const hand = margaux.pos.clone().add(new Vector3(0.38, 1.12, 0.32));
+            key.position.copy(BEHIND_TILL);
+            key.visible = true;
+            this.onCue?.('key');
+            this.look(hand, 2.0);
+            this.lens(52);
+            const turn = this.facing(hand.clone().sub(this.q.camera.position), 0.3);
+            await this.carry(gen, key, 0.8, () => ({ pos: hand, turn }));
+          }
+        } else {
+          // two keys in one frame: yours, held up in front of you; hers, in the doorway
+          this.look(this.faceOf('camille_marchand'), 2.0);
+          this.lens(52);
+          if (key) {
+            key.visible = true;
+            this.onCue?.('key');
+            await this.carry(gen, key, 0.7, () => this.inView(-0.42, 0.42, 0.5));
+            this.hold(key, -0.42, 0.42, 0.5);
+          }
         }
       }
     });
     q.openDoor(false);
-    q.lens(60);
+    this.lens(60);
   }
 
   /** One beat of a reply: lines, or a silent panel acted out by its id. */
@@ -940,7 +1594,7 @@ export class Stage {
       // Margaux sets a café crème in front of you; nobody ordered it
       await this.silent(gen, 2.4, async () => {
         const margaux = this.fig('margaux_barman');
-        if (margaux) this.q.look(margaux.face(), 2.4);
+        if (margaux) this.look(margaux.face(), 2.4);
         await this.wait(gen, 0.6);
         const cup = this.prop('cup');
         if (cup) {
@@ -948,7 +1602,7 @@ export class Stage {
           const from = to.clone().add(new Vector3(-0.55, 0, 0));
           cup.visible = true;
           this.onCue?.('cup');
-          this.q.look(to, 2.2);
+          this.look(to, 2.2);
           await this.tween(gen, 0.7, (t) => cup.position.lerpVectors(from, to, t));
         }
       });
@@ -960,7 +1614,7 @@ export class Stage {
       await this.silent(gen, 2.2, async () => {
         const gus = this.fig('augustin_de_roncourt');
         if (gus) {
-          this.q.look(gus.face(), 2.2);
+          this.look(gus.face(), 2.2);
           await this.tween(gen, 0.9, (t) => (gus.seat = 0.08 * t));
         }
       });
@@ -1003,3 +1657,5 @@ export class Stage {
     });
   }
 }
+
+export { NAMES };

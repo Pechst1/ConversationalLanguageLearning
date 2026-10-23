@@ -151,6 +151,10 @@ export class Sound {
       this.thud(0.02, 420, 0.12);
     } else if (c === 'chair') this.scrape();
     else if (c === 'paper') this.flick();
+    else if (c === 'phone') {
+      this.buzz(0);
+      this.buzz(0.3);
+    }
   }
 
   dispose() {
@@ -216,6 +220,27 @@ export class Sound {
       o.start();
       o.stop(ctx.currentTime + decay + 0.05);
     });
+  }
+
+  /** A phone in a pocket: one short low rattle. */
+  private buzz(at: number) {
+    const ctx = this.ctx as AudioContext;
+    const t = ctx.currentTime + at;
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.value = 160;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 380;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.06, t + 0.012);
+    g.gain.setValueAtTime(0.06, t + 0.17);
+    g.gain.linearRampToValueAtTime(0, t + 0.2);
+    g.connect(this.master as GainNode);
+    o.connect(lp).connect(g);
+    o.start(t);
+    o.stop(t + 0.22);
   }
 
   private thud(at: number, freq: number, peak: number) {

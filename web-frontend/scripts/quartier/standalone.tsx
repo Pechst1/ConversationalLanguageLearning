@@ -1,7 +1,8 @@
 /**
  * Le Quartier · a page of its own: the 3D scene outside the app, for a phone's browser.
  * `node scripts/quartier/build-standalone.mjs` bundles this into one HTML file.
- * ?a=matin starts in the morning, ?stats shows the frame counter.
+ * ?a=matin starts in the morning, ?stats shows the frame counter, ?debug puts the quarter on
+ * `window.__qz` for a script to drive.
  */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -17,6 +18,7 @@ if (root) {
       native={params.get('lang') === 'de' ? 'de' : params.get('lang') === 'en' ? 'en' : undefined}
       level={params.get('level') === 'b1' ? 'b1' : 'a2'}
       showStats={params.has('stats')}
+      onReady={params.has('debug') ? (engine, stage, memory) => Object.assign(window, { __qz: { engine, stage, memory } }) : undefined}
     />,
   );
 }

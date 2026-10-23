@@ -4,21 +4,30 @@
  * A caption box at the top, a speaker's card at the bottom, the sheet you answer on, a thumb
  * stick when there is somewhere to walk. The engine draws the street; the director (`Stage`)
  * says what the cards show; this component only lays them out and passes your taps back.
+ * Around the place you are in sit the things that outlast it: the quarter's memory, your carnet,
+ * and the map of the Paris the game has built so far.
  * Nothing here is server-rendered: the page imports it with `ssr: false`.
  */
 import React from 'react';
 
+import { WHILE_AWAY } from '@/lib/quartier/agency';
 import { Sound } from '@/lib/quartier/audio';
 import { figureArt, itemArt } from '@/lib/quartier/cast-art';
 import type { ArtSource } from '@/lib/quartier/cast';
+import { Crowd } from '@/lib/quartier/crowd';
 import { Quartier } from '@/lib/quartier/engine';
 import type { Stats } from '@/lib/quartier/engine';
+import { Memory, eligible } from '@/lib/quartier/memory';
+import type { Words } from '@/lib/quartier/memory';
 import { AMBIANCES } from '@/lib/quartier/palette';
 import type { AmbianceId } from '@/lib/quartier/palette';
 import { Stage, T1A } from '@/lib/quartier/stage';
-import type { AnswerUi, Level, Native, StageUi } from '@/lib/quartier/stage';
+import type { AnswerUi, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
+import { worldState } from '@/lib/quartier/world';
 import type { SeasonItemId } from '@/lib/season-items';
 
+import { Carnet } from './Carnet';
+import { QuartierMap } from './QuartierMap';
 import { QUARTIER_CSS } from './quartier-styles';
 
 export interface QuartierScreenProps {
@@ -30,12 +39,17 @@ export interface QuartierScreenProps {
   onExit?: () => void;
   /** a frame counter in the corner */
   showStats?: boolean;
+  /** the quarter is built and its director ready (for tools that drive it: a play-through, a test) */
+  onReady?: (engine: Quartier, stage: Stage, memory: Memory) => void;
 }
 
 const ART: ArtSource = {
   figure: (key, expression, gesture) => figureArt(key, { expression: expression as never, gesture: gesture as never, size: 600 }),
   item: (id) => itemArt(id as SeasonItemId, 512),
 };
+
+/** Away this long, and the title card says what happened while you were gone. */
+const AWAY_MS = 10 * 60 * 1000;
 
 function phoneNative(): Native {
   if (typeof navigator === 'undefined') return 'en';
@@ -45,46 +59,71 @@ function phoneNative(): Native {
 const COPY = {
   en: {
     start: 'Commencer',
-    howto: 'Drag to look around. Tap the ground to walk there, or use the stick. Tap a card to go on.',
+    howto: 'Drag to look around. Tap the ground to walk there, or use the stick. Tap a card to go on. You can walk out of a scene, refuse, or talk to anyone when the scene gives you a moment.',
     go: 'Y aller',
     direct: 'Directement',
     send: 'Envoyer',
     placeholder: 'Réponds en français…',
+    sayPlaceholder: 'Dis quelque chose…',
     end: 'À suivre…',
     replay: 'Rejouer',
     roam: 'Se promener',
-    roamHint: 'Touche le sol pour marcher · glisse pour regarder',
+    roamHint: 'Touche le sol pour marcher · touche quelqu’un pour parler',
     silent: 'Touche pour continuer',
     asks: 'te demande',
+    choice: 'À toi',
+    goOn: 'Continuer',
+    leaveScene: 'Partir',
+    carnet: 'Ton carnet',
+    map: 'La carte',
+    away: 'Pendant ton absence',
+    tonight: 'Ce soir',
+    tomorrow: 'Demain',
+    now: 'maintenant',
+    close: 'Fermer',
     failed: 'This phone could not open the 3D quarter.',
     leave: 'Back',
     retry: 'Try again',
   },
   de: {
     start: 'Commencer',
-    howto: 'Wischen zum Umsehen. Tippe auf den Boden, um dorthin zu gehen, oder nutze den Stick. Tippe auf eine Karte, um weiterzumachen.',
+    howto: 'Wischen zum Umsehen. Tippe auf den Boden, um dorthin zu gehen, oder nutze den Stick. Tippe auf eine Karte, um weiterzumachen. Du kannst eine Szene verlassen, ablehnen, oder mit allen reden, wenn die Szene dir einen Moment lässt.',
     go: 'Y aller',
     direct: 'Directement',
     send: 'Envoyer',
     placeholder: 'Réponds en français…',
+    sayPlaceholder: 'Dis quelque chose…',
     end: 'À suivre…',
     replay: 'Rejouer',
     roam: 'Se promener',
-    roamHint: 'Touche le sol pour marcher · glisse pour regarder',
+    roamHint: 'Touche le sol pour marcher · touche quelqu’un pour parler',
     silent: 'Touche pour continuer',
     asks: 'te demande',
+    choice: 'À toi',
+    goOn: 'Continuer',
+    leaveScene: 'Partir',
+    carnet: 'Ton carnet',
+    map: 'La carte',
+    away: 'Pendant ton absence',
+    tonight: 'Ce soir',
+    tomorrow: 'Demain',
+    now: 'maintenant',
+    close: 'Fermer',
     failed: 'Dieses Telefon konnte das 3D-Viertel nicht öffnen.',
     leave: 'Zurück',
     retry: 'Erneut versuchen',
   },
 };
 
-export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false }: QuartierScreenProps) {
+type Copy = (typeof COPY)['en'];
+
+export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, onReady }: QuartierScreenProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const engine = React.useRef<Quartier | null>(null);
   const stage = React.useRef<Stage | null>(null);
   const sound = React.useRef<Sound | null>(null);
   const [native] = React.useState<Native>(() => nativeProp ?? phoneNative());
+  const [memory] = React.useState(() => new Memory());
   const [loading, setLoading] = React.useState<{ share: number; label: string } | null>({ share: 0, label: 'Les encres' });
   const [failed, setFailed] = React.useState<string | null>(null);
   const [ui, setUi] = React.useState<StageUi | null>(null);
@@ -92,7 +131,31 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   const [soundOn, setSoundOn] = React.useState(true);
   const [ambiance, setAmbiance] = React.useState<AmbianceId>(firstAmbiance);
   const [stats, setStats] = React.useState<Stats | null>(null);
+  const [panel, setPanel] = React.useState<'carnet' | 'map' | null>(null);
+  const [awayNotes, setAwayNotes] = React.useState<Words[]>([]);
   const copy = COPY[native];
+
+  // you arrive: how long were you gone, and what happened meanwhile?
+  React.useEffect(() => {
+    const away = memory.arrive();
+    if (Number.isFinite(away) && away > AWAY_MS) {
+      setAwayNotes(
+        eligible(WHILE_AWAY, { ...memory.state(), ...worldState() })
+          .slice(0, 3)
+          .map((b) => b.say),
+      );
+    }
+    const touch = window.setInterval(() => memory.touch(), 30000);
+    const onHide = () => memory.touch();
+    window.addEventListener('pagehide', onHide);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.clearInterval(touch);
+      window.removeEventListener('pagehide', onHide);
+      document.removeEventListener('visibilitychange', onHide);
+      memory.touch();
+    };
+  }, [memory]);
 
   React.useEffect(() => {
     const canvas = canvasRef.current;
@@ -108,11 +171,12 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
     engine.current = q;
     const snd = new Sound();
     sound.current = snd;
-    const st = new Stage(q, T1A, { level, native, onCue: (c) => snd.cue(c) });
+    const st = new Stage(q, T1A, { level, native, onCue: (c) => snd.cue(c), memory });
     stage.current = st;
     const unsubscribe = st.subscribe(setUi);
     let unbind: (() => void) | null = null;
     let stopTick: (() => void) | null = null;
+    let crowd: Crowd | null = null;
     const onResize = () => q.resize();
     window.addEventListener('resize', onResize);
     (async () => {
@@ -136,6 +200,11 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         });
         q.start();
         setLoading(null);
+        onReady?.(q, st, memory);
+        // the street fills while you read the title card
+        crowd = new Crowd(q, { count: 10, onNear: (key) => st.passerby(key, false) });
+        st.setStreet(crowd);
+        await crowd.load();
       } catch (e) {
         if (!cancelled) setFailed(e instanceof Error ? e.message : String(e));
       }
@@ -146,6 +215,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
       unsubscribe();
       unbind?.();
       stopTick?.();
+      crowd?.dispose();
       st.dispose();
       snd.dispose();
       q.dispose();
@@ -160,6 +230,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
     const snd = sound.current;
     snd?.start();
     snd?.setEnabled(soundOn);
+    setAwayNotes([]);
     stage.current?.begin();
   };
 
@@ -177,35 +248,43 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   };
 
   const phase = ui?.phase ?? 'title';
-  const walkable = phase === 'roam' || Boolean(ui?.goal);
+  const ready = !loading && !failed;
+  const walkable = (phase === 'roam' || Boolean(ui?.goal) || Boolean(ui?.moment)) && !ui?.talk && !ui?.answer && !ui?.aside;
+  // a line outside the script (why you leave, welcome back) takes the speaker's card
+  const line: SpeechUi | null = ui?.aside ?? (ui?.speech && !ui.silent ? ui.speech : null);
+  const st = stage.current;
 
   return (
     <div className={`qz${ui?.silent ? ' qz-letterbox' : ''}`} data-phase={phase} data-beat={ui?.beat ?? undefined}>
       <style dangerouslySetInnerHTML={{ __html: QUARTIER_CSS }} />
       <canvas ref={canvasRef} className="qz-canvas" aria-label="Le quai de Valmy, la nuit, sous la pluie" />
 
-      {!loading && !failed ? (
+      {ready ? (
         <>
           <div className="qz-top">
-            <button type="button" className="qz-round" aria-label={onExit ? 'Quitter' : 'Recommencer'} onClick={() => (onExit ? onExit() : stage.current?.replay())}>
+            <button type="button" className="qz-round" aria-label={onExit ? 'Quitter' : 'Recommencer'} onClick={() => (onExit ? onExit() : st?.replay())}>
               {onExit ? <IconClose /> : <IconReplay />}
             </button>
-            <div className="qz-title">
-              Épisode {T1A.number} · <em>{T1A.title_fr}</em>
-            </div>
+            {ui?.canLeave ? (
+              <button type="button" className="qz-leave" onClick={() => st?.leave()}>
+                <IconDoor />
+                {copy.leaveScene}
+              </button>
+            ) : (
+              <div className="qz-title">
+                Épisode {T1A.number} · <em>{T1A.title_fr}</em>
+              </div>
+            )}
+            <button type="button" className="qz-round" aria-label={copy.carnet} onClick={() => setPanel('carnet')}>
+              <IconCarnet />
+            </button>
             <button type="button" className="qz-round" aria-label={ambiance === 'nuit' ? 'Le matin' : 'La nuit'} onClick={toggleAmbiance}>
               {ambiance === 'nuit' ? <IconMoon /> : <IconSun />}
             </button>
             <button type="button" className="qz-round" aria-label="Le son" aria-pressed={soundOn} onClick={toggleSound}>
               <IconSound on={soundOn} />
             </button>
-            <button
-              type="button"
-              className="qz-round"
-              aria-label="Traduction"
-              aria-pressed={translate}
-              onClick={() => setTranslate(!translate)}
-            >
+            <button type="button" className="qz-round" aria-label="Traduction" aria-pressed={translate} onClick={() => setTranslate(!translate)}>
               <span className="qz-lang">{native.toUpperCase()}</span>
             </button>
           </div>
@@ -217,24 +296,43 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         </>
       ) : null}
 
+      {ui?.moment && !ui.talk && !ui.aside ? (
+        <div className="qz-moment" aria-live="polite">
+          <p lang="fr">{ui.moment.text}</p>
+          {translate ? <small>{ui.moment.native}</small> : null}
+          <button type="button" className="qz-primary" onClick={() => st?.goOn()}>
+            {copy.goOn}
+          </button>
+        </div>
+      ) : null}
+
       {ui?.caption ? (
-        <button type="button" className="qz-caption" onClick={() => stage.current?.tap()} aria-live="polite">
+        <button type="button" className="qz-caption" onClick={() => st?.tap()} aria-live="polite">
           {ui.caption.text}
           {translate && ui.caption.native ? <small>{ui.caption.native}</small> : null}
         </button>
       ) : null}
 
-      {ui?.speech && !ui.silent ? (
-        <button type="button" className="qz-speech" data-char={ui.speech.char} onClick={() => stage.current?.tap()} aria-live="polite">
+      {ui?.bark && !ui.talk ? (
+        <div key={ui.bark.at} className="qz-bark" data-char={ui.bark.char} aria-live="polite">
+          <b>{ui.bark.name}</b>
+          <span lang="fr">{ui.bark.text}</span>
+          {translate && ui.bark.native ? <small>{ui.bark.native}</small> : null}
+        </div>
+      ) : null}
+
+      {line && !ui?.talk ? (
+        <button type="button" className="qz-speech" data-char={line.char} data-aside={ui?.aside ? true : undefined} onClick={() => st?.tap()} aria-live="polite">
           <p className="qz-speaker">
             <i aria-hidden />
-            {ui.speech.name}
+            {line.name}
+            {line.direction ? <span className="qz-direction">{line.direction}</span> : null}
           </p>
           <p className="qz-line" lang="fr">
-            {ui.speech.text}
+            {line.text}
           </p>
-          {translate && ui.speech.native ? <p className="qz-native">{ui.speech.native}</p> : null}
-          {ui.waitingTap ? <span className="qz-more" aria-hidden /> : null}
+          {translate && line.native ? <p className="qz-native">{line.native}</p> : null}
+          {ui?.waitingTap || ui?.aside ? <span className="qz-more" aria-hidden /> : null}
         </button>
       ) : null}
 
@@ -247,33 +345,37 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         </div>
       ) : null}
 
-      {ui?.goal ? (
+      {ui?.goal && !ui.talk && !ui.aside ? (
         <div className="qz-goal">
           <div className="qz-goal-label">
             {ui.goal.label}
             {translate ? <small>{ui.goal.native}</small> : null}
           </div>
           <div className="qz-goal-actions">
-            <button type="button" className="qz-primary" onClick={() => stage.current?.go()}>
+            <button type="button" className="qz-primary" onClick={() => st?.go()}>
               {copy.go}
             </button>
-            <button type="button" className="qz-quiet" onClick={() => stage.current?.skipWalk()}>
+            <button type="button" className="qz-quiet" onClick={() => st?.skipWalk()}>
               {copy.direct}
             </button>
           </div>
         </div>
       ) : null}
 
-      {walkable && !loading ? <Stick onMove={(x, y) => engine.current?.setStick(x, y)} /> : null}
+      {walkable && ready ? <Stick onMove={(x, y) => engine.current?.setStick(x, y)} /> : null}
 
-      {ui?.answer ? <AnswerSheet key={ui.answer.id} a={ui.answer} translate={translate} copy={copy} onSend={(t) => stage.current?.answer(t)} /> : null}
+      {ui?.answer ? <AnswerSheet key={ui.answer.id} a={ui.answer} translate={translate} copy={copy} onSend={(t) => st?.answer(t)} /> : null}
 
-      {phase === 'roam' ? <div className="qz-hint">{copy.roamHint}</div> : null}
+      {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
+
+      {phase === 'roam' && !ui?.talk ? <div className="qz-hint">{copy.roamHint}</div> : null}
       {phase === 'roam' && ui?.met ? (
         <div key={ui.met.at} className="qz-met" data-char={ui.met.char}>
           {ui.met.name}
         </div>
       ) : null}
+
+      {ui?.phone ? <PhoneCard key={ui.phone.from} p={ui.phone} translate={translate} copy={copy} onReply={(t) => st?.phoneReply(t)} onClose={() => st?.closePhone()} /> : null}
 
       {loading || failed ? (
         <div className="qz-cover qz-cover--paper">
@@ -306,13 +408,13 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         </div>
       ) : null}
 
-      {!loading && !failed && phase === 'title' ? (
+      {ready && phase === 'title' ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">Épisode {T1A.number}</p>
             <h1 className="qz-h">{T1A.title_fr}</h1>
             <p className="qz-date">{T1A.story_date_fr}</p>
-            <p className="qz-cando">{T1A.can_do.fr}</p>
+            {awayNotes.length ? <Recap title={copy.away} lines={awayNotes.map((w) => ({ text: w.fr, native: w[native] }))} translate={translate} /> : <p className="qz-cando">{T1A.can_do.fr}</p>}
             <button type="button" className="qz-primary" onClick={begin}>
               {copy.start}
             </button>
@@ -323,19 +425,32 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
 
       {phase === 'end' ? (
         <div className="qz-cover qz-cover--night">
-          <div className="qz-card">
+          <div className="qz-card qz-card--end">
             <p className="qz-kicker">Épisode {T1A.number}</p>
             <h1 className="qz-h">{copy.end}</h1>
             <p className="qz-date">{T1A.title_fr}</p>
-            <button type="button" className="qz-primary" onClick={() => stage.current?.replay()}>
-              {copy.replay}
-            </button>
-            <button type="button" className="qz-quiet" onClick={() => stage.current?.roam()}>
+            {ui?.recap?.did.length ? <Recap title={copy.tonight} lines={ui.recap.did} translate={translate} /> : null}
+            {ui?.recap?.tomorrow.length ? <Recap title={copy.tomorrow} lines={ui.recap.tomorrow} translate={translate} /> : null}
+            <button type="button" className="qz-primary" onClick={() => st?.roam()}>
               {copy.roam}
             </button>
+            <div className="qz-card-row">
+              <button type="button" className="qz-quiet" onClick={() => setPanel('carnet')}>
+                {copy.carnet}
+              </button>
+              <button type="button" className="qz-quiet" onClick={() => setPanel('map')}>
+                {copy.map}
+              </button>
+              <button type="button" className="qz-quiet" onClick={() => st?.replay()}>
+                {copy.replay}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
+
+      {panel === 'carnet' ? <Carnet memory={memory} native={native} translate={translate} onClose={() => setPanel(null)} onMap={() => setPanel('map')} /> : null}
+      {panel === 'map' ? <QuartierMap native={native} translate={translate} here="quai_de_valmy" been={memory.places()} onClose={() => setPanel(null)} /> : null}
 
       {showStats && stats ? (
         <div className="qz-stats">
@@ -346,37 +461,132 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   );
 }
 
-function AnswerSheet({ a, translate, copy, onSend }: { a: AnswerUi; translate: boolean; copy: (typeof COPY)['en']; onSend: (text: string) => void }) {
+/** A short list on a card: tonight's choices, tomorrow's consequences, what happened while you were away. */
+function Recap({ title, lines, translate }: { title: string; lines: Array<{ text: string; native: string }>; translate: boolean }) {
+  return (
+    <section className="qz-recap">
+      <h2>{title}</h2>
+      <ul>
+        {lines.map((l, i) => (
+          <li key={i} lang="fr">
+            {l.text}
+            {translate ? <small>{l.native}</small> : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** What you type, with chips that fill it in. */
+function Write({ placeholder, send, onSend, chips }: { placeholder: string; send: string; onSend: (text: string) => void; chips: string[] }) {
   const [text, setText] = React.useState('');
-  const send = (e?: React.FormEvent) => {
+  const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (text.trim()) onSend(text);
+    if (!text.trim()) return;
+    onSend(text);
+    setText('');
   };
   return (
-    <form className="qz-sheet" data-char={a.char} onSubmit={send}>
-      <p className="qz-ask">
-        {a.to} {copy.asks}
-      </p>
-      <p className="qz-task" lang="fr">
-        {a.task}
-      </p>
-      {translate ? <p className="qz-task-native">{a.taskNative}</p> : null}
-      <div className="qz-chips">
-        {a.chips.map((c) => (
-          <button key={c} type="button" className="qz-chip" lang="fr" onClick={() => setText(c)}>
-            {c}
-          </button>
-        ))}
-      </div>
+    <form onSubmit={submit}>
+      {chips.length ? (
+        <div className="qz-chips">
+          {chips.map((c) => (
+            <button key={c} type="button" className="qz-chip" lang="fr" onClick={() => setText(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="qz-write">
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={copy.placeholder} lang="fr" autoCapitalize="sentences" autoCorrect="off" spellCheck={false} enterKeyHint="send" aria-label={copy.placeholder} />
-        <button type="submit" className="qz-primary qz-send" disabled={!text.trim()} aria-label={copy.send}>
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} lang="fr" autoCapitalize="sentences" autoCorrect="off" spellCheck={false} enterKeyHint="send" aria-label={placeholder} />
+        <button type="submit" className="qz-primary qz-send" disabled={!text.trim()} aria-label={send}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M5 12h13M13 6l6 6-6 6" />
           </svg>
         </button>
       </div>
     </form>
+  );
+}
+
+function AnswerSheet({ a, translate, copy, onSend }: { a: AnswerUi; translate: boolean; copy: Copy; onSend: (text: string) => void }) {
+  return (
+    <div className="qz-sheet" data-char={a.char}>
+      <p className="qz-ask">{a.kind === 'choice' ? copy.choice : `${a.to} ${copy.asks}`}</p>
+      <p className="qz-task" lang="fr">
+        {a.task}
+      </p>
+      {translate ? <p className="qz-task-native">{a.taskNative}</p> : null}
+      <Write placeholder={copy.placeholder} send={copy.send} onSend={onSend} chips={a.chips} />
+    </div>
+  );
+}
+
+/** Talking to someone: what they said last, what you said, and your next line. */
+function TalkSheet({ t, translate, copy, onSay, onClose }: { t: TalkUi; translate: boolean; copy: Copy; onSay: (text: string) => void; onClose: () => void }) {
+  return (
+    <div className="qz-sheet qz-talk" data-char={t.char}>
+      <div className="qz-talk-head">
+        <p className="qz-ask">
+          <i aria-hidden />
+          {t.name}
+        </p>
+        <button type="button" className="qz-x" aria-label={copy.close} onClick={onClose}>
+          <IconClose />
+        </button>
+      </div>
+      {t.you ? (
+        <p className="qz-talk-you" lang="fr">
+          <b>Toi</b>
+          {t.you}
+        </p>
+      ) : null}
+      <div className="qz-talk-lines" aria-live="polite">
+        {t.lines.map((l, i) => (
+          <div key={`${i}-${l.text}`} className="qz-talk-line">
+            {l.direction ? <p className="qz-direction">{l.direction}</p> : null}
+            <p className="qz-line" lang="fr">
+              {l.text}
+            </p>
+            {translate ? <p className="qz-native">{l.native}</p> : null}
+          </div>
+        ))}
+      </div>
+      <Write placeholder={copy.sayPlaceholder} send={copy.send} onSend={onSay} chips={t.chips} />
+    </div>
+  );
+}
+
+/** A text on your phone, while you are out of the scene. */
+function PhoneCard({ p, translate, copy, onReply, onClose }: { p: PhoneUi; translate: boolean; copy: Copy; onReply: (text: string) => void; onClose: () => void }) {
+  return (
+    <div className="qz-phone" data-char={p.char} role="dialog" aria-label={p.from}>
+      <div className="qz-phone-head">
+        <IconPhone />
+        <b>{p.from}</b>
+        <span>{copy.now}</span>
+        <button type="button" className="qz-x" aria-label={copy.close} onClick={onClose}>
+          <IconClose />
+        </button>
+      </div>
+      <p className="qz-bubble" lang="fr">
+        {p.text}
+        {translate ? <small>{p.native}</small> : null}
+      </p>
+      {p.sent ? (
+        <p className="qz-bubble qz-bubble--me" lang="fr">
+          {p.sent}
+        </p>
+      ) : null}
+      {p.reply ? (
+        <p className="qz-bubble" lang="fr">
+          {p.reply.text}
+          {translate ? <small>{p.reply.native}</small> : null}
+        </p>
+      ) : null}
+      {!p.sent ? <Write placeholder={copy.placeholder} send={copy.send} onSend={onReply} chips={p.chips} /> : null}
+    </div>
   );
 }
 
@@ -471,6 +681,33 @@ function IconSound({ on }: { on: boolean }) {
     <svg {...svg}>
       <path d="M4 9h4l5-4v14l-5-4H4z" />
       {on ? <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /> : <path d="M17 9l5 6M22 9l-5 6" />}
+    </svg>
+  );
+}
+
+function IconCarnet() {
+  return (
+    <svg {...svg}>
+      <path d="M6 3.5h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6z" />
+      <path d="M6 3.5v17M9.5 8h5M9.5 11.5h5" />
+    </svg>
+  );
+}
+
+function IconDoor() {
+  return (
+    <svg {...svg}>
+      <path d="M13 4H6v16h7" />
+      <path d="M11 12h9M17 9l3 3-3 3" />
+    </svg>
+  );
+}
+
+function IconPhone() {
+  return (
+    <svg {...svg}>
+      <rect x="7" y="3" width="10" height="18" rx="2" />
+      <path d="M11 18h2" />
     </svg>
   );
 }

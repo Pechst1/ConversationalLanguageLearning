@@ -11,13 +11,17 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { avatarFigure } from '@/components/avatar/avatar-figure';
 import { CastRig } from '@/components/cast/CastRig';
 import { PlotItem } from '@/components/cast/items/PlotItem';
 import { rigFor } from '@/components/cast/cast-registry';
 import { VivantFigure } from '@/components/cast/vivant/VivantFigure';
 import type { ExpressionId, GestureId } from '@/components/cast/vivant/kit';
 import { figureFor } from '@/components/cast/vivant/registry';
+import { randomAvatar } from '@/lib/avatar';
 import type { SeasonItemId } from '@/lib/season-items';
+
+import { seeded } from './geo';
 
 export interface FigureArt {
   /** standalone markup, with the xmlns an <img> needs */
@@ -69,4 +73,13 @@ export function itemArt(id: SeasonItemId, size = 256): FigureArt | null {
   const markup = renderToStaticMarkup(<PlotItem id={id} size={size} still label="" />);
   if (!markup) return null;
   return { svg: standalone(markup), aspect: 1 };
+}
+
+/** Someone of the neighbourhood: the avatar kit's figure, rolled from a seed (the same seed, the same person). */
+export function passerbyArt(seed: number, size = 256): FigureArt {
+  const R = seeded(seed);
+  const fig = avatarFigure(randomAvatar(R.next), 'Passant');
+  const box = fig.rig.crops.full;
+  const markup = renderToStaticMarkup(<VivantFigure id={fig.key} figure={fig} expression="neutre" still crop="full" size={size} label="" />);
+  return { svg: standalone(markup), aspect: box[2] / box[3] };
 }

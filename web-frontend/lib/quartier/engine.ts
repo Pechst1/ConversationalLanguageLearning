@@ -38,7 +38,7 @@ import {
 } from 'three';
 
 import { Troupe, printCard } from './cast';
-import type { ArtSource } from './cast';
+import type { ArtSource, PaperFigure } from './cast';
 import { CardPress, LacePress, Press, seeded, tile } from './geo';
 import type { Build, Lamp } from './kit';
 import { bakeLightMap } from './lightmap';
@@ -132,6 +132,8 @@ export class Quartier {
   readonly camera = new PerspectiveCamera(60, 1, 0.1, 420);
   readonly world: World = makeWorld();
   readonly troupe: Troupe;
+  /** other people on stage (the passers-by, `crowd.ts`): lit, drawn and tapped like the cast */
+  private extras: Troupe[] = [];
   nav!: Nav;
   lightMap!: LightMap;
   quai!: Quai;
@@ -470,6 +472,23 @@ export class Quartier {
     this.scene.add(card);
   }
 
+  /** Put another troupe on stage (the passers-by), or take it off. */
+  addTroupe(t: Troupe) {
+    if (this.extras.includes(t)) return;
+    this.extras.push(t);
+    this.scene.add(t.group);
+  }
+
+  removeTroupe(t: Troupe) {
+    this.extras = this.extras.filter((x) => x !== t);
+    this.scene.remove(t.group);
+  }
+
+  /** A pressed piece in the print's own ink, to move about (a passer-by's umbrella). */
+  inked(press: Press): Mesh {
+    return new Mesh(press.geometry(), this.ink);
+  }
+
   private async loadCast() {
     const t = this.troupe;
     const people: Array<[string, number, Vector3]> = [
@@ -721,7 +740,8 @@ export class Quartier {
     this.camera.updateMatrixWorld();
     // people first: their cards' boxes on screen
     let best: { key: string; d: number } | null = null;
-    for (const [key, f] of Array.from(this.troupe.people)) {
+    const people = [this.troupe, ...this.extras].reduce<Array<[string, PaperFigure]>>((all, t) => all.concat(Array.from(t.people)), []);
+    for (const [key, f] of people) {
       const box = f.screenBox(this.camera);
       if (!box) continue;
       if (x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]) {
@@ -813,6 +833,7 @@ export class Quartier {
     this.world.uTime.value = now;
     this.tickers.forEach((fn) => fn(dt, now));
     this.troupe.update(dt, now, this.camera, (p) => this.lightAt(p));
+    this.extras.forEach((t) => t.update(dt, now, this.camera, (p) => this.lightAt(p)));
     this.props.forEach((p) => {
       if (p.material && p.object.visible) {
         const l = this.lightAt(p.object.position);
@@ -992,6 +1013,7 @@ export class Quartier {
     this.water.visible = false;
     this.rain.mesh.visible = false;
     this.troupe.group.visible = false;
+    this.extras.forEach((t) => (t.group.visible = false));
     this.dots.visible = false;
     const halosWere = this.halos.visible;
     this.renderer.setRenderTarget(this.mirrorRT);
@@ -1000,6 +1022,7 @@ export class Quartier {
     this.water.visible = true;
     this.rain.mesh.visible = AMBIANCES[this.ambiance].rain;
     this.troupe.group.visible = true;
+    this.extras.forEach((t) => (t.group.visible = true));
     this.dots.visible = true;
     this.halos.visible = halosWere;
   }
