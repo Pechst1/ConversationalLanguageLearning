@@ -742,19 +742,15 @@ def repair_comptoir(raw: Any, dossier: EditorialDossier) -> tuple[ComptoirTakes 
         if len(texts) == 3 and quote is not None:
             guests.append(ComptoirGuest(id=cast_id, stance=stance, quote=quote,  # type: ignore[arg-type]
                                         take=ComptoirTake(**texts)))
-    if refusals:
-        return None, [*refusals, *problems]
     if intox is not None:
         # every honest take at an intox band carries a detail one can check, or «who lied?» is
-        # answered by elimination (the only take with a fact in it); else that band has none
-        bands = []
+        # answered by elimination (the only take with a fact in it). Refused, not dropped: the
+        # liar's take at that band still says the false thing, and nothing would correct it.
         for band in intox.bands:
-            bare = [g.id for g in guests if g.id != intox.by
-                    and not details(g.take.for_band(band).fr, check.story, question.fr)]
-            problems += [f"comptoir:{gid}:{band}:no_detail" for gid in bare]
-            if not bare:
-                bands.append(band)
-        intox = intox.model_copy(update={"bands": bands}) if bands else None
+            refusals += [f"comptoir:{g.id}:{band}:no_detail" for g in guests if g.id != intox.by
+                         and not details(g.take.for_band(band).fr, check.story, question.fr)]
+    if refusals:
+        return None, [*refusals, *problems]
 
     reasons: dict[str, list[ComptoirText]] = {}
     frames: dict[str, ComptoirText] = {}

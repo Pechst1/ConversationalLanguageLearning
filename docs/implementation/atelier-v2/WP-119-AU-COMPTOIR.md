@@ -422,8 +422,9 @@ https://claude.ai/artifact/XfjoQVX9J6c7wqNWcJ11HT («Order of work», Phase 0). 
    Romy»: a failed check prints «tel que tu l'as écrit». The reply waits until the opinion is settled, and
    `POST /close` waits too.
 6. **Every honest take carries a checkable detail.** `repair_comptoir` refuses an intox band where an honest
-   take names no detail from the claims (`comptoir:{guest}:{band}:no_detail`, the band dropped), so «who
-   lied?» is not answered by elimination. The ten evergreens were given a detail each where they lacked one;
+   take names no detail from the claims (`comptoir:{guest}:{band}:no_detail`), so «who lied?» is not answered
+   by elimination. The takes are refused, not repaired by dropping the band, because the liar's take at that
+   band would still print the false detail uncorrected; the desk retries once with the problems. The ten evergreens were given a detail each where they lacked one;
    all audit clean.
 7. **The B1 intox fix starts empty** and the grader wants the value and what it counts («500 000 personnes»),
    four words at least.

@@ -127,13 +127,10 @@ def test_every_honest_take_at_an_intox_band_carries_a_checkable_detail() -> None
     raw = gold()
     guest(raw, "margaux_barman")["a1"]["fr"] = "Ça dépend. Les fans, c'est bon pour la caisse. Pas pour mes oreilles."
     takes, problems = comptoir.repair_comptoir(raw, story)
-    assert takes is not None and "comptoir:margaux_barman:a1:no_detail" in problems
-    assert takes.intox is not None and takes.intox.bands == ["a2", "b1"], "no intox where it is found by elimination"
-    assert "comptoir:margaux_barman:a1:no_detail" in comptoir.audit(takes, story), "the audit flags it"
-    for band in ("a2", "b1"):
-        guest(raw, "margaux_barman")[band]["fr"] = "D'un côté, c'est bon pour la caisse. De l'autre, c'est trop."
-    takes, problems = comptoir.repair_comptoir(raw, story)
-    assert takes is not None and takes.intox is None, "no band left: no intox"
+    # Refused, not repaired by dropping the band: Gus's A1 take would still say «un million»
+    # with nothing to correct it (the desk retries once with the problems).
+    assert takes is None and "comptoir:margaux_barman:a1:no_detail" in problems
+    assert "comptoir:augustin_de_roncourt" not in " ".join(problems), "the liar's take needs no other detail"
 
 
 def test_the_prompts_own_example_passes_every_check() -> None:
