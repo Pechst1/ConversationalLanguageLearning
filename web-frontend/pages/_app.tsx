@@ -35,6 +35,7 @@ import '@/styles/cameo.css';
 import '@/styles/cast-vivant.css';
 // WP-119: La Revue de Romy (components/revue), scoped under `.av2`.
 import '@/styles/revue.css';
+import '@/styles/revue-comptoir.css';
 // WP-120: La Carte (components/carte), scoped under `.av2`.
 import '@/styles/carte.css';
 // WP-122 B: Le Correcteur (components/correcteur), scoped under `.av2`.

@@ -263,6 +263,128 @@ class StoryLeads(_Model):
     a2: StoryLead | None = None
 
 
+#: «Au comptoir» (WP-119, 2026-10-19): the three sides of the question of the day.
+ComptoirStance = Literal["pour", "contre", "nuance"]
+COMPTOIR_STANCES: tuple[str, ...] = ("pour", "contre", "nuance")
+#: The bands a take is written for; B2 reads ``b1``.
+ComptoirBand = Literal["a1", "a2", "b1"]
+
+
+def comptoir_band(band: str) -> str:
+    """``"A1"`` → ``"a1"``, ``"A2"`` → ``"a2"``, B1 and up → ``"b1"`` (the takes' bands)."""
+
+    return {"A1": "a1", "A2": "a2"}.get(str(band or "").upper()[:2], "b1")
+
+
+class ComptoirText(_Model):
+    """One line of «Au comptoir»: the French and its translations for the translate chip
+    (``comptoir.py`` keeps the French short and checks it; every band has the chip)."""
+
+    fr: str = Field(min_length=1)
+    en: str | None = None
+    de: str | None = None
+
+    def translation(self, language: str) -> str | None:
+        return {"en": self.en, "de": self.de}.get(language)
+
+
+class ComptoirTake(_Model):
+    """One guest's take on the question, written for each band (B2 reads ``b1``)."""
+
+    a1: ComptoirText
+    a2: ComptoirText
+    b1: ComptoirText
+
+    def for_band(self, band: str) -> ComptoirText:
+        return getattr(self, comptoir_band(band))
+
+
+class ComptoirGuest(_Model):
+    """A regular at the counter: their side, their take, and the quote «La page» prints."""
+
+    id: str = Field(min_length=1)
+    stance: ComptoirStance
+    take: ComptoirTake
+    quote: ComptoirText
+
+
+class ComptoirIntox(_Model):
+    """The one false detail a guest slips into their take («un million de personnes»), the
+    true value as the claim ``claim_id`` writes it, and another true value of the same kind
+    for the A1–A2 pick. ``bands``: where the check found ``wrong_fr`` in the take."""
+
+    by: str = Field(min_length=1)
+    wrong_fr: str = Field(min_length=1)
+    right_fr: str = Field(min_length=1)
+    claim_id: str = Field(min_length=1)
+    distractor_fr: str = Field(min_length=1)
+    ask: ComptoirText
+    caught: ComptoirText
+    bands: list[ComptoirBand] = Field(min_length=1)
+
+
+class ComptoirReply(_Model):
+    """What a guest who disagrees answers a learner on one side, and the comeback chip."""
+
+    by: str = Field(min_length=1)
+    line: ComptoirText
+    comeback: ComptoirText
+
+
+class ComptoirPhrase(_Model):
+    """The phrase of the day per band («Je suis pour / contre…», «À mon avis…, parce que…»)."""
+
+    a1: ComptoirText
+    a2: ComptoirText
+    b1: ComptoirText
+    b2: ComptoirText
+
+    def for_band(self, band: str) -> ComptoirText:
+        return self.b2 if str(band or "").upper().startswith("B2") else getattr(self, comptoir_band(band))
+
+
+class ComptoirTakes(_Model):
+    """«Au comptoir» (WP-119, owner 2026-10-19): the regulars of Le Mistral argue about the
+    story. Written once per story by the takes desk (``comptoir.py``), shared by every
+    learner; ``None`` on a dossier the desk has not written or refused (it stays chat-only)."""
+
+    question: ComptoirText
+    guests: list[ComptoirGuest] = Field(min_length=3, max_length=3)
+    intox: ComptoirIntox | None = None
+    #: A1 tiles: each completes «… parce que …» (five words at most).
+    reasons: dict[ComptoirStance, list[ComptoirText]] = Field(default_factory=dict)
+    #: A2 frames, ending before the reason («À mon avis, c'est une bonne nouvelle, parce que»).
+    frames: dict[ComptoirStance, ComptoirText] = Field(default_factory=dict)
+    bank: list[ComptoirText] = Field(default_factory=list, max_length=6)
+    phrase: ComptoirPhrase
+    #: The counter-line when the learner takes that side; a side without one reads the
+    #: authored line of ``comptoir.AUTHORED_REPLIES``.
+    replies: dict[ComptoirStance, ComptoirReply] = Field(default_factory=dict)
+    model: str = ""
+    written_at: datetime | None = None
+    prompt_version: str = ""
+
+    @model_validator(mode="after")
+    def _sides(self) -> ComptoirTakes:
+        if sorted(guest.stance for guest in self.guests) != sorted(COMPTOIR_STANCES):
+            raise ValueError("the three guests take the three sides: pour, contre, nuance")
+        if self.intox is not None and self.intox.by not in {guest.id for guest in self.guests}:
+            raise ValueError(f"intox.by {self.intox.by!r} is not at the counter")
+        return self
+
+    def guest(self, cast_id: str) -> ComptoirGuest | None:
+        return next((guest for guest in self.guests if guest.id == cast_id), None)
+
+    def by_stance(self, stance: str) -> ComptoirGuest:
+        return next(guest for guest in self.guests if guest.stance == stance)
+
+    def intox_for(self, band: str) -> ComptoirIntox | None:
+        """The intox, when the learner's band reads a take that carries it."""
+
+        intox = self.intox
+        return intox if intox is not None and comptoir_band(band) in intox.bands else None
+
+
 class TimeScope(_Model):
     """When the story happens (``happening``, an ISO interval) and until when it matters."""
 
@@ -327,6 +449,10 @@ class EditorialDossier(_Model):
     #: «La une en trois phrases» (2026-10-18); ``None`` until the builder or the lead desk
     #: (``leads.py``) wrote them — every band then reads ``summary_fr``.
     leads: StoryLeads | None = None
+    #: «Au comptoir» (2026-10-19): the regulars' takes on the question of the day; ``None``
+    #: until the takes desk (``comptoir.py``) wrote them. Read only while
+    #: ``REVUE_COMPTOIR_ENABLED`` is on.
+    comptoir: ComptoirTakes | None = None
 
     @field_validator("week")
     @classmethod

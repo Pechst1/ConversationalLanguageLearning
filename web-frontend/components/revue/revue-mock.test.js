@@ -141,9 +141,27 @@ test('simplify on breakdown: two «je ne comprends pas» switch the support, no 
   assert.deepEqual(twice.quickReplies.map((q) => q.label), ["Ah, d'accord", 'Encore plus simple']);
 });
 
+/** A line the learner typed (2026-10-23): the make waits for one; a chip is not one. */
+const OWN_LINE = "Oui, avec plaisir, je t'écoute.";
+
+test('2026-10-23 · the make waits for a line the learner wrote: a chip is not one', async () => {
+  const client = createMockRevueClient({ persist: false });
+  const s = await client.start();
+  assert.equal(s.ownLine, false);
+  const chip = await client.turn(s.id, { text: "D'accord, je t'aide." });
+  assert.equal(chip.ownLine, false);
+  await assert.rejects(client.makeOffer(s.id), (error) => error instanceof RevueError && error.code === 'revue_make_needs_a_line');
+  await assert.rejects(client.make(s.id, { kind: 'headline_choice', action: 'pick', optionId: 'h1' }), (error) => error.code === 'revue_make_needs_a_line');
+  const own = await client.turn(s.id, { text: OWN_LINE });
+  assert.equal(own.ownLine, true);
+  assert.equal((await client.session(s.id)).ownLine, true);
+  assert.ok((await client.makeOffer(s.id)).options.length > 0);
+});
+
 test('the headline choice: exactly one supported headline; the evidence cites its quote', async () => {
   const client = createMockRevueClient({ persist: false });
   const s = await client.start();
+  await client.turn(s.id, { text: OWN_LINE });
   const offer = await client.makeOffer(s.id);
   const headline = offer.options.find((option) => option.kind === 'headline_choice');
   assert.equal(headline.options.length, 3);
@@ -151,7 +169,7 @@ test('the headline choice: exactly one supported headline; the evidence cites it
   assert.equal(wrong.correct, false);
   assert.equal(wrong.answerId, 'h2');
   assert.match(wrong.evidence.quote, /tous les matins sauf le lundi/);
-  assert.deepEqual(wrong.made.contribution, [], 'a wrong pick is not the learner\'s headline');
+  assert.deepEqual(wrong.made.contribution, [], 'a pick is not the learner\'s headline');
   await assert.rejects(client.make(s.id, { kind: 'headline_choice', action: 'pick', optionId: 'zz' }), (error) => error.code === 'revue_unknown_option');
 });
 
@@ -230,10 +248,12 @@ test('the rubric: plan words, the Credit check, fact fit, the register note', as
 test('make at B1: Romy\'s intro once, headline_write (contradicted → write again; then filed), her make_done line', async () => {
   const client = createMockRevueClient({ persist: false, band: 'B1', language: 'fr' });
   const s = await client.start();
-  assert.deepEqual(s.plan.makeOptions, ['headline_choice', 'headline_write', 'reader_question', 'short_report']);
+  assert.deepEqual(s.plan.makeOptions, ['headline_write', 'reader_question', 'short_report'], 'no headline to pick from B1');
+  await client.turn(s.id, { text: OWN_LINE });
   const offer = await client.makeOffer(s.id);
   assert.equal(offer.recommended, 'headline_write');
-  assert.deepEqual(offer.options.map((o) => o.kind), ['headline_choice', 'headline_write', 'reader_question', 'short_report']);
+  assert.deepEqual(offer.options.map((o) => o.kind), ['headline_write', 'reader_question', 'short_report']);
+  await assert.rejects(client.make(s.id, { kind: 'headline_choice', action: 'pick', optionId: 'h2' }), (error) => error.code === 'revue_make_unavailable');
   assert.equal(offer.intro.role, 'make_intro');
   const again = await client.makeOffer(s.id);
   assert.deepEqual(again.intro, offer.intro, 'written once, on the first GET');
@@ -258,6 +278,7 @@ test('make at B1: Romy\'s intro once, headline_write (contradicted → write aga
 test('make at B1: the thirty-second report is filed; the dispatch keeps its own headline; the vignette is red', async () => {
   const client = createMockRevueClient({ persist: false, band: 'B1' });
   const s = await client.start();
+  await client.turn(s.id, { text: OWN_LINE });
   const offer = await client.makeOffer(s.id);
   assert.equal(offer.options.find((o) => o.kind === 'short_report').seconds, 30);
   const transcript = "Je suis au marché d'Aligre. Il y a un marché couvert.";
@@ -277,6 +298,7 @@ test('make at B1: the thirty-second report is filed; the dispatch keeps its own 
 test('below B1 the phase-2 makes are absent, and refused with 409 revue_make_unavailable', async () => {
   const client = createMockRevueClient({ persist: false, band: 'A2' });
   const s = await client.start();
+  await client.turn(s.id, { text: OWN_LINE });
   const offer = await client.makeOffer(s.id);
   assert.deepEqual(offer.options.map((o) => o.kind), ['headline_choice', 'reader_question']);
   await assert.rejects(
@@ -293,7 +315,7 @@ test('below B1 the phase-2 makes are absent, and refused with 409 revue_make_una
 
 const DESK_CAPTION = 'Un marché en plein air, un matin, entre les étals de fruits et légumes.';
 
-test('§8.4 A2: the picture is the stage, Romy points at it, its words lead; a wrong caption files the picture\'s own, uncredited', async () => {
+test('§8.4 A2: the picture is the stage, Romy points at it, its words lead; the caption is written first, a pick only after a refused try, uncredited', async () => {
   const client = createMockRevueClient({ persist: false, band: 'A2', language: 'fr', pictures: true });
   assert.equal((await client.week()).offer.recommended.stage.plateKind, 'story');
   const s = await client.start();
@@ -306,18 +328,27 @@ test('§8.4 A2: the picture is the stage, Romy points at it, its words lead; a w
   assert.deepEqual(lines[0].glosses.map((gloss) => gloss.fr), ['marché couvert', 'en plein air']);
   assert.deepEqual(s.plan.makeOptions, ['headline_choice', 'reader_question', 'caption']);
 
-  await client.turn(s.id, { text: "D'accord, je t'aide." });
+  await client.turn(s.id, { text: OWN_LINE });
   const offer = await client.makeOffer(s.id);
   assert.equal(offer.recommended, 'caption', 'the story\'s own picture is captioned first');
   assert.match(offer.intro.textFr, /légende sous l'image/);
   const caption = offer.options.find((option) => option.kind === 'caption');
-  assert.deepEqual([caption.format, caption.options.length, caption.maxWords], ['choice', 3, 12]);
-  assert.ok(caption.options.some((option) => option.textFr === DESK_CAPTION), 'one says what the picture shows');
-  const answer = caption.options.find((option) => option.textFr === DESK_CAPTION);
+  assert.deepEqual([caption.format, caption.options, caption.maxWords], ['write', [], 12], 'written first, nothing to pick yet');
+  await assert.rejects(client.make(s.id, { kind: 'caption', action: 'caption', optionId: 'l1' }), (error) => error.code === 'revue_caption_write_first');
+
+  // Two words are not a caption at A2: Romy asks for more, and the three captions come as the way out.
+  const short = await client.make(s.id, { kind: 'caption', action: 'caption', textFr: 'Un marché.' });
+  assert.deepEqual([short.accepted, short.made], [false, null], 'nothing filed');
+  assert.match(short.line.textFr, /Encore quelques mots/);
+  assert.equal(short.options.length, 3);
+  assert.ok(short.options.some((option) => option.textFr === DESK_CAPTION), 'one says what the picture shows');
+  const again = (await client.makeOffer(s.id)).options.find((option) => option.kind === 'caption');
+  assert.equal(again.options.length, 3, 'a resume offers the pick too');
+  const answer = short.options.find((option) => option.textFr === DESK_CAPTION);
   await assert.rejects(client.make(s.id, { kind: 'caption', action: 'caption', optionId: 'zz' }), (error) => error.code === 'revue_unknown_option');
-  const wrong = await client.make(s.id, { kind: 'caption', action: 'caption', optionId: caption.options.find((option) => option !== answer).id });
+  const wrong = await client.make(s.id, { kind: 'caption', action: 'caption', optionId: short.options.find((option) => option !== answer).id });
   assert.deepEqual([wrong.accepted, wrong.correct, wrong.answerId], [true, false, answer.id]);
-  assert.deepEqual([wrong.made.textFr, wrong.made.contribution], [DESK_CAPTION, []], 'a wrong pick is not the learner\'s caption');
+  assert.deepEqual([wrong.made.textFr, wrong.made.contribution], [DESK_CAPTION, []], 'a pick is not the learner\'s caption');
   assert.match(wrong.line.textFr, /On garde l'autre/);
 
   const { closing } = await client.close(s.id);
@@ -327,26 +358,44 @@ test('§8.4 A2: the picture is the stage, Romy points at it, its words lead; a w
   );
   assert.notEqual(closing.dispatch.headlineFr, DESK_CAPTION, 'a caption is not a headline');
   assert.equal(closing.vignette.keptContribution, false);
+  assert.match(closing.romyLineFr, /que tu as choisie/);
+  assert.doesNotMatch(closing.dispatch.bylineFr, /avec toi/, 'a pick is not credited');
 });
 
-test('§8.4 A1: the right caption is the learner\'s, «toi» under the picture in the dispatch', async () => {
+test('§8.4 A1: the learner writes the caption too; a right pick after a refused try is still not theirs', async () => {
   const client = createMockRevueClient({ persist: false, band: 'A1', language: 'de', pictures: true });
   const s = await client.start();
   assert.deepEqual(s.stage.pictureWords.map((word) => word.gloss), ['Markthalle', 'im Freien'], 'glossed in the learner\'s language');
+  await client.turn(s.id, { text: OWN_LINE });
   const caption = (await client.makeOffer(s.id)).options.find((option) => option.kind === 'caption');
-  assert.equal(caption.maxWords, 10);
-  const right = await client.make(s.id, { kind: 'caption', action: 'caption', optionId: caption.options.find((option) => option.textFr === DESK_CAPTION).id });
-  assert.deepEqual([right.correct, right.made.contribution], [true, [[0, DESK_CAPTION.length]]]);
-  assert.match(right.line.textFr, /C'est ta légende/);
+  assert.deepEqual([caption.format, caption.maxWords], ['write', 10]);
+  const refused = await client.make(s.id, { kind: 'caption', action: 'caption', textFr: "Le marché n'ouvre que le dimanche, en plein air." });
+  assert.deepEqual([refused.accepted, refused.evidence.factFit, refused.options.length], [false, 'contradicted', 3]);
+  const right = await client.make(s.id, { kind: 'caption', action: 'caption', optionId: refused.options.find((option) => option.textFr === DESK_CAPTION).id });
+  assert.deepEqual([right.correct, right.made.contribution], [true, []]);
+  assert.match(right.line.textFr, /Celle-là dit ce qu'on voit/);
+  assert.doesNotMatch(right.line.textFr, /ta légende/);
   const { closing } = await client.close(s.id);
-  assert.deepEqual([closing.dispatch.captionFr, closing.dispatch.captionByLearner], [DESK_CAPTION, true]);
-  assert.equal(closing.vignette.keptContribution, true);
+  assert.deepEqual([closing.dispatch.captionFr, closing.dispatch.captionByLearner], [DESK_CAPTION, false]);
+  assert.equal(closing.vignette.keptContribution, false);
+
+  // Written, it is theirs: «toi» under the picture.
+  const writer = createMockRevueClient({ persist: false, band: 'A1', language: 'de', pictures: true });
+  const w = await writer.start();
+  await writer.turn(w.id, { text: OWN_LINE });
+  const filed = await writer.make(w.id, { kind: 'caption', action: 'caption', textFr: 'Un marché en plein air.' });
+  assert.deepEqual([filed.accepted, filed.made.contribution], [true, [[0, 'Un marché en plein air.'.length]]]);
+  assert.match(filed.line.textFr, /C'est ta légende/);
+  const written = (await writer.close(w.id)).closing;
+  assert.deepEqual([written.dispatch.captionByLearner, written.vignette.keptContribution], [true, true]);
+  assert.match(written.dispatch.bylineFr, /avec toi/);
 });
 
 test('§8.4 B1: the caption is written with the picture\'s words; contradicted → write again; filed, it is printed as theirs', async () => {
   const client = createMockRevueClient({ persist: false, band: 'B1', language: 'en', pictures: true });
   const s = await client.start();
-  assert.deepEqual(s.plan.makeOptions, ['headline_choice', 'headline_write', 'reader_question', 'short_report', 'caption']);
+  assert.deepEqual(s.plan.makeOptions, ['headline_write', 'reader_question', 'short_report', 'caption']);
+  await client.turn(s.id, { text: OWN_LINE });
   const offer = await client.makeOffer(s.id);
   assert.equal(offer.recommended, 'caption');
   const caption = offer.options.find((option) => option.kind === 'caption');
@@ -356,6 +405,8 @@ test('§8.4 B1: the caption is written with the picture\'s words; contradicted �
   const refused = await client.make(s.id, { kind: 'caption', action: 'caption', textFr: "Le marché n'ouvre que le dimanche, en plein air." });
   assert.deepEqual([refused.accepted, refused.made, refused.evidence.factFit], [false, null, 'contradicted'], 'nothing filed');
   assert.match(refused.line.textFr, /Tu réessaies/);
+  assert.deepEqual(refused.options, [], 'no pick from B1');
+  await assert.rejects(client.make(s.id, { kind: 'caption', action: 'caption', optionId: 'l1' }), (error) => error.code === 'revue_caption_write_first');
   const text = 'Un marché en plein air, devant le marché couvert, un matin.';
   const filed = await client.make(s.id, { kind: 'caption', action: 'caption', textFr: text });
   assert.deepEqual([filed.accepted, filed.made.learnerFr, filed.made.contribution], [true, text, [[0, text.length]]]);
@@ -371,6 +422,7 @@ test('§8.4 B1: the caption is written with the picture\'s words; contradicted �
 test('§8.4 without the story\'s picture: the plate stands in, no «Regarde», no «La légende» (refused with 409)', async () => {
   const client = createMockRevueClient({ persist: false, band: 'A2' });
   const s = await client.start();
+  await client.turn(s.id, { text: OWN_LINE });
   assert.deepEqual([s.stage.plateKind, s.stage.pictureWords], ['stand_in', []]);
   assert.ok(!s.thread.some((item) => item.kind === 'line' && item.role === 'look'));
   assert.ok(s.thread.some((item) => item.kind === 'line' && item.role === 'place_note'));

@@ -1,0 +1,277 @@
+{
+ "question": {
+  "fr": "Les soldes d'hiver, c'est une bonne idée ?",
+  "en": "Are winter sales a good idea?",
+  "de": "Sind die Winterschlussverkäufe eine gute Idee?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! Le 7 janvier, je cours acheter un manteau.",
+     "en": "I'm for it! On 7 January, I'm running out to buy a coat.",
+     "de": "Ich bin dafür! Am 7. Januar renne ich los und kaufe einen Mantel."
+    },
+    "a2": {
+     "fr": "Des soldes deux fois par an, c'est bon pour le portefeuille. Un bon manteau à prix doux, c'est pas pire !",
+     "en": "Sales twice a year are good for the wallet. A good coat at a gentle price is not bad at all!",
+     "de": "Schlussverkauf zweimal im Jahr ist gut fürs Portemonnaie. Ein guter Mantel zum kleinen Preis, gar nicht schlecht!"
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que les soldes donnent de l'air aux petits commerçants. Quatre semaines, c'est court, voyons donc. Sans soldes, on achète moins.",
+     "en": "I'm for it, because sales give small shopkeepers some breathing room. Four weeks is short, come on. Without sales, people buy less.",
+     "de": "Ich bin dafür, weil der Schlussverkauf kleinen Händlern Luft verschafft. Vier Wochen sind kurz, ach komm. Ohne Schlussverkauf kauft man weniger."
+    }
+   },
+   "quote": {
+    "fr": "Bon pour le portefeuille.",
+    "en": "Good for the wallet.",
+    "de": "Gut fürs Portemonnaie."
+   }
+  },
+  {
+   "id": "landlord_marchand",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. Des soldes deux fois par an ? Tout cela a un coût.",
+     "en": "I'm against it. Sales twice a year? All of this has a cost.",
+     "de": "Ich bin dagegen. Schlussverkauf zweimal im Jahr? Das alles hat seinen Preis."
+    },
+    "a2": {
+     "fr": "Voyez-vous, du 7 janvier au 3 février, les soldes coûtent cher. Moins d'argent dans la caisse, et tout cela a un coût.",
+     "en": "You see, from 7 January to 3 February, sales cost a lot. Less money in the till, and all of this has a cost.",
+     "de": "Sehen Sie, vom 7. Januar bis zum 3. Februar kosten Schlussverkäufe viel. Weniger Geld in der Kasse, und das alles hat seinen Preis."
+    },
+    "b1": {
+     "fr": "Voyez-vous, je ne suis pas d'accord, parce que les soldes coûtent cher au commerçant. Selon Service Public, elles plaisent aux commerçants. Pas à moi : je compte chaque centime.",
+     "en": "You see, I don't agree, because sales cost the shopkeeper a lot. According to Service Public, shopkeepers like them. Not me: I count every cent.",
+     "de": "Sehen Sie, ich bin nicht einverstanden, weil Schlussverkäufe den Händler viel kosten. Laut Service Public gefallen sie den Händlern. Mir nicht: Ich zähle jeden Cent."
+    }
+   },
+   "quote": {
+    "fr": "Tout cela a un coût.",
+    "en": "All of this has a cost.",
+    "de": "Das alles hat seinen Preis."
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend. Moi, six semaines de soldes ? J'achète en silence.",
+     "en": "It depends. Me, six weeks of sales? I shop in silence.",
+     "de": "Kommt drauf an. Ich, sechs Wochen Schlussverkauf? Ich kaufe in Stille."
+    },
+    "a2": {
+     "fr": "Mon cher, six semaines de soldes, c'est trop long pour un homme de goût. J'adore les bonnes affaires, mais ça dépend du costume.",
+     "en": "My dear, six weeks of sales is too long for a man of taste. I love a good bargain, but it depends on the suit.",
+     "de": "Mein Lieber, sechs Wochen Schlussverkauf sind zu lang für einen Mann von Geschmack. Ich liebe Schnäppchen, aber es kommt auf den Anzug an."
+    },
+    "b1": {
+     "fr": "Ça dépend, parce que six semaines de soldes, c'est trop long pour un homme de goût. D'un côté, les bonnes affaires me plaisent. De l'autre, la foule me fatigue, alors j'achète en silence.",
+     "en": "It depends, because six weeks of sales is too long for a man of taste. On the one hand, good bargains please me. On the other, the crowd wears me out, so I shop in silence.",
+     "de": "Kommt drauf an, weil sechs Wochen Schlussverkauf zu lang sind für einen Mann von Geschmack. Einerseits gefallen mir Schnäppchen. Andererseits ermüdet mich die Menge, also kaufe ich in Stille."
+    }
+   },
+   "quote": {
+    "fr": "Ça dépend du costume.",
+    "en": "It depends on the suit.",
+    "de": "Es kommt auf den Anzug an."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "six semaines",
+  "right_fr": "quatre semaines",
+  "claim_id": "c2",
+  "distractor_fr": "au moins un mois",
+  "ask": {
+   "fr": "Combien de semaines, en vrai ?",
+   "en": "How many weeks, really?",
+   "de": "Wie viele Wochen, wirklich?"
+  },
+  "caught": {
+   "fr": "Quatre ? Bon. Je suis généreux avec les chiffres.",
+   "en": "Four? Fine. I'm generous with numbers.",
+   "de": "Vier? Gut. Ich bin großzügig mit Zahlen."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "c'est bon pour le budget",
+    "en": "it's good for the budget",
+    "de": "es ist gut fürs Budget"
+   },
+   {
+    "fr": "les prix baissent vraiment",
+    "en": "prices really go down",
+    "de": "die Preise sinken wirklich"
+   },
+   {
+    "fr": "les petits commerces respirent",
+    "en": "small shops can breathe",
+    "de": "kleine Läden atmen auf"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "ça coûte cher aux commerçants",
+    "en": "it costs shopkeepers a lot",
+    "de": "es kostet die Händler viel"
+   },
+   {
+    "fr": "les clients se bousculent partout",
+    "en": "customers push everywhere",
+    "de": "überall drängeln sich Kunden"
+   },
+   {
+    "fr": "on achète trop d'habits",
+    "en": "we buy too many clothes",
+    "de": "wir kaufen zu viele Kleider"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est bien, mais court",
+    "en": "it's good, but short",
+    "de": "es ist gut, aber kurz"
+   },
+   {
+    "fr": "bonnes affaires, mauvaise foule",
+    "en": "good bargains, bad crowd",
+    "de": "gute Schnäppchen, schlechte Menge"
+   },
+   {
+    "fr": "ça dépend du prix",
+    "en": "it depends on the price",
+    "de": "es hängt vom Preis ab"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est une bonne idée, parce que",
+   "en": "In my opinion, it's a good idea, because",
+   "de": "Meiner Meinung nach ist das eine gute Idee, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas une bonne idée, parce que",
+   "en": "In my opinion, it's not a good idea, because",
+   "de": "Meiner Meinung nach ist das keine gute Idee, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "les soldes",
+   "en": "the sales",
+   "de": "die Schlussverkäufe"
+  },
+  {
+   "fr": "le prix",
+   "en": "the price",
+   "de": "der Preis"
+  },
+  {
+   "fr": "la caisse",
+   "en": "the till",
+   "de": "die Kasse"
+  },
+  {
+   "fr": "la foule",
+   "en": "the crowd",
+   "de": "die Menge"
+  },
+  {
+   "fr": "une bonne affaire",
+   "en": "a good bargain",
+   "de": "ein gutes Schnäppchen"
+  },
+  {
+   "fr": "le commerçant",
+   "en": "the shopkeeper",
+   "de": "der Händler"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "landlord_marchand",
+   "line": {
+    "fr": "Tu crois ça ? Tout cela a un coût, tu sais. Qui paie la caisse ?",
+    "en": "You think so? All of this has a cost, you know. Who pays for the till?",
+    "de": "Glaubst du das? Das alles hat seinen Preis, weißt du. Wer zahlt die Kasse?"
+   },
+   "comeback": {
+    "fr": "Vous êtes grincheux, monsieur Marchand !",
+    "en": "You're grumpy, Mr Marchand!",
+    "de": "Sie sind griesgrämig, Herr Marchand!"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc ! Tu es contre les soldes ? Ça fait vivre les petits commerces, non ?",
+    "en": "Come on! You're against sales? They keep small shops alive, don't they?",
+    "de": "Ach komm! Du bist gegen Schlussverkäufe? Die halten kleine Läden am Leben, oder?"
+   },
+   "comeback": {
+    "fr": "Et les clients qui se bousculent ?",
+    "en": "What about the customers pushing?",
+    "de": "Und die Kunden, die drängeln?"
+   }
+  },
+  "nuance": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Ça dépend ? Voyons donc ! Les soldes, c'est bon pour tout le monde, non ?",
+    "en": "It depends? Come on! Sales are good for everyone, aren't they?",
+    "de": "Kommt drauf an? Ach komm! Schlussverkäufe sind gut für alle, oder?"
+   },
+   "comeback": {
+    "fr": "Ça dépend de quoi, au juste ?",
+    "en": "Depends on what, exactly?",
+    "de": "Kommt worauf an, genau?"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

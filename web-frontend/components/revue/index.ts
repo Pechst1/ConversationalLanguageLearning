@@ -3,11 +3,14 @@
  * (and WP-120's RvVignette, which La Carte and the Relevé import from here).
  * Wire types: `@/lib/revue-types`; client: `@/lib/revue-api`; dev mock:
  * `@/lib/revue-mock` (`/revue?mock=1`, never in production). Styles:
- * `styles/revue.css` (imported from `pages/_app.tsx`).
+ * `styles/revue.css` and «Au comptoir»'s `styles/revue-comptoir.css` (imported
+ * from `pages/_app.tsx`).
  */
 
 export { RvEncounter } from './RvEncounter';
 export type { RvEncounterProps } from './RvEncounter';
+export { RvComptoir, comptoirCopy, COMPTOIR_FR } from './comptoir';
+export type { RvComptoirProps } from './comptoir';
 export { RvSessionHead, RvColumn } from './RvSessionHead';
 export type { RvSessionHeadProps } from './RvSessionHead';
 export { RvStage, stageCast } from './RvStage';
