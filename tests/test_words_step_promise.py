@@ -181,3 +181,77 @@ def test_the_count_and_the_minutes_are_one_queue() -> None:
     queue = words_queue(step["new_left"], step["reviews"])
     assert step["count"] == queue.count
     assert step["minutes"] == daily_session.minutes(queue.seconds)
+
+
+def _deck_parts(client: TestClient, headers: dict) -> tuple[int, int]:
+    """``(new, reviews)`` the day's review deals."""
+
+    response = client.get("/api/v1/vocabulary/due-context", headers=headers, params=DAY_QUEUE)
+    assert response.status_code == 200, response.text
+    deck = response.json()
+    return len(deck["new_words"]), len(deck["due_words"])
+
+
+def test_a_large_backlog_still_promises_what_the_review_deals(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Back after a week away: 130 reviews due. The deck holds 100 cards, the new
+    words first; the promise is that deck, not «10 new · 100 to review» over a
+    review that deals 100 reviews and no new word (#279, reviewer's note)."""
+
+    headers, user = _learner(client, db_session, quota=10)
+    _seed(db_session, user, due=130, introduced_today=0)
+    monkeypatch.setattr(vocabulary_pace, "journey_reservation", lambda *a, **k: (True, set()))
+
+    step = _promise(db_session, user)
+    new_dealt, reviews_dealt = _deck_parts(client, headers)
+
+    assert step["count"] == new_dealt + reviews_dealt, (
+        f"Home promises {step['count']} cards ({step['new_left']} new, {step['reviews']} to review), "
+        f"the review deals {new_dealt} new and {reviews_dealt} to review"
+    )
+    assert step["new_left"] + step["reviews"] == step["count"]
+    assert (step["new_left"], step["reviews"]) == (new_dealt, reviews_dealt)
+
+
+def test_a_day_whose_journey_is_not_planned_yet_promises_what_the_review_deals(
+    client: TestClient, db_session: Session
+) -> None:
+    """Before the journey is planned the drill leaves the rhythm's share of new
+    words free for it. Home reads that same room, so it does not promise the
+    whole quota while the review deals less (#279, reviewer's note)."""
+
+    headers, user = _learner(client, db_session, quota=10)
+    _seed(db_session, user, due=8, introduced_today=0)
+
+    step = _promise(db_session, user)
+    new_dealt, reviews_dealt = _deck_parts(client, headers)
+
+    assert step["count"] == new_dealt + reviews_dealt, (
+        f"Home promises {step['count']} cards, the review deals {new_dealt} new and {reviews_dealt} to review"
+    )
+    assert (step["new_left"], step["reviews"]) == (new_dealt, reviews_dealt)
+
+
+def test_the_review_asks_for_the_deck_size_the_promise_is_capped_at() -> None:
+    """``review.tsx`` sends ``limit`` for the day's deck; the promise caps its
+    cards at :data:`daily_session.DAY_DECK_LIMIT`. One number, two files."""
+
+    import re
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "web-frontend/pages/vocabulary/review.tsx").read_text()
+    block = re.search(r"const dayQueueParams = \{(.*?)\} as const", source, re.S)
+    assert block, "dayQueueParams moved: update this test"
+    sent = re.search(r"\blimit:\s*(\d+)", block.group(1))
+    assert sent and int(sent.group(1)) == daily_session.DAY_DECK_LIMIT
+
+
+def test_the_review_room_leaves_the_new_words_their_place() -> None:
+    from app.services.daily_session import DAY_DECK_LIMIT, review_room, words_queue
+
+    assert review_room(10) == DAY_DECK_LIMIT - 10
+    assert review_room(10, reviews_left=3) == 3
+    assert review_room(10, deck_limit=12) == 2
+    queue = words_queue(10, 130)
+    assert (queue.new, queue.reviews, queue.count) == (10, DAY_DECK_LIMIT - 10, DAY_DECK_LIMIT)
