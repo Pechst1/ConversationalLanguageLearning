@@ -58,6 +58,7 @@ from app.services.forge_grading import (
     LOCAL_RIGHT,
     classify_follow_up,
     describe_diff,
+    drop_author_notes,
     drop_false_english,
     fold_typography,
     free_use_acceptable,
@@ -5282,7 +5283,7 @@ class AtelierCorrectionService:
         for carried_key in self._CARRIED_CORRECTION_KEYS:
             if carried_key in local and carried_key not in final:
                 final[carried_key] = local[carried_key]
-        final["notes_native"] = notes_native(final.get("errata"))
+        final["notes_native"] = notes_native(final.get("errata"), extra=final.get("feedback_notes_native") or ())
         return final
 
     def _attach_world_reply(self, attempt: AtelierAttempt, *, user: User) -> None:
@@ -7446,6 +7447,8 @@ class AtelierCorrectionService:
         lexical_gaps = self._normalize_lexical_gaps(parsed.get("lexical_gaps"))
         # WP-103 T10: a French word is not English («poster»): such a correction goes.
         errata, lexical_gaps, false_english = drop_false_english(errata, lexical_gaps)
+        # #295: a note to the item's author («add a subject to the prompt») is not a correction.
+        errata, author_notes = drop_author_notes(errata)
         gap_external_id = default_concept.external_id if default_concept else None
         gap_concept_id = default_concept.id if default_concept else None
         for gap in lexical_gaps:
@@ -7484,8 +7487,9 @@ class AtelierCorrectionService:
             if verdict in {"correct", "accepted"}:
                 verdict = "partial"
             score = min(score, 2.5)
-        if false_english and not errata and not missing_targets and verdict == "partial":
-            # The only fault found was a French word called English: there is none.
+        if (false_english or author_notes) and not errata and not missing_targets and verdict == "partial":
+            # The only fault found was a French word called English, or the model's
+            # complaint about the prompt rather than the answer: there is none.
             verdict, score = "correct", 4.0
         if (
             model_noop_dropped
