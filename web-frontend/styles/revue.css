@@ -322,6 +322,8 @@
 .av2 .rv-write .av2-field__control { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); }
 .av2 .rv-write__count { margin: -4px 0 0; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
 .av2 .rv-write__count[data-over] { color: var(--av2-ink); }
+.av2 .rv-caption__or { display: flex; flex-direction: column; gap: 6px; }
+.av2 .rv-caption__or-label { margin: 4px 0 0; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
 
 /* short_report: thirty seconds out loud, then the transcript to check */
 .av2 .rv-report { display: flex; flex-direction: column; gap: 10px; }

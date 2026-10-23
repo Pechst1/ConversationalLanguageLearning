@@ -580,6 +580,7 @@ export function RvCaption({ offer, result, picked, pending = false, onPick, onWr
       )}
       {!filed && fallback.length > 0 && (
         <div className="rv-caption__or">
+          <p className="rv-caption__or-label">{copy.caption_or_pick}</p>
           <ChoiceList
             options={fallback.map((option) => ({ id: option.id, textFr: option.textFr }))}
             selectedId={null}

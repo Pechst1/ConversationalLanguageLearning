@@ -319,6 +319,8 @@ test('model: folding, applyTurn dedupe, open question, contribution segments', (
   const twice = model.applyTurn(once, turn);
   assert.equal(twice.thread.length, once.thread.length, 'a retried turn adds nothing');
   assert.equal(once.beat, 'facts');
+  // A line of the learner's own (not a chip) opens «Écrire le papier» without a reload (2026-10-23).
+  assert.equal(model.applyTurn({ ...session, ownLine: false }, { ...turn, ownLine: true }).ownLine, true);
   assert.equal(model.openQuestion(ALL_KINDS), 'Et les prix ?');
 
   assert.deepEqual(model.contributionSegments('abcdef', [[4, 9], [1, 2], [1, 3]]), [
@@ -645,6 +647,7 @@ test('«La légende» at A1–A2 (2026-10-23): written first; a refused try brin
   assert.equal(captionFeedback(short, FR).title, FR.caption_too_short);
   assert.match(refused, /<textarea/, 'write again');
   assert.match(refused, /role="radiogroup" aria-label="Ou choisis la légende"/);
+  assert.match(refused, /<p class="rv-caption__or-label">Ou choisis la légende<\/p>/, 'the way out is said on screen');
   assert.equal((refused.match(/role="radio"/g) || []).length, 3);
   assert.doesNotMatch(refused, /data-state="(correct|wrong)"/, 'the answer stays with the server until the pick');
 
