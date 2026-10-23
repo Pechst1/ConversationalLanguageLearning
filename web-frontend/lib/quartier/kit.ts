@@ -156,7 +156,7 @@ export function insetPolygon(shape: Shape2, insets: number[]): Shape2 {
 /* buildings                                                                                  */
 /* ------------------------------------------------------------------------------------------ */
 
-export type ShopKind = 'shop' | 'shutter' | 'none' | 'door' | 'wall';
+export type ShopKind = 'shop' | 'shutter' | 'none' | 'door' | 'wall' | 'window';
 
 export interface Shop {
   /** first and last bay it takes on the ground floor */
@@ -171,6 +171,8 @@ export interface Shop {
   awning?: Hex;
   /** lit at night */
   lit?: boolean;
+  /** a door's house number, on its blue plaque over the lintel */
+  number?: string;
 }
 
 export interface Run {
@@ -188,7 +190,7 @@ export interface BuildingSpec {
   depth?: number;
   /** which footprint edges face a street (their roof slopes); the others are party walls */
   street?: boolean[];
-  style: 'haussmann' | 'faubourg';
+  style: 'haussmann' | 'faubourg' | 'moderne';
   storeys: number;
   wall: Hex;
   /** storeys with a continuous balcony (1 is the first floor above the shops) */
@@ -201,6 +203,8 @@ export interface BuildingSpec {
   forceLit?: string[];
   /** leave the ground floor empty inside, for a room built separately (Le Mistral) */
   hollowGround?: boolean;
+  /** 1: far from where you can walk, so none of the small relief (sills, shutters, lace) */
+  lod?: number;
   seed: number;
 }
 
@@ -212,13 +216,37 @@ export interface BuildingInfo {
   windows: Map<string, { center: Vector3; normal: Vector3; width: number; height: number }>;
 }
 
+/** The house paints of the quarter's walls: stone, cream, and the faint tints of rendered plaster. */
+export const WALLS: Hex[] = [
+  TONES.stone,
+  TONES.stoneLight,
+  mix(INKS.paper, INKS.ochre, 0.18),
+  mix(INKS.paper, INKS.ochre, 0.26),
+  mix(INKS.paper, INKS.cobalt, 0.07),
+  mix(INKS.paper, INKS.vermilion, 0.07),
+  mix(INKS.card, INKS.green, 0.06),
+];
+
 const STOREYS = {
   haussmann: { ground: 4.6, heights: [3.3, 3.15, 3.0, 2.9, 2.8, 2.7], bay: 3.0, window: 1.25 },
   faubourg: { ground: 3.7, heights: [2.85, 2.75, 2.7, 2.65, 2.6, 2.6], bay: 2.7, window: 1.05 },
+  // the housing of the 1960s to the 80s: even floors, wide windows, a flat roof
+  moderne: { ground: 3.4, heights: [2.75, 2.75, 2.75, 2.75, 2.75, 2.75, 2.75, 2.75, 2.75], bay: 3.3, window: 1.7 },
 };
 
+/** The height of a style's ground floor (the shops), where the first floor's band runs. */
+export function groundOf(style: BuildingSpec['style']) {
+  return STOREYS[style].ground;
+}
+
+/** Where the small relief and the lettering of a far building go: built, never drawn. */
+function sink(B: Build): Build {
+  return { ...B, fine: new Press(), lace: new LacePress(), signs: [] };
+}
+
 /** Build a whole building: façades, body, roof, chimneys. */
-export function building(B: Build, spec: BuildingSpec): BuildingInfo {
+export function building(B0: Build, spec: BuildingSpec): BuildingInfo {
+  const B = spec.lod ? sink(B0) : B0;
   const R = B.rand;
   const kind = STOREYS[spec.style];
   const heights = kind.heights.slice(0, spec.storeys);
@@ -227,26 +255,42 @@ export function building(B: Build, spec: BuildingSpec): BuildingInfo {
   const wallId = nextId();
   const wall: Paint = { color: spec.wall, id: wallId };
   const stoneBase: Paint = { color: mix(spec.wall, INKS.ink, 0.04), id: wallId, pattern: spec.style === 'haussmann' ? PATTERN.courses : PATTERN.none };
-  const first = spec.runs[0];
+  const first: Run | undefined = spec.runs[0];
   const depth = spec.depth ?? 14;
   const footprint: Shape2 =
     spec.footprint ??
     (() => {
+      if (!first) throw new Error('a building needs a footprint or a façade');
       const f = frameOf(first.a, first.b);
       return [worldOf(f, 0, 0), worldOf(f, f.len, 0), worldOf(f, f.len, -depth), worldOf(f, 0, -depth)];
     })();
   const streetEdges = spec.street ?? footprint.map((_, i) => i === 0);
   const windows: BuildingInfo['windows'] = new Map();
 
-  // the façades
+  // the façades (a far one only as painted as it needs to be from the end of the street)
   spec.runs.forEach((run, ri) => {
-    facade(B, spec, run, ri, { ground, heights, cornice, wall, stoneBase, wallId, windows });
+    if (spec.lod) facadeFar(B, spec, run, { ground, heights, cornice, wall, stoneBase, wallId, windows });
+    else facade(B, spec, run, ri, { ground, heights, cornice, wall, stoneBase, wallId, windows });
   });
 
   // the body behind the façades: pulled back from the streets so the reveals have depth
   const body = insetPolygon(footprint, streetEdges.map((s) => (s ? 0.26 : 0)));
   B.dry.prism(body, spec.hollowGround ? ground - 0.3 : -0.4, cornice + 0.02, { color: TONES.partyWall, id: wallId }, { top: false, bottom: !!spec.hollowGround });
   if (!spec.hollowGround) B.blocks.push(footprint);
+
+  if (spec.style === 'moderne') {
+    // a flat roof behind a parapet, and the lift's housing on the bigger blocks
+    const coping = mix(spec.wall, INKS.ink, 0.1);
+    B.dry.prism(footprint, cornice, cornice + 0.95, { color: coping, id: wallId }, { top: false });
+    B.dry.prism(insetPolygon(footprint, footprint.map(() => 0.28)), cornice + 0.55, cornice + 0.57, { color: TONES.zincTop, id: nextId() }, { sides: false });
+    const box = footprint.reduce((a, p) => [Math.min(a[0], p[0]), Math.min(a[1], p[1]), Math.max(a[2], p[0]), Math.max(a[3], p[1])], [Infinity, Infinity, -Infinity, -Infinity]);
+    if ((box[2] - box[0]) * (box[3] - box[1]) > 260) {
+      const cx = (box[0] + box[2]) / 2;
+      const cz = (box[1] + box[3]) / 2;
+      B.dry.block(cx, cornice + 0.55, cz, 2.6, 2.4, 3.2, { color: mix(spec.wall, INKS.ink, 0.05), id: wallId });
+    }
+    return { cornice, ridge: cornice + 0.95, footprint, windows };
+  }
 
   // the roof: a mansard on the street sides, straight up at the party walls
   const roofBase = cornice + 0.5;
@@ -273,6 +317,8 @@ export function building(B: Build, spec: BuildingSpec): BuildingInfo {
   const ridge = roofBase + rise;
   B.dry.prism(top, ridge - 0.01, ridge + 0.12, { color: TONES.zincTop, id: zinc.id }, {});
 
+  if (!first) return { cornice, ridge, footprint, windows };
+
   // dormers along the first run's slope
   const f0 = frameOf(first.a, first.b);
   const bays0 = first.bays ?? Math.max(1, Math.round(f0.len / kind.bay));
@@ -297,6 +343,7 @@ export function building(B: Build, spec: BuildingSpec): BuildingInfo {
     B.dry.at(x, ridge, z, Math.atan2(-f0.t.z, f0.t.x), () => {
       B.dry.block(0, -0.4, 0, 0.75, h + 0.4, long, { color: TONES.chimney, id: nextId() });
       B.dry.block(0, h, 0, 0.86, 0.12, long + 0.1, { color: mix(TONES.chimney, INKS.paper, 0.3), id: nextId() });
+      if (spec.lod) return;
       const pots = Math.max(2, Math.round(long / 0.38));
       const potId = nextId();
       for (let p = 0; p < pots; p++) {
@@ -327,7 +374,8 @@ function facade(B: Build, spec: BuildingSpec, run: Run, ri: number, ctx: FacadeC
   const W = f.len;
   const bays = run.bays ?? Math.max(1, Math.round(W / kind.bay));
   const bw = W / bays;
-  const ww = Math.min(kind.window, bw * 0.52);
+  const isM = spec.style === 'moderne';
+  const ww = Math.min(kind.window, bw * (isM ? 0.6 : 0.52));
   const isH = spec.style === 'haussmann';
   const D = B.dry;
   const F = B.fine;
@@ -340,8 +388,19 @@ function facade(B: Build, spec: BuildingSpec, run: Run, ri: number, ctx: FacadeC
   const g = ctx.ground;
   // the stone between and above the openings
   const openings: Array<[number, number]> = [];
+  // a window at street level is narrower than its bay, and sits on a stone apron
+  const sill = 0.95;
+  const groundWin = (s: Shop): [number, number] => {
+    const cu = ((s.from + s.to + 1) / 2) * bw;
+    const w = Math.min(1.3, bw * 0.48);
+    return [cu - w / 2, cu + w / 2];
+  };
   for (const s of run.shops) {
     if (s.kind === 'wall') continue;
+    if (s.kind === 'window') {
+      openings.push(groundWin(s));
+      continue;
+    }
     const u0 = s.from * bw + 0.35;
     const u1 = (s.to + 1) * bw - 0.35;
     openings.push([u0, u1]);
@@ -363,10 +422,21 @@ function facade(B: Build, spec: BuildingSpec, run: Run, ri: number, ctx: FacadeC
 
   for (const s of run.shops) {
     if (s.kind === 'wall' || s.kind === 'none') continue;
+    if (s.kind === 'window') {
+      const [u0, u1] = groundWin(s);
+      D.box((u0 + u1) / 2, sill / 2, -0.13, u1 - u0, sill, 0.26, ctx.stoneBase, { nz: false });
+      streetWindow(B, u0, u1, sill, openTop - 0.25);
+      continue;
+    }
     const u0 = s.from * bw + 0.35;
     const u1 = (s.to + 1) * bw - 0.35;
-    if (s.kind === 'door') porch(B, u0, u1, openTop, s.color ?? INKS.green);
-    else shopFront(B, f, u0, u1, openTop, s);
+    if (s.kind === 'door') {
+      porch(B, u0, u1, openTop, s.color ?? INKS.green);
+      if (s.number) {
+        const [x, z] = worldOf(f, (u0 + u1) / 2, 0.02);
+        B.signs.push({ key: `numero:${s.number}`, center: new Vector3(x, openTop + 0.5, z), normal: f.n.clone(), width: 0.3, height: 0.24, density: 300, draw: numberArt(s.number) });
+      }
+    } else shopFront(B, f, u0, u1, openTop, s);
   }
 
   /* the storeys */
@@ -392,7 +462,7 @@ function facade(B: Build, spec: BuildingSpec, run: Run, ri: number, ctx: FacadeC
       const shut = (spec.shut ?? []).includes(`${ri}:${key}`);
       const forced = (spec.forceLit ?? []).includes(`${ri}:${key}`);
       const lit = forced || (!shut && R.chance(spec.lit ?? 0.3));
-      windowIn(B, cu, wy0, wy1, ww, { lit, shut, isH, storey, balcony: isBalcony, dim: forced });
+      windowIn(B, cu, wy0, wy1, ww, { lit, shut, isH, storey, balcony: isBalcony, dim: forced, modern: isM });
       const [wx, wz] = worldOf(f, cu, -0.2);
       ctx.windows.set(`${ri}:${key}`, {
         center: new Vector3(wx, (wy0 + wy1) / 2, wz),
@@ -409,9 +479,11 @@ function facade(B: Build, spec: BuildingSpec, run: Run, ri: number, ctx: FacadeC
 
   /* the cornice */
   const c = ctx.cornice;
-  const corniceProfile: Array<[number, number]> = isH
-    ? [[0, 0], [0.1, 0.06], [0.14, 0.18], [0.3, 0.24], [0.42, 0.34], [0.5, 0.44], [0.5, 0.52], [0, 0.56]]
-    : [[0, 0], [0.12, 0.08], [0.22, 0.2], [0.26, 0.3], [0, 0.34]];
+  const corniceProfile: Array<[number, number]> = isM
+    ? [[0, 0], [0.05, 0], [0.05, 0.22], [0, 0.22]]
+    : isH
+      ? [[0, 0], [0.1, 0.06], [0.14, 0.18], [0.3, 0.24], [0.42, 0.34], [0.5, 0.44], [0.5, 0.52], [0, 0.56]]
+      : [[0, 0], [0.12, 0.08], [0.22, 0.2], [0.26, 0.3], [0, 0.34]];
   D.sweep(new Vector3(-0.02, c, 0), new Vector3(W + 0.02, c, 0), corniceProfile, { color: mix(spec.wall, INKS.paper, 0.3), id: nextId() }, { caps: true });
   // brackets (modillions) under the Haussmann cornice
   if (isH) {
@@ -425,6 +497,58 @@ function facade(B: Build, spec: BuildingSpec, run: Run, ri: number, ctx: FacadeC
   B.lace.pop();
 }
 
+/**
+ * A façade seen from far off: one wall from the pavement to the cornice, its windows and shop
+ * fronts painted flat on it (lit ones still glow at night), balcony slabs and the cornice. About a
+ * tenth of a near façade's triangles, and the skyline reads the same.
+ */
+function facadeFar(B: Build, spec: BuildingSpec, run: Run, ctx: FacadeCtx) {
+  const R = B.rand;
+  const kind = STOREYS[spec.style];
+  const f = frameOf(run.a, run.b);
+  const W = f.len;
+  const bays = run.bays ?? Math.max(1, Math.round(W / kind.bay));
+  const bw = W / bays;
+  const isM = spec.style === 'moderne';
+  const ww = Math.min(kind.window, bw * (isM ? 0.6 : 0.52));
+  const D = B.dry;
+  const g = ctx.ground;
+  const face = (u0: number, y0: number, u1: number, y1: number, z: number, paint: Paint, id?: number) =>
+    D.quadXYZ([u0, y0, z, u1, y0, z, u1, y1, z, u0, y1, z], paint, id);
+  D.push(f.m);
+  face(0, g, W, ctx.cornice, 0, ctx.wall, ctx.wallId);
+  face(0, -0.4, W, g, 0, ctx.stoneBase, ctx.wallId);
+  // the shops and doors as their openings, the street windows as panes
+  const openTop = g - 1.15;
+  for (const s of run.shops) {
+    if (s.kind === 'wall' || s.kind === 'none') continue;
+    const u0 = s.from * bw + 0.35;
+    const u1 = (s.to + 1) * bw - 0.35;
+    if (s.kind === 'window') {
+      const cu = (u0 + u1) / 2;
+      const w = Math.min(1.3, bw * 0.48);
+      face(cu - w / 2, 0.95, cu + w / 2, openTop - 0.25, 0.04, { color: TONES.pane, id: nextId(), wet: 0.6 });
+    } else if (s.kind === 'door') face(u0, 0, u1, openTop, 0.04, { color: s.color ?? INKS.green, id: nextId() });
+    else face(u0, 0, u1, openTop, 0.04, { color: s.lit ? TONES.paneLit : mix(TONES.pane, INKS.ink, 0.2), glow: s.lit ? 0.6 : 0, id: nextId() });
+  }
+  let y = g;
+  ctx.heights.forEach((h, k) => {
+    const storey = k + 1;
+    const wy0 = y + (storey < ctx.heights.length ? 0.08 : 0.5);
+    const wy1 = y + h * 0.72;
+    for (let i = 0; i < bays; i++) {
+      const cu = (i + 0.5) * bw;
+      const lit = R.chance(spec.lit ?? 0.3);
+      face(cu - ww / 2, wy0, cu + ww / 2, wy1, 0.04, lit ? { color: TONES.paneLit, glow: 1, id: nextId() } : { color: TONES.pane, id: nextId(), wet: 0.6 });
+    }
+    if ((spec.balconies ?? []).indexOf(storey) >= 0) D.box(W / 2, y - 0.08, 0.36, W - 0.24, 0.16, 0.72, { color: mix(TONES.stone, INKS.paper, 0.2), id: nextId() });
+    y += h;
+  });
+  // the cornice, deep enough to close the top of the wall over the body behind it
+  D.box(W / 2, ctx.cornice + 0.2, 0, W + 0.04, 0.4, 0.6, { color: mix(spec.wall, INKS.paper, 0.3), id: nextId() }, { nz: false });
+  D.pop();
+}
+
 interface WindowOpts {
   lit: boolean;
   shut: boolean;
@@ -433,6 +557,8 @@ interface WindowOpts {
   balcony: boolean;
   /** the easel window: lit, but low */
   dim?: boolean;
+  /** a plain opening of the housing estates: no surround, no shutters */
+  modern?: boolean;
 }
 
 /** One window in its reveal: pane, frame, shutters, surround, sill and guard. */
@@ -464,7 +590,7 @@ function windowIn(B: Build, cu: number, y0: number, y1: number, w: number, o: Wi
     F.box(cu, (y0 + y1) / 2, -0.17, 0.06, h, 0.05, frame, { nz: false });
     F.box(cu, y1 - h * 0.2, -0.17, w, 0.06, 0.05, frame, { nz: false });
     // folded shutters in the reveal
-    if (!o.isH || R.chance(0.6)) {
+    if (!o.modern && (!o.isH || R.chance(0.6))) {
       const sh: Paint = { color: TONES.shutter, id: nextId() };
       F.box(cu - w / 2 + 0.05, (y0 + y1) / 2, -0.1, 0.08, h - 0.04, 0.17, sh, { nz: false });
       F.box(cu + w / 2 - 0.05, (y0 + y1) / 2, -0.1, 0.08, h - 0.04, 0.17, sh, { nz: false });
@@ -472,6 +598,11 @@ function windowIn(B: Build, cu: number, y0: number, y1: number, w: number, o: Wi
   }
   // the surround: a raised stone frame, a cornice over the first floor's windows
   const sur: Paint = { color: mix(TONES.stoneLight, INKS.ochre, 0.05), id: nextId() };
+  if (o.modern) {
+    F.box(cu, y0 - 0.02, 0.02, w + 0.06, 0.04, 0.08, sur, { nz: false });
+    if (!o.shut) F.box(cu, y0 + 0.5, 0.02, w, 0.04, 0.04, { color: TONES.iron, id: nextId() }, { nz: false });
+    return;
+  }
   if (o.isH) {
     F.box(cu - w / 2 - 0.07, (y0 + y1) / 2, 0.02, 0.14, h, 0.04, sur, { nz: false });
     F.box(cu + w / 2 + 0.07, (y0 + y1) / 2, 0.02, 0.14, h, 0.04, sur, { nz: false });
@@ -536,6 +667,24 @@ function dormer(B: Build, cu: number, base: number, rise: number, set: number, l
   void rise;
 }
 
+/** A window at street level: deep in its reveal, behind a grille, curtained for the passers-by. */
+function streetWindow(B: Build, u0: number, u1: number, y0: number, y1: number) {
+  const D = B.dry;
+  const F = B.fine;
+  const w = u1 - u0;
+  const cu = (u0 + u1) / 2;
+  const paneId = nextId();
+  D.quadXYZ([u0, y0, -0.22, u1, y0, -0.22, u1, y1, -0.22, u0, y1, -0.22], { color: mix(TONES.pane, INKS.cobalt, 0.15), wet: 0.6, id: paneId }, paneId);
+  // a net curtain over the lower half
+  F.box(cu, y0 + (y1 - y0) * 0.3, -0.2, w - 0.12, (y1 - y0) * 0.55, 0.01, { color: mix(TONES.curtain, INKS.ink, 0.08), id: nextId() }, { nz: false });
+  const iron: Paint = { color: TONES.iron, id: nextId() };
+  const bars = Math.max(3, Math.round(w / 0.14));
+  for (let i = 1; i < bars; i++) F.box(u0 + (i * w) / bars, (y0 + y1) / 2, -0.02, 0.025, y1 - y0, 0.025, iron, { nz: false });
+  F.box(cu, y0 + 0.1, -0.02, w, 0.04, 0.04, iron, { nz: false });
+  F.box(cu, y1 - 0.1, -0.02, w, 0.04, 0.04, iron, { nz: false });
+  F.box(cu, y0 - 0.03, 0.03, w + 0.16, 0.06, 0.12, { color: mix(TONES.stoneLight, INKS.ochre, 0.05), id: nextId() }, { nz: false });
+}
+
 /** A building's carriage door: two leaves of painted wood under a fanlight. */
 function porch(B: Build, u0: number, u1: number, top: number, color: Hex) {
   const D = B.dry;
@@ -594,11 +743,13 @@ function shopFront(B: Build, f: Frame, u0: number, u1: number, top: number, s: S
   D.box(cu, top + 0.45, 0.02, w + 0.3, 0.9, 0.14, paint, { nz: false });
   if (s.name) {
     const [x, z] = worldOf(f, cu, 0.1);
+    // the key says everything the lettering depends on, so two fronts alike print it once
+    const width = Math.round(Math.min(w, Math.max(2.4, s.name.length * 0.32)) * 10) / 10;
     B.signs.push({
-      key: `fascia:${s.name}`,
+      key: `fascia:${s.name}:${s.trade ?? ''}:${isDark(color) ? 'light' : 'dark'}`,
       center: new Vector3(x, top + 0.45, z),
       normal: f.n.clone(),
-      width: Math.min(w, Math.max(2.4, s.name.length * 0.32)),
+      width,
       height: 0.72,
       draw: (ctx, cw, ch) => fasciaArt(ctx, cw, ch, s.name ?? '', s.trade, color),
     });
@@ -646,6 +797,30 @@ function fasciaArt(ctx: CanvasRenderingContext2D, w: number, h: number, name: st
     ctx.font = `600 ${ts}px AtelierSans, 'Instrument Sans', system-ui, sans-serif`;
     ctx.fillText(trade, w / 2, h * 0.8);
   }
+}
+
+/** A house number: white on the blue enamel, a white rule round it, as on every Paris door. */
+export function numberArt(n: string) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const r = h * 0.14;
+    ctx.fillStyle = '#1d3a8a';
+    ctx.beginPath();
+    ctx.moveTo(r, 0);
+    ctx.arcTo(w, 0, w, h, r);
+    ctx.arcTo(w, h, 0, h, r);
+    ctx.arcTo(0, h, 0, 0, r);
+    ctx.arcTo(0, 0, w, 0, r);
+    ctx.fill();
+    ctx.strokeStyle = '#f8f3e8';
+    ctx.lineWidth = Math.max(1.5, h * 0.05);
+    ctx.strokeRect(h * 0.1, h * 0.1, w - h * 0.2, h - h * 0.2);
+    ctx.fillStyle = '#f8f3e8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const size = fitText(ctx, n, w * 0.74, Math.round(h * 0.62), "700 {s}px AtelierSans, 'Instrument Sans', system-ui, sans-serif");
+    ctx.font = `700 ${size}px AtelierSans, 'Instrument Sans', system-ui, sans-serif`;
+    ctx.fillText(n, w / 2, h * 0.54);
+  };
 }
 
 export function fitText(ctx: CanvasRenderingContext2D, text: string, maxW: number, size: number, template: string) {
@@ -700,8 +875,11 @@ export function wallLamp(B: Build, f: Frame, u: number, y: number, lit = true) {
   }
 }
 
-/** A plane tree in November: mottled trunk, three limbs, a crown of ochre and sunflower clumps. */
-export function planeTree(B: Build, x: number, z: number, y = KERB, scale = 1) {
+/**
+ * A plane tree in November: mottled trunk, three limbs, a crown of ochre and sunflower clumps.
+ * A `far` one (seen only over the rooftops) has coarser clumps and no twigs or grate.
+ */
+export function planeTree(B: Build, x: number, z: number, y = KERB, scale = 1, far = false) {
   const D = B.dry;
   const R = B.rand;
   const trunkId = nextId();
@@ -709,7 +887,7 @@ export function planeTree(B: Build, x: number, z: number, y = KERB, scale = 1) {
   const trunkH = 3.4 * scale;
   D.lathe(x, y - 0.1, z, [[0.3 * scale, 0], [0.24 * scale, 0.4], [0.2 * scale, trunkH * 0.6], [0.17 * scale, trunkH]], 7, bark);
   // the grate round its foot
-  D.box(x, y + 0.005, z, 1.5, 0.02, 1.5, { color: mix(IRON, INKS.ink, 0.3), id: nextId() }, { ny: false });
+  if (!far) D.box(x, y + 0.005, z, 1.5, 0.02, 1.5, { color: mix(IRON, INKS.ink, 0.3), id: nextId() }, { ny: false });
   const limbs = 3 + R.int(0, 1);
   const crown: Array<[number, number, number]> = [];
   for (let i = 0; i < limbs; i++) {
@@ -719,7 +897,7 @@ export function planeTree(B: Build, x: number, z: number, y = KERB, scale = 1) {
     D.bar(new Vector3(x, y + trunkH - 0.2, z), top, 0.17 * scale, bark, trunkId);
     crown.push([top.x, top.y, top.z]);
     // a twig or two past the leaves, bare already
-    D.bar(top, top.clone().add(new Vector3(Math.cos(a) * 0.9, 1.1, Math.sin(a) * 0.9).multiplyScalar(scale)), 0.06, { color: TONES.barkDark, id: nextId() });
+    if (!far) D.bar(top, top.clone().add(new Vector3(Math.cos(a) * 0.9, 1.1, Math.sin(a) * 0.9).multiplyScalar(scale)), 0.06, { color: TONES.barkDark, id: nextId() });
   }
   const leaves = [TONES.leafSun, TONES.leafOchre, TONES.leafRust, TONES.leafOchre, TONES.leafSun];
   const clumps = 7 + R.int(0, 3);
@@ -731,7 +909,7 @@ export function planeTree(B: Build, x: number, z: number, y = KERB, scale = 1) {
     const cz = c[2] + R.range(-1.4, 1.4) * scale;
     const cy = c[1] + R.range(-0.6, 1.3) * scale;
     const tone = leaves[(i + R.int(0, 4)) % leaves.length];
-    D.ball(cx, cy, cz, r, r * 0.78, r, { color: tone, id: leafId + (i % 2) }, 1, { smooth: true });
+    D.ball(cx, cy, cz, r, r * 0.78, r, { color: tone, id: leafId + (i % 2) }, far ? 0 : 1, { smooth: true });
   }
   B.blocks.push(circle(x, z, 0.45));
   return { crownTop: y + trunkH + 4 * scale };

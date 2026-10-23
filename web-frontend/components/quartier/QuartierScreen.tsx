@@ -5,7 +5,9 @@
  * stick when there is somewhere to walk. The engine draws the street; the director (`Stage`)
  * says what the cards show; this component only lays them out and passes your taps back.
  * Around the place you are in sit the things that outlast it: the quarter's memory, your carnet,
- * and the map of the Paris the game has built so far.
+ * and the map of the Paris the game has built so far. From the map you can ride to a place the
+ * forge has built (`world/sites`): the engine is rebuilt there, a `Visit` directs it instead of the
+ * episode's `Stage`, and «Rentrer au quai» brings you home with what you did there remembered.
  * Nothing here is server-rendered: the page imports it with `ssr: false`.
  */
 import React from 'react';
@@ -21,9 +23,12 @@ import { Memory, eligible } from '@/lib/quartier/memory';
 import type { Words } from '@/lib/quartier/memory';
 import { AMBIANCES } from '@/lib/quartier/palette';
 import type { AmbianceId } from '@/lib/quartier/palette';
+import type { SiteSpec } from '@/lib/quartier/site';
 import { Stage, T1A } from '@/lib/quartier/stage';
-import type { AnswerUi, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
-import { worldState } from '@/lib/quartier/world';
+import type { AnswerUi, Cue, Director, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
+import { Visit } from '@/lib/quartier/visit';
+import { placeOf, worldState } from '@/lib/quartier/world';
+import { SITE_FILES } from '@/lib/quartier/world/sites';
 import type { SeasonItemId } from '@/lib/season-items';
 
 import { Carnet } from './Carnet';
@@ -39,8 +44,10 @@ export interface QuartierScreenProps {
   onExit?: () => void;
   /** a frame counter in the corner */
   showStats?: boolean;
+  /** start at a place the forge built instead of the quai (`marche_aligre`) */
+  startPlace?: string;
   /** the quarter is built and its director ready (for tools that drive it: a play-through, a test) */
-  onReady?: (engine: Quartier, stage: Stage, memory: Memory) => void;
+  onReady?: (engine: Quartier, director: Director, memory: Memory) => void;
 }
 
 const ART: ArtSource = {
@@ -50,6 +57,9 @@ const ART: ArtSource = {
 
 /** Away this long, and the title card says what happened while you were gone. */
 const AWAY_MS = 10 * 60 * 1000;
+
+/** The hand-drawn quarter: the quai de Valmy and Le Mistral. */
+const HOME = 'quai_de_valmy';
 
 function phoneNative(): Native {
   if (typeof navigator === 'undefined') return 'en';
@@ -84,6 +94,15 @@ const COPY = {
     failed: 'This phone could not open the 3D quarter.',
     leave: 'Back',
     retry: 'Try again',
+    home: 'Rentrer',
+    goHome: 'Rentrer au quai',
+    stay: 'Rester',
+    seeYou: 'À bientôt',
+    today: 'Aujourd’hui',
+    nextTime: 'La prochaine fois',
+    back: 'De retour au quai',
+    backText: 'The evening goes on at Le Mistral. Walk about and talk to anyone, or play the episode again.',
+    visitHowto: 'Tap a stallholder to talk, in French: say bonjour, ask a price, buy by the kilo or by the piece. Tap the ground to walk. «Rentrer» takes you back to the quai.',
   },
   de: {
     start: 'Commencer',
@@ -112,15 +131,24 @@ const COPY = {
     failed: 'Dieses Telefon konnte das 3D-Viertel nicht öffnen.',
     leave: 'Zurück',
     retry: 'Erneut versuchen',
+    home: 'Rentrer',
+    goHome: 'Rentrer au quai',
+    stay: 'Rester',
+    seeYou: 'À bientôt',
+    today: 'Aujourd’hui',
+    nextTime: 'La prochaine fois',
+    back: 'De retour au quai',
+    backText: 'Im Mistral geht der Abend weiter. Geh herum und sprich mit allen, oder spiel die Folge noch einmal.',
+    visitHowto: 'Tippe auf jemanden am Stand, um zu reden, auf Französisch: sag bonjour, frag nach dem Preis, kauf nach Kilo oder Stück. Tippe auf den Boden, um zu gehen. «Rentrer» bringt dich zurück an den Quai.',
   },
 };
 
 type Copy = (typeof COPY)['en'];
 
-export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, onReady }: QuartierScreenProps) {
+export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, onReady }: QuartierScreenProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const engine = React.useRef<Quartier | null>(null);
-  const stage = React.useRef<Stage | null>(null);
+  const stage = React.useRef<Director | null>(null);
   const sound = React.useRef<Sound | null>(null);
   const [native] = React.useState<Native>(() => nativeProp ?? phoneNative());
   const [memory] = React.useState(() => new Memory());
@@ -133,7 +161,14 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   const [stats, setStats] = React.useState<Stats | null>(null);
   const [panel, setPanel] = React.useState<'carnet' | 'map' | null>(null);
   const [awayNotes, setAwayNotes] = React.useState<Words[]>([]);
+  // where you are: the quai, or a place the forge built (its site, once loaded)
+  const [place, setPlace] = React.useState(() => (startPlace && SITE_FILES[startPlace] ? startPlace : HOME));
+  const [site, setSite] = React.useState<SiteSpec | null>(null);
+  // the ride you took, on the loading card; back on the quai from somewhere else
+  const [ride, setRide] = React.useState<Words | null>(null);
+  const [back, setBack] = React.useState(false);
   const copy = COPY[native];
+  const here = placeOf(place);
 
   // you arrive: how long were you gone, and what happened meanwhile?
   React.useEffect(() => {
@@ -161,49 +196,61 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
     let cancelled = false;
-    let q: Quartier;
-    try {
-      q = new Quartier({ canvas, art: ART, ambiance: firstAmbiance, onProgress: (share, label) => !cancelled && setLoading({ share, label }) });
-    } catch (e) {
-      setFailed(e instanceof Error ? e.message : String(e));
-      return undefined;
-    }
-    engine.current = q;
-    const snd = new Sound();
-    sound.current = snd;
-    const st = new Stage(q, T1A, { level, native, onCue: (c) => snd.cue(c), memory });
-    stage.current = st;
-    const unsubscribe = st.subscribe(setUi);
+    let q: Quartier | null = null;
+    let st: Director | null = null;
+    let snd: Sound | null = null;
+    let unsubscribe: (() => void) | null = null;
     let unbind: (() => void) | null = null;
     let stopTick: (() => void) | null = null;
     let crowd: Crowd | null = null;
-    const onResize = () => q.resize();
+    const onResize = () => q?.resize();
     window.addEventListener('resize', onResize);
     (async () => {
       try {
-        await q.load();
+        // a forged place is data, loaded only when you go there
+        let spec: SiteSpec | null = null;
+        if (place !== HOME) {
+          const file = SITE_FILES[place];
+          if (!file) throw new Error(`Nothing is built at ${place} yet`);
+          spec = await file();
+          if (cancelled) return;
+        }
+        setSite(spec);
+        const eq = new Quartier({ canvas, art: ART, ambiance: spec ? spec.ambiance : ambiance, site: spec ?? undefined, onProgress: (share, label) => !cancelled && setLoading({ share, label }) });
+        q = eq;
+        engine.current = eq;
+        const sn = new Sound();
+        snd = sn;
+        sound.current = sn;
+        await eq.load();
         if (cancelled) return;
-        await st.prepare();
+        const opts = { level, native, onCue: (c: Cue) => sn.cue(c), memory };
+        const director: Director = spec ? new Visit(eq, opts) : new Stage(eq, T1A, opts);
+        st = director;
+        stage.current = director;
+        unsubscribe = director.subscribe(setUi);
+        await director.prepare();
         if (cancelled) return;
-        unbind = q.bindInput();
-        const last = q.feet.clone();
+        unbind = eq.bindInput();
+        const last = eq.feet.clone();
         let statAt = 0;
-        stopTick = q.onTick((_dt, now) => {
-          const moved = q.feet.distanceTo(last) > 0.004;
-          last.copy(q.feet);
-          const a = AMBIANCES[q.ambiance];
-          snd.update({ indoors: q.indoors, walking: moved, rain: a.rain, night: a.night > 0.5, neon: q.camera.position.distanceTo(q.parts.neon.center) });
+        stopTick = eq.onTick((_dt, now) => {
+          const moved = eq.feet.distanceTo(last) > 0.004;
+          last.copy(eq.feet);
+          const a = AMBIANCES[eq.ambiance];
+          const neon = eq.parts ? eq.camera.position.distanceTo(eq.parts.neon.center) : 999;
+          sn.update({ indoors: eq.indoors, walking: moved, rain: a.rain, night: a.night > 0.5, neon });
           if (showStats && now - statAt > 0.5) {
             statAt = now;
-            setStats({ ...q.stats });
+            setStats({ ...eq.stats });
           }
         });
-        q.start();
+        eq.start();
         setLoading(null);
-        onReady?.(q, st, memory);
-        // the street fills while you read the title card
-        crowd = new Crowd(q, { count: 10, onNear: (key) => st.passerby(key, false) });
-        st.setStreet(crowd);
+        onReady?.(eq, director, memory);
+        // the street fills while you read the title card; a market more than the quai at night
+        crowd = new Crowd(eq, { count: spec ? 24 : 10, spots: spec?.spots, onNear: (key) => director.passerby(key, false) });
+        director.setStreet(crowd);
         await crowd.load();
       } catch (e) {
         if (!cancelled) setFailed(e instanceof Error ? e.message : String(e));
@@ -212,26 +259,54 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
     return () => {
       cancelled = true;
       window.removeEventListener('resize', onResize);
-      unsubscribe();
+      unsubscribe?.();
       unbind?.();
       stopTick?.();
       crowd?.dispose();
-      st.dispose();
-      snd.dispose();
-      q.dispose();
+      st?.dispose();
+      snd?.dispose();
+      q?.dispose();
       engine.current = null;
       stage.current = null;
     };
-    // the quarter is built once; level and language changes go through the setters below
+    // the quarter is built once a place; level and language changes go through the setters below
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [place]);
 
-  const begin = () => {
+  const startSound = () => {
     const snd = sound.current;
     snd?.start();
     snd?.setEnabled(soundOn);
+  };
+
+  const begin = () => {
+    startSound();
     setAwayNotes([]);
+    setBack(false);
     stage.current?.begin();
+  };
+
+  /** Back on the quai: the evening goes on, without playing the episode again. */
+  const stroll = () => {
+    startSound();
+    setAwayNotes([]);
+    setBack(false);
+    stage.current?.roam();
+  };
+
+  /** Ride somewhere on the map: the quarter is taken down and the place built in its stead. */
+  const travel = (id: string) => {
+    if (id === place) return;
+    const to = placeOf(id);
+    setPanel(null);
+    setUi(null);
+    setFailed(null);
+    setStats(null);
+    setSite(null);
+    setRide(id === HOME ? null : to?.ride ?? null);
+    setBack(id === HOME);
+    setLoading({ share: 0, label: 'Les encres' });
+    setPlace(id);
   };
 
   const toggleSound = () => {
@@ -253,11 +328,14 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   // a line outside the script (why you leave, welcome back) takes the speaker's card
   const line: SpeechUi | null = ui?.aside ?? (ui?.speech && !ui.silent ? ui.speech : null);
   const st = stage.current;
+  // you can ride somewhere else between scenes, never in the middle of one
+  const canTravel = ready && (phase === 'title' || phase === 'roam' || phase === 'end') && !ui?.talk;
+  const name = here?.name.fr ?? 'Le quai de Valmy';
 
   return (
-    <div className={`qz${ui?.silent ? ' qz-letterbox' : ''}`} data-phase={phase} data-beat={ui?.beat ?? undefined}>
+    <div className={`qz${ui?.silent ? ' qz-letterbox' : ''}`} data-phase={phase} data-beat={ui?.beat ?? undefined} data-place={place}>
       <style dangerouslySetInnerHTML={{ __html: QUARTIER_CSS }} />
-      <canvas ref={canvasRef} className="qz-canvas" aria-label="Le quai de Valmy, la nuit, sous la pluie" />
+      <canvas key={place} ref={canvasRef} className="qz-canvas" aria-label={site ? `${name}, ${site.title.fr.toLowerCase()}` : 'Le quai de Valmy, la nuit, sous la pluie'} />
 
       {ready ? (
         <>
@@ -268,8 +346,12 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
             {ui?.canLeave ? (
               <button type="button" className="qz-leave" onClick={() => st?.leave()}>
                 <IconDoor />
-                {copy.leaveScene}
+                {site ? copy.home : copy.leaveScene}
               </button>
+            ) : site ? (
+              <div className="qz-title">
+                <em>{name}</em>
+              </div>
             ) : (
               <div className="qz-title">
                 Épisode {T1A.number} · <em>{T1A.title_fr}</em>
@@ -278,9 +360,11 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
             <button type="button" className="qz-round" aria-label={copy.carnet} onClick={() => setPanel('carnet')}>
               <IconCarnet />
             </button>
-            <button type="button" className="qz-round" aria-label={ambiance === 'nuit' ? 'Le matin' : 'La nuit'} onClick={toggleAmbiance}>
-              {ambiance === 'nuit' ? <IconMoon /> : <IconSun />}
-            </button>
+            {site ? null : (
+              <button type="button" className="qz-round" aria-label={ambiance === 'nuit' ? 'Le matin' : 'La nuit'} onClick={toggleAmbiance}>
+                {ambiance === 'nuit' ? <IconMoon /> : <IconSun />}
+              </button>
+            )}
             <button type="button" className="qz-round" aria-label="Le son" aria-pressed={soundOn} onClick={toggleSound}>
               <IconSound on={soundOn} />
             </button>
@@ -368,7 +452,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
 
       {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
 
-      {phase === 'roam' && !ui?.talk ? <div className="qz-hint">{copy.roamHint}</div> : null}
+      {phase === 'roam' && !ui?.talk && !ui?.goal ? <div className="qz-hint">{copy.roamHint}</div> : null}
       {phase === 'roam' && ui?.met ? (
         <div key={ui.met.at} className="qz-met" data-char={ui.met.char}>
           {ui.met.name}
@@ -381,15 +465,27 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         <div className="qz-cover qz-cover--paper">
           <div style={{ width: '100%', maxWidth: 320 }}>
             <p className="qz-kicker">Le Quartier</p>
-            <h1 className="qz-h">Le quai de Valmy</h1>
+            <h1 className="qz-h">{name}</h1>
+            {ride && !failed ? (
+              <p className="qz-ride" lang="fr">
+                {ride.fr}
+                {translate ? <small>{ride[native]}</small> : null}
+              </p>
+            ) : null}
             {failed ? (
               <>
                 <p className="qz-cando">
                   {copy.failed} <small style={{ display: 'block', marginTop: 8, color: 'var(--qz-muted)' }}>{failed}</small>
                 </p>
-                <button type="button" className="qz-primary" onClick={() => (onExit ? onExit() : window.location.reload())}>
-                  {onExit ? copy.leave : copy.retry}
-                </button>
+                {place !== HOME ? (
+                  <button type="button" className="qz-primary" onClick={() => travel(HOME)}>
+                    {copy.goHome}
+                  </button>
+                ) : (
+                  <button type="button" className="qz-primary" onClick={() => (onExit ? onExit() : window.location.reload())}>
+                    {onExit ? copy.leave : copy.retry}
+                  </button>
+                )}
               </>
             ) : (
               <>
@@ -408,7 +504,46 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         </div>
       ) : null}
 
-      {ready && phase === 'title' ? (
+      {ready && phase === 'title' && site ? (
+        <div className="qz-cover qz-cover--day">
+          <div className="qz-card">
+            <p className="qz-kicker">{name}</p>
+            <h1 className="qz-h">{site.title.fr}</h1>
+            {here ? <p className="qz-date">{here.why.fr}</p> : null}
+            <p className="qz-cando" lang="fr">
+              {site.can_do.fr}
+              {translate ? <small style={{ display: 'block', marginTop: 6, color: 'var(--qz-muted)' }}>{site.can_do[native]}</small> : null}
+            </p>
+            <button type="button" className="qz-primary" onClick={begin}>
+              {copy.start}
+            </button>
+            <p className="qz-howto">{copy.visitHowto}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {ready && phase === 'title' && !site && back ? (
+        <div className="qz-cover qz-cover--night">
+          <div className="qz-card">
+            <p className="qz-kicker">{name}</p>
+            <h1 className="qz-h">{copy.back}</h1>
+            <p className="qz-cando">{copy.backText}</p>
+            <button type="button" className="qz-primary" onClick={stroll}>
+              {copy.roam}
+            </button>
+            <div className="qz-card-row">
+              <button type="button" className="qz-quiet" onClick={begin}>
+                Épisode {T1A.number}
+              </button>
+              <button type="button" className="qz-quiet" onClick={() => setPanel('map')}>
+                {copy.map}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {ready && phase === 'title' && !site && !back ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">Épisode {T1A.number}</p>
@@ -418,12 +553,41 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
             <button type="button" className="qz-primary" onClick={begin}>
               {copy.start}
             </button>
+            <button type="button" className="qz-quiet" onClick={() => setPanel('map')}>
+              {copy.map}
+            </button>
             <p className="qz-howto">{copy.howto}</p>
           </div>
         </div>
       ) : null}
 
-      {phase === 'end' ? (
+      {phase === 'end' && site ? (
+        <div className="qz-cover qz-cover--day">
+          <div className="qz-card qz-card--end">
+            <p className="qz-kicker">{name}</p>
+            <h1 className="qz-h">{copy.seeYou}</h1>
+            <p className="qz-date">{site.title.fr}</p>
+            {ui?.recap?.did.length ? <Recap title={copy.today} lines={ui.recap.did} translate={translate} /> : null}
+            {ui?.recap?.tomorrow.length ? <Recap title={copy.nextTime} lines={ui.recap.tomorrow} translate={translate} /> : null}
+            <button type="button" className="qz-primary" onClick={() => travel(HOME)}>
+              {copy.goHome}
+            </button>
+            <div className="qz-card-row">
+              <button type="button" className="qz-quiet" onClick={() => st?.roam()}>
+                {copy.stay}
+              </button>
+              <button type="button" className="qz-quiet" onClick={() => setPanel('carnet')}>
+                {copy.carnet}
+              </button>
+              <button type="button" className="qz-quiet" onClick={() => setPanel('map')}>
+                {copy.map}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {phase === 'end' && !site ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card qz-card--end">
             <p className="qz-kicker">Épisode {T1A.number}</p>
@@ -450,7 +614,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
       ) : null}
 
       {panel === 'carnet' ? <Carnet memory={memory} native={native} translate={translate} onClose={() => setPanel(null)} onMap={() => setPanel('map')} /> : null}
-      {panel === 'map' ? <QuartierMap native={native} translate={translate} here="quai_de_valmy" been={memory.places()} onClose={() => setPanel(null)} /> : null}
+      {panel === 'map' ? <QuartierMap native={native} translate={translate} here={place} been={memory.places()} onGo={canTravel ? travel : undefined} onClose={() => setPanel(null)} /> : null}
 
       {showStats && stats ? (
         <div className="qz-stats">

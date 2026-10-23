@@ -4,10 +4,10 @@
  *
  * The quarter is not built all at once. The quai de Valmy and Le Mistral are drawn by hand; every
  * other place is forged when the story or the news asks for it (`scripts/forge`, run by the
- * `forge` skill): the address a Papier or an episode names is surveyed from open map data, turned
- * into a site, rendered, looked at, revised, and written here with its site file. A place the
- * forge is working on shows on the map under scaffolding (`en_chantier`); a place of the season the
- * story has not reached yet is `locked`.
+ * `quartier-forge` skill): the address a Papier or an episode names is surveyed from open map
+ * data, turned into a site, rendered, looked at, revised, and written here with its site file. A
+ * place the forge is working on shows on the map under scaffolding (`en_chantier`); a place of the
+ * season the story has not reached yet is `locked`.
  */
 import type { Value, Words } from './memory';
 import registry from './world/world.json';

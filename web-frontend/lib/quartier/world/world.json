@@ -18,11 +18,11 @@
       "name": { "fr": "Le marché d'Aligre", "en": "The Aligre market", "de": "Der Markt in Aligre" },
       "lat": 48.849,
       "lon": 2.378,
-      "status": "en_chantier",
+      "status": "open",
       "kind": "news",
       "why": { "fr": "Le Papier : « Le marché du dimanche à Aligre ».", "en": "The Papier: “Le marché du dimanche à Aligre”.", "de": "Das Papier: „Le marché du dimanche à Aligre“." },
       "source": { "kind": "papier", "id": "evergreen-marche-du-dimanche", "title_fr": "Le marché du dimanche à Aligre" },
-      "site": null,
+      "site": "marche_aligre",
       "ride": { "fr": "Ligne 8, de République à Ledru-Rollin : cinq stations.", "en": "Line 8, République to Ledru-Rollin: five stops.", "de": "Linie 8, von République bis Ledru-Rollin: fünf Stationen." }
     },
     {

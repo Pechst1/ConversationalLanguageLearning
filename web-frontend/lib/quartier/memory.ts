@@ -26,8 +26,8 @@ export type Effect =
   | { kind: 'fact'; key: string; value: Value }
   | { kind: 'regard'; who: CastId; delta: number }
   | { kind: 'journal'; words: Words; who?: CastId }
-  /** something you now know, and who told you */
-  | { kind: 'learn'; key: string; words: Words; who?: CastId }
+  /** something you now know, and who told you (one of the cast, or someone of a place, by name) */
+  | { kind: 'learn'; key: string; words: Words; who?: CastId; from?: string }
   /** who holds an object now: `toi`, a cast id, or a place (`zinc`) */
   | { kind: 'item'; id: string; holder: string }
   | { kind: 'meet'; who: CastId }
@@ -214,11 +214,11 @@ export class Memory {
   }
 
   /** What you know, once each, in the order you learned it. */
-  known(): Array<{ key: string; words: Words; who?: CastId }> {
-    const out: Array<{ key: string; words: Words; who?: CastId }> = [];
+  known(): Array<{ key: string; words: Words; who?: CastId; from?: string }> {
+    const out: Array<{ key: string; words: Words; who?: CastId; from?: string }> = [];
     this.log.forEach((l) => {
       const e = l.effect;
-      if (e.kind === 'learn' && !out.some((k) => k.key === e.key)) out.push({ key: e.key, words: e.words, who: e.who });
+      if (e.kind === 'learn' && !out.some((k) => k.key === e.key)) out.push({ key: e.key, words: e.words, who: e.who, from: e.from });
     });
     return out;
   }

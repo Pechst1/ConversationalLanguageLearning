@@ -169,7 +169,8 @@ export const QUARTIER_CSS = `
 /* ---- where to go ----------------------------------------------------------------------------- */
 .qz-goal {
   position: absolute;
-  left: 50%;
+  /* centred in the room the thumb stick leaves on its right */
+  left: calc(50% + 66px);
   bottom: calc(var(--qz-bottom) + 22px);
   transform: translateX(-50%);
   display: flex;
@@ -178,7 +179,7 @@ export const QUARTIER_CSS = `
   gap: 8px;
   animation: qz-in 260ms ease both;
   width: max-content;
-  max-width: calc(100% - 150px);
+  max-width: calc(100% - 162px);
 }
 .qz-goal-label {
   background: var(--qz-card);
@@ -328,6 +329,9 @@ export const QUARTIER_CSS = `
 }
 .qz-cover--paper { background: var(--qz-paper); }
 .qz-cover--night { background: linear-gradient(180deg, rgba(8, 12, 34, 0.25) 0%, rgba(8, 12, 34, 0.72) 70%); }
+.qz-cover--day { background: linear-gradient(180deg, rgba(20, 17, 13, 0.06) 0%, rgba(20, 17, 13, 0.55) 72%); }
+.qz-cover .qz-ride { margin: 4px 0 0; font-family: var(--qz-serif); font-style: italic; font-size: 17px; color: var(--qz-ink-2); }
+.qz-cover .qz-ride small { display: block; margin-top: 4px; font-family: inherit; font-style: normal; font-size: 13px; color: var(--qz-muted); }
 .qz-card {
   width: 100%;
   max-width: 360px;

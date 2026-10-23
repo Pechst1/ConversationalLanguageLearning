@@ -24,13 +24,13 @@ import { AMBIANCES, INKS, mix } from './palette';
 import type { Hex } from './palette';
 
 /** Where people go, as [x, z] on the quai (`quai.ts` PLAN), and how long some of them stay. */
-interface Spot {
+export interface CrowdSpot {
   at: [number, number];
   /** seconds someone may stand here */
   linger?: [number, number];
 }
 
-const SPOTS: Spot[] = [
+const SPOTS: CrowdSpot[] = [
   // the quai de Valmy's pavement, north to south, past Le Mistral's door
   { at: [-25.6, -66] },
   { at: [-25.6, -36] },
@@ -96,6 +96,8 @@ export interface CrowdOptions {
   seed?: number;
   /** someone is within reach of you (the director decides whether they speak) */
   onNear?: (key: string) => void;
+  /** where people go (a forged place brings its own); the quai's by default */
+  spots?: CrowdSpot[];
 }
 
 export class Crowd {
@@ -106,11 +108,13 @@ export class Crowd {
   private count: number;
   private seed: number;
   private onNear?: (key: string) => void;
+  private spots: CrowdSpot[];
 
   constructor(private q: Quartier, opts: CrowdOptions = {}) {
     this.count = opts.count ?? 10;
     this.seed = opts.seed ?? 1789;
     this.onNear = opts.onNear;
+    this.spots = opts.spots && opts.spots.length ? opts.spots : SPOTS;
     this.troupe = new Troupe(q.world, { figure: (key) => passerbyArt(Number(key.split(':')[1]) * 7919 + this.seed, 256), item: () => null }, 420);
     q.addTroupe(this.troupe);
   }
@@ -120,7 +124,8 @@ export class Crowd {
     const R = seeded(this.seed);
     for (let i = 0; i < this.count && !this.disposed; i++) {
       const key = `passant:${i}`;
-      const spot = SPOTS[(i * 5 + R.int(0, SPOTS.length - 1)) % SPOTS.length];
+      const spots = this.spots;
+      const spot = spots[(i * 5 + R.int(0, spots.length - 1)) % spots.length];
       const at = this.ground(spot.at[0] + R.range(-1.5, 1.5), spot.at[1] + R.range(-4, 4));
       if (!at) continue;
       const height = R.range(1.56, 1.9);
@@ -197,11 +202,11 @@ export class Crowd {
   /** Somewhere else to go: a spot not too far, by the pavements. */
   private wander(w: Walker) {
     const f = w.f;
-    const near = SPOTS.filter((s) => {
+    const near = this.spots.filter((s) => {
       const d = Math.hypot(s.at[0] - f.pos.x, s.at[1] - f.pos.z);
       return d > 6 && d < 70;
     });
-    const spot = w.R.pick(near.length ? near : SPOTS);
+    const spot = w.R.pick(near.length ? near : this.spots);
     const to = this.ground(spot.at[0] + w.R.range(-1.2, 1.2), spot.at[1] + w.R.range(-3, 3));
     if (!to) {
       w.wait = 1;

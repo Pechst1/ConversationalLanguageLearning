@@ -62,12 +62,14 @@ import { MARKS, ROOM, buildMistral, cafeCreme } from './mistral';
 import type { MistralParts } from './mistral';
 import { Nav } from './nav';
 import { AMBIANCES, INKS, TONES, mix, rgb } from './palette';
-import type { AmbianceId } from './palette';
+import type { Ambiance, AmbianceId } from './palette';
 import { PrintPass } from './print';
 import { PLAN, buildQuai } from './quai';
 import type { Quai } from './quai';
 import { Rain } from './rain';
 import { fontsReady, neonTexture, printAtlas } from './signs';
+import { buildSite } from './site';
+import type { SiteBuilt, SiteSpec } from './site';
 
 export const EYE = 1.62;
 export const WALK_SPEED = 1.45;
@@ -106,6 +108,8 @@ export interface QuartierOptions {
   scale?: number;
   mirror?: boolean;
   onProgress?: (share: number, label: string) => void;
+  /** a place the forge built (`site.ts`); without one, the quai de Valmy and Le Mistral */
+  site?: SiteSpec;
 }
 
 type Listener = (hit: Hit) => void;
@@ -136,8 +140,11 @@ export class Quartier {
   private extras: Troupe[] = [];
   nav!: Nav;
   lightMap!: LightMap;
-  quai!: Quai;
-  parts!: MistralParts;
+  /** the hand-drawn quarter (absent in a forged place) */
+  quai?: Quai;
+  parts?: MistralParts;
+  /** the forged place, when this is one */
+  site?: SiteBuilt;
   ambiance: AmbianceId;
 
   /* you */
@@ -158,6 +165,8 @@ export class Quartier {
   private fovTarget = 60;
   /** the director can hold you still during a scene (looking stays free) */
   frozen = false;
+  /** the haze's near and far, overriding the hour's (the forge's look from above) */
+  fogOverride: [number, number] | null = null;
 
   /* the print */
   private print: PrintPass;
@@ -167,11 +176,13 @@ export class Quartier {
   private mirrorRT: WebGLRenderTarget | null = null;
   private mirrorCam = new PerspectiveCamera();
   private mirrorMatrix = new Matrix4();
-  private water!: Mesh;
+  private water?: Mesh;
   private waterBox = new Box3();
   private rain = new Rain(2200);
-  private neon!: Mesh;
-  private neonHalo!: Mesh;
+  /** where it does not rain: Le Mistral, or a forged place's hall */
+  private rainRoom = new Vector4(ROOM.x0, ROOM.z0, ROOM.x1, ROOM.z1);
+  private neon?: Mesh;
+  private neonHalo?: Mesh;
   private halos!: InstancedMesh;
   private dots!: InstancedMesh;
   private doors: Group[] = [];
@@ -206,8 +217,9 @@ export class Quartier {
     this.renderer.info.autoReset = false;
     this.scale = opts.scale ?? Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
     this.resolution = opts.resolution ?? 'auto';
-    this.mirrorOn = opts.mirror ?? true;
-    this.ambiance = opts.ambiance ?? 'nuit';
+    // a forged place has no canal to mirror
+    this.mirrorOn = (opts.mirror ?? true) && !opts.site;
+    this.ambiance = opts.ambiance ?? opts.site?.ambiance ?? 'nuit';
     this.art = opts.art;
     this.onProgress = opts.onProgress;
     this.camera.rotation.order = 'YXZ';
@@ -263,6 +275,7 @@ export class Quartier {
    * after the one disposal pass.
    */
   async load() {
+    const site = this.opts.site;
     const step = async (share: number, label: string) => {
       this.alive();
       this.onProgress?.(share, label);
@@ -271,7 +284,7 @@ export class Quartier {
     };
     await step(0.02, 'Les encres');
     await fontsReady();
-    await step(0.08, 'Le quai de Valmy');
+    await step(0.08, site ? site.title.fr : 'Le quai de Valmy');
     const B: Build = {
       dry: new Press(),
       fine: new Press(),
@@ -285,28 +298,61 @@ export class Quartier {
       blocks: [],
       rand: seeded(1102),
     };
-    this.quai = buildQuai(B);
-    await step(0.3, 'Le Mistral');
-    this.parts = buildMistral(B, this.quai.mistral);
+    if (site) {
+      this.site = buildSite(B, site);
+      const room = this.site.landmarks.find((l) => l.room)?.room;
+      this.rainRoom.set(room ? room[0] : 0, room ? room[1] : 0, room ? room[2] : -1, room ? room[3] : -1);
+    } else {
+      const quai = buildQuai(B);
+      this.quai = quai;
+      await step(0.3, 'Le Mistral');
+      this.parts = buildMistral(B, quai.mistral);
+    }
     this.lamps = B.lamps;
     this.glints = B.lamps.filter((l) => l.glint);
     await step(0.42, 'Les lampes');
-    const bounds = { x0: -185, z0: -250, x1: 95, z1: 250 };
-    this.lightMap = bakeLightMap(B.lamps, bounds, 2.2, (x, z) => x > ROOM.x0 - 0.3 && x < ROOM.x1 + 0.05 && z > ROOM.z0 - 0.3 && z < ROOM.z1 + 0.05);
+    if (this.site) {
+      const r = this.site.spec.radius.build + 10;
+      this.lightMap = bakeLightMap(B.lamps, { x0: -r, z0: -r, x1: r, z1: r }, 2.2, this.site.under);
+    } else {
+      const bounds = { x0: -185, z0: -250, x1: 95, z1: 250 };
+      this.lightMap = bakeLightMap(B.lamps, bounds, 2.2, (x, z) => x > ROOM.x0 - 0.3 && x < ROOM.x1 + 0.05 && z > ROOM.z0 - 0.3 && z < ROOM.z1 + 0.05);
+    }
     this.world.uLightMap.value = this.lightMap.texture;
     this.world.uLightRect.value.copy(this.lightMap.rect);
     await step(0.5, 'Les rues');
-    this.nav = new Nav(B.walk, B.blocks, { x0: -182, z0: -212, x1: 32, z1: 212 });
+    if (this.site) {
+      const r = this.site.spec.radius.walk + 3;
+      this.nav = new Nav(B.walk, B.blocks, { x0: -r, z0: -r, x1: r, z1: r });
+    } else {
+      this.nav = new Nav(B.walk, B.blocks, { x0: -182, z0: -212, x1: 32, z1: 212 });
+    }
     await step(0.56, 'L’impression');
     this.assemble(B);
-    await step(0.66, 'La troupe');
-    await this.loadCast();
+    if (!this.site) {
+      await step(0.66, 'La troupe');
+      await this.loadCast();
+    }
     await step(0.96, 'Le décor');
-    applyAmbiance(this.world, AMBIANCES[this.ambiance]);
+    applyAmbiance(this.world, this.light());
     this.applyAmbianceExtras();
-    this.place(PLAN.start.pos, PLAN.start.look);
+    if (this.site) this.place(this.site.start.pos, this.site.start.look);
+    else this.place(PLAN.start.pos, PLAN.start.look);
     this.resize();
     await step(1, 'Prêt');
+  }
+
+  /**
+   * The light of the hour. A forged place ends where its survey ends, so its haze comes closer:
+   * the last houses melt into the morning before the edge of the drawn city shows.
+   */
+  private light(): Ambiance {
+    const a = AMBIANCES[this.ambiance];
+    if (this.fogOverride) return { ...a, fogNear: this.fogOverride[0], fogFar: this.fogOverride[1] };
+    if (!this.site) return a;
+    const { walk, build } = this.site.spec.radius;
+    const far = Math.min(a.fogFar, build - walk + 55);
+    return { ...a, fogFar: far, fogNear: Math.min(a.fogNear, far * 0.3) };
   }
 
   private assemble(B: Build) {
@@ -350,13 +396,16 @@ export class Quartier {
     cards.material.side = DoubleSide;
     cards.matrixAutoUpdate = false;
     this.scene.add(cards);
+    const parts = this.parts;
     // the canal
-    const water = new Mesh(new PlaneGeometry(20, PLAN.zMax - PLAN.zMin + 60).rotateX(-Math.PI / 2), waterMaterial(this.world, rgb(TONES.water), PLAN.water));
-    water.position.set(0, PLAN.water, 0);
-    water.updateMatrixWorld();
-    this.water = water;
-    this.waterBox.setFromObject(water);
-    this.scene.add(water);
+    if (parts) {
+      const water = new Mesh(new PlaneGeometry(20, PLAN.zMax - PLAN.zMin + 60).rotateX(-Math.PI / 2), waterMaterial(this.world, rgb(TONES.water), PLAN.water));
+      water.position.set(0, PLAN.water, 0);
+      water.updateMatrixWorld();
+      this.water = water;
+      this.waterBox.setFromObject(water);
+      this.scene.add(water);
+    }
     // the sky
     const sky = new Mesh(new SphereGeometry(400, 32, 16), skyMaterial(this.world));
     sky.renderOrder = -10;
@@ -365,22 +414,24 @@ export class Quartier {
     this.sky = sky;
     this.scene.add(sky);
     // the neon: one blade, readable from the quai, reversed from Odile's window
-    const neon = neonTexture('MISTRAL');
-    const n = this.parts.neon;
-    const neonMat = signMaterial(this.world, neon.texture, 59, 1);
-    neonMat.side = DoubleSide;
-    const blade = new Mesh(new PlaneGeometry(n.width, n.width / neon.aspect), neonMat);
-    blade.position.copy(n.center);
-    blade.lookAt(n.center.clone().add(new Vector3(-0.707, 0, 0.707)));
-    blade.layers.enable(1);
-    this.neon = blade;
-    this.scene.add(blade);
-    const halo = new Mesh(new PlaneGeometry(1, 1), haloMaterial(rgb(INKS.vermilion), 0.55));
-    halo.position.copy(n.center);
-    halo.scale.set(3.2, 6.2, 1);
-    halo.renderOrder = 6;
-    this.neonHalo = halo;
-    this.scene.add(halo);
+    if (parts) {
+      const neon = neonTexture('MISTRAL');
+      const n = parts.neon;
+      const neonMat = signMaterial(this.world, neon.texture, 59, 1);
+      neonMat.side = DoubleSide;
+      const blade = new Mesh(new PlaneGeometry(n.width, n.width / neon.aspect), neonMat);
+      blade.position.copy(n.center);
+      blade.lookAt(n.center.clone().add(new Vector3(-0.707, 0, 0.707)));
+      blade.layers.enable(1);
+      this.neon = blade;
+      this.scene.add(blade);
+      const halo = new Mesh(new PlaneGeometry(1, 1), haloMaterial(rgb(INKS.vermilion), 0.55));
+      halo.position.copy(n.center);
+      halo.scale.set(3.2, 6.2, 1);
+      halo.renderOrder = 6;
+      this.neonHalo = halo;
+      this.scene.add(halo);
+    }
     // the lamps' halos in the rain
     const heads = this.lamps.filter((l) => l.glint && l.pos.y > 2.5 && l.color[1] > 0.5);
     const haloMat = haloMaterial(rgb(mix(INKS.sunflower, INKS.card, 0.3)), 0.32);
@@ -398,24 +449,22 @@ export class Quartier {
     this.dots.frustumCulled = false;
     this.dots.renderOrder = 3;
     this.scene.add(this.dots);
-    // the doors
-    for (const d of this.parts.doors) {
-      const press = d.userData.press as Press;
-      const mesh = new Mesh(press.geometry(), ink);
-      d.add(mesh);
-      this.scene.add(d);
-      this.doors.push(d);
-    }
-    // the chair Marin pulls out
-    {
-      const c = this.parts.chair;
+    if (parts) {
+      // the doors
+      for (const d of parts.doors) {
+        const press = d.userData.press as Press;
+        const mesh = new Mesh(press.geometry(), ink);
+        d.add(mesh);
+        this.scene.add(d);
+        this.doors.push(d);
+      }
+      // the chair Marin pulls out
+      const c = parts.chair;
       const press = c.userData.press as Press;
       c.add(new Mesh(press.geometry(), ink));
       this.scene.add(c);
       this.props.set('chair', { object: c });
-    }
-    // the cup Margaux sets down, hidden until she does
-    {
+      // the cup Margaux sets down, hidden until she does
       const cup = new Mesh(cafeCreme().geometry(), ink);
       cup.visible = false;
       this.scene.add(cup);
@@ -424,7 +473,7 @@ export class Quartier {
     // the rain
     this.scene.add(this.rain.mesh);
     // the easel's old man: a tiny silhouette at a dim window
-    if (this.quai.easel) this.addEasel(this.quai.easel);
+    if (this.quai?.easel) this.addEasel(this.quai.easel);
   }
 
   /** «L.» at his easel: background only, never larger than a thumbnail, never face-on. */
@@ -524,17 +573,17 @@ export class Quartier {
 
   setAmbiance(id: AmbianceId) {
     this.ambiance = id;
-    applyAmbiance(this.world, AMBIANCES[id]);
+    applyAmbiance(this.world, this.light());
     this.applyAmbianceExtras();
   }
 
   private applyAmbianceExtras() {
-    const a = AMBIANCES[this.ambiance];
+    const a = this.light();
     this.renderer.setClearColor(new Color(...rgb(a.skyHorizon)));
     this.rain.mesh.visible = a.rain;
     this.halos.visible = a.night > 0.5;
-    this.neonHalo.visible = a.night > 0.5;
-    (this.neon.material as ShaderMaterial).uniforms.uGlow.value = a.night > 0.5 ? 1 : 0.25;
+    if (this.neonHalo) this.neonHalo.visible = a.night > 0.5;
+    if (this.neon) (this.neon.material as ShaderMaterial).uniforms.uGlow.value = a.night > 0.5 ? 1 : 0.25;
     this.print.set({ fogFar: a.fogFar, halftone: a.night > 0.5 ? 0.42 : 0.6, idLines: a.night > 0.5 ? 0.45 : 0.6 });
   }
 
@@ -558,6 +607,8 @@ export class Quartier {
   }
 
   inRoom(p: Vector3) {
+    // a forged place's hall is lit by the day, like the street
+    if (this.site) return false;
     return p.x > ROOM.x0 && p.x < ROOM.x1 && p.z > ROOM.z0 && p.z < ROOM.z1 && p.x + p.z < -36.3;
   }
 
@@ -810,7 +861,7 @@ export class Quartier {
     const pw = Math.round(w * this.scale);
     const ph = Math.round(h * this.scale);
     this.print.setSize(pw, ph, this.scale);
-    if (this.mirrorOn) {
+    if (this.mirrorOn && this.water) {
       const mw = Math.max(64, Math.round(pw / 2));
       const mh = Math.max(64, Math.round(ph / 2));
       if (!this.mirrorRT) {
@@ -841,7 +892,7 @@ export class Quartier {
       }
     });
     const room = this.indoors;
-    this.rain.update(now, this.camera.position, new Vector4(ROOM.x0, ROOM.z0, ROOM.x1, ROOM.z1));
+    this.rain.update(now, this.camera.position, this.rainRoom);
     this.updateGlints();
     this.updateNeon(now);
     this.updateDoors(dt);
@@ -913,7 +964,7 @@ export class Quartier {
     }
     const fov = this.camera.fov + (this.fovTarget - this.camera.fov) * Math.min(1, dt * 2.5 || 1);
     // nothing is drawn past the fog (or, indoors, past what the windows show)
-    const far = this.inRoom(this.feet) ? 90 : AMBIANCES[this.ambiance].fogFar + 12;
+    const far = this.inRoom(this.feet) ? 90 : this.light().fogFar + 12;
     if (Math.abs(fov - this.camera.fov) > 0.01 || far !== this.camera.far) {
       this.camera.fov = fov;
       this.camera.far = far;
@@ -950,6 +1001,7 @@ export class Quartier {
   }
 
   private updateNeon(now: number) {
+    if (!this.neon || !this.neonHalo) return;
     // a neon breathes: a flicker now and then, and the letters' slight hum
     const m = this.neon.material as ShaderMaterial;
     const night = this.world.uNight.value > 0.5;
@@ -971,6 +1023,8 @@ export class Quartier {
   }
 
   private renderMirror() {
+    const water = this.water;
+    if (!water) return;
     const cam = this.camera;
     const frustum = new Frustum().setFromProjectionMatrix(new Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
     if (!frustum.intersectsBox(this.waterBox)) return;
@@ -1008,9 +1062,9 @@ export class Quartier {
     pm.elements[6] = clip.y;
     pm.elements[10] = clip.z + 1.0 - 0.003;
     pm.elements[14] = clip.w;
-    const wm = this.water.material as ShaderMaterial;
+    const wm = water.material as ShaderMaterial;
     wm.uniforms.uMirrorMatrix.value.copy(this.mirrorMatrix);
-    this.water.visible = false;
+    water.visible = false;
     this.rain.mesh.visible = false;
     this.troupe.group.visible = false;
     this.extras.forEach((t) => (t.group.visible = false));
@@ -1019,7 +1073,7 @@ export class Quartier {
     this.renderer.setRenderTarget(this.mirrorRT);
     this.renderer.render(this.scene, mc);
     this.renderer.setRenderTarget(null);
-    this.water.visible = true;
+    water.visible = true;
     this.rain.mesh.visible = AMBIANCES[this.ambiance].rain;
     this.troupe.group.visible = true;
     this.extras.forEach((t) => (t.group.visible = true));

@@ -58,6 +58,26 @@ export class Nav {
     const ix1 = Math.min(this.w - 1, Math.floor((maxX + pad - this.x0) / c));
     const iz0 = Math.max(0, Math.floor((minZ - pad - this.z0) / c));
     const iz1 = Math.min(this.h - 1, Math.floor((maxZ + pad - this.z0) / c));
+    if (!touch) {
+      // row by row: where the row's line crosses the outline, and the cells between pairs of
+      // crossings (the same even-odd rule as `inside`, for outlines of a whole forged street)
+      for (let iz = iz0; iz <= iz1; iz++) {
+        const z = this.z0 + (iz + 0.5) * c;
+        const xs: number[] = [];
+        for (let i = 0, j = shape.length - 1; i < shape.length; j = i++) {
+          const [xi, zi] = shape[i];
+          const [xj, zj] = shape[j];
+          if (zi > z !== zj > z) xs.push(((xj - xi) * (z - zi)) / (zj - zi) + xi);
+        }
+        xs.sort((p, q) => p - q);
+        for (let k = 0; k + 1 < xs.length; k += 2) {
+          const a = Math.max(ix0, Math.ceil((xs[k] - this.x0) / c - 0.5));
+          const b = Math.min(ix1, Math.ceil((xs[k + 1] - this.x0) / c - 0.5) - 1);
+          for (let ix = a; ix <= b; ix++) visit(this.x0 + (ix + 0.5) * c, z, iz * this.w + ix);
+        }
+      }
+      return;
+    }
     for (let iz = iz0; iz <= iz1; iz++) {
       for (let ix = ix0; ix <= ix1; ix++) {
         const x = this.x0 + (ix + 0.5) * c;

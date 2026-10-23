@@ -32,7 +32,7 @@ export interface QuartierMapProps {
   here: string;
   /** what you know of each place (`Memory.places()`) */
   been: Record<string, string>;
-  /** go there: offered for open places that have a site */
+  /** go there: offered for open places that have a site, and for home */
   onGo?: (id: string) => void;
   onClose: () => void;
 }
@@ -169,9 +169,9 @@ export function QuartierMap({ native, translate, here, been, onGo, onClose }: Qu
               </p>
             ) : null}
             {sel.status === 'en_chantier' ? (
-              <p className="qz-note">Ce coin de Paris est en train de se construire, d’après des données ouvertes et des photos.</p>
+              <p className="qz-note">Ce coin de Paris se construit en ce moment, rue par rue, d’après les données ouvertes de la carte.</p>
             ) : null}
-            {onGo && sel.status === 'open' && sel.site && sel.id !== here ? (
+            {onGo && sel.status === 'open' && (sel.site || sel.kind === 'home') && sel.id !== here ? (
               <button type="button" className="qz-primary qz-wide" onClick={() => onGo(sel.id)}>
                 Y aller
               </button>

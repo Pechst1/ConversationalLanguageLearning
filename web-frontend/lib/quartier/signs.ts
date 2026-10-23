@@ -32,16 +32,30 @@ export interface Atlas {
   cards: CardPress;
 }
 
-/** Pack every card into one canvas (shelf packing), print it, and hang the cards. */
+/**
+ * Pack every card into one canvas (shelf packing), print it, and hang the cards. Lettering that
+ * repeats (a house number, a price, the hoarding's notice) shares a key and a size, and is
+ * printed once and hung wherever it appears.
+ */
 export function printAtlas(specs: SignSpec[], size = 2048): Atlas {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('No 2D canvas for the atlas');
-  const placed = specs
+  const keyOf = (s: SignSpec) => `${s.key}|${s.width.toFixed(2)}|${s.height.toFixed(2)}`;
+  const prints = new Map<string, SignSpec>();
+  specs.forEach((s) => {
+    if (!prints.has(keyOf(s))) prints.set(keyOf(s), s);
+  });
+  const unique = Array.from(prints.values());
+  // a street with more lettering than the atlas holds prints all of it a little smaller,
+  // rather than leaving the last cards blank
+  const want = unique.reduce((n, s) => n + (s.width * (s.density ?? 150) + 4) * (s.height * (s.density ?? 150) + 4), 0);
+  const fit = Math.min(1, Math.sqrt((size * size * 0.82) / Math.max(1, want)));
+  const placed = unique
     .map((s) => {
-      const d = s.density ?? 150;
+      const d = (s.density ?? 150) * fit;
       return { s, w: Math.min(size, Math.ceil(s.width * d)), h: Math.min(size, Math.ceil(s.height * d)) };
     })
     .sort((a, b) => b.h - a.h);
@@ -49,7 +63,7 @@ export function printAtlas(specs: SignSpec[], size = 2048): Atlas {
   let y = 0;
   let row = 0;
   const pad = 4;
-  const cards = new CardPress();
+  const rects = new Map<string, [number, number, number, number]>();
   for (const p of placed) {
     if (x + p.w > size) {
       x = 0;
@@ -64,15 +78,17 @@ export function printAtlas(specs: SignSpec[], size = 2048): Atlas {
     ctx.clip();
     p.s.draw(ctx, p.w, p.h);
     ctx.restore();
-    const u0 = x / size;
-    const u1 = (x + p.w) / size;
-    const v1 = 1 - y / size;
-    const v0 = 1 - (y + p.h) / size;
-    const lift = p.s.normal.clone().multiplyScalar(0.012);
-    cards.card(p.s.center.clone().add(lift), p.s.normal.clone().normalize(), p.s.width, p.s.height, [u0, v0, u1, v1], p.s.tilt ?? 0, p.s.indoor);
+    rects.set(keyOf(p.s), [x / size, 1 - (y + p.h) / size, (x + p.w) / size, 1 - y / size]);
     x += p.w + pad;
     row = Math.max(row, p.h);
   }
+  const cards = new CardPress();
+  specs.forEach((s) => {
+    const r = rects.get(keyOf(s));
+    if (!r) return;
+    const lift = s.normal.clone().multiplyScalar(0.012);
+    cards.card(s.center.clone().add(lift), s.normal.clone().normalize(), s.width, s.height, r, s.tilt ?? 0, s.indoor);
+  });
   const texture = new CanvasTexture(canvas);
   // the shaders work in display colour, so the canvas goes up as it is
   texture.colorSpace = NoColorSpace;

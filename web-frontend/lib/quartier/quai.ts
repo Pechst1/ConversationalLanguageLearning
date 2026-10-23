@@ -11,6 +11,7 @@ import { Vector3 } from 'three';
 
 import {
   KERB,
+  WALLS,
   awning,
   bench,
   bollard,
@@ -30,7 +31,6 @@ import type { Build, BuildingInfo, BuildingSpec, Shop } from './kit';
 import { LACE, PATTERN, nextId } from './geo';
 import type { Paint, Rand } from './geo';
 import { INKS, TONES, mix, rgb } from './palette';
-import type { Hex } from './palette';
 import { plaqueArt, posterArt, letteringArt } from './signs';
 
 export const PLAN = {
@@ -52,16 +52,6 @@ export interface Quai {
   /** the lamp heads for the light map and the glints */
   easel: { center: Vector3; normal: Vector3 } | null;
 }
-
-const WALLS: Hex[] = [
-  TONES.stone,
-  TONES.stoneLight,
-  mix(INKS.paper, INKS.ochre, 0.18),
-  mix(INKS.paper, INKS.ochre, 0.26),
-  mix(INKS.paper, INKS.cobalt, 0.07),
-  mix(INKS.paper, INKS.vermilion, 0.07),
-  mix(INKS.card, INKS.green, 0.06),
-];
 
 const SHOPS: Array<Omit<Shop, 'from' | 'to'>> = [
   { kind: 'shutter', name: 'Serrurerie Lambert', trade: 'clés minute', color: mix(INKS.sunflower, INKS.ink, 0.35) },

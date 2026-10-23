@@ -328,7 +328,8 @@ export function classify(turnId: string, text: string): string {
 /* the director                                                                               */
 /* ------------------------------------------------------------------------------------------ */
 
-const BLANK: StageUi = {
+/** The screen with nothing on it (before a title card). */
+export const BLANK: StageUi = {
   phase: 'title',
   caption: null,
   speech: null,
@@ -360,7 +361,36 @@ const toLine = (s: Said | { who: CastId; say: Words; mood?: string; direction?: 
   say: { a2: s.say.fr, native: { en: s.say.en, de: s.say.de } },
 });
 
-export class Stage {
+/**
+ * What the screen asks of whoever directs a place: the season's scene on the quai (`Stage`), or a
+ * visit to a place the forge built (`visit.ts`). Both publish a `StageUi` and take the same taps.
+ */
+export interface Director {
+  readonly ui: StageUi;
+  subscribe(fn: (ui: StageUi) => void): () => void;
+  setLevel(level: Level): void;
+  setNative(native: Native): void;
+  setStreet(street: Street | undefined): void;
+  prepare(): Promise<void>;
+  begin(): void;
+  tap(): void;
+  answer(text: string): void;
+  go(): void;
+  skipWalk(): void;
+  goOn(): void;
+  replay(): void;
+  roam(): void;
+  leave(): void;
+  talkTo(key: string): void;
+  talkSay(text: string): void;
+  endTalk(): void;
+  passerby(key: string, tapped: boolean): void;
+  phoneReply(text: string): void;
+  closePhone(): void;
+  dispose(): void;
+}
+
+export class Stage implements Director {
   ui: StageUi = { ...BLANK };
   readonly memory: Memory;
   private listeners = new Set<(ui: StageUi) => void>();
@@ -550,6 +580,8 @@ export class Stage {
     this.q.lens(60);
     this.q.showWay(null);
     this.q.openDoor(false);
+    // back from somewhere else on the map, you may walk the quai without playing the day
+    if (this.memory.places().quai_de_valmy !== 'visited') this.remember({ kind: 'place', id: 'quai_de_valmy', status: 'visited' });
     this.show({ ...BLANK, phase: 'roam', progress: 1 });
     // the evening goes on: everyone back to their place
     for (const [k, at] of EVENING) {
