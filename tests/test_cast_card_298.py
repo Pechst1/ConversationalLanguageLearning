@@ -46,7 +46,7 @@ def _strings(value):
             yield from _strings(item)
 
 
-def test_no_cast_card_text_is_the_authors_planning_note():
+def test_card_has_no_planning_text():
     rows = _service().cast_payload(_thread())
     assert rows
     for row in rows:
@@ -55,7 +55,7 @@ def test_no_cast_card_text_is_the_authors_planning_note():
         assert "NOT a couple" not in text and "T2" not in text
 
 
-def test_the_card_never_carries_the_bible_fields_the_author_wrote():
+def test_card_omits_bible_fields():
     bible = {str(m["id"]): m for m in WORLD["cast"]}
     for row in _service().cast_payload(_thread()):
         sent = " ".join(_strings(row))
