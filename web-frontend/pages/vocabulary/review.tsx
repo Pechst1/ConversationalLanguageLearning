@@ -195,6 +195,8 @@ const encoreQueueParams = {
  * Wörter» after the day: new words past the pace, the learner's own choice.
  */
 const DAY_DECK_NEW_WORDS = 50;
+// `limit` is `daily_session.DAY_DECK_LIMIT` (tests/test_words_step_promise.py holds the two together):
+// the deck's size, new words first, so Home's promise is this deck's length.
 const dayQueueParams = {
   limit: 100,
   due_limit: 100,

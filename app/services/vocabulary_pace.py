@@ -141,6 +141,18 @@ def reviews_left_today(db: Session, user: Any, *, now: datetime | None = None) -
     return max(0, cap - int(done or 0))
 
 
+def reviews_left_or_none(db: Session, user: Any, *, now: datetime | None = None) -> int | None:
+    """:func:`reviews_left_today`, or ``None`` when it cannot be read: a cap that
+    fails to load never costs the deck. The word drill and Home's words step both
+    ask here, so the deck and its promise carry the same cap (#279)."""
+
+    try:
+        with db.begin_nested():
+            return reviews_left_today(db, user, now=now)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def todays_journey(db: Session, user: Any, *, now: datetime | None = None) -> DailyJourney | None:
     now = now or datetime.now(UTC)
     return db.execute(
@@ -284,6 +296,8 @@ __all__ = [
     "journey_reservation",
     "journey_word_share",
     "new_words_left_today",
+    "reviews_left_or_none",
+    "reviews_left_today",
     "review_load_estimate",
     "todays_journey",
     "vocabulary_pace_allowance",

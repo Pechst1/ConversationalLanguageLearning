@@ -52,8 +52,8 @@ def test_a_fresh_day_is_four_steps_and_the_scene_comes_first() -> None:
     assert [step["state"] for step in view["steps"]] == ["next", "todo", "todo", "todo"]
     assert view["next_kind"] == "scene"
     words = view["steps"][1]
-    # 20 new words at 20 s and 12 reviews at 6 s: 400 + 72 s, eight minutes.
-    assert (words["count"], words["new_left"], words["reviews"], words["minutes"]) == (20, 20, 12, 8)
+    # 20 new words at 20 s and 12 reviews at 6 s: 400 + 72 s, eight minutes; 32 cards (#279).
+    assert (words["count"], words["new_left"], words["reviews"], words["minutes"]) == (32, 20, 12, 8)
     grammar = view["steps"][2]
     # 300 s at 25 s an item: twelve items, five minutes.
     assert (grammar["count"], grammar["minutes"]) == (12, 5)
@@ -186,7 +186,8 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     assert session["pace"] == "normal"
     assert [step["kind"] for step in session["steps"]] == ["scene", "words", "grammar", "finish"]
     assert session["next_kind"] == "scene"
-    assert session["steps"][1]["count"] == 20
+    # 20 a day, minus the scene's share the drill leaves free until the journey is planned (#279).
+    assert session["steps"][1]["count"] == 16
     assert session["steps"][2]["href"].endswith("&from=day")
 
     sheet = assembled_client.get("/api/v1/daily-journeys/session/pace", headers=headers)
@@ -204,7 +205,7 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     assert switched.status_code == 200, switched.text
     assert switched.json()["current"] == "ruhig"
     today = assembled_client.get("/api/v1/daily-journeys/today", headers=headers).json()
-    assert today["session"]["steps"][1]["count"] == 10
+    assert today["session"]["steps"][1]["count"] == 6  # 10 a day less the scene's share of 4
 
 
 def test_the_word_step_can_be_marked_done(

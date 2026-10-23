@@ -70,8 +70,10 @@ WORD_RETENTION = 0.87
 DEFAULT_SCENE_SECONDS = 8 * 60
 #: «Noch 10 Wörter» after the day.
 MORE_WORDS = 10
-#: One deck holds at most this many waiting reviews; the rest come tomorrow.
-DAY_DECK_MAX_REVIEWS = 100
+#: One day deck holds at most this many cards, new words and reviews together
+#: (``pages/vocabulary/review.tsx`` asks for it as ``limit``); the reviews past it
+#: come tomorrow, the new words are never the ones left out (#279).
+DAY_DECK_LIMIT = 100
 
 WORDS_HREF = "/vocabulary/review?day=1"
 MORE_WORDS_HREF = f"/vocabulary/review?more={MORE_WORDS}"
@@ -136,6 +138,60 @@ def words_seconds(new_words: int, reviews: int) -> int:
     return max(0, int(new_words)) * SECONDS_PER_NEW_WORD + max(0, int(reviews)) * SECONDS_PER_REVIEW
 
 
+@dataclass(frozen=True, slots=True)
+class WordsQueue:
+    """The day's word deck: the figures Home promises and the review opens with."""
+
+    new: int
+    reviews: int
+
+    @property
+    def count(self) -> int:
+        return self.new + self.reviews
+
+    @property
+    def seconds(self) -> int:
+        return words_seconds(self.new, self.reviews)
+
+
+def review_room(
+    new_words: int, *, reviews_left: int | None = None, deck_limit: int = DAY_DECK_LIMIT
+) -> int:
+    """How many reviews the deck may hold next to ``new_words`` new ones.
+
+    The deck's reviews fill what its size leaves after the new words (a learner
+    back from a week away has more due than a deck holds, and the review would
+    deal reviews only), and none past the learner's own «Maximum reviews/day»
+    (``reviews_left``, ``None`` when it could not be read).
+    """
+
+    room = max(0, int(deck_limit) - max(0, int(new_words)))
+    if reviews_left is not None:
+        room = min(room, max(0, int(reviews_left)))
+    return room
+
+
+def words_queue(
+    new_left: int,
+    reviews_due: int,
+    *,
+    reviews_left: int | None = None,
+    deck_limit: int = DAY_DECK_LIMIT,
+) -> WordsQueue:
+    """The day's word deck from what is left to introduce and what is due.
+
+    The one place the deck's size is decided (#279). Home's step prints its
+    count and minutes, the Tempo sheet prices a pace with it, and the review
+    (``GET /vocabulary/due-context?drill=session``) takes its ``due_limit`` from
+    the same :func:`review_room`. Count and minutes can no longer disagree: they
+    are both read off this queue.
+    """
+
+    new = min(max(0, int(new_left)), max(0, int(deck_limit)))
+    reviews = min(max(0, int(reviews_due)), review_room(new, reviews_left=reviews_left, deck_limit=deck_limit))
+    return WordsQueue(new=new, reviews=reviews)
+
+
 def minutes(seconds: float) -> int:
     return max(1, math.ceil(float(seconds) / 60)) if seconds > 0 else 0
 
@@ -162,14 +218,21 @@ class SessionInputs:
     exercises_today: int
     #: Distinct words reviewed today, every surface together (the end screen's «Words»).
     words_reviewed_today: int = 0
+    #: Reviews the learner's own daily cap still allows (``None``: not read).
+    reviews_left: int | None = None
+    #: The new words the word drill may still deal today: the quota after what was
+    #: met and the journey's reservation or pending share. ``None``: not read, the
+    #: quota minus what was met stands in.
+    new_room: int | None = None
 
 
 def session_view(inputs: SessionInputs) -> dict[str, Any]:
     """The day's steps with their state (done / next / todo), minutes and links."""
 
-    new_left = max(0, inputs.quota - inputs.introduced)
-    reviews = min(max(0, inputs.reviews_due), DAY_DECK_MAX_REVIEWS)
-    words_done = inputs.words_marked_done or (new_left == 0 and reviews == 0)
+    new_left = inputs.new_room if inputs.new_room is not None else inputs.quota - inputs.introduced
+    queue = words_queue(new_left, inputs.reviews_due, reviews_left=inputs.reviews_left)
+    new_left, reviews = queue.new, queue.reviews
+    words_done = inputs.words_marked_done or queue.count == 0
     grammar_done = inputs.forge_blocks_today > 0
     items = forge_items(inputs.forge_seconds)
     raw = [
@@ -182,12 +245,14 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
         {
             "kind": "words",
             "done": words_done,
-            "minutes": 0 if words_done else minutes(words_seconds(new_left, reviews)),
+            "minutes": 0 if words_done else minutes(queue.seconds),
             "href": WORDS_HREF,
             # #153: the number the learner will meet, not the pace's target. The
             # scene already introduced some of the quota; «20 words» over a
             # deck of 17 was the plan and the screen disagreeing.
-            "count": (new_left or reviews) if not words_done else inputs.quota,
+            # #279: and the whole deck, the reviews with the new words: 10 new
+            # and 8 due is «18», which is what the review opens at.
+            "count": queue.count if not words_done else inputs.quota,
             "new_left": new_left,
             "reviews": reviews,
         },
@@ -264,7 +329,7 @@ def pace_option(
     hold_lag_days: int,
 ) -> dict[str, Any]:
     grammar = forge_items(grammar_seconds_override or pace.forge_seconds) * 25
-    reviews = min(max(0, reviews_due), DAY_DECK_MAX_REVIEWS)
+    reviews = words_queue(pace.words, reviews_due).reviews
     today = scene_seconds + words_seconds(pace.words, reviews) + grammar
     week8_reviews = round(pace.words * REVIEWS_PER_NEW_WORD_WEEK_8)
     week8 = scene_seconds + words_seconds(pace.words, week8_reviews) + grammar
@@ -361,15 +426,21 @@ def build_session(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     from app.services.forge_picker import forge_budget_seconds
-    from app.services.vocabulary_pace import daily_quota, introduced_today
+    from app.services.vocabulary_pace import (
+        daily_quota,
+        introduced_today,
+        reviews_left_or_none,
+        vocabulary_pace_allowance,
+    )
 
     now = now or datetime.now(UTC)
+    quota = daily_quota(db, user, now=now)
     return session_view(
         SessionInputs(
             pace=pace_of(user),
             scene_done=scene_done,
             scene_seconds=int(scene_seconds or DEFAULT_SCENE_SECONDS),
-            quota=daily_quota(db, user, now=now),
+            quota=quota,
             introduced=len(introduced_today(db, user, now=now)),
             reviews_due=reviews_due,
             words_marked_done=words_marked_done(journey),
@@ -378,6 +449,8 @@ def build_session(
             forge_href=forge_href,
             exercises_today=exercises_today(db, user, now=now),
             words_reviewed_today=words_reviewed_today(db, user, now=now),
+            reviews_left=reviews_left_or_none(db, user, now=now),
+            new_room=vocabulary_pace_allowance(db, user, quota)[2],
         )
     )
 
@@ -450,6 +523,7 @@ __all__ = [
     "Pace",
     "PaceName",
     "SessionInputs",
+    "WordsQueue",
     "build_session",
     "goal_gap",
     "goal_weeks",
@@ -464,4 +538,6 @@ __all__ = [
     "session_view",
     "stored_pace",
     "words_marked_done",
+    "review_room",
+    "words_queue",
 ]

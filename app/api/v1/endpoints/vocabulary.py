@@ -39,7 +39,11 @@ from app.services.glosses import gloss_payload, normalize_language
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
-from app.services.vocabulary_pace import new_words_left_today, vocabulary_pace_allowance
+from app.services.vocabulary_pace import (
+    new_words_left_today,
+    reviews_left_or_none,
+    vocabulary_pace_allowance,
+)
 from app.utils.cache import build_cache_key, cache_backend
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
@@ -970,12 +974,13 @@ def get_vocabulary_due_context(
         new_limit, new_room = extra, None
         drill = "more"
     # WP-115a: the learner's «Maximum reviews/day» — due words first, then fragile.
-    try:
-        from app.services.vocabulary_pace import reviews_left_today
+    reviews_left = reviews_left_or_none(db, current_user)
+    if drill == "session":
+        # #279: the new words keep their place in the deck and the reviews fill
+        # the rest, the same room Home's words step counts its promise with.
+        from app.services.daily_session import review_room
 
-        reviews_left = reviews_left_today(db, current_user)
-    except Exception:  # noqa: BLE001 - a cap that cannot be read never costs the deck
-        reviews_left = None
+        due_limit = min(due_limit, review_room(new_limit, reviews_left=reviews_left, deck_limit=limit))
     if reviews_left is not None:
         due_limit = min(due_limit, reviews_left)
         fragile_limit = min(fragile_limit, max(0, reviews_left - due_limit))
