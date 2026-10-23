@@ -118,6 +118,14 @@ export interface Prop {
   material?: ShaderMaterial;
 }
 
+/** Thrown out of `load()` when the quarter is disposed while it is still being built. */
+export class LoadCancelled extends Error {
+  constructor() {
+    super('The quarter was closed while it was loading');
+    this.name = 'LoadCancelled';
+  }
+}
+
 export class Quartier {
   readonly renderer: WebGLRenderer;
   readonly scene = new Scene();
@@ -229,6 +237,10 @@ export class Quartier {
     const art = this.art.item(id);
     if (!art) return null;
     const printed = await printCard(art.svg, 384, art.aspect, { margin: 6 });
+    if (this.disposed) {
+      printed.texture.dispose();
+      return null;
+    }
     const m = figureMaterial(this.world, printed.texture, 57);
     const plane = new Mesh(new PlaneGeometry(size * printed.aspect, size).rotateX(-Math.PI / 2), m);
     plane.visible = false;
@@ -243,10 +255,17 @@ export class Quartier {
   /* building the quarter                                                                     */
   /* ---------------------------------------------------------------------------------------- */
 
+  /**
+   * Build the quarter, yielding between the large steps so the progress bar moves. Disposing it
+   * meanwhile stops the build at the next step (it throws `LoadCancelled`), so nothing is made
+   * after the one disposal pass.
+   */
   async load() {
     const step = async (share: number, label: string) => {
+      this.alive();
       this.onProgress?.(share, label);
       await new Promise((r) => setTimeout(r, 0));
+      this.alive();
     };
     await step(0.02, 'Les encres');
     await fontsReady();
@@ -464,15 +483,20 @@ export class Quartier {
       people.map(async ([key, h, at]) => {
         await t.add({ key, height: h }, at);
         done++;
-        this.onProgress?.(0.66 + (done / people.length) * 0.24, 'La troupe');
+        if (!this.disposed) this.onProgress?.(0.66 + (done / people.length) * 0.24, 'La troupe');
       }),
     );
+    this.alive();
     // Camille: a silhouette in the doorway, later
     const camille = this.art.figure('camille_marchand', 'neutre', null);
     if (camille) {
       const f = await t.add({ key: 'camille_marchand', height: 1.72, silhouette: true }, MARKS.doorOut);
-      f.visible = false;
+      if (f) f.visible = false;
     }
+  }
+
+  private alive() {
+    if (this.disposed) throw new LoadCancelled();
   }
 
   /* ---------------------------------------------------------------------------------------- */

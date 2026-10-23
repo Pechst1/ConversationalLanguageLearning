@@ -57,6 +57,8 @@ const COPY = {
     silent: 'Touche pour continuer',
     asks: 'te demande',
     failed: 'This phone could not open the 3D quarter.',
+    leave: 'Back',
+    retry: 'Try again',
   },
   de: {
     start: 'Commencer',
@@ -72,6 +74,8 @@ const COPY = {
     silent: 'Touche pour continuer',
     asks: 'te demande',
     failed: 'Dieses Telefon konnte das 3D-Viertel nicht öffnen.',
+    leave: 'Zurück',
+    retry: 'Erneut versuchen',
   },
 };
 
@@ -114,6 +118,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
     (async () => {
       try {
         await q.load();
+        if (cancelled) return;
         await st.prepare();
         if (cancelled) return;
         unbind = q.bindInput();
@@ -276,15 +281,25 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
             <p className="qz-kicker">Le Quartier</p>
             <h1 className="qz-h">Le quai de Valmy</h1>
             {failed ? (
-              <p className="qz-cando">
-                {copy.failed} <small style={{ display: 'block', marginTop: 8, color: 'var(--qz-muted)' }}>{failed}</small>
-              </p>
+              <>
+                <p className="qz-cando">
+                  {copy.failed} <small style={{ display: 'block', marginTop: 8, color: 'var(--qz-muted)' }}>{failed}</small>
+                </p>
+                <button type="button" className="qz-primary" onClick={() => (onExit ? onExit() : window.location.reload())}>
+                  {onExit ? copy.leave : copy.retry}
+                </button>
+              </>
             ) : (
               <>
                 <div className="qz-bar">
                   <i style={{ width: `${Math.round((loading?.share ?? 0) * 100)}%` }} />
                 </div>
                 <p className="qz-loading-label">{loading?.label}…</p>
+                {onExit ? (
+                  <button type="button" className="qz-quiet" onClick={onExit}>
+                    {copy.leave}
+                  </button>
+                ) : null}
               </>
             )}
           </div>

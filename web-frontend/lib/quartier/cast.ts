@@ -304,6 +304,7 @@ export class Troupe {
   readonly people = new Map<string, PaperFigure>();
   private prints = new Map<string, Promise<Printed>>();
   private specs = new Map<string, FigureSpec>();
+  private disposed = false;
 
   constructor(private world: World, private art: ArtSource, private heightPx = 840) {}
 
@@ -322,9 +323,12 @@ export class Troupe {
     return p;
   }
 
-  async add(spec: FigureSpec, at: Vector3): Promise<PaperFigure> {
+  /** Print someone and stand them at `at`; null when the troupe was disposed while printing. */
+  async add(spec: FigureSpec, at: Vector3): Promise<PaperFigure | null> {
     this.specs.set(spec.key, spec);
     const first = await this.print(spec.key);
+    // its print's texture goes with the others in `dispose`
+    if (this.disposed) return null;
     const f = new PaperFigure(this.world, spec, first);
     f.place(at);
     this.people.set(spec.key, f);
@@ -355,6 +359,7 @@ export class Troupe {
   }
 
   dispose() {
+    this.disposed = true;
     this.people.forEach((f) => f.dispose());
     this.prints.forEach((p) => p.then((x) => x.texture.dispose()).catch(() => undefined));
   }
