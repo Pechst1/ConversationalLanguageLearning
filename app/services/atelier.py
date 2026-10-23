@@ -61,6 +61,7 @@ from app.services.forge_grading import (
     drop_false_english,
     fold_typography,
     free_use_acceptable,
+    mark_given,
     notes_native,
     production_local_check,
     refine_production_correction,
@@ -6494,7 +6495,7 @@ class AtelierCorrectionService:
             # A wrong part («verts») is filed as the sentence it stands for.
             learner = verdict.read_as or learner
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
-            ops = token_diff(learner, target)
+            ops = mark_given(token_diff(learner, target), source)
             what = describe_diff(ops, self.explanation_language)
             if what:
                 # Name the exact difference first (the ending, the missing word),

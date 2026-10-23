@@ -1058,6 +1058,8 @@ def mine_payload_item(
     window = drills.spot_window(source, expected)
     if window is not None:
         item["wrong_span"] = " ".join(drills.fold_key(source).split()[window[0]:window[1]])
+        if window[1] - window[0] > 1:
+            item["fix_words"] = window[1] - window[0]
     if lesson_external_id:
         item["lesson_external_id"] = lesson_external_id
     return item

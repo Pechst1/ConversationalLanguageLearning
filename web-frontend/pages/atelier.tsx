@@ -4567,6 +4567,7 @@ function TransformPanel({
           }}
           submitted={submitted}
           copy={fc}
+          fixWords={item.fix_words}
         />
         {modelAudio}
       </div>
