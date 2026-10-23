@@ -29,6 +29,7 @@ from app.services.address import address_instruction
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
+from app.services.correction_guard import drops_question, unlisted_changes
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.glosses import (
@@ -1688,6 +1689,26 @@ _META_FEEDBACK_MARKERS: tuple[str, ...] = (
 # "polished" answer. Printing it as the learner's corrected reply is worse than
 # printing nothing.
 _PLACEHOLDER_PATTERN = re.compile(r"[\[\{][^\]\}]{1,60}[\]\}]|\bx{3,}\b", re.IGNORECASE)
+
+
+def _letters_of(value: Any) -> str:
+    """Only the letters, case-folded: apostrophes, spaces and hyphens do not tell two notes apart."""
+    return "".join(ch for ch in unicodedata.normalize("NFC", str(value or "")).casefold() if ch.isalpha())
+
+
+# #133: a letter standing alone in front of a vowel word is a dropped apostrophe.
+_ELISION_GAP = re.compile(r"(?<![\w'’-])(qu|[cdjlmnst])[ \t]+(?=[aeiouyàâéèêîôû])", re.IGNORECASE)
+_CLOCK_NUMBERS = (
+    "une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix-sept|dix-huit|dix-neuf|dix|onze|douze|treize|quatorze|"
+    "quinze|seize|vingt(?:-et-une?|-deux|-trois)?"
+)
+_A_BEFORE_CLOCK = re.compile(
+    r"(?<![\w'’-])(?P<prev>lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|demain|midi|matin|soir|"
+    r"après-midi|rendez-vous)(?P<gap>\s+)a(?=\s+(?:\d{1,2}\s?(?:h|heures?)\b|(?:"
+    + _CLOCK_NUMBERS
+    + r")\s+heures?\b))\s+",
+    re.IGNORECASE,
+)
 
 
 def _repair_tokens(value: Any) -> list[str]:
@@ -3624,7 +3645,9 @@ class MissionCorrectionService:
         correction = self._apply_vocabulary_feedback(
             mission=mission, text=text, correction=correction, language=language
         )
-        correction["corrected_answer"] = self._complete_corrected_answer(text=text, correction=correction)
+        correction["corrected_answer"] = self._complete_corrected_answer(
+            text=text, correction=correction, base=deterministic_answer
+        )
         # Design contract, principle 4: a card headed "Correction" has to be backed
         # by a repair. When every erratum failed the gates, the provider's polished
         # rewrite is a style preference — hand back the learner's own sentence so
@@ -3887,13 +3910,36 @@ class MissionCorrectionService:
         return {**erratum, "learner_text": narrowed_learner, "corrected_target": narrowed_corrected}
 
     @staticmethod
-    def _complete_corrected_answer(*, text: str, correction: dict[str, Any]) -> str:
+    def _repair_with_errata(base: str, errata: Any) -> str:
+        """``base`` with each listed fix applied: the corrected form the notes describe."""
+        repaired = base
+        for erratum in errata or []:
+            task_type = str(erratum.get("task_error_type") or "")
+            if task_type == "task_compliance" or task_type.startswith("vocabulary"):
+                continue
+            wrong = str(erratum.get("learner_text") or "").strip()
+            fixed = str(erratum.get("corrected_target") or "").strip()
+            if not wrong or not fixed or wrong.casefold() == fixed.casefold():
+                continue
+            repaired = re.sub(re.escape(wrong), lambda _match, value=fixed: value, repaired, count=1, flags=re.IGNORECASE)
+        return repaired
+
+    @staticmethod
+    def _complete_corrected_answer(*, text: str, correction: dict[str, Any], base: str | None = None) -> str:
         """Keep the polished answer complete — but still the learner's own message.
 
         A provider may return an excerpt (too short, repaired below) or, for a
         one-word reply, invent a whole new message with template placeholders.
         Both are refused: what prints under "Correction" has to be a cleaned-up
         version of what the learner actually sent.
+
+        Root cause #133: the corrected form is what the learner copies, yet it came
+        from the model as free text with the notes written beside it, so nothing tied
+        the two together («Qu est-ce que c est, jeudi a dix-huit heures ?» came back
+        as «C'est jeudi à dix-huit heures ?», two changes unlisted). The form may now
+        differ from the learner's text only where an erratum says so, and keeps their
+        question; otherwise it is rebuilt from the listed errata alone. ``base`` is
+        the learner's text with the model-free fixes already applied.
         """
         submitted = text.strip()
         candidate = str(correction.get("corrected_answer") or "").strip()
@@ -3904,19 +3950,12 @@ class MissionCorrectionService:
         if candidate and _PLACEHOLDER_PATTERN.search(candidate):
             candidate = ""
             candidate_words = []
+        errata = correction.get("errata") or []
         if candidate and (not learner_words or minimum_words <= len(candidate_words) <= maximum_words):
-            return candidate
+            if not unlisted_changes(submitted, candidate, errata) and not drops_question(submitted, candidate):
+                return candidate
 
-        repaired = submitted
-        for erratum in correction.get("errata") or []:
-            task_type = str(erratum.get("task_error_type") or "")
-            if task_type == "task_compliance" or task_type.startswith("vocabulary"):
-                continue
-            wrong = str(erratum.get("learner_text") or "").strip()
-            fixed = str(erratum.get("corrected_target") or "").strip()
-            if not wrong or not fixed or wrong.casefold() == fixed.casefold():
-                continue
-            repaired = re.sub(re.escape(wrong), lambda _match, value=fixed: value, repaired, count=1, flags=re.IGNORECASE)
+        repaired = MissionCorrectionService._repair_with_errata(base or submitted, errata)
         return repaired or candidate
 
     def persist_errata(
@@ -4185,6 +4224,53 @@ class MissionCorrectionService:
                 flags=re.IGNORECASE,
             )
 
+        # #133: a dropped apostrophe («c est», «Qu est-ce que») and «a» for «à» before a
+        # clock time are listed errata of their own, so the corrected form never makes a
+        # change the notes do not name. Both triggers are closed: the elision only for
+        # c/d/j/l/m/n/s/t/qu in front of a vowel, «à» only right after a weekday or a
+        # day-part word and before a clock time («Il a trois heures de retard» is right).
+        seen: set[str] = set()
+        for match in _ELISION_GAP.finditer(text):
+            tail = re.match(r"[\w-]+", text[match.end():])
+            if not tail:
+                continue
+            wrong_fragment = text[match.start() : match.end() + len(tail.group(0))]
+            if wrong_fragment.casefold() in seen:
+                continue
+            seen.add(wrong_fragment.casefold())
+            errata.append(
+                {
+                    "display_label": learner_text("mission.rule_elision_label", language),
+                    "learner_text": wrong_fragment,
+                    "corrected_target": f"{match.group(1)}'{tail.group(0)}",
+                    "why_wrong": learner_text("mission.rule_elision_why", language),
+                    "repair_hint": learner_text("mission.rule_elision_hint", language),
+                    "severity": 1,
+                    "recurring": False,
+                    "task_error_type": "orthography",
+                    "external_id": "FR_ORTHO_ELISION_APOSTROPHE",
+                }
+            )
+        corrected = _ELISION_GAP.sub(lambda match: f"{match.group(1)}'", corrected)
+        for match in _A_BEFORE_CLOCK.finditer(text):
+            tail = re.match(r"[\w-]+", text[match.end():])
+            if not tail:
+                continue
+            errata.append(
+                {
+                    "display_label": learner_text("mission.rule_a_accent_label", language),
+                    "learner_text": f"a {tail.group(0)}",
+                    "corrected_target": f"à {tail.group(0)}",
+                    "why_wrong": learner_text("mission.rule_a_accent_why", language),
+                    "repair_hint": learner_text("mission.rule_a_accent_hint", language),
+                    "severity": 1,
+                    "recurring": False,
+                    "task_error_type": "orthography",
+                    "external_id": "FR_ORTHO_A_ACCENT_TIME",
+                }
+            )
+        corrected = _A_BEFORE_CLOCK.sub(lambda match: f"{match.group('prev')}{match.group('gap')}à ", corrected)
+
         return errata, corrected.strip()
 
     def _merge_deterministic_errata(
@@ -4212,11 +4298,24 @@ class MissionCorrectionService:
                 str(item.get("corrected_target") or "").casefold(),
                 str(item.get("task_error_type") or ""),
             )
-            if key not in existing_keys:
+            # The provider already noted the same fragment in its own words (a sentence-wide
+            # card, a curly apostrophe): one card, not two.
+            already = bool(_letters_of(item.get("learner_text"))) and any(
+                _letters_of(item.get("learner_text")) in _letters_of(other.get("learner_text"))
+                and _letters_of(item.get("corrected_target")) in _letters_of(other.get("corrected_target"))
+                for other in existing
+            )
+            if key not in existing_keys and not already:
                 existing.append(item)
                 existing_keys.add(key)
         merged["errata"] = existing
-        merged["corrected_answer"] = corrected_answer or merged.get("corrected_answer") or ""
+        # The model-free text plus the fixes the model listed: the corrected form
+        # and the notes describe the same changes (#133).
+        merged["corrected_answer"] = (
+            self._repair_with_errata(corrected_answer, correction.get("errata"))
+            if corrected_answer
+            else merged.get("corrected_answer") or ""
+        )
         max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
         if max_severity >= 2 and merged.get("verdict") == "accepted":
             merged["verdict"] = "needs_revision"

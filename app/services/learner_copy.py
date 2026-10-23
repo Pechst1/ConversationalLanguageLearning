@@ -847,6 +847,36 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Schreibe „problème“, im Plural „problèmes“.",
         "fr": "Écris « problème », ou « problèmes » au pluriel.",
     },
+    "mission.rule_elision_label": {
+        "en": "Spelling: the apostrophe",
+        "de": "Rechtschreibung: der Apostroph",
+        "fr": "Orthographe : l’apostrophe",
+    },
+    "mission.rule_elision_why": {
+        "en": "Before a vowel, c’, qu’, j’, l’, d’, n’, s’ keep their apostrophe: c’est, qu’est-ce que.",
+        "de": "Vor einem Vokal behalten c’, qu’, j’, l’, d’, n’, s’ ihren Apostroph: c’est, qu’est-ce que.",
+        "fr": "Devant une voyelle, c’, qu’, j’, l’, d’, n’, s’ gardent leur apostrophe : c’est, qu’est-ce que.",
+    },
+    "mission.rule_elision_hint": {
+        "en": "Write the two words as one, with an apostrophe.",
+        "de": "Schreibe die zwei Wörter zusammen, mit Apostroph.",
+        "fr": "Écris les deux mots en un seul, avec une apostrophe.",
+    },
+    "mission.rule_a_accent_label": {
+        "en": "Spelling: à with a time",
+        "de": "Rechtschreibung: à bei Uhrzeiten",
+        "fr": "Orthographe : à devant une heure",
+    },
+    "mission.rule_a_accent_why": {
+        "en": "“à” (with an accent) says the time: à dix-huit heures. “a” without an accent is the verb avoir.",
+        "de": "„à“ (mit Akzent) nennt die Uhrzeit: à dix-huit heures. „a“ ohne Akzent ist das Verb avoir.",
+        "fr": "« à » (avec accent) donne l’heure : à dix-huit heures. « a » sans accent est le verbe avoir.",
+    },
+    "mission.rule_a_accent_hint": {
+        "en": "Before an hour, write “à”.",
+        "de": "Vor einer Uhrzeit schreibst du „à“.",
+        "fr": "Devant une heure, écris « à ».",
+    },
     # -- app/services/atelier.py: the authored fallback exercises (WP-67) -----
     # These instructions are written once, cached in `atelier_exercise_sets` and
     # shared across learners, so they cannot be generated in one learner's
