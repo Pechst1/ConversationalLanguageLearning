@@ -717,6 +717,13 @@ export function episodeRetainPhrase(episode: StoryEpisode | null | undefined): s
 
 export type RadioState = {
   stage: RadioStage;
+  /**
+   * Whether this cycle asks «how does it end?» at all. False when the scene's
+   * own lines settle no outcome (#277): there is then nothing to predict and
+   * nothing to check, so *prédire* is skipped rather than asked and later
+   * answered with «neither guess is wrong».
+   */
+  asked: boolean;
   guess: EpisodeGuessId | null;
   /** How many lines the learner has turned over at *vérifier*. */
   revealed: number;
@@ -736,10 +743,37 @@ export type RadioEvent =
 
 export const RADIO_INITIAL: RadioState = {
   stage: 'predire',
+  asked: true,
   guess: null,
   revealed: 0,
   heard: false,
 };
+
+/**
+ * Whether the episode's own lines settle how the exchange ends.
+ *
+ * This is the **same** check *vérifier* runs (`verifyEpisodeGuess`), asked
+ * before the audio instead of after it. The question and its answer used to be
+ * decided in two places that never met — the guess was always offered, and only
+ * the check afterwards found there was nothing to check against (#277). One
+ * predicate for both ends means a question is never put that the check cannot
+ * answer.
+ */
+export function episodeSettlesOutcome(episode: StoryEpisode | null | undefined): boolean {
+  return verifyEpisodeGuess(episode, null).supported !== null;
+}
+
+/** The cycle's first state for this episode: guess first only if there is an ending to guess. */
+export function radioInitialFor(episode: StoryEpisode | null | undefined): RadioState {
+  return episodeSettlesOutcome(episode)
+    ? RADIO_INITIAL
+    : { ...RADIO_INITIAL, stage: 'ecouter', asked: false };
+}
+
+/** The stages this cycle actually runs: without a question there is no *prédire*. */
+export function radioStagesFor(state: Pick<RadioState, 'asked'>): readonly RadioStage[] {
+  return state.asked ? RADIO_STAGES : RADIO_STAGES.filter((stage) => stage !== 'predire');
+}
 
 /**
  * The cycle as one pure transition.
@@ -781,7 +815,7 @@ export function radioReduce(state: RadioState, event: RadioEvent): RadioState {
     case 'retain':
       return state.stage === 'verifier' ? { ...state, stage: 'retenir' } : state;
     case 'restart':
-      return RADIO_INITIAL;
+      return state.asked ? RADIO_INITIAL : { ...RADIO_INITIAL, stage: 'ecouter', asked: false };
     default:
       return state;
   }
