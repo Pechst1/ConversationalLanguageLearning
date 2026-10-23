@@ -729,8 +729,8 @@ class BankItemProvider:
             return item_bank.transform_item(candidate)
         if round_name == "sentence":
             return item_bank.output_item(candidate, round_name="sentence", requirement=requirement)
-        # WP-S5: free use is a two-line scene with the rule's coach; an item
-        # that cannot be one (it names the coach, say) gives way to the next.
+        # WP-S5: free use is a two-line scene with the rule's coach when the item
+        # carries its own question; otherwise it is the plain task, with no line (#176).
         return item_bank.output_item(
             candidate, round_name="conversation", requirement=requirement, coach=coach_for_concept(concept.external_id)
         )

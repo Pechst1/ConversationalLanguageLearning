@@ -772,7 +772,7 @@ export function EpPartsRepair({
       )}
       {done && (
         <Notice tone="quiet" shape="done">
-          <p>{t.repair_ok}</p>
+          <p>{t.repair_parts_ok}</p>
         </Notice>
       )}
       {status === 'no' && (

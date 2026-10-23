@@ -14,6 +14,7 @@ from app.db.models.npc import NPC, NPCRelationship
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.word_match import target_occurs_in
 
 if TYPE_CHECKING:
     from app.services.progress import ProgressService
@@ -674,59 +675,18 @@ class StoryService:
             normalized = unicodedata.normalize('NFD', text.lower())
             return ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
 
-        def get_french_stem(word: str) -> str:
-            """Get approximate stem for French word matching."""
-            normalized = normalize_text(word)
-            # Common French verb infinitive endings
-            if normalized.endswith('er'):
-                return normalized[:-2]
-            if normalized.endswith('ir'):
-                return normalized[:-2]
-            if normalized.endswith('re'):
-                return normalized[:-2]
-            if normalized.endswith('oir'):
-                return normalized[:-3]
-            # Handle past participles and other forms
-            if normalized.endswith('e') and len(normalized) > 3:
-                return normalized[:-1]
-            if normalized.endswith('u') and len(normalized) > 3:
-                return normalized[:-1]
-            return normalized
-
         def word_matches(required_word: str, text_words: list[str], full_text: str) -> bool:
-            """Check if required word (or its conjugated form) appears in user text."""
-            normalized_required = normalize_text(required_word)
-            required_stem = get_french_stem(required_word)
+            """Whether the learner wrote the required word or one of its inflected forms.
 
-            # Direct match check
-            if normalized_required in full_text:
+            A whole word, never a longer word that starts like it (#236: «vendredi»
+            is not «vendre»). ``disparaître`` keeps its irregular participle by hand.
+            """
+            if target_occurs_in(required_word, full_text):
                 return True
-
-            # Stem-based matching for verbs
-            for user_word in text_words:
-                normalized_user = normalize_text(user_word)
-                user_stem = get_french_stem(user_word)
-
-                # Check exact normalized match
-                if normalized_user == normalized_required:
-                    return True
-
-                # Check stem match (for verb conjugations)
-                # e.g., "cherch" matches "cherche", "chercher", "cherché"
-                if len(required_stem) >= 4:  # Only stem-match for words with substantial stems
-                    if normalized_user.startswith(required_stem):
-                        return True
-                    if user_stem == required_stem:
-                        return True
-
-                # Special handling for French irregular verbs
-                # disparaître -> disparu, dispara-, dispar-
-                if 'dispar' in normalized_required and 'dispar' in normalized_user:
-                    return True
-                if 'trouv' in normalized_required and 'trouv' in normalized_user:
-                    return True
-
-            return False
+            irregular = normalize_text(required_word)
+            return irregular.startswith("dispar") and any(
+                normalize_text(user_word).startswith("dispar") for user_word in text_words
+            )
 
         # Get all user messages for this session
         stmt = (

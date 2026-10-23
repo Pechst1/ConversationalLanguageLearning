@@ -12,7 +12,8 @@ import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seanc
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
-import { productionPhase, reviewIsPending, settleShownCorrection } from '@/lib/forge-verdict';
+import { itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
   FOLLOW_UP_EMPTY,
@@ -4164,6 +4165,24 @@ function ExerciseFeedbackMoment({
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   // Owner, 2026-10-19: what the learner typed in each wrong part of their line.
   const [partsTyped, setPartsTyped] = useState<Record<string, Record<number, string>>>({});
+  // #239: the correction (the right sentence and why) is scrolled above the
+  // sticky verdict sheet as it appears, never left running on under it.
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
+  // (A free line first shows «Je relis…»; its card mounts when the model's verdict
+  // lands, so the phase is part of what the effect waits for.)
+  const shownVerdict = submitted && feedback
+    ? `${feedback.unscored ? 'unscored' : feedback.correct ? 'correct' : 'wrong'}|${production ? productionPhase(correction) : 'settled'}`
+    : null;
+  // A right classification with its repair open has no sheet yet; the sheet mounts
+  // when the repair is done or shown, so its outcome is part of what the effect waits for.
+  const repairOutcome = followUps[feedbackKey]?.outcome ?? null;
+  useEffect(() => {
+    if (!shownVerdict) return undefined;
+    let frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => keepCardAboveSheet(feedbackRef.current));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [feedbackKey, shownVerdict, repairOutcome]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
   // verdict to show — the grading character says so, and a verdict shown later
@@ -4235,23 +4254,36 @@ function ExerciseFeedbackMoment({
     : <ForgeCorrectedLine fr={repairOf.correctedFr} />;
 
   if (feedback.correct) {
+    // #213: one verdict per card. A right judgement takes the result of the
+    // repair step: «Well done!» only once the sentence was corrected, «Not yet»
+    // when the right sentence had to be shown, and nothing while it is open.
+    const repairStep: RepairStep = repairOf.followUp ? (followDraft.outcome ?? 'open') : 'none';
+    const verdict = itemVerdict({ judgedRight: feedback.correct, repair: repairStep });
     return (
-      <div className="ep-feedback" data-verdict="correct">
+      <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
         {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
-        <EpFoot tone="correct">
-          <EpVerdict tone="go" sub={cheer || rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
-          {!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>}
-        </EpFoot>
+        {verdict === 'right' && (
+          <EpFoot tone="correct">
+            <EpVerdict tone="go" sub={cheer || rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
+            <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          </EpFoot>
+        )}
+        {verdict === 'wrong' && (
+          <EpFoot tone="wrong">
+            <EpVerdict tone="no" sub={rule} coach={coach} coachMood="cross">{t.verdict_wrong}</EpVerdict>
+            <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          </EpFoot>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="ep-feedback" data-verdict="wrong">
+    <div className="ep-feedback" data-verdict="wrong" ref={feedbackRef}>
       {issues.map((issue, index) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();

@@ -54,6 +54,7 @@ from app.services.vocabulary_credit import (
     UNUSED_TARGET_EVENT_TYPES,
     VocabularyCreditService,
 )
+from app.services.word_match import target_occurs_in
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v2"
 
@@ -4588,7 +4589,8 @@ class MissionCorrectionService:
             item.get("normalized_word"),
             item.get("french_translation"),
         ]
-        return any(self._contains_normalized_phrase(normalized_text, form) for form in forms)
+        # #236: the word or one of its inflections, never a longer word that starts like it.
+        return any(target_occurs_in(form, normalized_text) for form in forms)
 
     def _translation_hit(self, normalized_text: str, item: dict[str, Any]) -> str:
         translation = str(item.get("translation") or "")
