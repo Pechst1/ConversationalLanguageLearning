@@ -420,18 +420,23 @@ export function EpVerdict({
   sub,
   coach,
   coachMood,
+  attempt,
 }: {
   tone?: string;
   children: Node;
   sub?: Node;
+  /** The checked attempt this band reports (#302), so the cast counts it once. */
+  attempt?: string | null;
   /** WP-S5: the rule's coach reacts in the badge's place (happy, cross, moved). */
   coach?: { id: string; name: string } | null;
   coachMood?: PortraitMood;
 }) {
   const correct = tone === 'go';
-  // Les apparitions: every checked answer is a moment the cast may walk in on.
+  // Les apparitions: every checked answer is a moment the cast may walk in on, once. The id
+  // survives an effect that runs twice (React's dev double-run); `attempt` survives a remount.
+  const own = React.useId();
   React.useEffect(() => {
-    emitCameo({ type: 'answer', correct, coachId: coach?.id ?? null });
+    emitCameo({ type: 'answer', correct, coachId: coach?.id ?? null, attempt: attempt || own });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="av2-feedback ep-verdict" data-tone={correct ? 'correct' : 'wrong'} data-coach={coach?.id || undefined} role="status" aria-live="polite">
