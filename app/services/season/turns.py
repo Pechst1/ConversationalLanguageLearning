@@ -26,6 +26,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.services import story_memory
+from app.services.cast_registry import display_name
 
 #: A deterministic match must share this much of an example reply's content words.
 MATCH_THRESHOLD = 0.34
@@ -462,6 +463,9 @@ _TITLES = ("M.", "Mme", "Maître", "L'employée", "L'employé", "Le", "La", "Un"
 def _short(name: str | None, who: str) -> str:
     """How a caption names someone: «Gus», «Lila», «M. Marchand», «Mme Diallo»."""
 
+    registered = display_name(who)
+    if registered:
+        return registered
     text = str(name or who)
     if "«" in text:
         inner = text.split("«", 1)[1].split("»", 1)[0].strip()
@@ -503,7 +507,10 @@ def reaction_lines(panels: list[dict[str, Any]], *, addressee: str, names: dict[
             lines.append(
                 {
                     "speaker_id": who,
-                    "speaker_name": str(line.get("name") or (names or {}).get(who) or who),
+                    # The registry names the person (#217); a line's own ``name`` is only the
+                    # fallback for someone it does not hold (a clerk, a later season's cast).
+                    "speaker_name": display_name(who)
+                    or str(line.get("name") or (names or {}).get(who) or who),
                     "text_fr": text,
                 }
             )

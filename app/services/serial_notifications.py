@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode
 from app.db.models.user import User
+from app.services import cast_registry
 from app.services.address import character_register as resolve_character_register
 
 #: WP-19's title for the morning push. WP-80 replaced it with the speaking
@@ -100,14 +101,18 @@ PORTRAIT_CHARACTERS: dict[str, str] = {
     "marchand": "landlord_marchand",
 }
 
-#: The display name when nothing else names the character.
+#: The display name when nothing else names the character: the cast registry's, so a
+#: push says «Gus» like every other surface (#217), not «Augustin».
 CHARACTER_NAMES: dict[str, str] = {
-    "marin_leveque": "Marin",
-    "romy_tremblay": "Romy",
-    "lila_bonnet": "Lila",
-    "margaux_barman": "Margaux",
-    "augustin_de_roncourt": "Augustin",
-    "landlord_marchand": "M. Marchand",
+    character_id: cast_registry.display_name(character_id, character_id)
+    for character_id in (
+        "marin_leveque",
+        "romy_tremblay",
+        "lila_bonnet",
+        "margaux_barman",
+        "augustin_de_roncourt",
+        "landlord_marchand",
+    )
 }
 
 #: Who speaks when the learner has no scene yet (WP-80's pre-prompt names him).
@@ -661,6 +666,41 @@ def courrier_push(db: Session, user: User, *, mission: Any, kind: str) -> Charac
     )
 
 
+# ---------------------------------------------------------------------------
+# Les appels — «Romy t’appelle»
+# ---------------------------------------------------------------------------
+
+#: Where a call's push opens: the call screen (``pages/appel.tsx``).
+APPEL_ROUTE = "/appel"
+APPEL_TITLE = "{name} t’appelle"
+#: The caller's own line, in the register the two of them use. A1-plain, no emoji.
+APPEL_LINES = {
+    "vous": "Vous avez une minute ? Je voulais vous parler.",
+    "tu": "Tu as une minute ? Je voulais te parler.",
+}
+
+
+def appel_push(db: Session, user: User, *, call: dict[str, Any]) -> CharacterPush:
+    """The push for a call still ringing in the evening (``appels.public_view``)."""
+
+    caller = dict(call.get("caller") or {})
+    character_id = str(caller.get("id") or "")
+    key = portrait_character(character_id)
+    name = str(caller.get("name") or CHARACTER_NAMES.get(key or "", "") or "").strip() or "Quelqu’un"
+    register = character_register(db, user, character_id)
+    mood = character_mood(db, user, key) if key else None
+    return CharacterPush(
+        title=APPEL_TITLE.format(name=name),
+        message=f"« {APPEL_LINES[register]} »",
+        character_id=key or (character_id or None),
+        image=portrait_path(key, mood) if key else None,
+        source="authored",
+        route=APPEL_ROUTE,
+        mood=mood,
+        register=register,
+    )
+
+
 #: Title for the WP-31 day-before push of a rehearsal whose real event is tomorrow.
 REHEARSAL_READY_TITLE = "Ta répétition est prête"
 
@@ -709,7 +749,11 @@ __all__ = [
     "DAILY_JOURNEY_MORNING_TITLE",
     "JOURNEY_DEEP_LINK",
     "REHEARSAL_READY_TITLE",
+    "APPEL_LINES",
+    "APPEL_ROUTE",
+    "APPEL_TITLE",
     "CharacterPush",
+    "appel_push",
     "character_mood",
     "character_register",
     "courrier_push",

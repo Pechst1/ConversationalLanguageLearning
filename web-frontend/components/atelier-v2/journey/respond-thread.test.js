@@ -563,6 +563,54 @@ test('a many-voiced reply is one bubble per speaker, each with who says it', () 
   assert.ok(!replies.some((b) => b.text.includes('Margaux :')), 'no speaker named inside another’s bubble');
 });
 
+test('#217 the day-1 reply thread names Gus once: speaker labels and listen buttons share one name', () => {
+  const FULL = 'Augustin « Gus » de Roncourt';
+  const gus = (text) => ({ speaker_id: 'augustin_de_roncourt', speaker_name: FULL, text_fr: text });
+  const margaux = (text) => ({ speaker_id: 'margaux_barman', speaker_name: 'Margaux Barman', text_fr: text });
+  const s = step({
+    turn_index: 1,
+    character_id: 'augustin_de_roncourt',
+    character_name: FULL,
+    character_line_fr: 'Tu vas monter ?',
+    thread: [{
+      learner_fr: 'Je suis la petite-fille d’Odile.',
+      character_fr: 'Ah.\nMargaux : Elle prenait ça.\nTu vas monter ?',
+      correction: null,
+      character_lines: [gus('Ah.'), margaux('Elle prenait ça.'), gus('Tu vas monter ?')],
+    }],
+  });
+  const { threadBubbles: bubblesOf } = require('./respond-thread.ts');
+  const spoken = bubblesOf({ prompt: s.prompt }).filter((b) => b.kind === 'character' && b.speaker);
+  assert.deepEqual(spoken.map((b) => b.speaker.name), ['Gus', 'Margaux', 'Gus']);
+  const html = renderRespond(s, DE);
+  assert.ok(!html.includes('Roncourt'), 'the full name is printed nowhere in the thread');
+  assert.ok(html.includes('Gus anhören'), 'the listen button is named Gus');
+  assert.ok(html.includes('Margaux anhören'));
+});
+
+test('#217 a speaker without a drawn face keeps the whole registry name in a many-voiced reply', () => {
+  const s = step({
+    turn_index: 1,
+    character_id: 'camille_marchand',
+    character_name: 'Camille',
+    character_line_fr: 'Tu viens ?',
+    thread: [{
+      learner_fr: 'Oui, je viens.',
+      character_fr: 'Super.\nBastien Roux : Moi aussi.\nMme Diallo : Bonjour.',
+      correction: null,
+      character_lines: [
+        { speaker_id: 'camille_marchand', speaker_name: 'Camille', text_fr: 'Super.' },
+        { speaker_id: 'bastien_roux', speaker_name: 'Bastien Roux', text_fr: 'Moi aussi.' },
+        { speaker_id: 'mme_diallo', speaker_name: 'Mme Diallo', text_fr: 'Bonjour.' },
+      ],
+    }],
+  });
+  const { threadBubbles: bubblesOf } = require('./respond-thread.ts');
+  const spoken = bubblesOf({ prompt: s.prompt }).filter((b) => b.kind === 'character' && b.speaker && b.reply);
+  // Before: «Bastien» and «Mme», the first word of the name the server sent.
+  assert.deepEqual(spoken.map((b) => b.speaker.name), ['Camille', 'Bastien Roux', 'Mme Diallo']);
+});
+
 
 // ===========================================================================
 // QA-STORY 2026-10-03 — a story reply is never «Correct»
@@ -594,4 +642,20 @@ test('a story reply gets no verdict word and no smile, only its margin correctio
   assert.ok(!slip.includes(DE.wrong));
   // A drill keeps its verdict.
   assert.ok(view(result(), 'correct', 'recall').includes(DE.correct));
+});
+
+test('#217 every cast member keeps one name, also in a payload with the world bible name (Courrier header too)', () => {
+  const fs = require('node:fs');
+  const { castDisplayName } = require('./journey-faces.ts');
+  const world = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/world.json'), 'utf8'));
+  const people = [...world.cast, { id: 'odile_ferrand', name: 'Odile Ferrand' }];
+  for (const person of people) {
+    // The Courrier names its writer from the name alone (messenger.contact_name).
+    const byName = castDisplayName(null, person.name) || person.name;
+    const byId = castDisplayName(person.id, person.name) || person.name;
+    assert.equal(byName, byId, `${person.id}: «${byName}» by name, «${byId}» by id`);
+    assert.ok(!byName.includes('«'), `${person.id} is «${byName}»`);
+  }
+  assert.equal(castDisplayName(null, 'Augustin « Gus » de Roncourt'), 'Gus');
+  assert.equal(castDisplayName(null, 'Mme Lefèvre'), null, 'someone outside the cast keeps their own name');
 });

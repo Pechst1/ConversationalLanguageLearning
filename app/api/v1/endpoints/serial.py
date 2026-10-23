@@ -105,6 +105,20 @@ def get_serial_season(
     return SerialThreadService(db).season_page(current_user)
 
 
+@router.get("/season/wall")
+def get_serial_season_wall(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_atelier_user)],
+) -> dict:
+    """Le mur du Mistral: the season's objects handed over so far, from the pages
+    read, and the marks the learner's choices left on them. Read-only."""
+
+    from app.services.season.wall import season_wall
+
+    _ensure_enabled()
+    return season_wall(db, current_user)
+
+
 @router.get("/threads/current/cast")
 @off_event_loop
 async def get_current_serial_cast(

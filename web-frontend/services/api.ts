@@ -305,6 +305,11 @@ export interface JournalCorrection {
   /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target'.
    *  'no_check_target' cannot be retried. */
   failure_reason?: string | null;
+  /** 'model' | 'deterministic'. A deterministic check is the model-free pass of the shared corrector
+   *  (#250): it marks real mistakes but cannot say a text is right, so a clean result reads
+   *  «No corrections found», and `retryable` says whether the model could be asked again. */
+  checker?: string | null;
+  retryable?: boolean;
   explanation_language?: string | null;
   /** The one correction shown up front, chosen by the journey's own policy. */
   foreground?: JournalCorrectionItem | null;
@@ -1831,6 +1836,14 @@ export interface MissionTurnResult {
   outcome?: Record<string, any>;
 }
 
+/** #251: a reply the corrector could not check, asked again. */
+export interface MissionTurnCorrectionResult {
+  user_turn: Record<string, any>;
+  correction: VocabularyCorrectionPayload;
+  errata: LinkedVocabularyErratum[];
+  mission: RealWorldMission;
+}
+
 export interface GraphicNovelPanel {
   id: string;
   panel_index: number;
@@ -2864,6 +2877,10 @@ class ApiService {
     return this.atelierPost<MissionTurnResult>(`/missions/${missionId}/turns`, data);
   }
 
+  async retryMissionTurnCorrection(missionId: string, turnId: string) {
+    return this.atelierPost<MissionTurnCorrectionResult>(`/missions/${missionId}/turns/${turnId}/correction`);
+  }
+
   async completeMission(missionId: string) {
     const response = await this.atelierPost<MissionCompleteResult>(`/missions/${missionId}/complete`);
     return response;
@@ -3111,12 +3128,15 @@ class ApiService {
     surface?: string,
     // WP-158: a spoken story reply names its turn, so the server can check the
     // flag, the owner and the per-turn cost ceiling before transcribing.
-    context?: { journeyId: string; stepId: string },
+    // Les appels: a spoken line on a call names the call instead.
+    context?: { journeyId: string; stepId: string } | { callId: string },
   ): Promise<string> {
     const formData = new FormData();
     formData.append('file', audioBlob, audioUploadFilename(audioBlob));
     if (surface) formData.append('surface', surface);
-    if (context) {
+    if (context && 'callId' in context) {
+      formData.append('call_id', context.callId);
+    } else if (context) {
       formData.append('journey_id', context.journeyId);
       formData.append('step_id', context.stepId);
     }

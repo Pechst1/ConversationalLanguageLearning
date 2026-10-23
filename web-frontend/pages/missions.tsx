@@ -8,6 +8,7 @@ import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
+import { castDisplayName } from '@/components/atelier-v2/journey/journey-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { LogoToken } from '@/components/ui/Seal';
@@ -78,6 +79,8 @@ type MissionMessenger = {
   quick_replies: string[];
   success_signal: string;
   twist?: string | null;
+  /** Whether the twist is the writer's own P.S. (else the narrator's note on the letter). */
+  twistIsPs?: boolean;
 };
 
 type QuerySeed = {
@@ -145,6 +148,11 @@ function missionVariety(mission: RealWorldMission | null): Record<string, any> {
   return raw && typeof raw === 'object' ? raw as Record<string, any> : {};
 }
 
+function storyBorn(mission: RealWorldMission | null): boolean {
+  const context = mission?.prompt_payload?.custom_context;
+  return Boolean(context && typeof context === 'object' && (context as Record<string, any>).source === 'story_born');
+}
+
 function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   const prompt = mission?.prompt_payload || {};
   const raw = prompt.messenger && typeof prompt.messenger === 'object' ? prompt.messenger as Record<string, any> : {};
@@ -154,13 +162,18 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   // level, rendered with `lang="fr"`. None of them is chrome.
   return {
     channel_label: String(raw.channel_label || missionVariety(mission).channel_label || 'Message'),
-    contact_name: String(raw.contact_name || 'Camille'),
+    // #217: a person of the cast goes by the registry's one name, also in a letter stored
+    // before the server sent it («Augustin « Gus » de Roncourt» is «Gus»).
+    contact_name: castDisplayName(null, raw.contact_name) || String(raw.contact_name || 'Camille'),
     scene_anchor: String(slim.frame || raw.scene_anchor || mission?.brief || 'Un moment de la vraie vie, en français.'),
     dispatch_note: String(slim.ask || raw.dispatch_note || mission?.brief || 'Une réponse naturelle en français.'),
     opening_message: String(raw.opening_message || prompt.conversation_opening || 'Bonjour, vous pouvez me répondre ?'),
     quick_replies: uniqueText(asStringList(raw.quick_replies), 3),
     success_signal: String(raw.success_signal || 'Ton correspondant sait quoi faire ensuite.'),
-    twist: raw.twist || missionVariety(mission).twist || null,
+    // #117: a cast member's note never inherits the domain's complication («Il reste un
+    // seul article à ta taille»): that line belongs to the domain's own letter.
+    twist: raw.twist || (storyBorn(mission) ? null : missionVariety(mission).twist) || null,
+    twistIsPs: Boolean(raw.twist && raw.twist_is_ps),
   };
 }
 
@@ -628,6 +641,7 @@ export default function MissionsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [rechecking, setRechecking] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<LoadErrorKind | null>(null);
   const [reply, setReply] = useState('');
@@ -874,6 +888,23 @@ export default function MissionsPage() {
       toast.error(t.toast_send_failed);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // #251: the corrector failed on this reply and the model-free pass found nothing.
+  // Ask again; a second failure keeps the reply as it was.
+  const recheckReply = async (turnId: string) => {
+    if (!mission || rechecking || completed) return;
+    setRechecking(turnId);
+    try {
+      const result = await apiService.retryMissionTurnCorrection(mission.id, turnId);
+      setMission((current) => ({ ...result.mission, outcome: current?.outcome ?? result.mission.outcome }));
+      if (result.correction?.verdict === 'unassessed') toast(t.toast_recheck_failed);
+    } catch (recheckError) {
+      console.error(recheckError);
+      toast.error(t.toast_recheck_failed);
+    } finally {
+      setRechecking(null);
     }
   };
 
@@ -1170,7 +1201,7 @@ export default function MissionsPage() {
                     {openingMessage}
                   </CrSlip>
                 )}
-                {!completed && <CrPS text={messenger.twist} />}
+                {!completed && <CrPS text={messenger.twist} ps={messenger.twistIsPs} />}
 
                 {visibleTurns.map((turn) => {
                   const isUser = turn.role === 'user';
@@ -1189,10 +1220,23 @@ export default function MissionsPage() {
                       >
                         {turn.text}
                       </CrSlip>
-                      {/* WP-74: the corrector was unavailable. Not a pass, not a
-                          fault — say plainly that nobody has corrected it yet. */}
+                      {/* WP-74 / #250 / #251: no grader ran and the shared model-free pass found
+                          nothing. Not a pass and not a dead end: «No corrections found», and
+                          the corrector can be asked again while the thread is open. */}
                       {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
-                        <p className="cr-unassessed" role="status">{t.unassessed}</p>
+                        <>
+                          <p className="cr-unassessed" role="status">{t.unassessed}</p>
+                          {!completed && turn.id && (
+                            <button
+                              type="button"
+                              className="cr-trad-btn"
+                              disabled={rechecking !== null}
+                              onClick={() => { void recheckReply(String(turn.id)); }}
+                            >
+                              {rechecking === turn.id ? t.rechecking : t.recheck}
+                            </button>
+                          )}
+                        </>
                       )}
                       {isUser && (lines.length > 0 || correctedAnswer) && (
                         <CrRepair

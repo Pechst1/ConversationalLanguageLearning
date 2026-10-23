@@ -30,9 +30,9 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
-from app.services import story_memory
+from app.services import correction_contract, story_memory
 from app.services.address import address_instruction
-from app.services.answer_acceptance import is_preference_swap
+from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -58,6 +58,7 @@ from app.services.lexical_coverage import (
 )
 from app.services.llm_service import LLMService, provider_for_model
 from app.services.season.director import SeasonChecklist
+from app.services.word_match import target_occurs_in
 
 logger = logging.getLogger(__name__)
 
@@ -2333,8 +2334,9 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
 #: (``story_correspondence.CORRESPONDENCE_KEY``). Agency pilot 2026-10-12 (B1): a
 #: letter refused as too hard on La Une moved the fingerprint, and an accepted day
 #: was lost to ``story_revision_conflict``. A finished letter still moves it: it
-#: writes the story's own keys.
-FINGERPRINT_IGNORED_STATE_KEYS = frozenset({"courrier"})
+#: writes the story's own keys. Les appels keep their calls the same way
+#: (``appels.STATE_KEY``); a finished call writes the story's keys.
+FINGERPRINT_IGNORED_STATE_KEYS = frozenset({"courrier", "appels"})
 
 
 def _fingerprint(thread: SerialThread | None, *, legacy: bool = False) -> str:
@@ -5715,8 +5717,8 @@ def trim_reply(reply: str | None, level: Any) -> str:
     return " ".join(words[:cap]).rstrip(" ,;:") + "…"
 
 
-def reply_soft_check(model: Any, level: Any, lexical: Any = None) -> None:
-    """The two reply checks that never cost a turn (WP-103 T5), run last.
+def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: str | None = None) -> None:
+    """The reply checks that never cost a turn (WP-103 T5), run last.
 
     Length: above the band's line → :class:`SoftRejection` carrying the reply trimmed
     at a sentence boundary. Words (WP-89's budget, ``lexical(reply) -> hint | None``):
@@ -5740,11 +5742,20 @@ def reply_soft_check(model: Any, level: Any, lexical: Any = None) -> None:
             lexical_hint = None
     if lexical_hint:
         hints.append(str(lexical_hint))
+    ignored = None
+    if learner_text and not getattr(model, "needs_clarification", False):
+        # #254 (root cause #145): a reasoned learner turn is picked up — a reply that
+        # takes up none of its words is asked again once, then served as it is.
+        from app.services import lane_guards
+
+        ignored = lane_guards.ignored_reply_hint(reply, learner_text)
+        if ignored:
+            hints.append(ignored)
     if not hints:
         return
     served = model.model_copy(update={"reply_fr": trimmed}) if trimmed != reply else model
     raise SoftRejection(
-        "reply_above_level" if issue else "reply_off_lexicon",
+        "reply_above_level" if issue else ("reply_off_lexicon" if lexical_hint else "reply_ignores_learner"),
         hint=" ".join(hints),
         proposal=served,
     )
@@ -9500,6 +9511,31 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
         elif is_preference_swap(turn.correction_span_fr, turn.correction_fr):
             # Agency walk run 3: «sans mon nom» → «pas mon nom»; both are correct.
             turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
+        elif not correction_is_grounded(
+            payload["learner_text"],
+            turn.correction_span_fr,
+            turn.correction_fr,
+            turn.correction_note_native,
+        ):
+            # #193: the span, the subject the note cites and the form must be provable
+            # from the learner's own sentence («est → es, after 'tu'» was not).
+            turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
+    if not (payload.get("turn_plan") or {}).get("clarify_form_fr"):
+        # #250: one corrector contract. A model correction that survived the checks
+        # above stands; when there is none, the first model-free edit stands in
+        # («Je suis froid» → «J'ai froid» among them, #193). The learner never sees
+        # «With « tu », « est » must be « es »» about a sentence with no «tu».
+        (
+            turn.correction_span_fr,
+            turn.correction_fr,
+            turn.correction_note_native,
+        ) = correction_contract.first_valid_edit(
+            payload["learner_text"],
+            turn.correction_span_fr,
+            turn.correction_fr,
+            turn.correction_note_native,
+            language=story.get("control_language"),
+        )
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):
         raise StoryUnavailable(
@@ -9563,7 +9599,7 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
     if reply_checks:
         # WP-103 T5: last, on a turn every hard guard has accepted — length and words
         # are refused once with the reason, then the trimmed reply is served.
-        reply_soft_check(turn, story.get("level"), lexical)
+        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"])
 
 
 def _transfer_target_ids(task: Any) -> set[int]:
@@ -9726,7 +9762,7 @@ def evaluate_turn(
             )
             for target in task.targets
             if target.id in turn.demonstrated_target_ids
-            and target.label_fr.casefold() in answer.text.casefold()
+            and target_occurs_in(target.label_fr, answer.text)
         ]
         proposal = (
             None
@@ -10202,6 +10238,7 @@ def settle_resolution(
     # names a real open row — or none at all.
     world_after = thread.world_bible if isinstance(thread.world_bible, dict) else {}
     from app.services.season.runtime import season_teaser
+    from app.services.story_page import HOOK_PAYLOAD_KEY
 
     # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
     teaser = season_teaser(brief.story_context, date=_journey_date(journey)) or next_teaser(
@@ -10259,7 +10296,10 @@ def settle_resolution(
         **({"season_routing": season_routing} if season_routing else {}),
         **({"chapter": chapter_block} if chapter_block else {}),
         **({TUTOIEMENT_KEY: tutoiement} if tutoiement else {}),
-        **({"next_teaser_fr": teaser["text_fr"]} if teaser else {}),
+        # #237: the day's ONE tomorrow-hook, filed here and read (story_page.hook_of)
+        # by the last panel, the finished card, Home and the Feuilleton's filed day.
+        # No surface composes a hook of its own.
+        **({HOOK_PAYLOAD_KEY: teaser["text_fr"]} if teaser else {}),
         # WP-110: the conversation as it was had, so the finished page draws it.
         **({"page_thread": page_thread} if (page_thread := _page_thread(journey, brief)) else {}),
         "estimated_cost": {

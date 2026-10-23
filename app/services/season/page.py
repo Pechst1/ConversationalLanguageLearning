@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.cast_registry import display_names
 from app.services.season.flags import holds
 from app.services.season.format import (
     B1_BANDS,
@@ -271,7 +272,7 @@ def resolve_day(
     day = choose_day(tentpole, letter, flags, band=band)
     if day is None:
         return None
-    names = {member.id: member.name for member in season.cast}
+    names = display_names(season.cast)
     ctx = _Ctx(flags=flags, band=band, language=language, neutral=neutral and bool(day.holiday), names=names)
     movements: list[dict[str, Any]] = []
     for movement in day.movements:

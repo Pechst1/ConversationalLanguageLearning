@@ -781,6 +781,8 @@ def test_a_replayed_write_buys_no_second_correction(db_session):
 
 
 def test_a_provider_that_does_not_answer_keeps_the_writing_and_invents_nothing(db_session):
+    """#250: no model verdict is not a dead end. The model-free pass still runs, says it
+    is the only check that ran, and certifies nothing (no credit for a «correct» word)."""
     user = _user(db_session)
     concept = _concept(db_session)
     _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=concept)
@@ -788,25 +790,30 @@ def test_a_provider_that_does_not_answer_keeps_the_writing_and_invents_nothing(d
     corrector = _FakeCorrector(fail=True)
     entry = _write(db_session, user, corrector, "J’ai rapporté le livre à Romy mardi.")
 
-    assert entry.status == "unavailable"
-    assert entry.assessment_status == "unavailable"
+    assert entry.status == "written"
+    assert entry.assessment_status == "checked"
+    assert entry.correction["checker"] == "deterministic"
+    assert entry.correction["failure_reason"] == "model_error"
+    assert entry.correction["retryable"] is True
     assert entry.entry_text == "J’ai rapporté le livre à Romy mardi."
     assert entry.correction["errata"] == []
     assert entry.correction["foreground"] is None
     assert entry.errata_ids == []
-    assert entry.vocabulary_credit["reason"] == "assessment_unavailable"
+    assert entry.vocabulary_credit["reason"] == "deterministic_check_only"
     assert db_session.query(UserError).filter(UserError.user_id == user.id).count() == 0
     # The content half does not depend on a provider and still answers.
     assert entry.content_recall["status"] == "scored"
 
 
-def test_a_scene_with_no_concept_to_check_against_is_unavailable_not_a_pass(db_session):
-    """No anchor for the paid checker is a missing measurement, not a good one."""
+def test_a_scene_with_no_concept_to_check_against_still_runs_the_model_free_pass(db_session):
+    """No anchor for the paid checker means no model call, not no check (#252)."""
     user = _user(db_session)
     _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=None)
     corrector = _FakeCorrector({"verdict": "accepted", "score_0_4": 4, "errata": []})
     entry = _write(db_session, user, corrector, "J’ai rapporté le livre à Romy.")
-    assert entry.assessment_status == "unavailable"
+    assert entry.assessment_status == "checked"
+    assert entry.correction["checker"] == "deterministic"
+    assert entry.correction["retryable"] is False
     assert corrector.calls == 0
 
 
@@ -844,14 +851,17 @@ def _failed_entry(db_session, user, message: str = "journal checker unavailable"
 def test_a_failed_check_says_why_and_can_be_retried(db_session):
     user = _user(db_session)
     entry = _failed_entry(db_session, user)
-    assert entry.status == "unavailable"
+    assert entry.status == "written"
+    assert entry.correction["checker"] == "deterministic"
     assert entry.correction["failure_reason"] == "model_error"
+    assert entry.correction["retryable"] is True
 
     good = _FakeCorrector({"verdict": "accepted", "score_0_4": 4, "errata": []})
     retried = _service(db_session, good).retry_correction(user, entry)
     assert retried.status == "written"
     assert retried.assessment_status == "checked"
     assert retried.correction["verdict"] == "accepted"
+    assert retried.correction["checker"] == "model"
     assert "failure_reason" not in retried.correction
     assert good.calls == 1
     # Retrying again buys nothing: the check already stands.
@@ -889,3 +899,104 @@ def test_the_characters_line_follows_the_scenes_register():
         "missed": [],
     }
     assert "Tu n’as pas oublié" in character_reaction(character_name="Romy", recall=remembered)
+
+
+# ---------------------------------------------------------------------------
+# 11. #252 / #250: the 20 Oct entry, no model and no grammar point
+# ---------------------------------------------------------------------------
+
+_OCT_20 = (
+    "Hier, Marin Lévêque a donné une bouillotte à Lila. Gus dit qu’il est comte, mais il a "
+    "un scooter. Lila a rentré dans le café et elle mange un croissant."
+)
+
+
+def test_the_20_oct_entry_gets_its_two_mistakes_marked_with_no_model_and_no_grammar_point(db_session):
+    """«a rentré» and «mange» were the deliberate mistakes; the card said «The correction
+    could not be made» and marked neither."""
+    user = _user(db_session)
+    _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=None)
+    corrector = _FakeCorrector(fail=True)
+    entry = _write(db_session, user, corrector, _OCT_20)
+
+    errata = entry.correction["errata"]
+    spans = {item["span_fr"]: item["corrected_fr"] for item in errata}
+    assert spans.get("a rentré") == "est rentrée"
+    assert spans.get("mange") == "a mangé"
+    assert all(span in _OCT_20 for span in spans)
+    assert entry.assessment_status == "checked"
+    assert entry.correction["checker"] == "deterministic"
+    assert corrector.calls == 0
+    # the real errors reach the learner's error memory like any other journal erratum
+    assert len(entry.errata_ids) == 2
+
+
+def test_the_journal_memory_check_counts_the_kept_word_not_the_whole_kept_sentence(db_session):
+    """«None of what the scene kept appears (0/1)» although «bouillotte» was written."""
+    user = _user(db_session)
+    journey = _journey(
+        db_session,
+        user,
+        local_date=TODAY - timedelta(days=1),
+        callback="Marin se souvient que le sac chaud s’appelle une bouillotte.",
+    )
+    # The scene's character is Marin: his name is on the prompt, so it is not evidence.
+    journey.scenario_snapshot = {**journey.scenario_snapshot, "character_name": "Marin"}
+    db_session.commit()
+    entry = _write(db_session, user, _FakeCorrector(fail=True), _OCT_20)
+
+    recall = entry.content_recall
+    assert recall["status"] == "scored"
+    assert len(recall["matched"]) == 1 and recall["missed"] == []
+    assert "bouillotte" in recall["matched"][0]["cues_hit"]
+
+
+def test_a_common_word_alone_still_does_not_prove_a_memory(db_session):
+    user = _user(db_session)
+    journey = _journey(
+        db_session,
+        user,
+        local_date=TODAY - timedelta(days=1),
+        callback="Marin se souvient que le sac chaud s’appelle une bouillotte.",
+    )
+    journey.scenario_snapshot = {**journey.scenario_snapshot, "character_name": "Marin"}
+    db_session.commit()
+    entry = _write(
+        db_session, user, _FakeCorrector(fail=True), "Hier j’ai vu un sac dans le café avec Lila et Gus."
+    )
+    assert len(entry.content_recall["missed"]) == 1
+
+
+def test_a_journal_correction_never_saves_an_intonation_question_as_an_erratum(db_session):
+    """#93 on the Journal: the model's «inversion required» notes (two near-duplicates) on a
+    correct question are dropped; only the real error is shown and saved."""
+    user = _user(db_session)
+    concept = _concept(db_session)
+    _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=concept)
+    text = "Romy a demandé : Vous êtes disponible jeudi matin ? Elle a mange un croissant."
+    note = {
+        "display_label": "Question form",
+        "learner_text": "Vous êtes disponible jeudi matin ?",
+        "corrected_target": "Êtes-vous disponible jeudi matin ?",
+        "why_wrong": "Formal question requires inversion.",
+        "repair_hint": "Invert.",
+        "severity": 2,
+        "recurring": False,
+        "task_error_type": "word_order",
+        "external_id": "",
+    }
+    corrector = _FakeCorrector(
+        {
+            "verdict": "needs_revision",
+            "score_0_4": 2,
+            "errata": [
+                note,
+                {**note, "learner_text": "vous êtes disponible", "corrected_target": "êtes-vous disponible"},
+            ],
+        }
+    )
+    entry = _write(db_session, user, corrector, text)
+    shown = [item["corrected_fr"] for item in entry.correction["errata"]]
+    assert all("Êtes-vous" not in item and "êtes-vous" not in item for item in shown)
+    saved = db_session.query(UserError).filter(UserError.user_id == user.id).all()
+    assert len(saved) == len(entry.errata_ids)

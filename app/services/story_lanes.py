@@ -56,9 +56,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
-from app.services import lane_guards, story_memory
+from app.services import correction_contract, lane_guards, story_memory
 from app.services import living_story as engine
-from app.services.answer_acceptance import is_preference_swap
+from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -75,6 +75,7 @@ from app.services.journey_contracts import (
 )
 from app.services.met_gate import DOWNGRADED, met_gate
 from app.services.season import agency
+from app.services.word_match import target_occurs_in
 
 logger = logging.getLogger(__name__)
 
@@ -474,11 +475,35 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
     if verdict.correction_fr and is_preference_swap(verdict.correction_span_fr, verdict.correction_fr):
         # Agency walk run 3: «mais sans mon nom» → «mais pas mon nom». Both are correct.
         verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
+    if verdict.correction_fr and not correction_is_grounded(
+        payload["learner_text"],
+        verdict.correction_span_fr,
+        verdict.correction_fr,
+        verdict.correction_note_native,
+    ):
+        # #193: «Ma grand-mère est mort» → «est → es, after 'tu'». The span, the cited
+        # subject and the form must be provable from the learner's own sentence.
+        verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
     if lane_guards.gender_form_hits(verdict.correction_fr or "") or lane_guards.gender_form_hits(
         verdict.correction_note_native or ""
     ):
         # WP-155: «engagé·e» in a correction imposes no gender only by being dropped.
         verdict.correction_span_fr = verdict.correction_fr = verdict.correction_note_native = None
+    if not (payload.get("turn_plan") or {}).get("clarify_form_fr"):
+        # #250: the same contract as the scene reply (see living_story._validate_turn):
+        # a model correction that survived the checks above, else the first
+        # model-free edit («Je suis froid» → «J'ai froid» among them, #193).
+        (
+            verdict.correction_span_fr,
+            verdict.correction_fr,
+            verdict.correction_note_native,
+        ) = correction_contract.first_valid_edit(
+            payload["learner_text"],
+            verdict.correction_span_fr,
+            verdict.correction_fr,
+            verdict.correction_note_native,
+            language=(payload.get("story") or {}).get("control_language"),
+        )
 
 
 def _learner_own_forms(payload: dict) -> frozenset[str]:
@@ -492,6 +517,22 @@ def _character_name(payload: dict) -> str | None:
     cast = ((payload.get("story") or {}).get("world") or {}).get("cast") or []
     member = next((m for m in cast if str(m.get("id")) == cid), None)
     return str(member.get("name") or cid) if member else (cid or None)
+
+
+def thread_voices(payload: dict) -> tuple[list[str], list[str]]:
+    """What the learner said and what the scene's characters said so far, as plain text:
+    the facts a reply is checked against (who owns which relative)."""
+
+    scene = payload.get("scene") or {}
+    history = payload.get("history") or []
+    learner = [str(payload.get("learner_text") or ""), *[str(h.get("learner") or "") for h in history]]
+    speaker = [str(scene.get("opening_line_fr") or ""), *[str(h.get("character") or "") for h in history]]
+    for panel in scene.get("panels") or []:
+        if not isinstance(panel, dict):
+            continue
+        speaker.append(str(panel.get("narration_fr") or ""))
+        speaker.extend(str(line.get("text_fr") or "") for line in panel.get("dialogue") or [] if isinstance(line, dict))
+    return [t for t in learner if t.strip()], [t for t in speaker if t.strip()]
 
 
 def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
@@ -534,8 +575,14 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     # WP-133b finding 3: the shared address check plus participles and apposition
     # («pauvre toi, gelé»), honouring a gender the learner gave.
     lane_guards.check_agreement([voice.reply_fr], address, own=own)
-    engine._check_register([voice.reply_fr], level)
+    # #253 (root cause #145): once the scene has put a relative with the learner («ta
+    # grand-mère»), the character does not take her for her own.
+    learner_texts, speaker_texts = thread_voices(payload)
     expected = _scene_register(scene)
+    voice.reply_fr = lane_guards.settle_kin_owner(
+        voice.reply_fr, learner_texts=learner_texts, speaker_texts=speaker_texts, register=expected
+    )
+    engine._check_register([voice.reply_fr], level)
     said = engine._address_register([voice.reply_fr])
     if expected and said and said != expected:
         raise engine.StoryUnavailable(
@@ -545,7 +592,7 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     voice.understood_intent = _neutral_intent(voice.understood_intent, payload, address, own)
     if (payload.get("turn_plan") or {}).get("clarify_form_fr"):
         voice.needs_clarification = True
-    engine.reply_soft_check(voice, level, lexical)
+    engine.reply_soft_check(voice, level, lexical, payload["learner_text"])
 
 
 def _neutral_intent(intent: str, payload: dict, address: str | None, own: frozenset[str]) -> str:
@@ -1186,7 +1233,7 @@ def evaluate_turn_lanes(
             )
             for target in task.targets
             if target.id in tutor.demonstrated_target_ids
-            and target.label_fr.casefold() in answer.text.casefold()
+            and target_occurs_in(target.label_fr, answer.text)
         ]
         proposal = (
             None

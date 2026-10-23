@@ -567,6 +567,32 @@ def target_surfaces(target: Any, metadata: dict[str, Any] | None = None) -> list
     return [form for index, form in enumerate(forms) if form and form not in forms[:index]]
 
 
+def is_word_target(target: Any) -> bool:
+    """A word to learn, not a rule: a grammar target's label is its title (#301)."""
+
+    return str(getattr(target, "kind", "")) == "vocabulary" and not getattr(target, "concept_title", False)
+
+
+def part_of_speech(entry: dict[str, Any]) -> str:
+    return fold(entry.get("part_of_speech"))
+
+
+def same_kind(left: str, right: str) -> bool:
+    """Two words are of one kind unless both are known and differ."""
+
+    return not left or not right or left == right
+
+
+def kind_of_label(lexicon: list[dict[str, Any]], label: str) -> str:
+    """The part of speech of a target's label, when the scene's lexicon knows the word."""
+
+    bare = fold(_ARTICLE.sub("", label))
+    for entry in lexicon:
+        if fold(entry.get("surface_fr")) == bare or fold(entry.get("lemma")) == bare:
+            return part_of_speech(entry)
+    return ""
+
+
 def floor_tasks(
     scenario: Any,
     targets: list[tuple[Any, dict[str, Any]]],
@@ -601,7 +627,10 @@ def floor_tasks(
     ]
     lexicon = lexicon_of(scenario)
     draft = draft_of(scenario)
-    glossed = [t for t, _m in targets if getattr(t, "label_native", None)]
+    # #301: a distractor is a *word* of the scene, so only vocabulary targets lend
+    # their label. A grammar target's label is the rule's title; a cloze option
+    # that is a title is a rule standing in for a word.
+    glossed = [t for t, _m in targets if getattr(t, "label_native", None) and is_word_target(t)]
     meanings = line_meanings(scenario)
 
     def owner(text: str) -> tuple[Any, str] | None:
@@ -638,12 +667,19 @@ def floor_tasks(
         if found is None:
             continue
         target, _surface = found
-        others = [str(item.get("surface_fr") or "") for item in lexicon if item is not entry]
-        # Every card in the blank's shape: an article only when the blank has one.
+        # Every card in the blank's kind (a noun among nouns) and shape (an
+        # article only when the blank has one).
+        kind = part_of_speech(entry)
+        others = [
+            str(item.get("surface_fr") or "")
+            for item in lexicon
+            if item is not entry and same_kind(kind, part_of_speech(item))
+        ]
         bare_blank = not _ARTICLE.match(str(entry.get("surface_fr") or ""))
         others += [
             _ARTICLE.sub("", label) if bare_blank else label
             for label in (str(getattr(t, "label_fr", "")) for t in glossed if t is not target)
+            if same_kind(kind, kind_of_label(lexicon, label))
         ]
         task = build_cloze_task(
             target=target,
@@ -682,6 +718,7 @@ __all__ = [
     "contains_surface",
     "draft_of",
     "floor_tasks",
+    "is_word_target",
     "lexicon_of",
     "scene_lines",
     "scene_texts",

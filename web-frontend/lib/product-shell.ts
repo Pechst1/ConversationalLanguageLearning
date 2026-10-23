@@ -79,6 +79,8 @@ const OWN_SHELL_ROUTES = new Set([
   '/carte',
   '/correcteur',
   '/radio',
+  // Les appels: the call screen draws itself (face, clock, hang-up).
+  '/appel',
   '/missions',
   '/graphic-novel',
   '/serial',

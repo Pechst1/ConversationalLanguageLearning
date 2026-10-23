@@ -194,6 +194,15 @@ class MarginNote(JourneyModel):
     panel_id: str | None = None
 
 
+class SeasonPart(JourneyModel):
+    """Which part of a scripted season a page belongs to (``t1``, ``g1``, ``e1``…)."""
+
+    season_id: str
+    segment: str
+    kind: Literal["tentpole", "gap"] | None = None
+    day_in_segment: int | None = None
+
+
 class ScenePrompt(JourneyModel):
     setup_fr: str
     setup_native: str
@@ -222,6 +231,10 @@ class ScenePrompt(JourneyModel):
     premise_native: str | None = None
     #: WP-97: the margin notes this page prints. ``None`` on authored days.
     margin_notes: list[MarginNote] | None = None
+    #: The part of the season this page belongs to: the client draws that part's
+    #: object, and its carrier walks in when a new part begins. ``None`` off a
+    #: scripted season.
+    season_part: SeasonPart | None = None
 
 
 class RecallOption(JourneyModel):
@@ -387,6 +400,10 @@ class JourneyCorrection(JourneyModel):
     #: each, in the learner's language — a journey correction is one issue, so one
     #: note: ``note_native`` with any sentence it repeats removed.
     notes_native: list[str] = Field(default_factory=list)
+    #: #240: ``edit`` is «span → corrected» (the corrected sentence is the learner's, made
+    #: right); ``pick`` is a wrong tap among different sentences, where ``corrected_fr``
+    #: is the one that carries the rule and the screen must not draw an arrow.
+    kind: Literal["edit", "pick"] = "edit"
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:

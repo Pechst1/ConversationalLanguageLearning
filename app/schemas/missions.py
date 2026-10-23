@@ -150,6 +150,13 @@ class MissionTurnResponse(BaseModel):
     outcome: dict[str, Any] = Field(default_factory=dict)
 
 
+class MissionTurnCorrectionResponse(BaseModel):
+    user_turn: dict[str, Any]
+    correction: MissionCorrectionRead
+    errata: list[LinkedVocabularyErratumRead] = Field(default_factory=list)
+    mission: MissionRead
+
+
 class MissionCompleteResponse(BaseModel):
     mission: MissionRead
     recap: MissionRecapRead
@@ -167,6 +174,7 @@ __all__ = [
     "MissionSubmitRequest",
     "LinkedVocabularyErratumRead",
     "MissionTodayResponse",
+    "MissionTurnCorrectionResponse",
     "MissionTurnRequest",
     "MissionTurnResponse",
     "TargetVocabularyRead",

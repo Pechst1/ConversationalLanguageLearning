@@ -1,0 +1,120 @@
+{
+ "id": "turn-a1-reason-ignored",
+ "lane": "turn",
+ "level": "A1",
+ "source": "Live walk 2026-10-20 (#254, docs/ops/live-walks/2026-10-20.md on claude/live-walk-2026-10-20): to Lila's «Pourquoi elle est partie, Odile ?» the learner gave a reason, «…parce que la restaurant était très difficile, je pense.», and Lila answered «Fatiguée. Ici : « courageuse ». Les gens ont des mots différents.», taking up nothing of it. The voice lane refuses that reply once with the reason (reply_ignores_learner, a soft rejection) and serves the retry, which takes up the restaurant and the difficulty.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "A1",
+    "level_register": "no coarse or vulgar vocabulary",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "lila_bonnet",
+       "name": "Lila Bonnet",
+       "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+       "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
+       "wants": "Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021.",
+       "speech_pattern": "A2: «Mais arrête. C'est évident.» «Toi, tu me caches quelque chose.» «Bon, on fait quoi ?» B1: «Tu vas pas me faire croire que c'est un hasard.» «Je déteste avoir raison la nuit.» Says «la lumière est fausse» about the painting above the zinc.",
+       "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
+       "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
+       "flaw": "Keeps her own secret while resenting everyone else's.",
+       "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+       "register_with_user": "tu",
+       "gender": "f",
+       "register_note": "No coarse or vulgar word at this level; keep the warmth without it."
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {
+     "lila_bonnet": {}
+    },
+    "relationships": {
+     "lila_bonnet": {
+      "register": "tu",
+      "closeness": 1
+     }
+    },
+    "secrets": {
+     "lila_bonnet": "hidden"
+    }
+   },
+   "scene": {
+    "character_id": "lila_bonnet",
+    "title_fr": "Là-haut",
+    "premise_fr": "Lila et toi êtes dans l'appartement d'Odile. Il y a des photos par terre.",
+    "location_id": "odile_flat",
+    "objective_native": "Tell Lila why you think Odile left.",
+    "objective_semantics": "Lila asks why Odile left. Met when the learner gives a reason or a guess, or says they do not know.",
+    "opening_line_fr": "Pourquoi elle est partie, Odile ?",
+    "suggested_response_fr": "Je ne sais pas. Elle était fatiguée ?",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Je ne sais pas beaucoup. Odile est parti parce que la restaurant était très difficile, je pense.",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "hand-written from the walk",
+    "prompt_digest": "sha256:d8dfe1b82e40e40d661f0be3b6589642b52a3c8a7890d50f49d3d8ac143f3bb4",
+    "content": {
+     "outcome": "met",
+     "evidence_quotes": [
+      "Odile est parti parce que la restaurant était très difficile"
+     ],
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "live walk 2026-10-20, verbatim",
+    "prompt_digest": "sha256:16889bcebc59dc864167eccbd7e2e15cf51d40089509a130b11d3b93f495e724",
+    "content": {
+     "reply_fr": "Fatiguée. Ici : « courageuse ». Les gens ont des mots différents.",
+     "understood_intent": "The learner guesses why Odile left.",
+     "needs_clarification": false
+    }
+   },
+   {
+    "origin": "hand-written retry",
+    "prompt_digest": "sha256:9202ca4e701123f819871bbaca57d17e9e3bc8128e89ab2402555ed6c44f8787",
+    "content": {
+     "reply_fr": "Le restaurant, oui. C'était difficile pour elle, seule.",
+     "understood_intent": "The learner thinks the restaurant was too hard for Odile.",
+     "needs_clarification": false
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [
+   "reply_ignores_learner"
+  ],
+  "outcome": "met",
+  "reply_fr": "Le restaurant, oui. C'était difficile pour elle, seule."
+ }
+}

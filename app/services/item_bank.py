@@ -2309,6 +2309,13 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
     "forge.mine": MINE_INSTRUCTION_L10N,
 }
 
+#: #300: a repair with more than one wrong word says how many to fix.
+FIX_WORDS_INSTRUCTION_L10N: dict[str, str] = {
+    "en": "Fix the {n} wrong words.",
+    "de": "Korrigiere die {n} falschen Wörter.",
+    "fr": "Corrige les {n} mots faux.",
+}
+
 #: QA-FORGE: a judgement item's two answers are keys («Correct», «À corriger»);
 #: the learner reads them in their own language, never one English and one French.
 JUDGEMENT_LABELS: dict[str, dict[str, str]] = {
@@ -2923,7 +2930,16 @@ def transform_item(item: BankItem) -> dict[str, Any] | None:
     if choice is None:
         return None
     source, wrong_span = choice
+    # #300: the item carries how many words are wrong, so the card says it. A
+    # wrong auxiliary drags its agreement along («sommes cherchés» for «avons
+    # cherché»): two words, and «the one mistake» would be a promise it breaks.
+    from app.services.forge_drills import fix_words
+
+    words = fix_words(source, item.sentence)
     instruction: dict[str, Any] = {"instruction": _INSTRUCTIONS["forge.transform"], "instruction_key": "forge.transform"}
+    if words > 1:
+        table = {code: text.format(n=words) for code, text in FIX_WORDS_INSTRUCTION_L10N.items()}
+        instruction = {"instruction": table["en"], "instruction_l10n": table}
     if item.gloss:
         instruction = {
             "instruction": f'Fix it to say: "{item.en}"',
@@ -2938,6 +2954,7 @@ def transform_item(item: BankItem) -> dict[str, Any] | None:
             "source": source,
             "source_fr": source,
             "wrong_span": wrong_span,
+            **({"fix_words": words} if words > 1 else {}),
             "expected_answer": item.sentence,
             "meaning": item.en,
             **_meaning_l10n(item),
@@ -2963,10 +2980,13 @@ def output_item(
     coach: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """A production item. With a ``coach`` the conversation rung is a two-line
-    scene (WP-S5), or ``None`` when this item cannot be one with that coach."""
+    scene (WP-S5) when the item carries its own question for the coach to ask;
+    an item that does not (#176) is the plain task, with no character line."""
 
     if round_name == "conversation" and coach:
-        return scene_item(item, coach=coach, requirement=requirement)
+        scene = scene_item(item, coach=coach, requirement=requirement)
+        if scene is not None:
+            return scene
     kind = {"sentence": "short_sentence", "speak": "spoken_response", "conversation": "conversation_turn"}[round_name]
     words = len(item.sentence.split())
     return {
@@ -3211,8 +3231,6 @@ def build_bank_set(
         queue.insert(2, queue.pop(scene_index))
     sentence_item, speak_item, conversation_item, produce_idea, produce_model = queue[:5]
     conversation = output_item(conversation_item, round_name="conversation", requirement=requirement, coach=coach)
-    if conversation is None:
-        conversation = output_item(conversation_item, round_name="conversation", requirement=requirement)
     payload = dict(base)
     if coach:
         payload["coach"] = dict(coach)

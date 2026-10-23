@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialThread
+from app.services.story_page import hook_of
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,27 @@ def previously_of(payload: Any) -> list[str]:
     rows = (payload or {}).get("previously_fr") if isinstance(payload, dict) else None
     lines = [_text(line, 240) for line in rows if isinstance(line, str)] if isinstance(rows, list) else []
     return [line for line in lines if line][:MAX_PREVIOUSLY]
+
+
+def season_part_of(payload: Any) -> dict[str, Any] | None:
+    """``script_payload.season`` as the part of the season a page belongs to
+    (``{season_id, segment, kind, day_in_segment}``), or ``None`` off a scripted
+    season. The client draws the part's object and lets its carrier walk in."""
+
+    raw = (payload or {}).get("season") if isinstance(payload, dict) else None
+    if not isinstance(raw, dict):
+        return None
+    segment = _text(raw.get("segment"), 16)
+    season_id = _text(raw.get("season_id") or raw.get("id"), 16)
+    if not segment or not season_id:
+        return None
+    kind = raw.get("kind")
+    return {
+        "season_id": season_id,
+        "segment": segment,
+        "kind": kind if kind in ("tentpole", "gap") else None,
+        "day_in_segment": _int_or_none(raw.get("day_in_segment")),
+    }
 
 
 def chapter_of(payload: Any) -> dict[str, Any] | None:
@@ -250,8 +272,8 @@ def scene_notes(db: Session, scene: GraphicNovelScene | None) -> list[dict[str, 
 
 
 def scene_step_story_fields(db: Session, journey: DailyJourney) -> dict[str, Any]:
-    """«Précédemment», the season's premise and the margin notes for the
-    journey's scene step prompt."""
+    """«Précédemment», the season's premise, the margin notes and the part of
+    the season for the journey's scene step prompt."""
 
     scene = _journey_scene(db, journey)
     payload = scene.script_payload if scene is not None else {}
@@ -259,6 +281,7 @@ def scene_step_story_fields(db: Session, journey: DailyJourney) -> dict[str, Any
         "previously_fr": previously_of(payload),
         "premise_native": season_premise(db, scene, _journey_language(journey)),
         "margin_notes": scene_notes(db, scene),
+        "season_part": season_part_of(payload),
     }
 
 
@@ -697,6 +720,9 @@ def _day_payloads(
             "character_id": str(snapshot.get("character_id") or "") or None,
             "learner_lines": _learner_lines(kinds.get("respond")),
             "ending_fr": ending,
+            # #237: the day's one tomorrow-hook, the very string the last panel,
+            # Home and the finished card said — not a second one written for the volume.
+            "hook_fr": hook_of(payload),
             "margin_notes": notes,
             "can_do_id": str(can_do) if can_do else None,
             "special": SPECIAL_EPREUVE if payload.get("special") == SPECIAL_EPREUVE else None,

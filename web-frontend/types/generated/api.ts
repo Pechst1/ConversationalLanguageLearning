@@ -444,6 +444,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/appels/{call_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answer Call */
+        post: operations["answer_call_api_v1_appels__call_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appels/{call_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline Call */
+        post: operations["decline_call_api_v1_appels__call_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appels/{call_id}/hang-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hang Up Call */
+        post: operations["hang_up_call_api_v1_appels__call_id__hang_up_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appels/{call_id}/say": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Say On Call */
+        post: operations["say_on_call_api_v1_appels__call_id__say_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/appels/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Call Today
+         * @description Today's call (ringing, live, ended or missed), or ``{"call": null}``.
+         */
+        get: operations["call_today_api_v1_appels_today_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/atelier/almanac": {
         parameters: {
             query?: never;
@@ -1031,6 +1119,11 @@ export interface paths {
          *     (`app.services.spoken_reply`), and the row is booked against the turn. The
          *     transcript is returned, never submitted: the client sends it through the
          *     same reply endpoint as a typed answer.
+         *
+         *     Les appels: ``surface="appel"`` is a spoken line on a phone call. It names its
+         *     ``call_id``; the flag, the call being live, the 30-second cap and the per-call
+         *     cost ceiling are checked first (`app.services.appels.authorize_upload`), and the
+         *     row is booked against the call.
          */
         post: operations["transcribe_audio_api_v1_audio_transcribe_post"];
         delete?: never;
@@ -2406,6 +2499,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/missions/{mission_id}/turns/{turn_id}/correction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Mission Turn Correction
+         * @description #251: ask the corrector again for a reply it could not check.
+         *
+         *     Only an ``unassessed`` reply is asked again: the model failed and the model-free
+         *     pass found nothing. Anything else is handed back as it stands. When the model fails
+         *     a second time, the reply keeps its first correction.
+         */
+        post: operations["retry_mission_turn_correction_api_v1_missions__mission_id__turns__turn_id__correction_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/missions/audio/transcribe": {
         parameters: {
             query?: never;
@@ -3667,6 +3784,27 @@ export interface paths {
          *     begin a story. A learner with no thread gets the honest empty page.
          */
         get: operations["get_serial_season_api_v1_serial_season_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/serial/season/wall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Serial Season Wall
+         * @description Le mur du Mistral: the season's objects handed over so far, from the pages
+         *     read, and the marks the learner's choices left on them. Read-only.
+         */
+        get: operations["get_serial_season_wall_api_v1_serial_season_wall_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5558,6 +5696,8 @@ export interface components {
             edition_no?: number | null;
             /** Ending Fr */
             ending_fr?: string | null;
+            /** Hook Fr */
+            hook_fr?: string | null;
             /** Image Url */
             image_url?: string | null;
             /** Journey Id */
@@ -6486,6 +6626,8 @@ export interface components {
         };
         /** Body_transcribe_audio_api_v1_audio_transcribe_post */
         Body_transcribe_audio_api_v1_audio_transcribe_post: {
+            /** Call Id */
+            call_id?: string | null;
             /**
              * File
              * Format: binary
@@ -9016,6 +9158,8 @@ export interface components {
              * @default false
              */
             assessment_truncated?: boolean;
+            /** Checker */
+            checker?: string | null;
             /**
              * Corrected Answer
              * @default
@@ -9033,6 +9177,11 @@ export interface components {
             foreground?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable?: boolean;
             /** Verdict */
             verdict?: string | null;
         };
@@ -9193,6 +9342,12 @@ export interface components {
         JourneyCorrection: {
             /** Corrected Fr */
             corrected_fr: string;
+            /**
+             * Kind
+             * @default edit
+             * @enum {string}
+             */
+            kind?: "edit" | "pick";
             /** Note Native */
             note_native: string;
             /** Notes Native */
@@ -9863,6 +10018,17 @@ export interface components {
             /** Recent Completed */
             recent_completed?: components["schemas"]["MissionRead"][];
             weekly_mission?: components["schemas"]["MissionRead"] | null;
+        };
+        /** MissionTurnCorrectionResponse */
+        MissionTurnCorrectionResponse: {
+            correction: components["schemas"]["MissionCorrectionRead"];
+            /** Errata */
+            errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
+            mission: components["schemas"]["MissionRead"];
+            /** User Turn */
+            user_turn: {
+                [key: string]: unknown;
+            };
         };
         /** MissionTurnRequest */
         MissionTurnRequest: {
@@ -12626,6 +12792,16 @@ export interface components {
              */
             outcome: "correct" | "incorrect" | "unscored";
         };
+        /** SayRequest */
+        SayRequest: {
+            /**
+             * Mode
+             * @default text
+             */
+            mode?: string;
+            /** Text */
+            text: string;
+        };
         /** ScenarioDescriptor */
         ScenarioDescriptor: {
             /** Character Id */
@@ -12733,6 +12909,7 @@ export interface components {
             premise_native: string | null;
             /** Previously Fr */
             previously_fr: string[] | null;
+            season_part: components["schemas"]["SeasonPart"] | null;
             /** Setup Fr */
             setup_fr: string;
             /** Setup Native */
@@ -12804,6 +12981,20 @@ export interface components {
             next_scene_id: string;
             /** Transition Narration */
             transition_narration?: string | null;
+        };
+        /**
+         * SeasonPart
+         * @description Which part of a scripted season a page belongs to (``t1``, ``g1``, ``e1``…).
+         */
+        SeasonPart: {
+            /** Day In Segment */
+            day_in_segment: number | null;
+            /** Kind */
+            kind: ("tentpole" | "gap") | null;
+            /** Season Id */
+            season_id: string;
+            /** Segment */
+            segment: string;
         };
         /**
          * SeasonPremiereView
@@ -15966,6 +16157,164 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnkiStatisticsResponse"];
+                };
+            };
+        };
+    };
+    answer_call_api_v1_appels__call_id__answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_call_api_v1_appels__call_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hang_up_call_api_v1_appels__call_id__hang_up_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    say_on_call_api_v1_appels__call_id__say_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    call_today_api_v1_appels_today_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -19196,6 +19545,38 @@ export interface operations {
             };
         };
     };
+    retry_mission_turn_correction_api_v1_missions__mission_id__turns__turn_id__correction_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mission_id: string;
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissionTurnCorrectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     transcribe_mission_audio_api_v1_missions_audio_transcribe_post: {
         parameters: {
             query?: never;
@@ -21168,6 +21549,28 @@ export interface operations {
         };
     };
     get_serial_season_api_v1_serial_season_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    get_serial_season_wall_api_v1_serial_season_wall_get: {
         parameters: {
             query?: never;
             header?: never;

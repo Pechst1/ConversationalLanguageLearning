@@ -24,6 +24,7 @@ from app.schemas.missions import (
     MissionResponse,
     MissionSubmitRequest,
     MissionTodayResponse,
+    MissionTurnCorrectionResponse,
     MissionTurnRequest,
     MissionTurnResponse,
 )
@@ -503,6 +504,74 @@ def submit_mission_turn(
         errata=persisted,
         mission=serialize_mission(mission) or {},
         outcome=outcome,
+    )
+
+
+@router.post("/{mission_id}/turns/{turn_id}/correction", response_model=MissionTurnCorrectionResponse)
+def retry_mission_turn_correction(
+    mission_id: UUID,
+    turn_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_atelier_user)],
+) -> MissionTurnCorrectionResponse:
+    """#251: ask the corrector again for a reply it could not check.
+
+    Only an ``unassessed`` reply is asked again: the model failed and the model-free
+    pass found nothing. Anything else is handed back as it stands. When the model fails
+    a second time, the reply keeps its first correction.
+    """
+    mission = _mission_or_404(db, mission_id, current_user)
+    _ensure_open(mission)
+    user_turn = (
+        db.query(RealWorldMissionTurn)
+        .filter(
+            RealWorldMissionTurn.id == turn_id,
+            RealWorldMissionTurn.mission_id == mission.id,
+            RealWorldMissionTurn.user_id == current_user.id,
+            RealWorldMissionTurn.role == "user",
+        )
+        .first()
+    )
+    if not user_turn:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found")
+    previous = dict(user_turn.correction_payload or {})
+    persisted: list[dict] = []
+    if previous.get("verdict") == "unassessed":
+        correction_service = MissionCorrectionService(db)
+        correction = correction_service.correct_submission(
+            user=current_user,
+            mission=mission,
+            text=user_turn.text,
+            mode=user_turn.mode,
+            near_realtime=False,
+        )
+        if correction.get("verdict") != "unassessed":
+            # The words this reply used were credited the first time; only the
+            # language errata are new.
+            persisted = correction_service.persist_errata(
+                user=current_user,
+                mission=mission,
+                correction=correction,
+                mode=user_turn.mode,
+                source_id=str(user_turn.id),
+                include_vocabulary=False,
+            )
+            credited = [
+                record
+                for record in (previous.get("persistence") or {}).get("records") or []
+                if isinstance(record, dict)
+                and (record.get("linked_word_id") or str(record.get("error_category") or "") == "vocabulary")
+            ]
+            user_turn.correction_payload = _correction_with_persistence(correction, [*persisted, *credited])
+            db.add(user_turn)
+            db.commit()
+            db.refresh(user_turn)
+            db.refresh(mission)
+    return MissionTurnCorrectionResponse(
+        user_turn=_turn_read(user_turn),
+        correction=user_turn.correction_payload or {},
+        errata=persisted,
+        mission=serialize_mission(mission) or {},
     )
 
 

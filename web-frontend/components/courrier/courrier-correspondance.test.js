@@ -345,6 +345,25 @@ test('nothing in the correspondence is French-free or English chrome', () => {
   }
 });
 
+// #117 — 20 Oct walk: Gus's note said «Et vous, qu'en pensez-vous ?» and then
+// «P.S. — Il reste un seul article à ta taille, jusqu'à ce soir.»: the shop domain's
+// complication, in the app's «tu», printed as the writer's P.S.
+test('the narrator\'s note is not printed as the writer\'s P.S.; the writer\'s own P.S. is', () => {
+  const { CrPS } = require('./Courrier.tsx');
+  const note = renderToStaticMarkup(h(CrPS, { text: 'Vendredi matin, tu as cours.' }));
+  assert.ok(note.includes('Vendredi matin, tu as cours.'));
+  assert.ok(!note.includes('P.S.'), note);
+  const own = renderToStaticMarkup(h(CrPS, { text: 'Je garde la clé.', ps: true }));
+  assert.ok(own.includes('P.S. — Je garde la clé.'), own);
+});
+
+test('a cast member\'s note never falls back to the domain\'s complication', () => {
+  const messenger = MISSIONS.slice(MISSIONS.indexOf('function missionMessenger('));
+  const twistLine = messenger.split('\n').find((line) => line.trim().startsWith('twist:'));
+  assert.ok(/storyBorn\(mission\) \? null : missionVariety\(mission\)\.twist/.test(twistLine), twistLine);
+  assert.ok(MISSIONS.includes('<CrPS text={messenger.twist} ps={messenger.twistIsPs} />'));
+});
+
 let failed = 0;
 tests.forEach(([name, fn]) => {
   try {

@@ -53,7 +53,8 @@ def test_a_fresh_day_is_four_steps_and_the_scene_comes_first() -> None:
     assert view["next_kind"] == "scene"
     words = view["steps"][1]
     # 20 new words at 20 s and 12 reviews at 6 s: 400 + 72 s, eight minutes.
-    assert (words["count"], words["new_left"], words["reviews"], words["minutes"]) == (20, 20, 12, 8)
+    # #143: the step names every card the deck shows, the reviews too.
+    assert (words["count"], words["new_left"], words["reviews"], words["minutes"]) == (32, 20, 12, 8)
     grammar = view["steps"][2]
     # 300 s at 25 s an item: twelve items, five minutes.
     assert (grammar["count"], grammar["minutes"]) == (12, 5)
@@ -186,7 +187,12 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     assert session["pace"] == "normal"
     assert [step["kind"] for step in session["steps"]] == ["scene", "words", "grammar", "finish"]
     assert session["next_kind"] == "scene"
-    assert session["steps"][1]["count"] == 20
+    # #143: the cards the deck would deal now. Until the journey is planned the
+    # drill leaves the journey's share of the 20 to it (WP-L6).
+    user = db_session.get(User, learner_id(db_session, "round3-today@example.com"))
+    room, _reserved = vocabulary_pace.drill_new_word_room(db_session, user)
+    assert 0 < room < 20
+    assert session["steps"][1]["count"] == room
     assert session["steps"][2]["href"].endswith("&from=day")
 
     sheet = assembled_client.get("/api/v1/daily-journeys/session/pace", headers=headers)
@@ -204,7 +210,10 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     assert switched.status_code == 200, switched.text
     assert switched.json()["current"] == "ruhig"
     today = assembled_client.get("/api/v1/daily-journeys/today", headers=headers).json()
-    assert today["session"]["steps"][1]["count"] == 10
+    db_session.refresh(user)
+    room, _reserved = vocabulary_pace.drill_new_word_room(db_session, user)
+    assert 0 < room < 10
+    assert today["session"]["steps"][1]["count"] == room
 
 
 def test_the_word_step_can_be_marked_done(

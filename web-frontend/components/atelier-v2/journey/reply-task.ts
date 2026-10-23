@@ -1,8 +1,8 @@
-/** A cast member is addressed by the name their friends use. */
+import { castDisplayName } from './journey-faces';
+
+/** A cast member is addressed by the name their friends use: the cast's one display name. */
 export function shortCharacterName(name: string, id?: string | null): string {
-  if (id === 'romy_tremblay' || /Romane|Romy/.test(name)) return 'Romy';
-  if (id === 'augustin_de_roncourt') return 'Gus';
-  return name.trim().split(/\s+/)[0] || name;
+  return castDisplayName(id, name) ?? (name.trim().split(/\s+/)[0] || name);
 }
 
 /** Grammar notation belongs in help, rather than the reply's task line. */

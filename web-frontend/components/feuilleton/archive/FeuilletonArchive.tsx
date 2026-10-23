@@ -643,6 +643,15 @@ export function ArchiveDayPage({
             </p>
           </>
         )}
+        {/* #237: the one hook the day was filed with, said as the last panel said it. */}
+        {day.hook_fr && (
+          <>
+            <p className="av2-label">{t.hook_label}</p>
+            <p className="fa-ending" lang="fr" data-hook="">
+              {frenchSpacing(day.hook_fr)}
+            </p>
+          </>
+        )}
         {/* In the reader the notes sit on their panel; without it, here. */}
         {!episode && <MarginNotes notes={day.margin_notes} language={language} archive={archive} />}
       </section>

@@ -12,7 +12,8 @@ import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seanc
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
-import { productionPhase, reviewIsPending, settleShownCorrection } from '@/lib/forge-verdict';
+import { itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
   FOLLOW_UP_EMPTY,
@@ -135,7 +136,7 @@ import {
   sessionNextAction,
   sessionRows,
 } from '@/lib/day-session';
-import { dayIsDone, handOnAfterGrammar } from '@/lib/day-plan';
+import { dayIsDone, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
 import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
@@ -223,6 +224,7 @@ import {
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
+import { IncomingCall } from '@/components/appels/IncomingCall';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { castIntroOf } from '@/components/atelier-v2/journey/CastIntro';
 import { deviceStore, firstStepsCopy, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
@@ -1607,7 +1609,9 @@ export default function AtelierPage() {
     try {
       const started = await apiService.startForgeTestOut(conceptId, options);
       hydrateSession(started, true);
-      void router.replace(`/atelier?testout=${started.session_id}`, undefined, { shallow: true });
+      // #175: a rule check opened from the day's La Forge stays the day's: its end
+      // screen asks the plan where to go, so `from=day` rides along.
+      void router.replace(ruleCheckPath(started.session_id, forgeFromDay), undefined, { shallow: true });
       return true;
     } catch (error) {
       console.error(error);
@@ -1806,6 +1810,15 @@ export default function AtelierPage() {
   const dayHandOn = forgeFromDay
     ? handOnAfterGrammar(journey.envelope?.session, pageChromeLanguage)
       ?? { label: daySessionCopy(pageChromeLanguage).next_finish, href: '/fertig' }
+    : null;
+
+  // #175: a rule check started from the day (`?testout=…&from=day`) ends on the
+  // day plan's next step, never in the Cahier. Failed: La Forge takes over.
+  // The live forge view: the result lands there after the last answer, while the
+  // session's own copy keeps the one it started with.
+  const ruleCheckResult = (forge ?? forgeViewOf(session?.forge))?.result;
+  const ruleCheckHandOn = router.isReady && ruleCheckIsFromDay(router.query) && ruleCheckResult
+    ? ruleCheckExitFromDay(journey.envelope?.session, Boolean(ruleCheckResult.passed), pageChromeLanguage)
     : null;
 
   // WP-S4: a forge block folded into the day hands the learner back to the
@@ -2188,6 +2201,8 @@ export default function AtelierPage() {
               journeyCard={
                 journeyEntryVisible ? (
                   <>
+                    {/* Les appels: someone from the story rings once the day is done. */}
+                    <IncomingCall language={journeyChromeLanguage(journey)} />
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
@@ -2330,8 +2345,14 @@ export default function AtelierPage() {
             forgeResultOpen={forgeResultOpen}
             testOutPending={testOutPending}
             onTestOut={startTestOut}
+            testOutLeaveLabel={ruleCheckHandOn?.label}
             onSubmitBurst={submitForgeBurst}
             onLeaveTestOut={() => {
+              if (ruleCheckHandOn) {
+                void journey.actions.refresh();
+                void router.push(ruleCheckHandOn.href);
+                return;
+              }
               const conceptId = forge?.rules?.[0]?.concept_id;
               void router.push(conceptId ? `/grammar?concept=${conceptId}` : '/grammar');
             }}
@@ -3621,6 +3642,7 @@ function SessionView({
   testOutPending = false,
   onTestOut,
   onLeaveTestOut,
+  testOutLeaveLabel,
   onSubmitBurst,
 }: {
   session: AtelierSessionStart;
@@ -3665,6 +3687,8 @@ function SessionView({
   testOutPending?: boolean;
   onTestOut?: (conceptId: number) => void;
   onLeaveTestOut?: () => void;
+  /** #175: the day plan's next step as a button label; the Cahier's «back to the rule» without one. */
+  testOutLeaveLabel?: string;
   /** «Rafale»: the four judgements, sent as one answer. */
   onSubmitBurst?: (answers: Record<string, string>, ids: string[]) => void;
 }) {
@@ -3819,7 +3843,7 @@ function SessionView({
           {forge.result.passed && forge.result.token && (
             <ForgeRareToken title={mc.test_out_token} sub={mc.test_out_token_sub} />
           )}
-          <EpBar onClick={onLeaveTestOut}>{fc.back_to_rule}</EpBar>
+          <EpBar onClick={onLeaveTestOut}>{testOutLeaveLabel || fc.back_to_rule}</EpBar>
         </section>
       )}
       {activeSet && activeConcept && !(forgeTestOut && forgeResultOpen) && (
@@ -4141,6 +4165,24 @@ function ExerciseFeedbackMoment({
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   // Owner, 2026-10-19: what the learner typed in each wrong part of their line.
   const [partsTyped, setPartsTyped] = useState<Record<string, Record<number, string>>>({});
+  // #239: the correction (the right sentence and why) is scrolled above the
+  // sticky verdict sheet as it appears, never left running on under it.
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
+  // (A free line first shows «Je relis…»; its card mounts when the model's verdict
+  // lands, so the phase is part of what the effect waits for.)
+  const shownVerdict = submitted && feedback
+    ? `${feedback.unscored ? 'unscored' : feedback.correct ? 'correct' : 'wrong'}|${production ? productionPhase(correction) : 'settled'}`
+    : null;
+  // A right classification with its repair open has no sheet yet; the sheet mounts
+  // when the repair is done or shown, so its outcome is part of what the effect waits for.
+  const repairOutcome = followUps[feedbackKey]?.outcome ?? null;
+  useEffect(() => {
+    if (!shownVerdict) return undefined;
+    let frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => keepCardAboveSheet(feedbackRef.current));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [feedbackKey, shownVerdict, repairOutcome]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
   // verdict to show — the grading character says so, and a verdict shown later
@@ -4212,23 +4254,36 @@ function ExerciseFeedbackMoment({
     : <ForgeCorrectedLine fr={repairOf.correctedFr} />;
 
   if (feedback.correct) {
+    // #213: one verdict per card. A right judgement takes the result of the
+    // repair step: «Well done!» only once the sentence was corrected, «Not yet»
+    // when the right sentence had to be shown, and nothing while it is open.
+    const repairStep: RepairStep = repairOf.followUp ? (followDraft.outcome ?? 'open') : 'none';
+    const verdict = itemVerdict({ judgedRight: feedback.correct, repair: repairStep });
     return (
-      <div className="ep-feedback" data-verdict="correct">
+      <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
         {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
-        <EpFoot tone="correct">
-          <EpVerdict tone="go" sub={cheer || rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
-          {!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>}
-        </EpFoot>
+        {verdict === 'right' && (
+          <EpFoot tone="correct">
+            <EpVerdict tone="go" sub={cheer || rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
+            <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          </EpFoot>
+        )}
+        {verdict === 'wrong' && (
+          <EpFoot tone="wrong">
+            <EpVerdict tone="no" sub={rule} coach={coach} coachMood="cross">{t.verdict_wrong}</EpVerdict>
+            <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>
+          </EpFoot>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="ep-feedback" data-verdict="wrong">
+    <div className="ep-feedback" data-verdict="wrong" ref={feedbackRef}>
       {issues.map((issue, index) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
@@ -4564,6 +4619,7 @@ function TransformPanel({
           }}
           submitted={submitted}
           copy={fc}
+          fixWords={item.fix_words}
         />
         {modelAudio}
       </div>
