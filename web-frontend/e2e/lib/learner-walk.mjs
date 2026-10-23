@@ -361,7 +361,7 @@ export class LearnerWalk {
             for (const check of missLayoutChecks(settled.layout)) {
               this.findings.check(check.name, check.ok, check.detail, this.where({ kind }));
             }
-            const gt =(s.graded[0]?.text || '').replace(/Continue|Weiter|Continuer|Not yet|Noch nicht|Pas encore/gi, '').trim();
+            const gt = (s.graded[0]?.text || '').replace(/Continue|Weiter|Continuer|Not yet|Noch nicht|Pas encore/gi, '').trim();
             this.findings.check('wrong-verdict-shows-the-right-form', gt.length >= 8 || s.frTexts.length > 0, `«Not yet» with no correct form on screen: «${s.text.slice(0, 140)}»`, this.where({ kind }));
           }
         }

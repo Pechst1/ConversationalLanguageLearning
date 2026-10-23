@@ -83,7 +83,13 @@ from app.services.journey_day_shapes import (
     rotate_recall_formats,
     shape_allows_format,
 )
-from app.services.repair_context import RepairContext, clean_text, find_slip, repair_context_of
+from app.services.repair_context import (
+    RepairContext,
+    clean_text,
+    corrected_sentence,
+    find_slip,
+    repair_context_of,
+)
 from app.services.scene_items import (
     CLOZE_INSTRUCTION,
     answer_at_band,
@@ -1138,6 +1144,7 @@ def build_recall_task(
     goal: str | None = None
     slip_fr: str | None = None
     rule_native: str | None = None
+    sentence_answers: list[str] = []
     if target.kind is TargetKind.ERROR:
         learner = " ".join(str(learner_text or "").split())
         if not learner or _fold(learner) == _fold(label_fr):
@@ -1166,6 +1173,11 @@ def build_recall_task(
             # The slip is marked inside the sentence it was made in.
             prompt_fr = sentence
             slip_fr = learner
+            # The card prints a whole sentence under «Write this correctly», so the
+            # corrected sentence is as right an answer as the one marked word.
+            fixed_sentence = corrected_sentence(sentence, learner, label_fr)
+            if fixed_sentence:
+                sentence_answers.append(fixed_sentence)
         rule = clean_text(repair.rule) if repair else ""
         if rule:
             rule_native = recall_goal("repair_rule", language, rule=rule)
@@ -1245,7 +1257,7 @@ def build_recall_task(
         or _localized(_SHORT_ANSWER_INSTRUCTION, language).format(native=gloss),
         prompt_fr=prompt_fr,
         options=[],
-        accepted_answers=[label_fr],
+        accepted_answers=[label_fr, *sentence_answers],
         estimated_seconds=0,
         goal_native=goal,
         source_fr=prompt_fr,

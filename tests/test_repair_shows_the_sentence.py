@@ -131,9 +131,9 @@ def test_a_repair_built_from_a_stored_slip_shows_the_sentence_and_names_the_rule
     assert RULE in shown, f"the repair does not name the rule the slip broke: {shown}"
     # The wrong part is named, so the card can mark it inside the sentence.
     assert repairs[0].public_prompt.get("slip_fr") == SLIP, shown
-    # The answer is still only the corrected part, and the sentence is the headline.
+    # The answer is the corrected part (the corrected sentence is accepted too), and the sentence is the headline.
     task = repairs[0].private_task
-    assert task.prompt_fr == SENTENCE and task.accepted_answers == ["sommes"]
+    assert task.prompt_fr == SENTENCE and task.accepted_answers[0] == "sommes"
 
 
 def test_a_missed_repair_and_its_solution_say_the_rule(db_session) -> None:
@@ -213,3 +213,36 @@ def test_a_forge_slip_is_saved_with_the_sentence_of_its_item(db_session) -> None
     saved = db_session.query(UserError).filter(UserError.user_id == user.id).one()
     assert saved.original_text == SLIP
     assert (saved.error_metadata or {}).get("context_fr") == SENTENCE
+
+
+def test_a_repair_that_shows_a_sentence_accepts_the_corrected_sentence_and_the_word(db_session) -> None:
+    """Reviewer note, PR #291: the card prints «Nous Sommer contents ici.» under
+    «Write this correctly», so the corrected sentence must be marked right as well
+    as the one marked word."""
+
+    from app.services.journey_contracts import TaskOutcome
+
+    user = _user(db_session)
+    concept = _concept(db_session)
+    error = _missed_sentence(db_session, user, concept)
+    error.next_review_date = datetime.now(UTC) - timedelta(days=1)
+    db_session.flush()
+    targets = errata_targets_for_user(db_session, user, now=datetime.now(UTC))
+    plan = plan_journey(scenario=_brief(), candidates=[], errata_targets=targets)
+    task = next(
+        step.private_task
+        for step in plan.steps
+        if step.kind is StepKind.RECALL and step.target is not None and step.target.kind is TargetKind.ERROR
+    )
+    assert task.prompt_fr == SENTENCE
+    for typed in ("sommes", "Nous sommes contents ici.", "nous sommes contents ici"):
+        verdict = evaluate_recall(
+            db_session,
+            user=user,
+            task=task,
+            answer=AttemptAnswer(mode=InputMode.TEXT, text=typed),
+            assistance=AssistanceLevel.NONE,
+        )
+        assert verdict.outcome is TaskOutcome.MET, (
+            f"«{typed}» is a correct answer to the card but was marked {verdict.outcome}"
+        )
