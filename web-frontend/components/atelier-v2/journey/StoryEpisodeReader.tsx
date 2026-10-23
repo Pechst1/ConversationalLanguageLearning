@@ -48,8 +48,6 @@ import type { ControlLanguage, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
 import {
-  RADIO_INITIAL,
-  RADIO_STAGES,
   RADIO_TEXT_INITIAL,
   buildEpisodeGuesses,
   buildStoryStages,
@@ -57,7 +55,9 @@ import {
   episodeRetainPhrase,
   panelReaderVariant,
   radioLineShown,
+  radioInitialFor,
   radioReduce,
+  radioStagesFor,
   radioStageOrdinal,
   radioTask,
   radioTextControls,
@@ -361,7 +361,7 @@ export function EpisodeRadio({
   /** Record the prediction check. Never awaited: measurement must not block. */
   onPrediction?: (guess: EpisodeGuessId, verification: EpisodeVerification) => void;
 }) {
-  const [state, dispatch] = useReducer(radioReduce, RADIO_INITIAL);
+  const [state, dispatch] = useReducer(radioReduce, episode, radioInitialFor);
   // WP-103 T2: the text, hidden until asked for — at every stage.
   const [text, dispatchText] = useReducer(radioTextReduce, RADIO_TEXT_INITIAL);
   const verification = useMemo(
@@ -450,7 +450,7 @@ export function EpisodeRadioView({
   const { state: audioState, play, playFrom, stop, heard } = audio;
   const unavailable = audioState.kind === 'unavailable' ? audioState.reason : null;
 
-  const stageSteps = RADIO_STAGES.map((stage) => ({
+  const stageSteps = radioStagesFor(state).map((stage) => ({
     id: stage,
     state:
       radioStageOrdinal(stage) < radioStageOrdinal(state.stage)
@@ -518,7 +518,8 @@ export function EpisodeRadioView({
   );
 
   // The listening question: shown before the audio and again after it.
-  const question = (
+  // Not asked at all when the scene's lines settle no outcome (#277).
+  const question = !state.asked ? null : (
     <Surface tone="outline" data-radio-task="">
       <p className="av2-label">{copy.radio_task_label}</p>
       <p className="av2-headline av2-headline--rule">{copy.radio_task_question}</p>
@@ -678,13 +679,15 @@ export function EpisodeRadioView({
       {state.stage === 'verifier' && (
         <>
           {question}
-          <Notice tone="quiet" shape="story">
-            {verification.verdict === 'confirmed'
-              ? copy.radio_guess_confirmed
-              : verification.verdict === 'other'
-                ? copy.radio_guess_other
-                : copy.radio_guess_unresolved}
-          </Notice>
+          {state.asked && (
+            <Notice tone="quiet" shape="story">
+              {verification.verdict === 'confirmed'
+                ? copy.radio_guess_confirmed
+                : verification.verdict === 'other'
+                  ? copy.radio_guess_other
+                  : copy.radio_guess_unresolved}
+            </Notice>
+          )}
           {verification.quoteFr && (
             <Surface>
               <p className="av2-label">{copy.radio_evidence_label}</p>
