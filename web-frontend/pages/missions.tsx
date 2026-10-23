@@ -78,6 +78,8 @@ type MissionMessenger = {
   quick_replies: string[];
   success_signal: string;
   twist?: string | null;
+  /** Whether the twist is the writer's own P.S. (else the narrator's note on the letter). */
+  twistIsPs?: boolean;
 };
 
 type QuerySeed = {
@@ -145,6 +147,11 @@ function missionVariety(mission: RealWorldMission | null): Record<string, any> {
   return raw && typeof raw === 'object' ? raw as Record<string, any> : {};
 }
 
+function storyBorn(mission: RealWorldMission | null): boolean {
+  const context = mission?.prompt_payload?.custom_context;
+  return Boolean(context && typeof context === 'object' && (context as Record<string, any>).source === 'story_born');
+}
+
 function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
   const prompt = mission?.prompt_payload || {};
   const raw = prompt.messenger && typeof prompt.messenger === 'object' ? prompt.messenger as Record<string, any> : {};
@@ -160,7 +167,10 @@ function missionMessenger(mission: RealWorldMission | null): MissionMessenger {
     opening_message: String(raw.opening_message || prompt.conversation_opening || 'Bonjour, vous pouvez me répondre ?'),
     quick_replies: uniqueText(asStringList(raw.quick_replies), 3),
     success_signal: String(raw.success_signal || 'Ton correspondant sait quoi faire ensuite.'),
-    twist: raw.twist || missionVariety(mission).twist || null,
+    // #117: a cast member's note never inherits the domain's complication («Il reste un
+    // seul article à ta taille»): that line belongs to the domain's own letter.
+    twist: raw.twist || (storyBorn(mission) ? null : missionVariety(mission).twist) || null,
+    twistIsPs: Boolean(raw.twist && raw.twist_is_ps),
   };
 }
 
@@ -1170,7 +1180,7 @@ export default function MissionsPage() {
                     {openingMessage}
                   </CrSlip>
                 )}
-                {!completed && <CrPS text={messenger.twist} />}
+                {!completed && <CrPS text={messenger.twist} ps={messenger.twistIsPs} />}
 
                 {visibleTurns.map((turn) => {
                   const isUser = turn.role === 'user';

@@ -182,13 +182,16 @@ export function CrSituation({
   );
 }
 
-/* ---------- P.S. ← slim_payload.twist → the design's hint pill ---------- */
-export function CrPS({ text }: { text?: string | null }) {
+/* ---------- the letter's twist → the design's hint pill ----------
+   #117: «P.S.» only when the writer wrote it (`ps`). An authored complication is the
+   narrator's note («Elle n'est pas contente, mais…», «Vendredi matin, tu as cours.»),
+   in the app's «tu»: printed as the writer's P.S. it mixed «tu» into a «vous» letter. */
+export function CrPS({ text, ps = false }: { text?: string | null; ps?: boolean }) {
   if (!text) return null;
   return (
     <p className="cr-hint" lang="fr">
       <ShapeToken kind="reward" size="sm" />
-      <span>P.S. — {text}</span>
+      <span>{ps ? `P.S. — ${text}` : text}</span>
     </p>
   );
 }

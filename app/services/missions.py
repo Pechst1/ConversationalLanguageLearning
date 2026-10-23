@@ -41,6 +41,7 @@ from app.services.glosses import (
     word_gloss,
 )
 from app.services.learner_copy import learner_text
+from app.services.letter_voice import band_style_line, register_word, voice_problems
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.progress import ProgressService
@@ -1888,6 +1889,10 @@ class MissionGenerator:
                 learner_band=band,
             )
             objectives = [*custom_objectives, *objectives]
+            if custom_context.get("source") == "story_born":
+                # #117: a cast member's note is not the domain's letter, so the domain's
+                # complication («Il reste un seul article à ta taille») is not their P.S.
+                variety = {**variety, "twist": None}
         letter_fit, messenger = self._letter_fit(
             band=band,
             rotation=rotation,
@@ -2820,6 +2825,7 @@ class MissionGenerator:
             or "Un personnage"
         )
         tu = str(custom_context.get("register") or "").lower().startswith("tu")
+        writer_register = register_word(custom_context.get("register")) or ("tu" if tu else "vous")
         question = str(custom_context.get("open_question_fr") or "").strip()
         generated = bool(messenger.get("success_signal_i18n"))
         # The goal is the app speaking to the learner: «tu» whatever the letter writer's
@@ -2851,9 +2857,27 @@ class MissionGenerator:
                 if tu
                 else ["Bonjour ! Moi, je pense que...", "Pour la suite, je...", "Merci pour votre message !"]
             ),
-            "twist": messenger.get("twist") if generated else None,
+            # A P.S. that contradicts the writer's address form is dropped, not printed.
+            "twist": (
+                messenger.get("twist")
+                if generated
+                and not voice_problems(
+                    [messenger.get("opening_message"), messenger.get("twist")],
+                    register=writer_register,
+                    level=None,
+                )
+                else None
+            ),
             "success_signal": (messenger.get("success_signal") if generated else None) or outcome,
         }
+        # The one P.S. the writer wrote themselves (in their own address form, checked
+        # above); an authored letter's complication is the narrator's note, not a P.S.
+        story_messenger["twist_is_ps"] = bool(story_messenger["twist"])
+        # #117: the writer's own address form, not the Courrier domain's the frame was
+        # drawn from; the reply's actor and its guard both read it.
+        story_messenger["target_register"] = (
+            "tu / registre familier" if writer_register == "tu" else "vous / registre poli"
+        )
         known = custom_context.get("desired_outcome_i18n")
         if not generated and isinstance(known, dict) and known.get("fr") == story_messenger["success_signal"]:
             story_messenger["success_signal_i18n"] = dict(known)
@@ -3276,6 +3300,15 @@ class MissionGenerator:
                 verdict = letter_level_verdict(known, candidate, targets=vocab)
                 if verdict.rejected:
                     problems.append(str(verdict.hint or verdict.reason))
+            # #117: the character's own words (opening and P.S.) keep one address form
+            # and stay inside the learner's band; the lexical check above sees neither.
+            problems.extend(
+                voice_problems(
+                    [candidate.get("opening_message"), candidate.get("twist")],
+                    register=register_word((story_context or {}).get("register")),
+                    level=str(cefr)[:2],
+                )
+            )
             gap = _objective_language_gap(candidate, user)
             if gap:
                 problems.append(f"Return {gap}: the objective in the learner's own language.")
@@ -6484,17 +6517,35 @@ class MissionConversationService:
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
             "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
         )
+        # #117: the reply is the character's own voice, so it keeps the letter's address
+        # form and the learner's band (a deterministic check, then one rewrite, then the
+        # register-aware acknowledgement).
+        level = _learner_level_code(self.db, user)
+        expected = register_word(
+            messenger.get("target_register") or messenger.get("register") or (mission.prompt_payload or {}).get("target_register")
+        )
+        # The actor is told which French to write, never that its reader is a beginner.
+        style = band_style_line(level)
+        if style:
+            system += f" {style}"
         try:
-            result = self.llm.generate_chat_completion(
-                messages=messages,
-                system_prompt=system,
-                temperature=0.7,
-                max_tokens=220,
-                model=settings.OPENAI_MISSION_FAST_MODEL,
-                request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
-            )
-            _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
-            return result.content
+            hint = ""
+            for attempt in range(2):
+                result = self.llm.generate_chat_completion(
+                    messages=messages,
+                    system_prompt=system + hint,
+                    temperature=0.7,
+                    max_tokens=220,
+                    model=settings.OPENAI_MISSION_FAST_MODEL,
+                    request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                )
+                _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
+                problems = voice_problems([result.content], register=expected, level=level)
+                if not problems:
+                    return result.content
+                logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
+                hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
+            return _unassessed_acknowledgement(mission)
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
