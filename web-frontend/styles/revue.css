@@ -173,6 +173,7 @@
 /* «Écrire le papier →»: the way forward, ink so it reads as the page's own action, not a French reply */
 .av2 .rv-quick .rv-quick__go { background: var(--av2-ink); color: var(--av2-on-ink); font-weight: 700; }
 .av2 .rv-quick .rv-quick__quiet { background: transparent; color: var(--av2-ink-2); text-decoration: underline; text-underline-offset: 3px; }
+.av2 .rv-foot__hint { margin: 0; font-size: var(--av2-t-meta); font-weight: 600; line-height: 1.35; color: var(--av2-muted); }
 .av2 .rv-composer { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .av2 .rv-composer .av2-field { flex: 1 1 auto; min-width: 0; }
 .av2 .rv-composer .av2-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

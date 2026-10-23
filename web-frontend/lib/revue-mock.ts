@@ -481,10 +481,11 @@ const LOST_LEAD = 'Je reprends depuis le début.';
 const MORE_LEAD = 'Il y a autre chose.';
 const CLOSE_LINES: Record<string, string> = {
   reader_question: "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
-  headline_choice: 'Je garde ton titre. Il part avec mon papier.',
+  headline_choice: 'Je garde le titre que tu as choisi. Il part avec mon papier.',
   headline_write: 'Ton titre part tel quel avec mon papier. Je n’y touche pas.',
   short_report: 'Ton reportage part avec mon papier. À Montréal, on va t’entendre.',
   caption: "Ta légende part sous l'image, avec mon papier.",
+  caption_picked: "La légende que tu as choisie part sous l'image, avec mon papier.",
   none: "Les sources ne m'ont pas tout dit, mais on a de quoi écrire trois lignes.",
 };
 // Phase 2 · Romy's lines around the make (WIRE §6.4).
@@ -496,8 +497,8 @@ const INTRO_LINES: Record<string, string> = {
   caption: "Il me faut une légende sous l'image. Qu'est-ce qu'on y voit ?",
 };
 const DONE_LINES = {
-  pick_right: "Je le prends. C'est notre titre.",
-  pick_wrong: "Je garde celui-là : c'est ce que disent les sources.",
+  pick_right: "C'est noté. Ce titre-là tient debout.",
+  pick_wrong: "Celui-là, les sources le contredisent. On garde l'autre.",
   send: "C'est parti pour la rédaction.",
   write: "Je le prends. C'est ton titre.",
   write_rejected: 'Attention : les sources disent autre chose. Tu réessaies ?',
@@ -505,17 +506,23 @@ const DONE_LINES = {
   caption: "C'est ta légende. Elle part sous l'image.",
   caption_wrong: "Celle-là, l'image la contredit. On garde l'autre.",
   caption_refused: "Attention : l'image ou les sources disent autre chose. Tu réessaies ?",
+  caption_picked: "C'est noté. Celle-là dit ce qu'on voit.",
+  caption_short: "Un peu court pour une légende. Qu'est-ce qu'on voit ? Encore quelques mots.",
 };
 const HEADLINE_WORDS = 14;
 const REPORT_SECONDS = 30;
 /** grading.CAPTION_WORDS: the most words a caption has, by band. */
 const CAPTION_WORDS: Record<Band, number> = { A1: 10, A2: 12, B1: 16, B2: 20 };
+/** grading.CAPTION_WORDS: the fewest (a shorter caption is refused, «Encore quelques mots»). */
+const CAPTION_MIN_WORDS: Record<Band, number> = { A1: 2, A2: 3, B1: 4, B2: 5 };
 const QR_AGREE = { label: "D'accord, je t'aide.", send_fr: "D'accord, je t'aide." };
 const QR_MORE = { label: 'Plus', send_fr: "Dis-m'en plus." };
 export const MOCK_FORMULATE_FR = 'On formule la question ensemble ?';
 const QR_FORMULATE = { label: 'On formule la question', send_fr: MOCK_FORMULATE_FR };
 const QR_UNDERSTOOD = { label: "Ah, d'accord", send_fr: "Ah, d'accord." };
 const QR_SIMPLER = { label: 'Encore plus simple', send_fr: "Encore plus simple, s'il te plaît." };
+/** encounter._CHIP_LINES: what a quick-reply chip sends; a line of the learner's own is anything else. */
+const CHIP_LINES = new Set([QR_AGREE, QR_MORE, QR_FORMULATE, QR_UNDERSTOOD, QR_SIMPLER].map((q) => q.send_fr));
 
 /** A few of Romy's fixed lines, translated (A1 shows them one tap away). */
 const TRANSLATIONS: Record<string, { en: string; de: string }> = {
@@ -572,6 +579,9 @@ type MockSession = {
   guest?: { castId: string; lines: number; disagreed: boolean; moved: boolean } | null;
   /** Phase 2: Romy's make intro, written once on the first GET. */
   intro?: Json | null;
+  /** 2026-10-23: a written caption was refused (A1–A2 may then pick), and the caption filed was a pick. */
+  captionRefused?: boolean;
+  captionPicked?: boolean;
   /** WP-120: the vignette minted at the close. */
   vignette?: Json | null;
   /** «Au comptoir»: the session plays the five screens; the learner's acts so far. */
@@ -884,6 +894,10 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     };
   };
 
+  /** encounter.own_line: «Écrire le papier» and Romy's steer wait for a line the learner typed or said. */
+  const ownLineOf = (s: MockSession) =>
+    s.thread.some((item) => item.kind === 'mine' && String(item.text_fr || '').trim() !== '' && !CHIP_LINES.has(String(item.text_fr).trim()));
+
   const viewOf = (s: MockSession) => {
     const d = dossierById(s.dossierId) as MockDossier;
     const room = roomOf(s);
@@ -903,7 +917,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         support: supportOf(s),
         vocabulary: vocabularyOf(d).map((v) => glossOf(v, s.language)),
         make_options: [
-          ...(isB1(s) ? ['headline_choice', 'headline_write', 'reader_question', 'short_report'] : ['headline_choice', 'reader_question']),
+          // headline_choice is A1–A2 only (2026-10-23): from B1 the learner writes the headline.
+          ...(isB1(s) ? ['headline_write', 'reader_question', 'short_report'] : ['headline_choice', 'reader_question']),
           ...(pictureOf(d) ? ['caption'] : []),
         ],
         budget: { turns: BUDGET_TURNS, minutes: 12 },
@@ -913,7 +928,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       room,
       thread: s.thread,
       quick_replies: quickOf(s, s.flags ?? NO_FLAGS),
-      steer_to_make: room.phase !== 'open' && !s.artifact && !s.closing,
+      steer_to_make: room.phase !== 'open' && !s.artifact && !s.closing && ownLineOf(s),
+      own_line: ownLineOf(s),
       artifact: s.artifact,
       closing: s.closing,
       ...(s.comptoir ? { mode: 'comptoir', comptoir: comptoirView(s.comptoir, comptoirContext(s)) } : {}),
@@ -1198,7 +1214,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       room,
       support: supportOf(s),
       quick_replies: quickOf(s, flags),
-      steer_to_make: room.phase !== 'open' && !s.artifact,
+      steer_to_make: room.phase !== 'open' && !s.artifact && ownLineOf(s),
+      own_line: ownLineOf(s),
       evidence: grade(s, d, text, question),
     };
     if (turnId) s.turnIds[turnId] = result;
@@ -1210,6 +1227,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const s = sessionOr404(id);
     if (s.closing) throw httpError(409, { code: 'revue_session_closed' });
     const d = dossierById(s.dossierId) as MockDossier;
+    if (!ownLineOf(s)) throw httpError(409, { code: 'revue_make_needs_a_line' });
     s.makeStarted = true;
     const b1 = isB1(s);
     const picture = pictureOf(d);
@@ -1225,7 +1243,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     return {
       recommended,
       options: [
-        { kind: 'headline_choice', options: d.headlines.map((h) => ({ id: h.id, text_fr: h.text_fr })) },
+        ...(b1 ? [] : [{ kind: 'headline_choice', options: d.headlines.map((h) => ({ id: h.id, text_fr: h.text_fr })) }]),
         ...(b1 ? [{ kind: 'headline_write', max_words: HEADLINE_WORDS }] : []),
         { kind: 'reader_question', seed_fr: s.openQuestion, uncertainty_fr: s.openUncertainty },
         ...(b1 ? [{ kind: 'short_report', seconds: REPORT_SECONDS }] : []),
@@ -1233,9 +1251,10 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
           ? [
               {
                 kind: 'caption',
-                format: b1 ? 'write' : 'choice',
+                // Every band writes it (2026-10-23); A1–A2 may pick only after a refused try.
+                format: 'write',
                 picture_url: picture.url,
-                options: b1 ? [] : captionOptions(s, picture),
+                options: !b1 && s.captionRefused ? captionOptions(s, picture) : [],
                 words: pictureWordsOf(d, s.language),
                 max_words: CAPTION_WORDS[s.band],
               },
@@ -1268,6 +1287,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const s = sessionOr404(id);
     if (s.closing) throw httpError(409, { code: 'revue_session_closed' });
     const d = dossierById(s.dossierId) as MockDossier;
+    if (!ownLineOf(s)) throw httpError(409, { code: 'revue_make_needs_a_line' });
     s.makeStarted = true;
     const fileMade = (made: Json) => {
       s.artifact = made;
@@ -1283,34 +1303,50 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     if ((body.kind === 'headline_write' || body.kind === 'short_report') && !isB1(s)) {
       throw httpError(409, { code: 'revue_make_unavailable', kind: body.kind });
     }
+    if (body.kind === 'headline_choice' && isB1(s)) throw httpError(409, { code: 'revue_make_unavailable', kind: body.kind });
     if (body.action === 'caption') {
       const picture = pictureOf(d);
       if (!picture) throw httpError(409, { code: 'revue_make_unavailable', kind: 'caption' });
-      if (!isB1(s)) {
+      if (body.option_id != null) {
+        // A pick (A1–A2, only after a refused try) files the caption the picture shows, never credited.
+        if (isB1(s) || !s.captionRefused) throw httpError(409, { code: 'revue_caption_write_first' });
         const options = captionOptions(s, picture);
         const option = options.find((row) => row.id === body.option_id);
         if (!option) throw httpError(422, { code: 'revue_unknown_option' });
         const answer = options.find((row) => row.text_fr === picture.caption_fr) as { id: string; text_fr: string };
         const correct = option.id === answer.id;
-        const made = { kind: 'caption', text_fr: answer.text_fr, contribution: correct ? [[0, answer.text_fr.length]] : [], learner_fr: null };
+        const made = { kind: 'caption', text_fr: answer.text_fr, contribution: [], learner_fr: null };
         fileMade(made);
-        const doneLine = done(correct ? DONE_LINES.caption : DONE_LINES.caption_wrong);
+        s.captionPicked = true;
+        const doneLine = done(correct ? DONE_LINES.caption_picked : DONE_LINES.caption_wrong);
         save();
-        return { kind: 'caption', format: 'choice', accepted: true, correct, answer_id: answer.id, evidence: null, made, line: doneLine };
+        return { kind: 'caption', format: 'choice', accepted: true, correct, answer_id: answer.id, evidence: null, made, line: doneLine, options: [] };
       }
       const textFr = String(body.text_fr || '').trim();
       if (!textFr || textFr.length > 200) throw httpError(422, [{ loc: ['body', 'text_fr'], msg: 'invalid' }]);
       const evidence = grade(s, d, textFr, false);
-      if (evidence.fact_fit === 'contradicted') {
-        const doneLine = done(DONE_LINES.caption_refused);
+      const short = words(textFr).length < CAPTION_MIN_WORDS[s.band];
+      if (evidence.fact_fit === 'contradicted' || short) {
+        s.captionRefused = true;
+        const doneLine = done(evidence.fact_fit === 'contradicted' ? DONE_LINES.caption_refused : DONE_LINES.caption_short);
         save();
-        return { kind: 'caption', format: 'write', accepted: false, correct: null, answer_id: null, evidence, made: null, line: doneLine };
+        return {
+          kind: 'caption',
+          format: 'write',
+          accepted: false,
+          correct: null,
+          answer_id: null,
+          evidence,
+          made: null,
+          line: doneLine,
+          options: isB1(s) ? [] : captionOptions(s, picture),
+        };
       }
       const made = { kind: 'caption', text_fr: textFr, contribution: [[0, textFr.length]], learner_fr: textFr };
       fileMade(made);
       const doneLine = done(DONE_LINES.caption);
       save();
-      return { kind: 'caption', format: 'write', accepted: true, correct: null, answer_id: null, evidence, made, line: doneLine };
+      return { kind: 'caption', format: 'write', accepted: true, correct: null, answer_id: null, evidence, made, line: doneLine, options: [] };
     }
     if (body.action === 'pick') {
       const option = d.headlines.find((h) => h.id === body.option_id);
@@ -1318,7 +1354,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       const answer = d.headlines.find((h) => h.correct) as MockDossier['headlines'][number];
       const claim = d.claims.find((c) => c.id === d.headline_claim) as MockClaim;
       const correct = option.id === answer.id;
-      const made = { kind: 'headline_choice', text_fr: answer.text_fr, contribution: correct ? [[0, answer.text_fr.length]] : [], learner_fr: null };
+      // A pick is not the learner's writing: no credit (2026-10-23).
+      const made = { kind: 'headline_choice', text_fr: answer.text_fr, contribution: [], learner_fr: null };
       fileMade(made);
       const doneLine = done(correct ? DONE_LINES.pick_right : DONE_LINES.pick_wrong);
       save();
@@ -1395,11 +1432,19 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const ctx = comptoirContext(s);
     const { page, dispatch } = comptoirClose(state, ctx);
     const opinion = state.opinion as Json;
-    s.artifact = { kind: 'opinion', text_fr: opinion.edited_fr, contribution: [], learner_fr: opinion.learner_fr };
+    const own = fold(((opinion.typed as string[]) || []).join(' '));
+    s.artifact = { kind: 'opinion', text_fr: page.mine.quote_fr, contribution: [], learner_fr: own ? opinion.learner_fr : null, proof: opinion.proof };
+    // The Relevé: the words met at the counter (the lead, the takes, the question), the ones typed first.
+    const met = fold([ctx.lead.fr, ctx.takes.question.fr, ...ctx.takes.guests.map((g) => Object.values(g.take).map((take) => take.fr).join(' '))].join(' '));
+    const kept = vocabularyOf(d)
+      .map((v) => ({ ...glossOf(v, s.language), used: own !== '' && own.includes(fold(v.fr)) }))
+      .filter((row) => row.used || met.includes(fold(row.fr)))
+      .sort((a, b) => Number(b.used) - Number(a.used));
+    page.words = kept.map((row) => row.fr);
     s.closing = {
       romy_line_fr: COMPTOIR_CLOSE_LINE,
       dispatch,
-      kept: { words: vocabularyOf(d).map((v) => ({ ...glossOf(v, s.language), used: fold(String(opinion.learner_fr)).includes(fold(v.fr)) })), claims: d.claims.slice(0, 2).map((c) => claimWire(d, c)) },
+      kept: { words: kept, claims: d.claims.slice(0, 2).map((c) => claimWire(d, c)) },
       question_kept_fr: null,
       colophon_fr: 'La suite la semaine prochaine.',
       comptoir_page: page,
@@ -1459,18 +1504,25 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       );
       const usedSources = d.sources.filter((src) => shown.some((c) => c.source_id === src.id));
       const sources = (usedSources.length ? usedSources : d.sources).map((src) => sourceOf(d, src.id));
-      // What the learner wrote: their turns, and what they made in their own words (a caption, a report…).
-      const mine = [...s.thread.filter((item) => item.kind === 'mine').map((item) => String(item.text_fr)), String(made?.learner_fr ?? '')]
+      // What the learner wrote: their turns (chips aside), and what they made in their own words (a caption, a report…).
+      const mine = [
+        ...s.thread.filter((item) => item.kind === 'mine' && !CHIP_LINES.has(String(item.text_fr).trim())).map((item) => String(item.text_fr)),
+        String(made?.learner_fr ?? ''),
+      ]
         .map(fold)
         .join(' ');
+      // What they met: Romy's and the guest's lines, the facts shown (encounter.kept_words).
+      const met = [...s.thread.filter((item) => item.kind !== 'mine').map((item) => String(item.text_fr ?? '')), ...shown.map((c) => c.fr)].map(fold).join(' ');
+      const credited = Boolean(made && ((made.contribution as unknown[]) || []).length);
       s.closing = {
-        romy_line_fr: CLOSE_LINES[kind] ?? CLOSE_LINES.none,
+        romy_line_fr: CLOSE_LINES[kind === 'caption' && s.captionPicked ? 'caption_picked' : kind] ?? CLOSE_LINES.none,
         dispatch: {
           kicker_fr: `Le Papier de Romy · ${WEEK.label.toLowerCase()}`,
           headline_fr: headline,
           body_fr: body,
           contribution,
-          byline_fr: `Romy Tremblay, avec toi · d'après ${sources.map((src) => src.name.replace(/\s*\(.*\)$/, '')).join(' et ')}`,
+          // «avec toi» only when words the learner wrote are printed (2026-10-23): a pick is not.
+          byline_fr: `${credited ? 'Romy Tremblay, avec toi' : 'Romy Tremblay'} · d'après ${sources.map((src) => src.name.replace(/\s*\(.*\)$/, '')).join(' et ')}`,
           sources,
           ...(picture
             ? {
@@ -1481,7 +1533,11 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
             : {}),
         },
         kept: {
-          words: vocabularyOf(d).map((v) => ({ ...glossOf(v, s.language), used: mine.includes(fold(v.fr)) })),
+          // Only the words met in this session, the ones used first.
+          words: vocabularyOf(d)
+            .map((v) => ({ ...glossOf(v, s.language), used: mine.includes(fold(v.fr)) }))
+            .filter((row) => row.used || met.includes(fold(row.fr)))
+            .sort((a, b) => Number(b.used) - Number(a.used)),
           claims: shown.map((c) => claimWire(d, c)),
         },
         question_kept_fr: kind === 'reader_question' ? null : s.openQuestion,

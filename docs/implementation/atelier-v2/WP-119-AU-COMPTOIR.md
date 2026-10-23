@@ -185,8 +185,10 @@ the close's «used words», memory and cost code keep working). Model calls reco
 - Act `intox_who {guest_id}`. Wrong: «Non, relis bien.» plus the relevant claim shown; second wrong: reveal
   who it was. Never more than two tries.
 - Then `intox.ask` with the fix. A1–A2: two options (`right_fr`, `distractor_fr`, order seeded by session);
-  B1+: a text field prefilled «C'est faux, {name} ! C'est …, pas …» (graded deterministically: correct when it
-  contains `right_fr` case/accents-folded; numbers compared digit-only). Act `intox_fix {value|text}`.
+  B1+: an empty text field under the hint «C'est faux, {name} ! C'est …, pas …» (graded deterministically:
+  correct when the part before «, pas …» carries `right_fr`, case/accents-folded; numbers compared digit-only,
+  and with the word that says what they count, so «500 000» alone is not enough; under four words is a nudge,
+  not a try. Since 2026-10-23, §9; the field was prefilled before). Act `intox_fix {value|text}`.
 - Result: the learner's line printed as a bubble («C'est faux, Gus ! C'est plus de 500 000, pas un million.»),
   the claim with its source, then the liar's `caught` line. A wrong fix still shows the right sentence. The
   phrase «C'est faux, c'est…, pas…» is shown as learned.
@@ -204,21 +206,26 @@ the close's «used words», memory and cost code keep working). Model calls reco
   - B1: free text or voice answering someone by name: prompt «Réponds à {opposite guest}» with
     `phrase.b1` as the frame hint.
   - B2: two or three sentences with a concession; `phrase.b2`.
-- Act `opinion {stance, text?, reason_index?, mode}`. One model call at A2+ (`provider.ask_json`, the Revue's
-  provider and model, label `comptoir_edit`):
-  `{edited_fr, notes: [{span_fr, why}] (≤ 2, why in the learner's UI language), reply_fr, reply_en, reply_de}`.
-  Romy's edit is a light journalist's edit: fix grammar, agreement, spelling and word order, keep the
-  learner's meaning, words and stance, never add facts; at B2 also register and connectors. The reply comes
-  from the guest of `replies[stance].by`, in character, answering what the learner actually said.
-  Checks: edit length ≤ 1.6× the learner's, no new numbers, no app words/ids; the reply ≤ 22 words with the
-  same checks. On failure or a model error: `edited_fr` = the learner's text (typography only), no notes, and
-  the desk's `replies[stance].line`. A1 always uses the desk's reply. Submitting twice returns the stored result
+- Act `opinion {stance, text?, reason_index?, mode}`. A floor first (2026-10-23): A2 needs 4 words after the
+  frame, B1+ 12; under it Romy asks for more on the same screen and nothing is recorded. One model call at A2+
+  (`provider.ask_json`, the Revue's provider and model, label `comptoir_edit`):
+  `{edited_fr, marks: [{span_fr, kind}] (≤ 3), reply_fr, reply_en, reply_de}`.
+  Romy's correction is a light journalist's edit: fix grammar, agreement, spelling and word order, keep the
+  learner's meaning, words and stance, never add facts; at B2 also register and connectors. It is kept back
+  as the target; the learner sees only marks on their own words (§9). The reply comes from the guest of
+  `replies[stance].by`, in character, answering what the learner actually said. Checks: edit length ≤ 1.6×
+  the learner's, no new numbers, no app words/ids; the reply ≤ 22 words with the same checks. On failure or
+  a model error: the learner's text prints as written (typography only, «tel que tu l'as écrit») with the
+  desk's `replies[stance].line`. A1 always uses the desk's reply. Submitting twice returns the stored result
   (no second call).
-- Then on the same screen (step «4 · suite» in the mock): the learner's sentence with Romy's red-pen edit
-  (changed words highlighted, one short reason per note), «Dans le journal · corrigé par Romy», then the
-  guest's reply bubble, then «Ta réponse»: chips «Pas du tout !», «Un peu…», and `replies[stance].comeback`
-  (A1–A2); a free one-line field from B1 (no model call). Act `comeback {index|text}`. After it, the guest has
-  one authored last word by band («Touché.» / «On en reparle demain !»), then the main button «Voir la page».
+- Then on the same screen (step «4 · suite» in the mock). With marks: the learner's own sentence with the
+  marked words underlined and the kind of each slip, a field holding that sentence to fix, and nothing printed
+  or answered yet (act `opinion_fix {text}`; after one try «Corrige-le, Romy», `{value: "romy"}`). Once
+  settled: what prints, labelled by how it got there («relu par Romy», «corrigé par toi», «corrigé par Romy»
+  with her changes lit, «tel que tu l'as écrit»; A1's tiles plain «Dans le journal»), then the guest's reply
+  bubble, then «Ta réponse»: chips «Pas du tout !», «Un peu…», and `replies[stance].comeback` (A1–A2); a free
+  one-line field from B1 (no model call). Act `comeback {index|text}`. After it, the guest has one authored
+  last word by band («Touché.» / «On en reparle demain !»), then the main button «Voir la page».
 
 ### Step 5 · La page
 - Calls `POST /close`. The close for a comptoir session makes no model call and does not print Romy's line
@@ -226,7 +233,8 @@ the close's «used words», memory and cost code keep working). Model calls reco
   - `RvClosing.comptoir_page`: `{question_fr, dateline_fr, standfirst_fr (one line from the lead), quotes:
     [{cast_id, name_fr, role_fr, stance, quote_fr}] ×3, mine: {quote_fr (edited), stance}, votes: {pour,
     contre, nuance} (the three guests + the learner), intox: {wrong_fr, right_fr, source_name} | null,
-    phrase_fr, words: kept words}`.
+    phrase_fr, words: kept words}`. Since 2026-10-23 `mine.quote_fr` is what printed and `proof` says how
+    (§9).
   - `RvClosing.dispatch` for the Relevé: kicker «Le micro-trottoir de Romy», headline = the question, body =
     the standfirst and «Toi : « … »», contribution spans on the learner's quote.
   - The artifact is a new make kind `"opinion"` (`text_fr` = edited, `learner_fr` = raw), so the vignette,
@@ -349,10 +357,11 @@ the close's «used words», memory and cost code keep working). Model calls reco
 - **The opinion field is the comptoir's own**, not `RvComposer`: at A2 the frame and the reason are one card
   (the phrase of the day, the frame, the field, the bank under it), at B1 the field sits under «Réponds à …»;
   the foot holds the mic and «Donner mon avis». `RvComposer` (which now grows with its text) is used where one
-  line is sent: the B1 correction of the intox and the B1 comeback.
+  line is sent: the B1 correction of the intox (empty since 2026-10-23), the fix of Romy's marks and the B1
+  comeback.
 - **French in every chrome for the publication's words and the feature's name**: «Au comptoir», «La question
-  du jour», POUR / CONTRE / ÇA DÉPEND, the side chips, «Dans le journal · corrigé par Romy», «Le micro-trottoir
-  de Romy», «L'intox du jour», «Toi». The rest of the chrome follows the learner's control language (from B1
+  du jour», POUR / CONTRE / ÇA DÉPEND, the side chips, «Dans le journal» and its proof labels (§9), «Les
+  corrections de Romy», «Le micro-trottoir de Romy», «L'intox du jour», «Toi». The rest of the chrome follows the learner's control language (from B1
   the app's chrome is French, WP-82).
 - **The step names are French** («Lire», «Les avis», «L'intox», «Ton avis», «La page») and only spoken by the
   dots' label; the screens are not titled.
@@ -361,11 +370,12 @@ the close's «used words», memory and cost code keep working). Model calls reco
 - **The learner's face** is their «Ton personnage» avatar, else a «Toi» disc (not an initial).
 - **B2** plays the B1 screen (free text, «Réponds à …») with the b2 phrase of the day; Romy's edit may improve
   register and connectors there. No separate «two or three sentences» screen.
-- **A1's sentence** is shown twice after the opinion (the learner's line and the printed one, «relu par
-  Romy»): it is correct by construction, so the paper's version only confirms it is printed.
+- **A1's sentence** is shown twice after the opinion (the learner's line and the printed one, plain «Dans le
+  journal» since 2026-10-23: Romy did not read tiles): it is correct by construction, so the paper's version
+  only confirms it is printed.
 - **A B1 correction already word for word right** is not repeated in the feedback card; its note stays.
-- **Romy's notes are in the gloss language** (the language «Traduire» shows), the UI language only when that
-  is French: a B1 learner whose chrome is French reads «très · accent» in English.
+- **Romy's notes became marks** (2026-10-23, §9): the kind of each slip is named in the learner's control
+  language («très · spelling»); she no longer explains a rewrite the learner did not make.
 - **The intox shows its settling claim once**: after a missed guess the claim stays above, and the fix does
   not print it a second time.
 
@@ -387,3 +397,45 @@ the environment (a Python start without it prints a settings error).
   checks are tested with scripted answers only.
 - The Listen chip uses the device's French voice per character (`useLineVoice`); the lead has no recorded
   audio.
+
+## 9. Phase 0: the learner writes (2026-10-23)
+
+Vincent's walk found that a learner could press through the Papier and the counter without writing a word of
+their own, and that the paper then printed Romy's French as theirs. The review behind this is
+https://claude.ai/artifact/XfjoQVX9J6c7wqNWcJ11HT («Order of work», Phase 0). Nine fixes, as built:
+
+1. **No headline pick from B1.** `headline_choice` is offered at A1–A2 only (`LOWER_ONLY_MAKE`); a B1+ request
+   for it is `409 revue_make_unavailable`. B1+ write the headline.
+2. **«Écrire le papier» waits for a line of the learner's own.** `own_line` is true once a `turn_learner` is
+   not one of the quick-reply chips. It gates Romy's steer to the make, the write chip, `make_options` and
+   `make` (`409 revue_make_needs_a_line`); the foot says why while it is false.
+3. **Every band writes the caption.** The picture's words are the tiles; a caption under the band's floor
+   (A1 2 words, A2 3, B1 4, B2 5) or contradicting the picture is refused with Romy's reason. At A1–A2 the
+   three captions to pick from appear only after a refused try (`409 revue_caption_write_first` before). A
+   picked caption is uncredited (`contribution: []`) and Romy's close says «la légende que tu as choisie».
+4. **An opinion has a floor**: A2 4 words after the frame, B1+ 12. Under it Romy asks for more and nothing is
+   recorded («Oui.» never prints).
+5. **Romy marks, the learner fixes.** Her correction is the hidden target; the learner sees up to three marks
+   on their own words with the kind of slip (accord, conjugaison, genre, orthographe, mot, ordre, manque) and
+   sends the sentence again: two tries, then «Corrige-le, Romy» or her correction. Proof states `clean`,
+   `marked`, `fixed`, `corrected`, `as_written` (WIRE §9.5). Nothing she did not read prints as «relu par
+   Romy»: a failed check prints «tel que tu l'as écrit». The reply waits until the opinion is settled, and
+   `POST /close` waits too.
+6. **Every honest take carries a checkable detail.** `repair_comptoir` refuses an intox band where an honest
+   take names no detail from the claims (`comptoir:{guest}:{band}:no_detail`, the band dropped), so «who
+   lied?» is not answered by elimination. The ten evergreens were given a detail each where they lacked one;
+   all audit clean.
+7. **The B1 intox fix starts empty** and the grader wants the value and what it counts («500 000 personnes»),
+   four words at least.
+8. **Copy says only what is true.** «Your line» only on a typed fix that matches the right line; «C'est ta
+   légende» only on a written caption; the dispatch's byline «avec toi» only when words the learner typed or
+   said print (never A1 tiles, never a pick); «Toi, au comptoir · corrigé par Romy» on the page when she
+   corrected it.
+9. **Kept words are the session's.** The Relevé keeps the plan's words the learner met (the lead, the takes,
+   the facts shown, the question; in the chat, what Romy and the guests said and showed), the ones they used
+   first, and at least one they used when they used any (the A2 bank's word at the counter, the picture's
+   word in the chat).
+
+Not in Phase 0, and still open: a `reader_question` can credit Romy's seed question as the learner's when they
+send it unchanged. Phases 1–3 of the review (the job in six moves with Le reportage, then the rubriques and
+progression, then Le Quartier) are not started.

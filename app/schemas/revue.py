@@ -372,7 +372,13 @@ class RvKept(RevueModel):
 
 ComptoirStep = Literal["read", "takes", "intox", "opinion", "page"]
 ComptoirStance = Literal["pour", "contre", "nuance"]
-ComptoirAct = Literal["vote", "react", "intox_who", "intox_fix", "opinion", "comeback"]
+ComptoirAct = Literal["vote", "react", "intox_who", "intox_fix", "opinion", "opinion_fix", "comeback"]
+#: What Romy marks in the learner's opinion (the learner fixes it; the hint never gives the answer).
+ComptoirMarkKind = Literal["accord", "conjugaison", "genre", "orthographe", "mot", "ordre", "manque"]
+#: Where the learner's opinion stands before print: ``clean`` (nothing to fix), ``marked`` (Romy's
+#: marks to fix), ``fixed`` (the learner fixed them), ``corrected`` (Romy fixed what was left after the
+#: tries), ``as_written`` (no check ran: printed as the learner wrote it, never «relu par Romy»).
+ComptoirProof = Literal["clean", "marked", "fixed", "corrected", "as_written"]
 
 
 class RvComptoirText(RevueModel):
@@ -431,10 +437,9 @@ class RvComptoirIntox(RevueModel):
     #: The claim to reread, after a wrong guess.
     hint_claim: RvClaim | None = None
     ask: RvComptoirText | None = None
-    #: A1–A2: the true value and the distractor, in a per-session order.
+    #: A1–A2: the true value and the distractor, in a per-session order. B1+ write the
+    #: correction themselves (no sentence is prefilled).
     options: list[str] = Field(default_factory=list)
-    #: B1+: «C'est faux, Gus ! C'est …, pas un million de personnes.»
-    prefill_fr: str | None = None
     fix: RvComptoirFix | None = None
 
 
@@ -450,9 +455,13 @@ class RvComptoirKit(RevueModel):
     opponents: dict[ComptoirStance, str]
 
 
-class RvComptoirNote(RevueModel):
+class RvComptoirMark(RevueModel):
+    """One of Romy's proof marks: the learner's words to look at again (``span_fr``, at
+    ``start`` in ``draft_fr``) and what kind of slip it is; never the corrected words."""
+
     span_fr: str
-    why: str
+    start: int = 0
+    kind: ComptoirMarkKind
 
 
 class RvComptoirReply(RevueModel):
@@ -470,11 +479,20 @@ class RvComptoirComeback(RevueModel):
 
 class RvComptoirOpinion(RevueModel):
     stance: ComptoirStance
+    #: The sentence as the learner first gave it (with the A2 frame).
     learner_fr: str
-    #: Romy's edit (the learner's own sentence when the edit failed its checks).
-    edited_fr: str
-    notes: list[RvComptoirNote]
-    reply: RvComptoirReply
+    #: The learner's words, as they were at their last try.
+    draft_fr: str
+    proof: ComptoirProof
+    #: ``marked``: what to fix in ``draft_fr`` (never the answer).
+    marks: list[RvComptoirMark] = Field(default_factory=list)
+    #: Fix tries used, and how many the learner gets before Romy fixes what is left.
+    tries: int = 0
+    max_tries: int = 2
+    #: What goes to print, once the proof is settled (``None`` while ``marked``).
+    printed_fr: str | None = None
+    #: The regular's answer, once the sentence is printed.
+    reply: RvComptoirReply | None = None
     #: A1–A2: the three comeback chips; empty from B1 (one free line).
     comebacks: list[RvComptoirText]
     comeback: RvComptoirComeback | None = None
@@ -517,6 +535,9 @@ class RvComptoirPage(RevueModel):
     standfirst_fr: str
     quotes: list[RvComptoirQuote]
     mine: RvComptoirQuote
+    #: How the learner's quote reached print (the label under it: «tel que tu l'as écrit»,
+    #: «corrigé par toi», «corrigé par Romy»); ``None`` on a page closed before 2026-10-23.
+    proof: ComptoirProof | None = None
     votes: RvComptoirVotes
     intox: RvComptoirPageIntox | None = None
     phrase_fr: str
@@ -529,9 +550,10 @@ class RvComptoirRequest(RevueRequest):
     #: vote: the side; react: agree | disagree; intox_fix (A1–A2): the value picked;
     #: opinion: the side.
     value: str | None = Field(None, max_length=200)
-    #: intox_fix (B1+), opinion (A2+), comeback (B1+).
+    #: intox_fix (B1+), opinion (A2+), opinion_fix (the sentence again, fixed), comeback (B1+).
     text: str | None = Field(None, max_length=600)
     mode: Literal["text", "voice"] = "text"
+    #: opinion_fix: ``value="romy"`` (after one try) lets Romy fix what is left.
     #: opinion at A1: the reason tile.
     reason_index: int | None = Field(None, ge=0, le=9)
     #: comeback at A1–A2: the chip.
@@ -565,6 +587,9 @@ class RvSessionView(RevueModel):
     thread: list[RvThreadItem]
     quick_replies: list[RvQuickReply]
     steer_to_make: bool
+    #: The learner has typed or said a line of their own (a quick-reply chip is not one):
+    #: «Écrire le papier» and Romy's steer to the make wait for it (2026-10-23).
+    own_line: bool = False
     artifact: RvMade | None = None
     closing: RvClosing | None = None
     #: «Au comptoir» (WP-119, 2026-10-19): the mode the session started in, for its whole life.
@@ -617,6 +642,7 @@ class RvTurnResult(RevueModel):
     support: RvSupport
     quick_replies: list[RvQuickReply]
     steer_to_make: bool
+    own_line: bool = False
     evidence: RvEvidence
 
 
@@ -657,9 +683,10 @@ class RvCaptionOption(RevueModel):
 
 
 class RvCaptionOffer(RevueModel):
-    """WP-119 §8.4 «La légende»: the caption under the story's picture. ``choice`` (A1–A2): three
-    captions, one says what the picture shows; ``write`` (B1+): the learner writes it, at most
-    ``max_words`` words, with the picture's words as chips."""
+    """WP-119 §8.4 «La légende»: the caption under the story's picture. Every band writes it, at
+    most ``max_words`` words, with the picture's words as chips (2026-10-23). ``options``: at
+    A1–A2, after a refused try, three captions to choose from instead (one says what the
+    picture shows); empty before. ``choice`` is no longer offered first."""
 
     kind: Literal["caption"] = "caption"
     format: Literal["choice", "write"]
@@ -787,6 +814,9 @@ class RvCaptionResult(RevueModel):
     evidence: RvEvidence | None = None
     made: RvMade | None = None
     line: RvLineItem | None = None
+    #: A refused written caption at A1–A2: the three captions to choose from, if the learner
+    #: would rather pick than write again.
+    options: list[RvCaptionOption] = Field(default_factory=list)
 
 
 RvMakeResult = (

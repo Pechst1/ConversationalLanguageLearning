@@ -7,10 +7,15 @@
  * word), B1 answers a regular by name. Text or voice from A2 (the mic beside
  * «Donner mon avis»).
  *
- * Then Romy's red pen (the words she changed lit, one short reason each, «Dans
- * le journal · corrigé par Romy»), the regular's answer in their bubble, «Ta
- * réponse» — chips at A1–A2, one free line from B1 (the foot's field) — and their
- * last word. «Voir la page» closes the Papier.
+ * Then Romy's proof (2026-10-23): when she finds slips she underlines them with
+ * the kind of each («accord», «genre»…) and the learner fixes the sentence in the
+ * foot's field; after one try «Corrige-le, Romy» asks her, and after two she
+ * corrects what is left and shows what she changed. The printed sentence carries
+ * how it got there: «relu par Romy» only when her check found nothing, «corrigé
+ * par toi», «corrigé par Romy», or «tel que tu l'as écrit» when no check ran.
+ * Then the regular's answer in their bubble, «Ta réponse» — chips at A1–A2, one
+ * free line from B1 (the foot's field) — and their last word. «Voir la page»
+ * closes the Papier.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -23,8 +28,8 @@ import type { RvStance } from '@/lib/revue-types';
 import { fill } from '../revue-copy';
 import { RvComposer } from '../RvComposer';
 import { RvTranslate } from '../RvThread';
-import { COMPTOIR_FR, COMPTOIR_LINES } from './comptoir-copy';
-import { SIDE_LABELS_FR, a1Sentence, castName, edited, insertWord, wordDiff } from './comptoir-model';
+import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel } from './comptoir-copy';
+import { SIDE_LABELS_FR, a1Sentence, castName, insertWord, markSegments, wordDiff } from './comptoir-model';
 import { ComptoirBubble, MineLine, RomyLine, type ComptoirStepProps } from './RvComptoirParts';
 
 const SIDES: RvStance[] = ['pour', 'contre', 'nuance'];
@@ -178,21 +183,21 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
     }
   }
 
-  // --- after the opinion: Romy's pen, the answer, the comeback -------------------
+  // --- after the opinion: Romy's marks, the print, the answer, the comeback -------
   let suite: React.ReactNode = null;
-  if (opinion) {
-    const changed = edited(opinion.learnerFr, opinion.editedFr);
-    const replier = view.cast.find((member) => member.id === opinion.reply.by) ?? null;
+  const marked = opinion?.proof === 'marked';
+  if (opinion && marked) {
     suite = (
       <>
-        <section className="ct-paper" data-ct-anchor="start" aria-label={changed ? COMPTOIR_FR.in_paper_fixed : COMPTOIR_FR.in_paper_read}>
+        <RomyLine line={COMPTOIR_LINES.proof_marked} props={props} anchor="start" />
+        <section className="ct-paper" data-proof="marked" aria-label={COMPTOIR_FR.proof_marked}>
           <p className="ct-paper__k" lang="fr">
-            {changed ? COMPTOIR_FR.in_paper_fixed : COMPTOIR_FR.in_paper_read}
+            {COMPTOIR_FR.proof_marked}
           </p>
           <p className="ct-paper__fr" lang="fr">
-            {wordDiff(opinion.learnerFr, opinion.editedFr).map((segment, index) =>
-              segment.changed ? (
-                <mark key={index} className="ct-fix">
+            {markSegments(opinion.draftFr, opinion.marks).map((segment, index) =>
+              segment.kind ? (
+                <mark key={index} className="ct-mark" data-kind={segment.kind}>
                   {segment.text}
                 </mark>
               ) : (
@@ -200,14 +205,43 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
               ),
             )}
           </p>
-          {opinion.notes.map((note, index) => (
-            <p key={index} className="ct-why">
-              <b lang="fr">{note.spanFr}</b> · {note.why}
-            </p>
-          ))}
-          <RvTranslate textFr={opinion.editedFr} glossLanguage={glossLanguage} copy={copy} />
+          <ul className="ct-marks">
+            {opinion.marks.map((mark, index) => (
+              <li key={index} className="ct-why">
+                <b lang="fr">{mark.spanFr}</b> · {ccopy.mark_kinds[mark.kind]}
+              </li>
+            ))}
+          </ul>
         </section>
-        {opinion.reply.line.fr && (
+      </>
+    );
+  } else if (opinion) {
+    const printed = opinion.printedFr ?? opinion.draftFr;
+    const label = inPaperLabel(opinion.proof, input === 'tiles');
+    const replier = opinion.reply ? view.cast.find((member) => member.id === opinion.reply?.by) ?? null : null;
+    suite = (
+      <>
+        <section className="ct-paper" data-ct-anchor="start" data-proof={opinion.proof} aria-label={label}>
+          <p className="ct-paper__k" lang="fr">
+            {label}
+          </p>
+          <p className="ct-paper__fr" lang="fr">
+            {/* Only Romy's own correction lights what she changed; the learner's words print plain. */}
+            {opinion.proof === 'corrected'
+              ? wordDiff(opinion.draftFr, printed).map((segment, index) =>
+                  segment.changed ? (
+                    <mark key={index} className="ct-fix">
+                      {segment.text}
+                    </mark>
+                  ) : (
+                    <React.Fragment key={index}>{segment.text}</React.Fragment>
+                  ),
+                )
+              : printed}
+          </p>
+          <RvTranslate textFr={printed} glossLanguage={glossLanguage} copy={copy} />
+        </section>
+        {opinion.reply?.line.fr && (
           <ComptoirBubble
             castId={opinion.reply.by}
             name={opinion.reply.nameFr}
@@ -250,7 +284,7 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
         {opinion.comeback && (
           <>
             <MineLine textFr={opinion.comeback.textFr} copy={copy} anchor="nearest" />
-            {opinion.comeback.lastWord.fr && (
+            {opinion.reply && opinion.comeback.lastWord.fr && (
               <ComptoirBubble
                 castId={opinion.reply.by}
                 name={opinion.reply.nameFr}
@@ -295,6 +329,28 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
             {ccopy.give_opinion}
           </Action>
         </div>
+      </>
+    );
+  } else if (marked) {
+    // Romy's marks: the learner fixes the same sentence; after one try she may fix the rest.
+    const tryNumber = Math.min(opinion.tries + 1, opinion.maxTries);
+    foot = (
+      <>
+        <p className="ct-foot__hint">{fill(ccopy.fix_try, { n: String(tryNumber), max: String(opinion.maxTries) })}</p>
+        <RvComposer
+          key={`fix-${opinion.tries}`}
+          initial={opinion.draftFr}
+          label={ccopy.fix_label}
+          placeholder={ccopy.fix_placeholder}
+          disabled={busy}
+          onSend={(value, how) => void onAct({ act: 'opinion_fix', text: value, mode: how }, 'fix')}
+          copy={copy}
+        />
+        {opinion.tries >= 1 && (
+          <Action tone="quiet" pending={pending === 'romy'} pendingLabel={ccopy.fix_romy} disabled={busy} onClick={() => void onAct({ act: 'opinion_fix', value: 'romy' }, 'romy')}>
+            {ccopy.fix_romy}
+          </Action>
+        )}
       </>
     );
   } else if (!opinion.comeback && opinion.comebacks.length === 0) {

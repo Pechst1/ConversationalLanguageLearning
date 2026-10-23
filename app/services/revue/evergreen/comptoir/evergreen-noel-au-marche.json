@@ -10,9 +10,9 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! Le marché de Noël, c'est magique. Je prends du vin chaud.",
-     "en": "I'm for it! The Christmas market is magic. I'll have mulled wine.",
-     "de": "Ich bin dafür! Der Weihnachtsmarkt ist magisch. Ich nehme Glühwein."
+     "fr": "Je suis pour ! Le marché existe depuis 1570. C'est magique !",
+     "en": "I'm for it! The market has existed since 1570. It's magic!",
+     "de": "Ich bin dafür! Den Markt gibt es seit 1570. Das ist magisch!"
     },
     "a2": {
      "fr": "Le marché existe depuis 1570 ! À mon avis, c'est une belle tradition. Un vin chaud, s'il te plaît.",
@@ -36,14 +36,14 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend, mon chou. Les lumières, c'est beau. La foule, moins.",
-     "en": "It depends, sweetie. The lights are lovely. The crowd, less so.",
-     "de": "Kommt drauf an, mein Schatz. Die Lichter sind schön. Die Menge weniger."
+     "fr": "Ça dépend, mon chou. Les lumières de Strasbourg, c'est beau. La foule, moins.",
+     "en": "It depends, sweetie. Strasbourg's lights are lovely. The crowd, less so.",
+     "de": "Kommt drauf an, mein Schatz. Die Lichter von Straßburg sind schön. Die Menge weniger."
     },
     "a2": {
-     "fr": "Ça dépend, mon chou ! Les lumières sont magiques, mais la foule me stresse.",
-     "en": "It depends, sweetie! The lights are magical, but the crowd stresses me out.",
-     "de": "Kommt drauf an, mein Schatz! Die Lichter sind magisch, aber die Menge stresst mich."
+     "fr": "Ça dépend, mon chou ! Les lumières de la place Broglie sont magiques, mais la foule me stresse.",
+     "en": "It depends, sweetie! The lights on Place Broglie are magical, but the crowd stresses me out.",
+     "de": "Kommt drauf an, mein Schatz! Die Lichter auf der Place Broglie sind magisch, aber die Menge stresst mich."
     },
     "b1": {
      "fr": "D'un côté, les lumières et les marchés sont magnifiques, mon chou. De l'autre, avec tous ces gens, je perds mon sac. Mais arrête, c'est évident : j'y vais en décembre.",

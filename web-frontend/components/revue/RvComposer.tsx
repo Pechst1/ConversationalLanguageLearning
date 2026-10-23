@@ -48,7 +48,7 @@ export function RvComposer({ onSend, disabled = false, placeholder, label, initi
     if (autoFocus) inputRef.current?.focus();
   }, [autoFocus]);
 
-  // The field grows with its text (a prefilled «C'est faux, … !» runs to three lines),
+  // The field grows with its text (a long reason runs to three lines),
   // up to the stylesheet's max-height, then scrolls.
   useEffect(() => {
     const el = inputRef.current;

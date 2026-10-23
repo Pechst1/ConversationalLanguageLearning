@@ -91,6 +91,10 @@ def make_user(db: Session, *, level: str = "A2.1", native: str = "de", interests
     return user
 
 
+#: A line the learner typed: the make waits for one (2026-10-23), a chip is not one.
+OWN_LINE = "Oui, avec plaisir, je t'écoute."
+
+
 def items_of(result, kind: str) -> list:
     return [item for item in result.items if item.kind == kind]
 
@@ -485,6 +489,7 @@ def test_headline_choice_picks_and_files(db: Session) -> None:
     revue = RevueEncounter(db, FakeRevueProvider())
     row = revue.start(user, WEEK, dossier_id=MARCHE)
     revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, OWN_LINE)
     offer = revue.make_options(row)
     headline = next(option for option in offer.options if option.kind == "headline_choice")
     assert len(headline.options) == 3
@@ -498,6 +503,9 @@ def test_headline_choice_picks_and_files(db: Session) -> None:
     assert result.made.contribution == []
     # The exercise is built once: a second GET reuses it.
     assert revue.make_options(row).options[0] == headline
+    _, closing = revue.close(row)
+    assert closing.dispatch.byline_fr.startswith("Romy Tremblay · d'après"), "a pick is not the learner's writing"
+    assert "ton titre" not in closing.romy_line_fr
 
 
 def test_headline_choice_dropped_when_a_distractor_is_not_contradicted(db: Session) -> None:
@@ -513,6 +521,7 @@ def test_headline_choice_dropped_when_a_distractor_is_not_contradicted(db: Sessi
     revue = RevueEncounter(db, fake)
     row = revue.start(user, WEEK, dossier_id=MARCHE)
     revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, OWN_LINE)
     offer = revue.make_options(row)
     assert [option.kind for option in offer.options] == ["reader_question"]
     assert offer.recommended == "reader_question"
@@ -616,7 +625,7 @@ def test_plan_vocabulary_and_stage(db: Session) -> None:
     assert view_a2.plan.gloss_language == "de" and view_b1.plan.gloss_language == "en"
     assert all(word.gloss for word in view_a2.plan.vocabulary)
     assert view_a2.plan.make_options == ["headline_choice", "reader_question"]
-    assert view_b1.plan.make_options == ["headline_choice", "headline_write", "reader_question", "short_report"]
+    assert view_b1.plan.make_options == ["headline_write", "reader_question", "short_report"], "B1+: no headline pick"
     assert view_a2.stage.dress == "coat"  # §12.5: a market visit alone does not dress Toi
     assert view_a2.stage.cast[0].id == "romy_tremblay" and view_a2.stage.cast[0].hold == "notebook"
     assert any(item.kind == "line" and item.role == "place_note" for item in view_a2.thread)
@@ -682,6 +691,7 @@ def test_model_down_gives_the_authored_line(db: Session) -> None:
     line = items_of(result, "line")[0]
     assert (line.role, line.text_fr) == ("fallback", FALLBACK_LINE)
     assert line.reason == "model_down"
+    revue.turn(row, OWN_LINE)
     offer = revue.make_options(row)  # the authored headline when the model is down
     assert items_of(result, "claims"), "the facts need no generation"
     assert [option.kind for option in offer.options] == ["headline_choice", "reader_question"]
@@ -873,8 +883,9 @@ def test_headline_write_is_graded_for_fact_fit_and_band(db: Session) -> None:
     revue = RevueEncounter(db, FakeRevueProvider())
     row = revue.start(user, WEEK, dossier_id=MARCHE)
     revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, OWN_LINE)
     offer = revue.make_options(row)
-    assert [o.kind for o in offer.options] == ["headline_choice", "headline_write", "reader_question", "short_report"]
+    assert [o.kind for o in offer.options] == ["headline_write", "reader_question", "short_report"]
     assert offer.recommended == "headline_write"
     assert offer.intro.role == "make_intro" and offer.intro.text_fr == enc.MAKE_INTRO_LINES["headline_write"]
     assert revue.make_options(row).intro == offer.intro, "the intro is written once"
@@ -889,8 +900,12 @@ def test_headline_write_is_graded_for_fact_fit_and_band(db: Session) -> None:
     assert written.made.kind == "headline_write" and written.made.contribution == [(0, len(written.made.text_fr))]
     assert written.evidence.fact_fit == "supported" and written.evidence.outcome == "correct"
     assert written.line.text_fr == enc.MAKE_DONE_LINES["headline_write"]
+    with pytest.raises(RevueError) as raised:
+        revue.make(row, "headline_choice", {"action": "pick", "option_id": "h1"})
+    assert (raised.value.status, raised.value.code) == (409, "revue_make_unavailable"), "B1+: no headline pick"
     _, closing = revue.close(row)
     assert closing.dispatch.headline_fr == "Paris et ses 91 marchés en plein air"
+    assert closing.dispatch.byline_fr.startswith("Romy Tremblay, avec toi"), "the learner wrote the headline"
     thread = revue.view(row).thread
     assert [i.role for i in thread if i.kind == "line" and i.role in {"make_intro", "make_done", "close"}] == [
         "make_intro", "make_done", "make_done", "close"]
@@ -899,9 +914,50 @@ def test_headline_write_is_graded_for_fact_fit_and_band(db: Session) -> None:
 def test_headline_write_is_b1_and_up(db: Session) -> None:
     revue = RevueEncounter(db, FakeRevueProvider())
     row = revue.start(make_user(db), WEEK, dossier_id=MARCHE)
+    revue.turn(row, OWN_LINE)
     with pytest.raises(RevueError) as raised:
         revue.make(row, "headline_write", {"action": "write", "text_fr": "Un titre"})
     assert (raised.value.status, raised.value.code) == (409, "revue_make_unavailable")
+
+
+def test_the_make_waits_for_a_line_the_learner_wrote(db: Session) -> None:
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(make_user(db), WEEK, dossier_id=MARCHE)
+    chip = revue.turn(row, "D'accord, je t'aide.")
+    assert chip.own_line is False and revue.view(row).own_line is False, "a chip is not a line of one's own"
+    for _ in range(12):  # chips only, past the bouclage: Romy does not steer to the make
+        result = revue.turn(row, "Dis-m'en plus.")
+    assert result.room.phase != "open" and result.steer_to_make is False
+    for call in (lambda: revue.make_options(row),
+                 lambda: revue.make(row, "reader_question", {"action": "propose", "text": "Pourquoi ?"})):
+        with pytest.raises(RevueError) as raised:
+            call()
+        assert (raised.value.status, raised.value.code) == (409, "revue_make_needs_a_line")
+    result = revue.turn(row, OWN_LINE)
+    assert result.own_line is True and result.steer_to_make is True
+    assert revue.view(row).own_line is True and revue.make_options(row).options
+
+
+def test_kept_words_are_the_ones_met_with_the_ones_used_first(db: Session) -> None:
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(make_user(db), WEEK, dossier_id=MARCHE)
+    plan_words = [word.fr for word in revue.view(row).plan.vocabulary]
+    revue.turn(row, "D'accord, je t'aide.")
+    loaded = enc.load(row)
+    claims = loaded.dossier.claims_by_id()
+    met = " ".join(claims[c].fr for c in loaded.state.claims_shown)
+    used = next(word for word in plan_words if enc._contains_word(met, word))
+    revue.turn(row, f"Moi, j'aime bien {used}, vraiment.")
+    _, closing = revue.close(row)
+    kept = closing.kept.words
+    assert kept and kept[0].fr == used and kept[0].used, "the word the learner used comes first"
+    assert not any(word.used for word in kept[1:]) or kept[1].used
+    loaded = enc.load(row)
+    seen = " ".join(str(e.payload.get("text_fr") or "") for e in loaded.state.events
+                    if e.kind not in {"turn_learner", "closed"})
+    seen += " " + " ".join(c.fr for c in closing.kept.claims) + " " + loaded.dossier.lead_for("A2").fr
+    assert all(enc._contains_word(seen, word.fr) or word.used for word in kept), "only words the learner met"
+    assert enc.typed_lines(loaded.state) == [f"Moi, j'aime bien {used}, vraiment."], "a chip is never «used»"
 
 
 def test_short_report_is_accepted_and_graded_like_a_turn(db: Session) -> None:
@@ -909,6 +965,7 @@ def test_short_report_is_accepted_and_graded_like_a_turn(db: Session) -> None:
     revue = RevueEncounter(db, FakeRevueProvider())
     row = revue.start(user, WEEK, dossier_id=MARCHE)
     revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, OWN_LINE)
     transcript = "Bonjour, je suis au marché d'Aligre. Paris compte 91 marchés, et celui-ci ouvre tous les matins."
     result = revue.make(row, "short_report", {"action": "report", "transcript": transcript, "mode": "voice"})
     assert result.made.kind == "short_report" and result.made.learner_fr == transcript

@@ -3,8 +3,10 @@
 A session starts in comptoir mode only with the switch on and takes to play (an evergreen's
 shipped ones, or one desk call at the start); otherwise it is the chat, unchanged. Every act
 in order at A1, A2 and B1; every act out of order is a 409; two wrong guesses reveal the liar;
-Romy's edit with the fake provider, with a failing one, twice; «La page», the dispatch and the
-memories at the close; the view never shows an answer before its time.
+Romy's proof with the fake provider (2026-10-23: she marks, the learner fixes, she corrects
+what is left after two tries), with a failing one, twice; the floor under an opinion; «La
+page», the dispatch, the honest byline, the kept words and the memories at the close; the view
+never shows an answer before its time.
 """
 
 from __future__ import annotations
@@ -258,7 +260,7 @@ def test_a1_every_act_in_order_two_wrong_guesses_and_the_page(db: Session) -> No
     view = act(revue, row, act="opinion", value="pour", reason_index=0).session.comptoir
     opinion = view.opinion
     assert opinion.learner_fr == "Je suis pour, parce que le marché est vivant."
-    assert opinion.edited_fr == opinion.learner_fr and opinion.notes == []
+    assert opinion.proof == "clean" and opinion.printed_fr == opinion.learner_fr and opinion.marks == []
     assert opinion.reply.by == GUS and opinion.reply.line.fr == view_reply(row, "pour")
     assert [c.fr for c in opinion.comebacks][:2] == ["Pas du tout !", "Un peu…"] and len(opinion.comebacks) == 3
     assert not [c for c in fake.calls if c[0] == "comptoir_edit"], "A1: no model call"
@@ -272,21 +274,24 @@ def test_a1_every_act_in_order_two_wrong_guesses_and_the_page(db: Session) -> No
     page = closing.comptoir_page
     assert page is not None and page.question_fr == "Aligre ouvre six jours sur sept. Bonne idée ?"
     assert [q.cast_id for q in page.quotes] == [ROMY, MARGAUX, GUS]
-    assert page.mine.quote_fr == opinion.edited_fr and page.mine.stance == "pour"
+    assert page.mine.quote_fr == opinion.printed_fr and page.mine.stance == "pour" and page.proof == "clean"
     assert (page.votes.pour, page.votes.contre, page.votes.nuance) == (2, 1, 1)
     assert page.intox is not None and page.intox.wrong_fr == "sept jours sur sept" and page.intox.source_name
     assert closing.dispatch.kicker_fr == "Le micro-trottoir de Romy"
     assert closing.dispatch.headline_fr == page.question_fr
-    assert closing.dispatch.body_fr[-1] == f"Toi : « {opinion.edited_fr} »"
+    assert closing.dispatch.body_fr[-1] == f"Toi : « {opinion.printed_fr} »"
+    assert closing.dispatch.byline_fr.startswith("Romy Tremblay · d'après"), "a tile is not the learner's words"
     assert closing.romy_line_fr == "Merci ! Ta voix est dans le micro-trottoir."
-    assert view.artifact is not None and view.artifact.kind == "opinion" and view.artifact.learner_fr
+    assert view.artifact is not None and view.artifact.kind == "opinion"
+    assert not view.artifact.learner_fr and view.artifact.contribution == []
+    assert closing.kept.words and not any(word.used for word in closing.kept.words), "nothing typed, nothing used"
     assert view.status == "closed" and view.comptoir.step == "page"
     assert not [c for c in fake.calls if c[0] == "close"], "the close makes no model call"
 
     memories = db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id)).all()
     assert sorted(m.npc_id for m in memories) == sorted([ROMY, MARGAUX, GUS])
     romy = next(m for m in memories if m.npc_id == ROMY)
-    assert "micro-trottoir" in romy.content and opinion.edited_fr in romy.content
+    assert "micro-trottoir" in romy.content and opinion.printed_fr in romy.content
     vignette = db.scalars(select(RevueVignette).where(RevueVignette.session_id == row.id)).first()
     assert vignette is not None and vignette.ring == "report"
     assert db.scalars(select(PilotEvent).where(PilotEvent.entity_id == str(row.id))).first() is not None
@@ -300,7 +305,7 @@ def view_reply(row: RevueSession, stance: str) -> str:
     return snapshot["replies"][stance]["line"]["fr"]
 
 
-def test_a2_romys_edit_and_the_reply_in_german(db: Session) -> None:
+def test_a2_romy_marks_the_learner_fixes_and_she_corrects_what_is_left(db: Session) -> None:
     fake = FakeRevueProvider()
     revue = Revue(db, fake)
     row = revue.start(make_user(db, level="A2.1", native="de"), week=WEEK)
@@ -315,50 +320,112 @@ def test_a2_romys_edit_and_the_reply_in_german(db: Session) -> None:
 
     result = act(revue, row, act="opinion", value="contre", text="")
     assert result.error_fr and result.session.comptoir.opinion is None, "an empty reason is answered, not recorded"
+    for short in ("Oui.", "le bruit", "À mon avis, ce n'est pas une bonne idée, parce que le bruit"):
+        result = act(revue, row, act="opinion", value="contre", text=short)
+        assert result.error_fr and result.session.comptoir.opinion is None, short
+    assert not [c for c in fake.calls if c[0] == "comptoir_edit"], "a nudge costs no model call"
+
     view = act(revue, row, act="opinion", value="contre", text="le gens sont content au supermarché").session.comptoir
     opinion = view.opinion
-    assert opinion.learner_fr == "À mon avis, ce n'est pas une bonne idée, parce que le gens sont content au supermarché."
-    assert opinion.edited_fr == "À mon avis, ce n'est pas une bonne idée, parce que les gens sont contents au supermarché."
-    assert [n.span_fr for n in opinion.notes] == ["les gens", "sont contents"]
-    assert opinion.notes[0].why == "Plural: les gens"
-    assert opinion.reply.by == ROMY and opinion.reply.line.tr, "Romy answers a «contre», in German too"
+    draft = "À mon avis, ce n'est pas une bonne idée, parce que le gens sont content au supermarché."
+    assert opinion.learner_fr == draft and opinion.draft_fr == draft
+    assert opinion.proof == "marked" and opinion.printed_fr is None and opinion.tries == 0 and opinion.max_tries == 2
+    assert [(m.span_fr, m.kind) for m in opinion.marks] == [("le", "accord"), ("content", "accord")]
+    assert all(draft[m.start:m.start + len(m.span_fr)] == m.span_fr for m in opinion.marks)
+    assert "les gens" not in wire(view), "the correction never shows before print"
+    assert opinion.reply is None and opinion.comebacks == [], "the regular answers once it is printed"
+    assert out_of_order(revue, row, act="comeback", index=0)
+    with pytest.raises(RevueError):
+        revue.close(row)
     edits = [c for c in fake.calls if c[0] == "comptoir_edit"]
-    assert len(edits) == 1 and edits[0][1]["notes_language"] == "de"
+    assert len(edits) == 1 and "notes_language" not in edits[0][1]
 
     again = act(revue, row, act="opinion", value="contre", text="autre chose").session.comptoir
-    assert again.opinion.edited_fr == opinion.edited_fr and len([c for c in fake.calls if c[0] == "comptoir_edit"]) == 1
-    events = [e for e in state_of(row).events if e.kind == "comptoir" and e.payload["act"] == "opinion"]
-    assert len(events) == 1, "a double submit returns the stored result"
+    assert again.opinion.draft_fr == draft, "a double submit returns the stored result"
+    assert act(revue, row, act="opinion_fix", text=draft).error_fr, "nothing changed: not a try"
+    unchanged = act(revue, row, act="opinion_fix", text="le gens sont content au supermarché")
+    assert unchanged.error_fr and unchanged.session.comptoir.opinion.tries == 0, "the reason alone, the frame put back: no try"
+    assert out_of_order(revue, row, act="opinion_fix", value="romy"), "Romy fixes only after a try"
+
+    half = draft.replace("le gens", "les gens")
+    view = act(revue, row, act="opinion_fix", text=half).session.comptoir
+    assert view.opinion.proof == "marked" and view.opinion.tries == 1 and view.opinion.draft_fr == half
+    assert [(m.span_fr, m.kind) for m in view.opinion.marks] == [("content", "accord")]
+    assert len([c for c in fake.calls if c[0] == "comptoir_edit"]) == 2, "a changed sentence is checked again"
+
+    view = act(revue, row, act="opinion_fix", value="romy").session.comptoir
+    opinion = view.opinion
+    assert opinion.proof == "corrected" and opinion.marks == []
+    assert opinion.printed_fr == "À mon avis, ce n'est pas une bonne idée, parce que les gens sont contents au supermarché."
+    assert opinion.reply.by == ROMY and opinion.reply.line.tr, "Romy answers a «contre», in German too"
+    assert len(opinion.comebacks) == 3
+    assert act(revue, row, act="opinion_fix", text="autre chose").error_fr is None, "settled: a repeat is a no-op"
     learner_turns = [e for e in state_of(row).events if e.kind == "turn_learner"]
-    assert learner_turns and learner_turns[-1].payload["text_fr"] == opinion.learner_fr
+    assert learner_turns[-1].payload["text_fr"] == half
 
     view = act(revue, row, act="comeback", index=0).session.comptoir
     assert view.opinion.comeback.last_word.fr == "Ah bon ? On en reparle demain !"
     assert view.opinion.comeback.last_word.tr == "Ach ja? Darüber reden wir morgen weiter!"
+    _, closing = revue.close(row)
+    assert closing.comptoir_page.proof == "corrected" and closing.comptoir_page.mine.quote_fr == opinion.printed_fr
+    assert "avec toi" in closing.dispatch.byline_fr, "the learner wrote the reason"
+    made = state_of(row).current_artifact
+    assert made["learner_fr"].startswith("le gens sont content"), "the frame is not the learner's"
+    assert made["contribution"] and made["proof"] == "corrected"
 
 
-def test_b1_writes_the_correction_and_the_comeback(db: Session) -> None:
-    revue = Revue(db, FakeRevueProvider())
+def test_b1_writes_the_correction_and_fixes_the_mark_itself(db: Session) -> None:
+    fake = FakeRevueProvider()
+    revue = Revue(db, fake)
     row = revue.start(make_user(db, level="B1.1", native="en"), week=WEEK)
     act(revue, row, act="vote", value="nuance")
     for guest in (ROMY, MARGAUX, GUS):
         act(revue, row, act="react", guest_id=guest, value="disagree")
     view = act(revue, row, act="intox_who", guest_id=GUS).session.comptoir
-    assert view.intox.options == [] and view.intox.prefill_fr == "C'est faux, Gus ! C'est …, pas sept jours sur sept."
-    result = act(revue, row, act="intox_fix", text=view.intox.prefill_fr)
-    assert result.error_fr, "the prefill as it is: complete it first"
+    assert view.intox.options == [] and "prefill_fr" not in view.intox.model_dump(), "B1 writes it, no prefill"
+    assert act(revue, row, act="intox_fix", text="six jours").error_fr, "a sentence, not the value alone"
     view = act(revue, row, act="intox_fix", text="C'est faux, Gus ! C'est six jours sur sept, pas sept.").session.comptoir
     assert view.intox.fix.correct and view.kit.input == "free" and view.kit.bank == []
     assert view.kit.phrase.fr == "Je ne suis pas d'accord avec…, parce que…"
 
-    view = act(revue, row, act="opinion", value="nuance", text="ça depend, le marché est tres bien mais il y a trop de monde").session.comptoir
-    assert view.opinion.edited_fr.startswith("Ça depend, le marché est très bien")
-    assert view.opinion.comebacks == []
+    result = act(revue, row, act="opinion", value="nuance", text="Oui.")
+    assert result.error_fr and result.session.comptoir.opinion is None, "«Oui.» is nudged, never printed"
+    text = "ça depend, le marché est tres bien mais il y a trop de monde"
+    view = act(revue, row, act="opinion", value="nuance", text=text).session.comptoir
+    assert view.opinion.proof == "marked" and [(m.span_fr, m.kind) for m in view.opinion.marks] == [("tres", "orthographe")]
+    assert view.opinion.comebacks == [] and view.opinion.reply is None
+    view = act(revue, row, act="opinion_fix", text="Ça depend, le marché est très bien mais il y a trop de monde").session.comptoir
+    assert view.opinion.proof == "fixed" and view.opinion.tries == 1
+    assert view.opinion.printed_fr == "Ça depend, le marché est très bien mais il y a trop de monde."
+    assert len([c for c in fake.calls if c[0] == "comptoir_edit"]) == 1, "a fix that matches her correction: no call"
+    assert view.opinion.reply is not None and view.opinion.comebacks == []
     assert act(revue, row, act="comeback", text="  ").error_fr
     view = act(revue, row, act="comeback", text="Et toi, tu viens au marché le dimanche ?").session.comptoir
     assert view.opinion.comeback.text_fr.startswith("Et toi") and view.opinion.comeback.last_word.fr.startswith("Touché.")
     _, closing = revue.close(row)
-    assert closing.comptoir_page.votes.nuance == 2
+    assert closing.comptoir_page.votes.nuance == 2 and closing.comptoir_page.proof == "fixed"
+    assert closing.dispatch.byline_fr.startswith("Romy Tremblay, avec toi")
+    used = [word for word in closing.kept.words if word.used]
+    assert closing.kept.words[: len(used)] == used, "the words the learner used come first"
+
+
+def test_two_tries_then_romy_corrects_what_is_left(db: Session) -> None:
+    revue = Revue(db, FakeRevueProvider())
+    row = revue.start(make_user(db, level="B1.1"), week=WEEK)
+    act(revue, row, act="vote", value="pour")
+    for guest in (ROMY, MARGAUX, GUS):
+        act(revue, row, act="react", guest_id=guest, value="agree")
+    act(revue, row, act="intox_who", guest_id=GUS)
+    act(revue, row, act="intox_fix", text="C'est six jours sur sept, pas sept jours sur sept.")
+    text = "Le gens sont content parce que le marché ouvre aussi le mardi et le vendredi matin"
+    assert act(revue, row, act="opinion", value="pour", text=text).session.comptoir.opinion.proof == "marked"
+    view = act(revue, row, act="opinion_fix", text=text.replace("Le gens", "Les gens")).session.comptoir
+    assert view.opinion.proof == "marked" and view.opinion.tries == 1
+    view = act(revue, row, act="opinion_fix", text=text.replace("Le gens", "Les gens") + " !").session.comptoir
+    assert view.opinion.proof == "marked", "punctuation alone is not a fix"
+    view = act(revue, row, act="opinion_fix", text=text.replace("Le gens", "Les gens").replace("matin", "midi")).session.comptoir
+    assert view.opinion.proof == "corrected" and view.opinion.tries == 2
+    assert view.opinion.printed_fr.startswith("Les gens sont contents parce que")
 
 
 def grade(**kwargs) -> bool:
@@ -376,7 +443,10 @@ def test_the_correction_is_graded_on_the_true_value() -> None:
     from app.services.revue.comptoir import repair_comptoir
 
     intox = repair_comptoir(gold(), numbers)[0].intox
-    assert comptoir_loop.grade_fix(intox, text="C'est faux, Gus ! C'est 500 000, pas un million.")
+    assert comptoir_loop.grade_fix(intox, text="C'est faux, Gus ! C'est 500 000 personnes, pas un million.")
+    assert not comptoir_loop.grade_fix(intox, text="C'est faux, Gus ! C'est 500 000, pas un million."), (
+        "the number alone is not the true value (2026-10-23)")
+    assert not comptoir_loop.grade_fix(intox, text="500 000 personnes"), "a correction is a sentence"
     assert comptoir_loop.grade_fix(intox, text="Plus de 500000 personnes !")
     assert not comptoir_loop.grade_fix(intox, text="C'est faux ! C'est un million, pas 500 000.")
 
@@ -390,7 +460,7 @@ def test_a_failing_edit_keeps_the_learners_words_and_the_desks_reply(db: Session
         def comptoir_edit(self, context):
             return {"edited_fr": "Le marché d'Aligre ouvre 7 jours sur 7 et c'est formidable pour tout le quartier, "
                                  "vraiment, je le dis et je le répète à tout le monde ici.",
-                    "notes": [], "reply_fr": "Merde alors !", "reply_en": "", "reply_de": ""}
+                    "marks": [], "reply_fr": "Merde alors !", "reply_en": "", "reply_de": ""}
 
     for provider in (Broken(), Wild()):
         revue = Revue(db, provider)
@@ -400,9 +470,11 @@ def test_a_failing_edit_keeps_the_learners_words_and_the_desks_reply(db: Session
             act(revue, row, act="react", guest_id=guest, value="agree")
         act(revue, row, act="intox_who", guest_id=GUS)
         act(revue, row, act="intox_fix", text="C'est six jours sur sept, pas sept jours sur sept.")
-        view = act(revue, row, act="opinion", value="pour", text="j'aime le marché").session.comptoir
-        assert view.opinion.edited_fr == "j'aime le marché.", type(provider).__name__
-        assert view.opinion.notes == []
+        text = "j'aime le marché parce que les légumes sont frais et pas chers le dimanche"
+        view = act(revue, row, act="opinion", value="pour", text=text).session.comptoir
+        assert view.opinion.proof == "as_written", type(provider).__name__
+        assert view.opinion.printed_fr == f"{text}.", "printed as written, said so: never «relu par Romy»"
+        assert view.opinion.marks == []
         assert view.opinion.reply.line.fr == view_reply(row, "pour")
 
 
@@ -421,7 +493,8 @@ def test_a_band_without_the_intox_has_four_steps(db: Session, monkeypatch) -> No
         view = act(revue, row, act="react", guest_id=guest, value="agree").session.comptoir
     assert view.step == "opinion" and view.intox is None
     assert out_of_order(revue, row, act="intox_who", guest_id=GUS)
-    act(revue, row, act="opinion", value="pour", text="Céline chante bien.")
+    assert act(revue, row, act="opinion", value="pour", text="Céline chante bien.").error_fr, "B1: twelve words"
+    act(revue, row, act="opinion", value="pour", text="Céline chante bien et sa voix fait plaisir à tout le monde dans la salle.")
     _, closing = revue.close(row)
     assert closing.comptoir_page.intox is None, "the close needs the opinion, not the comeback"
 

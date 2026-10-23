@@ -240,7 +240,8 @@ type RvSessionView = {
     support: RvSupport;                      // current (after any simplify)
     vocabulary: RvGloss[];                   // 5 (A1/A2) or 7 (B1+) words, each tied to a claim
     make_options: RvMakeKind[];              // A1/A2: ["headline_choice", "reader_question"];
-                                             // B1+: ["headline_choice", "headline_write", "reader_question", "short_report"]
+                                             // B1+: ["headline_write", "reader_question", "short_report"]
+                                             // (headline_choice is A1–A2 only since 2026-10-23)
     budget: { turns: number; minutes: number };
   };
   stage: RvStage;
@@ -248,7 +249,9 @@ type RvSessionView = {
   room: RvRoom;
   thread: RvThreadItem[];
   quick_replies: RvQuickReply[];
-  steer_to_make: boolean;                    // the column is at bouclage/bouclé and nothing is made yet
+  steer_to_make: boolean;                    // the column is at bouclage/bouclé, nothing is made yet and own_line
+  own_line: boolean;                         // 2026-10-23: the learner typed or said a line of their own (a quick-reply
+                                             // chip is not one); «Écrire le papier» and the make wait for it
   artifact: RvMade | null;                   // the latest made thing
   closing: RvClosing | null;                 // set once closed (the `ended` read-only page)
 };
@@ -266,6 +269,7 @@ type RvTurnResult = {
   support: RvSupport;
   quick_replies: RvQuickReply[];
   steer_to_make: boolean;
+  own_line: boolean;           // 2026-10-23: as on the session view
   evidence: RvEvidence;        // phase 2: the Papier rubric, §6.3
 };
 ```
@@ -312,13 +316,15 @@ type RvMakeOffer = {
     | { kind: "reader_question"; seed_fr: string | null /* the learner's open question */; uncertainty_fr: string | null }
     | { kind: "short_report"; seconds: number /* 30 */ }      // phase 2, B1+
     | { kind: "caption"; format: "choice" | "write"; picture_url: string;   // §8: only with the story's own picture
-        options: { id: string; text_fr: string }[] /* choice: 3; write: [] */; words: RvGloss[]; max_words: number }
+        options: { id: string; text_fr: string }[]; words: RvGloss[]; max_words: number }
+        // 2026-10-23: always "write"; options are the three captions to pick from at A1–A2 only after a refused try, else []
   )[];                          // an unavailable option is absent, never greyed; order as listed
   intro: RvThreadItem /* line, role "make_intro" */ | null;  // phase 2: written once, on the first GET
 };
 ```
 `headline_choice` is absent when the Distinguishable check fails (a distractor no shown claim contradicts, or
-the answer is unsupported), after one regeneration. `409 revue_session_closed` after the close.
+the answer is unsupported), after one regeneration, and from B1 (2026-10-23). `409 revue_session_closed` after the
+close; `409 revue_make_needs_a_line` until the learner has typed or said a line of their own (`own_line`).
 
 ### 3.7 `POST /revue/sessions/{id}/make` — make something
 Body, discriminated by `kind` + `action`:
@@ -352,12 +358,16 @@ Responses:
 { kind: "caption"; format: "choice" | "write"; accepted: boolean;
   correct: boolean | null; answer_id: string | null;    // choice only
   evidence: RvEvidence | null;                          // write only
-  made: RvMade | null; line: RvLineItem | null /* make_done */ }
+  made: RvMade | null; line: RvLineItem | null /* make_done */;
+  options: { id: string; text_fr: string }[] }          // 2026-10-23: a refused written caption at A1–A2: the three to pick from
 ```
 `pick` also returns `line` (phase 2): Romy's `make_done` line.
 Errors: `409 {"detail": {"code": "revue_make_unavailable", "kind": "headline_choice"}}` (also for
-`headline_write` / `short_report` below B1, and `caption` without the story's picture);
-`422 {"detail": {"code": "revue_unknown_option"}}`; `409 revue_session_closed`.
+`headline_write` / `short_report` below B1, `headline_choice` from B1, and `caption` without the story's picture);
+`409 revue_make_needs_a_line` before a line of the learner's own; `409 revue_caption_write_first` for a caption
+pick before a refused written try (2026-10-23); `422 {"detail": {"code": "revue_unknown_option"}}`; `409
+revue_session_closed`. A pick (headline or caption) is never credited: `contribution: []`, and the close's byline
+says «Romy Tremblay» without «avec toi» unless the filed thing holds words the learner wrote.
 
 ### 3.8 `POST /revue/sessions/{id}/close` — Romy does something with it
 Body `{}`. Idempotent: a second call returns the stored closing. Writes Romy's `NPCMemory`
@@ -398,7 +408,7 @@ Response `200 { "session": RvSessionView, "closing": RvClosing }`.
 | 401 | `"Not authenticated"` / `"Could not validate credentials"` | no or bad token (flag on) |
 | 404 | `"Not Found"` (a string) | `REVUE_ENABLED` is false — every route |
 | 404 | `{code: "revue_session_not_found"}` · `{code: "revue_dossier_not_found", dossier_id}` | flag on |
-| 409 | `{code: "revue_session_active", session_id}` · `{code: "revue_week_filed", session_id}` · `{code: "revue_session_closed"}` · `{code: "revue_make_unavailable", kind}` | |
+| 409 | `{code: "revue_session_active", session_id}` · `{code: "revue_week_filed", session_id}` · `{code: "revue_session_closed"}` · `{code: "revue_make_unavailable", kind}` · `{code: "revue_make_needs_a_line"}` · `{code: "revue_caption_write_first"}` (2026-10-23) | |
 | 422 | FastAPI validation list, or `{code: "revue_unknown_option"}` | |
 | 429 | the paid-route limiter (`rate_limited`) | once the Revue POSTs are listed in `PAID_ROUTES` |
 
@@ -603,6 +613,12 @@ The arrive beat's lines are then `look`, `purpose`:
 `"stand_in"` (another place's plate, with Romy's `place_note`).
 
 ### 8.2 «La légende» (`caption`)
+**Since 2026-10-23 every band writes it first** (`format: "write"`, the picture's words as tiles); a caption
+under the band's fewest words (`grading.CAPTION_WORDS`: 2 · 3 · 4 · 5) is refused like a contradicted one
+(«Un peu court pour une légende…»), and at A1–A2 a refused try returns the three captions in `options` (and the
+make offer carries them on a resume): a pick then files the picture's own caption, never credited
+(`contribution: []`, «La légende que tu as choisie part sous l'image»). What follows describes the first build.
+
 Offered (and listed in `plan.make_options`) only while the story's picture is on the stage (at A1–A2, only when
 the builder gave its two decoy captions). `choice` at A1–A2:
 three captions, one says what the picture shows (the order fixed per session, the answer kept by the server until
@@ -640,7 +656,7 @@ the pick). `write` at B1+: `options` is empty, `max_words` is the band's (`gradi
 ### 8.3 The dispatch, Le Relevé, La Relecture
 `RvDispatch` (and every `ReleveEntry` of `GET /revue/releve`) carries `picture_url`, `caption_fr` and
 `caption_by_learner` (§1): the picture as the close printed it, under the learner's caption after «La légende»
-(right pick or a filed written caption), else under the desk's. A caption is never sent without its picture. The
+(a filed written caption; a right pick before 2026-10-23), else under the desk's. A caption is never sent without its picture. The
 client prints the credit «Illustration · Le Papier» under every caption. `RelectureOffer.kind` gains `"caption"`:
 a Papier whose written caption was filed comes back after six weeks with its `plate_url` (the picture) and
 `prompt_fr` «Regarde l'image : quelle légende écrirais-tu aujourd'hui ?»; the new caption is graded as a caption.
@@ -670,7 +686,7 @@ type RvSessionView = { /* §3.4 */
   comptoir: RvComptoirView | null;
 };
 type RvClosing = { /* §3.8 */ comptoir_page: RvComptoirPage | null };
-type RvMade = { kind: /* … */ | "opinion" };  // the learner's quote; text_fr = Romy's edit, learner_fr = theirs
+type RvMade = { kind: /* … */ | "opinion" };  // the learner's quote; text_fr = what printed, learner_fr = only what they typed or said
 ```
 A comptoir session has no thread (no Romy arrival): `thread: []`, and `turns`, `GET/POST make` answer `409
 {code: "revue_comptoir_session"}`. `POST /close` builds «La page» without a model call (needs the opinion: else
@@ -679,8 +695,9 @@ A comptoir session has no thread (no Romy arrival): `thread: []`, and `turns`, `
 ### 9.2 `RvComptoirView`
 Only the learner's band (`a1`, `a2`, `b1`; B2 reads b1) and translations in the learner's gloss language (`tr`,
 `null` for a French gloss language). Nothing is sent before its step: the liar (`intox.by`), the true value and
-the distractor (`options`, `prefill_fr`, `fix`) only once the learner named the liar or used two tries; the
-step-4 material (`kit`) from the opinion step; the reply only after the opinion.
+the distractor (`options`, `fix`) only once the learner named the liar or used two tries; the
+step-4 material (`kit`) from the opinion step; the reply only once the opinion is settled (2026-10-23: no longer
+after Romy's marks); Romy's corrected sentence never before it prints.
 ```ts
 type RvComptoirText = { fr: string; tr: string | null };
 type RvComptoirView = {
@@ -699,15 +716,21 @@ type RvComptoirView = {
     hint_claim: RvClaim | null;                 // after a wrong guess: the claim to reread
     ask: RvComptoirText | null;                 // «Combien de jours par semaine, en vrai ?»
     options: string[];                          // A1–A2: right and distractor, in a per-session order
-    prefill_fr: string | null;                  // B1+: «C'est faux, Gus ! C'est …, pas sept jours sur sept.»
+                                                // (B1+ writes the correction from an empty field: no prefill since 2026-10-23)
     fix: { correct: boolean; answer_fr: string; line_fr: string /* the right sentence, always */;
            wrong_fr: string; right_fr: string; claim: RvClaim | null; caught: RvComptoirText } | null;
   } | null;
   kit: { input: "tiles" | "frame" | "free"; phrase: RvComptoirText;
          reasons: Record<Stance, RvComptoirText[]>; frames: Record<Stance, RvComptoirText>;
          bank: RvComptoirText[] /* A2 only */; opponents: Record<Stance, string> /* who answers each side */ } | null;
-  opinion: { stance: Stance; learner_fr: string; edited_fr: string; notes: { span_fr: string; why: string }[];
-             reply: { by: string; name_fr: string; line: RvComptoirText };
+  opinion: { stance: Stance; learner_fr: string /* as first given, with the A2 frame */;
+             draft_fr: string;                  // the learner's words at their last try
+             proof: "clean" | "marked" | "fixed" | "corrected" | "as_written";   // 2026-10-23, §9.5
+             marks: { span_fr: string; start: number; kind: "accord" | "conjugaison" | "genre" | "orthographe"
+                      | "mot" | "ordre" | "manque" }[];   // `marked` only: the learner's words to fix, at most three
+             tries: number; max_tries: number /* 2 */;
+             printed_fr: string | null;         // what goes to print, once settled; null while `marked`
+             reply: { by: string; name_fr: string; line: RvComptoirText } | null;   // once settled
              comebacks: RvComptoirText[] /* A1–A2: «Pas du tout !», «Un peu…», the desk's */;
              comeback: { text_fr: string; index: number | null; last_word: RvComptoirText } | null } | null;
 };
@@ -723,15 +746,16 @@ Body `RvComptoirRequest {act, guest_id?, value?, text?, mode?: "text" | "voice",
 | `intox_who` | `guest_id` | the intox step; two tries, then `by` is revealed |
 | `intox_fix` | A1–A2 `value` (one of `options`); B1+ `text` | after the liar is named or revealed; once |
 | `opinion` | `value` (the side, default the vote); A1 `reason_index`; A2+ `text` | after the reactions and the fix; once |
+| `opinion_fix` | `text` (the whole sentence again); or `value: "romy"` after one try | while the opinion is `marked` (2026-10-23) |
 | `comeback` | A1–A2 `index` (0–2); B1+ `text` | after the opinion; once |
 
 Response `200 RvComptoirResult {session: RvSessionView, error_fr: string | null}`. An act already recorded
 (`intox_fix`, `opinion`, `comeback`, the same vote or reaction) returns the session unchanged: a double submit
-never calls the model twice. `error_fr` says why an act the learner can fix was not recorded (an empty reason:
-«Écris ta raison : quelques mots suffisent.»). The opinion at A2+ makes one model call (`comptoir_edit`): Romy's
-edit, at most two notes in the learner's gloss language (their UI language when that is French), and the reply of `opponents[side]`, in character; checked
-(an edit at most 1.6× the learner's length with no new number and no app words; a reply of 22 words at most that
-passes the desk's checks), else the learner's own sentence (typography only) and the desk's counter-line.
+never calls the model twice. `error_fr` says why an act the learner can fix was not recorded: since 2026-10-23
+an opinion under the band's floor (A2 4 words after the frame, B1+ 12: «C'est un début ! Encore un peu :
+pourquoi ? 4 mots au moins.»), a B1+ intox correction under 4 words («Une phrase entière, s'il te plaît : dis à
+Gus ce qui est vrai.»), a fix that changed nothing («Rien n'a changé : regarde les mots soulignés.»). §9.5 says
+how the opinion is checked.
 
 | Status | `detail` | When |
 |---|---|---|
@@ -747,7 +771,8 @@ Listed in `PAID_ROUTES`.
 type RvComptoirPage = {
   question_fr: string; dateline_fr: string; standfirst_fr: string;   // the lead's first sentence
   quotes: { cast_id: string; name_fr: string; role_fr: string; stance: Stance; quote_fr: string }[];  // ×3
-  mine: { cast_id: "user"; name_fr: "Toi"; role_fr: ""; stance: Stance; quote_fr: string };  // Romy's edit
+  mine: { cast_id: "user"; name_fr: "Toi"; role_fr: ""; stance: Stance; quote_fr: string };  // what printed
+  proof: "clean" | "fixed" | "corrected" | "as_written" | null;   // 2026-10-23: how it reached print (null before)
   votes: { pour: number; contre: number; nuance: number };   // the three regulars and the learner
   intox: { by: string; name_fr: string; wrong_fr: string; right_fr: string; source_name: string } | null;
   phrase_fr: string;   // the phrase of the day at the learner's band
@@ -755,4 +780,22 @@ type RvComptoirPage = {
 };
 ```
 The dispatch: kicker «Le micro-trottoir de Romy», headline = the question, body = [the standfirst, «Toi : « … »»],
-`contribution: []`. Romy's line: «Merci ! Ta voix est dans le micro-trottoir.» The vignette rings `report`.
+`contribution: []`, byline «Romy Tremblay, avec toi» only when words the learner typed or said are printed (never
+for A1's tiles). Romy's line: «Merci ! Ta voix est dans le micro-trottoir.» The vignette rings `report`. The kept
+words (2026-10-23) are only the plan's words the learner met at the counter (the lead, the takes, the facts
+shown, the question), the ones they used first, plus one word of the A2 bank they used when they used none.
+
+### 9.5 Romy's proof (2026-10-23)
+The opinion at A2+ makes one model call (`comptoir_edit`, prompt `comptoir-edit-v3`): Romy's corrected sentence
+(kept back as the target, never shown before print), her hints and the reply of `opponents[side]`. The marks are
+the learner's own words where they differ from the target (a word diff; typography, the first capital and the
+punctuation aside), with the kind of slip, the model's hint winning where it covers them; at most three.
+- No marks: `clean`, printed as the target («Dans le journal · relu par Romy»).
+- Marks: `marked`. Nothing prints and nobody answers; the learner sends the sentence again (`opinion_fix`). A fix
+  that matches the target, or that a new check finds clean, is `fixed` («corrigé par toi»); after the second try
+  still wrong, or `value: "romy"` after one, `corrected` (her target prints, the words she changed lit, «corrigé
+  par Romy»).
+- The call fails or its checks refuse the edit: `as_written`, the learner's sentence prints with typography only
+  («tel que tu l'as écrit»), never «relu par Romy». An A1 learner who types instead of the tiles: `as_written`.
+- A1's tiles: `clean` (correct by construction), plain «Dans le journal».
+`POST /close` needs a settled opinion (`409 revue_comptoir_out_of_order` while `marked`).

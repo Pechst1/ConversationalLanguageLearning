@@ -10,19 +10,19 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! La frangipane, c'est du vrai beurre.",
-     "en": "I'm for it! Frangipane is real butter.",
-     "de": "Ich bin dafür! Frangipane ist echte Butter."
+     "fr": "Je suis pour ! En janvier, c'est frangipane pour moi. Du vrai beurre !",
+     "en": "I'm for it! In January, it's frangipane for me. Real butter!",
+     "de": "Ich bin dafür! Im Januar gibt's für mich Frangipane. Echte Butter!"
     },
     "a2": {
-     "fr": "La frangipane, c'est crémeux, voyons donc. La brioche, c'est pour le petit-déjeuner.",
-     "en": "Frangipane is creamy, come on. Brioche is for breakfast.",
-     "de": "Frangipane ist cremig, ach komm. Brioche ist fürs Frühstück."
+     "fr": "Pour l'Épiphanie, en janvier, je prends la frangipane : c'est crémeux, voyons donc. La brioche, c'est pour le petit-déjeuner.",
+     "en": "For Epiphany, in January, I go for frangipane: it's creamy, come on. Brioche is for breakfast.",
+     "de": "Zum Dreikönigstag im Januar nehme ich Frangipane: Die ist cremig, ach komm. Brioche ist fürs Frühstück."
     },
     "b1": {
-     "fr": "Je suis pour, parce que la frangipane est crémeuse, et la brioche, c'est juste du pain sucré. Gus fait son show, mais moi, je mange la vraie galette.",
-     "en": "I'm for it, because frangipane is creamy, and brioche is just sweet bread. Gus is putting on a show, but I eat the real galette.",
-     "de": "Ich bin dafür, weil Frangipane cremig ist, und Brioche ist nur süßes Brot. Gus macht wieder Show, aber ich esse die echte Galette."
+     "fr": "Je suis pour, parce que la frangipane est crémeuse, et la brioche, c'est juste du pain sucré. Gus fait son show, mais moi, pour l'Épiphanie, je mange la vraie galette.",
+     "en": "I'm for it, because frangipane is creamy, and brioche is just sweet bread. Gus is putting on a show, but at Epiphany, I eat the real galette.",
+     "de": "Ich bin dafür, weil Frangipane cremig ist, und Brioche ist nur süßes Brot. Gus macht wieder Show, aber ich esse zum Dreikönigstag die echte Galette."
     }
    },
    "quote": {
@@ -36,19 +36,19 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend, mon chou. La frangipane, oui. La brioche, aussi.",
-     "en": "It depends, sweetie. Frangipane, yes. Brioche, too.",
-     "de": "Kommt drauf an, Schatz. Frangipane, ja. Brioche auch."
+     "fr": "Ça dépend, mon chou. La frangipane, oui. La brioche de Toulouse, aussi !",
+     "en": "It depends, sweetie. Frangipane, yes. The brioche from Toulouse, too!",
+     "de": "Kommt drauf an, Schatz. Frangipane, ja. Die Brioche aus Toulouse auch!"
     },
     "a2": {
-     "fr": "Mon chou, ça dépend ! La frangipane, c'est crémeux. La brioche, c'est léger. Toi, tu choisis quoi ?",
-     "en": "Sweetie, it depends! Frangipane is creamy. Brioche is light. What do you choose?",
-     "de": "Schatz, kommt drauf an! Frangipane ist cremig. Brioche ist leicht. Was wählst du?"
+     "fr": "Mon chou, ça dépend ! La frangipane, c'est crémeux. À Toulouse, on mange surtout la brioche, plus légère. Toi, tu choisis quoi ?",
+     "en": "Sweetie, it depends! Frangipane is creamy. In Toulouse, people mostly eat brioche, which is lighter. What do you choose?",
+     "de": "Schatz, kommt drauf an! Frangipane ist cremig. In Toulouse isst man vor allem Brioche, die ist leichter. Was wählst du?"
     },
     "b1": {
-     "fr": "D'un côté, la frangipane est crémeuse et bonne. De l'autre, la brioche est légère, même si Romy dit que c'est du pain. Mais arrête, on mange les deux !",
-     "en": "On the one hand, frangipane is creamy and good. On the other, brioche is light, even if Romy says it's just bread. Oh come on, let's eat both!",
-     "de": "Einerseits ist Frangipane cremig und gut. Andererseits ist Brioche leicht, auch wenn Romy sagt, es sei nur Brot. Ach komm, wir essen beides!"
+     "fr": "D'un côté, la frangipane est crémeuse et bonne. De l'autre, la brioche de Toulouse est légère, même si Romy dit que c'est du pain. Mais arrête, on mange les deux !",
+     "en": "On the one hand, frangipane is creamy and good. On the other, the Toulouse brioche is light, even if Romy says it's just bread. Oh come on, let's eat both!",
+     "de": "Einerseits ist Frangipane cremig und gut. Andererseits ist die Brioche aus Toulouse leicht, auch wenn Romy sagt, es sei nur Brot. Ach komm, wir essen beides!"
     }
    },
    "quote": {

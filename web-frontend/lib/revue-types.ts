@@ -250,6 +250,8 @@ export type RvSessionView = {
   thread: RvThreadItem[];
   quickReplies: RvQuickReply[];
   steerToMake: boolean;
+  /** The learner typed or said a line of their own (a chip is not one): «Écrire le papier» waits for it. */
+  ownLine: boolean;
   artifact: RvMade | null;
   closing: RvClosing | null;
   /** «Au comptoir»: fixed at the start for the session's life; `chat` with the switch off. */
@@ -274,13 +276,14 @@ export type RvTurnResult = {
   support: RvSupport;
   quickReplies: RvQuickReply[];
   steerToMake: boolean;
+  ownLine: boolean;
   evidence: RvEvidence;
 };
 export type RvHeadlineOption = { id: string; textFr: string };
 /**
- * §8.4 «La légende»: the caption under the story's picture. `choice` (A1–A2): three captions,
- * one says what the picture shows (the answer stays on the server until the pick); `write`
- * (B1+): the learner writes it, `maxWords` at most, with the picture's words as chips.
+ * §8.4 «La légende»: the caption under the story's picture. Every band writes it (2026-10-23),
+ * `maxWords` at most, with the picture's words as chips. `options` (A1–A2): three captions to
+ * choose from instead, only after a refused try (the answer stays on the server until the pick).
  */
 export type RvCaptionOffer = {
   kind: 'caption';
@@ -323,9 +326,10 @@ export type RvWriteResult = {
 };
 export type RvReportResult = { kind: 'short_report'; evidence: RvEvidence; made: RvMade; line: RvLineItem | null };
 /**
- * «La légende» filed (or refused). `choice`: `correct` and `answerId` (a wrong pick files the
- * caption the picture shows, uncredited); `write`: the rubric's `evidence`, and `accepted`
- * false when a claim contradicts it (nothing filed: write again).
+ * «La légende» filed (or refused). `choice`: `correct` and `answerId` (a pick files the caption
+ * the picture shows, never credited to the learner); `write`: the rubric's `evidence`, and
+ * `accepted` false when a claim contradicts it or it is too short (nothing filed: write again;
+ * at A1–A2 `options` are the three captions to pick from instead).
  */
 export type RvCaptionResult = {
   kind: 'caption';
@@ -336,6 +340,7 @@ export type RvCaptionResult = {
   evidence: RvEvidence | null;
   made: RvMade | null;
   line: RvLineItem | null;
+  options: RvHeadlineOption[];
 };
 export type RvMakeResult =
   | RvPickResult
@@ -370,6 +375,8 @@ export type RvErrorCode =
   | 'revue_week_filed'
   | 'revue_session_closed'
   | 'revue_make_unavailable'
+  | 'revue_make_needs_a_line'
+  | 'revue_caption_write_first'
   | 'revue_unknown_option'
   | 'revue_not_comptoir'
   | 'revue_comptoir_session'
@@ -412,6 +419,8 @@ export function parseRevueError(status: number, data: unknown): RevueError {
       'revue_week_filed',
       'revue_session_closed',
       'revue_make_unavailable',
+      'revue_make_needs_a_line',
+      'revue_caption_write_first',
       'revue_unknown_option',
       'revue_not_comptoir',
       'revue_comptoir_session',
@@ -766,6 +775,7 @@ export function parseSessionView(raw: Json): RvSessionView {
     thread: parseThread(raw.thread),
     quickReplies: list(raw.quick_replies, parseQuickReply),
     steerToMake: Boolean(raw.steer_to_make),
+    ownLine: raw.own_line === true,
     artifact: isObject(raw.artifact) ? parseMade(raw.artifact) : null,
     closing: isObject(raw.closing) ? parseClosing(raw.closing) : null,
     // A comptoir session without its view is drawn as a chat: never a player with nothing to show.
@@ -800,6 +810,7 @@ export function parseTurnResult(raw: Json): RvTurnResult {
     support: parseSupport(isObject(raw.support) ? raw.support : {}),
     quickReplies: list(raw.quick_replies, parseQuickReply),
     steerToMake: Boolean(raw.steer_to_make),
+    ownLine: raw.own_line === true,
     evidence: parseEvidence(isObject(raw.evidence) ? raw.evidence : {}),
   };
 }
@@ -875,6 +886,7 @@ export function parseMakeResult(raw: Json): RvMakeResult {
       evidence: isObject(raw.evidence) ? parseEvidence(raw.evidence) : null,
       made: isObject(raw.made) ? parseMade(raw.made) : null,
       line,
+      options: list(raw.options, (row) => ({ id: str(row.id), textFr: str(row.text_fr) })).filter((row) => row.id && row.textFr),
     };
   }
   if (isObject(raw.draft)) {
@@ -996,7 +1008,7 @@ export type RvComptoirFix = {
   claim: RvClaim | null;
   caught: RvComptoirText;
 };
-/** Step 3. `by`, the options and the prefill are absent until the liar is named (or two tries are used). */
+/** Step 3. `by` and the options are absent until the liar is named (or two tries are used); B1+ write the correction. */
 export type RvComptoirIntox = {
   quotes: RvComptoirQuote[];
   tries: string[];
@@ -1006,7 +1018,6 @@ export type RvComptoirIntox = {
   hintClaim: RvClaim | null;
   ask: RvComptoirText | null;
   options: string[];
-  prefillFr: string | null;
   fix: RvComptoirFix | null;
 };
 export type RvComptoirKit = {
@@ -1018,15 +1029,33 @@ export type RvComptoirKit = {
   /** Who answers a learner on each side (B1: «Réponds à …»). */
   opponents: Record<RvStance, string>;
 };
-export type RvComptoirNote = { spanFr: string; why: string };
+/** What Romy marks: the kind of slip, never the answer. */
+export type RvComptoirMarkKind = 'accord' | 'conjugaison' | 'genre' | 'orthographe' | 'mot' | 'ordre' | 'manque';
+export const RV_COMPTOIR_MARK_KINDS = ['accord', 'conjugaison', 'genre', 'orthographe', 'mot', 'ordre', 'manque'] as const;
+/**
+ * Where the opinion stands before print (2026-10-23): `clean` nothing to fix, `marked` Romy's
+ * marks to fix, `fixed` the learner fixed them, `corrected` Romy fixed what was left after the
+ * tries, `as_written` no check ran (printed as the learner wrote it, never «relu par Romy»).
+ */
+export type RvComptoirProof = 'clean' | 'marked' | 'fixed' | 'corrected' | 'as_written';
+export const RV_COMPTOIR_PROOFS = ['clean', 'marked', 'fixed', 'corrected', 'as_written'] as const;
+export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind };
 export type RvComptoirComeback = { textFr: string; index: number | null; lastWord: RvComptoirText };
 export type RvComptoirOpinion = {
   stance: RvStance;
+  /** The sentence as first given (with the A2 frame). */
   learnerFr: string;
-  /** Romy's edit (the learner's own sentence when the edit failed its checks). */
-  editedFr: string;
-  notes: RvComptoirNote[];
-  reply: { by: string; nameFr: string; line: RvComptoirText };
+  /** The learner's words at their last try. */
+  draftFr: string;
+  proof: RvComptoirProof;
+  /** `marked`: what to fix in `draftFr`. */
+  marks: RvComptoirMark[];
+  tries: number;
+  maxTries: number;
+  /** What goes to print, once settled (null while `marked`). */
+  printedFr: string | null;
+  /** The regular's answer, once the sentence is printed. */
+  reply: { by: string; nameFr: string; line: RvComptoirText } | null;
   /** A1–A2: the three comeback chips; empty from B1 (one free line). */
   comebacks: RvComptoirText[];
   comeback: RvComptoirComeback | null;
@@ -1052,6 +1081,8 @@ export type RvComptoirPage = {
   standfirstFr: string;
   quotes: RvComptoirQuote[];
   mine: RvComptoirQuote;
+  /** How the learner's quote reached print (null on a page closed before 2026-10-23). */
+  proof: RvComptoirProof | null;
   votes: RvComptoirVotes;
   intox: { by: string; nameFr: string; wrongFr: string; rightFr: string; sourceName: string } | null;
   phraseFr: string;
@@ -1067,6 +1098,8 @@ export type RvComptoirBody =
   | { act: 'intox_fix'; text: string; mode?: 'text' | 'voice' }
   | { act: 'opinion'; value: RvStance; reasonIndex: number }
   | { act: 'opinion'; value: RvStance; text: string; mode?: 'text' | 'voice' }
+  | { act: 'opinion_fix'; text: string; mode?: 'text' | 'voice' }
+  | { act: 'opinion_fix'; value: 'romy' }
   | { act: 'comeback'; index: number }
   | { act: 'comeback'; text: string; mode?: 'text' | 'voice' };
 
@@ -1122,7 +1155,6 @@ export function parseComptoirView(raw: Json): RvComptoirView {
           hintClaim: isObject(intox.hint_claim) ? parseClaim(intox.hint_claim) : null,
           ask: isObject(intox.ask) ? comptoirText(intox.ask) : null,
           options: Array.isArray(intox.options) ? intox.options.map(str).filter(Boolean) : [],
-          prefillFr: strOrNull(intox.prefill_fr) || null,
           fix: fix
             ? {
                 correct: Boolean(fix.correct),
@@ -1150,9 +1182,17 @@ export function parseComptoirView(raw: Json): RvComptoirView {
       ? {
           stance: stanceOf(opinion.stance),
           learnerFr: str(opinion.learner_fr),
-          editedFr: str(opinion.edited_fr) || str(opinion.learner_fr),
-          notes: list(opinion.notes, (row) => ({ spanFr: str(row.span_fr), why: str(row.why) })).filter((note) => note.spanFr && note.why),
-          reply: { by: str(reply.by), nameFr: str(reply.name_fr), line: comptoirText(reply.line) },
+          draftFr: str(opinion.draft_fr) || str(opinion.learner_fr),
+          proof: oneOf(opinion.proof, RV_COMPTOIR_PROOFS, 'as_written'),
+          marks: list(opinion.marks, (row) => ({
+            spanFr: str(row.span_fr),
+            start: typeof row.start === 'number' ? row.start : 0,
+            kind: oneOf(row.kind, RV_COMPTOIR_MARK_KINDS, 'mot'),
+          })).filter((mark) => mark.spanFr),
+          tries: num(opinion.tries),
+          maxTries: num(opinion.max_tries) || 2,
+          printedFr: strOrNull(opinion.printed_fr) || null,
+          reply: reply && isObject(opinion.reply) ? { by: str(reply.by), nameFr: str(reply.name_fr), line: comptoirText(reply.line) } : null,
           comebacks: Array.isArray(opinion.comebacks) ? opinion.comebacks.filter(isObject).map(comptoirText) : [],
           comeback: comeback
             ? { textFr: str(comeback.text_fr), index: typeof comeback.index === 'number' ? comeback.index : null, lastWord: comptoirText(comeback.last_word) }
@@ -1171,6 +1211,7 @@ export function parseComptoirPage(raw: Json): RvComptoirPage {
     standfirstFr: str(raw.standfirst_fr),
     quotes: list(raw.quotes, parseComptoirQuote),
     mine: parseComptoirQuote(isObject(raw.mine) ? raw.mine : {}),
+    proof: raw.proof == null ? null : oneOf(raw.proof, RV_COMPTOIR_PROOFS, 'as_written'),
     votes: { pour: num(votes.pour), contre: num(votes.contre), nuance: num(votes.nuance) },
     intox: intox
       ? { by: str(intox.by), nameFr: str(intox.name_fr), wrongFr: str(intox.wrong_fr), rightFr: str(intox.right_fr), sourceName: str(intox.source_name) }

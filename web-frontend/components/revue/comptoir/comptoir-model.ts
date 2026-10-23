@@ -2,7 +2,7 @@
  * «Au comptoir» (WP-119-AU-COMPTOIR §5) · the player's pure parts, node-tested
  * (comptoir.test.js): which screen shows and when the learner may go on, the
  * step dots, the takes revealed one at a time, the A1 sentence built from tiles,
- * the word diff that marks Romy's red pen, the vote tally, the liar's quote with
+ * Romy's marks on the draft, the word diff of what she corrected, the vote tally, the liar's quote with
  * its wrong part struck.
  *
  * The server owns the state (`RvComptoirView.step`); the client only holds a
@@ -11,7 +11,7 @@
  * is never ahead of the server's.
  */
 
-import type { RvComptoirCast, RvComptoirStep, RvComptoirView, RvComptoirVotes, RvStance } from '@/lib/revue-types';
+import type { RvComptoirCast, RvComptoirMark, RvComptoirMarkKind, RvComptoirStep, RvComptoirView, RvComptoirVotes, RvStance } from '@/lib/revue-types';
 
 const ORDER: RvComptoirStep[] = ['read', 'takes', 'intox', 'opinion', 'page'];
 
@@ -130,11 +130,6 @@ export function insertWord(text: string, word: string): string {
   return head ? `${head} ${word}` : word;
 }
 
-/** The text the learner still has to fill in a B1 prefill («C'est …, pas …»). */
-export function hasBlank(text: string): boolean {
-  return text.includes('…');
-}
-
 // ---------------------------------------------------------------------------
 // Romy's red pen: the words she changed
 // ---------------------------------------------------------------------------
@@ -219,9 +214,38 @@ export function wordDiff(before: string, after: string): DiffSegment[] {
   return out;
 }
 
-/** Romy changed something (the label says «corrigé», else «relu»). */
+/** Romy changed something. */
 export function edited(before: string, after: string): boolean {
   return wordDiff(before, after).some((segment) => segment.changed);
+}
+
+export type MarkSegment = { text: string; kind: RvComptoirMarkKind | null };
+
+/**
+ * The learner's draft cut at Romy's marks (2026-10-23): each mark's words underlined with
+ * the kind of slip, the rest plain. A mark is found at its `start` (the server's offset),
+ * else at its first occurrence; a mark not in the draft or over another one is dropped.
+ */
+export function markSegments(text: string, marks: RvComptoirMark[]): MarkSegment[] {
+  const spans: Array<{ start: number; end: number; kind: RvComptoirMarkKind }> = [];
+  for (const mark of marks) {
+    if (!mark.spanFr) continue;
+    const at = text.slice(mark.start, mark.start + mark.spanFr.length) === mark.spanFr ? mark.start : text.indexOf(mark.spanFr);
+    if (at < 0) continue;
+    const end = at + mark.spanFr.length;
+    if (spans.some((span) => at < span.end && span.start < end)) continue;
+    spans.push({ start: at, end, kind: mark.kind });
+  }
+  spans.sort((a, b) => a.start - b.start);
+  const out: MarkSegment[] = [];
+  let last = 0;
+  for (const span of spans) {
+    if (span.start > last) out.push({ text: text.slice(last, span.start), kind: null });
+    out.push({ text: text.slice(span.start, span.end), kind: span.kind });
+    last = span.end;
+  }
+  if (last < text.length) out.push({ text: text.slice(last), kind: null });
+  return out;
 }
 
 // ---------------------------------------------------------------------------

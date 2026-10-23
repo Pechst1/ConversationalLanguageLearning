@@ -112,6 +112,30 @@ def test_the_desk_reads_the_storys_french_and_the_guests_sheets() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_every_honest_take_at_an_intox_band_carries_a_checkable_detail() -> None:
+    """2026-10-23: when only the liar's take holds a fact, «who lied?» is found by elimination."""
+
+    story = celine()
+    facts = comptoir._Checker(story).story
+    question = "Céline revient en 2027. Bonne nouvelle ?"
+    assert comptoir.details("Seize concerts, et j'ai pleuré.", facts, question) == ["seize"]
+    assert comptoir.details("J'ai pleuré au concert du 17 octobre.", facts, question) == ["17", "octobre"]
+    assert comptoir.details("Moi, j'adore Paris.", facts, question) == ["paris"]
+    assert comptoir.details("Céline revient en 2027 !", facts, question) == [], "the question's own words: no detail"
+    assert comptoir.details("Les fans, c'est bon pour la caisse.", facts, question) == []
+
+    raw = gold()
+    guest(raw, "margaux_barman")["a1"]["fr"] = "Ça dépend. Les fans, c'est bon pour la caisse. Pas pour mes oreilles."
+    takes, problems = comptoir.repair_comptoir(raw, story)
+    assert takes is not None and "comptoir:margaux_barman:a1:no_detail" in problems
+    assert takes.intox is not None and takes.intox.bands == ["a2", "b1"], "no intox where it is found by elimination"
+    assert "comptoir:margaux_barman:a1:no_detail" in comptoir.audit(takes, story), "the audit flags it"
+    for band in ("a2", "b1"):
+        guest(raw, "margaux_barman")[band]["fr"] = "D'un côté, c'est bon pour la caisse. De l'autre, c'est trop."
+    takes, problems = comptoir.repair_comptoir(raw, story)
+    assert takes is not None and takes.intox is None, "no band left: no intox"
+
+
 def test_the_prompts_own_example_passes_every_check() -> None:
     takes, problems = comptoir.repair_comptoir(gold(), celine())
     assert takes is not None and problems == []

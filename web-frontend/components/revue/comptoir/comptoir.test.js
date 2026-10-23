@@ -83,7 +83,26 @@ test('A1: the sentence from the tiles, «parce qu\'» before a vowel', () => {
   assert.equal(model.a1Sentence('contre', null), 'Je suis contre, parce que…');
   assert.equal(model.insertWord('la foule  ', 'le bruit'), 'la foule le bruit');
   assert.equal(model.insertWord('', 'le bruit'), 'le bruit');
-  assert.equal(model.hasBlank("C'est faux, Gus ! C'est …, pas sept jours sur sept."), true);
+});
+
+test('Romy\'s marks: the learner\'s words underlined where she found a slip, by offset, else by first occurrence', () => {
+  const draft = 'le gens sont content';
+  assert.deepEqual(model.markSegments(draft, [{ spanFr: 'le', start: 0, kind: 'accord' }, { spanFr: 'content', start: 13, kind: 'accord' }]), [
+    { text: 'le', kind: 'accord' },
+    { text: ' gens sont ', kind: null },
+    { text: 'content', kind: 'accord' },
+  ]);
+  assert.deepEqual(
+    model.markSegments(draft, [{ spanFr: 'gens', start: 99, kind: 'orthographe' }]),
+    [{ text: 'le ', kind: null }, { text: 'gens', kind: 'orthographe' }, { text: ' sont content', kind: null }],
+    'a stale offset falls back to the first occurrence',
+  );
+  assert.deepEqual(model.markSegments(draft, [{ spanFr: 'absent', start: 0, kind: 'mot' }]), [{ text: draft, kind: null }], 'a mark not in the draft is dropped');
+  assert.deepEqual(
+    model.markSegments(draft, [{ spanFr: 'le gens', start: 0, kind: 'accord' }, { spanFr: 'gens', start: 3, kind: 'mot' }]).filter((segment) => segment.kind),
+    [{ text: 'le gens', kind: 'accord' }],
+    'overlapping marks: the first stands',
+  );
 });
 
 test('Romy\'s red pen: only the words she changed, one run for neighbours, never punctuation', () => {
@@ -159,7 +178,6 @@ const RAW_VIEW = {
     hint_claim: claim,
     ask: { fr: 'Combien de jours par semaine, en vrai ?', tr: null },
     options: ['six jours sur sept', '91 marchés'],
-    prefill_fr: null,
     fix: { correct: true, answer_fr: 'six jours sur sept', line_fr: "C'est faux, Gus ! C'est six jours sur sept, pas sept jours sur sept.", wrong_fr: 'sept jours sur sept', right_fr: 'six jours sur sept', claim, caught: { fr: 'Bon, j’ai arrondi.', tr: 'Well, I rounded up.' } },
   },
   kit: {
@@ -173,8 +191,12 @@ const RAW_VIEW = {
   opinion: {
     stance: 'contre',
     learner_fr: 'le gens sont fatigués',
-    edited_fr: 'Les gens sont fatigués.',
-    notes: [{ span_fr: 'les gens', why: 'plural' }, { span_fr: '', why: 'dropped: no span' }],
+    draft_fr: 'les gens sont fatigués',
+    proof: 'fixed',
+    marks: [],
+    tries: 1,
+    max_tries: 2,
+    printed_fr: 'Les gens sont fatigués.',
     reply: { by: 'romy_tremblay', name_fr: 'Romy', line: { fr: 'Tu as peur du bruit ?', tr: 'Scared of the noise?' } },
     comebacks: [{ fr: 'Pas du tout !', tr: 'Not at all!' }, { fr: 'Un peu…', tr: 'A little…' }],
     comeback: { text_fr: 'Un peu…', index: 1, last_word: { fr: 'Ah bon ?', tr: 'Really?' } },
@@ -199,8 +221,32 @@ test('wire: a comptoir session view, snake_case in, camelCase out (WIRE §9.2)',
   assert.equal(view.intox.fix.caught.tr, 'Well, I rounded up.');
   assert.equal(view.kit.input, 'frame');
   assert.equal(view.kit.opponents.contre, 'romy_tremblay');
-  assert.deepEqual(view.opinion.notes, [{ spanFr: 'les gens', why: 'plural' }], 'a note without its span is dropped');
+  assert.equal(view.opinion.proof, 'fixed');
+  assert.equal(view.opinion.draftFr, 'les gens sont fatigués');
+  assert.equal(view.opinion.printedFr, 'Les gens sont fatigués.');
+  assert.deepEqual([view.opinion.tries, view.opinion.maxTries], [1, 2]);
   assert.equal(view.opinion.comeback.lastWord.fr, 'Ah bon ?');
+  // Romy's marks while the sentence waits: a mark without its words is dropped, an unknown kind is «mot».
+  const marked = types.parseComptoirView({
+    ...RAW_VIEW,
+    opinion: {
+      ...RAW_VIEW.opinion,
+      draft_fr: 'le gens sont fatigués',
+      proof: 'marked',
+      marks: [{ span_fr: 'le', start: 0, kind: 'accord' }, { span_fr: '', start: 0, kind: 'genre' }, { span_fr: 'gens', start: 3, kind: 'style' }],
+      tries: 0,
+      printed_fr: null,
+      reply: null,
+      comebacks: [],
+      comeback: null,
+    },
+  });
+  assert.deepEqual(marked.opinion.marks, [{ spanFr: 'le', start: 0, kind: 'accord' }, { spanFr: 'gens', start: 3, kind: 'mot' }]);
+  assert.equal(marked.opinion.printedFr, null);
+  assert.equal(marked.opinion.reply, null);
+  // A view from before the proof (2026-10-23) has no draft: the learner's sentence stands in.
+  const older = types.parseComptoirView({ ...RAW_VIEW, opinion: { stance: 'pour', learner_fr: 'Je suis pour.', reply: null, comebacks: [], comeback: null } });
+  assert.equal(older.opinion.draftFr, 'Je suis pour.');
   assert.equal(view.opinion.comeback.index, 1);
 });
 
@@ -233,12 +279,16 @@ test('wire: the act result, the page at the close, the act bodies (WIRE §9.3–
     words: ['marchés', 'jours'],
   });
   assert.equal(page.mine.quoteFr, 'Les gens sont fatigués.');
+  assert.equal(page.proof, null, 'a page closed before the proof');
+  assert.equal(types.parseComptoirPage({ proof: 'corrected' }).proof, 'corrected');
   assert.deepEqual(page.votes, { pour: 1, contre: 2, nuance: 1 });
   assert.equal(page.intox.sourceName, 'Wikipédia');
   assert.deepEqual(types.comptoirBodyWire({ act: 'react', guestId: 'romy_tremblay', value: 'agree' }), { act: 'react', guest_id: 'romy_tremblay', value: 'agree' });
   assert.deepEqual(types.comptoirBodyWire({ act: 'opinion', value: 'pour', reasonIndex: 2 }), { act: 'opinion', value: 'pour', reason_index: 2 });
   assert.deepEqual(types.comptoirBodyWire({ act: 'intox_fix', text: "C'est faux !", mode: 'voice' }), { act: 'intox_fix', text: "C'est faux !", mode: 'voice' });
   assert.deepEqual(types.comptoirBodyWire({ act: 'comeback', index: 0 }), { act: 'comeback', index: 0 });
+  assert.deepEqual(types.comptoirBodyWire({ act: 'opinion_fix', text: 'les gens', mode: 'text' }), { act: 'opinion_fix', text: 'les gens', mode: 'text' });
+  assert.deepEqual(types.comptoirBodyWire({ act: 'opinion_fix', value: 'romy' }), { act: 'opinion_fix', value: 'romy' });
   // The learner's quote is a Relevé entry of its own kind.
   assert.equal(types.parseMade({ kind: 'opinion', text_fr: 'Les gens sont fatigués.' }).kind, 'opinion');
   assert.ok(types.RV_MADE_KINDS.includes('opinion'));
@@ -349,7 +399,6 @@ for (const [band, language] of [['A1', 'en'], ['A2', 'de'], ['B1', 'en']]) {
     let intox = c.session.comptoir.intox;
     assert.equal(intox.by, null);
     assert.deepEqual(intox.options, []);
-    assert.equal(intox.prefillFr, null);
     html = c.screen();
     text = visibleText(html);
     assert.ok(has(text, "Attends… quelqu'un a dit un truc faux. Qui ?"));
@@ -372,7 +421,10 @@ for (const [band, language] of [['A1', 'en'], ['A2', 'de'], ['B1', 'en']]) {
       await c.act({ act: 'intox_fix', value: 'le 17 octobre' });
     } else {
       assert.match(html, /class="rv-composer"/, 'B1 writes the correction');
-      assert.ok(html.includes('C&#x27;est faux, Gus ! C&#x27;est …, pas le 12 octobre.') || text.includes("C'est faux, Gus ! C'est …, pas le 12 octobre."), 'the prefill');
+      assert.ok(!html.includes('C&#x27;est …') && !text.includes("C'est …"), 'from an empty field: no prefill');
+      const short = await c.act({ act: 'intox_fix', text: 'le 17 octobre' });
+      assert.match(short.errorFr, /Une phrase entière/, 'the number alone is not a correction');
+      assert.equal(c.session.comptoir.intox.fix, null);
       await c.act({ act: 'intox_fix', text: "C'est faux, Gus ! C'est le 17 octobre, pas le 12 octobre." });
     }
     intox = c.session.comptoir.intox;
@@ -380,34 +432,87 @@ for (const [band, language] of [['A1', 'en'], ['A2', 'de'], ['B1', 'en']]) {
     assert.equal(c.session.comptoir.step, 'opinion');
     html = c.step(RvComptoirIntox);
     text = visibleText(html);
+    // «Your line» only under the learner's own typed line; a pick is «the right line».
+    const ccopy = comptoirCopy(language);
+    assert.ok(text.includes(lower ? ccopy.intox_right_line : ccopy.intox_your_line), 'the line\'s label');
+    assert.ok(!text.includes(lower ? ccopy.intox_your_line : ccopy.intox_right_line));
     assert.match(html, /<s class="ct-strike">le 12 octobre<\/s>/, 'the wrong words struck in the liar\'s quote');
     assert.ok(has(text, lineIn(COMPTOIR_LINES.intox_found, 'fr').fr));
     assert.ok(has(text, intox.fix.caught.fr), 'the liar caught');
     assert.equal((html.match(/class="rv-claim"/g) || []).length, 1, 'the settling claim is not printed twice');
     assert.ok(footButtons(html) <= 2);
 
-    // «Ton avis»: the band's input; then Romy's edit, the reply, the comeback.
+    // «Ton avis»: the band's input; then Romy's marks, the learner's fix, the reply, the comeback.
     html = c.screen();
     text = visibleText(html);
     assert.ok(has(text, 'Et toi ? Il me manque une voix pour mon micro-trottoir.'));
     if (band === 'A1') {
       assert.equal((html.match(/class="ct-tile"/g) || []).length, 3, 'three reasons as tiles');
       await c.act({ act: 'opinion', value: 'contre', reasonIndex: 0 });
+      assert.equal(c.session.comptoir.opinion.proof, 'clean', 'the tiles are correct by construction');
     } else if (band === 'A2') {
       assert.match(html, /class="ct-frame"/);
       assert.match(html, /class="ct-bank"/, 'A2 has its word bank');
+      const short = await c.act({ act: 'opinion', value: 'contre', text: 'sa voix' });
+      assert.match(short.errorFr, /4 mots au moins/, 'one bank chip is not a reason');
+      assert.equal(c.session.comptoir.opinion, null);
       await c.act({ act: 'opinion', value: 'contre', text: 'les billets sont tres cher' });
     } else {
       const opponent = model.castName(c.session.comptoir, c.session.comptoir.kit.opponents.contre);
       assert.ok(text.includes(`Answer ${opponent}`), 'B1 answers the other side (the side defaults to the vote)');
-      await c.act({ act: 'opinion', value: 'contre', text: 'Je suis contre, parce que les billets sont tres cher' });
+      const short = await c.act({ act: 'opinion', value: 'contre', text: 'Je suis contre, parce que les billets sont tres cher' });
+      assert.match(short.errorFr, /12 mots au moins/);
+      await c.act({ act: 'opinion', value: 'contre', text: 'Je suis contre, parce que les billets sont tres cher et la salle est trop loin de chez moi' });
+    }
+    if (band !== 'A1') {
+      // Romy marks the slip; nothing prints, nobody answers yet.
+      let opinion = c.session.comptoir.opinion;
+      assert.equal(opinion.proof, 'marked');
+      assert.deepEqual(opinion.marks.map((mark) => [mark.spanFr, mark.kind]), [['tres', 'orthographe']]);
+      assert.equal(opinion.printedFr, null);
+      assert.equal(opinion.reply, null);
+      html = c.screen();
+      text = visibleText(html);
+      assert.ok(has(text, lineIn(COMPTOIR_LINES.proof_marked, 'fr').fr));
+      assert.match(html, /<mark class="ct-mark" data-kind="orthographe">tres<\/mark>/, 'the learner\'s word underlined, not fixed');
+      assert.ok(text.includes(comptoirCopy(language).mark_kinds.orthographe), 'the kind of slip, in the chrome');
+      assert.ok(!text.includes('très'), 'the answer is not given away');
+      assert.ok(!text.includes(COMPTOIR_FR.in_paper_read), 'never «relu par Romy» before it is right');
+      assert.match(html, /class="rv-composer"/, 'the fix in the foot');
+      assert.ok(!text.includes(comptoirCopy(language).fix_romy), '«Corrige-le, Romy» only after a try');
+      const same = await c.act({ act: 'opinion_fix', text: opinion.draftFr });
+      assert.match(same.errorFr, /Rien n'a changé/);
+      assert.equal(c.session.comptoir.opinion.tries, 0, 'an unchanged sentence is not a try');
+      if (band === 'A2') {
+        await c.act({ act: 'opinion_fix', text: opinion.draftFr.replace('tres', 'très') });
+        opinion = c.session.comptoir.opinion;
+        assert.equal(opinion.proof, 'fixed');
+        html = c.screen();
+        text = visibleText(html);
+        assert.ok(text.includes(COMPTOIR_FR.in_paper_mine), 'corrigé par toi');
+        assert.doesNotMatch(html, /class="ct-fix"/, 'the learner\'s own fix prints plain');
+      } else {
+        await c.act({ act: 'opinion_fix', text: opinion.draftFr.replace('cher', 'chers') });
+        opinion = c.session.comptoir.opinion;
+        assert.deepEqual([opinion.proof, opinion.tries], ['marked', 1], 'still a slip after the first try');
+        html = c.screen();
+        assert.ok(visibleText(html).includes(comptoirCopy(language).fix_romy), 'then «Corrige-le, Romy»');
+        assert.ok(visibleText(html).includes('Try 2 of 2'));
+        await c.act({ act: 'opinion_fix', value: 'romy' });
+        opinion = c.session.comptoir.opinion;
+        assert.equal(opinion.proof, 'corrected');
+        html = c.screen();
+        text = visibleText(html);
+        assert.ok(text.includes(COMPTOIR_FR.in_paper_fixed), 'corrigé par Romy');
+        assert.match(html, /<mark class="ct-fix">très<\/mark>/, 'what she changed is lit');
+      }
+    } else {
+      html = c.screen();
+      text = visibleText(html);
+      assert.ok(text.includes(COMPTOIR_FR.in_paper) && !text.includes(COMPTOIR_FR.in_paper_read), 'A1\'s tiles: plain «Dans le journal»');
     }
     const opinion = c.session.comptoir.opinion;
-    assert.ok(opinion.editedFr);
-    html = c.screen();
-    text = visibleText(html);
-    assert.ok(text.includes(model.edited(opinion.learnerFr, opinion.editedFr) ? COMPTOIR_FR.in_paper_fixed : COMPTOIR_FR.in_paper_read));
-    if (band !== 'A1') assert.match(html, /<mark class="ct-fix">/, 'Romy\'s red pen at A2+');
+    assert.ok(opinion.printedFr);
     assert.ok(has(text, opinion.reply.line.fr));
     if (lower) {
       assert.equal((html.match(/class="ct-comeback"/g) || []).length, 3);
@@ -440,7 +545,10 @@ for (const [band, language] of [['A1', 'en'], ['A2', 'de'], ['B1', 'en']]) {
     text = visibleText(html);
     assert.match(html, /class="ct-clip"/);
     assert.ok(text.includes(COMPTOIR_FR.page_kicker.toUpperCase()) || text.includes(COMPTOIR_FR.page_kicker));
-    assert.ok(text.includes(COMPTOIR_FR.you_by));
+    assert.ok(text.includes(band === 'B1' ? COMPTOIR_FR.you_by_corrected : COMPTOIR_FR.you_by));
+    assert.equal(page.proof, band === 'A1' ? 'clean' : band === 'A2' ? 'fixed' : 'corrected');
+    // «avec toi» only when the learner's own words are printed: never for A1's tiles.
+    assert.equal(/avec toi/.test(closed.closing.dispatch.bylineFr), band !== 'A1');
     assert.ok(text.includes(COMPTOIR_FR.page_intox));
     assert.ok(text.includes(page.questionFr));
     assert.ok(footButtons(html) <= 2);

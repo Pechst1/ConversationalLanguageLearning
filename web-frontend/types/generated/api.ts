@@ -11572,9 +11572,10 @@ export interface components {
         };
         /**
          * RvCaptionOffer
-         * @description WP-119 §8.4 «La légende»: the caption under the story's picture. ``choice`` (A1–A2): three
-         *     captions, one says what the picture shows; ``write`` (B1+): the learner writes it, at most
-         *     ``max_words`` words, with the picture's words as chips.
+         * @description WP-119 §8.4 «La légende»: the caption under the story's picture. Every band writes it, at
+         *     most ``max_words`` words, with the picture's words as chips (2026-10-23). ``options``: at
+         *     A1–A2, after a refused try, three captions to choose from instead (one says what the
+         *     picture shows); empty before. ``choice`` is no longer offered first.
          */
         RvCaptionOffer: {
             /**
@@ -11633,6 +11634,8 @@ export interface components {
             kind?: "caption";
             line?: components["schemas"]["RvLineItem"] | null;
             made?: components["schemas"]["RvMade"] | null;
+            /** Options */
+            options?: components["schemas"]["RvCaptionOption"][];
         };
         /** RvClaim */
         RvClaim: {
@@ -11757,8 +11760,6 @@ export interface components {
             hint_claim?: components["schemas"]["RvClaim"] | null;
             /** Options */
             options?: string[];
-            /** Prefill Fr */
-            prefill_fr?: string | null;
             /** Quotes */
             quotes: components["schemas"]["RvComptoirQuote"][];
             /** Resolved */
@@ -11792,30 +11793,59 @@ export interface components {
                 [key: string]: components["schemas"]["RvComptoirText"][];
             };
         };
-        /** RvComptoirNote */
-        RvComptoirNote: {
+        /**
+         * RvComptoirMark
+         * @description One of Romy's proof marks: the learner's words to look at again (``span_fr``, at
+         *     ``start`` in ``draft_fr``) and what kind of slip it is; never the corrected words.
+         */
+        RvComptoirMark: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "accord" | "conjugaison" | "genre" | "orthographe" | "mot" | "ordre" | "manque";
             /** Span Fr */
             span_fr: string;
-            /** Why */
-            why: string;
+            /**
+             * Start
+             * @default 0
+             */
+            start?: number;
         };
         /** RvComptoirOpinion */
         RvComptoirOpinion: {
             comeback?: components["schemas"]["RvComptoirComeback"] | null;
             /** Comebacks */
             comebacks: components["schemas"]["RvComptoirText"][];
-            /** Edited Fr */
-            edited_fr: string;
+            /** Draft Fr */
+            draft_fr: string;
             /** Learner Fr */
             learner_fr: string;
-            /** Notes */
-            notes: components["schemas"]["RvComptoirNote"][];
-            reply: components["schemas"]["RvComptoirReply"];
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /**
+             * Proof
+             * @enum {string}
+             */
+            proof: "clean" | "marked" | "fixed" | "corrected" | "as_written";
+            reply?: components["schemas"]["RvComptoirReply"] | null;
             /**
              * Stance
              * @enum {string}
              */
             stance: "pour" | "contre" | "nuance";
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
         };
         /**
          * RvComptoirPage
@@ -11828,6 +11858,8 @@ export interface components {
             mine: components["schemas"]["RvComptoirQuote"];
             /** Phrase Fr */
             phrase_fr: string;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
             /** Question Fr */
             question_fr: string;
             /** Quotes */
@@ -11889,7 +11921,7 @@ export interface components {
              * Act
              * @enum {string}
              */
-            act: "vote" | "react" | "intox_who" | "intox_fix" | "opinion" | "comeback";
+            act: "vote" | "react" | "intox_who" | "intox_fix" | "opinion" | "opinion_fix" | "comeback";
             /** Guest Id */
             guest_id?: string | null;
             /** Index */
@@ -12502,6 +12534,11 @@ export interface components {
              * @enum {string}
              */
             mode?: "chat" | "comptoir";
+            /**
+             * Own Line
+             * @default false
+             */
+            own_line?: boolean;
             plan: components["schemas"]["RvPlanView"];
             /** Quick Replies */
             quick_replies: components["schemas"]["RvQuickReply"][];
@@ -12748,6 +12785,11 @@ export interface components {
             evidence: components["schemas"]["RvEvidence"];
             /** Items */
             items: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvGuestItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
+            /**
+             * Own Line
+             * @default false
+             */
+            own_line?: boolean;
             /** Quick Replies */
             quick_replies: components["schemas"]["RvQuickReply"][];
             room: components["schemas"]["RvRoom"];

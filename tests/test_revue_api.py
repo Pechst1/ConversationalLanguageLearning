@@ -257,6 +257,9 @@ def test_errors_follow_the_wire(api: TestClient, revue_on) -> None:
 
     make = f"/api/v1/revue/sessions/{session['id']}/make"
     api.post(f"/api/v1/revue/sessions/{session['id']}/turns", headers=headers, json={"text": "D'accord, je t'aide."})
+    waits = api.post(make, headers=headers, json={"kind": "headline_choice", "action": "pick", "option_id": "h1"})
+    assert waits.status_code == 409 and waits.json()["detail"]["code"] == "revue_make_needs_a_line", "a chip is not a line"
+    api.post(f"/api/v1/revue/sessions/{session['id']}/turns", headers=headers, json={"text": "J'aime bien les marchés."})
     bad = api.post(make, headers=headers, json={"kind": "headline_choice", "action": "pick", "option_id": "h9"})
     assert bad.status_code == 422 and bad.json()["detail"]["code"] == "revue_unknown_option"
     mixed = api.post(make, headers=headers, json={"kind": "headline_choice", "action": "send", "text_fr": "x"})
@@ -308,9 +311,13 @@ def test_headline_write_and_short_report_over_http(api: TestClient, revue_on, db
     headers = login(api)
     _as_band(db_session, headers, api, "B1.2")
     session = start(api, headers, dossier_id=MARCHE)
-    assert session["plan"]["make_options"] == ["headline_choice", "headline_write", "reader_question", "short_report"]
+    assert session["plan"]["make_options"] == ["headline_write", "reader_question", "short_report"]
+    assert session["own_line"] is False
     sid = session["id"]
-    api.post(f"/api/v1/revue/sessions/{sid}/turns", headers=headers, json={"text": "D'accord, je t'aide."})
+    chip = api.post(f"/api/v1/revue/sessions/{sid}/turns", headers=headers, json={"text": "D'accord, je t'aide."})
+    assert chip.json()["own_line"] is False
+    turn = api.post(f"/api/v1/revue/sessions/{sid}/turns", headers=headers, json={"text": "J'aime bien les marchés."})
+    assert turn.json()["own_line"] is True
     offer = api.get(f"/api/v1/revue/sessions/{sid}/make", headers=headers).json()
     kinds = {option["kind"]: option for option in offer["options"]}
     assert kinds["headline_write"]["max_words"] == 14 and kinds["short_report"]["seconds"] == 30
@@ -338,6 +345,7 @@ def test_headline_write_and_short_report_over_http(api: TestClient, revue_on, db
 def test_headline_write_is_unavailable_below_b1(api: TestClient, revue_on) -> None:
     headers = login(api)
     session = start(api, headers)
+    api.post(f"/api/v1/revue/sessions/{session['id']}/turns", headers=headers, json={"text": "J'aime bien les marchés."})
     response = api.post(f"/api/v1/revue/sessions/{session['id']}/make", headers=headers,
                         json={"kind": "headline_write", "action": "write", "text_fr": "Un titre"})
     assert response.status_code == 409

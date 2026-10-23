@@ -23,7 +23,7 @@ import { COMPTOIR_FR, type ComptoirCopy } from './comptoir-copy';
 import { SIDE_LABELS_FR, voteTally } from './comptoir-model';
 import { RomyLine, StanceTag, type ComptoirStepProps } from './RvComptoirParts';
 
-function PageQuote({ quote, me = false, face }: { quote: RvComptoirQuote; me?: boolean; face: React.ReactNode }) {
+function PageQuote({ quote, me = false, by = null, face }: { quote: RvComptoirQuote; me?: boolean; by?: string | null; face: React.ReactNode }) {
   return (
     <div className="ct-quote" data-me={me ? '' : undefined} data-char={me ? undefined : quote.castId}>
       <span className="ct-quote__face" aria-hidden="true">
@@ -34,7 +34,7 @@ function PageQuote({ quote, me = false, face }: { quote: RvComptoirQuote; me?: b
           {frenchQuote(quote.quoteFr)}
         </p>
         <p className="ct-quote__by" lang="fr">
-          {me ? COMPTOIR_FR.you_by : `${quote.nameFr}, ${quote.roleFr}`}
+          {me ? by ?? COMPTOIR_FR.you_by : `${quote.nameFr}, ${quote.roleFr}`}
           <StanceTag stance={quote.stance} />
         </p>
       </div>
@@ -73,7 +73,8 @@ export function ComptoirClipping({ page, ccopy }: { page: RvComptoirPageData; cc
       {page.quotes.map((quote) => (
         <PageQuote key={quote.castId} quote={quote} face={<CastPortrait characterId={quote.castId} name={quote.nameFr} size="xs" ring />} />
       ))}
-      <PageQuote quote={page.mine} me face={<YouFace />} />
+      {/* The credit says when Romy corrected what the tries left (2026-10-23). */}
+      <PageQuote quote={page.mine} me by={page.proof === 'corrected' ? COMPTOIR_FR.you_by_corrected : null} face={<YouFace />} />
       <div className="ct-tally" role="img" aria-label={fill(ccopy.vote_aria, counts)}>
         <div className="ct-tally__bar" aria-hidden="true">
           {tally

@@ -554,18 +554,22 @@ export function RvQuickReplies({
   );
 }
 
-export function madeLabel(kind: RvMade['kind'], copy: RevueCopy): string {
+/**
+ * The made card's label. `mine` false (nothing in it is the learner's words: a picked headline
+ * or caption) says «Le titre» / «La légende», never «ton» / «ta» (2026-10-23 copy honesty).
+ */
+export function madeLabel(kind: RvMade['kind'], copy: RevueCopy, mine = true): string {
   if (kind === 'reader_question') return copy.made_question;
   if (kind === 'short_report') return copy.made_report;
-  if (kind === 'caption') return copy.made_caption;
+  if (kind === 'caption') return mine ? copy.made_caption : copy.caption_label;
   if (kind === 'opinion') return copy.made_opinion;
-  return copy.made_headline;
+  return mine ? copy.made_headline : copy.headline_label;
 }
 
 export function RvMadeCard({ made, copy }: { made: RvMade; copy: RevueCopy }) {
   return (
     <div className="rv-made" data-made={made.kind}>
-      <p className="av2-label">{madeLabel(made.kind, copy)}</p>
+      <p className="av2-label">{madeLabel(made.kind, copy, made.contribution.length > 0)}</p>
       <p className="rv-made__fr" lang="fr">
         <ContributedText text={made.textFr} spans={made.contribution} label={copy.contribution} />
       </p>

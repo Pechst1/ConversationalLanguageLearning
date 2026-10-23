@@ -10,19 +10,19 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! Le Tour, c'est gratuit. Voyons donc, c'est pas pire.",
-     "en": "I'm for it! The Tour is free. Come on, it's not bad.",
-     "de": "Ich bin dafür! Die Tour ist kostenlos. Komm schon, das ist nicht schlecht."
+     "fr": "Je suis pour ! Trois semaines de Tour, et c'est gratuit. C'est pas pire !",
+     "en": "I'm for it! Three weeks of the Tour, and it's free. Not bad at all!",
+     "de": "Ich bin dafür! Drei Wochen Tour, und das kostenlos. Gar nicht schlecht!"
     },
     "a2": {
-     "fr": "Je suis pour, parce que le spectacle est gratuit. Gus, pour une fois, tu ne paies rien.",
-     "en": "I'm for it, because the show is free. Gus, for once you pay nothing.",
-     "de": "Ich bin dafür, weil die Show kostenlos ist. Gus, für einmal zahlst du nichts."
+     "fr": "Je suis pour, parce que le spectacle est gratuit, du 4 au 26 juillet. Gus, pour une fois, tu ne paies rien.",
+     "en": "I'm for it, because the show is free, from 4 to 26 July. Gus, for once you pay nothing.",
+     "de": "Ich bin dafür, weil die Show vom 4. bis 26. Juli kostenlos ist. Gus, für einmal zahlst du nichts."
     },
     "b1": {
-     "fr": "Je suis pour, parce que le Tour est gratuit, et ça, c'est rare. Barcelone, c'est loin, mais ça reste le Tour. Gus, tu viens l'applaudir ?",
-     "en": "I'm for it, because the Tour is free, and that's rare. Barcelona is far, but it's still the Tour. Gus, are you coming to cheer?",
-     "de": "Ich bin dafür, weil die Tour kostenlos ist, und das ist selten. Barcelona ist weit weg, aber es bleibt die Tour. Gus, kommst du zum Anfeuern?"
+     "fr": "Je suis pour, parce que le Tour est gratuit, et ça, c'est rare. Barcelone, c'est loin, mais ça reste trois semaines de fête. Gus, tu viens l'applaudir ?",
+     "en": "I'm for it, because the Tour is free, and that's rare. Barcelona is far, but it's still three weeks of celebration. Gus, are you coming to cheer?",
+     "de": "Ich bin dafür, weil die Tour kostenlos ist, und das ist selten. Barcelona ist weit weg, aber es sind trotzdem drei Wochen Fest. Gus, kommst du zum Anfeuern?"
     }
    },
    "quote": {
@@ -36,19 +36,19 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend. Bon pour la caisse. Pas pour la terrasse.",
-     "en": "It depends. Good for the till. Not for the terrace.",
-     "de": "Kommt drauf an. Gut für die Kasse. Nicht für die Terrasse."
+     "fr": "Ça dépend. En juillet, bon pour la caisse. Pas pour la terrasse.",
+     "en": "It depends. In July, good for the till. Not for the terrace.",
+     "de": "Kommt drauf an. Im Juli gut für die Kasse. Nicht für die Terrasse."
     },
     "a2": {
-     "fr": "Des touristes au comptoir, bon pour la caisse. Mais la terrasse est pleine toute la journée.",
-     "en": "Tourists at the counter, good for the till. But the terrace is full all day.",
-     "de": "Touristen an der Theke, gut für die Kasse. Aber die Terrasse ist den ganzen Tag voll."
+     "fr": "Trois semaines de touristes au comptoir, bon pour la caisse. Mais la terrasse est pleine toute la journée.",
+     "en": "Three weeks of tourists at the counter, good for the till. But the terrace is full all day.",
+     "de": "Drei Wochen Touristen an der Theke, gut für die Kasse. Aber die Terrasse ist den ganzen Tag voll."
     },
     "b1": {
-     "fr": "D'un côté, les spectateurs achètent des cafés au bord de la route. De l'autre, ils prennent toutes mes tables. La même chose ?",
-     "en": "On the one hand, spectators buy coffees by the road. On the other, they take all my tables. The same again?",
-     "de": "Einerseits kaufen die Zuschauer Kaffee am Straßenrand. Andererseits nehmen sie mir alle Tische weg. Dasselbe nochmal?"
+     "fr": "D'un côté, plus de 12 millions de spectateurs, ça fait beaucoup de cafés. De l'autre, ils prennent toutes mes tables. La même chose ?",
+     "en": "On the one hand, more than 12 million spectators means a lot of coffees. On the other, they take all my tables. The same again?",
+     "de": "Einerseits: mehr als 12 Millionen Zuschauer, das sind viele Kaffees. Andererseits nehmen sie mir alle Tische weg. Dasselbe nochmal?"
     }
    },
    "quote": {

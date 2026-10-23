@@ -10,19 +10,19 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend. Le défilé, c'est beau, mais le bal, c'est bruyant.",
-     "en": "It depends. The parade is beautiful, but the dance is noisy.",
-     "de": "Kommt drauf an. Die Parade ist schön, aber der Ball ist laut."
+     "fr": "Ça dépend. Le défilé sur les Champs-Élysées, c'est beau, mais le bal, c'est bruyant.",
+     "en": "It depends. The parade on the Champs-Élysées is beautiful, but the dance is noisy.",
+     "de": "Kommt drauf an. Die Parade auf den Champs-Élysées ist schön, aber der Ball ist laut."
     },
     "a2": {
-     "fr": "D'un côté, le défilé est beau. De l'autre, le bal est bruyant. Mais voyons donc, c'est la fête.",
-     "en": "On one hand, the parade is beautiful. On the other, the dance is noisy. But come on, it's a party.",
-     "de": "Einerseits ist die Parade schön. Andererseits ist der Ball laut. Aber komm schon, es ist ein Fest."
+     "fr": "D'un côté, le défilé sur les Champs-Élysées est beau. De l'autre, le bal est bruyant. Mais voyons donc, c'est la fête.",
+     "en": "On one hand, the parade on the Champs-Élysées is beautiful. On the other, the dance is noisy. But come on, it's a party.",
+     "de": "Einerseits ist die Parade auf den Champs-Élysées schön. Andererseits ist der Ball laut. Aber komm schon, es ist ein Fest."
     },
     "b1": {
-     "fr": "Le défilé est beau, même si je préfère les feux d'artifice. Le bal, par contre, c'est bruyant. J'y vais, mais une heure, pas plus.",
-     "en": "The parade is beautiful, even if I prefer the fireworks. The ball, though, is noisy. I'll go, but for an hour, no more.",
-     "de": "Der Umzug ist schön, auch wenn ich das Feuerwerk lieber mag. Der Ball dagegen ist laut. Ich gehe hin, aber eine Stunde, nicht mehr."
+     "fr": "Le défilé est beau, même si je préfère les feux d'artifice. Le bal, c'est une tradition, souvent datée de 1937, mais c'est bruyant. J'y vais une heure, pas plus.",
+     "en": "The parade is beautiful, even if I prefer the fireworks. The ball is a tradition, often dated to 1937, but it's noisy. I'll go for an hour, no more.",
+     "de": "Der Umzug ist schön, auch wenn ich das Feuerwerk lieber mag. Der Ball ist eine Tradition, oft auf 1937 datiert, aber er ist laut. Ich gehe eine Stunde hin, nicht mehr."
     }
    },
    "quote": {
@@ -36,19 +36,19 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! Mon chou, on danse au bal des pompiers.",
-     "en": "I'm for it! My dear, we dance at the firefighters' ball.",
-     "de": "Ich bin dafür! Mein Schatz, wir tanzen beim Feuerwehrball."
+     "fr": "Je suis pour ! Mon chou, on danse au bal la nuit du 13 !",
+     "en": "I'm for it! My dear, we dance at the ball on the night of the 13th!",
+     "de": "Ich bin dafür! Mein Schatz, in der Nacht vom 13. tanzen wir auf dem Ball!"
     },
     "a2": {
-     "fr": "Mon chou, le bal des pompiers, c'est la fête ! On danse, on rit, et on oublie le travail.",
-     "en": "My dear, the firefighters' ball is a party! We dance, we laugh, and we forget work.",
-     "de": "Mein Schatz, der Feuerwehrball ist ein Fest! Wir tanzen, wir lachen und vergessen die Arbeit."
+     "fr": "Mon chou, le bal des pompiers, c'est la fête ! On danse la nuit du 13, on rit, et on oublie le travail.",
+     "en": "My dear, the firefighters' ball is a party! We dance on the night of the 13th, we laugh, and we forget work.",
+     "de": "Mein Schatz, der Feuerwehrball ist ein Fest! Wir tanzen in der Nacht vom 13., wir lachen und vergessen die Arbeit."
     },
     "b1": {
-     "fr": "Mon chou, le bal des pompiers, c'est joyeux, parce que tout le monde danse. Gus dit que la foule le fatigue, mais il ne sait pas danser. Bon, on y va ?",
-     "en": "My dear, the firefighters' ball is joyful, because everyone dances. Gus says the crowd tires him, but he can't dance. Well, shall we go?",
-     "de": "Mein Schatz, der Feuerwehrball ist fröhlich, weil alle tanzen. Gus sagt, die Menge macht ihn müde, aber er kann nicht tanzen. Also, gehen wir?"
+     "fr": "Mon chou, le bal des pompiers, c'est joyeux, parce que tout le monde danse, dès la nuit du 13. Gus dit que la foule le fatigue, mais il ne sait pas danser. Bon, on y va ?",
+     "en": "My dear, the firefighters' ball is joyful, because everyone dances, from the night of the 13th. Gus says the crowd tires him, but he can't dance. Well, shall we go?",
+     "de": "Mein Schatz, der Feuerwehrball ist fröhlich, weil alle tanzen, schon ab der Nacht vom 13. Gus sagt, die Menge macht ihn müde, aber er kann nicht tanzen. Also, gehen wir?"
     }
    },
    "quote": {

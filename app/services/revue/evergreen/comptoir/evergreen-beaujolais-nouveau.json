@@ -10,19 +10,19 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! Ça fait une fête en novembre, voyons donc.",
-     "en": "I'm for it! It makes a party in November, come on.",
-     "de": "Ich bin dafür! Das gibt eine Feier im November, ach komm."
+     "fr": "Je suis pour ! En 2026, c'est la fête le jeudi 19 novembre.",
+     "en": "I'm for it! In 2026, the party is on Thursday 19 November.",
+     "de": "Ich bin dafür! 2026 wird am Donnerstag, dem 19. November, gefeiert."
     },
     "a2": {
-     "fr": "C'est pas pire, ce vin jeune. Une fête en novembre, c'est bon pour le moral.",
-     "en": "It's not bad, this young wine. A party in November is good for morale.",
-     "de": "Das ist gar nicht schlecht, dieser junge Wein. Eine Feier im November tut der Stimmung gut."
+     "fr": "C'est pas pire, ce vin jeune ! En 2026, il arrive le jeudi 19 novembre. Une fête, c'est bon pour le moral.",
+     "en": "It's not bad, this young wine! In 2026, it arrives on Thursday 19 November. A party is good for morale.",
+     "de": "Gar nicht schlecht, dieser junge Wein! 2026 kommt er am Donnerstag, dem 19. November. Eine Feier tut der Stimmung gut."
     },
     "b1": {
-     "fr": "Je suis pour, parce que le vin est jeune et joyeux, même si Gus fait la tête. Il est vendu le même jour partout, c'est un vrai rendez-vous. Au Québec, on n'a pas ça !",
-     "en": "I'm for it, because the wine is young and cheerful, even if Gus is sulking. It's sold on the same day everywhere, it's a real date. In Québec, we don't have that!",
-     "de": "Ich bin dafür, weil der Wein jung und fröhlich ist, auch wenn Gus schmollt. Er wird überall am selben Tag verkauft, das ist ein echtes Rendezvous. In Québec gibt es so was nicht!"
+     "fr": "Je suis pour, parce que le vin est jeune et joyeux, même si Gus fait la tête. En 2026, il arrive partout le jeudi 19 novembre : un vrai rendez-vous. Au Québec, on n'a pas ça !",
+     "en": "I'm for it, because the wine is young and cheerful, even if Gus is sulking. In 2026, it arrives everywhere on Thursday 19 November: a real date. In Québec, we don't have that!",
+     "de": "Ich bin dafür, weil der Wein jung und fröhlich ist, auch wenn Gus schmollt. 2026 kommt er überall am Donnerstag, dem 19. November: ein echtes Rendezvous. In Québec gibt es so was nicht!"
     }
    },
    "quote": {
@@ -36,19 +36,19 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend. Pour la caisse, c'est bon. Pour le goût, bof.",
-     "en": "It depends. For the till, it's good. For the taste, meh.",
-     "de": "Kommt drauf an. Für die Kasse ist es gut. Für den Geschmack, na ja."
+     "fr": "Ça dépend. Pour Inter Beaujolais et ma caisse, c'est le rendez-vous. Le goût, bof.",
+     "en": "It depends. For Inter Beaujolais and my till, it's the big date. The taste, meh.",
+     "de": "Kommt drauf an. Für Inter Beaujolais und meine Kasse ist es das große Rendezvous. Der Geschmack, na ja."
     },
     "a2": {
-     "fr": "Ça dépend. Le vin est joli, mais tout le monde en veut le même jour. Bon pour la caisse.",
-     "en": "It depends. The wine is nice, but everyone wants it the same day. Good for the till.",
-     "de": "Kommt drauf an. Der Wein ist hübsch, aber alle wollen ihn am selben Tag. Gut für die Kasse."
+     "fr": "Ça dépend. Pour Inter Beaujolais, c'est le rendez-vous. Mais tout le monde en veut le même jour. Bon pour la caisse.",
+     "en": "It depends. For Inter Beaujolais, it's the big date. But everyone wants some on the same day. Good for the till.",
+     "de": "Kommt drauf an. Für Inter Beaujolais ist es das große Rendezvous. Aber alle wollen ihn am selben Tag. Gut für die Kasse."
     },
     "b1": {
-     "fr": "D'un côté, le beaujolais nouveau attire les clients en novembre. De l'autre, il est jeune, et je préfère un vin qui a vécu. La même chose ?",
-     "en": "On the one hand, Beaujolais nouveau draws customers in November. On the other, it's young, and I prefer a wine that has lived. The same again?",
-     "de": "Einerseits lockt der Beaujolais nouveau die Gäste im November. Andererseits ist er jung, und ich mag lieber einen Wein, der gelebt hat. Nochmal dasselbe?"
+     "fr": "D'un côté, le beaujolais nouveau attire les clients, et pour Inter Beaujolais, c'est le rendez-vous de novembre. De l'autre, il est jeune, et je préfère un vin qui a vécu. La même chose ?",
+     "en": "On the one hand, Beaujolais nouveau draws customers, and for Inter Beaujolais it's the big November date. On the other, it's young, and I prefer a wine that has lived. The same again?",
+     "de": "Einerseits lockt der Beaujolais nouveau die Gäste, und für Inter Beaujolais ist es das Rendezvous im November. Andererseits ist er jung, und ich mag lieber einen Wein, der gelebt hat. Nochmal dasselbe?"
     }
    },
    "quote": {

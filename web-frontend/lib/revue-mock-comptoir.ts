@@ -186,14 +186,23 @@ const LAST_WORDS: Record<string, T> = {
   2: t('Touché.', 'Touché.', 'Touché.'),
   free: t('Touché. On en reparle demain !', "Touché. We'll talk about it again tomorrow!", 'Touché. Darüber reden wir morgen weiter!'),
 };
-/** The backend fake provider's edit table (`encounter._FAKE_EDITS`), plus the mock page's «sa voix est très beau». */
-const EDITS: Array<[RegExp, string, Record<Lang, string>]> = [
-  [/\b[Ll]e gens\b/g, 'les gens', { en: 'plural: les gens', de: 'Plural: les gens', fr: 'pluriel : les gens' }],
-  [/\bsont content\b/g, 'sont contents', { en: 'agreement: plural', de: 'Angleichung: Plural', fr: 'accord : pluriel' }],
-  [/\bvoix est (tr[eè]s )?beau\b/g, 'voix est $1belle', { en: '«la voix» is feminine', de: '«la voix» ist feminin', fr: '« la voix » est féminin' }],
-  [/\btres\b/g, 'très', { en: 'accent', de: 'Akzent', fr: 'accent' }],
-  [/\ba Paris\b/g, 'à Paris', { en: 'accent: à', de: 'Akzent: à', fr: 'accent : à' }],
+/**
+ * Romy's proof in the mock (2026-10-23), after the backend fake provider's edits: each pattern's
+ * first group is the context kept as is, the rest of the match the learner's wrong words (the
+ * mark), then its fix and the kind of slip.
+ */
+const EDITS: Array<[RegExp, string, string]> = [
+  [/\b()[Ll]e(?= gens\b)/g, 'les', 'accord'],
+  [/\b(sont )content\b/g, 'contents', 'accord'],
+  [/\b(voix est (?:tr[eè]s )?)beau\b/g, 'belle', 'genre'],
+  [/\b()tres\b/g, 'très', 'orthographe'],
+  [/\b()a(?= Paris\b)/g, 'à', 'orthographe'],
 ];
+/** comptoir_loop: the marks shown at once, the fixes before Romy corrects, the opinion's floor. */
+const MARKS_MAX = 3;
+const FIX_TRIES = 2;
+const OPINION_MIN_WORDS: Record<Band, number> = { A1: 0, A2: 4, B1: 12, B2: 12 };
+const FIX_MIN_WORDS = 4;
 
 export type MockComptoirState = {
   vote: Stance | null;
@@ -315,7 +324,6 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
       hint_claim: state.tries.some((id) => id !== intox.by) ? ctx.claim(intox.claim_id) : null,
       ask: resolved ? tr(intox.ask, language) : null,
       options: resolved && lower ? options(intox, ctx.sessionId) : [],
-      prefill_fr: resolved && !lower ? typography(`C'est faux, ${liar} ! C'est …, pas ${intox.wrong_fr}.`) : null,
       fix: state.fix
         ? {
             correct: Boolean(state.fix.correct),
@@ -345,13 +353,18 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
   if (state.opinion) {
     const stance = state.opinion.stance as Stance;
     const reply = state.opinion.reply as { by: string } & T;
+    const settled = state.opinion.proof !== 'marked';
     opinion = {
       stance,
       learner_fr: state.opinion.learner_fr,
-      edited_fr: state.opinion.edited_fr,
-      notes: state.opinion.notes,
-      reply: { by: reply.by, name_fr: COMPTOIR_NAME_FR[reply.by] ?? reply.by, line: tr(reply, language) },
-      comebacks: lower ? [...COMEBACK_CHIPS, takes.replies[stance].comeback].map((row) => tr(row, language)) : [],
+      draft_fr: state.opinion.draft_fr,
+      proof: state.opinion.proof,
+      marks: settled ? [] : state.opinion.marks,
+      tries: state.opinion.tries,
+      max_tries: FIX_TRIES,
+      printed_fr: printedOf(state.opinion),
+      reply: settled ? { by: reply.by, name_fr: COMPTOIR_NAME_FR[reply.by] ?? reply.by, line: tr(reply, language) } : null,
+      comebacks: lower && settled ? [...COMEBACK_CHIPS, takes.replies[stance].comeback].map((row) => tr(row, language)) : [],
       comeback: state.comeback
         ? { text_fr: state.comeback.text_fr, index: state.comeback.index ?? null, last_word: tr(state.comeback.last_word, language) }
         : null,
@@ -379,17 +392,55 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
   };
 }
 
-function edit(text: string, language: Lang): { edited: string; notes: Json[] } {
+/** Romy's corrected sentence (kept back as the target) and her marks on the learner's words. */
+function proofread(text: string): { target: string; marks: Json[] } {
   let out = text;
-  const notes: Json[] = [];
-  for (const [pattern, fixed, why] of EDITS) {
-    if (!pattern.test(out)) continue;
+  const marks: Json[] = [];
+  for (const [pattern, fixed, kind] of EDITS) {
     pattern.lastIndex = 0;
-    out = out.replace(pattern, fixed);
-    if (notes.length < 2) notes.push({ span_fr: fixed.replace('$1', ''), why: why[language] });
+    let match = pattern.exec(text);
+    while (match) {
+      const start = match.index + match[1].length;
+      const end = match.index + match[0].length;
+      if (marks.length < MARKS_MAX && !marks.some((m) => start < Number(m.start) + String(m.span_fr).length && Number(m.start) < end)) {
+        marks.push({ span_fr: text.slice(start, end), start, kind });
+      }
+      match = pattern.exec(text);
+    }
+    out = out.replace(pattern, (_whole: string, keep: string) => keep + fixed);
   }
+  marks.sort((a, b) => Number(a.start) - Number(b.start));
   out = out.charAt(0).toUpperCase() + out.slice(1);
-  return { edited: typography(sentenceEnd(out)), notes };
+  return { target: typography(sentenceEnd(out)), marks };
+}
+
+/** comptoir_loop._proof_key: typography, the first capital and the punctuation aside. */
+const proofKey = (text: string) => {
+  const flat = text.normalize('NFC').replace(/[’`]/g, "'").replace(/[^A-Za-zÀ-ÖØ-öø-ÿŒœ0-9']+/g, ' ').trim();
+  return flat.charAt(0).toLowerCase() + flat.slice(1);
+};
+
+/** comptoir_loop.too_short: Romy's nudge under the band's floor (the A2 frame not counted). */
+function tooShort(band: Band, text: string, frame: string): string | null {
+  const minimum = OPINION_MIN_WORDS[band];
+  const body = frame && fold(text).startsWith(fold(frame).slice(0, 12)) ? text.slice(Math.min(frame.length, text.length)) : text;
+  const count = words(body);
+  if (count >= minimum) return null;
+  if (!count) return `Écris ta raison : ${minimum} mots au moins.`;
+  if (band === 'A2') return `C'est un début ! Encore un peu : pourquoi ? ${minimum} mots au moins.`;
+  return `Ça ne suffit pas pour mon papier ! Pourquoi tu penses ça ? Une ou deux phrases, ${minimum} mots au moins.`;
+}
+
+/** The A2 frame and the learner's reason; a learner who wrote the frame too keeps theirs. */
+function a2Sentence(frame: string, text: string): string {
+  return fold(text).startsWith(fold(frame).slice(0, 12)) ? sentenceEnd(text) : sentenceEnd(`${frame} ${text}`);
+}
+
+/** What prints once the opinion is settled (null while Romy's marks wait). */
+export function printedOf(opinion: Json): string | null {
+  if (opinion.proof === 'marked') return null;
+  if (opinion.proof === 'as_written') return typography(sentenceEnd(String(opinion.draft_fr)));
+  return String(opinion.target_fr || '') || typography(sentenceEnd(String(opinion.draft_fr)));
 }
 
 /** One act (WIRE §9.3): mutates `state`; returns `error_fr` for an act the learner can fix on the same screen. */
@@ -426,8 +477,8 @@ export function applyComptoirAct(state: MockComptoirState, body: Json, ctx: Comp
     if (step !== 'intox' || !intox || !whoResolved(state)) throw outOfOrder();
     const lower = band === 'A1' || band === 'A2';
     if (lower && !options(intox, ctx.sessionId).includes(body.value)) throw bad();
-    const text = String(body.text || '').trim();
-    if (!lower && (!text || text.includes('…'))) return 'Complète la phrase : c’est quoi, en vrai ?';
+    const text = String(body.text || '').replace(/\s+/g, ' ').trim();
+    if (!lower && words(text) < FIX_MIN_WORDS) return `Une phrase entière, s'il te plaît : dis à ${COMPTOIR_NAME_FR[intox.by]} ce qui est vrai.`;
     state.fix = { correct: gradeFix(intox, lower ? { value: body.value } : { text }), answer_fr: lower ? body.value : text };
     return null;
   }
@@ -436,31 +487,71 @@ export function applyComptoirAct(state: MockComptoirState, body: Json, ctx: Comp
     if (step !== 'opinion') throw outOfOrder();
     const stance = (STANCES.includes(body.value) ? body.value : state.vote) as Stance;
     let learner = '';
+    let typed = '';
+    let proof: { proof: string; target: string; marks: Json[] };
     if (band === 'A1') {
       const reasons = takes.reasons[stance];
       if (typeof body.reason_index !== 'number' || !reasons[body.reason_index]) return 'Choisis une raison.';
       const reason = reasons[body.reason_index].fr;
       const parce = /^[aeiouyàâéèêîôû]/i.test(reason) ? `parce qu'${reason}` : `parce que ${reason}`;
       learner = typography(`${A1_OPENERS[stance]}, ${parce}.`);
+      proof = { proof: 'clean', target: learner, marks: [] }; // correct by construction
     } else {
-      const text = String(body.text || '').replace(/\s+/g, ' ').trim();
-      if (!text) return 'Écris ta raison : quelques mots suffisent.';
-      if (band === 'A2') {
-        const frame = takes.frames[stance].fr;
-        learner = fold(text).startsWith(fold(frame).slice(0, 12)) ? sentenceEnd(text) : sentenceEnd(`${frame} ${text}`);
-      } else {
-        learner = sentenceEnd(text);
-      }
+      typed = String(body.text || '').replace(/\s+/g, ' ').trim();
+      const frame = band === 'A2' ? takes.frames[stance].fr : '';
+      const nudge = tooShort(band, typed, frame);
+      if (nudge) return nudge;
+      learner = band === 'A2' ? a2Sentence(frame, typed) : sentenceEnd(typed);
+      const check = proofread(learner);
+      proof = { proof: check.marks.length ? 'marked' : 'clean', target: check.target, marks: check.marks };
     }
     const desk = takes.replies[stance];
-    const fixed = band === 'A1' ? { edited: learner, notes: [] } : edit(learner, ctx.language);
     state.vote = state.vote ?? stance;
-    state.opinion = { stance, learner_fr: learner, edited_fr: fixed.edited, notes: fixed.notes, reply: { by: desk.by, ...desk.line } };
+    state.opinion = {
+      stance,
+      learner_fr: learner,
+      draft_fr: learner,
+      typed: typed ? [typed] : [],
+      proof: proof.proof,
+      target_fr: proof.target,
+      marks: proof.marks,
+      tries: 0,
+      reply: { by: desk.by, ...desk.line },
+    };
+    return null;
+  }
+  if (act === 'opinion_fix') {
+    const opinion = state.opinion;
+    if (!opinion || state.comeback) throw outOfOrder();
+    if (opinion.proof !== 'marked') return null; // settled: a repeat
+    if (body.value === 'romy') {
+      if (Number(opinion.tries) < 1) throw outOfOrder();
+      opinion.proof = 'corrected';
+      return null;
+    }
+    const text = String(body.text || '').replace(/\s+/g, ' ').trim();
+    const frame = band === 'A2' ? takes.frames[opinion.stance as Stance].fr : '';
+    const nudge = tooShort(band, text, frame);
+    if (nudge) return nudge;
+    const learner = band === 'A2' ? a2Sentence(frame, text) : sentenceEnd(text);
+    if (proofKey(learner) === proofKey(String(opinion.draft_fr))) return "Rien n'a changé : regarde les mots soulignés.";
+    opinion.tries = Number(opinion.tries) + 1;
+    opinion.draft_fr = learner;
+    opinion.typed = [...(opinion.typed as string[]), text];
+    if (proofKey(learner) === proofKey(String(opinion.target_fr))) {
+      opinion.proof = 'fixed';
+      opinion.marks = [];
+      return null;
+    }
+    const check = proofread(learner);
+    opinion.target_fr = check.target;
+    opinion.marks = check.marks;
+    opinion.proof = !check.marks.length ? 'fixed' : opinion.tries >= FIX_TRIES ? 'corrected' : 'marked';
     return null;
   }
   if (act === 'comeback') {
     if (state.comeback) return null;
-    if (!state.opinion) throw outOfOrder();
+    if (!state.opinion || state.opinion.proof === 'marked') throw outOfOrder();
     const stance = state.opinion.stance as Stance;
     if (band === 'A1' || band === 'A2') {
       const chips = [...COMEBACK_CHIPS, takes.replies[stance].comeback];
@@ -479,7 +570,9 @@ export function applyComptoirAct(state: MockComptoirState, body: Json, ctx: Comp
 /** «La page» and the dispatch (spec §3 step 5): no model call; the opinion must be given. */
 export function comptoirClose(state: MockComptoirState, ctx: ComptoirContext & { lead: { fr: string }; kicker?: string; words: string[] }): { page: Json; dispatch: Json } {
   const { takes, band } = ctx;
-  if (!state.opinion) throw ctx.fail(409, { code: 'revue_comptoir_out_of_order', step: stepOf(state, takes, band, false), act: 'close' });
+  if (!state.opinion || state.opinion.proof === 'marked') {
+    throw ctx.fail(409, { code: 'revue_comptoir_out_of_order', step: stepOf(state, takes, band, false), act: 'close' });
+  }
   const stance = state.opinion.stance as Stance;
   const intox = intoxFor(takes, band);
   const votes: Record<Stance, number> = { pour: 0, contre: 0, nuance: 0 };
@@ -487,13 +580,17 @@ export function comptoirClose(state: MockComptoirState, ctx: ComptoirContext & {
   votes[stance] += 1;
   const standfirst = sentences(ctx.lead.fr)[0] ?? ctx.lead.fr;
   const claim = intox ? ctx.claim(intox.claim_id) : null;
-  const edited = String(state.opinion.edited_fr);
+  const printed = String(printedOf(state.opinion));
+  // «avec toi» only when the learner's own words are printed (never a tile).
+  const own = (state.opinion.typed as string[]).join(' ');
+  const credited = own !== '' && fold(own).split(/\W+/).some((word) => word.length > 2 && fold(printed).includes(word));
   const page = {
     question_fr: takes.question.fr,
     dateline_fr: ctx.datelineFr,
     standfirst_fr: standfirst,
     quotes: takes.guests.map((g) => quoteOf(takes, g.id, g.quote.fr)),
-    mine: { cast_id: 'user', name_fr: 'Toi', role_fr: '', stance, quote_fr: edited },
+    mine: { cast_id: 'user', name_fr: 'Toi', role_fr: '', stance, quote_fr: printed },
+    proof: state.opinion.proof,
     votes,
     intox: intox && state.fix
       ? { by: intox.by, name_fr: COMPTOIR_NAME_FR[intox.by], wrong_fr: intox.wrong_fr, right_fr: intox.right_fr, source_name: String(claim?.source?.name ?? '') }
@@ -504,9 +601,9 @@ export function comptoirClose(state: MockComptoirState, ctx: ComptoirContext & {
   const dispatch = {
     kicker_fr: 'Le micro-trottoir de Romy',
     headline_fr: takes.question.fr,
-    body_fr: [standfirst, `Toi : « ${edited} »`],
+    body_fr: [standfirst, `Toi : « ${printed} »`],
     contribution: [],
-    byline_fr: `Romy Tremblay, avec toi · d'après ${ctx.sources.map((s) => String(s.name)).join(' et ')}`,
+    byline_fr: `${credited ? 'Romy Tremblay, avec toi' : 'Romy Tremblay'} · d'après ${ctx.sources.map((s) => String(s.name)).join(' et ')}`,
     sources: ctx.sources,
   };
   return { page, dispatch };

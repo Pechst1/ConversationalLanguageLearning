@@ -10,19 +10,19 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! Tout le monde mérite sa chance.",
-     "en": "I'm for it! Everyone deserves a chance.",
-     "de": "Ich bin dafür! Jeder verdient eine Chance."
+     "fr": "Je suis pour ! En 2023, 95,7 % des élèves ont le bac. Bravo !",
+     "en": "I'm for it! In 2023, 95.7% of pupils get the bac. Well done!",
+     "de": "Ich bin dafür! 2023 schaffen 95,7 % der Schüler das Abi. Bravo!"
     },
     "a2": {
-     "fr": "Voyons donc, oui ! Tout le monde mérite sa chance, parce que l'école doit aider les jeunes.",
-     "en": "Come on, yes! Everyone deserves a chance, because school must help young people.",
-     "de": "Ach komm, ja! Jeder verdient eine Chance, weil die Schule den Jungen helfen muss."
+     "fr": "Voyons donc, oui ! Tout le monde mérite sa chance. En 1990, 75,5 % réussissaient ; en 2023, 95,7 %. Tant mieux !",
+     "en": "Come on, yes! Everyone deserves a chance. In 1990, 75.5% passed; in 2023, 95.7%. All the better!",
+     "de": "Ach komm, ja! Jeder verdient eine Chance. 1990 bestanden 75,5 %, 2023 waren es 95,7 %. Umso besser!"
     },
     "b1": {
-     "fr": "Je suis pour, parce que l'école doit donner sa chance à tout le monde. Le bac ouvre des portes, voyons donc. Gus l'a eu, et il s'en vante encore.",
-     "en": "I'm for it, because school must give everyone a chance. The bac opens doors, come on. Gus passed it, and he still brags about it.",
-     "de": "Ich bin dafür, weil die Schule allen eine Chance geben muss. Das Abi öffnet Türen, ach komm. Gus hat es bestanden, und er prahlt immer noch damit."
+     "fr": "Je suis pour, parce que l'école doit donner sa chance à tout le monde. Depuis 1808, le bac ouvre des portes, voyons donc. Gus l'a eu, et il s'en vante encore.",
+     "en": "I'm for it, because school must give everyone a chance. Since 1808, the bac has opened doors, come on. Gus passed it, and he still brags about it.",
+     "de": "Ich bin dafür, weil die Schule allen eine Chance geben muss. Seit 1808 öffnet das Abi Türen, ach komm. Gus hat es bestanden, und er prahlt immer noch damit."
     }
    },
    "quote": {
@@ -36,19 +36,19 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend. Mes élèves, ils sont super fiers, mon chou.",
-     "en": "It depends. My pupils are so proud, sweetie.",
-     "de": "Kommt drauf an. Meine Schüler sind so stolz, mein Schatz."
+     "fr": "Ça dépend, mon chou. Mes élèves sont super fiers. Mais en 1990, seulement 75,5 % !",
+     "en": "It depends, sweetie. My pupils are so proud. But in 1990, only 75.5%!",
+     "de": "Kommt drauf an, mein Schatz. Meine Schüler sind so stolz. Aber 1990 waren es nur 75,5 %!"
     },
     "a2": {
-     "fr": "Ça dépend, mon chou ! Les élèves sont fiers, mais le bac doit rester sérieux.",
-     "en": "It depends, sweetie! The pupils are proud, but the bac must stay serious.",
-     "de": "Kommt drauf an, mein Schatz! Die Schüler sind stolz, aber das Abi muss ernst bleiben."
+     "fr": "Ça dépend, mon chou ! Les élèves sont fiers, mais le bac doit rester sérieux. Et en 2027, le Grand oral compte moins !",
+     "en": "It depends, sweetie! The pupils are proud, but the bac must stay serious. And in 2027, the Grand oral counts for less!",
+     "de": "Kommt drauf an, mein Schatz! Die Schüler sind stolz, aber das Abi muss ernst bleiben. Und 2027 zählt das Grand oral weniger!"
     },
     "b1": {
-     "fr": "Ça dépend, parce que mes élèves travaillent dur, mais le bac doit rester juste. D'un côté, c'est la fête ; de l'autre, la philo, c'est sérieux. Mais arrête, Gus, tu exagères !",
-     "en": "It depends, because my pupils work hard, but the bac must stay fair. On the one hand, it's a party; on the other, philosophy is serious. But stop it, Gus, you're exaggerating!",
-     "de": "Kommt drauf an, weil meine Schüler hart arbeiten, aber das Abi muss fair bleiben. Einerseits ist es ein Fest; andererseits ist Philosophie ernst. Aber hör auf, Gus, du übertreibst!"
+     "fr": "Ça dépend, parce que mes élèves travaillent dur, mais le bac doit rester juste. En 1990, 75,5 % réussissaient ; en 2023, 95,7 %. Ils sont plus forts, mon chou, ou on corrige plus gentiment ?",
+     "en": "It depends, because my pupils work hard, but the bac must stay fair. In 1990, 75.5% passed; in 2023, 95.7%. Are they stronger, sweetie, or are we marking more kindly?",
+     "de": "Kommt drauf an, weil meine Schüler hart arbeiten, aber das Abi muss fair bleiben. 1990 bestanden 75,5 %, 2023 waren es 95,7 %. Sind sie besser geworden, mein Schatz, oder korrigieren wir netter?"
     }
    },
    "quote": {

@@ -10,19 +10,19 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! C'est gratuit, et ça fait du bien.",
-     "en": "I'm for it! It's free, and it feels good.",
-     "de": "Ich bin dafür! Es ist gratis, und es tut gut."
+     "fr": "Je suis pour ! Le 21 juin, c'est gratuit, et ça fait du bien.",
+     "en": "I'm for it! On 21 June, it's free, and it feels good.",
+     "de": "Ich bin dafür! Am 21. Juni ist es gratis, und es tut gut."
     },
     "a2": {
-     "fr": "C'est pas pire, ton truc ! La musique gratuite dans la rue, j'adore. Voyons donc.",
-     "en": "It's not bad, your thing! Free music in the street, I love it. Come on.",
-     "de": "Gar nicht schlecht, deine Sache! Gratismusik auf der Straße, ich liebe das. Ach komm."
+     "fr": "C'est pas pire, ton truc ! Le 21 juin, la musique est gratuite dans la rue. J'adore, voyons donc.",
+     "en": "It's not bad, your thing! On 21 June, music is free in the street. I love it, come on.",
+     "de": "Gar nicht schlecht, deine Sache! Am 21. Juni ist Musik auf der Straße gratis. Ich liebe das, ach komm."
     },
     "b1": {
-     "fr": "Je suis pour, parce que la musique gratuite, c'est la ville qui respire. Le bruit ? Voyons donc, une fois par an. Lila, tu exagères.",
-     "en": "I'm for it, because free music is the city breathing. The noise? Come on, once a year. Lila, you're exaggerating.",
-     "de": "Ich bin dafür, weil Gratismusik die Stadt atmen lässt. Der Lärm? Ach komm, einmal im Jahr. Lila, du übertreibst."
+     "fr": "Je suis pour, parce que la musique gratuite, c'est la ville qui respire. Le bruit ? Voyons donc, une fois par an, le 21 juin. Lila, tu exagères.",
+     "en": "I'm for it, because free music is the city breathing. The noise? Come on, once a year, on 21 June. Lila, you're exaggerating.",
+     "de": "Ich bin dafür, weil Gratismusik die Stadt atmen lässt. Der Lärm? Ach komm, einmal im Jahr, am 21. Juni. Lila, du übertreibst."
     }
    },
    "quote": {
@@ -36,19 +36,19 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend, mon chou. La musique, oui. Le bruit, non.",
-     "en": "It depends, sweetie. Music, yes. Noise, no.",
-     "de": "Kommt drauf an, Schatz. Musik ja. Lärm nein."
+     "fr": "Ça dépend, mon chou. Le ministère de la Culture dit bravo. Mes voisins, non !",
+     "en": "It depends, sweetie. The Ministry of Culture says bravo. My neighbours, no!",
+     "de": "Kommt drauf an, Schatz. Das Kulturministerium sagt Bravo. Meine Nachbarn nicht!"
     },
     "a2": {
-     "fr": "Ça dépend, mon chou ! La musique dans la rue, c'est beau. Mais le bruit la nuit, non.",
-     "en": "It depends, sweetie! Music in the street is lovely. But noise at night, no.",
-     "de": "Kommt drauf an, Schatz! Musik auf der Straße ist schön. Aber Lärm nachts, nein."
+     "fr": "Ça dépend, mon chou ! Pour le ministère de la Culture, c'est un succès. Mais le bruit la nuit, non merci.",
+     "en": "It depends, sweetie! For the Ministry of Culture, it's a success. But noise at night, no thanks.",
+     "de": "Kommt drauf an, Schatz! Für das Kulturministerium ist es ein Erfolg. Aber Lärm nachts, nein danke."
     },
     "b1": {
-     "fr": "D'un côté, la musique gratuite dans la rue fait du bien. De l'autre, mes voisins se plaignent, et Romy chante faux. Bon, on fait quoi alors ?",
-     "en": "On the one hand, free music in the street does good. On the other, my neighbours complain, and Romy sings out of tune. So, what do we do?",
-     "de": "Einerseits tut Gratismusik auf der Straße gut. Andererseits beschweren sich meine Nachbarn, und Romy singt falsch. Also, was machen wir?"
+     "fr": "D'un côté, la musique gratuite dans la rue fait du bien ; même le ministère de la Culture parle d'un succès. De l'autre, mes voisins se plaignent, et Romy chante faux. Bon, on fait quoi alors ?",
+     "en": "On the one hand, free music in the street does good; even the Ministry of Culture talks of a success. On the other, my neighbours complain, and Romy sings out of tune. So, what do we do?",
+     "de": "Einerseits tut Gratismusik auf der Straße gut; sogar das Kulturministerium spricht von einem Erfolg. Andererseits beschweren sich meine Nachbarn, und Romy singt falsch. Also, was machen wir?"
     }
    },
    "quote": {

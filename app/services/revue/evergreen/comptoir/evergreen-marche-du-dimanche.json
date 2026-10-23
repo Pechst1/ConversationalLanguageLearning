@@ -10,19 +10,19 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! Un marché, c'est la vraie vie. Pas un centre commercial.",
-     "en": "I'm for it! A market is real life. Not a shopping centre.",
-     "de": "Ich bin dafür! Ein Markt ist das echte Leben. Kein Einkaufszentrum."
+     "fr": "Je suis pour ! Un marché, c'est la vraie vie. Et Paris en a 91 !",
+     "en": "I'm for it! A market is real life. And Paris has 91 of them!",
+     "de": "Ich bin dafür! Ein Markt ist das echte Leben. Und Paris hat 91 davon!"
     },
     "a2": {
-     "fr": "Un marché, c'est le Québec sans la neige. Des vrais légumes, des vrais rires. Voyons donc, c'est pas pire.",
-     "en": "A market is Québec without the snow. Real vegetables, real laughter. Come on, it's not bad.",
-     "de": "Ein Markt ist Québec ohne Schnee. Echtes Gemüse, echtes Lachen. Ach komm, das ist gar nicht schlecht."
+     "fr": "Le marché d'Aligre, dans le 12e, c'est le Québec sans la neige. Des vrais légumes, des vrais rires. C'est pas pire !",
+     "en": "The Aligre market, in the 12th, is Québec without the snow. Real vegetables, real laughter. Not bad at all!",
+     "de": "Der Markt Aligre im 12. Arrondissement ist Québec ohne Schnee. Echtes Gemüse, echtes Lachen. Gar nicht schlecht!"
     },
     "b1": {
-     "fr": "Je suis pour, parce que le marché d'Aligre, c'est un vrai lieu de vie, pas un magasin. On y parle, on y goûte, on y reste. Gus, viens goûter les fraises !",
-     "en": "I'm for it, because the Aligre market is a real place to live, not a shop. You talk there, you taste there, you stay there. Gus, come and taste the strawberries!",
-     "de": "Ich bin dafür, weil der Markt Aligre ein echter Lebensort ist, kein Laden. Man redet dort, probiert dort, bleibt dort. Gus, komm die Erdbeeren probieren!"
+     "fr": "Je suis pour, parce que le marché d'Aligre, c'est un vrai lieu de vie, pas un magasin ; même la Ville de Paris le dit. On y parle, on y goûte, on y reste. Gus, viens goûter les fraises !",
+     "en": "I'm for it, because the Aligre market is a real place of life, not a shop; even the City of Paris says so. You talk there, you taste there, you stay there. Gus, come and taste the strawberries!",
+     "de": "Ich bin dafür, weil der Markt Aligre ein echter Lebensort ist, kein Laden; sogar die Stadt Paris sagt das. Man redet dort, probiert dort, bleibt dort. Gus, komm die Erdbeeren probieren!"
     }
    },
    "quote": {
@@ -36,19 +36,19 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend. Des légumes frais, bien. Des poussettes partout, moins.",
-     "en": "It depends. Fresh vegetables, good. Prams everywhere, less so.",
-     "de": "Kommt drauf an. Frisches Gemüse, gut. Kinderwagen überall, weniger gut."
+     "fr": "Ça dépend. Des légumes frais au marché Beauvau, bien. Des poussettes partout, moins.",
+     "en": "It depends. Fresh vegetables at the Beauvau market, good. Prams everywhere, less so.",
+     "de": "Kommt drauf an. Frisches Gemüse in der Markthalle Beauvau, gut. Kinderwagen überall, weniger gut."
     },
     "a2": {
-     "fr": "Des légumes frais au marché ? Bien. Des chariots dans mes pieds ? Moins.",
-     "en": "Fresh vegetables at the market? Good. Trolleys around my feet? Less so.",
-     "de": "Frisches Gemüse auf dem Markt? Gut. Rollwagen um meine Füße? Weniger."
+     "fr": "Des légumes frais au marché Beauvau, ouvert toute la journée ? Bien. Des chariots dans mes pieds ? Moins.",
+     "en": "Fresh vegetables at the Beauvau market, open all day? Good. Trolleys around my feet? Less so.",
+     "de": "Frisches Gemüse in der Markthalle Beauvau, den ganzen Tag offen? Gut. Rollwagen um meine Füße? Weniger."
     },
     "b1": {
-     "fr": "D'un côté, le marché d'Aligre rend la rue vivante, et le pain est bon. De l'autre, les chariots font mal aux pieds. La même chose ?",
-     "en": "On the one hand, the Aligre market makes the street lively, and the bread is good. On the other, the trolleys hurt your feet. Same again?",
-     "de": "Einerseits macht der Markt Aligre die Straße lebendig, und das Brot ist gut. Andererseits tun die Einkaufswagen den Füßen weh. Nochmal dasselbe?"
+     "fr": "D'un côté, le marché d'Aligre rend la rue vivante, et le marché Beauvau reste ouvert toute la journée. De l'autre, les chariots font mal aux pieds. La même chose ?",
+     "en": "On the one hand, the Aligre market makes the street lively, and the Beauvau market stays open all day. On the other, the trolleys hurt your feet. Same again?",
+     "de": "Einerseits macht der Markt Aligre die Straße lebendig, und die Markthalle Beauvau bleibt den ganzen Tag offen. Andererseits tun die Einkaufswagen den Füßen weh. Nochmal dasselbe?"
     }
    },
    "quote": {

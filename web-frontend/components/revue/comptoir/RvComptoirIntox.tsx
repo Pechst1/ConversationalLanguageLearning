@@ -3,9 +3,10 @@
  * Romy «Attends… quelqu'un a dit un truc faux. Qui ?» over the three takes as
  * compact quotes to tap. A wrong guess: «Non, relis bien.» and the claim that
  * settles it, with its source; two tries, then she says who it was. Then her
- * question and the fix — two options at A1–A2, the prefilled «C'est faux, … !
- * C'est …, pas …» from B1 (in the foot's field). The result: the right sentence
- * as the learner's line (always, even after a wrong fix), the claim and its
+ * question and the fix — two options at A1–A2, from B1 one sentence the learner
+ * writes in the foot's field, from an empty field (no prefill since 2026-10-23).
+ * The result: the right sentence, labelled «Ta réplique» only when it is the
+ * learner's own typed line and «La bonne réplique» otherwise, the claim and its
  * source (unless a missed guess already showed it), the liar caught, and «C'est
  * faux, c'est…, pas…» as today's phrase.
  */
@@ -18,7 +19,7 @@ import { fill } from '../revue-copy';
 import { RvComposer } from '../RvComposer';
 import { RvClaim } from '../RvThread';
 import { COMPTOIR_LINES } from './comptoir-copy';
-import { castName, hasBlank, quoteSegments } from './comptoir-model';
+import { castName, quoteSegments } from './comptoir-model';
 import { ComptoirBubble, RomyLine, type ComptoirStepProps } from './RvComptoirParts';
 
 const fold = (text: string) =>
@@ -55,7 +56,6 @@ export function RvComptoirIntox(props: ComptoirStepProps) {
     foot = (
       <RvComposer
         key="intox-fix"
-        initial={intox.prefillFr ?? ''}
         label={ccopy.intox_fix_label}
         placeholder={ccopy.intox_fix_placeholder}
         disabled={pending !== null}
@@ -168,7 +168,8 @@ export function RvComptoirIntox(props: ComptoirStepProps) {
                   {fix.lineFr}
                 </p>
               )}
-              <p className="ct-fb__note">{ccopy.intox_your_line}</p>
+              {/* «Ta réplique» only on the learner's own typed line; a picked option or Romy's version is «La bonne réplique». */}
+              <p className="ct-fb__note">{!lower && fix.correct && fold(fix.answerFr) === fold(fix.lineFr) ? ccopy.intox_your_line : ccopy.intox_right_line}</p>
             </div>
             {fix.claim && !(hintShown && intox.hintClaim?.id === fix.claim.id) && (
               <RvClaim claim={fix.claim} support={support} glosses={glosses} band={session.plan.band} glossLanguage={glossLanguage} copy={copy} onWord={wordFor(null)} />
@@ -194,7 +195,7 @@ export function RvComptoirIntox(props: ComptoirStepProps) {
         {notice}
       </div>
       {!readOnly && (
-        <div className="rv-foot ct-foot" ref={footRef} data-blank={intox.resolved && !lower && !fix && hasBlank(intox.prefillFr ?? '') ? '' : undefined}>
+        <div className="rv-foot ct-foot" ref={footRef}>
           {foot}
         </div>
       )}

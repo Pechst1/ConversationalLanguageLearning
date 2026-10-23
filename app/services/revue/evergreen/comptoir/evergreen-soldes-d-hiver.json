@@ -10,14 +10,14 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour ! Les soldes, c'est bon pour les Parisiens. Voyons donc !",
-     "en": "I'm for it! Sales are good for Parisians. Come on!",
-     "de": "Ich bin dafür! Schlussverkäufe sind gut für die Pariser. Ach komm!"
+     "fr": "Je suis pour ! Le 7 janvier, je cours acheter un manteau.",
+     "en": "I'm for it! On 7 January, I'm running out to buy a coat.",
+     "de": "Ich bin dafür! Am 7. Januar renne ich los und kaufe einen Mantel."
     },
     "a2": {
-     "fr": "Les soldes, c'est bon pour le portefeuille. Un bon manteau à prix doux, c'est pas pire !",
-     "en": "Sales are good for the wallet. A good coat at a gentle price is not bad at all!",
-     "de": "Schlussverkauf ist gut fürs Portemonnaie. Ein guter Mantel zum kleinen Preis, gar nicht schlecht!"
+     "fr": "Des soldes deux fois par an, c'est bon pour le portefeuille. Un bon manteau à prix doux, c'est pas pire !",
+     "en": "Sales twice a year are good for the wallet. A good coat at a gentle price is not bad at all!",
+     "de": "Schlussverkauf zweimal im Jahr ist gut fürs Portemonnaie. Ein guter Mantel zum kleinen Preis, gar nicht schlecht!"
     },
     "b1": {
      "fr": "Je suis pour, parce que les soldes donnent de l'air aux petits commerçants. Quatre semaines, c'est court, voyons donc. Sans soldes, on achète moins.",
@@ -36,19 +36,19 @@
    "stance": "contre",
    "take": {
     "a1": {
-     "fr": "Je suis contre. Tout cela a un coût.",
-     "en": "I'm against it. All of this has a cost.",
-     "de": "Ich bin dagegen. Das alles hat seinen Preis."
+     "fr": "Je suis contre. Des soldes deux fois par an ? Tout cela a un coût.",
+     "en": "I'm against it. Sales twice a year? All of this has a cost.",
+     "de": "Ich bin dagegen. Schlussverkauf zweimal im Jahr? Das alles hat seinen Preis."
     },
     "a2": {
-     "fr": "Voyez-vous, les soldes coûtent cher. Moins d'argent dans la caisse, et tout cela a un coût.",
-     "en": "You see, sales cost a lot. Less money in the till, and all of this has a cost.",
-     "de": "Sehen Sie, Schlussverkäufe kosten viel. Weniger Geld in der Kasse, und das alles hat seinen Preis."
+     "fr": "Voyez-vous, du 7 janvier au 3 février, les soldes coûtent cher. Moins d'argent dans la caisse, et tout cela a un coût.",
+     "en": "You see, from 7 January to 3 February, sales cost a lot. Less money in the till, and all of this has a cost.",
+     "de": "Sehen Sie, vom 7. Januar bis zum 3. Februar kosten Schlussverkäufe viel. Weniger Geld in der Kasse, und das alles hat seinen Preis."
     },
     "b1": {
-     "fr": "Voyez-vous, je ne suis pas d'accord, parce que les soldes coûtent cher au commerçant. D'un côté, les clients sont contents ; de l'autre, je compte chaque centime.",
-     "en": "You see, I don't agree, because sales cost the shopkeeper a lot. On the one hand, customers are happy; on the other, I count every cent.",
-     "de": "Sehen Sie, ich bin nicht einverstanden, weil Schlussverkäufe den Händler viel kosten. Einerseits sind die Kunden zufrieden; andererseits zähle ich jeden Cent."
+     "fr": "Voyez-vous, je ne suis pas d'accord, parce que les soldes coûtent cher au commerçant. Selon Service Public, elles plaisent aux commerçants. Pas à moi : je compte chaque centime.",
+     "en": "You see, I don't agree, because sales cost the shopkeeper a lot. According to Service Public, shopkeepers like them. Not me: I count every cent.",
+     "de": "Sehen Sie, ich bin nicht einverstanden, weil Schlussverkäufe den Händler viel kosten. Laut Service Public gefallen sie den Händlern. Mir nicht: Ich zähle jeden Cent."
     }
    },
    "quote": {

@@ -23,11 +23,12 @@
  *
  * WP-119 §8.4, offered only when the story's own picture is painted:
  * - RvCaption, «La légende»: the picture printed with an empty caption line and
- *   the words it shows. A1–A2 choose the caption among three (a ChoiceList; the
- *   right one is inked in under the picture after the pick, the server keeping the
- *   answer until then). B1+ write it: the caption prints under the picture as they
- *   type, the picture's words are tiles that drop into it, and the rubric grades it
- *   on what the picture and the sources say (a contradicted caption: write again).
+ *   the words it shows. Every band writes it (2026-10-23): the caption prints under
+ *   the picture as they type, the picture's words are tiles that drop into it, and
+ *   the rubric grades it on what the picture and the sources say (a contradicted or
+ *   too short caption: write again). At A1–A2 a refused try also brings the three
+ *   captions to choose from (a ChoiceList; the right one is inked in under the
+ *   picture after the pick, filed as «La légende», never «Ta légende»).
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -423,31 +424,45 @@ export function captionFeedback(result: RvCaptionResult, copy: RevueCopy): Feedb
   const right = (result.evidence?.words ?? []).filter((word) => word.outcome === 'correct').map((word) => word.fr);
   const detail = right.length ? fill(copy.write_words_right, { words: right.join(', ') }) : null;
   const fit = result.evidence?.factFit;
+  // Refused and not contradicted: under the band's words.
+  if (!result.accepted && fit !== 'contradicted') return { tone: 'wrong', title: copy.caption_too_short, detail };
   if (!result.accepted || fit === 'contradicted') return { tone: 'wrong', title: copy.caption_contradicted, detail };
   if (fit === 'supported') return { tone: 'correct', title: copy.caption_supported, detail };
   return { tone: 'neutral', title: copy.caption_unsupported, detail };
 }
 
-/** What prints under the picture: the filed caption, else the draft (typed, or the pick on its way). */
+/**
+ * What prints under the picture: the filed caption, else the draft (the pick on its way, or
+ * what is typed). `options`: the captions to choose from (the offer's, or a refused try's).
+ */
 export function captionShown(
   offer: Pick<RvCaptionOffer, 'format' | 'options'>,
   result: RvCaptionResult | null,
   picked: string | null,
   text: string,
+  options: RvHeadlineOption[] = offer.options,
 ): { captionFr: string | null; contribution: RvSpan[]; draft: boolean } {
   if (result?.accepted && result.made) return { captionFr: result.made.textFr, contribution: result.made.contribution, draft: false };
+  const option = picked ? options.find((row) => row.id === picked) : null;
+  if (option) return { captionFr: option.textFr, contribution: [], draft: true };
   if (offer.format === 'write') return { captionFr: text.trim() || null, contribution: [], draft: true };
-  const option = picked ? offer.options.find((row) => row.id === picked) : null;
-  return { captionFr: option ? option.textFr : null, contribution: [], draft: true };
+  return { captionFr: null, contribution: [], draft: true };
 }
 
 export function RvCaption({ offer, result, picked, pending = false, onPick, onWrite, glosses = 'tap', glossLanguage = 'en', copy }: RvCaptionProps) {
   const [text, setText] = useState('');
+  // The captions to choose from: a refused try's, else the last ones seen (the offer's on a resume).
+  const [seen, setSeen] = useState<RvHeadlineOption[]>(offer.options);
+  const fallback = result?.options.length ? result.options : seen;
+  useEffect(() => {
+    if (result?.options.length) setSeen(result.options);
+  }, [result]);
   const field = useRef<HTMLTextAreaElement | null>(null);
   const filed = Boolean(result?.accepted && result.made);
-  const shown = captionShown(offer, result, picked, text);
+  const shown = captionShown(offer, result, picked, text, fallback);
   const feedback = result ? captionFeedback(result, copy) : null;
-  const write = offer.format === 'write';
+  // A pick (only offered after a refused try) turns the screen to the choice.
+  const write = offer.format === 'write' && picked === null && result?.format !== 'choice';
   const words = headlineWords(text);
   const tooLong = words > offer.maxWords;
   const countId = 'rv-caption-count';
@@ -501,7 +516,7 @@ export function RvCaption({ offer, result, picked, pending = false, onPick, onWr
   );
 
   if (!write) {
-    const choices: ChoiceOption[] = offer.options.map((option) => ({
+    const choices: ChoiceOption[] = fallback.map((option) => ({
       id: option.id,
       textFr: option.textFr,
       state: result
@@ -562,6 +577,18 @@ export function RvCaption({ offer, result, picked, pending = false, onPick, onWr
         <Action tone="primary" pending={pending} pendingLabel={copy.caption_send} disabled={!text.trim() || tooLong} onClick={() => onWrite(text.trim())}>
           {copy.caption_send}
         </Action>
+      )}
+      {!filed && fallback.length > 0 && (
+        <div className="rv-caption__or">
+          <ChoiceList
+            options={fallback.map((option) => ({ id: option.id, textFr: option.textFr }))}
+            selectedId={null}
+            label={copy.caption_or_pick}
+            disabled={pending}
+            onSelect={onPick}
+            statusLabels={{ selected: copy.status_selected, correct: copy.status_correct, wrong: copy.status_wrong }}
+          />
+        </div>
       )}
     </div>
   );

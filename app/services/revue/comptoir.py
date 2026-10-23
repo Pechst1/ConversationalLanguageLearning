@@ -53,7 +53,7 @@ from app.services.revue.dossier import (
     fold,
 )
 
-COMPTOIR_PROMPT_VERSION = "comptoir-takes-v2"
+COMPTOIR_PROMPT_VERSION = "comptoir-takes-v3"
 
 ROMY_ID = "romy_tremblay"
 GUS_ID = "augustin_de_roncourt"
@@ -238,6 +238,9 @@ COMPTOIR_RULES = """RULES
   un signe»), Margaux one dry line, M. Marchand grumpy with «vous».
   a1: two short present-tense sentences, 14 words at most, the most common words. a2: 26 words at most.
   b1: 42 words at most, with one connector («parce que», «même si», «d'un côté… de l'autre…»).
+  Every take, at every band, names one TRUE detail copied from the claims that the question does not already
+  say (a number, a date, a weekday, a place or a name), so the learner must check each take against the facts to
+  find the intox, never find the liar because his is the only take with a fact in it.
   quote: the heart of the take in six words at most, printed in Romy's paper; never the false detail.
 - The stance must match the words: "pour" says yes, "contre" says no, "nuance" weighs both («ça dépend», «d'un
   côté…», «je ne sais pas») and never says «je suis pour» or «je suis contre».
@@ -279,26 +282,26 @@ back in May 2027; guests romy_tremblay, margaux_barman, augustin_de_roncourt):
   "de": "Céline kommt 2027 zurück. Eine gute Nachricht?"},
  "guests": [
   {"id": "romy_tremblay", "stance": "pour",
-   "a1": {"fr": "Je suis pour ! Céline, c'est le Québec. J'ai pleuré au concert.",
-    "en": "I'm for it! Céline is Québec. I cried at the concert.",
-    "de": "Ich bin dafür! Céline ist Québec. Ich habe beim Konzert geweint."},
-   "a2": {"fr": "Céline, c'est le Québec ! Moi, j'ai pleuré au concert. Ne le dis à personne.",
-    "en": "Céline is Québec! I cried at the concert. Don't tell anyone.",
-    "de": "Céline ist Québec! Ich habe beim Konzert geweint. Sag es niemandem."},
-   "b1": {"fr": "Je suis pour, parce que Céline, c'est un peu ma maison loin de la maison. J'ai pleuré au concert, voyons donc. Si Gus le raconte, je nie tout.",
-    "en": "I'm for it, because Céline is a bit of home away from home. I cried at the concert, come on. If Gus tells anyone, I'll deny everything.",
-    "de": "Ich bin dafür, weil Céline für mich ein Stück Zuhause in der Ferne ist. Ich habe beim Konzert geweint, na und. Wenn Gus das erzählt, streite ich alles ab."},
+   "a1": {"fr": "Je suis pour ! Céline, c'est le Québec. Seize concerts, et j'ai pleuré.",
+    "en": "I'm for it! Céline is Québec. Sixteen concerts, and I cried.",
+    "de": "Ich bin dafür! Céline ist Québec. Sechzehn Konzerte, und ich habe geweint."},
+   "a2": {"fr": "Céline, c'est le Québec ! Moi, j'ai pleuré au concert du 17 octobre. Ne le dis à personne.",
+    "en": "Céline is Québec! I cried at the concert on 17 October. Don't tell anyone.",
+    "de": "Céline ist Québec! Ich habe beim Konzert am 17. Oktober geweint. Sag es niemandem."},
+   "b1": {"fr": "Je suis pour, parce que Céline, c'est un peu ma maison loin de la maison. Au dernier concert, le 17 octobre, j'ai pleuré, voyons donc. Si Gus le raconte, je nie tout.",
+    "en": "I'm for it, because Céline is a bit of home away from home. At the last concert, on 17 October, I cried, come on. If Gus tells anyone, I'll deny everything.",
+    "de": "Ich bin dafür, weil Céline für mich ein Stück Zuhause in der Ferne ist. Beim letzten Konzert, am 17. Oktober, habe ich geweint, na und. Wenn Gus das erzählt, streite ich alles ab."},
    "quote": {"fr": "Céline, c'est le Québec !", "en": "Céline is Québec!", "de": "Céline ist Québec!"}},
   {"id": "margaux_barman", "stance": "nuance",
-   "a1": {"fr": "Ça dépend. Les fans, c'est bon pour la caisse. Pas pour mes oreilles.",
-    "en": "It depends. Fans are good for the till. Not for my ears.",
-    "de": "Kommt drauf an. Fans sind gut für die Kasse. Nicht für meine Ohren."},
-   "a2": {"fr": "Des fans au comptoir tous les soirs ? Bon pour la caisse. Mauvais pour mes oreilles.",
-    "en": "Fans at the counter every night? Good for the till. Bad for my ears.",
-    "de": "Jeden Abend Fans an der Theke? Gut für die Kasse. Schlecht für meine Ohren."},
-   "b1": {"fr": "D'un côté, des fans au comptoir tous les soirs, c'est bon pour la caisse. De l'autre, ils chantent jusqu'à la fermeture. Et faux. La même chose ?",
-    "en": "On the one hand, fans at the counter every night are good for the till. On the other, they sing until closing time. Out of tune. Same again?",
-    "de": "Einerseits sind Fans jeden Abend an der Theke gut für die Kasse. Andererseits singen sie bis zur Sperrstunde. Und falsch. Nochmal dasselbe?"},
+   "a1": {"fr": "Ça dépend. Seize concerts, c'est bon pour la caisse. Pas pour mes oreilles.",
+    "en": "It depends. Sixteen concerts are good for the till. Not for my ears.",
+    "de": "Kommt drauf an. Sechzehn Konzerte sind gut für die Kasse. Nicht für meine Ohren."},
+   "a2": {"fr": "Des fans au comptoir pendant seize concerts ? Bon pour la caisse. Mauvais pour mes oreilles.",
+    "en": "Fans at the counter for sixteen concerts? Good for the till. Bad for my ears.",
+    "de": "Fans an der Theke, sechzehn Konzerte lang? Gut für die Kasse. Schlecht für meine Ohren."},
+   "b1": {"fr": "D'un côté, des fans au comptoir pendant seize concerts, c'est bon pour la caisse. De l'autre, ils chantent jusqu'à la fermeture. Et faux. La même chose ?",
+    "en": "On the one hand, fans at the counter for sixteen concerts are good for the till. On the other, they sing until closing time. Out of tune. Same again?",
+    "de": "Einerseits sind Fans an der Theke, sechzehn Konzerte lang, gut für die Kasse. Andererseits singen sie bis zur Sperrstunde. Und falsch. Nochmal dasselbe?"},
    "quote": {"fr": "Bon pour la caisse. Mauvais pour mes oreilles.", "en": "Good for the till. Bad for my ears.",
     "de": "Gut für die Kasse. Schlecht für meine Ohren."}},
   {"id": "augustin_de_roncourt", "stance": "contre",
@@ -400,6 +403,36 @@ _NUMBER_WORDS = frozenset("""
     cinquante soixante cent cents mille million millions milliard milliards moitie quart double
     fois heure heures jour jours semaine semaines mois an ans annee annees siecle siecles euro euros
 """.split())
+
+
+#: The words that say a number (a unit such as «jours» is not one).
+_COUNT_WORDS = frozenset("""
+    deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize vingt trente quarante
+    cinquante soixante cent cents mille million millions milliard milliards moitie quart double
+""".split())
+_CALENDAR = frozenset("""
+    janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre
+    lundi mardi mercredi jeudi vendredi samedi dimanche
+""".split())
+
+
+def details(fr: str | None, story: str, question: str = "") -> list[str]:
+    """What a take says that one can check in the facts and the question does not already
+    say (2026-10-23: every take carries one, so «who lied?» needs the facts, not
+    elimination): a number in digits or in words, a month or a weekday, a name, each of them
+    in ``story`` (the title, the summary and the claims)."""
+
+    known, asked = set(re.findall(r"[a-z0-9]+", ci(story))), set(re.findall(r"[a-z0-9]+", ci(question)))
+    found = sorted(numbers(fr) & numbers(story) - numbers(question))
+    regulars = {ci(name) for name in NAME_FR.values()}
+    for sentence in sentences(str(fr or "")):
+        for index, token in enumerate(re.findall(r"[^\W\d_]+", sentence)):
+            key = ci(token)
+            if key not in known or key in asked or key in regulars or key in found:
+                continue
+            if key in _COUNT_WORDS or key in _CALENDAR or (index > 0 and token[:1].isupper() and len(token) >= 3):
+                found.append(key)
+    return found
 
 
 def numeric(text: str | None) -> bool:
@@ -711,6 +744,17 @@ def repair_comptoir(raw: Any, dossier: EditorialDossier) -> tuple[ComptoirTakes 
                                         take=ComptoirTake(**texts)))
     if refusals:
         return None, [*refusals, *problems]
+    if intox is not None:
+        # every honest take at an intox band carries a detail one can check, or «who lied?» is
+        # answered by elimination (the only take with a fact in it); else that band has none
+        bands = []
+        for band in intox.bands:
+            bare = [g.id for g in guests if g.id != intox.by
+                    and not details(g.take.for_band(band).fr, check.story, question.fr)]
+            problems += [f"comptoir:{gid}:{band}:no_detail" for gid in bare]
+            if not bare:
+                bands.append(band)
+        intox = intox.model_copy(update={"bands": bands}) if bands else None
 
     reasons: dict[str, list[ComptoirText]] = {}
     frames: dict[str, ComptoirText] = {}

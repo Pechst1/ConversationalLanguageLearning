@@ -5,14 +5,14 @@
  *
  * French in every table: what the learner says (Oui ! · d'accord · Pour), what
  * the page prints (POUR · CONTRE · ÇA DÉPEND, «La question du jour», «Dans le
- * journal · corrigé par Romy», «L'intox du jour», «Le micro-trottoir de Romy»)
+ * journal · corrigé par toi», «L'intox du jour», «Le micro-trottoir de Romy»)
  * and the feature's own name, «Au comptoir». Romy's authored lines are French
  * with their translations (`COMPTOIR_LINES`), so «Traduire» needs no request.
  *
  * Sentence case, no exclamation marks, no personality: Romy has the voice.
  */
 
-import type { RvLanguage } from '@/lib/revue-types';
+import type { RvComptoirMarkKind, RvComptoirProof, RvLanguage } from '@/lib/revue-types';
 
 export type ComptoirCopy = {
   steps_label: string;
@@ -29,7 +29,10 @@ export type ComptoirCopy = {
   intox_not_this: string;
   intox_fix_label: string;
   intox_fix_placeholder: string;
+  /** Under the learner's own typed line (B1, word for word the right one). */
   intox_your_line: string;
+  /** Under the right line when the learner picked it or Romy says it (2026-10-23 copy honesty). */
+  intox_right_line: string;
   intox_wrong_answer: string;
   side_label: string;
   a1_reason_label: string;
@@ -41,6 +44,15 @@ export type ComptoirCopy = {
   answer_to: string;
   opinion_placeholder: string;
   write_hint: string;
+  /** Romy's marks (2026-10-23): the kind of slip under each mark, never the answer. */
+  mark_kinds: Record<RvComptoirMarkKind, string>;
+  fix_label: string;
+  fix_placeholder: string;
+  fix_send: string;
+  /** «Essai 1 sur 2». */
+  fix_try: string;
+  /** After one try: Romy corrects what is left. */
+  fix_romy: string;
   your_reply: string;
   reply_label: string;
   reply_placeholder: string;
@@ -61,9 +73,10 @@ const FR: ComptoirCopy = {
   listen: 'Écouter',
   intox_pick_hint: 'Touche la phrase fausse.',
   intox_not_this: 'pas celle-ci',
-  intox_fix_label: 'Corrige la phrase',
+  intox_fix_label: 'Écris ta correction',
   intox_fix_placeholder: 'C’est faux, c’est…, pas…',
   intox_your_line: 'Ta réplique. Nouvelle tournure : « C’est faux, c’est…, pas… »',
+  intox_right_line: 'La bonne réplique. Nouvelle tournure : « C’est faux, c’est…, pas… »',
   intox_wrong_answer: 'Pas tout à fait : la bonne réponse, c’est « {right} ».',
   side_label: 'Ton camp',
   a1_reason_label: 'Pourquoi ?',
@@ -75,6 +88,20 @@ const FR: ComptoirCopy = {
   answer_to: 'Réponds à {name}',
   opinion_placeholder: 'Ton avis, en français',
   write_hint: 'Écris ou dis ta raison.',
+  mark_kinds: {
+    accord: 'accord',
+    conjugaison: 'conjugaison',
+    genre: 'genre',
+    orthographe: 'orthographe',
+    mot: 'mot',
+    ordre: 'ordre des mots',
+    manque: 'il manque un mot',
+  },
+  fix_label: 'Corrige ta phrase',
+  fix_placeholder: 'Ta phrase corrigée…',
+  fix_send: 'Renvoyer',
+  fix_try: 'Essai {n} sur {max}',
+  fix_romy: 'Corrige-le, Romy',
   your_reply: 'Ta réponse',
   reply_label: 'Ta réponse, en une phrase',
   reply_placeholder: 'Ta réponse…',
@@ -95,9 +122,10 @@ const EN: ComptoirCopy = {
   listen: 'Listen',
   intox_pick_hint: 'Tap the false sentence.',
   intox_not_this: 'not this one',
-  intox_fix_label: 'Correct the sentence',
+  intox_fix_label: 'Write your correction',
   intox_fix_placeholder: 'C’est faux, c’est…, pas…',
   intox_your_line: 'Your line. New phrase: «C’est faux, c’est…, pas…»',
+  intox_right_line: 'The right line. New phrase: «C’est faux, c’est…, pas…»',
   intox_wrong_answer: 'Not quite: the right answer is «{right}».',
   side_label: 'Your side',
   a1_reason_label: 'Why?',
@@ -109,6 +137,20 @@ const EN: ComptoirCopy = {
   answer_to: 'Answer {name}',
   opinion_placeholder: 'Your opinion, in French',
   write_hint: 'Write or say your reason.',
+  mark_kinds: {
+    accord: 'agreement',
+    conjugaison: 'verb form',
+    genre: 'gender',
+    orthographe: 'spelling',
+    mot: 'word choice',
+    ordre: 'word order',
+    manque: 'a word is missing',
+  },
+  fix_label: 'Fix your sentence',
+  fix_placeholder: 'Your corrected sentence…',
+  fix_send: 'Send again',
+  fix_try: 'Try {n} of {max}',
+  fix_romy: 'Let Romy fix it',
   your_reply: 'Your reply',
   reply_label: 'Your reply, in one sentence',
   reply_placeholder: 'Your reply…',
@@ -129,9 +171,10 @@ const DE: ComptoirCopy = {
   listen: 'Anhören',
   intox_pick_hint: 'Tippe auf den falschen Satz.',
   intox_not_this: 'nicht dieser',
-  intox_fix_label: 'Korrigiere den Satz',
+  intox_fix_label: 'Schreib deine Korrektur',
   intox_fix_placeholder: 'C’est faux, c’est…, pas…',
   intox_your_line: 'Dein Satz. Neue Wendung: «C’est faux, c’est…, pas…»',
+  intox_right_line: 'Der richtige Satz. Neue Wendung: «C’est faux, c’est…, pas…»',
   intox_wrong_answer: 'Nicht ganz: Richtig ist «{right}».',
   side_label: 'Deine Seite',
   a1_reason_label: 'Warum?',
@@ -143,6 +186,20 @@ const DE: ComptoirCopy = {
   answer_to: 'Antworte {name}',
   opinion_placeholder: 'Deine Meinung, auf Französisch',
   write_hint: 'Schreib oder sag deinen Grund.',
+  mark_kinds: {
+    accord: 'Angleichung',
+    conjugaison: 'Verbform',
+    genre: 'Genus',
+    orthographe: 'Rechtschreibung',
+    mot: 'Wortwahl',
+    ordre: 'Wortstellung',
+    manque: 'ein Wort fehlt',
+  },
+  fix_label: 'Korrigiere deinen Satz',
+  fix_placeholder: 'Dein korrigierter Satz…',
+  fix_send: 'Erneut senden',
+  fix_try: 'Versuch {n} von {max}',
+  fix_romy: 'Romy soll es korrigieren',
   your_reply: 'Deine Antwort',
   reply_label: 'Deine Antwort, in einem Satz',
   reply_placeholder: 'Deine Antwort…',
@@ -162,18 +219,47 @@ export const COMPTOIR_FR = {
   /** The feature's name, on the presses that lead to the counter. */
   press: 'Au comptoir',
   question_kicker: 'La question du jour',
-  in_paper_fixed: 'Dans le journal · corrigé par Romy',
+  /** Over the learner's sentence once settled, by how it reached print (2026-10-23). */
+  in_paper: 'Dans le journal',
   in_paper_read: 'Dans le journal · relu par Romy',
+  in_paper_mine: 'Dans le journal · corrigé par toi',
+  in_paper_fixed: 'Dans le journal · corrigé par Romy',
+  in_paper_as_written: 'Dans le journal · tel que tu l’as écrit',
+  /** While Romy's marks wait: nothing is printed yet. */
+  proof_marked: 'Les corrections de Romy',
   page_kicker: 'Le micro-trottoir de Romy',
   page_intox: "L'intox du jour.",
   you: 'Toi',
   you_by: 'Toi, au comptoir',
+  /** The page's credit when Romy corrected what the tries left. */
+  you_by_corrected: 'Toi, au comptoir · corrigé par Romy',
 } as const;
+
+/**
+ * The kicker over the printed sentence: «relu par Romy» only when her check found nothing,
+ * «corrigé par toi» when the learner fixed her marks, «corrigé par Romy» when she fixed what
+ * the tries left, «tel que tu l'as écrit» when no check ran. A1's tiles: plain «Dans le journal».
+ */
+export function inPaperLabel(proof: RvComptoirProof, tiles: boolean): string {
+  if (tiles) return COMPTOIR_FR.in_paper;
+  switch (proof) {
+    case 'clean':
+      return COMPTOIR_FR.in_paper_read;
+    case 'fixed':
+      return COMPTOIR_FR.in_paper_mine;
+    case 'corrected':
+      return COMPTOIR_FR.in_paper_fixed;
+    case 'marked':
+      return COMPTOIR_FR.proof_marked;
+    default:
+      return COMPTOIR_FR.in_paper_as_written;
+  }
+}
 
 export type ComptoirLine = { fr: string; en: string; de: string };
 
 /** Romy's authored lines on the client, French with their translations. `{name}`: a regular's name. */
-export const COMPTOIR_LINES: Record<'intox_ask' | 'intox_wrong' | 'intox_found' | 'intox_reveal' | 'opinion_ask', ComptoirLine> = {
+export const COMPTOIR_LINES: Record<'intox_ask' | 'intox_wrong' | 'intox_found' | 'intox_reveal' | 'opinion_ask' | 'proof_marked', ComptoirLine> = {
   intox_ask: {
     fr: "Attends… quelqu'un a dit un truc faux. Qui ?",
     en: 'Wait… someone said something false. Who?',
@@ -186,6 +272,11 @@ export const COMPTOIR_LINES: Record<'intox_ask' | 'intox_wrong' | 'intox_found' 
     fr: 'Et toi ? Il me manque une voix pour mon micro-trottoir.',
     en: "And you? I'm one voice short for my vox pop.",
     de: 'Und du? Mir fehlt noch eine Stimme für meine Straßenumfrage.',
+  },
+  proof_marked: {
+    fr: 'Presque ! Regarde les mots soulignés et corrige-les.',
+    en: 'Almost! Look at the underlined words and fix them.',
+    de: 'Fast! Schau dir die unterstrichenen Wörter an und korrigiere sie.',
   },
 };
 

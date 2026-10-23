@@ -10,19 +10,19 @@
    "stance": "pour",
    "take": {
     "a1": {
-     "fr": "Je suis pour. Les fournitures coûtent trop cher.",
-     "en": "I'm for it. School supplies cost too much.",
-     "de": "Ich bin dafür. Die Schulsachen kosten zu viel."
+     "fr": "Je suis pour. Les fournitures coûtent trop cher. L'aide arrive en août, heureusement.",
+     "en": "I'm for it. School supplies cost too much. The help comes in August, luckily.",
+     "de": "Ich bin dafür. Die Schulsachen kosten zu viel. Die Hilfe kommt im August, zum Glück."
     },
     "a2": {
-     "fr": "Voyons donc, l'aide est utile. Les fournitures et la cantine coûtent cher.",
-     "en": "Come on, the help is useful. Supplies and canteen cost a lot.",
-     "de": "Ach komm, die Hilfe ist nützlich. Schulsachen und Kantine kosten viel."
+     "fr": "Voyons donc, l'aide est utile : 426,87 euros pour un enfant de 6 à 10 ans. Les fournitures et la cantine coûtent cher.",
+     "en": "Come on, the help is useful: 426.87 euros for a child aged 6 to 10. Supplies and canteen cost a lot.",
+     "de": "Ach komm, die Hilfe ist nützlich: 426,87 Euro für ein Kind von 6 bis 10 Jahren. Schulsachen und Kantine kosten viel."
     },
     "b1": {
-     "fr": "Je suis pour, parce que les familles paient les cahiers, la cantine et les vêtements. Cette aide, c'est de l'air pour le budget. Gus, tu ne vas pas me contredire, hein ?",
-     "en": "I'm for it, because families pay for notebooks, the canteen and clothes. This help gives the budget some air. Gus, you're not going to contradict me, are you?",
-     "de": "Ich bin dafür, weil Familien für Hefte, Kantine und Kleidung zahlen. Diese Hilfe gibt dem Budget Luft. Gus, du wirst mir doch nicht widersprechen, oder?"
+     "fr": "Je suis pour, parce que les familles paient les cahiers, la cantine et les vêtements. Avec 426,87 euros pour un enfant de 6 à 10 ans, le budget respire. Gus, tu ne vas pas me contredire, hein ?",
+     "en": "I'm for it, because families pay for notebooks, the canteen and clothes. With 426.87 euros for a child aged 6 to 10, the budget can breathe. Gus, you're not going to contradict me, are you?",
+     "de": "Ich bin dafür, weil Familien für Hefte, Kantine und Kleidung zahlen. Mit 426,87 Euro für ein Kind von 6 bis 10 Jahren kann das Budget durchatmen. Gus, du wirst mir doch nicht widersprechen, oder?"
     }
    },
    "quote": {
@@ -36,14 +36,14 @@
    "stance": "nuance",
    "take": {
     "a1": {
-     "fr": "Ça dépend, mon chou. L'aide est bien, mais les cahiers coûtent cher.",
-     "en": "It depends, sweetie. The help is good, but notebooks cost a lot.",
-     "de": "Kommt drauf an, mein Schatz. Die Hilfe ist gut, aber Hefte kosten viel."
+     "fr": "Ça dépend, mon chou. L'aide est bien, mais en septembre, les cahiers coûtent cher.",
+     "en": "It depends, sweetie. The help is good, but in September, notebooks cost a lot.",
+     "de": "Kommt drauf an, mein Schatz. Die Hilfe ist gut, aber im September kosten Hefte viel."
     },
     "a2": {
-     "fr": "Ça dépend, mon chou ! L'aide est bien, mais les cahiers coûtent cher. Toi, tu gères bien ton budget ?",
-     "en": "It depends, sweetie! The help is good, but notebooks cost a lot. Do you manage your budget well?",
-     "de": "Kommt drauf an, mein Schatz! Die Hilfe ist gut, aber Hefte kosten viel. Kommst du mit deinem Budget gut klar?"
+     "fr": "Ça dépend, mon chou ! L'aide arrive en août, c'est bien, mais les cahiers coûtent cher. Toi, tu gères ton budget ?",
+     "en": "It depends, sweetie! The help comes in August, that's good, but notebooks cost a lot. Do you manage your budget?",
+     "de": "Kommt drauf an, mein Schatz! Die Hilfe kommt im August, das ist gut, aber Hefte kosten viel. Kommst du mit deinem Budget klar?"
     },
     "b1": {
      "fr": "D'un côté, l'allocation aide les familles en août. De l'autre, les cahiers et la cantine coûtent cher. Romy, tu veux qu'on compte ensemble, mon chou ?",

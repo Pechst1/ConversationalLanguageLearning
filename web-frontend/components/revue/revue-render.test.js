@@ -627,25 +627,35 @@ test('RvPicture prints the house print like a press photograph: the frame, the c
   assert.doesNotMatch(draft, /rv-yours/);
 });
 
-test('«La légende» at A1–A2: the picture, a blank line and its words; three captions; the right one inked in after the pick', () => {
-  const { RvCaption } = require('./index.ts');
+test('«La légende» at A1–A2 (2026-10-23): written first; a refused try brings three captions; a pick is inked in, never «toi»', () => {
+  const { RvCaption, captionFeedback } = require('./index.ts');
   const offer = types.parseMakeOffer(MOCK.make_offer_caption).options.find((option) => option.kind === 'caption');
   const props = { offer, picked: null, result: null, onPick: () => {}, onWrite: () => {}, glossLanguage: 'fr', copy: FR };
   const before = render(h(RvCaption, props));
-  assert.match(before, /^<div class="rv-caption" data-format="choice"><figure class="rv-picture"/);
-  assert.match(before, /rv-picture__blank/, 'the caption still to find');
-  assert.match(visibleText(before), /Sur l’image marché couvert marché sous un toit en plein air dehors/);
-  assert.doesNotMatch(before, /<button[^>]*rv-caption__word/, 'A1–A2: the picture\'s words are read, not placed');
-  assert.match(before, /role="radiogroup" aria-label="La légende"/);
-  assert.equal((before.match(/role="radio"/g) || []).length, 3);
-  assert.doesNotMatch(before, /av2-feedback|data-state="(correct|wrong)"/, 'the answer stays with the server until the pick');
+  assert.match(before, /^<div class="rv-caption" data-format="write"><figure class="rv-picture"/);
+  assert.match(before, /rv-picture__blank/, 'the caption still to write');
+  assert.match(before, /<button type="button" class="av2-tile rv-caption__word"/, 'the picture\'s words drop into the caption');
+  assert.match(before, /<textarea/);
+  assert.doesNotMatch(before, /role="radiogroup"/, 'nothing to pick before a try');
 
-  // The pick on its way prints grey under the picture.
-  const sending = render(h(RvCaption, { ...props, picked: 'l2', pending: true }));
+  // Too short: Romy asks for more, the field stays, and the three captions come as the way out.
+  const short = types.parseMakeResult(MOCK.make_caption_short_a2);
+  const refused = render(h(RvCaption, { ...props, result: short }));
+  assert.match(visibleText(refused), /Un peu court pour une légende : encore quelques mots\./);
+  assert.equal(captionFeedback(short, FR).title, FR.caption_too_short);
+  assert.match(refused, /<textarea/, 'write again');
+  assert.match(refused, /role="radiogroup" aria-label="Ou choisis la légende"/);
+  assert.equal((refused.match(/role="radio"/g) || []).length, 3);
+  assert.doesNotMatch(refused, /data-state="(correct|wrong)"/, 'the answer stays with the server until the pick');
+
+  // The pick on its way prints grey under the picture (a resume's offer carries the three).
+  const resumed = { ...props, offer: { ...offer, options: short.options } };
+  const sending = render(h(RvCaption, { ...resumed, picked: 'l2', pending: true }));
+  assert.match(sending, /data-format="choice"/);
   assert.match(sending, /data-draft="">Un marché fermé, un soir de pluie\.<\/span>/);
 
   // A wrong pick: marked with its word, the picture's own caption inked in, uncredited.
-  const wrong = render(h(RvCaption, { ...props, picked: 'l2', result: types.parseMakeResult(MOCK.make_caption_pick_wrong) }));
+  const wrong = render(h(RvCaption, { ...resumed, picked: 'l2', result: types.parseMakeResult(MOCK.make_caption_pick_wrong) }));
   assert.match(wrong, /data-answered=""/);
   assert.match(wrong, new RegExp(`<span class="rv-picture__fr" lang="fr">${DESK_CAPTION.replace(/\./g, '\\.')}</span>`));
   assert.doesNotMatch(wrong, /<sup>toi<\/sup>/);
@@ -654,9 +664,10 @@ test('«La légende» at A1–A2: the picture, a blank line and its words; three
   assert.match(wrong, /data-tone="wrong"/);
   assert.match(visibleText(wrong), /Pas celle-là : l’image montre autre chose\./);
 
-  // The right pick: the caption is the learner's, «toi».
-  const right = render(h(RvCaption, { ...props, picked: 'l1', result: types.parseMakeResult(MOCK.make_caption_pick_right) }));
-  assert.match(right, new RegExp(`<span class="rv-yours">${DESK_CAPTION.replace(/\./g, '\\.')}<sup>toi</sup></span>`));
+  // The right pick: inked in, still not the learner's caption.
+  const right = render(h(RvCaption, { ...resumed, picked: 'l1', result: types.parseMakeResult(MOCK.make_caption_pick_right) }));
+  assert.match(right, new RegExp(`<span class="rv-picture__fr" lang="fr">${DESK_CAPTION.replace(/\./g, '\\.')}</span>`));
+  assert.doesNotMatch(right, /rv-yours|<sup>toi<\/sup>/);
   assert.match(right, /data-tone="correct"/);
   assert.match(visibleText(right), /C’est ce qu’on voit\./);
 });
@@ -727,6 +738,9 @@ test('the dispatch prints the story\'s picture under the headline, the caption m
   assert.match(visibleText(live).replace(/ ([,.])/g, '$1'), /Ta légende part sous l'image, avec mon papier\./);
   const { RvMadeCard } = require('./index.ts');
   assert.match(visibleText(render(h(RvMadeCard, { made: types.parseMakeResult(MOCK.make_caption_write).made, copy: FR }))), /^Ta légende Un marché en plein air/);
+  // A pick is not the learner's: «La légende», «Le titre», never «Ta» / «Ton» (2026-10-23).
+  assert.match(visibleText(render(h(RvMadeCard, { made: types.parseMakeResult(MOCK.make_caption_pick_right).made, copy: FR }))), /^La légende Un marché en plein air/);
+  assert.match(visibleText(render(h(RvMadeCard, { made: types.parseMakeResult(MOCK.make_pick).made, copy: FR }))), /^Le titre /);
 });
 
 test('the arrive screen on the story\'s own picture: the picture is the plate, Romy says «Regarde», nothing stands in', () => {
@@ -876,6 +890,11 @@ test('2026-10-19 · the way forward: «Écrire le papier →» once the learner 
   const resume = render(h(RvEncounter, { client, session: types.parseSessionView(MOCK.session_resume), language: 'en', onExit: () => {}, now: new Date(at) }));
   // The make, first in the one row of quick replies.
   assert.match(resume, /<div class="rv-quick"[^>]*><button type="button" class="av2-chip rv-quick__go">Write the piece →<\/button>/);
+  // 2026-10-23: chips alone do not open the make; a hint says what will.
+  const chipsOnly = render(h(RvEncounter, { client, session: { ...types.parseSessionView(MOCK.session_resume), ownLine: false }, language: 'en', onExit: () => {}, now: new Date(at) }));
+  assert.doesNotMatch(chipsOnly, /rv-quick__go/);
+  assert.match(chipsOnly, /<p class="rv-foot__hint">To write the piece, first tell her something in your own words\.<\/p>/);
+  assert.doesNotMatch(resume, /rv-foot__hint/);
   for (const language of ['fr', 'en', 'de']) assert.ok(revueCopy(language).write_paper.endsWith('→'), language);
   assert.match(revueCopy('fr').write_paper, /^Écrire le papier/);
   // Only the head row is pinned: the band comes after it, in the page.
