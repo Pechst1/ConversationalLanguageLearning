@@ -238,13 +238,16 @@ export function JourneySession({
       : null;
   // Les apparitions: each graded answer counts toward the troupe's streaks and comforts, once.
   const announced = React.useRef<unknown>(null);
+  const announcedCount = React.useRef(0);
+  const announcerId = React.useId();
   const gradedVerdict = tokenFace === 'grin' ? true : tokenFace === 'frown' ? false : null;
   const askerId = asker?.id ?? null;
   React.useEffect(() => {
     if (gradedVerdict === null || announced.current === feedback) return;
     announced.current = feedback;
-    emitCameo({ type: 'answer', correct: gradedVerdict, coachId: askerId });
-  }, [feedback, gradedVerdict, askerId]);
+    announcedCount.current += 1;
+    emitCameo({ type: 'answer', correct: gradedVerdict, coachId: askerId, attempt: `${announcerId}:${announcedCount.current}` });
+  }, [feedback, gradedVerdict, askerId, announcerId]);
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
   // WP-D1: the mark is the day's plan, in the head's right-hand slot.
   const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;

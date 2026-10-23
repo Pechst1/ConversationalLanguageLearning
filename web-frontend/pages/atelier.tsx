@@ -2303,6 +2303,7 @@ export default function AtelierPage() {
             submitting={submitting}
             submitted={submitted}
             correctionsByKey={correctionsByKey}
+            attemptIdsByKey={attemptIdsByKey}
             goNext={goNext}
             retryAttempt={retryCurrentAttempt}
             requestAiReview={requestAiReview}
@@ -3601,6 +3602,7 @@ function SessionView({
   submitting,
   submitted,
   correctionsByKey,
+  attemptIdsByKey,
   goNext,
   retryAttempt,
   requestAiReview,
@@ -3642,6 +3644,8 @@ function SessionView({
   submitting: boolean;
   submitted: Record<string, boolean>;
   correctionsByKey: Record<string, Record<string, any>>;
+  /** The server's attempt id per answer key: the cast counts a checked answer once (#302). */
+  attemptIdsByKey: Record<string, string>;
   goNext: () => void;
   retryAttempt: () => void;
   requestAiReview: () => void;
@@ -4030,6 +4034,7 @@ function SessionView({
                 // form typed as it should be, a transform's model line (La Forge).
                 picked={round === 'recognize' ? drill !== 'typed' || typedAsIs : round === 'transform' && Boolean(drill)}
                 ruleShown={forge ? activeConceptTitle : null}
+                attempt={attemptIdsByKey[currentKey] ?? null}
               />}
           </>)}
         </section>
@@ -4102,6 +4107,7 @@ function ExerciseFeedbackMoment({
   classifyItem = null,
   picked = false,
   ruleShown = null,
+  attempt = null,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -4131,6 +4137,8 @@ function ExerciseFeedbackMoment({
   picked?: boolean;
   /** La Forge: the rule named in the head, which a correction does not repeat. */
   ruleShown?: string | null;
+  /** The server's id for the attempt on screen: the cast counts a checked answer once (#302). */
+  attempt?: string | null;
 }) {
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
@@ -4223,7 +4231,7 @@ function ExerciseFeedbackMoment({
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
         <EpFoot tone="correct">
-          <EpVerdict tone="go" sub={cheer || rule} coach={coach} coachMood={mood}>{t.verdict_correct}</EpVerdict>
+          <EpVerdict tone="go" sub={cheer || rule} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_correct}</EpVerdict>
           {!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>}
         </EpFoot>
       </div>
@@ -4309,7 +4317,7 @@ function ExerciseFeedbackMoment({
           13px line, then the primary — Continuer once the line is recopied,
           otherwise the retry. The quiet links stay third-tier underneath. */}
       <EpFoot tone="wrong">
-        <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood}>{t.verdict_wrong}</EpVerdict>
+        <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
         {repairsComplete
           ? (!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>)
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
