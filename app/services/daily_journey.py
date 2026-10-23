@@ -2746,25 +2746,45 @@ class DailyJourneyService:
         )
 
     def _forge_blocks_on(self, user: User, timezone_name: str, day: date) -> int:
-        """CONTINUE: forge séances the learner finished on ``day``, their own calendar day."""
+        """CONTINUE: grammar blocks the learner finished on ``day``, their own calendar day.
 
-        from app.services.forge import FORGE_KEY
+        A block is a finished forge séance, or a rule check («Épreuve de la règle»)
+        the learner passed: the rule is proven, so the day's grammar step is done.
+        A rule check that was not passed is no block: «Die Schmiede übernimmt» and
+        the grammar step stays open (#175). A rule check ends ``test_out_done``,
+        never ``completed``, so it is read from its own status and result.
+        """
 
+        from app.services.forge import FORGE_KEY, TEST_OUT_DONE_STATUS
+
+        zone = ZoneInfo(resolve_timezone(timezone_name))
+        # The learner's own day, as an UTC window: every séance of that day is read, so
+        # failed rule checks can never push a finished block out of a row limit.
+        start = datetime.combine(day, datetime.min.time(), tzinfo=zone).astimezone(UTC)
+        end = datetime.combine(day + timedelta(days=1), datetime.min.time(), tzinfo=zone).astimezone(UTC)
         rows = self.db.execute(
-            select(AtelierSession.quote_payload, AtelierSession.completed_at)
+            select(
+                AtelierSession.status,
+                AtelierSession.quote_payload,
+                AtelierSession.recap_payload,
+                AtelierSession.completed_at,
+            )
             .where(
                 AtelierSession.user_id == user.id,
-                AtelierSession.status == "completed",
+                AtelierSession.status.in_(("completed", TEST_OUT_DONE_STATUS)),
                 AtelierSession.completed_at.is_not(None),
-                AtelierSession.completed_at >= _utcnow() - timedelta(days=2),
+                AtelierSession.completed_at >= start,
+                AtelierSession.completed_at < end,
             )
             .order_by(AtelierSession.completed_at.desc())
-            .limit(20)
         ).all()
-        zone = ZoneInfo(resolve_timezone(timezone_name))
         count = 0
-        for payload, completed_at in rows:
-            if not isinstance(payload, dict) or not payload.get(FORGE_KEY):
+        for status, payload, recap, completed_at in rows:
+            if status == TEST_OUT_DONE_STATUS:
+                result = recap.get("test_out") if isinstance(recap, dict) else None
+                if not (isinstance(result, dict) and result.get("passed")):
+                    continue
+            elif not isinstance(payload, dict) or not payload.get(FORGE_KEY):
                 continue
             moment = completed_at if completed_at.tzinfo else completed_at.replace(tzinfo=UTC)
             if moment.astimezone(zone).date() == day:

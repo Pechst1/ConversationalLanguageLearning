@@ -197,6 +197,25 @@ def resumed_new_words_left(room: int | None, batch: VocabularyDrillBatch, remain
     return max(0, room - remaining_new)
 
 
+def top_up_new_words(
+    room: int | None, batch: VocabularyDrillBatch, remaining: list[dict[str, Any]], new_limit: int
+) -> int:
+    """#143: the new words a resumed batch takes on before it is served.
+
+    Only when the request asks for more new words than the batch was dealt
+    with: the day deck (the day's whole dose) opening the deck the Lexique dealt
+    first (eight). A reload of the same deck tops nothing up (WP-154). At most
+    what the day's allowance still holds, and never more new words in the deck
+    than the request allows.
+    """
+
+    if not remaining or new_limit <= int(batch.new_limit or 0):
+        return 0
+    remaining_new = sum(1 for item in remaining if item.get("list") == "new_words")
+    left = resumed_new_words_left(room, batch, remaining_new) or 0
+    return max(0, min(left, new_limit - remaining_new))
+
+
 __all__ = [
     "DRILL_MODES",
     "DRILL_MORE",
@@ -209,4 +228,5 @@ __all__ = [
     "remaining_items",
     "resumed_new_words_left",
     "save_batch",
+    "top_up_new_words",
 ]

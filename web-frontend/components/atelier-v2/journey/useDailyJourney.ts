@@ -67,6 +67,7 @@ import { createReplySequencer, prefersReducedMotion } from '@/lib/journey-reply-
 import {
   answerIsBlank,
   currentStepOf,
+  dayPlanIsStale,
   journeyAwaitsFinish,
   journeyProgress,
   phaseFromEnvelope,
@@ -395,11 +396,15 @@ export function useDailyJourney(
     if (next.status !== 'preparing') preparingPollsRef.current = 0;
   }, []);
 
+  /** The journey's status when the envelope's day plan was read (`dayPlanIsStale`). */
+  const planReadAtRef = useRef<JourneySnapshot['status'] | null>(null);
+
   const loadToday = useCallback(async (): Promise<void> => {
     try {
       const next = await dailyJourneyService.today(resolveTimezone());
       capabilityReadRef.current = true;
       if (!mountedRef.current) return;
+      planReadAtRef.current = next.journey?.status ?? null;
       setEnvelope(next);
       journeyRef.current = next.journey;
       setJourney(next.journey);
@@ -616,6 +621,22 @@ export function useDailyJourney(
       await loadToday();
     });
   }, [loadToday, once]);
+
+  // #143: the scene has ended since the day's plan was read; the ending's hand-on
+  // («Weiter: N Wörter») reads the plan as it stands now. Only the plan is taken:
+  // the journey and its phase stay the ones on screen.
+  const journeyStatus = journey?.status ?? null;
+  useEffect(() => {
+    if (!dayPlanIsStale(planReadAtRef.current, journeyStatus)) return;
+    planReadAtRef.current = journeyStatus;
+    dailyJourneyService
+      .today(resolveTimezone())
+      .then((next) => {
+        if (!mountedRef.current) return;
+        setEnvelope((current) => (current ? { ...current, session: next.session } : current));
+      })
+      .catch(() => {});
+  }, [journeyStatus]);
 
   const start = useCallback(async () => {
     await once('create', async () => {
