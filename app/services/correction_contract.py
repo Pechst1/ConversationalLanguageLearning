@@ -221,11 +221,15 @@ def edit_is_grounded(
 class Verdict:
     """What :func:`verify_edit` decided about one proposed edit. ``replacement`` is
     the one to show: the proposal itself, or the proposal completed by the rules
-    («le appartement» -> «l'appartement»)."""
+    («le appartement» -> «l'appartement»). ``span`` is the learner's words it
+    replaces: the quoted span, or a wider one when the rules folded a neighbouring
+    word in (a model's «la» -> «le» before «appartement» is shown as «la
+    appartement» -> «l'appartement», never «la» -> «l»)."""
 
     ok: bool
     replacement: str | None = None
     reason: str = ""
+    span: str | None = None
 
 
 #: Subject pronouns that may stand in for each other in a correction: the same person
@@ -287,10 +291,11 @@ def verify_edit(
         return Verdict(False, reason="changes_subject")
     if not person_swaps_hold(text, span, replacement):
         return Verdict(False, reason="person_swap")
-    settled = _settled_replacement(text, span, replacement, people)
+    settled = _settled(text, span, replacement, people)
     if settled is None:
         return Verdict(False, reason="does_not_settle")
-    return Verdict(True, replacement=settled)
+    shown_span, shown = settled
+    return Verdict(True, replacement=shown, span=shown_span)
 
 
 def _locate(source: str, span: str) -> tuple[int, int] | None:
@@ -304,28 +309,27 @@ def _locate(source: str, span: str) -> tuple[int, int] | None:
     return None
 
 
-def _settled_replacement(
+def _settled(
     text: object, span: object, replacement: object, people: Mapping[str, str] | None
-) -> str | None:
+) -> tuple[str, str] | None:
+    """``(span, replacement)`` once the proposal settles in the sentence, or ``None``.
+    The span is the learner's words the replacement stands for: the quoted span, or
+    the wider one the rules folded a neighbouring word into («la» + «appartement»)."""
     source = "" if text is None else str(text)
+    quoted = "" if span is None else str(span)
     proposed = "" if replacement is None else str(replacement)
     cast = known_people() if people is None else {k.casefold(): v for k, v in people.items()}
-    where = _locate(source, "" if span is None else str(span))
+    where = _locate(source, quoted)
     if where is None:
         # a near-quote (the Courrier's «une photo» for «un photo»): the replacement is
         # checked on its own
-        return repair_text(proposed, people=cast) or proposed
+        return quoted, repair_text(proposed, people=cast) or proposed
     start, end = where
     probe = Edit(span=source[start:end], replacement=proposed, rule_id="MODEL", label={}, note={}, start=start, end=end)
     final = _settle(source, probe, cast)
     if final is None:
         return None
-    if final.start == start and final.end == end:
-        return final.replacement
-    # the rules folded a neighbouring word in («le» + «appartement»): show the
-    # replacement for the span as the model quoted it
-    inner = final.replacement[start - final.start : len(final.replacement) - (final.end - end)]
-    return inner if inner.strip() and _norm(inner) != _norm(source[start:end]) else None
+    return final.span, final.replacement
 
 
 def _grounded(
@@ -1151,6 +1155,7 @@ _NEGATION_WORDS = frozenset({"pas", "plus", "jamais", "rien"})
 _AVOIR_FORMS = frozenset({"ai", "as", "a", "avons", "avez", "ont", "avais", "avait", "avions", "aviez", "avaient"})
 #: «en face la gare» -> «en face de la gare»: the locutions that need «de» before a noun.
 _NEEDS_DE = {("en", "face"), ("à", "côté"), ("au", "milieu"), ("au", "bord"), ("à", "cause"), ("au", "lieu")}
+_EN_FACE_ADVERB_VERBS = frozenset({"regarder", "voir", "dire", "affronter", "fixer", "envisager", "accepter", "assumer"})
 _DETERMINERS = frozenset(
     {"le", "la", "l", "les", "un", "une", "mon", "ma", "mes", "ton", "ta", "tes", "son", "sa", "ses", "notre",
      "votre", "nos", "vos", "leur", "leurs", "ce", "cet", "cette", "ces"}
@@ -1317,16 +1322,24 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
                 and not source[head.start : head.end][:1].isupper()
                 and (lemma := _noun_lemma(head.low)) is not None
                 and _reads_as_noun(lemma)
+                # «je n'ai pas du pain mais du riz»: a contrast keeps the article
+                and not any(
+                    t.low in {"mais", "plutôt", "sinon"} and _same_sentence(source, head, t)
+                    for t in tokens[head_at + 1 :]
+                )
             ):
                 right = "de " + source[head.start : head.end]
                 add(_edit("FR_PARTITIVE_NEG", source, nxt.start, head.end, right,
                           wrong=source[nxt.start : tokens[head_at - 1].end], right=right))
                 continue
 
-        # «en face la gare» -> «en face de la gare»; «avant partir» -> «avant de partir»
+        # «en face la gare» -> «en face de la gare»; «avant partir» -> «avant de partir».
+        # «regarder en face la réalité» stays: there «en face» says how, and «la
+        # réalité» is the verb's object.
         if (
             prev is not None
             and (prev.low, tok.low) in _NEEDS_DE
+            and not (i >= 2 and _verb_lemma(tokens[i - 2].low) in _EN_FACE_ADVERB_VERBS)
             and _space(source, prev, tok)
             and nxt is not None
             and _space(source, tok, nxt)
@@ -1986,12 +1999,15 @@ def verify_erratum(
     )
     if not verdict.ok:
         return None
-    return _with_replacement(item, verdict.replacement)
+    return _with_replacement(item, verdict.replacement, verdict.span)
 
 
-def _with_replacement(item: Mapping[str, Any], replacement: str | None) -> dict[str, Any]:
-    """``item`` showing the verified replacement, its notes quoting the same words."""
+def _with_replacement(item: Mapping[str, Any], replacement: str | None, span: str | None = None) -> dict[str, Any]:
+    """``item`` showing the verified replacement (for ``span`` when the rules widened
+    it), its notes quoting the same words."""
     out = dict(item)
+    if span and _norm(span).casefold() != _norm(item.get("learner_text")).casefold():
+        out["learner_text"] = span
     old = str(item.get("corrected_target") or "")
     if replacement and replacement != old:
         out["corrected_target"] = replacement
@@ -2040,7 +2056,7 @@ def first_valid_edit(
         verdict = verify_edit(text, span, replacement, note, people=people)
         if verdict.ok and verdict.replacement:
             shown = _requote(str(note), str(replacement), verdict.replacement) if note else None
-            return str(span), verdict.replacement, shown
+            return verdict.span or str(span), verdict.replacement, shown
     edits = deterministic_edits(text, people=people)
     if edits:
         best = min(edits, key=lambda e: (-e.severity, e.start))

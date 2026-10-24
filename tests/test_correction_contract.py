@@ -387,6 +387,22 @@ def test_the_checker_settles_a_model_fix_before_the_learner_sees_it(sentence, sp
     assert verdict.replacement == shown
 
 
+def test_a_fix_the_rules_widen_keeps_the_span_it_replaces():
+    # a model that quotes only the article: «la» -> «le» before «appartement» is shown
+    # as «la appartement» -> «l'appartement», never «la» -> «l» («l appartement»)
+    contract = _contract()
+    verdict = contract.verify_edit("la appartement", "la", "le")
+    assert (verdict.ok, verdict.span, verdict.replacement) == (True, "la appartement", "l'appartement")
+    span, fix, note = contract.first_valid_edit("Je vends la appartement.", "la", "le", "Use « le ».")
+    assert (span, fix, note) == ("la appartement", "l'appartement", "Use « l'appartement ».")
+    kept = contract.grounded_errata(
+        "Je vends la appartement.",
+        [{"learner_text": "la", "corrected_target": "le", "why_wrong": "Use « le ».",
+          "task_error_type": "gender_agreement"}],
+    )
+    assert (kept[0]["learner_text"], kept[0]["corrected_target"]) == ("la appartement", "l'appartement")
+
+
 def test_the_scene_turn_shows_the_settled_fix_and_requotes_its_note():
     span, fix, note = _contract().first_valid_edit(
         "J'habite dans la appartement.", "la appartement", "le appartement", "Use « le appartement »."
@@ -490,6 +506,8 @@ def test_the_phrase_rules_fix_the_classic_mistakes(sentence, span, fix):
         "Après il est parti.",
         "Il a les yeux bleus.",
         "Il habite au lieu le plus proche.",
+        "Il regarde en face la réalité.",  # «en face» says how; «la réalité» is the object
+        "Je n'ai pas du pain mais du riz.",  # a contrast keeps the article
         # unsure means silent: «d'un café» or «un café»? «leur voiture» or «leurs voitures»?
         "Je voudrais de un café.",
         "Ils ont pris leurs voiture.",
