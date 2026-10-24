@@ -31,6 +31,7 @@ import { marginNotes as readMarginNotes } from '@/components/feuilleton/archive/
 import {
   precedemmentView,
   premiseView,
+  rereadView,
   readPrecedemmentDismissed,
   writePrecedemmentDismissed,
 } from '@/components/feuilleton/archive/precedemment-model';
@@ -117,6 +118,7 @@ export function StoryEpisodeStep({
     dismissed: previouslyRead !== false,
   });
   const premise = premiseView({ premise: step.prompt.premise_native, dismissed: previouslyRead !== false });
+  const reread = rereadView({ reread: step.prompt.reread_native, dismissed: previouslyRead !== false });
   const readOn = useCallback(() => {
     writePrecedemmentDismissed(journeyId, step.id);
     setPreviouslyRead(true);
@@ -180,13 +182,14 @@ export function StoryEpisodeStep({
     return <StateBlock tone="loading" title={copy.preparing_title} body={copy.preparing_body} />;
   }
 
-  if (previously || premise) {
+  if (previously || premise || reread) {
     return (
       <>
         <ArchiveStyles />
         <Precedemment
           lines={previously ?? []}
           premise={premise}
+          reread={reread}
           language={language}
           onRead={readOn}
           journeyId={journeyId}
