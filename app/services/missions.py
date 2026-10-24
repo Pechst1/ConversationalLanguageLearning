@@ -55,6 +55,7 @@ from app.services.vocabulary_credit import (
     VocabularyCreditService,
 )
 from app.services.word_match import target_occurs_in
+from app.utils.timestamps import utc_iso
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v2"
 
@@ -7488,9 +7489,9 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             target_vocabulary_count=len(mission.target_vocabulary_ids or []),
             concept_ids=mission.selected_concept_ids or [],
         ),
-        "created_at": mission.created_at.isoformat() if mission.created_at else None,
-        "started_at": mission.started_at.isoformat() if mission.started_at else None,
-        "completed_at": mission.completed_at.isoformat() if mission.completed_at else None,
+        "created_at": utc_iso(mission.created_at),
+        "started_at": utc_iso(mission.started_at),
+        "completed_at": utc_iso(mission.completed_at),
     }
     outcome = (mission.recap_payload or {}).get("outcome") if mission.recap_payload else None
     if getattr(mission, "serial_thread_id", None) and isinstance(outcome, dict):
@@ -7514,7 +7515,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "correction": attempt.correction_payload or {},
                 "verdict": attempt.verdict,
                 "score_0_4": attempt.score_0_4,
-                "created_at": attempt.created_at.isoformat() if attempt.created_at else None,
+                "created_at": utc_iso(attempt.created_at),
             }
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
@@ -7527,7 +7528,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "text": turn.text,
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
-                "created_at": turn.created_at.isoformat() if turn.created_at else None,
+                "created_at": utc_iso(turn.created_at),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
