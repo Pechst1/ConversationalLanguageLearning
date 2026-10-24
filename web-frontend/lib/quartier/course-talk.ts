@@ -110,6 +110,8 @@ export interface Ticket {
 
 export interface Window {
   greeted: boolean;
+  /** she remembers you came last time without a bonjour */
+  slighted: boolean;
   /** the bet so far, as you asked for it */
   ask: BetAsked;
   /** the clerk named the price and waits for the money */
@@ -127,7 +129,7 @@ export interface Race {
   result: number[] | null;
 }
 
-export const newWindow = (): Window => ({ greeted: false, ask: { horse: null, kind: null, stake: null }, owing: null, ticket: null, paid: false });
+export const newWindow = (slighted = false): Window => ({ greeted: false, slighted, ask: { horse: null, kind: null, stake: null }, owing: null, ticket: null, paid: false });
 
 const KIND: Record<'gagnant' | 'place', Words> = {
   gagnant: w('gagnant', 'to win', 'auf Sieg'),
@@ -163,6 +165,7 @@ export function windowHello(c: Window, race: Race): Said {
   if (race.result && c.ticket && !c.paid) return { say: w('Ah, vous revoilà. Vous avez votre ticket ?', "Ah, you're back. Have you got your ticket?", 'Ah, da sind Sie wieder. Haben Sie Ihr Ticket?'), mood: 'joie' };
   if (race.result) return { say: w('La course est finie. Il y en aura d’autres !', "The race is over. There'll be others!", 'Das Rennen ist vorbei. Es gibt noch andere!') };
   if (c.ticket) return { say: w('Vous avez déjà votre ticket. Allez vite voir la course !', 'You have your ticket already. Go and watch the race!', 'Sie haben Ihr Ticket schon. Schnell, schauen Sie sich das Rennen an!') };
+  if (c.slighted && !c.greeted) return { say: w('Ah, c’est vous. La dernière fois, pas de bonjour… On recommence ?', 'Ah, it’s you. Last time, no bonjour… Shall we start again?', 'Ah, Sie sind’s. Letztes Mal kein Bonjour… Fangen wir neu an?'), mood: 'malice' };
   return { say: w('Bonjour ! C’est pour un pari ?', 'Hello! Is it for a bet?', 'Guten Tag! Möchten Sie wetten?') };
 }
 
@@ -178,6 +181,11 @@ export function atWindow(c: Window, text: string, race: Race): Reply {
     if (!hello) {
       lines.push({ say: w('Bonjour d’abord, peut-être…', 'Hello first, maybe…', 'Erst mal guten Tag, vielleicht…'), mood: 'malice' });
       effects.push({ kind: 'fact', key: 'hippodrome_longchamp.guichetiere.bonjour', value: 'forgot' });
+    } else if (c.slighted) {
+      // the grudge ends with the bonjour she was owed
+      c.slighted = false;
+      lines.push({ say: w('Bonjour ! Voilà, c’est mieux.', 'Hello! There, that’s better.', 'Guten Tag! So ist es besser.'), mood: 'joie' });
+      effects.push({ kind: 'fact', key: 'hippodrome_longchamp.guichetiere.bonjour', value: 'said' });
     }
   }
   if (TU.test(t)) lines.push({ say: w('On ne se connaît pas, il me semble. Mais je vous écoute.', "We don't know each other, I think. But go on.", 'Wir kennen uns nicht, glaube ich. Aber bitte.'), mood: 'surprise' });

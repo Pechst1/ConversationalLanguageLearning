@@ -11,7 +11,7 @@ const { test } = require('node:test');
 
 require(path.join(__dirname, '..', '..', 'node_modules/sucrase/register/ts'));
 
-const { atRail, atWindow, callRace, newRegular, newWindow, payout, readBet, RACE_BARKS } = require('./course-talk.ts');
+const { atRail, atWindow, callRace, newRegular, newWindow, payout, readBet, windowHello, RACE_BARKS } = require('./course-talk.ts');
 const { fieldOf } = require('./hippodrome.ts');
 
 const spec = { name: { fr: "Prix de l'Arc de Triomphe", en: "Prix de l'Arc de Triomphe", de: "Prix de l'Arc de Triomphe" }, metres: 2400, hour: '16 h 05', runners: 16, seed: 2026 };
@@ -67,6 +67,17 @@ test('the window notices a missing bonjour and a tu, and keeps to its sixteen ru
   assert.ok(r.lines.some((l) => /que seize partants/.test(l.say.fr)));
 });
 
+test('the clerk remembers a missing bonjour the next time, until you say it', () => {
+  const race = raceOf();
+  const c = newWindow(true);
+  assert.match(windowHello(c, race).say.fr, /pas de bonjour/);
+  const r = atWindow(c, 'Bonjour ! Le 5 gagnant, deux euros.', race);
+  assert.match(r.lines[0].say.fr, /c’est mieux/);
+  assert.ok(r.effects.some((e) => e.kind === 'fact' && e.key === 'hippodrome_longchamp.guichetiere.bonjour' && e.value === 'said'));
+  assert.equal(c.slighted, false);
+  assert.doesNotMatch(windowHello(newWindow(), race).say.fr, /pas de bonjour/);
+});
+
 test('the regular tells the article’s facts, and you learn them', () => {
   const race = raceOf();
   const g = newRegular(race, 0.3);
@@ -93,6 +104,9 @@ test('the canon: the clerk and the regular say vous, and nothing agrees with Toi
   const said = [];
   const c = newWindow();
   ['Bonjour', 'C’est qui, le favori ?', 'Ça veut dire quoi, placé ?', 'Le 4', 'gagnant', 'Voilà', 'Au revoir'].forEach((t) => atWindow(c, t, race).lines.forEach((l) => said.push(l.say.fr)));
+  const back = newWindow(true);
+  said.push(windowHello(back, race).say.fr);
+  atWindow(back, 'Bonjour', race).lines.forEach((l) => said.push(l.say.fr));
   const g = newRegular(race, 0.7);
   ['Bonjour', 'Vous jouez qui ?', 'Et les chevaux japonais ?', 'Seize partants ?', 'Merci, bonne course'].forEach((t) => atRail(g, t, race).lines.forEach((l) => said.push(l.say.fr)));
   RACE_BARKS.forEach((b) => said.push(b.fr));

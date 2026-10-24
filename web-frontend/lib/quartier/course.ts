@@ -100,7 +100,7 @@ export class Course implements Director {
   private field: Troupe;
   private cast: Person[] = [];
   private horses: Horse[] = [];
-  private window: Window = newWindow();
+  private window: Window;
   private regular: Regular;
   private talking: Person | null = null;
   private goal: Goal | null = null;
@@ -139,6 +139,8 @@ export class Course implements Director {
     this.onSay = opts.onSay;
     this.street = opts.street;
     this.memory = opts.memory ?? new Memory(false);
+    // the clerk remembers a bonjour you owed her, as the end card said she would
+    this.window = newWindow(this.memory.fact('hippodrome_longchamp.guichetiere.bonjour') === 'forgot');
     this.race = { spec: this.venue.spec.race, runners: this.venue.runners, holder: this.venue.holder, result: null };
     this.regular = newRegular(this.race, Math.random());
     this.people = new Troupe(q.world, { figure: (key, expression) => this.personArt(key, expression), item: () => null }, 400);

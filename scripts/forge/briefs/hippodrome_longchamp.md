@@ -56,6 +56,9 @@ places a set from the survey, and race day plays on it (`course.ts`).
   crowd behind. The straight is the second errand.
 - **The caller** is calm on the far side, faster and higher up the straight. After the race, what
   you know has the words it used: la corde, la ligne droite, côte à côte.
+- **She remembers.** The end card promised that the clerk would remember a missing bonjour; she
+  now does on the next visit («La dernière fois, pas de bonjour… On recommence ?»), until you say
+  it. Checked over two visits in the standalone page.
 
 ## Still plain
 
