@@ -40,6 +40,7 @@ tricky answers, and run through the real graders):
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
 import unicodedata
@@ -1114,6 +1115,51 @@ def correction_is_grounded(
     # correction holds is enough.
     return any(
         _swap_holds(_clause_before(text_tokens, place[position]), old_persons, new_persons)
+        for place in places
+    )
+
+
+_FORM_VERB: dict[str, str] = {
+    **dict.fromkeys(("suis", "es", "est", "sommes", "êtes", "sont"), "être"),
+    **dict.fromkeys(("ai", "as", "a", "avons", "avez", "ont"), "avoir"),
+    **dict.fromkeys(("vais", "vas", "va", "allons", "allez", "vont"), "aller"),
+}
+
+
+def person_swaps_hold(learner_text: object, span: object, corrected: object) -> bool:
+    """Every être/avoir/aller form the correction swaps for another person of the same
+    verb is wrong for its subject, and the replacement right for it.
+
+    :func:`correction_is_grounded` checks this for a correction that changes a single
+    word. A longer one hid the swap behind a second change: «il est vielle» ->
+    «sont vieilles» passed (two words differ) although «est» is right after «il»; the
+    24 Oct live walk showed it as the chip «→ sont». A verb that changes lemma («je
+    suis froid» -> «j'ai froid») is another kind of fix and is not checked here, and
+    a subject the sentence does not make clear never rejects.
+    """
+
+    text_tokens = _clause_tokens(learner_text)
+    span_words = [t for t in _clause_tokens(span) if _is_word(t)]
+    new_words = [t for t in _clause_tokens(corrected) if _is_word(t)]
+    places = _find_spans(text_tokens, span_words)
+    if not places:
+        return True  # whether the span is there is correction_is_grounded's question
+    swaps: list[tuple[int, str, str]] = []
+    matcher = difflib.SequenceMatcher(a=span_words, b=new_words, autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag != "replace" or i2 - i1 != j2 - j1:
+            continue
+        for offset in range(i2 - i1):
+            old, new = span_words[i1 + offset], new_words[j1 + offset]
+            if old != new and _FORM_VERB.get(old) is not None and _FORM_VERB.get(old) == _FORM_VERB.get(new):
+                swaps.append((i1 + offset, old, new))
+    if not swaps:
+        return True
+    return any(
+        all(
+            _swap_holds(_clause_before(text_tokens, place[position]), _FORM_PERSONS[old], _FORM_PERSONS[new])
+            for position, old, new in swaps
+        )
         for place in places
     )
 
