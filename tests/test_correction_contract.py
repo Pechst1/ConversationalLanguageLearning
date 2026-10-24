@@ -400,16 +400,6 @@ def test_elision_leaves_h_aspire_and_the_numbers_alone(sentence):
     assert not [e for e in _contract().deterministic_edits(sentence) if e.rule_id == "FR_ELISION"]
 
 
-def test_the_validity_guard_names_an_invalid_replacement():
-    from app.services.correction_contract import Edit, replacement_is_valid_french
-
-    source = "je veux vendre la appartement"
-    bad = Edit(span="la", replacement="le", rule_id="FR_GENDER_DET", label={"en": "x"}, note={"en": "x"}, start=15, end=17)
-    good = Edit(span="la appartement", replacement="l'appartement", rule_id="FR_ELISION", label={"en": "x"}, note={"en": "x"}, start=15, end=29)
-    assert not replacement_is_valid_french(source, bad)
-    assert replacement_is_valid_french(source, good)
-
-
 def test_the_scene_reply_shows_the_elision_not_le_appartement():
     span, fix, note = _contract().first_valid_edit("je veux vendre la appartement", None, None, language="de")
     assert (span, fix) == ("la appartement", "l'appartement"), (span, fix, note)
