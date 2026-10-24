@@ -554,6 +554,13 @@ class DayBeat(_Model):
     also: str = ""
     #: Where the «À suivre…» points.
     hook: str = ""
+    #: «Demain» (steering read 2026-10-24): what the learner picks when they choose
+    #: this beat for tomorrow, in short French («Cuisiner avec Lila»). A beat without
+    #: one is never offered out of the plan's order.
+    pick_fr: str = ""
+    #: The premises this beat stands on (the box is open before Gus's Polaroid is
+    #: given): it is offered for tomorrow only once they are staged.
+    needs: list[str] = Field(default_factory=list)
 
 
 class Gap(_Model):
@@ -767,12 +774,15 @@ def _check_day_plan(season: Season, gap: Gap, premise_ids: set[str]) -> list[str
     premises = [beat.premise for beat in gap.days]
     if len(set(premises)) != len(premises):
         problems.append(f"{gap.id}: the day plan stages a premise twice")
+    planned = {beat.premise: beat.day for beat in gap.days}
     for beat in gap.days:
         if beat.premise not in premise_ids:
             problems.append(f"{gap.id}: day {beat.day} plans {beat.premise!r}, which is not a premise")
         if length is not None and beat.day > length:
             problems.append(f"{gap.id}: day {beat.day} is past the gap's {length} days")
-    planned = {beat.premise: beat.day for beat in gap.days}
+        for need in beat.needs:
+            if planned.get(need, beat.day) >= beat.day:
+                problems.append(f"{gap.id}: {beat.premise!r} needs {need!r}, which the plan does not stage before it")
     for need in gap.required:
         day = planned.get(need.premise)
         if day is None or not need.from_day <= day <= need.by_day:

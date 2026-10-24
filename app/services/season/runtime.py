@@ -26,15 +26,22 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from dataclasses import replace as dc_replace
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 from typing import Any
 
 from app.config import settings
 from app.services import story_memory
 from app.services.cast_registry import display_names
-from app.services.season.clock import SEASON_KEY, Position, record_played
-from app.services.season.director import gap_brief
+from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
+from app.services.season.director import (
+    TOMORROW_KEY,
+    dropped_beats,
+    gap_brief,
+    learner_pick,
+    tomorrow_options,
+    used_premises,
+)
 from app.services.season.epilogue import after_settle, context_extra, position_for, season_finished
 from app.services.season.flags import (
     add_signal,
@@ -569,6 +576,60 @@ def season_teaser(story_context: dict[str, Any], *, date: str | None) -> dict[st
         "ref": f"season:{(season_ctx.get('position') or {}).get('key')}",
         "kind": "season",
     }
+
+
+def tomorrow_choice(live: dict | None, *, user: Any, seed: str, event_id: str, now: Any = None) -> dict[str, Any] | None:
+    """«Demain» (steering read 2026-10-24): what the finished day offers for the
+    season's next day, once ``event_id`` (today's exchange) is played: the plan's own
+    thread and up to two the learner may pull forward. None when the next day is a
+    tentpole, the gap's last day, or a plan with nothing free to move."""
+
+    today = today_for(live, user=user, seed=seed, now=now)
+    if today is None:
+        return None
+    log = played_log(today.state)
+    if not log or log[-1].get("event_id") != event_id:
+        return None
+    pos = position_for(today.season, today.state, today=today.local_date + timedelta(days=1))
+    gap = today.season.gaps.get(pos.segment.id) if pos.is_gap and pos.segment is not None else None
+    if gap is None:
+        return None
+    day = pos.day_in_segment
+    options = tomorrow_options(
+        gap,
+        day,
+        used_premises(today.state, gap.id),
+        today.flags,
+        length=pos.segment.days,
+        dropped=dropped_beats(today.state, gap.id),
+    )
+    if not options:
+        return None
+    picked = learner_pick(today.state, gap.id, day)
+    return {
+        "gap": gap.id,
+        "day": day,
+        "options": [
+            {"premise_id": beat.premise, "label_fr": beat.pick_fr, "planned": index == 0}
+            for index, beat in enumerate(options)
+        ],
+        "picked": picked if picked in {beat.premise for beat in options} else None,
+    }
+
+
+def pick_tomorrow(
+    live: dict[str, Any], premise_id: str, *, user: Any, seed: str, event_id: str, now: Any = None
+) -> dict[str, Any] | None:
+    """The life once the learner picked ``premise_id`` for the season's next day, or
+    None when it is not one of the threads ``tomorrow_choice`` offers. Picking again
+    replaces the pick; the plan's own thread is a pick like the others."""
+
+    choice = tomorrow_choice(live, user=user, seed=seed, event_id=event_id, now=now)
+    if choice is None or premise_id not in {row["premise_id"] for row in choice["options"]}:
+        return None
+    state = dict(live.get(SEASON_KEY) or {})
+    state[TOMORROW_KEY] = {"gap": choice["gap"], "day": choice["day"], "premise": premise_id}
+    return {**live, SEASON_KEY: state}
 
 
 def payload_for_scene(story_context: dict[str, Any]) -> dict[str, Any]:
