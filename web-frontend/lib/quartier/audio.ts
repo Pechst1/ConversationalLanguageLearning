@@ -5,10 +5,15 @@
  * on tiles inside), the neon's hum when you stand under it, and the few cues the director asks
  * for: the door's bell, a key on the zinc, a cup on its saucer, a chair pulled out, paper. A
  * place where the news happens adds its din: a racecourse's crowd, from a murmur to the roar up
- * the straight, and the field's hooves on the turf as it goes past.
+ * the straight, and the field's hooves on the turf as it goes past; and its voice over the
+ * loudspeakers, the device's own French voice calling the race (unless the learner turned the
+ * voices off, «Les personnages parlent à voix haute»).
  * Everything is white noise and a few sine partials through filters; an AudioContext may only
  * start from a tap, so `start()` is called from the title card's button.
  */
+import { pickFrenchVoice } from '@/components/atelier-v2/journey/line-audio';
+import { readVoicesPreference } from '@/lib/voice-preference';
+
 import type { Cue, Din } from './stage';
 
 export interface Ambience {
@@ -21,6 +26,8 @@ export interface Ambience {
   /** the crowd and the hooves, where the place has them */
   din?: Din;
 }
+
+const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 
 export class Sound {
   private ctx: AudioContext | null = null;
@@ -48,6 +55,12 @@ export class Sound {
     if (!Ctor) return;
     const ctx = new Ctor();
     this.ctx = ctx;
+    // the iOS WebView lets a page speak later only if it spoke once inside a tap
+    if (canSpeak()) {
+      const hush = new SpeechSynthesisUtterance(' ');
+      hush.volume = 0;
+      window.speechSynthesis.speak(hush);
+    }
     const master = ctx.createGain();
     master.gain.value = this.on ? 0.9 : 0;
     master.connect(ctx.destination);
@@ -148,6 +161,20 @@ export class Sound {
     this.on = on;
     if (this.master && this.ctx) this.master.gain.setTargetAtTime(on ? 0.9 : 0, this.ctx.currentTime, 0.15);
     if (on) void this.ctx?.resume();
+    else if (canSpeak()) window.speechSynthesis.cancel();
+  }
+
+  /** The voice over the loudspeakers: a line in French, cutting off the last one as callers do. */
+  announce(fr: string) {
+    if (!this.ctx || !this.on || !canSpeak() || readVoicesPreference() === false) return;
+    const synth = window.speechSynthesis;
+    const line = new SpeechSynthesisUtterance(fr);
+    line.lang = 'fr-FR';
+    line.rate = 1.05;
+    const voice = pickFrenchVoice(synth.getVoices(), 'speaker');
+    if (voice) line.voice = voice;
+    synth.cancel();
+    synth.speak(line);
   }
 
   /** Follow the place: every frame or so. */
@@ -197,6 +224,7 @@ export class Sound {
   }
 
   dispose() {
+    if (this.ctx && canSpeak()) window.speechSynthesis.cancel();
     void this.ctx?.close();
     this.ctx = null;
   }

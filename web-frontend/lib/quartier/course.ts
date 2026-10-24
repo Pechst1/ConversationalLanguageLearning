@@ -75,6 +75,8 @@ export interface CourseOptions {
   memory?: Memory;
   street?: Street;
   onCue?: (cue: Cue) => void;
+  /** the voice over the course: the stalls, the race called, the result */
+  onSay?: (fr: string) => void;
 }
 
 const CLOSED: Said = { say: w('Trop tard, les paris sont fermés ! Regardez la course !', 'Too late, betting is closed! Watch the race!', 'Zu spät, die Wetten sind geschlossen! Schauen Sie das Rennen!'), mood: 'malice' };
@@ -92,6 +94,7 @@ export class Course implements Director {
   private listeners = new Set<(ui: StageUi) => void>();
   private native: Native;
   private onCue?: (cue: Cue) => void;
+  private onSay?: (fr: string) => void;
   private street?: Street;
   private people: Troupe;
   private field: Troupe;
@@ -133,6 +136,7 @@ export class Course implements Director {
     this.day = `visit.${q.site.spec.id}`;
     this.native = opts.native ?? 'en';
     this.onCue = opts.onCue;
+    this.onSay = opts.onSay;
     this.street = opts.street;
     this.memory = opts.memory ?? new Memory(false);
     this.race = { spec: this.venue.spec.race, runners: this.venue.runners, holder: this.venue.holder, result: null };
@@ -466,7 +470,9 @@ export class Course implements Director {
     if (!ready || this.ui.talk) return;
     this.offAt = now + LOADING * 1000;
     this.draw();
-    this.show({ caption: this.say(w('Les chevaux entrent dans les stalles… Les paris sont fermés !', 'The horses are going into the stalls… Betting is closed!', 'Die Pferde gehen in die Startboxen… Die Wetten sind geschlossen!')) });
+    const stalls = w('Les chevaux entrent dans les stalles… Les paris sont fermés !', 'The horses are going into the stalls… Betting is closed!', 'Die Pferde gehen in die Startboxen… Die Wetten sind geschlossen!');
+    this.show({ caption: this.say(stalls) });
+    this.onSay?.(stalls.fr);
     if (this.goal) {
       this.goal = null;
       this.q.showWay(null);
@@ -550,7 +556,9 @@ export class Course implements Director {
     if (this.called === 0) this.onCue?.('bell');
     if (t > STRAIGHT - 1.5 && t < POST + 3 && this.ui.talk) this.endTalk();
     while (this.called < this.calls.length && this.calls[this.called].at <= t) {
-      this.show({ caption: this.say(this.calls[this.called].say) });
+      const call = this.calls[this.called].say;
+      this.show({ caption: this.say(call) });
+      this.onSay?.(call.fr);
       this.called++;
     }
     const v = this.venue;

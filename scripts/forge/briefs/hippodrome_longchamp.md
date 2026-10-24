@@ -43,12 +43,15 @@ places a set from the survey, and race day plays on it (`course.ts`).
   little louder once they are off, a roar that swells up the straight to the post and dies over
   nine seconds; the hooves on the turf from 200 m out, loudest as the field passes the rail,
   fading as it pulls up. Listened to in the headless browser by its numbers: the roar reaches
-  0.99 at the post, the hooves 0.84 at the rail, seven footfalls a stride.
+  0.99 at the post, the hooves 0.84 at the rail, seven footfalls a stride. The race is called
+  aloud over the loudspeakers in the device's French voice, each call as it is captioned (from
+  the stalls to «Arrivée : …»), unless the learner turned the voices off.
 
 ## Still plain
 
 - The stand is tiers and a box, not the curve of the real one; the paddock, the parade ring and
   the old stands behind are not drawn.
-- One race, one pose per horse (the card bobs and rocks); no voice for the race caller.
+- One race, one pose per horse (the card bobs and rocks); the caller is the device's voice,
+  calm where a real one would shout.
 - The window takes one ticket a race; a second race of the day would make a place to come back
   to.
