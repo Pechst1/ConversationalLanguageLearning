@@ -37,6 +37,8 @@ export type ArchiveDay = {
   scene_id: string | null;
   title_fr: string;
   edition_no: number | null;
+  /** #314: the day re-read an earlier page; the story did not move on. */
+  reread: boolean;
   image_url: string | null;
   learner_lines: string[];
   ending_fr: string | null;
@@ -124,6 +126,7 @@ function normalizeDay(raw: any): ArchiveDay | null {
     scene_id: sceneId,
     title_fr: text(raw?.title_fr),
     edition_no: intOrNull(raw?.edition_no),
+    reread: Boolean(raw?.reread),
     image_url: textOrNull(raw?.image_url),
     learner_lines: list(raw?.learner_lines).map(text).filter(Boolean),
     ending_fr: ending,
@@ -444,6 +447,7 @@ export function archiveFromSeason(season: SeasonPayload | null | undefined): Arc
       scene_id: episode.scene_id,
       title_fr: text(episode.title_fr),
       edition_no: intOrNull(episode.number),
+      reread: false,
       image_url: textOrNull(episode.image_url),
       learner_lines: [],
       ending_fr: null,

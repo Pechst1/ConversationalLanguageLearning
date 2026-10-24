@@ -70,6 +70,7 @@ const FR = {
   // ---- «Précédemment»
   previously: 'Précédemment',
   premise: 'L’enjeu',
+  reread: 'Relecture',
   previously_aria: 'Précédemment dans le feuilleton',
   read: 'Lire',
   // ---- the recap
@@ -129,6 +130,7 @@ const EN: ArchiveCopy = {
   cast_failed: 'The cast did not load.',
   previously: 'Previously',
   premise: 'What it’s about',
+  reread: 'Read again',
   previously_aria: 'Previously in the story',
   read: 'Read',
   tome_finished: 'Season {n} is finished: it is bound as a volume.',
@@ -184,6 +186,7 @@ const DE: ArchiveCopy = {
   cast_failed: 'Die Figuren konnten nicht geladen werden.',
   previously: 'Bisher',
   premise: 'Worum es geht',
+  reread: 'Noch einmal gelesen',
   previously_aria: 'Bisher in der Geschichte',
   read: 'Lesen',
   tome_finished: 'Staffel {n} ist abgeschlossen: Sie ist als Band gebunden.',

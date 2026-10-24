@@ -229,6 +229,9 @@ class ScenePrompt(JourneyModel):
     #: Walk 2026-10-12 (#77): the season's premise in the learner's language —
     #: who they are and what is at stake. ``None`` off a scripted season.
     premise_native: str | None = None
+    #: #314: on a re-read day, one sentence said before panel 1 («Today we read it
+    #: again, then you answer»). ``None`` on every other day.
+    reread_native: str | None = None
     #: WP-97: the margin notes this page prints. ``None`` on authored days.
     margin_notes: list[MarginNote] | None = None
     #: The part of the season this page belongs to: the client draws that part's
@@ -1110,6 +1113,8 @@ class EpisodeHeadline(JourneyModel):
     """WP-109: today's episode as Home and the Feuilleton headline it."""
 
     edition_no: int | None = None
+    #: #314: today is a re-read of an earlier page; the title is that page's.
+    reread: bool = False
     #: The day's title when known: the scene's, or an authored tentpole's. A generated
     #: day not yet written has none — the teaser leads.
     title_fr: str | None = None
