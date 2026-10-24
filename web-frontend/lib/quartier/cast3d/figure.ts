@@ -269,6 +269,8 @@ export class ModelFigure {
   visible = true;
   /** inside the café, for the warm shade */
   indoor = false;
+  /** turns to face you when you are well off to one side; off, they hold their heading (a turntable) */
+  attentive = true;
 
   private blot: Mesh;
   private scale = 1;
@@ -444,7 +446,7 @@ export class ModelFigure {
     else if (chair && chair.yaw !== undefined) {
       const turn = chair.turn ?? 0.6;
       want = chair.yaw + Math.max(-turn, Math.min(turn, wrap(toCam - chair.yaw)));
-    } else {
+    } else if (this.attentive) {
       const off = Math.abs(wrap(toCam - this.heading));
       if (off > 0.75) this.turning = true;
       if (this.turning) want = toCam;
@@ -593,15 +595,17 @@ export class ModelFigure {
       add(pose, 'footR', [-crouch, 0, 0]);
     }
 
-    // the head turns to whoever speaks, or to you
+    // the head turns to whoever speaks, or to you; not to someone behind them
     const C = this.company;
     const headAt = this.faceLocal();
     let lookAt: Vector3 = camera.position;
     if (C.speaker && C.speaker !== this && now < C.until && C.speaker.visible) lookAt = C.speaker.face();
     const rootPos = new Vector3(this.pos.x, this.pos.y + this.lift, this.pos.z);
     const d = lookAt.clone().sub(rootPos.clone().add(headAt));
-    const yaw = Math.max(-1.0, Math.min(1.0, wrap(Math.atan2(d.x, d.z) - this.heading)));
-    const pitch = Math.max(-0.35, Math.min(0.35, -Math.atan2(d.y, Math.hypot(d.x, d.z))));
+    const aside = wrap(Math.atan2(d.x, d.z) - this.heading);
+    const reach = 1 - smoothstep(1.3, 2.0, Math.abs(aside));
+    const yaw = Math.max(-1.0, Math.min(1.0, aside)) * reach;
+    const pitch = Math.max(-0.35, Math.min(0.35, -Math.atan2(d.y, Math.hypot(d.x, d.z)))) * reach;
     const kl = 1 - Math.exp(-dt * 5);
     this.look.x += (yaw - this.look.x) * kl;
     this.look.y += (pitch - this.look.y) * kl;
