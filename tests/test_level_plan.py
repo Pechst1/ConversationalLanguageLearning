@@ -37,9 +37,11 @@ from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.main import create_app
-from app.services import concept_life, level_forecast, level_plan
+from app.services import concept_life, journey_events, level_forecast, level_plan
 from app.services.cefr_progress import DECLARED_LEVEL_EVIDENCE_ATTEMPTS, CEFRProgressService
 from app.services.forge_metrics import active_seconds
+from app.services.journey_contracts import JourneyEventName, effect_source_key
+from app.services.journey_events import record_journey_event
 from tests.test_wp_l7_level_coverage import (
     BAND_WORDS,
     NOW,
@@ -408,6 +410,11 @@ def test_practice_time_counts_each_minute_once(db_session):
             # Inside the scene: its clock has them.
             start + timedelta(minutes=2),
             start + timedelta(minutes=3),
+            # In the séance's capped gap (its clock stops at 10:08): 30 of
+            # these 60 seconds and the next 30 are the deck's.
+            start + timedelta(hours=1, minutes=7, seconds=30),
+            start + timedelta(hours=1, minutes=8, seconds=30),
+            start + timedelta(hours=1, minutes=9),
             # The word deck on its own: three 30-second gaps...
             start + timedelta(hours=2),
             start + timedelta(hours=2, seconds=30),
@@ -423,12 +430,63 @@ def test_practice_time_counts_each_minute_once(db_session):
     )
     assert measured["scenes_seconds"] == 600
     assert measured["forge_seconds"] == active_seconds(seance, attempts) == 480
-    assert measured["words_seconds"] == 110
-    assert measured["total_seconds"] == 600 + 480 + 110
+    assert measured["words_seconds"] == 60 + 110
+    assert measured["total_seconds"] == 600 + 480 + 60 + 110
     assert measured["days"] == [start.date()]
     # Outside the window: nothing.
     later = level_plan.practice_time(db_session, user, since=start + timedelta(days=1), until=start + timedelta(days=2))
     assert later["total_seconds"] == 0 and later["days"] == []
+
+
+def _emit(db_session, journey, name: JourneyEventName, at: datetime, **metadata) -> None:
+    event = record_journey_event(
+        db_session,
+        event_name=str(name),
+        user_id=journey.user_id,
+        source_key=effect_source_key(journey_id=journey.id, effect=f"{name}:{at.isoformat()}"),
+        metadata={"journey_id": str(journey.id), **metadata},
+    )
+    assert event is not None
+    event.occurred_at = at
+
+
+def test_a_review_made_while_the_scene_was_paused_is_the_decks(db_session):
+    """Only the stretches the scene's clock counted are the scene's, not its whole span."""
+
+    user = _user(db_session)
+    start = datetime(2026, 10, 21, 9, 0, tzinfo=UTC)
+    journey = _journey(db_session, user, start=start, minutes=9 * 60 + 2, active=300)
+    _emit(db_session, journey, JourneyEventName.STARTED, start)
+    _emit(db_session, journey, JourneyEventName.STEP_COMPLETED, start + timedelta(minutes=2), step_id="s0", estimated_seconds=60)
+    _emit(db_session, journey, JourneyEventName.PAUSED, start + timedelta(minutes=3), revision=2)
+    # Nine hours away, then the last step and the finish.
+    _emit(db_session, journey, JourneyEventName.STEP_COMPLETED, start + timedelta(hours=9), step_id="s1", estimated_seconds=60)
+    _emit(db_session, journey, JourneyEventName.COMPLETED, start + timedelta(hours=9, minutes=2))
+    db_session.commit()
+    _reviews(
+        db_session,
+        user,
+        [
+            # In a stretch the scene counted: its clock has them.
+            start + timedelta(seconds=30),
+            start + timedelta(seconds=60),
+            # While the scene was paused: the deck's.
+            start + timedelta(hours=3),
+            start + timedelta(hours=3, seconds=30),
+            start + timedelta(hours=3, seconds=60),
+        ],
+    )
+    # The windows are the measurement's own segments: 120 + 60 + 120 seconds.
+    windows = journey_events.active_windows(
+        journey_events.journey_events_for(db_session, journey.id), until=journey.completed_at
+    )
+    measurement = journey_events.measure_journey_duration(db_session, journey_id=journey.id, until=journey.completed_at)
+    assert sum((end - begin).total_seconds() for begin, end in windows) == measurement.active_seconds == 300
+    measured = level_plan.practice_time(
+        db_session, user, since=start - timedelta(days=1), until=start + timedelta(days=1)
+    )
+    assert measured["scenes_seconds"] == 300
+    assert measured["words_seconds"] == 60
 
 
 def _forecast(status: str, low: int, high: int) -> dict:

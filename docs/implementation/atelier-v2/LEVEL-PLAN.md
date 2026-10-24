@@ -66,8 +66,11 @@ falls back to the stored payload with the live grammar (WP-130 A), then to `curr
   (the Tempo sheet's arithmetic, `daily_session.pace_option`). Shown as an hours range.
 * **Time put in.** `practice_time` counts each minute once: the journey recap's active
   seconds, standalone La Forge séances (`forge_metrics.active_seconds`, idle-capped), and
-  word-deck answers outside those windows, two answers more than 120 s apart being a
-  break. Le Courrier and Le Papier are not timed yet, and the card says so.
+  the word deck's time between answers (two answers more than 120 s apart are a break)
+  outside the stretches those two clocks counted (`journey_events.active_windows`,
+  `forge_metrics.active_windows`). A review made while a scene was paused is the deck's,
+  not lost in the scene's span. Le Courrier and Le Papier are not timed yet, and the card
+  says so.
 
 ### 2.4 The card — Fortschritt «Le cours»
 
@@ -94,12 +97,13 @@ the plan cannot be read.
 
 ## 4. Tests
 
-* `tests/test_level_plan.py` (19): every surface prints the same band and percent and the
+* `tests/test_level_plan.py` (20): every surface prints the same band and percent and the
   plan writes nothing; a unit held since the snapshot moves the level on the next read;
   WP-25 for a declared level; each unit's stage, missing evidence, soonest day, owed today
   and arrival; the words split; `earliest_held_at`, `earliest_cover_days` and the range
-  floor; `practice_time` counting each minute once; measured and planned minutes; the
-  capped and missing forecasts; the ladder, the goal and the criteria.
+  floor; `practice_time` counting each minute once (a review in a paused scene is the
+  deck's); measured and planned minutes; the capped and missing forecasts; the ladder,
+  the goal and the criteria.
 * `tests/test_wp_l8_forecast.py`: the prior's range follows the plan and starts no sooner
   than the floor.
 * `web-frontend/components/releve/level-plan.test.js` (18): the view model in all three

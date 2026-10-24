@@ -35,7 +35,7 @@ import logging
 import re
 import time
 from collections import Counter, defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -965,6 +965,76 @@ def measure_journey_duration(
     )
 
 
+def journey_events_by_id(
+    db: Session,
+    journey_ids: Iterable[UUID | str],
+    *,
+    user_id: UUID | None = None,
+) -> dict[str, list[PilotEvent]]:
+    """:func:`journey_events_for` for many journeys in one query (stored rows), oldest first.
+
+    ``user_id``: the learner the journeys belong to, so the read stays on the
+    learner's own events (``ix_pilot_events_user_occurred``).
+    """
+
+    identifiers = sorted({str(value) for value in journey_ids})
+    if not identifiers:
+        return {}
+    query = db.query(PilotEvent).filter(
+        PilotEvent.entity_type == JOURNEY_ENTITY_TYPE,
+        PilotEvent.entity_id.in_(identifiers),
+        PilotEvent.event_type.in_(sorted(JOURNEY_EVENT_NAMES)),
+    )
+    if user_id is not None:
+        query = query.filter(PilotEvent.user_id == user_id)
+    with db.no_autoflush:
+        rows = query.all()
+    grouped: dict[str, list[PilotEvent]] = defaultdict(list)
+    for row in rows:
+        grouped[str(row.entity_id)].append(row)
+    earliest = datetime.min.replace(tzinfo=UTC)
+    return {key: sorted(value, key=lambda row: _aware(row.occurred_at) or earliest) for key, value in grouped.items()}
+
+
+def active_windows(events: list[PilotEvent], *, until: datetime | None = None) -> list[tuple[datetime, datetime]]:
+    """The stretches :func:`measure_journey_duration` counts, as instants.
+
+    For a clock that must not count the same minute twice (the level plan's
+    practice time). The same rules: from ``journey_started`` on, a segment
+    opened by ``journey_paused`` is time away; any other runs from its opening
+    event for at most the step's ceiling, plus the provider wait declared on
+    its closing event (where in the segment the wait fell is not recorded);
+    ``until`` closes a final open segment. ``events`` is one journey's, oldest
+    first.
+    """
+
+    anchor = next(
+        (index for index, event in enumerate(events) if event.event_type == str(JourneyEventName.STARTED)),
+        None,
+    )
+    if anchor is None:
+        return []
+    windows: list[tuple[datetime, datetime]] = []
+    previous = events[anchor]
+    for event in events[anchor + 1 :]:
+        start, end = _aware(previous.occurred_at), _aware(event.occurred_at)
+        if start is not None and end is not None and end > start and previous.event_type != str(JourneyEventName.PAUSED):
+            payload = event.payload or {}
+            span = _segment_ceiling(payload) + _provider_wait_seconds(payload)
+            windows.append((start, min(end, start + timedelta(seconds=span))))
+        previous = event
+    start, boundary = _aware(previous.occurred_at), _aware(until)
+    if (
+        start is not None
+        and boundary is not None
+        and boundary > start
+        and previous.event_type not in TERMINAL_EVENT_NAMES
+        and previous.event_type != str(JourneyEventName.PAUSED)
+    ):
+        windows.append((start, min(boundary, start + timedelta(seconds=IDLE_CEILING_DEFAULT_SECONDS))))
+    return windows
+
+
 def forge_after_day_seconds(db: Session, *, journey_id: UUID | str) -> int:
     """WP-S4: the after-day forge minutes that belong to this journey's day.
 
@@ -1729,10 +1799,12 @@ __all__ = [
     "MIN_MEASURED_PACE_DAYS",
     "MeasuredPace",
     "ProviderWait",
+    "active_windows",
     "dedup_key",
     "format_journey_digest",
     "journey_daily_rollup",
     "journey_event_metadata",
+    "journey_events_by_id",
     "journey_events_for",
     "measure_journey_active_seconds",
     "estimate_row",

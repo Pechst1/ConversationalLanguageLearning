@@ -83,9 +83,15 @@ def _iso_day(value: datetime | date | None) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def _in_windows(moment: datetime, starts: list[datetime], ends: list[datetime]) -> bool:
-    index = bisect_right(starts, moment) - 1
-    return index >= 0 and moment <= ends[index]
+def _overlap_seconds(start: datetime, end: datetime, starts: list[datetime], ends: list[datetime]) -> float:
+    """How much of ``[start, end]`` the merged windows (sorted, disjoint) cover."""
+
+    covered = 0.0
+    index = max(0, bisect_right(starts, start) - 1)
+    while index < len(starts) and starts[index] < end:
+        covered += max(0.0, (min(ends[index], end) - max(starts[index], start)).total_seconds())
+        index += 1
+    return covered
 
 
 def _merged(windows: list[tuple[datetime, datetime]]) -> tuple[list[datetime], list[datetime]]:
@@ -111,13 +117,19 @@ def practice_time(db: Session, user: Any, *, since: datetime, until: datetime) -
       A séance folded into a scene is inside the scene's time already.
     * **words** — the word deck: the time between consecutive word answers
       outside those two, each gap at most :data:`WORD_GAP_CEILING_SECONDS` (a
-      longer one is a break and counts nothing).
+      longer one is a break and counts nothing). «Outside» means outside the
+      stretches the two clocks above counted (``journey_events.active_windows``,
+      ``forge_metrics.active_windows``): a review made while a scene was paused,
+      or after a séance's capped gap, is the deck's.
 
     The Courrier, Le Papier and the other surfaces keep no clock yet; their time
     is not in here, so the total is a floor.
     """
 
     from app.services.forge_metrics import active_seconds as seance_seconds
+    from app.services.forge_metrics import active_windows as seance_windows
+    from app.services.journey_events import active_windows as scene_windows
+    from app.services.journey_events import journey_events_by_id
     from app.services.streak import user_timezone
 
     zone = ZoneInfo(user_timezone(user))
@@ -135,14 +147,21 @@ def practice_time(db: Session, user: Any, *, since: datetime, until: datetime) -
         )
         .all()
     )
+    events = journey_events_by_id(db, (journey.id for journey in journeys), user_id=user.id)
     for journey in journeys:
-        started, finished = _aware(journey.started_at) or _aware(journey.created_at), _aware(journey.completed_at)
-        if started is not None and finished is not None and finished >= started:
-            windows.append((started, finished))
         seconds = (journey.recap_snapshot or {}).get("active_seconds") if isinstance(journey.recap_snapshot, dict) else None
-        if isinstance(seconds, int | float) and not isinstance(seconds, bool) and seconds > 0:
-            scenes += int(seconds)
-            days.add(finished.astimezone(zone).date())  # type: ignore[union-attr]
+        if not (isinstance(seconds, int | float) and not isinstance(seconds, bool) and seconds > 0):
+            continue
+        finished = _aware(journey.completed_at)
+        scenes += int(seconds)
+        days.add(finished.astimezone(zone).date())  # type: ignore[union-attr]
+        counted = scene_windows(events.get(str(journey.id), []), until=finished)
+        if not counted:
+            # Measured, but its events are gone: the whole span stays the scene's.
+            started = _aware(journey.started_at) or _aware(journey.created_at)
+            if started is not None and finished is not None and finished >= started:
+                counted = [(started, finished)]
+        windows.extend(counted)
 
     forge = 0
     seances = (
@@ -172,13 +191,12 @@ def practice_time(db: Session, user: Any, *, since: datetime, until: datetime) -
         ):
             attempts.setdefault(attempt.atelier_session_id, []).append(attempt)
     for seance in standalone:
-        seconds = seance_seconds(seance, attempts.get(seance.id, []))
-        started, finished = _aware(seance.started_at), _aware(seance.completed_at)
-        if started is not None and finished is not None and finished >= started:
-            windows.append((started, finished))
+        rows = attempts.get(seance.id, [])
+        seconds = seance_seconds(seance, rows)
         if seconds > 0:
             forge += seconds
-            days.add(finished.astimezone(zone).date())  # type: ignore[union-attr]
+            days.add(_aware(seance.completed_at).astimezone(zone).date())  # type: ignore[union-attr]
+            windows.extend(seance_windows(seance, rows))
 
     starts, ends = _merged(windows)
     moments = sorted(
@@ -190,14 +208,18 @@ def practice_time(db: Session, user: Any, *, since: datetime, until: datetime) -
             ReviewLog.review_date >= since,
             ReviewLog.review_date < until,
         )
-        if (stamp := _aware(value)) is not None and not _in_windows(stamp, starts, ends)
+        if (stamp := _aware(value)) is not None
     )
-    words = 0
+    deck = 0.0
     for earlier, later in zip(moments, moments[1:], strict=False):
         gap = (later - earlier).total_seconds()
         if 0 < gap <= WORD_GAP_CEILING_SECONDS:
-            words += int(gap)
-            days.add(later.astimezone(zone).date())
+            # The part of the gap no scene or séance clock already counted.
+            own = gap - _overlap_seconds(earlier, later, starts, ends)
+            if own > 0:
+                deck += own
+                days.add(later.astimezone(zone).date())
+    words = int(round(deck))
 
     return {
         "scenes_seconds": scenes,
