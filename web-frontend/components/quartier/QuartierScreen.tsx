@@ -328,8 +328,8 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   // a line outside the script (why you leave, welcome back) takes the speaker's card
   const line: SpeechUi | null = ui?.aside ?? (ui?.speech && !ui.silent ? ui.speech : null);
   const st = stage.current;
-  // you can ride somewhere else between scenes, never in the middle of one
-  const canTravel = ready && (phase === 'title' || phase === 'roam' || phase === 'end') && !ui?.talk;
+  // The map takes you anywhere open, even mid-scene: leaving is a choice like any other.
+  const canTravel = ready && !ui?.talk;
   const name = here?.name.fr ?? 'Le quai de Valmy';
 
   return (
