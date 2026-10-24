@@ -3109,6 +3109,26 @@ def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> 
     return _word_bank_payload(item, whole, lesson_external_id)
 
 
+def _tiles(tokens: Iterable[str]) -> Counter[str]:
+    return Counter(key for key in (normalize(token) for token in tokens) if key)
+
+
+def _right_spares(accepted: Iterable[str], answer_tokens: list[str], spares: list[str]) -> set[str]:
+    """#174: the ``spares`` (folded) that, with the answer's tiles, build another
+    right answer — «allé» beside «allée» when the English «you» names no gender.
+    Such a tile is not extra. A tile only a sentence the tray cannot build uses
+    («petites» for «Les boîtes sont petites» in a tray of «cartons») stays a spare."""
+
+    answer = _tiles(answer_tokens)
+    tray = answer + _tiles(spares)
+    right: set[str] = set()
+    for sentence in accepted:
+        needed = _tiles(_tokens(sentence))
+        if not needed - tray:
+            right |= set(needed - answer)
+    return right
+
+
 def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: str | None) -> dict[str, Any] | None:
     answer_tokens = _tokens(scope.sentence)
     if normalize(_join(answer_tokens)) != normalize(scope.sentence):
@@ -3126,6 +3146,8 @@ def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: s
                 continue
             if key not in {normalize(spare) for spare in spares}:
                 spares.append(token)
+        right = _right_spares(scope.accepted, answer_tokens, spares)
+        spares = [spare for spare in spares if normalize(spare) not in right]
         if spares:
             break
     chips = _scramble([*answer_tokens, *spares[:2]], item.fingerprint)

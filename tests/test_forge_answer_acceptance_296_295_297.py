@@ -16,16 +16,21 @@ for.
   as the keyed rungs read it: a spelling accent is accepted and named, an accent
   that is grammar or meaning («mange» for «mangé», «a» for «à») is refused and
   named, never as an order.
+* #174 — the guard: on every rung of every unit, every right answer passes and no
+  wrong one does.
 """
 
 from __future__ import annotations
 
+import collections
 import re
 
 import pytest
 
 from app.services import forge_grading as grading
 from app.services import item_bank as ib
+from app.services.answer_acceptance import ACCENT_STRICT_UNITS
+from app.services.answer_acceptance import fold_typography as key_fold
 from app.services.atelier import AtelierCorrectionService
 
 _SENTENCE_END = re.compile(r"[.!?…](?:\s+|$)")
@@ -456,3 +461,197 @@ def test_no_trap_and_no_wrong_sentence_of_any_item_is_in_its_key():
     assert checked > 1000 and widened > 50
 
 
+
+# ---------------------------------------------------------------------------
+# #174 — the guard: on every rung, every right answer passes and no wrong one does
+# ---------------------------------------------------------------------------
+
+
+def _phone(answer: str) -> str:
+    """What a phone types: U+2019 apostrophes, no capital, no final stop."""
+
+    typed = answer.replace("'", "\u2019")
+    return (typed[:1].lower() + typed[1:]).rstrip(" .!?")
+
+
+def _spelling_slip(answer: str) -> str | None:
+    """``answer`` with the first accent dropped that is spelling, not grammar."""
+
+    from app.services.answer_acceptance import ACCENT_HOMOGRAPHS, _accent_strict_word
+
+    for accented, plain in (("è", "e"), ("ê", "e"), ("ç", "c"), ("î", "i"), ("ô", "o"), ("û", "u"), ("é", "e")):
+        for match in re.finditer(rf"\w*{accented}\w*", answer):
+            word = match.group(0)
+            slipped = word.replace(accented, plain, 1)
+            if word.casefold() in ACCENT_HOMOGRAPHS or _accent_strict_word(slipped.casefold(), word.casefold()):
+                continue
+            start = match.start() + word.index(accented)
+            return answer[:start] + plain + answer[start + 1:]
+    return None
+
+
+def _repaired_part(source: str, expected: str) -> str | None:
+    """The words a repair changes, typed alone («allée» for the whole sentence)."""
+
+    from app.services.forge_drills import spot_window
+
+    window = spot_window(source, expected)
+    if window is None:
+        return None
+    wrong, right = key_fold(source).split(), key_fold(expected).split()
+    return " ".join(right[window[0]: len(right) - (len(wrong) - window[1])]) or None
+
+
+def _graded(service: AtelierCorrectionService, round_name: str, mode: str, item: dict, answer) -> str:
+    return service.correct(
+        concept=None,
+        round_name=round_name,
+        mode=mode,
+        exercise_id=f"guard:{mode}:{item['id']}",
+        prompt_payload={"items": [item]},
+        answer_payload={"answers": {item["id"]: answer}},
+    )["verdict"]
+
+
+def _folded_tiles(tiles) -> collections.Counter:
+    return collections.Counter(key for key in (ib.normalize(tile) for tile in tiles) if key)
+
+
+def test_no_spare_tile_builds_another_right_answer():
+    """The guard's one find: «… tu étais déjà allée au Mistral.» offered «allé» as the
+    extra tile, but «you» names no gender, so «tu étais déjà allé» is right too and
+    «One word is extra» was false. Every right answer the tray can build uses the
+    answer's tiles only; a spare that only an unbuildable answer uses («petites»
+    for «Les boîtes sont petites» in a tray of «cartons») stays the distractor."""
+
+    bank = ib.default_bank()
+    checked = with_spare = 0
+    for unit in sorted(ib.template_units()):
+        for item in bank.generate(unit, 150, seed="guard-174-spares"):
+            build = ib.word_bank_item(item)
+            if build is None:
+                continue
+            checked += 1
+            tray, answer = _folded_tiles(build["tokens"]), _folded_tiles(build["answer_tokens"])
+            with_spare += bool(tray - answer)
+            for sentence in build["accepted_answers"]:
+                needed = _folded_tiles(ib._tokens(sentence))
+                if not needed - tray:
+                    assert not needed - answer, (unit, item.frame_id, build["correct_answer"], sentence)
+    assert checked > 5000 and with_spare > 0.9 * checked
+
+
+def test_an_agreement_build_keeps_its_agreement_distractor():
+    item = _frame_item(
+        "FR2_A11_ADJ_AGREEMENT", "adj-plural~voc", lambda it: it.sentence.startswith("Les cartons sont petits")
+    )
+    build = ib.word_bank_item(item)
+    assert build is not None and "petites" in build["tokens"], build["tokens"]
+
+
+def test_on_every_rung_every_right_answer_passes_and_no_wrong_one_does(db_session):
+    """Each unit's items, posed by each rung's own builder and graded by the
+    séance's own grader:
+
+    * fill: every listed filler passes — tapped, typed on a phone, or with a
+      spelling accent dropped — and no other choice does;
+    * build: the tray's sentence passes, and every listed answer the tray can
+      build; a spare tile swapped in for any word does not;
+    * judgement and minimal pair: the right label passes, the other does not;
+    * repair: the key and every listed answer pass — typed on a phone, with a
+      spelling accent dropped, or as only the words that change — and neither the
+      sentence to repair nor any ✗ sentence does;
+    * free sentence: the example and every listed answer are «right» on the spot,
+      also typed on a phone, and a spelling slip is accepted with the accent named;
+      no ✗ sentence is right, on the spot or by its accents."""
+
+    service = AtelierCorrectionService(db_session)
+    bank = ib.default_bank()
+    failures: dict[str, list] = collections.defaultdict(list)
+    posed = collections.Counter()
+    for unit in sorted(ib.template_units()):
+        tests_accents = unit in ACCENT_STRICT_UNITS
+        for item in bank.generate(unit, 12, seed="guard-174"):
+            fill = ib.fill_item(item, lesson_external_id=unit)
+            if fill:
+                posed["fill"] += 1
+                keys = {key_fold(answer) for answer in fill["accepted_answers"]}
+                for answer in fill["accepted_answers"]:
+                    said = [answer, _phone(answer)]
+                    slip = _spelling_slip(answer)
+                    if slip and not tests_accents:
+                        said.append(slip)
+                    for typed in said:
+                        if _graded(service, "recognize", "fill", fill, typed) != "correct":
+                            failures["fill: right filler refused"].append((unit, fill["prompt"], typed))
+                for choice in fill["choices"]:
+                    if key_fold(choice) not in keys and _graded(service, "recognize", "fill", fill, choice) == "correct":
+                        failures["fill: wrong choice accepted"].append((unit, fill["prompt"], choice))
+            build = ib.word_bank_item(item, lesson_external_id=unit)
+            if build:
+                posed["build"] += 1
+                tray = collections.Counter(build["tokens"])
+                for sentence in [build["correct_answer"], *(build.get("accepted_answers") or [])]:
+                    tiles = ib._tokens(sentence)
+                    if collections.Counter(tiles) - tray:
+                        continue  # not buildable from this tray
+                    if _graded(service, "recognize", "word_bank", build, tiles) != "correct":
+                        failures["build: right sentence refused"].append((unit, sentence))
+                answer_tiles = build["answer_tokens"]
+                for spare in (tray - collections.Counter(answer_tiles)).elements():
+                    for index, tile in enumerate(answer_tiles):
+                        if tile in ",.;:!?":
+                            continue
+                        swapped = [*answer_tiles[:index], spare, *answer_tiles[index + 1:]]
+                        if _graded(service, "recognize", "word_bank", build, swapped) == "correct":
+                            failures["build: spare tile accepted"].append((unit, build["correct_answer"], spare, tile))
+            sorts = [ib.classify_item(item, show_correct=show, lesson_external_id=unit) for show in (True, False)]
+            for sort in [*sorts, ib.pair_item(item, lesson_external_id=unit)]:
+                if not sort:
+                    continue
+                posed[sort["classify_kind"]] += 1
+                other = next(label for label in sort["labels"] if label != sort["correct_label"])
+                if _graded(service, "recognize", "classify", sort, sort["correct_label"]) != "correct":
+                    failures["judgement: right label refused"].append((unit, sort["prompt"]))
+                if _graded(service, "recognize", "classify", sort, other) == "correct":
+                    failures["judgement: wrong label accepted"].append((unit, sort["prompt"], other))
+            repair = ib.transform_item(item)
+            if repair:
+                posed["repair"] += 1
+                for answer in dict.fromkeys([repair["expected_answer"], *(repair.get("accepted_answers") or [])]):
+                    said = [answer, _phone(answer)]
+                    slip = _spelling_slip(answer)
+                    if slip and not tests_accents:
+                        said.append(slip)
+                    for typed in said:
+                        if _graded(service, "transform", "rewrite", repair, typed) != "correct":
+                            failures["repair: right answer refused"].append((unit, repair["source"], typed))
+                part = _repaired_part(repair["source"], repair["expected_answer"])
+                if part:
+                    posed["repair part"] += 1
+                    if _graded(service, "transform", "rewrite", repair, part) != "correct":
+                        failures["repair: corrected part refused"].append((unit, repair["source"], part))
+                for sentence in dict.fromkeys([repair["source"], *item.wrong_sentences]):
+                    if _graded(service, "transform", "rewrite", repair, sentence) == "correct":
+                        failures["repair: wrong sentence accepted"].append((unit, sentence, repair["expected_answer"]))
+            say = ib.output_item(item, round_name="sentence", requirement={"label": unit, "target_count": 1})
+            posed["sentence"] += 1
+            accepted = list(dict.fromkeys([say["example_answer"], *(say.get("accepted_answers") or [])]))
+            for answer in accepted:
+                for typed in (answer, _phone(answer)):
+                    if grading.production_local_check(None, typed, accepted=accepted)["local_status"] != grading.LOCAL_RIGHT:
+                        failures["sentence: right answer not right"].append((unit, typed))
+                slip = _spelling_slip(answer)
+                reading = grading.accent_reading(slip, accepted) if slip and not tests_accents else None
+                if slip and not tests_accents and not (reading and reading.correct):
+                    failures["sentence: spelling slip refused"].append((unit, slip))
+            for sentence in item.wrong_sentences:
+                reading = grading.accent_reading(sentence, accepted)
+                if grading.production_local_check(None, sentence, accepted=accepted)["local_status"] == grading.LOCAL_RIGHT or (
+                    reading is not None and reading.correct
+                ):
+                    failures["sentence: wrong sentence right"].append((unit, sentence))
+    assert not failures, {kind: rows[:3] for kind, rows in failures.items()}
+    assert len(ib.template_units()) > 40
+    assert min(posed[rung] for rung in ("fill", "build", "judgement", "minimal_pair", "repair", "sentence")) > 400, posed
+    assert posed["repair part"] > 200, posed
