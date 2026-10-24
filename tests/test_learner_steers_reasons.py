@@ -137,7 +137,9 @@ def test_a_tentpole_acknowledgement_to_a_vous_character_never_says_te():
 
 def test_the_lanes_are_told_the_learner_owns_their_reasons():
     assert "The learner owns their reasons." in story_split.PLANNER
-    assert "never whether" in story_split.PLANNER
+    # The world moves the ticket; the learner's blessing stays theirs (Marin's «Je peux ?»).
+    assert "never asks whether it will happen" in story_split.PLANNER
+    assert "a no holds on the page and after" in story_split.PLANNER
     assert "Never ask again what" in lanes.VOICE
     assert "never says the learner agreed or" in lanes.STORY
 

@@ -43,7 +43,7 @@ from app.services.season.flags import (
     effective_flags,
     holds,
 )
-from app.services.season.format import Season, load_season
+from app.services.season.format import Gap, Season, load_season
 from app.services.season.page import (
     choice_cards,
     convince_outcome,
@@ -1251,6 +1251,12 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     premise = checklist.get("premise_id")
     if premise and not any(row.id == premise for row in gap.premises):
         premise = None
+    # Steering read 2026-10-24: a planned beat the served page did not stage (a
+    # fallback page about something else) comes back once; missed twice, the plan
+    # moves on without it (``director.dropped_beats``) and its fact still settles.
+    owed = season_ctx.get("required_premise")
+    if owed and owed != premise and owed in {beat.premise for beat in gap.days} and not season_ctx.get("bridge"):
+        state = _miss_beat(season, gap, state, str(owed), keep=theirs | set(wanted), day=day, event_id=event_id)
     # WP-113 (owner OK 2026-10-02): the in-between story moves on the learner's
     # engagement, not the calendar. A day the learner did not take up (the turn
     # ended «not_yet») leaves its scheduled moment owed; it is staged again.
@@ -1310,6 +1316,24 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     from app.services.season.agency import settle_day
 
     return settle_day(state, season_ctx, details, event_id=event_id, engaged=engaged)
+
+
+def _miss_beat(season: Season, gap: Gap, state: dict, premise: str, *, keep: set[str], day: int, event_id: str) -> dict:
+    """One more day that did not stage ``premise``, today's planned beat. On its
+    second miss the plan moves on without it, and what it settles still holds (a
+    ticket day nobody wrote still moves the ticket), unless the learner set it."""
+
+    from app.services.season.director import MISSED_KEY, dropped_beats
+
+    rows = [row for row in state.get(MISSED_KEY) or [] if isinstance(row, dict)]
+    rows.append({"gap": gap.id, "premise": premise, "day": int(day), "event_id": event_id})
+    state[MISSED_KEY] = rows
+    beat = next((row for row in gap.premises if row.id == premise), None)
+    if beat is not None and beat.settles and premise in dropped_beats(state, gap.id):
+        settled = {flag: value for flag, value in beat.settles.items() if flag not in keep}
+        if settled:
+            state = apply_sets(season, state, settled, source=f"{gap.id}/{premise}/dropped")
+    return state
 
 
 #: ``{flag: gap id}``: the gap flags the learner settled in their own words, and in

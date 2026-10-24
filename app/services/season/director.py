@@ -274,6 +274,27 @@ def used_premises(state: dict | None, gap_id: str) -> set[str]:
     }
 
 
+#: The ``state`` key of the planned beats a served page did not stage
+#: (``runtime._settle_gap``), one row per missed day.
+MISSED_KEY = "missed"
+#: A missed beat comes back once; missed this many times, the plan moves on without it.
+MISSES_TO_DROP = 2
+
+
+def dropped_beats(state: dict | None, gap_id: str) -> set[str]:
+    """The planned beats of this gap missed ``MISSES_TO_DROP`` times. Steering read
+    2026-10-24: the critic refused every draft of the leaver's «Je peux ?» on two days
+    running, a third day of photos was served each time, the beat stayed owed, and
+    Gus's birthday and the petition never came before T3."""
+
+    missed = [
+        str(row.get("premise"))
+        for row in (state or {}).get(MISSED_KEY) or []
+        if isinstance(row, dict) and row.get("gap") == gap_id and row.get("premise")
+    ]
+    return {premise for premise in set(missed) if missed.count(premise) >= MISSES_TO_DROP}
+
+
 def used_moments(state: dict | None) -> set[str]:
     return {str(item) for item in (state or {}).get("moments") or []}
 
@@ -394,8 +415,14 @@ def gap_brief(
         return None
     day = pos.day_in_segment
     done = used_premises(state, gap.id)
-    # Story plan (2026-10-15): a gap with a day plan stages its beats in order.
-    beat = planned_beat(gap, day, done, flags, length=pos.segment.days) if gap.days else None
+    # Story plan (2026-10-15): a gap with a day plan stages its beats in order. A beat
+    # missed twice is left behind (``dropped_beats``); a required one is still owed to
+    # the bridge (``recovery.missing_required`` reads ``done`` alone).
+    beat = (
+        planned_beat(gap, day, done | dropped_beats(state, gap.id), flags, length=pos.segment.days)
+        if gap.days
+        else None
+    )
     if gap.days:
         required = beat.premise if beat else None
     else:
