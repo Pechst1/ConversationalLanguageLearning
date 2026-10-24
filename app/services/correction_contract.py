@@ -213,6 +213,14 @@ def edit_is_grounded(
         # another («Vous êtes … ?» -> «Êtes-vous … ?»), is not an error.
         return False
     places = _find_span(tokens, span_words)
+    # #318: the one place a replacement is checked for being French at all, so a model
+    # «la -> le» in front of «appartement» is dropped like a model-free one is.
+    if places:
+        first, last = tokens[places[0]], tokens[places[0] + len(span_words) - 1]
+        if _introduces_hiatus(source, first.start, last.end, str(replacement)):
+            return False
+    elif _introduces_hiatus(str(span), 0, len(str(span)), str(replacement)):
+        return False
     if places:
         # #193 / #248: the one grounding every surface shares (span, cited subject,
         # and a swapped être/avoir/aller form checked against the subject in front
@@ -396,6 +404,85 @@ def _noun_gender(word: str) -> str | None:
     return gender if gender in {"m", "f"} else None
 
 
+# --- elision (#318) ------------------------------------------------------------------
+#: Little words that lose their vowel in front of a vowel sound: «la appartement»
+#: is «l'appartement», «de Odile» is «d'Odile». One table serves the pass that
+#: finds the slip and the guard that checks every replacement, so a replacement
+#: can never put one of these in front of a vowel.
+_ELIDING = {"je": "j", "le": "l", "la": "l", "de": "d", "ne": "n", "me": "m", "te": "t", "se": "s", "que": "qu"}
+#: «ce» becomes «cet» (not «c'»), so it is checked by the guard but never elided.
+_VOWEL_LETTERS = "aeiouàâäéèêëîïôöùûü"
+#: h-initial words where the h is aspirated, so there is no elision: «le haricot».
+_ASPIRATED_H = frozenset(
+    {
+        "hache", "haie", "haine", "haïr", "halle", "hall", "halte", "hamac", "hamburger", "hamster", "handicap",
+        "hanche", "hangar", "hanter", "harcèlement", "hardi", "harem", "hareng", "haricot", "harpe", "hasard",
+        "hâte", "hausse", "haut", "haute", "hauts", "hautes", "hauteur", "havre", "hennir", "hérisson", "héron",
+        "héros", "hêtre", "heurter", "hibou", "hiérarchie", "hippie", "hisser", "hobby", "hockey", "hollandais",
+        "homard", "hongrois", "honte", "honteux", "hoquet", "hors", "hotte", "houle", "housse", "houx", "hublot",
+        "huée", "huit", "huitième", "humer", "hurler", "hurlement", "hutte", "hyène", "hep",
+    }
+)
+#: vowel-initial words that take no elision, or only a optional one: «le onze»,
+#: «le oui», «de onze», so the pass leaves them alone rather than guess.
+_NO_ELISION = frozenset({"onze", "onzième", "oui", "ouate", "ouistiti", "uhlan", "ululer"})
+#: «le un», «la une» (a newspaper front page) keep le/la; «de un» is still «d'un».
+_ARTICLE_EXEMPT = frozenset({"un", "une"})
+
+
+def _takes_elision(word: str, *, before: str = "") -> bool:
+    """Whether ``word`` starts with a vowel sound that forces the elision of ``before``
+    (``le``, ``la``, ``de``, ``ne`` …). A word starting with h counts only when the
+    lexicon knows it and it is not an aspirated h: never guess a «correction»."""
+    word = word.casefold()
+    if not word or word in _ASPIRATED_H:
+        return False
+    if word in _NO_ELISION or (word in _ARTICLE_EXEMPT and before in {"le", "la"}):
+        return False
+    if word[0] == "h":
+        return _lemma(word) is not None
+    return word[0] in _VOWEL_LETTERS
+
+
+def _bad_hiatus_pairs(text: str, tokens: list[Tok]) -> set[tuple[str, str]]:
+    """Pairs of adjacent words written with a space where French writes an apostrophe
+    («la appartement», «de Odile», «ce ami»)."""
+    pairs: set[tuple[str, str]] = set()
+    for left, right in zip(tokens, tokens[1:], strict=False):
+        gap = text[left.end : right.start]
+        if not gap or gap.strip("  "):
+            continue  # an apostrophe, a hyphen or punctuation is not a hiatus
+        if left.low in _ELIDING or left.low == "ce":
+            if _takes_elision(right.low, before=left.low):
+                pairs.add((left.low, right.low))
+        elif left.low == "si" and right.low in {"il", "ils"}:
+            pairs.add((left.low, right.low))
+    return pairs
+
+
+def _introduces_hiatus(source: str, start: int, end: int, replacement: str) -> bool:
+    """Whether writing ``replacement`` over ``source[start:end]`` creates a hiatus that
+    the original did not have in the words around the edit."""
+    new = source[:start] + replacement + source[end:]
+    new_end = start + len(replacement)
+
+    def around(text: str, a: int, b: int) -> set[tuple[str, str]]:
+        toks = _tokens(text)
+        first = max((i for i, t in enumerate(toks) if t.end <= a), default=0)
+        last = next((i for i, t in enumerate(toks) if t.start >= b), len(toks) - 1)
+        window = toks[first : last + 1]
+        return _bad_hiatus_pairs(text, window)
+
+    return bool(around(new, start, new_end) - around(source, start, end))
+
+
+def replacement_is_valid_french(source: object, edit: Edit) -> bool:
+    """The guard every model-free edit passes before it is emitted (#318): the
+    replacement may not itself put le/la/de/ce/… in front of a vowel."""
+    text = "" if source is None else str(source)
+    return not _introduces_hiatus(text, edit.start, edit.end, edit.replacement)
+
+
 @lru_cache(maxsize=1)
 def _cast_first_names() -> frozenset[str]:
     return frozenset(known_people())
@@ -486,9 +573,9 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
     "FR_ELISION": {
         "label": {"en": "Elision", "de": "Elision", "fr": "Élision"},
         "note": {
-            "en": "« je » drops its vowel in front of a vowel: « {right} ».",
-            "de": "« je » verliert vor einem Vokal den Vokal: « {right} ».",
-            "fr": "« je » s’élide devant une voyelle : « {right} ».",
+            "en": "« {word} » drops its vowel in front of a vowel: « {right} ».",
+            "de": "« {word} » verliert vor einem Vokal den Vokal: « {right} ».",
+            "fr": "« {word} » s’élide devant une voyelle : « {right} ».",
         },
     },
     "FR_CONTRACTION": {
@@ -509,7 +596,7 @@ _GENDER_WORD = {
 def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fields: str) -> Edit:
     spec = _RULE_TEXT[rule_id]
     span = text[start:end]
-    base = {"subject": "", "right": replacement, "wrong": span, "noun": "", "part": "", **fields}
+    base = {"subject": "", "right": replacement, "wrong": span, "noun": "", "part": "", "word": "", **fields}
     gender = fields.get("gender", "")
     note = {}
     for lang, template in spec["note"].items():
@@ -590,6 +677,8 @@ def deterministic_edits(
     def add(edit: Edit | None) -> None:
         if edit is None:
             return
+        if not replacement_is_valid_french(source, edit):
+            return  # #318: never teach «le appartement»; a rule that built it is wrong
         if any(edit.start < other.end and other.start < edit.end for other in found):
             return
         found.append(edit)
@@ -666,6 +755,23 @@ def deterministic_edits(
                       subject="j’" if prev.low == "j" else prev.low, right=fixed))
             continue
 
+        # --- elision: «la appartement» -> «l'appartement», «de Odile» -> «d'Odile» ---------
+        # Before the gender rule: in front of a vowel the article is «l'» whatever the
+        # noun's gender, so «le/la + vowel» is never a gender slip (#318).
+        if (
+            tok.low in _ELIDING
+            and tok.low != "je"  # «je» is handled below, after the person rule
+            and nxt is not None
+            and _same_clause(source, tok, nxt)
+            and _takes_elision(nxt.low, before=tok.low)
+        ):
+            gap = source[tok.end : nxt.start]
+            if gap and gap.strip("  ") == "":
+                apostrophe = "’" if "’" in source else "'"
+                glued = _case(source[tok.start:tok.end], _ELIDING[tok.low]) + apostrophe + source[nxt.start:nxt.end]
+                add(_edit("FR_ELISION", source, tok.start, nxt.end, glued, word=tok.low, right=glued))
+                continue
+
         # --- determiner / noun gender --------------------------------------------------
         if joined_next and nxt is not None and tok.low in (_MASC_DET.keys() | _FEM_DET.keys()):
             if prev is not None and source[prev.end : tok.start] in {"'", "’"}:
@@ -687,6 +793,8 @@ def deterministic_edits(
                         continue
                 elif gender == "m" and tok.low in _FEM_DET:
                     right = _FEM_DET[tok.low]
+                    if right == "ce" and _takes_elision(nxt.low, before="ce"):
+                        right = "cet"  # «cette appartement» -> «cet appartement», never «ce appartement»
                     add(_edit("FR_GENDER_DET", source, tok.start, tok.end, _case(source[tok.start:tok.end], right),
                               noun=nxt.low, gender="m", right=f"{right} {nxt.low}", wrong=f"{tok.low} {nxt.low}"))
                     continue
@@ -707,12 +815,12 @@ def deterministic_edits(
                 continue
 
         # --- elision: «je ai» -> «j'ai» ------------------------------------------------
-        if tok.low == "je" and nxt is not None and nxt.low[:1] in "aeiouéèêâîô" and _same_clause(source, tok, nxt):
+        if tok.low == "je" and nxt is not None and _takes_elision(nxt.low, before="je") and _same_clause(source, tok, nxt):
             gap = source[tok.end : nxt.start]
             if gap and gap.strip(" \u00a0") == "":
                 apostrophe = "’" if "’" in source else "'"
                 glued = _case(source[tok.start:tok.end], "j") + apostrophe + source[nxt.start:nxt.end]
-                add(_edit("FR_ELISION", source, tok.start, nxt.end, glued, right=glued))
+                add(_edit("FR_ELISION", source, tok.start, nxt.end, glued, word="je", right=glued))
                 continue
 
         # --- missing accents -----------------------------------------------------------
@@ -956,5 +1064,6 @@ __all__ = [
     "grounded_errata",
     "known_people",
     "merge_deterministic_errata",
+    "replacement_is_valid_french",
     "to_erratum",
 ]

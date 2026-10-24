@@ -9,6 +9,8 @@ fails or is rejected. No model call is made anywhere in this file.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from app.services import living_story as engine
@@ -346,3 +348,76 @@ def test_the_tutor_lane_never_corrects_the_intonation_question():
     lanes.validate_tutor(verdict, _payload(INTONATION))
     assert verdict.correction_span_fr is None and verdict.correction_fr is None
     assert verdict.correction_note_native is None
+
+
+# ---------------------------------------------------------------------------
+# #318: a replacement is never itself wrong French (le/la/de + vowel)
+# ---------------------------------------------------------------------------
+
+ELISION_LINES = [
+    ("je veux vendre la appartement", "la appartement", "l'appartement"),
+    ("Voici le ami de Marie.", "le ami", "l'ami"),
+    ("C'est le livre de Odile.", "de Odile", "d'Odile"),
+    ("La école est grande.", "La école", "L'école"),
+]
+
+_HIATUS = re.compile(r"\b(?:le|la|de|ce)\s+[aeiouéèêâîôû]\w*", re.IGNORECASE)
+
+
+@pytest.mark.parametrize(("sentence", "span", "fix"), ELISION_LINES)
+def test_le_la_de_before_a_vowel_is_elided(sentence, span, fix):
+    pairs = _pairs(_contract().deterministic_edits(sentence))
+    assert (span, fix) in pairs, f"{sentence!r} -> {sorted(pairs)}"
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "je regarde la appartement de ma grand mere",
+        "cette appartement est grand",
+        "le école est fermée",
+        "Elle a vendu le hôtel de Odile.",
+        "Il a un grand ami et une amie.",
+        "le haricot, la honte, le héros et la hauteur",
+    ],
+)
+def test_no_model_free_replacement_is_itself_flagged(sentence):
+    """The guard: re-run the pass on its own output. Nothing it wrote may be flagged
+    again, and no replacement may put le/la/de/ce in front of a vowel."""
+    contract = _contract()
+    edits = contract.deterministic_edits(sentence)
+    fixed = contract.apply_edits(sentence, edits)
+    again = contract.deterministic_edits(fixed)
+    assert not [e for e in again if e.rule_id in {"FR_GENDER_DET", "FR_ELISION"}], (fixed, again)
+    assert not _HIATUS.search(fixed), fixed
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    ["le huit mai, le onze juin et la une du journal", "le haricot, la honte, le héros et la hauteur", "Elle aime le yaourt."],
+)
+def test_elision_leaves_h_aspire_and_the_numbers_alone(sentence):
+    assert not [e for e in _contract().deterministic_edits(sentence) if e.rule_id == "FR_ELISION"]
+
+
+def test_the_validity_guard_names_an_invalid_replacement():
+    from app.services.correction_contract import Edit, replacement_is_valid_french
+
+    source = "je veux vendre la appartement"
+    bad = Edit(span="la", replacement="le", rule_id="FR_GENDER_DET", label={"en": "x"}, note={"en": "x"}, start=15, end=17)
+    good = Edit(span="la appartement", replacement="l'appartement", rule_id="FR_ELISION", label={"en": "x"}, note={"en": "x"}, start=15, end=29)
+    assert not replacement_is_valid_french(source, bad)
+    assert replacement_is_valid_french(source, good)
+
+
+def test_the_scene_reply_shows_the_elision_not_le_appartement():
+    span, fix, note = _contract().first_valid_edit("je veux vendre la appartement", None, None, language="de")
+    assert (span, fix) == ("la appartement", "l'appartement"), (span, fix, note)
+
+
+def test_a_model_replacement_that_is_wrong_french_is_not_grounded():
+    contract = _contract()
+    assert not contract.edit_is_grounded(
+        "je veux vendre la appartement", "la", "le", "« appartement » ist maskulin"
+    )
+    assert not contract.edit_is_grounded("je veux vendre la maison blanche", "la maison", "le appartement")
