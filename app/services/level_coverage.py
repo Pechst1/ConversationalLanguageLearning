@@ -302,8 +302,24 @@ def read_lemmas(db: Session, user: Any) -> set[str]:
     return known
 
 
-def known_lemmas(db: Session, user: Any, *, now: datetime | None = None) -> set[str]:
-    """Every core lemma the learner knows: a known card, or met often enough in reading."""
+@dataclass(frozen=True)
+class LemmaStates:
+    """What the learner's cards and reading say about the core lemmas, in one read."""
+
+    #: A known card, or met often enough in reading (the coverage numerator).
+    known: frozenset[str]
+    #: Every lemma one of the learner's cards teaches, known or not yet.
+    carded: frozenset[str]
+    #: Known from reading alone (:func:`read_lemmas`).
+    read: frozenset[str]
+
+
+def lemma_states(db: Session, user: Any, *, now: datetime | None = None) -> LemmaStates:
+    """:func:`known_lemmas`, plus the lemmas on the way (a card, not known yet).
+
+    The level plan's words line: a band word with a card that is not known yet
+    counts once its reviews settle it; one with no card still has to be met.
+    """
 
     now = now or datetime.now(UTC)
     rows = (
@@ -313,10 +329,20 @@ def known_lemmas(db: Session, user: Any, *, now: datetime | None = None) -> set[
         .all()
     )
     known: set[str] = set()
+    carded: set[str] = set()
     for progress, word in rows:
+        lemmas = lemmas_of_card(word)
+        carded |= lemmas
         if is_word_known(progress, now=now):
-            known |= lemmas_of_card(word)
-    return known | read_lemmas(db, user)
+            known |= lemmas
+    read = read_lemmas(db, user)
+    return LemmaStates(known=frozenset(known | read), carded=frozenset(carded), read=frozenset(read - known))
+
+
+def known_lemmas(db: Session, user: Any, *, now: datetime | None = None) -> set[str]:
+    """Every core lemma the learner knows: a known card, or met often enough in reading."""
+
+    return set(lemma_states(db, user, now=now).known)
 
 
 # ---------------------------------------------------------------------------
@@ -446,6 +472,7 @@ __all__ = [
     "WORDS_KNOWN_SHARE",
     "WORD_KNOWN_RETRIEVABILITY",
     "BandCoverage",
+    "LemmaStates",
     "band_coverage",
     "band_index",
     "band_unit_ids",
@@ -453,6 +480,7 @@ __all__ = [
     "held_unit_ids",
     "is_word_known",
     "known_lemmas",
+    "lemma_states",
     "lemmas_of_card",
     "next_band",
     "unit_bands",

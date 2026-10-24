@@ -722,6 +722,16 @@ export interface LevelForecast {
   basis?: Record<string, any>;
 }
 
+/**
+ * GET /progress/level (2026-10-24) — the level plan: the band and its percent
+ * (the numbers La Une and the Dossier print), what is left rule by rule and in
+ * words, the épreuve, the time it takes and costs, and the time put in.
+ * Read-only on the server.
+ */
+export type LevelPlan = components['schemas']['LevelPlanResponse'];
+export type LevelPlanRule = components['schemas']['LevelPlanRule'];
+export type LevelPlanReach = components['schemas']['LevelPlanReach'];
+
 /** GET /analytics/summary — headline counters, all scoped to the signed-in learner. */
 export interface LearnerAnalyticsSummary {
   sessions_completed: number;
@@ -2701,6 +2711,11 @@ class ApiService {
 
   async getCefrProgress() {
     return this.atelierGet<CEFRProgress>('/progress/cefr');
+  }
+
+  /** The level plan (Fortschritt «Le cours»): where the learner stands, what is left, what it costs. */
+  async getLevelPlan() {
+    return this.atelierGet<LevelPlan>('/progress/level');
   }
 
   /** WP-95 «Le Carnet»: every sub-band's can-dos, stamped or not. */

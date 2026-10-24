@@ -83,6 +83,12 @@ def daily_quota(db: Session, user: Any, *, now: datetime | None = None) -> int:
     return _quota(user, intake_throttle_factor(db, user, now=now))
 
 
+def planned_new_words(user: Any) -> int:
+    """The day's new words as planned, before the throttle: the forecast's prior."""
+
+    return _quota(user, 1.0)
+
+
 def _quota(user: Any, factor: float) -> int:
     from app.services.daily_session import pace_words
     from app.services.journey_rhythm import rhythm_of
@@ -284,6 +290,7 @@ __all__ = [
     "journey_reservation",
     "journey_word_share",
     "new_words_left_today",
+    "planned_new_words",
     "review_load_estimate",
     "todays_journey",
     "vocabulary_pace_allowance",
