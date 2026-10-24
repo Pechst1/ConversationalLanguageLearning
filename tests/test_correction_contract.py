@@ -364,8 +364,9 @@ ELISION_LINES = [
 _HIATUS = re.compile(r"\b(?:le|la|de|ce)\s+[aeiouéèêâîôû]\w*", re.IGNORECASE)
 
 
-@pytest.mark.parametrize(("sentence", "span", "fix"), ELISION_LINES)
-def test_le_la_de_before_a_vowel_is_elided(sentence, span, fix):
+@pytest.mark.parametrize(("sentence", "span", "fix"), ELISION_LINES, ids=["la", "le", "de", "La"])
+def test_elided(sentence, span, fix):
+    """le/la/de before a vowel become l'/d'."""
     pairs = _pairs(_contract().deterministic_edits(sentence))
     assert (span, fix) in pairs, f"{sentence!r} -> {sorted(pairs)}"
 
@@ -380,8 +381,9 @@ def test_le_la_de_before_a_vowel_is_elided(sentence, span, fix):
         "Il a un grand ami et une amie.",
         "le haricot, la honte, le héros et la hauteur",
     ],
+    ids=["gender", "cet", "ecole", "hotel", "ami", "h"],
 )
-def test_no_model_free_replacement_is_itself_flagged(sentence):
+def test_replacement_ok(sentence):
     """The guard: re-run the pass on its own output. Nothing it wrote may be flagged
     again, and no replacement may put le/la/de/ce in front of a vowel."""
     contract = _contract()
@@ -396,16 +398,16 @@ def test_no_model_free_replacement_is_itself_flagged(sentence):
     "sentence",
     ["le huit mai, le onze juin et la une du journal", "le haricot, la honte, le héros et la hauteur", "Elle aime le yaourt."],
 )
-def test_elision_leaves_h_aspire_and_the_numbers_alone(sentence):
+def test_no_elision(sentence):
     assert not [e for e in _contract().deterministic_edits(sentence) if e.rule_id == "FR_ELISION"]
 
 
-def test_the_scene_reply_shows_the_elision_not_le_appartement():
+def test_scene_elision():
     span, fix, note = _contract().first_valid_edit("je veux vendre la appartement", None, None, language="de")
     assert (span, fix) == ("la appartement", "l'appartement"), (span, fix, note)
 
 
-def test_a_model_replacement_that_is_wrong_french_is_not_grounded():
+def test_model_hiatus():
     contract = _contract()
     assert not contract.edit_is_grounded(
         "je veux vendre la appartement", "la", "le", "« appartement » ist maskulin"
