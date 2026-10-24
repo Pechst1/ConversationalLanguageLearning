@@ -217,7 +217,9 @@ def test_the_tutor_note_to_the_prompt_author_never_reaches_the_learner(db_sessio
         relecture, concepts=[], fallback={"errata": []}, corrected_answer_mode="text", model="fake"
     )
     assert ai["errata"] == []
-    assert ai["verdict"] == "correct"
+    # The note goes; the model's reading of the learner's French is not overturned
+    # by it. The key does that, for an answer it lists (see the merge test below).
+    assert ai["verdict"] == "partial"
     assert grading.notes_native([{"why_wrong": relecture["errata"][0]["why_wrong"]}]) == []
     from app.services.forge_grading import is_author_note
 
@@ -261,3 +263,80 @@ def test_reordering_still_names_a_real_reorder():
     moved = grading.reordering_correction("Lila cherche un poster grand", ["Lila cherche un grand poster."])
     assert moved is not None and moved[1]["task_error_type"] == "word_order"
     assert grading.reordering_correction("gus a un telephone dans le salon", [GUS]) is None
+
+
+def test_an_accepted_answer_the_model_doubted_over_the_prompt_is_right_after_the_merge(db_session):
+    service = AtelierCorrectionService(db_session)
+    local_check = grading.production_local_check(None, "Tu dînes", accepted=["Vous dînez", "Tu dînes"])
+    assert local_check["local_status"] == grading.LOCAL_RIGHT
+    local = {"verdict": "correct", "score_0_4": 4.0, "local_status": local_check["local_status"], "errata": []}
+    ai = {"verdict": "partial", "score_0_4": 2.0, "corrected_answer": "Vous dînez", "errata": []}
+    final = service._merge_relecture("sentence", local, ai, learner_text="Tu dînes", accepted=["Vous dînez", "Tu dînes"])
+    assert final["verdict"] == "correct" and final["errata"] == [], final
+
+
+_TUTOR_CORRECTIONS = [
+    ("Tu viens pas ?", "Tu ne viens pas ?", "Include «ne» in the question: French negation needs «ne … pas»."),
+    ("Où tu habites ?", "Où est-ce que tu habites ?", "Add «est-ce que» to the question to make it a full form."),
+    ("Il part", "Il part à quelle heure ?", "Specify the time in the question with «à quelle heure»."),
+    ("Je sais pas", "Je ne sais pas.", "Give the full form in the task: «je ne sais pas»."),
+]
+
+
+@pytest.mark.parametrize(("typed", "target", "why"), _TUTOR_CORRECTIONS)
+def test_a_correction_of_the_learners_french_is_not_an_author_note(db_session, typed, target, why):
+    """The review of the first attempt: «Include «ne» in the question» corrects the
+    learner's French. Dropping it as a note to the author turned a wrong answer into
+    «correct», 4.0 and recorded the missing negation as mastered."""
+
+    assert not grading.is_author_note(why)
+    service = AtelierCorrectionService(db_session)
+    relecture = {
+        "verdict": "partial",
+        "score_0_4": 2,
+        "corrected_answer": target,
+        "concept_hits": [],
+        "missing_targets": [],
+        "errata": [
+            {
+                "display_label": "Form",
+                "learner_text": typed,
+                "corrected_target": target,
+                "why_wrong": why,
+                "repair_hint": "Say it in full.",
+                "severity": 2,
+                "task_error_type": "grammar",
+            }
+        ],
+    }
+    ai = service._normalize_llm_correction(
+        relecture, concepts=[], fallback={"errata": []}, corrected_answer_mode="text", model="fake"
+    )
+    assert ai["verdict"] == "partial" and ai["score_0_4"] <= 2.5, ai
+    assert [e["corrected_target"] for e in ai["errata"]] == [target], ai
+
+
+def test_no_trap_and_no_wrong_sentence_of_any_item_is_in_its_key():
+    """The review's note 2: widening the key with the other gender («je suis entrée»
+    / «je suis entré») must not make a distractor right. Across every unit, no trap
+    is an accepted gap-filler and no ✗ sentence is an accepted sentence."""
+
+    bank = ib.default_bank()
+    checked = widened = 0
+    for unit in sorted(ib.template_units()):
+        for item in bank.generate(unit, 150, seed="guard-295-keys"):
+            checked += 1
+            widened += len(item.accepted) > 1
+            spans = {ib.normalize(span) for span in ib.target_answers(item)}
+            accepted = {ib.normalize(sentence) for sentence in item.accepted}
+            clashes = [t for t in item.traps if ib.normalize(t) in spans and ib.normalize(t) != ib.normalize(item.target)]
+            clashes += [w for w in item.wrong_sentences if ib.normalize(w) in accepted]
+            assert not clashes, (unit, item.frame_id, item.sentence, clashes)
+    assert checked > 1000 and widened > 50
+
+
+def test_a_person_variant_that_is_one_of_the_items_own_distractors_is_not_added():
+    item = _frame_item("FR2_A11_ER_VERBS", "er-comp")
+    wrong = item.wrong_sentences[0]
+    widened = ib.with_person_variants(item, [wrong, "Une autre phrase."])
+    assert wrong not in widened.accepted and "Une autre phrase." in widened.accepted

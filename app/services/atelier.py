@@ -7487,10 +7487,12 @@ class AtelierCorrectionService:
             if verdict in {"correct", "accepted"}:
                 verdict = "partial"
             score = min(score, 2.5)
-        if (false_english or author_notes) and not errata and not missing_targets and verdict == "partial":
-            # The only fault found was a French word called English, or the model's
-            # complaint about the prompt rather than the answer: there is none.
+        if false_english and not errata and not missing_targets and verdict == "partial":
+            # The only fault found was a French word called English: there is none.
             verdict, score = "correct", 4.0
+        # A dropped note to the item's author (#295) never upgrades the verdict on its
+        # own: «partial» was the model's reading of the learner's French and only the
+        # key can overturn it (an accepted answer is LOCAL_RIGHT in _merge_relecture).
         if (
             model_noop_dropped
             and not model_raised_errata

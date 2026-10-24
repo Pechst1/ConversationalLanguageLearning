@@ -468,13 +468,18 @@ def drop_false_english(
 #: no subject … add a subject to the prompt» (#295). The model sometimes explains why
 #: it cannot decide instead of deciding; the learner cannot act on that and a key that
 #: accepts every right answer (:func:`item_bank.ItemBank._person_variants`) makes it moot.
+#: «subject, person, pronoun, gender, context»: what a note about an underspecified
+#: prompt says is missing. A tutor's correction of the learner's own French («Add
+#: «est-ce que» to the question», «Include «ne» in the question») names a word or a
+#: form, never one of these, and must stay a correction.
+_MISSING = r"(?:subject|person|pronoun|gender|context|referent|indication)"
 _AUTHOR_NOTE = re.compile(
-    r"\b(?:add|include|give|name|specify|mention|provide)\b[^.!?]{0,80}\b(?:to|in|into) the "
-    r"(?:prompt|item|exercise|question|task|cue)\b"
-    r"|\bthe (?:prompt|item|exercise|question|task|cue)\s+(?:gives|names|offers|contains|has|provides|specifies)\s+no\b"
-    r"|\bthe (?:prompt|item|exercise|question|task|cue)\s+(?:does\s*n[o']t|doesn'?t|do\s+not)\s+"
-    r"(?:give|name|say|specify|state|show|indicate)\b"
-    r"|\b(?:prompt|item|exercise|question|task|cue)\b[^.!?]{0,40}\b(?:is|are)\s+(?:ambiguous|underspecified|unclear)\b"
+    rf"\b(?:add|include|give|name|specify|mention|provide)\b[^.!?«»\"“”]{{0,60}}\b{_MISSING}\b[^.!?«»\"“”]{{0,60}}"
+    r"\b(?:to|in|into) the (?:prompt|item|exercise|question|task|cue)\b"
+    rf"|\bthe (?:prompt|item|exercise|question|task|cue)\s+(?:gives|names|offers|contains|has|provides|specifies)\s+no\s+{_MISSING}\b"
+    rf"|\bthe (?:prompt|item|exercise|question|task|cue)\s+(?:does\s*n[o']t|doesn'?t|do\s+not)\s+"
+    rf"(?:give|name|say|specify|state|show|indicate)\b[^.!?]{{0,40}}\b{_MISSING}\b"
+    r"|\b(?:prompt|item|exercise|cue)\b[^.!?]{0,40}\b(?:is|are)\s+(?:ambiguous|underspecified|unclear)\b"
     r"|\bso (?:that )?only one answer is (?:correct|possible|valid)\b"
     r"|\b(?:die )?(?:aufgabe|aufgabenstellung|frage)\s+(?:gibt|nennt)\s+kein"
     r"|\b(?:l[’']énoncé|la consigne)\s+(?:ne\s+(?:donne|précise|nomme|dit)|est\s+ambigu)",

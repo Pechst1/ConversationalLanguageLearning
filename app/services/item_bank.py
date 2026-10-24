@@ -1518,6 +1518,33 @@ _PERSON_NAMES: tuple[tuple[str, str, str, str], ...] = (
 )
 
 
+def with_person_variants(item: "BankItem", variants: Iterable[str]) -> "BankItem":
+    """#295: ``item`` whose key also lists ``variants``, without ever calling a wrong
+    option right.
+
+    A variant that is also one of the item's own traps / ✗ sentences («je suis
+    entré» next to «je suis entrée») is not added: the learner who sees it among the
+    choices, or as the sentence to correct, must find it wrong, and a key that
+    accepted it would contradict the screen. The key and the distractors are
+    derived from one list, so no distractor can fall in the key."""
+
+    wrong = {normalize(sentence) for sentence in item.wrong_sentences}
+    spans = {normalize(trap) for trap in item.traps}
+    kept = [
+        variant
+        for variant in dict.fromkeys(variants)
+        if normalize(variant) not in wrong
+        and not (
+            variant.startswith(item.prefix)
+            and variant.endswith(item.suffix)
+            and normalize(variant[len(item.prefix): len(variant) - len(item.suffix)]) in spans
+        )
+    ]
+    if not kept:
+        return item
+    return replace(item, accepted=tuple(dict.fromkeys([*item.accepted, *kept])))
+
+
 def name_the_person(english: str, sentence: str, accepted: Iterable[str]) -> str:
     """#295: ``english`` with its first «you» / «they» told apart («you (informal)»)
     when the French sentence has a second-person or third-person plural subject and
@@ -2167,7 +2194,7 @@ class ItemBank:
                 continue
             variants = self._person_variants(frame, bindings, item.sentence)
             if variants:
-                item = replace(item, accepted=tuple(dict.fromkeys([*item.accepted, *variants])))
+                item = with_person_variants(item, variants)
             named = name_the_person(item.en, item.sentence, item.accepted)
             if named != item.en:
                 item = replace(item, en=named)
