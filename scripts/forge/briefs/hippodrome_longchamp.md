@@ -36,11 +36,19 @@ places a set from the survey, and race day plays on it (`course.ts`).
   («son accélération») is told as the trainer's, without his name.
 - **Photos.** Not tried this round (the run went to the venue kit); the next round should look
   at Panoramax and Commons around the stand.
+- **Played again.** A place bet on the favourite («Cinq euros placé sur le 3»): it came 4th twice,
+  and the winners differed (the 11, then the 8). The saddle cloths of the horses running left
+  read «ƐI» for 13: the number is now turned back on itself (`horse-art.ts`).
+- **Sound.** The course has its din now (`audio.ts`, from `course.ts`): the crowd's murmur, a
+  little louder once they are off, a roar that swells up the straight to the post and dies over
+  nine seconds; the hooves on the turf from 200 m out, loudest as the field passes the rail,
+  fading as it pulls up. Listened to in the headless browser by its numbers: the roar reaches
+  0.99 at the post, the hooves 0.84 at the rail, seven footfalls a stride.
 
 ## Still plain
 
 - The stand is tiers and a box, not the curve of the real one; the paddock, the parade ring and
   the old stands behind are not drawn.
-- One race, one pose per horse (the card bobs and rocks); no hoof or crowd sound yet.
+- One race, one pose per horse (the card bobs and rocks); no voice for the race caller.
 - The window takes one ticket a race; a second race of the day would make a place to come back
   to.

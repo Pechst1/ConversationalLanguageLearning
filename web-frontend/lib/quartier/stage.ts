@@ -207,6 +207,14 @@ export interface StageUi {
 
 export type Cue = 'bell' | 'door' | 'key' | 'cup' | 'chair' | 'paper' | 'phone';
 
+/** What a place adds to the sound as it goes (`audio.ts`), each from 0 to 1. */
+export interface Din {
+  /** a crowd outdoors: about 0.2 a murmur, 1 the roar at the post */
+  crowd: number;
+  /** a field at the gallop: 0 out of earshot, 1 going past you at the rail */
+  hooves: number;
+}
+
 /** What the director may ask of the passers-by (`crowd.ts`). */
 export interface Street {
   hop(key: string): void;
@@ -388,6 +396,8 @@ export interface Director {
   passerby(key: string, tapped: boolean): void;
   phoneReply(text: string): void;
   closePhone(): void;
+  /** the crowd and the hooves, where the place has them */
+  din?(): Din;
   dispose(): void;
 }
 

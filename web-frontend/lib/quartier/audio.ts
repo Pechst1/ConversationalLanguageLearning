@@ -3,11 +3,13 @@
  *
  * Rain on the quai (muffled once the door shuts), the café's murmur, your steps (wet outside,
  * on tiles inside), the neon's hum when you stand under it, and the few cues the director asks
- * for: the door's bell, a key on the zinc, a cup on its saucer, a chair pulled out, paper.
+ * for: the door's bell, a key on the zinc, a cup on its saucer, a chair pulled out, paper. A
+ * place where the news happens adds its din: a racecourse's crowd, from a murmur to the roar up
+ * the straight, and the field's hooves on the turf as it goes past.
  * Everything is white noise and a few sine partials through filters; an AudioContext may only
  * start from a tap, so `start()` is called from the title card's button.
  */
-import type { Cue } from './stage';
+import type { Cue, Din } from './stage';
 
 export interface Ambience {
   indoors: boolean;
@@ -16,6 +18,8 @@ export interface Ambience {
   night: boolean;
   /** metres from the neon (its hum carries a few metres) */
   neon: number;
+  /** the crowd and the hooves, where the place has them */
+  din?: Din;
 }
 
 export class Sound {
@@ -26,7 +30,10 @@ export class Sound {
   private rainTone: BiquadFilterNode | null = null;
   private roomGain: GainNode | null = null;
   private humGain: GainNode | null = null;
+  private crowdGain: GainNode | null = null;
+  private crowdTone: BiquadFilterNode | null = null;
   private stepAt = 0;
+  private strideAt = 0;
   private stepSide = 0;
   private on = true;
 
@@ -114,6 +121,27 @@ export class Sound {
       g.connect(master);
       this.humGain = g;
     }
+    // a crowd in the open: the murmur of a racecourse, brighter and louder as it starts to shout
+    {
+      const src = this.loop();
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 520;
+      bp.Q.value = 0.7;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.23;
+      const depth = ctx.createGain();
+      depth.gain.value = 0.3;
+      const body = ctx.createGain();
+      body.gain.value = 1;
+      lfo.connect(depth).connect(body.gain);
+      lfo.start();
+      src.connect(bp).connect(body).connect(g).connect(master);
+      this.crowdGain = g;
+      this.crowdTone = bp;
+    }
   }
 
   setEnabled(on: boolean) {
@@ -133,6 +161,17 @@ export class Sound {
     this.roomGain.gain.setTargetAtTime(a.indoors ? 0.2 : 0, t, 0.5);
     const hum = a.night && !a.indoors ? Math.max(0, 1 - a.neon / 9) * 0.035 : 0;
     this.humGain.gain.setTargetAtTime(hum, t, 0.3);
+    const din = a.din;
+    if (this.crowdGain && this.crowdTone) {
+      const crowd = din ? din.crowd : 0;
+      // a roar swells fast and dies slowly
+      this.crowdGain.gain.setTargetAtTime(crowd > 0 ? 0.04 + crowd * 0.56 : 0, t, crowd > 0.5 ? 0.25 : 0.9);
+      this.crowdTone.frequency.setTargetAtTime(520 + crowd * 820, t, 0.4);
+    }
+    if (din && din.hooves > 0.03 && t - this.strideAt > 0.43) {
+      this.strideAt = t;
+      this.gallop(din.hooves);
+    }
     if (a.walking && t - this.stepAt > 0.52) {
       this.stepAt = t;
       this.step(a.indoors, a.rain);
@@ -266,6 +305,20 @@ export class Sound {
       hp.type = 'highpass';
       hp.frequency.value = 2600;
       s.connect(hp).connect(this.env(0.012, 0.05, 0.07));
+    }
+  }
+
+  /** A field at the gallop: one stride's footfalls from the horses nearest you, dull on the turf. */
+  private gallop(level: number) {
+    const ctx = this.ctx as AudioContext;
+    for (let i = 0; i < 7; i++) {
+      const at = i * 0.06 + Math.random() * 0.03;
+      const src = this.burst(at, 0.09);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 130 + Math.random() * 130;
+      // the fourth beat of the gallop lands hardest
+      src.connect(lp).connect(this.env(at, level * (i % 4 === 3 ? 0.55 : 0.38), 0.11));
     }
   }
 

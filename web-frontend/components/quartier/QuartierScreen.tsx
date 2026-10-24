@@ -241,7 +241,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
           last.copy(eq.feet);
           const a = AMBIANCES[eq.ambiance];
           const neon = eq.parts ? eq.camera.position.distanceTo(eq.parts.neon.center) : 999;
-          sn.update({ indoors: eq.indoors, walking: moved, rain: a.rain, night: a.night > 0.5, neon });
+          sn.update({ indoors: eq.indoors, walking: moved, rain: a.rain, night: a.night > 0.5, neon, din: director.din?.() });
           if (showStats && now - statAt > 0.5) {
             statAt = now;
             setStats({ ...eq.stats });

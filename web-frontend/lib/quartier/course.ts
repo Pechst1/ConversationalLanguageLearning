@@ -27,7 +27,7 @@ import { STRIDE } from './pace';
 import { INKS, css, mix } from './palette';
 import type { SiteBuilt, SitePerson } from './site';
 import { BLANK } from './stage';
-import type { Cue, Director, Level, Native, SpeechUi, StageUi, Street } from './stage';
+import type { Cue, Din, Director, Level, Native, SpeechUi, StageUi, Street } from './stage';
 
 const w = (fr: string, en: string, de: string): Words => ({ fr, en, de });
 
@@ -110,6 +110,8 @@ export class Course implements Director {
   private railAt = 0;
   /** your head is following the field */
   private following = false;
+  /** how loud the field's hooves are where you stand */
+  private hooves = 0;
   private calls: Call[] = [];
   private called = 0;
   private finish: number[] = [];
@@ -525,11 +527,26 @@ export class Course implements Director {
       .map((h) => h.r.n);
   }
 
+  /** The crowd from a murmur to the roar at the post, and the hooves as the field goes past. */
+  din(): Din {
+    const t = this.raceTime();
+    let crowd = 0.2;
+    if (this.offAt && t >= 0) {
+      if (t < STRAIGHT) crowd = 0.3 + 0.12 * (t / STRAIGHT);
+      else if (t < POST) crowd = 0.42 + 0.58 * Math.pow((t - STRAIGHT) / (POST - STRAIGHT), 1.5);
+      else crowd = Math.max(0.24, 1 - (t - POST) / 9);
+    }
+    return { crowd, hooves: this.ui.phase === 'roam' ? this.hooves : 0 };
+  }
+
   /** The race, frame by frame: the calls, the field up the straight, the finish. */
   private run(now: number, dt: number) {
     if (!this.offAt) return;
     const t = (now - this.offAt) / 1000;
-    if (t < 0 || t > POST + 16) return;
+    if (t < 0 || t > POST + 16) {
+      this.hooves = 0;
+      return;
+    }
     if (this.called === 0) this.onCue?.('bell');
     if (t > STRAIGHT - 1.5 && t < POST + 3 && this.ui.talk) this.endTalk();
     while (this.called < this.calls.length && this.calls[this.called].at <= t) {
@@ -545,6 +562,7 @@ export class Course implements Director {
     let cx = 0;
     let cz = 0;
     let seen = 0;
+    let near = Infinity;
     this.horses.forEach((h) => {
       const f = h.f;
       if (!f) return;
@@ -572,7 +590,10 @@ export class Course implements Director {
         cz += pos.z;
         seen++;
       }
+      near = Math.min(near, Math.hypot(dx, dz));
     });
+    // the hooves carry 200 m over the turf, and fade as the field pulls up
+    this.hooves = near < 200 ? Math.pow(1 - near / 200, 2) * (t < POST ? 1 : Math.max(0.2, 1 - after * 0.066)) : 0;
     // your head follows the field up the straight, unless you are talking
     if (!this.ui.talk && t > STRAIGHT + 0.5 && t < POST + 2.5 && seen) {
       this.q.look(new Vector3(cx / seen, 1.5, cz / seen), 2.2);
