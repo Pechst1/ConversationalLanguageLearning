@@ -1,0 +1,158 @@
+{
+  "id": "marche_aligre",
+  "papier": "evergreen-marche-du-dimanche",
+  "radius": {
+    "walk": 110,
+    "build": 175
+  },
+  "ambiance": "matin",
+  "title": {
+    "fr": "Un samedi matin",
+    "en": "A Saturday morning",
+    "de": "Ein Samstagmorgen"
+  },
+  "can_do": {
+    "fr": "Demander un prix, acheter au poids, comprendre qui vend quoi.",
+    "en": "Ask a price, buy by weight, work out who sells what.",
+    "de": "Nach einem Preis fragen, nach Gewicht kaufen, verstehen, wer was verkauft."
+  },
+  "level_streets": [
+    "Rue d'Aligre",
+    "Place d'Aligre"
+  ],
+  "landmarks": [
+    {
+      "match": "Marché Beauvau",
+      "kind": "halle",
+      "name": "Marché Beauvau",
+      "storeys": 1
+    },
+    {
+      "match": "La Petite Mairie",
+      "kind": "pavillon",
+      "name": ""
+    }
+  ],
+  "market": [
+    {
+      "street": "Rue d'Aligre",
+      "classes": [
+        "pedestrian"
+      ],
+      "goods": [
+        "fruits",
+        "legumes",
+        "legumes",
+        "fruits",
+        "fleurs",
+        "olives",
+        "legumes",
+        "fruits",
+        "fromages",
+        "legumes"
+      ],
+      "spacing": 3.6
+    },
+    {
+      "area": "Place d'Aligre",
+      "goods": [
+        "brocante",
+        "livres",
+        "brocante",
+        "vaisselle",
+        "brocante",
+        "disques"
+      ],
+      "spacing": 4.6,
+      "rows": 8.0,
+      "max": 16,
+      "away_from": "Marché Beauvau"
+    }
+  ],
+  "start": {
+    "street": "Rue d'Aligre",
+    "classes": [
+      "pedestrian"
+    ],
+    "toward": "Marché Beauvau",
+    "far": true
+  },
+  "commerce": 0.8,
+  "people": [
+    {
+      "key": "primeur",
+      "goods": "fruits",
+      "at": "stall:fruits:2",
+      "seed": 4101,
+      "name": {
+        "fr": "Le primeur",
+        "en": "The greengrocer",
+        "de": "Der Obsthändler"
+      },
+      "goal": {
+        "fr": "Va voir le primeur",
+        "en": "Go and see the greengrocer",
+        "de": "Geh zum Obsthändler"
+      },
+      "look": {
+        "top": "veste",
+        "topColor": "vert",
+        "hat": "casquette",
+        "hatColor": "vert",
+        "beard": "trois_jours",
+        "hair": "court",
+        "ears": "aucunes"
+      }
+    },
+    {
+      "key": "fromagere",
+      "goods": "fromages",
+      "in": "Marché Beauvau",
+      "at": "landmark:Marché Beauvau",
+      "seed": 4202,
+      "name": {
+        "fr": "La fromagère",
+        "en": "The cheesemonger",
+        "de": "Die Käsehändlerin"
+      },
+      "goal": {
+        "fr": "Trouve la fromagère, sous la halle",
+        "en": "Find the cheesemonger, in the covered market",
+        "de": "Finde die Käsehändlerin in der Markthalle"
+      },
+      "look": {
+        "top": "chemise",
+        "topColor": "ciel",
+        "hair": "chignon",
+        "ears": "perles",
+        "beard": "aucune"
+      }
+    },
+    {
+      "key": "brocanteur",
+      "goods": "brocante",
+      "at": "stall:brocante:0",
+      "seed": 4303,
+      "name": {
+        "fr": "Le brocanteur",
+        "en": "The junk dealer",
+        "de": "Der Trödler"
+      },
+      "goal": {
+        "fr": "Fais un tour à la brocante",
+        "en": "Have a look round the flea market",
+        "de": "Schau dich auf dem Flohmarkt um"
+      },
+      "look": {
+        "top": "manteau",
+        "topColor": "brun",
+        "hat": "beret",
+        "hatColor": "marine",
+        "glasses": "rondes",
+        "beard": "pleine",
+        "ears": "aucunes"
+      }
+    }
+  ],
+  "arrondissement": "12e Arrt"
+}
