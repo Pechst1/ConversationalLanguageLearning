@@ -38,7 +38,8 @@ import {
 } from 'three';
 
 import { Troupe, printCard } from './cast';
-import type { ArtSource, PaperFigure } from './cast';
+import type { ArtSource, Figure } from './cast';
+import { roundFigure } from './cast3d';
 import { CardPress, LacePress, Press, seeded, tile } from './geo';
 import type { Build, Lamp } from './kit';
 import { bakeLightMap } from './lightmap';
@@ -58,7 +59,7 @@ import {
   waterMaterial,
 } from './materials';
 import type { World } from './materials';
-import { MARKS, ROOM, buildMistral, cafeCreme } from './mistral';
+import { MARKS, ROOM, SEATS, buildMistral, cafeCreme } from './mistral';
 import type { MistralParts } from './mistral';
 import { Nav } from './nav';
 import { STRIDE, WALK_SPEED } from './pace';
@@ -110,6 +111,8 @@ export interface QuartierOptions {
   onProgress?: (share: number, label: string) => void;
   /** a place the forge built (`site.ts`); without one, the quai de Valmy and Le Mistral */
   site?: SiteSpec;
+  /** the cast in the round, sculpted (`cast3d`), or on `paper` as cut-out cards */
+  cast?: 'round' | 'paper';
 }
 
 type Listener = (hit: Hit) => void;
@@ -135,9 +138,9 @@ export class Quartier {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(60, 1, 0.1, 420);
   readonly world: World = makeWorld();
-  readonly troupe: Troupe;
+  readonly troupe: Troupe<Figure>;
   /** other people on stage (the passers-by, `crowd.ts`): lit, drawn and tapped like the cast */
-  private extras: Troupe[] = [];
+  private extras: Array<Troupe<Figure>> = [];
   nav!: Nav;
   lightMap!: LightMap;
   /** the hand-drawn quarter (absent in a forged place) */
@@ -223,7 +226,9 @@ export class Quartier {
     this.art = opts.art;
     this.onProgress = opts.onProgress;
     this.camera.rotation.order = 'YXZ';
-    this.troupe = new Troupe(this.world, opts.art);
+    // in the round, the cast sit in Le Mistral's booth and on its stools
+    const seats = opts.site ? [] : SEATS;
+    this.troupe = new Troupe<Figure>(this.world, opts.art, 840, opts.cast === 'paper' ? undefined : (spec) => roundFigure(this.world, spec, seats));
     this.print = new PrintPass(2, 2, { line: 1, idLines: 0.55, halftone: 0.55, grain: 1 });
     this.scene.add(this.troupe.group);
   }
@@ -523,13 +528,13 @@ export class Quartier {
   }
 
   /** Put another troupe on stage (the passers-by), or take it off. */
-  addTroupe(t: Troupe) {
+  addTroupe(t: Troupe<Figure>) {
     if (this.extras.includes(t)) return;
     this.extras.push(t);
     this.scene.add(t.group);
   }
 
-  removeTroupe(t: Troupe) {
+  removeTroupe(t: Troupe<Figure>) {
     this.extras = this.extras.filter((x) => x !== t);
     this.scene.remove(t.group);
   }
@@ -588,7 +593,7 @@ export class Quartier {
     this.print.set({ fogFar: a.fogFar, halftone: a.night > 0.5 ? 0.42 : 0.6, idLines: a.night > 0.5 ? 0.45 : 0.6 });
   }
 
-  /** The light a paper figure standing here receives. */
+  /** The light someone standing here receives (a card, or a person in the round). */
   lightAt(p: Vector3): [number, number, number] {
     const w = this.world;
     const [r, g, b, room] = this.lightMap.sample(p.x, p.z);
@@ -792,7 +797,7 @@ export class Quartier {
     this.camera.updateMatrixWorld();
     // people first: their cards' boxes on screen
     let best: { key: string; d: number } | null = null;
-    const people = [this.troupe, ...this.extras].reduce<Array<[string, PaperFigure]>>((all, t) => all.concat(Array.from(t.people)), []);
+    const people = [this.troupe, ...this.extras].reduce<Array<[string, Figure]>>((all, t) => all.concat(Array.from(t.people)), []);
     for (const [key, f] of people) {
       const box = f.screenBox(this.camera);
       if (!box) continue;
@@ -884,8 +889,9 @@ export class Quartier {
     this.updateCamera(dt, now);
     this.world.uTime.value = now;
     this.tickers.forEach((fn) => fn(dt, now));
-    this.troupe.update(dt, now, this.camera, (p) => this.lightAt(p));
-    this.extras.forEach((t) => t.update(dt, now, this.camera, (p) => this.lightAt(p)));
+    const indoorAt = (p: Vector3) => this.inRoom(p);
+    this.troupe.update(dt, now, this.camera, (p) => this.lightAt(p), indoorAt);
+    this.extras.forEach((t) => t.update(dt, now, this.camera, (p) => this.lightAt(p), indoorAt));
     this.props.forEach((p) => {
       if (p.material && p.object.visible) {
         const l = this.lightAt(p.object.position);

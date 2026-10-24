@@ -67,9 +67,13 @@ export interface BoxFaces {
 }
 
 let autoId = 1;
-/** A fresh line id for a new piece, cycling through 1–63 (0 is the sky). */
+/**
+ * A fresh line id for a new piece, cycling through 1–63 (0 is the sky). It skips 32–39, the
+ * people's own (`cast3d/kit.ts`): a sleeve against the wall behind it always gets its line.
+ */
 export function nextId(): number {
   autoId = (autoId % 63) + 1;
+  if (autoId >= 32 && autoId <= 39) autoId = 40;
   return autoId;
 }
 
