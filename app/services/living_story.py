@@ -6764,6 +6764,33 @@ def _wrong_beat_hint(draft: SceneDraft, chapter: dict, allowed: tuple[str, ...],
     )
 
 
+def _settle_speaker_labels(draft: SceneDraft, context: dict) -> None:
+    """#313 (root cause #145): a spoken line is words, never «Name : words». The
+    speaker's own label is cut; another character's label is a line spoken for someone
+    else, which a retry fixes (the page draws the speaker, not the text)."""
+
+    from app.services import speaker_labels
+
+    table = speaker_labels.name_table(context["world"]["cast"])
+    spoken = [(draft.character_id, "opening_line_fr", draft)] + [
+        (line.character_id, "text_fr", line) for panel in draft.panels for line in panel.dialogue
+    ]
+    for speaker, field, holder in spoken:
+        text = getattr(holder, field)
+        clean, foreign = speaker_labels.settle_labels(text, speaker, table)
+        if foreign:
+            raise StoryUnavailable(
+                "dialogue_speaks_for_other",
+                hint=(
+                    f"«{text[:60]}» puts another character's name in front of {speaker}'s line. "
+                    "Write the words only, with no «Name :» label; each line belongs to the "
+                    "character_id that speaks it, and nobody speaks for someone else."
+                ),
+            )
+        if clean and clean != text:
+            setattr(holder, field, clean)
+
+
 def _validate_scene(draft: SceneDraft, context: dict):
     cast = {c["id"] for c in context["world"]["cast"]}
     locations = {loc["id"] for loc in context["world"]["locations"]}
@@ -6823,6 +6850,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
         # a provider timeout on the retry.
         return _scrub_endearments(_scrub_paren_gender(_scrub_inclusive_dot(text)), address)
 
+    _settle_speaker_labels(draft, context)
     draft.premise_fr = clean(draft.premise_fr)
     draft.opening_line_fr = clean(draft.opening_line_fr)
     draft.suggested_response_fr = clean(draft.suggested_response_fr)
