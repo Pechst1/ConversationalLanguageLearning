@@ -73,9 +73,8 @@ export function headCentre(J: Joints): Vector3 {
   return new Vector3(0, (J.chin + J.crown) / 2, 0.012);
 }
 
-/** Sculpt a person and stand them on their skeleton. */
-export function buildModel(world: World, person: Person, opts: { variant?: string; cell?: number } = {}): Model {
-  const variant = opts.variant ?? person.variants?.[0];
+/** A person's body, sculpted and skinned to the bind pose, before any face is printed on it. */
+export function sculptPerson(person: Person, variant = person.variants?.[0]) {
   const J = joints(person.body);
   const head = new HeadShape(person.head, person.body.head);
   const S = new Sculptor();
@@ -85,7 +84,13 @@ export function buildModel(world: World, person: Person, opts: { variant?: strin
   sculptHead(S, head, hc, look.frame, ink(person.skin, PLATE.skin), B.head);
   sculptEars(S, head, hc, ink(person.skin, PLATE.skin2), B.head);
   person.build(b, variant);
-  const geometry = S.geometry();
+  return { J, head, look, geometry: S.geometry(), triangles: S.triangles };
+}
+
+/** Sculpt a person and stand them on their skeleton. */
+export function buildModel(world: World, person: Person, opts: { variant?: string; cell?: number } = {}): Model {
+  const variant = opts.variant ?? person.variants?.[0];
+  const { J, head, look, geometry, triangles } = sculptPerson(person, variant);
   const print = new FacePrint(look, person.face(variant), person.eyes, opts.cell ?? 256);
   print.draw('neutre');
   const material = figure3dMaterial(world, print.texture);
@@ -106,7 +111,7 @@ export function buildModel(world: World, person: Person, opts: { variant?: strin
     rest,
     print,
     material,
-    triangles: S.triangles,
+    triangles,
     dispose() {
       geometry.dispose();
       material.dispose();

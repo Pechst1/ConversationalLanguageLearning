@@ -22,6 +22,7 @@ import type { Model } from '../../lib/quartier/cast3d/model';
 import { PEOPLE, personFor } from '../../lib/quartier/cast3d/people';
 import { applyPose } from '../../lib/quartier/cast3d/pose';
 import type { Pose } from '../../lib/quartier/cast3d/pose';
+import { GESTURES, ModelFigure } from '../../lib/quartier/cast3d/figure';
 
 interface View {
   /** degrees round the figure, 0 face-on */
@@ -33,7 +34,23 @@ interface View {
   fov?: number;
 }
 
+/** A moment of acting, for the acts sheet: a column per act. */
+interface Act {
+  expression?: string;
+  gesture?: string;
+  /** how far through the gesture, 0 to 1 */
+  u?: number;
+  /** walking, at this many seconds into the walk */
+  walk?: number;
+  talk?: boolean;
+  seat?: number;
+  /** a bow, this far through it */
+  bow?: number;
+  hop?: number;
+}
+
 interface Config {
+  acts?: Act[];
   people?: string[];
   views?: View[];
   tile?: [number, number];
@@ -96,6 +113,94 @@ async function main() {
   const print = new PrintPass(tw, th, { line: 1, idLines: 0.6, halftone: 0.6, grain: 1 });
   print.setSize(tw, th, 1);
   const triangles: Record<string, number> = {};
+
+  if (cfg.acts?.length) {
+    const acts = cfg.acts;
+    const vw = views[0];
+    const W2 = tw * acts.length;
+    canvas.width = W2;
+    canvas.style.width = `${W2}px`;
+    renderer.setSize(W2, H, false);
+    for (let row = 0; row < people.length; row++) {
+      const person = people[row];
+      for (let col = 0; col < acts.length; col++) {
+        const act = acts[col];
+        const scene = new Scene();
+        const floor = new Mesh(new CylinderGeometry(2.2, 2.2, 0.04, 48), flat(INKS.paper, 2));
+        floor.position.y = -0.02;
+        scene.add(floor);
+        const fig = new ModelFigure(world, person, { key: person.key, height: person.body.height }, { variant: cfg.variant });
+        triangles[person.key] = fig.model.triangles;
+        scene.add(fig.root);
+        const height = person.body.height;
+        const cam = new PerspectiveCamera(vw.fov ?? 34, tw / th, 0.05, 60);
+        const yaw = (vw.yaw * Math.PI) / 180;
+        const pitch = ((vw.pitch ?? 4) * Math.PI) / 180;
+        const dist = vw.dist ?? 3.9;
+        const at = new Vector3(0, height * (vw.at ?? 0.52), 0);
+        cam.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, at.y + Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
+        cam.lookAt(at);
+        cam.updateMatrixWorld();
+        fig.place(new Vector3(0, 0, 0));
+        const light: [number, number, number] = [1, 1, 1];
+        {
+          const l = world.uShade.value.clone().lerp(world.uSun.value, 0.62).add(world.uAmbient.value);
+          const lum = l.x * 0.3 + l.y * 0.59 + l.z * 0.11;
+          if (lum < 0.62) l.multiplyScalar(0.62 / lum);
+          light[0] = l.x;
+          light[1] = l.y;
+          light[2] = l.z;
+        }
+        const T = performance.now() / 1000;
+        const dt = 1 / 30;
+        let now = T;
+        // settle into the stance and the mood
+        fig.express(act.expression ?? 'neutre', null);
+        for (let i = 0; i < 45; i++) fig.update(dt, (now += dt), cam, light);
+        if (act.seat) {
+          fig.seat = act.seat;
+          for (let i = 0; i < 30; i++) fig.update(dt, (now += dt), cam, light);
+        }
+        let until = now;
+        if (act.gesture && GESTURES[act.gesture]) {
+          fig.express(act.expression ?? 'neutre', act.gesture);
+          // gestures start from the wall clock; run the clock that far
+          const start = performance.now() / 1000;
+          until = start + (act.u ?? 0.5) * GESTURES[act.gesture].seconds;
+          now = start;
+        }
+        if (act.bow !== undefined) {
+          fig.bow(0.6, 1.3);
+          const start = performance.now() / 1000;
+          until = start + act.bow * 1.3;
+          now = start;
+        }
+        if (act.hop !== undefined) {
+          fig.hop();
+          const start = performance.now() / 1000;
+          until = start + act.hop * 0.42;
+          now = start;
+        }
+        if (act.talk) fig.talk(30);
+        if (act.walk !== undefined) {
+          const dir = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+          fig.walk([dir.clone().multiplyScalar(40)], 1.2);
+          until = now + act.walk;
+        }
+        while (now < until) fig.update(dt, (now += dt), cam, light);
+        fig.update(0.0001, now, cam, light);
+        if (act.walk !== undefined) fig.root.position.set(0, 0, 0);
+        fig.root.updateMatrixWorld(true);
+        renderer.setViewport(col * tw, H - (row + 1) * th, tw, th);
+        renderer.setScissor(col * tw, H - (row + 1) * th, tw, th);
+        renderer.setScissorTest(true);
+        print.render(renderer, scene, cam);
+        fig.dispose();
+      }
+    }
+    window.__castDone = { ok: true, triangles, ms: Math.round(performance.now() - t0) };
+    return;
+  }
 
   for (let row = 0; row < people.length; row++) {
     const person = people[row];

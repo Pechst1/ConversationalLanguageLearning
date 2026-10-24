@@ -4,8 +4,8 @@
  * From her rig and her model sheet: the green shirt with its sleeves rolled to the elbow and the
  * dark collar, the long dark bistro apron with its bib, its straps and the two brass buttons, navy
  * trousers, the cropped silver hair swept up and back with its three tufts, the gold hoops. She
- * holds a wine glass up in her right hand (it is always already dry) and the striped towel hangs
- * from her left.
+ * holds a wine glass up in her right hand (it is always already dry); the striped towel the
+ * drawing hangs from her left hand is over her left shoulder here, so that hand is free to talk.
  */
 import { Matrix4, Quaternion, Vector3 } from 'three';
 
@@ -13,8 +13,8 @@ import { margaux as fig } from '@/components/cast/vivant/figures/margaux';
 
 import { vivantFace } from '../face';
 import { flick, hairCap, onHead, round } from '../head';
-import type { Build } from '../kit';
-import { PLATE, button, cuff, hand, ink, leg, neck, patch, pelvis, shoe, skirt, sleeve, torsoBind, trunk } from '../kit';
+import type { Band, Build } from '../kit';
+import { PLATE, bandAt, button, cuff, frontZ, hand, ink, leg, neck, patch, pelvis, shoe, skirt, sleeve, torsoBind, trunk } from '../kit';
 import type { Person } from '../model';
 import { B } from '../rig';
 
@@ -44,7 +44,7 @@ function build(b: Build) {
   neck(b, skin2, 0.043);
 
   // the shirt
-  trunk(b, [
+  const bands: Band[] = [
     { y: hip - 0.06, rx: 0.125, rz: 0.094 },
     { y: hip + 0.03, rx: 0.13, rz: 0.097 },
     { y: hip + 0.15, rx: 0.121, rz: 0.091 },
@@ -53,7 +53,8 @@ function build(b: Build) {
     { y: sy - 0.05, rx: 0.157, rz: 0.09, square: 2.5 },
     { y: sy - 0.005, rx: 0.118, rz: 0.074, square: 2.4 },
     { y: sy + 0.022, rx: 0.056, rz: 0.05 },
-  ], shirt);
+  ];
+  trunk(b, bands, shirt);
   // the open collar: a V of skin, the dark collar either side
   const neckFront = 0.072;
   patch(b, [[-0.042, 0.03], [0.042, 0.03], [0, -0.05]], v(0, sy - 0.005, neckFront), skin2, B.chest, { depth: 0.004, bend: 0.09 });
@@ -163,13 +164,32 @@ function build(b: Build) {
     S.lathe([[0.0385, 0.05], [0.0392, 0.062], [0.038, 0.08]], 14, new Matrix4().makeRotationY(-0.3), ink(GLASS_BLUE, PLATE.prop), B.handR);
   });
 
-  // the towel hanging from her left hand: cream with two red stripes
-  const palmL = J.palm.L.clone().add(v(0.012, -0.02, 0.02));
-  const towel = new Matrix4().compose(palmL.clone().add(v(0, -0.11, 0)), new Quaternion().setFromAxisAngle(v(0, 1, 0), Math.PI / 2 - 0.25), v(1, 1, 1));
-  S.slab([[-0.05, 0.12], [0.055, 0.115], [0.06, -0.11], [-0.052, -0.115]], 0.008, towel, ink(CREAM, PLATE.prop), B.handL);
-  for (const x of [-0.022, 0.012]) {
-    const stripe = new Matrix4().compose(palmL.clone().add(v(0, -0.11, 0)), new Quaternion().setFromAxisAngle(v(0, 1, 0), Math.PI / 2 - 0.25), v(1, 1, 1)).multiply(new Matrix4().makeTranslation(x, 0, 0));
-    S.slab([[-0.006, 0.118], [0.006, 0.118], [0.0075, -0.112], [-0.0045, -0.113]], 0.0095, stripe, ink(RED, PLATE.under), B.handL);
+  // the towel over her left shoulder, down the front and the back: cream with two red stripes
+  const x = 0.098;
+  const across = (y: number) => {
+    const band = bandAt(bands, y);
+    return band.rz * Math.sqrt(Math.max(0, 1 - (x / band.rx) ** 2)) + 0.007;
+  };
+  const path = [
+    v(x, sy - 0.2, frontZ(bands, x, sy - 0.2) + 0.008),
+    v(x, sy - 0.1, frontZ(bands, x, sy - 0.1) + 0.008),
+    v(x, sy - 0.01, across(sy - 0.01) * 0.92),
+    v(x, sy + 0.03, 0.02),
+    v(x, sy + 0.032, -0.02),
+    v(x, sy - 0.01, -across(sy - 0.01) * 0.95),
+    v(x, sy - 0.1, -across(sy - 0.1)),
+    v(x, sy - 0.18, -across(sy - 0.18)),
+  ];
+  S.tube(path, [0.046, 0.0045], ink(CREAM, PLATE.prop), B.chest, { seg: 8, up: v(0, 0, 1) });
+  // the stripes, standing just off it along its length
+  for (const dx of [-0.02, 0.016]) {
+    const stripe = path.map((p, i) => {
+      const a = path[Math.max(0, i - 1)];
+      const c = path[Math.min(path.length - 1, i + 1)];
+      const t = c.clone().sub(a).normalize();
+      return p.clone().add(v(dx, -t.z * 0.004, t.y * 0.004));
+    });
+    S.tube(stripe, [0.0065, 0.0022], ink(RED, PLATE.under), B.chest, { seg: 6, up: v(0, 0, 1) });
   }
 }
 

@@ -2,7 +2,7 @@
 // Le Quartier · photograph the cast in the round, for whoever is modelling them to look at.
 //   node scripts/quartier/cast3d-sheet.mjs <out.png> [--people margaux_barman,lila_bonnet]
 //        [--expression joie] [--ambiance matin|nuit|room] [--pose rest|bind] [--tile 300x460]
-//        [--views "0,35,90,180"] [--variant m]
+//        [--views "0,35,90,180"] [--variant m] [--acts '[{"gesture":"salut","u":0.5},{"walk":0.4}]']
 // One row per person, one column per view (the last view a close-up of the face), printed by the
 // quarter's own print pass in software WebGL so the sheet comes out the same on any machine.
 import fs from 'node:fs';
@@ -43,6 +43,7 @@ const config = {
   ambiance: opt('--ambiance', 'matin'),
   pose: opt('--pose', 'rest'),
   variant: opt('--variant', undefined),
+  acts: opt('--acts', '') ? JSON.parse(opt('--acts', '[]')) : undefined,
 };
 
 const result = await build({
