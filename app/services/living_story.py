@@ -5763,7 +5763,9 @@ def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: 
 _SCENE_WORD_LIMITS = {"A1": 180, "A2": 260, "B1": 330, "B2": 385, "C1": 440}
 MIN_SCENE_PANELS = 4
 
-_TU_MARKERS = re.compile(r"\b(tu|toi|ton|ta|tes|t'as|t'es)\b", re.IGNORECASE)
+#: «te» and «t'» count (steering read 2026-10-24: Gus's «ce café te réveille ?», right
+#: after his panicked return to vous, passed as no address at all).
+_TU_MARKERS = re.compile(r"\b(tu|toi|te|ton|ta|tes)\b|\bt['’]", re.IGNORECASE)
 _VOUS_MARKERS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
 
 
@@ -5796,8 +5798,15 @@ def _address_register(texts: list[str]) -> str | None:
     return None
 
 
-def _check_scene_address_register(draft: SceneDraft) -> None:
-    """Narration and the addressed character must speak to the learner the same way."""
+def _check_scene_address_register(draft: SceneDraft, context: dict | None = None) -> None:
+    """Narration and the addressed character must speak to the learner the same way.
+
+    On a season day the narrator says tu to Toi beside a character who says vous, as
+    the season's own pages do («Le lendemain. Ton billet de retour est pour mercredi.»
+    beside the agent's «Vous voulez changer votre billet ?»): there only a narration in
+    vous beside a tu is refused. Steering read 2026-10-24: both 17-day reads lost g2.6
+    to this refusal (Bastien says vous, and each of the six drafts had a caption like
+    «Ton téléphone vibre sur la table»), and the learner re-read T2 instead."""
 
     narration = _address_register([draft.premise_fr, *[p.narration_fr for p in draft.panels]])
     spoken = _address_register(
@@ -5812,6 +5821,8 @@ def _check_scene_address_register(draft: SceneDraft) -> None:
         ]
     )
     if narration and spoken and narration != spoken:
+        if narration == "tu" and spoken == "vous" and season_registers(context or {}):
+            return
         raise StoryUnavailable(
             "mixed_address_register",
             hint=(
@@ -6846,7 +6857,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     learner_text += [draft.chapter.title_fr, draft.chapter.dramatic_question]
     _check_address(learner_text, (context.get("learner") or {}).get("address"))
     _check_register(learner_text, context.get("level"))
-    _check_scene_address_register(draft)
+    _check_scene_address_register(draft, context)
     _check_season_register(draft, context)
     _check_canon_register(draft, context)
     _check_departed_cast(draft, context)
@@ -9244,6 +9255,9 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
             # WP-155: the reveals today's gap forbids, for the reply and the ending as
             # for the page (the lanes' guard reads them back by id).
             **_season_turn_must_not(season_day, context.get(SEASON_TODAY_KEY)),
+            # How the speaker addresses the learner today, for a reply on a page that
+            # mixes tu and vous (Gus's accidental tu, then his return to vous).
+            **({"register": register} if (register := season_registers(context).get(str(scenario.character_id))) else {}),
         }
         # N1 pilot: what the learner may decide on this premise (season/agency.py).
         from app.services.season.agency import agency_for_turn, contract_for

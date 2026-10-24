@@ -1241,6 +1241,10 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     }
     if wanted:
         state = apply_sets(season, state, wanted, source=f"{gap.id}.{position.get('day_in_segment')}")
+        state[LEARNER_SET_KEY] = {**_learner_set(state), **dict.fromkeys(wanted, gap.id)}
+    # What the learner set in their own words on an earlier day of this gap: a later
+    # beat's fact never overwrites it (a ticket they moved to the 30th stays the 30th).
+    theirs = {flag for flag, where in _learner_set(state).items() if where == gap.id}
     checklist = season_ctx.get("checklist") or {}
     # Only what the day says it staged counts: a scheduled moment the draft skipped
     # stays owed (``director.gap_brief`` offers it again).
@@ -1263,14 +1267,20 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
         state = apply_sets(
             season,
             state,
-            _settled_without_the_learner(season, state, gap.id, premise),
+            {
+                flag: value
+                for flag, value in _settled_without_the_learner(season, state, gap.id, premise).items()
+                if flag not in theirs
+            },
             source=f"{gap.id}/{premise}/not_taken_up",
         )
     staged = next((row for row in gap.premises if row.id == premise), None)
     if planned and staged is not None and staged.settles:
-        # Gaps 3, 5 and 7 move the ticket (owner hand-off 2026-10-16): a day that
+        # Gaps 1, 3, 5 and 7 move the ticket (owner hand-off 2026-10-16; gap 1 since the
+        # steering read of 2026-10-24, where both learners took the ticket day up without
+        # naming a date and on 26 November the ticket still said 18 November): a day that
         # passed without a date from the learner moves it to the story's own.
-        settled = {flag: value for flag, value in staged.settles.items() if flag not in wanted}
+        settled = {flag: value for flag, value in staged.settles.items() if flag not in wanted and flag not in theirs}
         if settled:
             state = apply_sets(season, state, settled, source=f"{gap.id}/{premise}/settled")
     # WP-113: today's complication card is tomorrow's obstacle (faced today, it is
@@ -1300,6 +1310,17 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     from app.services.season.agency import settle_day
 
     return settle_day(state, season_ctx, details, event_id=event_id, engaged=engaged)
+
+
+#: ``{flag: gap id}``: the gap flags the learner settled in their own words, and in
+#: which gap (``_settle_gap``). A fact a later day of the same gap stages never
+#: overwrites one of them.
+LEARNER_SET_KEY = "learner_set"
+
+
+def _learner_set(state: dict) -> dict[str, str]:
+    rows = state.get(LEARNER_SET_KEY)
+    return {str(flag): str(where) for flag, where in rows.items()} if isinstance(rows, dict) else {}
 
 
 def _settled_without_the_learner(season: Season, state: dict, gap_id: str, premise: str) -> dict[str, Any]:
