@@ -110,8 +110,9 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
     guichet_u = -13.0
     clerk = pt(guichet_u, -gap + 3.4)
     rail = pt(4.0, -1.4)
-    start = pt(-9.0, -lawn - 2.0)
-    look_at = xz(-60.0, TRACK * 0.5)
+    start = pt(-1.0, -lawn - 1.5)
+    # you arrive facing the betting window a dozen metres off, the odds over it, the stand behind
+    look_at = xz(guichet_u, -gap + 3.4)
     spots = []
     for k, (u, n, linger) in enumerate(
         [
@@ -150,7 +151,7 @@ def draft(survey: dict, brief: dict, place: dict) -> tuple[dict, dict]:
         "title": brief["title"],
         "can_do": brief["can_do"],
         "arrondissement": brief.get("arrondissement", ""),
-        "start": {"pos": start, "look": [r2(look_at[0]), 1.6, r2(look_at[1])]},
+        "start": {"pos": start, "look": [r2(look_at[0]), 3.0, r2(look_at[1])]},
         "ground": {"street": [], "carriageway": [], "pavement": [], "squares": [], "gravel": [], "green": []},
         "walk": walk,
         "nav": {"kerb": [walk_ring], "road": [], "islands": [], "holes": []},

@@ -75,8 +75,8 @@ export interface CourseOptions {
   memory?: Memory;
   street?: Street;
   onCue?: (cue: Cue) => void;
-  /** the voice over the course: the stalls, the race called, the result */
-  onSay?: (fr: string) => void;
+  /** the voice over the course: the stalls, the race called, the result (`heat`: how worked up, 0 to 1) */
+  onSay?: (fr: string, heat: number) => void;
 }
 
 const CLOSED: Said = { say: w('Trop tard, les paris sont fermés ! Regardez la course !', 'Too late, betting is closed! Watch the race!', 'Zu spät, die Wetten sind geschlossen! Schauen Sie das Rennen!'), mood: 'malice' };
@@ -94,7 +94,7 @@ export class Course implements Director {
   private listeners = new Set<(ui: StageUi) => void>();
   private native: Native;
   private onCue?: (cue: Cue) => void;
-  private onSay?: (fr: string) => void;
+  private onSay?: (fr: string, heat: number) => void;
   private street?: Street;
   private people: Troupe;
   private field: Troupe;
@@ -472,7 +472,7 @@ export class Course implements Director {
     this.draw();
     const stalls = w('Les chevaux entrent dans les stalles… Les paris sont fermés !', 'The horses are going into the stalls… Betting is closed!', 'Die Pferde gehen in die Startboxen… Die Wetten sind geschlossen!');
     this.show({ caption: this.say(stalls) });
-    this.onSay?.(stalls.fr);
+    this.onSay?.(stalls.fr, 0);
     if (this.goal) {
       this.goal = null;
       this.q.showWay(null);
@@ -556,9 +556,10 @@ export class Course implements Director {
     if (this.called === 0) this.onCue?.('bell');
     if (t > STRAIGHT - 1.5 && t < POST + 3 && this.ui.talk) this.endTalk();
     while (this.called < this.calls.length && this.calls[this.called].at <= t) {
-      const call = this.calls[this.called].say;
-      this.show({ caption: this.say(call) });
-      this.onSay?.(call.fr);
+      const call = this.calls[this.called];
+      this.show({ caption: this.say(call.say) });
+      // calm on the far side, worked up into the straight, hoarse at the post
+      this.onSay?.(call.say.fr, call.at < STRAIGHT ? 0.2 : call.at <= POST ? 0.5 + (0.5 * (call.at - STRAIGHT)) / (POST - STRAIGHT) : 0.3);
       this.called++;
     }
     const v = this.venue;
@@ -625,7 +626,21 @@ export class Course implements Director {
     }
     const r = this.race.result;
     const name = this.race.spec.name;
-    this.remember([{ kind: 'journal', words: w(`Tu as vu le ${r[0]} gagner le ${name.fr}.`, `You saw number ${r[0]} win the ${name.en}.`, `Du hast die ${r[0]} den ${name.de} gewinnen sehen.`) }, { kind: 'fact', key: 'hippodrome_longchamp.winner', value: r[0] }]);
+    this.remember([
+      { kind: 'journal', words: w(`Tu as vu le ${r[0]} gagner le ${name.fr}.`, `You saw number ${r[0]} win the ${name.en}.`, `Du hast die ${r[0]} den ${name.de} gewinnen sehen.`) },
+      { kind: 'fact', key: 'hippodrome_longchamp.winner', value: r[0] },
+      // the words of a race, heard as it was called
+      {
+        kind: 'learn',
+        key: 'hippodrome_longchamp.mots',
+        from: 'Le speaker',
+        words: w(
+          'La corde (le bord intérieur de la piste), la ligne droite (la fin, jusqu’au poteau) et côte à côte.',
+          'La corde (the inside rail), la ligne droite (the home straight, up to the post) and côte à côte (neck and neck).',
+          'La corde (die Innenbande), la ligne droite (die Zielgerade bis zum Pfosten) und côte à côte (Kopf an Kopf).',
+        ),
+      },
+    ]);
     const tk = this.window.ticket;
     let line: Words;
     if (!tk) line = w(`Le ${r[0]} gagne. Sans ticket, tu as juste crié.`, `Number ${r[0]} wins. No ticket: you just shouted.`, `Die ${r[0]} gewinnt. Ohne Ticket hast du nur mitgefiebert.`);

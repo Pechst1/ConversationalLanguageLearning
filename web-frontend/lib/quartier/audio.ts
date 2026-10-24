@@ -164,13 +164,17 @@ export class Sound {
     else if (canSpeak()) window.speechSynthesis.cancel();
   }
 
-  /** The voice over the loudspeakers: a line in French, cutting off the last one as callers do. */
-  announce(fr: string) {
+  /**
+   * The voice over the loudspeakers: a line in French, cutting off the last one as callers do.
+   * `heat` (0 to 1) is how worked up the caller is: faster and higher up the straight.
+   */
+  announce(fr: string, heat = 0) {
     if (!this.ctx || !this.on || !canSpeak() || readVoicesPreference() === false) return;
     const synth = window.speechSynthesis;
     const line = new SpeechSynthesisUtterance(fr);
     line.lang = 'fr-FR';
-    line.rate = 1.05;
+    line.rate = 1 + heat * 0.18;
+    line.pitch = 1 + heat * 0.2;
     const voice = pickFrenchVoice(synth.getVoices(), 'speaker');
     if (voice) line.voice = voice;
     synth.cancel();

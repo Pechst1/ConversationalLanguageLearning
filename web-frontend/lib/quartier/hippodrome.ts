@@ -242,6 +242,7 @@ export function hippodrome(B: Build, v: VenueSpec): VenueBuilt {
   B.blocks.push(boxShape(...xz(mid, front - st.depth / 2), len + 1, st.depth, ang));
 
   /* ---- the betting windows ---------------------------------------------------------------- */
+  const { runners, holder } = fieldOf(v.race);
   const g = v.guichet;
   const gn = front + 3.4;
   const kiosk: Paint = { color: mix(INKS.green, INKS.ink, 0.25), id: nextId(), pattern: PATTERN.ribs };
@@ -254,6 +255,9 @@ export function hippodrome(B: Build, v: VenueSpec): VenueBuilt {
   block(g, gn - 0.85, KERB, 3.5, 0.06, 2.6, { color: mix(INKS.ink, INKS.cobalt, 0.2), id: nextId() });
   B.signs.push({ key: 'guichet', center: at(g, gn + 1.29, KERB + 2.5), normal: new Vector3(nx, 0, nz), width: 2.6, height: 0.42, density: 160, draw: letters('PARIS · GUICHET', css(mix(INKS.green, INKS.ink, 0.25)), css(INKS.card)) });
   B.blocks.push(boxShape(...xz(g, gn), 4.4, 2.8, ang));
+  // over the window, the runners and their odds: what you read on your way to bet
+  block(g, gn + 0.4, KERB + 2.98, 3.5, 0.14, 2.3, kiosk);
+  B.signs.push({ key: 'cote', center: at(g, gn + 0.485, KERB + 4.13), normal: new Vector3(nx, 0, nz), width: 3.3, height: 2.1, density: 190, draw: oddsArt(runners) });
 
   /* ---- the board across the track --------------------------------------------------------- */
   const bn = T + 16;
@@ -285,7 +289,6 @@ export function hippodrome(B: Build, v: VenueSpec): VenueBuilt {
     }
   }
 
-  const { runners, holder } = fieldOf(v.race);
   return {
     spec: v,
     at,
@@ -295,6 +298,43 @@ export function hippodrome(B: Build, v: VenueSpec): VenueBuilt {
     window: at(g, gn + 2.6, 0),
     board: { center: at(v.board, bn - 0.08, KERB + 6.1), normal: new Vector3(-nx, 0, -nz), width: 9.6, height: 5.2 },
     rail: at(2, -1.3, 0),
+  };
+}
+
+/** The board by the window: each runner's number, its silks and its odds, «40/1». */
+function oddsArt(runners: Runner[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.ink, INKS.green, 0.2));
+    ctx.fillRect(0, 0, w, h);
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = css(INKS.sunflower);
+    const head = fitText(ctx, 'LES PARTANTS · LA COTE', w * 0.9, Math.round(h * 0.07), '700 {s}px "Helvetica Neue", Arial, sans-serif');
+    ctx.font = `700 ${head}px "Helvetica Neue", Arial, sans-serif`;
+    ctx.fillText('LES PARTANTS · LA COTE', w / 2, h * 0.075);
+    const rows = Math.ceil(runners.length / 2);
+    const top = h * 0.16;
+    const row = (h * 0.81) / rows;
+    runners.forEach((r, i) => {
+      const col = i < rows ? 0 : 1;
+      const x = (col * w) / 2 + w * 0.05;
+      const y = top + row * ((i % rows) + 0.5);
+      // the silks: the jacket, and the cap on it
+      ctx.fillStyle = css(r.silks.body);
+      ctx.fillRect(x, y - row * 0.22, row * 0.5, row * 0.5);
+      ctx.fillStyle = css(r.silks.cap);
+      ctx.beginPath();
+      ctx.arc(x + row * 0.25, y - row * 0.25, row * 0.17, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = css(INKS.card);
+      ctx.textAlign = 'left';
+      ctx.font = `700 ${Math.round(row * 0.58)}px Georgia, 'Times New Roman', serif`;
+      ctx.fillText(String(r.n), x + row * 0.7, y + row * 0.03);
+      ctx.fillStyle = css(INKS.sunflower);
+      ctx.textAlign = 'right';
+      ctx.font = `700 ${Math.round(row * 0.5)}px "Helvetica Neue", Arial, sans-serif`;
+      ctx.fillText(`${r.odds}/1`, ((col + 1) * w) / 2 - w * 0.05, y + row * 0.03);
+    });
   };
 }
 

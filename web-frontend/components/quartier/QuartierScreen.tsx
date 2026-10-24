@@ -225,7 +225,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         sound.current = sn;
         await eq.load();
         if (cancelled) return;
-        const opts = { level, native, onCue: (c: Cue) => sn.cue(c), onSay: (fr: string) => sn.announce(fr), memory };
+        const opts = { level, native, onCue: (c: Cue) => sn.cue(c), onSay: (fr: string, heat: number) => sn.announce(fr, heat), memory };
         // a place where the news happens plays the event; a street, its people and their trade
         const director: Director = spec ? (spec.venue ? new Course(eq, opts) : new Visit(eq, opts)) : new Stage(eq, T1A, opts);
         st = director;

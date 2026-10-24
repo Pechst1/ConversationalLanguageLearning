@@ -47,6 +47,16 @@ places a set from the survey, and race day plays on it (`course.ts`).
   aloud over the loudspeakers in the device's French voice, each call as it is captioned (from
   the stalls to «Arrivée : …»), unless the learner turned the voices off.
 
+## Round 2: the bet as a choice
+
+- **The odds.** A board over the window lists the sixteen runners, their silks and their odds
+  («40/1»), so a learner picks a horse by reading French figures instead of guessing a number.
+- **The arrival.** You used to arrive looking up the straight, with the window and the stand
+  behind you. You now arrive 12 m from the window, facing it: the odds over it, the stand and its
+  crowd behind. The straight is the second errand.
+- **The caller** is calm on the far side, faster and higher up the straight. After the race, what
+  you know has the words it used: la corde, la ligne droite, côte à côte.
+
 ## Still plain
 
 - The stand is tiers and a box, not the curve of the real one; the paddock, the parade ring and
