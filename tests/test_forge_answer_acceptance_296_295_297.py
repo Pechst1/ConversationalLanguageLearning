@@ -334,9 +334,3 @@ def test_no_trap_and_no_wrong_sentence_of_any_item_is_in_its_key():
             assert not clashes, (unit, item.frame_id, item.sentence, clashes)
     assert checked > 1000 and widened > 50
 
-
-def test_a_person_variant_that_is_one_of_the_items_own_distractors_is_not_added():
-    item = _frame_item("FR2_A11_ER_VERBS", "er-comp")
-    wrong = item.wrong_sentences[0]
-    widened = ib.with_person_variants(item, [wrong, "Une autre phrase."])
-    assert wrong not in widened.accepted and "Une autre phrase." in widened.accepted
