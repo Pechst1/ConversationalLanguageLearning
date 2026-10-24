@@ -351,7 +351,8 @@ export class Quartier {
     if (this.fogOverride) return { ...a, fogNear: this.fogOverride[0], fogFar: this.fogOverride[1] };
     if (!this.site) return a;
     const { walk, build } = this.site.spec.radius;
-    const far = Math.min(a.fogFar, build - walk + 55);
+    // a racecourse is open ground: you see across it to the trees
+    const far = Math.min(a.fogFar, this.site.venue ? 260 : build - walk + 55);
     return { ...a, fogFar: far, fogNear: Math.min(a.fogNear, far * 0.3) };
   }
 

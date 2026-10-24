@@ -127,8 +127,11 @@ test('every site says where its data came from, and the Papier article it was fo
     assert.match(site.provenance.data || '', /Overture/, `${file}: attribution`);
     assert.ok(site.provenance.release, `${file}: data release`);
     if (site.provenance.papier) {
-      const article = path.join(REPO, 'app', 'services', 'revue', 'evergreen', `${site.provenance.papier}.json`);
-      assert.ok(fs.existsSync(article), `${file}: no Papier article ${site.provenance.papier}`);
+      // an evergreen article, or a week's
+      const revue = path.join(REPO, 'app', 'services', 'revue');
+      const weeks = fs.readdirSync(path.join(revue, 'weekly')).map((wk) => path.join(revue, 'weekly', wk));
+      const found = [path.join(revue, 'evergreen')].concat(weeks).some((dir) => fs.existsSync(path.join(dir, `${site.provenance.papier}.json`)));
+      assert.ok(found, `${file}: no Papier article ${site.provenance.papier}`);
     }
   });
 });
@@ -150,4 +153,20 @@ test('the map and the files agree: a place is open with a site behind it, and ev
       `${site.id} is not in the world registry`,
     );
   });
+});
+
+test('a venue stands its set beside its walkable ground: the stand behind, the track before, the people on it', () => {
+  sites
+    .filter(({ site }) => site.venue)
+    .forEach(({ file, site }) => {
+      const v = site.venue;
+      assert.equal(v.kind, 'hippodrome', `${file}: a venue the kit draws`);
+      assert.ok(Math.abs(Math.hypot(v.u[0], v.u[1]) - 1) < 1e-3 && Math.abs(Math.hypot(v.n[0], v.n[1]) - 1) < 1e-3, `${file}: unit axes`);
+      assert.ok(Math.abs(v.u[0] * v.n[0] + v.u[1] * v.n[1]) < 1e-3, `${file}: the straight runs square to the way across`);
+      // the walkable ground lies between the stand's front and the rail
+      const across = ([x, z]) => (x - v.post[0]) * v.n[0] + (z - v.post[1]) * v.n[1];
+      site.walk.forEach((p) => p.outer.forEach((pt) => assert.ok(across(pt) <= 0 && across(pt) >= -(v.lawn + v.esplanade) - 0.01, `${file}: walkable ground at ${pt} is on the track or in the stand`)));
+      assert.ok(v.race.runners >= 2 && v.race.runners <= 16 && v.race.metres > 0, `${file}: a race to run`);
+      assert.deepEqual(site.people.map((p) => p.key).sort(), ['guichetiere', 'habitue'], `${file}: the clerk at the window and the regular at the rail`);
+    });
 });

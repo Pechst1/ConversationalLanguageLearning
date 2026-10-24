@@ -15,6 +15,8 @@ import { KERB, WALLS, bench, building, frameOf, groundOf, planeTree, quayLamp, w
 import type { Build, BuildingSpec, Run, Shop, ShopKind } from './kit';
 import { PATTERN, area2 } from './geo';
 import type { Paint, Press, Shape2 } from './geo';
+import { hippodrome } from './hippodrome';
+import type { VenueBuilt, VenueSpec } from './hippodrome';
 import { glassBin, halle, hoarding, hoop, pavillon, postBox } from './landmarks';
 import type { LandmarkBuilt, LandmarkSpec } from './landmarks';
 import { stall } from './market';
@@ -118,6 +120,8 @@ export interface SiteSpec {
   /** where the passers-by go, and how long some stay */
   spots: Array<{ at: XZ; linger?: [number, number] }>;
   people: SitePerson[];
+  /** where the news happens: a set the kit draws from the survey's measures (`hippodrome.ts`) */
+  venue?: VenueSpec;
   provenance: { data: string; release: string; surveyed: string; papier?: string; brief_round?: number };
 }
 
@@ -131,6 +135,7 @@ export interface SiteBuilt {
   under: (x: number, z: number) => boolean;
   /** the carriageway, at street level (the rest of the ground is a kerb higher) */
   onRoad: (x: number, z: number) => boolean;
+  venue: VenueBuilt | null;
 }
 
 /** The painted fronts and doors, by the names the forge gives them. */
@@ -324,6 +329,7 @@ export function buildSite(B: Build, site: SiteSpec): SiteBuilt {
   const stalls = site.stalls.map((s, i) => stall(B, s.c[0], s.c[1], s.rot, s.w, s.goods, 500 + i, yAt(s.c[0], s.c[1])));
   const landmarks = site.landmarks.map((l, i) => (l.kind === 'halle' ? halle(B, l, 7 + i) : pavillon(B, l)));
   site.fences.forEach((pts, i) => hoarding(B, pts, i));
+  const venue = site.venue ? hippodrome(B, site.venue) : null;
 
   /* ---- where you can walk ----------------------------------------------------------------- */
   site.nav.kerb.forEach((r) => B.walk.push({ shape: r, y: KERB }));
@@ -348,5 +354,6 @@ export function buildSite(B: Build, site: SiteSpec): SiteBuilt {
     start: { pos: new Vector3(sx, 0, sz), look: new Vector3(site.start.look[0], site.start.look[1], site.start.look[2]) },
     under,
     onRoad,
+    venue,
   };
 }

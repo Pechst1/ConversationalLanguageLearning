@@ -241,7 +241,13 @@ def cmd_draft(args) -> None:
     place = place_of(args.id)
     brief = brief_of(args.id)
     survey = load_json(os.path.join(CACHE, args.id, "survey.json"))
-    site, report = draft.draft(survey, brief, place)
+    if brief.get("venue"):
+        # where the news happens: a set the kit draws from the survey's measures
+        import venue
+
+        site, report = venue.draft(survey, brief, place)
+    else:
+        site, report = draft.draft(survey, brief, place)
     path = os.path.join(SITES, f"{args.id}.json")
     save_json(path, site, compact=True)
     report_path = os.path.join(CACHE, args.id, "draft-report.json")

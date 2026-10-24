@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-23",
+  "updated": "2026-10-24",
   "places": [
     {
       "id": "quai_de_valmy",
@@ -24,6 +24,18 @@
       "source": { "kind": "papier", "id": "evergreen-marche-du-dimanche", "title_fr": "Le marché du dimanche à Aligre" },
       "site": "marche_aligre",
       "ride": { "fr": "Ligne 8, de République à Ledru-Rollin : cinq stations.", "en": "Line 8, République to Ledru-Rollin: five stops.", "de": "Linie 8, von République bis Ledru-Rollin: fünf Stationen." }
+    },
+    {
+      "id": "hippodrome_longchamp",
+      "name": { "fr": "L'hippodrome de ParisLongchamp", "en": "The ParisLongchamp racecourse", "de": "Die Rennbahn ParisLongchamp" },
+      "lat": 48.8612,
+      "lon": 2.2315,
+      "status": "open",
+      "kind": "news",
+      "why": { "fr": "Le Papier : « Seize chevaux pour le Prix de l'Arc de Triomphe ».", "en": "The Papier: “Seize chevaux pour le Prix de l'Arc de Triomphe”.", "de": "Das Papier: „Seize chevaux pour le Prix de l'Arc de Triomphe“." },
+      "source": { "kind": "papier", "id": "2026-w40-prix-de-l-arc-de-triomphe", "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe" },
+      "site": "hippodrome_longchamp",
+      "ride": { "fr": "Le métro jusqu'à la porte d'Auteuil, puis le bois de Boulogne à pied.", "en": "The metro to Porte d'Auteuil, then on foot through the Bois de Boulogne.", "de": "Die Metro bis Porte d'Auteuil, dann zu Fuß durch den Bois de Boulogne." }
     },
     {
       "id": "mairie_10e",

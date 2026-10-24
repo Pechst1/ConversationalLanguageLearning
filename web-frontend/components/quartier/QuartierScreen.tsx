@@ -16,6 +16,7 @@ import { WHILE_AWAY } from '@/lib/quartier/agency';
 import { Sound } from '@/lib/quartier/audio';
 import { figureArt, itemArt } from '@/lib/quartier/cast-art';
 import type { ArtSource } from '@/lib/quartier/cast';
+import { Course } from '@/lib/quartier/course';
 import { Crowd } from '@/lib/quartier/crowd';
 import { Quartier } from '@/lib/quartier/engine';
 import type { Stats } from '@/lib/quartier/engine';
@@ -225,7 +226,8 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         await eq.load();
         if (cancelled) return;
         const opts = { level, native, onCue: (c: Cue) => sn.cue(c), memory };
-        const director: Director = spec ? new Visit(eq, opts) : new Stage(eq, T1A, opts);
+        // a place where the news happens plays the event; a street, its people and their trade
+        const director: Director = spec ? (spec.venue ? new Course(eq, opts) : new Visit(eq, opts)) : new Stage(eq, T1A, opts);
         st = director;
         stage.current = director;
         unsubscribe = director.subscribe(setUi);

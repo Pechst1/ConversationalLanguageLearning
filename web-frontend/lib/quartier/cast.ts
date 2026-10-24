@@ -143,6 +143,8 @@ export class PaperFigure {
   lift = 0;
   /** 0 standing, otherwise the share of the card hidden from the bottom (seated) */
   seat = 0;
+  /** a tilt of the card in its own plane, set from outside (a galloping horse's rock) */
+  rock = 0;
   expression = 'neutre';
   gesture: string | null = null;
   private talkUntil = 0;
@@ -254,7 +256,7 @@ export class PaperFigure {
     this.root.position.set(this.pos.x, this.pos.y + this.lift, this.pos.z);
     this.card.position.y = seatDrop + hop + bounce + hop2;
     this.card.scale.set(this.height * this.aspect * flip, this.height * breathe, 1);
-    this.card.rotation.set(0, Math.atan2(camera.position.x - this.root.position.x, camera.position.z - this.root.position.z), sway);
+    this.card.rotation.set(0, Math.atan2(camera.position.x - this.root.position.x, camera.position.z - this.root.position.z), sway + this.rock);
     this.material.uniforms.uLean.value = lean;
     this.material.uniforms.uCut.value = this.seat;
     this.material.uniforms.uLight.value.set(light[0], light[1], light[2]);

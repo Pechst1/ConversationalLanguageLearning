@@ -1,23 +1,26 @@
 ---
 name: quartier-forge
-description: Build the next corner of Paris for Le Quartier from open map data. Pick a place the Papier names, survey it, draft the site, render and critique it (three rounds at most), publish it on the map and open a PR. Never merges. Use for the weekly "Quartier forge" scheduled task, or when asked to "forge <place>", "build <place> in the Quartier" or "grow the world".
+description: Build the next corner of Paris for Le Quartier from open map data. Pick a place the Papier names, survey it, draft the site (a street with its trade, or a venue where the news happens), render and critique it (three rounds at most), publish it on the map and open a PR. Never merges. Use for the nightly "Quartier forge" scheduled task, or when asked to "forge <place>", "build <place> in the Quartier" or "grow the world".
 ---
 
 # Quartier forge
 
 Le Quartier's Paris is not built all at once. The quai de Valmy and Le Mistral are drawn by
-hand; every other place is forged when the news or the story names it. One run builds one
-place:
+hand; every other place is forged when the news or the story names it. A place the news names
+is on the map the moment its article is (`forge.py news` writes the news layer, pinned under
+scaffolding); the forge then builds it. One run builds one place:
 
 ```
 queue → world entry → brief → survey → draft → check → plan → render → look → notes
       → revise (back to draft, three rounds at most) → publish → tests → PR
 ```
 
-The code is `scripts/forge/` (Python: `forge.py`, `overture.py`, `draft.py`) and
-`web-frontend/lib/quartier/` (the kit that builds a site in 3D, `visit.ts` that plays it,
-`market-talk.ts` for what the stallholders say). `scripts/forge/briefs/marche_aligre.json`
-and `.md` are the worked example: read both before writing a brief.
+The code is `scripts/forge/` (Python: `forge.py`, `overture.py`, `draft.py` for a street,
+`venue.py` for a venue) and `web-frontend/lib/quartier/` (the kit that builds a site in 3D,
+`visit.ts` that plays a street, `market-talk.ts` for what the stallholders say; `hippodrome.ts`,
+`course.ts` and `course-talk.ts` for race day). `scripts/forge/briefs/marche_aligre.json` and
+`.md` are the worked example of a street, `hippodrome_longchamp.json` and `.md` of a venue:
+read the pair that fits before writing a brief.
 
 ## Setup
 
@@ -33,25 +36,35 @@ the cloud; never run `playwright install`).
 
 ## The run
 
-1. **Pick.** `$PY scripts/forge/forge.py queue` lists the places Papier articles name with an
-   exact position in Paris: `en_chantier` first, then `new`. Take the first one you can build
-   from street data. An interior (a chamber, a room), a place outside Paris or a vague
-   location cannot be built: write `scripts/forge/briefs/<id>.md` with one line on why, and
-   take the next. If nothing is left, stop and say so in one line.
+1. **Pick.** `$PY scripts/forge/forge.py news` refreshes the map's news layer
+   (`world/news.json`, held to the articles by `news.test.js`); commit it with the run.
+   `$PY scripts/forge/forge.py queue` lists the places Papier articles name with an exact
+   position in Paris: `en_chantier` first, then `new`. Take the first one you can build. Put
+   the player inside the news, not beside it: where the article is an event (a race, a match,
+   a debate) build the venue where it happens if the kit has one (today `hippodrome`); a
+   street the article is about is drafted with its trade. An interior with no venue kit yet (a
+   chamber, a stadium), a place outside Paris or a vague location cannot be built: write
+   `scripts/forge/briefs/<id>.md` with one line on why and what kit it needs, and take the
+   next. If nothing is left, stop and say so in one line.
 2. **World entry.** If the place is not in `web-frontend/lib/quartier/world/world.json`, add it:
    `id`, `name` and `why` in fr/en/de (`why` cites the Papier: «Le Papier : « <title> ».»),
-   `lat`/`lon` from the article's `geo`, `status: "en_chantier"`, `kind: "news"`,
+   `lat`/`lon` from the article's `geo` (for a venue, where you stand: the grandstand, not the
+   infield the article may point at), `status: "en_chantier"`, `kind: "news"`,
    `source: { kind: "papier", id, title_fr }`, `site: null`, and `ride`: how you get there
    from the quai (the metro from République or Jacques Bonsergent, in fr/en/de). Keep the
    file's format: one key a line, small flat objects on one line.
 3. **Brief.** Write `scripts/forge/briefs/<id>.json` from the article and the survey:
    `radius` (walk about 60 m, build about 115 m: a corner of Paris, not a district; every
-   errand within about 50 m of the start), `ambiance` (`matin` or `nuit`), `title` and `can_do` (what a learner practises there, fr/en/de), `arrondissement` for the street
+   errand within about 50 m of the start), `ambiance` (`matin` or `nuit`), `title` and
+   `can_do` (what a learner practises there, fr/en/de), `arrondissement` for the street
    plaques, `level_streets`, `landmarks` (match an Overture name, give a kind the kit has:
    `halle`, `pavillon`), `market` rows if it is a market, `start` (a street, facing a
    landmark), `commerce`, and `people`: who stands where, with `goods`, `seed`, `name`,
    `goal` (an errand that leads you to them) and `look` (slots of `web-frontend/lib/avatar.ts`;
-   give masculine names short hair and no earrings unless the brief says otherwise).
+   give masculine names short hair and no earrings unless the brief says otherwise). A venue's
+   brief says `venue` instead of `market`: its `kind`, the way the course turns, and what the
+   article says of the event (`race`: name, metres, hour, runners), with the people the venue's
+   director stands (`guichetiere` at the window, `habitue` at the rail).
 4. **Survey, draft, check, plan.**
    ```
    $PY scripts/forge/forge.py survey <id>   # var/forge/<id>/survey.json
@@ -72,9 +85,11 @@ the cloud; never run `playwright install`).
    the kit (`lib/quartier/*.ts`) only when the brief cannot say it, and keep the quai's look
    unchanged. Draft and render again. Three rounds at most.
 7. **Something to do there.** A place opens only when a learner can do something in French
-   there. Today that is a market: stalls, and stallholders who sell through `market-talk.ts`.
-   What a stallholder says about the place comes from its Papier article and is keyed to it
-   (`Know.place`, `MarketBark.place`); never reuse another place's facts. A place of another
+   there. Today that is a market (stallholders who sell through `market-talk.ts`) or a venue's
+   event (race day, `course.ts`: a bet at the window, the race called, the result). What anyone
+   says about the place comes from its Papier article and is keyed to it (`Know.place`,
+   `MarketBark.place`, `course-talk.ts`); never reuse another place's facts, never name a real
+   person, a horse or a sponsor. A place of another
    kind is drafted, rendered and critiqued, then stays `en_chantier`; its notes say what it
    lacks (a talk module for a bakery, a café, a ticket office).
 8. **Publish** (only when step 7 is met): `$PY scripts/forge/forge.py publish <id>` checks the

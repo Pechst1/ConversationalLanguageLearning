@@ -2,5 +2,6 @@
 import type { SiteSpec } from '../../site';
 
 export const SITE_FILES: Record<string, () => Promise<SiteSpec>> = {
+  hippodrome_longchamp: () => import('./hippodrome_longchamp.json').then((m) => (m.default ?? m) as unknown as SiteSpec),
   marche_aligre: () => import('./marche_aligre.json').then((m) => (m.default ?? m) as unknown as SiteSpec),
 };
