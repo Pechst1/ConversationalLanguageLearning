@@ -40,6 +40,7 @@ from app.services.missions import (
 )
 from app.services.serial import SerialThreadService
 from app.services.transcription_cost import record_transcription_cost
+from app.utils.timestamps import utc_iso
 
 router = APIRouter(prefix="/missions", tags=["missions"])
 MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -72,7 +73,7 @@ def _attempt_read(attempt: RealWorldMissionAttempt) -> dict:
         "correction": attempt.correction_payload or {},
         "verdict": attempt.verdict,
         "score_0_4": attempt.score_0_4,
-        "created_at": attempt.created_at.isoformat() if attempt.created_at else None,
+        "created_at": utc_iso(attempt.created_at),
     }
 
 
@@ -85,7 +86,7 @@ def _turn_read(turn: RealWorldMissionTurn) -> dict:
         "text": turn.text,
         "audio_payload": turn.audio_payload or {},
         "correction": turn.correction_payload or {},
-        "created_at": turn.created_at.isoformat() if turn.created_at else None,
+        "created_at": utc_iso(turn.created_at),
     }
 
 
