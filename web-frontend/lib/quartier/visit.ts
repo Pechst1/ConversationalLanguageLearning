@@ -29,7 +29,7 @@ import { AMBIANCES } from './palette';
 import { STRIDE } from './pace';
 import type { SiteBuilt, SitePerson } from './site';
 import { BLANK } from './stage';
-import type { Cue, Director, Level, Native, SpeechUi, StageUi, Street } from './stage';
+import type { Cue, Din, Director, Level, Native, SpeechUi, StageUi, Street } from './stage';
 import { worldState } from './world';
 
 const w = (fr: string, en: string, de: string): Words => ({ fr, en, de });
@@ -364,6 +364,11 @@ export class Visit implements Director {
   }
 
   /** Someone in the crowd you passed, or tapped. */
+  /** A street with its trade is not quiet: the murmur of the people buying, under the rain or not. */
+  din(): Din {
+    return { crowd: 0.12, hooves: 0 };
+  }
+
   passerby(key: string, tapped: boolean) {
     const now = performance.now();
     const ui = this.ui;

@@ -4,10 +4,10 @@
  * Rain on the quai (muffled once the door shuts), the café's murmur, your steps (wet outside,
  * on tiles inside), the neon's hum when you stand under it, and the few cues the director asks
  * for: the door's bell, a key on the zinc, a cup on its saucer, a chair pulled out, paper. A
- * place where the news happens adds its din: a racecourse's crowd, from a murmur to the roar up
- * the straight, and the field's hooves on the turf as it goes past; and its voice over the
- * loudspeakers, the device's own French voice calling the race (unless the learner turned the
- * voices off, «Les personnages parlent à voix haute»).
+ * forged place adds its din: a market's murmur; a racecourse's crowd, from a murmur to the roar
+ * up the straight, and the field's hooves on the turf as it goes past. The course also has its
+ * voice over the loudspeakers, the device's own French voice calling the race (unless the
+ * learner turned the voices off, «Les personnages parlent à voix haute»).
  * Everything is white noise and a few sine partials through filters; an AudioContext may only
  * start from a tap, so `start()` is called from the title card's button.
  */
