@@ -401,10 +401,23 @@ CHOICE_MECHANICS = ("choix",)
 CONVINCE_MECHANICS = ("convaincre",)
 
 
-def posed_choice(movement: dict[str, Any]) -> bool:
-    """A solve WP-113 asks the learner instead of defaulting: «Le choix», «Convaincre»."""
+#: #315 (walk of 24 Oct 2026): «Decide whether to give Lila a copy of the key» came with
+#: one button. A decision has at least this many answers, or it is not asked.
+MIN_DECISION_OPTIONS = 2
 
-    return movement.get("kind") == "solve" and movement.get("mechanic") in (*CHOICE_MECHANICS, *CONVINCE_MECHANICS)
+
+def posed_choice(movement: dict[str, Any]) -> bool:
+    """A solve WP-113 asks the learner instead of defaulting: «Le choix», «Convaincre».
+
+    A «Le choix» whose conditions (``when``) leave fewer than two options on this
+    life's page is settled, not asked: the story's default plays and sets its flag
+    (``runtime._settle_tentpole``) rather than offering a lone button (#315)."""
+
+    if movement.get("kind") != "solve":
+        return False
+    if movement.get("mechanic") in CHOICE_MECHANICS:
+        return len(movement.get("options") or []) >= MIN_DECISION_OPTIONS
+    return movement.get("mechanic") in CONVINCE_MECHANICS
 
 
 def posed_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
@@ -576,10 +589,12 @@ def choice_cards(turn: dict[str, Any]) -> list[dict[str, Any]]:
 
     if not turn.get("choice"):
         return []
-    return [
+    cards = [
         {"id": str(reply.get("id")), "label_fr": str(reply.get("label") or reply.get("id")), "label_native": reply.get("label_native")}
         for reply in turn.get("replies") or []
     ]
+    # #315: one button is not a decision. The learner then gets the free-text field.
+    return cards if len(cards) >= MIN_DECISION_OPTIONS else []
 
 
 def solve_as_turn(solve: dict[str, Any]) -> dict[str, Any]:

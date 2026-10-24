@@ -778,3 +778,67 @@ def ignored_reply_hint(reply: str, learner_text: str) -> str | None:
         "The reply does not pick up the reason the learner just gave. Answer it: take up one "
         f"thing from it (for instance: {words}) before you move on."
     )
+
+
+# ---------------------------------------------------------------------------
+# #315 — a person nobody introduced
+# ---------------------------------------------------------------------------
+
+#: Titles that make the next capitalised word a person («M. Delmas», «Mme Diallo»).
+_TITLES = r"(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Maître|Docteur|Dr)"
+_TITLED_PERSON = re.compile(rf"(?<![\w'’])({_TITLES})\s+([A-ZÀ-ÖØ-Þ][\w\-]+)")
+#: A capitalised word of three letters or more; elisions («d'Odile») are opened first.
+_CAPITALISED = re.compile(r"(?<![\w\-])([A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]{2,}(?:-[A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ]+)?)")
+_ELISION = re.compile(r"\b[dDlLjJ]['’](?=[A-ZÀ-ÖØ-Þ])")
+#: After such a character a capital opens a sentence, not a name.
+_SENTENCE_OPENERS = ".!?…:«\"“”—–\n"
+#: A capitalised word right after one of these is a place or a thing («au Mistral», «le
+#: Café du Canal»), not a person: a person takes no article and no place preposition.
+_PLACE_CUES = frozenset("le la les au aux en dans vers sur devant derrière".split())
+#: Capitalised words that are not a person the scene has to introduce.
+_COMMON_PROPER = frozenset(
+    "dieu noël paris france berlin bretagne seine europe français française anglais allemand "
+    "merci bonjour bonsoir salut madame monsieur mademoiselle maître mme mlle docteur".split()
+)
+_NAME_WORD = re.compile(r"[^\W\d_]{3,}", re.UNICODE)
+
+
+def _name_key(word: str) -> str:
+    return engine._folded(word).replace(" ", "")
+
+
+def established_words(texts: list[str]) -> frozenset[str]:
+    """Every word of three letters or more the scene has already put in front of the
+    learner (folded): names, places, things. A name in this set is established."""
+
+    return frozenset(_name_key(word) for text in texts for word in _NAME_WORD.findall(str(text or "")))
+
+
+def unintroduced_people(text: str, established: frozenset[str]) -> tuple[list[str], list[str]]:
+    """``(titled, bare)``: the people ``text`` names that nothing established.
+
+    ``titled`` are «M. Delmas»-style names (a title and a capitalised surname the scene
+    never held: certain). ``bare`` are capitalised words in the middle of a sentence that
+    the scene never held and that are no common proper noun (likely a first name: a
+    softer signal, a place is the usual false positive)."""
+
+    titled: list[str] = []
+    for title, surname in _TITLED_PERSON.findall(text or ""):
+        if _name_key(surname) not in established:
+            titled.append(f"{title} {surname}")
+    opened = _ELISION.sub(" ", text or "")
+    bare: list[str] = []
+    for found in _CAPITALISED.finditer(opened):
+        word = found.group(1)
+        before = opened[: found.start()].rstrip("   ")
+        if not before or before[-1] in _SENTENCE_OPENERS:
+            continue
+        previous = re.findall(r"[^\W\d_]+$", before)
+        if previous and previous[0].casefold() in _PLACE_CUES:
+            continue
+        if _name_key(word) in established or word.casefold() in _COMMON_PROPER:
+            continue
+        if any(word in item.split() for item in titled):
+            continue
+        bare.append(word)
+    return list(dict.fromkeys(titled)), list(dict.fromkeys(bare))

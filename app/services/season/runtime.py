@@ -875,13 +875,15 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     from app.services.season.turns import reaction_lines
 
     addressee = str(scenario.character_id)
-    reply_fr = reaction_text(beats, addressee=addressee)
+    # #313: the words only. Who says each line is ``reply_lines``; a «Lila : » in the
+    # text was printed under the addressee's face (Camille speaking for Lila).
+    reply_fr = reaction_text(beats, addressee=addressee, labelled=False)
     spoken_lines_out = reaction_lines(beats, addressee=addressee)
     if not closing:
         upcoming = turns[next_index] if next_index != index else turn
         lead = list(upcoming.get("lead_in") or []) if next_index != index else []
         asked = [*lead, upcoming["panel"]] if next_index != index else []
-        question = reaction_text(asked, addressee=addressee) if asked else ""
+        question = reaction_text(asked, addressee=addressee, labelled=False) if asked else ""
         spoken_lines_out += reaction_lines(asked, addressee=addressee)
         reply_fr = "\n".join(part for part in (reply_fr, question) if part)
     reply_fr = reply_fr or "…"
@@ -1021,7 +1023,7 @@ def _ask_again_evaluation(
         outcome=TaskOutcome.PARTIALLY_MET,
         assistance=assistance,
         observations=[],
-        character_reply_fr=reaction_text(beats, addressee=addressee) or "…",
+        character_reply_fr=reaction_text(beats, addressee=addressee, labelled=False) or "…",
         correction=correction,
         needs_repair=True,
         # Free: the question is still owed, so the exchange it took is given back.
