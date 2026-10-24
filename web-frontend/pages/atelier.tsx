@@ -4178,10 +4178,16 @@ function ExerciseFeedbackMoment({
   const repairOutcome = followUps[feedbackKey]?.outcome ?? null;
   useEffect(() => {
     if (!shownVerdict) return undefined;
+    let release = () => {};
     let frame = window.requestAnimationFrame(() => {
-      frame = window.requestAnimationFrame(() => keepCardAboveSheet(feedbackRef.current));
+      frame = window.requestAnimationFrame(() => {
+        release = keepCardAboveSheet(feedbackRef.current);
+      });
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      release();
+    };
   }, [feedbackKey, shownVerdict, repairOutcome]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
