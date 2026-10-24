@@ -2,8 +2,8 @@
   "id": "marche_aligre",
   "papier": "evergreen-marche-du-dimanche",
   "radius": {
-    "walk": 110,
-    "build": 175
+    "walk": 62,
+    "build": 115
   },
   "ambiance": "matin",
   "title": {

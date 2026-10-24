@@ -61,6 +61,7 @@ import type { World } from './materials';
 import { MARKS, ROOM, buildMistral, cafeCreme } from './mistral';
 import type { MistralParts } from './mistral';
 import { Nav } from './nav';
+import { STRIDE, WALK_SPEED } from './pace';
 import { AMBIANCES, INKS, TONES, mix, rgb } from './palette';
 import type { Ambiance, AmbianceId } from './palette';
 import { PrintPass } from './print';
@@ -72,7 +73,6 @@ import { buildSite } from './site';
 import type { SiteBuilt, SiteSpec } from './site';
 
 export const EYE = 1.62;
-export const WALK_SPEED = 1.45;
 
 export interface Spot {
   id: string;
@@ -916,8 +916,10 @@ export class Quartier {
         const len = Math.min(1, Math.hypot(sx, sy));
         const a = Math.atan2(sx, sy);
         const dir = this.yaw + -a;
-        mx = -Math.sin(dir) * WALK_SPEED * len * dt;
-        mz = -Math.cos(dir) * WALK_SPEED * len * dt;
+        // up to a stroll for most of the thumb's travel, then a stride toward the rim
+        const pace = len < 0.7 ? (WALK_SPEED * len) / 0.7 : WALK_SPEED + ((STRIDE - WALK_SPEED) * (len - 0.7)) / 0.3;
+        mx = -Math.sin(dir) * pace * dt;
+        mz = -Math.cos(dir) * pace * dt;
       }
     }
     if (this.route.length && !this.frozen) {

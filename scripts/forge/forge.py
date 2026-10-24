@@ -3,6 +3,7 @@
 
 Run from the repository root, in a venv with ``scripts/forge/requirements.txt``::
 
+    python scripts/forge/forge.py news                  # the map's news layer: every place the Papier names
     python scripts/forge/forge.py queue                 # places the Papier names that are not built yet
     python scripts/forge/forge.py survey marche_aligre  # open map data around it -> var/forge/<id>/survey.json
     python scripts/forge/forge.py draft marche_aligre   # survey + brief -> lib/quartier/world/sites/<id>.json
@@ -35,6 +36,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 WEB = os.path.join(ROOT, "web-frontend")
 WORLD = os.path.join(WEB, "lib", "quartier", "world", "world.json")
+NEWS = os.path.join(WEB, "lib", "quartier", "world", "news.json")
 SITES = os.path.join(WEB, "lib", "quartier", "world", "sites")
 BRIEFS = os.path.join(HERE, "briefs")
 CACHE = os.path.join(ROOT, "var", "forge")
@@ -141,17 +143,48 @@ def papier_places() -> list[dict]:
             geo = p.get("geo") or {}
             if geo.get("lat") is None or geo.get("lon") is None:
                 continue
-            out.append({"id": p.get("id"), "name_fr": p.get("name_fr"), "brief": p.get("brief"), "geo": geo, "article": d.get("id"), "title_fr": d.get("title_fr"), "week": d.get("week"), "path": os.path.relpath(path, ROOT)})
+            out.append({"id": p.get("id"), "name_fr": p.get("name_fr"), "brief": p.get("brief"), "geo": geo, "article": d.get("id"), "title_fr": d.get("title_fr"), "week": d.get("week"), "topic": d.get("topic"), "path": os.path.relpath(path, ROOT)})
     return out
+
+
+def in_paris(geo: dict) -> bool:
+    x0, y0, x1, y1 = PARIS_BOX
+    return geo.get("precision") == "exact" and x0 <= geo["lon"] <= x1 and y0 <= geo["lat"] <= y1
+
+
+def news_places() -> list[dict]:
+    """The map's news layer: each place the Papier names with an exact position in Paris, once
+    (the newest article that names it), newest first. The map pins every one at once, under
+    scaffolding until the forge has built it; ``web-frontend/lib/quartier/news.test.js`` keeps
+    this file in step with the articles."""
+    best: dict[str, dict] = {}
+    for p in papier_places():
+        if not p["id"] or not in_paris(p["geo"]):
+            continue
+        week = p["week"] or ""
+        if p["id"] not in best or week > (best[p["id"]]["article"]["week"] or ""):
+            best[p["id"]] = {
+                "id": p["id"],
+                "name_fr": p["name_fr"],
+                "lat": p["geo"]["lat"],
+                "lon": p["geo"]["lon"],
+                "article": {"id": p["article"], "title_fr": p["title_fr"], "week": p["week"], "topic": p["topic"]},
+            }
+    return sorted(best.values(), key=lambda n: (n["article"]["week"] or "", n["id"]), reverse=True)
+
+
+def cmd_news(_args) -> None:
+    places = news_places()
+    with open(NEWS, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"places": places}, ensure_ascii=False, indent=2) + "\n")
+    print(f"wrote {os.path.relpath(NEWS, ROOT)}: {len(places)} places the Papier names in Paris")
 
 
 def cmd_queue(_args) -> None:
     have = {p["id"]: p for p in world()["places"]}
-    x0, y0, x1, y1 = PARIS_BOX
     rows = []
     for p in papier_places():
-        g = p["geo"]
-        if g.get("precision") != "exact" or not (x0 <= g["lon"] <= x1 and y0 <= g["lat"] <= y1):
+        if not in_paris(p["geo"]):
             continue
         w = have.get(p["id"])
         status = w["status"] if w else "new"
@@ -348,6 +381,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("queue")
+    sub.add_parser("news")
     s = sub.add_parser("survey")
     s.add_argument("id")
     s.add_argument("--release", default=None)
@@ -359,7 +393,7 @@ def main() -> None:
     if args.cmd == "index":
         write_index()
         return
-    {"queue": cmd_queue, "survey": cmd_survey, "draft": cmd_draft, "check": cmd_check, "publish": cmd_publish, "plan": cmd_plan}[args.cmd](args)
+    {"queue": cmd_queue, "news": cmd_news, "survey": cmd_survey, "draft": cmd_draft, "check": cmd_check, "publish": cmd_publish, "plan": cmd_plan}[args.cmd](args)
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ import type { Said, Sale, Trade } from './market-talk';
 import { Memory, eligible } from './memory';
 import type { Effect, Value, Words } from './memory';
 import { AMBIANCES } from './palette';
+import { STRIDE } from './pace';
 import type { SiteBuilt, SitePerson } from './site';
 import { BLANK } from './stage';
 import type { Cue, Director, Level, Native, SpeechUi, StageUi, Street } from './stage';
@@ -253,7 +254,7 @@ export class Visit implements Director {
   /** «Y aller»: walk me to the stall. */
   go() {
     const g = this.goal;
-    if (g) void this.q.walkTo(g.to);
+    if (g) void this.q.walkTo(g.to, STRIDE);
   }
 
   /** «Directement»: put me in front of it. */
@@ -428,7 +429,7 @@ export class Visit implements Director {
     }
     if (hit.kind === 'ground') {
       if (this.ui.talk) this.endTalk();
-      void this.q.walkTo(hit.point);
+      void this.q.walkTo(hit.point, STRIDE);
     }
   }
 

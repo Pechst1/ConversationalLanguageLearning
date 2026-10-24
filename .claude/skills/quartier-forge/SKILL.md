@@ -45,8 +45,8 @@ the cloud; never run `playwright install`).
    from the quai (the metro from République or Jacques Bonsergent, in fr/en/de). Keep the
    file's format: one key a line, small flat objects on one line.
 3. **Brief.** Write `scripts/forge/briefs/<id>.json` from the article and the survey:
-   `radius` (walk about 110 m, build about 175 m), `ambiance` (`matin` or `nuit`), `title`
-   and `can_do` (what a learner practises there, fr/en/de), `arrondissement` for the street
+   `radius` (walk about 60 m, build about 115 m: a corner of Paris, not a district; every
+   errand within about 50 m of the start), `ambiance` (`matin` or `nuit`), `title` and `can_do` (what a learner practises there, fr/en/de), `arrondissement` for the street
    plaques, `level_streets`, `landmarks` (match an Overture name, give a kind the kit has:
    `halle`, `pavillon`), `market` rows if it is a market, `start` (a street, facing a
    landmark), `commerce`, and `people`: who stands where, with `goods`, `seed`, `name`,

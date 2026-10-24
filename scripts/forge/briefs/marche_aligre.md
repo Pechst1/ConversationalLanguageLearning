@@ -66,3 +66,17 @@ again. Found and fixed:
 - The errand card sat on the thumb stick; it is centred in the room right of the stick.
 - The primeur rolled a ponytail and earrings under his cap; the brief now gives him short hair
   and no earrings, and the brocanteur no earrings.
+
+## Round 4: smaller (r4, 844×844, load 1.8 s, 303k triangles at the arrival)
+
+Vincent played it: beautiful, but too big to cross. You arrived 105 m from the hall and the
+first errand was 91 m away, at a stroll of 1.45 m/s.
+
+- The walk radius went from 110 m to 62 m and the build radius from 175 m to 115 m. You now
+  arrive 57 m out; the primeur is 43 m away, the brocanteur 33 m, the fromagère 19 m.
+- 30 stalls instead of 56, 209 buildings instead of 488, 8,400 m² to walk instead of 16,200.
+  The site file is 84 kB instead of 219 kB.
+- Looked at: the arrival still opens on the stalls under their canvases; the hall reads from
+  outside and inside; the hoarding still closes the street where the walk ends.
+- The kit walks faster too: the thumb at the rim, the keys and every walk you ask for go at
+  3.1 m/s (`lib/quartier/pace.ts`); half a thumb is still a stroll.

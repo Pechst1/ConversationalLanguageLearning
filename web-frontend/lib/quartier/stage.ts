@@ -47,6 +47,7 @@ import { Memory, eligible } from './memory';
 import type { CastId, Effect, Value, Words } from './memory';
 import { CHAIR, MARKS } from './mistral';
 import { AMBIANCES } from './palette';
+import { STRIDE } from './pace';
 import { PLAN } from './quai';
 import scene from './scenes/t1-a.json';
 
@@ -534,7 +535,7 @@ export class Stage implements Director {
   /** «Y aller»: walk me to where I am going. */
   go() {
     const g = this.goalAt;
-    if (g) void this.q.walkTo(g.to);
+    if (g) void this.q.walkTo(g.to, STRIDE);
   }
 
   /** «Directement»: put me there. */
@@ -810,14 +811,14 @@ export class Stage implements Director {
         if (who) this.show({ met: { char: who.char, name: who.name, at: performance.now() } });
       } else if (hit.kind === 'ground') {
         if (this.ui.talk) this.endTalk();
-        void this.q.walkTo(hit.point);
+        void this.q.walkTo(hit.point, STRIDE);
       } else if (hit.kind === 'spot' && this.away) {
         this.go();
       }
       return;
     }
     if (phase === 'scene' && this.goalAt) {
-      if (hit.kind === 'ground') void this.q.walkTo(hit.point);
+      if (hit.kind === 'ground') void this.q.walkTo(hit.point, STRIDE);
       else if (hit.kind === 'spot' || hit.kind === 'person') this.go();
     }
   }

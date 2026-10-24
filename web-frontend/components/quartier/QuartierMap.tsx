@@ -12,7 +12,7 @@ import React from 'react';
 import { projectPoint } from '@/components/carte/carte-projection';
 import type { Words } from '@/lib/quartier/memory';
 import type { Native } from '@/lib/quartier/stage';
-import { WORLD } from '@/lib/quartier/world';
+import { mapPlaces } from '@/lib/quartier/world';
 import type { WorldPlace } from '@/lib/quartier/world';
 import paris from '@/lib/quartier/world/paris.json';
 
@@ -79,7 +79,7 @@ function tagOf(p: WorldPlace, here: string, been: string | undefined) {
 export function QuartierMap({ native, translate, here, been, onGo, onClose }: QuartierMapProps) {
   const pins = React.useMemo(
     () =>
-      WORLD.places
+      mapPlaces()
         .map((p) => ({ p, xy: toXY(p.lat, p.lon) }))
         .filter((x): x is { p: WorldPlace; xy: XY } => Boolean(x.xy)),
     [],
