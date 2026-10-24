@@ -176,6 +176,7 @@ export function atWindow(c: Window, text: string, race: Race): Reply {
   const effects: Effect[] = [];
   const reply = (done = false): Reply => ({ lines, effects, chips: done ? [] : windowChips(c, race), done });
   const hello = HELLO.test(t);
+  let madeUp = false;
   if (!c.greeted) {
     c.greeted = true;
     if (!hello) {
@@ -184,6 +185,7 @@ export function atWindow(c: Window, text: string, race: Race): Reply {
     } else if (c.slighted) {
       // the grudge ends with the bonjour she was owed
       c.slighted = false;
+      madeUp = true;
       lines.push({ say: w('Bonjour ! Voilà, c’est mieux.', 'Hello! There, that’s better.', 'Guten Tag! So ist es besser.'), mood: 'joie' });
       effects.push({ kind: 'fact', key: 'hippodrome_longchamp.guichetiere.bonjour', value: 'said' });
     }
@@ -309,7 +311,8 @@ export function atWindow(c: Window, text: string, race: Race): Reply {
     return reply();
   }
   if (hello) {
-    lines.push({ say: w('Bonjour ! Vous jouez quel numéro ?', 'Hello! Which number are you backing?', 'Guten Tag! Auf welche Nummer setzen Sie?') });
+    // she has just said her bonjour, making up: not a second one
+    lines.push({ say: madeUp ? w('Alors, vous jouez quel numéro ?', 'So, which number are you backing?', 'Also, auf welche Nummer setzen Sie?') : w('Bonjour ! Vous jouez quel numéro ?', 'Hello! Which number are you backing?', 'Guten Tag! Auf welche Nummer setzen Sie?') });
     return reply();
   }
   if (THANKS.test(t)) {
@@ -331,12 +334,21 @@ export interface Regular {
   /** the number he backs today */
   pick: number;
   told: string[];
+  /** your last race day, if you had one: he knows you again */
+  back: Back | null;
+}
+
+/** What the regular remembers of your last race day: who won, and how your ticket went. */
+export interface Back {
+  winner: number;
+  /** 'won' or 'lost', or 'none' when you only watched */
+  ticket: string | null;
 }
 
 /** He has been coming for forty years; today he backs an outsider he likes the look of. */
-export function newRegular(race: Race, roll: number): Regular {
+export function newRegular(race: Race, roll: number, back: Back | null = null): Regular {
   const outsiders = race.runners.filter((r) => r.odds >= 9 && r.odds <= 25).map((r) => r.n);
-  return { greeted: false, pick: outsiders.length ? outsiders[Math.floor(roll * outsiders.length) % outsiders.length] : race.holder, told: [] };
+  return { greeted: false, pick: outsiders.length ? outsiders[Math.floor(roll * outsiders.length) % outsiders.length] : race.holder, told: [], back };
 }
 
 export function regularHello(g: Regular, race: Race): Said {
@@ -346,6 +358,12 @@ export function regularHello(g: Regular, race: Race): Said {
       ? { say: w(`Le ${g.pick} ! Je vous l’avais dit, non ?`, `Number ${g.pick}! I told you, didn't I?`, `Die ${g.pick}! Hab ich's Ihnen nicht gesagt?`), mood: 'joie' }
       : { say: w(`Le ${g.pick}, ${race.result.indexOf(g.pick) + 1}e… Ce sera pour l’année prochaine.`, `Number ${g.pick}, ${race.result.indexOf(g.pick) + 1}th… Next year, then.`, `Die ${g.pick}, ${race.result.indexOf(g.pick) + 1}.… Dann eben nächstes Jahr.`), mood: 'cold' };
   }
+  const b = g.back;
+  if (b && (g.greeted || g.told.length)) return { say: w('Alors, ce sera une belle course, hein ?', 'So, it’ll be a fine race, eh?', 'Na, das wird ein schönes Rennen, was?'), mood: 'joie' };
+  // he knows you again, and how your last race day went
+  if (b && b.ticket === 'won') return { say: w('Tiens, vous revoilà ! Vous aviez eu de la chance, la dernière fois. On remet ça ?', 'Well, you again! You were lucky last time. Shall we go again?', 'Sieh an, Sie wieder! Letztes Mal hatten Sie Glück. Noch eine Runde?'), mood: 'joie' };
+  if (b && b.ticket === 'lost') return { say: w('Ah, vous revoilà ! Vous venez vous refaire ?', 'Ah, you again! Come to win it back?', 'Ah, Sie wieder! Wollen Sie’s zurückgewinnen?'), mood: 'malice' };
+  if (b) return { say: w(`Ah, vous revoilà ! La dernière fois, c’est le ${b.winner} qui a gagné. Cette fois, vous jouez ?`, `Ah, you again! Last time, number ${b.winner} won. Betting this time?`, `Ah, Sie wieder! Letztes Mal hat die ${b.winner} gewonnen. Setzen Sie diesmal?`), mood: 'joie' };
   return { say: w('Belle journée pour l’Arc, hein ? Premier Arc ?', 'Lovely day for the Arc, eh? First Arc?', 'Schöner Tag für den Arc, was? Ihr erster Arc?'), mood: 'joie' };
 }
 
@@ -424,7 +442,12 @@ export function atRail(g: Regular, text: string, race: Race): Reply {
   }
   if (HELLO.test(t) && !g.greeted) {
     g.greeted = true;
-    lines.push({ say: w('Bonjour ! Moi, ça fait quarante ans que je viens. Demandez-moi, je sais tout.', "Hello! I've been coming for forty years. Ask me, I know everything.", 'Guten Tag! Ich komme seit vierzig Jahren. Fragen Sie mich, ich weiß alles.'), mood: 'joie' });
+    lines.push({
+      say: g.back
+        ? w('Bonjour ! Moi, je suis toujours là, vous voyez. Demandez-moi, je sais tout.', "Hello! I'm always here, you see. Ask me, I know everything.", 'Guten Tag! Ich bin immer hier, sehen Sie. Fragen Sie mich, ich weiß alles.')
+        : w('Bonjour ! Moi, ça fait quarante ans que je viens. Demandez-moi, je sais tout.', "Hello! I've been coming for forty years. Ask me, I know everything.", 'Guten Tag! Ich komme seit vierzig Jahren. Fragen Sie mich, ich weiß alles.'),
+      mood: 'joie',
+    });
     return reply();
   }
   lines.push({ say: w('Ici, on parle chevaux ! Demandez-moi qui va gagner.', "Here, we talk horses! Ask me who's going to win.", 'Hier redet man über Pferde! Fragen Sie mich, wer gewinnt.') });

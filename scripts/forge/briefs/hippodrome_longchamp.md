@@ -58,7 +58,12 @@ places a set from the survey, and race day plays on it (`course.ts`).
   you know has the words it used: la corde, la ligne droite, côte à côte.
 - **She remembers.** The end card promised that the clerk would remember a missing bonjour; she
   now does on the next visit («La dernière fois, pas de bonjour… On recommence ?»), until you say
-  it. Checked over two visits in the standalone page.
+  it. Checked over two visits in the standalone page. Making it up is one bonjour each: hers no
+  longer comes twice, and the end card no longer promises she will remember it.
+- **He knows you again.** The regular at the rail no longer asks a returning player if it is
+  their first Arc. He greets them by how their last ticket went («Vous venez vous refaire ?»
+  after a loss, «Vous aviez eu de la chance» after a win, the last winner if they only watched),
+  then lets it go.
 
 ## Still plain
 

@@ -1,9 +1,9 @@
 // node --test lib/quartier/course-talk.test.js
 //
 // Le Quartier · race day's words. The window reads a bet the way it is said («deux euros gagnant
-// sur le sept»), takes the money and hands a ticket over; the regular tells the Papier's facts;
-// the race is called with the winner at the post; and the canon holds: the clerk and the regular
-// say vous, and nothing they say agrees with Toi.
+// sur le sept»), takes the money and hands a ticket over; the regular tells the Papier's facts
+// and knows you again; the race is called with the winner at the post; and the canon holds: the
+// clerk and the regular say vous, and nothing they say agrees with Toi.
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -11,7 +11,7 @@ const { test } = require('node:test');
 
 require(path.join(__dirname, '..', '..', 'node_modules/sucrase/register/ts'));
 
-const { atRail, atWindow, callRace, newRegular, newWindow, payout, readBet, windowHello, RACE_BARKS } = require('./course-talk.ts');
+const { atRail, atWindow, callRace, newRegular, newWindow, payout, readBet, regularHello, windowHello, RACE_BARKS } = require('./course-talk.ts');
 const { fieldOf } = require('./hippodrome.ts');
 
 const spec = { name: { fr: "Prix de l'Arc de Triomphe", en: "Prix de l'Arc de Triomphe", de: "Prix de l'Arc de Triomphe" }, metres: 2400, hour: '16 h 05', runners: 16, seed: 2026 };
@@ -76,6 +76,10 @@ test('the clerk remembers a missing bonjour the next time, until you say it', ()
   assert.ok(r.effects.some((e) => e.kind === 'fact' && e.key === 'hippodrome_longchamp.guichetiere.bonjour' && e.value === 'said'));
   assert.equal(c.slighted, false);
   assert.doesNotMatch(windowHello(newWindow(), race).say.fr, /pas de bonjour/);
+  // a bonjour alone makes up for it, and she says hers once
+  const hello = atWindow(newWindow(true), 'Bonjour !', race).lines.map((l) => l.say.fr);
+  assert.equal(hello.filter((l) => /Bonjour/.test(l)).length, 1, hello.join(' / '));
+  assert.match(hello[hello.length - 1], /quel numéro/);
 });
 
 test('the regular tells the article’s facts, and you learn them', () => {
@@ -86,6 +90,18 @@ test('the regular tells the article’s facts, and you learn them', () => {
   assert.ok(r.effects.some((e) => e.kind === 'learn' && /2 400 mètres/.test(e.words.fr)));
   assert.match(atRail(g, 'Qui est le favori ?', race).lines[0].say.fr, /accélération/);
   assert.match(atRail(g, 'Il y a combien d’argent à gagner ?', race).lines[0].say.fr, /Cinq millions/);
+});
+
+test('the regular knows you again, and how your last ticket went', () => {
+  const race = raceOf();
+  assert.match(regularHello(newRegular(race, 0.3), race).say.fr, /Premier Arc/);
+  assert.match(regularHello(newRegular(race, 0.3, { winner: 9, ticket: 'won' }), race).say.fr, /de la chance/);
+  assert.match(regularHello(newRegular(race, 0.3, { winner: 9, ticket: 'lost' }), race).say.fr, /vous refaire/);
+  const g = newRegular(race, 0.3, { winner: 9, ticket: 'none' });
+  assert.match(regularHello(g, race).say.fr, /c’est le 9 qui a gagné/);
+  assert.match(atRail(g, 'Bonjour !', race).lines[0].say.fr, /toujours là/);
+  // once you have talked, he does not greet you again, nor ask if it is your first Arc
+  assert.doesNotMatch(regularHello(g, race).say.fr, /revoilà|Premier Arc/);
 });
 
 test('the race is called from the off to the finish, the winner at the post', () => {
@@ -109,6 +125,12 @@ test('the canon: the clerk and the regular say vous, and nothing agrees with Toi
   atWindow(back, 'Bonjour', race).lines.forEach((l) => said.push(l.say.fr));
   const g = newRegular(race, 0.7);
   ['Bonjour', 'Vous jouez qui ?', 'Et les chevaux japonais ?', 'Seize partants ?', 'Merci, bonne course'].forEach((t) => atRail(g, t, race).lines.forEach((l) => said.push(l.say.fr)));
+  ['won', 'lost', 'none'].forEach((ticket) => {
+    const again = newRegular(race, 0.7, { winner: 9, ticket });
+    said.push(regularHello(again, race).say.fr);
+    atRail(again, 'Bonjour', race).lines.forEach((l) => said.push(l.say.fr));
+    said.push(regularHello(again, race).say.fr);
+  });
   RACE_BARKS.forEach((b) => said.push(b.fr));
   said.forEach((line) => {
     assert.doesNotMatch(line, /\b(tu|te|ton|ta|tes|toi)\b/i, `«${line}» says tu`);

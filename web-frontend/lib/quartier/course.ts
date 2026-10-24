@@ -142,7 +142,10 @@ export class Course implements Director {
     // the clerk remembers a bonjour you owed her, as the end card said she would
     this.window = newWindow(this.memory.fact('hippodrome_longchamp.guichetiere.bonjour') === 'forgot');
     this.race = { spec: this.venue.spec.race, runners: this.venue.runners, holder: this.venue.holder, result: null };
-    this.regular = newRegular(this.race, Math.random());
+    // the regular knows you again from your last race day: who won, and how your ticket went
+    const winner = this.memory.fact('hippodrome_longchamp.winner');
+    const ticket = this.memory.fact('hippodrome_longchamp.ticket');
+    this.regular = newRegular(this.race, Math.random(), typeof winner === 'number' ? { winner, ticket: typeof ticket === 'string' ? ticket : null } : null);
     this.people = new Troupe(q.world, { figure: (key, expression) => this.personArt(key, expression), item: () => null }, 400);
     this.field = new Troupe(q.world, { figure: (key, expression) => this.horseArt(key, expression), item: () => null }, 360);
     q.addTroupe(this.people);
@@ -631,6 +634,8 @@ export class Course implements Director {
     this.remember([
       { kind: 'journal', words: w(`Tu as vu le ${r[0]} gagner le ${name.fr}.`, `You saw number ${r[0]} win the ${name.en}.`, `Du hast die ${r[0]} den ${name.de} gewinnen sehen.`) },
       { kind: 'fact', key: 'hippodrome_longchamp.winner', value: r[0] },
+      // and how your ticket went, for the regular the next time
+      { kind: 'fact', key: 'hippodrome_longchamp.ticket', value: this.window.ticket ? (this.won() ? 'won' : 'lost') : 'none' },
       // the words of a race, heard as it was called
       {
         kind: 'learn',
@@ -791,7 +796,7 @@ export class Course implements Director {
       const e = l.effect;
       if (e.kind === 'journal') did.push(this.say(e.words));
       else if (e.kind === 'learn') did.push(this.say(w(`Tu as appris : ${lower(e.words.fr)}`, `You learned: ${lower(e.words.en)}`, `Du hast erfahren: ${e.words.de}`)));
-      else if (e.kind === 'fact' && e.key === 'hippodrome_longchamp.guichetiere.bonjour') forgot = true;
+      else if (e.kind === 'fact' && e.key === 'hippodrome_longchamp.guichetiere.bonjour' && e.value === 'forgot') forgot = true;
     });
     if (!did.length) did.push(this.say(w('Tu as fait un tour sur la pelouse, sans parier.', 'You had a wander on the lawn, without a bet.', 'Du bist über den Rasen geschlendert, ohne zu wetten.')));
     const next: Words[] = [];
