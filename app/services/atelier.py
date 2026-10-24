@@ -38,7 +38,7 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services.address import address_instruction
-from app.services.answer_acceptance import is_preference_swap
+from app.services.answer_acceptance import accent_policy, is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 
 # WP-16 additive: the correction call's request bound and its cost row.
@@ -128,6 +128,17 @@ def _accepted_answers(prompt_payload: dict[str, Any]) -> list[str]:
         prompt_payload.get("example_answer"),
     ]
     return [str(value) for value in dict.fromkeys(values) if isinstance(value, str) and value.strip()]
+
+
+def _free_answer_accents(concept: Any, prompt_payload: dict[str, Any]) -> str:
+    """#297: a free answer's accents are judged as its item's keyed rungs judge them
+    (:func:`answer_acceptance.accent_policy`): strict in a spelling unit or an item
+    that tests accents, lenient-but-named otherwise."""
+
+    item = (prompt_payload.get("items") or [{}])[0] or {}
+    if not isinstance(item, dict):
+        item = {}
+    return accent_policy(unit=concept if concept is not None else item.get("lesson_external_id"), item=item)
 
 
 def local_check_status(correction: dict[str, Any]) -> str | None:
@@ -5138,6 +5149,7 @@ class AtelierCorrectionService:
                 ai_correction,
                 learner_text=self._answer_text(attempt.answer_payload or {}),
                 accepted=_accepted_answers(attempt.prompt_payload or {}),
+                accents=_free_answer_accents(concept, attempt.prompt_payload or {}),
             )
             if attempt.round in FREE_PRODUCTION_ROUNDS and final.get("lexical_gaps"):
                 final = self._ingest_lexical_gaps(user=user, session=session, correction=final)
@@ -5237,12 +5249,14 @@ class AtelierCorrectionService:
         *,
         learner_text: str | None = None,
         accepted: list[str] | None = None,
+        accents: str = "lenient",
     ) -> dict[str, Any]:
         """The stored correction once the model's reading lands (see run_ai_review_for_attempt).
 
         WP-103 T9/T10, free production: the model's reading is held to the key
-        (:func:`refine_production_correction`), and a «Right» already shown is never
-        reversed — the model's corrections of it become style notes.
+        (:func:`refine_production_correction`, with the item's ``accents`` policy),
+        and a «Right» already shown is never reversed — the model's corrections of
+        it become style notes.
         """
 
         ai_passes = _verdict_passes(ai.get("verdict")) and not [
@@ -5258,6 +5272,7 @@ class AtelierCorrectionService:
                     learner_text=learner_text,
                     accepted=accepted or [],
                     language=self.explanation_language,
+                    accents=accents,
                 )
             if local.get("local_status") == LOCAL_RIGHT:
                 final["style_notes_native"] = notes_native(final.get("errata"))

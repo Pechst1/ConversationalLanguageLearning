@@ -12,8 +12,10 @@ for.
   one French person. Every person the English allows is now an accepted answer, and
   a note addressed to the item's author never reaches the learner.
 * #297 — «gus a un telephone dans le salon» was labelled «Word order»: the order
-  check treated an accent as a different word. A missing accent is now named as an
-  accent (and accepted), never as an order.
+  check treated an accent as a different word. A free answer's accent is now read
+  as the keyed rungs read it: a spelling accent is accepted and named, an accent
+  that is grammar or meaning («mange» for «mangé», «a» for «à») is refused and
+  named, never as an order.
 """
 
 from __future__ import annotations
@@ -265,6 +267,125 @@ def test_reordering_still_names_a_real_reorder():
     assert grading.reordering_correction("gus a un telephone dans le salon", [GUS]) is None
 
 
+def _relecture(service, typed: str, accepted: list[str], *, accents: str = "lenient", ai_verdict: str = "partial") -> dict:
+    """A free answer the local check could not call right, then the model's reading."""
+
+    local_check = grading.production_local_check(None, typed, accepted=accepted)
+    assert local_check["local_status"] == grading.LOCAL_CHECKING, typed
+    local = {"verdict": "partial", "score_0_4": 2.0, "local_status": local_check["local_status"], "errata": []}
+    ai = {
+        "verdict": ai_verdict,
+        "score_0_4": 4.0 if ai_verdict == "correct" else 3.0,
+        "corrected_answer": accepted[0],
+        "errata": [] if ai_verdict == "correct" else [
+            {
+                "display_label": "Word order",
+                "learner_text": typed,
+                "corrected_target": accepted[0],
+                "why_wrong": "The words are right, but not in this order.",
+                "task_error_type": "word_order",
+            }
+        ],
+    }
+    return service._merge_relecture("sentence", local, ai, learner_text=typed, accepted=accepted, accents=accents)
+
+
+#: The review of the second attempt: an accent that is grammar or meaning was let
+#: through as «correct». The keyed rungs refuse each of these (answer_acceptance).
+_GRAMMAR_ACCENTS = [
+    ("Elle a mange une pomme.", "Elle a mangé une pomme.", "mange", "mangé"),
+    ("Gus à un téléphone dans le salon.", GUS, "à", "a"),
+    ("Ou habites-tu ?", "Où habites-tu ?", "ou", "où"),
+    ("Il a ete la", "Il a été là.", "la", "là"),
+]
+
+
+@pytest.mark.parametrize(("typed", "answer", "written", "expected"), _GRAMMAR_ACCENTS)
+@pytest.mark.parametrize("ai_verdict", ["partial", "correct"])
+def test_a_grammar_accent_in_a_free_answer_is_refused_and_named_as_the_accent(db_session, typed, answer, written, expected, ai_verdict):
+    """Partial, whatever the model said; the accent is the one erratum, never «Word
+    order»; the correction is the accepted answer."""
+
+    final = _relecture(AtelierCorrectionService(db_session), typed, [answer], ai_verdict=ai_verdict)
+    assert final["verdict"] == "partial" and 2.0 <= final["score_0_4"] <= 2.5, final
+    assert [(e["learner_text"], e["corrected_target"], e["task_error_type"]) for e in final["errata"]] == [
+        (written, expected, "orthography")
+    ], final
+    assert final["errata"][0]["display_label"] == "Accent"
+    assert final["corrected_answer"] == answer
+    shown = " ".join(final["notes_native"]).lower()
+    assert "word order" not in shown and "not in this order" not in shown, final
+    assert f"«{expected}»" in " ".join(final["notes_native"]), final
+    assert "accent_notes" not in final
+
+
+def test_a_spelling_accent_in_a_free_answer_is_still_right_and_named(db_session):
+    final = _relecture(AtelierCorrectionService(db_session), "gus a un telephone dans le salon", [GUS])
+    assert final["verdict"] == "correct" and final["score_0_4"] == 4.0 and final["errata"] == [], final
+    assert final["notes_native"] == ["Right — watch the accent: «téléphone»."]
+    assert final["corrected_answer"] == GUS
+
+
+def test_an_item_that_tests_accents_refuses_a_spelling_accent_in_a_free_answer(db_session):
+    service = AtelierCorrectionService(db_session)
+    final = _relecture(service, "Je prefere le the.", ["Je préfère le thé."], accents="strict")
+    assert final["verdict"] == "partial", final
+    assert [(e["learner_text"], e["corrected_target"]) for e in final["errata"]] == [("prefere", "préfère")]
+    # The same answer where the item does not test accents is right, accent named.
+    lenient = _relecture(service, "Je prefere le the.", ["Je préfère le thé."])
+    assert lenient["verdict"] == "correct" and lenient["errata"] == [], lenient
+    service.explanation_language = "de"
+    german = _relecture(service, "Il a ete la", ["Il a été là."])
+    assert german["errata"][0]["display_label"] == "Akzent"
+    assert german["notes_native"] == ["Hier ändert der Akzent das Wort: «là», nicht «la»."]
+
+
+def test_a_refusal_names_the_accent_that_refuses_it():
+    from app.services.answer_acceptance import judge
+
+    verdict = judge("Il a ete la", ["Il a été là."])
+    assert not verdict.correct and (verdict.learner_word, verdict.expected_word) == ("la", "là")
+    accepted = judge("Il a ete malade", ["Il a été malade."])
+    assert accepted.correct and accepted.expected_word == "été"
+
+
+def test_the_relecture_reads_a_free_answer_with_the_items_accent_policy(db_session, monkeypatch):
+    """Through the background relecture: the attempt's unit decides, as it does for
+    the keyed rungs. A spelling unit refuses «tot» for «tôt»; another accepts it."""
+
+    from app.services import answer_acceptance
+    from tests.test_atelier import _FakeLLMService
+    from tests.test_forge_instant_feedback import _sentence_session
+
+    user, concept, session = _sentence_session(db_session, monkeypatch)
+    model = {"verdict": "partial", "score_0_4": 3, "errata": [
+        {"display_label": "Word order", "learner_text": "tot", "corrected_target": "tôt",
+         "why_wrong": "The words are right, but not in this order.", "repair_hint": "", "severity": 1,
+         "recurring": False, "task_error_type": "word_order"},
+    ]}
+    service = AtelierCorrectionService(db_session, llm_service=_FakeLLMService(model))
+
+    def landed(text: str) -> dict:
+        attempt = service.submit_attempt(
+            session=session, user=user, concept=concept, round_name="sentence", mode="sentence",
+            exercise_id="FR_B1_COND_001:sentence", answer_payload={"text": text},
+        )
+        assert attempt.correction_payload["local_status"] == grading.LOCAL_CHECKING
+        return service.run_ai_review_for_attempt(attempt.id).correction_payload
+
+    right = landed("Si je finis tot, je t'appellerai.")
+    assert right["verdict"] == "correct" and right["errata"] == [], right
+    assert right["notes_native"] == ["Right — watch the accent: «tôt»."]
+
+    monkeypatch.setattr(answer_acceptance, "ACCENT_STRICT_UNITS", frozenset({concept.external_id}))
+    refused = landed("Si je finis tot, je t'appellerai.")
+    assert refused["verdict"] == "partial", refused
+    assert [(e["learner_text"], e["corrected_target"], e["task_error_type"]) for e in refused["errata"]] == [
+        ("tot", "tôt", "orthography")
+    ]
+    assert not any("order" in note.lower() for note in refused["notes_native"]), refused
+
+
 def test_an_accepted_answer_the_model_doubted_over_the_prompt_is_right_after_the_merge(db_session):
     service = AtelierCorrectionService(db_session)
     local_check = grading.production_local_check(None, "Tu dînes", accepted=["Vous dînez", "Tu dînes"])
@@ -333,4 +454,5 @@ def test_no_trap_and_no_wrong_sentence_of_any_item_is_in_its_key():
             clashes += [w for w in item.wrong_sentences if ib.normalize(w) in accepted]
             assert not clashes, (unit, item.frame_id, item.sentence, clashes)
     assert checked > 1000 and widened > 50
+
 

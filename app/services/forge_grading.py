@@ -222,26 +222,29 @@ def matches_accepted(text: Any, accepted: Any) -> bool:
     return any(tokens(answer) == said for answer in accepted or [] if str(answer or "").strip())
 
 
-def accent_slip(text: Any, accepted: Any) -> tuple[str, str, str] | None:
-    """``(accepted answer, word written, word expected)`` when ``text`` is an accepted
-    answer up to typography *and* accents — «gus a un telephone dans le salon» for
-    «Gus a un téléphone dans le salon.» — else ``None``.
+def accent_reading(text: Any, accepted: Any, *, accents: str = "lenient") -> Any:
+    """How the key reads ``text`` when it is an accepted answer up to its accents —
+    the same words in the same order — else ``None``.
 
-    #297/#174: the same words in the same order are not a different answer. The
-    keyed rungs already accept such a line and name the accent
-    (``answer_acceptance.judge``); free production shares that reading here."""
+    The reading is :func:`answer_acceptance.judge`'s, with the item's accent policy
+    (:func:`answer_acceptance.accent_policy`) and no typo tolerance: the one the
+    keyed rungs give. #297/#174: such a line is never «Word order». A spelling
+    accent («gus a un telephone dans le salon») is accepted and named; an accent
+    that is grammar or meaning («mange» for «mangé», «a» for «à», «la» for «là»),
+    or any accent in an item that tests accents, is refused and named."""
 
-    said = tokens(text)
-    if not said:
+    from app.services.answer_acceptance import judge
+
+    keys = [str(answer) for answer in accepted or [] if str(answer or "").strip()]
+    if not keys or not tokens(text):
         return None
-    for answer in accepted or []:
-        target = tokens(answer)
-        if len(target) != len(said) or target == said:
-            continue
-        if [strip_accents(token) for token in target] != [strip_accents(token) for token in said]:
-            continue
-        written, expected = next((a, b) for a, b in zip(said, target, strict=True) if a != b)
-        return str(answer), written, expected
+    reading = judge(text, keys, accents=accents, typo=False)
+    if reading.correct:
+        return reading if reading.accent_slip else None
+    for answer in keys:
+        reading = judge(text, [answer], accents=accents, typo=False)
+        if reading.accent_slip:
+            return reading
     return None
 
 
@@ -618,7 +621,7 @@ def reordering_correction(
             continue
         if [strip_accents(token) for token in target] == [strip_accents(token) for token in said]:
             # #297: the same words in the same order — only an accent differs. That
-            # is a spelling slip (:func:`accent_slip`), never «Word order».
+            # is the accent (:func:`accent_reading`), never «Word order».
             continue
         start = 0
         while start < len(said) and strip_accents(said[start]) == strip_accents(target[start]):
@@ -653,12 +656,70 @@ def reordering_correction(
     return None
 
 
+#: The label of an accent the key refuses in a free answer (#297).
+_ACCENT_LABEL: dict[str, str] = {"en": "Accent", "de": "Akzent", "fr": "Accent"}
+
+
+def _held_to_accent(refined: dict[str, Any], reading: Any, *, learner_text: Any, language: Any) -> dict[str, Any]:
+    """A free answer that is an accepted answer up to its accents
+    (:func:`accent_reading`): the accent is its one issue, whatever else a model
+    said. Accepted, it is named in a note; refused, it is the one erratum and the
+    answer is partial."""
+
+    from app.services.answer_acceptance import feedback_note
+
+    language_key = _language(language)
+    note = feedback_note(reading, language_key)
+    answer = str(reading.expected or "")
+    refined.update({"lexical_gaps": [], "missing_targets": [], "corrected_answer": answer})
+    refined.pop("feedback_notes_native", None)
+    if reading.correct:
+        refined.update(
+            {
+                "verdict": "correct",
+                "score_0_4": 4.0,
+                "errata": [],
+                "accent_notes": [{"item_id": "", "learner_text": str(learner_text or ""), "corrected_target": answer}],
+                "feedback_notes_native": [note] if note else [],
+                "notes_native": [note] if note else [],
+            }
+        )
+        return refined
+    concept = next((item for item in refined.get("errata") or [] if isinstance(item, dict)), {})
+    erratum = {
+        "item_id": "",
+        "display_label": _ACCENT_LABEL[language_key],
+        "learner_text": str(reading.learner_word or ""),
+        "corrected_target": str(reading.expected_word or ""),
+        "why_wrong": note or "",
+        "repair_hint": "",
+        "severity": 2,
+        "recurring": True,
+        "task_error_type": "orthography",
+        "concept_id": concept.get("concept_id"),
+        "external_id": concept.get("external_id"),
+    }
+    refined["errata"] = [erratum]
+    refined["verdict"] = "partial"
+    refined["score_0_4"] = min(max(float(refined.get("score_0_4") or 0), 2.0), 2.5)
+    refined["notes_native"] = notes_native(refined["errata"])
+    return refined
+
+
 def refine_production_correction(
-    correction: dict[str, Any], *, learner_text: Any, accepted: Any, language: Any = "en"
+    correction: dict[str, Any],
+    *,
+    learner_text: Any,
+    accepted: Any,
+    language: Any = "en",
+    accents: str = "lenient",
 ) -> dict[str, Any]:
     """The model's reading of a free answer, held to what the key knows (WP-103 T10).
 
     * a correction that calls a French word English is dropped;
+    * an answer that is an accepted answer up to its accents is read as the keyed
+      rungs read it (:func:`accent_reading`, with the item's ``accents`` policy):
+      right with the accent named, or partial with the accent as its one erratum;
     * an answer that is an accepted answer in another order has one issue — the
       order — and its correction is that accepted answer;
     * ``notes_native``: one note per issue, deduplicated.
@@ -674,30 +735,10 @@ def refine_production_correction(
             {"learner_text": item.get("learner_text"), "reason": "french_word_called_english"}
             for item in dropped
         ]
-    slipped = accent_slip(learner_text, accepted)
-    if slipped is not None:
-        # #297: right words, right order, an accent missing: accepted, with the accent named.
-        from app.services.answer_acceptance import Verdict, feedback_note
-
-        answer, written, expected = slipped
-        note = feedback_note(
-            Verdict(correct=True, accent_slip=True, note="accent", expected=answer, learner_word=written, expected_word=expected),
-            _language(language),
-        )
-        refined.update(
-            {
-                "verdict": "correct",
-                "score_0_4": 4.0,
-                "errata": [],
-                "lexical_gaps": [],
-                "missing_targets": [],
-                "corrected_answer": answer,
-                "accent_notes": [{"item_id": "", "learner_text": str(learner_text or ""), "corrected_target": answer}],
-                "feedback_notes_native": [note] if note else [],
-                "notes_native": [note] if note else [],
-            }
-        )
-        return refined
+    reading = accent_reading(learner_text, accepted, accents=accents)
+    if reading is not None:
+        # #297: right words, right order, an accent off — the accent is the one issue.
+        return _held_to_accent(refined, reading, learner_text=learner_text, language=language)
     reordered = reordering_correction(learner_text, accepted, language)
     if reordered is not None:
         answer, erratum = reordered
@@ -800,7 +841,7 @@ __all__ = [
     "clip_note",
     "describe_diff",
     "detector_check",
-    "accent_slip",
+    "accent_reading",
     "drop_author_notes",
     "drop_false_english",
     "is_author_note",
