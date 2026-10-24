@@ -499,3 +499,47 @@ def test_the_phrase_rules_fix_the_classic_mistakes(sentence, span, fix):
 def test_the_phrase_rules_leave_the_near_misses_alone(sentence):
     edits = _contract().deterministic_edits(sentence)
     assert edits == [], [(e.rule_id, e.span, e.replacement) for e in edits]
+
+
+# ---------------------------------------------------------------------------
+# #318: «la appartement» is «l'appartement», and no fix is itself wrong French
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "sentence, fixed",
+    [
+        ("je veux vendre la appartement", "je veux vendre l'appartement"),
+        ("Je regarde le ami de Lila.", "Je regarde l'ami de Lila."),
+        ("C'est la maison de Odile.", "C'est la maison d'Odile."),
+        ("Je vais à la école.", "Je vais à l'école."),
+        ("je regarde la appartement de ma grand mere", "je regarde l'appartement de ma grand-mère"),
+    ],
+)
+def test_318_the_walk_lines_get_the_elided_form(sentence, fixed):
+    contract = _contract()
+    edits = contract.deterministic_edits(sentence)
+    assert contract.apply_edits(sentence, edits) == fixed
+    assert not any(e.rule_id == "FR_GENDER_DET" for e in edits)
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # the review of the first #318 attempt (#321): none of these elides
+        "Le ou la responsable viendra.",
+        "Je veux le ou la chercher.",
+        "Il y a le ou les clés.",
+        "Tu choisis la ou le plus grand.",
+        "On choisit de ou à Paris.",
+        "Je vais le euh faire.",
+        "C'est la où il habite.",
+        "Donne-le à Paul.",
+        "Dis-le au directeur.",
+        "Le héros mange un haricot avec la hache.",
+        "Le onze, il a dit oui à la une du journal.",
+    ],
+)
+def test_318_no_elision_before_a_word_that_does_not_take_it(sentence):
+    edits = _contract().deterministic_edits(sentence)
+    assert edits == [], [(e.rule_id, e.span, e.replacement) for e in edits]
