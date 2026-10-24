@@ -1518,7 +1518,7 @@ _PERSON_NAMES: tuple[tuple[str, str, str, str], ...] = (
 )
 
 
-def with_person_variants(item: "BankItem", variants: Iterable[str]) -> "BankItem":
+def with_person_variants(item: BankItem, variants: Iterable[str]) -> BankItem:
     """#295: ``item`` whose key also lists ``variants``, without ever calling a wrong
     option right.
 
