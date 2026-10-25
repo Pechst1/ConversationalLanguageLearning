@@ -7895,6 +7895,14 @@ class AtelierSRSService:
         """One French sentence an answer proves (WP-S6 recap): the whole line,
         never a lone article or a verdict label."""
 
+        correction = attempt.correction_payload if isinstance(attempt.correction_payload, dict) else {}
+        if (
+            correction.get("assessment_status") in {"provisional", "unavailable"}
+            or correction.get("evidence_hold")
+            or attempt.verdict == "needs_review"
+        ):
+            # Nobody read this answer: the item's model line is not something it proved.
+            return ""
         prompt = attempt.prompt_payload or {}
         items = prompt.get("items") if isinstance(prompt.get("items"), list) else []
         item = items[0] if len(items) == 1 and isinstance(items[0], dict) else {}

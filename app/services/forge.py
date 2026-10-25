@@ -139,7 +139,9 @@ def verdict_from_attempt(attempt: AtelierAttempt) -> Verdict:
     else:
         outcome = core.OUTCOME_INCORRECT
     local: str | None = None
-    if not checked:
+    if not checked and status != "unavailable":
+        # A hint only while a reading is on its way: «unavailable» means nobody
+        # will read it, so the local check moves nothing (#334).
         local_check = correction.get("local_check") if isinstance(correction.get("local_check"), dict) else {}
         if local_check.get("detector") == "hit":
             local = core.OUTCOME_CORRECT
@@ -1615,12 +1617,19 @@ class ForgeService:
         if not drill:
             drill = drills.drill_of_item(int(rung), None, str(attempt.round))
         verdict = verdict_from_attempt(attempt)
+        track_before = state.track(int(attempt.concept_id))
+        step_from = {"rung": track_before.rung, "topped": track_before.topped} if track_before else None
         decision = state.record(
             concept_id=int(attempt.concept_id),
             rung=int(rung),
             verdict=verdict,
             fingerprint=fingerprint,
         )
+        if step_from is not None and not verdict.checked and decision.new_rung != step_from["rung"]:
+            # The staircase moved on a hint (the local check), not a grade. Keep
+            # where it came from: if the model never reads the answer, the step is
+            # taken back (:meth:`amend_attempt`) instead of left standing.
+            state.history[-1]["provisional_step"] = step_from
         state.served_fingerprints.append(exercise_key)
         if served:
             # A burst's other judgements were posed too: never again this séance.
@@ -1675,6 +1684,13 @@ class ForgeService:
         exercise_key = _exercise_key(attempt)
         entry = next((e for e in state.history if e.get("exercise_key") == exercise_key), None)
         verdict = verdict_from_attempt(attempt)
+        if entry is not None and self._take_back_provisional_step(state, attempt, entry, verdict):
+            _store_state(session, state)
+            self.db.add(session)
+            if not commit:
+                return {"amended": False, "taken_back": True}
+            self.db.commit()
+            return self.view(user=user, session=session)
         if entry is None or entry.get("checked") or not verdict.checked or entry.get("amended"):
             return self.view(user=user, session=session) if commit else {}
         track = state.track(int(attempt.concept_id))
@@ -1701,6 +1717,40 @@ class ForgeService:
             return {"amended": True, "counted": decision.counted, "schedule": decision.schedule}
         self.db.commit()
         return self.view(user=user, session=session)
+
+    def _take_back_provisional_step(
+        self, state: ForgeState, attempt: AtelierAttempt, entry: dict[str, Any], verdict: Verdict
+    ) -> bool:
+        """The model never read an answer the staircase had already stepped on.
+
+        The step was taken on the local check alone. An answer that ends
+        unavailable is no evidence at all, so the rule goes back to the level it
+        was at, and the attempt's own ``forge.new_rung`` (what the screen shows as
+        the level) says so. Once; ``True`` when a step was taken back.
+        """
+
+        step = entry.get("provisional_step")
+        correction = attempt.correction_payload if isinstance(attempt.correction_payload, dict) else {}
+        if (
+            not isinstance(step, dict)
+            or entry.get("checked")
+            or entry.get("provisional_step_taken_back")
+            or verdict.checked
+            or correction.get("assessment_status") != "unavailable"
+        ):
+            return False
+        track = state.track(int(entry["concept_id"]))
+        if track is not None and track.rung > int(step["rung"]):
+            # One step back; a later answer on the same rule keeps its own.
+            track.rung = core.clamp_rung(track.rung - 1)
+            track.topped = bool(step.get("topped")) and track.topped
+        entry["provisional_step_taken_back"] = True
+        forge_part = dict(correction.get("forge") or {})
+        forge_part["new_rung"] = int(step["rung"])
+        attempt.correction_payload = {**correction, "forge": forge_part}
+        flag_modified(attempt, "correction_payload")
+        self.db.add(attempt)
+        return True
 
     def _write_evidence(
         self,
