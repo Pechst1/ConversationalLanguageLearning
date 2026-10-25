@@ -46,6 +46,7 @@ import api, {
   type JournalCorrectionItem,
   type JournalEntryView,
   type JournalEnvelope,
+  type JournalFollowup,
 } from '@/services/api';
 
 import { cahierCopy, fill, useCahierCopy, type CahierCopy } from './cahier-copy';
@@ -77,6 +78,14 @@ export function entryPlaceholder(entry: JournalEntryView | null | undefined): st
   return who ? `Hier, ${who}…` : 'Hier, …';
 }
 
+/** «Found n of m», in the table's three sentences. Shared by the entry's recall
+ *  and the week-later line, so the two numbers are worded the same way. */
+function recallSentence(found: number, total: number, t: JournalCopy): string {
+  if (found === total) return fill(t.recall_all, { found, total });
+  if (found === 0) return fill(t.recall_none, { total });
+  return fill(t.recall_some, { found, total });
+}
+
 /** The content-recall sentence. Never a score out of ten, never a grade. */
 export function recallLine(entry: JournalEntryView | null | undefined, t: JournalCopy = FRENCH_JOURNAL): string | null {
   const recall = entry?.content_recall;
@@ -87,9 +96,35 @@ export function recallLine(entry: JournalEntryView | null | undefined, t: Journa
   const found = recall.matched?.length || 0;
   const total = recall.facts_total || 0;
   if (total === 0) return null;
-  if (found === total) return fill(t.recall_all, { found, total });
-  if (found === 0) return fill(t.recall_none, { total });
-  return fill(t.recall_some, { found, total });
+  return recallSentence(found, total, t);
+}
+
+/** The one line that answers the week-later question (#337). An answered
+ *  follow-up *always* ends in a sentence: the recall count when the server
+ *  scored one, else a plain «answer saved». It never ends in nothing. */
+export function followupResultLine(
+  followup: JournalFollowup | null | undefined,
+  t: JournalCopy = FRENCH_JOURNAL,
+): string | null {
+  if (!followup?.answered) return null;
+  const total = followup.facts_total || 0;
+  const found = followup.facts_matched || 0;
+  if (total > 0 && followup.facts_matched != null) return recallSentence(Math.min(found, total), total, t);
+  return t.followup_done;
+}
+
+/** Where the week-later question was, once answered: its result, announced. */
+export function FollowupResult({ followup, t = FRENCH_JOURNAL }: { followup: JournalFollowup; t?: JournalCopy }) {
+  const line = followupResultLine(followup, t);
+  if (!line) return null;
+  return (
+    <Surface as="section" tone="paper" shape="card" className="jn-card">
+      <p className="av2-label">{t.followup_kicker}</p>
+      <p className="jn-verdict" role="status" aria-live="polite">
+        {line}
+      </p>
+    </Surface>
+  );
 }
 
 /** The verdict line for the writing itself, in the chrome language. */
@@ -142,6 +177,10 @@ export default function JournalTab() {
   const [failed, setFailed] = useState(false);
   const [draft, setDraft] = useState('');
   const [followDraft, setFollowDraft] = useState('');
+  // The answered week-later line, kept here: the server stops sending a
+  // follow-up once it is answered, so a later envelope would take the result
+  // away again.
+  const [followupResult, setFollowupResult] = useState<JournalFollowup | null>(null);
   const [pending, setPending] = useState<'write' | 'skip' | 'followup' | 'retry' | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -218,8 +257,10 @@ export default function JournalTab() {
     setPending('followup');
     setError(null);
     try {
-      setState(await api.answerJournalFollowup(followup.entry_id, followDraft));
+      const next = await api.answerJournalFollowup(followup.entry_id, followDraft);
+      setState(next);
       setFollowDraft('');
+      setFollowupResult(next.followup?.answered ? next.followup : { ...followup, answered: true });
     } catch {
       setError(t.busy_failed);
     } finally {
@@ -260,7 +301,9 @@ export default function JournalTab() {
       )}
 
       {/* ---- the +7-day line, above the day's entry: it is one question ---- */}
-      {followup && !followup.answered && (
+      {followupResult && <FollowupResult followup={followupResult} t={t} />}
+
+      {followup && !followup.answered && followupResult?.entry_id !== followup.entry_id && (
         <Surface as="section" tone="paper" shape="card" className="jn-card">
           <p className="av2-label">{t.followup_kicker}</p>
           <p className="jn-ask" lang="fr">

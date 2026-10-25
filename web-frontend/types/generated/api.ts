@@ -9255,6 +9255,10 @@ export interface components {
             due_on: string;
             /** Entry Id */
             entry_id: string;
+            /** Facts Matched */
+            facts_matched?: number | null;
+            /** Facts Total */
+            facts_total?: number | null;
             /** Prompt Fr */
             prompt_fr: string;
             /** Signal */
