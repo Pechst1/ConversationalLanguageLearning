@@ -1028,13 +1028,13 @@ def _reprise_journey(db_session, user: User, *, local_date: date) -> DailyJourne
     return journey
 
 
-def test_a_re_read_day_is_never_offered_as_a_journal_scene(db_session):
+def test_reprise_not_offered(db_session):
     user = _user(db_session)
     _reprise_journey(db_session, user, local_date=TODAY - timedelta(days=1))
     assert _service(db_session).offer(user, now=NOW) is None, "a re-read day was offered as a Journal scene"
 
 
-def test_an_english_instruction_is_never_a_stored_scene_fact(db_session):
+def test_english_not_a_fact(db_session):
     user = _user(db_session)
     journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=None)
     journey.scenario_snapshot = {**dict(journey.scenario_snapshot), "objective_native": REPRISE_OBJECTIVE}
@@ -1052,7 +1052,7 @@ def test_an_english_instruction_is_never_a_stored_scene_fact(db_session):
     ), "an English commitment summary was stored as a scene fact"
 
 
-def test_a_stored_english_fact_is_neither_scored_nor_quoted(db_session):
+def test_english_fact_unscored(db_session):
     stored = [
         {"key": "objective", "kind": "objective", "text_fr": REPRISE_OBJECTIVE,
          "cues": ["today", "read", "tell", "camille", "keep", "flat"]},
@@ -1067,7 +1067,7 @@ def test_a_stored_english_fact_is_neither_scored_nor_quoted(db_session):
     assert line is None or "Tell Camille" not in line, "Camille's quote printed English"
 
 
-def test_the_reveal_never_prints_an_english_line_as_the_scene(db_session):
+def test_reveal_french_only(db_session):
     user = _user(db_session)
     journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1))
     journey.recap_snapshot = {"story_outcome": {"callback_fr": REPRISE_OBJECTIVE}}
