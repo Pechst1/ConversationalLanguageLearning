@@ -1031,7 +1031,7 @@ def _reprise_journey(db_session, user: User, *, local_date: date) -> DailyJourne
 def test_a_re_read_day_is_never_offered_as_a_journal_scene(db_session):
     user = _user(db_session)
     _reprise_journey(db_session, user, local_date=TODAY - timedelta(days=1))
-    assert _service(db_session).offer(user, now=NOW) is None
+    assert _service(db_session).offer(user, now=NOW) is None, "a re-read day was offered as a Journal scene"
 
 
 def test_an_english_instruction_is_never_a_stored_scene_fact(db_session):
@@ -1039,13 +1039,17 @@ def test_an_english_instruction_is_never_a_stored_scene_fact(db_session):
     journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=None)
     journey.scenario_snapshot = {**dict(journey.scenario_snapshot), "objective_native": REPRISE_OBJECTIVE}
     facts = scene_facts_for(journey, story_context={})
-    assert all("re-read" not in fact.text_fr and "Tell Camille" not in fact.text_fr for fact in facts)
+    assert all(
+        "re-read" not in fact.text_fr and "Tell Camille" not in fact.text_fr for fact in facts
+    ), "an English instruction was stored as a scene fact"
     # The commitment path is guarded too: an English summary is not an event of the scene.
     facts = scene_facts_for(
         journey,
         story_context={"commitments": [{"id": "c1", "episode_id": "ep-7", "summary_fr": REPRISE_OBJECTIVE}]},
     )
-    assert all("Tell Camille" not in fact.text_fr for fact in facts)
+    assert all(
+        "Tell Camille" not in fact.text_fr for fact in facts
+    ), "an English commitment summary was stored as a scene fact"
 
 
 def test_a_stored_english_fact_is_neither_scored_nor_quoted(db_session):
@@ -1054,13 +1058,13 @@ def test_a_stored_english_fact_is_neither_scored_nor_quoted(db_session):
          "cues": ["today", "read", "tell", "camille", "keep", "flat"]},
     ]
     recall = score_content_recall("Camille regarde l'appartement.", stored)
-    assert recall["status"] == "no_facts"
+    assert recall["status"] == "no_facts", "an English stored fact was scored against the recap"
     assert recall["score"] is None
     missed = [{"kind": "objective", "text_fr": REPRISE_OBJECTIVE}]
     line = character_reaction(
         character_name="Camille", recall={"status": "scored", "matched": [], "missed": missed}
     )
-    assert line is None or "Tell Camille" not in line
+    assert line is None or "Tell Camille" not in line, "Camille's quote printed English"
 
 
 def test_the_reveal_never_prints_an_english_line_as_the_scene(db_session):
@@ -1069,7 +1073,7 @@ def test_the_reveal_never_prints_an_english_line_as_the_scene(db_session):
     journey.recap_snapshot = {"story_outcome": {"callback_fr": REPRISE_OBJECTIVE}}
     journey.steps[0].public_prompt = {**dict(journey.steps[0].public_prompt), "character_line_fr": KEPT_LINE}
     reveal = scene_reveal(journey)
-    assert reveal["callback_fr"] is None
+    assert reveal["callback_fr"] is None, "the reveal printed an English line as the scene"
     assert reveal["character_line_fr"] == KEPT_LINE
 
 
