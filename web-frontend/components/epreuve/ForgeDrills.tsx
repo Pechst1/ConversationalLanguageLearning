@@ -206,6 +206,18 @@ export function ForgeListen({ text, copy, synthesize }: { text: string; copy: Fo
 
 /* ---------- «Trouve l'erreur» · «Ta phrase» ---------- */
 
+/**
+ * A tapped word opens in a field that holds it. The learner is replacing it,
+ * so the word opens selected and the first key typed takes its place; with the
+ * caret left at its end «la» + «l'» became «lal'» (#335). A field that opens
+ * holding text the learner is to replace always opens selected.
+ */
+function selectWhenOpened(input: HTMLInputElement | null) {
+  if (!input) return;
+  input.focus();
+  input.setSelectionRange(0, input.value.length);
+}
+
 export function ForgeSpot({
   sentence,
   edits,
@@ -254,6 +266,7 @@ export function ForgeSpot({
                 value={draft}
                 size={Math.max(4, draft.length + 1)}
                 aria-label={fillForge(copy.spot_edit_label, { word: token.word })}
+                ref={selectWhenOpened}
                 autoFocus
                 autoComplete="off"
                 autoCorrect="off"
