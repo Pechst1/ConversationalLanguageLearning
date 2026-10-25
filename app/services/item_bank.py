@@ -2523,6 +2523,12 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
         l10n = goal_l10n("judge")
         out["goal_l10n"] = l10n
         out["label_l10n"] = JUDGEMENT_LABELS
+    elif not out.get("label_l10n") and isinstance(out.get("labels"), list):
+        # #196: a stored classify set (the fallback's) keeps its English answer keys;
+        # the learner reads each in their own language.
+        table = label_table(out["labels"])
+        if table:
+            out["label_l10n"] = table
     if l10n:
         out["goal_native"] = l10n.get(code) or l10n.get("en") or out.get("goal_native")
     elif not out.get("goal_native"):
@@ -2833,6 +2839,50 @@ def classify_item(item: BankItem, *, show_correct: bool, lesson_external_id: str
         }
     if lesson_external_id:
         payload["lesson_external_id"] = lesson_external_id
+    return _checked("classify", payload)
+
+
+def label_table(labels: Any) -> dict[str, dict[str, str]]:
+    """``label_l10n`` for classify labels that are stored answer keys: for each label
+    that is the English column of a ``learner_copy`` row, its text in every chrome
+    language (#196). A label with no row (a French sentence, a pair's option) has no
+    entry and is shown as stored.
+
+    The stored label stays the key the answer is compared with; only what the learner
+    reads on the button is localized, so a set generated once serves every language."""
+
+    from app.services.learner_copy import key_for_english, learner_text
+
+    table: dict[str, dict[str, str]] = {"en": {}, "de": {}, "fr": {}}
+    for label in labels if isinstance(labels, list) else []:
+        key = key_for_english(label) if isinstance(label, str) else None
+        if key is None:
+            continue
+        for language in table:
+            table[language][label] = learner_text(key, language)
+    return table if any(table.values()) else {}
+
+
+def judgement_item(item_id: str, sentence: str, *, fix: str | None = None) -> dict[str, Any] | None:
+    """A «Correct» / «À corriger» sort of one sentence; ``fix`` is its right form when
+    the sentence is wrong (a sentence sorted «À corriger» is then corrected, like every
+    judgement: :func:`classify_item`). For a unit the bank has no sentences for (#196)."""
+
+    label = "À corriger" if fix else "Correct"
+    payload: dict[str, Any] = {
+        "id": item_id,
+        "prompt": sentence,
+        "labels": ["Correct", "À corriger"],
+        "correct_label": label,
+        "correct_answer": label,
+        "classify_kind": "judgement",
+        "label_l10n": JUDGEMENT_LABELS,
+        "accepted_answers": [label],
+        **_goal("judge"),
+    }
+    if fix:
+        payload["source_fr"] = sentence
+        payload["follow_up_key"] = {"corrected_fr": fix, "accepted_fr": [fix], "meaning": "", "wrong_span": "", "target_span": ""}
     return _checked("classify", payload)
 
 

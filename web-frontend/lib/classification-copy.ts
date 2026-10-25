@@ -10,7 +10,18 @@ const LABELS: Record<string, { fr: string; de: string }> = {
   'article changes': { fr: 'l’article change', de: 'Der Artikel ändert sich' },
 };
 
-export function classificationCopy(value: string, language: ControlLanguage): string {
+/**
+ * `table` is the item's own `label_l10n` (the server's copy of each stored label in every
+ * chrome language, #196): it wins over the floor below, which only knows the labels
+ * of sets stored before the server sent it.
+ */
+export function classificationCopy(
+  value: string,
+  language: ControlLanguage,
+  table?: Record<string, Record<string, string> | null | undefined> | null,
+): string {
+  const own = table?.[language]?.[value];
+  if (typeof own === 'string' && own.trim()) return own.trim();
   if (language === 'en') return value;
   let display = value;
   for (const [key, labels] of Object.entries(LABELS)) {

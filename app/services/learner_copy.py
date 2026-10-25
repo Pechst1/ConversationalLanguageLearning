@@ -189,6 +189,49 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Beantworte das Element zuerst; ein leeres Element wird nicht als Erratum abgelegt.",
         "fr": "Réponds d’abord ; un élément vide n’est pas consigné comme erratum.",
     },
+    # -- the fallback classify sets (#196): the English column is the stored
+    # answer key, every column is what the learner reads on the button -----------
+    "atelier.classify.article_changes": {
+        "en": "article changes",
+        "de": "Der Artikel ändert sich",
+        "fr": "l’article change",
+    },
+    "atelier.classify.etre_exception": {
+        "en": "être exception",
+        "de": "Ausnahme bei être",
+        "fr": "exception d’être",
+    },
+    "atelier.classify.background_habit": {
+        "en": "background/habit",
+        "de": "Hintergrund oder Gewohnheit",
+        "fr": "contexte ou habitude",
+    },
+    "atelier.classify.bounded_event": {
+        "en": "bounded event",
+        "de": "Abgeschlossenes Ereignis",
+        "fr": "événement achevé",
+    },
+    "atelier.classify.present_condition": {
+        "en": "present condition",
+        "de": "Bedingung im Präsens",
+        "fr": "condition au présent",
+    },
+    "atelier.classify.future_result": {
+        "en": "future result",
+        "de": "Folge im Futur",
+        "fr": "conséquence au futur",
+    },
+    "atelier.classify.imperative_result": {
+        "en": "imperative result",
+        "de": "Folge im Imperativ",
+        "fr": "conséquence à l’impératif",
+    },
+    # Older stored fallback sets carry this generic second button; shown in the chrome language.
+    "atelier.classify.different_role": {
+        "en": "different grammar role",
+        "de": "Andere grammatische Rolle",
+        "fr": "autre rôle grammatical",
+    },
     "atelier.recognize.label_classification": {
         "en": "Classification",
         "de": "Einordnung",
