@@ -179,6 +179,33 @@ def word_forms(word: VocabularyWord) -> set[str]:
     return {form for form in forms if form}
 
 
+def french_only(text: Any) -> str:
+    """``text`` stripped, or ``""`` when it is not French (#336).
+
+    Every line the Journal prints as the scene (a quoted fact, the character's
+    line, the reveal) is French by contract. Several of the scene's stored fields
+    are not: ``objective_native`` and ``setup_native`` are the *learner's* language,
+    and a re-read day's objective begins «Today, we re-read.». They sat one
+    attribute away from ``text_fr`` and nothing checked which language a string was
+    in before it was printed as Camille's quote. This is that check, in one place:
+    a string a foreign-function-word count says is English or German is dropped,
+    never translated or shown.
+    """
+    from app.services.season.turns import reply_is_not_french
+
+    value = str(text or "").strip()
+    return "" if value and reply_is_not_french(value) else value
+
+
+def is_reprise_journey(journey: DailyJourney) -> bool:
+    """A lost season day that re-read an old page: no scene of its own to recall."""
+    from app.services.season.reprise import REPRISE_FALLBACK_KIND
+
+    selection = journey.plan_selection if isinstance(journey.plan_selection, dict) else {}
+    marker = selection.get("generation_fallback")
+    return isinstance(marker, dict) and marker.get("kind") == REPRISE_FALLBACK_KIND
+
+
 def sentence_count(text: str) -> int:
     parts = [part for part in re.split(r"[.!?…]+", str(text or "")) if part.strip()]
     return len(parts)
@@ -236,7 +263,7 @@ def scene_facts_for(
     facts: list[SceneFact] = []
 
     outcome = recap.get("story_outcome") or {}
-    callback = str(outcome.get("callback_fr") or "").strip()
+    callback = french_only(outcome.get("callback_fr"))
     if callback:
         facts.append(
             SceneFact(
@@ -251,7 +278,7 @@ def scene_facts_for(
     for raw in (story_context or {}).get("commitments") or []:
         if not isinstance(raw, dict):
             continue
-        summary = str(raw.get("summary_fr") or raw.get("summary") or "").strip()
+        summary = french_only(raw.get("summary_fr") or raw.get("summary"))
         if not summary:
             continue
         # Only this scene's commitments. A promise made three evenings ago is
@@ -271,16 +298,19 @@ def scene_facts_for(
             )
         )
 
-    objective = str(scenario.get("objective_native") or "").strip()
-    if objective and not facts:
-        # Last resort so a scene always has something to be recalled against.
-        # Never *in addition* to real story facts: the objective is a paraphrase
-        # of them and would double-count.
-        cues = tuple(content_cues(objective, given=given))
+    if not facts:
+        # Last resort so a scene always has something to be recalled against: the
+        # situation the scene set up, in French. Not ``objective_native``: that is
+        # an instruction in the learner's language, not something that happened,
+        # and never *in addition* to real story facts (it is a paraphrase of them).
+        premise = ""
+        for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
+            if StepKind(step.kind) is StepKind.SCENE:
+                premise = french_only((step.public_prompt or {}).get("setup_fr"))
+                break
+        cues = tuple(content_cues(premise, given=given))
         if cues:
-            facts.append(
-                SceneFact(key="objective", kind="objective", text_fr=objective, cues=cues)
-            )
+            facts.append(SceneFact(key="setup", kind="setup", text_fr=premise, cues=cues))
 
     return facts
 
@@ -312,14 +342,14 @@ def scene_reveal(journey: DailyJourney) -> dict[str, Any]:
         if StepKind(step.kind) is not StepKind.SCENE:
             continue
         prompt = dict(step.public_prompt or {})
-        setup_fr = str(prompt.get("setup_fr") or "")
-        character_line_fr = str(prompt.get("character_line_fr") or "")
+        setup_fr = french_only(prompt.get("setup_fr"))
+        character_line_fr = french_only(prompt.get("character_line_fr"))
         break
     return {
-        "title_fr": scenario.get("title_fr") or None,
+        "title_fr": french_only(scenario.get("title_fr")) or None,
         "setup_fr": setup_fr or None,
         "character_line_fr": character_line_fr or None,
-        "callback_fr": (recap.get("story_outcome") or {}).get("callback_fr") or None,
+        "callback_fr": french_only((recap.get("story_outcome") or {}).get("callback_fr")) or None,
     }
 
 
@@ -385,7 +415,8 @@ def score_content_recall(text: str, facts: list[dict[str, Any]]) -> dict[str, An
     missed: list[dict[str, Any]] = []
     for raw in facts or []:
         cues = [str(cue) for cue in (raw.get("cues") or []) if cue]
-        if not cues:
+        # Entries offered before #336 may hold an English instruction as a «fact».
+        if not cues or not french_only(raw.get("text_fr")):
             continue
         needed = 2 if len(cues) > CUE_THRESHOLD_WIDTH else 1
         hits = [
@@ -473,9 +504,11 @@ def character_reaction(
     missed = list(recall.get("missed") or [])
 
     def short(fact: dict[str, Any]) -> str:
-        text = str(fact.get("text_fr") or "").strip().rstrip(".")
+        text = french_only(fact.get("text_fr")).rstrip(".")
         return text[:90]
 
+    matched = [item for item in matched if short(item)]
+    missed = [item for item in missed if short(item)]
     commitments = [item for item in matched if item.get("kind") == "commitment"]
     if commitments:
         return f"{name} hoche la tête. « {forms['remembered']} : {short(commitments[0])}. »"
@@ -606,7 +639,7 @@ class JournalService:
         """Finished scenes old enough to be recalled and young enough to matter."""
         newest = today - timedelta(days=RECALL_OFFSET_DAYS)
         oldest = today - timedelta(days=RECALL_WINDOW_DAYS)
-        return (
+        rows = (
             self.db.query(DailyJourney)
             .filter(
                 DailyJourney.user_id == user.id,
@@ -619,6 +652,7 @@ class JournalService:
             .order_by(DailyJourney.local_date.desc())
             .all()
         )
+        return [journey for journey in rows if not is_reprise_journey(journey)]
 
     def entry_for_journey(self, user: User, journey_id: UUID) -> JournalEntry | None:
         return (

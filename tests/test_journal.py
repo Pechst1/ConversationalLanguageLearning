@@ -1000,3 +1000,80 @@ def test_a_journal_correction_never_saves_an_intonation_question_as_an_erratum(d
     assert all("Êtes-vous" not in item and "êtes-vous" not in item for item in shown)
     saved = db_session.query(UserError).filter(UserError.user_id == user.id).all()
     assert len(saved) == len(entry.errata_ids)
+
+
+# ---------------------------------------------------------------------------
+# 10. #336: French only, and a re-read day is not a scene
+# ---------------------------------------------------------------------------
+
+#: The 25 Oct 2026 live walk: the reprise's objective («Today, we re-read.» + the
+#: page's English task) was stored as the scene's «fact» and printed in Camille's quote.
+REPRISE_OBJECTIVE = "Today, we re-read. Tell Camille what you want to keep from the flat."
+KEPT_LINE = "Bientôt, l'appartement va être vide. Qu'est-ce que vous gardez ?"
+
+
+def _reprise_journey(db_session, user: User, *, local_date: date) -> DailyJourney:
+    journey = _journey(db_session, user, local_date=local_date, callback=None)
+    journey.scenario_snapshot = {
+        **dict(journey.scenario_snapshot),
+        "objective_native": REPRISE_OBJECTIVE,
+        "character_name": "Camille",
+    }
+    journey.plan_selection = {
+        "generation_fallback": {"kind": "season_reprise", "page_key": "t1.b"}
+    }
+    db_session.add(journey)
+    db_session.commit()
+    db_session.refresh(journey)
+    return journey
+
+
+def test_a_re_read_day_is_never_offered_as_a_journal_scene(db_session):
+    user = _user(db_session)
+    _reprise_journey(db_session, user, local_date=TODAY - timedelta(days=1))
+    assert _service(db_session).offer(user, now=NOW) is None
+
+
+def test_an_english_instruction_is_never_a_stored_scene_fact(db_session):
+    user = _user(db_session)
+    journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=None)
+    journey.scenario_snapshot = {**dict(journey.scenario_snapshot), "objective_native": REPRISE_OBJECTIVE}
+    facts = scene_facts_for(journey, story_context={})
+    assert all("re-read" not in fact.text_fr and "Tell Camille" not in fact.text_fr for fact in facts)
+    # The commitment path is guarded too: an English summary is not an event of the scene.
+    facts = scene_facts_for(
+        journey,
+        story_context={"commitments": [{"id": "c1", "episode_id": "ep-7", "summary_fr": REPRISE_OBJECTIVE}]},
+    )
+    assert all("Tell Camille" not in fact.text_fr for fact in facts)
+
+
+def test_a_stored_english_fact_is_neither_scored_nor_quoted(db_session):
+    stored = [
+        {"key": "objective", "kind": "objective", "text_fr": REPRISE_OBJECTIVE,
+         "cues": ["today", "read", "tell", "camille", "keep", "flat"]},
+    ]
+    recall = score_content_recall("Camille regarde l'appartement.", stored)
+    assert recall["status"] == "no_facts"
+    assert recall["score"] is None
+    missed = [{"kind": "objective", "text_fr": REPRISE_OBJECTIVE}]
+    line = character_reaction(
+        character_name="Camille", recall={"status": "scored", "matched": [], "missed": missed}
+    )
+    assert line is None or "Tell Camille" not in line
+
+
+def test_the_reveal_never_prints_an_english_line_as_the_scene(db_session):
+    user = _user(db_session)
+    journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1))
+    journey.recap_snapshot = {"story_outcome": {"callback_fr": REPRISE_OBJECTIVE}}
+    journey.steps[0].public_prompt = {**dict(journey.steps[0].public_prompt), "character_line_fr": KEPT_LINE}
+    reveal = scene_reveal(journey)
+    assert reveal["callback_fr"] is None
+    assert reveal["character_line_fr"] == KEPT_LINE
+
+
+def test_a_french_fact_is_still_quoted():
+    recall = {"status": "scored", "matched": [], "missed": [{"kind": "outcome", "text_fr": KEPT_LINE}]}
+    line = character_reaction(character_name="Camille", recall=recall)
+    assert line is not None and "l'appartement va être vide" in line
