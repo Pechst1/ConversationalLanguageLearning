@@ -398,7 +398,7 @@ def test_an_own_sentence_is_read_in_its_whole_line_when_the_answer_is_at_hand(db
     )
 
 
-def test_a_line_with_a_german_word_left_in_it_is_never_posed_as_a_repair(db_session: Session):
+def test_german_left_in_the_key_is_no_repair(db_session: Session):
     """#348: «war» → «est» left «Im est au Mistral, Marin.» as the key, and the right
     «Je suis au Mistral, Marin.» was refused. The corrected line must be French."""
     from app.services.forge import BankItemProvider
@@ -431,7 +431,7 @@ def test_a_line_with_a_german_word_left_in_it_is_never_posed_as_a_repair(db_sess
     assert provider.mine_item(concept_id=concept.id, exclude=set()) is None
 
 
-def test_a_french_line_with_one_slip_is_posed_and_its_right_answer_is_accepted(db_session: Session):
+def test_french_line_with_one_slip_is_posed(db_session: Session):
     from app.services.answer_acceptance import judge
     from app.services.forge import BankItemProvider
 
