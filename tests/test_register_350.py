@@ -41,20 +41,20 @@ def season_one(monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "s1")
 
 
-@pytest.mark.parametrize("spelling", GUS_SPELLINGS, ids=[f"spelled-{i}" for i in range(len(GUS_SPELLINGS))])
-def test_gus_is_tu_whatever_id_the_surface_calls_him_by(season_one, spelling) -> None:
+@pytest.mark.parametrize("spelling", GUS_SPELLINGS, ids=["canon", "gus", "aug", "Gus", "pad"])
+def test_gus_tu_any_id(season_one, spelling) -> None:
     state = _season_state(**{"register.augustin_de_roncourt": "tu"})
     expect(character_register(state, "augustin_de_roncourt"), "tu", "the scene's reading")
     expect(character_register(state, spelling), "tu", f"Gus spelled {spelling!r} in the Courrier")
 
 
-@pytest.mark.parametrize("spelling", GUS_SPELLINGS, ids=[f"spelled-{i}" for i in range(len(GUS_SPELLINGS))])
-def test_a_register_recorded_under_the_registry_id_answers_to_every_spelling(spelling) -> None:
+@pytest.mark.parametrize("spelling", GUS_SPELLINGS, ids=["canon", "gus", "aug", "Gus", "pad"])
+def test_recorded_any_id(spelling) -> None:
     state = {"relationships": {"augustin_de_roncourt": {"register": "tu"}}}
     expect(character_register(state, spelling), "tu", f"Gus spelled {spelling!r}")
 
 
-def test_the_season_opening_is_read_through_aliases_too(season_one) -> None:
+def test_season_alias(season_one) -> None:
     expect(character_register({}, "margaux"), "tu", "margaux")
     expect(character_register({}, "romy"), "tu", "romy")
     # The season writes Odile «odile», the registry «odile_ferrand».
@@ -63,13 +63,13 @@ def test_the_season_opening_is_read_through_aliases_too(season_one) -> None:
     expect(character_register({}, "gus"), "vous", "gus before T3")
 
 
-def test_the_landlord_stays_vous_under_his_aliases() -> None:
+def test_landlord_alias() -> None:
     state = {"relationships": {"landlord_marchand": {"register": "tu"}}}
     expect(character_register(state, "marchand"), "vous", "marchand")
     expect(character_register(state, "landlord"), "vous", "landlord")
 
 
-def test_a_story_letter_from_gus_is_tu_all_the_way_to_the_reply(season_one) -> None:
+def test_gus_letter_tu(season_one) -> None:
     """The EXACT stock letter of the issue («Bonjour, c'est Gus. … Et vous, qu'en pensez-vous ?»)
     and its «Merci pour votre message» must not reach a learner Gus tutoie."""
 
@@ -96,7 +96,7 @@ def test_a_story_letter_from_gus_is_tu_all_the_way_to_the_reply(season_one) -> N
     expect("votre" in reply or "vous" in reply.lower().split(), False, f"the fallback reply {reply!r}")
 
 
-def test_the_fallback_reply_reads_the_register_the_letter_was_written_in() -> None:
+def test_reply_register() -> None:
     """A tu letter whose opening happens to start «Bonjour» still gets a tu reply."""
 
     from app.services.missions import _unassessed_acknowledgement
