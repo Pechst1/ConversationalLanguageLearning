@@ -423,9 +423,11 @@ def test_a_line_with_a_german_word_left_in_it_is_never_posed_as_a_repair(db_sess
         db_session, user, learner="war", corrected="est", concept_id=concept.id,
         source_type="atelier", source_attempt_id=attempt.id,
     )
-    assert not drills.mine_fits("Im war au Mistral, Marin.", "Im est au Mistral, Marin.")
+    assert not drills.mine_fits(
+        "Im war au Mistral, Marin.", "Im est au Mistral, Marin."
+    ), "a key with a German word left in it was accepted as a repair"
     provider = BankItemProvider.for_session(db_session, user=user, session=session)
-    assert provider.mine_candidates(concept.id) == []
+    assert provider.mine_candidates(concept.id) == [], "the garbled line was posed as the learner's own repair"
     assert provider.mine_item(concept_id=concept.id, exclude=set()) is None
 
 
