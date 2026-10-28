@@ -1,8 +1,9 @@
 /* Round 3 (owner, 2026-10-14) — «Fertig für heute».
 
    The day's last step, after the scene, the words and the grammar: the seal,
-   one headline, what the day held (1 Szene · 20 Wörter · 12 Übungen), and the
-   troupe's curtain call over it. One ink button back to La Une. Only now the
+   one headline, what the day held (1 Szene · 20 Wörter · 12 Übungen), tomorrow's
+   open question (the line Home prints, `TomorrowLine`), and the troupe's curtain
+   call over it. One ink button back to La Une. Only now the
    quiet «Noch 10 Wörter»: continuing past the day's dose is the learner's choice.
 
    Reached before the day is done (an old link, a tap from the plan), it says
@@ -15,6 +16,8 @@ import { useRouter } from 'next/router';
 import { Action, AtelierV2Root, ShapeToken } from '@/components/atelier-v2/ui';
 import { rewardView } from '@/components/atelier-v2/journey/journey-recap-model';
 import { PushOptIn } from '@/components/atelier-v2/journey/PushOptIn';
+import { tomorrowLine } from '@/components/atelier-v2/journey/season-return-model';
+import { TomorrowLine } from '@/components/atelier-v2/journey/TomorrowLine';
 import { Seal } from '@/components/ui/Seal';
 import { emitCameo } from '@/lib/cameo';
 import { castIdFor } from '@/lib/cast-faces';
@@ -55,6 +58,8 @@ export default function FertigPage() {
   const seal = session?.done && journey?.status === 'completed' ? view?.seal ?? null : null;
   const next = sessionNextAction(session, language);
   const more = sessionMore(session, language);
+  // The same line Home's finished card prints; an early stop or a recap with no teaser has none.
+  const tomorrow = session?.done ? tomorrowLine(journey?.recap) : null;
   const home = () => void router.push('/atelier');
 
   return (
@@ -100,6 +105,7 @@ export default function FertigPage() {
               </li>
             </ul>
           )}
+          <TomorrowLine line={tomorrow} language={language} />
           {session?.done && journey && (
             <PushOptIn
               language={language}

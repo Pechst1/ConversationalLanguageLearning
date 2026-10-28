@@ -57,12 +57,13 @@ import { EpisodeVignette, vignettePlace, type VignettePlace } from './EpisodeVig
 import { journeyCopy } from './journey-copy';
 import { InterludeCard, SeasonPremiereCard } from './SeasonPages';
 import { seasonReturnCopy } from './season-return-copy';
+import { TomorrowLine } from './TomorrowLine';
 import {
   interludeHeadline,
   journeyAtFirstStep,
   premierePoster,
-  recapTeaserOf,
   teaserHint,
+  tomorrowLine,
   todayInterlude,
   todayPremiere,
   type InterludeView,
@@ -471,8 +472,7 @@ function JourneyTodayBody({
       // WP-99: «La suite demain» — the engine's own teaser first. Owner,
       // 2026-10-18: on Home it is a few words, where the story goes tomorrow;
       // the whole line stays on the recap.
-      const teaser = phase.recap?.completion_kind === 'early' ? null : recapTeaserOf(phase.recap);
-      const hint = teaser ? teaserHint(teaser.text_fr) : null;
+      const tomorrow = tomorrowLine(phase.recap);
       return (
         <Card
           copy={copy}
@@ -485,22 +485,7 @@ function JourneyTodayBody({
           imageAlt={titleFr || ''}
           scene={phase.journey?.scenario ? sceneOf(phase.journey.scenario, headline) : null}
         >
-          {teaser && hint && (
-            <p className="av2-body journey-today-card__teaser" data-teaser={teaser.source}>
-              <span className="av2-label">{seasonReturnCopy(controlLanguage).teaser_label}</span>
-              {teaser.character_id ? (
-                <CastPortrait
-                  characterId={teaser.character_id}
-                  name={teaser.character_name ?? undefined}
-                  size="xs"
-                  alt=""
-                />
-              ) : null}
-              <span className="av2-fr journey-today-card__hint" lang="fr">
-                {frenchSpacing(hint)}
-              </span>
-            </p>
-          )}
+          <TomorrowLine line={tomorrow} language={controlLanguage} />
           <InterludeReturn interlude={interlude} language={controlLanguage} />
           <Action tone="secondary" inline onClick={onOpen}>
             {copy.done_review}
