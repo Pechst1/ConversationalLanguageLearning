@@ -190,6 +190,13 @@ class SetsIf(_Model):
     sets: dict[str, Any]
 
 
+#: Le Quartier phase 1: a question asked only when the learner's answer to an earlier
+#: question of the same day took one of these replies, ``{turn or solve id: [reply or
+#: option ids]}`` (Margaux's café crème follows only the replies where she sets the cup
+#: down). Read during the conversation, not when the page is resolved.
+OnlyAfter = dict[str, list[str]]
+
+
 class Line(_Model):
     """A caption under the art: a character's line, or diegetic text.
 
@@ -293,6 +300,7 @@ class Turn(_Model):
     #: Beats that follow whichever reply ("In every route, Camille sets the visit").
     after: list[Panel] = Field(default_factory=list)
     when: Cond = Field(default_factory=dict)
+    only_after: OnlyAfter = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _fallback_exists(self) -> Turn:
@@ -316,6 +324,11 @@ class Option(_Model):
     beats: list[Panel] = Field(default_factory=list)
     correct: bool | None = None
     when: Cond = Field(default_factory=dict)
+    #: Le Quartier phase 1 (owner decision 2026-10-28): a «Le choix» answered in the
+    #: learner's own French rather than by its card. What the reader listens for, and
+    #: some French ways to say it (the card's label always routes too).
+    means: str = ""
+    examples: list[str] = Field(default_factory=list)
 
 
 class Solve(_Model):
@@ -365,6 +378,7 @@ class Solve(_Model):
     #: The flag this solve decides, for the flag table's "set where".
     flag: str | None = None
     when: Cond = Field(default_factory=dict)
+    only_after: OnlyAfter = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _well_formed(self) -> Solve:
@@ -684,9 +698,21 @@ def _check_tentpole(season: Season, tentpole: Tentpole, *, locations: set[str] |
             unknown = cond_flags(cond) - known_flags
             if unknown:
                 problems.append(f"{tentpole.id}.{day.day}: unknown flags in when: {sorted(unknown)}")
+        asked: dict[str, set[str]] = {}
         for movement in day.movements:
             if isinstance(movement, Include) and movement.ref not in tentpole.shared:
                 problems.append(f"{tentpole.id}.{day.day}: include {movement.ref!r} is not shared")
+            if isinstance(movement, Turn | Solve):
+                for earlier, replies in movement.only_after.items():
+                    if earlier not in asked:
+                        problems.append(f"{tentpole.id}.{day.day}: {movement.id} is asked only after {earlier!r}, which is not an earlier question of the day")
+                    elif not replies or set(replies) - asked[earlier]:
+                        problems.append(f"{tentpole.id}.{day.day}: {movement.id} is asked only after replies of {earlier!r} it does not have: {sorted(set(replies) - asked[earlier])}")
+                asked[movement.id] = (
+                    {reply.id for reply in movement.replies}
+                    if isinstance(movement, Turn)
+                    else {option.id for option in [*movement.options, *(movement.options_b1 or [])]}
+                )
         if locations is not None and day.location_id not in locations:
             problems.append(f"{tentpole.id}.{day.day}: unknown location {day.location_id!r}")
     for movements in blocks:

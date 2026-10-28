@@ -9,13 +9,13 @@
  * the talk and the ending are acknowledged, so the rest of the day (the words, the grammar) follows
  * in the Feuilleton's own steps.
  *
- * The stage fields are additive to journey contract v1 and not in the generated types yet: they
- * are read here, defensively, field by field.
+ * The stage fields are additive to journey contract v1, so a server that does not stage leaves
+ * them out: they are read here, defensively, field by field.
  */
 import { createMutationKeyring, runMutation } from '@/components/atelier-v2/journey/journey-requests';
 import { currentStepOf, isReconcileCode, journeyAwaitsFinish, resolutionAwaitsStory } from '@/components/atelier-v2/journey/journey-state';
 import dailyJourneyService, { journeyErrorCode, mutationId } from '@/services/daily-journey';
-import type { AttemptResult, HelpKind, JourneySnapshot, RespondStep, StoryletChoiceResult } from '@/types/daily-journey';
+import type { AttemptResult, HelpKind, JourneySnapshot, RespondStep, SceneStep, StoryletChoiceResult } from '@/types/daily-journey';
 
 import type { Value } from './memory';
 import { STAGED_DAYS } from './story';
@@ -161,8 +161,8 @@ export function pageOfStage(x: unknown): StoryPage | null {
 
 /** Today's page, from the journey's scene step; `null` off an authored season page. */
 export function pageOfJourney(journey: JourneySnapshot | null): StoryPage | null {
-  const scene = journey?.steps.find((s) => s.kind === 'scene');
-  return scene ? pageOfStage((scene.prompt as { stage?: unknown }).stage) : null;
+  const scene = journey?.steps.find((s): s is SceneStep => s.kind === 'scene');
+  return scene ? pageOfStage(scene.prompt.stage) : null;
 }
 
 /** The talk of the scene: the first respond step after it. */
@@ -416,7 +416,7 @@ export class JourneyStory implements Story {
   private heardOf(turnId: string, r: AttemptResult): Heard {
     const c = r.correction;
     const mend: Mend | null = c && c.span_fr && c.corrected_fr && c.span_fr !== c.corrected_fr ? { span: c.span_fr, corrected: c.corrected_fr, note: c.note_native || null } : null;
-    const stage = (r as AttemptResult & { stage?: unknown }).stage;
+    const stage: unknown = r.stage;
     if (isRaw(stage) && typeof stage.turn_id === 'string') {
       return {
         turn: stage.turn_id,

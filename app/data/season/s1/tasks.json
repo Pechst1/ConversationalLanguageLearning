@@ -6,10 +6,20 @@
       "de": "Sag, wer du bist und warum du hier bist.",
       "fr": "Dis qui tu es et pourquoi tu es là."
     },
+    "t1:a.cafe": {
+      "en": "Take the café crème Margaux set down for you, or say no.",
+      "de": "Nimm den Café Crème, den Margaux dir hingestellt hat, oder sag nein.",
+      "fr": "Prends le café crème que Margaux t'a servi, ou dis non."
+    },
     "t1:a.turn2": {
       "en": "Tell Margaux whether you will go up to the flat tonight, and what you plan to do.",
       "de": "Sag Margaux, ob du heute Abend in die Wohnung hochgehst und was du vorhast.",
       "fr": "Dis à Margaux si tu montes à l'appartement ce soir, et ce que tu veux faire."
+    },
+    "t1:a.key": {
+      "en": "Take the key, or leave it with Margaux for the night.",
+      "de": "Nimm den Schlüssel, oder lass ihn über Nacht bei Margaux.",
+      "fr": "Prends la clé, ou laisse-la à Margaux pour la nuit."
     },
     "t1:b.camille": {
       "en": "Ask Camille how they are related to M. Marchand.",
@@ -25,6 +35,11 @@
       "en": "Choose who reads the notary's letter.",
       "de": "Wähle, wer den Brief vom Notar liest.",
       "fr": "Choisis qui lit la lettre du notaire."
+    },
+    "t1:b.key": {
+      "en": "Ask Margaux for the key you left with her.",
+      "de": "Bitte Margaux um den Schlüssel, den du bei ihr gelassen hast.",
+      "fr": "Demande à Margaux la clé que tu lui as laissée."
     },
     "t2:a.enquete": {
       "en": "Tap a calendar entry that shows she did not plan to leave.",
@@ -366,6 +381,14 @@
       "fr_named": "{name}, d'accord. Mais vous vendez, oui ou non ?",
       "en_named": "{name}, all right. But are you selling, yes or no?",
       "de_named": "{name}, gut. Aber verkaufen Sie, ja oder nein?"
+    },
+    "t1:b.key": {
+      "fr": "Tu cherches ta clé ?",
+      "en": "Are you looking for your key?",
+      "de": "Suchst du deinen Schlüssel?",
+      "fr_named": "{name}. Tu cherches ta clé ?",
+      "en_named": "{name}. Are you looking for your key?",
+      "de_named": "{name}. Suchst du deinen Schlüssel?"
     },
     "t2:a.turn1": {
       "fr": "Et toi ? Pourquoi Odile part, à ton avis ?",

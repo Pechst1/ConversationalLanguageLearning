@@ -1356,6 +1356,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daily-journeys/{journey_id}/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Choose
+         * @description Le Quartier phase 1: a gesture that is not an answer (walking out, a text
+         *     answered while away, a word with someone in the room), from the scene step's
+         *     ``stage.storylets``. Never moves the journey; allowed after the day is finished.
+         */
+        post: operations["choose_api_v1_daily_journeys__journey_id__choices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daily-journeys/{journey_id}/finish": {
         parameters: {
             query?: never;
@@ -6358,7 +6380,27 @@ export interface components {
             reply_source: "authored" | "model" | "none";
             /** Slip Note Native */
             slip_note_native: string | null;
+            stage: components["schemas"]["AttemptStage"] | null;
             task_outcome: components["schemas"]["TaskOutcome"];
+        };
+        /**
+         * AttemptStage
+         * @description Le Quartier phase 1: what one answer staged on an authored page.
+         */
+        AttemptStage: {
+            /** Beats */
+            beats: components["schemas"]["StagePanel"][];
+            /**
+             * Closing
+             * @default false
+             */
+            closing: boolean;
+            /** Next Turn Id */
+            next_turn_id: string | null;
+            /** Reply Id */
+            reply_id: string | null;
+            /** Turn Id */
+            turn_id: string;
         };
         /**
          * AudioSessionEndRequest
@@ -9383,6 +9425,51 @@ export interface components {
             label: string;
             /** Reason */
             reason: string | null;
+        };
+        /**
+         * JourneyChoiceRequest
+         * @description Le Quartier phase 1: a gesture that is not an answer — the learner walks out
+         *     (``walk_out``, ``at`` the panel they left during), answers a text while away
+         *     (``margaux_text``, with their ``text``), or talks to someone in the room
+         *     (``talk``, ``to`` whom; no ``text`` for the hello). Allowed after the day is
+         *     finished too: the walk after the end card is where most talk happens.
+         */
+        JourneyChoiceRequest: {
+            /** At */
+            at?: string | null;
+            /** Mutation Id */
+            mutation_id: string;
+            /** Storylet Id */
+            storylet_id: string;
+            /** Text */
+            text?: string | null;
+            /** To */
+            to?: string | null;
+        };
+        /** JourneyChoiceResult */
+        JourneyChoiceResult: {
+            /** Beats */
+            beats: components["schemas"]["StagePanel"][];
+            /** Chips */
+            chips: string[];
+            /**
+             * Contract Version
+             * @default 1
+             * @constant
+             */
+            contract_version: 1;
+            /** Heard */
+            heard: string | null;
+            /** Learned */
+            learned: components["schemas"]["StageLearned"][];
+            /** People */
+            people: components["schemas"]["StagePerson"][];
+            /** Sets */
+            sets: {
+                [key: string]: boolean | number | string;
+            };
+            /** Storylet Id */
+            storylet_id: string;
         };
         /** JourneyCorrection */
         JourneyCorrection: {
@@ -13342,6 +13429,7 @@ export interface components {
             setup_fr: string;
             /** Setup Native */
             setup_native: string;
+            stage: components["schemas"]["SceneStage"] | null;
         };
         /**
          * SceneRead
@@ -13374,6 +13462,39 @@ export interface components {
             npcs_present?: components["schemas"]["NPCInSceneRead"][];
             /** Objectives */
             objectives?: components["schemas"]["ObjectiveRead"][];
+        };
+        /**
+         * SceneStage
+         * @description Le Quartier phase 1: today's authored page, movement by movement, each with
+         *     its id, for the 3D to stage.
+         */
+        SceneStage: {
+            /** Band */
+            band: string | null;
+            /** Can Do Native */
+            can_do_native: string | null;
+            /** Day */
+            day: string;
+            /** Key */
+            key: string;
+            /** Language */
+            language: string | null;
+            /** Location Id */
+            location_id: string | null;
+            /** Movements */
+            movements: (components["schemas"]["StagePanel"] | components["schemas"]["StageTurn"] | components["schemas"]["StageHook"])[];
+            /** Number */
+            number: number | null;
+            /** Season Id */
+            season_id: string;
+            /** Segment */
+            segment: string;
+            /** Story Date Fr */
+            story_date_fr: string | null;
+            /** Storylets */
+            storylets: components["schemas"]["StageStorylet"][];
+            /** Title Fr */
+            title_fr: string;
         };
         /** SceneStep */
         SceneStep: {
@@ -13786,6 +13907,195 @@ export interface components {
             word: string;
             /** Word Id */
             word_id: number;
+        };
+        /**
+         * StageCueLine
+         * @description A line of a gesture's storylet: ``asked`` as the learner turns to the door,
+         *     ``back`` when they come back (during the panel ``during``, when one is named),
+         *     ``text`` a message while they are away, ``answer`` the reply to theirs.
+         */
+        StageCueLine: {
+            /** Direction */
+            direction: string | null;
+            /** During */
+            during: string | null;
+            /** From Fr */
+            from_fr: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @default speech
+             * @enum {string}
+             */
+            kind: "speech" | "caption" | "sms" | "letter" | "card" | "toi" | "all";
+            /** Mood */
+            mood: string | null;
+            /** Name */
+            name: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "asked" | "back" | "text" | "answer";
+            /** Text Fr */
+            text_fr: string;
+            /** Text Native */
+            text_native: string | null;
+            /** Who */
+            who: string;
+        };
+        /** StageHook */
+        StageHook: {
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "hook";
+            panel: components["schemas"]["StagePanel"];
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "midpoint" | "a_suivre";
+        };
+        /**
+         * StageLearned
+         * @description Something the learner now knows from what they were told.
+         */
+        StageLearned: {
+            /** Id */
+            id: string;
+            /** Text Fr */
+            text_fr: string;
+            /** Text Native */
+            text_native: string | null;
+        };
+        /**
+         * StageLine
+         * @description One line of an authored page, as the page writes it.
+         */
+        StageLine: {
+            /** Direction */
+            direction: string | null;
+            /**
+             * Kind
+             * @default speech
+             * @enum {string}
+             */
+            kind: "speech" | "caption" | "sms" | "letter" | "card" | "toi" | "all";
+            /** Mood */
+            mood: string | null;
+            /** Name */
+            name: string | null;
+            /** Text Fr */
+            text_fr: string;
+            /** Text Native */
+            text_native: string | null;
+            /** Who */
+            who: string;
+        };
+        /** StagePanel */
+        StagePanel: {
+            /** Diegetic */
+            diegetic: string[];
+            /**
+             * Flashback
+             * @default false
+             */
+            flashback: boolean;
+            /** Id */
+            id: string;
+            /** In Frame */
+            in_frame: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "panel";
+            /** Lines */
+            lines: components["schemas"]["StageLine"][];
+            /** Location Id */
+            location_id: string | null;
+            /**
+             * Silence
+             * @default false
+             */
+            silence: boolean;
+            /** Visual */
+            visual: string | null;
+        };
+        /**
+         * StagePerson
+         * @description Someone the learner may talk to in their own French.
+         */
+        StagePerson: {
+            bye: components["schemas"]["StageLine"] | null;
+            hello: components["schemas"]["StageLine"] | null;
+            /** Name */
+            name: string | null;
+            /**
+             * Register
+             * @enum {string}
+             */
+            register: "tu" | "vous";
+            /** Who */
+            who: string;
+        };
+        /**
+         * StageStorylet
+         * @description A gesture that is not an answer, sent with ``POST …/choices``.
+         */
+        StageStorylet: {
+            /** After Seconds */
+            after_seconds: number | null;
+            /** Chips */
+            chips: string[];
+            /**
+             * Cue
+             * @enum {string}
+             */
+            cue: "walk_out" | "away" | "talk";
+            /** Id */
+            id: string;
+            /** Lines */
+            lines: components["schemas"]["StageCueLine"][];
+            /** People */
+            people: components["schemas"]["StagePerson"][];
+            /** Who */
+            who: string | null;
+        };
+        /**
+         * StageTurn
+         * @description A question, answered through the attempts endpoint: a free turn, or a «Le
+         *     choix» asked as one (``choice``: the 2D shows its cards; French text routes too).
+         */
+        StageTurn: {
+            /**
+             * Choice
+             * @default false
+             */
+            choice: boolean;
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "turn";
+            /** Only After */
+            only_after: {
+                [key: string]: string[];
+            } | null;
+            panel: components["schemas"]["StagePanel"];
+            /** Task Native */
+            task_native: string | null;
+            /** To */
+            to: string;
+            /** To Name */
+            to_name: string | null;
         };
         /** StartRequest */
         StartRequest: {
@@ -18058,6 +18368,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JourneySnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    choose_api_v1_daily_journeys__journey_id__choices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                journey_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JourneyChoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JourneyChoiceResult"];
                 };
             };
             /** @description Validation Error */

@@ -64,6 +64,8 @@ from app.schemas.daily_journey import (
     JourneyAdvanceRequest,
     JourneyAttemptRequest,
     JourneyBecause,
+    JourneyChoiceRequest,
+    JourneyChoiceResult,
     JourneyCorrection,
     JourneyCreateRequest,
     JourneyFinishRequest,
@@ -2448,6 +2450,64 @@ class DailyJourneyService:
         self._commit_mutation(receipt, journey, http_status.HTTP_200_OK, snapshot)
         return snapshot
 
+    def choose(
+        self, user: User, journey_id: uuid.UUID, payload: JourneyChoiceRequest
+    ) -> JourneyChoiceResult:
+        """Le Quartier phase 1: a gesture that is not an answer — walking out, a text
+        answered while away, a word with someone in the room.
+
+        It never moves the journey (no revision is taken): it is kept beside the
+        story, and the flags it sets join the season when a day settles. Allowed
+        after the day is finished too. Idempotent per ``mutation_id``.
+        """
+
+        journey = self._journey_or_404(user, journey_id)
+        receipt, replay = self._begin_mutation(
+            user,
+            scope="season_choice",
+            mutation_id=payload.mutation_id,
+            digest=_digest({"journey_id": str(journey_id), **payload.model_dump(exclude={"mutation_id"})}),
+            journey=journey,
+        )
+        if replay is not None:
+            return self._replay(JourneyChoiceResult, replay)[0]
+
+        try:
+            from app.services.season.gestures import GestureRefused
+            from app.services.season.gestures import choose as season_choose
+
+            respond = next((step for step in journey.steps if str(step.kind) == str(StepKind.RESPOND)), None)
+            try:
+                result = season_choose(
+                    self.db,
+                    user,
+                    story_context=_journey_story_context(journey) or dict(self._pinned_brief(journey).story_context or {}),
+                    history=list(((respond.private_task or {}) if respond is not None else {}).get("turns") or []),
+                    journey_id=str(journey.id),
+                    storylet_id=payload.storylet_id,
+                    at=payload.at,
+                    to=payload.to,
+                    text=payload.text,
+                )
+            except GestureRefused as exc:
+                raise journey_error(
+                    http_status.HTTP_409_CONFLICT, JourneyErrorCode.STEP_NOT_ACTIVE, str(exc)
+                ) from exc
+            if result is None:
+                raise journey_error(
+                    http_status.HTTP_409_CONFLICT,
+                    JourneyErrorCode.STEP_NOT_ACTIVE,
+                    "This day has no gestures.",
+                )
+            answered = JourneyChoiceResult.model_validate(result)
+            self.db.flush()
+        except HTTPException as exc:
+            self._record_error(receipt, exc)
+            raise
+
+        self._commit_mutation(receipt, journey, http_status.HTTP_200_OK, answered)
+        return answered
+
     def _has_later_journey(self, user: User, journey: DailyJourney) -> bool:
         stmt = select(DailyJourney.id).where(
             DailyJourney.user_id == user.id, DailyJourney.local_date > journey.local_date
@@ -2562,14 +2622,14 @@ class DailyJourneyService:
 
         context = _journey_story_context(journey)
         if not context.get("scene_id"):
-            return {"previously_fr": None, "premise_native": None, "margin_notes": None, "season_part": None}
+            return {"previously_fr": None, "premise_native": None, "margin_notes": None, "season_part": None, "stage": None}
         from app.services.story_archive import scene_step_story_fields
 
         fields = run_best_effort(
             self.db,
             "daily_journey: précédemment and margin notes",
             lambda: scene_step_story_fields(self.db, journey),
-            default={"previously_fr": [], "premise_native": None, "margin_notes": [], "season_part": None},
+            default={"previously_fr": [], "premise_native": None, "margin_notes": [], "season_part": None, "stage": None},
             log=logger,
         )
         # The learner's first season day opens on the season intro, which says the
@@ -5301,6 +5361,8 @@ class DailyJourneyService:
                 if step.status == str(StepStatus.COMPLETED)
                 else None
             ),
+            # Le Quartier phase 1: what this answer staged on an authored page.
+            stage=getattr(evaluation, "stage", None),
             journey=self.snapshot(journey),
         )
 
