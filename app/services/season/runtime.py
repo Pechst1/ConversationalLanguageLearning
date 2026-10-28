@@ -52,6 +52,7 @@ from app.services.season.flags import (
 )
 from app.services.season.format import Gap, Season, load_season
 from app.services.season.page import (
+    asked_after,
     choice_cards,
     convince_outcome,
     exchanges_for,
@@ -795,9 +796,12 @@ def _record_classifier_cost(db, user, usage: list[dict]) -> None:
 
 def _walk(turns: list[dict[str, Any]], routed: list[tuple[str, dict[str, Any]]]) -> tuple[int, dict[int, int]]:
     """Where the conversation stands after ``routed`` exchanges: the turn index now
-    owed, and how many times each turn has been answered."""
+    owed, and how many times each turn has been answered. Le Quartier: a question
+    that waits for an earlier answer (``only_after``) is passed over when that
+    answer went another way."""
 
-    index = 0
+    taken: dict[str, str] = {}
+    index = _asked_from(turns, 0, taken)
     answered: dict[int, int] = {}
     for _text, reply in routed:
         if index >= len(turns):
@@ -808,8 +812,18 @@ def _walk(turns: list[dict[str, Any]], routed: list[tuple[str, dict[str, Any]]])
         convince = turns[index].get("convince")
         if convince and reply.get("id") == "objection" and answered[index] < int(convince.get("attempts") or 1):
             continue  # WP-113: the next objection; the learner tries again
-        index += 1
+        taken[str(turns[index].get("id"))] = str(reply.get("id"))
+        index = _asked_from(turns, index + 1, taken)
     return index, answered
+
+
+def _asked_from(turns: list[dict[str, Any]], index: int, taken: dict[str, str]) -> int:
+    """The first question from ``index`` on that is asked, given the replies today's
+    earlier questions took (``taken``: turn id → reply id)."""
+
+    while index < len(turns) and not asked_after(turns[index], taken):
+        index += 1
+    return index
 
 
 def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int, assistance, history=None):
@@ -933,6 +947,15 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         # Until WP-110 draws the page, the rest of the day is said here; the
         # ending is the «À suivre…» caption alone.
         beats += list(season_ctx.get("tail") or [])
+    from app.services.season.stage import attempt_stage
+
+    stage = attempt_stage(
+        str(turn.get("id")),
+        str(reply.get("id")),
+        beats,
+        next_turn_id=None if closing else str((turns[next_index] if next_index != index else turn).get("id")),
+        closing=closing,
+    )
     from app.services.season.turns import reaction_lines
 
     addressee = str(scenario.character_id)
@@ -940,7 +963,12 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     spoken_lines_out = reaction_lines(beats, addressee=addressee)
     if not closing:
         upcoming = turns[next_index] if next_index != index else turn
-        lead = list(upcoming.get("lead_in") or []) if next_index != index else []
+        # A question passed over (``only_after``) still has the panels that led to it.
+        lead = (
+            [panel for row in turns[index + 1 : next_index + 1] for panel in row.get("lead_in") or []]
+            if next_index != index
+            else []
+        )
         asked = [*lead, upcoming["panel"]] if next_index != index else []
         question = reaction_text(asked, addressee=addressee) if asked else ""
         spoken_lines_out += reaction_lines(asked, addressee=addressee)
@@ -994,6 +1022,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         ).strip() or None,
         route={"turn": str(turn.get("id")), "reply": str(reply.get("id"))},
         heard=_heard(choice, reply),
+        stage=stage,
     )
 
 
@@ -1048,6 +1077,7 @@ def _ask_again_evaluation(
 ):
     from app.services.journey_contracts import ResponseEvaluation, TaskOutcome
     from app.services.season.page import translates
+    from app.services.season.stage import attempt_stage
     from app.services.season.turns import (
         ask_again_panel,
         french_please_panel,
@@ -1094,6 +1124,8 @@ def _ask_again_evaluation(
         next_task_native=str(turn.get("task_native") or "") or None,
         route={"turn": str(turn.get("id")), "reply": ASK_AGAIN},
         heard=heard,
+        # Le Quartier: the question is still owed, so it is the one now asked.
+        stage=attempt_stage(str(turn.get("id")), None, beats, next_turn_id=str(turn.get("id")), closing=False),
     )
 
 
@@ -1101,7 +1133,8 @@ def _closing_proposal(engine, db, user, scenario, *, turns, routed, final_choice
     season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
     ending = season_ctx.get("ending") or {}
     routing = []
-    index = 0
+    taken: dict[str, str] = {}
+    index = _asked_from(turns, 0, taken)
     answered: dict[int, int] = {}
     for text, reply in routed:
         if index >= len(turns):
@@ -1120,7 +1153,8 @@ def _closing_proposal(engine, db, user, scenario, *, turns, routed, final_choice
         )
         answered[index] = answered.get(index, 0) + 1
         if not (reply.get("repeat_once") and answered[index] == 1):
-            index += 1
+            taken[str(turn.get("id"))] = str(reply.get("id"))
+            index = _asked_from(turns, index + 1, taken)
     last_reply = reaction_text(list(routed[-1][1].get("beats") or []), addressee=str(scenario.character_id))
     resolution_fr = str(ending.get("text_fr") or scenario.title_fr)
     summary = str(ending.get("text_native") or ending.get("text_fr") or scenario.title_fr)
@@ -1219,6 +1253,9 @@ def _settle_tentpole(season: Season, state: dict, season_ctx: dict, details: dic
     projected = {turn.get("id"): turn for turn in season_ctx.get("turns") or []}
     turns.update({key: value for key, value in projected.items() if key not in turns})
     routing = list(details.get("season_turns") or [])
+    # Le Quartier: what each question of the day took, for the questions that wait
+    # for an earlier answer (``only_after``): one passed over sets nothing.
+    taken = {str(row.get("turn_id")): str(row.get("reply_id")) for row in routing if isinstance(row, dict)}
     answered = set()
     convinced: dict[str, set[str]] = {}
     for position_in_day, row in enumerate(routing):
@@ -1256,12 +1293,12 @@ def _settle_tentpole(season: Season, state: dict, season_ctx: dict, details: dic
             state = apply_sets(season, state, (turns.get(turn_id) or {}).get("convince", {}).get("sets_on_fail"), source=f"{turn_id}/fail")
     # Turns the day's reply did not reach still set what they set whatever is said.
     for turn in turns_of(page):
-        if turn.get("id") not in answered:
+        if turn.get("id") not in answered and asked_after(turn, taken):
             state = apply_sets(season, state, turn.get("sets"), source=f"{turn.get('id')}/unplayed")
     # Solves the page could not pose yet (WP-112) take the story's default; a choice
     # the learner made (WP-113) was settled above with the turns.
     for solve in solves_of(page):
-        if solve.get("id") in answered:
+        if solve.get("id") in answered or not asked_after(solve, taken):
             continue
         option = option_by_id(solve, solve.get("default"))
         if option is None and solve.get("flag") == "s1.camille_gender":

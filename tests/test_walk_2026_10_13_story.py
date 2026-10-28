@@ -85,7 +85,9 @@ def test_an_off_script_last_answer_closes_the_page_once(
     assert last.get("next_turn") is None, "a closed page asks nothing more"
     assert "Et on se quitte comme ça ?" not in str(last.get("character_reply_fr"))
     planned = {event["step"]["prompt"].get("max_turns") for event in answered}
-    assert planned == {2}, f"the exchange count does not grow: {planned}"
+    # Le Quartier phase 1: T1 A plans four exchanges (Gus, the café crème, Margaux's
+    # stairs, the key); a learner the café passes over closes on the third.
+    assert planned == {4}, f"the exchange count does not grow: {planned}"
 
 
 # ---------------------------------------------------------------------------

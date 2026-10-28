@@ -227,8 +227,10 @@ def test_a_clear_reply_routes_at_once(offline):
 
 def test_the_next_question_brings_its_own_task_and_hint(offline):
     scenario = _scenario(_page())
-    evaluation = _say(scenario, "Odile est ma grand-mère.", [], 0)
-    turn2 = projected_turns(_page())[1]
+    # «Je viens pour vendre»: no café crème is set down, so Margaux's question is next.
+    evaluation = _say(scenario, "Je viens pour vendre. L'appartement est à moi, maintenant.", [], 0)
+    assert evaluation.route == {"turn": "a.turn1", "reply": "b"}
+    turn2 = next(turn for turn in projected_turns(_page()) if turn["id"] == "a.turn2")
     assert evaluation.next_task_native == turn2["task_native"]
     assert "hochgehst" in evaluation.next_task_native
     assert "Urteil" not in (evaluation.next_task_native or "")

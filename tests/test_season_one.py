@@ -1318,7 +1318,12 @@ def test_opposite_choices_read_different_episodes_and_reach_different_endings(as
     )
 
     assert keeper["choices"] and sharer["choices"], "«Le choix» was asked as cards"
-    assert keeper["asked"][0] == "Choose who reads the notary's letter.", "the card's own task, not the last question's"
+    # T1 A's café crème (set down after «Odile, c'est ma grand-mère») and key, then T1 B's letter.
+    assert keeper["asked"][:3] == [
+        "Take the café crème Margaux set down for you, or say no.",
+        "Take the key, or leave it with Margaux for the night.",
+        "Choose who reads the notary's letter.",
+    ], "each card's own task, not the last question's"
     assert keeper["flags"]["s1.letter_trusted_to"] == "margaux"
     assert sharer["flags"]["s1.letter_trusted_to"] == "gus" and sharer["flags"].get("s1.price_public") is True
     # After T1 the two lives read different tentpoles (T1 B's own reaction is said in

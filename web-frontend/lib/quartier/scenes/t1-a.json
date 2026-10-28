@@ -511,6 +511,164 @@
       ]
     },
     {
+      "kind": "solve",
+      "id": "a.cafe",
+      "mechanic": "choix",
+      "to": "margaux_barman",
+      "only_after": {
+        "a.turn1": [
+          "a",
+          "c"
+        ]
+      },
+      "visual": "The café crème steams on the zinc in front of Toi. Margaux waits, a cloth over her shoulder. From the booth, Marin watches the cup as if it might say something.",
+      "prompt": {
+        "a2": "Le café crème est pour toi. Tu le prends ?",
+        "native": {
+          "en": "The café crème is for you. Will you take it?",
+          "de": "Der Café Crème ist für dich. Nimmst du ihn?"
+        }
+      },
+      "task": {
+        "en": "Margaux has set down a café crème you did not order. Take it, or say no.",
+        "de": "Margaux hat dir einen Café Crème hingestellt, den du nicht bestellt hast. Nimm ihn, oder sag nein.",
+        "fr": "Margaux a posé devant toi un café crème que tu n'as pas commandé. Prends-le, ou dis non."
+      },
+      "flag": "s1.cafe_creme",
+      "default": "drink",
+      "options": [
+        {
+          "id": "drink",
+          "label": {
+            "a2": "Merci.",
+            "native": {
+              "en": "Thank you.",
+              "de": "Danke."
+            }
+          },
+          "means": "The learner takes the coffee: thanks Margaux, says yes, or drinks.",
+          "examples": [
+            "Merci, c'est gentil.",
+            "Oui, merci."
+          ],
+          "sets": {
+            "s1.cafe_creme": "drank"
+          },
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.cafe.drink.r1",
+              "visual": "Toi lifts the cup. Margaux watches, then goes back to her glasses. In the booth, Marin puts a hand on his heart.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "toi",
+                "margaux_barman",
+                "marin_leveque"
+              ],
+              "lines": [
+                {
+                  "who": "margaux_barman",
+                  "say": {
+                    "a2": "Bois.",
+                    "native": {
+                      "en": "Drink.",
+                      "de": "Trink."
+                    }
+                  }
+                },
+                {
+                  "who": "marin_leveque",
+                  "mood": "moved",
+                  "say": {
+                    "a2": "C'est un signe, ça.",
+                    "native": {
+                      "en": "That's a sign, that is.",
+                      "de": "Das ist ein Zeichen."
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "declined",
+          "label": {
+            "a2": "Non merci.",
+            "native": {
+              "en": "No, thank you.",
+              "de": "Nein, danke."
+            }
+          },
+          "means": "The learner says no, politely: no thank you, not tonight, later.",
+          "examples": [
+            "Non, merci. Pas ce soir.",
+            "Plus tard, merci."
+          ],
+          "sets": {
+            "s1.cafe_creme": "declined"
+          },
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.cafe.declined.r1",
+              "visual": "Margaux slides the cup along the zinc to the empty stool at the end, Odile's, and leaves it there. Nobody touches it.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "margaux_barman",
+                "toi"
+              ],
+              "silence": true
+            }
+          ]
+        },
+        {
+          "id": "refused",
+          "label": {
+            "a2": "Je n'ai rien commandé.",
+            "native": {
+              "en": "I didn't order anything.",
+              "de": "Ich habe nichts bestellt."
+            }
+          },
+          "means": "The learner turns the coffee down curtly: they did not order it, they do not want it.",
+          "examples": [
+            "Je n'en veux pas.",
+            "Ce n'est pas pour moi."
+          ],
+          "sets": {
+            "s1.cafe_creme": "refused"
+          },
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.cafe.refused.r1",
+              "visual": "Margaux takes the cup back without a word. Gus shrugs.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "margaux_barman",
+                "augustin_de_roncourt"
+              ],
+              "lines": [
+                {
+                  "who": "augustin_de_roncourt",
+                  "mood": "cold",
+                  "direction": "with a shrug",
+                  "say": {
+                    "a2": "Charmant.",
+                    "native": {
+                      "en": "Charming.",
+                      "de": "Reizend."
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "kind": "turn",
       "id": "a.turn2",
       "to": "margaux_barman",
@@ -692,6 +850,102 @@
                     "native": {
                       "en": "Me too. Tomorrow, then.",
                       "de": "Ich auch. Dann morgen."
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "solve",
+      "id": "a.key",
+      "mechanic": "choix",
+      "to": "margaux_barman",
+      "visual": "The key ring lies on the zinc between Toi and Margaux, the cicada up under the neon. Margaux's hand rests beside it, not on it.",
+      "prompt": {
+        "a2": "La clé : tu la prends, ou tu la laisses ici ?",
+        "native": {
+          "en": "The key: will you take it, or leave it here?",
+          "de": "Der Schlüssel: Nimmst du ihn, oder lässt du ihn hier?"
+        }
+      },
+      "task": {
+        "en": "Take the key, or leave it with Margaux for the night.",
+        "de": "Nimm den Schlüssel, oder lass ihn über Nacht bei Margaux.",
+        "fr": "Prends la clé, ou laisse-la à Margaux pour la nuit."
+      },
+      "flag": "s1.key_with",
+      "default": "take",
+      "options": [
+        {
+          "id": "take",
+          "label": {
+            "a2": "Je la prends.",
+            "native": {
+              "en": "I'll take it.",
+              "de": "Ich nehme ihn."
+            }
+          },
+          "means": "The learner takes the key back, or keeps it.",
+          "examples": [
+            "Je la garde.",
+            "Je la prends, merci."
+          ],
+          "sets": {
+            "s1.key_with": "toi"
+          },
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.key.take.r1",
+              "visual": "Toi's hand closes over the key ring. Margaux goes back to drying the same glass.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "toi",
+                "margaux_barman"
+              ],
+              "silence": true
+            }
+          ]
+        },
+        {
+          "id": "leave",
+          "label": {
+            "a2": "Garde-la pour moi.",
+            "native": {
+              "en": "Keep it for me.",
+              "de": "Behalte ihn für mich."
+            }
+          },
+          "means": "The learner leaves the key with Margaux, or asks her to keep it for them.",
+          "examples": [
+            "Tu peux la garder ?",
+            "Je te la laisse."
+          ],
+          "sets": {
+            "s1.key_with": "margaux"
+          },
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.key.leave.r1",
+              "visual": "Margaux puts the key ring away behind the till, next to the cash drawer, the cicada up.",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "margaux_barman",
+                "toi"
+              ],
+              "lines": [
+                {
+                  "who": "margaux_barman",
+                  "say": {
+                    "a2": "Derrière la caisse.",
+                    "native": {
+                      "en": "Behind the till.",
+                      "de": "Hinter der Kasse."
                     }
                   }
                 }

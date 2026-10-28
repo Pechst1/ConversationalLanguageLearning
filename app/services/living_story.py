@@ -2335,8 +2335,10 @@ def _variety(recent: list[dict], cast: list[dict], locations: list[dict]) -> dic
 #: letter refused as too hard on La Une moved the fingerprint, and an accepted day
 #: was lost to ``story_revision_conflict``. A finished letter still moves it: it
 #: writes the story's own keys. Les appels keep their calls the same way
-#: (``appels.STATE_KEY``); a finished call writes the story's keys.
-FINGERPRINT_IGNORED_STATE_KEYS = frozenset({"courrier", "appels"})
+#: (``appels.STATE_KEY``); a finished call writes the story's keys. Le Quartier keeps
+#: the learner's gestures beside the story (``season.gestures.STATE_KEY``); their
+#: flags join the season when a day settles.
+FINGERPRINT_IGNORED_STATE_KEYS = frozenset({"courrier", "appels", "quartier"})
 
 
 def _fingerprint(thread: SerialThread | None, *, legacy: bool = False) -> str:
@@ -10210,6 +10212,11 @@ def settle_resolution(
         day_index=day,
         relationships=relationships,
     )
+    # Le Quartier phase 1: what the learner's gestures set (walking out, Margaux's
+    # text) joins the season with the day, so the next day reads it in either renderer.
+    from app.services.season.gestures import fold_into_season
+
+    fold_into_season(state, live)
     state["relationships"] = relationships
     # Story engine Phase 3: what the learner said today, what it settled, and the
     # questions still open — in the same transaction as the day (idempotent per event).

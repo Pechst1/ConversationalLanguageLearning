@@ -139,6 +139,9 @@ def _option(option: Option, ctx: _Ctx) -> dict[str, Any] | None:
         "sets": dict(option.sets),
         "sets_if": [row.model_dump() for row in option.sets_if],
         "beats": _panels(option.beats, ctx),
+        # Le Quartier: a card the learner may say in their own French instead.
+        **({"means": option.means} if option.means else {}),
+        **({"examples": list(option.examples)} if option.examples else {}),
     }
 
 
@@ -206,6 +209,7 @@ def _movement(movement: Any, tentpole: Tentpole, ctx: _Ctx) -> list[dict[str, An
                 "sets": dict(movement.sets),
                 "sets_if": [row.model_dump() for row in movement.sets_if],
                 "after": _panels(movement.after, ctx),
+                **_only_after(movement),
             }
         ]
     if isinstance(movement, Solve):
@@ -240,9 +244,24 @@ def _movement(movement: Any, tentpole: Tentpole, ctx: _Ctx) -> list[dict[str, An
                 "sets_on_fail": dict(movement.sets_on_fail),
                 "default": movement.default,
                 "flag": movement.flag,
+                **_only_after(movement),
             }
         ]
     return []
+
+
+def _only_after(movement: Turn | Solve) -> dict[str, Any]:
+    """Le Quartier: the earlier answers this question waits for, kept on the page
+    only when it has some (every older page stays byte for byte as it was)."""
+
+    return {"only_after": {key: list(value) for key, value in movement.only_after.items()}} if movement.only_after else {}
+
+
+def asked_after(turn: dict[str, Any], taken: dict[str, str]) -> bool:
+    """Is a question asked, given the replies today's earlier questions took
+    (``taken``: turn id → reply id)? Only a question with ``only_after`` waits."""
+
+    return all(taken.get(str(earlier)) in set(replies or []) for earlier, replies in (turn.get("only_after") or {}).items())
 
 
 def choose_day(tentpole: Tentpole, letter: str, flags: dict[str, Any], *, band: str | None = None) -> Day | None:
@@ -594,8 +613,8 @@ def solve_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
             {
                 "id": option["id"],
                 "label": label,
-                "means": f"The learner answers «{label}».",
-                "examples": [label],
+                "means": option.get("means") or f"The learner answers «{label}».",
+                "examples": [label, *[text for text in option.get("examples") or [] if text != label]],
                 "clumsy": False,
                 "path": None,
                 "repeat_once": False,
@@ -634,4 +653,5 @@ def solve_as_turn(solve: dict[str, Any]) -> dict[str, Any]:
         "after": list(solve.get("nudge") or []),
         "from_solve": solve.get("mechanic"),
         "choice": solve.get("mechanic") in CHOICE_MECHANICS,
+        **({"only_after": solve["only_after"]} if solve.get("only_after") else {}),
     }
