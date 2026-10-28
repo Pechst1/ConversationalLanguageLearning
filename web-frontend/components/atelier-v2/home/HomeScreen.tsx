@@ -50,6 +50,7 @@ import {
   type DayMarkState,
 } from '@/components/atelier-v2/journey/day-mark';
 import { atelierChrome, atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import { QUARTIER_VISIBLE } from '@/lib/launch-flags';
 import { frenchQuote } from '@/lib/french-typography';
 import type { ControlLanguage } from '@/types/daily-journey';
 import { ShellCorner } from '@/components/layout/ShellCorner';
@@ -257,6 +258,13 @@ export type HomeScreenProps = {
   children?: React.ReactNode;
 };
 
+/** The door to Le Quartier, read aloud in the chrome language. */
+const QUARTIER_DOOR: Record<string, string> = {
+  fr: 'Entrer dans Le Quartier, Paris en 3D',
+  en: 'Enter Le Quartier, Paris in 3D',
+  de: 'Le Quartier betreten, Paris in 3D',
+};
+
 export function HomeScreen({
   dateLabel,
   editionLabel,
@@ -449,6 +457,18 @@ export function HomeScreen({
             );
           })}
           {shownChips.length < chipRoom && <MurChip />}
+        </div>
+      )}
+
+      {/* Le Quartier: the door to the 3D Paris, only in a build that has it (the owner's phone
+          build, `NEXT_PUBLIC_QUARTIER_VISIBLE`). The public app never draws it, so WP-81 holds. */}
+      {QUARTIER_VISIBLE && (
+        <div className="av2-home__section av2-home__chips">
+          <Link className="av2-chip" data-chip="quartier" href="/quartier" aria-label={QUARTIER_DOOR[language] ?? QUARTIER_DOOR.fr}>
+            <ShapeToken kind="story" size="sm" />
+            <span>Le Quartier</span>
+            <span className="av2-chip__meta">3D</span>
+          </Link>
         </div>
       )}
 

@@ -123,6 +123,13 @@ test('Home does one thing: ≤ 5 elements and ≤ 25 words, in every learner lan
   }
 });
 
+test('the public build draws no door to Le Quartier', () => {
+  for (const language of ['en', 'de', 'fr']) {
+    assert.doesNotMatch(home(language), /href="\/quartier"/, language);
+    assert.doesNotMatch(home(language, { day: undefined }), /href="\/quartier"/, language);
+  }
+});
+
 test('with the journey on, nothing but the day is drawn', () => {
   const html = home('en');
   const text = visibleText(html);

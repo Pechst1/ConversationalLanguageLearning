@@ -117,8 +117,21 @@ export function nativeBuildManifest(env = process.env, prefixes = excludedRouteP
   };
 }
 
+/**
+ * Le Quartier's page is in an export only when the build had it on (pages/quartier.tsx is
+ * notFound otherwise). Read from the export, not the environment: `next build` also takes
+ * NEXT_PUBLIC_QUARTIER_VISIBLE from a .env file this script never reads.
+ */
+function exportsQuartier(dir) {
+  return existsSync(path.join(dir, 'quartier', 'index.html')) || existsSync(path.join(dir, 'quartier.html'));
+}
+
 export function writeNativeBuildManifest(dir, env = process.env, prefixes = excludedRoutePrefixes()) {
-  const manifest = nativeBuildManifest(env, prefixes);
+  const manifest = {
+    ...nativeBuildManifest(env, prefixes),
+    // Le Quartier turned on for this build only (the owner's phone), not by launch-flags.json
+    quartierOverride: exportsQuartier(dir) && !readLaunchFlags().quartierVisible,
+  };
   writeFileSync(path.join(dir, NATIVE_BUILD_MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest;
 }
@@ -151,6 +164,9 @@ export function releaseProblems(settings) {
   if (settings.nativePushEnabled !== true) problems.push('NEXT_PUBLIC_NATIVE_PUSH_ENABLED is not "true".');
   if (settings.apnsEnvironment !== 'production') {
     problems.push(`NEXT_PUBLIC_APNS_ENVIRONMENT is "${settings.apnsEnvironment ?? ''}", not "production".`);
+  }
+  if (settings.quartierOverride) {
+    problems.push('Le Quartier is in the bundle by NEXT_PUBLIC_QUARTIER_VISIBLE (the shell or a .env file): a prototype for the owner\'s phone; a release ships it only by launch-flags.json.');
   }
   return problems;
 }
