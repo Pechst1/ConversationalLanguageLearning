@@ -2,6 +2,12 @@ import launchFlags from '../launch-flags.json';
 
 export const STORY_FEATURE_VISIBLE: boolean = Boolean(launchFlags.storyFeatureVisible);
 
+/**
+ * Le Quartier: the season's first day played in a walkable 3D Paris (`/quartier`). Off in a
+ * production build until `quartierVisible` is set; a development build always has it.
+ */
+export const QUARTIER_VISIBLE: boolean = Boolean((launchFlags as Record<string, unknown>).quartierVisible);
+
 /** WP-158: this device's override of `spokenReply` (`on`/`off`), for the owner's phone. */
 export const SPOKEN_REPLY_STORAGE_KEY = 'atelier.spokenReply';
 

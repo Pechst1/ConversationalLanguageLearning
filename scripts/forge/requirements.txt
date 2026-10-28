@@ -1,0 +1,4 @@
+# The forge's survey and draft steps (scripts/forge/forge.py). Not part of the app's runtime.
+pyarrow>=17
+shapely>=2.1
+requests>=2.31
