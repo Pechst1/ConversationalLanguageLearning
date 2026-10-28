@@ -363,8 +363,11 @@ def _compare(
             for got, want in zip(learner_tokens, target_tokens, strict=True)
             if got != want
         ]
-        strict = accents == "strict" or any(_accent_strict_word(got, want) for got, want in slips)
-        got, want = slips[0]
+        strict_slips = [(got, want) for got, want in slips if _accent_strict_word(got, want)]
+        strict = accents == "strict" or bool(strict_slips)
+        # A refusal names the accent that refuses it: «la» for «là» in «il a ete la»,
+        # not the forgiven «ete».
+        got, want = (strict_slips or slips)[0]
         return Verdict(
             correct=not strict,
             accent_slip=True,
