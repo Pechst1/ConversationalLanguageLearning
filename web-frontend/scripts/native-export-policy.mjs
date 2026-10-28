@@ -114,6 +114,8 @@ export function nativeBuildManifest(env = process.env, prefixes = excludedRouteP
     legalContactEmail: env.NEXT_PUBLIC_LEGAL_CONTACT_EMAIL || null,
     excludedRoutePrefixes: prefixes,
     legalVersion: legalVersion(),
+    // Le Quartier turned on for this build only (the owner's phone), not by launch-flags.json
+    quartierOverride: env.NEXT_PUBLIC_QUARTIER_VISIBLE === 'true',
   };
 }
 
@@ -151,6 +153,9 @@ export function releaseProblems(settings) {
   if (settings.nativePushEnabled !== true) problems.push('NEXT_PUBLIC_NATIVE_PUSH_ENABLED is not "true".');
   if (settings.apnsEnvironment !== 'production') {
     problems.push(`NEXT_PUBLIC_APNS_ENVIRONMENT is "${settings.apnsEnvironment ?? ''}", not "production".`);
+  }
+  if (settings.quartierOverride) {
+    problems.push('NEXT_PUBLIC_QUARTIER_VISIBLE is set: Le Quartier is a prototype for the owner\'s phone; a release ships it only by launch-flags.json.');
   }
   return problems;
 }

@@ -248,6 +248,11 @@ test('release verification refuses local, placeholder, http and sandbox builds',
   writeNativeBuildManifest(root, production);
   assert.deepEqual(verifyNativeBundle(root, { release: true }), []);
 
+  // the owner's phone build with Le Quartier on installs, but is never a release
+  writeNativeBuildManifest(root, { ...production, NEXT_PUBLIC_QUARTIER_VISIBLE: 'true' });
+  assert.deepEqual(verifyNativeBundle(root), []);
+  assert.match(verifyNativeBundle(root, { release: true }).join('\n'), /QUARTIER_VISIBLE/);
+
   writeNativeBuildManifest(root, { ...production, NEXT_PUBLIC_APNS_ENVIRONMENT: 'sandbox' });
   assert.match(verifyNativeBundle(root, { release: true }).join('\n'), /not "production"/);
 
