@@ -1,0 +1,2470 @@
+{
+  "_doc": "Le Quartier phase 1: one T1 day A journey through the real API (test server, fake model: the classifier routes the French below; no model ack lines, so no <turn>.ack beats appear). An A2 learner reading English. Each attempt's AttemptResult.journey is elided after the first full snapshot.",
+  "calls": [
+    {
+      "note": "The day is created. The scene step's prompt.stage is the page as the 3D stages it."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys",
+      "body": {
+        "mutation_id": "8e943ff439184b21800e712e6a81eeba",
+        "timezone": "Europe/Paris",
+        "budget_seconds": 300,
+        "preferred_input_mode": "text"
+      },
+      "status": 201,
+      "response": {
+        "learner_level": "A2",
+        "id": "4b7fefd7-967a-430f-acf2-e53e3df361e7",
+        "contract_version": 1,
+        "revision": 2,
+        "status": "active",
+        "local_date": "2026-03-10",
+        "timezone": "Europe/Paris",
+        "budget_seconds": 600,
+        "estimated_active_seconds": 418,
+        "current_step_id": "46cde176-0721-4ca9-812d-6357bcb194df",
+        "scenario": {
+          "scenario_key": "story_5ea6712f8c114037a34d66d8e5ef7a7b",
+          "content_version": "living-story-v2",
+          "title_fr": "Le mauvais accueil",
+          "objective_key": "story_5ea6712f8c114037a34d66d8e5ef7a7b",
+          "objective_native": "Say who you are and why you are here.",
+          "level_band": "A2",
+          "character_id": "augustin_de_roncourt",
+          "character_name": "Augustin « Gus » de Roncourt",
+          "location_id": "le_mistral",
+          "location_name": "Le Mistral",
+          "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+          "serial_thread_id": "ba25fe8e-a86e-45dc-a06b-81e6c4c80fdc",
+          "serial_episode_id": "747159b4-fb3e-4336-a7b8-a11c2627fdad",
+          "estimated_seconds": 360,
+          "special": null,
+          "epreuve": null
+        },
+        "steps": [
+          {
+            "id": "46cde176-0721-4ca9-812d-6357bcb194df",
+            "ordinal": 0,
+            "status": "active",
+            "estimated_seconds": 137,
+            "assistance_used": [],
+            "kind": "scene",
+            "prompt": {
+              "setup_fr": "Paris. Le 11 novembre. Il pleut. Tu as une valise, une lettre et une clé.",
+              "setup_native": "Paris. 11 November. It's raining. You have a suitcase, a letter and a key.",
+              "objective_native": "Say who you are and why you are here.",
+              "character_line_fr": "Alors ? Vous êtes qui, exactement ?",
+              "character_line_audio_url": null,
+              "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+              "audio_available": false,
+              "listen_first": false,
+              "panels": null,
+              "previously_fr": [],
+              "premise_native": null,
+              "margin_notes": [],
+              "season_part": {
+                "season_id": "s1",
+                "segment": "t1",
+                "kind": "tentpole",
+                "day_in_segment": 1
+              },
+              "stage": {
+                "season_id": "s1",
+                "segment": "t1",
+                "day": "a",
+                "key": "t1.a",
+                "number": 1,
+                "title_fr": "Le mauvais accueil",
+                "story_date_fr": "mercredi 11 novembre",
+                "location_id": "le_mistral",
+                "band": "A2",
+                "language": "en",
+                "can_do_native": "Say who you are and why you have come; correct a misunderstanding.",
+                "movements": [
+                  {
+                    "kind": "panel",
+                    "id": "a.p1",
+                    "location_id": "quai_de_valmy",
+                    "in_frame": [
+                      "toi",
+                      "augustin_de_roncourt",
+                      "marin_leveque",
+                      "lila_bonnet"
+                    ],
+                    "visual": "Night rain on the quai de Valmy. The red neon MISTRAL on the corner. Toi from behind, with a suitcase and an envelope held under the coat against the rain. Through the café's window, Gus stands on the booth's bench mid-anecdote, and Marin and Lila look up at him. Far background, rue de Lancry: a third-floor window, an old man at an easel, tiny, never lit brighter than the street.",
+                    "silence": false,
+                    "flashback": false,
+                    "diegetic": [
+                      "MISTRAL"
+                    ],
+                    "lines": [
+                      {
+                        "who": "caption",
+                        "name": null,
+                        "kind": "caption",
+                        "mood": "neutral",
+                        "direction": null,
+                        "text_fr": "Paris. Le 11 novembre. Il pleut. Tu as une valise, une lettre et une clé.",
+                        "text_native": "Paris. 11 November. It's raining. You have a suitcase, a letter and a key."
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "panel",
+                    "id": "a.p2",
+                    "location_id": "le_mistral",
+                    "in_frame": [
+                      "augustin_de_roncourt",
+                      "marin_leveque",
+                      "lila_bonnet"
+                    ],
+                    "visual": "Inside Le Mistral. The door's bell. Heads turn. Gus is still standing on the bench, one hand raised, and freezes mid-story. Marin holds a spoon of soup halfway to his mouth. Lila, chin on her fist, is already interested.",
+                    "silence": false,
+                    "flashback": false,
+                    "diegetic": [],
+                    "lines": [
+                      {
+                        "who": "augustin_de_roncourt",
+                        "name": "Gus",
+                        "kind": "speech",
+                        "mood": "happy",
+                        "direction": null,
+                        "text_fr": "…Et le duc me dit : \"Augustin, vous êtes trop élégant pour ce siècle.\"",
+                        "text_native": "…And the duke says to me: \"Augustin, you are too elegant for this century.\""
+                      },
+                      {
+                        "who": "marin_leveque",
+                        "name": "Marin",
+                        "kind": "speech",
+                        "mood": "neutral",
+                        "direction": null,
+                        "text_fr": "Il a dit ça ?",
+                        "text_native": "He said that?"
+                      },
+                      {
+                        "who": "lila_bonnet",
+                        "name": "Lila",
+                        "kind": "speech",
+                        "mood": "cold",
+                        "direction": null,
+                        "text_fr": "Non.",
+                        "text_native": "No."
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "panel",
+                    "id": "a.p3",
+                    "location_id": "le_mistral",
+                    "in_frame": [
+                      "margaux_barman"
+                    ],
+                    "visual": "The zinc, close. Toi's hand sets down the envelope, and on top of it the key ring: an old key and a small enamel cicada, green and gold. Margaux's hand, drying a glass, stops. We see only her hand and the cicada.",
+                    "silence": true,
+                    "flashback": false,
+                    "diegetic": [],
+                    "lines": []
+                  },
+                  {
+                    "kind": "panel",
+                    "id": "a.p4",
+                    "location_id": "le_mistral",
+                    "in_frame": [
+                      "augustin_de_roncourt",
+                      "marin_leveque",
+                      "lila_bonnet"
+                    ],
+                    "visual": "Gus steps down from the bench and crosses the room with a bow that is too deep. The group watches behind him.",
+                    "silence": false,
+                    "flashback": false,
+                    "diegetic": [],
+                    "lines": [
+                      {
+                        "who": "augustin_de_roncourt",
+                        "name": "Gus",
+                        "kind": "speech",
+                        "mood": "cold",
+                        "direction": null,
+                        "text_fr": "Ah ! Vous voilà. La personne de M. Marchand, je suppose ? On vous attend.",
+                        "text_native": "Ah! There you are. M. Marchand's person, I suppose? We've been waiting for you."
+                      },
+                      {
+                        "who": "marin_leveque",
+                        "name": "Marin",
+                        "kind": "speech",
+                        "mood": "neutral",
+                        "direction": "to Lila, a whisper",
+                        "text_fr": "C'est qui ?",
+                        "text_native": "Who is it?"
+                      },
+                      {
+                        "who": "lila_bonnet",
+                        "name": "Lila",
+                        "kind": "speech",
+                        "mood": "cold",
+                        "direction": null,
+                        "text_fr": "La personne qui vend.",
+                        "text_native": "The person who's selling."
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "panel",
+                    "id": "a.p5",
+                    "location_id": "le_mistral",
+                    "in_frame": [
+                      "marin_leveque",
+                      "lila_bonnet",
+                      "toi"
+                    ],
+                    "visual": "Marin stands and politely pulls out a chair for Toi, then cannot help himself. Behind him, Lila looks down at Toi's feet.",
+                    "silence": false,
+                    "flashback": false,
+                    "diegetic": [],
+                    "lines": [
+                      {
+                        "who": "marin_leveque",
+                        "name": "Marin",
+                        "kind": "speech",
+                        "mood": "neutral",
+                        "direction": null,
+                        "text_fr": "Asseyez-vous.",
+                        "text_native": "Sit down."
+                      },
+                      {
+                        "who": "marin_leveque",
+                        "name": "Marin",
+                        "kind": "speech",
+                        "mood": "moved",
+                        "direction": null,
+                        "text_fr": "Vous allez vraiment vendre l'appartement d'Odile ? À Solvel ?",
+                        "text_native": "Are you really going to sell Odile's flat? To Solvel?"
+                      },
+                      {
+                        "who": "lila_bonnet",
+                        "name": "Lila",
+                        "kind": "speech",
+                        "mood": "neutral",
+                        "direction": null,
+                        "text_fr": "Regarde ses chaussures, Marin. Ce n'est pas Solvel, ça.",
+                        "text_native": "Look at the shoes, Marin. That's not Solvel."
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "turn",
+                    "id": "a.turn1",
+                    "to": "augustin_de_roncourt",
+                    "to_name": "Gus",
+                    "task_native": "Say who you are and why you are here.",
+                    "choice": false,
+                    "only_after": null,
+                    "panel": {
+                      "kind": "panel",
+                      "id": "a.p6",
+                      "location_id": "le_mistral",
+                      "in_frame": [
+                        "augustin_de_roncourt",
+                        "toi"
+                      ],
+                      "visual": "Gus leans on the zinc beside Toi in his three-piece suit, all charm and no warmth. Toi's balloon, empty, is drawn from behind Toi's shoulder.",
+                      "silence": false,
+                      "flashback": false,
+                      "diegetic": [],
+                      "lines": [
+                        {
+                          "who": "augustin_de_roncourt",
+                          "name": "Gus",
+                          "kind": "speech",
+                          "mood": "cold",
+                          "direction": null,
+                          "text_fr": "Alors ? Vous êtes qui, exactement ?",
+                          "text_native": "So? Who are you, exactly?"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "turn",
+                    "id": "a.cafe",
+                    "to": "margaux_barman",
+                    "to_name": "Margaux",
+                    "task_native": "Take the café crème Margaux set down for you, or say no.",
+                    "choice": true,
+                    "only_after": {
+                      "a.turn1": [
+                        "a",
+                        "c"
+                      ]
+                    },
+                    "panel": {
+                      "kind": "panel",
+                      "id": "a.cafe.prompt",
+                      "location_id": "le_mistral",
+                      "in_frame": [
+                        "margaux_barman"
+                      ],
+                      "visual": "The café crème steams on the zinc in front of Toi. Margaux waits, a cloth over her shoulder. From the booth, Marin watches the cup as if it might say something.",
+                      "silence": false,
+                      "flashback": false,
+                      "diegetic": [],
+                      "lines": [
+                        {
+                          "who": "margaux_barman",
+                          "name": "Margaux",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Le café crème est pour toi. Tu le prends ?",
+                          "text_native": "The café crème is for you. Will you take it?"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "turn",
+                    "id": "a.turn2",
+                    "to": "margaux_barman",
+                    "to_name": "Margaux",
+                    "task_native": "Tell Margaux whether you will go up to the flat tonight, and what you plan to do.",
+                    "choice": false,
+                    "only_after": null,
+                    "panel": {
+                      "kind": "panel",
+                      "id": "a.p7",
+                      "location_id": "le_mistral",
+                      "in_frame": [
+                        "margaux_barman",
+                        "marin_leveque",
+                        "lila_bonnet",
+                        "augustin_de_roncourt"
+                      ],
+                      "visual": "Margaux picks up the key ring and turns the cicada in her fingers. Marin and Lila lean in from the booth. Gus pretends not to.",
+                      "silence": false,
+                      "flashback": false,
+                      "diegetic": [],
+                      "lines": [
+                        {
+                          "who": "margaux_barman",
+                          "name": "Margaux",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Elle ne donnait jamais cette clé.",
+                          "text_native": "She never gave that key to anyone."
+                        },
+                        {
+                          "who": "margaux_barman",
+                          "name": "Margaux",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Tu vas monter ?",
+                          "text_native": "Are you going up?"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "turn",
+                    "id": "a.key",
+                    "to": "margaux_barman",
+                    "to_name": "Margaux",
+                    "task_native": "Take the key, or leave it with Margaux for the night.",
+                    "choice": true,
+                    "only_after": null,
+                    "panel": {
+                      "kind": "panel",
+                      "id": "a.key.prompt",
+                      "location_id": "le_mistral",
+                      "in_frame": [
+                        "margaux_barman"
+                      ],
+                      "visual": "The key ring lies on the zinc between Toi and Margaux, the cicada up under the neon. Margaux's hand rests beside it, not on it.",
+                      "silence": false,
+                      "flashback": false,
+                      "diegetic": [],
+                      "lines": [
+                        {
+                          "who": "margaux_barman",
+                          "name": "Margaux",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "La clé : tu la prends, ou tu la laisses ici ?",
+                          "text_native": "The key: will you take it, or leave it here?"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "hook",
+                    "id": "a.hook",
+                    "role": "midpoint",
+                    "panel": {
+                      "kind": "panel",
+                      "id": "a.p8",
+                      "location_id": "le_mistral",
+                      "in_frame": [
+                        "camille_marchand",
+                        "augustin_de_roncourt",
+                        "lila_bonnet"
+                      ],
+                      "visual": "The bell again. In the doorway stands a figure in a rain-soaked bike helmet, holding up a key: Camille, seen from the side, not yet in close-up. On the zinc in the foreground lies Toi's key with its cicada. Two keys in one frame. Gus looks from one to the other.",
+                      "silence": false,
+                      "flashback": false,
+                      "diegetic": [],
+                      "lines": [
+                        {
+                          "who": "camille_marchand",
+                          "name": "Camille",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Bonsoir. Camille Marchand. Je viens pour le premier étage. J'ai la clé.",
+                          "text_native": "Good evening. Camille Marchand. I'm here about the first floor. I have the key."
+                        },
+                        {
+                          "who": "augustin_de_roncourt",
+                          "name": "Gus",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": "already bowing again, to Camille",
+                          "text_fr": "Ah ! Voici donc—",
+                          "text_native": "Ah! So here is—"
+                        },
+                        {
+                          "who": "lila_bonnet",
+                          "name": "Lila",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Gus. Assieds-toi.",
+                          "text_native": "Gus. Sit down."
+                        },
+                        {
+                          "who": "caption",
+                          "name": null,
+                          "kind": "caption",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Deux clés pour la même porte. À suivre…",
+                          "text_native": "Two keys for the same door. To be continued…"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "storylets": [
+                  {
+                    "id": "walk_out",
+                    "cue": "walk_out",
+                    "who": "margaux_barman",
+                    "after_seconds": null,
+                    "lines": [
+                      {
+                        "who": "margaux_barman",
+                        "name": "Margaux",
+                        "kind": "speech",
+                        "mood": "neutral",
+                        "direction": null,
+                        "text_fr": "Tu pars déjà ?",
+                        "text_native": "Leaving already?",
+                        "id": "walk_out.asked",
+                        "role": "asked",
+                        "during": null,
+                        "from_fr": null
+                      },
+                      {
+                        "who": "augustin_de_roncourt",
+                        "name": "Gus",
+                        "kind": "speech",
+                        "mood": "happy",
+                        "direction": null,
+                        "text_fr": "Bon. Où en étais-je ? Ah oui. Le duc.",
+                        "text_native": "Right. Where was I? Ah yes. The duke.",
+                        "id": "walk_out.back.gus",
+                        "role": "back",
+                        "during": "a.p2",
+                        "from_fr": null
+                      },
+                      {
+                        "who": "margaux_barman",
+                        "name": "Margaux",
+                        "kind": "speech",
+                        "mood": "neutral",
+                        "direction": null,
+                        "text_fr": "Te revoilà.",
+                        "text_native": "There you are again.",
+                        "id": "walk_out.back",
+                        "role": "back",
+                        "during": null,
+                        "from_fr": null
+                      }
+                    ],
+                    "chips": [],
+                    "people": []
+                  },
+                  {
+                    "id": "margaux_text",
+                    "cue": "away",
+                    "who": "margaux_barman",
+                    "after_seconds": 40,
+                    "lines": [
+                      {
+                        "who": "sms",
+                        "name": null,
+                        "kind": "sms",
+                        "mood": "neutral",
+                        "direction": null,
+                        "text_fr": "C'est Margaux. Ta valise est toujours là.",
+                        "text_native": "It's Margaux. Your suitcase is still here.",
+                        "id": "margaux_text.text",
+                        "role": "text",
+                        "during": null,
+                        "from_fr": "Numéro inconnu"
+                      },
+                      {
+                        "who": "sms",
+                        "name": null,
+                        "kind": "sms",
+                        "mood": "neutral",
+                        "direction": null,
+                        "text_fr": "Bon.",
+                        "text_native": "Fine.",
+                        "id": "margaux_text.answer",
+                        "role": "answer",
+                        "during": null,
+                        "from_fr": "Margaux"
+                      }
+                    ],
+                    "chips": [
+                      "J'arrive.",
+                      "Merci. J'arrive.",
+                      "Demain."
+                    ],
+                    "people": []
+                  },
+                  {
+                    "id": "talk",
+                    "cue": "talk",
+                    "who": null,
+                    "after_seconds": null,
+                    "lines": [],
+                    "chips": [],
+                    "people": [
+                      {
+                        "who": "margaux_barman",
+                        "name": "Margaux",
+                        "register": "tu",
+                        "hello": {
+                          "who": "margaux_barman",
+                          "name": "Margaux",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Oui ?",
+                          "text_native": "Yes?"
+                        },
+                        "bye": null
+                      },
+                      {
+                        "who": "augustin_de_roncourt",
+                        "name": "Gus",
+                        "register": "vous",
+                        "hello": {
+                          "who": "augustin_de_roncourt",
+                          "name": "Gus",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Je vous écoute.",
+                          "text_native": "I'm listening."
+                        },
+                        "bye": null
+                      },
+                      {
+                        "who": "marin_leveque",
+                        "name": "Marin",
+                        "register": "tu",
+                        "hello": {
+                          "who": "marin_leveque",
+                          "name": "Marin",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Ça va ?",
+                          "text_native": "All right?"
+                        },
+                        "bye": null
+                      },
+                      {
+                        "who": "lila_bonnet",
+                        "name": "Lila",
+                        "register": "tu",
+                        "hello": {
+                          "who": "lila_bonnet",
+                          "name": "Lila",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Bon, on fait quoi ?",
+                          "text_native": "Right, what do we do?"
+                        },
+                        "bye": {
+                          "who": "lila_bonnet",
+                          "name": "Lila",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Allez, file.",
+                          "text_native": "Go on, off you go."
+                        }
+                      },
+                      {
+                        "who": "camille_marchand",
+                        "name": "Camille",
+                        "register": "vous",
+                        "hello": {
+                          "who": "camille_marchand",
+                          "name": "Camille",
+                          "kind": "speech",
+                          "mood": "neutral",
+                          "direction": null,
+                          "text_fr": "Bonsoir.",
+                          "text_native": "Good evening."
+                        },
+                        "bye": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "id": "e91cdb83-164d-47a5-8e2c-94055cdf03d4",
+            "ordinal": 1,
+            "status": "pending",
+            "estimated_seconds": 259,
+            "assistance_used": [],
+            "kind": "respond",
+            "prompt": {
+              "turn_index": 0,
+              "max_turns": 4,
+              "repair_allowed": true,
+              "character_id": "augustin_de_roncourt",
+              "character_name": "Gus",
+              "character_line_fr": "Alors ? Vous êtes qui, exactement ?",
+              "character_line_audio_url": null,
+              "objective_native": "Say who you are and why you are here.",
+              "input_modes": [
+                "text"
+              ],
+              "targets": [],
+              "help_available": [
+                "hint",
+                "translation",
+                "suggested_response"
+              ],
+              "letter": null,
+              "thread": [],
+              "choices": [],
+              "spoken_reply": false
+            }
+          },
+          {
+            "id": "84a9e16a-70b1-4b9b-8f6e-8daf38311344",
+            "ordinal": 2,
+            "status": "pending",
+            "estimated_seconds": 22,
+            "assistance_used": [],
+            "kind": "resolution",
+            "prompt": {
+              "outcome_key": "pending",
+              "character_line_fr": "",
+              "summary_native": "",
+              "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+              "chapter_recap_fr": null,
+              "register_note_fr": null,
+              "register_reason_native": null,
+              "story_pending": false,
+              "narrated": false
+            }
+          }
+        ],
+        "recap": null,
+        "retry": null,
+        "day_shape": "standard",
+        "cast_intro": [
+          {
+            "character_id": "margaux_barman",
+            "name": "Margaux",
+            "role_native": "Runs Le Mistral. Says very little, sees everything.",
+            "line_fr": "Bonsoir.",
+            "line_native": "Good evening."
+          },
+          {
+            "character_id": "augustin_de_roncourt",
+            "name": "Gus",
+            "role_native": "A regular. Theatrical, always in the middle of a story.",
+            "line_fr": "Augustin de Roncourt. Enchanté.",
+            "line_native": "Augustin de Roncourt. Delighted."
+          },
+          {
+            "character_id": "marin_leveque",
+            "name": "Marin",
+            "role_native": "A regular. Kind, sentimental, feeds everyone.",
+            "line_fr": "Tu as faim ?",
+            "line_native": "Are you hungry?"
+          },
+          {
+            "character_id": "lila_bonnet",
+            "name": "Lila",
+            "role_native": "A teacher and painter. Quick, and hard to impress.",
+            "line_fr": "Moi, c'est Lila. Et toi ?",
+            "line_native": "I'm Lila. And you?"
+          },
+          {
+            "character_id": "camille_marchand",
+            "name": "Camille",
+            "role_native": "Arrives at the end of the first evening, with a key to the first floor.",
+            "line_fr": "Bonsoir. Camille Marchand.",
+            "line_native": "Good evening. Camille Marchand."
+          }
+        ],
+        "story_premise_native": "You are in Paris for one week. Your grandmother Odile has left you a small flat above a café, Le Mistral. You have come to sign the papers and to sell it. Tonight, in the rain, you walk into the café with her key. The regulars knew her. They do not know you yet.",
+        "story_how_native": "Read each scene, then answer the person speaking to you, in French and in your own words. Mistakes are fine: they react to what you mean.",
+        "streak": {
+          "days": 0,
+          "today_done": false,
+          "freeze_available": false,
+          "freeze_used_on": null
+        },
+        "missed_days": 0,
+        "edition_no": 1,
+        "mastery_today": {
+          "held_concept_ids": [],
+          "tested_out_concept_ids": []
+        },
+        "special": null,
+        "epreuve": null,
+        "absence": null,
+        "season_premiere": null,
+        "interlude": null,
+        "time_estimate": {
+          "budget_seconds": 600,
+          "core_seconds": 418,
+          "basis": "plan",
+          "longer_day": false,
+          "extensions": []
+        }
+      }
+    },
+    {
+      "note": "The learner walks out during Gus's story (a.p2) and comes back: the answer is the line said on their return."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "8eae7504f53c4bdba47f9e49714425b9",
+        "storylet_id": "walk_out",
+        "at": "a.p2"
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "storylet_id": "walk_out",
+        "beats": [
+          {
+            "kind": "panel",
+            "id": "walk_out.back.gus",
+            "location_id": null,
+            "in_frame": [],
+            "visual": null,
+            "silence": false,
+            "flashback": false,
+            "diegetic": [],
+            "lines": [
+              {
+                "who": "augustin_de_roncourt",
+                "name": "Gus",
+                "kind": "speech",
+                "mood": "happy",
+                "direction": null,
+                "text_fr": "Bon. Où en étais-je ? Ah oui. Le duc.",
+                "text_native": "Right. Where was I? Ah yes. The duke."
+              }
+            ]
+          }
+        ],
+        "chips": [],
+        "heard": null,
+        "learned": [],
+        "sets": {
+          "user.walked_out": true
+        },
+        "people": [
+          {
+            "who": "margaux_barman",
+            "name": "Margaux",
+            "register": "tu",
+            "hello": {
+              "who": "margaux_barman",
+              "name": "Margaux",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Oui ?",
+              "text_native": "Yes?"
+            },
+            "bye": null
+          },
+          {
+            "who": "augustin_de_roncourt",
+            "name": "Gus",
+            "register": "vous",
+            "hello": {
+              "who": "augustin_de_roncourt",
+              "name": "Gus",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Je vous écoute.",
+              "text_native": "I'm listening."
+            },
+            "bye": null
+          },
+          {
+            "who": "marin_leveque",
+            "name": "Marin",
+            "register": "tu",
+            "hello": {
+              "who": "marin_leveque",
+              "name": "Marin",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Ça va ?",
+              "text_native": "All right?"
+            },
+            "bye": null
+          },
+          {
+            "who": "lila_bonnet",
+            "name": "Lila",
+            "register": "tu",
+            "hello": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bon, on fait quoi ?",
+              "text_native": "Right, what do we do?"
+            },
+            "bye": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Allez, file.",
+              "text_native": "Go on, off you go."
+            }
+          },
+          {
+            "who": "camille_marchand",
+            "name": "Camille",
+            "register": "vous",
+            "hello": {
+              "who": "camille_marchand",
+              "name": "Camille",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bonsoir.",
+              "text_native": "Good evening."
+            },
+            "bye": null
+          }
+        ]
+      }
+    },
+    {
+      "note": "A tap on Lila with nothing typed: her hello."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "773f004e0e6a45a386ec810b53fb0156",
+        "storylet_id": "talk",
+        "to": "lila_bonnet"
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "storylet_id": "talk",
+        "beats": [
+          {
+            "kind": "panel",
+            "id": "talk.lila.hello",
+            "location_id": null,
+            "in_frame": [],
+            "visual": null,
+            "silence": false,
+            "flashback": false,
+            "diegetic": [],
+            "lines": [
+              {
+                "who": "lila_bonnet",
+                "name": "Lila",
+                "kind": "speech",
+                "mood": "neutral",
+                "direction": null,
+                "text_fr": "Bon, on fait quoi ?",
+                "text_native": "Right, what do we do?"
+              }
+            ]
+          }
+        ],
+        "chips": [
+          "Pourquoi mes chaussures ?",
+          "Et moi, j'ai combien sur vingt ?",
+          "Tu habites ici ?"
+        ],
+        "heard": null,
+        "learned": [],
+        "sets": {},
+        "people": [
+          {
+            "who": "margaux_barman",
+            "name": "Margaux",
+            "register": "tu",
+            "hello": {
+              "who": "margaux_barman",
+              "name": "Margaux",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Oui ?",
+              "text_native": "Yes?"
+            },
+            "bye": null
+          },
+          {
+            "who": "augustin_de_roncourt",
+            "name": "Gus",
+            "register": "vous",
+            "hello": {
+              "who": "augustin_de_roncourt",
+              "name": "Gus",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Je vous écoute.",
+              "text_native": "I'm listening."
+            },
+            "bye": null
+          },
+          {
+            "who": "marin_leveque",
+            "name": "Marin",
+            "register": "tu",
+            "hello": {
+              "who": "marin_leveque",
+              "name": "Marin",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Ça va ?",
+              "text_native": "All right?"
+            },
+            "bye": null
+          },
+          {
+            "who": "lila_bonnet",
+            "name": "Lila",
+            "register": "tu",
+            "hello": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bon, on fait quoi ?",
+              "text_native": "Right, what do we do?"
+            },
+            "bye": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Allez, file.",
+              "text_native": "Go on, off you go."
+            }
+          },
+          {
+            "who": "camille_marchand",
+            "name": "Camille",
+            "register": "vous",
+            "hello": {
+              "who": "camille_marchand",
+              "name": "Camille",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bonsoir.",
+              "text_native": "Good evening."
+            },
+            "bye": null
+          }
+        ]
+      }
+    },
+    {
+      "note": "«tu» to Gus: the slip line first (once a day), then whatever he heard."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "2bf5d8917fdb448aa15eb8e81164272a",
+        "storylet_id": "talk",
+        "to": "augustin_de_roncourt",
+        "text": "Tu viens souvent ici ?"
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "storylet_id": "talk",
+        "beats": [
+          {
+            "kind": "panel",
+            "id": "talk.augustin_de_roncourt.slip",
+            "location_id": null,
+            "in_frame": [],
+            "visual": null,
+            "silence": false,
+            "flashback": false,
+            "diegetic": [],
+            "lines": [
+              {
+                "who": "augustin_de_roncourt",
+                "name": "Gus",
+                "kind": "speech",
+                "mood": "cold",
+                "direction": null,
+                "text_fr": "« Tu » ? Nous n'avons pas gardé les cochons ensemble.",
+                "text_native": "“Tu”? We're hardly old friends."
+              }
+            ]
+          }
+        ],
+        "chips": [
+          "Et le duc, il existe vraiment ?",
+          "Vous venez souvent ici ?",
+          "C'est quoi, La Méthode ?"
+        ],
+        "heard": null,
+        "learned": [],
+        "sets": {},
+        "people": [
+          {
+            "who": "margaux_barman",
+            "name": "Margaux",
+            "register": "tu",
+            "hello": {
+              "who": "margaux_barman",
+              "name": "Margaux",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Oui ?",
+              "text_native": "Yes?"
+            },
+            "bye": null
+          },
+          {
+            "who": "augustin_de_roncourt",
+            "name": "Gus",
+            "register": "vous",
+            "hello": {
+              "who": "augustin_de_roncourt",
+              "name": "Gus",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Je vous écoute.",
+              "text_native": "I'm listening."
+            },
+            "bye": null
+          },
+          {
+            "who": "marin_leveque",
+            "name": "Marin",
+            "register": "tu",
+            "hello": {
+              "who": "marin_leveque",
+              "name": "Marin",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Ça va ?",
+              "text_native": "All right?"
+            },
+            "bye": null
+          },
+          {
+            "who": "lila_bonnet",
+            "name": "Lila",
+            "register": "tu",
+            "hello": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bon, on fait quoi ?",
+              "text_native": "Right, what do we do?"
+            },
+            "bye": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Allez, file.",
+              "text_native": "Go on, off you go."
+            }
+          },
+          {
+            "who": "camille_marchand",
+            "name": "Camille",
+            "register": "vous",
+            "hello": {
+              "who": "camille_marchand",
+              "name": "Camille",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bonsoir.",
+              "text_native": "Good evening."
+            },
+            "bye": null
+          }
+        ]
+      }
+    },
+    {
+      "note": "The learner answers a.turn1 in French."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/steps/{step_id}/attempts",
+      "body": {
+        "mutation_id": "7a633f99c0f94cdcb2bff4c5a54a8e41",
+        "expected_revision": 3,
+        "input": {
+          "mode": "text",
+          "text": "Odile, c'est ma grand-mère."
+        }
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "evidence_ref": "journey:4b7fefd7-967a-430f-acf2-e53e3df361e7:e91cdb83-164d-47a5-8e2c-94055cdf03d4",
+        "task_outcome": "met",
+        "assistance_level": "none",
+        "correction": null,
+        "character_reply_fr": "Margaux : Elle prenait ça.\nAh.\nLila : Bravo, Gus. Belle gaffe.",
+        "character_lines": [
+          {
+            "speaker_id": "margaux_barman",
+            "speaker_name": "Margaux",
+            "text_fr": "Elle prenait ça."
+          },
+          {
+            "speaker_id": "augustin_de_roncourt",
+            "speaker_name": "Gus",
+            "text_fr": "Ah."
+          },
+          {
+            "speaker_id": "lila_bonnet",
+            "speaker_name": "Lila",
+            "text_fr": "Bravo, Gus. Belle gaffe."
+          }
+        ],
+        "reply_source": "none",
+        "next_turn": {
+          "step_id": "e91cdb83-164d-47a5-8e2c-94055cdf03d4",
+          "prompt": {
+            "turn_index": 1,
+            "max_turns": 4,
+            "repair_allowed": false,
+            "character_id": "augustin_de_roncourt",
+            "character_name": "Gus",
+            "character_line_fr": "Margaux : Elle prenait ça.\nAh.\nLila : Bravo, Gus. Belle gaffe.",
+            "character_line_audio_url": null,
+            "objective_native": "Take the café crème Margaux set down for you, or say no.",
+            "input_modes": [
+              "text"
+            ],
+            "targets": [],
+            "help_available": [
+              "hint",
+              "translation",
+              "suggested_response"
+            ],
+            "letter": null,
+            "thread": [
+              {
+                "learner_fr": "Odile, c'est ma grand-mère.",
+                "character_fr": "Margaux : Elle prenait ça.\nAh.\nLila : Bravo, Gus. Belle gaffe.",
+                "correction": null,
+                "character_lines": [
+                  {
+                    "speaker_id": "margaux_barman",
+                    "speaker_name": "Margaux",
+                    "text_fr": "Elle prenait ça."
+                  },
+                  {
+                    "speaker_id": "augustin_de_roncourt",
+                    "speaker_name": "Gus",
+                    "text_fr": "Ah."
+                  },
+                  {
+                    "speaker_id": "lila_bonnet",
+                    "speaker_name": "Lila",
+                    "text_fr": "Bravo, Gus. Belle gaffe."
+                  }
+                ]
+              }
+            ],
+            "choices": [
+              {
+                "id": "drink",
+                "label_fr": "Merci.",
+                "label_native": "Thank you."
+              },
+              {
+                "id": "declined",
+                "label_fr": "Non merci.",
+                "label_native": "No, thank you."
+              },
+              {
+                "id": "refused",
+                "label_fr": "Je n'ai rien commandé.",
+                "label_native": "I didn't order anything."
+              }
+            ],
+            "spoken_reply": false
+          }
+        },
+        "pending": false,
+        "slip_note_native": null,
+        "repeat_line_fr": null,
+        "stage": {
+          "turn_id": "a.turn1",
+          "reply_id": "a",
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.turn1.a.r1",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "margaux_barman",
+                "toi"
+              ],
+              "visual": "The room, silent. Margaux puts a cup in front of Toi: a café crème nobody ordered.",
+              "silence": true,
+              "flashback": false,
+              "diegetic": [],
+              "lines": []
+            },
+            {
+              "kind": "panel",
+              "id": "a.turn1.a.r2",
+              "location_id": null,
+              "in_frame": [],
+              "visual": null,
+              "silence": false,
+              "flashback": false,
+              "diegetic": [],
+              "lines": [
+                {
+                  "who": "margaux_barman",
+                  "name": "Margaux",
+                  "kind": "speech",
+                  "mood": "moved",
+                  "direction": null,
+                  "text_fr": "Elle prenait ça.",
+                  "text_native": "She used to have that."
+                },
+                {
+                  "who": "augustin_de_roncourt",
+                  "name": "Gus",
+                  "kind": "speech",
+                  "mood": "neutral",
+                  "direction": "sitting down slowly",
+                  "text_fr": "Ah.",
+                  "text_native": "Ah."
+                },
+                {
+                  "who": "lila_bonnet",
+                  "name": "Lila",
+                  "kind": "speech",
+                  "mood": "happy",
+                  "direction": null,
+                  "text_fr": "Bravo, Gus. Belle gaffe.",
+                  "text_native": "Well done, Gus. Nice blunder."
+                }
+              ]
+            }
+          ],
+          "next_turn_id": "a.cafe",
+          "closing": false
+        },
+        "journey": {
+          "elided": "the whole JourneySnapshot is returned here; see create.response for its shape",
+          "id": "4b7fefd7-967a-430f-acf2-e53e3df361e7",
+          "status": "active",
+          "revision": 4,
+          "current_step_id": "e91cdb83-164d-47a5-8e2c-94055cdf03d4"
+        }
+      }
+    },
+    {
+      "note": "The learner answers a.cafe in French."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/steps/{step_id}/attempts",
+      "body": {
+        "mutation_id": "6a3b523dc00c44ac9351f233b1d8556e",
+        "expected_revision": 4,
+        "input": {
+          "mode": "text",
+          "text": "Non, merci. Pas ce soir."
+        }
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "evidence_ref": "journey:4b7fefd7-967a-430f-acf2-e53e3df361e7:e91cdb83-164d-47a5-8e2c-94055cdf03d4",
+        "task_outcome": "met",
+        "assistance_level": "none",
+        "correction": null,
+        "character_reply_fr": "Margaux : Elle ne donnait jamais cette clé.\nMargaux : Tu vas monter ?",
+        "character_lines": [
+          {
+            "speaker_id": "margaux_barman",
+            "speaker_name": "Margaux",
+            "text_fr": "Elle ne donnait jamais cette clé."
+          },
+          {
+            "speaker_id": "margaux_barman",
+            "speaker_name": "Margaux",
+            "text_fr": "Tu vas monter ?"
+          }
+        ],
+        "reply_source": "none",
+        "next_turn": {
+          "step_id": "e91cdb83-164d-47a5-8e2c-94055cdf03d4",
+          "prompt": {
+            "turn_index": 2,
+            "max_turns": 4,
+            "repair_allowed": false,
+            "character_id": "augustin_de_roncourt",
+            "character_name": "Gus",
+            "character_line_fr": "Margaux : Elle ne donnait jamais cette clé.\nMargaux : Tu vas monter ?",
+            "character_line_audio_url": null,
+            "objective_native": "Tell Margaux whether you will go up to the flat tonight, and what you plan to do.",
+            "input_modes": [
+              "text"
+            ],
+            "targets": [],
+            "help_available": [
+              "hint",
+              "translation",
+              "suggested_response"
+            ],
+            "letter": null,
+            "thread": [
+              {
+                "learner_fr": "Odile, c'est ma grand-mère.",
+                "character_fr": "Margaux : Elle prenait ça.\nAh.\nLila : Bravo, Gus. Belle gaffe.",
+                "correction": null,
+                "character_lines": [
+                  {
+                    "speaker_id": "margaux_barman",
+                    "speaker_name": "Margaux",
+                    "text_fr": "Elle prenait ça."
+                  },
+                  {
+                    "speaker_id": "augustin_de_roncourt",
+                    "speaker_name": "Gus",
+                    "text_fr": "Ah."
+                  },
+                  {
+                    "speaker_id": "lila_bonnet",
+                    "speaker_name": "Lila",
+                    "text_fr": "Bravo, Gus. Belle gaffe."
+                  }
+                ]
+              },
+              {
+                "learner_fr": "Non, merci. Pas ce soir.",
+                "character_fr": "Margaux : Elle ne donnait jamais cette clé.\nMargaux : Tu vas monter ?",
+                "correction": null,
+                "character_lines": [
+                  {
+                    "speaker_id": "margaux_barman",
+                    "speaker_name": "Margaux",
+                    "text_fr": "Elle ne donnait jamais cette clé."
+                  },
+                  {
+                    "speaker_id": "margaux_barman",
+                    "speaker_name": "Margaux",
+                    "text_fr": "Tu vas monter ?"
+                  }
+                ]
+              }
+            ],
+            "choices": [],
+            "spoken_reply": false
+          }
+        },
+        "pending": false,
+        "slip_note_native": null,
+        "repeat_line_fr": null,
+        "stage": {
+          "turn_id": "a.cafe",
+          "reply_id": "declined",
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.cafe.declined.r1",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "margaux_barman",
+                "toi"
+              ],
+              "visual": "Margaux slides the cup along the zinc to the empty stool at the end, Odile's, and leaves it there. Nobody touches it.",
+              "silence": true,
+              "flashback": false,
+              "diegetic": [],
+              "lines": []
+            }
+          ],
+          "next_turn_id": "a.turn2",
+          "closing": false
+        },
+        "journey": {
+          "elided": "the whole JourneySnapshot is returned here; see create.response for its shape",
+          "id": "4b7fefd7-967a-430f-acf2-e53e3df361e7",
+          "status": "active",
+          "revision": 5,
+          "current_step_id": "e91cdb83-164d-47a5-8e2c-94055cdf03d4"
+        }
+      }
+    },
+    {
+      "note": "Between questions, a word with Margaux: she tells something (learned), and the chips open the next question."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "786ef6e66ca242b8bd4c8dae75f85f72",
+        "storylet_id": "talk",
+        "to": "margaux_barman",
+        "text": "Tu connaissais bien Odile ?"
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "storylet_id": "talk",
+        "beats": [
+          {
+            "kind": "panel",
+            "id": "talk.margaux.odile",
+            "location_id": null,
+            "in_frame": [],
+            "visual": null,
+            "silence": false,
+            "flashback": false,
+            "diegetic": [],
+            "lines": [
+              {
+                "who": "margaux_barman",
+                "name": "Margaux",
+                "kind": "speech",
+                "mood": "neutral",
+                "direction": "drying a glass that is already dry",
+                "text_fr": "Tous les matins. Un café crème, au bout du zinc.",
+                "text_native": "Every morning. A café crème, at the end of the zinc."
+              }
+            ]
+          }
+        ],
+        "chips": [
+          "Pourquoi elle est partie ?",
+          "Et la cigale ?",
+          "Un verre d'eau, s'il te plaît."
+        ],
+        "heard": "margaux.odile",
+        "learned": [
+          {
+            "id": "margaux.odile",
+            "text_fr": "Odile prenait un café crème tous les matins, au bout du zinc.",
+            "text_native": "Odile had a café crème every morning, at the end of the zinc."
+          }
+        ],
+        "sets": {},
+        "people": [
+          {
+            "who": "margaux_barman",
+            "name": "Margaux",
+            "register": "tu",
+            "hello": {
+              "who": "margaux_barman",
+              "name": "Margaux",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Oui ?",
+              "text_native": "Yes?"
+            },
+            "bye": null
+          },
+          {
+            "who": "augustin_de_roncourt",
+            "name": "Gus",
+            "register": "vous",
+            "hello": {
+              "who": "augustin_de_roncourt",
+              "name": "Gus",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Je vous écoute.",
+              "text_native": "I'm listening."
+            },
+            "bye": null
+          },
+          {
+            "who": "marin_leveque",
+            "name": "Marin",
+            "register": "tu",
+            "hello": {
+              "who": "marin_leveque",
+              "name": "Marin",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Ma grand-mère disait toujours : « La pluie apporte la famille. »",
+              "text_native": "My grandmother always said: “Rain brings family.”"
+            },
+            "bye": null
+          },
+          {
+            "who": "lila_bonnet",
+            "name": "Lila",
+            "register": "tu",
+            "hello": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Salut, l'héritage !",
+              "text_native": "Hi there, l'héritage!"
+            },
+            "bye": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Allez, file.",
+              "text_native": "Go on, off you go."
+            }
+          },
+          {
+            "who": "camille_marchand",
+            "name": "Camille",
+            "register": "vous",
+            "hello": {
+              "who": "camille_marchand",
+              "name": "Camille",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bonsoir.",
+              "text_native": "Good evening."
+            },
+            "bye": null
+          }
+        ]
+      }
+    },
+    {
+      "note": "The learner stays away 40 seconds: Margaux's text arrives."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "5247bf4d001549e8a877f38a635235ba",
+        "storylet_id": "margaux_text"
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "storylet_id": "margaux_text",
+        "beats": [
+          {
+            "kind": "panel",
+            "id": "margaux_text.text",
+            "location_id": null,
+            "in_frame": [],
+            "visual": null,
+            "silence": false,
+            "flashback": false,
+            "diegetic": [],
+            "lines": [
+              {
+                "who": "sms",
+                "name": null,
+                "kind": "sms",
+                "mood": "neutral",
+                "direction": null,
+                "text_fr": "C'est Margaux. Ta valise est toujours là.",
+                "text_native": "It's Margaux. Your suitcase is still here."
+              }
+            ]
+          }
+        ],
+        "chips": [],
+        "heard": null,
+        "learned": [],
+        "sets": {
+          "user.stayed_away": true
+        },
+        "people": [
+          {
+            "who": "margaux_barman",
+            "name": "Margaux",
+            "register": "tu",
+            "hello": {
+              "who": "margaux_barman",
+              "name": "Margaux",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Oui ?",
+              "text_native": "Yes?"
+            },
+            "bye": null
+          },
+          {
+            "who": "augustin_de_roncourt",
+            "name": "Gus",
+            "register": "vous",
+            "hello": {
+              "who": "augustin_de_roncourt",
+              "name": "Gus",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Je vous écoute.",
+              "text_native": "I'm listening."
+            },
+            "bye": null
+          },
+          {
+            "who": "marin_leveque",
+            "name": "Marin",
+            "register": "tu",
+            "hello": {
+              "who": "marin_leveque",
+              "name": "Marin",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Ma grand-mère disait toujours : « La pluie apporte la famille. »",
+              "text_native": "My grandmother always said: “Rain brings family.”"
+            },
+            "bye": null
+          },
+          {
+            "who": "lila_bonnet",
+            "name": "Lila",
+            "register": "tu",
+            "hello": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Salut, l'héritage !",
+              "text_native": "Hi there, l'héritage!"
+            },
+            "bye": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Allez, file.",
+              "text_native": "Go on, off you go."
+            }
+          },
+          {
+            "who": "camille_marchand",
+            "name": "Camille",
+            "register": "vous",
+            "hello": {
+              "who": "camille_marchand",
+              "name": "Camille",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bonsoir.",
+              "text_native": "Good evening."
+            },
+            "bye": null
+          }
+        ]
+      }
+    },
+    {
+      "note": "The learner answers it."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "808759211a4844609dc914064f113e7d",
+        "storylet_id": "margaux_text",
+        "text": "J'arrive."
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "storylet_id": "margaux_text",
+        "beats": [
+          {
+            "kind": "panel",
+            "id": "margaux_text.answer",
+            "location_id": null,
+            "in_frame": [],
+            "visual": null,
+            "silence": false,
+            "flashback": false,
+            "diegetic": [],
+            "lines": [
+              {
+                "who": "sms",
+                "name": null,
+                "kind": "sms",
+                "mood": "neutral",
+                "direction": null,
+                "text_fr": "Bon.",
+                "text_native": "Fine."
+              }
+            ]
+          }
+        ],
+        "chips": [],
+        "heard": null,
+        "learned": [],
+        "sets": {
+          "user.stayed_away": true
+        },
+        "people": [
+          {
+            "who": "margaux_barman",
+            "name": "Margaux",
+            "register": "tu",
+            "hello": {
+              "who": "margaux_barman",
+              "name": "Margaux",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Oui ?",
+              "text_native": "Yes?"
+            },
+            "bye": null
+          },
+          {
+            "who": "augustin_de_roncourt",
+            "name": "Gus",
+            "register": "vous",
+            "hello": {
+              "who": "augustin_de_roncourt",
+              "name": "Gus",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Je vous écoute.",
+              "text_native": "I'm listening."
+            },
+            "bye": null
+          },
+          {
+            "who": "marin_leveque",
+            "name": "Marin",
+            "register": "tu",
+            "hello": {
+              "who": "marin_leveque",
+              "name": "Marin",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Ma grand-mère disait toujours : « La pluie apporte la famille. »",
+              "text_native": "My grandmother always said: “Rain brings family.”"
+            },
+            "bye": null
+          },
+          {
+            "who": "lila_bonnet",
+            "name": "Lila",
+            "register": "tu",
+            "hello": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Salut, l'héritage !",
+              "text_native": "Hi there, l'héritage!"
+            },
+            "bye": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Allez, file.",
+              "text_native": "Go on, off you go."
+            }
+          },
+          {
+            "who": "camille_marchand",
+            "name": "Camille",
+            "register": "vous",
+            "hello": {
+              "who": "camille_marchand",
+              "name": "Camille",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bonsoir.",
+              "text_native": "Good evening."
+            },
+            "bye": null
+          }
+        ]
+      }
+    },
+    {
+      "note": "The learner answers a.turn2 in French."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/steps/{step_id}/attempts",
+      "body": {
+        "mutation_id": "f7954e6752cd4c4aa173eb39ad6f9acf",
+        "expected_revision": 5,
+        "input": {
+          "mode": "text",
+          "text": "Oui. Ce soir."
+        }
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "evidence_ref": "journey:4b7fefd7-967a-430f-acf2-e53e3df361e7:e91cdb83-164d-47a5-8e2c-94055cdf03d4",
+        "task_outcome": "met",
+        "assistance_level": "none",
+        "correction": null,
+        "character_reply_fr": "Margaux : Pas ce soir.",
+        "character_lines": [
+          {
+            "speaker_id": "margaux_barman",
+            "speaker_name": "Margaux",
+            "text_fr": "Pas ce soir."
+          }
+        ],
+        "reply_source": "none",
+        "next_turn": {
+          "step_id": "e91cdb83-164d-47a5-8e2c-94055cdf03d4",
+          "prompt": {
+            "turn_index": 3,
+            "max_turns": 4,
+            "repair_allowed": false,
+            "character_id": "augustin_de_roncourt",
+            "character_name": "Gus",
+            "character_line_fr": "Margaux : Pas ce soir.",
+            "character_line_audio_url": null,
+            "objective_native": "Take the key, or leave it with Margaux for the night.",
+            "input_modes": [
+              "text"
+            ],
+            "targets": [],
+            "help_available": [
+              "hint",
+              "translation",
+              "suggested_response"
+            ],
+            "letter": null,
+            "thread": [
+              {
+                "learner_fr": "Odile, c'est ma grand-mère.",
+                "character_fr": "Margaux : Elle prenait ça.\nAh.\nLila : Bravo, Gus. Belle gaffe.",
+                "correction": null,
+                "character_lines": [
+                  {
+                    "speaker_id": "margaux_barman",
+                    "speaker_name": "Margaux",
+                    "text_fr": "Elle prenait ça."
+                  },
+                  {
+                    "speaker_id": "augustin_de_roncourt",
+                    "speaker_name": "Gus",
+                    "text_fr": "Ah."
+                  },
+                  {
+                    "speaker_id": "lila_bonnet",
+                    "speaker_name": "Lila",
+                    "text_fr": "Bravo, Gus. Belle gaffe."
+                  }
+                ]
+              },
+              {
+                "learner_fr": "Non, merci. Pas ce soir.",
+                "character_fr": "Margaux : Elle ne donnait jamais cette clé.\nMargaux : Tu vas monter ?",
+                "correction": null,
+                "character_lines": [
+                  {
+                    "speaker_id": "margaux_barman",
+                    "speaker_name": "Margaux",
+                    "text_fr": "Elle ne donnait jamais cette clé."
+                  },
+                  {
+                    "speaker_id": "margaux_barman",
+                    "speaker_name": "Margaux",
+                    "text_fr": "Tu vas monter ?"
+                  }
+                ]
+              },
+              {
+                "learner_fr": "Oui. Ce soir.",
+                "character_fr": "Margaux : Pas ce soir.",
+                "correction": null,
+                "character_lines": [
+                  {
+                    "speaker_id": "margaux_barman",
+                    "speaker_name": "Margaux",
+                    "text_fr": "Pas ce soir."
+                  }
+                ]
+              }
+            ],
+            "choices": [
+              {
+                "id": "take",
+                "label_fr": "Je la prends.",
+                "label_native": "I'll take it."
+              },
+              {
+                "id": "leave",
+                "label_fr": "Garde-la pour moi.",
+                "label_native": "Keep it for me."
+              }
+            ],
+            "spoken_reply": false
+          }
+        },
+        "pending": false,
+        "slip_note_native": null,
+        "repeat_line_fr": null,
+        "stage": {
+          "turn_id": "a.turn2",
+          "reply_id": "tonight",
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.turn2.tonight.r1",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "margaux_barman",
+                "toi"
+              ],
+              "visual": "Margaux gives the key ring back across the zinc.",
+              "silence": false,
+              "flashback": false,
+              "diegetic": [],
+              "lines": [
+                {
+                  "who": "margaux_barman",
+                  "name": "Margaux",
+                  "kind": "speech",
+                  "mood": "neutral",
+                  "direction": null,
+                  "text_fr": "Pas ce soir.",
+                  "text_native": "Not tonight."
+                }
+              ]
+            }
+          ],
+          "next_turn_id": "a.key",
+          "closing": false
+        },
+        "journey": {
+          "elided": "the whole JourneySnapshot is returned here; see create.response for its shape",
+          "id": "4b7fefd7-967a-430f-acf2-e53e3df361e7",
+          "status": "active",
+          "revision": 6,
+          "current_step_id": "e91cdb83-164d-47a5-8e2c-94055cdf03d4"
+        }
+      }
+    },
+    {
+      "note": "The learner answers a.key in French."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/steps/{step_id}/attempts",
+      "body": {
+        "mutation_id": "95a1ce6384284ee49dd61b4f8ed3740d",
+        "expected_revision": 6,
+        "input": {
+          "mode": "text",
+          "text": "Tu peux la garder ?"
+        }
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "evidence_ref": "journey:4b7fefd7-967a-430f-acf2-e53e3df361e7:e91cdb83-164d-47a5-8e2c-94055cdf03d4",
+        "task_outcome": "met",
+        "assistance_level": "none",
+        "correction": null,
+        "character_reply_fr": "Margaux : Derrière la caisse.\nCamille : Bonsoir. Camille Marchand. Je viens pour le premier étage. J'ai la clé.\nAh ! Voici donc—\nLila : Gus. Assieds-toi.",
+        "character_lines": [
+          {
+            "speaker_id": "margaux_barman",
+            "speaker_name": "Margaux",
+            "text_fr": "Derrière la caisse."
+          },
+          {
+            "speaker_id": "camille_marchand",
+            "speaker_name": "Camille",
+            "text_fr": "Bonsoir. Camille Marchand. Je viens pour le premier étage. J'ai la clé."
+          },
+          {
+            "speaker_id": "augustin_de_roncourt",
+            "speaker_name": "Gus",
+            "text_fr": "Ah ! Voici donc—"
+          },
+          {
+            "speaker_id": "lila_bonnet",
+            "speaker_name": "Lila",
+            "text_fr": "Gus. Assieds-toi."
+          }
+        ],
+        "reply_source": "none",
+        "next_turn": null,
+        "pending": false,
+        "slip_note_native": null,
+        "repeat_line_fr": null,
+        "stage": {
+          "turn_id": "a.key",
+          "reply_id": "leave",
+          "beats": [
+            {
+              "kind": "panel",
+              "id": "a.key.leave.r1",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "margaux_barman",
+                "toi"
+              ],
+              "visual": "Margaux puts the key ring away behind the till, next to the cash drawer, the cicada up.",
+              "silence": false,
+              "flashback": false,
+              "diegetic": [],
+              "lines": [
+                {
+                  "who": "margaux_barman",
+                  "name": "Margaux",
+                  "kind": "speech",
+                  "mood": "neutral",
+                  "direction": null,
+                  "text_fr": "Derrière la caisse.",
+                  "text_native": "Behind the till."
+                }
+              ]
+            },
+            {
+              "kind": "panel",
+              "id": "a.p8",
+              "location_id": "le_mistral",
+              "in_frame": [
+                "camille_marchand",
+                "augustin_de_roncourt",
+                "lila_bonnet"
+              ],
+              "visual": "The bell again. In the doorway stands a figure in a rain-soaked bike helmet, holding up a key: Camille, seen from the side, not yet in close-up. On the zinc in the foreground lies Toi's key with its cicada. Two keys in one frame. Gus looks from one to the other.",
+              "silence": false,
+              "flashback": false,
+              "diegetic": [],
+              "lines": [
+                {
+                  "who": "camille_marchand",
+                  "name": "Camille",
+                  "kind": "speech",
+                  "mood": "neutral",
+                  "direction": null,
+                  "text_fr": "Bonsoir. Camille Marchand. Je viens pour le premier étage. J'ai la clé.",
+                  "text_native": "Good evening. Camille Marchand. I'm here about the first floor. I have the key."
+                },
+                {
+                  "who": "augustin_de_roncourt",
+                  "name": "Gus",
+                  "kind": "speech",
+                  "mood": "neutral",
+                  "direction": "already bowing again, to Camille",
+                  "text_fr": "Ah ! Voici donc—",
+                  "text_native": "Ah! So here is—"
+                },
+                {
+                  "who": "lila_bonnet",
+                  "name": "Lila",
+                  "kind": "speech",
+                  "mood": "neutral",
+                  "direction": null,
+                  "text_fr": "Gus. Assieds-toi.",
+                  "text_native": "Gus. Sit down."
+                }
+              ]
+            }
+          ],
+          "next_turn_id": null,
+          "closing": true
+        },
+        "journey": {
+          "elided": "the whole JourneySnapshot is returned here; see create.response for its shape",
+          "id": "4b7fefd7-967a-430f-acf2-e53e3df361e7",
+          "status": "active",
+          "revision": 7,
+          "current_step_id": "e91cdb83-164d-47a5-8e2c-94055cdf03d4"
+        }
+      }
+    },
+    {
+      "note": "The day is finished."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/finish",
+      "body": {
+        "mutation_id": "452137d18ecb4edcb7cc5667bc734404",
+        "expected_revision": 9,
+        "finish_kind": "complete"
+      },
+      "status": 200,
+      "response": {
+        "elided": "the whole JourneySnapshot is returned here; see create.response for its shape",
+        "id": "4b7fefd7-967a-430f-acf2-e53e3df361e7",
+        "status": "completed",
+        "revision": 10,
+        "current_step_id": null
+      }
+    },
+    {
+      "note": "After the end card: Margaux's hello now knows where the key is."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "c59f3a2d655348439586972d4447b5fb",
+        "storylet_id": "talk",
+        "to": "margaux_barman"
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "storylet_id": "talk",
+        "beats": [
+          {
+            "kind": "panel",
+            "id": "talk.margaux.key",
+            "location_id": null,
+            "in_frame": [],
+            "visual": null,
+            "silence": false,
+            "flashback": false,
+            "diegetic": [],
+            "lines": [
+              {
+                "who": "margaux_barman",
+                "name": "Margaux",
+                "kind": "speech",
+                "mood": "neutral",
+                "direction": null,
+                "text_fr": "Elle est derrière la caisse.",
+                "text_native": "It's behind the till."
+              }
+            ]
+          }
+        ],
+        "chips": [
+          "Pourquoi elle est partie ?",
+          "Et la cigale ?",
+          "Un verre d'eau, s'il te plaît."
+        ],
+        "heard": null,
+        "learned": [],
+        "sets": {},
+        "people": [
+          {
+            "who": "margaux_barman",
+            "name": "Margaux",
+            "register": "tu",
+            "hello": {
+              "who": "margaux_barman",
+              "name": "Margaux",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Elle est derrière la caisse.",
+              "text_native": "It's behind the till."
+            },
+            "bye": null
+          },
+          {
+            "who": "augustin_de_roncourt",
+            "name": "Gus",
+            "register": "vous",
+            "hello": {
+              "who": "augustin_de_roncourt",
+              "name": "Gus",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Je vous écoute.",
+              "text_native": "I'm listening."
+            },
+            "bye": null
+          },
+          {
+            "who": "marin_leveque",
+            "name": "Marin",
+            "register": "tu",
+            "hello": {
+              "who": "marin_leveque",
+              "name": "Marin",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Ma grand-mère disait toujours : « La pluie apporte la famille. »",
+              "text_native": "My grandmother always said: “Rain brings family.”"
+            },
+            "bye": null
+          },
+          {
+            "who": "lila_bonnet",
+            "name": "Lila",
+            "register": "tu",
+            "hello": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Salut, l'héritage !",
+              "text_native": "Hi there, l'héritage!"
+            },
+            "bye": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Allez, file.",
+              "text_native": "Go on, off you go."
+            }
+          },
+          {
+            "who": "camille_marchand",
+            "name": "Camille",
+            "register": "vous",
+            "hello": {
+              "who": "camille_marchand",
+              "name": "Camille",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bonsoir.",
+              "text_native": "Good evening."
+            },
+            "bye": null
+          }
+        ]
+      }
+    },
+    {
+      "note": "What Margaux told opened this question."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "c9115d4d1ff54bb0889399b93193832f",
+        "storylet_id": "talk",
+        "to": "margaux_barman",
+        "text": "Pourquoi elle est partie ?"
+      },
+      "status": 200,
+      "response": {
+        "contract_version": 1,
+        "storylet_id": "talk",
+        "beats": [
+          {
+            "kind": "panel",
+            "id": "talk.margaux.why_left",
+            "location_id": null,
+            "in_frame": [],
+            "visual": null,
+            "silence": false,
+            "flashback": false,
+            "diegetic": [],
+            "lines": [
+              {
+                "who": "margaux_barman",
+                "name": "Margaux",
+                "kind": "speech",
+                "mood": "neutral",
+                "direction": "looking at the ceiling",
+                "text_fr": "J'ai rien entendu.",
+                "text_native": "I didn't hear anything."
+              }
+            ]
+          }
+        ],
+        "chips": [
+          "Et la cigale ?",
+          "Un verre d'eau, s'il te plaît."
+        ],
+        "heard": "margaux.why_left",
+        "learned": [
+          {
+            "id": "margaux.wont_say",
+            "text_fr": "Margaux ne dit pas pourquoi Odile est partie.",
+            "text_native": "Margaux won't say why Odile left."
+          }
+        ],
+        "sets": {},
+        "people": [
+          {
+            "who": "margaux_barman",
+            "name": "Margaux",
+            "register": "tu",
+            "hello": {
+              "who": "margaux_barman",
+              "name": "Margaux",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Elle est derrière la caisse.",
+              "text_native": "It's behind the till."
+            },
+            "bye": null
+          },
+          {
+            "who": "augustin_de_roncourt",
+            "name": "Gus",
+            "register": "vous",
+            "hello": {
+              "who": "augustin_de_roncourt",
+              "name": "Gus",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Je vous écoute.",
+              "text_native": "I'm listening."
+            },
+            "bye": null
+          },
+          {
+            "who": "marin_leveque",
+            "name": "Marin",
+            "register": "tu",
+            "hello": {
+              "who": "marin_leveque",
+              "name": "Marin",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Ma grand-mère disait toujours : « La pluie apporte la famille. »",
+              "text_native": "My grandmother always said: “Rain brings family.”"
+            },
+            "bye": null
+          },
+          {
+            "who": "lila_bonnet",
+            "name": "Lila",
+            "register": "tu",
+            "hello": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "happy",
+              "direction": null,
+              "text_fr": "Salut, l'héritage !",
+              "text_native": "Hi there, l'héritage!"
+            },
+            "bye": {
+              "who": "lila_bonnet",
+              "name": "Lila",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Allez, file.",
+              "text_native": "Go on, off you go."
+            }
+          },
+          {
+            "who": "camille_marchand",
+            "name": "Camille",
+            "register": "vous",
+            "hello": {
+              "who": "camille_marchand",
+              "name": "Camille",
+              "kind": "speech",
+              "mood": "neutral",
+              "direction": null,
+              "text_fr": "Bonsoir.",
+              "text_native": "Good evening."
+            },
+            "bye": null
+          }
+        ]
+      }
+    },
+    {
+      "note": "A gesture the day does not have: 409."
+    },
+    {
+      "call": "POST /api/v1/daily-journeys/{journey_id}/choices",
+      "body": {
+        "mutation_id": "27e0bf7daeb242349a8c056d848ed4f2",
+        "storylet_id": "dance"
+      },
+      "status": 409,
+      "response": {
+        "detail": {
+          "code": "step_not_active",
+          "message": "no gesture 'dance' today"
+        }
+      }
+    }
+  ]
+}

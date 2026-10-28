@@ -110,3 +110,28 @@ export type StoryEpisode = Schemas['StoryEpisodeRead'];
 export type GrammarMark = Schemas['GrammarMarkRead'];
 export type GrammarFocus = Schemas['GrammarFocusRead'];
 export type StoryEpisodePage = Schemas['StoryEpisodePageRead'];
+
+/**
+ * Le Quartier, phase 1: a gesture in the scene that is not an answer (walking out, answering a
+ * text, talking to someone), `POST /daily-journeys/{journey_id}/choices`. Additive to contract v1
+ * and not in the generated schema yet; these become aliases of it once it is.
+ */
+export type StoryletChoiceBody = {
+  mutation_id: string;
+  storylet_id: string;
+  at?: string | null;
+  to?: string | null;
+  text?: string | null;
+};
+export type StoryletChoiceResult = {
+  contract_version: 1;
+  storylet_id: string;
+  /** panels with ids, as on the scene step's `stage` page */
+  beats: unknown[];
+  chips: string[];
+  heard: string | null;
+  learned: Array<{ id: string; text_fr: string; text_native: string | null }>;
+  sets: Record<string, string | number | boolean | null>;
+  /** who will talk, each hello as things now stand (`talk.people` on the page) */
+  people?: unknown[];
+};

@@ -1,8 +1,8 @@
 // node --test lib/quartier/stage.test.js
 //
-// Le Quartier · the 3D stage plays T1 day a from the season's own file. These tests hold the
-// director to that file: every movement is staged, every silent beat is acted, every reply's
-// example reads as that reply, and every walk the scene asks for has a way through the streets.
+// Le Quartier · the 3D stage plays the season's days, T1 day a first. These tests hold the
+// director to the season's own file: it has blocking for every movement, in the page's order, and
+// every silent beat is acted; and every walk the scene asks for has a way through the streets.
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -12,7 +12,8 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { STAGED, SILENT_BEATS, T1A, classify } = require('./stage.ts');
+const { STAGED, SILENT_BEATS } = require('./stage.ts');
+const { T1A_COPY: T1A } = require('./story.ts');
 
 test('the copy of the day in the frontend is the season file, word for word', () => {
   const season = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/t1.json'), 'utf8'));
@@ -20,8 +21,10 @@ test('the copy of the day in the frontend is the season file, word for word', ()
   assert.deepEqual(T1A.movements, day.movements, 'run node scripts/quartier/sync-scene.mjs t1 a');
 });
 
-test('the director stages every movement of the day, in order', () => {
-  assert.deepEqual(T1A.movements.map((m) => m.id), STAGED);
+test('the director has blocking for every movement of the day, in the order the page plays them', () => {
+  const ids = T1A.movements.map((m) => m.id);
+  for (const id of ids) assert.ok(STAGED.includes(id), `${id} has no blocking`);
+  assert.deepEqual(ids, STAGED.filter((id) => ids.includes(id)));
 });
 
 test('the hook has its lines to play', () => {
@@ -31,42 +34,23 @@ test('the hook has its lines to play', () => {
 });
 
 test('every silent beat of a reply is acted out', () => {
-  for (const turn of T1A.movements.filter((m) => m.kind === 'turn')) {
-    for (const reply of turn.replies) {
-      for (const beat of reply.beats) {
-        if (!beat.silence) continue;
-        const acted = Object.values(SILENT_BEATS).some((re) => re.test(beat.id));
-        assert.ok(acted, `${beat.id} is silent and nothing acts it`);
-      }
+  // a turn's replies, and the options of «Le choix» asked as a question
+  for (const turn of T1A.movements.filter((m) => m.kind === 'turn' || m.kind === 'solve')) {
+    const beats = [...(turn.replies ?? turn.options ?? []).flatMap((r) => r.beats), ...(turn.after ?? [])];
+    for (const beat of beats) {
+      if (!beat.silence) continue;
+      const acted = Object.values(SILENT_BEATS).some((re) => re.test(beat.id));
+      assert.ok(acted, `${beat.id} is silent and nothing acts it`);
     }
   }
 });
 
-test("each reply's examples read as that reply", () => {
-  for (const turn of T1A.movements.filter((m) => m.kind === 'turn')) {
-    for (const reply of turn.replies) {
-      for (const example of reply.examples) {
-        assert.equal(classify(turn.id, example), reply.id, `${turn.id}: «${example}»`);
-      }
-    }
-  }
-});
-
-test('what a beginner might type finds a sensible reply', () => {
-  const t1 = (s) => classify('a.turn1', s);
-  const t2 = (s) => classify('a.turn2', s);
-  assert.equal(t1('Je suis la petite-fille d’Odile.'), 'a');
-  assert.equal(t1('Odile était ma grand-mère, je viens pour l’appartement.'), 'a');
-  assert.equal(t1('Je vends l’appartement.'), 'b');
-  assert.equal(t1('Bonsoir'), 'c');
-  assert.equal(t1('grand-mère… clé…'), 'c');
-  assert.equal(t1('Et vous, monsieur ? Qui êtes-vous ?'), 'd');
-  assert.equal(t2('Oui, ce soir.'), 'tonight');
-  assert.equal(t2('Non, pas ce soir.'), 'dont_know');
-  assert.equal(t2('Je ne sais pas encore.'), 'dont_know');
-  assert.equal(t2('Je vais vendre et partir dans une semaine.'), 'sell_and_leave');
-  assert.equal(t2('Demain, peut… j’ai peur.'), 'clumsy');
-  assert.equal(t2('Hmm'), 'dont_know');
+test('the café crème and the key are acted from the reply the engine read', () => {
+  assert.ok(SILENT_BEATS.slide.test('a.cafe.declined.r1'));
+  assert.ok(SILENT_BEATS.pocket.test('a.key.take.r1'));
+  assert.ok(!SILENT_BEATS.pocket.test('a.key.leave.r1'));
+  assert.ok(!SILENT_BEATS.cup.test('a.cafe.drink.r1'));
+  assert.ok(SILENT_BEATS.cup.test('a.turn1.a.r1') && SILENT_BEATS.cup.test('a.turn1.c.r2'));
 });
 
 test('every walk the scene asks for has a way through the streets', () => {

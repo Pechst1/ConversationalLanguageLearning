@@ -1,12 +1,14 @@
 /**
- * Le Quartier · what you can do in T1 besides answer, and what it changes.
+ * Le Quartier · what you do besides answer, as the quarter keeps it, and the quarter's own lines.
  *
- * The season's file (`scenes/t1-a.json`) stays the spine: its lines are never rewritten. This
- * module is the prototype's other two layers from the plan. Storylets: a refusal at each turn,
- * the café crème you may drink or refuse, the key you may take or leave, a walk out that the
- * scene waits for, a text when you stay away, the notes waiting when you come back. And a small
- * stand-in for improvisation: what each person answers when you talk to them in your own French,
- * read by patterns here where the app would ask a model, through the same short list of effects.
+ * The story engine owns the story: the season's turns, the café crème and the key (asked as
+ * questions), walking out, Margaux's text and free talk (gestures it keeps beside the story,
+ * `story.ts`). What the quarter keeps here is what the engine does not send yet: what each reply
+ * and each gesture changes in the carnet (a fact, someone's regard, a line), read from the route
+ * the engine took (`REPLY_EFFECTS`, by `turn.reply`); what the street says as you pass; what is
+ * waiting when you come back. And the lines the quarter plays away from the server (the standalone
+ * page): the gestures' lines and a small stand-in for free talk, read by patterns here where the
+ * engine asks a model. The engine's copy of those lines is `app/data/season/s1/agency.json`.
  *
  * Every line is written to the season's canon (`app/data/season/s1/world.json`): lines addressed
  * to Toi never agree an adjective with them; Gus and Camille say vous, the others tu; Odile never
@@ -36,24 +38,10 @@ export function registerOf(text: string): 'tu' | 'vous' | null {
   return null;
 }
 
-/* ------------------------------------------------------------------------------------------ */
-/* lines                                                                                      */
-/* ------------------------------------------------------------------------------------------ */
-
-export interface Line {
-  who: CastId;
-  say: Words;
-  mood?: string;
-  direction?: string;
-}
-
 const w = (fr: string, en: string, de: string): Words => ({ fr, en, de });
 
-/** One of the season's own lines, reused word for word where the canon already has it. */
-const ITS_ODILES_FAMILY = w("C'est la famille d'Odile, Gus.", "It's Odile's family, Gus.", 'Das ist Odiles Familie, Gus.');
-
 /* ------------------------------------------------------------------------------------------ */
-/* the turns: what each reply changes, and a refusal at each                                  */
+/* what each route of the day changes                                                         */
 /* ------------------------------------------------------------------------------------------ */
 
 const regard = (who: CastId, delta: number): Effect => ({ kind: 'regard', who, delta });
@@ -89,12 +77,6 @@ export const REPLY_EFFECTS: Record<string, Effect[]> = {
     regard('lila_bonnet', 1),
     journal(w('Tu as retourné la question à Gus. Ça lui a plu.', 'You turned the question back on Gus. He liked it.', 'Du hast Gus die Frage zurückgegeben. Das hat ihm gefallen.'), 'augustin_de_roncourt'),
   ],
-  'a.turn1.refuse': [
-    fact('t1.told', 'nothing'),
-    regard('augustin_de_roncourt', -1),
-    regard('lila_bonnet', 1),
-    journal(w("Tu n'as pas dit qui tu es. Margaux l'a dit pour toi.", "You didn't say who you are. Margaux said it for you.", 'Du hast nicht gesagt, wer du bist. Margaux hat es für dich gesagt.')),
-  ],
   'a.turn2.tonight': [
     fact('t1.going_up', 'tonight'),
     journal(w('Tu voulais monter ce soir. Margaux a dit : pas ce soir.', 'You wanted to go up tonight. Margaux said: not tonight.', 'Du wolltest heute Abend hochgehen. Margaux hat gesagt: nicht heute Abend.'), 'margaux_barman'),
@@ -115,166 +97,33 @@ export const REPLY_EFFECTS: Record<string, Effect[]> = {
     regard('margaux_barman', 2),
     journal(w('Tu as dit que tu as un peu peur. Margaux aussi.', "You said you're a little afraid. So is Margaux.", 'Du hast gesagt, dass du ein bisschen Angst hast. Margaux auch.'), 'margaux_barman'),
   ],
-  'a.turn2.refuse': [
-    fact('t1.going_up', 'unsaid'),
+  'a.cafe.drink': [
+    fact('t1.cafe', 'drank'),
     regard('margaux_barman', 1),
-    journal(w("Tu n'as pas voulu en parler. Margaux n'a pas insisté.", "You didn't want to talk about it. Margaux didn't push.", 'Du wolltest nicht darüber reden. Margaux hat nicht nachgehakt.'), 'margaux_barman'),
+    regard('marin_leveque', 1),
+    journal(w("Tu as bu le café crème d'Odile.", "You drank Odile's café crème.", 'Du hast Odiles Café Crème getrunken.'), 'margaux_barman'),
   ],
-};
-
-/** A reply the season does not have, in its shape: beats of lines (or silences acted by the director). */
-export interface ExtraReply {
-  id: string;
-  label: string;
-  examples: string[];
-  beats: Array<{ kind: 'panel'; id: string; lines: Array<{ who: string; mood?: string; direction?: string; say: { a2: string; native: { en: string; de: string } } }> }>;
-}
-
-const sayOf = (x: Words) => ({ a2: x.fr, native: { en: x.en, de: x.de } });
-
-/** A refusal at each turn. Margaux saw the cicada on the zinc: she knows whose key it is. */
-export const EXTRA_REPLIES: Record<string, ExtraReply[]> = {
-  'a.turn1': [
-    {
-      id: 'refuse',
-      label: 'Refuse to say',
-      examples: ['Ça ne vous regarde pas.'],
-      beats: [
-        {
-          kind: 'panel',
-          id: 'a.turn1.refuse.r1',
-          lines: [
-            {
-              who: 'augustin_de_roncourt',
-              mood: 'cold',
-              direction: 'straightening the salt cellar',
-              say: sayOf(w('Très bien. Règle numéro un de La Méthode : on ne force jamais une porte.', 'Very well. Rule number one of The Method: one never forces a door.', 'Sehr wohl. Regel Nummer eins der Methode: Man zwingt nie eine Tür auf.')),
-            },
-            { who: 'margaux_barman', direction: 'not looking up', say: sayOf(ITS_ODILES_FAMILY) },
-            { who: 'lila_bonnet', mood: 'happy', say: sayOf(w('Sept sur vingt, Gus.', 'Seven out of twenty, Gus.', 'Sieben von zwanzig, Gus.')) },
-          ],
-        },
-      ],
-    },
+  'a.cafe.declined': [
+    fact('t1.cafe', 'declined'),
+    journal(w("Tu as dit non merci. Margaux a poussé la tasse vers le tabouret d'Odile.", "You said no thank you. Margaux pushed the cup toward Odile's stool.", 'Du hast nein danke gesagt. Margaux hat die Tasse zu Odiles Hocker geschoben.'), 'margaux_barman'),
   ],
-  'a.turn2': [
-    {
-      id: 'refuse',
-      label: "Won't talk about it",
-      examples: ['Je ne veux pas en parler.'],
-      beats: [
-        {
-          kind: 'panel',
-          id: 'a.turn2.refuse.r1',
-          lines: [{ who: 'margaux_barman', direction: 'drying a glass that is already dry', say: sayOf(w("D'accord.", 'All right.', 'In Ordnung.')) }],
-        },
-      ],
-    },
+  'a.cafe.refused': [
+    fact('t1.cafe', 'refused'),
+    regard('margaux_barman', -2),
+    regard('augustin_de_roncourt', -1),
+    journal(w('Tu as refusé le café sèchement. Margaux a repris la tasse.', 'You turned the coffee down curtly. Margaux took the cup back.', 'Du hast den Kaffee schroff abgelehnt. Margaux hat die Tasse zurückgenommen.'), 'margaux_barman'),
   ],
-};
-
-/** «Ça ne vous regarde pas», «Je préfère ne pas répondre»: a refusal, at either turn. */
-export function isRefusal(text: string) {
-  const t = fold(text);
-  return /(ca|cela) ne (vous|te) regarde pas|(ca|cela) (vous|te) regarde pas|pas (vos|tes) affaires|je (prefere|veux) (ne )?pas (repondre|le dire|en parler|dire)|je ne veux pas (repondre|le dire|en parler|dire)|je (prefere|veux) ne pas|aucun commentaire|sans commentaire|je ne (vais|veux) rien dire|rien a dire/.test(t);
-}
-
-/* ------------------------------------------------------------------------------------------ */
-/* the choices between the season's beats                                                    */
-/* ------------------------------------------------------------------------------------------ */
-
-export interface Choice {
-  id: string;
-  /** who is waiting on you */
-  who: CastId;
-  task: Words;
-  chips: string[];
-}
-
-export const CAFE: Choice = {
-  id: 'a.cafe',
-  who: 'margaux_barman',
-  task: w('Margaux pose un café crème devant toi. Tu le prends ?', 'Margaux sets a café crème in front of you. Do you take it?', 'Margaux stellt dir einen Café Crème hin. Nimmst du ihn?'),
-  chips: ['Merci.', 'Non merci.', "Je n'ai rien commandé."],
-};
-
-export type CafeOutcome = 'drink' | 'polite' | 'rude';
-
-/** A polite «non merci» costs nothing; a curt refusal is noticed. */
-export function readCafe(text: string): CafeOutcome {
-  const t = fold(text);
-  const polite = /merci|desole|pardon|gentil|s'il (te|vous) plait|sans facon/.test(t);
-  const no = /\bnon\b|pas de cafe|je ne bois pas|je bois pas|pas ce soir|sans facon|plus tard|pas maintenant/.test(t);
-  const rude = /rien command|pas command|pas demande|deteste|degueu|beurk|berk|en veux pas|aime pas|enleve|remporte|pas pour moi|pas soif|garde(-le| le) pour toi/.test(t);
-  if (rude && !polite) return 'rude';
-  if (no || rude) return 'polite';
-  return 'drink';
-}
-
-export const CAFE_OUTCOMES: Record<CafeOutcome, { lines: Line[]; effects: Effect[] }> = {
-  drink: {
-    lines: [
-      { who: 'margaux_barman', say: w('Bois.', 'Drink.', 'Trink.') },
-      { who: 'marin_leveque', mood: 'moved', say: w("C'est un signe, ça.", "That's a sign, that is.", 'Das ist ein Zeichen.') },
-    ],
-    effects: [
-      fact('t1.cafe', 'drank'),
-      regard('margaux_barman', 1),
-      regard('marin_leveque', 1),
-      journal(w("Tu as bu le café crème d'Odile.", "You drank Odile's café crème.", 'Du hast Odiles Café Crème getrunken.'), 'margaux_barman'),
-    ],
-  },
-  polite: {
-    lines: [],
-    effects: [
-      fact('t1.cafe', 'declined'),
-      journal(w("Tu as dit non merci. Margaux a poussé la tasse vers le tabouret d'Odile.", "You said no thank you. Margaux pushed the cup toward Odile's stool.", 'Du hast nein danke gesagt. Margaux hat die Tasse zu Odiles Hocker geschoben.'), 'margaux_barman'),
-    ],
-  },
-  rude: {
-    lines: [{ who: 'augustin_de_roncourt', mood: 'cold', direction: 'with a shrug', say: w('Charmant.', 'Charming.', 'Reizend.') }],
-    effects: [
-      fact('t1.cafe', 'rude'),
-      regard('margaux_barman', -2),
-      regard('augustin_de_roncourt', -1),
-      journal(w('Tu as refusé le café sèchement. Margaux a repris la tasse.', 'You turned the coffee down curtly. Margaux took the cup back.', 'Du hast den Kaffee schroff abgelehnt. Margaux hat die Tasse zurückgenommen.'), 'margaux_barman'),
-    ],
-  },
-};
-
-export const KEY: Choice = {
-  id: 'a.key',
-  who: 'margaux_barman',
-  task: w('La clé est sur le zinc. Tu la prends, ou tu la laisses à Margaux ?', 'The key is on the zinc. Do you take it, or leave it with Margaux?', 'Der Schlüssel liegt auf der Theke. Nimmst du ihn, oder lässt du ihn bei Margaux?'),
-  chips: ['Je la prends.', 'Garde-la pour moi.'],
-};
-
-export type KeyOutcome = 'take' | 'leave';
-
-export function readKey(text: string): KeyOutcome {
-  const t = fold(text);
-  if (/garde[sz]?-la|gardez-la|(tu|vous) (peux|pouvez) la garder|garde[sz]? (la|ma) cle|je te la (laisse|donne)|je vous la (laisse|donne)|je la (laisse|donne)|laisse-la|laissez-la|pour demain|derriere|tiens|tenez|prends-la|prenez-la/.test(t)) return 'leave';
-  return 'take';
-}
-
-export const KEY_OUTCOMES: Record<KeyOutcome, { lines: Line[]; effects: Effect[] }> = {
-  take: {
-    lines: [],
-    effects: [
-      { kind: 'item', id: 'cle_cigale', holder: 'toi' },
-      fact('t1.key', 'toi'),
-      journal(w('Tu as gardé la clé.', 'You kept the key.', 'Du hast den Schlüssel behalten.')),
-    ],
-  },
-  leave: {
-    lines: [{ who: 'margaux_barman', say: w('Derrière la caisse.', 'Behind the till.', 'Hinter der Kasse.') }],
-    effects: [
-      { kind: 'item', id: 'cle_cigale', holder: 'margaux_barman' },
-      fact('t1.key', 'margaux'),
-      regard('margaux_barman', 1),
-      journal(w('Tu as laissé la clé à Margaux, derrière la caisse.', 'You left the key with Margaux, behind the till.', 'Du hast den Schlüssel bei Margaux gelassen, hinter der Kasse.'), 'margaux_barman'),
-    ],
-  },
+  'a.key.take': [
+    { kind: 'item', id: 'cle_cigale', holder: 'toi' },
+    fact('t1.key', 'toi'),
+    journal(w('Tu as gardé la clé.', 'You kept the key.', 'Du hast den Schlüssel behalten.')),
+  ],
+  'a.key.leave': [
+    { kind: 'item', id: 'cle_cigale', holder: 'margaux_barman' },
+    fact('t1.key', 'margaux'),
+    regard('margaux_barman', 1),
+    journal(w('Tu as laissé la clé à Margaux, derrière la caisse.', 'You left the key with Margaux, behind the till.', 'Du hast den Schlüssel bei Margaux gelassen, hinter der Kasse.'), 'margaux_barman'),
+  ],
 };
 
 /* ------------------------------------------------------------------------------------------ */
@@ -360,7 +209,7 @@ export const PEOPLE: Record<CastId, Person> = {
     register: 'tu',
     hello: [
       { id: 'margaux.key', when: { 'item.cle_cigale': 'margaux_barman' }, salience: 3, say: w('Elle est derrière la caisse.', "It's behind the till.", 'Er liegt hinter der Kasse.') },
-      { id: 'margaux.cold', when: { 't1.cafe': 'rude' }, salience: 2, mood: 'cold', say: w('Oui ?', 'Yes?', 'Ja?') },
+      { id: 'margaux.cold', when: { 't1.cafe': 'refused' }, salience: 2, mood: 'cold', say: w('Oui ?', 'Yes?', 'Ja?') },
       { id: 'margaux.same', when: { 't1.cafe': 'drank' }, salience: 2, say: w('La même chose ?', 'Same again?', 'Dasselbe noch mal?') },
       { id: 'margaux.hello', say: w('Oui ?', 'Yes?', 'Ja?') },
     ],
@@ -408,7 +257,7 @@ export const PEOPLE: Record<CastId, Person> = {
     register: 'vous',
     hello: [
       { id: 'gus.selling', when: { 't1.told': 'selling' }, salience: 3, mood: 'cold', say: w('Ah. La personne qui vend.', "Ah. The person who's selling.", 'Ah. Die Person, die verkauft.') },
-      { id: 'gus.rude', when: { 't1.cafe': 'rude' }, salience: 2, say: w('Le café crème. Quelle histoire.', 'The café crème. What a business.', 'Der Café Crème. Was für eine Geschichte.') },
+      { id: 'gus.rude', when: { 't1.cafe': 'refused' }, salience: 2, say: w('Le café crème. Quelle histoire.', 'The café crème. What a business.', 'Der Café Crème. Was für eine Geschichte.') },
       { id: 'gus.question', when: { 't1.told': 'question' }, salience: 2, mood: 'happy', say: w('Ah ! Vous revoilà. Vous me plaisez toujours.', 'Ah! You again. I still like you.', 'Ah! Da sind Sie wieder. Sie gefallen mir immer noch.') },
       { id: 'gus.hello', say: w('Je vous écoute.', "I'm listening.", 'Ich höre.') },
     ],
@@ -513,7 +362,7 @@ export const PEOPLE: Record<CastId, Person> = {
     id: 'lila_bonnet',
     register: 'tu',
     hello: [
-      { id: 'lila.family', when: { 't1.told': ['family', 'nothing'] }, salience: 2, mood: 'happy', say: w("Salut, l'héritage !", "Hi there, l'héritage!", "Hallo, l'héritage!") },
+      { id: 'lila.family', when: { 't1.told': 'family' }, salience: 2, mood: 'happy', say: w("Salut, l'héritage !", "Hi there, l'héritage!", "Hallo, l'héritage!") },
       { id: 'lila.selling', when: { 't1.told': 'selling' }, salience: 2, mood: 'malice', say: w('Sept sur vingt, ta soirée.', 'Seven out of twenty, your evening.', 'Sieben von zwanzig, dein Abend.') },
       { id: 'lila.hello', say: w('Bon, on fait quoi ?', 'Right, what do we do?', 'Also, was machen wir?') },
     ],
@@ -659,6 +508,15 @@ export function helloOf(who: CastId, state: Record<string, Value>): Hello {
   return list[0] ?? PEOPLE[who].hello[PEOPLE[who].hello.length - 1];
 }
 
+/**
+ * What the quarter keeps when the engine heard one of `who`'s lines in free talk: the regard and
+ * the carnet's line. The engine sends what was learned and the flags itself.
+ */
+export function heardEffects(who: CastId, heard: string | null): Effect[] {
+  const intent = heard ? PEOPLE[who]?.intents.find((i) => i.id === heard) : undefined;
+  return (intent?.effects ?? []).filter((e) => e.kind === 'regard' || e.kind === 'journal');
+}
+
 /* ------------------------------------------------------------------------------------------ */
 /* the street: what passers-by say                                                            */
 /* ------------------------------------------------------------------------------------------ */
@@ -682,7 +540,7 @@ export const STREET_BARKS: Bark[] = [
   { id: 'news.aligre.2', salience: 1, say: w("Aligre, c'est ouvert six matins sur sept.", 'Aligre is open six mornings out of seven.', 'Aligre hat an sechs von sieben Morgen geöffnet.') },
   { id: 'news.aligre.3', salience: 1, say: w("Le marché couvert d'Aligre, c'est Beauvau.", "Aligre's covered market is the Beauvau.", 'Die Markthalle in Aligre heißt Beauvau.') },
   // the quarter talks about you, from your second visit
-  { id: 'you.family', when: { 't1.told': ['family', 'nothing'], visits: { min: 2 } }, salience: 2, say: w("C'est vous, la famille d'Odile ?", "Are you Odile's family?", 'Sind Sie Odiles Familie?') },
+  { id: 'you.family', when: { 't1.told': 'family', visits: { min: 2 } }, salience: 2, say: w("C'est vous, la famille d'Odile ?", "Are you Odile's family?", 'Sind Sie Odiles Familie?') },
   { id: 'you.selling', when: { 't1.told': 'selling', visits: { min: 2 } }, salience: 2, say: w("C'est vous qui vendez, au-dessus du Mistral ?", "Are you the one selling, above Le Mistral?", 'Sind Sie die Person, die über dem Mistral verkauft?') },
 ];
 
@@ -699,7 +557,7 @@ export const BARK_PLACES: Record<string, string> = {
 
 export const WHILE_AWAY: Bark[] = [
   { id: 'away.key', when: { 'item.cle_cigale': 'margaux_barman' }, salience: 4, say: w('Margaux a rangé ta clé derrière la caisse.', 'Margaux put your key away behind the till.', 'Margaux hat deinen Schlüssel hinter der Kasse verstaut.') },
-  { id: 'away.card', when: { 't1.told': ['family', 'nothing'] }, salience: 3, say: w('Gus a écrit une fiche sur toi. Elle est tombée sous le zinc.', 'Gus wrote an index card about you. It fell under the zinc.', 'Gus hat eine Karteikarte über dich geschrieben. Sie ist unter die Theke gefallen.') },
+  { id: 'away.card', when: { 't1.told': 'family' }, salience: 3, say: w('Gus a écrit une fiche sur toi. Elle est tombée sous le zinc.', 'Gus wrote an index card about you. It fell under the zinc.', 'Gus hat eine Karteikarte über dich geschrieben. Sie ist unter die Theke gefallen.') },
   { id: 'away.grade', when: { 't1.told': 'selling' }, salience: 3, say: w('Lila a donné une note à ta soirée : sept sur vingt.', 'Lila gave your evening a grade: seven out of twenty.', 'Lila hat deinem Abend eine Note gegeben: sieben von zwanzig.') },
   { id: 'away.cup', when: { 't1.cafe': 'declined' }, salience: 2, say: w("Le café crème est resté devant le tabouret d'Odile.", "The café crème stayed in front of Odile's stool.", 'Der Café Crème blieb vor Odiles Hocker stehen.') },
   { id: 'away.soup', salience: 1, say: w('Marin a gardé une assiette de soupe.', 'Marin kept a bowl of soup aside.', 'Marin hat einen Teller Suppe aufgehoben.') },
@@ -707,15 +565,6 @@ export const WHILE_AWAY: Bark[] = [
   { id: 'away.aligre_open', when: { 'world.marche_aligre': 'open', 'place.marche_aligre': { set: false } }, salience: 2, say: w("Le marché d'Aligre est ouvert. Tu peux y aller.", 'The Aligre market is open. You can go there.', 'Der Markt in Aligre ist offen. Du kannst hingehen.') },
 ];
 
-export const TOMORROW: Bark[] = [
-  { id: 'tomorrow.key', when: { 't1.key': 'margaux' }, salience: 5, say: w('Demain, ta clé sera derrière la caisse. Il faudra la demander.', "Tomorrow your key will be behind the till. You'll have to ask for it.", 'Morgen liegt dein Schlüssel hinter der Kasse. Du musst danach fragen.') },
-  { id: 'tomorrow.rude', when: { 't1.cafe': 'rude' }, salience: 4, say: w("Demain, Margaux s'en souviendra.", 'Tomorrow, Margaux will remember.', 'Morgen wird Margaux sich daran erinnern.') },
-  { id: 'tomorrow.lila', when: { 't1.told': 'selling' }, salience: 4, say: w('Demain, Lila saura déjà.', 'Tomorrow, Lila will already know.', 'Morgen weiß Lila es schon.') },
-  { id: 'tomorrow.leaving', when: { 't1.going_up': 'never' }, salience: 3, say: w('Demain, Lila saura déjà.', 'Tomorrow, Lila will already know.', 'Morgen weiß Lila es schon.') },
-  { id: 'tomorrow.away', when: { 't1.stayed_away': true }, salience: 3, say: w('Demain, Margaux ne dira rien. Ou presque.', 'Tomorrow, Margaux will say nothing. Or almost nothing.', 'Morgen wird Margaux nichts sagen. Oder fast nichts.') },
-  { id: 'tomorrow.stairs', when: { 't1.going_up': 'tomorrow' }, salience: 3, say: w("Demain, l'escalier.", 'Tomorrow, the stairs.', 'Morgen, die Treppe.') },
-  { id: 'tomorrow.gus', when: { 't1.told': ['family', 'question', 'nothing'] }, salience: 2, say: w('Demain, Gus voudra s\'excuser. À sa façon.', 'Tomorrow, Gus will want to apologise. In his own way.', 'Morgen will Gus sich entschuldigen. Auf seine Art.') },
-];
 
 /* ------------------------------------------------------------------------------------------ */
 /* the carnet's words                                                                         */
@@ -745,7 +594,7 @@ export const NOTES: Array<Bark & { who: CastId }> = [
   { id: 'note.gus.plans', who: 'augustin_de_roncourt', when: { 't1.told': 'selling' }, salience: 2, say: w('Gus se méfie de tes projets.', 'Gus is wary of your plans.', 'Gus traut deinen Plänen nicht.') },
   { id: 'note.margaux.key', who: 'margaux_barman', when: { 'item.cle_cigale': 'margaux_barman' }, salience: 3, say: w('Margaux garde la clé.', 'Margaux is keeping the key.', 'Margaux bewahrt den Schlüssel auf.') },
   { id: 'note.margaux.afraid', who: 'margaux_barman', when: { 't1.going_up': 'tomorrow' }, salience: 2, say: w('Margaux a peur, elle aussi.', 'Margaux is afraid too.', 'Margaux hat auch Angst.') },
-  { id: 'note.lila.cheek', who: 'lila_bonnet', when: { 't1.told': ['question', 'nothing'] }, salience: 2, say: w('Lila aime ton culot.', 'Lila likes your cheek.', 'Lila mag deine Frechheit.') },
+  { id: 'note.lila.cheek', who: 'lila_bonnet', when: { 't1.told': 'question' }, salience: 2, say: w('Lila aime ton culot.', 'Lila likes your cheek.', 'Lila mag deine Frechheit.') },
   { id: 'note.marin.plate', who: 'marin_leveque', when: { 'marin.fed': true }, salience: 2, say: w('Marin te garde une assiette.', 'Marin keeps a plate for you.', 'Marin hebt dir einen Teller auf.') },
 ];
 
