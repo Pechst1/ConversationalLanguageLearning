@@ -18,7 +18,8 @@
       "Forbidden reveals respected: the gap's «must not» list."
     ],
     "register": "Lines addressed to Toi are agreement-free («Tu le savais ?», «Tu es en colère ?», «la première personne»). Camille's lines about Camille are agreement-free, and other characters' pronouns for Camille come from s1.camille_gender. Margaux, Lila, Marin and Romy say tu; Gus says vous until T3, then tu; M. Marchand and Camille say vous.",
-    "gates": "Gates 2 and 3 (Lila's path) live in gaps 2 and 4. The director must include the gate's moment; the classifier reads only what the learner expresses. When the learner doesn't take it, nothing is lost: the gate stays open, and a later small moment can still register it. Never generate a second chance the same day. Never show the path: no hearts, no meters, no «Lila s'en souviendra» on romance moments."
+    "gates": "Gates 2 and 3 (Lila's path) live in gaps 2 and 4. The director must include the gate's moment; the classifier reads only what the learner expresses. When the learner doesn't take it, nothing is lost: the gate stays open, and a later small moment can still register it. Never generate a second chance the same day. Never show the path: no hearts, no meters, no «Lila s'en souviendra» on romance moments.",
+    "heading": {"_about": "«Ton cap» (steering read 2026-10-24): where the learner stands on going home or staying (user.heading), in their own words. It decides what the world asks of them, never whether the story moves: every tentpole still comes.", "leave": "The learner means to sell and go home. Nobody pleads with them to stay, asks whether they really will go, or talks as if they were staying: people ask how and when, help or tease them about it, and the world gives its own reasons for what still keeps them here (a paper, a date, a promise already made).", "undecided": "The learner has not decided whether to stay. Nobody decides for them or pushes them either way; the day may let them see something of what each way would cost.", "stay": "The learner wants to stay longer. People start to count on them a little and say so; the reasons to leave (the ticket, Solvel's offer) are theirs to weigh, never a reproach."}
   },
   "global_must_not": [
     {"id": "painter_named", "text": "«L.», the painter at the rue de Lancry window, is never named, never noticed and never discussed. The painting above the zinc may hang there; nobody reads its back.", "patterns": ["sign[ée]e? (par )?« ?L\\.", "\\bmonsieur L\\.", "le peintre du tableau", "derrière le tableau", "toujours rue de lancry", "pour odile, qui part"]},
@@ -74,7 +75,7 @@
         {"premise": "la_meme_chose", "from_day": 1, "by_day": 5},
         {"premise": "le_billet", "from_day": 2, "by_day": 5}
       ],
-      "sets_allowed": ["user.usual_order", "user.return_ticket"],
+      "sets_allowed": ["user.usual_order", "user.return_ticket", "user.heading"],
       "establish": [
         "The notary has explained that nothing can be sold before the succession papers, which takes weeks.",
         "The return ticket has moved to 2 December (user.return_ticket).",
@@ -145,7 +146,7 @@
       "required": [
         {"premise": "le_diner_rate", "from_day": 2, "by_day": 5}
       ],
-      "sets_allowed": ["s1.gus_photo"],
+      "sets_allowed": ["s1.gus_photo", "user.heading"],
       "establish": [
         "Marin has seen the notebook page «Le Mistral à nous» and built a spreadsheet.",
         "Gus has heard about Solvel's offer (the exact figure only if s1.price_public).",
@@ -211,7 +212,7 @@
       "required": [
         {"premise": "sur_le_toit", "from_day": 2, "by_day": 6}
       ],
-      "sets_allowed": ["user.return_ticket"],
+      "sets_allowed": ["user.return_ticket", "user.heading"],
       "establish": [
         "The party «Les 25 ans du Mistral» is ready for Saturday: the wall of Polaroids, Lila's banner.",
         "Some Polaroids are stuck together; Lila will separate them on Saturday.",
@@ -282,7 +283,7 @@
       "required": [
         {"premise": "la_dispute", "from_day": 2, "by_day": 5}
       ],
-      "sets_allowed": [],
+      "sets_allowed": ["user.heading"],
       "establish": [
         "The flat's debt is real: «La dette peut prendre l'appartement. Pas plus.»",
         "Marin is still pushing «Le Mistral à nous»; his plan of the back room has a square labelled «ATELIER DE LILA».",
@@ -346,7 +347,7 @@
         {"id": "une_rencontre", "title_fr": "Une rencontre", "text": "A short email from Camille: «Mon grand-père voudrait vous rencontrer. Avant Noël.» The regulars have hung the learner's coat on the hook under Odile's portrait as if it had always been there. The learner writes back.", "change": "The learner has answered Camille, and a meeting with Marchand is on the calendar before Christmas.", "turn": "Write your reply to Camille."}
       ],
       "required": [],
-      "sets_allowed": ["user.return_ticket"],
+      "sets_allowed": ["user.return_ticket", "user.heading"],
       "establish": [
         "Margaux has received a recorded letter: «fin du bail le 31 mars».",
         "Romy's editor wants the Solvel story.",
@@ -413,7 +414,7 @@
         {"id": "le_reveillon", "title_fr": "Le réveillon", "text": "Marin is organising New Year's Eve at Le Mistral and wants a list: who brings what, and one wish each for the new year, written on a card for the zinc.", "change": "New Year's Eve at Le Mistral is set, everyone will be there, and the learner's wish is on the zinc.", "turn": "Say what you bring, and write your wish for the new year."}
       ],
       "required": [],
-      "sets_allowed": [],
+      "sets_allowed": ["user.heading"],
       "establish": [
         "Christmas has happened at Le Mistral: Marchand's two croissants, and Lila's present.",
         "The plan has been prepared but not attempted.",
@@ -475,7 +476,7 @@
         {"id": "le_dernier_billet", "title_fr": "Le dernier billet", "text": "Lila is packing. The learner's ticket needs a last date. Whatever the learner wants, it cannot be before Friday 8 January: Lila's train leaves that morning at 9:55, and what was decided about the flat is signed at Maître Vasseur's that week, in person. The learner chooses the date, for their own reason, with the suitcase open between them.", "change": "The ticket says the learner's last date, and Lila has heard it.", "turn": "Tell Lila when you are leaving, and why that day.", "sets": ["user.return_ticket"], "settles": {"user.return_ticket": "samedi 9 janvier"}}
       ],
       "required": [],
-      "sets_allowed": ["user.return_ticket"],
+      "sets_allowed": ["user.return_ticket", "user.heading"],
       "establish": [
         "The decision is made. The week is about «last times», not about reversing it.",
         "Nobody finds the letter before T8."

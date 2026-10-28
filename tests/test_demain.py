@@ -128,6 +128,35 @@ def test_a_pick_the_day_no_longer_offers_is_ignored():
         assert "picked" not in brief["today"]
 
 
+def _hook(premise: str) -> str:
+    return next(beat.hook for beat in load_season("s1").gaps["g2"].days if beat.premise == premise)
+
+
+def test_a_picked_day_ends_on_the_hook_of_what_comes_next():
+    """Paid check 2026-10-28: the learner picked the dinner before «Je peux ?». The
+    dinner's own hook promised Gus's birthday for tomorrow while «Je peux ?» waited,
+    and the next day «Je peux ?»'s own hook («Ce soir, on cuisine chez toi.») came
+    after the dinner. The hook now leads into what the plan stages next."""
+
+    dinner = _g2_day(2, ["la_boite"], pick={"gap": "g2", "day": 2, "premise": "le_diner_rate"})["today"]
+    assert dinner["required_premise"]["id"] == "le_diner_rate"
+    assert dinner["beat"]["hook"] == _hook("la_boite"), "Marin wants to ask the learner something"
+    after = _g2_day(3, ["la_boite", "le_diner_rate"])["today"]
+    assert after["required_premise"]["id"] == "je_peux"
+    assert after["beat"]["hook"] == _hook("le_diner_rate"), "Gus's birthday, not tonight's dinner"
+
+
+def test_a_day_in_the_plans_order_keeps_its_own_hook():
+    for day, staged, premise in (
+        (2, ["la_boite"], "je_peux"),
+        (3, ["la_boite", "je_peux"], "le_diner_rate"),
+        (6, ["la_boite", "je_peux", "le_diner_rate", "pour_son_anniversaire", "la_petition"], "bastien_appelle"),
+    ):
+        today = _g2_day(day, staged)["today"]
+        assert today["required_premise"]["id"] == premise
+        assert today["beat"]["hook"] == _hook(premise), premise
+
+
 def test_the_learner_picking_the_plans_own_beat_changes_nothing():
     brief = _g2_day(2, ["la_boite"], pick={"gap": "g2", "day": 2, "premise": "je_peux"})
     assert brief["today"]["required_premise"]["id"] == "je_peux"

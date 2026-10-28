@@ -177,7 +177,11 @@ Score each rubric item true or false:
   told (who saw the letter, who kept the key), an object is where the learner did not put
   it, a relationship ignores what the learner chose, or it breaks one of today.agreements
   (what the learner agreed with a character, in their own words). When today.callback is
-  set, the page stages it.
+  set, the page stages it. When today.heading is set (where the learner stands on going
+  home or staying, in their own words), false also if the page argues them out of it: a
+  character pleads with a learner who means to leave to stay, presses one who wants to
+  stay to go, or takes the opposite for granted («pourquoi tu restes ?» to a learner who
+  means to leave).
 - obstacle_faced: when today.open_obstacle is set (yesterday's complication), the page
   shows it still in the way and someone deals with it, visibly. True when it is null.
   The learner's task counts: a page whose learner_turn.task asks the learner to deal
@@ -344,6 +348,38 @@ def tomorrow_options(
     return options if len(options) > 1 else []
 
 
+def leading_hook(
+    gap: Gap,
+    beat: DayBeat,
+    done: set[str],
+    flags: dict[str, Any],
+    *,
+    day: int,
+    length: int | None = None,
+) -> str:
+    """Tomorrow's hook on the day ``beat`` is staged: the authored hook that leads into
+    the beat the plan stages next. A beat's own ``hook`` teases the beat after it in the
+    plan, and a pick («Demain») or a beat left behind changes what comes next: in the
+    paid check of 2026-10-28 the learner picked the dinner before «Je peux ?», the
+    dinner's page promised Gus's birthday for tomorrow while «Je peux ?» waited, and the
+    day after the dinner «Je peux ?»'s page ended on «Ce soir, on cuisine chez toi.».
+    The beat's own hook on the gap's last day, once the plan is spent, or when no
+    authored hook leads into what comes next."""
+
+    if length is not None and day >= length:
+        return beat.hook
+    after = planned_beat(gap, day + 1, done | {beat.premise}, flags, length=length)
+    if after is None:
+        return beat.hook
+    premises = {premise.id: premise for premise in gap.premises}
+    leading = [
+        row
+        for row in sorted(gap.days, key=lambda row: row.day)
+        if row.day < after.day and row.premise in premises and holds(premises[row.premise].when, flags)
+    ]
+    return (leading[-1].hook if leading else "") or beat.hook
+
+
 def _waiting(gap: Gap, beat: DayBeat) -> dict[str, str]:
     premise = next((row for row in gap.premises if row.id == beat.premise), None)
     return {"title_fr": premise.title_fr if premise else beat.premise, "before": beat.before}
@@ -489,6 +525,23 @@ def _agency_extras(
         return {}
 
 
+#: «Ton cap» (steering read 2026-10-24): where the learner stands on going home or
+#: staying, in their own words (T1 B, T2 B, and any generated day where they say so).
+HEADING_FLAG = "user.heading"
+
+
+def heading_for(season: Season, flags: dict[str, Any]) -> dict[str, str] | None:
+    """Where the learner stands, and what that asks of today's page (``gaps.json`` →
+    ``rules.heading``). It decides what the world asks of the learner, never whether
+    the story moves. None for a season without the flag or the lines."""
+
+    lines = (season.gap_rules or {}).get("heading") or {}
+    value = flags.get(HEADING_FLAG)
+    if season.flag(HEADING_FLAG) is None or not isinstance(value, str) or not lines.get(value):
+        return None
+    return {"value": value, "means": str(lines[value])}
+
+
 def gap_brief(
     season: Season,
     pos: Position,
@@ -575,7 +628,14 @@ def gap_brief(
             "required_premise": required_row.model_dump(exclude={"when"}) if required_row else None,
             # The day plan's change for today: the page starts from ``before``, the
             # learner's exchange ends at ``after``.
-            "beat": beat.model_dump(exclude={"day", "premise", "pick_fr", "needs"}) if beat else None,
+            "beat": {
+                **beat.model_dump(exclude={"day", "premise", "pick_fr", "needs"}),
+                # «Demain» paid check: the «À suivre…» leads into what the plan stages
+                # next, which a pick or a beat left behind may have changed.
+                "hook": leading_hook(gap, beat, done | dropped, flags, day=day, length=pos.segment.days),
+            }
+            if beat
+            else None,
             # «Demain»: the learner chose today's thread yesterday; the plan's own beat waits.
             **(
                 {"picked": {"by_learner": beat.pick_fr, "waits": _waiting(gap, plan)}}
@@ -586,6 +646,8 @@ def gap_brief(
             "small_moments": [moment.model_dump() for moment in moments],
             "gate": required_row.gate if required_row else None,
             "may_set": list(gap.sets_allowed),
+            # «Ton cap»: where the learner stands on going home or staying.
+            **({"heading": heading} if (heading := heading_for(season, flags)) else {}),
             # WP-113: yesterday's complication, still in the way today.
             "open_obstacle": obstacle,
             # N1 pilot: what the learner agreed, and a callback to it when one is due;
@@ -694,7 +756,7 @@ def critic_payload(
             # N1 pilot: only on a day that has them.
             **{
                 key: (brief.get("today") or {})[key]
-                for key in ("agreements", "callback")
+                for key in ("agreements", "callback", "heading")
                 if (brief.get("today") or {}).get(key)
             },
         },
