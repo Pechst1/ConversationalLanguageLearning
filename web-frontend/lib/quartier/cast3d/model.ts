@@ -51,6 +51,10 @@ export interface Person {
   manner?: Manner;
   /** variants of the person (Camille's two), the first the default */
   variants?: string[];
+  /** the head's mesh, segments round and rings down: the troupe's 36 × 26, lighter in the street */
+  headMesh?: [number, number];
+  /** a lighter body for across the square, on the same bones and in the same print (the street's people have one) */
+  far?: Pick<Person, 'head' | 'headMesh' | 'build'>;
 }
 
 export interface Model {
@@ -59,6 +63,8 @@ export interface Model {
   J: Joints;
   head: HeadShape;
   mesh: SkinnedMesh;
+  /** the lighter body, hidden until it is wanted */
+  far: SkinnedMesh | null;
   bones: Bone[];
   /** each bone's bind-pose position relative to its parent */
   rest: Vector3[];
@@ -81,7 +87,7 @@ export function sculptPerson(person: Person, variant = person.variants?.[0]) {
   const hc = headCentre(J);
   const b: Build = { S, J, head, hc };
   const look = typeof person.look === 'function' ? person.look(variant) : person.look;
-  sculptHead(S, head, hc, look.frame, ink(person.skin, PLATE.skin), B.head);
+  sculptHead(S, head, hc, look.frame, ink(person.skin, PLATE.skin), B.head, person.headMesh);
   sculptEars(S, head, hc, ink(person.skin, PLATE.skin2), B.head);
   person.build(b, variant);
   return { J, head, look, geometry: S.geometry(), triangles: S.triangles };
@@ -100,6 +106,13 @@ export function buildModel(world: World, person: Person, opts: { variant?: strin
   mesh.add(rig.bones[0]);
   mesh.bind(rig.skeleton);
   mesh.frustumCulled = false;
+  let far: SkinnedMesh | null = null;
+  if (person.far) {
+    far = new SkinnedMesh(sculptPerson({ ...person, ...person.far }, variant).geometry, material);
+    far.bind(rig.skeleton, mesh.bindMatrix);
+    far.frustumCulled = false;
+    far.visible = false;
+  }
   const rest = rig.bones.map((bone) => bone.position.clone());
   return {
     person,
@@ -107,6 +120,7 @@ export function buildModel(world: World, person: Person, opts: { variant?: strin
     J,
     head,
     mesh,
+    far,
     bones: rig.bones,
     rest,
     print,
@@ -114,6 +128,7 @@ export function buildModel(world: World, person: Person, opts: { variant?: strin
     triangles,
     dispose() {
       geometry.dispose();
+      far?.geometry.dispose();
       material.dispose();
       print.dispose();
       rig.skeleton.dispose();

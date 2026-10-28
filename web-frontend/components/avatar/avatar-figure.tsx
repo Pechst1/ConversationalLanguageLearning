@@ -45,13 +45,16 @@ const ARMS: Record<Side, ArmDef> = {
   R: { shoulder: [138, 238], elbow: [149, 276], palm: [143, 314], r: 8 },
 };
 
-const EYES: Record<string, EyeParams> = {
+export const EYES: Record<string, EyeParams> = {
   ronds: { rx: 10.4, ry: 12, pr: 6.4, iris: true },
   amande: { rx: 11.6, ry: 7.4, pr: 5.2, iris: true },
   petits: { rx: 7, ry: 7.8, pr: 4.6, iris: true },
 };
 
-const BROW_WIDTH: Record<string, number> = { fins: 3.2, naturels: 4.6, epais: 6.6 };
+export const BROW_WIDTH: Record<string, number> = { fins: 3.2, naturels: 4.6, epais: 6.6 };
+
+/** The nose, in the head frame. */
+export const NOSE = 'M0,-1 C3,2 5,10 4,13 C2,15.5 -2,15.5 -4,13 C-5,10 -3,2 0,-1 Z';
 
 const B = {
   neutre: [[-24, -21, -15, -26, -6, -22], [6, -22, 15, -26, 24, -21]] as [Brow, Brow],
@@ -242,8 +245,9 @@ const GESTURES: Record<GestureId, GestureDef> = {
   },
 };
 
-const LASHED = new Set(['open', 'wide', 'tiny', 'sparkle']);
-function lash(c: [number, number], side: -1 | 1, ry: number): string {
+/** The eye states the lashes show over. */
+export const LASHED = new Set(['open', 'wide', 'tiny', 'sparkle']);
+export function lash(c: [number, number], side: -1 | 1, ry: number): string {
   return `M${c[0] - 10.5},${c[1] + 8.5 - ry} Q${c[0]},${c[1] - 3.5 - ry} ${c[0] + 10.5},${c[1] + 8.5 - ry} M${c[0] + side * 10},${c[1] + 7.5 - ry} L${c[0] + side * 14},${c[1] + 5 - ry}`;
 }
 
@@ -257,7 +261,7 @@ function Features({ f, look, eye }: { f: FaceValues; look: Look; eye: EyeParams 
       <EyeSet e={f.eR} skin={tone.skin} iris={iris} arcLine={4} lash={lashes && LASHED.has(f.def.eyes[1]) ? lash([15, -4], 1, eye.ry) : ''} />
       <path d={f.browL} fill="none" stroke={hair.brow} strokeWidth={width} strokeLinecap="round" />
       <path d={f.browR} fill="none" stroke={hair.brow} strokeWidth={width} strokeLinecap="round" />
-      <path d="M0,-1 C3,2 5,10 4,13 C2,15.5 -2,15.5 -4,13 C-5,10 -3,2 0,-1 Z" fill={tone.shade} />
+      <path d={NOSE} fill={tone.shade} />
       <Mouths mouths={f.mouths} transform="translate(-3.6 1.8) scale(1.8)" />
       <BeardOver look={look} />
     </>

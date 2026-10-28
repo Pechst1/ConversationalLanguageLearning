@@ -149,6 +149,8 @@ export class Quartier {
   /** the forged place, when this is one */
   site?: SiteBuilt;
   ambiance: AmbianceId;
+  /** everyone on stage in the round, or on paper as cut-out cards (`?cast=paper`) */
+  readonly cast: 'round' | 'paper';
 
   /* you */
   readonly feet = new Vector3();
@@ -226,9 +228,10 @@ export class Quartier {
     this.art = opts.art;
     this.onProgress = opts.onProgress;
     this.camera.rotation.order = 'YXZ';
+    this.cast = opts.cast ?? 'round';
     // in the round, the cast sit in Le Mistral's booth and on its stools
     const seats = opts.site ? [] : SEATS;
-    this.troupe = new Troupe<Figure>(this.world, opts.art, 840, opts.cast === 'paper' ? undefined : (spec) => roundFigure(this.world, spec, seats));
+    this.troupe = new Troupe<Figure>(this.world, opts.art, 840, this.cast === 'paper' ? undefined : (spec) => roundFigure(this.world, spec, seats));
     this.print = new PrintPass(2, 2, { line: 1, idLines: 0.55, halftone: 0.55, grain: 1 });
     this.scene.add(this.troupe.group);
   }

@@ -3,7 +3,8 @@
 //   node scripts/quartier/forge-render.mjs <site.json> <out-dir> [--size 390x844] [--scale 2]
 // Writes one PNG per view (the arrival, the landmarks inside and out, the market, the edge, a
 // look from above), a contact sheet of them all (`sheet.png`), and `render.json` with the load
-// time and the frame's cost per view. The forge reads the sheet and decides what to revise.
+// time, the time the place's people then take to stand up, and the frame's cost per view. The
+// forge reads the sheet and decides what to revise.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -78,7 +79,7 @@ tab.on('console', (m) => {
 });
 await tab.goto(`file://${page}`);
 await tab.waitForFunction(() => window.__forge, null, { timeout: 240000 });
-const state = await tab.evaluate(() => ({ ready: window.__forge.ready, error: window.__forge.error, loadMs: window.__forge.loadMs, views: window.__forge.views }));
+const state = await tab.evaluate(() => ({ ready: window.__forge.ready, error: window.__forge.error, loadMs: window.__forge.loadMs, peopleMs: window.__forge.peopleMs, views: window.__forge.views }));
 if (!state.ready) {
   console.error(state.error);
   await browser.close();
@@ -103,6 +104,6 @@ await tab.setContent(`<style>body{margin:0;padding:12px;background:#f1ece1;font:
 await tab.screenshot({ path: path.join(outDir, 'sheet.png'), fullPage: true });
 await browser.close();
 
-fs.writeFileSync(path.join(outDir, 'render.json'), `${JSON.stringify({ size: [width, height, scale], loadMs: state.loadMs, shots, errors }, null, 2)}\n`);
+fs.writeFileSync(path.join(outDir, 'render.json'), `${JSON.stringify({ size: [width, height, scale], loadMs: state.loadMs, peopleMs: state.peopleMs, shots, errors }, null, 2)}\n`);
 fs.rmSync(page);
-console.log(`loaded in ${state.loadMs} ms; ${shots.length} views and sheet.png in ${path.relative(process.cwd(), outDir)}${errors.length ? `; ${errors.length} page errors (render.json)` : ''}`);
+console.log(`loaded in ${state.loadMs} ms, people up in ${state.peopleMs} ms more; ${shots.length} views and sheet.png in ${path.relative(process.cwd(), outDir)}${errors.length ? `; ${errors.length} page errors (render.json)` : ''}`);

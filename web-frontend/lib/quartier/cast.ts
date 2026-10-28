@@ -173,6 +173,8 @@ export interface Figure {
   express?(expression: string, gesture: string | null): void;
   /** inside the café, for the warm shade (in the round) */
   indoor?: boolean;
+  /** in the round: turns to face you when you are well off to one side; off, they keep their way */
+  attentive?: boolean;
 }
 
 let figureIds = 40;

@@ -171,7 +171,7 @@ export function trunk(b: Build, bands: Band[], k: Ink, opts: { seg?: number; cap
 }
 
 /** The neck, a little wider where it meets the shoulders. */
-export function neck(b: Build, k: Ink, r: number, opts: { z?: number; top?: number } = {}) {
+export function neck(b: Build, k: Ink, r: number, opts: { z?: number; top?: number; seg?: number } = {}) {
   const J = b.J;
   const z = opts.z ?? J.neck.z;
   const y0 = J.shoulderY - 0.04;
@@ -183,7 +183,7 @@ export function neck(b: Build, k: Ink, r: number, opts: { z?: number; top?: numb
     { c: v(0, (J.shoulderY + y1) / 2, z + 0.003), rx: r, rz: r * 0.94, bind },
     { c: v(0, y1, z + 0.008), rx: r * 0.98, rz: r * 0.92, bind },
   ];
-  b.S.loft(rings, k, { seg: 14, capStart: true, capEnd: true });
+  b.S.loft(rings, k, { seg: opts.seg ?? 14, capStart: true, capEnd: true });
 }
 
 /** Points along an arm in the bind pose: 0 the shoulder, 1 the elbow, 2 the wrist, 2.5 the palm. */
@@ -212,20 +212,21 @@ export function sleeve(b: Build, side: Side, k: Ink, stations: Array<[number, nu
     path.push(p);
     radii.push([r, rz ?? r]);
   }
+  const seg = opts.seg ?? 14;
   b.S.tube(path, radii, k, armBind(J, side, opts.hand ?? false), {
-    seg: opts.seg ?? 14,
+    seg,
     caps: false,
     up: v(0, 0, 1),
   });
   // the tube's own caps are flat; a sleeve wants a dome over the shoulder and a closed cuff
   if (opts.capStart !== false && stations[0][0] <= 0.001) {
     const top = path[0];
-    b.S.ball(top, v(radii[0][0] * 1.02, radii[0][0] * 0.9, radii[0][1] * 1.02), k, armBind(J, side, false), { seg: 14, rings: 7 });
+    b.S.ball(top, v(radii[0][0] * 1.02, radii[0][0] * 0.9, radii[0][1] * 1.02), k, armBind(J, side, false), { seg, rings: Math.round(seg / 2) });
   }
   if (opts.capEnd) {
     const end = path[path.length - 1];
     const r = radii[radii.length - 1];
-    b.S.ball(end, v(r[0] * 0.98, Math.min(r[0], r[1]) * 0.35, r[1] * 0.98), k, armBind(J, side, opts.hand ?? false), { seg: 14, rings: 4 });
+    b.S.ball(end, v(r[0] * 0.98, Math.min(r[0], r[1]) * 0.35, r[1] * 0.98), k, armBind(J, side, opts.hand ?? false), { seg, rings: Math.max(3, Math.round((seg * 2) / 7)) });
   }
 }
 
@@ -242,8 +243,9 @@ export function cuff(b: Build, side: Side, k: Ink, f: number, r: number, len: nu
 /**
  * A hand: a soft mitten with its thumb, hanging from the wrist, palm toward the thigh. The drawn
  * troupe's hands are round, so these are round too: a palm, the fingers closed into one curve.
+ * `seg` sets how round (12; fewer for the people of the street).
  */
-export function hand(b: Build, side: Side, k: Ink, size = 1, opts: { curl?: number } = {}) {
+export function hand(b: Build, side: Side, k: Ink, size = 1, opts: { curl?: number; seg?: number } = {}) {
   const J = b.J;
   const W = J.wrist[side];
   const P = J.palm[side];
@@ -255,19 +257,20 @@ export function hand(b: Build, side: Side, k: Ink, size = 1, opts: { curl?: numb
   // the inward side of the hand (toward the thigh) is the palm
   const inward = v(-s, 0, 0);
   const curl = opts.curl ?? 0.5;
+  const seg = opts.seg ?? 12;
   // the wrist, so the hand never floats free of the sleeve
-  b.S.ball(W.clone().addScaledVector(down, len * 0.06), v(0.02 * size, 0.024 * size, 0.026 * size), k, bind, { seg: 10, rings: 5, rot: q });
+  b.S.ball(W.clone().addScaledVector(down, len * 0.06), v(0.02 * size, 0.024 * size, 0.026 * size), k, bind, { seg: seg - 2, rings: Math.round((seg - 2) / 2), rot: q });
   // the palm
   const palm = W.clone().addScaledVector(down, len * 0.36);
-  b.S.ball(palm, v(0.024 * size, len * 0.32, 0.037 * size), k, bind, { seg: 12, rings: 8, rot: q });
+  b.S.ball(palm, v(0.024 * size, len * 0.32, 0.037 * size), k, bind, { seg, rings: Math.round((seg * 2) / 3), rot: q });
   // the fingers, closed into one rounded mass, curling toward the palm
   const tips = W.clone().addScaledVector(down, len * 0.7).addScaledVector(inward, 0.009 * curl * size);
   const qc = q.clone().multiply(new Quaternion().setFromAxisAngle(v(0, 0, 1), -s * 0.35 * curl));
-  b.S.ball(tips, v(0.021 * size, len * 0.27, 0.034 * size), k, bind, { seg: 12, rings: 7, rot: qc });
+  b.S.ball(tips, v(0.021 * size, len * 0.27, 0.034 * size), k, bind, { seg, rings: Math.round((seg * 7) / 12), rot: qc });
   // the thumb: on the front edge, angled down and in
   const thumbBase = W.clone().addScaledVector(down, len * 0.2).add(v(-s * 0.004 * size, 0, 0.028 * size));
   const thumbTip = thumbBase.clone().addScaledVector(down, len * 0.34).add(v(-s * 0.014 * size, 0, 0.008 * size));
-  b.S.tube([thumbBase, thumbBase.clone().lerp(thumbTip, 0.55), thumbTip], [[0.0135 * size, 0.0135 * size], [0.0125 * size, 0.0125 * size], [0.011 * size, 0.011 * size]], k, bind, { seg: 8, caps: 0.008 * size, up: v(0, 0, 1) });
+  b.S.tube([thumbBase, thumbBase.clone().lerp(thumbTip, 0.55), thumbTip], [[0.0135 * size, 0.0135 * size], [0.0125 * size, 0.0125 * size], [0.011 * size, 0.011 * size]], k, bind, { seg: Math.round((seg * 2) / 3), caps: 0.008 * size, up: v(0, 0, 1) });
 }
 
 /** A trouser leg (or a bare leg, or a stocking) from the hip to just above the ankle. */
@@ -294,7 +297,7 @@ export function leg(b: Build, side: Side, k: Ink, radii: { top: number; thigh: n
  * The hips in the trousers' ink, from the crotch to the waist, for tops that stop at the waist:
  * the legs hang from inside it.
  */
-export function pelvis(b: Build, k: Ink, spec: { waist: number; rx: number; rz: number; seat?: number }) {
+export function pelvis(b: Build, k: Ink, spec: { waist: number; rx: number; rz: number; seat?: number; seg?: number }) {
   const J = b.J;
   const hip = J.hips.y;
   const w = J.spec.hips + spec.rx * 0.5;
@@ -303,11 +306,11 @@ export function pelvis(b: Build, k: Ink, spec: { waist: number; rx: number; rz: 
     { y: hip - 0.05, rx: w * 0.98, rz: spec.rz * 0.9, back: spec.seat ?? 0.01 },
     { y: hip + 0.02, rx: w, rz: spec.rz, back: spec.seat ?? 0.012 },
     { y: spec.waist, rx: spec.rx, rz: spec.rz * 0.94 },
-  ], k, { capStart: 0.02, capEnd: true, seg: 22 });
+  ], k, { capStart: 0.02, capEnd: true, seg: spec.seg ?? 22 });
 }
 
 /** A shoe, built along the foot: a heel, an instep, a rounded toe, flat on the ground. */
-export function shoe(b: Build, side: Side, k: Ink, spec: { width?: number; height?: number; toe?: number; heel?: number; sole?: Ink } = {}) {
+export function shoe(b: Build, side: Side, k: Ink, spec: { width?: number; height?: number; toe?: number; heel?: number; sole?: Ink; seg?: number } = {}) {
   const J = b.J;
   const A = J.ankle[side];
   const foot = J.spec.foot;
@@ -337,7 +340,7 @@ export function shoe(b: Build, side: Side, k: Ink, spec: { width?: number; heigh
     square: 2.8,
     bind,
   }));
-  b.S.loft(rings, k, { seg: 14, capStart: 0.012, capEnd: 0.012 });
+  b.S.loft(rings, k, { seg: spec.seg ?? 14, capStart: 0.012, capEnd: 0.012 });
   if (spec.sole) {
     const sole: Ring[] = [
       { c: v(x, 0.008, z0 - 0.004), rx: w * 0.72, rz: 0.009, axis: v(0, 0, 1), across, square: 3, bind },
@@ -427,21 +430,35 @@ export function frontZ(bands: Band[], x: number, y: number): number {
   return (b.z ?? 0) + zf + (b.front ?? 0) * c * c;
 }
 
-/** A flat piece laid on the trunk's front: its outline in (x, y) metres, lifted `lift` off the surface. */
-export function onFront(b: Build, bands: Band[], outline: Array<[number, number]>, k: Ink, opts: { lift?: number; depth?: number; bind?: BindAt } = {}) {
+/**
+ * A flat piece laid on the trunk's front: its outline in (x, y) metres, lifted `lift` off the
+ * surface. `rings` stands rings between its middle and its edge on the surface too, so a wide
+ * piece (a shirt's V, a lapel) follows the chest's curve instead of cutting into it.
+ */
+export function onFront(b: Build, bands: Band[], outline: Array<[number, number]>, k: Ink, opts: { lift?: number; depth?: number; bind?: BindAt; rings?: number } = {}) {
   // stand each point on the surface, then build a thin shell between the two faces
   const lift = opts.lift ?? 0.003;
   const depth = opts.depth ?? 0.005;
-  const pts = outline.map(([x, y]) => new Vector3(x, y, frontZ(bands, x, y) + lift));
-  const n = pts.length;
-  const cx = pts.reduce((s, p) => s + p.x, 0) / n;
-  const cy = pts.reduce((s, p) => s + p.y, 0) / n;
+  const R = Math.max(1, Math.round(opts.rings ?? 1));
+  const n = outline.length;
+  const cx = outline.reduce((s, p) => s + p[0], 0) / n;
+  const cy = outline.reduce((s, p) => s + p[1], 0) / n;
   const centre = new Vector3(cx, cy, frontZ(bands, cx, cy) + lift + depth * 0.5);
-  const all: Vector3[] = [centre, ...pts];
+  const all: Vector3[] = [centre];
+  for (let r = 1; r <= R; r++) {
+    const f = r / R;
+    for (const [x0, y0] of outline) {
+      const x = r === R ? x0 : cx + (x0 - cx) * f;
+      const y = r === R ? y0 : cy + (y0 - cy) * f;
+      all.push(new Vector3(x, y, frontZ(bands, x, y) + lift + depth * 0.5 * (1 - f)));
+    }
+  }
+  const pts = all.slice(1 + (R - 1) * n);
   const backC = centre.clone().add(new Vector3(0, 0, -depth));
   all.push(backC, ...pts.map((p) => p.clone().add(new Vector3(0, 0, -depth))));
   const tris: Array<[number, number, number]> = [];
-  const fb = n + 1;
+  const fb = 1 + R * n;
+  const edge = 1 + (R - 1) * n;
   // which way round the outline goes decides the winding
   let area = 0;
   for (let i = 0; i < n; i++) {
@@ -451,12 +468,19 @@ export function onFront(b: Build, bands: Band[], outline: Array<[number, number]
   }
   const ccw = area > 0;
   for (let i = 0; i < n; i++) {
-    const a = 1 + i;
-    const c = 1 + ((i + 1) % n);
-    if (ccw) tris.push([0, a, c]);
-    else tris.push([0, c, a]);
+    const i1 = (i + 1) % n;
+    if (ccw) tris.push([0, 1 + i, 1 + i1]);
+    else tris.push([0, 1 + i1, 1 + i]);
+    for (let r = 1; r < R; r++) {
+      const ia = 1 + (r - 1) * n;
+      const oa = 1 + r * n;
+      if (ccw) tris.push([ia + i, oa + i, oa + i1], [ia + i, oa + i1, ia + i1]);
+      else tris.push([ia + i, oa + i1, oa + i], [ia + i, ia + i1, oa + i1]);
+    }
+    const a = edge + i;
+    const c = edge + i1;
     const ba = fb + 1 + i;
-    const bc = fb + 1 + ((i + 1) % n);
+    const bc = fb + 1 + i1;
     if (ccw) tris.push([fb, bc, ba]);
     else tris.push([fb, ba, bc]);
     // the rim

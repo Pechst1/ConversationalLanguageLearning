@@ -18,10 +18,9 @@ import { rigFor } from '@/components/cast/cast-registry';
 import { VivantFigure } from '@/components/cast/vivant/VivantFigure';
 import type { ExpressionId, GestureId } from '@/components/cast/vivant/kit';
 import { figureFor } from '@/components/cast/vivant/registry';
-import { normalizeAvatar, randomAvatar } from '@/lib/avatar';
 import type { SeasonItemId } from '@/lib/season-items';
 
-import { seeded } from './geo';
+import { passerbyAvatar, personAvatar } from './avatars';
 
 export interface FigureArt {
   /** standalone markup, with the xmlns an <img> needs */
@@ -77,8 +76,7 @@ export function itemArt(id: SeasonItemId, size = 256): FigureArt | null {
 
 /** Someone of the neighbourhood: the avatar kit's figure, rolled from a seed (the same seed, the same person). */
 export function passerbyArt(seed: number, size = 256): FigureArt {
-  const R = seeded(seed);
-  const fig = avatarFigure(randomAvatar(R.next), 'Passant');
+  const fig = avatarFigure(passerbyAvatar(seed), 'Passant');
   const box = fig.rig.crops.full;
   const markup = renderToStaticMarkup(<VivantFigure id={fig.key} figure={fig} expression="neutre" still crop="full" size={size} label="" />);
   return { svg: standalone(markup), aspect: box[2] / box[3] };
@@ -89,9 +87,7 @@ export function passerbyArt(seed: number, size = 256): FigureArt {
  * by the brief's `look` (a cap, an apron's colour, a chignon), and drawn with a face that can change.
  */
 export function personArt(seed: number, look: Record<string, string | boolean> = {}, expression: ExpressionId = 'neutre', size = 256): FigureArt {
-  const R = seeded(seed);
-  const avatar = normalizeAvatar({ ...randomAvatar(R.next), ...look });
-  const fig = avatarFigure(avatar, 'Passant');
+  const fig = avatarFigure(personAvatar(seed, look), 'Passant');
   const box = fig.rig.crops.full;
   const markup = renderToStaticMarkup(<VivantFigure id={fig.key} figure={fig} expression={expression} still crop="full" size={size} label="" />);
   return { svg: standalone(markup), aspect: box[2] / box[3] };
