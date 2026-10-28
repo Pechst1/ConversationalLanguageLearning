@@ -53,7 +53,7 @@ export interface DayNote {
 
 /** Today, in the app. */
 export interface QuartierDay {
-  /** the day's story, once it is known: «Commencer» plays it */
+  /** the day's story, once it is known: «Commencer» plays it when no note stands in for the episode, and the people talk through it */
   story: Story | null;
   /** a card instead of the episode's */
   note?: DayNote | null;
@@ -361,12 +361,14 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
     st?.begin();
   };
 
-  /** Back on the quai: the evening goes on, without playing the episode again. */
+  /** Back on the quai: the evening goes on, without playing the episode again; whoever you talk to answers from today's story. */
   const stroll = () => {
+    const st = stage.current;
+    if (day?.story && st instanceof Stage) st.setStory(day.story);
     startSound();
     setAwayNotes([]);
     setBack(false);
-    stage.current?.roam();
+    st?.roam();
   };
 
   /** Ride somewhere on the map: the quarter is taken down and the place built in its stead. */
@@ -619,7 +621,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {ready && phase === 'title' && !site && back ? (
+      {ready && phase === 'title' && !site && back && !day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{name}</p>
@@ -629,7 +631,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
               {copy.roam}
             </button>
             <div className="qz-card-row">
-              {page && (!day || (day.story && !day.note)) ? (
+              {page ? (
                 <button type="button" className="qz-quiet" onClick={begin}>
                   {episodeOf(page)}
                 </button>
@@ -642,7 +644,8 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {ready && phase === 'title' && !site && !back && day?.note ? (
+      {/* where the day stands, back from a ride too: a talk left midway is the Feuilleton's, not played again */}
+      {ready && phase === 'title' && !site && day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{day.note.kicker ?? copy.yourDay}</p>

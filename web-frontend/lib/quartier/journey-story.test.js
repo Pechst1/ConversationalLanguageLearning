@@ -22,7 +22,7 @@ Module._resolveFilename = function alias(request, ...rest) {
 const apiPath = Module._resolveFilename('@/services/api', module, false);
 require.cache[apiPath] = { id: apiPath, filename: apiPath, loaded: true, exports: { __esModule: true, default: {}, apiService: {} } };
 
-const { JourneyStory, StoryLost, pageOfJourney, pageOfStage, todayOf } = require('./journey-story.ts');
+const { JourneyStory, StoryLost, pageOfJourney, pageOfStage, stagedPageOf, todayOf } = require('./journey-story.ts');
 
 const line = (who, text_fr, extra = {}) => ({ who, name: null, kind: who === 'caption' ? 'caption' : 'speech', mood: 'neutral', direction: null, text_fr, text_native: null, ...extra });
 
@@ -150,6 +150,15 @@ test('what /quartier does with each state of the day', () => {
   assert.equal(kind(journey({ current: null })), 'practice', 'every step done, the day not yet finished');
 });
 
+test('a day the quarter stages keeps its page wherever it stands: its people talk through the engine all day', () => {
+  for (const j of [journey(), journey({ current: 'talk', turn: 2 }), journey({ current: 'words' }), journey({ status: 'completed', current: null })]) {
+    assert.equal(stagedPageOf(j)?.key, 't1.a', `${j.status} at ${j.current_step_id}`);
+  }
+  assert.equal(stagedPageOf(journey({ stage: { ...STAGE, key: 't1.b' } })), null, 'a day with no blocking');
+  assert.equal(stagedPageOf(journey({ stage: null })), null);
+  assert.equal(stagedPageOf(null), null);
+});
+
 test('the first question acknowledges the scene, and offers help in steps', async () => {
   const { story, of, snapshots } = storyOn(journey(), { advance: async () => journey({ revision: 4, current: 'talk' }) });
   const ask = await story.ask('a.turn1');
@@ -249,11 +258,34 @@ test('help: the hint and the example are recorded, the words are the talk’s ow
   assert.equal(example.text, "Je suis la petite-fille d'Odile.");
   assert.deepEqual(of('help').map((c) => [c.args[1], c.args[2].helpKind, c.args[2].expectedRevision]), [['talk', 'hint', 4], ['talk', 'suggested_response', 5]]);
 
-  const choice = storyOn(journey({ revision: 4, current: 'talk', help: [], choices: [{ id: 'drink', label_fr: 'Merci.', label_native: null }, { id: 'declined', label_fr: 'Non merci.', label_native: null }] }), {});
+  // the café crème, once the engine asks it: a choice, whose words are its options
+  const choices = [{ id: 'drink', label_fr: 'Merci.', label_native: null }, { id: 'declined', label_fr: 'Non merci.', label_native: null }];
+  const toCafe = { pending: false, journey: journey({ revision: 5, current: 'talk', turn: 1, help: [], choices }), correction: null, character_lines: [], next_turn: { step_id: 'talk' }, stage: { turn_id: 'a.turn1', reply_id: 'a', beats: [], next_turn_id: 'a.cafe', closing: false } };
+  const choice = storyOn(journey({ revision: 4, current: 'talk' }), { attempt: async () => toCafe });
+  await choice.story.answer('a.turn1', "Je suis la petite-fille d'Odile.");
   assert.deepEqual((await choice.story.ask('a.cafe')).help, ['words']);
   assert.deepEqual((await choice.story.help('a.cafe', 'words')).words, ['Merci.', 'Non merci.']);
   assert.equal(await choice.story.help('a.cafe', 'example'), null, 'no example on offer: nothing asked');
   assert.equal(choice.of('help').length, 0);
+});
+
+test('a question the engine is not asking is never answered here: the Feuilleton has it', async () => {
+  const graded = { pending: false, journey: journey({ revision: 5, current: 'talk', turn: 1 }), correction: null, character_lines: [], next_turn: { step_id: 'talk' }, stage: { turn_id: 'a.turn1', reply_id: 'a', beats: [], next_turn_id: 'a.cafe', closing: false } };
+  let lost = 0;
+  const { story, of } = storyOn(journey({ revision: 4, current: 'talk' }), { attempt: async () => graded }, { onLost: () => lost++ });
+  await story.answer('a.turn1', "Je suis la famille d'Odile.");
+  // the scene played again from the top (a ride across the map and back): Gus asks again, while the engine asks the café crème
+  await assert.rejects(story.ask('a.turn1'), StoryLost);
+  await assert.rejects(story.help('a.turn1', 'hint'), StoryLost);
+  await assert.rejects(story.answer('a.turn1', "Je suis la famille d'Odile."), StoryLost);
+  assert.equal(lost, 3);
+  assert.equal(of('attempt').length, 1, 'the answer to Gus is never graded as the café crème');
+  assert.equal(of('help').length, 0);
+
+  // a talk already past its first question is not picked up here at all
+  const midway = storyOn(journey({ revision: 6, current: 'talk', turn: 2 }), {});
+  await assert.rejects(midway.story.ask('a.turn1'), StoryLost);
+  assert.equal(midway.calls.length, 0);
 });
 
 test('a gesture goes to the engine as it was made, and comes back as panels and flags', async () => {

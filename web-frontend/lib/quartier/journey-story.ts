@@ -18,7 +18,7 @@ import dailyJourneyService, { journeyErrorCode, mutationId } from '@/services/da
 import type { AttemptResult, HelpKind, JourneySnapshot, RespondStep, SceneStep, StoryletChoiceResult } from '@/types/daily-journey';
 
 import type { Value } from './memory';
-import { STAGED_DAYS } from './story';
+import { STAGED_DAYS, nextTurn } from './story';
 import type {
   Answered,
   Ask,
@@ -165,6 +165,12 @@ export function pageOfJourney(journey: JourneySnapshot | null): StoryPage | null
   return scene ? pageOfStage(scene.prompt.stage) : null;
 }
 
+/** Today's page when it is a day the quarter has blocking for, wherever the day stands; else `null`. */
+export function stagedPageOf(journey: JourneySnapshot | null): StoryPage | null {
+  const page = pageOfJourney(journey);
+  return page && STAGED_DAYS.includes(page.key) ? page : null;
+}
+
 /** The talk of the scene: the first respond step after it. */
 function talkOf(journey: JourneySnapshot): RespondStep | null {
   const scene = journey.steps.find((s) => s.kind === 'scene');
@@ -197,9 +203,9 @@ export function todayOf(journey: JourneySnapshot | null): Today {
   if (journey.status === 'preparing') return { kind: 'preparing' };
   if (journey.status === 'completed' || journey.status === 'ended_early') return { kind: 'done' };
   if (journey.status === 'unavailable') return { kind: 'handoff', why: 'unavailable' };
-  const page = pageOfJourney(journey);
+  const page = stagedPageOf(journey);
   const scene = journey.steps.find((s) => s.kind === 'scene');
-  if (!page || !scene || !STAGED_DAYS.includes(page.key)) return { kind: 'handoff', why: 'day' };
+  if (!page || !scene) return { kind: 'handoff', why: 'day' };
   const step = currentStepOf(journey);
   if (!step) return { kind: 'practice', page };
   // steps before the scene are the Feuilleton's, in its order
@@ -274,6 +280,8 @@ export class JourneyStory implements Story {
   private keys = createMutationKeyring();
   private queue: Promise<unknown> = Promise.resolve();
   private closing: Promise<void> | null = null;
+  /** the question the engine asks next: the first while nothing is answered, then the one its last answer named */
+  private asking: string | null;
 
   constructor(journey: JourneySnapshot, page: StoryPage, opts: JourneyStoryOptions = {}) {
     this.journey = journey;
@@ -281,6 +289,9 @@ export class JourneyStory implements Story {
     this.opts = opts;
     this.service = opts.service ?? dailyJourneyService;
     this.sleep = opts.sleep ?? realSleep;
+    // a talk already past its first question is not one this story can pick up (`todayOf`)
+    const talk = talkOf(journey);
+    this.asking = talk && talk.status !== 'completed' && talk.prompt.turn_index === 0 ? nextTurn(page, null, {}) : null;
   }
 
   /** The journey as the engine last handed it back. */
@@ -363,6 +374,15 @@ export class JourneyStory implements Story {
     return step as RespondStep;
   }
 
+  /**
+   * The talk, on this question. A question the engine is not asking (the scene played again after
+   * a ride across the map, once its talk had moved on) is never answered here: the Feuilleton has it.
+   */
+  private async question(turnId: string): Promise<RespondStep> {
+    if (turnId !== this.asking) throw this.lost();
+    return this.talk();
+  }
+
   /** Still the same question: the talk is current and has not moved past this turn. */
   private open(stepId: string, turnIndex: number) {
     const step = currentStepOf(this.journey);
@@ -382,7 +402,7 @@ export class JourneyStory implements Story {
 
   async ask(turnId: string): Promise<Ask> {
     const turn = this.turn(turnId);
-    const step = await this.serial(() => this.talk());
+    const step = await this.serial(() => this.question(turnId));
     const p = step.prompt;
     const help: HelpStep[] = [];
     if (p.help_available.includes('hint')) help.push('hint');
@@ -393,7 +413,7 @@ export class JourneyStory implements Story {
 
   async answer(turnId: string, text: string): Promise<Heard> {
     return this.serial(async () => {
-      const step = await this.talk();
+      const step = await this.question(turnId);
       const at = step.prompt.turn_index;
       const send = () =>
         this.mutate<AttemptResult>({
@@ -409,7 +429,9 @@ export class JourneyStory implements Story {
         result = await send();
       }
       if (!result || result.pending) throw new Error('grading_pending');
-      return this.heardOf(turnId, result);
+      const heard = this.heardOf(turnId, result);
+      this.asking = heard.next;
+      return heard;
     });
   }
 
@@ -438,13 +460,13 @@ export class JourneyStory implements Story {
   async help(turnId: string, step: HelpStep): Promise<Help | null> {
     const turn = this.turn(turnId);
     if (step === 'words') {
-      const talk = await this.serial(() => this.talk());
+      const talk = await this.serial(() => this.question(turnId));
       const words = this.words(turn, talk);
       return words.length ? { step, text: null, native: null, words } : null;
     }
     const kind: HelpKind = step === 'hint' ? 'hint' : 'suggested_response';
     return this.serial(async () => {
-      const talk = await this.talk();
+      const talk = await this.question(turnId);
       if (!talk.prompt.help_available.includes(kind)) return null;
       const at = talk.prompt.turn_index;
       const r = await this.mutate({

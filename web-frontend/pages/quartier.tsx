@@ -24,7 +24,7 @@ import { JOURNEY_RESUME_HREF } from '@/lib/journey-resume';
 import { QUARTIER_VISIBLE } from '@/lib/launch-flags';
 import { levelBand } from '@/lib/language-rule';
 import { LEARNER_LANGUAGE_STORAGE_KEY, readLearnerLevel } from '@/lib/learner-language';
-import { JourneyStory, todayOf } from '@/lib/quartier/journey-story';
+import { JourneyStory, stagedPageOf, todayOf } from '@/lib/quartier/journey-story';
 import type { Today } from '@/lib/quartier/journey-story';
 import type { Level, Native } from '@/lib/quartier/stage';
 import { remainingSteps } from '@/services/daily-journey';
@@ -102,6 +102,11 @@ const COPY = {
 };
 
 type Copy = (typeof COPY)['en'];
+
+/** The later of two reads of the same journey; the first when they are not the same journey. */
+function newer(a: JourneySnapshot | null, b: JourneySnapshot | null): JourneySnapshot | null {
+  return a && b && a.id === b.id && b.revision > a.revision ? b : a;
+}
 
 /** The day once its scene is played: what is left of it, or how it ended and what comes next. */
 function DayAfter({
@@ -186,7 +191,15 @@ function noteOf(
       return null;
     case 'start':
     case 'preparing':
-      return { title: 'Ta journée s’écrit', text: copy.preparing };
+      // the controller looks again for a while; after that, or when a look failed, the learner asks
+      return {
+        title: 'Ta journée s’écrit',
+        text: copy.preparing,
+        action: {
+          label: c.busy ? '…' : 'Vérifier à nouveau',
+          run: () => !c.busy && void (phase.kind === 'preparing' && phase.retryAllowed ? c.actions.retryGeneration() : c.actions.refresh()),
+        },
+      };
     case 'handoff':
       return { title: 'Le Feuilleton', text: copy.handoff[today.why], action: { label: 'Ouvrir le Feuilleton', run: feuilleton } };
     case 'practice':
@@ -205,7 +218,9 @@ export default function QuartierPage() {
   const { status } = useAppSession();
   const signedIn = status === 'authenticated';
   const controller = useDailyJourney({ enabled: signedIn, preferredInputMode: readAnswerMode('voice') });
-  const journey = controller.journey;
+  // the journey as the scene's own calls left it: the controller reads it again only on a refresh
+  const [kept, setKept] = React.useState<JourneySnapshot | null>(null);
+  const journey = newer(controller.journey, kept);
   const today = todayOf(journey);
   const [story, setStory] = React.useState<JourneyStory | null>(null);
   const [practice, setPractice] = React.useState(false);
@@ -218,23 +233,25 @@ export default function QuartierPage() {
   }, [router]);
   const feuilleton = React.useCallback(() => void router.push(JOURNEY_RESUME_HREF), [router]);
 
-  // today's scene, once there is one to play here: one story per journey
+  // today's story, once its page is one the quarter stages: one per journey. Its scene plays here
+  // while the day stands before it, and the people talk through it whatever the day's state
   const journeyRef = React.useRef(journey);
   journeyRef.current = journey;
-  const playable = today.kind === 'play';
+  const staged = stagedPageOf(journey) !== null;
   React.useEffect(() => {
     const j = journeyRef.current;
-    const t = todayOf(j);
-    if (!j || t.kind !== 'play') return;
+    const page = stagedPageOf(j);
+    if (!j || !page) return;
     setStory((now) =>
       now && now.snapshot.id === j.id
         ? now
-        : new JourneyStory(j, t.page, {
-            // the journey moved on without the scene (another device): the Feuilleton has where it stands
+        : new JourneyStory(j, page, {
+            onSnapshot: setKept,
+            // the journey moved on without the scene (another device, a question it is past): the Feuilleton has where it stands
             onLost: () => void router.replace(JOURNEY_RESUME_HREF),
           }),
     );
-  }, [playable, journey?.id, router]);
+  }, [staged, journey?.id, router]);
 
   const refresh = controller.actions.refresh;
   const onPlayed = React.useCallback(() => {
