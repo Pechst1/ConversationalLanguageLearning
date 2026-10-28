@@ -1,7 +1,7 @@
 {
  "version": 1,
  "season_id": "s1",
- "source": "2c73a2897ae1",
+ "source": "f62a7a55dd13",
  "note": "Derived by scripts/build_season_lexicon.py from the tentpoles and level files; never edited by hand.",
  "days": {
   "e1.a@garder": {
@@ -4093,6 +4093,20 @@
      "role": "new"
     },
     {
+     "lemma": "signe",
+     "surface_fr": "signe",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "sign",
+      "de": "das Zeichen"
+     },
+     "sentence_fr": "C'est un signe, ça.",
+     "role": "new"
+    },
+    {
      "lemma": "glisser",
      "surface_fr": "glisse",
      "band": "B1",
@@ -4316,6 +4330,20 @@
       "de": "die Pumpe; der Pomp"
      },
      "sentence_fr": "Regarde-moi ces pompes, Marin.",
+     "role": "new"
+    },
+    {
+     "lemma": "signe",
+     "surface_fr": "signe",
+     "band": "B2",
+     "sub_band": "B2.1",
+     "part_of_speech": "noun",
+     "gender": "m",
+     "gloss": {
+      "en": "sign",
+      "de": "das Zeichen"
+     },
+     "sentence_fr": "C'est un signe, ça.",
      "role": "new"
     },
     {
@@ -17043,6 +17071,7 @@
    "classe",
    "client",
    "clé",
+   "commander",
    "commencer",
    "comprendre",
    "couleur",
@@ -17307,6 +17336,7 @@
    "certain",
    "chaise",
    "changer",
+   "charmant",
    "chaussure",
    "chaîne",
    "chemin",
@@ -17324,6 +17354,7 @@
    "coiffeur",
    "coin",
    "colère",
+   "commander",
    "commencer",
    "comprendre",
    "compte",
@@ -17715,6 +17746,7 @@
    "certain",
    "chaise",
    "changer",
+   "charmant",
    "chaussure",
    "chaîne",
    "chemin",
@@ -17732,6 +17764,7 @@
    "coiffeur",
    "coin",
    "coller",
+   "commander",
    "commencer",
    "comprendre",
    "compte",
@@ -18210,6 +18243,7 @@
    "change",
    "changer",
    "charge",
+   "charmant",
    "chaussure",
    "chaîne",
    "chemin",
@@ -18227,6 +18261,7 @@
    "coiffeur",
    "coin",
    "coller",
+   "commander",
    "commencer",
    "complet",
    "comprendre",
@@ -18812,6 +18847,7 @@
    "chapeau",
    "charge",
    "charité",
+   "charmant",
    "chaud",
    "chaîne",
    "chemin",
@@ -18828,6 +18864,7 @@
    "coiffeur",
    "coin",
    "coller",
+   "commander",
    "commencer",
    "commissaire",
    "commun",

@@ -280,10 +280,13 @@ export class HeadShape {
 
 /* ---- the pieces of a head ----------------------------------------------------------------- */
 
-/** The head itself, centred on `centre` (bind-pose metres), with its face print. */
-export function sculptHead(S: Sculptor, head: HeadShape, centre: Vector3, frame: [number, number, number], ink: Ink, bind: BindAt) {
+/**
+ * The head itself, centred on `centre` (bind-pose metres), with its face print. `mesh` is its
+ * segments round and rings down (lighter for the people of the street).
+ */
+export function sculptHead(S: Sculptor, head: HeadShape, centre: Vector3, frame: [number, number, number], ink: Ink, bind: BindAt, mesh: [number, number] = [36, 26]) {
   S.facePrint(head.projection(frame));
-  S.moulded(centre, head.mould, ink, bind, { seg: 36, rings: 26 });
+  S.moulded(centre, head.mould, ink, bind, { seg: mesh[0], rings: mesh[1] });
   sculptNose(S, head, centre, ink, bind);
   S.facePrint(null);
 }

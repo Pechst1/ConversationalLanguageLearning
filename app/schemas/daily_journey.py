@@ -203,6 +203,140 @@ class SeasonPart(JourneyModel):
     day_in_segment: int | None = None
 
 
+# ---------------------------------------------------------------------------
+# Le Quartier phase 1 (owner decision 2026-10-28): the season page as the 3D
+# stages it. Additive: ``None`` (or empty) off an authored season page.
+# ---------------------------------------------------------------------------
+
+
+class StageLine(JourneyModel):
+    """One line of an authored page, as the page writes it."""
+
+    who: str
+    name: str | None = None
+    kind: Literal["speech", "caption", "sms", "letter", "card", "toi", "all"] = "speech"
+    mood: str | None = None
+    direction: str | None = None
+    text_fr: str
+    #: Only for an A1/A2 learner reading English or German.
+    text_native: str | None = None
+
+
+class StagePanel(JourneyModel):
+    kind: Literal["panel"] = "panel"
+    id: str
+    location_id: str | None = None
+    in_frame: list[str] = Field(default_factory=list)
+    #: The art direction (English), never printed.
+    visual: str | None = None
+    silence: bool = False
+    flashback: bool = False
+    #: Text written in the picture (a sign, a door's «1»).
+    diegetic: list[str] = Field(default_factory=list)
+    lines: list[StageLine] = Field(default_factory=list)
+
+
+class StageTurn(JourneyModel):
+    """A question, answered through the attempts endpoint: a free turn, or a «Le
+    choix» asked as one (``choice``: the 2D shows its cards; French text routes too)."""
+
+    kind: Literal["turn"] = "turn"
+    id: str
+    to: str
+    to_name: str | None = None
+    task_native: str | None = None
+    choice: bool = False
+    #: Asked only when the answer to an earlier question of the day took one of
+    #: these replies (``{"a.turn1": ["a", "c"]}``); otherwise passed over.
+    only_after: dict[str, list[str]] | None = None
+    panel: StagePanel
+
+
+class StageHook(JourneyModel):
+    kind: Literal["hook"] = "hook"
+    id: str
+    role: Literal["midpoint", "a_suivre"]
+    #: The whole hook panel, «À suivre…» caption included.
+    panel: StagePanel
+
+
+StageMovement = Annotated[StagePanel | StageTurn | StageHook, Field(discriminator="kind")]
+
+
+class StageCueLine(StageLine):
+    """A line of a gesture's storylet: ``asked`` as the learner turns to the door,
+    ``back`` when they come back (during the panel ``during``, when one is named),
+    ``text`` a message while they are away, ``answer`` the reply to theirs."""
+
+    id: str
+    role: Literal["asked", "back", "text", "answer"]
+    during: str | None = None
+    #: An SMS's sender, as the phone shows it («Numéro inconnu»).
+    from_fr: str | None = None
+
+
+class StagePerson(JourneyModel):
+    """Someone the learner may talk to in their own French."""
+
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    who: str
+    name: str | None = None
+    #: ``register`` on the wire: how they speak to the learner, and expect back.
+    register_value: Literal["tu", "vous"] = Field(alias="register")
+    #: What they say as the learner passes (the choices answer refreshes it).
+    hello: StageLine | None = None
+    bye: StageLine | None = None
+
+
+class StageStorylet(JourneyModel):
+    """A gesture that is not an answer, sent with ``POST …/choices``."""
+
+    id: str
+    cue: Literal["walk_out", "away", "talk"]
+    who: str | None = None
+    #: ``away``: how long the learner stays out before it plays.
+    after_seconds: int | None = None
+    lines: list[StageCueLine] = Field(default_factory=list)
+    chips: list[str] = Field(default_factory=list)
+    people: list[StagePerson] = Field(default_factory=list)
+
+
+class SceneStage(JourneyModel):
+    """Le Quartier phase 1: today's authored page, movement by movement, each with
+    its id, for the 3D to stage."""
+
+    season_id: str
+    segment: str
+    day: str
+    key: str
+    number: int | None = None
+    title_fr: str
+    story_date_fr: str | None = None
+    location_id: str | None = None
+    band: str | None = None
+    language: str | None = None
+    can_do_native: str | None = None
+    movements: list[StageMovement] = Field(default_factory=list)
+    storylets: list[StageStorylet] = Field(default_factory=list)
+
+
+class AttemptStage(JourneyModel):
+    """Le Quartier phase 1: what one answer staged on an authored page."""
+
+    turn_id: str
+    #: ``None`` when the scene asked again (or asked for French).
+    reply_id: str | None = None
+    #: In order: the addressee's first line back (``<turn>.ack``), the reply's own
+    #: beats or the line asking again (``<turn>.ask_again``, ``<turn>.en_francais``),
+    #: the turn's ``after``, and on closing the page's tail (the hook panel's voices,
+    #: under the hook panel's id). The panels between questions are the page's.
+    beats: list[StagePanel] = Field(default_factory=list)
+    #: The question now asked; ``None`` once the conversation is over.
+    next_turn_id: str | None = None
+    closing: bool = False
+
+
 class ScenePrompt(JourneyModel):
     setup_fr: str
     setup_native: str
@@ -235,6 +369,9 @@ class ScenePrompt(JourneyModel):
     #: object, and its carrier walks in when a new part begins. ``None`` off a
     #: scripted season.
     season_part: SeasonPart | None = None
+    #: Le Quartier phase 1: the authored page as the 3D stages it, with the day's
+    #: gestures. ``None`` off an authored season page.
+    stage: SceneStage | None = None
 
 
 class RecallOption(JourneyModel):
@@ -1306,6 +1443,9 @@ class AttemptResult(JourneyModel):
     #: recap offers to hear and repeat aloud. ``None`` mid-conversation and
     #: while spoken replies are off.
     repeat_line_fr: str | None = None
+    #: Le Quartier phase 1: what this answer staged on an authored season page.
+    #: ``None`` on every other day.
+    stage: AttemptStage | None = None
     journey: JourneySnapshot
 
 
@@ -1444,6 +1584,45 @@ class JourneyTomorrowRequest(JourneyRequest):
     premise_id: str = Field(min_length=1, max_length=80)
 
 
+class JourneyChoiceRequest(JourneyRequest):
+    """Le Quartier phase 1: a gesture that is not an answer — the learner walks out
+    (``walk_out``, ``at`` the panel they left during), answers a text while away
+    (``margaux_text``, with their ``text``), or talks to someone in the room
+    (``talk``, ``to`` whom; no ``text`` for the hello). Allowed after the day is
+    finished too: the walk after the end card is where most talk happens."""
+
+    mutation_id: str = Field(min_length=1, max_length=80)
+    storylet_id: str = Field(min_length=1, max_length=80)
+    at: str | None = Field(default=None, max_length=80)
+    to: str | None = Field(default=None, max_length=80)
+    text: str | None = Field(default=None, max_length=500)
+
+
+class StageLearned(JourneyModel):
+    """Something the learner now knows from what they were told."""
+
+    id: str
+    text_fr: str
+    text_native: str | None = None
+
+
+class JourneyChoiceResult(JourneyModel):
+    contract_version: ContractVersion = CONTRACT_VERSION
+    storylet_id: str
+    #: What is said back, in order, each panel with its id (``talk.margaux.odile``;
+    #: ``talk.<who>.slip`` first when the learner used the other register).
+    beats: list[StagePanel] = Field(default_factory=list)
+    #: Help only, never shown first: what the learner might say next.
+    chips: list[str] = Field(default_factory=list)
+    #: The line the engine heard (an intent id); ``None`` when it heard none.
+    heard: str | None = None
+    learned: list[StageLearned] = Field(default_factory=list)
+    #: The season flags this gesture sets (folded into the season when a day settles).
+    sets: dict[str, bool | int | str] = Field(default_factory=dict)
+    #: Everyone the learner may talk to today, their hello as things now stand.
+    people: list[StagePerson] = Field(default_factory=list)
+
+
 # ---------------------------------------------------------------------------
 # WP-91 «Les voix»: one line of a step, spoken in its character's voice
 # ---------------------------------------------------------------------------
@@ -1485,6 +1664,19 @@ class LineAudioResult(JourneyModel):
 
 
 __all__ = [
+    "AttemptStage",
+    "JourneyChoiceRequest",
+    "JourneyChoiceResult",
+    "SceneStage",
+    "StageCueLine",
+    "StageHook",
+    "StageLearned",
+    "StageLine",
+    "StageMovement",
+    "StagePanel",
+    "StagePerson",
+    "StageStorylet",
+    "StageTurn",
     "LineAudioRequest",
     "LineAudioResult",
     "CastIntroEntry",

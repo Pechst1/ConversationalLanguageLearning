@@ -3,7 +3,12 @@
 //   node scripts/quartier/cast3d-sheet.mjs <out.png> [--people margaux_barman,lila_bonnet]
 //        [--expression joie] [--ambiance matin|nuit|room] [--pose rest|bind] [--tile 300x460]
 //        [--views "0,35,90,180"] [--variant m] [--acts '[{"gesture":"salut","u":0.5},{"walk":0.4}]']
-// One row per person, one column per view (the last view a close-up of the face), printed by the
+//        [--avatars '[{"key":"primeur","seed":4101,"look":{"hat":"casquette"}}]' | --avatars file.json]
+//        [--crowd 10 [--crowd-seed 1789]] [--far]
+// `--avatars` photographs people the avatar kit draws (a brief's stallholders: a seed and a look;
+// without a seed, the kit's default record with the look over it), `--crowd` the street's
+// passers-by as the quarter rolls them, `--far` their lighter bodies (what stands in for them past
+// 30 m) up close. One row per person, one column per view (the last view a close-up of the face), printed by the
 // quarter's own print pass in software WebGL so the sheet comes out the same on any machine.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,8 +40,16 @@ const views = opt('--views', '')
     const [yaw, at, dist, fov, pitch] = s.split(':').map(Number);
     return { yaw, at: Number.isFinite(at) ? at : undefined, dist: Number.isFinite(dist) ? dist : undefined, fov: Number.isFinite(fov) ? fov : undefined, pitch: Number.isFinite(pitch) ? pitch : undefined };
   });
+const avatarsArg = opt('--avatars', '');
+const avatars = avatarsArg ? JSON.parse(fs.existsSync(avatarsArg) ? fs.readFileSync(avatarsArg, 'utf8') : avatarsArg) : [];
+const crowd = Number(opt('--crowd', '0'));
+const crowdSeed = Number(opt('--crowd-seed', '1789'));
+// as `crowd.ts` rolls them: passant:i from i * 7919 + the street's seed
+for (let i = 0; i < crowd; i++) avatars.push({ key: `passant:${i}`, seed: i * 7919 + crowdSeed });
+if (args.includes('--far')) avatars.forEach((a) => (a.far = true));
 const config = {
   people: opt('--people', '').split(',').filter(Boolean),
+  avatars: avatars.length ? avatars : undefined,
   views: views.length ? views : undefined,
   tile: [tw, th],
   expression: opt('--expression', 'neutre'),

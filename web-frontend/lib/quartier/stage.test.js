@@ -31,8 +31,9 @@ test('the hook has its lines to play', () => {
 });
 
 test('every silent beat of a reply is acted out', () => {
-  for (const turn of T1A.movements.filter((m) => m.kind === 'turn')) {
-    for (const reply of turn.replies) {
+  // a «Le choix» (the café crème, the key) has options where a turn has replies
+  for (const turn of T1A.movements.filter((m) => m.kind === 'turn' || m.kind === 'solve')) {
+    for (const reply of turn.replies || turn.options) {
       for (const beat of reply.beats) {
         if (!beat.silence) continue;
         const acted = Object.values(SILENT_BEATS).some((re) => re.test(beat.id));
@@ -43,7 +44,8 @@ test('every silent beat of a reply is acted out', () => {
 });
 
 test("each reply's examples read as that reply", () => {
-  for (const turn of T1A.movements.filter((m) => m.kind === 'turn')) {
+  // the café crème and the key are choices: the engine reads them, not this prototype's reader
+  for (const turn of T1A.movements.filter((m) => m.kind === 'turn' && !m.choice)) {
     for (const reply of turn.replies) {
       for (const example of reply.examples) {
         assert.equal(classify(turn.id, example), reply.id, `${turn.id}: «${example}»`);

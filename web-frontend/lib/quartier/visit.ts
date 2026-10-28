@@ -14,9 +14,11 @@
  */
 import { Vector3 } from 'three';
 
+import { passerbyAvatar, personAvatar } from './avatars';
 import { passerbyArt, personArt } from './cast-art';
 import { Troupe } from './cast';
-import type { PaperFigure } from './cast';
+import type { Figure, FigureSpec } from './cast';
+import { avatarRound } from './cast3d';
 import type { Hit, Quartier } from './engine';
 import { seeded } from './geo';
 import { GOODS } from './market';
@@ -62,7 +64,7 @@ interface Keeper {
   height: number;
   /** the brief's person, for those it names */
   person?: SitePerson;
-  f: PaperFigure | null;
+  f: Figure | null;
 }
 
 export interface VisitOptions {
@@ -82,7 +84,7 @@ export class Visit implements Director {
   private native: Native;
   private onCue?: (cue: Cue) => void;
   private street?: Street;
-  private troupe: Troupe;
+  private troupe: Troupe<Figure>;
   private sellers: Keeper[] = [];
   private hands: Keeper[] = [];
   private talking: { keeper: Keeper; sale: Sale } | null = null;
@@ -96,6 +98,8 @@ export class Visit implements Director {
   private cryAt = 0;
   private stopTick: () => void;
   private stopHit: () => void;
+  /** everyone behind their stall, the hands too (the forge's photographs wait for them) */
+  full: Promise<void> = Promise.resolve();
   /** this visit's entries in the memory start here */
   private since = 0;
   private disposed = false;
@@ -109,7 +113,7 @@ export class Visit implements Director {
     this.onCue = opts.onCue;
     this.street = opts.street;
     this.memory = opts.memory ?? new Memory(false);
-    this.troupe = new Troupe(q.world, { figure: (key, expression) => this.art(key, expression), item: () => null }, 400);
+    this.troupe = new Troupe<Figure>(q.world, { figure: (key, expression) => this.art(key, expression), item: () => null }, 400, q.cast === 'round' ? (spec) => this.round(spec) : undefined);
     q.addTroupe(this.troupe);
     this.stopTick = q.onTick(() => this.tick());
     this.stopHit = q.on((hit) => this.hit(hit));
@@ -166,6 +170,13 @@ export class Visit implements Director {
     return passerbyArt(k ? k.seed : 7, 256);
   }
 
+  /** Someone of the place in the round: the record their card is drawn from, stood up. */
+  private round(spec: FigureSpec) {
+    const k = this.keeperOf(spec.key);
+    const seed = k ? k.seed : 7;
+    return avatarRound(this.q.world, k?.person ? personAvatar(seed, k.person.look ?? {}) : passerbyAvatar(seed), spec, seed);
+  }
+
   private keeperOf(key: string): Keeper | null {
     return this.sellers.find((x) => x.key === key) ?? this.hands.find((x) => x.key === key) ?? null;
   }
@@ -218,7 +229,7 @@ export class Visit implements Director {
         s.f = null;
       }
     }
-    void this.printHands();
+    this.full = this.printHands();
   }
 
   private async printHands() {

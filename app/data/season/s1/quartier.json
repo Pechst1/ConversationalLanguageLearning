@@ -1,0 +1,136 @@
+{
+  "_doc": "Le Quartier phase 1 (owner decision 2026-10-28, «Go with all five»): what the learner may do in the 3D besides answer, on the days that have it. The lines are the 3D prototype's (web-frontend/lib/quartier/agency.ts), moved here and kept to the canon (world.json): a line addressed to Toi never agrees an adjective with them; Gus and Camille say vous, the others tu; Odile never speaks; Margaux deflects anything near the fire; «L.» is never named. «when» is the season's Cond syntax, read over the season's flags, today's routes («route.<turn id>»: the reply the learner's answer took), what the learner has learned («knows.<id>») and the talk they have already had («heard.<id>»). Served on the scene step (stage.storylets) and answered by POST /daily-journeys/{id}/choices (app/services/season/gestures.py).",
+  "days": {
+    "t1.a": {
+      "cues": [
+        {
+          "id": "walk_out",
+          "cue": "walk_out",
+          "who": "margaux_barman",
+          "sets": {"user.walked_out": true},
+          "lines": [
+            {"id": "walk_out.asked", "role": "asked", "who": "margaux_barman", "say": {"a2": "Tu pars déjà ?", "native": {"en": "Leaving already?", "de": "Gehst du schon?"}}},
+            {"id": "walk_out.back.gus", "role": "back", "during": "a.p2", "who": "augustin_de_roncourt", "mood": "happy", "say": {"a2": "Bon. Où en étais-je ? Ah oui. Le duc.", "native": {"en": "Right. Where was I? Ah yes. The duke.", "de": "Also. Wo war ich? Ach ja. Der Herzog."}}},
+            {"id": "walk_out.back", "role": "back", "who": "margaux_barman", "say": {"a2": "Te revoilà.", "native": {"en": "There you are again.", "de": "Da bist du wieder."}}}
+          ]
+        },
+        {
+          "id": "margaux_text",
+          "cue": "away",
+          "who": "margaux_barman",
+          "after_seconds": 40,
+          "sets": {"user.stayed_away": true},
+          "chips": ["J'arrive.", "Merci. J'arrive.", "Demain."],
+          "lines": [
+            {"id": "margaux_text.text", "role": "text", "who": "sms", "from_fr": "Numéro inconnu", "say": {"a2": "C'est Margaux. Ta valise est toujours là.", "native": {"en": "It's Margaux. Your suitcase is still here.", "de": "Hier ist Margaux. Dein Koffer ist noch da."}}},
+            {"id": "margaux_text.answer", "role": "answer", "who": "sms", "from_fr": "Margaux", "say": {"a2": "Bon.", "native": {"en": "Fine.", "de": "Gut."}}}
+          ]
+        }
+      ],
+      "people": [
+        {
+          "who": "margaux_barman",
+          "register": "tu",
+          "hello": [
+            {"id": "margaux.key", "when": {"any": [{"route.a.key": "leave"}, {"s1.key_with": "margaux"}]}, "salience": 3, "say": {"a2": "Elle est derrière la caisse.", "native": {"en": "It's behind the till.", "de": "Er liegt hinter der Kasse."}}},
+            {"id": "margaux.cold", "when": {"any": [{"route.a.cafe": "refused"}, {"s1.cafe_creme": "refused"}]}, "salience": 2, "mood": "cold", "say": {"a2": "Oui ?", "native": {"en": "Yes?", "de": "Ja?"}}},
+            {"id": "margaux.same", "when": {"any": [{"route.a.cafe": "drink"}, {"s1.cafe_creme": "drank"}]}, "salience": 2, "say": {"a2": "La même chose ?", "native": {"en": "Same again?", "de": "Dasselbe noch mal?"}}},
+            {"id": "margaux.hello", "say": {"a2": "Oui ?", "native": {"en": "Yes?", "de": "Ja?"}}}
+          ],
+          "intents": [
+            {"id": "margaux.why_left", "chip": "Pourquoi elle est partie ?", "when": {"knows.margaux.odile": true}, "salience": 3, "direction": "looking at the ceiling", "means": "The learner asks why Odile left, or about the fire.", "examples": ["Pourquoi elle est partie ?", "Pourquoi Odile est partie ?", "Il y a eu un incendie ?"], "say": {"a2": "J'ai rien entendu.", "native": {"en": "I didn't hear anything.", "de": "Ich hab nichts gehört."}}, "learn": {"id": "margaux.wont_say", "say": {"a2": "Margaux ne dit pas pourquoi Odile est partie.", "native": {"en": "Margaux won't say why Odile left.", "de": "Margaux sagt nicht, warum Odile gegangen ist."}}}},
+            {"id": "margaux.odile", "chip": "Tu connaissais bien Odile ?", "salience": 2, "direction": "drying a glass that is already dry", "means": "The learner asks about Odile: whether Margaux knew her, whether she came here.", "examples": ["Tu connaissais bien Odile ?", "Odile venait ici ?", "Parle-moi de ma grand-mère."], "say": {"a2": "Tous les matins. Un café crème, au bout du zinc.", "native": {"en": "Every morning. A café crème, at the end of the zinc.", "de": "Jeden Morgen. Ein Café Crème, am Ende der Theke."}}, "learn": {"id": "margaux.odile", "say": {"a2": "Odile prenait un café crème tous les matins, au bout du zinc.", "native": {"en": "Odile had a café crème every morning, at the end of the zinc.", "de": "Odile trank jeden Morgen einen Café Crème, am Ende der Theke."}}}},
+            {"id": "margaux.cicada", "chip": "Et la cigale ?", "salience": 1, "means": "The learner asks about the cicada on the key ring.", "examples": ["Et la cigale ?", "C'est quoi, la cigale ?", "Le porte-clé, il vient d'où ?"], "say": {"a2": "De Provence. Elle y tenait.", "native": {"en": "From Provence. She was attached to it.", "de": "Aus der Provence. Sie hing daran."}}, "learn": {"id": "margaux.cicada", "say": {"a2": "La cigale vient de Provence. Odile y tenait.", "native": {"en": "The cicada comes from Provence. Odile was attached to it.", "de": "Die Zikade kommt aus der Provence. Odile hing daran."}}}},
+            {"id": "margaux.water", "chip": "Un verre d'eau, s'il te plaît.", "direction": "setting down a glass", "means": "The learner orders something to drink.", "examples": ["Un verre d'eau, s'il te plaît.", "Un café, s'il te plaît.", "Une bière, s'il te plaît."], "say": {"a2": "Voilà.", "native": {"en": "There you go.", "de": "Bitte schön."}}}
+          ],
+          "slip": {"a2": "Tu. Ici, c'est tu.", "native": {"en": "Tu. Here it's tu.", "de": "Du. Hier sagt man du."}},
+          "fallback": [
+            {"a2": "Hm. Redis ?", "native": {"en": "Hm. Say again?", "de": "Hm. Noch mal?"}},
+            {"a2": "Plus simple. Je suis fatiguée.", "native": {"en": "Simpler. I'm tired.", "de": "Einfacher. Ich bin müde."}}
+          ]
+        },
+        {
+          "who": "augustin_de_roncourt",
+          "register": "vous",
+          "hello": [
+            {"id": "gus.selling", "when": {"route.a.turn1": "b"}, "salience": 3, "mood": "cold", "say": {"a2": "Ah. La personne qui vend.", "native": {"en": "Ah. The person who's selling.", "de": "Ah. Die Person, die verkauft."}}},
+            {"id": "gus.rude", "when": {"any": [{"route.a.cafe": "refused"}, {"s1.cafe_creme": "refused"}]}, "salience": 2, "say": {"a2": "Le café crème. Quelle histoire.", "native": {"en": "The café crème. What a business.", "de": "Der Café Crème. Was für eine Geschichte."}}},
+            {"id": "gus.question", "when": {"route.a.turn1": "d"}, "salience": 2, "mood": "happy", "say": {"a2": "Ah ! Vous revoilà. Vous me plaisez toujours.", "native": {"en": "Ah! You again. I still like you.", "de": "Ah! Da sind Sie wieder. Sie gefallen mir immer noch."}}},
+            {"id": "gus.hello", "say": {"a2": "Je vous écoute.", "native": {"en": "I'm listening.", "de": "Ich höre."}}}
+          ],
+          "intents": [
+            {"id": "gus.sorry", "once": true, "when": {"any": [{"route.a.turn1": "b"}, {"route.a.cafe": "refused"}]}, "salience": 3, "mood": "happy", "means": "The learner apologises to Gus.", "examples": ["Pardon, Gus.", "Je m'excuse.", "Excusez-moi."], "say": {"a2": "Excuses acceptées. Provisoirement.", "native": {"en": "Apology accepted. Provisionally.", "de": "Entschuldigung angenommen. Vorläufig."}}},
+            {"id": "gus.duke", "chip": "Et le duc, il existe vraiment ?", "once": true, "salience": 2, "mood": "happy", "means": "The learner asks whether Gus's duke, or his story, is true.", "examples": ["Et le duc, il existe vraiment ?", "Votre histoire est vraie ?", "C'est vrai, le duc ?"], "say": {"a2": "Tous mes ducs existent. Certains plus que d'autres.", "native": {"en": "All my dukes exist. Some more than others.", "de": "Alle meine Herzöge existieren. Manche mehr als andere."}}},
+            {"id": "gus.zinc", "chip": "Vous venez souvent ici ?", "salience": 1, "means": "The learner asks Gus whether he comes here often, or since when.", "examples": ["Vous venez souvent ici ?", "Vous êtes un habitué ?", "Depuis quand vous venez au Mistral ?"], "say": {"a2": "Mon arrière-grand-père a posé ce zinc. Alors oui. Souvent.", "native": {"en": "My great-grandfather laid this zinc. So yes. Often.", "de": "Mein Urgroßvater hat diese Zinktheke eingebaut. Also ja. Oft."}}, "learn": {"id": "gus.zinc", "say": {"a2": "Gus dit que son arrière-grand-père a posé le zinc.", "native": {"en": "Gus says his great-grandfather laid the zinc.", "de": "Gus sagt, sein Urgroßvater habe die Zinktheke eingebaut."}}}},
+            {"id": "gus.method", "chip": "C'est quoi, La Méthode ?", "salience": 1, "means": "The learner asks about Gus's Method, or his rules.", "examples": ["C'est quoi, La Méthode ?", "Quelle méthode ?", "C'est quoi, la règle numéro un ?"], "say": {"a2": "Règle numéro un de La Méthode : ne jamais expliquer La Méthode.", "native": {"en": "Rule number one of The Method: never explain The Method.", "de": "Regel Nummer eins der Methode: Die Methode wird nie erklärt."}}},
+            {"id": "gus.compliment", "once": true, "salience": 2, "mood": "happy", "direction": "a hand on his heart", "means": "The learner compliments Gus: his suit, his elegance.", "examples": ["Votre costume est très élégant.", "Vous êtes chic.", "Il est beau, votre costume."], "say": {"a2": "Enfin quelqu'un qui le remarque ! C'est magnifique. Non : c'est sublime.", "native": {"en": "Finally someone who notices! It's magnificent. No: it's sublime.", "de": "Endlich jemand, der es bemerkt! Es ist großartig. Nein: Es ist erhaben."}}}
+          ],
+          "slip": {"a2": "« Tu » ? Nous n'avons pas gardé les cochons ensemble.", "native": {"en": "“Tu”? We're hardly old friends.", "de": "„Du“? Wir haben doch nicht zusammen Schweine gehütet."}},
+          "fallback": [
+            {"a2": "Pardon ? Articulez, je vous prie.", "native": {"en": "Pardon? Speak clearly, I beg you.", "de": "Wie bitte? Bitte deutlich sprechen."}},
+            {"a2": "Fascinant. Absolument fascinant.", "native": {"en": "Fascinating. Absolutely fascinating.", "de": "Faszinierend. Absolut faszinierend."}}
+          ]
+        },
+        {
+          "who": "marin_leveque",
+          "register": "tu",
+          "hello": [
+            {"id": "marin.fed", "when": {"heard.marin.soup": true}, "salience": 3, "say": {"a2": "Il reste de la soupe, hein.", "native": {"en": "There's soup left, you know.", "de": "Es ist noch Suppe da."}}},
+            {"id": "marin.family", "when": {"route.a.turn1": ["a", "c"]}, "salience": 2, "mood": "happy", "say": {"a2": "Ma grand-mère disait toujours : « La pluie apporte la famille. »", "native": {"en": "My grandmother always said: “Rain brings family.”", "de": "Meine Großmutter sagte immer: „Regen bringt die Familie.“"}}},
+            {"id": "marin.hello", "say": {"a2": "Ça va ?", "native": {"en": "All right?", "de": "Alles gut?"}}}
+          ],
+          "intents": [
+            {"id": "marin.soup", "chip": "Elle sent bon, ta soupe.", "once": true, "salience": 2, "mood": "happy", "means": "The learner talks about Marin's soup, or says they are hungry.", "examples": ["Elle sent bon, ta soupe.", "J'ai faim.", "C'est quoi, ta soupe ?"], "say": {"a2": "C'est un signe, ça. Assieds-toi, je t'en sers une.", "native": {"en": "That's a sign, that is. Sit down, I'll get you a bowl.", "de": "Das ist ein Zeichen. Setz dich, ich hol dir einen Teller."}}},
+            {"id": "marin.solvel", "chip": "C'est qui, Solvel ?", "salience": 2, "means": "The learner asks who Solvel are, or about the buyers.", "examples": ["C'est qui, Solvel ?", "Solvel, c'est quoi ?", "Qui veut acheter l'immeuble ?"], "say": {"a2": "Des gens qui achètent des immeubles. Ma grand-mère disait toujours : « Méfie-toi des parapluies neufs. »", "native": {"en": "People who buy buildings. My grandmother always said: “Beware of new umbrellas.”", "de": "Leute, die Häuser kaufen. Meine Großmutter sagte immer: „Trau keinen neuen Regenschirmen.“"}}, "learn": {"id": "marin.solvel", "say": {"a2": "Solvel achète des immeubles. Marin s'en méfie.", "native": {"en": "Solvel buys buildings. Marin doesn't trust them.", "de": "Solvel kauft Häuser. Marin traut ihnen nicht."}}}},
+            {"id": "marin.odile", "chip": "Tu connaissais Odile ?", "salience": 1, "mood": "moved", "means": "The learner asks Marin about Odile.", "examples": ["Tu connaissais Odile ?", "Odile, elle était comment ?", "Parle-moi de ma grand-mère."], "say": {"a2": "Elle croyait aux signes. Comme moi.", "native": {"en": "She believed in signs. Like me.", "de": "Sie glaubte an Zeichen. Wie ich."}}, "learn": {"id": "marin.odile", "say": {"a2": "Odile croyait aux signes, comme Marin.", "native": {"en": "Odile believed in signs, like Marin.", "de": "Odile glaubte an Zeichen, wie Marin."}}}},
+            {"id": "marin.bye", "salience": 1, "mood": "happy", "means": "The learner says goodbye or goodnight to Marin.", "examples": ["Au revoir, Marin.", "Bonne nuit.", "À demain !"], "say": {"a2": "Kenavo ! Ça veut dire au revoir. Enfin, à la prochaine.", "native": {"en": "Kenavo! It means goodbye. Well, see you next time.", "de": "Kenavo! Das heißt auf Wiedersehen. Na ja, bis zum nächsten Mal."}}}
+          ],
+          "slip": {"a2": "Tu peux me dire tu, hein. Tout le monde me dit tu.", "native": {"en": "You can say tu to me, you know. Everyone does.", "de": "Du kannst mich duzen. Alle duzen mich."}},
+          "fallback": [
+            {"a2": "Pardon, je… Ma grand-mère disait toujours… non, j'ai oublié.", "native": {"en": "Sorry, I… My grandmother always said… no, I've forgotten.", "de": "Entschuldige, ich… Meine Großmutter sagte immer… nein, vergessen."}},
+            {"a2": "Hein ? Redis, je n'ai pas compris.", "native": {"en": "Huh? Say it again, I didn't get it.", "de": "Hm? Sag noch mal, ich hab’s nicht verstanden."}}
+          ]
+        },
+        {
+          "who": "lila_bonnet",
+          "register": "tu",
+          "hello": [
+            {"id": "lila.family", "when": {"route.a.turn1": ["a", "c"]}, "salience": 2, "mood": "happy", "say": {"a2": "Salut, l'héritage !", "native": {"en": "Hi there, l'héritage!", "de": "Hallo, l'héritage!"}}},
+            {"id": "lila.selling", "when": {"route.a.turn1": "b"}, "salience": 2, "mood": "happy", "say": {"a2": "Sept sur vingt, ta soirée.", "native": {"en": "Seven out of twenty, your evening.", "de": "Sieben von zwanzig, dein Abend."}}},
+            {"id": "lila.hello", "say": {"a2": "Bon, on fait quoi ?", "native": {"en": "Right, what do we do?", "de": "Also, was machen wir?"}}}
+          ],
+          "intents": [
+            {"id": "lila.margaux_spoke", "once": true, "when": {"knows.margaux.odile": true}, "salience": 4, "mood": "neutral", "means": "The learner tells Lila what Margaux said about Odile, or mentions Odile's café crème.", "examples": ["Margaux m'a parlé d'Odile.", "Odile prenait un café crème tous les matins.", "Margaux connaissait bien Odile."], "say": {"a2": "Margaux t'a parlé d'Odile ? Elle ne parle jamais d'Odile.", "native": {"en": "Margaux talked to you about Odile? She never talks about Odile.", "de": "Margaux hat mit dir über Odile geredet? Sie redet nie über Odile."}}, "learn": {"id": "lila.margaux_silent", "say": {"a2": "Margaux ne parle jamais d'Odile. Sauf à toi.", "native": {"en": "Margaux never talks about Odile. Except to you.", "de": "Margaux redet nie über Odile. Außer mit dir."}}}},
+            {"id": "lila.shoes", "chip": "Pourquoi mes chaussures ?", "salience": 2, "mood": "happy", "means": "The learner asks Lila about their shoes, or how she knew they were not from Solvel.", "examples": ["Pourquoi mes chaussures ?", "Comment tu sais ?", "Qu'est-ce qu'elles ont, mes chaussures ?"], "say": {"a2": "Mais arrête. Tu as marché sous la pluie avec une valise. Solvel prend des taxis.", "native": {"en": "Oh, come on. You walked through the rain with a suitcase. Solvel takes taxis.", "de": "Ach, hör auf. Du bist mit einem Koffer durch den Regen gelaufen. Solvel nimmt Taxis."}}},
+            {"id": "lila.grade_good", "chip": "Et moi, j'ai combien sur vingt ?", "when": {"route.a.turn1": ["a", "c", "d"]}, "salience": 2, "mood": "happy", "means": "The learner asks Lila what mark out of twenty they get.", "examples": ["Et moi, j'ai combien sur vingt ?", "Combien sur vingt ?", "Quelle note ?"], "say": {"a2": "Douze sur vingt. Peut mieux faire.", "native": {"en": "Twelve out of twenty. Could do better.", "de": "Zwölf von zwanzig. Da geht noch was."}}},
+            {"id": "lila.grade", "chip": "Et moi, j'ai combien sur vingt ?", "salience": 1, "mood": "happy", "means": "The learner asks Lila what mark out of twenty they get.", "examples": ["Et moi, j'ai combien sur vingt ?", "Combien sur vingt ?", "Quelle note ?"], "say": {"a2": "Sept sur vingt. Peut mieux faire.", "native": {"en": "Seven out of twenty. Could do better.", "de": "Sieben von zwanzig. Da geht noch was."}}},
+            {"id": "lila.home", "chip": "Tu habites ici ?", "salience": 1, "means": "The learner asks Lila where she lives, or whether she and Marin live together.", "examples": ["Tu habites ici ?", "Tu habites avec Marin ?", "Vous êtes ensemble, Marin et toi ?"], "say": {"a2": "À côté. Avec Marin. On n'est pas ensemble, avant que tu demandes.", "native": {"en": "Nearby. With Marin. We're not together, before you ask.", "de": "Gleich nebenan. Mit Marin. Wir sind kein Paar, bevor du fragst."}}, "learn": {"id": "lila.flatmates", "say": {"a2": "Lila et Marin habitent ensemble. Ils ne sont pas en couple.", "native": {"en": "Lila and Marin share a flat. They're not a couple.", "de": "Lila und Marin wohnen zusammen. Sie sind kein Paar."}}}},
+            {"id": "lila.odile", "salience": 0, "means": "The learner asks Lila about Odile.", "examples": ["Et Odile ?", "Tu connaissais Odile ?"], "say": {"a2": "La preuve qu'on peut partir et revenir.", "native": {"en": "Proof that you can leave and come back.", "de": "Der Beweis, dass man gehen und wiederkommen kann."}}}
+          ],
+          "slip": {"a2": "Tu me vouvoies ? Je le dis à ma classe.", "native": {"en": "You're saying vous to me? I'm telling my class.", "de": "Du siezt mich? Das erzähl ich meiner Klasse."}},
+          "fallback": [
+            {"a2": "Oh, fan de chichourle ! Redis ?", "native": {"en": "Oh, good grief! Say that again?", "de": "Ach du liebe Zeit! Noch mal?"}},
+            {"a2": "Bon, on fait quoi ?", "native": {"en": "Right, what do we do?", "de": "Also, was machen wir?"}}
+          ],
+          "bye": {"a2": "Allez, file.", "native": {"en": "Go on, off you go.", "de": "Na los, ab mit dir."}}
+        },
+        {
+          "who": "camille_marchand",
+          "register": "vous",
+          "hello": [
+            {"id": "camille.hello", "say": {"a2": "Bonsoir.", "native": {"en": "Good evening.", "de": "Guten Abend."}}}
+          ],
+          "intents": [
+            {"id": "camille.key", "chip": "Pourquoi vous avez une clé ?", "salience": 2, "means": "The learner asks Camille about the key, the door or the first floor.", "examples": ["Pourquoi vous avez une clé ?", "C'est la clé de quoi ?", "Le premier étage, c'est à moi."], "say": {"a2": "Les chiffres sont simples : une porte, deux clés. Il faudra parler.", "native": {"en": "The numbers are simple: one door, two keys. We'll have to talk.", "de": "Die Zahlen sind einfach: eine Tür, zwei Schlüssel. Wir werden reden müssen."}}},
+            {"id": "camille.rain", "chip": "Il pleut, hein ?", "salience": 1, "means": "The learner talks about the rain, the bike or the helmet.", "examples": ["Il pleut, hein ?", "C'est loin, à vélo ?", "Quelle pluie !"], "say": {"a2": "Onze minutes à vélo. Dix-huit sous la pluie.", "native": {"en": "Eleven minutes by bike. Eighteen in the rain.", "de": "Elf Minuten mit dem Rad. Achtzehn im Regen."}}},
+            {"id": "camille.odile", "salience": 1, "means": "The learner asks Camille about Odile.", "examples": ["Vous connaissiez Odile ?", "Et Odile ?"], "say": {"a2": "Je l'ai vue deux fois. Des dimanches.", "native": {"en": "I saw her twice. On Sundays.", "de": "Ich habe sie zweimal gesehen. An Sonntagen."}}, "learn": {"id": "camille.odile", "say": {"a2": "Camille a vu Odile deux fois, des dimanches.", "native": {"en": "Camille saw Odile twice, on Sundays.", "de": "Camille hat Odile zweimal gesehen, an Sonntagen."}}}}
+          ],
+          "slip": {"a2": "Je préfère vous. Pour l'instant.", "native": {"en": "I'd rather keep to vous. For now.", "de": "Ich bleibe lieber beim Sie. Vorerst."}},
+          "fallback": [
+            {"a2": "Pouvez-vous répéter ? Lentement.", "native": {"en": "Could you say that again? Slowly.", "de": "Können Sie das wiederholen? Langsam."}}
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1351,6 +1351,10 @@ class ResponseEvaluation:
     #: were understood, and what they established about themselves (a tentpole's
     #: reading). Never sent back to a model, never shown.
     heard: dict[str, Any] | None = None
+    #: Le Quartier phase 1: what this answer staged on an authored season page —
+    #: ``{turn_id, reply_id, beats, next_turn_id, closing}`` (``season.stage``), for
+    #: the 3D to play in the page. ``None`` on every other day.
+    stage: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)

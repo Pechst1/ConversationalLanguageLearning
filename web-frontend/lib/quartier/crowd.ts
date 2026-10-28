@@ -3,20 +3,24 @@
  *
  * A quarter with only the cast in it is a stage set. These are the people of the street, drawn by
  * the app's own avatar kit from a seed (the jointed figures the learner builds a Toi from), so the
- * same evening has the same faces in it. Each one keeps a habit: up and down the quai, across the
- * footbridge, a stop at the canal's edge to look at the water, a turn into the rue de Lancry. They
- * keep to the pavements (`Nav`), carry an umbrella when it rains, and when you pass close one of
- * them may say something: the crowd only says who is near, the director picks the line
- * (`Stage.passerby`). Tap one and they turn to you.
+ * same evening has the same faces in it, and stood up in the round from the same record
+ * (`cast3d/avatar.ts`) unless the quarter is on paper. Each one keeps a habit: up and down the
+ * quai, across the footbridge, a stop at the canal's edge to look at the water, a turn into the
+ * rue de Lancry. They keep to the pavements (`Nav`), carry an umbrella when it rains, and when you
+ * pass close one of them may say something: the crowd only says who is near, the director picks
+ * the line (`Stage.passerby`). Tap one and they turn to you.
  *
- * They are printed small and after the rest of the quarter, so they never hold up the first
- * frame; the street fills as their cards come out of the press.
+ * They are made after the rest of the quarter, one at a time, so they never hold up the first
+ * frame; the street fills as they come out of the press. Across the square each changes into a
+ * lighter body, so a street of them stays within a phone's budget.
  */
 import { Group, Vector3 } from 'three';
 
+import { passerbyAvatar } from './avatars';
 import { passerbyArt } from './cast-art';
-import { Troupe } from './cast';
-import type { PaperFigure } from './cast';
+import { PaperFigure, Troupe } from './cast';
+import type { Figure } from './cast';
+import { avatarRound } from './cast3d';
 import type { Quartier } from './engine';
 import { Press, seeded } from './geo';
 import type { Rand } from './geo';
@@ -59,7 +63,8 @@ const UMBRELLAS: Hex[] = [INKS.ink, mix(INKS.vermilion, INKS.ink, 0.25), INKS.co
 
 /**
  * A canopy over the head and its shaft down to the hand, in the print's own inks. It turns with
- * the card, so the shaft stays beside the body, held a little in front of it, never across the face.
+ * a card, so the shaft stays beside the body, held a little in front of it, never across the face;
+ * someone in the round carries it at their left side, the way they face.
  */
 function umbrellaPress(color: Hex, height: number) {
   const P = new Press();
@@ -76,7 +81,7 @@ function umbrellaPress(color: Hex, height: number) {
 
 interface Walker {
   key: string;
-  f: PaperFigure;
+  f: Figure;
   R: Rand;
   /** metres a second */
   pace: number;
@@ -101,7 +106,7 @@ export interface CrowdOptions {
 }
 
 export class Crowd {
-  readonly troupe: Troupe;
+  readonly troupe: Troupe<Figure>;
   private walkers: Walker[] = [];
   private stopTick: (() => void) | null = null;
   private disposed = false;
@@ -115,7 +120,14 @@ export class Crowd {
     this.seed = opts.seed ?? 1789;
     this.onNear = opts.onNear;
     this.spots = opts.spots && opts.spots.length ? opts.spots : SPOTS;
-    this.troupe = new Troupe(q.world, { figure: (key) => passerbyArt(Number(key.split(':')[1]) * 7919 + this.seed, 256), item: () => null }, 420);
+    // passant:i is rolled from i * 7919 + the street's seed, on a card and in the round alike
+    const seedOf = (key: string) => Number(key.split(':')[1]) * 7919 + this.seed;
+    this.troupe = new Troupe<Figure>(
+      q.world,
+      { figure: (key) => passerbyArt(seedOf(key), 256), item: () => null },
+      420,
+      q.cast === 'round' ? (spec) => avatarRound(q.world, passerbyAvatar(seedOf(spec.key)), spec, seedOf(spec.key), 128) : undefined,
+    );
     q.addTroupe(this.troupe);
   }
 
@@ -129,13 +141,15 @@ export class Crowd {
       const at = this.ground(spot.at[0] + R.range(-1.5, 1.5), spot.at[1] + R.range(-4, 4));
       if (!at) continue;
       const height = R.range(1.56, 1.9);
-      let f: PaperFigure | null = null;
+      let f: Figure | null = null;
       try {
         f = await this.troupe.add({ key, height }, at);
       } catch {
         continue;
       }
       if (!f || this.disposed) return;
+      // in the round they keep their own way, until a tap turns them to you
+      if (f.attentive !== undefined) f.attentive = false;
       const umbrella = this.q.inked(umbrellaPress(R.pick(UMBRELLAS), height)) as unknown as Group;
       umbrella.visible = false;
       f.root.add(umbrella);
@@ -191,8 +205,9 @@ export class Crowd {
       // far away, nobody: the card is not drawn
       const d = Math.hypot(f.pos.x - cam.x, f.pos.z - cam.z);
       f.visible = d < 80;
+      if (f.attentive !== undefined) f.attentive = clock < w.heldUntil;
       w.umbrella.visible = rain && f.visible && f.seat === 0;
-      if (w.umbrella.visible) w.umbrella.rotation.y = Math.atan2(cam.x - f.pos.x, cam.z - f.pos.z);
+      if (w.umbrella.visible && f instanceof PaperFigure) w.umbrella.rotation.y = Math.atan2(cam.x - f.pos.x, cam.z - f.pos.z);
       // close to you
       if (f.visible && Math.hypot(f.pos.x - feet.x, f.pos.z - feet.z) < 2.3) this.onNear?.(w.key);
     });

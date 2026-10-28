@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.season.page import option_by_id, reply_by_id
+from app.services.season.page import asked_after, option_by_id, reply_by_id
 from app.services.season.world import plate_for
 
 YOU = "toi"
@@ -128,8 +128,11 @@ class _Tentpole:
 
     def build(self, page: dict[str, Any], routing: list[dict[str, Any]]) -> list[dict[str, Any]]:
         routes = {row.get("turn_id"): row for row in routing or [] if isinstance(row, dict)}
+        taken = {str(key): str(row.get("reply_id")) for key, row in routes.items()}
         for movement in page.get("movements") or []:
             kind = movement.get("kind")
+            if kind in ("turn", "solve") and not asked_after(movement, taken):
+                continue  # Le Quartier: a question the learner's earlier answer passed over
             if kind == "panel":
                 self.panel(movement, "act")
             elif kind == "turn":
@@ -142,25 +145,31 @@ class _Tentpole:
                 for beat in [*(reply.get("beats") or []), *(movement.get("after") or [])]:
                     self.panel(beat, "reaction")
             elif kind == "solve":
-                self.solve(movement)
+                self.solve(movement, routes.get(movement.get("id")))
             elif kind == "hook":
                 self.panel(movement["panel"], "ending")
         return self.rows
 
-    def solve(self, movement: dict[str, Any]) -> None:
+    def solve(self, movement: dict[str, Any], row: dict[str, Any] | None = None) -> None:
         prompt = str((movement.get("prompt") or {}).get("text_fr") or "").strip()
-        chosen = option_by_id(movement, movement.get("default"))
+        # A «Le choix» the learner answered (WP-113) draws their own card, or their
+        # own French when they said it instead (Le Quartier); any other solve, the
+        # card the story took.
+        chosen = (option_by_id(movement, row.get("reply_id")) if row else None) or option_by_id(
+            movement, movement.get("default")
+        )
         label = str(((chosen or {}).get("label") or {}).get("text_fr") or "").strip()
+        said = str((row or {}).get("learner") or "").strip()
         lines = []
-        if label:
+        if said or label:
             lines.append(
                 {
                     "character_id": YOU,
                     "character_name": None,
-                    "text_fr": label,
+                    "text_fr": said or label,
                     "text_native": None,
                     "mood": None,
-                    "kind": "card",
+                    "kind": "card" if not said or said.casefold() == label.casefold() else "you",
                     "you": True,
                 }
             )
