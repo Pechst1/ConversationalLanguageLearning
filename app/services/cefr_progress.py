@@ -160,6 +160,11 @@ class CEFRProgressService:
 
     def __init__(self, db: Session) -> None:
         self.db = db
+        #: What the last recompute read for the band in force: the coverage
+        #: (a ``level_coverage.BandCoverage``) and the learner's lemma states.
+        #: The level plan spells them out without reading them a second time.
+        self.coverage: Any = None
+        self.lemmas: Any = None
 
     def recompute(
         self,
@@ -497,13 +502,19 @@ class CEFRProgressService:
         """Coverage of the band in force, its checkpoint and the forecast. Never raises."""
 
         from app.services import level_checkpoint as checkpoints
-        from app.services.level_coverage import band_coverage, held_unit_ids
+        from app.services.level_coverage import (
+            band_coverage,
+            band_words,
+            held_unit_ids,
+            lemma_states,
+        )
         from app.services.level_forecast import build_forecast, rhythm_priors
 
         state: dict[str, Any] = {"coverage": None, "checkpoint": None, "forecast": None, "rhythm_priors": None}
         try:
             row = rows.get(band)
             closed = row is not None and row.status in checkpoints.CLOSED_STATES
+            lemmas = lemma_states(self.db, user, now=now)
             # «Held» is WP-L4's Tenue (``held_at``, never cleared): a lapse makes
             # a unit fragile and it comes back, it does not uncover the band.
             coverage = band_coverage(
@@ -512,12 +523,14 @@ class CEFRProgressService:
                 band,
                 now=now,
                 held=held_unit_ids(self.db, user, now=now),
+                known=set(lemmas.known),
                 checkpoint_passed=closed,
             )
             if persist and coverage.coverage_met and (row is None or row.status == checkpoints.STATE_OPEN):
                 row = checkpoints.mark_ready(self.db, user.id, band, now=now)
                 rows[band] = row
             view = checkpoints.checkpoint_view(band, row, coverage_met=coverage.coverage_met, now=now)
+            self.coverage, self.lemmas = coverage, lemmas
             state["coverage"] = coverage
             state["checkpoint"] = view
             state["forecast"] = build_forecast(
@@ -528,6 +541,7 @@ class CEFRProgressService:
                 active_days=signals.active_days_14,
                 target=next_cefr_level(band),
                 now=now,
+                words_on_the_way=len((lemmas.carded - lemmas.known) & band_words(band)),
             )
         except Exception:  # pragma: no cover - a level must never 500 an endpoint
             logger.exception("cefr_progress: coverage could not be computed")
@@ -778,6 +792,50 @@ def with_live_grammar(db: Session, user: User, payload: dict[str, Any]) -> dict[
     }
 
 
+def live_level(
+    db: Session,
+    user: User,
+    *,
+    write_first: bool = True,
+    service: CEFRProgressService | None = None,
+) -> dict[str, Any]:
+    """The level as it stands now, for every surface that shows it. Never raises.
+
+    2026-10-24 (owner: «we always know exactly at which level the learner is»):
+    the stored payload is a snapshot, written when a day, an épreuve or a
+    recompute ends, so the words a learner settled in the deck since, or a rule
+    La Forge held, were missing from it until the next one — and Home, the
+    Dossier and Fortschritt could each print a different count. Every read now
+    runs the engine's own arithmetic without writing (``persist=False,
+    track=False``), so they all agree with each other and with the last answer.
+
+    ``write_first``: a learner with no payload on the coverage rule yet gets the
+    engine's lazy, persisted first one, as ``current`` always gave it. A page
+    that must never write (the Dossier, the level plan) passes ``False``.
+    ``service``: the caller's, to read what the recompute read (``coverage``,
+    ``lemmas``).
+    """
+
+    from app.db.savepoint import run_best_effort
+
+    service = service or CEFRProgressService(db)
+    stored = user.cefr_estimate_payload if isinstance(getattr(user, "cefr_estimate_payload", None), dict) else {}
+    if write_first and stored.get("version") != CEFR_PROGRESS_VERSION:
+        return service.current(user)
+    payload = run_best_effort(
+        db,
+        "cefr_progress: live level",
+        lambda: service.recompute(user, source="live", persist=False, track=False),
+        default=None,
+        log=logger,
+    )
+    if isinstance(payload, dict):
+        return payload
+    if stored.get("version") == CEFR_PROGRESS_VERSION:
+        return with_live_grammar(db, user, stored)
+    return service.current(user, recompute_if_missing=False)
+
+
 def _band_below(level: str | None) -> str | None:
     if not level or level not in CEFR_LEVELS:
         return None
@@ -786,6 +844,7 @@ def _band_below(level: str | None) -> str | None:
 
 
 __all__ = [
+    "live_level",
     "with_can_do_line",
     "with_live_grammar",
     "CEFR_LEVELS",

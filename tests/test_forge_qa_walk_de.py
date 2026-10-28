@@ -200,7 +200,10 @@ def test_every_meaning_unit_serves_a_german_meaning_with_no_english(unit: str) -
         assert not [text for text in texts if ENGLISH.search(text)], (rung, texts)
         cue = " ".join(str(served.get(key) or "") for key in ("goal_native", "meaning_cue", "prompt", "instruction"))
         if rung in {"fill", "word_bank", "transform", "pair", "production"}:
-            assert item.de in cue, (rung, cue)
+            # #296: a build of an exchange quotes its answer and says the lines before
+            # it ahead of the quote, so every German sentence is there, not in one run.
+            parts = [part for part in re.split(r"(?<=[.!?…])\s+", item.de.strip()) if part]
+            assert all(part in cue for part in parts), (rung, cue)
         # French learners keep the gloss-free cue: no English, no German.
         french = ib.public_item(payload, "fr")
         shown = " ".join(str(french.get(key) or "") for key in ("goal_native", "meaning_cue", "prompt", "instruction", "meaning"))

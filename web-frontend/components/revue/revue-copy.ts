@@ -99,7 +99,8 @@ export type RevueCopy = {
   make_go: string;
   /**
    * `{n}` in a detail is filled with the option's own number (max words, seconds).
-   * `caption` is «La légende» to choose (A1–A2), `caption_write` the one to write (B1+).
+   * `caption_write` is «La légende» to write (every band since 2026-10-23); `caption`, the
+   * one to choose, names an offer made before that.
    */
   make_options: Record<RvMakeKind | 'caption_write', { title: string; detail: string }>;
   /** Phase 2 · the guest (WIRE §6.2, design §3.4 #guest). `{name}` is the guest's name. */
@@ -143,11 +144,19 @@ export type RevueCopy = {
   caption_supported: string;
   caption_unsupported: string;
   caption_contradicted: string;
+  /** 2026-10-23: a caption under the band's words; the three captions offered after a refused try (A1–A2). */
+  caption_too_short: string;
+  caption_or_pick: string;
   /** The picture's words, as tiles under it. */
   caption_words: string;
   caption_word_add: string;
   caption_word_used: string;
   made_caption: string;
+  /** «Au comptoir»: the learner's quote in Romy's vox pop. */
+  made_opinion: string;
+  /** «Au comptoir» on La Une: the faces' label («Romy, Lila et Gus en parlent déjà»), and the list's last «and». */
+  comptoir_faces: string;
+  comptoir_and: string;
   /** WP-120 · the vignette. */
   vignette_label: string;
   vignettes_title: string;
@@ -159,6 +168,8 @@ export type RevueCopy = {
    * close call failed.
    */
   write_paper: string;
+  /** 2026-10-23: under the quick replies until the learner has written or said a line of their own. */
+  write_paper_needs_line: string;
   make_failed: string;
   skip_make: string;
   close_anyway: string;
@@ -330,14 +341,20 @@ const FR: RevueCopy = {
   caption_supported: 'L’image et les sources le disent.',
   caption_unsupported: 'Ce n’est pas tout à fait sur l’image, mais Romy la garde.',
   caption_contradicted: 'L’image ou les sources disent autre chose. Réécris-la.',
+  caption_too_short: 'Un peu court pour une légende : encore quelques mots.',
+  caption_or_pick: 'Ou choisis la légende',
   caption_words: 'Sur l’image',
   caption_word_add: 'Ajouter « {word} » à ta légende',
   caption_word_used: 'dans ta légende',
   made_caption: 'Ta légende',
+  made_opinion: 'Ton avis',
+  comptoir_faces: '{names} en parlent déjà',
+  comptoir_and: 'et',
   vignette_label: 'Ta vignette · {week}',
   vignettes_title: 'Tes vignettes',
   one_more_question: 'Encore une question',
   write_paper: 'Écrire le papier →',
+  write_paper_needs_line: 'Pour écrire le papier, dis-lui d’abord quelque chose avec tes mots.',
   make_failed: 'Romy ne peut pas préparer le papier pour le moment. Réessaie, ou classe le Papier tel quel.',
   skip_make: 'Passer',
   close_anyway: 'Classer quand même',
@@ -499,14 +516,20 @@ const EN: RevueCopy = {
   caption_supported: 'The picture and the sources say so.',
   caption_unsupported: "The picture doesn't quite show that, but Romy keeps it.",
   caption_contradicted: 'The picture or the sources say otherwise. Write it again.',
+  caption_too_short: 'A bit short for a caption: a few more words.',
+  caption_or_pick: 'Or pick the caption',
   caption_words: 'In the picture',
   caption_word_add: 'Add «{word}» to your caption',
   caption_word_used: 'in your caption',
   made_caption: 'Your caption',
+  made_opinion: 'Your opinion',
+  comptoir_faces: '{names} are already arguing',
+  comptoir_and: 'and',
   vignette_label: 'Your vignette · {week}',
   vignettes_title: 'Your vignettes',
   one_more_question: 'One more question',
   write_paper: 'Write the piece →',
+  write_paper_needs_line: 'To write the piece, first tell her something in your own words.',
   make_failed: "Romy can't set up the piece right now. Try again, or file the Papier as it is.",
   skip_make: 'Skip',
   close_anyway: 'File it anyway',
@@ -668,14 +691,20 @@ const DE: RevueCopy = {
   caption_supported: 'Das Bild und die Quellen sagen es.',
   caption_unsupported: 'Das zeigt das Bild nicht ganz, aber Romy behält sie.',
   caption_contradicted: 'Das Bild oder die Quellen sagen etwas anderes. Schreib sie neu.',
+  caption_too_short: 'Etwas kurz für eine Bildunterschrift: noch ein paar Wörter.',
+  caption_or_pick: 'Oder wähle die Bildunterschrift',
   caption_words: 'Auf dem Bild',
   caption_word_add: '„{word}“ in deine Bildunterschrift einfügen',
   caption_word_used: 'in deiner Bildunterschrift',
   made_caption: 'Deine Bildunterschrift',
+  made_opinion: 'Deine Meinung',
+  comptoir_faces: '{names} streiten schon',
+  comptoir_and: 'und',
   vignette_label: 'Deine Vignette · {week}',
   vignettes_title: 'Deine Vignetten',
   one_more_question: 'Noch eine Frage',
   write_paper: 'Den Artikel schreiben →',
+  write_paper_needs_line: 'Um den Artikel zu schreiben, sag ihr zuerst etwas in deinen eigenen Worten.',
   make_failed: 'Romy kann den Artikel gerade nicht vorbereiten. Versuch es noch einmal oder leg das Papier so ab.',
   skip_make: 'Überspringen',
   close_anyway: 'Trotzdem ablegen',

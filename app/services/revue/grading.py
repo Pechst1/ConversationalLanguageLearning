@@ -306,6 +306,12 @@ class LLMRubricScorer:
         )
 
 
+def word_count(text: str | None) -> int:
+    """Words as the band's length bounds count them (numbers aside)."""
+
+    return len(_WORD.findall(text or ""))
+
+
 def _band_fit(rubric: Rubric, text: str) -> str:
     if rubric.kind == "headline_write":
         low, high = HEADLINE_WORDS.get(rubric.band, (3, 12))
@@ -313,7 +319,7 @@ def _band_fit(rubric: Rubric, text: str) -> str:
         low, high = CAPTION_WORDS.get(rubric.band, (3, 14))
     else:
         return "at"
-    count = len(_WORD.findall(text or ""))
+    count = word_count(text)
     return "below" if count < low else "above" if count > high else "at"
 
 

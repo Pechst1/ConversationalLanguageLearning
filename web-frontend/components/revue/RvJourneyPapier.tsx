@@ -6,8 +6,9 @@
  * (scene, recall, reply, ending); once it is finished the player mounts this in
  * place of the recap. It reads the week, opens the Papier — resume the one in
  * progress, else start the recommendation — and draws the ONE `RvEncounter`
- * (there is no second encounter built from step views). The × and «Classer la
- * Revue» both call `onDone`, and the player then shows the day's recap.
+ * (there is no second encounter built from step views) — or, for a session in
+ * «Au comptoir» mode, the ONE `RvComptoir`. The × and «Classer la Revue» both call
+ * `onDone`, and the player then shows the day's recap.
  *
  * Nothing to do (the Revue is off, nothing recommended, this week's Papier
  * already filed) calls `onDone` at once. A failure says so quietly and offers
@@ -25,6 +26,7 @@ import type { RvLanguage, RvSessionView, RvWeekResult } from '@/lib/revue-types'
 
 import { releveCopy } from './releve-copy';
 import { revueCopy } from './revue-copy';
+import { RvComptoir } from './comptoir/RvComptoir';
 import { RvEncounter } from './RvEncounter';
 
 export type RvJourneyPapierProps = {
@@ -107,8 +109,10 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
   let body: React.ReactNode;
   if (state.kind === 'session') {
     const period = state.session.week.iso;
+    // «Au comptoir»: the counter's debate in place of the chat, with the same props.
+    const Player = state.session.mode === 'comptoir' ? RvComptoir : RvEncounter;
     body = (
-      <RvEncounter
+      <Player
         key={state.session.id}
         client={client ?? revueClient()}
         session={state.session}

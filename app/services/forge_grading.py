@@ -222,6 +222,32 @@ def matches_accepted(text: Any, accepted: Any) -> bool:
     return any(tokens(answer) == said for answer in accepted or [] if str(answer or "").strip())
 
 
+def accent_reading(text: Any, accepted: Any, *, accents: str = "lenient") -> Any:
+    """How the key reads ``text`` when it is an accepted answer up to its accents —
+    the same words in the same order — else ``None``.
+
+    The reading is :func:`answer_acceptance.judge`'s, with the item's accent policy
+    (:func:`answer_acceptance.accent_policy`) and no typo tolerance: the one the
+    keyed rungs give. #297/#174: such a line is never «Word order». A spelling
+    accent («gus a un telephone dans le salon») is accepted and named; an accent
+    that is grammar or meaning («mange» for «mangé», «a» for «à», «la» for «là»),
+    or any accent in an item that tests accents, is refused and named."""
+
+    from app.services.answer_acceptance import judge
+
+    keys = [str(answer) for answer in accepted or [] if str(answer or "").strip()]
+    if not keys or not tokens(text):
+        return None
+    reading = judge(text, keys, accents=accents, typo=False)
+    if reading.correct:
+        return reading if reading.accent_slip else None
+    for answer in keys:
+        reading = judge(text, [answer], accents=accents, typo=False)
+        if reading.accent_slip:
+            return reading
+    return None
+
+
 def _trap_windows(wrong: str, right: str) -> tuple[list[str], list[str]] | None:
     """The ✗ and ✓ token windows of one contrast pair: the words that differ, after
     up to two words of left context («n'ai pas une» / «n'ai pas de»). A pair that
@@ -441,6 +467,51 @@ def drop_false_english(
     return kept, kept_gaps, dropped
 
 
+#: A note written for whoever authored the item, not for the learner: «the prompt gives
+#: no subject … add a subject to the prompt» (#295). The model sometimes explains why
+#: it cannot decide instead of deciding; the learner cannot act on that and a key that
+#: accepts every right answer (:func:`item_bank.ItemBank._person_variants`) makes it moot.
+#: «subject, person, pronoun, gender, context»: what a note about an underspecified
+#: prompt says is missing. A tutor's correction of the learner's own French («Add
+#: «est-ce que» to the question», «Include «ne» in the question») names a word or a
+#: form, never one of these, and must stay a correction.
+_MISSING = r"(?:subject|person|pronoun|gender|context|referent|indication)"
+_AUTHOR_NOTE = re.compile(
+    rf"\b(?:add|include|give|name|specify|mention|provide)\b[^.!?«»\"“”]{{0,60}}\b{_MISSING}\b[^.!?«»\"“”]{{0,60}}"
+    r"\b(?:to|in|into) the (?:prompt|item|exercise|question|task|cue)\b"
+    rf"|\bthe (?:prompt|item|exercise|question|task|cue)\s+(?:gives|names|offers|contains|has|provides|specifies)\s+no\s+{_MISSING}\b"
+    rf"|\bthe (?:prompt|item|exercise|question|task|cue)\s+(?:does\s*n[o']t|doesn'?t|do\s+not)\s+"
+    rf"(?:give|name|say|specify|state|show|indicate)\b[^.!?]{{0,40}}\b{_MISSING}\b"
+    r"|\b(?:prompt|item|exercise|cue)\b[^.!?]{0,40}\b(?:is|are)\s+(?:ambiguous|underspecified|unclear)\b"
+    r"|\bso (?:that )?only one answer is (?:correct|possible|valid)\b"
+    r"|\b(?:die )?(?:aufgabe|aufgabenstellung|frage)\s+(?:gibt|nennt)\s+kein"
+    r"|\b(?:l[’']énoncé|la consigne)\s+(?:ne\s+(?:donne|précise|nomme|dit)|est\s+ambigu)",
+    re.IGNORECASE,
+)
+
+
+def is_author_note(text: Any) -> bool:
+    """Does ``text`` speak to the item's author («add a subject to the prompt»)?"""
+
+    return bool(_AUTHOR_NOTE.search(" ".join(str(text or "").split())))
+
+
+def drop_author_notes(errata: list[dict[str, Any]] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """``(errata, dropped)`` without the corrections whose explanation or hint is a
+    note to the item's author — the learner is never told to fix the prompt."""
+
+    kept: list[dict[str, Any]] = []
+    dropped: list[dict[str, Any]] = []
+    for erratum in errata or []:
+        if isinstance(erratum, dict) and (
+            is_author_note(erratum.get("why_wrong")) or is_author_note(erratum.get("repair_hint"))
+        ):
+            dropped.append(erratum)
+        else:
+            kept.append(erratum)
+    return kept, dropped
+
+
 _NOTE_SENTENCE = re.compile(r"(?<=[.!?…])\s+")
 _NOTE_SENTENCES = 2
 
@@ -479,6 +550,8 @@ def notes_native(errata: list[dict[str, Any]] | None, *, extra: Any = ()) -> lis
         for item in [*(errata or []), *(extra or [])]
     ]
     for candidate in candidates:
+        if is_author_note(candidate):
+            continue
         note = clip_note(candidate)
         key = _fold_note(note)
         if not key:
@@ -546,6 +619,10 @@ def reordering_correction(
             continue
         if sorted(strip_accents(token) for token in target) != sorted(strip_accents(token) for token in said):
             continue
+        if [strip_accents(token) for token in target] == [strip_accents(token) for token in said]:
+            # #297: the same words in the same order — only an accent differs. That
+            # is the accent (:func:`accent_reading`), never «Word order».
+            continue
         start = 0
         while start < len(said) and strip_accents(said[start]) == strip_accents(target[start]):
             start += 1
@@ -579,12 +656,70 @@ def reordering_correction(
     return None
 
 
+#: The label of an accent the key refuses in a free answer (#297).
+_ACCENT_LABEL: dict[str, str] = {"en": "Accent", "de": "Akzent", "fr": "Accent"}
+
+
+def _held_to_accent(refined: dict[str, Any], reading: Any, *, learner_text: Any, language: Any) -> dict[str, Any]:
+    """A free answer that is an accepted answer up to its accents
+    (:func:`accent_reading`): the accent is its one issue, whatever else a model
+    said. Accepted, it is named in a note; refused, it is the one erratum and the
+    answer is partial."""
+
+    from app.services.answer_acceptance import feedback_note
+
+    language_key = _language(language)
+    note = feedback_note(reading, language_key)
+    answer = str(reading.expected or "")
+    refined.update({"lexical_gaps": [], "missing_targets": [], "corrected_answer": answer})
+    refined.pop("feedback_notes_native", None)
+    if reading.correct:
+        refined.update(
+            {
+                "verdict": "correct",
+                "score_0_4": 4.0,
+                "errata": [],
+                "accent_notes": [{"item_id": "", "learner_text": str(learner_text or ""), "corrected_target": answer}],
+                "feedback_notes_native": [note] if note else [],
+                "notes_native": [note] if note else [],
+            }
+        )
+        return refined
+    concept = next((item for item in refined.get("errata") or [] if isinstance(item, dict)), {})
+    erratum = {
+        "item_id": "",
+        "display_label": _ACCENT_LABEL[language_key],
+        "learner_text": str(reading.learner_word or ""),
+        "corrected_target": str(reading.expected_word or ""),
+        "why_wrong": note or "",
+        "repair_hint": "",
+        "severity": 2,
+        "recurring": True,
+        "task_error_type": "orthography",
+        "concept_id": concept.get("concept_id"),
+        "external_id": concept.get("external_id"),
+    }
+    refined["errata"] = [erratum]
+    refined["verdict"] = "partial"
+    refined["score_0_4"] = min(max(float(refined.get("score_0_4") or 0), 2.0), 2.5)
+    refined["notes_native"] = notes_native(refined["errata"])
+    return refined
+
+
 def refine_production_correction(
-    correction: dict[str, Any], *, learner_text: Any, accepted: Any, language: Any = "en"
+    correction: dict[str, Any],
+    *,
+    learner_text: Any,
+    accepted: Any,
+    language: Any = "en",
+    accents: str = "lenient",
 ) -> dict[str, Any]:
     """The model's reading of a free answer, held to what the key knows (WP-103 T10).
 
     * a correction that calls a French word English is dropped;
+    * an answer that is an accepted answer up to its accents is read as the keyed
+      rungs read it (:func:`accent_reading`, with the item's ``accents`` policy):
+      right with the accent named, or partial with the accent as its one erratum;
     * an answer that is an accepted answer in another order has one issue — the
       order — and its correction is that accepted answer;
     * ``notes_native``: one note per issue, deduplicated.
@@ -600,6 +735,10 @@ def refine_production_correction(
             {"learner_text": item.get("learner_text"), "reason": "french_word_called_english"}
             for item in dropped
         ]
+    reading = accent_reading(learner_text, accepted, accents=accents)
+    if reading is not None:
+        # #297: right words, right order, an accent off — the accent is the one issue.
+        return _held_to_accent(refined, reading, learner_text=learner_text, language=language)
     reordered = reordering_correction(learner_text, accepted, language)
     if reordered is not None:
         answer, erratum = reordered
@@ -702,7 +841,10 @@ __all__ = [
     "clip_note",
     "describe_diff",
     "detector_check",
+    "accent_reading",
+    "drop_author_notes",
     "drop_false_english",
+    "is_author_note",
     "fold_typography",
     "is_french_word",
     "mark_given",

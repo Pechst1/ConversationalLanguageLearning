@@ -1,0 +1,277 @@
+{
+ "question": {
+  "fr": "Faut-il aider les familles à la rentrée ?",
+  "en": "Should families get help for back-to-school?",
+  "de": "Sollen Familien zur Schulzeit Hilfe bekommen?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour. Les fournitures coûtent trop cher. L'aide arrive en août, heureusement.",
+     "en": "I'm for it. School supplies cost too much. The help comes in August, luckily.",
+     "de": "Ich bin dafür. Die Schulsachen kosten zu viel. Die Hilfe kommt im August, zum Glück."
+    },
+    "a2": {
+     "fr": "Voyons donc, l'aide est utile : 426,87 euros pour un enfant de 6 à 10 ans. Les fournitures et la cantine coûtent cher.",
+     "en": "Come on, the help is useful: 426.87 euros for a child aged 6 to 10. Supplies and canteen cost a lot.",
+     "de": "Ach komm, die Hilfe ist nützlich: 426,87 Euro für ein Kind von 6 bis 10 Jahren. Schulsachen und Kantine kosten viel."
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que les familles paient les cahiers, la cantine et les vêtements. Avec 426,87 euros pour un enfant de 6 à 10 ans, le budget respire. Gus, tu ne vas pas me contredire, hein ?",
+     "en": "I'm for it, because families pay for notebooks, the canteen and clothes. With 426.87 euros for a child aged 6 to 10, the budget can breathe. Gus, you're not going to contradict me, are you?",
+     "de": "Ich bin dafür, weil Familien für Hefte, Kantine und Kleidung zahlen. Mit 426,87 Euro für ein Kind von 6 bis 10 Jahren kann das Budget durchatmen. Gus, du wirst mir doch nicht widersprechen, oder?"
+    }
+   },
+   "quote": {
+    "fr": "Les fournitures coûtent trop cher.",
+    "en": "School supplies cost too much.",
+    "de": "Schulsachen kosten zu viel."
+   }
+  },
+  {
+   "id": "lila_bonnet",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend, mon chou. L'aide est bien, mais en septembre, les cahiers coûtent cher.",
+     "en": "It depends, sweetie. The help is good, but in September, notebooks cost a lot.",
+     "de": "Kommt drauf an, mein Schatz. Die Hilfe ist gut, aber im September kosten Hefte viel."
+    },
+    "a2": {
+     "fr": "Ça dépend, mon chou ! L'aide arrive en août, c'est bien, mais les cahiers coûtent cher. Toi, tu gères ton budget ?",
+     "en": "It depends, sweetie! The help comes in August, that's good, but notebooks cost a lot. Do you manage your budget?",
+     "de": "Kommt drauf an, mein Schatz! Die Hilfe kommt im August, das ist gut, aber Hefte kosten viel. Kommst du mit deinem Budget klar?"
+    },
+    "b1": {
+     "fr": "D'un côté, l'allocation aide les familles en août. De l'autre, les cahiers et la cantine coûtent cher. Romy, tu veux qu'on compte ensemble, mon chou ?",
+     "en": "On the one hand, the allowance helps families in August. On the other, notebooks and canteen cost a lot. Romy, want to count it together, sweetie?",
+     "de": "Einerseits hilft die Beihilfe den Familien im August. Andererseits kosten Hefte und Kantine viel. Romy, wollen wir das zusammen durchrechnen, mein Schatz?"
+    }
+   },
+   "quote": {
+    "fr": "Tu veux qu'on compte ensemble ?",
+    "en": "Shall we count together?",
+    "de": "Sollen wir zusammen rechnen?"
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. Des aides pour les enfants de 6 à 16 ans ? Non.",
+     "en": "I'm against it. Help for children aged 6 to 16? No.",
+     "de": "Ich bin dagegen. Hilfen für Kinder von 6 bis 16 Jahren? Nein."
+    },
+    "a2": {
+     "fr": "Aider les enfants de 6 à 16 ans ? Mon cher, l'argent part vite. Et le champagne, lui, reste.",
+     "en": "Help children aged 6 to 16? My dear, money goes fast. Champagne, on the other hand, stays.",
+     "de": "Kindern von 6 bis 16 Jahren helfen? Mein Lieber, das Geld ist schnell weg. Der Champagner dagegen bleibt."
+    },
+    "b1": {
+     "fr": "Je suis contre, parce que pour les enfants de 6 à 16 ans, un cahier suffit, mon cher. Règle numéro un de La Méthode : un beau stylo vaut mieux que dix cahiers. Lila, ne me regarde pas comme ça.",
+     "en": "I'm against it, because for children aged 6 to 16, one notebook is enough, my dear. Rule number one of The Method: one beautiful pen is worth more than ten notebooks. Lila, don't look at me like that.",
+     "de": "Ich bin dagegen, weil für Kinder von 6 bis 16 Jahren ein Heft reicht, mein Lieber. Regel Nummer eins der Methode: Ein schöner Füller ist mehr wert als zehn Hefte. Lila, schau mich nicht so an."
+    }
+   },
+   "quote": {
+    "fr": "Mon cher, non. Pas mon argent.",
+    "en": "My dear, no. Not my money.",
+    "de": "Mein Lieber, nein. Nicht mein Geld."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "de 6 à 16 ans",
+  "right_fr": "de 6 à 18 ans",
+  "claim_id": "c2",
+  "distractor_fr": "le 3 septembre en Corse",
+  "ask": {
+   "fr": "De quel âge à quel âge, en vrai ?",
+   "en": "Which ages, really?",
+   "de": "Welche Altersspanne, wirklich?"
+  },
+  "caught": {
+   "fr": "Six à seize ans ? Une erreur, mon cher. Je suis généreux.",
+   "en": "Six to sixteen? A slip, my dear. I'm generous.",
+   "de": "Sechs bis sechzehn? Ein Versehen, mein Lieber. Ich bin großzügig."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "les fournitures coûtent cher",
+    "en": "school supplies cost a lot",
+    "de": "Schulsachen kosten viel"
+   },
+   {
+    "fr": "l'aide est utile",
+    "en": "the help is useful",
+    "de": "die Hilfe ist nützlich"
+   },
+   {
+    "fr": "la cantine coûte cher",
+    "en": "canteen costs a lot",
+    "de": "die Kantine kostet viel"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "l'argent part vite",
+    "en": "money goes quickly",
+    "de": "Geld ist schnell weg"
+   },
+   {
+    "fr": "ça coûte cher à l'État",
+    "en": "it costs the state a lot",
+    "de": "es kostet den Staat viel"
+   },
+   {
+    "fr": "les familles se débrouillent",
+    "en": "families manage",
+    "de": "Familien kommen klar"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est utile, mais petit",
+    "en": "it's useful, but small",
+    "de": "es ist nützlich, aber klein"
+   },
+   {
+    "fr": "c'est bien, mais pas assez",
+    "en": "it's good, but not enough",
+    "de": "es ist gut, aber nicht genug"
+   },
+   {
+    "fr": "ça dépend du budget",
+    "en": "it depends on the budget",
+    "de": "es hängt vom Budget ab"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, l'aide est utile, parce que",
+   "en": "In my opinion, the help is useful, because",
+   "de": "Meiner Meinung nach ist die Hilfe nützlich, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, l'aide n'est pas une bonne idée, parce que",
+   "en": "In my opinion, the help is not a good idea, because",
+   "de": "Meiner Meinung nach ist die Hilfe keine gute Idee, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "les fournitures",
+   "en": "the school supplies",
+   "de": "die Schulsachen"
+  },
+  {
+   "fr": "la cantine",
+   "en": "the canteen",
+   "de": "die Kantine"
+  },
+  {
+   "fr": "l'allocation",
+   "en": "the allowance",
+   "de": "die Beihilfe"
+  },
+  {
+   "fr": "la rentrée",
+   "en": "the back-to-school period",
+   "de": "die Schulzeit"
+  },
+  {
+   "fr": "trop cher",
+   "en": "too expensive",
+   "de": "zu teuer"
+  },
+  {
+   "fr": "les familles",
+   "en": "the families",
+   "de": "die Familien"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Tu paies vraiment les cahiers, toi ? L'État est généreux avec toi, pas avec moi.",
+    "en": "You really pay for the notebooks? The state is generous with you, not with me.",
+    "de": "Zahlst du die Hefte wirklich selbst? Der Staat ist großzügig mit dir, nicht mit mir."
+   },
+   "comeback": {
+    "fr": "Et toi, tu paies le champagne ?",
+    "en": "And you, do you pay for the champagne?",
+    "de": "Und du, zahlst du den Champagner?"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc ! Tu veux que les familles paient tout ? Pour vrai ?",
+    "en": "Come on! You want families to pay for everything? Really?",
+    "de": "Ach komm! Willst du, dass Familien alles zahlen? Wirklich?"
+   },
+   "comeback": {
+    "fr": "Non, mais l'État paie déjà trop !",
+    "en": "No, but the state already pays too much!",
+    "de": "Nein, aber der Staat zahlt schon zu viel!"
+   }
+  },
+  "nuance": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Ça dépend ? Choisis ! Tu es pour ou contre ?",
+    "en": "It depends? Choose! Are you for or against?",
+    "de": "Kommt drauf an? Entscheide dich! Bist du dafür oder dagegen?"
+   },
+   "comeback": {
+    "fr": "Je reste au milieu, mon cher.",
+    "en": "I'm staying in the middle, my dear.",
+    "de": "Ich bleibe in der Mitte, mein Lieber."
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

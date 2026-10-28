@@ -38,12 +38,14 @@ RING_BY_MAKE: dict[str, Ring] = {
     "short_report": "report",
     "tell_margaux": "report",
     "caption": "headline",
+    "opinion": "report",  # «Au comptoir»: the learner's quote in Romy's vox pop
 }
 
 
 def ring_for(make_option: str | None) -> Ring:
     """``headline_choice``/``headline_write``/``caption`` → headline, ``reader_question`` → question,
-    ``short_report`` (and ``tell_margaux``) → report; nothing made → headline (the dispatch still has one)."""
+    ``short_report`` (and ``tell_margaux``, and «Au comptoir»'s ``opinion``) → report; nothing made →
+    headline (the dispatch still has one)."""
 
     return RING_BY_MAKE.get(str(make_option or ""), "headline")
 

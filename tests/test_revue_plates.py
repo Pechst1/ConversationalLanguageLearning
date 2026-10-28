@@ -376,6 +376,7 @@ def test_the_stage_switches_at_make_when_no_guest_came(db: Session, monkeypatch)
     revue = RevueEncounter(db, FakeRevueProvider())
     row = revue.start(make_user(db), WEEK, dossier_id=MARCHE)
     revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, "J'aime bien les marchés.")
     assert revue.view(row).stage.plate_switched is False
     offer = revue.make_options(row)
     headline = next(option for option in offer.options if option.kind == "headline_choice")

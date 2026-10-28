@@ -581,6 +581,70 @@ export function CahierStyles() {
         color: var(--av2-muted);
       }
 
+      /* ---- Le cours: the level plan (LevelPlanCard, 2026-10-24) ----
+         The ladder wraps rather than scrolls: ten bands at 320px are two rows. */
+      .av2 .nb-lv { display: flex; flex-direction: column; gap: 16px; }
+      .av2 .nb-lv__where { display: flex; flex-direction: column; gap: 8px; }
+      .av2 .nb-lv__where .av2-headline { margin: 0; }
+      .av2 .nb-lv__next { margin: 0; font-weight: 600; color: var(--av2-ink); }
+      .av2 .nb-lv__fine { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-muted); overflow-wrap: anywhere; }
+      .av2 .nb-lv__ladder { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+      .av2 .nb-lv__ladder li {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 1.75rem;
+        padding: 0 9px;
+        border: 1px solid var(--av2-line-2);
+        border-radius: var(--av2-r-pill);
+        font-size: var(--av2-t-meta);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--av2-muted);
+      }
+      .av2 .nb-lv__ladder li[data-state='passed'], .av2 .nb-lv__ladder li[data-state='credited'] { border-color: var(--av2-ink); color: var(--av2-ink); }
+      .av2 .nb-lv__ladder li[data-state='current'] { border-color: var(--av2-ink); background: var(--av2-ink); color: var(--av2-on-ink); }
+      .av2 .nb-lv__ladder li[data-state='start'] { border-style: dashed; }
+      .av2 .nb-lv__ladder li[data-goal='true'] { box-shadow: inset 0 0 0 2px var(--av2-yellow); }
+      .av2 .nb-lv__goal { font-weight: 400; }
+      .av2 .nb-lv__block { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid var(--av2-line); }
+      .av2 .nb-lv__h { margin: 0; font-family: inherit; font-size: var(--av2-t-body); font-weight: 700; line-height: 1.3; color: var(--av2-ink); overflow-wrap: anywhere; }
+      .av2 .nb-lv__crit { display: flex; flex-direction: column; gap: 6px; }
+      .av2 .nb-lv__crit + .nb-lv__crit { margin-top: 4px; }
+      .av2 .nb-lv__crit-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; min-width: 0; }
+      .av2 .nb-lv__crit-l { font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-ink-2); }
+      .av2 .nb-lv__crit-v { min-width: 0; font-size: var(--av2-t-label); color: var(--av2-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+      .av2 .nb-lv__crit[data-met='true'] .nb-lv__crit-v { font-weight: 600; }
+      .av2 .nb-lv__today { margin: 4px 0 0; padding: 10px 12px; border-radius: var(--av2-r-card); background: var(--av2-paper); color: var(--av2-ink); }
+      .av2 .nb-lv__pace { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+      .av2 .nb-lv__more { padding-top: 6px; border-top: 1px solid var(--av2-line); }
+      .av2 .nb-lv__more > summary {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: var(--av2-tap);
+        cursor: pointer;
+        list-style: none;
+        font-size: var(--av2-t-label);
+        font-weight: 600;
+        color: var(--av2-ink);
+      }
+      .av2 .nb-lv__more > summary::-webkit-details-marker { display: none; }
+      .av2 .nb-lv__more > summary::after { content: '+'; margin-left: auto; font-size: var(--av2-t-body); color: var(--av2-muted); }
+      .av2 .nb-lv__more[open] > summary::after { content: '−'; }
+      .av2 .nb-lv__more > summary:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; border-radius: 4px; }
+      .av2 .nb-lv__more-body { display: flex; flex-direction: column; gap: 6px; padding: 0 0 6px; }
+      .av2 .nb-lv__rules { display: flex; flex-direction: column; margin: 0; padding: 0 0 6px; list-style: none; }
+      .av2 .nb-lv__rule { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-top: 1px solid var(--av2-line); }
+      .av2 .nb-lv__rule:first-child { padding-top: 2px; border-top: 0; }
+      .av2 .nb-lv__dot { flex: none; width: 0.625rem; height: 0.625rem; margin-top: 0.3rem; border: 2px solid var(--av2-line-2); border-radius: 50%; }
+      .av2 .nb-lv__dot[data-tone='held'] { border-color: var(--av2-ink); background: var(--av2-ink); }
+      .av2 .nb-lv__dot[data-tone='owed'] { border-color: var(--av2-blue); background: var(--av2-blue); }
+      .av2 .nb-lv__dot[data-tone='progress'] { border-color: var(--av2-blue); }
+      .av2 .nb-lv__rule-main { flex: 1 1 auto; min-width: 0; }
+      .av2 .nb-lv__rule-t { display: block; font-size: var(--av2-t-body); font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+      .av2 .nb-lv__rule-m { display: block; margin-top: 2px; font-size: var(--av2-t-meta); line-height: 1.4; color: var(--av2-muted); overflow-wrap: anywhere; }
+
       /* ---- La Bibliothèque (flag-gated) ---- */
       .av2 .nb-lib { display: flex; flex-direction: column; gap: 12px; }
       .av2 .nb-lib__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }

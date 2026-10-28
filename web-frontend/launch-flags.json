@@ -1,5 +1,6 @@
 {
   "storyFeatureVisible": true,
   "artSet": "drawn",
-  "spokenReply": true
+  "spokenReply": true,
+  "quartierVisible": false
 }

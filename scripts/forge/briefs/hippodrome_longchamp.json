@@ -1,0 +1,83 @@
+{
+  "id": "hippodrome_longchamp",
+  "papier": "2026-w40-prix-de-l-arc-de-triomphe",
+  "radius": {
+    "walk": 60,
+    "build": 140
+  },
+  "ambiance": "matin",
+  "title": {
+    "fr": "Le jour de l'Arc",
+    "en": "Arc day",
+    "de": "Der Tag des Arc"
+  },
+  "can_do": {
+    "fr": "Parier au guichet, comprendre une course commentée, compter jusqu'à seize.",
+    "en": "Place a bet at the window, follow a race called in French, count to sixteen.",
+    "de": "Am Schalter wetten, ein Rennen auf Französisch verfolgen, bis sechzehn zählen."
+  },
+  "arrondissement": "16e Arrt",
+  "venue": {
+    "kind": "hippodrome",
+    "turn": "right",
+    "stand_height": 21,
+    "moulin": [
+      -250,
+      150
+    ],
+    "race": {
+      "name": {
+        "fr": "Prix de l'Arc de Triomphe",
+        "en": "Prix de l'Arc de Triomphe",
+        "de": "Prix de l'Arc de Triomphe"
+      },
+      "metres": 2400,
+      "hour": "16 h 05",
+      "runners": 16,
+      "seed": 2026
+    }
+  },
+  "people": [
+    {
+      "key": "guichetiere",
+      "name": {
+        "fr": "La guichetière",
+        "en": "The betting clerk",
+        "de": "Die Wettschalterin"
+      },
+      "seed": 7311,
+      "look": {
+        "top": "chemise",
+        "topColor": "marine",
+        "hair": "chignon",
+        "neck": "foulard",
+        "ears": "perles",
+        "beard": "aucune"
+      },
+      "goal": {
+        "fr": "Parier deux euros au guichet",
+        "en": "Bet two euros at the window",
+        "de": "Am Schalter zwei Euro setzen"
+      }
+    },
+    {
+      "key": "habitue",
+      "name": {
+        "fr": "L'habitué",
+        "en": "The regular",
+        "de": "Der Stammgast"
+      },
+      "seed": 5120,
+      "look": {
+        "top": "veste",
+        "topColor": "brun",
+        "hat": "casquette",
+        "hatColor": "brun",
+        "beard": "moustache",
+        "glasses": "carrees",
+        "hair": "court",
+        "ears": "aucunes"
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "places": [
+    {
+      "id": "hippodrome_longchamp",
+      "name_fr": "L'hippodrome de ParisLongchamp",
+      "lat": 48.8573,
+      "lon": 2.2338,
+      "article": {
+        "id": "2026-w40-prix-de-l-arc-de-triomphe",
+        "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe",
+        "week": "2026-W40",
+        "topic": "sport"
+      }
+    },
+    {
+      "id": "hemicycle_assemblee",
+      "name_fr": "L'hémicycle de l'Assemblée nationale",
+      "lat": 48.862,
+      "lon": 2.3185,
+      "article": {
+        "id": "2026-w40-budget-2027",
+        "title_fr": "Le projet de budget 2027 est présenté",
+        "week": "2026-W40",
+        "topic": "politics"
+      }
+    },
+    {
+      "id": "marche_aligre",
+      "name_fr": "Le marché d'Aligre, un matin",
+      "lat": 48.849,
+      "lon": 2.378,
+      "article": {
+        "id": "evergreen-marche-du-dimanche",
+        "title_fr": "Le marché du dimanche à Aligre",
+        "week": "2026-W01",
+        "topic": "food"
+      }
+    }
+  ]
+}
