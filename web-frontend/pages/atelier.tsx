@@ -3915,6 +3915,7 @@ function SessionView({
                       cheer={forgeCheer(currentCorrection, fc)}
                       coach={ruleCoach}
                       coachMood={coachMood(currentCorrection, { correct: burstMarks.every((row) => row.correct) })}
+                      rule={feedbackRuleLine(activeSet, activeConcept, t)}
                       onNext={feedbackNext}
                       nextLabel={feedbackNextLabel}
                     />
