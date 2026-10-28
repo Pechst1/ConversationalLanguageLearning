@@ -104,7 +104,7 @@ simulator/device-reachable FastAPI `/api/v1` URL. A physical iPhone cannot use M
 Le Quartier, the 3D Paris, is off in the public app (`quartierVisible` in `launch-flags.json`).
 To put it on the owner's phone, build with `NEXT_PUBLIC_QUARTIER_VISIBLE=true`: the bundle then
 has `/quartier` and a «Le Quartier · 3D» chip on Home. A release build (`verify-native-bundle.mjs
---release`) refuses that switch.
+--release`) refuses that switch, from the shell or from a `.env` file.
 
 ```bash
 NEXT_PUBLIC_QUARTIER_VISIBLE=true npm run cap:sync:ios

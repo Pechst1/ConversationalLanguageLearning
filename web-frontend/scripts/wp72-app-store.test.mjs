@@ -238,6 +238,8 @@ test('release verification refuses local, placeholder, http and sandbox builds',
   const root = mkdtempSync(path.join(os.tmpdir(), 'wp72-bundle-'));
   fakeExport(root);
   pruneNativeExport(root);
+  // with Le Quartier off, `next build` still leaves an empty quartier/ (notFound writes no page)
+  mkdirSync(path.join(root, 'quartier'));
   const production = {
     NEXT_PUBLIC_API_BASE_URL: 'https://atelier.onrender.com/api/v1',
     NEXT_PUBLIC_WS_URL: 'wss://atelier.onrender.com',
@@ -248,10 +250,17 @@ test('release verification refuses local, placeholder, http and sandbox builds',
   writeNativeBuildManifest(root, production);
   assert.deepEqual(verifyNativeBundle(root, { release: true }), []);
 
-  // the owner's phone build with Le Quartier on installs, but is never a release
-  writeNativeBuildManifest(root, { ...production, NEXT_PUBLIC_QUARTIER_VISIBLE: 'true' });
-  assert.deepEqual(verifyNativeBundle(root), []);
-  assert.match(verifyNativeBundle(root, { release: true }).join('\n'), /QUARTIER_VISIBLE/);
+  // the owner's phone build has Le Quartier's page: it installs, but is never a release,
+  // whether NEXT_PUBLIC_QUARTIER_VISIBLE came from the shell or a .env file
+  const phone = mkdtempSync(path.join(os.tmpdir(), 'wp72-quartier-'));
+  fakeExport(phone);
+  pruneNativeExport(phone);
+  mkdirSync(path.join(phone, 'quartier'));
+  writeFileSync(path.join(phone, 'quartier', 'index.html'), 'x');
+  writeNativeBuildManifest(phone, production);
+  assert.deepEqual(verifyNativeBundle(phone), []);
+  const launched = JSON.parse(read('launch-flags.json')).quartierVisible === true;
+  assert.equal(/QUARTIER_VISIBLE/.test(verifyNativeBundle(phone, { release: true }).join('\n')), !launched);
 
   writeNativeBuildManifest(root, { ...production, NEXT_PUBLIC_APNS_ENVIRONMENT: 'sandbox' });
   assert.match(verifyNativeBundle(root, { release: true }).join('\n'), /not "production"/);
