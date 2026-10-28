@@ -23,6 +23,14 @@ The formula::
 ``checkpoint_floor`` is the lower bound set by the épreuve: a failed épreuve
 cannot be retaken before its week of consolidation is over.
 
+2026-10-24 (level plan): the prior is the learner's own plan — a pace picked on
+the Tempo sheet, else their words-a-day setting, else the rhythm's
+(:func:`planned_intake`) — and the range never starts before the **earliest**
+day the rules allow (:func:`earliest_cover_days`: every opportunity taken and
+right, a unit cannot be held sooner than its «Tenue» conditions open). Units
+already on their way spend the part of their hold lag they have already lived
+(``pending_elapsed_days``).
+
 Pure arithmetic, except :func:`measured_intake` and :func:`build_forecast`, which read.
 """
 from __future__ import annotations
@@ -260,12 +268,64 @@ def _units_days(inputs: ForecastInputs) -> float | None:
     return results[len(results) // 2]
 
 
-def forecast_range(base_days: float, *, capped: bool) -> tuple[int, int]:
+def forecast_range(base_days: float, *, capped: bool, earliest_days: float | None = None) -> tuple[int, int]:
+    """``[0.8 · base, 1.3 · base]``, never starting before ``earliest_days`` (the rules' floor)."""
+
     if capped:
         return CAP_DAYS, CAP_DAYS
     low = max(1, int(round(base_days * RANGE_LOW)))
+    if earliest_days is not None:
+        low = max(low, int(math.ceil(earliest_days - 1e-9)))
     high = min(CAP_DAYS, max(low, int(round(base_days * RANGE_HIGH))))
-    return low, high
+    return min(low, CAP_DAYS), high
+
+
+def earliest_cover_days(
+    *,
+    units_needed: int,
+    pending_earliest_days: tuple[float, ...] = (),
+    units_remaining: int = 0,
+    units_per_week: float = 0.0,
+    words_needed: int = 0,
+    words_on_the_way: int = 0,
+    words_per_day: float = 0.0,
+    checkpoint_floor_days: float = 0.0,
+) -> float | None:
+    """The fewest days the rules allow until the band is covered and its épreuve taken.
+
+    Every opportunity taken, every answer right — a floor, not a forecast:
+
+    * a unit on its way is held when its last «Tenue» condition opens
+      (``pending_earliest_days``, from ``concept_life.earliest_held_at``);
+    * a unit not met yet is introduced at the planned intake (the first today)
+      and held :data:`~app.services.concept_life.HELD_SPACED_AFTER_DAYS` later;
+    * the band needs ``units_needed`` of them, the soonest first;
+    * a word on its way (a card, not known yet) can count at its next review;
+      a new word is met at the day's quota (the first today) and confirmed the
+      day after it was met;
+    * the épreuve is one more day, after a failed one's week of consolidation.
+
+    ``None`` when the rules cannot cover the band at this intake.
+    """
+
+    from app.services.concept_life import HELD_SPACED_AFTER_DAYS
+
+    days = max(0.0, float(checkpoint_floor_days))
+    if units_needed > 0:
+        offsets = [max(0.0, float(value)) for value in pending_earliest_days]
+        per_day = units_per_week / 7.0
+        if per_day > 0:
+            offsets += [k / per_day + HELD_SPACED_AFTER_DAYS for k in range(max(0, units_remaining))]
+        offsets.sort()
+        if len(offsets) < units_needed:
+            return None
+        days = max(days, offsets[units_needed - 1])
+    new_words = max(0, words_needed - max(0, words_on_the_way))
+    if new_words > 0:
+        if words_per_day <= 0:
+            return None
+        days = max(days, float(math.ceil(new_words / words_per_day - 1e-9)))
+    return days + CHECKPOINT_DAYS
 
 
 def _months(days: int) -> float:
@@ -281,9 +341,13 @@ def forecast_payload(
     now: datetime,
     rhythm: str,
     basis: dict[str, Any],
+    earliest_days: float | None = None,
 ) -> dict[str, Any]:
     base, capped = forecast_days(inputs)
-    low, high = forecast_range(base, capped=capped)
+    if earliest_days is not None and not capped:
+        base = max(base, earliest_days)
+    low, high = forecast_range(base, capped=capped, earliest_days=earliest_days)
+    earliest = None if earliest_days is None or capped else int(math.ceil(earliest_days - 1e-9))
     return {
         # "prior": planned intake, not measured; "available": measured.
         "status": status,
@@ -299,6 +363,9 @@ def forecast_payload(
             (now + timedelta(days=high)).date().isoformat(),
         ],
         "capped": capped,
+        # The rules' floor: no sooner than this, whatever the practice.
+        "earliest_days": earliest,
+        "earliest_date": (now + timedelta(days=earliest)).date().isoformat() if earliest is not None else None,
         "basis": {
             **basis,
             "words_needed": inputs.words_needed,
@@ -474,6 +541,26 @@ def measured_intake(db: Session, user: Any, *, now: datetime) -> MeasuredIntake:
     )
 
 
+def planned_intake(user: Any) -> tuple[float, float]:
+    """``(new words a day, new units a week)`` the learner's plan introduces, unthrottled.
+
+    The day's own quotas: a pace picked on the Tempo sheet (Round 3), else the
+    learner's words-a-day setting, else the rhythm's (``vocabulary_pace.
+    planned_new_words``; ``concept_life.weekly_concept_rate`` before the
+    throttle). Until 2026-10-24 the prior read :data:`PRIOR_INTAKE` (the
+    rhythm's alone), so a learner who picked «Schnell» read Régulier's forecast.
+    """
+
+    from app.services.concept_life import NEW_CONCEPTS_PER_WEEK
+    from app.services.daily_session import pace_rules_per_week
+    from app.services.vocabulary_pace import planned_new_words
+
+    rules = pace_rules_per_week(user) or NEW_CONCEPTS_PER_WEEK.get(
+        rhythm_of(user), NEW_CONCEPTS_PER_WEEK["regulier"]
+    )
+    return float(planned_new_words(user)), float(rules)
+
+
 def build_forecast(
     db: Session,
     user: Any,
@@ -483,8 +570,15 @@ def build_forecast(
     active_days: int,
     target: str | None,
     now: datetime,
+    words_on_the_way: int = 0,
 ) -> dict[str, Any] | None:
-    """The forecast for the learner's current band (``coverage`` is a BandCoverage)."""
+    """The forecast for the learner's current band (``coverage`` is a BandCoverage).
+
+    ``words_on_the_way``: the band's words with a card that is not known yet
+    (``level_coverage.lemma_states``), for the rules' floor.
+    """
+
+    from app.services.concept_life import earliest_held_at
 
     if coverage is None or coverage.band not in SUB_BANDS:
         return None
@@ -499,28 +593,55 @@ def build_forecast(
             floor = max(0.0, (_aware(retry) - now).total_seconds() / 86_400)
         except ValueError:  # pragma: no cover - defensive
             floor = 7.0
-    band_units = set(coverage.unit_ids)
-    introduced = {
-        int(row[0])
-        for row in db.query(UserGrammarProgress.concept_id).filter(UserGrammarProgress.user_id == user.id).all()
-    }
+    band_units = [int(unit) for unit in coverage.unit_ids]
+    rows = (
+        db.query(UserGrammarProgress)
+        .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id.in_(band_units))
+        .all()
+        if band_units
+        else []
+    )
+    in_flight = [row for row in rows if row.held_at is None]
+    elapsed: list[float] = []
+    earliest_offsets: list[float] = []
+    for row in in_flight:
+        introduced = _aware(row.introduced_at) or _aware(row.created_at)
+        if introduced is not None:
+            elapsed.append(max(0.0, (now - introduced).total_seconds() / 86_400))
+        soonest = earliest_held_at(row, now=now)
+        if soonest is not None:
+            earliest_offsets.append(max(0.0, (soonest - now).total_seconds() / 86_400))
+    words_needed = max(0, coverage.words_required - coverage.words_known)
+    planned_words, planned_units = planned_intake(user)
+    earliest = earliest_cover_days(
+        units_needed=max(0, coverage.units_required - coverage.units_held),
+        pending_earliest_days=tuple(earliest_offsets),
+        units_remaining=max(0, coverage.units_total - len(rows)),
+        units_per_week=planned_units,
+        words_needed=words_needed,
+        words_on_the_way=words_on_the_way,
+        words_per_day=planned_words,
+        checkpoint_floor_days=floor,
+    )
     common: dict[str, Any] = {
-        "words_needed": max(0, coverage.words_required - coverage.words_known),
+        "words_needed": words_needed,
         "units_required": coverage.units_required,
         "units_held": coverage.units_held,
         "units_total": coverage.units_total,
-        "units_introduced": len(introduced & band_units),
+        "units_introduced": len(rows),
         "checkpoint_floor_days": floor,
+        # The lag the units on their way have already lived (sorted: the
+        # simulation pairs them with their own tails).
+        "pending_elapsed_days": tuple(sorted(elapsed)),
         # WP-99 / O-4: the measured avoidance slows every unit's «Tenue».
         "avoidance": measured_avoidance(db) or 0.0,
     }
     if active_days < MIN_ACTIVE_DAYS:
-        words_per_day, units_per_week = PRIOR_INTAKE[rhythm]
         inputs = ForecastInputs(
             **common,
-            words_per_day=words_per_day,
+            words_per_day=planned_words,
             word_retention=PRIOR_RETENTION,
-            units_per_week=units_per_week,
+            units_per_week=planned_units,
             unit_retention=PRIOR_RETENTION,
         )
         return forecast_payload(
@@ -530,7 +651,8 @@ def build_forecast(
             target=target,
             now=now,
             rhythm=rhythm,
-            basis={"source": "rhythm_prior", "active_days": active_days, "active_days_required": MIN_ACTIVE_DAYS},
+            basis={"source": "plan_prior", "active_days": active_days, "active_days_required": MIN_ACTIVE_DAYS},
+            earliest_days=earliest,
         )
     measured = measured_intake(db, user, now=now)
     inputs = ForecastInputs(
@@ -554,6 +676,7 @@ def build_forecast(
             "word_sample": measured.word_sample,
             "unit_sample": measured.unit_sample,
         },
+        earliest_days=earliest,
     )
 
 
@@ -565,12 +688,14 @@ __all__ = [
     "ForecastInputs",
     "MeasuredIntake",
     "build_forecast",
+    "earliest_cover_days",
     "forecast_days",
     "forecast_range",
     "hold_lag_days",
     "hold_lag_samples",
     "measured_avoidance",
     "measured_intake",
+    "planned_intake",
     "shrunk_retention",
     "rhythm_prior",
     "rhythm_priors",
