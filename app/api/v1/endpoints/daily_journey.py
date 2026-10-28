@@ -21,6 +21,8 @@ from app.schemas.daily_journey import (
     HelpResult,
     JourneyAdvanceRequest,
     JourneyAttemptRequest,
+    JourneyChoiceRequest,
+    JourneyChoiceResult,
     JourneyCreateRequest,
     JourneyFinishRequest,
     JourneyHelpRequest,
@@ -234,6 +236,20 @@ def pick_tomorrow(
     day's own choice (``recap.tomorrow``). Refused once tomorrow's journey exists."""
 
     return service.pick_tomorrow(current_user, journey_id, payload)
+
+
+@router.post("/{journey_id}/choices", response_model=JourneyChoiceResult)
+def choose(
+    journey_id: uuid.UUID,
+    payload: JourneyChoiceRequest,
+    current_user: User = Depends(get_current_user),
+    service: DailyJourneyService = Depends(get_journey_service),
+) -> JourneyChoiceResult:
+    """Le Quartier phase 1: a gesture that is not an answer (walking out, a text
+    answered while away, a word with someone in the room), from the scene step's
+    ``stage.storylets``. Never moves the journey; allowed after the day is finished."""
+
+    return service.choose(current_user, journey_id, payload)
 
 
 @router.post("/{journey_id}/retry", response_model=JourneySnapshot)

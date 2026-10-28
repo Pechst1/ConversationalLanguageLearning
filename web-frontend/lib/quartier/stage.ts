@@ -268,10 +268,14 @@ export const SILENT_BEATS: Record<string, RegExp> = {
   cup: /\.(a\.r1|c\.r2)$/,
   /** Gus's triumph goes out of him */
   deflate: /\.b\.r2$/,
+  /** «Non merci»: Margaux slides the cup along the zinc to Odile's stool */
+  slide: /\.cafe\.declined\.r1$/,
+  /** You take the key back; Margaux goes back to the same glass */
+  pocket: /\.key\.take\.r1$/,
 };
 
 /** The day's movements this director stages, in order. */
-export const STAGED = ['a.p1', 'a.p2', 'a.p3', 'a.p4', 'a.p5', 'a.turn1', 'a.turn2', 'a.hook'];
+export const STAGED = ['a.p1', 'a.p2', 'a.p3', 'a.p4', 'a.p5', 'a.turn1', 'a.cafe', 'a.turn2', 'a.key', 'a.hook'];
 
 /** Where the cast spend the rest of the evening, once the day is played. */
 const EVENING: Array<[string, Vector3]> = [

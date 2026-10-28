@@ -272,8 +272,10 @@ def scene_notes(db: Session, scene: GraphicNovelScene | None) -> list[dict[str, 
 
 
 def scene_step_story_fields(db: Session, journey: DailyJourney) -> dict[str, Any]:
-    """«Précédemment», the season's premise, the margin notes and the part of
-    the season for the journey's scene step prompt."""
+    """«Précédemment», the season's premise, the margin notes, the part of the
+    season and (Le Quartier) the staged page for the journey's scene step prompt."""
+
+    from app.services.season.stage import scene_stage
 
     scene = _journey_scene(db, journey)
     payload = scene.script_payload if scene is not None else {}
@@ -282,6 +284,8 @@ def scene_step_story_fields(db: Session, journey: DailyJourney) -> dict[str, Any
         "premise_native": season_premise(db, scene, _journey_language(journey)),
         "margin_notes": scene_notes(db, scene),
         "season_part": season_part_of(payload),
+        # Le Quartier phase 1: the authored page as the 3D stages it.
+        "stage": scene_stage(payload),
     }
 
 

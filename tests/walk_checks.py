@@ -444,6 +444,9 @@ _MACHINE_FIELDS = frozenset(
         "character_line_audio_url", "salt", "digests", "side", "input_modes", "help_available", "status",
         "task_outcome", "reply_source", "evidence_ref", "desk", "unit_id", "external_id", "location_id",
         "concept_id", "scene_example_speaker", "speaker", "shape", "mood", "kind_key", "image_status",
+        # Le Quartier phase 1: the scene step's ``stage`` names the cast by id (the 3D
+        # puts the names on), and its hooks and gestures by kind.
+        "who", "in_frame", "to", "role", "cue",
     }
 )
 #: Text a learner reads that must never be empty when present.
