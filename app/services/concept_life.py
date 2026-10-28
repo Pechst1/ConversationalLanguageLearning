@@ -310,6 +310,37 @@ def held_missing(progress: Any | None) -> list[dict[str, Any]]:
     return missing
 
 
+def earliest_held_at(progress: Any | None, *, now: datetime) -> datetime | None:
+    """The soonest «Tenue» can be written for a unit, every opportunity going right.
+
+    The level plan's floor («not before …»): the spaced success no sooner than
+    :data:`HELD_SPACED_AFTER_DAYS` after the introduction and
+    :data:`HELD_SPACED_GAP_HOURS` after the last contact; the second free use on
+    a day :data:`HELD_FREE_USE_GAP_DAYS` after the first (after today, when no
+    free use came yet). Reads the fields :func:`held_missing` reads. ``None``
+    for a held unit and for one never met.
+    """
+
+    if progress is None or getattr(progress, "held_at", None) is not None:
+        return None
+    introduced = _aware(getattr(progress, "introduced_at", None)) or _aware(getattr(progress, "created_at", None))
+    if introduced is None:
+        return None
+    now = _aware(now) or datetime.now(UTC)
+    free_use, spaced = held_conditions(progress)
+    moments = [now]
+    if not spaced:
+        moments.append(introduced + timedelta(days=HELD_SPACED_AFTER_DAYS))
+        last = _aware(getattr(progress, "last_review", None))
+        if last is not None:
+            moments.append(last + timedelta(hours=HELD_SPACED_GAP_HOURS))
+    if not free_use:
+        first = _aware(getattr(progress, "free_use_first_at", None))
+        day = (first or now).date() + timedelta(days=HELD_FREE_USE_GAP_DAYS)
+        moments.append(datetime(day.year, day.month, day.day, tzinfo=UTC))
+    return max(moments)
+
+
 # ---------------------------------------------------------------------------
 # WP-130 B — timely evidence opportunities («Réemploi», spaced item)
 # ---------------------------------------------------------------------------
@@ -636,6 +667,7 @@ __all__ = [
     "VISIBLE_STAGES",
     "concept_brief",
     "concept_stage",
+    "earliest_held_at",
     "free_use_opens_on",
     "held_concept_ids",
     "held_conditions",

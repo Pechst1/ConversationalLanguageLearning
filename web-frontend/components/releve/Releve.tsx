@@ -15,7 +15,10 @@
  * scoped to the signed-in learner and maps to a named API field.
  *
  *   Vos sceaux     GET /analytics/streak     (WP-D5: the streak's own days, as seals)
- *   Le Cours       GET /progress/cefr            (coverage: the same numbers as La Une and the Dossier)
+ *   Le Cours       GET /progress/level           (2026-10-24, LevelPlanCard: the band, what is left
+ *                                                 rule by rule, the days and the minutes it costs)
+ *                  GET /progress/cefr            (coverage: the same numbers as La Une and the Dossier;
+ *                                                 the card's fallback when the plan cannot be read)
  *   Le Carnet      GET /can-dos                  (CarnetTab, WP-95)
  *   Le Registre    GET /analytics/summary        (UserVocabularyProgress rows for THIS user)
  *                  GET /grammar/summary          (UserGrammarProgress rows for THIS user)
@@ -44,6 +47,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import CarnetTab from '@/components/cahiers/CarnetTab';
 import { NbSectionHead } from '@/components/cahiers/CahierV2';
+import LevelPlanCard from '@/components/releve/LevelPlanCard';
 import SealCollection from '@/components/releve/SealCollection';
 import { RvReleveSection } from '@/components/revue/RvReleveSection';
 import { fill, plural, releveCopy, type ReleveCopy } from '@/components/releve/releve-copy';
@@ -55,6 +59,7 @@ import api, {
   type CEFRProgress,
   type GrammarProgressSummary,
   type LearnerAnalyticsSummary,
+  type LevelPlan,
   type UserAchievementProgress,
 } from '@/services/api';
 
@@ -170,6 +175,7 @@ export default function Releve() {
   const copy = releveCopy(chromeLanguage);
   const [loading, setLoading] = useState(true);
   const [cefr, setCefr] = useState<CEFRProgress | null>(null);
+  const [plan, setPlan] = useState<LevelPlan | null>(null);
   const [stats, setStats] = useState<LearnerAnalyticsSummary | null>(null);
   const [grammar, setGrammar] = useState<GrammarProgressSummary | null>(null);
   const [achievements, setAchievements] = useState<UserAchievementProgress[] | null>(null);
@@ -186,8 +192,9 @@ export default function Releve() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [cefrResult, statsResult, grammarResult, achievementsResult, almanacResult] = await Promise.allSettled([
+    const [cefrResult, planResult, statsResult, grammarResult, achievementsResult, almanacResult] = await Promise.allSettled([
       api.getCefrProgress(),
+      api.getLevelPlan(),
       api.getAnalyticsSummary(),
       api.getGrammarSummary() as Promise<GrammarProgressSummary>,
       api.getUserAchievements(),
@@ -196,6 +203,7 @@ export default function Releve() {
     if (!alive.current) return;
 
     setCefr(cefrResult.status === 'fulfilled' ? cefrResult.value : null);
+    setPlan(planResult.status === 'fulfilled' ? planResult.value : null);
     setStats(statsResult.status === 'fulfilled' ? statsResult.value : null);
     setGrammar(grammarResult.status === 'fulfilled' ? grammarResult.value : null);
     setAchievements(
@@ -217,6 +225,14 @@ export default function Releve() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /* The pace changed on the Tempo sheet: the level reads again, the page stays. */
+  const reloadLevel = useCallback(async () => {
+    const [cefrResult, planResult] = await Promise.allSettled([api.getCefrProgress(), api.getLevelPlan()]);
+    if (!alive.current) return;
+    if (cefrResult.status === 'fulfilled') setCefr(cefrResult.value);
+    if (planResult.status === 'fulfilled') setPlan(planResult.value);
+  }, []);
 
   /* The page draws after its data, so the browser's own jump to #carnet or
      #sceaux (La Une's level line and streak) found nothing; jump once drawn.
@@ -272,6 +288,20 @@ export default function Releve() {
     const target = targetView(cefr, chromeLanguage);
     return target ? targetLines(target, chromeLanguage) : null;
   }, [cefr, chromeLanguage]);
+  /* The level plan's own source line (WP-25): read from the plan, so the card
+     says «declared» or «placement» even when /progress/cefr did not answer. */
+  const planStatus = useMemo(() => {
+    if (!plan) return null;
+    if (plan.estimate_source === 'placement') {
+      const at = plan.placement_taken_at ? new Date(String(plan.placement_taken_at)) : null;
+      return at && !Number.isNaN(at.getTime())
+        ? fill(copy.status_placement_dated, {
+            date: at.toLocaleDateString(copy.locale, { day: 'numeric', month: 'long' }),
+          })
+        : copy.status_placement;
+    }
+    return plan.estimate_source === 'declared' ? copy.status_declared : null;
+  }, [plan, copy]);
 
   /* ---- Le Registre (GET /analytics/summary + GET /grammar/summary) ---- */
   const grammarCounts = useMemo(
@@ -313,8 +343,9 @@ export default function Releve() {
   }, [almanac, copy]);
   const collectionPieces = unlocked.length + collectibleLines.reduce((sum, row) => sum + row.n, 0);
 
-  const everythingFailed = failed.cefr && failed.stats && failed.grammar && failed.collection;
-  const stamp = shortDate(cefr?.generated_at, copy.locale);
+  const levelFailed = failed.cefr && !plan;
+  const everythingFailed = levelFailed && failed.stats && failed.grammar && failed.collection;
+  const stamp = shortDate(cefr?.generated_at || plan?.generated_at, copy.locale);
 
   if (loading) {
     return (
@@ -347,7 +378,15 @@ export default function Releve() {
         {/* The level is the headline below; repeating it in the head would be
             the same number printed twice. */}
         <NbSectionHead t={copy.cours_title} n={null} />
-        {failed.cefr || !cefr ? (
+        {plan ? (
+          <LevelPlanCard
+            plan={plan}
+            language={chromeLanguage}
+            status={planStatus}
+            howLabel={copy.cours_how}
+            onChanged={() => void reloadLevel()}
+          />
+        ) : levelFailed || !cefr ? (
           <ArchiveNotice copy={copy} message={copy.cours_failed} onRetry={() => void load()} />
         ) : (
           <Surface>

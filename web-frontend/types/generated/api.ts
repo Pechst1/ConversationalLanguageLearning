@@ -3038,6 +3038,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/progress/level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Level Plan
+         * @description The level plan: exactly where the learner stands, what is left, what it costs.
+         *
+         *     The band and its percent are ``GET /progress/cefr``'s, read now; then each
+         *     grammar unit of the band with what it still needs, the band's words, the
+         *     épreuve, the forecast with the rules' earliest day, the practice minutes it
+         *     asks for and the time already measured in the band. Read-only.
+         */
+        get: operations["get_level_plan_api_v1_progress_level_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/progress/queue": {
         parameters: {
             query?: never;
@@ -9708,6 +9733,305 @@ export interface components {
             } | null;
             /** Passed */
             passed: boolean;
+        };
+        /** LevelPlanEpreuve */
+        LevelPlanEpreuve: {
+            /**
+             * Attempts
+             * @default 0
+             */
+            attempts?: number;
+            /** Band */
+            band: string;
+            /**
+             * Can Dos
+             * @default 0
+             */
+            can_dos?: number;
+            /** Retry After */
+            retry_after?: string | null;
+            /**
+             * Staged In Story
+             * @default false
+             */
+            staged_in_story?: boolean;
+            /** State */
+            state: string;
+        };
+        /**
+         * LevelPlanEvidence
+         * @description WP-45: a declared or placed level becomes measured after this many graded answers.
+         */
+        LevelPlanEvidence: {
+            /**
+             * Attempts Counted
+             * @default 0
+             */
+            attempts_counted?: number;
+            /** Attempts Required */
+            attempts_required: number;
+        };
+        /**
+         * LevelPlanGoal
+         * @description The learner's goal level (Réglages), when it is above the band in force.
+         */
+        LevelPlanGoal: {
+            /** Band */
+            band: string;
+            /** Bands Left */
+            bands_left: number;
+            /** Units Left */
+            units_left: number;
+            /** Weeks */
+            weeks: number;
+            /** Words Left */
+            words_left: number;
+        };
+        /**
+         * LevelPlanInvested
+         * @description Practice time measured in the band in force (scenes, La Forge, the word deck).
+         */
+        LevelPlanInvested: {
+            /**
+             * Band Days
+             * @default 0
+             */
+            band_days?: number;
+            /**
+             * Band Minutes
+             * @default 0
+             */
+            band_minutes?: number;
+            /** Band Since */
+            band_since?: string | null;
+            /**
+             * Forge Minutes
+             * @default 0
+             */
+            forge_minutes?: number;
+            /**
+             * Recent Minutes Per Day
+             * @default 0
+             */
+            recent_minutes_per_day?: number;
+            /**
+             * Scenes Minutes
+             * @default 0
+             */
+            scenes_minutes?: number;
+            /**
+             * Words Minutes
+             * @default 0
+             */
+            words_minutes?: number;
+        };
+        /** LevelPlanLadderStep */
+        LevelPlanLadderStep: {
+            /** Band */
+            band: string;
+            /**
+             * Goal
+             * @default false
+             */
+            goal?: boolean;
+            /** On */
+            on?: string | null;
+            /** State */
+            state: string;
+        };
+        /**
+         * LevelPlanReach
+         * @description How far one coverage criterion alone reaches, band by band from A1.1.
+         */
+        LevelPlanReach: {
+            /** Covered */
+            covered?: string | null;
+            /**
+             * List Ends
+             * @default false
+             */
+            list_ends?: boolean;
+            /** Percent */
+            percent?: number | null;
+            /** Working */
+            working?: string | null;
+        };
+        /**
+         * LevelPlanResponse
+         * @description ``GET /api/v1/progress/level`` — where the learner stands, what is left, what it costs.
+         */
+        LevelPlanResponse: {
+            /** Band */
+            band: string;
+            /** Can Dos */
+            can_dos?: {
+                [key: string]: unknown;
+            };
+            epreuve: components["schemas"]["LevelPlanEpreuve"];
+            /** Estimate Source */
+            estimate_source: string;
+            evidence?: components["schemas"]["LevelPlanEvidence"] | null;
+            /** Generated At */
+            generated_at: string;
+            goal?: components["schemas"]["LevelPlanGoal"] | null;
+            invested: components["schemas"]["LevelPlanInvested"];
+            /** Label */
+            label: string;
+            /** Ladder */
+            ladder?: components["schemas"]["LevelPlanLadderStep"][];
+            /** Next Band */
+            next_band?: string | null;
+            /** Percent */
+            percent: number;
+            /** Placement Taken At */
+            placement_taken_at?: string | null;
+            rules: components["schemas"]["LevelPlanRules"];
+            /** Skills */
+            skills?: {
+                [key: string]: components["schemas"]["LevelPlanReach"];
+            };
+            time: components["schemas"]["LevelPlanTime"];
+            /** Verified */
+            verified: boolean;
+            /** Version */
+            version: string;
+            words: components["schemas"]["LevelPlanWords"];
+        };
+        /**
+         * LevelPlanRule
+         * @description One grammar unit of the band in force, and what it still needs.
+         */
+        LevelPlanRule: {
+            /** Earliest Held On */
+            earliest_held_on?: string | null;
+            /** External Id */
+            external_id?: string | null;
+            /** Held On */
+            held_on?: string | null;
+            /** Id */
+            id: number;
+            /** Introduce From */
+            introduce_from?: string | null;
+            /** Missing */
+            missing?: {
+                [key: string]: unknown;
+            }[];
+            /** Name */
+            name: string;
+            /** Owed Today */
+            owed_today?: string | null;
+            /** Stage */
+            stage: string;
+            /** Titles */
+            titles?: {
+                [key: string]: string;
+            };
+        };
+        /** LevelPlanRules */
+        LevelPlanRules: {
+            /** Held */
+            held: number;
+            /** Introduced */
+            introduced: number;
+            /** Items */
+            items?: components["schemas"]["LevelPlanRule"][];
+            /** Met */
+            met: boolean;
+            /** Not Started */
+            not_started: number;
+            /** Owed Today */
+            owed_today: number;
+            /** Per Week */
+            per_week: number;
+            /** Practising */
+            practising: number;
+            /** Required */
+            required: number;
+            /** To Go */
+            to_go: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * LevelPlanTime
+         * @description How long the band in force still takes, and what that costs a day. Always an estimate.
+         */
+        LevelPlanTime: {
+            /**
+             * Active Days
+             * @default 0
+             */
+            active_days?: number;
+            /**
+             * Active Days Required
+             * @default 7
+             */
+            active_days_required?: number;
+            /**
+             * Capped
+             * @default false
+             */
+            capped?: boolean;
+            /** Dates */
+            dates?: string[] | null;
+            /** Earliest Days */
+            earliest_days?: number | null;
+            /** Earliest On */
+            earliest_on?: string | null;
+            /** Hours */
+            hours?: number[] | null;
+            /** Minutes Per Day */
+            minutes_per_day?: number | null;
+            /** Minutes Source */
+            minutes_source?: string | null;
+            /** Pace */
+            pace?: string | null;
+            /**
+             * Pace Chosen
+             * @default false
+             */
+            pace_chosen?: boolean;
+            /** Planned Minutes Per Day */
+            planned_minutes_per_day?: number | null;
+            /** Range Days */
+            range_days?: number[] | null;
+            /**
+             * Rules Per Week
+             * @default 0
+             */
+            rules_per_week?: number;
+            /** Status */
+            status: string;
+            /**
+             * Words Per Day
+             * @default 0
+             */
+            words_per_day?: number;
+        };
+        /** LevelPlanWords */
+        LevelPlanWords: {
+            /** Days For New */
+            days_for_new: number;
+            /** From Reading */
+            from_reading: number;
+            /** Known */
+            known: number;
+            /** Met */
+            met: boolean;
+            /** New Needed */
+            new_needed: number;
+            /** Not Met */
+            not_met: number;
+            /** On The Way */
+            on_the_way: number;
+            /** Per Day */
+            per_day: number;
+            /** Required */
+            required: number;
+            /** To Go */
+            to_go: number;
+            /** Total */
+            total: number;
         };
         /**
          * LineAudioRequest
@@ -20351,6 +20675,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_level_plan_api_v1_progress_level_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelPlanResponse"];
                 };
             };
         };
