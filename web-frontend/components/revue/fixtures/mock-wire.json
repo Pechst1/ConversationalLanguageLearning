@@ -1,5 +1,5 @@
 {
- "_source": "lib/revue-mock.ts wire output (snake_case), every payload validated against app/schemas/revue.py (extra=forbid) on 2026-10-02 — regenerated for phase 2 («Les invités») + WP-120 vignettes — WP-119 §8.4 (`pictures: true`: the story's own picture, «La légende», the dispatch's picture) added and validated 2026-10-14",
+ "_source": "lib/revue-mock.ts wire output (snake_case), every payload validated against app/schemas/revue.py (extra=forbid) on 2026-10-02 — regenerated for phase 2 («Les invités») + WP-120 vignettes — WP-119 §8.4 (`pictures: true`: the story's own picture, «La légende», the dispatch's picture) added and validated 2026-10-14 — 2026-10-23 (Au comptoir phase 0): own_line, the steer after a line of the learner's own, no headline_choice from B1, «La légende» written first (a pick after a refused try, never credited), picks never credited; patched and validated",
  "offer": {
   "week": {
    "iso": "2026-W40",
@@ -262,7 +262,8 @@
   ],
   "steer_to_make": false,
   "artifact": null,
-  "closing": null
+  "closing": null,
+  "own_line": false
  },
  "turn_facts": {
   "items": [
@@ -374,7 +375,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": false
  },
  "turn_prix": {
   "items": [
@@ -476,7 +478,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_formulate": {
   "items": [
@@ -558,7 +561,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "offer_resume": {
   "week": {
@@ -947,7 +951,8 @@
   ],
   "steer_to_make": false,
   "artifact": null,
-  "closing": null
+  "closing": null,
+  "own_line": true
  },
  "make_offer": {
   "recommended": "reader_question",
@@ -1465,7 +1470,8 @@
      "headline_fr": "Le marché d’Aligre : est-ce que les prix sont plus bas qu'au supermarché ?",
      "minted_at": "2026-10-01T07:00:00.000Z"
     }
-   }
+   },
+   "own_line": true
   },
   "closing": {
    "romy_line_fr": "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
@@ -1843,7 +1849,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_b1": {
   "items": [
@@ -1942,7 +1949,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_b2": {
   "items": [
@@ -2052,7 +2060,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_b3": {
   "items": [
@@ -2134,7 +2143,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_b4": {
   "items": [
@@ -2232,7 +2242,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_b5": {
   "items": [
@@ -2330,7 +2341,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_budget": {
   "items": [
@@ -2408,7 +2420,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "make_offer_a2": {
   "recommended": "reader_question",
@@ -2476,7 +2489,7 @@
    "kind": "line",
    "speaker": "romy_tremblay",
    "role": "make_done",
-   "text_fr": "Je garde celui-là : c'est ce que disent les sources.",
+   "text_fr": "Celui-là, les sources le contredisent. On garde l'autre.",
    "translation": null,
    "glosses": [],
    "reason": null
@@ -2961,7 +2974,8 @@
    "contribution": [],
    "learner_fr": null
   },
-  "closing": null
+  "closing": null,
+  "own_line": true
  },
  "session_b1_arrive": {
   "id": "mock-0e8dfmdc",
@@ -3039,7 +3053,6 @@
     }
    ],
    "make_options": [
-    "headline_choice",
     "headline_write",
     "reader_question",
     "short_report"
@@ -3129,7 +3142,8 @@
   ],
   "steer_to_make": false,
   "artifact": null,
-  "closing": null
+  "closing": null,
+  "own_line": false
  },
  "turn_b1_facts": {
   "items": [
@@ -3241,7 +3255,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": false
  },
  "turn_guest_enter": {
   "items": [
@@ -3343,7 +3358,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_guest_disagree": {
   "items": [
@@ -3438,7 +3454,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "vous_to_tu"
-  }
+  },
+  "own_line": true
  },
  "turn_guest_moved": {
   "items": [
@@ -3550,7 +3567,8 @@
    ],
    "fact_fit": "supported",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "turn_model_down": {
   "items": [
@@ -3648,7 +3666,8 @@
    ],
    "fact_fit": "unsupported",
    "register_note": "ok"
-  }
+  },
+  "own_line": true
  },
  "session_b1_guest": {
   "id": "mock-0e8dfmdc",
@@ -3726,7 +3745,6 @@
     }
    ],
    "make_options": [
-    "headline_choice",
     "headline_write",
     "reader_question",
     "short_report"
@@ -4041,28 +4059,12 @@
   ],
   "steer_to_make": true,
   "artifact": null,
-  "closing": null
+  "closing": null,
+  "own_line": true
  },
  "make_offer_b1": {
   "recommended": "reader_question",
   "options": [
-   {
-    "kind": "headline_choice",
-    "options": [
-     {
-      "id": "h1",
-      "text_fr": "À Aligre, le marché n'ouvre que le dimanche"
-     },
-     {
-      "id": "h2",
-      "text_fr": "À Aligre, le marché ouvre six matins sur sept"
-     },
-     {
-      "id": "h3",
-      "text_fr": "À Aligre, il n'y a plus de marché couvert"
-     }
-    ]
-   },
    {
     "kind": "headline_write",
     "max_words": 14
@@ -4279,7 +4281,6 @@
      }
     ],
     "make_options": [
-     "headline_choice",
      "headline_write",
      "reader_question",
      "short_report"
@@ -4773,7 +4774,8 @@
      "headline_fr": "Paris et ses 91 marchés en plein air",
      "minted_at": "2026-10-01T07:00:00.000Z"
     }
-   }
+   },
+   "own_line": true
   },
   "closing": {
    "romy_line_fr": "Ton titre part tel quel avec mon papier. Je n’y touche pas.",
@@ -5008,28 +5010,12 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": false
  },
  "make_offer_r": {
   "recommended": "headline_write",
   "options": [
-   {
-    "kind": "headline_choice",
-    "options": [
-     {
-      "id": "h1",
-      "text_fr": "À Aligre, le marché n'ouvre que le dimanche"
-     },
-     {
-      "id": "h2",
-      "text_fr": "À Aligre, le marché ouvre six matins sur sept"
-     },
-     {
-      "id": "h3",
-      "text_fr": "À Aligre, il n'y a plus de marché couvert"
-     }
-    ]
-   },
    {
     "kind": "headline_write",
     "max_words": 14
@@ -5194,7 +5180,6 @@
      }
     ],
     "make_options": [
-     "headline_choice",
      "headline_write",
      "reader_question",
      "short_report"
@@ -5487,7 +5472,8 @@
      "headline_fr": "Le marché d’Aligre",
      "minted_at": "2026-10-01T07:00:00.000Z"
     }
-   }
+   },
+   "own_line": false
   },
   "closing": {
    "romy_line_fr": "Ton reportage part avec mon papier. À Montréal, on va t’entendre.",
@@ -5903,7 +5889,8 @@
   ],
   "steer_to_make": false,
   "artifact": null,
-  "closing": null
+  "closing": null,
+  "own_line": false
  },
  "turn_picture_facts": {
   "items": [
@@ -6015,7 +6002,8 @@
    ],
    "fact_fit": "not_applicable",
    "register_note": "ok"
-  }
+  },
+  "own_line": false
  },
  "make_offer_caption": {
   "recommended": "caption",
@@ -6044,22 +6032,9 @@
    },
    {
     "kind": "caption",
-    "format": "choice",
+    "format": "write",
     "picture_url": "/assets/serial/locations/marche_canal.webp",
-    "options": [
-     {
-      "id": "l1",
-      "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes."
-     },
-     {
-      "id": "l2",
-      "text_fr": "Un marché fermé, un soir de pluie."
-     },
-     {
-      "id": "l3",
-      "text_fr": "Un supermarché vide, un lundi matin."
-     }
-    ],
+    "options": [],
     "words": [
      {
       "fr": "marché couvert",
@@ -6088,6 +6063,74 @@
    "reason": null
   }
  },
+ "make_caption_short_a2": {
+  "kind": "caption",
+  "format": "write",
+  "accepted": false,
+  "correct": null,
+  "answer_id": null,
+  "evidence": {
+   "outcome": "incorrect",
+   "capability_known": true,
+   "grader": "revue-rubric-v1",
+   "words": [
+    {
+     "fr": "arrondissement",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "matins",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "marché couvert",
+     "outcome": "unscored",
+     "capability_known": true
+    },
+    {
+     "fr": "en plein air",
+     "outcome": "correct",
+     "capability_known": true
+    },
+    {
+     "fr": "savoir-faire",
+     "outcome": "unscored",
+     "capability_known": false
+    }
+   ],
+   "fact_fit": "supported",
+   "register_note": "ok"
+  },
+  "made": null,
+  "line": {
+   "id": "6",
+   "seq": 6,
+   "at": "2026-10-01T09:31:03.000Z",
+   "kind": "line",
+   "speaker": "romy_tremblay",
+   "role": "make_done",
+   "text_fr": "Un peu court pour une légende. Qu'est-ce qu'on voit ? Encore quelques mots.",
+   "translation": null,
+   "glosses": [],
+   "reason": null
+  },
+  "options": [
+   {
+    "id": "l1",
+    "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes."
+   },
+   {
+    "id": "l2",
+    "text_fr": "Un marché fermé, un soir de pluie."
+   },
+   {
+    "id": "l3",
+    "text_fr": "Un supermarché vide, un lundi matin."
+   }
+  ]
+ },
  "make_caption_pick_wrong": {
   "kind": "caption",
   "format": "choice",
@@ -6112,7 +6155,8 @@
    "translation": null,
    "glosses": [],
    "reason": null
-  }
+  },
+  "options": []
  },
  "close_caption_choice": {
   "session": {
@@ -6502,10 +6546,11 @@
      "headline_fr": "Le marché d’Aligre",
      "minted_at": "2026-10-01T07:13:17.000Z"
     }
-   }
+   },
+   "own_line": false
   },
   "closing": {
-   "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",
+   "romy_line_fr": "La légende que tu as choisie part sous l'image, avec mon papier.",
    "dispatch": {
     "kicker_fr": "Le Papier de Romy · semaine 40",
     "headline_fr": "Le marché d’Aligre",
@@ -6515,7 +6560,7 @@
      "La suite la semaine prochaine, avec les lecteurs."
     ],
     "contribution": [],
-    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "byline_fr": "Romy Tremblay · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
     "sources": [
      {
       "id": "marche_paris",
@@ -6622,12 +6667,7 @@
   "made": {
    "kind": "caption",
    "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
-   "contribution": [
-    [
-     0,
-     71
-    ]
-   ],
+   "contribution": [],
    "learner_fr": null
   },
   "line": {
@@ -6637,11 +6677,12 @@
    "kind": "line",
    "speaker": "romy_tremblay",
    "role": "make_done",
-   "text_fr": "C'est ta légende. Elle part sous l'image.",
+   "text_fr": "C'est noté. Celle-là dit ce qu'on voit.",
    "translation": null,
    "glosses": [],
    "reason": null
-  }
+  },
+  "options": []
  },
  "close_caption_right": {
   "session": {
@@ -6900,12 +6941,7 @@
      "made": {
       "kind": "caption",
       "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
-      "contribution": [
-       [
-        0,
-        71
-       ]
-      ],
+      "contribution": [],
       "learner_fr": null
      }
     },
@@ -6916,7 +6952,7 @@
      "kind": "line",
      "speaker": "romy_tremblay",
      "role": "make_done",
-     "text_fr": "C'est ta légende. Elle part sous l'image.",
+     "text_fr": "C'est noté. Celle-là dit ce qu'on voit.",
      "translation": null,
      "glosses": [],
      "reason": null
@@ -6927,12 +6963,7 @@
    "artifact": {
     "kind": "caption",
     "text_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
-    "contribution": [
-     [
-      0,
-      71
-     ]
-    ],
+    "contribution": [],
     "learner_fr": null
    },
    "closing": {
@@ -7041,10 +7072,11 @@
      "headline_fr": "Le marché d’Aligre",
      "minted_at": "2026-10-01T08:01:17.000Z"
     }
-   }
+   },
+   "own_line": false
   },
   "closing": {
-   "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",
+   "romy_line_fr": "La légende que tu as choisie part sous l'image, avec mon papier.",
    "dispatch": {
     "kicker_fr": "Le Papier de Romy · semaine 40",
     "headline_fr": "Le marché d’Aligre",
@@ -7054,7 +7086,7 @@
      "La suite la semaine prochaine, avec les lecteurs."
     ],
     "contribution": [],
-    "byline_fr": "Romy Tremblay, avec toi · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
+    "byline_fr": "Romy Tremblay · d'après Ville de Paris et Wikipédia, « Marché d'Aligre »",
     "sources": [
      {
       "id": "marche_paris",
@@ -7071,7 +7103,7 @@
     ],
     "picture_url": "/assets/serial/locations/marche_canal.webp",
     "caption_fr": "Un marché en plein air, un matin, entre les étals de fruits et légumes.",
-    "caption_by_learner": true
+    "caption_by_learner": false
    },
    "kept": {
     "words": [
@@ -7144,7 +7176,7 @@
     "week": "2026-W40",
     "place_label_fr": "Le marché d'Aligre",
     "ring": "headline",
-    "kept_contribution": true,
+    "kept_contribution": false,
     "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path d=\"M36.6 76.2 L76.2 36.6 Q76.9 23.1 63.4 23.8 L23.8 63.4 Q23.1 76.9 36.6 76.2 Z\" fill=\"#C2890F\"/><path d=\"M36.6 76.2 L76.2 36.6 L72.6 33 L33 72.6 Z\" fill=\"#F3C318\"/><path d=\"M34 56.2 L45.6 59.1 L44.8 62.2 L33.2 59.3 Z\" fill=\"#F1ECE1\"/><path d=\"M43.9 46.3 L55.5 49.2 L54.7 52.3 L43.1 49.4 Z\" fill=\"#F1ECE1\"/><path d=\"M53.8 36.4 L65.4 39.3 L64.6 42.4 L53 39.5 Z\" fill=\"#F1ECE1\"/></svg>",
     "headline_fr": "Le marché d’Aligre",
     "minted_at": "2026-10-01T08:01:17.000Z"
@@ -7227,7 +7259,6 @@
     }
    ],
    "make_options": [
-    "headline_choice",
     "headline_write",
     "reader_question",
     "short_report",
@@ -7344,28 +7375,12 @@
   ],
   "steer_to_make": false,
   "artifact": null,
-  "closing": null
+  "closing": null,
+  "own_line": false
  },
  "make_offer_caption_b1": {
   "recommended": "caption",
   "options": [
-   {
-    "kind": "headline_choice",
-    "options": [
-     {
-      "id": "h1",
-      "text_fr": "À Aligre, le marché n'ouvre que le dimanche"
-     },
-     {
-      "id": "h2",
-      "text_fr": "À Aligre, le marché ouvre six matins sur sept"
-     },
-     {
-      "id": "h3",
-      "text_fr": "À Aligre, il n'y a plus de marché couvert"
-     }
-    ]
-   },
    {
     "kind": "headline_write",
     "max_words": 14
@@ -7464,7 +7479,8 @@
    "translation": null,
    "glosses": [],
    "reason": null
-  }
+  },
+  "options": []
  },
  "make_caption_write": {
   "kind": "caption",
@@ -7528,7 +7544,8 @@
    "translation": null,
    "glosses": [],
    "reason": null
-  }
+  },
+  "options": []
  },
  "close_caption_write": {
   "session": {
@@ -7607,7 +7624,6 @@
      }
     ],
     "make_options": [
-     "headline_choice",
      "headline_write",
      "reader_question",
      "short_report",
@@ -7942,7 +7958,8 @@
      "headline_fr": "Le marché d’Aligre",
      "minted_at": "2026-10-01T09:31:24.000Z"
     }
-   }
+   },
+   "own_line": false
   },
   "closing": {
    "romy_line_fr": "Ta légende part sous l'image, avec mon papier.",

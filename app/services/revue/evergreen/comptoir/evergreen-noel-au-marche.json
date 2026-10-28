@@ -1,0 +1,272 @@
+{
+ "question": {
+  "fr": "Le marché de Noël, ça vaut le voyage ?",
+  "en": "Is the Christmas market worth the trip?",
+  "de": "Lohnt sich der Weihnachtsmarkt die Reise?"
+ },
+ "guests": [
+  {
+   "id": "romy_tremblay",
+   "stance": "pour",
+   "take": {
+    "a1": {
+     "fr": "Je suis pour ! Le marché existe depuis 1570. C'est magique !",
+     "en": "I'm for it! The market has existed since 1570. It's magic!",
+     "de": "Ich bin dafür! Den Markt gibt es seit 1570. Das ist magisch!"
+    },
+    "a2": {
+     "fr": "Le marché existe depuis 1570 ! À mon avis, c'est une belle tradition. Un vin chaud, s'il te plaît.",
+     "en": "The market has existed since 1570! In my opinion, it's a beautiful tradition. A mulled wine, please.",
+     "de": "Der Markt gibt es seit 1570! Meiner Meinung nach ist es eine schöne Tradition. Einen Glühwein, bitte."
+    },
+    "b1": {
+     "fr": "Je suis pour, parce que le marché existe depuis 1570, voyons donc. Une tradition comme ça, ça ne se remplace pas. Et je prends un vin chaud.",
+     "en": "I'm for it, because the market has existed since 1570, come on. A tradition like that can't be replaced. And I'll have a mulled wine.",
+     "de": "Ich bin dafür, weil der Markt seit 1570 existiert, ach komm. So eine Tradition ersetzt man nicht. Und ich nehme einen Glühwein."
+    }
+   },
+   "quote": {
+    "fr": "Le marché existe depuis 1570 !",
+    "en": "The market has existed since 1570!",
+    "de": "Der Markt gibt es seit 1570!"
+   }
+  },
+  {
+   "id": "lila_bonnet",
+   "stance": "nuance",
+   "take": {
+    "a1": {
+     "fr": "Ça dépend, mon chou. Les lumières de Strasbourg, c'est beau. La foule, moins.",
+     "en": "It depends, sweetie. Strasbourg's lights are lovely. The crowd, less so.",
+     "de": "Kommt drauf an, mein Schatz. Die Lichter von Straßburg sind schön. Die Menge weniger."
+    },
+    "a2": {
+     "fr": "Ça dépend, mon chou ! Les lumières de la place Broglie sont magiques, mais la foule me stresse.",
+     "en": "It depends, sweetie! The lights on Place Broglie are magical, but the crowd stresses me out.",
+     "de": "Kommt drauf an, mein Schatz! Die Lichter auf der Place Broglie sind magisch, aber die Menge stresst mich."
+    },
+    "b1": {
+     "fr": "D'un côté, les lumières et les marchés sont magnifiques, mon chou. De l'autre, avec tous ces gens, je perds mon sac. Mais arrête, c'est évident : j'y vais en décembre.",
+     "en": "On the one hand, the lights and the markets are gorgeous, sweetie. On the other, with all those people, I lose my bag. Oh please, it's obvious: I go in December.",
+     "de": "Einerseits sind die Lichter und die Märkte wunderschön, mein Schatz. Andererseits verliere ich bei all den Leuten meine Tasche. Ach bitte, das ist klar: Ich gehe im Dezember hin."
+    }
+   },
+   "quote": {
+    "fr": "Les lumières, oui. La foule, non.",
+    "en": "The lights, yes. The crowd, no.",
+    "de": "Die Lichter, ja. Die Menge, nein."
+   }
+  },
+  {
+   "id": "augustin_de_roncourt",
+   "stance": "contre",
+   "take": {
+    "a1": {
+     "fr": "Je suis contre. Il y a près de 3 millions de visiteurs ? Trop !",
+     "en": "I'm against it. There are nearly 3 million visitors? Too many!",
+     "de": "Ich bin dagegen. Es gibt fast 3 Millionen Besucher? Zu viele!"
+    },
+    "a2": {
+     "fr": "Il y a près de 3 millions de visiteurs par an ? Moi, je fuis la foule. Et je préfère le champagne.",
+     "en": "There are nearly 3 million visitors a year? I flee the crowd. And I prefer champagne.",
+     "de": "Es kommen fast 3 Millionen Besucher im Jahr? Ich meide die Menge. Und ich ziehe Champagner vor."
+    },
+    "b1": {
+     "fr": "Je suis contre, parce qu'il y a près de 3 millions de visiteurs par an, mon cher, c'est une foule, pas une fête. Règle numéro un de La Méthode : jamais de vin chaud.",
+     "en": "I'm against it, because there are nearly 3 million visitors a year, my dear, that's a crowd, not a party. Rule number one of The Method: never mulled wine.",
+     "de": "Ich bin dagegen, weil es fast 3 Millionen Besucher im Jahr gibt, mein Lieber, das ist eine Menge, kein Fest. Regel Nummer eins der Methode: niemals Glühwein."
+    }
+   },
+   "quote": {
+    "fr": "Trop de monde, pas assez de champagne.",
+    "en": "Too many people, not enough champagne.",
+    "de": "Zu viele Leute, zu wenig Champagner."
+   }
+  }
+ ],
+ "intox": {
+  "by": "augustin_de_roncourt",
+  "wrong_fr": "près de 3 millions de visiteurs",
+  "right_fr": "près de 2 millions de visiteurs",
+  "claim_id": "c3",
+  "distractor_fr": "depuis 1570",
+  "ask": {
+   "fr": "Combien de visiteurs par an, en vrai ?",
+   "en": "How many visitors a year, really?",
+   "de": "Wie viele Besucher im Jahr, wirklich?"
+  },
+  "caught": {
+   "fr": "Près de 3 millions ? Bon, deux, je suis généreux.",
+   "en": "Nearly 3 million? Fine, two, I'm generous.",
+   "de": "Fast 3 Millionen? Gut, zwei, ich bin großzügig."
+  },
+  "bands": [
+   "a1",
+   "a2",
+   "b1"
+  ]
+ },
+ "reasons": {
+  "pour": [
+   {
+    "fr": "c'est une tradition",
+    "en": "it's a tradition",
+    "de": "es ist eine Tradition"
+   },
+   {
+    "fr": "les lumières sont belles",
+    "en": "the lights are beautiful",
+    "de": "die Lichter sind schön"
+   },
+   {
+    "fr": "j'aime le vin chaud",
+    "en": "I love mulled wine",
+    "de": "ich liebe Glühwein"
+   }
+  ],
+  "contre": [
+   {
+    "fr": "trop de visiteurs",
+    "en": "too many visitors",
+    "de": "zu viele Besucher"
+   },
+   {
+    "fr": "je déteste la foule",
+    "en": "I hate crowds",
+    "de": "ich hasse Menschenmengen"
+   },
+   {
+    "fr": "je n'aime pas les bousculades",
+    "en": "I don't like being jostled",
+    "de": "ich mag das Gedränge nicht"
+   }
+  ],
+  "nuance": [
+   {
+    "fr": "c'est beau mais plein",
+    "en": "it's lovely but packed",
+    "de": "es ist schön, aber voll"
+   },
+   {
+    "fr": "une fois, c'est bien",
+    "en": "once is fine",
+    "de": "einmal ist gut"
+   }
+  ]
+ },
+ "frames": {
+  "pour": {
+   "fr": "À mon avis, c'est une bonne idée, parce que",
+   "en": "In my opinion, it's a good idea, because",
+   "de": "Meiner Meinung nach ist das eine gute Idee, weil"
+  },
+  "contre": {
+   "fr": "À mon avis, ce n'est pas une bonne idée, parce que",
+   "en": "In my opinion, it's not a good idea, because",
+   "de": "Meiner Meinung nach ist das keine gute Idee, weil"
+  },
+  "nuance": {
+   "fr": "À mon avis, ça dépend, parce que",
+   "en": "In my opinion, it depends, because",
+   "de": "Meiner Meinung nach kommt es darauf an, weil"
+  }
+ },
+ "bank": [
+  {
+   "fr": "le marché",
+   "en": "the market",
+   "de": "der Markt"
+  },
+  {
+   "fr": "les lumières",
+   "en": "the lights",
+   "de": "die Lichter"
+  },
+  {
+   "fr": "la foule",
+   "en": "the crowd",
+   "de": "die Menge"
+  },
+  {
+   "fr": "le vin chaud",
+   "en": "mulled wine",
+   "de": "der Glühwein"
+  },
+  {
+   "fr": "la tradition",
+   "en": "the tradition",
+   "de": "die Tradition"
+  },
+  {
+   "fr": "les visiteurs",
+   "en": "the visitors",
+   "de": "die Besucher"
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "Je suis pour… / Je suis contre…",
+   "en": "I'm for… / I'm against…",
+   "de": "Ich bin dafür… / Ich bin dagegen…"
+  },
+  "a2": {
+   "fr": "À mon avis…, parce que…",
+   "en": "In my opinion…, because…",
+   "de": "Meiner Meinung nach…, weil…"
+  },
+  "b1": {
+   "fr": "Je ne suis pas d'accord avec…, parce que…",
+   "en": "I don't agree with…, because…",
+   "de": "Ich bin nicht einverstanden mit…, weil…"
+  },
+  "b2": {
+   "fr": "Certes…, mais…",
+   "en": "Admittedly…, but…",
+   "de": "Zwar…, aber…"
+  }
+ },
+ "replies": {
+  "pour": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Toi aussi ? Une tradition de 1570, c'est un peu vieux, non ?",
+    "en": "You too? A tradition from 1570 is a bit old, isn't it?",
+    "de": "Du auch? Eine Tradition von 1570 ist ziemlich alt, oder?"
+   },
+   "comeback": {
+    "fr": "Et toi, tu es vieux ?",
+    "en": "And you, are you old?",
+    "de": "Und du, bist du alt?"
+   }
+  },
+  "contre": {
+   "by": "romy_tremblay",
+   "line": {
+    "fr": "Voyons donc ! Tu n'aimes pas une tradition de 1570 ? Pour vrai ?",
+    "en": "Come on! You don't like a tradition from 1570? Really?",
+    "de": "Ach komm! Du magst eine Tradition von 1570 nicht? Wirklich?"
+   },
+   "comeback": {
+    "fr": "Oui ! Trop de monde, trop de bruit.",
+    "en": "Yes! Too many people, too much noise.",
+    "de": "Ja! Zu viele Leute, zu viel Lärm."
+   }
+  },
+  "nuance": {
+   "by": "augustin_de_roncourt",
+   "line": {
+    "fr": "Ça dépend ? C'est la réponse de ceux qui n'ont pas d'avis. Choisis !",
+    "en": "It depends? That's the answer of people with no opinion. Choose!",
+    "de": "Kommt drauf an? Das ist die Antwort von Leuten ohne Meinung. Entscheide dich!"
+   },
+   "comeback": {
+    "fr": "J'ai un avis : ça dépend !",
+    "en": "I have an opinion: it depends!",
+    "de": "Ich habe eine Meinung: Es kommt drauf an!"
+   }
+  }
+ },
+ "model": "claude-haiku-5-5",
+ "written_at": "2026-10-19T09:00:00Z",
+ "prompt_version": "comptoir-takes-v1"
+}

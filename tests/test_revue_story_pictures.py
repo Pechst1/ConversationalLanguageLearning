@@ -8,8 +8,9 @@ row, no image call). A learner then starts the Papier, and the picture carries t
 * Romy points at it on arrival («Regarde : …», a ``look`` line with those words glossed);
 * its words lead the plan's vocabulary, so the close keeps them in the learner's review,
   where the plan's plate (``plan.stage.plate_url``, La Carte, the review card) is the picture;
-* «La légende» is a make option: A1–A2 choose the caption the picture shows among three, B1+
-  write it, graded by the rubric with the picture's words as target words;
+* «La légende» is a make option: every band writes it, graded by the rubric with the picture's
+  words as target words; at A1–A2 three captions to choose from come only after a refused
+  try, and a pick is never credited as the learner's caption (2026-10-23);
 * the dispatch prints the picture under the learner's caption, Le Relevé keeps both, and
   Romy remembers it.
 
@@ -38,7 +39,14 @@ from app.services.revue.evergreen import evergreens_for_week
 from app.services.revue.releve import releve_for
 from app.services.revue.vignette import ring_for
 from app.services.season.world import plate_for
-from tests.test_revue_encounter import MARCHE, PRICE_QUESTION, REVUE_TABLES, WEEK, make_user
+from tests.test_revue_encounter import (
+    MARCHE,
+    OWN_LINE,
+    PRICE_QUESTION,
+    REVUE_TABLES,
+    WEEK,
+    make_user,
+)
 
 PICTURE_URL = "/media/graphic-novel/revue-stories/evergreen-marche-du-dimanche-0123456789abcdef.webp"
 VISUAL = StoryVisual(
@@ -146,9 +154,9 @@ def test_the_band_moves_on_before_the_picture_is_printed(db: Session, dossier) -
     stage = revue.view(row).stage
     assert (stage.plate_url, stage.plate_url_second, stage.plate_switched) == (PICTURE_URL, plate_for("marche_canal"), False)
     revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, OWN_LINE)
     assert revue.view(row).stage.plate_switched is False, "the picture stays on while Romy reports"
-    caption = next(option for option in revue.make_options(row).options if option.kind == "caption")
-    revue.make(row, "caption", {"action": "caption", "option_id": caption.options[0].id})
+    revue.make(row, "caption", {"action": "caption", "text_fr": "Le marché en plein air, un matin."})
     stage = revue.view(row).stage
     assert (stage.plate_url, stage.plate_switched) == (PICTURE_URL, True), "the site is still the picture"
 
@@ -165,6 +173,7 @@ def test_without_the_picture_nothing_changes(db: Session, dossier) -> None:
     assert view.stage.plate_kind == "stand_in" and view.stage.picture_words == []
     assert not [item for item in view.thread if getattr(item, "role", None) == "look"]
     assert "caption" not in view.plan.make_options
+    revue.turn(row, OWN_LINE)
     assert all(option.kind != "caption" for option in revue.make_options(row).options)
 
 
@@ -185,52 +194,78 @@ def test_a_look_line_is_made_from_the_words_when_the_builder_wrote_none(db: Sess
 # ---------------------------------------------------------------------------
 
 
-def test_a2_chooses_the_caption_the_picture_shows(db: Session, dossier) -> None:
+def test_a2_writes_the_caption_first_and_the_pick_comes_after_a_refusal(db: Session, dossier) -> None:
     paint(db, dossier)
-    revue = RevueEncounter(db, FakeRevueProvider())
+    scorer = grading.FakeRubricScorer(script=[{"words": [], "fact_fit": "contradicted", "register": "ok", "band_fit": "at"}])
+    revue = RevueEncounter(db, FakeRevueProvider(), scorer=scorer)
     row = revue.start(make_user(db, level="A2.1"), WEEK, dossier_id=MARCHE)
     revue.turn(row, "D'accord, je t'aide.")
+    revue.turn(row, OWN_LINE)
     offer = revue.make_options(row)
     assert offer.recommended == "caption", "the story's own picture: its caption leads"
     assert offer.intro is not None and offer.intro.text_fr == enc.MAKE_INTRO_LINES["caption"]
     caption = next(option for option in offer.options if option.kind == "caption")
-    assert caption.format == "choice" and caption.picture_url == PICTURE_URL
-    assert sorted(o.text_fr for o in caption.options) == sorted([VISUAL.caption_fr, *VISUAL.decoys_fr])
-    assert [w.fr for w in caption.words] == PICTURE_WORDS
-    assert "answer" not in caption.model_dump(), "the answer never leaves the server"
-    # Built from the session id: the same three, in the same order, on every read.
-    assert revue.make_options(row).options[-1].options == caption.options
+    assert caption.format == "write" and caption.picture_url == PICTURE_URL and caption.options == []
+    assert [w.fr for w in caption.words] == PICTURE_WORDS, "the picture's words are the bank"
+    assert caption.max_words == grading.CAPTION_WORDS["A2"][1]
+    with pytest.raises(enc.RevueError) as raised:
+        revue.make(row, "caption", {"action": "caption", "option_id": "l1"})
+    assert (raised.value.status, raised.value.code) == (409, "revue_caption_write_first")
 
-    wrong = next(o.id for o in caption.options if o.text_fr != VISUAL.caption_fr)
+    refused = revue.make(row, "caption", {"action": "caption", "text_fr": "Le marché est fermé le soir."})
+    assert (refused.accepted, refused.made) == (False, None)
+    assert refused.line.text_fr == MAKE_DONE_LINES["caption_refused"]
+    assert sorted(o.text_fr for o in refused.options) == sorted([VISUAL.caption_fr, *VISUAL.decoys_fr])
+    assert "answer" not in refused.model_dump(), "the answer never leaves the server"
+    again = next(option for option in revue.make_options(row).options if option.kind == "caption")
+    assert again.format == "write" and again.options == refused.options, "the same three, in the same order"
+
+    wrong = next(o.id for o in refused.options if o.text_fr != VISUAL.caption_fr)
     result = revue.make(row, "caption", {"action": "caption", "option_id": wrong})
     assert (result.format, result.accepted, result.correct) == ("choice", True, False)
     assert result.made.text_fr == VISUAL.caption_fr and result.made.contribution == []
     assert result.line.text_fr == MAKE_DONE_LINES["caption_wrong"]
-    assert next(o.text_fr for o in caption.options if o.id == result.answer_id) == VISUAL.caption_fr
+    assert next(o.text_fr for o in refused.options if o.id == result.answer_id) == VISUAL.caption_fr
 
     _, closing = revue.close(row)
     dispatch = closing.dispatch
     assert (dispatch.picture_url, dispatch.caption_fr) == (PICTURE_URL, VISUAL.caption_fr)
-    assert dispatch.caption_by_learner is False, "a wrong pick prints the desk's caption"
+    assert dispatch.caption_by_learner is False, "a pick prints the desk's caption"
+    assert dispatch.byline_fr.startswith("Romy Tremblay · d'après"), "a pick earns no «avec toi»"
     assert dispatch.headline_fr != VISUAL.caption_fr, "a caption is not a headline"
     assert closing.vignette is None or closing.vignette.ring == "headline"
 
 
-def test_a_right_pick_is_the_learners_caption(db: Session, dossier) -> None:
+def test_a_right_pick_is_still_not_the_learners_caption(db: Session, dossier) -> None:
     paint(db, dossier)
     revue = RevueEncounter(db, FakeRevueProvider())
     user = make_user(db, level="A1.2")
     row = revue.start(user, WEEK, dossier_id=MARCHE)
-    caption = next(option for option in revue.make_options(row).options if option.kind == "caption")
-    right = next(o.id for o in caption.options if o.text_fr == VISUAL.caption_fr)
+    revue.turn(row, OWN_LINE)
+    short = revue.make(row, "caption", {"action": "caption", "text_fr": "Marché."})
+    assert short.accepted is False and short.line.text_fr == MAKE_DONE_LINES["caption_short"]
+    right = next(o.id for o in short.options if o.text_fr == VISUAL.caption_fr)
     result = revue.make(row, "caption", {"action": "caption", "option_id": right})
-    assert result.correct is True and result.made.contribution == [(0, len(VISUAL.caption_fr))]
+    assert result.correct is True and result.made.contribution == []
+    assert result.line.text_fr == MAKE_DONE_LINES["caption_picked"], "never «C'est ta légende» for a pick"
+    _, closing = revue.close(row)
+    assert closing.dispatch.caption_by_learner is False
+    assert closing.romy_line_fr == enc.CLOSE_LINES["caption_picked"]
+    memory = db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id)).all()[-1]
+    assert f"Tu as choisi la légende de l'image : « {VISUAL.caption_fr} »." in memory.content
+
+
+def test_a1_writes_its_caption_and_it_is_theirs(db: Session, dossier) -> None:
+    paint(db, dossier)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    row = revue.start(make_user(db, level="A1.2"), WEEK, dossier_id=MARCHE)
+    revue.turn(row, OWN_LINE)
+    result = revue.make(row, "caption", {"action": "caption", "text_fr": "Le marché en plein air."})
+    assert (result.format, result.accepted) == ("write", True) and result.options == []
     assert result.line.text_fr == MAKE_DONE_LINES["caption"]
     _, closing = revue.close(row)
     assert closing.dispatch.caption_by_learner is True
-    assert closing.romy_line_fr
-    memory = db.scalars(select(NPCMemory).where(NPCMemory.user_id == user.id)).all()[-1]
-    assert f"Tu as choisi la légende de l'image : « {VISUAL.caption_fr} »." in memory.content
+    assert closing.dispatch.byline_fr.startswith("Romy Tremblay, avec toi")
 
 
 def test_b1_writes_the_caption_graded_with_the_picture_words(db: Session, dossier) -> None:
@@ -238,6 +273,7 @@ def test_b1_writes_the_caption_graded_with_the_picture_words(db: Session, dossie
     revue = RevueEncounter(db, FakeRevueProvider())
     user = make_user(db, level="B1.1")
     row = revue.start(user, WEEK, dossier_id=MARCHE)
+    revue.turn(row, OWN_LINE)
     caption = next(option for option in revue.make_options(row).options if option.kind == "caption")
     assert caption.format == "write" and caption.options == []
     assert caption.max_words == grading.CAPTION_WORDS["B1"][1]
@@ -270,25 +306,28 @@ def test_a_caption_a_claim_contradicts_is_refused_and_nothing_is_filed(db: Sessi
     scorer = grading.FakeRubricScorer(script=[{"words": [], "fact_fit": "contradicted", "register": "ok", "band_fit": "at"}])
     revue = RevueEncounter(db, FakeRevueProvider(), scorer=scorer)
     row = revue.start(make_user(db, level="B2.1"), WEEK, dossier_id=MARCHE)
+    revue.turn(row, OWN_LINE)
     result = revue.make(row, "caption", {"action": "caption", "text_fr": "Le marché d'Aligre est fermé le matin."})
     assert (result.accepted, result.made) == (False, None)
     assert result.line.text_fr == MAKE_DONE_LINES["caption_refused"]
+    assert result.options == [], "B1+: no pick, write again"
     assert revue.view(row).artifact is None
 
 
-def test_the_caption_needs_the_picture_and_at_a1_a2_the_two_decoys(db: Session, monkeypatch) -> None:
+def test_without_the_decoys_a1_a2_write_with_no_pick_to_fall_back_on(db: Session, monkeypatch) -> None:
     plates._STORIES.clear()
     story = pictured(decoys_fr=[])
     monkeypatch.setattr(enc, "available_dossiers", lambda week, db=None: [story])
     paint(db, story)
     revue = RevueEncounter(db, FakeRevueProvider())
     a2 = revue.start(make_user(db, level="A2.1"), WEEK, dossier_id=MARCHE)
-    assert "caption" not in revue.view(a2).plan.make_options
+    assert "caption" in revue.view(a2).plan.make_options
+    revue.turn(a2, OWN_LINE)
+    short = revue.make(a2, "caption", {"action": "caption", "text_fr": "Marché."})
+    assert short.accepted is False and short.options == [], "no decoys: write again"
     with pytest.raises(enc.RevueError) as refused:
         revue.make(a2, "caption", {"action": "caption", "option_id": "l1"})
-    assert refused.value.code == "revue_make_unavailable"
-    b1 = revue.start(make_user(db, level="B1.2"), WEEK, dossier_id=MARCHE)
-    assert "caption" in revue.view(b1).plan.make_options
+    assert refused.value.code == "revue_caption_write_first"
     plates._STORIES.clear()
 
 
@@ -297,12 +336,13 @@ def test_the_caption_does_not_lead_twice_in_a_row(db: Session, dossier) -> None:
     revue = RevueEncounter(db, FakeRevueProvider())
     user = make_user(db, level="A2.1")
     first = revue.start(user, WEEK, dossier_id=MARCHE)
-    caption = next(option for option in revue.make_options(first).options if option.kind == "caption")
-    revue.make(first, "caption", {"action": "caption", "option_id": caption.options[0].id})
+    revue.turn(first, OWN_LINE)
+    revue.make(first, "caption", {"action": "caption", "text_fr": "Le marché en plein air, un matin."})
     revue.close(first)
 
     second = revue.start(user, "2026-W41", dossier_id=MARCHE)
     revue.turn(second, "D'accord, je t'aide.")
+    revue.turn(second, OWN_LINE)
     offer = revue.make_options(second)
     assert any(option.kind == "caption" for option in offer.options), "still offered"
     assert offer.recommended == "headline_choice", "the last Papier was a caption: something else leads"

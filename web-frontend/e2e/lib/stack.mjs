@@ -77,7 +77,7 @@ async function waitFor(url, { timeoutMs = 120000, ok = (r) => r.status < 500 } =
   throw new Error(`timed out waiting for ${url}: ${last}`);
 }
 
-export async function startStack({ logDir, secret, live = false, tokenMinutes = 1, revue = false }) {
+export async function startStack({ logDir, secret, live = false, tokenMinutes = 1, revue = false, comptoir = false }) {
   if (live) throw new Error('--live is not wired up in this harness: it would make paid model calls.');
   mkdirSync(logDir, { recursive: true });
   const dbName = `atelier_walk_${Date.now()}`;
@@ -134,13 +134,15 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     const web = `http://localhost:${webPort}`;
     const apiLog = log('api');
     // WP-120 phase D: `revue` starts the same API with La Revue on (e2e/lib/carte_server.py).
-    const server = revue ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py';
+    // «Au comptoir» (`comptoir`, implies `revue`): the same server with its switch on.
+    const server = revue || comptoir ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py';
     const api = spawn(python(), [server, '--port', String(apiPort)], {
       cwd: REPO_ROOT,
       env: {
         ...process.env,
         DATABASE_URL: dbUrl,
         ACCESS_TOKEN_EXPIRE_MINUTES: String(tokenMinutes),
+        ...(comptoir ? { REVUE_COMPTOIR_ENABLED: 'true' } : {}),
         BACKEND_CORS_ORIGINS: JSON.stringify([web, `http://127.0.0.1:${webPort}`]),
       },
       detached: true,

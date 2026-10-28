@@ -124,6 +124,7 @@ export function applyTurn(view: RvSessionView, result: RvTurnResult): RvSessionV
     plan: { ...view.plan, support: result.support },
     quickReplies: result.quickReplies,
     steerToMake: result.steerToMake,
+    ownLine: result.ownLine,
   };
 }
 
