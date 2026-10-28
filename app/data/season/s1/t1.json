@@ -471,7 +471,7 @@
           "listens_for": "What the learner plans (sell and go home, not sure yet, not tonight) and whether they push back on «simple for everyone».",
           "fallback": "b",
           "replies": [
-            {"id": "a", "label": "Yes, selling", "means": "The learner will sell and go home.", "examples": ["Oui. Je vends et je rentre."], "beats": [
+            {"id": "a", "label": "Yes, selling", "means": "The learner will sell and go home.", "examples": ["Oui. Je vends et je rentre."], "sets": {"user.heading": "leave"}, "beats": [
               {"kind": "panel", "id": "b.turn1.a.r1", "visual": "Camille, with a glance at the silent booth.", "location_id": "le_mistral", "in_frame": ["camille_marchand"], "lines": [
                 {"who": "camille_marchand", "say": {"a2": "Parfait.", "native": {"en": "Perfect.", "de": "Perfekt."}}},
                 {"who": "camille_marchand", "direction": "a glance at the silent booth", "say": {"a2": "Enfin… bien.", "native": {"en": "Well… good.", "de": "Na ja… gut."}}}

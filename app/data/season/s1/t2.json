@@ -930,6 +930,7 @@
               "means": "The learner says they are staying because of her, or because of this (longer than before, less before meeting her).",
               "examples": ["Je ne sais pas. Plus longtemps qu'avant.", "Moins… avant de te rencontrer."],
               "path": "romance",
+              "sets": {"user.heading": "stay"},
               "beats": [
                 {
                   "kind": "panel",
@@ -958,6 +959,7 @@
               "means": "The learner is staying to see the story through, because they want to know (the mystery).",
               "examples": ["Jusqu'à la fin de l'histoire. Je veux savoir."],
               "path": "friendship",
+              "sets": {"user.heading": "stay"},
               "beats": [
                 {
                   "kind": "panel",

@@ -587,9 +587,10 @@ class SemanticTurn(StrictModel):
     # only from output the guards and the critic accepted.
     secret_shift: Literal["hinted", "revealed"] | None = None
     # WP-111, generated days of a season only: the world flags this exchange set (the
-    # gap's ``may_set`` list: the usual order, the moved ticket, Gus's photo) and, on
-    # a day that stages one of Lila's gates, what the learner expressed toward her —
-    # read from meaning, never from accuracy.
+    # gap's ``may_set`` list: the usual order, the moved ticket, Gus's photo, where the
+    # learner stands on going home or staying) and, on a day that stages one of Lila's
+    # gates, what the learner expressed toward her — read from meaning, never from
+    # accuracy.
     season_flags: list[SeasonFlag] = Field(default_factory=list, max_length=4)
     season_signal: Literal["romance", "friendship", "none"] | None = None
     # Story engine Phase 3 (``story_memory``), written on the turn that ends the scene:
@@ -8631,6 +8632,9 @@ def _season_gap_day(context: dict, draft: SceneDraft) -> dict | None:
         "required_premise": required,
         "gate": gate if staged else today.get("gate"),
         "may_set": list(today.get("may_set") or []),
+        # «Ton cap»: where the learner stood when the page was written, for the
+        # exchange's reply and ending (``story.season_turn.heading``).
+        **({"heading": today["heading"]} if isinstance(today.get("heading"), dict) else {}),
         # N1 pilot: the callback this day was briefed to stage, and whether the accepted
         # page claims it (settle marks it played only then).
         **(
@@ -9260,6 +9264,8 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
             # How the speaker addresses the learner today, for a reply on a page that
             # mixes tu and vous (Gus's accidental tu, then his return to vous).
             **({"register": register} if (register := season_registers(context).get(str(scenario.character_id))) else {}),
+            # «Ton cap»: where the learner stands on going home or staying.
+            **({"heading": season_day["heading"]} if isinstance(season_day.get("heading"), dict) else {}),
         }
         # N1 pilot: what the learner may decide on this premise (season/agency.py).
         from app.services.season.agency import agency_for_turn, contract_for

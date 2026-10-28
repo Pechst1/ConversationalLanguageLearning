@@ -244,6 +244,10 @@ quote or open with the learner's words, never ask their question back, never tak
 role. Keep the scene's facts (who_is_who.scene_facts, the panels): what one person gave,
 asked or promised stays theirs — a thing you gave the learner is now the learner's.
 never_reveal, when present, is what the season keeps for later: never name it, hint at most.
+heading, when present, is where the learner stands on going home or staying (value), in
+their own words, and what that asks of you (means): never argue them out of it or talk
+as if they had decided otherwise («pourquoi tu restes ?» to a learner who means to
+leave); when they say something about it, react to that in character.
 memory, when present, is what you know of the learner from earlier days: learner_name
 (use it when it fits), facts (settled, in the learner's own words: never ask them again)
 and said (what the learner told you, verbatim, with the line they answered). Bring one
@@ -287,9 +291,11 @@ secret show, revealed if it genuinely came out, else null — never back.
 When story.season_turn is present (a generated day of a scripted season): season_flags
 lists ONLY flags from story.season_turn.may_set that this exchange settled, with the
 value in the learner's own words (their usual order; the new date of their return
-ticket; what happened to Gus's photo: shown, given_to_gus or with_lila) — otherwise an
-empty list; season_signal, only when story.season_turn.gate is set, is what the learner
-expressed toward Lila (romance, friendship or none) — read from meaning, never accuracy.
+ticket; what happened to Gus's photo: shown, given_to_gus or with_lila; where they now
+stand on going home or staying, user.heading: leave, undecided or stay, only when their
+words say it) — otherwise an empty list; season_signal, only when
+story.season_turn.gate is set, is what the learner expressed toward Lila (romance,
+friendship or none) — read from meaning, never accuracy.
 story.season_turn.must_not lists what the season keeps for later: never name it, hint at most.
 The ending credits the learner only with what their own words say or accepted; a plan or a
 proposal a character made stays the character's. It never says the learner agreed or
@@ -425,6 +431,8 @@ def voice_payload(payload: dict) -> dict:
         # WP-155: on a generated day, the reveals the season keeps for later.
         **({"never_reveal": [row.get("text") for row in must_not]} if (must_not := _season_must_not(payload)) else {}),
         **({"agency": turn_agency} if (turn_agency := _season_agency(payload)) else {}),
+        # «Ton cap»: where the learner stands on going home or staying.
+        **({"heading": heading} if (heading := _season_heading(payload)) else {}),
         **_turn_tail(payload),
     }
 
@@ -435,6 +443,11 @@ def _season_must_not(payload: dict) -> list[dict]:
 
 def _season_agency(payload: dict) -> dict | None:
     return ((payload.get("story") or {}).get("season_turn") or {}).get("agency")
+
+
+def _season_heading(payload: dict) -> dict | None:
+    heading = ((payload.get("story") or {}).get("season_turn") or {}).get("heading")
+    return heading if isinstance(heading, dict) else None
 
 
 def story_payload(payload: dict, released: dict) -> dict:
