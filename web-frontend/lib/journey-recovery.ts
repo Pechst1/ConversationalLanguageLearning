@@ -76,6 +76,7 @@ export const REPLAYABLE_KINDS = [
   'pause',
   'resume',
   'finish',
+  'tomorrow',
 ] as const;
 
 export type ReplayableKind = (typeof REPLAYABLE_KINDS)[number];

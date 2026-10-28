@@ -120,6 +120,8 @@ export type DailyJourneyActions = {
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   finish: (kind: 'complete' | 'early') => Promise<void>;
+  /** «Demain»: pick the thread tomorrow follows, from the finished recap's choice. */
+  pickTomorrow: (premiseId: string) => Promise<void>;
   /** Dismiss a feedback card without moving on. */
   clearFeedback: () => void;
 };
@@ -1036,6 +1038,36 @@ export function useDailyJourney(
     });
   }, [applySnapshot, handleFailure, journey, once, unwrap]);
 
+  /**
+   * «Demain»: the learner picks the thread the season's next day follows. Only a
+   * finished day offers one (`recap.tomorrow`); the snapshot that comes back carries
+   * the pick and the day's new tomorrow line, which every surface reads.
+   */
+  const pickTomorrow = useCallback(
+    async (premiseId: string) => {
+      const target = journeyRef.current;
+      if (!target || !target.recap?.tomorrow || target.recap.tomorrow.picked === premiseId) return;
+      const intent = `tomorrow:${target.id}:${premiseId}:${target.revision}`;
+      await once(intent, async () => {
+        setBusy(true);
+        try {
+          const result = await unwrap(intent, { kind: 'tomorrow', body: { premise_id: premiseId } }, (id) =>
+            dailyJourneyService.pickTomorrow(target.id, {
+              expectedRevision: target.revision,
+              premiseId,
+              mutationId: id,
+            }),
+          );
+          if (result.ok) applySnapshot(result.value);
+          else await handleFailure(result.detail, result.error, target.id);
+        } finally {
+          if (mountedRef.current) setBusy(false);
+        }
+      });
+    },
+    [applySnapshot, handleFailure, once, unwrap],
+  );
+
   const clearFeedback = useCallback(() => {
     revealRef.current.cancel();
     setFeedback({ kind: 'idle' });
@@ -1064,6 +1096,7 @@ export function useDailyJourney(
       pause,
       resume,
       finish,
+      pickTomorrow,
       clearFeedback,
     }),
     [
@@ -1077,6 +1110,7 @@ export function useDailyJourney(
       pause,
       resume,
       finish,
+      pickTomorrow,
       clearFeedback,
     ],
   );

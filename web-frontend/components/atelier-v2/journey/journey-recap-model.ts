@@ -74,6 +74,8 @@ export type RewardView = {
   face: RecapFace | null;
   keepsake: RecapKeepsake | null;
   teaser: RecapTeaser | null;
+  /** «Demain»: the threads tomorrow may follow, under the teaser; a completed day only. */
+  tomorrow: TomorrowChoiceView | null;
   levelUp: (RecapLevelUp & { evidence: string | null }) | null;
   /** WP-L6: «Cette semaine, on consolide.» while the auto-throttle is on. */
   consolidating: string | null;
@@ -83,6 +85,32 @@ export type RewardView = {
   practiceHref: string | null;
   practiceLabelFr: string | null;
 };
+
+export type TomorrowOptionView = { id: string; labelFr: string; planned: boolean; picked: boolean };
+
+/** «Demain»: the plan's own thread first, and the learner's pick once made. */
+export type TomorrowChoiceView = { options: TomorrowOptionView[]; picked: string | null };
+
+/**
+ * «Demain» (steering read 2026-10-24): the threads the season's next day may
+ * follow, as the server offered them on the finished recap. `null` when there is
+ * no choice: a day the plan leaves none, an older recap, fewer than two threads.
+ * A pick the options do not hold is no pick.
+ */
+export function tomorrowChoice(recap: JourneyRecap | null | undefined): TomorrowChoiceView | null {
+  const offered = recap?.tomorrow;
+  if (!offered || !Array.isArray(offered.options)) return null;
+  const options = offered.options
+    .map((option) => ({
+      id: String(option?.premise_id ?? '').trim(),
+      labelFr: String(option?.label_fr ?? '').trim(),
+      planned: Boolean(option?.planned),
+    }))
+    .filter((option) => option.id && option.labelFr);
+  if (options.length < 2) return null;
+  const picked = options.some((option) => option.id === offered.picked) ? String(offered.picked) : null;
+  return { options: options.map((option) => ({ ...option, picked: option.id === picked })), picked };
+}
 
 /** The words the day practised: the server's list, or derived from old recaps. */
 export function recapWords(recap: JourneyRecap | null | undefined): RecapWord[] {
@@ -220,6 +248,7 @@ export function rewardView(
     // A keepsake is a completed day's; an early stop never shows one.
     keepsake: partial ? null : recap.keepsake ?? null,
     teaser: partial ? null : teaser,
+    tomorrow: partial ? null : tomorrowChoice(recap),
     levelUp: recap.level_up ? { ...recap.level_up, evidence: levelEvidence(recap.level_up, language) } : null,
     consolidating: recap.consolidating ? recapStatusCopy(language).consolidating : null,
     forecast: completed ? forecastLineText(recap.forecast_line, language, journey.local_date) : null,

@@ -65,6 +65,9 @@ export type RecapWord = Schemas['RecapWord'];
 export type RecapMood = Schemas['RecapMood'];
 export type RecapKeepsake = Schemas['RecapKeepsake'];
 export type RecapTeaser = Schemas['RecapTeaser'];
+/** «Demain»: the threads tomorrow may follow, and the learner's pick. */
+export type RecapTomorrow = Schemas['RecapTomorrow'];
+export type RecapTomorrowOption = Schemas['RecapTomorrowOption'];
 export type RecapLevelUp = Schemas['RecapLevelUp'];
 export type JourneySnapshot = Schemas['JourneySnapshot'];
 export type JourneyAbsence = Schemas['AbsenceView'];
@@ -98,6 +101,7 @@ export type AttemptBody = Schemas['JourneyAttemptRequest'];
 export type AdvanceBody = Schemas['JourneyAdvanceRequest'];
 export type RevisionBody = Schemas['JourneyRevisionRequest'];
 export type FinishBody = Schemas['JourneyFinishRequest'];
+export type TomorrowBody = Schemas['JourneyTomorrowRequest'];
 export type RetryBody = Schemas['JourneyRetryRequest'];
 /** Axios response envelope, not part of the JSON wire schema. */
 export type JourneyHttpResult<T> = { data: T; status: number };

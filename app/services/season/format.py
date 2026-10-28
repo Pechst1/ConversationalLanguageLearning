@@ -24,6 +24,7 @@ never in a learner's day (``tests/test_season_format.py`` loads every season).
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -554,6 +555,13 @@ class DayBeat(_Model):
     also: str = ""
     #: Where the «À suivre…» points.
     hook: str = ""
+    #: «Demain» (steering read 2026-10-24): what the learner picks when they choose
+    #: this beat for tomorrow, an infinitive phrase in short French («Cuisiner avec
+    #: Lila»). A beat without one is never offered out of the plan's order.
+    pick_fr: str = ""
+    #: The premises this beat stands on (the box is open before Gus's Polaroid is
+    #: given): it is offered for tomorrow only once they are staged.
+    needs: list[str] = Field(default_factory=list)
 
 
 class Gap(_Model):
@@ -747,6 +755,11 @@ def _exclusive(one: Cond, other: Cond) -> bool:
     )
 
 
+#: A pick label opens on an infinitive («Cuisiner avec Lila»): the pick is filed as
+#: tomorrow's line «On va cuisiner avec Lila.» (``story_tomorrow.hook_for``).
+_INFINITIVE = re.compile(r"^[A-ZÀ-Ý][a-zà-ÿ]*(?:er|ir|re)\b")
+
+
 def _check_day_plan(season: Season, gap: Gap, premise_ids: set[str]) -> list[str]:
     """A gap's day plan: real premises, one beat a day inside the gap, each premise
     once, and every required moment planned inside its own window."""
@@ -767,12 +780,17 @@ def _check_day_plan(season: Season, gap: Gap, premise_ids: set[str]) -> list[str
     premises = [beat.premise for beat in gap.days]
     if len(set(premises)) != len(premises):
         problems.append(f"{gap.id}: the day plan stages a premise twice")
+    planned = {beat.premise: beat.day for beat in gap.days}
     for beat in gap.days:
         if beat.premise not in premise_ids:
             problems.append(f"{gap.id}: day {beat.day} plans {beat.premise!r}, which is not a premise")
         if length is not None and beat.day > length:
             problems.append(f"{gap.id}: day {beat.day} is past the gap's {length} days")
-    planned = {beat.premise: beat.day for beat in gap.days}
+        for need in beat.needs:
+            if planned.get(need, beat.day) >= beat.day:
+                problems.append(f"{gap.id}: {beat.premise!r} needs {need!r}, which the plan does not stage before it")
+        if beat.pick_fr and not _INFINITIVE.match(beat.pick_fr):
+            problems.append(f"{gap.id}: {beat.premise!r} pick_fr {beat.pick_fr!r} is not an infinitive phrase")
     for need in gap.required:
         day = planned.get(need.premise)
         if day is None or not need.from_day <= day <= need.by_day:

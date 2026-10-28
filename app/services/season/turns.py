@@ -362,7 +362,7 @@ def gate_signal(turn: dict[str, Any], reply: dict[str, Any], choice: ReplyChoice
 #: How long a spoken acknowledgement may be (characters, words).
 ACK_MAX_CHARS = 140
 ACK_MAX_WORDS = 18
-_TU_MARKERS = re.compile(r"\b(tu|toi|ton|ta|tes|t'as|t'es)\b", re.IGNORECASE)
+_TU_MARKERS = re.compile(r"\b(tu|toi|te|ton|ta|tes)\b|\bt['’]", re.IGNORECASE)
 _VOUS_MARKERS = re.compile(r"\b(vous|votre|vos)\b", re.IGNORECASE)
 _PLURAL_VOUS = re.compile(
     r"\bvous (?:deux|trois|quatre|tous|toutes|autres)\b|\btous les deux\b|\btoutes les deux\b"

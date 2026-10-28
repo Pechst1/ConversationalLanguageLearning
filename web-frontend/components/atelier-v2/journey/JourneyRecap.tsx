@@ -4,7 +4,8 @@
  *   the Seal pressing (a *completed* day only; an early stop never shows one)
  *   and the one headline → three facts (Scène · Mots «+N» · Série «N jours»)
  *   → the words → the character's face and how the day left them → a level
- *   move, when the estimate moved → «La suite demain» → «Ranger le sceau»
+ *   move, when the estimate moved → «La suite demain» (and, when the season's
+ *   plan leaves one, the choice of tomorrow's thread) → «Ranger le sceau»
  *   («Continuer» after an early stop), quiet «Plus de pratique».
  *
  * Calm on purpose: no confetti, no mascot — the cast's face is the reward. The
@@ -39,6 +40,7 @@ import type { ControlLanguage, JourneyRecap as JourneyRecapPayload, JourneySnaps
 import { journeyCopy } from './journey-copy';
 import { colophonDigest, keepsakeDate, rewardView } from './journey-recap-model';
 import { ENCORE_HREF, recapChrome } from './recap-copy';
+import { TomorrowChoice } from './TomorrowChoice';
 
 export type JourneyRecapProps = {
   journey: JourneySnapshot;
@@ -63,6 +65,13 @@ export type JourneyRecapProps = {
    * «Fertig», after the words and the grammar.
    */
   sessionNext?: { label: string; meta: string; onSelect: () => void } | null;
+  /**
+   * «Demain»: pick the thread tomorrow follows, under «La suite demain». Without
+   * it the choice is not drawn.
+   */
+  onPickTomorrow?: (premiseId: string) => void;
+  /** A pick is on its way: the choice waits for the answer. */
+  tomorrowBusy?: boolean;
 };
 
 /**
@@ -86,6 +95,8 @@ export function JourneyRecap({
   forge,
   pushOptIn,
   sessionNext = null,
+  onPickTomorrow,
+  tomorrowBusy = false,
 }: JourneyRecapProps) {
   const copy = journeyCopy(language);
   const view = rewardView(journey, recap, language);
@@ -344,6 +355,7 @@ export function JourneyRecap({
               <span className="av2-reward__teaser-by"> — {view.teaser.character_name}</span>
             )}
           </p>
+          <TomorrowChoice choice={view.tomorrow} language={language} busy={tomorrowBusy} onPick={onPickTomorrow} />
         </div>
       )}
 

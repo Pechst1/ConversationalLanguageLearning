@@ -899,6 +899,10 @@ export function JourneyRecapView({
       morePractice={morePractice}
       onPractice={onPractice}
       forge={forgeAfterDay}
+      onPickTomorrow={(premiseId) => {
+        void controller.actions.pickTomorrow(premiseId);
+      }}
+      tomorrowBusy={controller.busy}
       pushOptIn={
         // WP-80: the push pre-prompt, once, after a finished day. Renders
         // nothing unless this device has something to ask.

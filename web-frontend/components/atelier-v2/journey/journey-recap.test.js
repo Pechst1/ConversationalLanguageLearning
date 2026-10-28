@@ -337,6 +337,7 @@ test('the recap chrome stays under 15 words', () => {
     RECAP_CHROME.words_label,
     RECAP_CHROME.scene_label,
     RECAP_CHROME.teaser_label,
+    RECAP_CHROME.tomorrow_label,
     RECAP_CHROME.keep_seal,
     'Plus de pratique',
   ].join(' ');
@@ -464,4 +465,76 @@ test('#237: «Fin du chapitre» never prints a second question, and the day summ
   assert.doesNotMatch(said, /Quel est ton/);
   assert.equal(said.split(callback).length - 1, 1, 'the day summary is printed once');
   assert.match(said, /Qui était Odile/);
+});
+
+// «Demain» (steering read 2026-10-24): the finished card's choice of tomorrow's thread.
+const { TomorrowChoice } = require('./TomorrowChoice.tsx');
+
+const TOMORROW = {
+  options: [
+    { premise_id: 'je_peux', label_fr: "Parler du plan d'Odile avec Marin", planned: true },
+    { premise_id: 'le_diner_rate', label_fr: 'Cuisiner avec Lila', planned: false },
+    { premise_id: 'pour_son_anniversaire', label_fr: "Fêter l'anniversaire de Gus", planned: false },
+  ],
+  picked: null,
+};
+const curly = (text) => text.replace(/'/g, '’');
+
+test('«Demain»: the choice is the server’s threads, the plan’s own first, and a pick they hold', () => {
+  assert.equal(model.tomorrowChoice(null), null);
+  assert.equal(model.tomorrowChoice(day().recap), null, 'an older recap has no choice');
+  assert.equal(model.tomorrowChoice({ tomorrow: { options: TOMORROW.options.slice(0, 1), picked: null } }), null);
+  const view = model.tomorrowChoice({ tomorrow: TOMORROW });
+  assert.deepEqual(
+    view.options.map((option) => [option.id, option.planned, option.picked]),
+    [
+      ['je_peux', true, false],
+      ['le_diner_rate', false, false],
+      ['pour_son_anniversaire', false, false],
+    ],
+  );
+  assert.equal(view.picked, null);
+  assert.equal(model.tomorrowChoice({ tomorrow: { ...TOMORROW, picked: 'le_diner_rate' } }).picked, 'le_diner_rate');
+  assert.equal(model.tomorrowChoice({ tomorrow: { ...TOMORROW, picked: 'bastien_appelle' } }).picked, null);
+  // A partial day says no tomorrow, so it offers none.
+  assert.equal(model.rewardView(day().journey, { ...day().recap, tomorrow: TOMORROW, completion_kind: 'early' }).tomorrow, null);
+});
+
+test('«Demain»: the finished card offers the threads under «La suite demain»; a tap picks one', () => {
+  const html = render(day({ tomorrow: TOMORROW }), { onPickTomorrow: () => {} });
+  const block = html.slice(html.indexOf('av2-reward__teaser'));
+  assert.match(block, /role="group" aria-label="Choose where tomorrow goes"/);
+  for (const option of TOMORROW.options) assert.ok(decode(block).includes(curly(option.label_fr)), option.label_fr);
+  assert.doesNotMatch(block, /aria-pressed="true"/, 'nothing is picked until the learner picks');
+  // Without the action, or on a hand-on mid-day, no choice is drawn.
+  assert.doesNotMatch(render(day({ tomorrow: TOMORROW })), /av2-tomorrow/);
+  const handOn = render(day({ tomorrow: TOMORROW }), {
+    onPickTomorrow: () => {},
+    sessionNext: { label: 'Next: 20 words', meta: '8 min', onSelect: () => {} },
+  });
+  assert.doesNotMatch(handOn, /av2-tomorrow/);
+
+  // The pick: its chip is pressed, blue and checked; the teaser above is the pick's line.
+  const picked = render(
+    day({
+      tomorrow: { ...TOMORROW, picked: 'le_diner_rate' },
+      teaser: { text_fr: 'On va cuisiner avec Lila.', character_id: null, character_name: null, source: 'engine' },
+    }),
+    { onPickTomorrow: () => {} },
+  );
+  assert.equal((picked.match(/aria-pressed="true"/g) || []).length, 1);
+  assert.match(picked, /av2-chip--story[^>]*aria-pressed="true"/);
+  assert.match(textOf(picked), /On va cuisiner avec Lila\./);
+
+  const picks = [];
+  const element = TomorrowChoice({
+    choice: model.tomorrowChoice({ tomorrow: TOMORROW }),
+    language: 'fr',
+    onPick: (id) => picks.push(id),
+  });
+  const chips = element.props.children[1].props.children;
+  chips[2].props.onClick();
+  assert.deepEqual(picks, ['pour_son_anniversaire']);
+  assert.equal(chips[0].props['data-planned'], '');
+  assert.equal(element.props['aria-label'], 'Choisis la suite');
 });

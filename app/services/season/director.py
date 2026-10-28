@@ -241,8 +241,23 @@ def required_schedule(gap: Gap, *, seed: str, length: int | None = None) -> dict
     return schedule
 
 
+def _open_beats(gap: Gap, done: set[str], flags: dict[str, Any]) -> list[DayBeat]:
+    premises = {premise.id: premise for premise in gap.premises}
+    return [
+        beat
+        for beat in sorted(gap.days, key=lambda beat: beat.day)
+        if beat.premise not in done and beat.premise in premises and holds(premises[beat.premise].when, flags)
+    ]
+
+
 def planned_beat(
-    gap: Gap, day: int, done: set[str], flags: dict[str, Any], *, length: int | None = None
+    gap: Gap,
+    day: int,
+    done: set[str],
+    flags: dict[str, Any],
+    *,
+    length: int | None = None,
+    prefer: str | None = None,
 ) -> DayBeat | None:
     """Today's beat from the gap's day plan: a beat a refused or missed day still owes
     first, then today's, then the next one (pulled forward, so no planned day is left
@@ -250,20 +265,97 @@ def planned_beat(
 
     ``length`` is how many days this gap really has. A gap the weekend shortened ends
     on its plan's last beat all the same: that beat leads into the next tentpole
-    (measured run 2026-10-16: gap 1 lost «La même chose ?» to the calendar)."""
+    (measured run 2026-10-16: gap 1 lost «La même chose ?» to the calendar).
 
-    premises = {premise.id: premise for premise in gap.premises}
-    open_beats = [
-        beat
-        for beat in sorted(gap.days, key=lambda beat: beat.day)
-        if beat.premise not in done and beat.premise in premises and holds(premises[beat.premise].when, flags)
-    ]
+    ``prefer`` is the beat the learner picked for today («Demain», checked against
+    ``tomorrow_options``): it comes before the plan's own, never before the last beat."""
+
+    open_beats = _open_beats(gap, done, flags)
     if length is not None and day >= length and open_beats:
         last = max(beat.day for beat in gap.days)
         final = next((beat for beat in reversed(open_beats) if beat.day == last), None)
         if final is not None:
             return final
+    picked = next((beat for beat in open_beats if prefer and beat.premise == prefer), None)
+    if picked is not None:
+        return picked
     return next((beat for beat in open_beats if beat.day <= day), None) or next(iter(open_beats), None)
+
+
+#: The ``state`` key of the beat the learner picked for the gap's next day («Demain»):
+#: ``{"gap", "day", "premise"}``, read by ``gap_brief`` on that day only.
+TOMORROW_KEY = "tomorrow"
+#: The plan's own beat and at most two the learner may pull forward.
+TOMORROW_OPTIONS = 3
+
+
+def _keeps_deadlines(gap: Gap, open_beats: list[DayBeat], picked: DayBeat, day: int) -> bool:
+    """Whether every required moment still comes by its ``by_day`` when ``picked``
+    takes ``day``: the beats left stage one a day, in the plan's order, from tomorrow."""
+
+    rest = [beat.premise for beat in open_beats if beat is not picked]
+    return all(
+        day + 1 + rest.index(need.premise) <= need.by_day
+        for need in gap.required
+        if need.premise in rest
+    )
+
+
+def tomorrow_options(
+    gap: Gap,
+    day: int,
+    done: set[str],
+    flags: dict[str, Any],
+    *,
+    length: int | None = None,
+    dropped: set[str] | frozenset[str] = frozenset(),
+) -> list[DayBeat]:
+    """«Demain» (steering read 2026-10-24): the beats the learner may choose between
+    for gap day ``day``. The plan's own beat comes first; then up to two later beats
+    that stand on their own (a ``pick_fr``, their ``needs`` staged: ``done``, not a beat
+    left behind). The plan's last beat stays last, the gap's last day has no choice,
+    and no pick pushes a required moment past its day. One beat alone is no choice:
+    the list is then empty."""
+
+    if not gap.days or (length is not None and day >= length):
+        return []
+    behind = set(done) | set(dropped)
+    default = planned_beat(gap, day, behind, flags, length=length)
+    if default is None or not default.pick_fr:
+        return []
+    open_beats = _open_beats(gap, behind, flags)
+    if not _keeps_deadlines(gap, open_beats, default, day):
+        # A required moment is already late: the plan's own beat is the only way on.
+        return []
+    last = max(beat.day for beat in gap.days)
+    options = [default]
+    for beat in open_beats:
+        if len(options) == TOMORROW_OPTIONS:
+            break
+        if (
+            beat is default
+            or beat.day == last
+            or not beat.pick_fr
+            or not set(beat.needs) <= done
+            or not _keeps_deadlines(gap, open_beats, beat, day)
+        ):
+            continue
+        options.append(beat)
+    return options if len(options) > 1 else []
+
+
+def _waiting(gap: Gap, beat: DayBeat) -> dict[str, str]:
+    premise = next((row for row in gap.premises if row.id == beat.premise), None)
+    return {"title_fr": premise.title_fr if premise else beat.premise, "before": beat.before}
+
+
+def learner_pick(state: dict | None, gap_id: str, day: int) -> str | None:
+    """The premise the learner picked for this gap day, if they did."""
+
+    row = (state or {}).get(TOMORROW_KEY)
+    if isinstance(row, dict) and row.get("gap") == gap_id and row.get("day") == day and row.get("premise"):
+        return str(row["premise"])
+    return None
 
 
 def used_premises(state: dict | None, gap_id: str) -> set[str]:
@@ -272,6 +364,27 @@ def used_premises(state: dict | None, gap_id: str) -> set[str]:
         for row in (state or {}).get("premises") or []
         if isinstance(row, dict) and row.get("gap") == gap_id and row.get("premise")
     }
+
+
+#: The ``state`` key of the planned beats a served page did not stage
+#: (``runtime._settle_gap``), one row per missed day.
+MISSED_KEY = "missed"
+#: A missed beat comes back once; missed this many times, the plan moves on without it.
+MISSES_TO_DROP = 2
+
+
+def dropped_beats(state: dict | None, gap_id: str) -> set[str]:
+    """The planned beats of this gap missed ``MISSES_TO_DROP`` times. Steering read
+    2026-10-24: the critic refused every draft of the leaver's «Je peux ?» on two days
+    running, a third day of photos was served each time, the beat stayed owed, and
+    Gus's birthday and the petition never came before T3."""
+
+    missed = [
+        str(row.get("premise"))
+        for row in (state or {}).get(MISSED_KEY) or []
+        if isinstance(row, dict) and row.get("gap") == gap_id and row.get("premise")
+    ]
+    return {premise for premise in set(missed) if missed.count(premise) >= MISSES_TO_DROP}
 
 
 def used_moments(state: dict | None) -> set[str]:
@@ -394,8 +507,20 @@ def gap_brief(
         return None
     day = pos.day_in_segment
     done = used_premises(state, gap.id)
-    # Story plan (2026-10-15): a gap with a day plan stages its beats in order.
-    beat = planned_beat(gap, day, done, flags, length=pos.segment.days) if gap.days else None
+    # Story plan (2026-10-15): a gap with a day plan stages its beats in order. A beat
+    # missed twice is left behind (``dropped_beats``); a required one is still owed to
+    # the bridge (``recovery.missing_required`` reads ``done`` alone).
+    dropped = dropped_beats(state, gap.id)
+    plan = planned_beat(gap, day, done | dropped, flags, length=pos.segment.days) if gap.days else None
+    # «Demain»: the beat the learner picked yesterday, while it is still one of today's
+    # options (a flag set since may have closed it).
+    pick = learner_pick(state, gap.id, day)
+    offered = tomorrow_options(gap, day, done, flags, length=pos.segment.days, dropped=dropped) if pick else []
+    beat = (
+        planned_beat(gap, day, done | dropped, flags, length=pos.segment.days, prefer=pick)
+        if pick in {option.premise for option in offered}
+        else plan
+    )
     if gap.days:
         required = beat.premise if beat else None
     else:
@@ -450,7 +575,13 @@ def gap_brief(
             "required_premise": required_row.model_dump(exclude={"when"}) if required_row else None,
             # The day plan's change for today: the page starts from ``before``, the
             # learner's exchange ends at ``after``.
-            "beat": beat.model_dump(exclude={"day", "premise"}) if beat else None,
+            "beat": beat.model_dump(exclude={"day", "premise", "pick_fr", "needs"}) if beat else None,
+            # «Demain»: the learner chose today's thread yesterday; the plan's own beat waits.
+            **(
+                {"picked": {"by_learner": beat.pick_fr, "waits": _waiting(gap, plan)}}
+                if beat and plan and beat.premise != plan.premise
+                else {}
+            ),
             "premises": [premise.model_dump(exclude={"when"}) for premise in premises],
             "small_moments": [moment.model_dump() for moment in moments],
             "gate": required_row.gate if required_row else None,
