@@ -47,6 +47,8 @@ export interface QuartierScreenProps {
   showStats?: boolean;
   /** start at a place the forge built instead of the quai (`marche_aligre`) */
   startPlace?: string;
+  /** the cast in the round (the default), or on `paper` as the cut-out cards */
+  cast?: 'round' | 'paper';
   /** the quarter is built and its director ready (for tools that drive it: a play-through, a test) */
   onReady?: (engine: Quartier, director: Director, memory: Memory) => void;
 }
@@ -146,7 +148,7 @@ const COPY = {
 
 type Copy = (typeof COPY)['en'];
 
-export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, onReady }: QuartierScreenProps) {
+export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady }: QuartierScreenProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const engine = React.useRef<Quartier | null>(null);
   const stage = React.useRef<Director | null>(null);
@@ -217,7 +219,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
           if (cancelled) return;
         }
         setSite(spec);
-        const eq = new Quartier({ canvas, art: ART, ambiance: spec ? spec.ambiance : ambiance, site: spec ?? undefined, onProgress: (share, label) => !cancelled && setLoading({ share, label }) });
+        const eq = new Quartier({ canvas, art: ART, ambiance: spec ? spec.ambiance : ambiance, site: spec ?? undefined, cast, onProgress: (share, label) => !cancelled && setLoading({ share, label }) });
         q = eq;
         engine.current = eq;
         const sn = new Sound();

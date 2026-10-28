@@ -13,6 +13,7 @@
  */
 import { Group, Vector3 } from 'three';
 
+import type { Seat } from './cast';
 import { KERB, awning, chair, fitText, frameOf, rectIn, worldOf } from './kit';
 import type { Build, BuildingInfo, Frame } from './kit';
 import { PATTERN, Press, nextId } from './geo';
@@ -75,6 +76,19 @@ export const CHAIR = {
   tucked: new Vector3(-30.5, ROOM.floor, -17.0),
   pulled: new Vector3(-30.2, ROOM.floor, -16.1),
 };
+
+/** The two ordinary stools along the zinc. */
+const STOOLS = [new Vector3(-34.25, ROOM.floor, -15.0), new Vector3(-34.25, ROOM.floor, -12.2)];
+
+/**
+ * Where people sit (the cast in the round, `cast3d/figure.ts`): the booth's three places, on its
+ * leather and facing the room, and the stools at the zinc, facing it but turning a long way round
+ * to whoever they talk to. A paper card stands on these marks.
+ */
+export const SEATS: Seat[] = [
+  ...[MARKS.boothCorner, MARKS.boothMiddle, MARKS.boothLeft].map((at) => ({ at, height: 0.56, yaw: 0, turn: 0.8 })),
+  ...[...STOOLS, MARKS.odileStool].map((at, i) => ({ at, height: i < 2 ? 0.81 : 0.78, yaw: -Math.PI / 2, turn: 1.3, high: true })),
+];
 
 /** A café crème on its saucer, for Margaux to set down in front of you (built about its foot). */
 export function cafeCreme(): Press {
@@ -256,8 +270,8 @@ export function buildMistral(B: Build, building: BuildingInfo): MistralParts {
     B.blocks.push([[s.x - 0.25, s.z - 0.25], [s.x + 0.25, s.z - 0.25], [s.x + 0.25, s.z + 0.25], [s.x - 0.25, s.z + 0.25]]);
   }
   // two ordinary stools further along
-  for (const z of [-15.0, -12.2]) {
-    D.lathe(zx + 0.55, R.floor, z, [[0.2, 0], [0.04, 0.1], [0.035, 0.7], [0.18, 0.74], [0.18, 0.8], [0, 0.82]], 8, indoor({ color: mix(INKS.ink, INKS.cobalt, 0.2), id: nextId() }));
+  for (const s of STOOLS) {
+    D.lathe(s.x, R.floor, s.z, [[0.2, 0], [0.04, 0.1], [0.035, 0.7], [0.18, 0.74], [0.18, 0.8], [0, 0.82]], 8, indoor({ color: mix(INKS.ink, INKS.cobalt, 0.2), id: nextId() }));
   }
 
   /* ---- behind the zinc: back bar, bottles, the long mirror, the machine, the till -------- */

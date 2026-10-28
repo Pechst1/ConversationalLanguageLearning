@@ -127,9 +127,57 @@ export interface FigureSpec {
   silhouette?: boolean;
 }
 
+/**
+ * A place to sit, for the people in the round: standing still on its spot they sit down on it,
+ * and told to sit (`seat`) near one they step over to it. A card has no knees and ignores seats.
+ */
+export interface Seat {
+  /** the spot, on the floor: where the hips come down */
+  at: Vector3;
+  /** the seat's top above that floor */
+  height: number;
+  /** which way someone sitting there faces (a heading, 0 toward +z), when the seat has a back */
+  yaw?: number;
+  /** how far they may turn from it */
+  turn?: number;
+  /** a bar stool: the feet stay on its rung */
+  high?: boolean;
+}
+
+/** Someone on stage, as the director moves them: a paper card, or a person in the round (`cast3d`). */
+export interface Figure {
+  readonly key: string;
+  readonly root: Group;
+  /** where the feet are */
+  readonly pos: Vector3;
+  /** extra height (standing on the bench) */
+  lift: number;
+  /** 0 standing, otherwise how far into the seat (a card's share hidden from the bottom) */
+  seat: number;
+  /** a tilt in the plane facing you, set from outside (a galloping horse's rock) */
+  rock: number;
+  expression: string;
+  gesture: string | null;
+  visible: boolean;
+  readonly walking: boolean;
+  place(p: Vector3): this;
+  walk(points: Vector3[], speed?: number): void;
+  talk(seconds: number): void;
+  bow(deep?: number, seconds?: number): void;
+  hop(): void;
+  update(dt: number, now: number, camera: Camera, light: [number, number, number]): void;
+  screenBox(camera: Camera): [number, number, number, number] | null;
+  face(): Vector3;
+  dispose(): void;
+  /** a person in the round repaints their own face; a card waits for a new print */
+  express?(expression: string, gesture: string | null): void;
+  /** inside the café, for the warm shade (in the round) */
+  indoor?: boolean;
+}
+
 let figureIds = 40;
 
-export class PaperFigure {
+export class PaperFigure implements Figure {
   readonly key: string;
   readonly root = new Group();
   private card: Mesh;
@@ -299,16 +347,22 @@ export class PaperFigure {
 
 /**
  * The cast on stage: prints the faces it needs (once each), keeps the cards, and lights
- * them from the light map every frame.
+ * them from the light map every frame. Given `round`, it stands up in the round whoever that
+ * returns a figure for and prints the rest, so its people are `Figure`s of either kind.
  */
-export class Troupe {
+export class Troupe<F extends Figure = PaperFigure> {
   readonly group = new Group();
-  readonly people = new Map<string, PaperFigure>();
+  readonly people = new Map<string, F>();
   private prints = new Map<string, Promise<Printed>>();
   private specs = new Map<string, FigureSpec>();
   private disposed = false;
 
-  constructor(private world: World, private art: ArtSource, private heightPx = 840) {}
+  constructor(
+    private world: World,
+    private art: ArtSource,
+    private heightPx = 840,
+    private round?: (spec: FigureSpec) => F | null,
+  ) {}
 
   private printKey(key: string, expression: string, gesture: string | null) {
     return `${key}:${expression}:${gesture ?? '-'}`;
@@ -325,13 +379,22 @@ export class Troupe {
     return p;
   }
 
-  /** Print someone and stand them at `at`; null when the troupe was disposed while printing. */
-  async add(spec: FigureSpec, at: Vector3): Promise<PaperFigure | null> {
+  /** Stand someone at `at` (printed first, on paper); null when the troupe was disposed meanwhile. */
+  async add(spec: FigureSpec, at: Vector3): Promise<F | null> {
     this.specs.set(spec.key, spec);
-    const first = await this.print(spec.key);
-    // its print's texture goes with the others in `dispose`
-    if (this.disposed) return null;
-    const f = new PaperFigure(this.world, spec, first);
+    if (this.round) {
+      // one person sculpted at a time, so a loading bar moves between them
+      await new Promise((r) => setTimeout(r, 0));
+      if (this.disposed) return null;
+    }
+    let f = this.round?.(spec) ?? null;
+    if (!f) {
+      const first = await this.print(spec.key);
+      // its print's texture goes with the others in `dispose`
+      if (this.disposed) return null;
+      // without `round` F is PaperFigure; with it, Figure
+      f = new PaperFigure(this.world, spec, first) as unknown as F;
+    }
     f.place(at);
     this.people.set(spec.key, f);
     this.group.add(f.root);
@@ -342,22 +405,30 @@ export class Troupe {
     return this.people.get(key) ?? null;
   }
 
-  /** Change someone's face (and gesture); the card is reprinted when the print is ready. */
+  /** Change someone's face (and gesture): in the round at once, a card when its print is ready. */
   async face(key: string, expression: string, gesture: string | null = null) {
     const f = this.people.get(key);
     if (!f) return;
+    if (f.express) {
+      f.express(expression, gesture);
+      return;
+    }
     f.expression = expression;
     f.gesture = gesture;
     try {
       const p = await this.print(key, expression, gesture);
-      if (f.expression === expression && f.gesture === gesture) f.setPrint(p);
+      if (f instanceof PaperFigure && f.expression === expression && f.gesture === gesture) f.setPrint(p);
     } catch {
       // keep the face it has
     }
   }
 
-  update(dt: number, now: number, camera: Camera, lightAt: (p: Vector3) => [number, number, number]) {
-    this.people.forEach((f) => f.update(dt, now, camera, lightAt(f.pos)));
+  /** `indoorAt` tells the people in the round when they stand inside (the café's warm shade). */
+  update(dt: number, now: number, camera: Camera, lightAt: (p: Vector3) => [number, number, number], indoorAt?: (p: Vector3) => boolean) {
+    this.people.forEach((f) => {
+      if (indoorAt && f.indoor !== undefined) f.indoor = indoorAt(f.pos);
+      f.update(dt, now, camera, lightAt(f.pos));
+    });
   }
 
   dispose() {
