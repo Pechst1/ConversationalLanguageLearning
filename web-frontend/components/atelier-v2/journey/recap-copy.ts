@@ -22,6 +22,8 @@ type ChromeKey =
   | 'steps_value'
   | 'step_value'
   | 'teaser_label'
+  | 'tomorrow_label'
+  | 'tomorrow_group'
   | 'level_label'
   | 'mood_warmer'
   | 'mood_colder'
@@ -39,6 +41,10 @@ const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
     steps_value: '{n} steps',
     step_value: '1 step',
     teaser_label: 'Tomorrow',
+    /** «Demain»: one word over the threads tomorrow may follow (the budget above). */
+    tomorrow_label: 'Choose',
+    /** «Demain»: the same choice, named in full for a screen reader. */
+    tomorrow_group: 'Choose where tomorrow goes',
     level_label: 'Level',
     mood_warmer: '{name} smiles at you',
     mood_colder: '{name} is a little cross',
@@ -55,6 +61,8 @@ const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
     steps_value: '{n} Schritte',
     step_value: '1 Schritt',
     teaser_label: 'Morgen',
+    tomorrow_label: 'Wähle',
+    tomorrow_group: 'Wähle, wie es morgen weitergeht',
     level_label: 'Niveau',
     mood_warmer: '{name} lächelt dich an',
     mood_colder: '{name} ist etwas verstimmt',
@@ -70,6 +78,8 @@ const CHROME: Record<ControlLanguage, Record<ChromeKey, string>> = {
     steps_value: '{n} étapes',
     step_value: '1 étape',
     teaser_label: 'La suite demain',
+    tomorrow_label: 'Choisis',
+    tomorrow_group: 'Choisis la suite',
     level_label: 'Niveau',
     mood_warmer: '{name} te sourit',
     mood_colder: '{name} t’en veut un peu',

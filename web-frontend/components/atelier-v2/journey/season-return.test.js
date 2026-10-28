@@ -421,6 +421,38 @@ test('the recap and Home’s finished card print the engine’s teaser', () => {
   assert.ok(html.includes('Qui a écrit la lettre'));
 });
 
+test('«Demain»: Home’s finished card offers tomorrow’s threads under «La suite demain»', () => {
+  const tomorrow = {
+    options: [
+      { premise_id: 'je_peux', label_fr: "Parler du plan d'Odile avec Marin", planned: true },
+      { premise_id: 'le_diner_rate', label_fr: 'Cuisiner avec Lila', planned: false },
+    ],
+    picked: 'le_diner_rate',
+  };
+  const recap = {
+    completion_kind: 'complete',
+    objective_outcome: 'met',
+    practiced_targets: [],
+    capability_evidence: [],
+    next_focus: null,
+    collectible_ids: [],
+    story_outcome: null,
+    active_seconds: 300,
+    teaser: { text_fr: 'On va cuisiner avec Lila.', character_id: null, character_name: null, source: 'engine' },
+    tomorrow,
+  };
+  const done = { id: 'j-10', contract_version: 1, revision: 4, status: 'completed', local_date: '2026-09-29', timezone: 'Europe/Paris', budget_seconds: 600, estimated_active_seconds: 300, current_step_id: null, scenario: SCENARIO, steps: [], recap, retry: null };
+  const html = render(h(JourneyTodayCard, { controller: controllerFor({ ...ENVELOPE, journey: done }, 'en'), onOpen: () => {} }));
+  assert.ok(html.includes('On va cuisiner avec Lila'), 'the hint is the pick');
+  assert.match(html, /role="group" aria-label="Choose where tomorrow goes"/);
+  assert.equal((html.match(/aria-pressed="true"/g) || []).length, 1);
+  assert.ok(html.includes('Parler du plan d’Odile avec Marin'));
+  // An early stop names no tomorrow on Home, so it offers none.
+  const early = { ...done, status: 'ended_early', recap: { ...recap, completion_kind: 'early' } };
+  const quietHtml = render(h(JourneyTodayCard, { controller: controllerFor({ ...ENVELOPE, journey: early }, 'en'), onOpen: () => {} }));
+  assert.doesNotMatch(quietHtml, /av2-tomorrow/);
+});
+
 // ----------------------------------------------------------- the archive
 
 const RAW_ARCHIVE = {

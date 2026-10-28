@@ -113,6 +113,7 @@ function recapFor(result: 'passed' | 'failed'): Recap {
     season_finished: null,
     teaser: null,
     teaser_fr: null,
+    tomorrow: null,
     words: [],
     completion_kind: 'complete',
     objective_outcome: result === 'passed' ? 'met' : 'partially_met',

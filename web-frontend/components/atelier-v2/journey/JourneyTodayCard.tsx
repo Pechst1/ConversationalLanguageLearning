@@ -55,6 +55,7 @@ import { resolveMediaUrl } from '@/lib/media-url';
 
 import { EpisodeVignette, vignettePlace, type VignettePlace } from './EpisodeVignette';
 import { journeyCopy } from './journey-copy';
+import { tomorrowChoice } from './journey-recap-model';
 import { InterludeCard, SeasonPremiereCard } from './SeasonPages';
 import { seasonReturnCopy } from './season-return-copy';
 import {
@@ -70,6 +71,7 @@ import {
 } from './season-return-model';
 import { joinMeta, type JourneyPhase } from './journey-state';
 import { coreEstimateLabel, extensionLabel } from './time-estimate';
+import { TomorrowChoice } from './TomorrowChoice';
 import type { DailyJourneyController } from './useDailyJourney';
 
 export type JourneyTodayCardProps = {
@@ -144,6 +146,9 @@ export function JourneyTodayCard({
           }}
           onRefresh={() => void actions.refresh()}
           onRetryGeneration={() => void actions.retryGeneration()}
+          onPickTomorrow={(premiseId) => {
+            void actions.pickTomorrow(premiseId);
+          }}
           controlLanguage={chromeLanguage}
           special={special}
           headline={headline}
@@ -256,8 +261,11 @@ function JourneyTodayBody({
   forgeHref = null,
   headline = null,
   restOfDayOpen = false,
+  onPickTomorrow,
 }: {
   restOfDayOpen?: boolean;
+  /** «Demain»: pick the thread tomorrow follows, on the finished day's card. */
+  onPickTomorrow?: (premiseId: string) => void;
   headline?: Headline | null;
   special?: SpecialEdition | null;
   premiere?: SeasonPremiereView | null;
@@ -500,6 +508,15 @@ function JourneyTodayBody({
                 {frenchSpacing(hint)}
               </span>
             </p>
+          )}
+          {/* «Demain»: the threads tomorrow may follow, picked here or on the recap. */}
+          {teaser && (
+            <TomorrowChoice
+              choice={tomorrowChoice(phase.recap)}
+              language={controlLanguage}
+              busy={busy}
+              onPick={onPickTomorrow}
+            />
           )}
           <InterludeReturn interlude={interlude} language={controlLanguage} />
           <Action tone="secondary" inline onClick={onOpen}>

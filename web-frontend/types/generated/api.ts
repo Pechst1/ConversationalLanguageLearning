@@ -1496,6 +1496,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daily-journeys/{journey_id}/tomorrow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pick Tomorrow
+         * @description «Demain»: pick the thread the season's next day follows, from the finished
+         *     day's own choice (``recap.tomorrow``). Refused once tomorrow's journey exists.
+         */
+        post: operations["pick_tomorrow_api_v1_daily_journeys__journey_id__tomorrow_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daily-journeys/capabilities/progress": {
         parameters: {
             query?: never;
@@ -9445,6 +9466,7 @@ export interface components {
             teaser: components["schemas"]["RecapTeaser"] | null;
             /** Teaser Fr */
             teaser_fr: string | null;
+            tomorrow: components["schemas"]["RecapTomorrow"] | null;
             /** Words */
             words: components["schemas"]["RecapWord"][];
         };
@@ -9533,6 +9555,19 @@ export interface components {
          * @enum {string}
          */
         JourneyStatus: "preparing" | "active" | "paused" | "completed" | "ended_early" | "unavailable";
+        /**
+         * JourneyTomorrowRequest
+         * @description «Demain»: the thread the learner picks for the season's next day, one of
+         *     the finished recap's ``tomorrow.options``.
+         */
+        JourneyTomorrowRequest: {
+            /** Expected Revision */
+            expected_revision: number;
+            /** Mutation Id */
+            mutation_id: string;
+            /** Premise Id */
+            premise_id: string;
+        };
         /**
          * KeepWordRequest
          * @description WP-78 «Garder»: a word tapped in the story, and the sentence it was in.
@@ -10937,6 +10972,33 @@ export interface components {
             source: "engine" | "resolution" | "authored";
             /** Text Fr */
             text_fr: string;
+        };
+        /**
+         * RecapTomorrow
+         * @description «Demain» (steering read 2026-10-24): the threads the finished day offers
+         *     for the season's next day, the plan's own first. ``picked`` is the learner's
+         *     pick once made (``POST /daily-journeys/{id}/tomorrow``), else ``None``.
+         */
+        RecapTomorrow: {
+            /** Options */
+            options: components["schemas"]["RecapTomorrowOption"][];
+            /** Picked */
+            picked: string | null;
+        };
+        /**
+         * RecapTomorrowOption
+         * @description One thread the season's next day may follow, in short French.
+         */
+        RecapTomorrowOption: {
+            /** Label Fr */
+            label_fr: string;
+            /**
+             * Planned
+             * @default false
+             */
+            planned: boolean;
+            /** Premise Id */
+            premise_id: string;
         };
         /**
          * RecapWord
@@ -17587,6 +17649,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LineAudioResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pick_tomorrow_api_v1_daily_journeys__journey_id__tomorrow_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                journey_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JourneyTomorrowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JourneySnapshot"];
                 };
             };
             /** @description Validation Error */

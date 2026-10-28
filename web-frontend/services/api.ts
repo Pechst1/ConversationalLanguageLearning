@@ -34,6 +34,7 @@ import type {
   RetryBody,
   RevisionBody,
   TodayEnvelope,
+  TomorrowBody,
 } from '@/types/daily-journey';
 import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 
@@ -3373,6 +3374,15 @@ class ApiService {
   async finishDailyJourney(journeyId: string, body: FinishBody): Promise<JourneySnapshot> {
     const result = await this.journeyPost<JourneySnapshot>(
       `/daily-journeys/${encodeURIComponent(journeyId)}/finish`,
+      body,
+    );
+    return result.data;
+  }
+
+  /** «Demain»: the thread the season's next day follows, picked on the finished day. */
+  async pickDailyJourneyTomorrow(journeyId: string, body: TomorrowBody): Promise<JourneySnapshot> {
+    const result = await this.journeyPost<JourneySnapshot>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/tomorrow`,
       body,
     );
     return result.data;
