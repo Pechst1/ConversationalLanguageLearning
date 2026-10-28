@@ -27,6 +27,7 @@ from app.schemas.daily_journey import (
     JourneyRetryRequest,
     JourneyRevisionRequest,
     JourneySnapshot,
+    JourneyTomorrowRequest,
     PaceOptions,
     PaceUpdate,
     TodayEnvelope,
@@ -220,6 +221,19 @@ def finish(
     """Complete requires resolved mandatory steps; early records partial work."""
 
     return service.finish(current_user, journey_id, payload)
+
+
+@router.post("/{journey_id}/tomorrow", response_model=JourneySnapshot)
+def pick_tomorrow(
+    journey_id: uuid.UUID,
+    payload: JourneyTomorrowRequest,
+    current_user: User = Depends(get_current_user),
+    service: DailyJourneyService = Depends(get_journey_service),
+) -> JourneySnapshot:
+    """«Demain»: pick the thread the season's next day follows, from the finished
+    day's own choice (``recap.tomorrow``). Refused once tomorrow's journey exists."""
+
+    return service.pick_tomorrow(current_user, journey_id, payload)
 
 
 @router.post("/{journey_id}/retry", response_model=JourneySnapshot)

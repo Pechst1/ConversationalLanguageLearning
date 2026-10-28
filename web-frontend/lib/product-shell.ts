@@ -99,6 +99,8 @@ const OWN_SHELL_ROUTES = new Set([
   '/fertig',
   // Ton personnage: the editor fills the screen, its own close button and «C’est moi !».
   '/personnage',
+  // Le Quartier: the 3D street fills the screen and draws its own bar (quit, sound, language).
+  '/quartier',
   // WP-72: the legal pages draw their own bar (back + language) and are read
   // signed out, so no masthead.
   '/privacy',

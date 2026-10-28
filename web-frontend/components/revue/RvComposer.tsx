@@ -48,6 +48,15 @@ export function RvComposer({ onSend, disabled = false, placeholder, label, initi
     if (autoFocus) inputRef.current?.focus();
   }, [autoFocus]);
 
+  // The field grows with its text (a long reason runs to three lines),
+  // up to the stylesheet's max-height, then scrolls.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el || !el.style) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + (el.offsetHeight - el.clientHeight)}px`;
+  }, [text]);
+
   const send = () => {
     const value = text.trim();
     if (!value || disabled) return;

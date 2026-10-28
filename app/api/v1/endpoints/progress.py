@@ -20,6 +20,7 @@ from app.schemas import (
     AnkiWordProgressRead,
     CEFRProgressResponse,
     LevelCheckpointResultRequest,
+    LevelPlanResponse,
     ProgressDetail,
     QueueWord,
     ReviewRequest,
@@ -35,7 +36,7 @@ from app.schemas import (
     WeeklyDossierStats,
     WeeklyDossierThread,
 )
-from app.services.cefr_progress import CEFRProgressService, with_can_do_line, with_live_grammar
+from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
 from app.services.daily_words import DailyWordSlateService
 from app.services.progress import ProgressService, vocabulary_progress_is_due
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
@@ -51,9 +52,9 @@ def get_cefr_progress(
 ) -> CEFRProgressResponse:
     """Return the visible CEFR estimate and next-level forecast."""
 
-    # WP-130 A: the band's grammar counts are read live, as the notebook reads them.
-    payload = with_live_grammar(db, current_user, CEFRProgressService(db).current(current_user))
-    return CEFRProgressResponse(**with_can_do_line(db, current_user, payload))
+    # 2026-10-24: the level as it stands now (WP-130 A read the grammar live;
+    # the words and the forecast are live too), the number every surface prints.
+    return CEFRProgressResponse(**with_can_do_line(db, current_user, live_level(db, current_user)))
 
 
 @router.post("/cefr/recompute", response_model=CEFRProgressResponse)
@@ -66,6 +67,25 @@ def recompute_cefr_progress(
 
     payload = CEFRProgressService(db).recompute(current_user, source="api")
     return CEFRProgressResponse(**with_can_do_line(db, current_user, payload))
+
+
+@router.get("/level", response_model=LevelPlanResponse)
+def get_level_plan(
+    *,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_or_demo),
+) -> LevelPlanResponse:
+    """The level plan: exactly where the learner stands, what is left, what it costs.
+
+    The band and its percent are ``GET /progress/cefr``'s, read now; then each
+    grammar unit of the band with what it still needs, the band's words, the
+    épreuve, the forecast with the rules' earliest day, the practice minutes it
+    asks for and the time already measured in the band. Read-only.
+    """
+
+    from app.services.level_plan import build_level_plan
+
+    return LevelPlanResponse(**build_level_plan(db, current_user))
 
 
 @router.get("/cefr/checkpoint")

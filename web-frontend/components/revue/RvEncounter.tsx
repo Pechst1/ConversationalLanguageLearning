@@ -151,6 +151,8 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
   const support = session.plan.support;
   const closing = session.closing;
   const hasSpoken = session.thread.some((item) => item.kind === 'mine');
+  // «Écrire le papier» waits for a line the learner typed or said, not a chip (2026-10-23).
+  const ownLine = session.ownLine;
   const today = localDay((now ?? new Date()).toISOString());
   const resumeLabel = useMemo(() => {
     const first = session.thread[0];
@@ -416,7 +418,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       noteEvidence(result.evidence, mine ? mine.id : null);
       const guest = enteringGuest(result.items);
       if (guest) setEntering(guest);
-      if (FORMULATE.test(text) && !result.steerToMake) void openMake('reader_question');
+      if (FORMULATE.test(text) && !result.steerToMake && result.ownLine) void openMake('reader_question');
     } catch (error) {
       if (error instanceof RevueError && error.code === 'revue_session_closed') {
         await reload();
@@ -680,12 +682,15 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       </>
     );
   } else {
-    // Once the learner has spoken, the way forward is always there: the make, with no model turn.
+    // Once the learner has said a line of their own, the way forward is always there: the make,
+    // with no model turn. Until then a chip alone does not open it.
     const actions = hasSpoken ? (
       <>
-        <button type="button" className="av2-chip rv-quick__go" disabled={busy} onClick={() => void openMake()}>
-          {copy.write_paper}
-        </button>
+        {ownLine && (
+          <button type="button" className="av2-chip rv-quick__go" disabled={busy} onClick={() => void openMake()}>
+            {copy.write_paper}
+          </button>
+        )}
         {makeFailed && (
           <button type="button" className="av2-chip rv-quick__quiet" disabled={busy} onClick={() => void doClose()}>
             {copy.close_anyway}
@@ -695,6 +700,7 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
     ) : null;
     foot = (
       <>
+        {hasSpoken && !ownLine && <p className="rv-foot__hint">{copy.write_paper_needs_line}</p>}
         <RvQuickReplies replies={session.quickReplies} onSend={(fr) => void sendTurn(fr)} disabled={busy} actions={actions} />
         <RvComposer key="turn" disabled={busy} onSend={(text, mode) => void sendTurn(text, mode)} copy={copy} autoFocus={composerOpen} />
       </>

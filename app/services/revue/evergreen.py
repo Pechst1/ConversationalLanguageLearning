@@ -12,6 +12,10 @@ check runs offline in CI. See ``evergreen/README.md``.
 
 Which evergreen fits a week is decided by ``time_scope`` alone: a dossier's stored
 ``week`` (the ISO week its ``happening`` window starts in) only satisfies the schema.
+
+«Au comptoir» (WP-119, 2026-10-19): ``evergreen/comptoir/<id>.json`` holds the takes the desk
+wrote for that evergreen (checked, read by eye, committed), loaded onto its dossier here, so
+an evergreen week makes no desk call and the tests and the walk play real French offline.
 """
 
 from __future__ import annotations
@@ -20,10 +24,26 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
-from app.services.revue.dossier import EditorialDossier, week_bounds
+from app.services.revue.dossier import ComptoirTakes, EditorialDossier, week_bounds
 
 EVERGREEN_DIR = Path(__file__).with_name("evergreen")
 SOURCES_DIR = EVERGREEN_DIR / "sources"
+COMPTOIR_DIR = EVERGREEN_DIR / "comptoir"
+
+
+@lru_cache(maxsize=1)
+def _takes() -> dict[str, ComptoirTakes]:
+    return {
+        path.stem: ComptoirTakes.model_validate_json(path.read_text(encoding="utf-8"))
+        for path in sorted(COMPTOIR_DIR.glob("*.json"))
+    }
+
+
+def evergreen_takes(dossier_id: str) -> ComptoirTakes | None:
+    """The takes shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    takes = _takes().get(dossier_id)
+    return takes.model_copy(deep=True) if takes is not None else None
 
 
 @lru_cache(maxsize=1)
@@ -31,6 +51,11 @@ def _load() -> tuple[EditorialDossier, ...]:
     dossiers = [
         EditorialDossier.model_validate_json(path.read_text(encoding="utf-8"))
         for path in sorted(EVERGREEN_DIR.glob("*.json"))
+    ]
+    takes = _takes()
+    dossiers = [
+        dossier.model_copy(update={"comptoir": takes[dossier.id]}) if dossier.id in takes else dossier
+        for dossier in dossiers
     ]
     return tuple(sorted(dossiers, key=lambda dossier: dossier.id))
 

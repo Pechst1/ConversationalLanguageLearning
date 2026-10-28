@@ -1,7 +1,8 @@
 """WP-L8 — an honest forecast.
 
 Pins:
-1. before 7 active days the forecast is the rhythm's prior, labelled an estimate;
+1. before 7 active days the forecast is the learner's plan (their pace, else
+   their words-a-day setting, else the rhythm's quotas), labelled an estimate;
 2. after, it is measured intake ÷ what is left, scaled by retention, as a
    0.8×–1.3× range, capped at two years;
 3. the rhythm cards' priors (Réglages) are ordered and plausible;
@@ -30,7 +31,7 @@ from app.services.level_coverage import band_words
 NOW = datetime.now(UTC)
 
 
-def _user(db_session, *, minutes: int = 10) -> User:
+def _user(db_session, *, minutes: int = 10, **fields) -> User:
     user = User(
         id=uuid.uuid4(),
         email=f"wpl8-{uuid.uuid4().hex[:8]}@example.com",
@@ -41,9 +42,14 @@ def _user(db_session, *, minutes: int = 10) -> User:
         cefr_estimate="A1.1",
         cefr_estimate_payload={},
         daily_goal_minutes=minutes,
+        **fields,
     )
     db_session.add(user)
     db_session.commit()
+    if "new_words_per_day" in fields and fields["new_words_per_day"] is None:
+        # The column's default fills an explicit None on insert; unset it after.
+        user.new_words_per_day = None
+        db_session.commit()
     db_session.refresh(user)
     return user
 
@@ -76,18 +82,53 @@ def _active_days(db_session, user: User, days: int) -> None:
 
 @pytest.mark.parametrize("minutes,rhythm", [(5, "leger"), (10, "regulier"), (20, "soutenu"), (30, "intensif")])
 def test_before_seven_active_days_the_forecast_is_the_rhythms_prior(db_session, minutes, rhythm):
-    user = _user(db_session, minutes=minutes)
+    # Nothing set but the rhythm: the plan is the rhythm's own quotas.
+    user = _user(db_session, minutes=minutes, new_words_per_day=None)
     payload = CEFRProgressService(db_session).recompute(user, source="test")
     fc = payload["forecast"]
     assert fc["status"] == "prior"
     assert fc["kind"] == "estimate"
     assert fc["rhythm"] == rhythm
     assert fc["target"] == "A1.2"
+    assert fc["basis"]["source"] == "plan_prior"
     words_per_day, units_per_week = forecast.PRIOR_INTAKE[rhythm]
     assert fc["basis"]["words_per_day"] == words_per_day
     assert fc["basis"]["units_per_week"] == units_per_week
     low, high = fc["range_days"]
-    assert low < high and high == pytest.approx(low * 1.3 / 0.8, rel=0.05)
+    # 0.8×–1.3× the base (the payload's base is rounded, hence the day of
+    # slack), the low end never before the rules' earliest day.
+    assert low < high and high == pytest.approx(fc["base_days"] * 1.3, abs=1)
+    assert fc["earliest_days"] is not None
+    assert low >= fc["earliest_days"]
+    assert low == pytest.approx(max(fc["base_days"] * 0.8, fc["earliest_days"]), abs=1)
+
+
+@pytest.mark.parametrize(
+    "fields,expected",
+    [
+        # The learner's own words-a-day setting; the rhythm's rules.
+        ({"new_words_per_day": 15}, (15.0, 4.0)),
+        # A pace picked on the Tempo sheet sets both (Round 3).
+        ({"new_words_per_day": 40, "daily_pace": "schnell"}, (40.0, 8.0)),
+        ({"new_words_per_day": 10, "daily_pace": "ruhig"}, (10.0, 3.0)),
+    ],
+)
+def test_the_prior_is_the_learners_own_plan(db_session, fields, expected):
+    """2026-10-24: a learner who picked «Schnell» no longer reads Régulier's forecast."""
+
+    user = _user(db_session, minutes=10, **fields)
+    fc = CEFRProgressService(db_session).recompute(user, source="test")["forecast"]
+    assert fc["status"] == "prior"
+    assert (fc["basis"]["words_per_day"], fc["basis"]["units_per_week"]) == expected
+    assert forecast.planned_intake(user) == expected
+
+
+def test_a_faster_plan_reads_a_shorter_prior(db_session):
+    ruhig = _user(db_session, new_words_per_day=10, daily_pace="ruhig")
+    schnell = _user(db_session, new_words_per_day=40, daily_pace="schnell")
+    slow = CEFRProgressService(db_session).recompute(ruhig, source="test")["forecast"]["range_days"]
+    fast = CEFRProgressService(db_session).recompute(schnell, source="test")["forecast"]["range_days"]
+    assert fast[0] < slow[0] and fast[1] < slow[1]
 
 
 def test_prior_ranges_shrink_as_the_rhythm_grows(db_session):

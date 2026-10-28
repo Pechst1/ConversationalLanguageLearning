@@ -34,6 +34,7 @@ import type {
   PublicStep,
   RespondStep,
   TodayEnvelope,
+  TomorrowBody,
 } from '@/types/daily-journey';
 
 export const DAILY_JOURNEY_BUDGET_SECONDS = 300 as const;
@@ -259,6 +260,22 @@ export const dailyJourneyService = {
       finish_kind: options.finishKind,
     };
     return apiService.finishDailyJourney(journeyId, body);
+  },
+
+  /**
+   * «Demain»: pick the thread the season's next day follows, one of the finished
+   * recap's `tomorrow.options`. Picking again replaces the pick.
+   */
+  pickTomorrow(
+    journeyId: string,
+    options: { expectedRevision: number; premiseId: string; mutationId?: string },
+  ): Promise<JourneySnapshot> {
+    const body: TomorrowBody = {
+      mutation_id: options.mutationId ?? mutationId(),
+      expected_revision: options.expectedRevision,
+      premise_id: options.premiseId,
+    };
+    return apiService.pickDailyJourneyTomorrow(journeyId, body);
   },
 
   /** Bounded recovery for a preparing/unavailable journey; the id is reused. */

@@ -134,7 +134,11 @@ test('every mock payload parses into the full client shapes', () => {
   assert.equal(session.plan.band, 'A1');
   assert.equal(session.plan.glossLanguage, 'de');
   assert.deepEqual(session.plan.makeOptions, ['headline_choice', 'reader_question'], 'A1/A2: the phase-2 makes are absent');
-  assert.deepEqual(types.parseSessionView(MOCK.session_b1_arrive).plan.makeOptions, ['headline_choice', 'headline_write', 'reader_question', 'short_report']);
+  assert.deepEqual(types.parseSessionView(MOCK.session_b1_arrive).plan.makeOptions, ['headline_write', 'reader_question', 'short_report'], 'no headline to pick from B1');
+  // 2026-10-23: «Écrire le papier» waits for a line the learner typed or said; a chip is not one.
+  assert.equal(session.ownLine, false);
+  assert.deepEqual(['turn_facts', 'turn_prix', 'turn_formulate'].map((key) => types.parseTurnResult(MOCK[key]).ownLine), [false, true, true]);
+  assert.equal(types.parseSessionView(MOCK.session_resume).ownLine, true);
   assert.equal(session.plan.vocabulary.length, 5);
   assert.ok(session.plan.vocabulary.every((gloss) => gloss.fr && gloss.gloss && gloss.claimId));
   assert.deepEqual(session.thread.map((item) => item.kind), ['narration', 'narration', 'line', 'line', 'summary']);
@@ -163,6 +167,7 @@ test('every mock payload parses into the full client shapes', () => {
   assert.equal(pick.kind, 'headline_choice');
   assert.equal(typeof pick.correct, 'boolean');
   assert.ok(pick.evidence.quote.length > 10);
+  assert.deepEqual(pick.made.contribution, [], 'a pick is not the learner\'s writing');
 
   const close = types.parseCloseResult(MOCK.close);
   assert.equal(close.session.status, 'closed');
@@ -257,21 +262,25 @@ test('§8.4 the story\'s own picture: the stage, «Regarde», «La légende», t
   assert.deepEqual(session.plan.vocabulary.slice(0, 2).map((gloss) => gloss.fr), ['marché couvert', 'en plein air']);
   assert.deepEqual(session.plan.makeOptions, ['headline_choice', 'reader_question', 'caption']);
 
-  // «La légende», A1–A2: three captions, one says what the picture shows; it leads.
+  // «La légende», A1–A2 (2026-10-23): written first, like B1; it leads.
   const make = types.parseMakeOffer(MOCK.make_offer_caption);
   assert.equal(make.recommended, 'caption');
-  const choice = make.options.find((option) => option.kind === 'caption');
+  const first = make.options.find((option) => option.kind === 'caption');
   assert.deepEqual(
-    { format: choice.format, pictureUrl: choice.pictureUrl, ids: choice.options.map((option) => option.id), maxWords: choice.maxWords },
-    { format: 'choice', pictureUrl: '/assets/serial/locations/marche_canal.webp', ids: ['l1', 'l2', 'l3'], maxWords: 12 },
+    { format: first.format, pictureUrl: first.pictureUrl, ids: first.options.map((option) => option.id), maxWords: first.maxWords },
+    { format: 'write', pictureUrl: '/assets/serial/locations/marche_canal.webp', ids: [], maxWords: 12 },
   );
-  assert.deepEqual(choice.words.map((word) => word.gloss), ['marché sous un toit', 'dehors']);
+  assert.deepEqual(first.words.map((word) => word.gloss), ['marché sous un toit', 'dehors']);
   assert.match(make.intro.textFr, /légende sous l'image/);
+  // A refused try (too short here) brings the three captions; one says what the picture shows.
+  const short = types.parseMakeResult(MOCK.make_caption_short_a2);
+  assert.deepEqual([short.accepted, short.made, short.options.map((option) => option.id)], [false, null, ['l1', 'l2', 'l3']]);
+  assert.match(short.line.textFr, /Encore quelques mots/);
   const wrong = types.parseMakeResult(MOCK.make_caption_pick_wrong);
   assert.deepEqual([wrong.kind, wrong.format, wrong.accepted, wrong.correct, wrong.answerId, wrong.evidence], ['caption', 'choice', true, false, 'l1', null]);
-  assert.deepEqual([wrong.made.textFr, wrong.made.contribution], [choice.options[0].textFr, []], 'a wrong pick files the picture\'s caption, uncredited');
+  assert.deepEqual([wrong.made.textFr, wrong.made.contribution], [short.options[0].textFr, []], 'a wrong pick files the picture\'s caption, uncredited');
   const right = types.parseMakeResult(MOCK.make_caption_pick_right);
-  assert.deepEqual([right.correct, right.made.contribution, right.line.role], [true, [[0, 71]], 'make_done']);
+  assert.deepEqual([right.correct, right.made.contribution, right.line.role], [true, [], 'make_done'], 'a right pick is not theirs either');
 
   // B1+: written, the picture's words as tiles; refused (nothing filed) when the picture or a source contradicts it.
   const write = types.parseMakeOffer(MOCK.make_offer_caption_b1).options.find((option) => option.kind === 'caption');
@@ -290,7 +299,7 @@ test('§8.4 the story\'s own picture: the stage, «Regarde», «La légende», t
     options: MOCK.make_offer_caption.options.map((option) => (option.kind === 'caption' ? { ...option, ...patch } : option)),
   }).options.map((option) => option.kind);
   assert.deepEqual(without({ picture_url: null }), ['headline_choice', 'reader_question']);
-  assert.deepEqual(without({ options: MOCK.make_offer_caption.options[2].options.slice(0, 1) }), ['headline_choice', 'reader_question']);
+  assert.deepEqual(without({ format: 'choice', options: MOCK.make_caption_short_a2.options.slice(0, 1) }), ['headline_choice', 'reader_question']);
   assert.deepEqual(without({ format: 'write', options: [] }), ['headline_choice', 'reader_question', 'caption']);
 
   // The dispatch prints the picture under its caption: the desk's after a wrong pick, the learner's otherwise.
@@ -299,7 +308,10 @@ test('§8.4 the story\'s own picture: the stage, «Regarde», «La légende», t
     [desk.dispatch.pictureUrl, desk.dispatch.captionFr, desk.dispatch.captionByLearner, desk.vignette.keptContribution],
     ['/assets/serial/locations/marche_canal.webp', 'Un marché en plein air, un matin, entre les étals de fruits et légumes.', false, false],
   );
-  assert.equal(types.parseCloseResult(MOCK.close_caption_right).closing.dispatch.captionByLearner, true);
+  const picked = types.parseCloseResult(MOCK.close_caption_right).closing;
+  assert.deepEqual([picked.dispatch.captionByLearner, picked.vignette.keptContribution], [false, false], 'a right pick is not the learner\'s caption');
+  assert.doesNotMatch(picked.dispatch.bylineFr, /avec toi/);
+  assert.match(picked.romyLineFr, /que tu as choisie/);
   const mine = types.parseCloseResult(MOCK.close_caption_write).closing;
   assert.deepEqual([mine.dispatch.captionFr, mine.dispatch.captionByLearner], ['Un marché en plein air, devant le marché couvert, un matin.', true]);
   assert.deepEqual(mine.kept.words.filter((word) => word.used).map((word) => word.fr), ['marché couvert', 'en plein air'], 'the words the caption used are kept as used');

@@ -26,15 +26,22 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from dataclasses import replace as dc_replace
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 from typing import Any
 
 from app.config import settings
 from app.services import story_memory
 from app.services.cast_registry import display_names
-from app.services.season.clock import SEASON_KEY, Position, record_played
-from app.services.season.director import gap_brief
+from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
+from app.services.season.director import (
+    TOMORROW_KEY,
+    dropped_beats,
+    gap_brief,
+    learner_pick,
+    tomorrow_options,
+    used_premises,
+)
 from app.services.season.epilogue import after_settle, context_extra, position_for, season_finished
 from app.services.season.flags import (
     add_signal,
@@ -43,7 +50,7 @@ from app.services.season.flags import (
     effective_flags,
     holds,
 )
-from app.services.season.format import Season, load_season
+from app.services.season.format import Gap, Season, load_season
 from app.services.season.page import (
     choice_cards,
     convince_outcome,
@@ -569,6 +576,60 @@ def season_teaser(story_context: dict[str, Any], *, date: str | None) -> dict[st
         "ref": f"season:{(season_ctx.get('position') or {}).get('key')}",
         "kind": "season",
     }
+
+
+def tomorrow_choice(live: dict | None, *, user: Any, seed: str, event_id: str, now: Any = None) -> dict[str, Any] | None:
+    """«Demain» (steering read 2026-10-24): what the finished day offers for the
+    season's next day, once ``event_id`` (today's exchange) is played: the plan's own
+    thread and up to two the learner may pull forward. None when the next day is a
+    tentpole, the gap's last day, or a plan with nothing free to move."""
+
+    today = today_for(live, user=user, seed=seed, now=now)
+    if today is None:
+        return None
+    log = played_log(today.state)
+    if not log or log[-1].get("event_id") != event_id:
+        return None
+    pos = position_for(today.season, today.state, today=today.local_date + timedelta(days=1))
+    gap = today.season.gaps.get(pos.segment.id) if pos.is_gap and pos.segment is not None else None
+    if gap is None:
+        return None
+    day = pos.day_in_segment
+    options = tomorrow_options(
+        gap,
+        day,
+        used_premises(today.state, gap.id),
+        today.flags,
+        length=pos.segment.days,
+        dropped=dropped_beats(today.state, gap.id),
+    )
+    if not options:
+        return None
+    picked = learner_pick(today.state, gap.id, day)
+    return {
+        "gap": gap.id,
+        "day": day,
+        "options": [
+            {"premise_id": beat.premise, "label_fr": beat.pick_fr, "planned": index == 0}
+            for index, beat in enumerate(options)
+        ],
+        "picked": picked if picked in {beat.premise for beat in options} else None,
+    }
+
+
+def pick_tomorrow(
+    live: dict[str, Any], premise_id: str, *, user: Any, seed: str, event_id: str, now: Any = None
+) -> dict[str, Any] | None:
+    """The life once the learner picked ``premise_id`` for the season's next day, or
+    None when it is not one of the threads ``tomorrow_choice`` offers. Picking again
+    replaces the pick; the plan's own thread is a pick like the others."""
+
+    choice = tomorrow_choice(live, user=user, seed=seed, event_id=event_id, now=now)
+    if choice is None or premise_id not in {row["premise_id"] for row in choice["options"]}:
+        return None
+    state = dict(live.get(SEASON_KEY) or {})
+    state[TOMORROW_KEY] = {"gap": choice["gap"], "day": choice["day"], "premise": premise_id}
+    return {**live, SEASON_KEY: state}
 
 
 def payload_for_scene(story_context: dict[str, Any]) -> dict[str, Any]:
@@ -1241,12 +1302,22 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     }
     if wanted:
         state = apply_sets(season, state, wanted, source=f"{gap.id}.{position.get('day_in_segment')}")
+        state[LEARNER_SET_KEY] = {**_learner_set(state), **dict.fromkeys(wanted, gap.id)}
+    # What the learner set in their own words on an earlier day of this gap: a later
+    # beat's fact never overwrites it (a ticket they moved to the 30th stays the 30th).
+    theirs = {flag for flag, where in _learner_set(state).items() if where == gap.id}
     checklist = season_ctx.get("checklist") or {}
     # Only what the day says it staged counts: a scheduled moment the draft skipped
     # stays owed (``director.gap_brief`` offers it again).
     premise = checklist.get("premise_id")
     if premise and not any(row.id == premise for row in gap.premises):
         premise = None
+    # Steering read 2026-10-24: a planned beat the served page did not stage (a
+    # fallback page about something else) comes back once; missed twice, the plan
+    # moves on without it (``director.dropped_beats``) and its fact still settles.
+    owed = season_ctx.get("required_premise")
+    if owed and owed != premise and owed in {beat.premise for beat in gap.days} and not season_ctx.get("bridge"):
+        state = _miss_beat(season, gap, state, str(owed), keep=theirs | set(wanted), day=day, event_id=event_id)
     # WP-113 (owner OK 2026-10-02): the in-between story moves on the learner's
     # engagement, not the calendar. A day the learner did not take up (the turn
     # ended «not_yet») leaves its scheduled moment owed; it is staged again.
@@ -1263,14 +1334,20 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
         state = apply_sets(
             season,
             state,
-            _settled_without_the_learner(season, state, gap.id, premise),
+            {
+                flag: value
+                for flag, value in _settled_without_the_learner(season, state, gap.id, premise).items()
+                if flag not in theirs
+            },
             source=f"{gap.id}/{premise}/not_taken_up",
         )
     staged = next((row for row in gap.premises if row.id == premise), None)
     if planned and staged is not None and staged.settles:
-        # Gaps 3, 5 and 7 move the ticket (owner hand-off 2026-10-16): a day that
+        # Gaps 1, 3, 5 and 7 move the ticket (owner hand-off 2026-10-16; gap 1 since the
+        # steering read of 2026-10-24, where both learners took the ticket day up without
+        # naming a date and on 26 November the ticket still said 18 November): a day that
         # passed without a date from the learner moves it to the story's own.
-        settled = {flag: value for flag, value in staged.settles.items() if flag not in wanted}
+        settled = {flag: value for flag, value in staged.settles.items() if flag not in wanted and flag not in theirs}
         if settled:
             state = apply_sets(season, state, settled, source=f"{gap.id}/{premise}/settled")
     # WP-113: today's complication card is tomorrow's obstacle (faced today, it is
@@ -1300,6 +1377,35 @@ def _settle_gap(season: Season, state: dict, season_ctx: dict, details: dict, *,
     from app.services.season.agency import settle_day
 
     return settle_day(state, season_ctx, details, event_id=event_id, engaged=engaged)
+
+
+def _miss_beat(season: Season, gap: Gap, state: dict, premise: str, *, keep: set[str], day: int, event_id: str) -> dict:
+    """One more day that did not stage ``premise``, today's planned beat. On its
+    second miss the plan moves on without it, and what it settles still holds (a
+    ticket day nobody wrote still moves the ticket), unless the learner set it."""
+
+    from app.services.season.director import MISSED_KEY, dropped_beats
+
+    rows = [row for row in state.get(MISSED_KEY) or [] if isinstance(row, dict)]
+    rows.append({"gap": gap.id, "premise": premise, "day": int(day), "event_id": event_id})
+    state[MISSED_KEY] = rows
+    beat = next((row for row in gap.premises if row.id == premise), None)
+    if beat is not None and beat.settles and premise in dropped_beats(state, gap.id):
+        settled = {flag: value for flag, value in beat.settles.items() if flag not in keep}
+        if settled:
+            state = apply_sets(season, state, settled, source=f"{gap.id}/{premise}/dropped")
+    return state
+
+
+#: ``{flag: gap id}``: the gap flags the learner settled in their own words, and in
+#: which gap (``_settle_gap``). A fact a later day of the same gap stages never
+#: overwrites one of them.
+LEARNER_SET_KEY = "learner_set"
+
+
+def _learner_set(state: dict) -> dict[str, str]:
+    rows = state.get(LEARNER_SET_KEY)
+    return {str(flag): str(where) for flag, where in rows.items()} if isinstance(rows, dict) else {}
 
 
 def _settled_without_the_learner(season: Season, state: dict, gap_id: str, premise: str) -> dict[str, Any]:

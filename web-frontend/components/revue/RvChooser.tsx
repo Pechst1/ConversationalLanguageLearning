@@ -2,7 +2,8 @@
  * WP-119 · RvChooser — `/revue`'s first state when the learner comes from the
  * chip (design §3.1 #full, WP-119 §5.1 in full): the recommendation with its
  * plate and the red press inside the card, «Ou bien» and the two alternatives,
- * and «Autre chose ?».
+ * and «Autre chose ?». «Au comptoir»: the question of the day in the title's place,
+ * the regulars' faces under it, and «Au comptoir →».
  */
 
 import React from 'react';
@@ -10,8 +11,10 @@ import React from 'react';
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
 import type { RvMatchResult, RvStoryCard, RvWeek } from '@/lib/revue-types';
 
+import { COMPTOIR_FR } from './comptoir/comptoir-copy';
 import type { RevueCopy } from './revue-copy';
 import { RvStage, stageCast } from './RvStage';
+import { RvComptoirFaces } from './RvUneCard';
 import { RvAltRows, RvAsk } from './RvSubjectSheet';
 
 export type RvChooserProps = {
@@ -26,6 +29,9 @@ export type RvChooserProps = {
 };
 
 export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pending = false, copy }: RvChooserProps) {
+  // «Au comptoir»: the question of the day and the faces lead; the story's title is the subject line.
+  const comptoir = Boolean(recommended.questionFr && recommended.cast?.length);
+  const press = comptoir ? COMPTOIR_FR.press : copy.join;
   return (
     <div className="rv-chooser">
       <p className="rv-kicker" lang="fr">
@@ -34,18 +40,28 @@ export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pend
       <article className="rv-une">
         <RvStage plateUrl={recommended.plateUrl ?? recommended.stage.plateUrl} size="une" cast={stageCast(recommended.stage.cast)} still />
         <div className="rv-une__body">
-          <p className="av2-label av2-label--story">{copy.romy_proposes}</p>
+          <p className="av2-label av2-label--story" lang={comptoir ? 'fr' : undefined}>
+            {comptoir ? COMPTOIR_FR.question_kicker : copy.romy_proposes}
+          </p>
           <h2 className="rv-une__title" lang="fr">
-            {recommended.titleFr}
+            {comptoir && recommended.questionFr ? recommended.questionFr : recommended.titleFr}
           </h2>
+          {comptoir && recommended.cast && <RvComptoirFaces cast={recommended.cast} copy={copy} />}
           <p className="rv-une__meta">
             <span lang="fr">{recommended.placeFr}</span>
             <span className="rv-dot" aria-hidden="true" />
             <span>{recommended.evergreen ? copy.evergreen_topic : copy.topic[recommended.topic]}</span>
           </p>
           <div style={{ marginTop: 10 }}>
-            <Action tone="primary" pending={pending} pendingLabel={copy.join} iconAfter={<ArrowRightIcon size={18} />} onClick={() => onPick(null)}>
-              {copy.join}
+            <Action
+              tone="primary"
+              lang={comptoir ? 'fr' : undefined}
+              pending={pending}
+              pendingLabel={press}
+              iconAfter={<ArrowRightIcon size={18} />}
+              onClick={() => onPick(null)}
+            >
+              {press}
             </Action>
           </div>
         </div>

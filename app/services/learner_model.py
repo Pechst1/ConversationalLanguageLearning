@@ -55,9 +55,8 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.cefr_progress import (
     DECLARED_LEVEL_EVIDENCE_ATTEMPTS,
-    CEFRProgressService,
     declared_level_floor,
-    with_live_grammar,
+    live_level,
 )
 from app.services.error_memory import (
     ERROR_STATE_MASTERED,
@@ -243,16 +242,12 @@ def _level_belief(db: Session, *, user: User) -> dict[str, Any]:
     """
 
     try:
-        service = CEFRProgressService(db)
-        payload = service.current(user, recompute_if_missing=False)
-        if "breakdown" not in payload:
-            # The learner has no stored payload yet. `current(recompute_if_missing=True)`
-            # would compute one *and persist it*, writing a CEFR history row for
-            # opening a page; `recompute(persist=False)` is the same arithmetic
-            # with no write, which is what a read owes the learner.
-            payload = service.recompute(user, persist=False)
-        # WP-130 A: the band's grammar counts read live, as the notebook reads them.
-        payload = with_live_grammar(db, user, payload)
+        # 2026-10-24: the level as it stands now, the number Home and Fortschritt
+        # print (WP-130 A read the grammar live; the words are live too). The
+        # engine's own arithmetic with no write: `current(recompute_if_missing=True)`
+        # would persist a missing payload, writing a CEFR history row for opening
+        # a page, and a read owes the learner no write.
+        payload = live_level(db, user, write_first=False)
     except Exception:  # pragma: no cover - a level must never 500 the dossier
         logger.exception("learner_model: the CEFR estimate could not be read")
         return {"available": False, "reason": "level_unavailable"}

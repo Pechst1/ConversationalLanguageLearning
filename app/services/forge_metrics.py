@@ -305,17 +305,29 @@ def rule_metrics(
     }
 
 
-def active_seconds(session: AtelierSession, attempts: list[AtelierAttempt]) -> int:
-    """The séance's clock: start → answers → completion, idle gaps capped."""
+def active_windows(session: AtelierSession, attempts: list[AtelierAttempt]) -> list[tuple[datetime, datetime]]:
+    """The stretches the séance's clock counts: start → answers → completion, each gap capped.
+
+    As instants, for a clock that must not count the same minute twice (the
+    level plan's practice time): a gap runs from its opening moment for at most
+    :data:`IDLE_GAP_CEILING_SECONDS`.
+    """
 
     moments = [_aware(session.started_at)]
     moments += [_aware(attempt.created_at) for attempt in attempts]
     if session.status == "completed":
         moments.append(_aware(session.completed_at))
     points = sorted(m for m in moments if m is not None)
-    return int(
-        sum(min(IDLE_GAP_CEILING_SECONDS, max(0.0, (b - a).total_seconds())) for a, b in zip(points, points[1:], strict=False))
-    )
+    return [
+        (a, a + timedelta(seconds=min(IDLE_GAP_CEILING_SECONDS, max(0.0, (b - a).total_seconds()))))
+        for a, b in zip(points, points[1:], strict=False)
+    ]
+
+
+def active_seconds(session: AtelierSession, attempts: list[AtelierAttempt]) -> int:
+    """The séance's clock: start → answers → completion, idle gaps capped."""
+
+    return int(sum((end - start).total_seconds() for start, end in active_windows(session, attempts)))
 
 
 def seance_metrics(
@@ -548,6 +560,7 @@ __all__ = [
     "FORGE_ABANDONED_EVENT",
     "PROFICIENT_RUNG",
     "active_seconds",
+    "active_windows",
     "forge_dashboard",
     "latency_metrics",
     "learner_rule_speed",

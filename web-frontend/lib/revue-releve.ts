@@ -19,8 +19,8 @@ import {
   type RvSource,
 } from './revue-types';
 
-/** What was made: the five make kinds (§8.4 adds «La légende», `caption`), plus phase 2's «tell Margaux». */
-export type RvReleveMadeKind = 'headline_choice' | 'reader_question' | 'headline_write' | 'short_report' | 'caption' | 'tell_margaux';
+/** What was made: the five make kinds (§8.4 adds «La légende», `caption`), phase 2's «tell Margaux», and «Au comptoir»'s `opinion`. */
+export type RvReleveMadeKind = 'headline_choice' | 'reader_question' | 'headline_write' | 'short_report' | 'caption' | 'tell_margaux' | 'opinion';
 
 export type RvReleveWord = { fr: string; gloss: string; claimId: string; used: boolean };
 
@@ -48,7 +48,7 @@ export type RvReleveEntryData = {
 
 export type RvReleveResult = { enabled: boolean; entries: RvReleveEntryData[] };
 
-const MADE_KINDS: readonly RvReleveMadeKind[] = ['headline_choice', 'reader_question', 'headline_write', 'short_report', 'caption', 'tell_margaux'];
+const MADE_KINDS: readonly RvReleveMadeKind[] = ['headline_choice', 'reader_question', 'headline_write', 'short_report', 'caption', 'tell_margaux', 'opinion'];
 const CLAIM_KINDS: readonly RvClaimKind[] = ['fact', 'interpretation', 'forecast'];
 
 type Raw = Record<string, unknown>;

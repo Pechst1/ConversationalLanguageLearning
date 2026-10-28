@@ -2730,6 +2730,23 @@
   color: var(--av2-muted);
 }
 
+/* «Demain»: the threads tomorrow may follow, under «La suite demain». */
+.av2 .av2-tomorrow { display: grid; gap: 6px; margin-top: 6px; min-width: 0; }
+.av2 .av2-tomorrow .av2-label { margin: 0; }
+.av2 .av2-tomorrow__options { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.av2 .av2-tomorrow__options .av2-chip {
+  max-width: 100%;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--av2-t-body);
+  text-align: left;
+  overflow-wrap: anywhere;
+  box-shadow: inset 0 0 0 2px var(--av2-line-2);
+}
+.av2 .av2-tomorrow__options .av2-chip[aria-pressed='true'] { box-shadow: none; }
+.av2 .av2-tomorrow__options .av2-chip:disabled { cursor: progress; }
+
 /* Home: the day is done — the streak carries the ink «done» square. */
 /* end WP-79 */
 

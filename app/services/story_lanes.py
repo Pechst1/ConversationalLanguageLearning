@@ -232,7 +232,10 @@ then move the scene forward with ONE new question or need that follows from what
 learner just said (a detail, a choice, a reason, a feeling), still inside the scene's
 situation and never the learner's line. From B1, when the learner answered in a few
 words, that question asks for what the short answer left out — the reason, the
-consequence, the other side («Pourquoi ?», «Et si elle dit non ?»). needs_clarification stays false unless the
+consequence, the other side («Pourquoi ?», «Et si elle dit non ?»). Never ask again what
+learner_text or history already answers: when the learner said no or kept something to
+themselves, take it as their answer, and the next need comes from the scene (the phone
+rings, the agent is waiting, someone comes in). needs_clarification stays false unless the
 meaning is genuinely unclear. When it is false, do not open a new topic.
 feeling_shift is warmer or colder when this exchange really moved you, steady otherwise.
 who_is_who says who is speaking: you are who_is_who.you_are; learner_text and every
@@ -289,7 +292,10 @@ empty list; season_signal, only when story.season_turn.gate is set, is what the 
 expressed toward Lila (romance, friendship or none) — read from meaning, never accuracy.
 story.season_turn.must_not lists what the season keeps for later: never name it, hint at most.
 The ending credits the learner only with what their own words say or accepted; a plan or a
-proposal a character made stays the character's.
+proposal a character made stays the character's. It never says the learner agreed or
+changed their mind when their words did not: when the season moves something the learner
+wanted kept (a ticket they meant to use), the character gives the world's reason for it,
+and the learner's reason stays the one they gave.
 released.learner_refused, when present, quotes what the learner refused in this
 exchange: it does not happen in the ending, the summary or the development.
 story.memory, when present, is what this character knows of the learner from earlier
@@ -333,6 +339,19 @@ def _scene_register(scene: dict) -> str | None:
             if str(line.get("character_id") or "") == speaker:
                 lines.append(str(line.get("text_fr") or ""))
     return engine._address_register(lines)
+
+
+def _reply_register(payload: dict) -> str | None:
+    """How the reply addresses the learner: as the scene does, or, on a page that mixes
+    both or addresses nobody, as the speaker does in the season today
+    (``story.season_turn.register``). Steering read 2026-10-24: Gus's accidental tu and
+    his panicked return to vous left the scene unclear, and his reply went on with «te»."""
+
+    register = _scene_register(payload.get("scene") or {})
+    if register:
+        return register
+    season = ((payload.get("story") or {}).get("season_turn") or {}).get("register")
+    return season if season in ("tu", "vous") else None
 
 
 def _turn_tail(payload: dict) -> dict:
@@ -387,7 +406,7 @@ def voice_payload(payload: dict) -> dict:
                 "panels",
             )
         },
-        "register": _scene_register(scene),
+        "register": _reply_register(payload),
         "mood": (story.get("moods") or {}).get(cid) or {},
         "relationship": (story.get("relationships") or {}).get(cid) or {},
         "secret": (story.get("secrets") or {}).get(cid),
@@ -578,7 +597,7 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     # #253 (root cause #145): once the scene has put a relative with the learner («ta
     # grand-mère»), the character does not take her for her own.
     learner_texts, speaker_texts = thread_voices(payload)
-    expected = _scene_register(scene)
+    expected = _reply_register(payload)
     voice.reply_fr = lane_guards.settle_kin_owner(
         voice.reply_fr, learner_texts=learner_texts, speaker_texts=speaker_texts, register=expected
     )

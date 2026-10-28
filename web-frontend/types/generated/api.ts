@@ -1496,6 +1496,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daily-journeys/{journey_id}/tomorrow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pick Tomorrow
+         * @description «Demain»: pick the thread the season's next day follows, from the finished
+         *     day's own choice (``recap.tomorrow``). Refused once tomorrow's journey exists.
+         */
+        post: operations["pick_tomorrow_api_v1_daily_journeys__journey_id__tomorrow_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daily-journeys/capabilities/progress": {
         parameters: {
             query?: never;
@@ -3038,6 +3059,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/progress/level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Level Plan
+         * @description The level plan: exactly where the learner stands, what is left, what it costs.
+         *
+         *     The band and its percent are ``GET /progress/cefr``'s, read now; then each
+         *     grammar unit of the band with what it still needs, the band's words, the
+         *     épreuve, the forecast with the rules' earliest day, the practice minutes it
+         *     asks for and the time already measured in the band. Read-only.
+         */
+        get: operations["get_level_plan_api_v1_progress_level_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/progress/queue": {
         parameters: {
             query?: never;
@@ -3647,6 +3693,29 @@ export interface paths {
          * @description Romy does something with it: the dispatch, the words and claims kept, her memory. Idempotent.
          */
         post: operations["close_session_api_v1_revue_sessions__session_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/comptoir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Comptoir
+         * @description «Au comptoir»: one act of the learner's loop (vote, react, intox_who, intox_fix,
+         *     opinion, comeback). 409 ``revue_not_comptoir`` on a chat session, 409
+         *     ``revue_comptoir_out_of_order`` (with the current ``step``) for an act out of order; an
+         *     act that repeats one already recorded returns the session as it is.
+         */
+        post: operations["post_comptoir_api_v1_revue_sessions__session_id__comptoir_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9445,6 +9514,7 @@ export interface components {
             teaser: components["schemas"]["RecapTeaser"] | null;
             /** Teaser Fr */
             teaser_fr: string | null;
+            tomorrow: components["schemas"]["RecapTomorrow"] | null;
             /** Words */
             words: components["schemas"]["RecapWord"][];
         };
@@ -9533,6 +9603,19 @@ export interface components {
          * @enum {string}
          */
         JourneyStatus: "preparing" | "active" | "paused" | "completed" | "ended_early" | "unavailable";
+        /**
+         * JourneyTomorrowRequest
+         * @description «Demain»: the thread the learner picks for the season's next day, one of
+         *     the finished recap's ``tomorrow.options``.
+         */
+        JourneyTomorrowRequest: {
+            /** Expected Revision */
+            expected_revision: number;
+            /** Mutation Id */
+            mutation_id: string;
+            /** Premise Id */
+            premise_id: string;
+        };
         /**
          * KeepWordRequest
          * @description WP-78 «Garder»: a word tapped in the story, and the sentence it was in.
@@ -9685,6 +9768,305 @@ export interface components {
             } | null;
             /** Passed */
             passed: boolean;
+        };
+        /** LevelPlanEpreuve */
+        LevelPlanEpreuve: {
+            /**
+             * Attempts
+             * @default 0
+             */
+            attempts?: number;
+            /** Band */
+            band: string;
+            /**
+             * Can Dos
+             * @default 0
+             */
+            can_dos?: number;
+            /** Retry After */
+            retry_after?: string | null;
+            /**
+             * Staged In Story
+             * @default false
+             */
+            staged_in_story?: boolean;
+            /** State */
+            state: string;
+        };
+        /**
+         * LevelPlanEvidence
+         * @description WP-45: a declared or placed level becomes measured after this many graded answers.
+         */
+        LevelPlanEvidence: {
+            /**
+             * Attempts Counted
+             * @default 0
+             */
+            attempts_counted?: number;
+            /** Attempts Required */
+            attempts_required: number;
+        };
+        /**
+         * LevelPlanGoal
+         * @description The learner's goal level (Réglages), when it is above the band in force.
+         */
+        LevelPlanGoal: {
+            /** Band */
+            band: string;
+            /** Bands Left */
+            bands_left: number;
+            /** Units Left */
+            units_left: number;
+            /** Weeks */
+            weeks: number;
+            /** Words Left */
+            words_left: number;
+        };
+        /**
+         * LevelPlanInvested
+         * @description Practice time measured in the band in force (scenes, La Forge, the word deck).
+         */
+        LevelPlanInvested: {
+            /**
+             * Band Days
+             * @default 0
+             */
+            band_days?: number;
+            /**
+             * Band Minutes
+             * @default 0
+             */
+            band_minutes?: number;
+            /** Band Since */
+            band_since?: string | null;
+            /**
+             * Forge Minutes
+             * @default 0
+             */
+            forge_minutes?: number;
+            /**
+             * Recent Minutes Per Day
+             * @default 0
+             */
+            recent_minutes_per_day?: number;
+            /**
+             * Scenes Minutes
+             * @default 0
+             */
+            scenes_minutes?: number;
+            /**
+             * Words Minutes
+             * @default 0
+             */
+            words_minutes?: number;
+        };
+        /** LevelPlanLadderStep */
+        LevelPlanLadderStep: {
+            /** Band */
+            band: string;
+            /**
+             * Goal
+             * @default false
+             */
+            goal?: boolean;
+            /** On */
+            on?: string | null;
+            /** State */
+            state: string;
+        };
+        /**
+         * LevelPlanReach
+         * @description How far one coverage criterion alone reaches, band by band from A1.1.
+         */
+        LevelPlanReach: {
+            /** Covered */
+            covered?: string | null;
+            /**
+             * List Ends
+             * @default false
+             */
+            list_ends?: boolean;
+            /** Percent */
+            percent?: number | null;
+            /** Working */
+            working?: string | null;
+        };
+        /**
+         * LevelPlanResponse
+         * @description ``GET /api/v1/progress/level`` — where the learner stands, what is left, what it costs.
+         */
+        LevelPlanResponse: {
+            /** Band */
+            band: string;
+            /** Can Dos */
+            can_dos?: {
+                [key: string]: unknown;
+            };
+            epreuve: components["schemas"]["LevelPlanEpreuve"];
+            /** Estimate Source */
+            estimate_source: string;
+            evidence?: components["schemas"]["LevelPlanEvidence"] | null;
+            /** Generated At */
+            generated_at: string;
+            goal?: components["schemas"]["LevelPlanGoal"] | null;
+            invested: components["schemas"]["LevelPlanInvested"];
+            /** Label */
+            label: string;
+            /** Ladder */
+            ladder?: components["schemas"]["LevelPlanLadderStep"][];
+            /** Next Band */
+            next_band?: string | null;
+            /** Percent */
+            percent: number;
+            /** Placement Taken At */
+            placement_taken_at?: string | null;
+            rules: components["schemas"]["LevelPlanRules"];
+            /** Skills */
+            skills?: {
+                [key: string]: components["schemas"]["LevelPlanReach"];
+            };
+            time: components["schemas"]["LevelPlanTime"];
+            /** Verified */
+            verified: boolean;
+            /** Version */
+            version: string;
+            words: components["schemas"]["LevelPlanWords"];
+        };
+        /**
+         * LevelPlanRule
+         * @description One grammar unit of the band in force, and what it still needs.
+         */
+        LevelPlanRule: {
+            /** Earliest Held On */
+            earliest_held_on?: string | null;
+            /** External Id */
+            external_id?: string | null;
+            /** Held On */
+            held_on?: string | null;
+            /** Id */
+            id: number;
+            /** Introduce From */
+            introduce_from?: string | null;
+            /** Missing */
+            missing?: {
+                [key: string]: unknown;
+            }[];
+            /** Name */
+            name: string;
+            /** Owed Today */
+            owed_today?: string | null;
+            /** Stage */
+            stage: string;
+            /** Titles */
+            titles?: {
+                [key: string]: string;
+            };
+        };
+        /** LevelPlanRules */
+        LevelPlanRules: {
+            /** Held */
+            held: number;
+            /** Introduced */
+            introduced: number;
+            /** Items */
+            items?: components["schemas"]["LevelPlanRule"][];
+            /** Met */
+            met: boolean;
+            /** Not Started */
+            not_started: number;
+            /** Owed Today */
+            owed_today: number;
+            /** Per Week */
+            per_week: number;
+            /** Practising */
+            practising: number;
+            /** Required */
+            required: number;
+            /** To Go */
+            to_go: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * LevelPlanTime
+         * @description How long the band in force still takes, and what that costs a day. Always an estimate.
+         */
+        LevelPlanTime: {
+            /**
+             * Active Days
+             * @default 0
+             */
+            active_days?: number;
+            /**
+             * Active Days Required
+             * @default 7
+             */
+            active_days_required?: number;
+            /**
+             * Capped
+             * @default false
+             */
+            capped?: boolean;
+            /** Dates */
+            dates?: string[] | null;
+            /** Earliest Days */
+            earliest_days?: number | null;
+            /** Earliest On */
+            earliest_on?: string | null;
+            /** Hours */
+            hours?: number[] | null;
+            /** Minutes Per Day */
+            minutes_per_day?: number | null;
+            /** Minutes Source */
+            minutes_source?: string | null;
+            /** Pace */
+            pace?: string | null;
+            /**
+             * Pace Chosen
+             * @default false
+             */
+            pace_chosen?: boolean;
+            /** Planned Minutes Per Day */
+            planned_minutes_per_day?: number | null;
+            /** Range Days */
+            range_days?: number[] | null;
+            /**
+             * Rules Per Week
+             * @default 0
+             */
+            rules_per_week?: number;
+            /** Status */
+            status: string;
+            /**
+             * Words Per Day
+             * @default 0
+             */
+            words_per_day?: number;
+        };
+        /** LevelPlanWords */
+        LevelPlanWords: {
+            /** Days For New */
+            days_for_new: number;
+            /** From Reading */
+            from_reading: number;
+            /** Known */
+            known: number;
+            /** Met */
+            met: boolean;
+            /** New Needed */
+            new_needed: number;
+            /** Not Met */
+            not_met: number;
+            /** On The Way */
+            on_the_way: number;
+            /** Per Day */
+            per_day: number;
+            /** Required */
+            required: number;
+            /** To Go */
+            to_go: number;
+            /** Total */
+            total: number;
         };
         /**
          * LineAudioRequest
@@ -10939,6 +11321,33 @@ export interface components {
             text_fr: string;
         };
         /**
+         * RecapTomorrow
+         * @description «Demain» (steering read 2026-10-24): the threads the finished day offers
+         *     for the season's next day, the plan's own first. ``picked`` is the learner's
+         *     pick once made (``POST /daily-journeys/{id}/tomorrow``), else ``None``.
+         */
+        RecapTomorrow: {
+            /** Options */
+            options: components["schemas"]["RecapTomorrowOption"][];
+            /** Picked */
+            picked: string | null;
+        };
+        /**
+         * RecapTomorrowOption
+         * @description One thread the season's next day may follow, in short French.
+         */
+        RecapTomorrowOption: {
+            /** Label Fr */
+            label_fr: string;
+            /**
+             * Planned
+             * @default false
+             */
+            planned: boolean;
+            /** Premise Id */
+            premise_id: string;
+        };
+        /**
          * RecapWord
          * @description One vocabulary target the day actually practised (not a "not yet").
          */
@@ -11549,9 +11958,10 @@ export interface components {
         };
         /**
          * RvCaptionOffer
-         * @description WP-119 §8.4 «La légende»: the caption under the story's picture. ``choice`` (A1–A2): three
-         *     captions, one says what the picture shows; ``write`` (B1+): the learner writes it, at most
-         *     ``max_words`` words, with the picture's words as chips.
+         * @description WP-119 §8.4 «La légende»: the caption under the story's picture. Every band writes it, at
+         *     most ``max_words`` words, with the picture's words as chips (2026-10-23). ``options``: at
+         *     A1–A2, after a refused try, three captions to choose from instead (one says what the
+         *     picture shows); empty before. ``choice`` is no longer offered first.
          */
         RvCaptionOffer: {
             /**
@@ -11610,6 +12020,8 @@ export interface components {
             kind?: "caption";
             line?: components["schemas"]["RvLineItem"] | null;
             made?: components["schemas"]["RvMade"] | null;
+            /** Options */
+            options?: components["schemas"]["RvCaptionOption"][];
         };
         /** RvClaim */
         RvClaim: {
@@ -11670,6 +12082,7 @@ export interface components {
              * @enum {string}
              */
             colophon_fr?: "La suite la semaine prochaine." | "La suite demain.";
+            comptoir_page?: components["schemas"]["RvComptoirPage"] | null;
             dispatch: components["schemas"]["RvDispatch"];
             kept: components["schemas"]["RvKept"];
             /** Question Kept Fr */
@@ -11677,6 +12090,291 @@ export interface components {
             /** Romy Line Fr */
             romy_line_fr: string;
             vignette?: components["schemas"]["VignetteView"] | null;
+        };
+        /** RvComptoirCast */
+        RvComptoirCast: {
+            /** Id */
+            id: string;
+            /** Name Fr */
+            name_fr: string;
+            /** Reaction */
+            reaction?: ("agree" | "disagree") | null;
+            /** Role Fr */
+            role_fr: string;
+            /**
+             * Stance
+             * @enum {string}
+             */
+            stance: "pour" | "contre" | "nuance";
+            take: components["schemas"]["RvComptoirText"];
+        };
+        /** RvComptoirComeback */
+        RvComptoirComeback: {
+            /** Index */
+            index?: number | null;
+            last_word: components["schemas"]["RvComptoirText"];
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvComptoirFix */
+        RvComptoirFix: {
+            /** Answer Fr */
+            answer_fr: string;
+            caught: components["schemas"]["RvComptoirText"];
+            claim?: components["schemas"]["RvClaim"] | null;
+            /** Correct */
+            correct: boolean;
+            /** Line Fr */
+            line_fr: string;
+            /** Right Fr */
+            right_fr: string;
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /**
+         * RvComptoirIntox
+         * @description Step 3. Who lied (``by``), the true value and the distractor are absent until the
+         *     learner named the liar or used their two tries.
+         */
+        RvComptoirIntox: {
+            ask?: components["schemas"]["RvComptoirText"] | null;
+            /** By */
+            by?: string | null;
+            fix?: components["schemas"]["RvComptoirFix"] | null;
+            /** Found */
+            found?: boolean | null;
+            hint_claim?: components["schemas"]["RvClaim"] | null;
+            /** Options */
+            options?: string[];
+            /** Quotes */
+            quotes: components["schemas"]["RvComptoirQuote"][];
+            /** Resolved */
+            resolved: boolean;
+            /** Tries */
+            tries: string[];
+        };
+        /**
+         * RvComptoirKit
+         * @description Step 4's material: A1 tiles, A2 frame and word bank, B1+ free text.
+         */
+        RvComptoirKit: {
+            /** Bank */
+            bank: components["schemas"]["RvComptoirText"][];
+            /** Frames */
+            frames: {
+                [key: string]: components["schemas"]["RvComptoirText"];
+            };
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frame" | "free";
+            /** Opponents */
+            opponents: {
+                [key: string]: string;
+            };
+            phrase: components["schemas"]["RvComptoirText"];
+            /** Reasons */
+            reasons: {
+                [key: string]: components["schemas"]["RvComptoirText"][];
+            };
+        };
+        /**
+         * RvComptoirMark
+         * @description One of Romy's proof marks: the learner's words to look at again (``span_fr``, at
+         *     ``start`` in ``draft_fr``) and what kind of slip it is; never the corrected words.
+         */
+        RvComptoirMark: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "accord" | "conjugaison" | "genre" | "orthographe" | "mot" | "ordre" | "manque";
+            /** Span Fr */
+            span_fr: string;
+            /**
+             * Start
+             * @default 0
+             */
+            start?: number;
+        };
+        /** RvComptoirOpinion */
+        RvComptoirOpinion: {
+            comeback?: components["schemas"]["RvComptoirComeback"] | null;
+            /** Comebacks */
+            comebacks: components["schemas"]["RvComptoirText"][];
+            /** Draft Fr */
+            draft_fr: string;
+            /** Learner Fr */
+            learner_fr: string;
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /**
+             * Proof
+             * @enum {string}
+             */
+            proof: "clean" | "marked" | "fixed" | "corrected" | "as_written";
+            reply?: components["schemas"]["RvComptoirReply"] | null;
+            /**
+             * Stance
+             * @enum {string}
+             */
+            stance: "pour" | "contre" | "nuance";
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvComptoirPage
+         * @description «La page»: Romy's vox pop, the learner's quote printed with the regulars'.
+         */
+        RvComptoirPage: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            intox?: components["schemas"]["RvComptoirPageIntox"] | null;
+            mine: components["schemas"]["RvComptoirQuote"];
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Question Fr */
+            question_fr: string;
+            /** Quotes */
+            quotes: components["schemas"]["RvComptoirQuote"][];
+            /** Standfirst Fr */
+            standfirst_fr: string;
+            votes: components["schemas"]["RvComptoirVotes"];
+            /** Words */
+            words: string[];
+        };
+        /** RvComptoirPageIntox */
+        RvComptoirPageIntox: {
+            /** By */
+            by: string;
+            /** Name Fr */
+            name_fr: string;
+            /** Right Fr */
+            right_fr: string;
+            /** Source Name */
+            source_name: string;
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /** RvComptoirQuote */
+        RvComptoirQuote: {
+            /** Cast Id */
+            cast_id: string;
+            /** Name Fr */
+            name_fr: string;
+            /** Quote Fr */
+            quote_fr: string;
+            /** Role Fr */
+            role_fr: string;
+            /**
+             * Stance
+             * @enum {string}
+             */
+            stance: "pour" | "contre" | "nuance";
+        };
+        /** RvComptoirRead */
+        RvComptoirRead: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            lead: components["schemas"]["RvComptoirText"];
+            /** Sources */
+            sources: components["schemas"]["RvSource"][];
+        };
+        /** RvComptoirReply */
+        RvComptoirReply: {
+            /** By */
+            by: string;
+            line: components["schemas"]["RvComptoirText"];
+            /** Name Fr */
+            name_fr: string;
+        };
+        /** RvComptoirRequest */
+        RvComptoirRequest: {
+            /**
+             * Act
+             * @enum {string}
+             */
+            act: "vote" | "react" | "intox_who" | "intox_fix" | "opinion" | "opinion_fix" | "comeback";
+            /** Guest Id */
+            guest_id?: string | null;
+            /** Index */
+            index?: number | null;
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Reason Index */
+            reason_index?: number | null;
+            /** Text */
+            text?: string | null;
+            /** Value */
+            value?: string | null;
+        };
+        /** RvComptoirResult */
+        RvComptoirResult: {
+            /** Error Fr */
+            error_fr?: string | null;
+            session: components["schemas"]["RvSessionView"];
+        };
+        /**
+         * RvComptoirText
+         * @description A line and its translation in the learner's gloss language (``None`` for French).
+         */
+        RvComptoirText: {
+            /** Fr */
+            fr: string;
+            /** Tr */
+            tr?: string | null;
+        };
+        /** RvComptoirView */
+        RvComptoirView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            /** Cast */
+            cast: components["schemas"]["RvComptoirCast"][];
+            /** Has Intox */
+            has_intox: boolean;
+            intox?: components["schemas"]["RvComptoirIntox"] | null;
+            kit?: components["schemas"]["RvComptoirKit"] | null;
+            opinion?: components["schemas"]["RvComptoirOpinion"] | null;
+            question: components["schemas"]["RvComptoirText"];
+            read: components["schemas"]["RvComptoirRead"];
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "takes" | "intox" | "opinion" | "page";
+            /** Steps */
+            steps: ("read" | "takes" | "intox" | "opinion" | "page")[];
+            /** Vote */
+            vote?: ("pour" | "contre" | "nuance") | null;
+        };
+        /** RvComptoirVotes */
+        RvComptoirVotes: {
+            /** Contre */
+            contre: number;
+            /** Nuance */
+            nuance: number;
+            /** Pour */
+            pour: number;
         };
         /** RvDispatch */
         RvDispatch: {
@@ -11955,7 +12653,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption";
+            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion";
             /** Learner Fr */
             learner_fr?: string | null;
             /** Text Fr */
@@ -11985,7 +12683,7 @@ export interface components {
              * Recommended
              * @enum {string}
              */
-            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption";
+            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion";
         };
         /** RvMatchRequest */
         RvMatchRequest: {
@@ -12077,7 +12775,7 @@ export interface components {
              */
             gloss_language: "en" | "de" | "fr";
             /** Make Options */
-            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption")[];
+            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion")[];
             support: components["schemas"]["RvSupport"];
             /**
              * Ui Language
@@ -12212,9 +12910,21 @@ export interface components {
             /** Closed At */
             closed_at?: string | null;
             closing?: components["schemas"]["RvClosing"] | null;
+            comptoir?: components["schemas"]["RvComptoirView"] | null;
             dossier: components["schemas"]["RvDossierView"];
             /** Id */
             id: string;
+            /**
+             * Mode
+             * @default chat
+             * @enum {string}
+             */
+            mode?: "chat" | "comptoir";
+            /**
+             * Own Line
+             * @default false
+             */
+            own_line?: boolean;
             plan: components["schemas"]["RvPlanView"];
             /** Quick Replies */
             quick_replies: components["schemas"]["RvQuickReply"][];
@@ -12365,6 +13075,8 @@ export interface components {
         };
         /** RvStoryCard */
         RvStoryCard: {
+            /** Cast */
+            cast?: string[] | null;
             /** Dossier Id */
             dossier_id: string;
             /** Evergreen */
@@ -12375,6 +13087,8 @@ export interface components {
             place_fr: string;
             /** Plate Url */
             plate_url: string | null;
+            /** Question Fr */
+            question_fr?: string | null;
             stage: components["schemas"]["RvStage"];
             /** Summary Fr */
             summary_fr: string;
@@ -12457,6 +13171,11 @@ export interface components {
             evidence: components["schemas"]["RvEvidence"];
             /** Items */
             items: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvGuestItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
+            /**
+             * Own Line
+             * @default false
+             */
+            own_line?: boolean;
             /** Quick Replies */
             quick_replies: components["schemas"]["RvQuickReply"][];
             room: components["schemas"]["RvRoom"];
@@ -17600,6 +18319,41 @@ export interface operations {
             };
         };
     };
+    pick_tomorrow_api_v1_daily_journeys__journey_id__tomorrow_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                journey_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JourneyTomorrowRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JourneySnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_capability_progress_api_v1_daily_journeys_capabilities_progress_get: {
         parameters: {
             query?: never;
@@ -20022,6 +20776,26 @@ export interface operations {
             };
         };
     };
+    get_level_plan_api_v1_progress_level_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelPlanResponse"];
+                };
+            };
+        };
+    };
     get_review_queue_api_v1_progress_queue_get: {
         parameters: {
             query?: {
@@ -21035,6 +21809,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RvCloseResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_comptoir_api_v1_revue_sessions__session_id__comptoir_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvComptoirRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvComptoirResult"];
                 };
             };
             /** @description Validation Error */

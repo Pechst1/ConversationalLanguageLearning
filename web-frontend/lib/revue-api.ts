@@ -15,8 +15,10 @@
 
 import {
   RevueError,
+  comptoirBodyWire,
   makeBodyWire,
   parseCloseResult,
+  parseComptoirResult,
   parseMakeOffer,
   parseMakeResult,
   parseMatch,
@@ -28,6 +30,8 @@ import {
   startBodyWire,
   turnBodyWire,
   type RvCloseResult,
+  type RvComptoirBody,
+  type RvComptoirResult,
   type RvMakeBody,
   type RvMakeOffer,
   type RvMakeResult,
@@ -60,6 +64,8 @@ export type RevueClient = {
   makeOffer: (id: string) => Promise<RvMakeOffer>;
   make: (id: string, body: RvMakeBody) => Promise<RvMakeResult>;
   close: (id: string) => Promise<RvCloseResult>;
+  /** «Au comptoir» (WIRE §9.3): one act; the session as it now stands, and why an act was not recorded. */
+  comptoir: (id: string, body: RvComptoirBody) => Promise<RvComptoirResult>;
   /** WP-120: the learner's minted vignettes, newest first. */
   vignettes: () => Promise<RvVignetteView[]>;
 };
@@ -111,6 +117,7 @@ export function createRevueClient(transport: RevueTransport): RevueClient {
     makeOffer: (id) => get(`${session(id)}/make`, parseMakeOffer),
     make: (id, body) => post(`${session(id)}/make`, makeBodyWire(body), parseMakeResult),
     close: (id) => post(`${session(id)}/close`, {}, parseCloseResult),
+    comptoir: (id, body) => post(`${session(id)}/comptoir`, comptoirBodyWire(body), parseComptoirResult),
     vignettes: () => get(`${REVUE_BASE}/vignettes`, parseVignettes),
   };
 }

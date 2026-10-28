@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "updated": "2026-10-24",
+  "places": [
+    {
+      "id": "quai_de_valmy",
+      "name": { "fr": "Le quai de Valmy", "en": "The quai de Valmy", "de": "Der Quai de Valmy" },
+      "lat": 48.87291,
+      "lon": 2.36375,
+      "status": "open",
+      "kind": "home",
+      "why": { "fr": "Le Mistral, et l'appartement d'Odile au-dessus.", "en": "Le Mistral, and Odile's flat upstairs.", "de": "Das Mistral, und Odiles Wohnung darüber." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null
+    },
+    {
+      "id": "marche_aligre",
+      "name": { "fr": "Le marché d'Aligre", "en": "The Aligre market", "de": "Der Markt in Aligre" },
+      "lat": 48.849,
+      "lon": 2.378,
+      "status": "open",
+      "kind": "news",
+      "why": { "fr": "Le Papier : « Le marché du dimanche à Aligre ».", "en": "The Papier: “Le marché du dimanche à Aligre”.", "de": "Das Papier: „Le marché du dimanche à Aligre“." },
+      "source": { "kind": "papier", "id": "evergreen-marche-du-dimanche", "title_fr": "Le marché du dimanche à Aligre" },
+      "site": "marche_aligre",
+      "ride": { "fr": "Ligne 8, de République à Ledru-Rollin : cinq stations.", "en": "Line 8, République to Ledru-Rollin: five stops.", "de": "Linie 8, von République bis Ledru-Rollin: fünf Stationen." }
+    },
+    {
+      "id": "hippodrome_longchamp",
+      "name": { "fr": "L'hippodrome de ParisLongchamp", "en": "The ParisLongchamp racecourse", "de": "Die Rennbahn ParisLongchamp" },
+      "lat": 48.8612,
+      "lon": 2.2315,
+      "status": "open",
+      "kind": "news",
+      "why": { "fr": "Le Papier : « Seize chevaux pour le Prix de l'Arc de Triomphe ».", "en": "The Papier: “Seize chevaux pour le Prix de l'Arc de Triomphe”.", "de": "Das Papier: „Seize chevaux pour le Prix de l'Arc de Triomphe“." },
+      "source": { "kind": "papier", "id": "2026-w40-prix-de-l-arc-de-triomphe", "title_fr": "Seize chevaux pour le Prix de l'Arc de Triomphe" },
+      "site": "hippodrome_longchamp",
+      "ride": { "fr": "Le métro jusqu'à la porte d'Auteuil, puis le bois de Boulogne à pied.", "en": "The metro to Porte d'Auteuil, then on foot through the Bois de Boulogne.", "de": "Die Metro bis Porte d'Auteuil, dann zu Fuß durch den Bois de Boulogne." }
+    },
+    {
+      "id": "mairie_10e",
+      "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
+      "lat": 48.8722,
+      "lon": 2.3576,
+      "status": "locked",
+      "kind": "season",
+      "why": { "fr": "Deux guichets, deux étages, pas d'ascenseur.", "en": "Two counters, two floors, no lift.", "de": "Zwei Schalter, zwei Stockwerke, kein Aufzug." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null
+    },
+    {
+      "id": "gare_de_lest",
+      "name": { "fr": "La gare de l'Est", "en": "The Gare de l'Est", "de": "Der Gare de l'Est" },
+      "lat": 48.8768,
+      "lon": 2.3592,
+      "status": "locked",
+      "kind": "season",
+      "why": { "fr": "Un quai sous la verrière, et un long train blanc.", "en": "A platform under the glass roof, and a long white train.", "de": "Ein Bahnsteig unter dem Glasdach, und ein langer weißer Zug." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null
+    }
+  ]
+}

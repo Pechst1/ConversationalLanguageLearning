@@ -837,6 +837,24 @@ class RecapSeasonFinished(JourneyModel):
     title_fr: str = ""
 
 
+class RecapTomorrowOption(JourneyModel):
+    """One thread the season's next day may follow, in short French."""
+
+    premise_id: str
+    label_fr: str
+    #: The plan's own thread: what tomorrow follows when the learner picks nothing.
+    planned: bool = False
+
+
+class RecapTomorrow(JourneyModel):
+    """«Demain» (steering read 2026-10-24): the threads the finished day offers
+    for the season's next day, the plan's own first. ``picked`` is the learner's
+    pick once made (``POST /daily-journeys/{id}/tomorrow``), else ``None``."""
+
+    options: list[RecapTomorrowOption] = Field(default_factory=list)
+    picked: str | None = None
+
+
 class JourneyRecap(JourneyModel):
     completion_kind: Literal["complete", "early"]
     objective_outcome: TaskOutcome
@@ -881,6 +899,9 @@ class JourneyRecap(JourneyModel):
     chapter_closed: RecapChapterClosed | None = None
     #: WP-96: «Tome N» — today closed the season.
     season_finished: RecapSeasonFinished | None = None
+    #: «Demain»: the threads tomorrow may follow, when the season's plan leaves
+    #: the learner a choice; ``None`` on every other day.
+    tomorrow: RecapTomorrow | None = None
 
 
 class RetryHint(JourneyModel):
@@ -1414,6 +1435,15 @@ class JourneyRetryRequest(JourneyRequest):
     mutation_id: str = Field(min_length=1, max_length=80)
 
 
+class JourneyTomorrowRequest(JourneyRequest):
+    """«Demain»: the thread the learner picks for the season's next day, one of
+    the finished recap's ``tomorrow.options``."""
+
+    mutation_id: str = Field(min_length=1, max_length=80)
+    expected_revision: int
+    premise_id: str = Field(min_length=1, max_length=80)
+
+
 # ---------------------------------------------------------------------------
 # WP-91 «Les voix»: one line of a step, spoken in its character's voice
 # ---------------------------------------------------------------------------
@@ -1480,6 +1510,7 @@ __all__ = [
     "JourneyRetryRequest",
     "JourneyRevisionRequest",
     "JourneySnapshot",
+    "JourneyTomorrowRequest",
     "LegacyResume",
     "NextFocus",
     "NextTurn",
@@ -1498,6 +1529,8 @@ __all__ = [
     "MarginNote",
     "RecapChapterClosed",
     "RecapSeasonFinished",
+    "RecapTomorrow",
+    "RecapTomorrowOption",
     "ScenePrompt",
     "SceneStep",
     "ScenarioDescriptor",

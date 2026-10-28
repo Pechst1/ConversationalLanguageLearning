@@ -108,8 +108,35 @@ def test_a_required_beat_the_learner_let_pass_moves_on_and_settles_its_fact():
 def test_the_learners_own_choice_is_never_overwritten():
     state = _settle("la_meme_chose", "not_yet", {"id": "s1", "flags": {"user.usual_order": "un thé"}})
     assert state["flags"]["user.usual_order"] == "un thé"
-    # A day the learner took up keeps what they said; nothing is filled in for them.
-    assert "user.return_ticket" not in (_settle("le_billet", "met").get("flags") or {})
+
+
+def _settle_g1(premise: str, details: dict, state: dict | None = None, *, day: int = 3) -> dict:
+    ctx = {"id": "s1", "kind": "gap", "position": {"segment": "g1", "day_in_segment": day}, "checklist": {"premise_id": premise}}
+    return season_runtime._settle_gap(load_season("s1"), state or {"id": "s1"}, ctx, details, event_id="e", day=day + 2)
+
+
+def test_the_ticket_day_moves_the_ticket_for_a_learner_who_gave_no_date():
+    """Steering read 2026-10-24: both learners took the ticket day up («met») without
+    naming a date, nothing settled it, and on 26 November the ticket still said 18
+    November. The day now moves the ticket to the world's date."""
+
+    assert _settle_g1("le_billet", {"outcome": "met"})["flags"]["user.return_ticket"] == "mercredi 2 décembre"
+
+
+def test_a_date_the_learner_said_stays_theirs_for_the_rest_of_the_gap():
+    said = {"outcome": "met", "season_flags": [{"flag": "user.return_ticket", "value": "lundi 30 novembre"}]}
+    assert _settle_g1("le_billet", said)["flags"]["user.return_ticket"] == "lundi 30 novembre"
+    # Said on the day the notary spoke, before the ticket day: the ticket day, taken up
+    # or let pass, does not move it again.
+    early = _settle_g1("plusieurs_semaines", said, day=1)
+    assert early["learner_set"] == {"user.return_ticket": "g1"}
+    for outcome in ("met", "not_yet"):
+        later = _settle_g1("le_billet", {"outcome": outcome}, early)
+        assert later["flags"]["user.return_ticket"] == "lundi 30 novembre", outcome
+    # A later gap's ticket day still moves it: the learner's date was for this gap.
+    ctx = {"id": "s1", "kind": "gap", "position": {"segment": "g3", "day_in_segment": 2}, "checklist": {"premise_id": "le_billet_encore"}}
+    moved = season_runtime._settle_gap(load_season("s1"), early, ctx, {"outcome": "not_yet"}, event_id="e", day=20)
+    assert moved["flags"]["user.return_ticket"] == "samedi 19 décembre"
 
 
 def test_the_retry_for_a_dropped_planned_day_names_its_change():
@@ -139,13 +166,23 @@ def test_every_gap_plans_a_change_for_every_day():
         assert days == set(range(1, segment.days + 1)), segment.id
 
 
-def test_the_ticket_moves_in_gaps_three_five_and_seven():
+def test_the_ticket_moves_in_gaps_one_three_five_and_seven():
+    """Steering read 2026-10-24: each ticket day gives the world's reason the old date no
+    longer works, so the learner who wants to leave and the one who wants to stay both
+    move it, each for their own reason («or keeps it» was a choice the season cannot
+    honour: the next tentpole needs them in Paris)."""
+
     season = load_season("s1")
-    for gap_id in ("g3", "g5", "g7"):
+    for gap_id in ("g1", "g3", "g5", "g7"):
         gap = season.gaps[gap_id]
         planned = {beat.premise for beat in gap.days}
         movers = [p for p in gap.premises if p.id in planned and "user.return_ticket" in p.sets]
         assert movers, gap_id
+        for premise in movers:
+            assert premise.settles.get("user.return_ticket"), premise.id
+            assert "whatever the learner wants" in premise.text.lower(), premise.id
+            assert "own reason" in premise.change or "own reason" in premise.text, premise.id
+            assert "or keeps it" not in premise.text, premise.id
 
 
 def test_gap_six_plans_the_step_of_the_plan_the_learner_chose():
@@ -202,3 +239,67 @@ def test_a_gap_the_weekend_shortened_still_ends_on_its_last_beat():
     assert planned_beat(gap, 4, done, {}, length=5).premise != "la_meme_chose"
     assert planned_beat(gap, 4, done, {}, length=4).premise == "la_meme_chose"
     assert planned_beat(gap, 3, {"plusieurs_semaines"}, {}, length=4).premise == "soupe_de_marin"
+
+
+def _settle_missed(gap_id: str, owed: str, staged: str | None, state: dict, *, day: int, details: dict | None = None) -> dict:
+    ctx = {
+        "id": "s1",
+        "kind": "gap",
+        "position": {"segment": gap_id, "day_in_segment": day},
+        "checklist": {"premise_id": staged},
+        "required_premise": owed,
+    }
+    return season_runtime._settle_gap(
+        load_season("s1"), state, ctx, details or {"outcome": "met"}, event_id=f"{gap_id}.{day}", day=day + 9
+    )
+
+
+def test_a_missed_beat_comes_back_once_then_the_plan_moves_on():
+    """Steering read 2026-10-24: the critic refused every draft of the leaver's «Je
+    peux ?» two days running, each day served another page of Odile's photos instead,
+    the beat stayed owed, and Gus's birthday and the petition never came before T3."""
+
+    from app.services.season.director import dropped_beats, used_premises
+
+    gap = load_season("s1").gaps["g2"]
+    state = _settle_missed("g2", "je_peux", "la_boite", {"id": "s1", "premises": [{"gap": "g2", "premise": "la_boite"}]}, day=2)
+    assert [row["premise"] for row in state["missed"]] == ["je_peux"]
+    assert planned_beat(gap, 3, used_premises(state, "g2") | dropped_beats(state, "g2"), {}).premise == "je_peux"
+    state = _settle_missed("g2", "je_peux", None, state, day=3)
+    assert dropped_beats(state, "g2") == {"je_peux"}
+    assert planned_beat(gap, 4, used_premises(state, "g2") | dropped_beats(state, "g2"), {}).premise == "le_diner_rate"
+    # The day that staged its beat records no miss.
+    assert "missed" not in _settle_missed("g2", "je_peux", "je_peux", {"id": "s1"}, day=2)
+
+
+def test_the_brief_leaves_a_beat_missed_twice_behind():
+    season, pos, state = _g1_day(4, premises=["plusieurs_semaines"])
+    state["missed"] = [{"gap": "g1", "premise": "soupe_de_marin"}] * 2
+    brief = gap_brief(season, pos, flags=effective_flags(season, state, seed="x"), state=state, seed="x")
+    assert brief["today"]["required_premise"]["id"] == "le_billet"
+    state["missed"] = state["missed"][:1]
+    brief = gap_brief(season, pos, flags=effective_flags(season, state, seed="x"), state=state, seed="x")
+    assert brief["today"]["required_premise"]["id"] == "soupe_de_marin", "missed once, it is still owed"
+
+
+def test_a_ticket_day_missed_twice_still_moves_the_ticket():
+    state = _settle_missed("g1", "le_billet", None, {"id": "s1"}, day=3)
+    assert "user.return_ticket" not in (state.get("flags") or {}), "missed once, the ticket day comes back"
+    state = _settle_missed("g1", "le_billet", "romy_enquete", state, day=4)
+    assert state["flags"]["user.return_ticket"] == "mercredi 2 décembre"
+    # A date the learner named on another day of the gap stays theirs.
+    said = {"outcome": "met", "season_flags": [{"flag": "user.return_ticket", "value": "lundi 30 novembre"}]}
+    mine = _settle_missed("g1", "le_billet", "romy_enquete", {"id": "s1"}, day=3, details=said)
+    mine = _settle_missed("g1", "le_billet", None, mine, day=4)
+    assert mine["flags"]["user.return_ticket"] == "lundi 30 novembre"
+
+
+def test_a_required_beat_left_behind_is_still_owed_to_the_bridge():
+    from app.services.season.director import dropped_beats
+    from app.services.season.recovery import missing_required
+
+    state = {"id": "s1", "premises": [{"gap": "g2", "premise": premise} for premise in ("la_boite", "je_peux")]}
+    for day in (3, 4):
+        state = _settle_missed("g2", "le_diner_rate", None, state, day=day)
+    assert "le_diner_rate" in dropped_beats(state, "g2")
+    assert missing_required(load_season("s1"), state, "g2") == ["le_diner_rate"]

@@ -11,7 +11,12 @@
      ?mock=1         DEV ONLY (never in a production build): the scripted server of
                      lib/revue-mock.ts instead of the API. ?lang=de|en|fr and
                      ?band=A1|A2|B1 shape the mock learner; ?reset=1 forgets it;
-                     ?pictures=0 plays the story without its own picture (§8.4).
+                     ?pictures=0 plays the story without its own picture (§8.4);
+                     ?comptoir=1 turns «Au comptoir» on (WP-119-AU-COMPTOIR: the
+                     Céline story leads the week and plays as the counter's debate).
+
+   A session in «Au comptoir» mode (WP-119-AU-COMPTOIR) mounts RvComptoir in place
+   of the encounter, with the same props.
 
    States (design §3.7): loading (the 4:3 frame holds its size, «Romy rassemble
    ses notes», skeletons after 400 ms) · choose (from the chip) · the encounter ·
@@ -24,7 +29,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 
 import { AtelierV2Root, CastPortrait, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
-import { RvChooser, RvEncounter, RvSessionHead, RvStage, revueCopy } from '@/components/revue';
+import { RvChooser, RvComptoir, RvEncounter, RvSessionHead, RvStage, revueCopy } from '@/components/revue';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { RevueError, revueClient, type RevueClient } from '@/lib/revue-api';
@@ -71,6 +76,7 @@ export default function RevuePage() {
           band: band === 'A1' || band === 'B1' || band === 'B2' ? band : 'A2',
           latency: 450,
           pictures: router.query.pictures !== '0',
+          comptoir: router.query.comptoir === '1',
         });
         if (router.query.reset === '1') next.reset();
         setClient(next);
@@ -208,8 +214,10 @@ export default function RevuePage() {
   let body: React.ReactNode;
   if (state.kind === 'session' && client) {
     const week = state.session.week.iso;
+    // «Au comptoir»: a session started with the switch on plays as the counter's debate.
+    const Player = state.session.mode === 'comptoir' ? RvComptoir : RvEncounter;
     body = (
-      <RvEncounter
+      <Player
         key={state.session.id}
         client={client}
         session={state.session}

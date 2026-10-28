@@ -74,6 +74,7 @@ from app.schemas.revue import (
     RvClaimsItem,
     RvClosedWord,
     RvClosing,
+    RvComptoirResult,
     RvDispatch,
     RvDossierView,
     RvEvidence,
@@ -169,12 +170,15 @@ ROOM_LINES = 7
 BOUCLAGE_RATIO = 0.8
 #: The provider's only memory of the conversation (§5, the brief): the last six items.
 HISTORY_ITEMS = 6
-#: The make kinds the encounter builds, in the order the wire lists them. ``headline_choice``
-#: and ``reader_question`` are offered at every band; the others when the plan has them
-#: (``session.MAKE_OPTIONS_UPPER``: B1+; ``caption``, WP-119 §8.4: when the story's own picture
-#: is on the stage). ``tell_margaux`` is planned, not built.
+#: The make kinds the encounter builds, in the order the wire lists them. ``reader_question``
+#: is offered at every band and ``headline_choice`` at A1–A2 (2026-10-23: B1+ write their
+#: headline, no pick); the others when the plan has them (``session.MAKE_OPTIONS_UPPER``: B1+;
+#: ``caption``, WP-119 §8.4: when the story's own picture is on the stage). ``tell_margaux`` is
+#: planned, not built.
 MAKE_KINDS: tuple[str, ...] = ("headline_choice", "headline_write", "reader_question", "short_report", "caption")
 ALWAYS_MAKE: frozenset[str] = frozenset({"headline_choice", "reader_question"})
+#: The make kinds offered only at A1–A2.
+LOWER_ONLY_MAKE: frozenset[str] = frozenset({"headline_choice"})
 SHORT_REPORT_SECONDS = 30
 
 #: Romy's ``make_intro`` line (the first GET of the make options), by the recommended kind.
@@ -195,8 +199,10 @@ MAKE_DONE_LINES: dict[str, str] = {
     "reader_question": "Partie pour la rédaction.",
     "short_report": "C'est enregistré. Je le mets dans mon papier.",
     "caption": "C'est ta légende. Elle part sous l'image.",
+    "caption_picked": "C'est noté. Celle-là dit ce qu'on voit.",
     "caption_wrong": "Celle-là, l'image la contredit. On garde l'autre.",
     "caption_refused": "Attention : l'image ou les sources disent autre chose. Tu réessaies ?",
+    "caption_short": "Un peu court pour une légende. Qu'est-ce qu'on voit ? Encore quelques mots.",
 }
 
 #: Phase 2 (§7): one guest per Papier, and at most this many lines after their entrance.
@@ -251,10 +257,11 @@ MORE_LEAD = "Il y a autre chose."
 
 CLOSE_LINES: dict[str, str] = {
     "reader_question": "J'ai mis ta question dans ma liste pour la rédaction. Je la garde.",
-    "headline_choice": "Je garde ton titre. Il part avec mon papier.",
+    "headline_choice": "Je garde le titre que tu as choisi. Il part avec mon papier.",
     "headline_write": "Je garde ton titre, tel que tu l'as écrit. Il part avec mon papier.",
     "short_report": "Ton reportage part avec mon papier. On entend ta voix dedans.",
     "caption": "Ta légende part sous l'image, avec mon papier.",
+    "caption_picked": "La légende que tu as choisie part sous l'image, avec mon papier.",
     "none": "Les sources ne m'ont pas tout dit, mais on a de quoi écrire trois lignes.",
 }
 
@@ -265,6 +272,8 @@ QR_UNDERSTOOD = RvQuickReply(label="Ah, d'accord", send_fr="Ah, d'accord.")
 QR_SIMPLER = RvQuickReply(label="Encore plus simple", send_fr="Encore plus simple, s'il te plaît.")
 #: Quick replies that steer the conversation; never a reader question, never a breakdown signal.
 _META_LINES = {QR_FORMULATE.send_fr, QR_AGREE.send_fr, QR_MORE.send_fr, QR_UNDERSTOOD.send_fr}
+#: Every quick reply: a chip sent is not a line the learner wrote (2026-10-23).
+_CHIP_LINES = frozenset(q.send_fr for q in (QR_AGREE, QR_MORE, QR_FORMULATE, QR_UNDERSTOOD, QR_SIMPLER))
 
 #: Interest words (``users.interests``, comma-separated, any of en/fr/de) → topics.
 INTEREST_TOPICS: dict[str, tuple[str, ...]] = {
@@ -678,7 +687,11 @@ def _known_plate(place_id: str) -> str | None:
 
 
 def story_card(dossier: EditorialDossier, db: Any = None) -> RvStoryCard:
+    from app.services.revue.comptoir import comptoir_enabled
+
     stage = stage_for(dossier, db=db)
+    # «Au comptoir»: the Une card's «question du jour» and the three faces (switch on only).
+    takes = dossier.comptoir if comptoir_enabled() else None
     return RvStoryCard(
         dossier_id=dossier.id,
         title_fr=dossier.title_fr,
@@ -689,6 +702,8 @@ def story_card(dossier: EditorialDossier, db: Any = None) -> RvStoryCard:
         plate_url=stage.plate_url,
         evergreen=dossier.evergreen,
         stage=stage,
+        question_fr=takes.question.fr if takes is not None else None,
+        cast=[guest.id for guest in takes.guests] if takes is not None else None,
     )
 
 
@@ -909,10 +924,32 @@ class FakeRevueProvider:
         shown = [c["fr"] for c in context.get("claims_shown") or []]
         body = (shown + _sentences(str(context.get("summary_fr") or "")))[:3]
         return {
-            "romy_line_fr": CLOSE_LINES.get(str(made.get("kind") or "none"), CLOSE_LINES["none"]),
+            "romy_line_fr": CLOSE_LINES.get(close_key(made), CLOSE_LINES["none"]),
             "headline_fr": made.get("text_fr") or context.get("title_fr"),
             "body_lines": body,
         }
+
+    def comptoir_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Au comptoir»: Romy's correction from a small table of learners' usual slips
+        (agreement, accents, capitals, the final stop), a mark per slip with its kind, and the
+        desk's own counter-line as the reply. Deterministic, for the tests and the walk."""
+
+        self.calls.append(("comptoir_edit", context))
+        learner = re.sub(r"\s+", " ", str(context.get("learner_fr") or "")).strip()
+        text = learner
+        marks: list[dict[str, str]] = []
+        for pattern, fixed, kind in _FAKE_EDITS:
+            found = re.search(pattern, text)
+            if found:
+                if len(marks) < 3:
+                    marks.append({"span_fr": found.group(0), "kind": kind})
+                text = re.sub(pattern, fixed, text)
+        text = text[:1].upper() + text[1:]
+        if text and not re.search(r"[.!?…]$", text):
+            text += "."
+        example = str(context.get("example_reply_fr") or "")
+        return {"edited_fr": text, "marks": marks, "reply_fr": example,
+                "reply_en": context.get("example_reply_en"), "reply_de": context.get("example_reply_de")}
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         """Entry: the guest's reason, ``against`` on a disagreement angle, else ``for``.
@@ -932,6 +969,17 @@ class FakeRevueProvider:
         return {"line_fr": None, "position": context.get("position"), "move": "follow_up"}
 
 
+#: The fake edit's table: (slip, fix, kind of slip).
+_FAKE_EDITS: tuple[tuple[str, str, str], ...] = (
+    (r"\b[Ll]e gens\b", "les gens", "accord"),
+    (r"\bsont content\b", "sont contents", "accord"),
+    (r"\btres\b", "très", "orthographe"),
+    (r"\bmusique est trop fort\b", "musique est trop forte", "accord"),
+    (r"\ba Paris\b", "à Paris", "orthographe"),
+    (r"\bil sont\b", "ils sont", "accord"),
+)
+
+
 def _fake_contradiction(fr: str, index: int) -> str:
     number = re.search(r"\d+", fr)
     if number:
@@ -948,7 +996,7 @@ def _fake_contradiction(fr: str, index: int) -> str:
 
 REPLY_PROMPT_VERSION = "revue-reply-v3"
 GUEST_PROMPT_VERSION = "revue-guest-v2"
-CLOSE_PROMPT_VERSION = "revue-close-v3"
+CLOSE_PROMPT_VERSION = "revue-close-v4"
 QUESTION_PROMPT_VERSION = "revue-question-v2"
 VOCABULARY_PROMPT_VERSION = "revue-vocabulary-v3"
 HEADLINE_PROMPT_VERSION = "revue-headline-v2"
@@ -1065,12 +1113,27 @@ _TASKS: dict[str, str] = {
         "she does with the learner's contribution (artifact) — or, when artifact is null, what she will write — "
         "no praise, and never an app word (artefact, session, dossier, état, événement, exercice, application, "
         "«les éléments», «les sources du dossier»). "
-        "Do not mention a contribution that is not in artifact. headline_fr: keep the learner's artifact text when "
+        "Do not mention a contribution that is not in artifact. When artifact.picked is true the learner chose it "
+        "among options and did not write it: never «ton titre» or «ta légende», say «le titre que tu as choisi». "
+        "headline_fr: keep the learner's artifact text when "
         "it is a headline (a caption is printed under the picture, a report or a question is not a headline). body_lines: exactly three short French lines from the shown claims, no ids, no symbols. "
         'JSON: {{"romy_line_fr": str, "headline_fr": str, "body_lines": [str, str, str]}}'
     ),
 }
 _SYSTEMS: dict[str, str] = {"guest": _GUEST_SYSTEM}
+
+
+def first_json_object(text: str) -> Any:
+    """The answer's JSON: the whole text, else the first object in it (2026-10-19, the takes
+    desk: a Claude model once answered two objects back to back, or wrapped one in prose)."""
+
+    try:
+        return json.loads(text)
+    except ValueError:
+        start = text.find("{")
+        if start < 0:
+            raise
+        return json.JSONDecoder().raw_decode(text[start:])[0]
 
 
 @dataclass
@@ -1086,6 +1149,8 @@ class OpenAIRevueProvider:
     max_tokens: int = 1600
     spent_usd: float = 0.0
     concurrent: bool = True
+    #: ``None``: the service's default model; the takes desk names its own («Au comptoir»).
+    model: str | None = None
     _service: Any = None
     _lock: Any = field(default_factory=threading.Lock, repr=False)
     _local: Any = field(default_factory=threading.local, repr=False)
@@ -1127,6 +1192,7 @@ class OpenAIRevueProvider:
                 max_tokens=self.max_tokens,
                 response_format={"type": "json_object"},
                 reasoning_effort="low",
+                **({"model": self.model} if self.model else {}),
             )
         except Exception as exc:  # noqa: BLE001 - the service falls back to authored lines
             raise RevueProviderError(str(exc)) from exc
@@ -1135,7 +1201,7 @@ class OpenAIRevueProvider:
             self.spent_usd += cost
         self._local.spent = self.thread_spent() + cost
         try:
-            data = json.loads(result.content or "")
+            data = first_json_object(result.content or "")
         except (TypeError, ValueError) as exc:
             raise RevueProviderError(f"{label}: not JSON") from exc
         if not isinstance(data, dict):
@@ -1167,6 +1233,17 @@ class OpenAIRevueProvider:
 
     def close(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask("close", context)
+
+    def comptoir_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Au comptoir»: Romy's edit of the learner's opinion and a regular's reply (one call)."""
+
+        from app.services.revue.comptoir_loop import (
+            COMPTOIR_EDIT_INSTRUCTIONS,
+            COMPTOIR_EDIT_SYSTEM,
+        )
+
+        return self.ask_json(COMPTOIR_EDIT_INSTRUCTIONS, context, system=COMPTOIR_EDIT_SYSTEM, temperature=0.5,
+                             label="comptoir_edit")
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask(
@@ -1278,6 +1355,22 @@ class RevueError(Exception):
     @property
     def detail(self) -> dict[str, Any]:
         return {"code": self.code, **self.extra}
+
+
+def _require_chat(loaded: Any) -> None:
+    """«Au comptoir»: a comptoir session has no chat turn and no make."""
+
+    from app.services.revue.comptoir_loop import session_mode
+
+    if session_mode(loaded.state) == "comptoir":
+        raise RevueError(409, "revue_comptoir_session")
+
+
+def _require_own_line(loaded: Any) -> None:
+    """The make waits for one line the learner typed or said (2026-10-23): a chip is not one."""
+
+    if not own_line(loaded.state):
+        raise RevueError(409, "revue_make_needs_a_line")
 
 
 # ---------------------------------------------------------------------------
@@ -1403,6 +1496,55 @@ def _register_notes(state: ConversationState) -> dict[int, str]:
         if isinstance(seq, int) and register in {"vous_to_tu", "tu_to_vous"}:
             notes[seq] = str(register)
     return notes
+
+
+def own_line(state: ConversationState) -> bool:
+    """Whether the learner has typed or said a line of their own (2026-10-23): a quick-reply
+    chip is not one. «Écrire le papier» and Romy's steer to the make wait for it."""
+
+    return any(e.kind == "turn_learner" and str(e.payload.get("text_fr") or "").strip()
+               and str(e.payload.get("text_fr") or "").strip() not in _CHIP_LINES for e in state.events)
+
+
+def typed_lines(state: ConversationState) -> list[str]:
+    """What the learner typed or said in the chat, chips aside."""
+
+    return [str(e.payload.get("text_fr") or "") for e in state.events
+            if e.kind == "turn_learner" and str(e.payload.get("text_fr") or "").strip() not in _CHIP_LINES]
+
+
+def close_key(made: dict[str, Any] | None) -> str:
+    """The close line's key for what was filed: a picked caption is not the learner's own."""
+
+    made = made or {}
+    kind = str(made.get("kind") or "none")
+    return "caption_picked" if kind == "caption" and (made.get("format") == "choice" or made.get("picked")) else kind
+
+
+def kept_words(plan: SessionPlan, state: ConversationState, *, met: list[str], used: list[str],
+               extra: list[tuple[str, str]] | None = None) -> list[RvClosedWord]:
+    """The Relevé (2026-10-23): the plan's words the learner met in this session (``met``: what
+    was said and shown to them), the ones they used (``used``: only what they typed or said)
+    first. When they used none of those, the first ``extra`` candidate (``(fr, gloss)``, such
+    as the takes' word bank) they used is kept too, so at least one word is their own."""
+
+    language = _gloss_language_of(plan)
+    outcomes = word_outcomes(state)
+    met_text, used_text = " ".join(met), " ".join(t for t in used if t)
+    words: list[RvClosedWord] = []
+    for item in plan.vocabulary:
+        used_here = bool(used_text) and _contains_word(used_text, item.fr)
+        if not used_here and not _contains_word(met_text, item.fr):
+            continue
+        words.append(RvClosedWord(fr=item.fr, gloss=item.gloss.get(language, ""), claim_id=item.claim_id,
+                                  used=used_here, outcome=outcomes.get(item.fr.strip().casefold())))
+    if used_text and not any(word.used for word in words):
+        seen = {_stem_key(word.fr) for word in words}
+        for fr, gloss in extra or []:
+            if gloss and _stem_key(fr) not in seen and _contains_word(used_text, fr):
+                words.append(RvClosedWord(fr=fr, gloss=gloss, claim_id=None, used=True, outcome=None))
+                break
+    return sorted(words, key=lambda word: not word.used)
 
 
 def word_outcomes(state: ConversationState) -> dict[str, str]:
@@ -1611,17 +1753,32 @@ def session_view(loaded: Loaded) -> RvSessionView:
         room=room,
         thread=thread_items(dossier, plan, state),
         quick_replies=quick_replies(state, room, unshown=unshown_claims(dossier, state)),
-        steer_to_make=room.phase != "open" and artifact is None and not state.closed,
+        steer_to_make=room.phase != "open" and artifact is None and not state.closed and own_line(state),
+        own_line=own_line(state),
         artifact=_made(artifact) if artifact else None,
         closing=_closing_of(state),
+        **_comptoir_fields(loaded),
     )
 
 
+def _comptoir_fields(loaded: Loaded) -> dict[str, Any]:
+    """«Au comptoir»: ``mode`` and the player's view, for a session that started there."""
+
+    from app.services.revue import comptoir_loop
+
+    if comptoir_loop.session_mode(loaded.state) != "comptoir" or loaded.dossier.comptoir is None:
+        return {}
+    return {"mode": "comptoir", "comptoir": comptoir_loop.comptoir_view(loaded)}
+
+
 def served_make_options(plan: SessionPlan) -> list[str]:
-    """The make kinds this plan offers: the two of every band, plus the plan's built ones."""
+    """The make kinds this plan offers: the ones of every band (the headline pick only at
+    A1–A2), plus the plan's built ones."""
 
     planned = set(plan.activities.make_options)
-    return [kind for kind in MAKE_KINDS if kind in ALWAYS_MAKE or kind in planned]
+    lower = plan.learner.band in LOWER_BANDS
+    return [kind for kind in MAKE_KINDS
+            if (kind in ALWAYS_MAKE or kind in planned) and (lower or kind not in LOWER_ONLY_MAKE)]
 
 
 def _iso(value: datetime | None) -> str:
@@ -1900,10 +2057,23 @@ class RevueEncounter:
         db: Session,
         provider: RevueProvider | None = None,
         scorer: grading.RubricScorer | None = None,
+        desk: Any = None,
     ) -> None:
         self.db = db
         self.provider = provider or default_provider()
         self.scorer = scorer or scorer_for(self.provider)
+        #: «Au comptoir»: the takes desk for a story the morning did not write (``ask_json``).
+        self.desk = desk
+
+    def _comptoir_desk(self) -> Any:
+        """The takes desk a session start may call: the injected one, the real one beside a
+        real provider, none beside the deterministic provider (dev, the walk: no call)."""
+
+        if self.desk is None and isinstance(self.provider, OpenAIRevueProvider):
+            from app.services.revue.comptoir import desk_provider
+
+            self.desk = desk_provider()
+        return self.desk
 
     # -- entry -------------------------------------------------------------
 
@@ -1941,6 +2111,11 @@ class RevueEncounter:
             for index, d in enumerate(dossiers)
         ]
         keyed.sort(key=lambda pair: pair[0])
+        from app.services.revue.comptoir import comptoir_enabled
+
+        if comptoir_enabled():
+            # «Au comptoir»: the stories the regulars argue about come first (a stable sort).
+            keyed.sort(key=lambda pair: pair[1].comptoir is None)
         ordered = [d for _, d in keyed]
         reason = "first"
         if len(keyed) > 1:
@@ -2058,12 +2233,22 @@ class RevueEncounter:
             raise RevueError(404, "revue_dossier_not_found", dossier_id=dossier.id, angle_id=angle_id)
 
         spent_before = self._spent()
+        takes, desk_cost = self._takes_at_start(dossier, week)
         plan = self._plan(user, dossier, angle_id=angle_id, chosen_by=chosen_by)
         state = ConversationState()
-        state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
-                     free_request=(free_request or None), snapshot=dossier.model_dump(mode="json"),
-                     cost_usd=round(self._spent() - spent_before, 6), prompt_version=VOCABULARY_PROMPT_VERSION)
-        self._arrive(state, dossier, plan, request_miss=request_miss)
+        if takes is not None:
+            # «Au comptoir» (WP-119, 2026-10-19): the mode is fixed here for the session's life.
+            state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
+                         free_request=(free_request or None), mode="comptoir",
+                         snapshot=dossier.model_copy(update={"comptoir": takes}).model_dump(mode="json"),
+                         cost_usd=round(self._spent() - spent_before + desk_cost, 6),
+                         prompt_version=VOCABULARY_PROMPT_VERSION)
+        else:
+            state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
+                         free_request=(free_request or None), snapshot=dossier.model_dump(mode="json", exclude={"comptoir"}),
+                         cost_usd=round(self._spent() - spent_before + desk_cost, 6),
+                         prompt_version=VOCABULARY_PROMPT_VERSION)
+            self._arrive(state, dossier, plan, request_miss=request_miss)
 
         row = RevueSession(
             id=uuid.uuid4(),
@@ -2089,6 +2274,21 @@ class RevueEncounter:
         # This thread's spend: a critic still running in the pool never lands on a request's event.
         return meter(self.provider)
 
+    def _takes_at_start(self, dossier: EditorialDossier, period: str) -> tuple[Any, float]:
+        """«Au comptoir»: the takes a new session plays, and what a desk call cost; ``None``
+        (a chat) while the switch is off, or when the story has none and the desk refused,
+        skipped or failed."""
+
+        from app.services.revue.comptoir import comptoir_enabled, takes_at_start
+
+        if not comptoir_enabled():
+            return None, 0.0
+        try:
+            return takes_at_start(self.db, dossier, period, provider=self._comptoir_desk())
+        except Exception as exc:  # noqa: BLE001 - never lose a start to the desk: a chat
+            logger.bind(dossier=dossier.id).warning("revue comptoir: takes at start failed ({}); a chat", exc)
+            return None, 0.0
+
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language
         from app.services.journey_contracts import normalize_control_language
@@ -2102,11 +2302,10 @@ class RevueEncounter:
         if site.plate_kind == "story" and dossier.visual is not None:
             # §8.4: the story's own picture is the plate La Carte and the review show with these
             # words; its words lead the vocabulary, and «La légende» joins the make options
-            # (A1–A2 choose among the captions, so only with the builder's two decoys).
+            # (written at every band since 2026-10-23; the builder's decoys are A1–A2's fallback).
             plan.stage.plate_url = site.plate_url
             must = [word.fr for word in dossier.visual.words]
-            if band not in LOWER_BANDS or len(dossier.visual.decoys_fr) >= 2:
-                plan.activities.make_options = [*plan.activities.make_options, "caption"]
+            plan.activities.make_options = [*plan.activities.make_options, "caption"]
         elif plan.stage.plate_url is None:
             # Phase 1: known plates only — the place's nearest season plate stands in (§8.1).
             plan.stage.plate_url = site.plate_url
@@ -2203,6 +2402,7 @@ class RevueEncounter:
         state, plan, dossier = loaded.state, loaded.plan, loaded.dossier
         if row.status != "active" or state.closed:
             raise RevueError(409, "revue_session_closed")
+        _require_chat(loaded)
 
         learner_turns = [e for e in state.events if e.kind == "turn_learner"]
         if client_turn_id and learner_turns and learner_turns[-1].payload.get("client_turn_id") == client_turn_id:
@@ -2678,7 +2878,9 @@ class RevueEncounter:
             room=room,
             support=support_view(plan, state),
             quick_replies=quick_replies(state, room, unshown=unshown_claims(loaded.dossier, state)),
-            steer_to_make=room.phase != "open" and state.current_artifact is None and not state.closed,
+            steer_to_make=room.phase != "open" and state.current_artifact is None and not state.closed
+            and own_line(state),
+            own_line=own_line(state),
             evidence=evidence_view(payload),
         )
 
@@ -3027,11 +3229,13 @@ class RevueEncounter:
         loaded = load(row)
         if row.status != "active" or loaded.state.closed:
             raise RevueError(409, "revue_session_closed")
+        _require_chat(loaded)
+        _require_own_line(loaded)
         if any(e.kind == "evidence" and e.payload.get("pending") for e in loaded.state.events):
             self._settle_evidence(loaded)
             self._save(loaded)
         served = served_make_options(loaded.plan)
-        exercise = self._headline_exercise(loaded)
+        exercise = self._headline_exercise(loaded) if "headline_choice" in served else None
         options: list[Any] = []
         if exercise is not None:
             options.append(RvHeadlineChoiceOffer(options=[RvHeadlineOption(**o) for o in exercise["options"]]))
@@ -3051,7 +3255,7 @@ class RevueEncounter:
             options.append(RvCaptionOffer(
                 format=caption["format"],
                 picture_url=caption["picture_url"],
-                options=[RvCaptionOption(**o) for o in caption.get("options") or []],
+                options=[RvCaptionOption(**o) for o in caption["options"]] if caption.get("pick") else [],
                 words=picture_words(loaded.dossier, loaded.plan),
                 max_words=low_high[1],
             ))
@@ -3088,9 +3292,10 @@ class RevueEncounter:
 
     def _caption_exercise(self, loaded: Loaded) -> dict[str, Any] | None:
         """§8.4 «La légende»: the caption under the story's picture, or ``None`` when the picture
-        is not painted (or the dossier has no picture brief). A1–A2 choose among three captions
-        (the desk's and the builder's two decoys, in an order fixed by the session id); B1+ write
-        it. Deterministic, so it is rebuilt, never stored; the answer never leaves the server."""
+        is not painted (or the dossier has no picture brief). Every band writes it (2026-10-23);
+        at A1–A2 three captions (the desk's and the builder's two decoys, in an order fixed by
+        the session id) are the fallback once a written one was refused (``pick``). Deterministic,
+        so it is rebuilt, never stored; the answer never leaves the server."""
 
         from app.services.revue import plates
 
@@ -3100,17 +3305,21 @@ class RevueEncounter:
         if visual is None or picture is None:
             return None
         caption = picture.caption_fr or visual.caption_fr
+        out: dict[str, Any] = {"format": "write", "picture_url": picture.url, "caption_fr": caption, "options": [],
+                               "pick": False}
         if loaded.plan.learner.band not in LOWER_BANDS:
-            return {"format": "write", "picture_url": picture.url, "caption_fr": caption}
+            return out
         decoys = [d for d in visual.decoys_fr if fold_keep_length(d) != fold_keep_length(caption)][:2]
         if len(decoys) < 2:
-            return None
+            return out
         rows = [caption, *decoys]
         seed = str(loaded.row.id)
         order = sorted(range(3), key=lambda i: hashlib.sha256(f"{seed}:caption:{i}".encode()).hexdigest())
         options = [{"id": f"l{position + 1}", "text_fr": rows[index]} for position, index in enumerate(order)]
         answer = next(o["id"] for o in options if o["text_fr"] == caption)
-        return {"format": "choice", "picture_url": picture.url, "caption_fr": caption, "options": options, "answer": answer}
+        refused = any(e.kind == "evidence" and e.payload.get("make") == "caption" and e.payload.get("refused")
+                      for e in loaded.state.events)
+        return {**out, "options": options, "answer": answer, "pick": refused}
 
     def _make_intro(self, loaded: Loaded, recommended: str) -> RvLineItem:
         """Romy's ``make_intro`` line: written once, on the first GET of the make options."""
@@ -3134,6 +3343,8 @@ class RevueEncounter:
         state = loaded.state
         if row.status != "active" or state.closed:
             raise RevueError(409, "revue_session_closed")
+        _require_chat(loaded)
+        _require_own_line(loaded)
         action = payload.get("action")
         if option == "headline_choice" and action == "pick":
             return self._pick_headline(loaded, str(payload.get("option_id") or ""))
@@ -3178,17 +3389,21 @@ class RevueEncounter:
         return RvHeadlineWriteResult(accepted=accepted, evidence=evidence_view(evidence), made=made, line=line)
 
     def _caption(self, loaded: Loaded, payload: dict[str, Any]) -> RvCaptionResult:
-        """§8.4 «La légende». ``choice``: a pick files the caption the picture shows (credited
-        only when it was the pick, like the headline). ``write``: graded by the rubric against
-        the shown claims and what the picture shows, with the picture's words as target words;
-        filed unless a claim contradicts it (then Romy asks again and nothing is filed)."""
+        """§8.4 «La légende». Written (every band, 2026-10-23): graded by the rubric against the
+        shown claims and what the picture shows, with the picture's words as target words; filed
+        unless a claim contradicts it or it is under the band's words (then Romy asks again,
+        nothing is filed, and at A1–A2 the three captions come as the fallback). Picked (A1–A2,
+        only after a refused try): files the caption the picture shows, never credited to the
+        learner, who did not write it."""
 
         self._require(loaded, "caption")
         exercise = self._caption_exercise(loaded)
         if exercise is None:
             raise RevueError(409, "revue_make_unavailable", kind="caption")
         state = loaded.state
-        if exercise["format"] == "choice":
+        if payload.get("option_id") is not None:
+            if not exercise["pick"]:
+                raise RevueError(409, "revue_caption_write_first")
             option_id = str(payload.get("option_id") or "")
             texts = {o["id"]: o["text_fr"] for o in exercise["options"]}
             if option_id not in texts:
@@ -3198,11 +3413,10 @@ class RevueEncounter:
             text = texts[answer_id]
             if not _choices(state, "make"):
                 state.append("choice", kind="make", option="caption")
-            made_payload = {"kind": "caption", "format": "choice", "text_fr": text,
-                            "contribution": [[0, len(text)]] if correct else [], "learner_fr": None,
-                            "picked": option_id, "correct": correct}
+            made_payload = {"kind": "caption", "format": "choice", "text_fr": text, "contribution": [],
+                            "learner_fr": None, "picked": option_id, "correct": correct}
             state.append("artifact", **made_payload)
-            line = self._make_done(loaded, "caption" if correct else "caption_wrong")
+            line = self._make_done(loaded, "caption_picked" if correct else "caption_wrong")
             self._save(loaded)
             return RvCaptionResult(format="choice", accepted=True, correct=correct, answer_id=answer_id,
                                    made=_made(made_payload), line=line)
@@ -3212,19 +3426,27 @@ class RevueEncounter:
         shown = self._shown_claims(loaded) or loaded.dossier.facts()[:FACTS_ON_ENTRY]
         picture = Claim.model_construct(id="picture", kind="fact", fr=str(exercise["caption_fr"]))
         evidence = self._grade(loaded, text, kind="caption", claims=[*shown, picture])
+        low = grading.CAPTION_WORDS.get(loaded.plan.learner.band, (3, 14))[0]
+        short = grading.word_count(text) < low
+        contradicted = evidence.get("fact_fit") == "contradicted"
+        accepted = not contradicted and not short
         if not _choices(state, "make"):
             state.append("choice", kind="make", option="caption")
-        state.append("evidence", **evidence, breakdown=False, counts=False, make="caption")
-        accepted = evidence.get("fact_fit") != "contradicted"
+        state.append("evidence", **evidence, breakdown=False, counts=False, make="caption", refused=not accepted)
         made = None
         if accepted:
             made_payload = {"kind": "caption", "format": "write", "text_fr": text, "contribution": [[0, len(text)]],
                             "learner_fr": text, "fact_fit": evidence.get("fact_fit"), "band_fit": evidence.get("band_fit")}
             state.append("artifact", **made_payload)
             made = _made(made_payload)
-        line = self._make_done(loaded, "caption" if accepted else "caption_refused")
+        line = self._make_done(loaded, "caption" if accepted else "caption_refused" if contradicted else "caption_short")
+        options = []
+        if not accepted:
+            fallback = self._caption_exercise(loaded)
+            options = [RvCaptionOption(**o) for o in fallback["options"]] if fallback and fallback["pick"] else []
         self._save(loaded)
-        return RvCaptionResult(format="write", accepted=accepted, evidence=evidence_view(evidence), made=made, line=line)
+        return RvCaptionResult(format="write", accepted=accepted, evidence=evidence_view(evidence), made=made, line=line,
+                               options=options)
 
     def _short_report(self, loaded: Loaded, transcript: str, *, mode: str) -> RvShortReportResult:
         """``short_report``: the transcript of a ~30-second report (the audio route is the
@@ -3247,6 +3469,7 @@ class RevueEncounter:
         return RvShortReportResult(evidence=evidence_view(evidence), made=_made(made_payload), line=line)
 
     def _pick_headline(self, loaded: Loaded, option_id: str) -> RvHeadlinePickResult:
+        self._require(loaded, "headline_choice")
         exercise = self._headline_exercise(loaded)
         if exercise is None:
             raise RevueError(409, "revue_make_unavailable", kind="headline_choice")
@@ -3264,7 +3487,8 @@ class RevueEncounter:
             claim = max(shown, key=lambda c: len(answer_words & content_words(c.fr)), default=dossier.claims[0])
         text = texts[answer_id]
         loaded.state.append("choice", kind="make", option="headline_choice")
-        made_payload = {"kind": "headline_choice", "text_fr": text, "contribution": [[0, len(text)]] if correct else [],
+        # a pick is not the learner's writing: no credit (2026-10-23)
+        made_payload = {"kind": "headline_choice", "text_fr": text, "contribution": [],
                         "learner_fr": None, "picked": option_id, "correct": correct}
         loaded.state.append("artifact", **made_payload)
         line = self._make_done(loaded, "headline_choice" if correct else "headline_choice_wrong")
@@ -3356,6 +3580,10 @@ class RevueEncounter:
         existing = _closing_of(state)
         if existing is not None:
             return session_view(loaded), existing
+        from app.services.revue import comptoir_loop
+
+        if comptoir_loop.session_mode(state) == "comptoir":
+            return comptoir_loop.close_comptoir(self, loaded)
         self._settle_evidence(loaded)  # §10e.8: a late critic's words count in the kept words
 
         artifact = state.current_artifact
@@ -3366,7 +3594,8 @@ class RevueEncounter:
             "title_fr": dossier.title_fr,
             "summary_fr": dossier.summary_fr,
             "angle": current_angle(dossier, plan, state).fr,
-            "artifact": {k: artifact.get(k) for k in ("kind", "text_fr", "learner_fr")} if artifact else None,
+            "artifact": {**{k: artifact.get(k) for k in ("kind", "text_fr", "learner_fr")},
+                         "picked": artifact.get("picked") is not None} if artifact else None,
             "claims_shown": [{"id": c.id, "kind": c.kind, "fr": c.fr} for c in shown],
             "open_question": question["text"] if question else None,
             "band": plan.learner.band,
@@ -3409,7 +3638,7 @@ class RevueEncounter:
             logger.bind(session_id=str(row.id), where="close").info("revue_id_leak")
         romy_line = voice.strip_ids(romy_line)
         if {"empty", "app_words", "knowledge", "relative_date"} & set(problems) or not romy_line:
-            romy_line = CLOSE_LINES.get(kind, CLOSE_LINES["none"])
+            romy_line = CLOSE_LINES.get(close_key(artifact), CLOSE_LINES["none"])
         romy_line = voice.french_typography(romy_line)
 
         if artifact and kind in {"headline_choice", "headline_write", "reader_question"}:
@@ -3456,29 +3685,27 @@ class RevueEncounter:
         source_names = list(dict.fromkeys(_source(dossier, c.source_id).name for c in shown))
         sources = [_source(dossier, sid) for sid in dict.fromkeys(c.source_id for c in shown)]
         _, number = parse_week(_week_of(row.week))
+        # «avec toi» only when words the learner wrote are printed (2026-10-23): a pick is not.
+        byline = "Romy Tremblay, avec toi" if artifact and artifact.get("contribution") else "Romy Tremblay"
         dispatch = RvDispatch(
             kicker_fr=f"Le Papier de Romy · semaine {number}",
             headline_fr=headline,
             body_fr=body,
             contribution=contribution,
-            byline_fr="Romy Tremblay, avec toi · d'après " + " et ".join(source_names) if source_names else "Romy Tremblay, avec toi",
+            byline_fr=f"{byline} · d'après " + " et ".join(source_names) if source_names else byline,
             sources=sources,
             picture_url=picture_url,
             caption_fr=caption_fr,
             caption_by_learner=caption_by_learner,
         )
-        # A word the learner wrote into what they made (a headline, a caption, a report) is used too.
-        learner_texts = " ".join([*(str(e.payload.get("text_fr") or "") for e in state.events if e.kind == "turn_learner"),
-                                  str((artifact or {}).get("learner_fr") or "")])
-        language = _gloss_language_of(plan)
-        outcomes = word_outcomes(state)
+        # The Relevé (2026-10-23): the words the learner met here (what Romy and the guests said,
+        # the facts shown, the lead), the ones they typed, said or wrote into what they made first.
+        met = [str(e.payload.get("text_fr") or "") for e in state.events if e.kind != "turn_learner"]
+        met += [c.fr for c in shown] + [dossier.lead_for(plan.learner.band).fr]
+        used = [*typed_lines(state), str((artifact or {}).get("learner_fr") or "")]
+        extra = [(word.fr, word.gloss) for word in picture_words(dossier, plan)]
         kept = RvKept(
-            words=[
-                RvClosedWord(fr=item.fr, gloss=item.gloss.get(language, ""), claim_id=item.claim_id,
-                             used=_contains_word(learner_texts, item.fr),
-                             outcome=outcomes.get(item.fr.strip().casefold()))
-                for item in plan.vocabulary
-            ],
+            words=kept_words(plan, state, met=met, used=used, extra=extra),
             claims=[rv_claim(dossier, c) for c in shown],
         )
         if kind == "reader_question":
@@ -3550,6 +3777,9 @@ class RevueEncounter:
         elif kind == "caption" and artifact:
             verb = "écrit" if artifact.get("learner_fr") else "choisi"
             content += f" Tu as {verb} la légende de l'image : « {artifact.get('text_fr')} »."
+        elif kind == "opinion" and artifact:
+            content = (f"Semaine {number}, au Mistral : on a parlé de « {dossier.title_fr} » pour mon "
+                       f"micro-trottoir. Tu as dit : « {artifact.get('text_fr')} ».")
         else:
             content += " On n'a rien bouclé de plus."
         learner_turns = [e for e in loaded.state.events if e.kind == "turn_learner"]
@@ -3623,6 +3853,25 @@ class RevueEncounter:
             )
         except Exception as exc:  # noqa: BLE001 - defensive, like the correction cost row
             logger.warning("revue: cost row could not be written ({})", exc)
+
+    # -- «Au comptoir» -------------------------------------------------------------
+
+    def comptoir(self, row: RevueSession, body: Any) -> RvComptoirResult:
+        """One act of the comptoir's loop (``comptoir_loop.apply_act``); the session's view
+        after it, with the reason when the act was not recorded."""
+
+        from app.services.revue import comptoir_loop
+
+        loaded = load(row)
+        if comptoir_loop.session_mode(loaded.state) != "comptoir":
+            raise RevueError(409, "revue_not_comptoir")
+        if row.status != "active" and not loaded.state.closed:
+            raise RevueError(409, "revue_session_closed")
+        seq = loaded.state.events[-1].seq if loaded.state.events else 0
+        error = comptoir_loop.apply_act(self, loaded, body)
+        if (loaded.state.events[-1].seq if loaded.state.events else 0) != seq:
+            self._save(loaded)
+        return RvComptoirResult(session=session_view(loaded), error_fr=error)
 
     # -- read ----------------------------------------------------------------------
 

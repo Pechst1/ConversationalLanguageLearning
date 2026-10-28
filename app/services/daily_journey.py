@@ -72,6 +72,7 @@ from app.schemas.daily_journey import (
     JourneyRetryRequest,
     JourneyRevisionRequest,
     JourneySnapshot,
+    JourneyTomorrowRequest,
     LegacyResume,
     NextFocus,
     NextTurn,
@@ -2388,6 +2389,70 @@ class DailyJourneyService:
         if payload.finish_kind == "complete":
             self._warm_next_day(user, journey)
         return snapshot
+
+    def pick_tomorrow(
+        self, user: User, journey_id: uuid.UUID, payload: JourneyTomorrowRequest
+    ) -> JourneySnapshot:
+        """«Demain»: the learner picks the thread the season's next day follows.
+
+        Only from the finished day's own choice, and only while it is the learner's
+        last day: once tomorrow's journey exists its page may be being written
+        against the story as it stood, and a pick would move the story under it
+        (``living_story._lock_context`` refuses a moved revision).
+        """
+
+        journey = self._journey_or_404(user, journey_id)
+        receipt, replay = self._begin_mutation(
+            user,
+            scope="tomorrow",
+            mutation_id=payload.mutation_id,
+            digest=_digest({"journey_id": str(journey_id), "premise_id": payload.premise_id}),
+            journey=journey,
+            expected_revision=payload.expected_revision,
+        )
+        if replay is not None:
+            return self._replay(JourneySnapshot, replay)[0]
+
+        try:
+            self._require_revision(journey, payload.expected_revision)
+            recap = None
+            if JourneyStatus(journey.status) in (
+                JourneyStatus.COMPLETED,
+                JourneyStatus.ENDED_EARLY,
+            ) and not self._has_later_journey(user, journey):
+                from app.services.story_tomorrow import pick
+
+                recap = pick(
+                    self.db,
+                    user=user,
+                    journey=journey,
+                    premise_id=payload.premise_id,
+                    scene_id=_journey_story_context(journey).get("scene_id"),
+                )
+            if recap is None:
+                raise journey_error(
+                    http_status.HTTP_409_CONFLICT,
+                    JourneyErrorCode.JOURNEY_NOT_ACTIVE,
+                    "Tomorrow's thread can no longer be picked.",
+                    current_revision=journey.revision,
+                    refresh_href=refresh_href_for(journey.id),
+                )
+            self._claim_revision(journey, payload.expected_revision)
+            journey.recap_snapshot = JourneyRecap.model_validate(recap).model_dump(mode="json")
+            self.db.flush()
+        except HTTPException as exc:
+            self._record_error(receipt, exc)
+            raise
+
+        snapshot = self.snapshot(journey)
+        self._commit_mutation(receipt, journey, http_status.HTTP_200_OK, snapshot)
+        return snapshot
+
+    def _has_later_journey(self, user: User, journey: DailyJourney) -> bool:
+        stmt = select(DailyJourney.id).where(
+            DailyJourney.user_id == user.id, DailyJourney.local_date > journey.local_date
+        )
+        return self.db.execute(stmt.limit(1)).first() is not None
 
     def _close_learning_session(self, journey: DailyJourney, finish_kind: str) -> None:
         """Close the journey's canonical LearningSession on a real completion.

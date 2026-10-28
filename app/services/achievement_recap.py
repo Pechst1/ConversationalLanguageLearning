@@ -23,7 +23,9 @@ count:
 * ``consolidating`` — WP-L6's auto-throttle is on («Cette semaine, on
   consolide.»);
 * ``forecast_line`` — WP-L8, once a week at the Seal: «At this rhythm: A1.2
-  around <month>», only from a *measured* forecast (never the prior).
+  around <month>», only from a *measured* forecast (never the prior);
+* ``tomorrow`` — «Demain»: the threads the season's next day may follow, when
+  its plan leaves the learner a choice (``story_tomorrow``).
 
 Everything here is defensive: a failure logs and yields nothing, because a
 reward line is never worth the day (the L5 lesson).
@@ -495,6 +497,12 @@ def recap_forecast_line(db: Session, user: User, journey: DailyJourney) -> dict[
 # ---------------------------------------------------------------------------
 
 
+def _recap_tomorrow(user: User, journey: DailyJourney, live: dict[str, Any]) -> dict[str, Any] | None:
+    from app.services.story_tomorrow import recap_tomorrow
+
+    return recap_tomorrow(user, journey, live)
+
+
 def recap_extras(
     db: Session,
     *,
@@ -521,6 +529,7 @@ def recap_extras(
         ("mood", lambda: recap_mood(journey, live)),
         ("keepsake", lambda: recap_keepsake(db, journey, collectible_ids)),
         ("teaser", lambda: recap_teaser(user, journey, live)),
+        ("tomorrow", lambda: _recap_tomorrow(user, journey, live)),
     ):
         try:
             extras[key] = build()
