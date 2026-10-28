@@ -110,3 +110,10 @@ export type StoryEpisode = Schemas['StoryEpisodeRead'];
 export type GrammarMark = Schemas['GrammarMarkRead'];
 export type GrammarFocus = Schemas['GrammarFocusRead'];
 export type StoryEpisodePage = Schemas['StoryEpisodePageRead'];
+
+/**
+ * Le Quartier, phase 1: a gesture in the scene that is not an answer (walking out, answering a
+ * text, talking to someone), `POST /daily-journeys/{journey_id}/choices`.
+ */
+export type StoryletChoiceBody = Schemas['JourneyChoiceRequest'];
+export type StoryletChoiceResult = Schemas['JourneyChoiceResult'];

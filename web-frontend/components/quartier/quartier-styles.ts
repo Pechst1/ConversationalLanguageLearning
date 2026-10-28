@@ -165,6 +165,11 @@ export const QUARTIER_CSS = `
   animation: qz-in 200ms ease both;
 }
 .qz-you b { display: block; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--qz-muted); margin-bottom: 2px; }
+button.qz-you { font: inherit; font-size: 17px; color: var(--qz-ink); text-align: left; cursor: pointer; }
+.qz-mend { display: block; margin-top: 6px; padding-top: 6px; border-top: 1.5px dashed var(--qz-line-2); font-size: 15px; }
+.qz-mend s { color: var(--qz-red); text-decoration-thickness: 2px; }
+.qz-mend small { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.4; color: var(--qz-muted); }
+.qz-you .qz-more { right: 12px; bottom: 8px; }
 
 /* ---- where to go ----------------------------------------------------------------------------- */
 .qz-goal {
@@ -289,6 +294,20 @@ export const QUARTIER_CSS = `
 .qz-write input:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--qz-blue) 35%, transparent); }
 .qz-send { width: 48px; height: 48px; border-radius: 999px; padding: 0; display: grid; place-items: center; }
 .qz-send svg { width: 20px; height: 20px; }
+.qz-again { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: var(--qz-red); }
+.qz-help-hint { margin: 10px 0 0; padding: 8px 12px; border-left: 4px solid var(--qz-accent); background: var(--qz-card); border-radius: 0 12px 12px 0; font-size: 14px; line-height: 1.4; color: var(--qz-ink-2); }
+.qz-chip--word { border-style: dashed; }
+.qz-failed { margin: 8px 0; font-size: 13px; color: var(--qz-red); }
+.qz-sheet .qz-write { margin-top: 12px; }
+.qz-help { display: block; margin: 10px auto 0; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.qz-help:disabled { opacity: 0.45; }
+.qz-aide { flex: none; padding: 9px 12px; background: var(--qz-line); }
+.qz-dots { display: inline-flex; gap: 3px; }
+.qz-dots i { width: 5px; height: 5px; border-radius: 999px; background: currentColor; animation: qz-dot 1s ease-in-out infinite; }
+.qz-dots i:nth-child(2) { animation-delay: 0.15s; }
+.qz-dots i:nth-child(3) { animation-delay: 0.3s; }
+.qz-dots--ink { color: var(--qz-muted); padding: 6px 0; }
+@keyframes qz-dot { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
 
 /* ---- a silent panel: the frame narrows ------------------------------------------------------ */
 .qz-letterbox::before,

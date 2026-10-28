@@ -33,6 +33,8 @@ import type {
   LineAudioBody,
   PublicStep,
   RespondStep,
+  StoryletChoiceBody,
+  StoryletChoiceResult,
   TodayEnvelope,
   TomorrowBody,
 } from '@/types/daily-journey';
@@ -276,6 +278,25 @@ export const dailyJourneyService = {
       premise_id: options.premiseId,
     };
     return apiService.pickDailyJourneyTomorrow(journeyId, body);
+  },
+
+  /**
+   * Le Quartier: something done in the scene that is not an answer (walking out, answering
+   * Margaux's text, talking to someone). Kept beside the story, idempotent per mutation id, and
+   * sent without a revision, since a gesture does not move the journey.
+   */
+  choose(
+    journeyId: string,
+    options: { storyletId: string; at?: string | null; to?: string; text?: string; mutationId?: string },
+  ): Promise<StoryletChoiceResult> {
+    const body: StoryletChoiceBody = {
+      mutation_id: options.mutationId ?? mutationId(),
+      storylet_id: options.storyletId,
+    };
+    if (options.at) body.at = options.at;
+    if (options.to) body.to = options.to;
+    if (options.text !== undefined) body.text = options.text;
+    return apiService.chooseDailyJourneyStorylet(journeyId, body);
   },
 
   /** Bounded recovery for a preparing/unavailable journey; the id is reused. */

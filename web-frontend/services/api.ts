@@ -33,6 +33,8 @@ import type {
   PaceOptions,
   RetryBody,
   RevisionBody,
+  StoryletChoiceBody,
+  StoryletChoiceResult,
   TodayEnvelope,
   TomorrowBody,
 } from '@/types/daily-journey';
@@ -3398,6 +3400,18 @@ class ApiService {
   async pickDailyJourneyTomorrow(journeyId: string, body: TomorrowBody): Promise<JourneySnapshot> {
     const result = await this.journeyPost<JourneySnapshot>(
       `/daily-journeys/${encodeURIComponent(journeyId)}/tomorrow`,
+      body,
+    );
+    return result.data;
+  }
+
+  /** Le Quartier: a gesture that is not an answer, kept beside the day's story. */
+  async chooseDailyJourneyStorylet(
+    journeyId: string,
+    body: StoryletChoiceBody,
+  ): Promise<StoryletChoiceResult> {
+    const result = await this.journeyPost<StoryletChoiceResult>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/choices`,
       body,
     );
     return result.data;

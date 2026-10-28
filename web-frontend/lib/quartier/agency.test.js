@@ -1,9 +1,9 @@
 // node --test lib/quartier/agency.test.js
 //
 // Le Quartier · what you can do besides answer, and what the quarter remembers. These tests hold
-// the agency layer to itself and to the season's canon: a refusal reads as a refusal, every choice
-// reads what you type, every condition names something the quarter can actually remember, nobody
-// speaks out of their register, and no line agrees an adjective with you.
+// the agency layer to itself and to the season's canon: every route of the day changes something,
+// every condition names something the quarter can actually remember, nobody speaks out of their
+// register, and no line agrees an adjective with you.
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -14,19 +14,20 @@ require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
 const A = require('./agency.ts');
 const { Memory, eligible, matches, pick } = require('./memory.ts');
-const { T1A, classify } = require('./stage.ts');
+const { T1A_COPY: T1A } = require('./story.ts');
 const { WORLD, worldState } = require('./world.ts');
 const PARIS = require('./world/paris.json');
 
 const CAST = Object.keys(A.PEOPLE);
-const turns = T1A.movements.filter((m) => m.kind === 'turn');
+/** The day's questions: its turns, and «Le choix» where someone asks it. */
+const turns = T1A.movements.filter((m) => m.kind === 'turn' || (m.kind === 'solve' && m.to));
+/** The café crème and the key, as the engine asks them: questions whose replies are the options. */
+const CHOICES = { 'a.cafe': ['drink', 'declined', 'refused'], 'a.key': ['take', 'leave'] };
 
 /** Every effect list the agency layer can apply. */
 function allEffects() {
   const lists = [
     ...Object.values(A.REPLY_EFFECTS),
-    ...Object.values(A.CAFE_OUTCOMES).map((o) => o.effects),
-    ...Object.values(A.KEY_OUTCOMES).map((o) => o.effects),
     A.LEAVE.effects,
     A.TEXT_SUITCASE.effects,
   ];
@@ -36,7 +37,7 @@ function allEffects() {
 
 /** Every storylet with a condition. */
 function allStorylets() {
-  const out = [...A.STREET_BARKS, ...A.WHILE_AWAY, ...A.TOMORROW, ...A.NOTES];
+  const out = [...A.STREET_BARKS, ...A.WHILE_AWAY, ...A.NOTES];
   for (const p of Object.values(A.PEOPLE)) out.push(...p.hello, ...p.intents);
   return out;
 }
@@ -50,44 +51,41 @@ function allLines() {
     p.fallback.forEach((f, n) => out.push({ who: p.id, fr: f.fr, where: `${p.id}.fallback.${n}` }));
     if (p.bye) out.push({ who: p.id, fr: p.bye.fr, where: `${p.id}.bye` });
   }
-  for (const o of [...Object.values(A.CAFE_OUTCOMES), ...Object.values(A.KEY_OUTCOMES)]) for (const l of o.lines) out.push({ who: l.who, fr: l.say.fr, where: 'choice' });
-  for (const replies of Object.values(A.EXTRA_REPLIES)) for (const r of replies) for (const b of r.beats) for (const l of b.lines) out.push({ who: l.who, fr: l.say.a2, where: b.id });
   for (const k of ['asked', 'resume', 'resumeGus']) out.push({ who: A.LEAVE[k].who, fr: A.LEAVE[k].say.fr, where: `leave.${k}` });
   out.push({ who: A.TEXT_SUITCASE.who, fr: A.TEXT_SUITCASE.say.fr, where: 'text' });
   return out;
 }
 
-test('a refusal is a reply of its own, at both turns', () => {
-  for (const [turnId, replies] of Object.entries(A.EXTRA_REPLIES)) {
-    for (const r of replies) for (const ex of r.examples) assert.equal(classify(turnId, ex), r.id, `${turnId}: «${ex}»`);
+test('every route of the day changes something, and says so in the carnet', () => {
+  const routes = turns.flatMap((t) => (t.replies ?? t.options).map((r) => `${t.id}.${r.id}`));
+  for (const [turn, replies] of Object.entries(CHOICES)) for (const r of replies) routes.push(`${turn}.${r}`);
+  for (const route of new Set(routes)) {
+    const effects = A.REPLY_EFFECTS[route];
+    assert.ok(effects && effects.length, `${route} has no effects`);
+    assert.ok(effects.some((e) => e.kind === 'journal'), `${route} writes nothing in the carnet`);
   }
-  for (const typed of ['Ça ne te regarde pas.', 'Je préfère ne pas répondre.', 'Aucun commentaire.', 'Ce ne sont pas vos affaires… pas vos affaires !']) {
-    assert.equal(classify('a.turn1', typed), 'refuse', typed);
-  }
-  for (const turn of turns) for (const reply of turn.replies) for (const ex of reply.examples) assert.equal(A.isRefusal(ex), false, `«${ex}» is the season's ${reply.id}, not a refusal`);
+  for (const route of Object.keys(A.REPLY_EFFECTS)) assert.ok(routes.includes(route), `${route} is no route of the day`);
 });
 
-test('every reply of the day changes something, and says so in the carnet', () => {
-  for (const turn of turns) {
-    for (const reply of [...turn.replies, ...(A.EXTRA_REPLIES[turn.id] ?? [])]) {
-      const effects = A.REPLY_EFFECTS[`${turn.id}.${reply.id}`];
-      assert.ok(effects && effects.length, `${turn.id}.${reply.id} has no effects`);
-      assert.ok(effects.some((e) => e.kind === 'journal'), `${turn.id}.${reply.id} writes nothing in the carnet`);
+test('the café crème and the key each settle what the days after read', () => {
+  for (const [turn, replies] of Object.entries(CHOICES)) {
+    for (const r of replies) assert.ok(A.REPLY_EFFECTS[`${turn}.${r}`].some((e) => e.kind === 'fact'), `${turn}.${r}`);
+  }
+  const holder = (r) => A.REPLY_EFFECTS[`a.key.${r}`].find((e) => e.kind === 'item').holder;
+  assert.equal(holder('take'), 'toi');
+  assert.equal(holder('leave'), 'margaux_barman');
+});
+
+test('what the engine heard in a talk moves regard and the carnet, not the facts it sends itself', () => {
+  assert.deepEqual(A.heardEffects('margaux_barman', null), []);
+  assert.deepEqual(A.heardEffects('margaux_barman', 'no.such.line'), []);
+  for (const p of Object.values(A.PEOPLE)) {
+    for (const i of p.intents) {
+      const kept = A.heardEffects(p.id, i.id);
+      assert.ok(kept.every((e) => e.kind === 'regard' || e.kind === 'journal'), i.id);
+      assert.equal(kept.length, (i.effects ?? []).filter((e) => e.kind === 'regard' || e.kind === 'journal').length, i.id);
     }
   }
-});
-
-test('the café crème and the key read what you type', () => {
-  assert.deepEqual(A.CAFE.chips.map(A.readCafe), ['drink', 'polite', 'rude']);
-  assert.equal(A.readCafe('Oui, merci !'), 'drink');
-  assert.equal(A.readCafe('Non, je ne bois pas de café.'), 'polite');
-  assert.equal(A.readCafe('Pas pour moi, merci.'), 'polite');
-  assert.equal(A.readCafe('Beurk.'), 'rude');
-  assert.deepEqual(A.KEY.chips.map(A.readKey), ['take', 'leave']);
-  assert.equal(A.readKey('Je la garde.'), 'take');
-  assert.equal(A.readKey("Garde-la, s'il te plaît."), 'leave');
-  assert.equal(A.readKey('Tu peux la garder ?'), 'leave');
-  for (const outcome of [...Object.values(A.CAFE_OUTCOMES), ...Object.values(A.KEY_OUTCOMES)]) assert.ok(outcome.effects.some((e) => e.kind === 'fact'));
 });
 
 test('a conversation answers in its own register, and the slip comes first, once', () => {
@@ -184,8 +182,8 @@ test('no line agrees an adjective with you, and Camille is never gendered', () =
   ]
     .filter((e) => e.kind === 'journal' || e.kind === 'learn')
     .map((e) => e.words.fr);
-  aboutYou.push(...A.WHILE_AWAY.map((b) => b.say.fr), ...A.TOMORROW.map((b) => b.say.fr), ...A.NOTES.map((b) => b.say.fr), ...A.STREET_BARKS.map((b) => b.say.fr));
-  aboutYou.push(A.CAFE.task.fr, A.KEY.task.fr, A.MOMENT.caption.fr, A.LEAVE.asked.say.fr, A.LEAVE.resume.say.fr, A.TEXT_SUITCASE.say.fr);
+  aboutYou.push(...A.WHILE_AWAY.map((b) => b.say.fr), ...A.NOTES.map((b) => b.say.fr), ...A.STREET_BARKS.map((b) => b.say.fr));
+  aboutYou.push(A.MOMENT.caption.fr, A.LEAVE.asked.say.fr, A.LEAVE.resume.say.fr, A.TEXT_SUITCASE.say.fr);
   for (const who of CAST) for (let r = -3; r <= 3; r++) aboutYou.push(A.regardWords(who, r).fr);
   // what follows «tu es», «t'es», «te voilà»… must not be a word that takes your gender
   const toiIs = /\b(?:tu es|tu étais|tu seras|t'es|tu sembles|tu as l'air|tu restes|tu deviens|te voilà|te revoilà)\s+(?:(?:si|très|trop|bien|pas|plus|encore|déjà|vraiment)\s+)*([a-zàâçéèêëîïôûùüÿœ'-]+)/gi;

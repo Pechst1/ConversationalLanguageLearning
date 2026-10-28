@@ -8,6 +8,9 @@
  * and the map of the Paris the game has built so far. From the map you can ride to a place the
  * forge has built (`world/sites`): the engine is rebuilt there, a `Visit` directs it instead of the
  * episode's `Stage`, and «Rentrer au quai» brings you home with what you did there remembered.
+ * In the app the episode is today's (`day`): the page hands over the journey's story, or a card in
+ * its stead, and the end card's lower half (the engine's recap, «Demain»). Without one (the
+ * standalone page) the quarter plays its own copy of T1 day a.
  * Nothing here is server-rendered: the page imports it with `ssr: false`.
  */
 import React from 'react';
@@ -25,8 +28,10 @@ import type { Words } from '@/lib/quartier/memory';
 import { AMBIANCES } from '@/lib/quartier/palette';
 import type { AmbianceId } from '@/lib/quartier/palette';
 import type { SiteSpec } from '@/lib/quartier/site';
-import { Stage, T1A } from '@/lib/quartier/stage';
+import { Stage } from '@/lib/quartier/stage';
 import type { AnswerUi, Cue, Director, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
+import { pageOfCopy } from '@/lib/quartier/story';
+import type { HelpStep, Story, StoryPage } from '@/lib/quartier/story';
 import { Visit } from '@/lib/quartier/visit';
 import { placeOf, worldState } from '@/lib/quartier/world';
 import { SITE_FILES } from '@/lib/quartier/world/sites';
@@ -36,7 +41,31 @@ import { Carnet } from './Carnet';
 import { QuartierMap } from './QuartierMap';
 import { QUARTIER_CSS } from './quartier-styles';
 
+/** A card in place of the episode's title card: the day is on its way, played, or the Feuilleton's. */
+export interface DayNote {
+  kicker?: string;
+  title: string;
+  text?: string | null;
+  /** under the text: the engine's recap and «Demain», on a day already played */
+  body?: React.ReactNode;
+  action?: { label: string; run: () => void } | null;
+}
+
+/** Today, in the app. */
+export interface QuartierDay {
+  /** the day's story, once it is known: «Commencer» plays it when no note stands in for the episode, and the people talk through it */
+  story: Story | null;
+  /** a card instead of the episode's */
+  note?: DayNote | null;
+  /** the end card's lower half: the engine's recap, «Demain», what comes next */
+  end?: React.ReactNode;
+  /** the scene has played to its hook, and the engine has the day */
+  onPlayed?: () => void;
+}
+
 export interface QuartierScreenProps {
+  /** today's episode, in the app; left out, the quarter plays its own copy of T1 day a */
+  day?: QuartierDay;
   /** the language the translations are in (defaults to the phone's: German, else English) */
   native?: Native;
   level?: Level;
@@ -51,6 +80,8 @@ export interface QuartierScreenProps {
   cast?: 'round' | 'paper';
   /** the quarter is built and its director ready (for tools that drive it: a play-through, a test) */
   onReady?: (engine: Quartier, director: Director, memory: Memory) => void;
+  /** something covers the whole quarter (the rest of the day): the frame and the sound rest */
+  hidden?: boolean;
 }
 
 const ART: ArtSource = {
@@ -106,6 +137,12 @@ const COPY = {
     back: 'De retour au quai',
     backText: 'The evening goes on at Le Mistral. Walk about and talk to anyone, or play the episode again.',
     visitHowto: 'Tap a stallholder to talk, in French: say bonjour, ask a price, buy by the kilo or by the piece. Tap the ground to walk. «Rentrer» takes you back to the quai.',
+    help: { hint: 'Un indice', words: 'Des mots', example: 'Un exemple' } as Record<HelpStep, string>,
+    aide: 'Aide',
+    again: 'Encore une fois',
+    notSent: 'That did not get through. Send it again.',
+    yourDay: 'Ta journée',
+    dayLoading: 'Your day is on its way…',
   },
   de: {
     start: 'Commencer',
@@ -143,12 +180,23 @@ const COPY = {
     back: 'De retour au quai',
     backText: 'Im Mistral geht der Abend weiter. Geh herum und sprich mit allen, oder spiel die Folge noch einmal.',
     visitHowto: 'Tippe auf jemanden am Stand, um zu reden, auf Französisch: sag bonjour, frag nach dem Preis, kauf nach Kilo oder Stück. Tippe auf den Boden, um zu gehen. «Rentrer» bringt dich zurück an den Quai.',
+    help: { hint: 'Un indice', words: 'Des mots', example: 'Un exemple' } as Record<HelpStep, string>,
+    aide: 'Aide',
+    again: 'Encore une fois',
+    notSent: 'Das kam nicht an. Schick es noch einmal.',
+    yourDay: 'Ta journée',
+    dayLoading: 'Dein Tag kommt gleich…',
   },
 };
 
 type Copy = (typeof COPY)['en'];
 
-export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady }: QuartierScreenProps) {
+/** «Épisode 12», or the quarter's name when the page has no number. */
+function episodeOf(page: StoryPage | null) {
+  return page?.number ? `Épisode ${page.number}` : 'Le Quartier';
+}
+
+export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false }: QuartierScreenProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const engine = React.useRef<Quartier | null>(null);
   const stage = React.useRef<Director | null>(null);
@@ -172,6 +220,12 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   const [back, setBack] = React.useState(false);
   const copy = COPY[native];
   const here = placeOf(place);
+  // the episode: today's in the app, the quarter's own copy on the standalone page
+  const [offline] = React.useState(() => pageOfCopy(undefined, { level, native }));
+  const page: StoryPage | null = day ? (day.story?.page ?? null) : offline;
+  const played = React.useRef(false);
+  const onPlayed = React.useRef(day?.onPlayed);
+  onPlayed.current = day?.onPlayed;
 
   // you arrive: how long were you gone, and what happened meanwhile?
   React.useEffect(() => {
@@ -229,7 +283,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         if (cancelled) return;
         const opts = { level, native, onCue: (c: Cue) => sn.cue(c), onSay: (fr: string, heat: number) => sn.announce(fr, heat), memory };
         // a place where the news happens plays the event; a street, its people and their trade
-        const director: Director = spec ? (spec.venue ? new Course(eq, opts) : new Visit(eq, opts)) : new Stage(eq, T1A, opts);
+        const director: Director = spec ? (spec.venue ? new Course(eq, opts) : new Visit(eq, opts)) : new Stage(eq, undefined, opts);
         st = director;
         stage.current = director;
         unsubscribe = director.subscribe(setUi);
@@ -277,6 +331,21 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [place]);
 
+  // under a cover the quarter draws nothing and is silent
+  React.useEffect(() => {
+    const q = engine.current;
+    if (!q || loading) return;
+    if (hidden) {
+      q.pause();
+      sound.current?.setEnabled(false);
+    } else {
+      q.start();
+      sound.current?.setEnabled(soundOn);
+    }
+    // the sound switch is the learner's; this only rests it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hidden, loading]);
+
   const startSound = () => {
     const snd = sound.current;
     snd?.start();
@@ -284,18 +353,22 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   };
 
   const begin = () => {
+    const st = stage.current;
+    if (day?.story && st instanceof Stage) st.setStory(day.story);
     startSound();
     setAwayNotes([]);
     setBack(false);
-    stage.current?.begin();
+    st?.begin();
   };
 
-  /** Back on the quai: the evening goes on, without playing the episode again. */
+  /** Back on the quai: the evening goes on, without playing the episode again; whoever you talk to answers from today's story. */
   const stroll = () => {
+    const st = stage.current;
+    if (day?.story && st instanceof Stage) st.setStory(day.story);
     startSound();
     setAwayNotes([]);
     setBack(false);
-    stage.current?.roam();
+    st?.roam();
   };
 
   /** Ride somewhere on the map: the quarter is taken down and the place built in its stead. */
@@ -328,6 +401,15 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
 
   const phase = ui?.phase ?? 'title';
   const ready = !loading && !failed;
+
+  // once a play reaches its end card, the page hears that the engine has the day
+  React.useEffect(() => {
+    if (phase === 'scene') played.current = false;
+    if (phase !== 'end' || site || played.current) return;
+    played.current = true;
+    onPlayed.current?.();
+  }, [phase, site]);
+
   const walkable = (phase === 'roam' || Boolean(ui?.goal) || Boolean(ui?.moment)) && !ui?.talk && !ui?.answer && !ui?.aside;
   // a line outside the script (why you leave, welcome back) takes the speaker's card
   const line: SpeechUi | null = ui?.aside ?? (ui?.speech && !ui.silent ? ui.speech : null);
@@ -335,6 +417,8 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
   // The map takes you anywhere open, even mid-scene: leaving is a choice like any other.
   const canTravel = ready && !ui?.talk;
   const name = here?.name.fr ?? 'Le quai de Valmy';
+  // a day the engine has kept is not played twice
+  const replayable = st instanceof Stage ? st.replayable : true;
 
   return (
     <div className={`qz${ui?.silent ? ' qz-letterbox' : ''}`} data-phase={phase} data-beat={ui?.beat ?? undefined} data-place={place}>
@@ -356,9 +440,13 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
               <div className="qz-title">
                 <em>{name}</em>
               </div>
+            ) : page ? (
+              <div className="qz-title">
+                {episodeOf(page)} · <em>{page.title_fr}</em>
+              </div>
             ) : (
               <div className="qz-title">
-                Épisode {T1A.number} · <em>{T1A.title_fr}</em>
+                <em>{name}</em>
               </div>
             )}
             <button type="button" className="qz-round" aria-label={copy.carnet} onClick={() => setPanel('carnet')}>
@@ -427,10 +515,17 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
       {ui?.silent && ui.waitingTap ? <div className="qz-hint">{copy.silent}</div> : null}
 
       {ui?.you ? (
-        <div className="qz-you" data-char="toi" lang="fr">
+        <button type="button" className="qz-you" data-char="toi" data-mend={ui.mend ? true : undefined} onClick={() => st?.tap()}>
           <b>Toi</b>
-          {ui.you}
-        </div>
+          <span lang="fr">{ui.you}</span>
+          {ui.mend ? (
+            <span className="qz-mend">
+              <s lang="fr">{ui.mend.span}</s> <span lang="fr">{ui.mend.corrected}</span>
+              {ui.mend.note ? <small>{ui.mend.note}</small> : null}
+            </span>
+          ) : null}
+          {ui.mend && ui.waitingTap ? <span className="qz-more" aria-hidden /> : null}
+        </button>
       ) : null}
 
       {ui?.goal && !ui.talk && !ui.aside ? (
@@ -452,7 +547,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
 
       {walkable && ready ? <Stick onMove={(x, y) => engine.current?.setStick(x, y)} /> : null}
 
-      {ui?.answer ? <AnswerSheet key={ui.answer.id} a={ui.answer} translate={translate} copy={copy} onSend={(t) => st?.answer(t)} /> : null}
+      {ui?.answer ? <AnswerSheet key={ui.answer.id} a={ui.answer} copy={copy} onSend={(t) => st?.answer(t)} onHelp={() => st?.askHelp?.()} /> : null}
 
       {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
 
@@ -526,7 +621,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         </div>
       ) : null}
 
-      {ready && phase === 'title' && !site && back ? (
+      {ready && phase === 'title' && !site && back && !day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{name}</p>
@@ -536,8 +631,35 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
               {copy.roam}
             </button>
             <div className="qz-card-row">
-              <button type="button" className="qz-quiet" onClick={begin}>
-                Épisode {T1A.number}
+              {page ? (
+                <button type="button" className="qz-quiet" onClick={begin}>
+                  {episodeOf(page)}
+                </button>
+              ) : null}
+              <button type="button" className="qz-quiet" onClick={() => setPanel('map')}>
+                {copy.map}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* where the day stands, back from a ride too: a talk left midway is the Feuilleton's, not played again */}
+      {ready && phase === 'title' && !site && day?.note ? (
+        <div className="qz-cover qz-cover--night">
+          <div className="qz-card">
+            <p className="qz-kicker">{day.note.kicker ?? copy.yourDay}</p>
+            <h1 className="qz-h">{day.note.title}</h1>
+            {day.note.text ? <p className="qz-cando">{day.note.text}</p> : null}
+            {day.note.body}
+            {day.note.action ? (
+              <button type="button" className="qz-primary" onClick={day.note.action.run}>
+                {day.note.action.label}
+              </button>
+            ) : null}
+            <div className="qz-card-row">
+              <button type="button" className={day.note.action ? 'qz-quiet' : 'qz-primary'} onClick={stroll}>
+                {copy.roam}
               </button>
               <button type="button" className="qz-quiet" onClick={() => setPanel('map')}>
                 {copy.map}
@@ -547,16 +669,24 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
         </div>
       ) : null}
 
-      {ready && phase === 'title' && !site && !back ? (
+      {ready && phase === 'title' && !site && !back && !day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
-            <p className="qz-kicker">Épisode {T1A.number}</p>
-            <h1 className="qz-h">{T1A.title_fr}</h1>
-            <p className="qz-date">{T1A.story_date_fr}</p>
-            {awayNotes.length ? <Recap title={copy.away} lines={awayNotes.map((w) => ({ text: w.fr, native: w[native] }))} translate={translate} /> : <p className="qz-cando">{T1A.can_do.fr}</p>}
-            <button type="button" className="qz-primary" onClick={begin}>
-              {copy.start}
-            </button>
+            <p className="qz-kicker">{page ? episodeOf(page) : copy.yourDay}</p>
+            <h1 className="qz-h">{page ? page.title_fr : name}</h1>
+            {page?.story_date_fr ? <p className="qz-date">{page.story_date_fr}</p> : null}
+            {awayNotes.length ? (
+              <Recap title={copy.away} lines={awayNotes.map((w) => ({ text: w.fr, native: w[native] }))} translate={translate} />
+            ) : page?.can_do_native ? (
+              <p className="qz-cando">{page.can_do_native}</p>
+            ) : null}
+            {page ? (
+              <button type="button" className="qz-primary" onClick={begin}>
+                {copy.start}
+              </button>
+            ) : (
+              <p className="qz-loading-label">{copy.dayLoading}</p>
+            )}
             <button type="button" className="qz-quiet" onClick={() => setPanel('map')}>
               {copy.map}
             </button>
@@ -594,24 +724,33 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
       {phase === 'end' && !site ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card qz-card--end">
-            <p className="qz-kicker">Épisode {T1A.number}</p>
+            <p className="qz-kicker">{episodeOf(page)}</p>
             <h1 className="qz-h">{copy.end}</h1>
-            <p className="qz-date">{T1A.title_fr}</p>
+            {page ? <p className="qz-date">{page.title_fr}</p> : null}
             {ui?.recap?.did.length ? <Recap title={copy.tonight} lines={ui.recap.did} translate={translate} /> : null}
-            {ui?.recap?.tomorrow.length ? <Recap title={copy.tomorrow} lines={ui.recap.tomorrow} translate={translate} /> : null}
-            <button type="button" className="qz-primary" onClick={() => st?.roam()}>
-              {copy.roam}
-            </button>
+            {day?.end ?? (ui?.recap?.tomorrow.length ? <Recap title={copy.tomorrow} lines={ui.recap.tomorrow} translate={translate} /> : null)}
+            {day?.end ? null : (
+              <button type="button" className="qz-primary" onClick={() => st?.roam()}>
+                {copy.roam}
+              </button>
+            )}
             <div className="qz-card-row">
+              {day?.end ? (
+                <button type="button" className="qz-quiet" onClick={() => st?.roam()}>
+                  {copy.roam}
+                </button>
+              ) : null}
               <button type="button" className="qz-quiet" onClick={() => setPanel('carnet')}>
                 {copy.carnet}
               </button>
               <button type="button" className="qz-quiet" onClick={() => setPanel('map')}>
                 {copy.map}
               </button>
-              <button type="button" className="qz-quiet" onClick={() => st?.replay()}>
-                {copy.replay}
-              </button>
+              {replayable ? (
+                <button type="button" className="qz-quiet" onClick={() => st?.replay()}>
+                  {copy.replay}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -630,7 +769,7 @@ export function QuartierScreen({ native: nativeProp, level = 'a2', ambiance: fir
 }
 
 /** A short list on a card: tonight's choices, tomorrow's consequences, what happened while you were away. */
-function Recap({ title, lines, translate }: { title: string; lines: Array<{ text: string; native: string }>; translate: boolean }) {
+function Recap({ title, lines, translate }: { title: string; lines: Array<{ text: string; native: string | null }>; translate: boolean }) {
   return (
     <section className="qz-recap">
       <h2>{title}</h2>
@@ -638,7 +777,7 @@ function Recap({ title, lines, translate }: { title: string; lines: Array<{ text
         {lines.map((l, i) => (
           <li key={i} lang="fr">
             {l.text}
-            {translate ? <small>{l.native}</small> : null}
+            {translate && l.native ? <small>{l.native}</small> : null}
           </li>
         ))}
       </ul>
@@ -646,18 +785,44 @@ function Recap({ title, lines, translate }: { title: string; lines: Array<{ text
   );
 }
 
-/** What you type, with chips that fill it in. */
-function Write({ placeholder, send, onSend, chips }: { placeholder: string; send: string; onSend: (text: string) => void; chips: string[] }) {
-  const [text, setText] = React.useState('');
+/**
+ * What you type, with chips that fill it in. Chips that are help (`onAsk`) wait behind «Aide»;
+ * `keep` leaves what you sent in the field, for an answer that may have to be sent again.
+ */
+function Write({
+  placeholder,
+  copy,
+  onSend,
+  chips = [],
+  onAsk = false,
+  busy = false,
+  keep = false,
+  text: held,
+  onText,
+}: {
+  placeholder: string;
+  copy: Copy;
+  onSend: (text: string) => void;
+  chips?: string[];
+  onAsk?: boolean;
+  busy?: boolean;
+  keep?: boolean;
+  text?: string;
+  onText?: (text: string) => void;
+}) {
+  const [own, setOwn] = React.useState('');
+  const [asked, setAsked] = React.useState(false);
+  const text = held ?? own;
+  const setText = onText ?? setOwn;
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || busy) return;
     onSend(text);
-    setText('');
+    if (!keep) setText('');
   };
   return (
     <form onSubmit={submit}>
-      {chips.length ? (
+      {chips.length && (!onAsk || asked) ? (
         <div className="qz-chips">
           {chips.map((c) => (
             <button key={c} type="button" className="qz-chip" lang="fr" onClick={() => setText(c)}>
@@ -668,25 +833,70 @@ function Write({ placeholder, send, onSend, chips }: { placeholder: string; send
       ) : null}
       <div className="qz-write">
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} lang="fr" autoCapitalize="sentences" autoCorrect="off" spellCheck={false} enterKeyHint="send" aria-label={placeholder} />
-        <button type="submit" className="qz-primary qz-send" disabled={!text.trim()} aria-label={send}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M5 12h13M13 6l6 6-6 6" />
-          </svg>
+        {chips.length && onAsk && !asked ? (
+          <button type="button" className="qz-quiet qz-aide" onClick={() => setAsked(true)}>
+            {copy.aide}
+          </button>
+        ) : null}
+        <button type="submit" className="qz-primary qz-send" disabled={!text.trim() || busy} aria-busy={busy || undefined} aria-label={copy.send}>
+          {busy ? (
+            <span className="qz-dots" aria-hidden>
+              <i />
+              <i />
+              <i />
+            </span>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M5 12h13M13 6l6 6-6 6" />
+            </svg>
+          )}
         </button>
       </div>
     </form>
   );
 }
 
-function AnswerSheet({ a, translate, copy, onSend }: { a: AnswerUi; translate: boolean; copy: Copy; onSend: (text: string) => void }) {
+/**
+ * The answer sheet: the question, an empty field, and help only when asked for, a step at a time
+ * (a hint, words to build with, an example), each recorded by the engine before it shows.
+ */
+function AnswerSheet({ a, copy, onSend, onHelp }: { a: AnswerUi; copy: Copy; onSend: (text: string) => void; onHelp: () => void }) {
+  const [text, setText] = React.useState('');
+  const hint = a.help.find((h) => h.step === 'hint');
+  const words = a.help.find((h) => h.step === 'words');
+  const example = a.help.find((h) => h.step === 'example');
+  const add = (w: string) => setText((t) => (t.trim() ? `${t.trimEnd()} ${w}` : w));
   return (
-    <div className="qz-sheet" data-char={a.char}>
+    <div className="qz-sheet" data-char={a.char} data-busy={a.busy || undefined}>
       <p className="qz-ask">{a.kind === 'choice' ? copy.choice : `${a.to} ${copy.asks}`}</p>
-      <p className="qz-task" lang="fr">
-        {a.task}
-      </p>
-      {translate ? <p className="qz-task-native">{a.taskNative}</p> : null}
-      <Write placeholder={copy.placeholder} send={copy.send} onSend={onSend} chips={a.chips} />
+      {a.task ? <p className="qz-task">{a.task}</p> : null}
+      {a.again ? <p className="qz-again">{copy.again}</p> : null}
+      {hint?.native || hint?.text ? (
+        <p className="qz-help-hint" lang={hint.text ? 'fr' : undefined}>
+          {hint.text ?? hint.native}
+        </p>
+      ) : null}
+      {words?.words.length || example?.text ? (
+        <div className="qz-chips">
+          {words?.words.map((w) => (
+            <button key={`w:${w}`} type="button" className="qz-chip qz-chip--word" lang="fr" onClick={() => (a.kind === 'choice' ? setText(w) : add(w))}>
+              {w}
+            </button>
+          ))}
+          {example?.text ? (
+            <button type="button" className="qz-chip" lang="fr" onClick={() => setText(example.text ?? '')}>
+              {example.text}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {a.failed ? <p className="qz-failed">{copy.notSent}</p> : null}
+      <Write placeholder={copy.placeholder} copy={copy} onSend={onSend} busy={a.busy} keep text={text} onText={setText} />
+      {a.more ? (
+        <button type="button" className="qz-quiet qz-help" disabled={a.busy} onClick={onHelp}>
+          {copy.help[a.more]}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -711,17 +921,29 @@ function TalkSheet({ t, translate, copy, onSay, onClose }: { t: TalkUi; translat
         </p>
       ) : null}
       <div className="qz-talk-lines" aria-live="polite">
-        {t.lines.map((l, i) => (
-          <div key={`${i}-${l.text}`} className="qz-talk-line">
-            {l.direction ? <p className="qz-direction">{l.direction}</p> : null}
-            <p className="qz-line" lang="fr">
-              {l.text}
-            </p>
-            {translate ? <p className="qz-native">{l.native}</p> : null}
+        {t.busy ? (
+          <div className="qz-talk-line">
+            <span className="qz-dots qz-dots--ink" aria-hidden>
+              <i />
+              <i />
+              <i />
+            </span>
           </div>
-        ))}
+        ) : (
+          t.lines.map((l, i) => (
+            <div key={`${i}-${l.text}`} className="qz-talk-line">
+              {l.direction ? <p className="qz-direction">{l.direction}</p> : null}
+              <p className="qz-line" lang="fr">
+                {l.text}
+              </p>
+              {translate && l.native ? <p className="qz-native">{l.native}</p> : null}
+            </div>
+          ))
+        )}
       </div>
-      <Write placeholder={copy.sayPlaceholder} send={copy.send} onSend={onSay} chips={t.chips} />
+      {t.failed ? <p className="qz-failed">{copy.notSent}</p> : null}
+      {/* the chips are help until you have said something yourself */}
+      <Write placeholder={copy.sayPlaceholder} copy={copy} onSend={onSay} chips={t.chips} onAsk={t.chipsOnAsk && !t.you} busy={t.busy} />
     </div>
   );
 }
@@ -740,7 +962,7 @@ function PhoneCard({ p, translate, copy, onReply, onClose }: { p: PhoneUi; trans
       </div>
       <p className="qz-bubble" lang="fr">
         {p.text}
-        {translate ? <small>{p.native}</small> : null}
+        {translate && p.native ? <small>{p.native}</small> : null}
       </p>
       {p.sent ? (
         <p className="qz-bubble qz-bubble--me" lang="fr">
@@ -750,10 +972,10 @@ function PhoneCard({ p, translate, copy, onReply, onClose }: { p: PhoneUi; trans
       {p.reply ? (
         <p className="qz-bubble" lang="fr">
           {p.reply.text}
-          {translate ? <small>{p.reply.native}</small> : null}
+          {translate && p.reply.native ? <small>{p.reply.native}</small> : null}
         </p>
       ) : null}
-      {!p.sent ? <Write placeholder={copy.placeholder} send={copy.send} onSend={onReply} chips={p.chips} /> : null}
+      {!p.sent ? <Write placeholder={copy.placeholder} copy={copy} onSend={onReply} chips={p.chips} onAsk={p.chipsOnAsk} /> : null}
     </div>
   );
 }

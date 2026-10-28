@@ -1,47 +1,30 @@
 /**
- * Le Quartier · the stage director: T1, day a («Le mauvais accueil»), played in the quarter.
+ * Le Quartier · the stage director: a day of the season played in the quarter. In phase 1 that is
+ * T1, day a («Le mauvais accueil»), the one day it has blocking for (`story.STAGED_DAYS`).
  *
- * The words are the season's own (`scenes/t1-a.json`, copied from app/data by
- * `scripts/quartier/sync-scene.mjs`); nothing here rewrites a line. What the director adds is the
- * blocking the Feuilleton's panels describe: where you stand, who walks where, who turns to look,
- * what lies on the zinc. It publishes what the screen should show (a caption, a line, a goal, the
- * answer sheet) and waits for you: a tap to go on, a walk to the door, a reply in French.
+ * The words are the story engine's (`story.ts`): in the app the page the server resolved for this
+ * learner, read through today's journey; nothing here writes a line of the story. What the
+ * director adds is the blocking the Feuilleton's panels describe: where you stand, who walks
+ * where, who turns to look, what lies on the zinc, keyed on the page's movement ids. It walks the
+ * page in order, plays each panel, asks a question only when the engine asks it, and publishes
+ * what the screen should show (a caption, a line, a goal, the answer sheet) while it waits for
+ * you: a tap to go on, a walk to the door, a reply in French.
  *
- * Between the season's beats you act (`agency.ts`): refuse to answer, drink or refuse the café
- * crème, take the key or leave it with Margaux, walk out (the scene waits for you), and talk to
- * anyone in the moment before the bell and in the free walk after. What you do goes into the
- * quarter's memory (`memory.ts`), and the end card says what it will change.
+ * Your replies go to the engine, which reads them, answers what you said, asks again when it is
+ * unclear, and says which of the question's replies the room plays. The answer sheet opens on an
+ * empty field; help comes only when asked, a step at a time, and the engine records it. The café
+ * crème and the key are questions like the others: what the room does with the cup and the key
+ * ring is acted from the reply the engine read.
  *
- * Replies are read by a small local reader (`classify`) that knows the two turns of this day; in
- * the app the same choice comes from the backend's classifier, with the same reply ids.
+ * Between the season's beats you act: walk out (the scene waits for you), answer Margaux's text,
+ * and talk to anyone in the moment before the bell and in the free walk after. Those are the
+ * engine's gestures (`Story.gesture`); what they change in your carnet the quarter keeps in its
+ * memory (`memory.ts`, from `agency.ts`).
  */
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import type { Object3D } from 'three';
 
-import {
-  BARK_PLACES,
-  CAFE,
-  CAFE_OUTCOMES,
-  EXTRA_REPLIES,
-  KEY,
-  KEY_OUTCOMES,
-  LEAVE,
-  MOMENT,
-  NAMES,
-  PEOPLE as TALKERS,
-  REPLY_EFFECTS,
-  STREET_BARKS,
-  TEXT_SUITCASE,
-  TOMORROW,
-  chipsFor,
-  helloOf,
-  isRefusal,
-  readCafe,
-  readKey,
-  registerOf,
-  respond,
-} from './agency';
-import type { Choice, Line as Said } from './agency';
+import { BARK_PLACES, LEAVE, MOMENT, PEOPLE as TALKERS, REPLY_EFFECTS, STREET_BARKS, TEXT_SUITCASE, heardEffects } from './agency';
 import type { Hit, Quartier } from './engine';
 import { Memory, eligible } from './memory';
 import type { CastId, Effect, Value, Words } from './memory';
@@ -49,70 +32,8 @@ import { CHAIR, MARKS } from './mistral';
 import { AMBIANCES } from './palette';
 import { STRIDE } from './pace';
 import { PLAN } from './quai';
-import scene from './scenes/t1-a.json';
-
-/* ------------------------------------------------------------------------------------------ */
-/* the scene's shape (as in app/data/season/s1/t1.json)                                       */
-/* ------------------------------------------------------------------------------------------ */
-
-interface Say {
-  a2: string;
-  b1?: string;
-  native?: { en?: string; de?: string };
-}
-
-interface Line {
-  who: string;
-  mood?: string;
-  direction?: string;
-  say: Say;
-}
-
-interface Panel {
-  kind: 'panel';
-  id: string;
-  visual?: string;
-  lines?: Line[];
-  silence?: boolean;
-}
-
-interface Reply {
-  id: string;
-  label: string;
-  examples: string[];
-  clumsy?: boolean;
-  beats: Panel[];
-}
-
-interface Turn {
-  kind: 'turn';
-  id: string;
-  to: string;
-  panel: Panel;
-  task: { en: string; de: string; fr: string };
-  fallback: string;
-  replies: Reply[];
-}
-
-interface Hook {
-  kind: 'hook';
-  id: string;
-  panel: Panel;
-}
-
-type Movement = Panel | Turn | Hook;
-
-export interface SceneData {
-  episode: string;
-  number: number;
-  episode_title_fr: string;
-  title_fr: string;
-  story_date_fr: string;
-  can_do: { en: string; de: string; fr: string };
-  movements: Movement[];
-}
-
-export const T1A = scene as unknown as SceneData;
+import { OfflineStory, hookOf, nextTurn, storyletOf } from './story';
+import type { Answered, Ask, Help, HelpStep, Heard, Mend, Story, StoryHook, StoryLine, StoryPanel, StoryPerson, StoryTurn } from './story';
 
 /** The day's id in the quarter's memory. */
 export const DAY = 't1a';
@@ -139,13 +60,24 @@ export interface SpeechUi {
 
 export interface AnswerUi {
   id: string;
-  /** a turn of the season, or one of the day's choices (the café, the key) */
+  /** a question of the story, or a choice asked as one (the café crème, the key) */
   kind: 'turn' | 'choice';
   char: CharKey;
   to: string;
-  task: string;
-  taskNative: string;
-  chips: string[];
+  /** what to do, in the learner's language */
+  task: string | null;
+  /** the help the question offers, in order */
+  steps: HelpStep[];
+  /** the help given so far */
+  help: Help[];
+  /** the next step of help on offer; null once all of it is given */
+  more: HelpStep | null;
+  /** the engine is reading (the answer, or a step of help) */
+  busy: boolean;
+  /** the room asked again: the same question, another try */
+  again: boolean;
+  /** the answer did not reach the engine: send it again */
+  failed: boolean;
 }
 
 export interface TalkUi {
@@ -153,22 +85,30 @@ export interface TalkUi {
   char: CharKey;
   name: string;
   /** what they said last (a slip of register comes first) */
-  lines: Array<{ text: string; native: string; direction: string | null }>;
+  lines: Array<{ text: string; native: string | null; direction: string | null }>;
   /** what you said to them */
   you: string | null;
   chips: string[];
+  /** the chips are help: shown only once asked for */
+  chipsOnAsk?: boolean;
+  /** waiting for their answer */
+  busy?: boolean;
+  /** what you said did not reach them */
+  failed?: boolean;
 }
 
 export interface PhoneUi {
   from: string;
   char: CharKey;
   text: string;
-  native: string;
+  native: string | null;
   chips: string[];
+  /** the chips are help: shown only once asked for */
+  chipsOnAsk?: boolean;
   /** your answer, once sent */
   sent: string | null;
   /** theirs */
-  reply: { text: string; native: string } | null;
+  reply: { text: string; native: string | null } | null;
 }
 
 export interface StageUi {
@@ -177,6 +117,8 @@ export interface StageUi {
   speech: SpeechUi | null;
   /** your reply, as Toi's balloon, while the room takes it in */
   you: string | null;
+  /** what the engine made right in your reply, under your balloon */
+  mend: Mend | null;
   /** where to go next, with the dotted way on the ground */
   goal: { label: string; native: string } | null;
   answer: AnswerUi | null;
@@ -201,7 +143,7 @@ export interface StageUi {
   /** a line someone says as you pass */
   bark: (SpeechUi & { at: number }) | null;
   phone: PhoneUi | null;
-  /** the end card: what you did tonight, and what it changes tomorrow */
+  /** the end card: what you did, and what comes next (a visit's; the story's comes from the engine) */
   recap: { did: Array<{ text: string; native: string }>; tomorrow: Array<{ text: string; native: string }> } | null;
 }
 
@@ -268,13 +210,13 @@ export const SILENT_BEATS: Record<string, RegExp> = {
   cup: /\.(a\.r1|c\.r2)$/,
   /** Gus's triumph goes out of him */
   deflate: /\.b\.r2$/,
-  /** «Non merci»: Margaux slides the cup along the zinc to Odile's stool */
-  slide: /\.cafe\.declined\.r1$/,
-  /** You take the key back; Margaux goes back to the same glass */
-  pocket: /\.key\.take\.r1$/,
+  /** a «non merci»: Margaux slides the cup to the end of the zinc, before Odile's stool */
+  slide: /\.cafe\.declined\.r\d+$/,
+  /** the key ring taken: into your pocket */
+  pocket: /\.key\.take\.r\d+$/,
 };
 
-/** The day's movements this director stages, in order. */
+/** The movements of T1 day a this director has blocking for, in the order the page plays them. */
 export const STAGED = ['a.p1', 'a.p2', 'a.p3', 'a.p4', 'a.p5', 'a.turn1', 'a.cafe', 'a.turn2', 'a.key', 'a.hook'];
 
 /** Where the cast spend the rest of the evening, once the day is played. */
@@ -294,50 +236,6 @@ const BEHIND_TILL = new Vector3(-35.62, MARKS.zincTop.y + 0.0, -16.85);
 class Cancelled extends Error {}
 
 /* ------------------------------------------------------------------------------------------ */
-/* reading a reply                                                                            */
-/* ------------------------------------------------------------------------------------------ */
-
-const fold = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[’`]/g, "'");
-
-const first = (t: string, re: RegExp) => {
-  const m = re.exec(t);
-  return m ? m.index : -1;
-};
-
-/**
- * Which of a turn's replies a French answer is closest to. A prototype's reader: a handful of
- * patterns per turn, enough for the chips and for what a beginner types; it never refuses an
- * answer, it falls back the way the season says to. A refusal (`agency.isRefusal`) is a reply
- * of its own at either turn.
- */
-export function classify(turnId: string, text: string): string {
-  const t = fold(text);
-  const halting = /\.\.\.|…/.test(text);
-  if ((turnId === 'a.turn1' || turnId === 'a.turn2') && isRefusal(text)) return 'refuse';
-  if (turnId === 'a.turn1') {
-    const family = first(t, /grand ?-?(mere|pere|maman)|mamie|famille|petite?-?(fille|fils|enfant)|(ma|mon) [^.]*odile|odile[^.]*(ma|mon) |heritier|heritiere/);
-    const sell = first(t, /vend|vente|a moi|proprietaire|mon appartement|l'appartement est/);
-    if (family >= 0 && (sell < 0 || family < sell)) return halting ? 'c' : 'a';
-    if (sell >= 0) return halting ? 'c' : 'b';
-    if (/\bet vous\b|vous etes qui|qui etes-vous|\bet toi\b|qui es-tu|c'est qui|et lui/.test(t)) return 'd';
-    return 'c';
-  }
-  if (turnId === 'a.turn2') {
-    if (/sais pas|aucune idee|peut-etre|j'hesite|\bbof\b|pas ce soir|^non\b/.test(t)) return 'dont_know';
-    if (/vend|je pars|partir|semaine|quitter|rentrer/.test(t)) return 'sell_and_leave';
-    if (/demain|peur|plus tard/.test(t)) return 'clumsy';
-    if (/ce soir|\boui\b|maintenant|tout de suite|je monte|j'y vais|aujourd'hui/.test(t)) return 'tonight';
-    return 'dont_know';
-  }
-  return 'a';
-}
-
-/* ------------------------------------------------------------------------------------------ */
 /* the director                                                                               */
 /* ------------------------------------------------------------------------------------------ */
 
@@ -347,6 +245,7 @@ export const BLANK: StageUi = {
   caption: null,
   speech: null,
   you: null,
+  mend: null,
   goal: null,
   answer: null,
   silent: false,
@@ -365,14 +264,7 @@ export const BLANK: StageUi = {
 };
 
 /** What the script shows; while you are away it waits in the snapshot instead of the screen. */
-const SCRIPT_KEYS: Array<keyof StageUi> = ['caption', 'speech', 'you', 'answer', 'silent', 'waitingTap', 'moment', 'phase'];
-
-const toLine = (s: Said | { who: CastId; say: Words; mood?: string; direction?: string }): Line => ({
-  who: s.who,
-  mood: s.mood,
-  direction: s.direction,
-  say: { a2: s.say.fr, native: { en: s.say.en, de: s.say.de } },
-});
+const SCRIPT_KEYS: Array<keyof StageUi> = ['caption', 'speech', 'you', 'mend', 'answer', 'silent', 'waitingTap', 'moment', 'phase'];
 
 /**
  * What the screen asks of whoever directs a place: the season's scene on the quai (`Stage`), or a
@@ -388,6 +280,8 @@ export interface Director {
   begin(): void;
   tap(): void;
   answer(text: string): void;
+  /** the next step of help on the answer sheet */
+  askHelp?(): void;
   go(): void;
   skipWalk(): void;
   goOn(): void;
@@ -423,32 +317,65 @@ export class Stage implements Director {
   private native: Native;
   private onCue?: (cue: Cue) => void;
   private street?: Street;
-  private moves = new Map<string, Movement>();
+  private story: Story;
+  /** the reply each question took today, and the question the engine asks next */
+  private routes: Record<string, string> = {};
+  private asking: string | null = null;
   /** where the key lies on the zinc, in front of you, and how it lies */
   private keyHome = new Vector3();
   private keyFlat = new Quaternion().setFromEuler(new Euler(0, -0.4, 0));
-  /** who has the key ring once the second turn is played */
+  /** who has the key ring once the key is settled */
   private keyWith: 'zinc' | 'toi' | 'margaux' = 'zinc';
   /** lets go of whatever you are holding up */
   private holding: (() => void) | null = null;
   /** the scene as you left it, and when */
-  private away: { snapshot: Partial<StageUi>; feet: Vector3; since: number; texted: boolean; beat: string | null; wentOut: boolean } | null = null;
+  private away: {
+    snapshot: Partial<StageUi>;
+    feet: Vector3;
+    since: number;
+    texted: boolean;
+    beat: string | null;
+    wentOut: boolean;
+    /** what the engine has said for when you come back */
+    back?: StoryLine | null;
+  } | null = null;
   private restore: Partial<StageUi> | null = null;
   /** whether the script wants you held still (it is applied when you are not away) */
   private frozenWanted = false;
-  private talking: { who: CastId; day: string; used: string[]; slipped: boolean; turns: number } | null = null;
+  private talking: { who: CastId; day: string } | null = null;
+  /** the last thing each person said when you came up to them, for when you pass them again */
+  private greetings = new Map<string, StoryLine>();
   private barkAt = 0;
   private barkedBy = new Map<string, number>();
 
-  constructor(private q: Quartier, private data: SceneData = T1A, opts: StageOptions = {}) {
+  constructor(
+    private q: Quartier,
+    story?: Story,
+    opts: StageOptions = {},
+  ) {
     this.level = opts.level ?? 'a2';
     this.native = opts.native ?? 'en';
     this.onCue = opts.onCue;
     this.street = opts.street;
-    this.memory = opts.memory ?? new Memory(false);
-    data.movements.forEach((m) => this.moves.set(m.id, m));
+    const memory = opts.memory ?? new Memory(false);
+    this.memory = memory;
+    this.story = story ?? new OfflineStory({ level: this.level, native: this.native, state: () => memory.state() });
     this.stopTick = q.onTick(() => this.tick());
     this.stopHit = q.on((hit) => this.hit(hit));
+  }
+
+  /** The day the director plays. */
+  get page() {
+    return this.story.page;
+  }
+
+  get replayable() {
+    return this.story.replayable;
+  }
+
+  /** Today's story, once it is known (before the scene starts). */
+  setStory(story: Story) {
+    if (this.ui.phase === 'title' || this.ui.phase === 'roam') this.story = story;
   }
 
   subscribe(fn: (ui: StageUi) => void) {
@@ -505,8 +432,40 @@ export class Stage implements Director {
     return { who, char: p.char, name: p.name, text: words.fr, native: words[this.native], direction };
   }
 
+  /** A line of the engine's, as a card outside the script. */
+  private speechOfLine(line: StoryLine): SpeechUi {
+    const p = PEOPLE[line.who] ?? { char: 'passant' as CharKey, name: line.name ?? 'Quelqu’un' };
+    return { who: line.who, char: p.char, name: p.name, text: line.text_fr, native: line.text_native ?? null, direction: line.direction ?? null };
+  }
+
+  private talkLine(line: StoryLine) {
+    return { text: line.text_fr, native: line.text_native ?? null, direction: line.direction ?? null };
+  }
+
+  /** The engine's French and its translation, as the carnet keeps words. */
+  private words(fr: string, native: string | null): Words {
+    return { fr, en: this.native === 'en' ? (native ?? '') : '', de: this.native === 'de' ? (native ?? '') : '' };
+  }
+
   private remember(effects: Effect | Effect[] | undefined, day = DAY) {
     this.memory.apply(day, effects);
+  }
+
+  /** What a gesture brought back, into the quarter's memory: what you learned, the flags, the regard. */
+  private keep(a: Answered | null, who?: CastId, day = DAY) {
+    if (!a) return;
+    const effects: Effect[] = [];
+    for (const l of a.learned) effects.push({ kind: 'learn', key: l.id, words: this.words(l.text_fr, l.text_native), who });
+    for (const [key, value] of Object.entries(a.sets)) effects.push({ kind: 'fact', key, value: value as Value });
+    if (who) effects.push(...heardEffects(who, a.heard));
+    if (effects.length) this.remember(effects, day);
+    // what each says as you come up, as things now stand
+    for (const p of a.people ?? []) if (p.hello) this.greetings.set(p.who, p.hello);
+  }
+
+  /** Who will talk, as the day's page lists them. */
+  private person(key: string): StoryPerson | null {
+    return storyletOf(this.story.page, 'talk')?.people.find((p) => p.who === key) ?? null;
   }
 
   /* ---- what the screen calls ------------------------------------------------------------- */
@@ -536,7 +495,7 @@ export class Stage implements Director {
     }
   }
 
-  /** Your reply to the current turn (or choice). */
+  /** Your reply to the current question. */
   answer(text: string) {
     if (this.away) return;
     const w = this.answerWait;
@@ -544,6 +503,25 @@ export class Stage implements Director {
       this.answerWait = null;
       w.resolve(text.trim());
     }
+  }
+
+  /** The next step of help on the sheet: the engine records it, then the sheet shows it. */
+  askHelp() {
+    const a = this.ui.answer;
+    if (!a || !a.more || a.busy || this.away) return;
+    const step = a.more;
+    const gen = this.gen;
+    this.set({ answer: { ...a, busy: true } });
+    void this.story
+      .help(a.id, step)
+      .catch((): Help | null => null)
+      .then((h) => {
+        if (gen !== this.gen) return;
+        const now = this.sheet();
+        if (!now || now.id !== a.id) return;
+        const more = now.steps[now.steps.indexOf(step) + 1] ?? null;
+        this.set({ answer: { ...now, busy: false, more, help: h ? [...now.help, h] : now.help } });
+      });
   }
 
   /** «Y aller»: walk me to where I am going. */
@@ -570,8 +548,9 @@ export class Stage implements Director {
     }
   }
 
+  /** The day again, where the story allows it (the quarter's own copy; the engine keeps a played day). */
   replay() {
-    void this.play();
+    if (this.story.replayable) void this.play();
   }
 
   /** After the end card: the quarter is yours to walk. */
@@ -613,14 +592,21 @@ export class Stage implements Director {
     if (!this.ui.canLeave || this.away) return;
     const s = this.ui;
     this.away = {
-      snapshot: { caption: s.caption, speech: s.speech, you: s.you, answer: s.answer, silent: s.silent, waitingTap: s.waitingTap, moment: s.moment, phase: s.phase },
+      snapshot: { caption: s.caption, speech: s.speech, you: s.you, mend: s.mend, answer: s.answer, silent: s.silent, waitingTap: s.waitingTap, moment: s.moment, phase: s.phase },
       feet: this.q.feet.clone(),
       since: performance.now(),
       texted: false,
       beat: s.beat,
       wentOut: false,
     };
-    if (!this.memory.fact('t1.walked_out')) this.remember(LEAVE.effects);
+    if (!this.memory.fact('t1.walked_out')) {
+      this.remember(LEAVE.effects);
+      const away = this.away;
+      void this.story.gesture({ storylet: 'walk_out', at: s.beat }).then((a) => {
+        this.keep(a);
+        if (this.away === away) away.back = a?.beats.flatMap((b) => b.lines)[0] ?? null;
+      });
+    }
     this.talking = null;
     this.letGo();
     this.q.frozen = false;
@@ -632,10 +618,12 @@ export class Stage implements Director {
     this.goalAt = { to: MARKS.doorIn.clone(), radius: 0.9, look: MARKS.atZinc.clone().setY(1.6), outFirst: true };
     this.goalResolve = () => this.comeBack();
     this.wayAt = performance.now() + 2500;
+    const asked = storyletOf(this.story.page, 'walk_out')?.lines.find((l) => l.role === 'asked');
     this.show({
       caption: null,
       speech: null,
       you: null,
+      mend: null,
       answer: null,
       silent: false,
       waitingTap: false,
@@ -644,7 +632,7 @@ export class Stage implements Director {
       phase: 'scene',
       away: true,
       canLeave: false,
-      aside: this.speechOf(LEAVE.asked.who, LEAVE.asked.say),
+      aside: asked ? this.speechOfLine(asked) : null,
       goal: { label: LEAVE.goal.fr, native: LEAVE.goal[this.native] },
     });
     void this.q.walkTo(MARKS.doorOut, 1.6).then(() => {
@@ -658,14 +646,20 @@ export class Stage implements Director {
     this.away = null;
     this.q.openDoor(false);
     this.onCue?.('door');
-    const resume = a.beat === 'a.p2' ? LEAVE.resumeGus : LEAVE.resume;
-    this.restore = a.snapshot;
-    const f = this.fig(resume.who);
-    if (f) {
-      f.talk(1.6);
-      this.q.look(f.face(), 2.6);
+    // the line the engine chose for your return, else the page's for where the scene was
+    const back = storyletOf(this.story.page, 'walk_out')?.lines.filter((l) => l.role === 'back') ?? [];
+    const line = a.back ?? back.find((l) => l.during && l.during === a.beat) ?? back.find((l) => !l.during);
+    if (line) {
+      this.restore = a.snapshot;
+      const f = this.fig(line.who);
+      if (f) {
+        f.talk(1.6);
+        this.q.look(f.face(), 2.6);
+      }
+      this.show({ away: false, goal: null, aside: this.speechOfLine(line) });
+    } else {
+      this.show({ away: false, goal: null, ...a.snapshot });
     }
-    this.show({ away: false, goal: null, aside: this.speechOf(resume.who, resume.say) });
     void this.q.walkTo(a.feet, 1.9).then(() => {
       if (!this.away) this.q.frozen = this.frozenWanted;
     });
@@ -681,45 +675,63 @@ export class Stage implements Director {
   /** Talk to someone in the room (in the moment before the bell, or in the free walk). */
   talkTo(key: string) {
     const id = key as CastId;
-    if (!TALKERS[id] || this.away) return;
+    const person = this.person(key);
+    if (!person || !TALKERS[id] || this.away) return;
     const f = this.fig(key);
     if (!f || !f.visible) return;
     const day = this.ui.phase === 'roam' ? 'roam' : DAY;
     if (!this.memory.state()[`met.${id}`]) this.remember({ kind: 'meet', who: id }, day);
-    const state = this.memory.state();
-    const h = helloOf(id, state);
-    this.talking = { who: id, day, used: [], slipped: false, turns: 0 };
+    const talking = { who: id, day };
+    this.talking = talking;
     f.hop();
     f.talk(1.2);
-    this.face(id, h.mood);
     this.lookAbove(f.face());
     this.onCue?.('paper');
     const p = PEOPLE[key];
-    this.show({ talk: { who: key, char: p.char, name: p.name, lines: [{ ...this.say(h.say), direction: null }], you: null, chips: chipsFor(id, state) }, bark: null });
+    this.show({ talk: { who: key, char: p.char, name: p.name, lines: [], you: null, chips: [], chipsOnAsk: true, busy: true }, bark: null });
+    const gen = this.gen;
+    void this.story.gesture({ storylet: 'talk', to: key }).then((a) => {
+      if (gen !== this.gen || this.talking !== talking) return;
+      this.keep(a, id, day);
+      const lines = a?.beats.flatMap((b) => b.lines) ?? [];
+      const hello = lines.length ? lines : person.hello ? [person.hello] : [];
+      if (hello.length) {
+        this.greetings.set(key, hello[0]);
+        this.face(id, hello[hello.length - 1].mood ?? undefined);
+      }
+      const now = this.ui.talk;
+      if (!now || now.who !== key) return;
+      this.show({ talk: { ...now, busy: false, lines: hello.map((l) => this.talkLine(l)), chips: a?.chips ?? [] } });
+    });
   }
 
   /** What you say to them. */
   talkSay(text: string) {
     const t = this.talking;
     const talk = this.ui.talk;
-    if (!t || !talk || !text.trim()) return;
-    const r = respond(t.who, text, this.memory.state(), { slipped: t.slipped, turn: t.turns, used: t.used });
-    const reg = registerOf(text);
-    if (reg && reg !== TALKERS[t.who].register) t.slipped = true;
-    t.turns++;
-    if (r.intent) t.used.push(r.intent);
-    this.remember(r.effects, t.day);
-    const last = r.lines[r.lines.length - 1];
-    this.face(t.who, last?.mood);
-    const f = this.fig(t.who);
-    f?.talk(0.9 + r.lines.reduce((s, l) => s + l.say.fr.length, 0) * 0.045);
-    this.show({
-      talk: {
-        ...talk,
-        you: text.trim(),
-        lines: r.lines.map((l) => ({ ...this.say(l.say), direction: l.direction ?? null })),
-        chips: chipsFor(t.who, this.memory.state(), t.used),
-      },
+    if (!t || !talk || !text.trim() || talk.busy) return;
+    const said = text.trim();
+    this.show({ talk: { ...talk, you: said, busy: true, failed: false } });
+    const gen = this.gen;
+    void this.story.gesture({ storylet: 'talk', to: t.who, text: said }).then((a) => {
+      if (gen !== this.gen || this.talking !== t) return;
+      this.keep(a, t.who, t.day);
+      const now = this.ui.talk;
+      if (!now || now.who !== t.who) return;
+      const lines = a?.beats.flatMap((b) => b.lines) ?? [];
+      if (lines.length) {
+        this.face(t.who, lines[lines.length - 1].mood ?? undefined);
+        this.fig(t.who)?.talk(0.9 + lines.reduce((s, l) => s + l.text_fr.length, 0) * 0.045);
+      }
+      this.show({
+        talk: {
+          ...now,
+          busy: false,
+          failed: !a,
+          lines: lines.length ? lines.map((l) => this.talkLine(l)) : now.lines,
+          chips: a?.chips ?? now.chips,
+        },
+      });
     });
   }
 
@@ -765,19 +777,27 @@ export class Stage implements Director {
     this.show({ phone: { ...p, sent } });
     this.remember({ kind: 'journal', who: TEXT_SUITCASE.who, words: { fr: `Tu as répondu à Margaux : « ${sent} »`, en: `You replied to Margaux: “${sent}”`, de: `Du hast Margaux geantwortet: „${sent}“` } });
     const gen = this.gen;
+    const fallback = storyletOf(this.story.page, 'margaux_text')?.lines.find((l) => l.role === 'answer') ?? null;
+    // the answer comes a moment later, as a text does
     const at = performance.now() + 1500;
-    const stop = this.q.onTick(() => {
-      if (gen !== this.gen) {
+    void this.story.gesture({ storylet: 'margaux_text', text: sent }).then((a) => {
+      if (gen !== this.gen) return;
+      this.keep(a);
+      const line = a?.beats.flatMap((b) => b.lines)[0] ?? fallback;
+      if (!line) return;
+      const stop = this.q.onTick(() => {
+        if (gen !== this.gen) {
+          stop();
+          return;
+        }
+        if (performance.now() < at) return;
         stop();
-        return;
-      }
-      if (performance.now() < at) return;
-      stop();
-      const now = this.ui.phone;
-      if (now && now.sent === sent) {
-        this.onCue?.('phone');
-        this.show({ phone: { ...now, reply: this.say(TEXT_SUITCASE.answer) } });
-      }
+        const now = this.ui.phone;
+        if (now && now.sent === sent) {
+          this.onCue?.('phone');
+          this.show({ phone: { ...now, reply: { text: line.text_fr, native: line.text_native ?? null } } });
+        }
+      });
     });
   }
 
@@ -814,7 +834,7 @@ export class Stage implements Director {
           return;
         }
         if (this.away) return;
-        if (TALKERS[hit.key as CastId]) {
+        if (TALKERS[hit.key as CastId] && this.person(hit.key)) {
           this.talkTo(hit.key);
           return;
         }
@@ -851,35 +871,42 @@ export class Stage implements Director {
     // a text from Margaux, if you stay away
     const a = this.away;
     if (a && !a.wentOut && !this.q.indoors) a.wentOut = true;
-    if (a && !a.texted && now - a.since > LEAVE.textAfter * 1000) {
-      a.texted = true;
-      this.textFromMargaux();
+    if (a && !a.texted) {
+      const text = storyletOf(this.story.page, 'margaux_text');
+      if (text && now - a.since > (text.after_seconds ?? LEAVE.textAfter) * 1000) {
+        a.texted = true;
+        this.textFromMargaux();
+      }
     }
     // may you walk out now?
     const phase = this.ui.phase;
-    const canLeave = !this.away && !this.goalAt && this.q.indoors && !this.ui.talk && (phase === 'scene' || phase === 'answer' || Boolean(this.ui.moment)) && this.data.movements.length > 0;
+    const canLeave = !this.away && !this.goalAt && this.q.indoors && !this.ui.talk && (phase === 'scene' || phase === 'answer' || Boolean(this.ui.moment)) && this.story.page.movements.length > 0;
     if (canLeave !== this.ui.canLeave) this.show({ canLeave });
     // in the free walk, the cast notice you as you pass
     if (phase === 'roam' && !this.ui.talk && now - this.barkAt > 6000) {
-      const state = this.memory.state();
       this.q.troupe.people.forEach((f, key) => {
         if (now - this.barkAt < 6000 || !TALKERS[key as CastId] || !f.visible) return;
         const d = Math.hypot(f.pos.x - this.q.feet.x, f.pos.z - this.q.feet.z);
         if (d > 2.4 || now - (this.barkedBy.get(key) ?? -1e9) < 40000) return;
-        const h = helloOf(key as CastId, state);
+        const hello = this.greetings.get(key) ?? this.person(key)?.hello;
+        if (!hello) return;
         this.barkAt = now;
         this.barkedBy.set(key, now);
         f.talk(1.4);
-        this.show({ bark: { ...this.speechOf(key, h.say), at: now } });
+        this.show({ bark: { ...this.speechOfLine(hello), at: now } });
       });
     }
   }
 
   private textFromMargaux() {
-    const t = TEXT_SUITCASE;
-    this.remember(t.effects);
+    const s = storyletOf(this.story.page, 'margaux_text');
+    const line = s?.lines.find((l) => l.role === 'text');
+    if (!s || !line) return;
+    this.remember(TEXT_SUITCASE.effects);
+    // the engine keeps that you stayed away; the text itself is the page's
+    void this.story.gesture({ storylet: 'margaux_text' }).then((a) => this.keep(a));
     this.onCue?.('phone');
-    this.show({ phone: { from: t.from, char: 'margaux', text: t.say.fr, native: t.say[this.native], chips: t.chips, sent: null, reply: null } });
+    this.show({ phone: { from: line.from_fr ?? TEXT_SUITCASE.from, char: 'margaux', text: line.text_fr, native: line.text_native ?? null, chips: s.chips, chipsOnAsk: true, sent: null, reply: null } });
   }
 
   private checkGoal(force: boolean) {
@@ -987,36 +1014,56 @@ export class Stage implements Director {
     this.freeze(true);
   }
 
-  private async replyFrom(gen: number, turn: Turn) {
-    const who = PEOPLE[turn.to] ?? PEOPLE.toi;
-    const chips = [...turn.replies, ...(EXTRA_REPLIES[turn.id] ?? [])].map((r) => r.examples[0]).filter(Boolean);
-    this.set({
-      phase: 'answer',
-      answer: { id: turn.id, kind: 'turn', char: who.char, to: who.name, task: turn.task.fr, taskNative: turn.task[this.native], chips },
-    });
-    const text = await new Promise<string>((resolve) => {
-      this.answerWait = { gen, resolve };
-    });
-    this.alive(gen);
-    this.set({ phase: 'scene', answer: null, you: text, speech: null });
-    return text;
+  /** The answer sheet as it is now, wherever it waits (on the screen, or for your return). */
+  private sheet(): AnswerUi | null {
+    if (this.away) return (this.away.snapshot.answer as AnswerUi | null | undefined) ?? null;
+    return this.ui.answer ?? ((this.restore?.answer as AnswerUi | null | undefined) ?? null);
   }
 
-  /** One of the day's choices: the same sheet as a turn, with its own chips. */
-  private async choose(gen: number, c: Choice) {
-    const who = PEOPLE[c.who];
+  /**
+   * The answer sheet for a question: an empty field, the task, help on request. What you send goes
+   * to the engine; the sheet stays (busy) until it has read it, and says so when it could not.
+   */
+  private async reply(gen: number, turn: StoryTurn, again: boolean): Promise<Heard> {
+    const ask = await this.story.ask(turn.id).catch((): Ask => ({ task: turn.task_native ?? null, help: [] }));
+    this.alive(gen);
+    const who = PEOPLE[turn.to] ?? { char: 'passant' as CharKey, name: turn.to_name ?? turn.to };
     this.set({
       phase: 'answer',
-      answer: { id: c.id, kind: 'choice', char: who.char, to: who.name, task: c.task.fr, taskNative: c.task[this.native], chips: c.chips },
+      speech: null,
+      answer: {
+        id: turn.id,
+        kind: turn.choice ? 'choice' : 'turn',
+        char: who.char,
+        to: turn.to_name ?? who.name,
+        task: ask.task,
+        steps: ask.help,
+        help: [],
+        more: ask.help[0] ?? null,
+        busy: false,
+        again,
+        failed: false,
+      },
     });
-    const text = await new Promise<string>((resolve) => {
-      this.answerWait = { gen, resolve };
-    });
-    this.alive(gen);
-    this.set({ phase: 'scene', answer: null, you: text, speech: null });
-    await this.wait(gen, 1.0);
-    this.set({ you: null });
-    return text;
+    for (;;) {
+      const text = await new Promise<string>((resolve) => {
+        this.answerWait = { gen, resolve };
+      });
+      this.alive(gen);
+      const sheet = this.sheet();
+      if (sheet) this.set({ answer: { ...sheet, busy: true, failed: false } });
+      try {
+        const heard = await this.story.answer(turn.id, text);
+        this.alive(gen);
+        this.set({ phase: 'scene', answer: null, you: text, mend: heard.mend, speech: null });
+        return heard;
+      } catch (e) {
+        if (e instanceof Cancelled) throw e;
+        this.alive(gen);
+        const now = this.sheet();
+        if (now) this.set({ answer: { ...now, busy: false, failed: true } });
+      }
+    }
   }
 
   /* ---- people ----------------------------------------------------------------------------- */
@@ -1029,27 +1076,23 @@ export class Stage implements Director {
     return this.fig(key)?.face() ?? MARKS.zincTop.clone();
   }
 
-  private face(key: string, mood?: string) {
+  private face(key: string, mood?: string | null) {
     const f = this.fig(key);
     if (!f) return;
     const expression = MOOD_EXPRESSION[mood ?? 'neutral'] ?? 'neutre';
     if (expression !== f.expression) void this.q.troupe.face(key, expression, f.gesture);
   }
 
-  private text(say: Say) {
-    return (this.level === 'b1' && say.b1) || say.a2;
-  }
-
   /** One line: the speaker's face and mood, your head turns to them, the card waits for a tap. */
-  private async speak(gen: number, line: Line) {
-    if (line.who === 'caption') {
-      this.set({ caption: { text: this.text(line.say), native: line.say.native?.[this.native] ?? null }, speech: null });
+  private async speak(gen: number, line: StoryLine) {
+    if (line.who === 'caption' || line.kind === 'caption') {
+      this.set({ caption: { text: line.text_fr, native: line.text_native ?? null }, speech: null });
       await this.waitTap(gen);
       return;
     }
-    const who = PEOPLE[line.who] ?? { char: 'toi' as CharKey, name: line.who };
+    const who = PEOPLE[line.who] ?? { char: 'passant' as CharKey, name: line.name ?? line.who };
     const f = this.fig(line.who);
-    const text = this.text(line.say);
+    const text = line.text_fr;
     if (f) {
       this.face(line.who, line.mood);
       f.talk(0.9 + text.length * 0.045);
@@ -1060,14 +1103,14 @@ export class Stage implements Director {
     if (line.who === 'camille_marchand') this.camilleNamed = true;
     this.set({
       caption: null,
-      speech: { who: line.who, char: who.char, name, text, native: line.say.native?.[this.native] ?? null, direction: line.direction ?? null },
+      speech: { who: line.who, char: who.char, name, text, native: line.text_native ?? null, direction: line.direction ?? null },
     });
     await this.waitTap(gen);
   }
 
   private camilleNamed = false;
 
-  private async lines(gen: number, panel: Panel, before?: (line: Line, i: number) => Promise<void> | void) {
+  private async lines(gen: number, panel: StoryPanel, before?: (line: StoryLine, i: number) => Promise<void> | void) {
     const ls = panel.lines ?? [];
     for (let i = 0; i < ls.length; i++) {
       if (before) await before(ls[i], i);
@@ -1222,8 +1265,9 @@ export class Stage implements Director {
   }
 
   private progress(id: string) {
-    const i = this.data.movements.findIndex((m) => m.id === id);
-    this.set({ beat: id, progress: Math.max(0, i) / this.data.movements.length });
+    const all = this.story.page.movements;
+    const i = all.findIndex((m) => m.id === id);
+    this.set({ beat: id, progress: Math.max(0, i) / all.length });
   }
 
   private async play() {
@@ -1236,19 +1280,28 @@ export class Stage implements Director {
       { kind: 'item', id: 'cle_cigale', holder: 'toi' },
       { kind: 'item', id: 'enveloppe', holder: 'toi' },
     ]);
+    const page = this.story.page;
+    this.routes = {};
+    this.asking = nextTurn(page, null, {});
     this.show({ ...BLANK, phase: 'scene' });
     try {
-      await this.p1(gen);
-      this.remember({ kind: 'place', id: 'le_mistral', status: 'visited' });
-      await this.p2(gen);
-      await this.p3(gen);
-      await this.p4(gen);
-      await this.p5(gen);
-      await this.turn1(gen);
-      await this.turn2(gen);
-      await this.moment(gen);
-      await this.hook(gen);
+      for (const m of page.movements) {
+        this.alive(gen);
+        if (m.kind === 'turn') {
+          // a question the engine does not ask today (its `only_after` did not hold) is not asked here either
+          if (m.id === this.asking) await this.turn(gen, m);
+        } else if (m.kind === 'hook') {
+          await this.moment(gen);
+          await this.hook(gen, m);
+        } else {
+          await this.panel(gen, m);
+        }
+      }
       this.freeze(false);
+      this.set({ speech: null, caption: null, silent: false, waitingTap: false });
+      // the engine moves the day on to what follows the scene before the end card says what that is
+      await this.story.close().catch(() => undefined);
+      this.alive(gen);
       this.set({ phase: 'end', speech: null, caption: null, silent: false, progress: 1 });
       this.show({ recap: this.recap(), canLeave: false });
     } catch (e) {
@@ -1256,7 +1309,7 @@ export class Stage implements Director {
     }
   }
 
-  /** The end card: tonight's choices in the order you made them, and what tomorrow holds. */
+  /** The end card's own lines: what you did tonight. What comes next is the engine's. */
   private recap(): StageUi['recap'] {
     const did = this.memory
       .journal()
@@ -1264,28 +1317,37 @@ export class Stage implements Director {
       .slice(0, 4)
       .reverse()
       .map((j) => this.say(j.words));
-    const seen = new Set<string>();
-    const tomorrow = eligible(TOMORROW, this.memory.state())
-      .filter((b) => !seen.has(b.say.fr) && seen.add(b.say.fr))
-      .slice(0, 2)
-      .map((b) => this.say(b.say));
-    return { did, tomorrow };
+    return { did, tomorrow: [] };
   }
 
-  private panelOf(id: string): Panel {
-    const m = this.moves.get(id);
-    if (!m) return { kind: 'panel', id, lines: [] };
-    return m.kind === 'panel' ? m : m.panel;
+  /** A panel of the page: its blocking where the director has some, else its lines, spoken in turn. */
+  private async panel(gen: number, m: StoryPanel) {
+    this.progress(m.id);
+    switch (m.id) {
+      case 'a.p1':
+        await this.p1(gen, m);
+        this.remember({ kind: 'place', id: 'le_mistral', status: 'visited' });
+        return;
+      case 'a.p2':
+        return this.p2(gen, m);
+      case 'a.p3':
+        return this.p3(gen);
+      case 'a.p4':
+        return this.p4(gen, m);
+      case 'a.p5':
+        return this.p5(gen, m);
+      default:
+        return this.beat(gen, m);
+    }
   }
 
   /** a.p1 · the quai in the rain; the neon; through the window, the booth. You go in. */
-  private async p1(gen: number) {
-    this.progress('a.p1');
+  private async p1(gen: number, panel: StoryPanel) {
     const q = this.q;
     this.freeze(true);
     // your eyes go to the window where Gus is holding forth, then they are yours
     this.look(new Vector3(-28.6, 2.6, -14.5), 0.9);
-    await this.lines(gen, this.panelOf('a.p1'));
+    await this.lines(gen, panel);
     this.set({ caption: null });
     await this.reach(gen, 'door', MARKS.doorOut, 1.25, new Vector3(-30.5, 1.7, -10.5));
     // the bell, the warmth; two steps in and the door swings shut behind you
@@ -1302,18 +1364,16 @@ export class Stage implements Director {
   }
 
   /** a.p2 · heads turn; Gus freezes on the bench mid-story. */
-  private async p2(gen: number) {
-    this.progress('a.p2');
+  private async p2(gen: number, panel: StoryPanel) {
     for (const k of ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet', 'margaux_barman']) {
       this.fig(k)?.hop();
       await this.wait(gen, 0.09);
     }
-    await this.lines(gen, this.panelOf('a.p2'));
+    await this.lines(gen, panel);
   }
 
   /** a.p3 · silent: the zinc, close. The envelope, the key ring with its cicada. Margaux stops. */
   private async p3(gen: number) {
-    this.progress('a.p3');
     this.set({ speech: null });
     await this.reach(gen, 'zinc', MARKS.atZinc, 0.75, MARKS.zincTop);
     this.look(this.keyHome, 2.6);
@@ -1343,10 +1403,8 @@ export class Stage implements Director {
   }
 
   /** a.p4 · Gus steps down from the bench and crosses the room, bowing far too deep. */
-  private async p4(gen: number) {
-    this.progress('a.p4');
+  private async p4(gen: number, panel: StoryPanel) {
     const gus = this.fig('augustin_de_roncourt');
-    const panel = this.panelOf('a.p4');
     if (gus) {
       void this.q.troupe.face('augustin_de_roncourt', 'neutre', null);
       this.look(gus.face(), 2.2);
@@ -1366,9 +1424,7 @@ export class Stage implements Director {
   }
 
   /** a.p5 · Marin pulls out a chair for you; then he cannot help himself. Lila looks at your shoes. */
-  private async p5(gen: number) {
-    this.progress('a.p5');
-    const panel = this.panelOf('a.p5');
+  private async p5(gen: number, panel: StoryPanel) {
     const marin = this.fig('marin_leveque');
     if (marin) {
       marin.hop();
@@ -1399,58 +1455,92 @@ export class Stage implements Director {
     return d.multiplyScalar(len);
   }
 
-  private replyOf(turn: Turn, replyId: string): Reply {
-    const all = [...turn.replies, ...((EXTRA_REPLIES[turn.id] ?? []) as unknown as Reply[])];
-    return all.find((r) => r.id === replyId) ?? turn.replies.find((r) => r.id === turn.fallback) ?? turn.replies[0];
-  }
-
-  private async turnBeats(gen: number, turn: Turn, replyId: string) {
-    const reply = this.replyOf(turn, replyId);
-    this.set({ beat: `${turn.id}.${reply.id}` });
-    this.remember(REPLY_EFFECTS[`${turn.id}.${reply.id}`]);
-    await this.wait(gen, 1.2);
-    this.set({ you: null });
-    for (const beat of reply.beats) await this.beat(gen, beat);
-    return reply.id;
-  }
-
-  /** Speak a few of the prototype's own lines (agency.ts), as the season's are spoken. */
-  private async said(gen: number, lines: Said[], before?: (line: Said) => Promise<void> | void) {
-    for (const l of lines) {
-      if (before) await before(l);
-      this.alive(gen);
-      await this.speak(gen, toLine(l));
-    }
-  }
-
-  /** a.turn1 · Gus at the zinc beside you: who are you, exactly? */
-  private async turn1(gen: number) {
-    this.progress('a.turn1');
-    const turn = this.moves.get('a.turn1') as Turn;
-    const gus = this.fig('augustin_de_roncourt');
-    if (gus) {
-      const follow = this.q.onTick(() => this.look(gus.face(), 2.0));
-      await this.walkFig(gen, 'augustin_de_roncourt', MARKS.zincBeside, 0.9);
-      follow();
-    }
+  /**
+   * A question: the room sets it up, asks it, and waits for your French. The engine reads it and
+   * the room plays what it heard; asked again, the sheet opens again on the same question.
+   */
+  private async turn(gen: number, turn: StoryTurn) {
+    this.progress(turn.id);
+    await this.setUp(gen, turn);
     await this.lines(gen, turn.panel);
-    const text = await this.replyFrom(gen, turn);
-    const replyId = await this.turnBeats(gen, turn, classify(turn.id, text));
-    // the cup is in front of you: drink it, or not
-    const cup = this.prop('cup');
-    if ((replyId === 'a' || replyId === 'c') && cup?.visible) await this.cafe(gen);
+    let again = false;
+    for (;;) {
+      const heard = await this.reply(gen, turn, again);
+      await this.react(gen, turn, heard);
+      if (heard.reply !== null || heard.next !== turn.id) {
+        if (heard.reply !== null) this.routes[turn.id] = heard.reply;
+        this.asking = heard.next;
+        break;
+      }
+      again = true;
+    }
+    // whatever was said to Margaux, the key ends up back on the zinc in front of you: yours to take, or not
+    if (turn.id === 'a.turn2') await this.keyBack(gen);
   }
 
-  /** The café crème nobody ordered: drink it, refuse it politely, or refuse it curtly. */
-  private async cafe(gen: number) {
+  /** What happens in the room before a question is asked. */
+  private async setUp(gen: number, turn: StoryTurn) {
+    if (turn.id === 'a.turn1') {
+      // Gus at the zinc beside you: who are you, exactly?
+      const gus = this.fig('augustin_de_roncourt');
+      if (gus) {
+        const follow = this.q.onTick(() => this.look(gus.face(), 2.0));
+        await this.walkFig(gen, 'augustin_de_roncourt', MARKS.zincBeside, 0.9);
+        follow();
+      }
+    } else if (turn.id === 'a.cafe') {
+      // the cup is in front of you: drink it, or not
+      const cup = this.prop('cup');
+      if (cup) this.lookAbove(cup.position);
+    } else if (turn.id === 'a.turn2') {
+      // Margaux turns the cicada in her fingers: are you going up? She holds the key ring out, at her side
+      const key = this.prop('key');
+      const margaux = this.fig('margaux_barman');
+      if (key && margaux) {
+        this.onCue?.('key');
+        const hand = margaux.pos.clone().add(new Vector3(0.42, 0.98, 0.3));
+        const toward = this.facing(hand.clone().sub(this.q.camera.position), 0.3);
+        await this.carry(gen, key, 0.8, () => ({ pos: hand, turn: toward }));
+      }
+      this.fig('marin_leveque')?.bow(0.32, 1.6);
+      this.fig('lila_bonnet')?.bow(0.3, 1.5);
+    } else if (turn.id === 'a.key') {
+      // the key ring on the zinc: take it, or leave it with Margaux
+      await this.keyBack(gen);
+      this.lookAbove(this.keyHome);
+    }
+  }
+
+  /** What the room does with what you said: the first line back, then the reply the engine read. */
+  private async react(gen: number, turn: StoryTurn, heard: Heard) {
+    this.set({ beat: heard.reply === null ? `${turn.id}.again` : `${turn.id}.${heard.reply}` });
+    if (heard.reply !== null) this.remember(REPLY_EFFECTS[`${turn.id}.${heard.reply}`]);
+    // your line stays while the room takes it in; a correction stays until you have read it
+    if (heard.mend) await this.waitTap(gen);
+    else await this.wait(gen, 1.2);
+    this.set({ you: null, mend: null });
+    // the tail of the talk is the hook's panel, which the hook stages from the page
+    const tail = hookOf(this.story.page)?.panel.id;
+    const beats = heard.beats.filter((b) => b.id !== tail);
+    if (heard.reply !== null && (turn.id === 'a.cafe' || turn.id === 'a.key')) {
+      const first = beats.filter((b) => /\.ack$/.test(b.id));
+      for (const b of first) await this.beat(gen, b);
+      const rest = beats.filter((b) => !/\.ack$/.test(b.id));
+      if (turn.id === 'a.cafe') await this.cafe(gen, heard.reply, rest);
+      else await this.key(gen, heard.reply, rest);
+      return;
+    }
+    for (const b of beats) await this.beat(gen, b);
+  }
+
+  /** The café crème nobody ordered, as the engine read your answer: drunk, declined, or refused. */
+  private async cafe(gen: number, reply: string, beats: StoryPanel[]) {
     const cup = this.prop('cup');
-    if (cup) this.lookAbove(cup.position);
-    const outcome = readCafe(await this.choose(gen, CAFE));
-    const out = CAFE_OUTCOMES[outcome];
-    this.set({ beat: `a.cafe.${outcome}` });
-    if (outcome === 'drink') {
-      await this.said(gen, out.lines.slice(0, 1));
-      if (cup) {
+    const spoken = beats.filter((b) => b.lines.length);
+    if (reply === 'drink') {
+      const first = spoken[0];
+      if (first) await this.speak(gen, first.lines[0]);
+      if (cup?.visible) {
         // a sip: the cup comes up to you, and back down
         this.onCue?.('cup');
         const home = cup.position.clone();
@@ -1462,8 +1552,9 @@ export class Stage implements Director {
         await this.wait(gen, 0.9);
         await this.carry(gen, cup, 0.6, () => ({ pos: home, turn: flat }));
       }
-      await this.said(gen, out.lines.slice(1));
-    } else if (outcome === 'polite') {
+      if (first) for (const l of first.lines.slice(1)) await this.speak(gen, l);
+      for (const b of spoken.slice(1)) await this.lines(gen, b);
+    } else if (reply === 'declined') {
       // nobody says anything: Margaux slides the cup to the end of the zinc, in front of Odile's stool
       await this.silent(gen, 2.0, async () => {
         const margaux = this.fig('margaux_barman');
@@ -1475,7 +1566,8 @@ export class Stage implements Director {
           await this.tween(gen, 1.1, (t) => cup.position.lerpVectors(from, ODILE_PLACE, t));
         }
       });
-    } else {
+      for (const b of spoken) await this.lines(gen, b);
+    } else if (reply === 'refused') {
       // an eyebrow; the cup goes back; Gus shrugs
       void this.q.troupe.face('margaux_barman', 'surprise', null);
       await this.silent(gen, 1.6, async () => {
@@ -1490,44 +1582,21 @@ export class Stage implements Director {
         }
       });
       void this.q.troupe.face('margaux_barman', 'neutre', null);
-      await this.said(gen, out.lines, (l) => {
-        if (l.who === 'augustin_de_roncourt') this.fig(l.who)?.bow(0.18, 0.9);
-      });
+      for (const b of spoken) {
+        await this.lines(gen, b, (l) => {
+          if (l.who === 'augustin_de_roncourt') this.fig(l.who)?.bow(0.18, 0.9);
+        });
+      }
+    } else {
+      for (const b of beats) await this.beat(gen, b);
     }
-    this.remember(out.effects);
   }
 
-  /** a.turn2 · Margaux turns the cicada in her fingers: are you going up? */
-  private async turn2(gen: number) {
-    this.progress('a.turn2');
-    const turn = this.moves.get('a.turn2') as Turn;
+  /** The key ring on the zinc, as the engine read your answer: in your pocket, or behind the till. */
+  private async key(gen: number, reply: string, beats: StoryPanel[]) {
     const key = this.prop('key');
-    const margaux = this.fig('margaux_barman');
-    if (key && margaux) {
-      // she picks the key ring up and holds it out, at her side, the cicada toward you
-      this.onCue?.('key');
-      const hand = margaux.pos.clone().add(new Vector3(0.42, 0.98, 0.3));
-      const turn = this.facing(hand.clone().sub(this.q.camera.position), 0.3);
-      await this.carry(gen, key, 0.8, () => ({ pos: hand, turn }));
-    }
-    this.fig('marin_leveque')?.bow(0.32, 1.6);
-    this.fig('lila_bonnet')?.bow(0.3, 1.5);
-    await this.lines(gen, turn.panel);
-    const text = await this.replyFrom(gen, turn);
-    await this.turnBeats(gen, turn, classify(turn.id, text));
-    // whatever was said, the key ends up back on the zinc in front of you: yours to take, or not
-    await this.keyBack(gen);
-    await this.takeKey(gen);
-  }
-
-  /** The key ring on the zinc: take it, or leave it with Margaux (behind the till). */
-  private async takeKey(gen: number) {
-    this.lookAbove(this.keyHome);
-    const outcome = readKey(await this.choose(gen, KEY));
-    const out = KEY_OUTCOMES[outcome];
-    this.set({ beat: `a.key.${outcome}` });
-    const key = this.prop('key');
-    if (outcome === 'take') {
+    const spoken = beats.filter((b) => b.lines.length);
+    if (reply === 'take') {
       if (key) {
         this.onCue?.('key');
         await this.carry(gen, key, 0.5, () => this.inView(0.25, 0.55, 0.45));
@@ -1536,26 +1605,27 @@ export class Stage implements Director {
         key.visible = false;
       }
       this.keyWith = 'toi';
-    } else {
+      for (const b of spoken) await this.lines(gen, b);
+    } else if (reply === 'leave') {
       const margaux = this.fig('margaux_barman');
       if (key && margaux) {
         this.onCue?.('key');
         const hand = margaux.pos.clone().add(new Vector3(0.42, 0.98, 0.3));
         await this.carry(gen, key, 0.7, () => ({ pos: hand, turn: this.keyFlat }));
       }
-      await this.said(gen, out.lines);
+      for (const b of spoken) await this.lines(gen, b);
       if (key) {
         await this.carry(gen, key, 0.6, () => ({ pos: BEHIND_TILL, turn: this.keyFlat }));
         key.visible = false;
       }
       this.keyWith = 'margaux';
+    } else {
+      for (const b of beats) await this.beat(gen, b);
     }
-    this.remember(out.effects);
   }
 
   /** The moment before the bell: the room is yours to walk, anyone to talk to. */
   private async moment(gen: number) {
-    this.progress('a.turn2');
     this.set({ beat: 'a.moment', moment: this.say(MOMENT.caption), speech: null, caption: null });
     this.freeze(false);
     this.look(null);
@@ -1574,9 +1644,8 @@ export class Stage implements Director {
   }
 
   /** a.hook · the bell again: someone in a wet helmet holds up a key. Two keys, one door. */
-  private async hook(gen: number) {
-    this.progress('a.hook');
-    const panel = this.panelOf('a.hook');
+  private async hook(gen: number, hook: StoryHook) {
+    this.progress(hook.id);
     const q = this.q;
     q.openDoor(true);
     this.onCue?.('bell');
@@ -1588,7 +1657,7 @@ export class Stage implements Director {
     for (const k of ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet']) this.fig(k)?.hop();
     this.look(this.faceOf('camille_marchand'), 2.4);
     await this.wait(gen, 1.0);
-    await this.lines(gen, panel, async (line) => {
+    await this.lines(gen, hook.panel, async (line) => {
       if (line.who === 'augustin_de_roncourt') {
         const gus = this.fig('augustin_de_roncourt');
         if (gus) {
@@ -1635,7 +1704,7 @@ export class Stage implements Director {
   }
 
   /** One beat of a reply: lines, or a silent panel acted out by its id. */
-  private async beat(gen: number, b: Panel) {
+  private async beat(gen: number, b: StoryPanel) {
     const id = b.id;
     if (SILENT_BEATS.cup.test(id)) {
       // Margaux sets a café crème in front of you; nobody ordered it
@@ -1695,6 +1764,11 @@ export class Stage implements Director {
       });
       return;
     }
+    if (b.silence && !b.lines.length) {
+      // a silence the director has no blocking for: the room holds still
+      await this.silent(gen, 1.8);
+      return;
+    }
     await this.lines(gen, b, async (line) => {
       if (line.who === 'augustin_de_roncourt' && line.direction === 'sitting down slowly') {
         const gus = this.fig('augustin_de_roncourt');
@@ -1704,5 +1778,3 @@ export class Stage implements Director {
     });
   }
 }
-
-export { NAMES };
