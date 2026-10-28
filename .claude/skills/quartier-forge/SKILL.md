@@ -61,7 +61,9 @@ the cloud; never run `playwright install`).
    `halle`, `pavillon`), `market` rows if it is a market, `start` (a street, facing a
    landmark), `commerce`, and `people`: who stands where, with `goods`, `seed`, `name`,
    `goal` (an errand that leads you to them) and `look` (slots of `web-frontend/lib/avatar.ts`;
-   give masculine names short hair and no earrings unless the brief says otherwise). A venue's
+   give masculine names short hair and no earrings unless the brief says otherwise). They stand
+   in the round as their card draws them (`lib/quartier/cast3d/avatar.ts`): every slot and
+   colour of the `look` is what the learner sees. A venue's
    brief says `venue` instead of `market`: its `kind`, the way the course turns, and what the
    article says of the event (`race`: name, metres, hour, runners), with the people the venue's
    director stands (`guichetiere` at the window, `habitue` at the rail).
@@ -79,7 +81,14 @@ the cloud; never run `playwright install`).
    the article describes? Does each landmark read from outside and from inside? Is anything
    empty, floating, cut or wrong for Paris? Is the edge of the walkable world closed? Is the
    frame affordable on a phone: about 450k triangles or fewer at street level, a load under
-   about 2.5 s here?
+   about 2.5 s here? The renders stand the people up as the game does (the stallholders behind
+   their stalls, a venue's people at the window and the rail, the passers-by), so the count is
+   the whole frame's; past 30 m everyone the avatar kit draws changes into a body of under half
+   the triangles. `peopleMs` is how long they take to stand up after the load (one by one, so
+   the first frame does not wait for them; Aligre's fifty take about 2.6 s). To look at the
+   brief's people up close:
+   `node scripts/quartier/cast3d-sheet.mjs ../var/forge/<id>/renders/r<n>/people.png --avatars '[{"key":"primeur","seed":4101,"look":{"hat":"casquette"}}]'`
+   (`--far` for their far bodies).
 6. **Notes and revise.** Write what you saw in `scripts/forge/briefs/<id>.md`, a section per
    round: what was looked at, what is wrong, what you changed. Change the brief first; change
    the kit (`lib/quartier/*.ts`) only when the brief cannot say it, and keep the quai's look

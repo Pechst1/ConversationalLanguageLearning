@@ -57,7 +57,7 @@ export const FACE_PATHS: Record<string, string> = {
 };
 
 /** Hair long or full enough to hide the ears. */
-const COVERS_EARS = new Set(['carre', 'mi_long', 'long', 'afro', 'boucles', 'tresses']);
+export const COVERS_EARS = new Set(['carre', 'mi_long', 'long', 'afro', 'boucles', 'tresses']);
 /** Hair that stands above the crown: under a hat it is not drawn. */
 const STANDS_UP = new Set(['meche', 'chignon', 'afro']);
 
@@ -161,7 +161,7 @@ export function Ears({ look }: { look: Look }) {
 }
 
 const FRECKLES = [[-22, 7], [-26, 10], [-18, 10], [-12, 5], [-8, 9], [-3, 4], [22, 7], [26, 10], [18, 10], [12, 5], [8, 9], [3, 4]] as const;
-const FRECKLE_D = dots(FRECKLES, 1.1);
+export const FRECKLE_D = dots(FRECKLES, 1.1);
 
 /** The face itself, its cheeks and freckles. */
 export function Face({ look }: { look: Look }) {
@@ -306,6 +306,19 @@ export function HairFront({ look, hatted }: { look: Look; hatted: boolean }) {
   }
 }
 
+/** The beards' outlines, in the head frame (the head in the round prints them too). */
+export const BEARD_PATHS = {
+  stubble: 'M-37,-2 C-38,26 -22,48 0,51 C22,48 38,26 37,-2 C33,12 26,20 16,20 C8,17 -8,17 -16,20 C-26,20 -33,12 -37,-2 Z',
+  goatee: 'M-9,39 Q0,36 9,39 L7,51 Q0,57 -7,51 Z',
+  short: 'M-39,-4 C-41,30 -22,58 0,60 C22,58 41,30 39,-4 C34,10 26,15 16,14 C8,11 -8,11 -16,14 C-26,15 -34,10 -39,-4 Z',
+  full: 'M-41,-8 C-44,40 -24,76 0,78 C24,76 44,40 41,-8 C36,8 26,14 16,13 C8,10 -8,10 -16,13 C-26,14 -36,8 -41,-8 Z',
+  fullLines: 'M-20,52 C-14,62 -6,66 0,66 M20,52 C14,62 6,66 0,66',
+  moustache: 'M-19,24 C-11,16 -2,18 0,20.5 C2,18 11,16 19,24 C12,27.5 4,26.5 0,24 C-4,26.5 -12,27.5 -19,24 Z',
+};
+
+/** Beards with a moustache over the mouth. */
+export const MOUSTACHED = ['moustache', 'bouc', 'courte', 'pleine'];
+
 /** Under the mouth: stubble, goatee or beard (the moustache comes after the mouth). */
 export function BeardUnder({ look }: { look: Look }) {
   const { tone, hair, cfg } = look;
@@ -313,25 +326,22 @@ export function BeardUnder({ look }: { look: Look }) {
   switch (cfg.beard) {
     case 'trois_jours':
       return (
-        <path
-          d="M-37,-2 C-38,26 -22,48 0,51 C22,48 38,26 37,-2 C33,12 26,20 16,20 C8,17 -8,17 -16,20 C-26,20 -33,12 -37,-2 Z"
-          fill={mix(tone.skin, colour, 0.3)}
-        />
+        <path d={BEARD_PATHS.stubble} fill={mix(tone.skin, colour, 0.3)} />
       );
     case 'bouc':
-      return <path d="M-9,39 Q0,36 9,39 L7,51 Q0,57 -7,51 Z" fill={colour} />;
+      return <path d={BEARD_PATHS.goatee} fill={colour} />;
     case 'courte':
       return (
         <>
-          <path d="M-39,-4 C-41,30 -22,58 0,60 C22,58 41,30 39,-4 C34,10 26,15 16,14 C8,11 -8,11 -16,14 C-26,15 -34,10 -39,-4 Z" fill={colour} />
+          <path d={BEARD_PATHS.short} fill={colour} />
           <ellipse cx="0" cy="33" rx="14" ry="9.5" fill={tone.skin} />
         </>
       );
     case 'pleine':
       return (
         <>
-          <path d="M-41,-8 C-44,40 -24,76 0,78 C24,76 44,40 41,-8 C36,8 26,14 16,13 C8,10 -8,10 -16,13 C-26,14 -36,8 -41,-8 Z" fill={colour} />
-          <path d="M-20,52 C-14,62 -6,66 0,66 M20,52 C14,62 6,66 0,66" fill="none" stroke={hair.light} strokeWidth={1.6} strokeLinecap="round" />
+          <path d={BEARD_PATHS.full} fill={colour} />
+          <path d={BEARD_PATHS.fullLines} fill="none" stroke={hair.light} strokeWidth={1.6} strokeLinecap="round" />
           <ellipse cx="0" cy="32" rx="13.5" ry="9" fill={tone.skin} />
         </>
       );
@@ -342,13 +352,8 @@ export function BeardUnder({ look }: { look: Look }) {
 
 /** Over the mouth: the moustache of every beard that has one. */
 export function BeardOver({ look }: { look: Look }) {
-  if (!['moustache', 'bouc', 'courte', 'pleine'].includes(look.cfg.beard)) return null;
-  return (
-    <path
-      d="M-19,24 C-11,16 -2,18 0,20.5 C2,18 11,16 19,24 C12,27.5 4,26.5 0,24 C-4,26.5 -12,27.5 -19,24 Z"
-      fill={look.hair.brow}
-    />
-  );
+  if (!MOUSTACHED.includes(look.cfg.beard)) return null;
+  return <path d={BEARD_PATHS.moustache} fill={look.hair.brow} />;
 }
 
 /** Frames over the eyes (sunglasses hide them). */

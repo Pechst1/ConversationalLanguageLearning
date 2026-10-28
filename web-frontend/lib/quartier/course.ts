@@ -12,9 +12,11 @@
  */
 import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three';
 
+import { personAvatar } from './avatars';
 import { personArt } from './cast-art';
 import { Troupe } from './cast';
-import type { PaperFigure } from './cast';
+import type { Figure, FigureSpec, PaperFigure } from './cast';
+import { avatarRound } from './cast3d';
 import { CHEERS, RACE_BARKS, atRail, atWindow, callRace, newRegular, newWindow, regularChips, regularHello, windowChips, windowHello } from './course-talk';
 import type { Call, Race, Regular, Reply, Said, Window } from './course-talk';
 import type { Hit, Quartier } from './engine';
@@ -66,7 +68,7 @@ interface Goal {
 interface Person {
   key: string;
   spec: SitePerson;
-  f: PaperFigure | null;
+  f: Figure | null;
 }
 
 export interface CourseOptions {
@@ -96,7 +98,7 @@ export class Course implements Director {
   private onCue?: (cue: Cue) => void;
   private onSay?: (fr: string, heat: number) => void;
   private street?: Street;
-  private people: Troupe;
+  private people: Troupe<Figure>;
   private field: Troupe;
   private cast: Person[] = [];
   private horses: Horse[] = [];
@@ -146,7 +148,8 @@ export class Course implements Director {
     const winner = this.memory.fact('hippodrome_longchamp.winner');
     const ticket = this.memory.fact('hippodrome_longchamp.ticket');
     this.regular = newRegular(this.race, Math.random(), typeof winner === 'number' ? { winner, ticket: typeof ticket === 'string' ? ticket : null } : null);
-    this.people = new Troupe(q.world, { figure: (key, expression) => this.personArt(key, expression), item: () => null }, 400);
+    // the clerk and the regular stand in the round; the horses stay printed cards
+    this.people = new Troupe<Figure>(q.world, { figure: (key, expression) => this.personArt(key, expression), item: () => null }, 400, q.cast === 'round' ? (spec) => this.round(spec) : undefined);
     this.field = new Troupe(q.world, { figure: (key, expression) => this.horseArt(key, expression), item: () => null }, 360);
     q.addTroupe(this.people);
     q.addTroupe(this.field);
@@ -197,6 +200,13 @@ export class Course implements Director {
   private personArt(key: string, expression: string) {
     const p = this.cast.find((x) => x.key === key);
     return personArt(p?.spec.seed ?? 11, p?.spec.look ?? {}, (FACES[expression] ?? expression) as never, 300);
+  }
+
+  /** Someone the brief names, in the round: the record their card is drawn from, stood up. */
+  private round(spec: FigureSpec) {
+    const p = this.cast.find((x) => x.key === spec.key);
+    const seed = p?.spec.seed ?? 11;
+    return avatarRound(this.q.world, personAvatar(seed, p?.spec.look ?? {}), spec, seed);
   }
 
   /** A runner, facing the way it runs as you see it: «neutre» is the usual view from the stand side. */

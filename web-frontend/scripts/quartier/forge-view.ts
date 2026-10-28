@@ -7,9 +7,11 @@
 import { Vector3 } from 'three';
 
 import { figureArt, itemArt } from '../../lib/quartier/cast-art';
+import { Course } from '../../lib/quartier/course';
 import { Crowd } from '../../lib/quartier/crowd';
 import { Quartier } from '../../lib/quartier/engine';
 import type { SiteSpec } from '../../lib/quartier/site';
+import { Visit } from '../../lib/quartier/visit';
 
 interface View {
   name: string;
@@ -91,9 +93,15 @@ const t0 = performance.now();
 q.load()
   .then(async () => {
     const loadMs = Math.round(performance.now() - t0);
-    // the people of the place, walking its own spots, so the photographs show it lived in
+    // whoever the place's director stands up (behind the stalls, at the window), as a player
+    // finds them, and the people of the place walking its own spots, so the photographs show it
+    // lived in and the frame's cost counts them all
+    const director = q.site?.spec.venue ? new Course(q) : new Visit(q);
+    await director.prepare();
+    if (director instanceof Visit) await director.full;
     const crowd = new Crowd(q, { count: 24, seed: 1789, spots: q.site?.spec.spots });
     await crowd.load();
+    const peopleMs = Math.round(performance.now() - t0) - loadMs;
     const list = views();
     const show = (i: number) => {
       const v = list[i];
@@ -104,7 +112,7 @@ q.load()
       for (let k = 0; k < 4; k++) q.renderOnce(performance.now() + k * 16);
       return { ...q.stats };
     };
-    Object.assign(window, { __forge: { ready: true, loadMs, views: list.map((v) => v.name), show } });
+    Object.assign(window, { __forge: { ready: true, loadMs, peopleMs, views: list.map((v) => v.name), show } });
   })
   .catch((e) => {
     Object.assign(window, { __forge: { ready: false, error: e instanceof Error ? `${e.message}\n${e.stack}` : String(e) } });

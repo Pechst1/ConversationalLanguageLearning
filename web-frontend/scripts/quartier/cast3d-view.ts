@@ -14,6 +14,9 @@ import {
   WebGLRenderer,
 } from 'three';
 
+import { DEFAULT_AVATAR, normalizeAvatar } from '../../lib/avatar';
+import { personAvatar } from '../../lib/quartier/avatars';
+import { avatarPerson } from '../../lib/quartier/cast3d/avatar';
 import { makeWorld, applyAmbiance } from '../../lib/quartier/materials';
 import { AMBIANCES, INKS, rgb } from '../../lib/quartier/palette';
 import { PrintPass } from '../../lib/quartier/print';
@@ -49,9 +52,20 @@ interface Act {
   hop?: number;
 }
 
+/** Someone the avatar kit draws: rolled from `seed` with `look` over it, or without a seed the kit's default record with `look` over it. */
+interface AvatarSpec {
+  key: string;
+  seed?: number;
+  look?: Record<string, string | boolean>;
+  height?: number;
+  /** their lighter body, the one that stands in for them across the square, up close */
+  far?: boolean;
+}
+
 interface Config {
   acts?: Act[];
   people?: string[];
+  avatars?: AvatarSpec[];
   views?: View[];
   tile?: [number, number];
   expression?: string;
@@ -90,7 +104,16 @@ function flat(color: number, id: number) {
 async function main() {
   const t0 = performance.now();
   const cfg = window.__CAST ?? {};
-  const people = (cfg.people?.length ? cfg.people.map((k) => personFor(k)).filter((p) => p !== null) : PEOPLE) as typeof PEOPLE[number][];
+  const people = (
+    cfg.avatars?.length
+      ? cfg.avatars.map((a) => {
+          const person = avatarPerson(a.seed === undefined ? normalizeAvatar({ ...DEFAULT_AVATAR, ...a.look }) : personAvatar(a.seed, a.look), { key: a.key, height: a.height, seed: a.seed });
+          return a.far ? { ...person, ...person.far, far: undefined } : person;
+        })
+      : cfg.people?.length
+        ? cfg.people.map((k) => personFor(k)).filter((p) => p !== null)
+        : PEOPLE
+  ) as typeof PEOPLE[number][];
   const views: View[] = cfg.views ?? [{ yaw: 0 }, { yaw: 35 }, { yaw: 90 }, { yaw: 180 }, { yaw: 0, at: 0.86, dist: 1.0, fov: 30 }];
   const [tw, th] = cfg.tile ?? [300, 460];
   const canvas = document.createElement('canvas');

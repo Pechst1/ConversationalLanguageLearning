@@ -8,7 +8,7 @@
  * mood (eased in); the walk; talking (the mouth's cells and small nods); a gesture; a bow; a
  * hop; sitting; and the head turning to whoever is speaking, or to you.
  */
-import { Euler, Group, Matrix4, Mesh, PlaneGeometry, Vector2, Vector3 } from 'three';
+import { Euler, Group, Matrix4, Mesh, PlaneGeometry, Sphere, Vector2, Vector3 } from 'three';
 import type { Camera } from 'three';
 
 import type { FigureSpec, Seat } from '../cast';
@@ -250,6 +250,8 @@ function companyOf(world: World): Company {
 const TALK_CELLS: Cell[] = ['a', 'e', 'o', 'm', 'a', 'own', 'o', 'e', 'm'];
 const e = new Euler();
 const UP = new Vector3(0, 1, 0);
+/** how far off (metres, give or take two) someone with a lighter body changes into it */
+const FAR_OFF = 30;
 
 export class ModelFigure {
   readonly key: string;
@@ -311,12 +313,14 @@ export class ModelFigure {
   private drop = 0;
   private look = new Vector2();
   private snap = true;
+  private away = false;
 
-  constructor(world: World, person: Person, spec: FigureSpec, opts: { variant?: string; seats?: readonly Seat[] } = {}) {
+  /** `cell` is the face print's cell in pixels (smaller for the people of the street) */
+  constructor(world: World, person: Person, spec: FigureSpec, opts: { variant?: string; seats?: readonly Seat[]; cell?: number } = {}) {
     this.key = spec.key;
     this.person = person;
     this.seats = opts.seats ?? [];
-    this.model = buildModel(world, person, { variant: opts.variant });
+    this.model = buildModel(world, person, { variant: opts.variant, cell: opts.cell });
     this.company = companyOf(world);
     this.company.members.add(this);
     const geo = this.model.mesh.geometry;
@@ -325,7 +329,18 @@ export class ModelFigure {
     this.scale = Math.min(1.12, Math.max(0.9, spec.height / natural));
     this.top = natural * this.scale;
     this.model.mesh.scale.setScalar(this.scale);
+    // a sphere round any pose they take, so the renderer can leave out whoever is off screen
+    // without skinning them to find out
+    this.model.mesh.boundingSphere = new Sphere(new Vector3(0, natural * 0.5, 0), natural * 0.8);
+    this.model.mesh.frustumCulled = true;
     this.root.add(this.model.mesh);
+    const far = this.model.far;
+    if (far) {
+      far.scale.setScalar(this.scale);
+      far.boundingSphere = this.model.mesh.boundingSphere.clone();
+      far.frustumCulled = true;
+      this.root.add(far);
+    }
     this.blot = new Mesh(new PlaneGeometry(1, 1).rotateX(-Math.PI / 2), blotMaterial(rgb(INKS.ink), 0.5));
     this.blot.renderOrder = 2;
     this.blot.scale.set(0.62 * this.scale, 1, 0.4 * this.scale);
@@ -625,6 +640,13 @@ export class ModelFigure {
     this.root.position.copy(rootPos);
     this.root.rotation.set(0, this.heading, this.rock);
     this.root.visible = this.visible;
+    const far = this.model.far;
+    if (far) {
+      const d = camera.position.distanceTo(rootPos);
+      if (this.away ? d < FAR_OFF - 2 : d > FAR_OFF + 2) this.away = !this.away;
+      this.model.mesh.visible = !this.away;
+      far.visible = this.away;
+    }
     this.blot.visible = sit < 0.05 && this.lift === 0;
 
     // the face: talking cycles the mouth, a blink now and then
