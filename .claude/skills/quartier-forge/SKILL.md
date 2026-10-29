@@ -161,7 +161,9 @@ room instead of a street; it follows the steps above with these differences.
    - `marks`: where the stage stands people. The room director (`interior.ts`) reads `landing`
      (where the climb ends), `door` (where you stand before the door the story opens),
      `threshold` (where you look in from) and `inside` (what you look at); the cast's marks
-     (`lilaStep`) wait for the stage.
+     (`lilaStep`) wait for the stage. A mark you are walked to stands where a body fits (22 cm
+     clear all round): short of that, the walk ends at the nearest place that does, half a metre
+     off, and you see the door from the side.
    The walking grid has one height a cell: no floor you walk may lie over another you walk (a
    flight runs beside the corridor below it, never over it). `check` says so when it happens.
 4. **Draft, check, plan.** `$PY scripts/forge/forge.py draft <id>` writes

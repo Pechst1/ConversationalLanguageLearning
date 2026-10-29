@@ -98,6 +98,13 @@ what changed:
 - **R3** was played from the threshold, which is where the leaf shuts: it would have closed
   through you. It is now played from where you stood before the door, looking in: the stove and
   the whiter patch above it in the slatted light, and the leaf with its «1» swinging shut.
+- **A second look at the shots.** The walk up stopped half a metre off the landing's mark, by
+  the jamb: the mark stood where a body does not fit between the rail and the door, so the walk
+  ended at the nearest place one does. Your head, let go before the last steps, turned back to
+  the way, and the door with its «1» sat at the screen's edge. The landing's and the door's marks
+  now stand where a body fits (`room.test.js` holds them there), your head stays on the door
+  until you stand still, and the lens opens as for R2, so an upright phone takes in the whole
+  door: its frame, the panels, the «1», the knob. It closes again when you walk off the landing.
 
 ## Still plain
 

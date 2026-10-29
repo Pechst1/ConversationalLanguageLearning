@@ -115,7 +115,10 @@ test('the stage has its marks: where the climb ends, before the door, on its thr
     if (!r.openings.some((o) => o.opens === 'once')) return;
     ['landing', 'door', 'threshold', 'inside'].forEach((k) => assert.ok(r.marks[k], `${file}: the room director reads the mark ${k}`));
     const { landing, door, threshold, inside } = r.marks;
-    assert.ok(nav.walkable(landing.x, landing.z) && nav.walkable(door.x, door.z), `${file}: the landing and the place before the door are walked`);
+    // a body fits where the climb ends and before the door, so a walk there ends on the mark (not
+    // half a metre off it, looking at the door from the side)
+    assert.ok(nav.standable(landing.x, landing.z), `${file}: nobody fits on the landing's mark`);
+    assert.ok(nav.standable(door.x, door.z), `${file}: nobody fits on the mark before the door`);
     const o = r.openings.find((x) => x.opens === 'once');
     // the threshold is in the doorway, at the leaf, and what the door shows lies beyond it
     assert.ok(Math.hypot(threshold.x - o.centre.x, threshold.z - o.centre.z) < 0.6, `${file}: the threshold is in the doorway`);

@@ -70,6 +70,10 @@ export class Interior implements Director {
   private busy = false;
   private did = new Set<'lit' | 'climbed' | 'opened'>();
   private tapWait: (() => void) | null = null;
+  /** the latest turn of your head (`face`): an earlier one does not let go of it */
+  private faced = 0;
+  /** the lens is open for the door (`faceDoor`) */
+  private wide = false;
   private timers = new Set<number>();
   private stopTick: () => void;
   private stopHit: () => void;
@@ -170,7 +174,8 @@ export class Interior implements Director {
     void this.q.walkTo(g.to, STRIDE).then((ok) => {
       if (!ok || this.goal !== g || this.busy) return;
       const s = g.switchKey ? this.room.switches.find((x) => x.key === g.switchKey) : null;
-      this.face(s ? s.at : this.step === 'door' ? this.door?.centre : undefined);
+      if (s) this.face(s.at);
+      else if (this.step === 'door') this.faceDoor();
     });
   }
 
@@ -342,6 +347,7 @@ export class Interior implements Director {
     this.q.place(before, through);
     this.q.look(through, 4);
     this.q.lens(60);
+    this.wide = false;
     this.q.openDoor(false, d.key);
     if (!(await this.wait(1500))) return;
     this.onCue?.('door');
@@ -432,7 +438,15 @@ export class Interior implements Director {
         this.did.add('climbed');
         this.step = 'door';
         this.nextGoal();
-        this.face(this.door?.centre);
+        this.faceDoor();
+      }
+    }
+    // the lens opened for the door closes again once you walk off the landing
+    if (this.wide && !this.busy) {
+      const landing = this.mark('landing', this.room.start.pos);
+      if (Math.hypot(this.q.feet.x - landing.x, this.q.feet.z - landing.z) > 1.4 || Math.abs(this.q.feet.y - landing.y) > 0.4) {
+        this.wide = false;
+        this.q.lens(60);
       }
     }
     if (roaming !== this.ui.canLeave && this.ui.phase === 'roam') this.show({ canLeave: roaming });
@@ -448,15 +462,43 @@ export class Interior implements Director {
     this.q.lens(Math.min(84, Math.max(52, fov)));
   }
 
-  /** Turn your head to something for a moment, then let your eyes go where you like. */
+  /**
+   * Turn your head to something for a moment, then let your eyes go where you like. Not while the
+   * last steps are still walking you there (let go, the head would turn back to the way), nor
+   * before it has come round on a slow phone (a few seconds at most).
+   */
   private face(at: Vector3 | undefined) {
     if (!at) return;
-    this.q.look(at.clone(), 3);
-    const t = window.setTimeout(() => {
-      this.timers.delete(t);
-      if (!this.busy) this.q.look(null);
-    }, 1600);
-    this.timers.add(t);
+    const mine = ++this.faced;
+    const target = at.clone();
+    this.q.look(target, 3);
+    const letGo = (ms: number, tries: number) => {
+      const t = window.setTimeout(() => {
+        this.timers.delete(t);
+        if (mine !== this.faced) return;
+        if ((this.q.walking || !this.facing(target)) && tries > 0) letGo(400, tries - 1);
+        else if (!this.busy) this.q.look(null);
+      }, ms);
+      this.timers.add(t);
+    };
+    letGo(1600, 10);
+  }
+
+  /**
+   * Turn to the door with its «1», the whole of it: the landing is too shallow to step back from
+   * it, so the lens opens as for R2 (an upright phone sees little across) until you walk off.
+   */
+  private faceDoor() {
+    this.face(this.door?.centre);
+    this.lensAcross(46);
+    this.wide = true;
+  }
+
+  /** Is your head turned to `at`, within a few degrees? */
+  private facing(at: Vector3) {
+    const cam = this.q.camera;
+    const want = at.clone().sub(cam.position).normalize();
+    return cam.getWorldDirection(new Vector3()).dot(want) > Math.cos(0.05);
   }
 
   /** Where you stand to press a button: a little out from the wall, on the floor. */
