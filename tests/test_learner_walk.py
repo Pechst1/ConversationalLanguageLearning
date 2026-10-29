@@ -22,10 +22,12 @@ writes the transcripts as JSON for a human read.
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 
 import pytest
 
 from app.config import settings
+from app.core import test_clock
 from app.services.core_lexicon import CORE_DECK, ensure_core_lexicon
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog
 from tests import learner_walk as walk
@@ -34,8 +36,42 @@ from tests import walk_checks
 from tests.test_season_one import season_on  # noqa: F401 - fixture
 
 assembled_client = support.assembled_client
-clock = support.clock
 journey_enabled = support.journey_enabled
+
+# Sign-in stays on the real clock: python-jose checks a token's expiry against it,
+# and a token minted in the walk's March would already have expired.
+_REAL_CLOCK_MODULES = ("app.core.security",)
+
+
+class WalkClock(support.Clock):
+    """The walk's one clock: every app clock reads it, and it moves only with the day."""
+
+    def advance(self, **kwargs) -> None:
+        super().advance(**kwargs)
+        # Modules imported lazily since the last day get the stand-ins too.
+        test_clock.install(keep_real=_REAL_CLOCK_MODULES)
+
+
+@pytest.fixture()
+def clock(monkeypatch, assembled_client):
+    """The journey's clock and every ``datetime.now()`` / ``date.today()`` in ``app``.
+
+    The shared ``clock`` fixture freezes only the journey service's ``_utcnow``; the
+    rest of the backend (the grammar review's «due», the word schedule, the story)
+    read the real clock, so what came up on day 30 followed the calendar: the walk
+    went red at midnight on 29 Oct with no code change. Here the whole app reads one
+    frozen month. After ``assembled_client``: FastAPI reads the route signatures'
+    ``date`` types when the app is built, and they must be the real class then.
+    """
+
+    frozen = WalkClock(datetime(2026, 3, 10, 9, 0, tzinfo=UTC))  # the shared clock's start
+    monkeypatch.setattr(support.daily_journey_service, "_utcnow", frozen)
+    test_clock.install(keep_real=_REAL_CLOCK_MODULES)
+    test_clock.follow(frozen)
+    try:
+        yield frozen
+    finally:
+        test_clock.uninstall()
 
 
 @pytest.fixture
