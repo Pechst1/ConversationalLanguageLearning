@@ -3653,6 +3653,7 @@ class MissionCorrectionService:
             correction.get("errata") or [],
             mission=mission,
             submission_text=text,
+            language=language,
         )
         correction["correction_debug"] = {
             "prompt_version": correction.get("_prompt_version") or MISSION_CORRECTION_PROMPT_VERSION,
@@ -3786,6 +3787,7 @@ class MissionCorrectionService:
         *,
         mission: RealWorldMission,
         submission_text: str,
+        language: Any = None,
     ) -> list[dict[str, Any]]:
         """The three gates every erratum must pass before it can become a card.
 
@@ -3839,7 +3841,9 @@ class MissionCorrectionService:
             narrowed = self._narrow_erratum(erratum, submission_text=submission_text)
             if narrowed is None:
                 continue
-            cleaned.append(narrowed)
+            # #369: the explanation is held to the corrected form it explains
+            # («an accent on « hui »» for aujourd'hui is replaced, not shown).
+            cleaned.append(correction_contract.reconcile_notes(narrowed, language=copy_language(language)))
         return cleaned
 
     @staticmethod

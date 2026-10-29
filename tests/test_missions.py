@@ -1588,6 +1588,63 @@ def test_an_intonation_question_is_never_corrected_to_an_inversion(db_session):
     assert [item["corrected_target"] for item in correction["errata"]] == ["Le radiateur est froid"]
 
 
+def test_a_courrier_note_never_names_an_accent_the_corrected_form_does_not_have(db_session):
+    """LIVE WALK 2026-10-29 (#369): «aujourdhui» -> «aujourd'hui» was explained with
+    «an accent on « hui »». The corrected form has an apostrophe and no accent
+    anywhere; the note was the model's raw words, never checked against the form."""
+
+    class _AccentLLM:
+        def generate_error_detection(self, messages, **kwargs):  # type: ignore[no-untyped-def]
+            return LLMResult(
+                provider="stub",
+                model="stub-correction",
+                content=json.dumps(
+                    {
+                        "verdict": "needs_revision",
+                        "score_0_4": 3,
+                        "corrected_answer": "Gus, aujourd'hui j'ai écrit une carte.",
+                        "objective_progress": [],
+                        "concept_hits": [],
+                        "missing_targets": [],
+                        "errata": [
+                            {
+                                "display_label": "Spelling",
+                                "learner_text": "aujourdhui",
+                                "corrected_target": "aujourd'hui",
+                                "why_wrong": "The standard spelling includes an apostrophe and an accent on « hui »",
+                                "repair_hint": "Write aujourd'hui with an accent on « hui ».",
+                                "severity": 1,
+                                "recurring": False,
+                                "task_error_type": "spelling",
+                                "external_id": "",
+                            }
+                        ],
+                        "vocabulary_links": [],
+                    }
+                ),
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0,
+                raw_response={},
+            )
+
+    user = User(id=uuid4(), email="mission-accent@example.com", hashed_password="x", proficiency_level="A1")
+    correction = MissionCorrectionService(db_session, llm_service=_AccentLLM()).correct_submission(
+        user=user,
+        mission=_mission_for_correction(),
+        text="Gus, aujourdhui j ai écrit une carte.",
+        mode="chat",
+    )
+
+    spelling = [item for item in correction["errata"] if item["corrected_target"] == "aujourd'hui"]
+    assert spelling, "the real fix (aujourdhui -> aujourd'hui) must survive"
+    for item in spelling:
+        shown = f"{item['why_wrong']} {item['repair_hint']}".casefold()
+        assert "accent" not in shown, f"the note names an accent that is not in the form: {shown!r}"
+        assert "apostrophe" in shown, f"the note should name the apostrophe, the one real change: {shown!r}"
+
+
 class _DownLLM:
     """A corrector that is down: every call fails the way a provider fails."""
 
