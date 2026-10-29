@@ -3,11 +3,12 @@
  *
  * Rain on the quai (muffled once the door shuts), the café's murmur, your steps (wet outside,
  * on tiles inside), the neon's hum when you stand under it, and the few cues the director asks
- * for: the door's bell, a key on the zinc, a cup on its saucer, a chair pulled out, paper. A
- * forged place adds its din: a market's murmur; a racecourse's crowd, from a murmur to the roar
- * up the straight, and the field's hooves on the turf as it goes past. The course also has its
- * voice over the loudspeakers, the device's own French voice calling the race (unless the
- * learner turned the voices off, «Les personnages parlent à voix haute»).
+ * for: the door's bell, a key on the zinc, a cup on its saucer, a chair pulled out, paper, a
+ * stairwell's push-button and the tick of its timed light. A forged place adds its din: a
+ * market's murmur; a racecourse's crowd, from a murmur to the roar up the straight, and the
+ * field's hooves on the turf as it goes past. The course also has its voice over the
+ * loudspeakers, the device's own French voice calling the race (unless the learner turned the
+ * voices off, «Les personnages parlent à voix haute»).
  * Everything is white noise and a few sine partials through filters; an AudioContext may only
  * start from a tap, so `start()` is called from the title card's button.
  */
@@ -25,6 +26,8 @@ export interface Ambience {
   neon: number;
   /** the crowd and the hooves, where the place has them */
   din?: Din;
+  /** indoors with nobody about (a stairwell after closing): no murmur */
+  quiet?: boolean;
 }
 
 const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
@@ -189,7 +192,7 @@ export class Sound {
     const rain = a.rain ? (a.indoors ? 0.12 : 0.34) : a.indoors ? 0 : 0.04;
     this.rainGain.gain.setTargetAtTime(rain, t, 0.4);
     this.rainTone.frequency.setTargetAtTime(a.indoors ? 900 : 6500, t, 0.3);
-    this.roomGain.gain.setTargetAtTime(a.indoors ? 0.2 : 0, t, 0.5);
+    this.roomGain.gain.setTargetAtTime(a.indoors && !a.quiet ? 0.2 : 0, t, 0.5);
     const hum = a.night && !a.indoors ? Math.max(0, 1 - a.neon / 9) * 0.035 : 0;
     this.humGain.gain.setTargetAtTime(hum, t, 0.3);
     const din = a.din;
@@ -224,7 +227,11 @@ export class Sound {
     else if (c === 'phone') {
       this.buzz(0);
       this.buzz(0.3);
-    }
+    } else if (c === 'switch') {
+      // the button's clunk, and the relay behind the wall
+      this.thud(0, 900, 0.16);
+      this.tick(0.05, 0.09);
+    } else if (c === 'tick') this.tick(0, 0.035);
   }
 
   dispose() {
@@ -363,6 +370,17 @@ export class Sound {
     bp.frequency.setValueAtTime(700, ctx.currentTime);
     bp.frequency.linearRampToValueAtTime(1100, ctx.currentTime + 0.5);
     src.connect(bp).connect(this.env(0, 0.3, 0.55));
+  }
+
+  /** A small dry click: the minuterie's clockwork, or its relay. */
+  private tick(at: number, peak: number) {
+    const ctx = this.ctx as AudioContext;
+    const src = this.burst(at, 0.02);
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 3;
+    bp.frequency.value = 3400;
+    src.connect(bp).connect(this.env(at, peak, 0.02));
   }
 
   private flick() {

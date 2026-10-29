@@ -1,0 +1,532 @@
+{
+  "id": "escalier_mistral",
+  "version": 1,
+  "kind": "room",
+  "in": "quai_de_valmy",
+  "ambiance": "nuit",
+  "title": {
+    "fr": "La cage d'escalier",
+    "en": "The stairwell",
+    "de": "Das Treppenhaus"
+  },
+  "can_do": {
+    "fr": "Allumer la minuterie, monter au premier, ouvrir la porte du «1».",
+    "en": "Turn on the stair light, climb to the first floor, open the door with the «1».",
+    "de": "Das Treppenlicht anmachen, in den ersten Stock steigen, die Tür mit der «1» öffnen."
+  },
+  "start": {
+    "pos": [-27.6, -20.6],
+    "look": [-29.3, 1.5, -19.4]
+  },
+  "floors": [
+    {
+      "key": "vestibule",
+      "shape": [
+        [-28.6, -21.75],
+        [-27.26, -21.75],
+        [-27.26, -19.0],
+        [-28.6, -19.0]
+      ],
+      "y": 0.16,
+      "finish": "cabochons"
+    },
+    {
+      "key": "couloir",
+      "shape": [
+        [-37.2, -21.75],
+        [-28.6, -21.75],
+        [-28.6, -20.5],
+        [-37.2, -20.5]
+      ],
+      "y": 0.16,
+      "finish": "cabochons"
+    },
+    {
+      "key": "pied",
+      "shape": [
+        [-38.7, -21.75],
+        [-37.2, -21.75],
+        [-37.2, -19.0],
+        [-38.7, -19.0]
+      ],
+      "y": 0.16,
+      "finish": "cabochons"
+    },
+    {
+      "key": "palier",
+      "shape": [
+        [-30.45, -20.35],
+        [-28.6, -20.35],
+        [-28.6, -19.0],
+        [-30.45, -19.0]
+      ],
+      "y": 4.6,
+      "finish": "boards"
+    },
+    {
+      "key": "cuisine",
+      "shape": [
+        [-31.8, -18.75],
+        [-27.26, -18.75],
+        [-27.26, -14.9],
+        [-31.8, -14.9]
+      ],
+      "y": 4.6,
+      "finish": "tomettes",
+      "zone": "sealed",
+      "walk": false
+    }
+  ],
+  "flights": [
+    {
+      "key": "volee",
+      "from": [-37.2, -19.675],
+      "dir": "x+",
+      "width": 1.35,
+      "y0": 0.16,
+      "y1": 4.6,
+      "risers": 26,
+      "tread": 0.27,
+      "rail": "left"
+    }
+  ],
+  "walls": [
+    {
+      "key": "vestibule.n",
+      "a": [-28.6, -21.75],
+      "b": [-27.26, -21.75],
+      "base": 0.16,
+      "top": 4.25,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "vestibule.e",
+      "a": [-27.26, -21.75],
+      "b": [-27.26, -19.0],
+      "base": 0.16,
+      "top": 4.25,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "vestibule.s",
+      "a": [-27.26, -19.0],
+      "b": [-28.6, -19.0],
+      "base": 0.16,
+      "top": 4.25,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "vestibule.w",
+      "a": [-28.6, -19.0],
+      "b": [-28.6, -20.5],
+      "base": 0.16,
+      "top": 4.25,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "cuisine.n",
+      "a": [-31.8, -18.75],
+      "b": [-27.26, -18.75],
+      "base": 4.6,
+      "top": 7.6,
+      "finish": "plaster",
+      "tone": "cream",
+      "zone": "sealed"
+    },
+    {
+      "key": "cuisine.e",
+      "a": [-27.26, -18.75],
+      "b": [-27.26, -14.9],
+      "base": 4.6,
+      "top": 7.6,
+      "finish": "plaster",
+      "tone": "cream",
+      "zone": "sealed"
+    },
+    {
+      "key": "cuisine.s",
+      "a": [-27.26, -14.9],
+      "b": [-31.8, -14.9],
+      "base": 4.6,
+      "top": 7.6,
+      "finish": "plaster",
+      "tone": "cream",
+      "zone": "sealed"
+    },
+    {
+      "key": "cuisine.w",
+      "a": [-31.8, -14.9],
+      "b": [-31.8, -18.75],
+      "base": 4.6,
+      "top": 7.6,
+      "finish": "plaster",
+      "tone": "cream",
+      "zone": "sealed"
+    },
+    {
+      "key": "cage.n",
+      "a": [-38.7, -21.75],
+      "b": [-28.6, -21.75],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.e1",
+      "a": [-28.6, -21.75],
+      "b": [-28.6, -20.5],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.e2",
+      "a": [-28.6, -20.5],
+      "b": [-28.6, -19.0],
+      "base": 4.6,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s1",
+      "a": [-28.6, -19.0],
+      "b": [-30.45, -19.0],
+      "base": 4.6,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s2",
+      "a": [-30.45, -19.0],
+      "b": [-37.2, -19.0],
+      "base": [4.6, 0.16],
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s3",
+      "a": [-37.2, -19.0],
+      "b": [-38.7, -19.0],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.w",
+      "a": [-38.7, -19.0],
+      "b": [-38.7, -21.75],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux"
+    },
+    {
+      "key": "cloison.1",
+      "a": [-28.6, -20.48],
+      "b": [-30.45, -20.48],
+      "base": 0.16,
+      "top": 4.28,
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux",
+      "plain": true
+    },
+    {
+      "key": "cloison.2",
+      "a": [-30.45, -20.48],
+      "b": [-37.2, -20.48],
+      "base": 0.16,
+      "top": [4.3, 0.18],
+      "finish": "wainscot",
+      "tone": "ochre",
+      "dado": "faux",
+      "plain": true
+    }
+  ],
+  "ceilings": [
+    {
+      "shape": [
+        [-28.6, -21.75],
+        [-27.26, -21.75],
+        [-27.26, -19.0],
+        [-28.6, -19.0]
+      ],
+      "y": 4.25
+    },
+    {
+      "shape": [
+        [-31.8, -18.75],
+        [-27.26, -18.75],
+        [-27.26, -14.9],
+        [-31.8, -14.9]
+      ],
+      "y": 7.6,
+      "zone": "sealed"
+    },
+    {
+      "shape": [
+        [-38.7, -21.75],
+        [-28.6, -21.75],
+        [-28.6, -19.0],
+        [-38.7, -19.0]
+      ],
+      "y": 8.4
+    }
+  ],
+  "doors": [
+    {
+      "key": "porte_rue",
+      "height": 3.2,
+      "hinge": "both",
+      "swing": "in",
+      "tone": "porch",
+      "opens": "never",
+      "wall": 1,
+      "u0": 0.1,
+      "u1": 2.65
+    },
+    {
+      "key": "porte_odile",
+      "height": 2.2,
+      "hinge": "right",
+      "swing": "out",
+      "tone": "brown",
+      "numeral": "1",
+      "opens": "once",
+      "mat": true,
+      "wall": 11,
+      "u0": 0.5,
+      "u1": 1.4
+    }
+  ],
+  "windows": [
+    {
+      "key": "fenetre_cour",
+      "wall": 8,
+      "u0": 3.7,
+      "u1": 5.1,
+      "y0": 3.3,
+      "y1": 5.7
+    },
+    {
+      "key": "fenetre_cuisine",
+      "wall": 5,
+      "u0": 1.0,
+      "u1": 2.25,
+      "y0": 4.68,
+      "y1": 7.17,
+      "shutters": "closed"
+    }
+  ],
+  "holes": [
+    {
+      "wall": 9,
+      "u0": 0.0,
+      "u1": 1.25,
+      "y0": 0.15,
+      "y1": 4.25
+    },
+    {
+      "wall": 4,
+      "u0": 1.8,
+      "u1": 2.7,
+      "y0": 4.59,
+      "y1": 6.8
+    },
+    {
+      "wall": 7,
+      "u0": 1.07,
+      "u1": 1.93,
+      "y0": 4.59,
+      "y1": 6.7
+    }
+  ],
+  "rails": [
+    {
+      "a": [-30.45, 4.6, -20.39],
+      "b": [-28.6, 4.6, -20.39]
+    }
+  ],
+  "lights": [
+    {
+      "key": "globe_entree",
+      "kind": "globe",
+      "at": [-27.93, 3.6, -20.4],
+      "ceiling": 4.25,
+      "circuit": "minuterie",
+      "power": 0.9,
+      "range": 4.6
+    },
+    {
+      "key": "applique_pied",
+      "kind": "sconce",
+      "at": [-38.44, 2.4, -20.4],
+      "facing": [1, 0],
+      "circuit": "minuterie",
+      "power": 0.85,
+      "range": 5.2
+    },
+    {
+      "key": "hublot_palier",
+      "kind": "hublot",
+      "at": [-28.835, 6.9, -19.7],
+      "facing": [-1, 0],
+      "circuit": "minuterie",
+      "power": 0.85,
+      "range": 4.6
+    }
+  ],
+  "switches": [
+    {
+      "key": "bouton_entree",
+      "circuit": "minuterie",
+      "at": [-28.6, 1.45, -19.75],
+      "facing": [1, 0]
+    },
+    {
+      "key": "bouton_pied",
+      "circuit": "minuterie",
+      "at": [-37.95, 1.45, -19.0],
+      "facing": [0, -1]
+    },
+    {
+      "key": "bouton_palier",
+      "circuit": "minuterie",
+      "at": [-28.85, 6.05, -19.0],
+      "facing": [0, -1]
+    }
+  ],
+  "timers": {
+    "minuterie": 50
+  },
+  "things": [
+    {
+      "kind": "letterboxes",
+      "at": [-27.93, 1.45, -21.75],
+      "rot": 0,
+      "tone": "brown",
+      "text": ["1er · O. Ferrand", "2e · Gérance Marchand", "3e", "4e · Marchand", "5e", ""]
+    },
+    {
+      "kind": "coat",
+      "at": [-27.26, 6.35, -18.05],
+      "rot": -1.5708,
+      "zone": "sealed",
+      "tone": "coat"
+    },
+    {
+      "kind": "calendar",
+      "at": [-27.26, 5.9, -16.15],
+      "rot": -1.5708,
+      "zone": "sealed",
+      "text": ["AVRIL 2023", "MAI 2023"]
+    },
+    {
+      "kind": "clock",
+      "at": [-27.26, 6.7, -16.15],
+      "rot": -1.5708,
+      "zone": "sealed",
+      "text": ["3:40"]
+    },
+    {
+      "kind": "stove",
+      "at": [-28.4, 4.6, -15.21],
+      "rot": 3.1416,
+      "zone": "sealed"
+    },
+    {
+      "kind": "patch",
+      "at": [-28.4, 6.0, -14.9],
+      "rot": 3.1416,
+      "zone": "sealed",
+      "size": [0.9, 0.7]
+    },
+    {
+      "kind": "table",
+      "at": [-29.6, 4.6, -16.6],
+      "rot": 0,
+      "zone": "sealed",
+      "tone": "oilcloth"
+    },
+    {
+      "kind": "chair",
+      "at": [-29.6, 4.6, -17.35],
+      "rot": 0,
+      "zone": "sealed"
+    },
+    {
+      "kind": "slippers",
+      "at": [-29.6, 4.6, -17.4],
+      "rot": 0,
+      "zone": "sealed"
+    },
+    {
+      "kind": "camera",
+      "at": [-29.78, 5.36, -16.5],
+      "rot": 0.3,
+      "zone": "sealed"
+    },
+    {
+      "kind": "cup",
+      "at": [-29.38, 5.36, -16.66],
+      "zone": "sealed"
+    },
+    {
+      "kind": "doorway",
+      "at": [-31.8, 4.6, -16.4],
+      "rot": 1.5708,
+      "zone": "sealed",
+      "size": [0.86, 2.1]
+    }
+  ],
+  "courts": [
+    {
+      "x0": -42.0,
+      "z0": -27.5,
+      "x1": -33.0,
+      "z1": -22.0,
+      "open": "s",
+      "storeys": 5,
+      "lit": 0.3,
+      "seed": 7
+    }
+  ],
+  "marks": {
+    "streetDoor": [-27.6, 0.16, -20.4],
+    "hall": [-28.0, 0.16, -21.1],
+    "foot": [-37.9, 0.16, -20.0],
+    "lilaStep": [-36.26, 0.84, -19.4],
+    "window": [-34.3, 2.08, -19.75],
+    "landing": [-29.5, 4.6, -19.75],
+    "door": [-29.55, 4.6, -19.75],
+    "threshold": [-29.4, 4.6, -18.8],
+    "inside": [-27.4, 5.6, -17.4]
+  },
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "The stairwell; Odile's flat (T1)",
+    "scenes": ["T1 R1", "T1 R2", "T1 R3"],
+    "brief_round": 3
+  }
+}

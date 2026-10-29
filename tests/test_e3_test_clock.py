@@ -48,3 +48,17 @@ def test_after_the_pinned_clock_the_app_reads_the_real_clock_again():
 
     assert abs((app_now() - dt.datetime.now(dt.UTC)).total_seconds()) < 5
     assert test_clock._offset == dt.timedelta(0)
+
+
+def test_a_followed_clock_stands_still_and_lets_go():
+    """The learner walk's month: every stand-in reads the walk's clock, not the calendar."""
+
+    moment = dt.datetime(2026, 3, 10, 9, 0, tzinfo=dt.UTC)
+    try:
+        test_clock.follow(lambda: moment)
+        assert test_clock.ShiftedDatetime.now(dt.UTC) == moment
+        assert test_clock.ShiftedDatetime.utcnow() == moment.replace(tzinfo=None)
+        assert test_clock.ShiftedDate.today() == moment.astimezone().date()
+    finally:
+        test_clock.uninstall()
+    assert abs((test_clock.ShiftedDatetime.now(dt.UTC) - dt.datetime.now(dt.UTC)).total_seconds()) < 5

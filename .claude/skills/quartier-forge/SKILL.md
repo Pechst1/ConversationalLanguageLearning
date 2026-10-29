@@ -1,6 +1,6 @@
 ---
 name: quartier-forge
-description: Build the next corner of Paris for Le Quartier from open map data. Pick a place the Papier names, survey it, draft the site (a street with its trade, or a venue where the news happens), render and critique it (three rounds at most), publish it on the map and open a PR. Never merges. Use for the nightly "Quartier forge" scheduled task, or when asked to "forge <place>", "build <place> in the Quartier" or "grow the world".
+description: Build the next corner of Paris for Le Quartier, from open map data or, for a room of the season, from the canon. Pick a place the Papier names, survey it, draft the site (a street with its trade, or a venue where the news happens), or write the next room the story reaches; render and critique it (three rounds at most), publish a street on the map (a room stays locked) and open a PR. Never merges. Use for the nightly "Quartier forge" scheduled task, or when asked to "forge <place>", "build <place> in the Quartier", "build the next room" or "grow the world".
 ---
 
 # Quartier forge
@@ -16,11 +16,13 @@ queue → world entry → brief → survey → draft → check → plan → rend
 ```
 
 The code is `scripts/forge/` (Python: `forge.py`, `overture.py`, `draft.py` for a street,
-`venue.py` for a venue) and `web-frontend/lib/quartier/` (the kit that builds a site in 3D,
-`visit.ts` that plays a street, `market-talk.ts` for what the stallholders say; `hippodrome.ts`,
-`course.ts` and `course-talk.ts` for race day). `scripts/forge/briefs/marche_aligre.json` and
-`.md` are the worked example of a street, `hippodrome_longchamp.json` and `.md` of a venue:
-read the pair that fits before writing a brief.
+`venue.py` for a venue, `room.py` for a room) and `web-frontend/lib/quartier/` (the kit that
+builds a site in 3D, `visit.ts` that plays a street, `market-talk.ts` for what the stallholders
+say; `hippodrome.ts`, `course.ts` and `course-talk.ts` for race day; `room.ts` and `interior.ts`
+for a room). `scripts/forge/briefs/marche_aligre.json` and `.md` are the worked example of a
+street, `hippodrome_longchamp.json` and `.md` of a venue, `escalier_mistral.json` and `.md` of a
+room: read the pair that fits before writing a brief. A room of the season is written from the
+canon, not surveyed: see **Rooms of the season** below for how its run differs.
 
 ## Setup
 
@@ -115,6 +117,73 @@ the cloud; never run `playwright install`).
     «Le Quartier forge: <place name>» with: the article, what was built (the draft's counts),
     each round in a line, what is still plain, open or `en_chantier` and why, and how to play it
     (`?place=<id>`). End with one short summary: the place, its status, the PR link.
+
+## Rooms of the season
+
+The story's own places (the stairwell, the flat above the café, the notary's office) are not on
+any map: they are written from the canon and built with the pieces Le Mistral's room is built
+from (`room.ts`: the wainscot wall, the façade's lining, the globes, the tables), so a room and the
+café are the same print. Decision 4 of the Phase 1 plan sets the order: the stairwell and
+Odile's door (done), then the learner's studio, Maître Vasseur's office, Odile's flat, then Le
+Mistral's details. The next room is the first without a file in `world/rooms/`. A run builds one
+room instead of a street; it follows the steps above with these differences.
+
+1. **Canon.** Read the place in `docs/story/season-1/10-lieux-et-images.md` (its canonical
+   descriptor, its states across the season, its «Never») and the scenes that happen there
+   (`docs/story/season-1/` scene files). Build the state of the first scene that plays there.
+   Quote the canon's lines at the top of the notes; say which choices are the forge's (an hour on
+   a clock, a plan, a name on a letterbox: only names the canon gives, the rest blank).
+2. **World entry.** `status: "locked"`, `kind: "season"`, `source: { kind: "season", id: "s1" }`,
+   `site: null`, `room: "<id>"`, and `in`: the place on the map it is inside (the stairwell is in
+   `quai_de_valmy`). A room is never a pin of its own and is never published (`forge.py publish`
+   refuses it): the story opens it.
+3. **Brief.** `scripts/forge/briefs/<id>.json` with `kind: "room"`, `in`, `canon` (`doc`,
+   `place`, `scenes`), `ambiance`, `title`, `can_do`, `start` (`pos`, `look`), and the room in the
+   quarter's coordinates (x east, z south, metres; the stairwell stands where the quai's façade
+   has its street door):
+   - `spaces`: rectangles with a `floor` height, a `ceiling`, a `finish` (`cabochons`, `boards`,
+     `tomettes`, `cobbles`, `stone`), a `zone` (`room` is lit by its lamps; `sealed` is seen and
+     not entered yet; `out` is under the sky), `walk: false` for a floor seen, not walked, and
+     `walls` (`finish`, `tone`, `dado`, or null where a space opens into the next). `open` cuts a
+     side's opening (`{ "w": [{ "u": [1.5, 2.75] }] }`, u along the side from its start).
+   - `walls`: the walls no space draws (a stair cage's, a partition under a flight), each from `a`
+     to `b` with the room on its right, `base` and `top` (a pair where they slope).
+   - `flights` (`from`, `dir` along x or z, `width`, `y0`, `y1`, `risers`, `tread`, `rail`),
+     `rails` along open edges, `ceilings`.
+   - `doors` (on a wall by its key or a space's side, `<space>.<n|e|s|w>`, with `u`, `height`,
+     `hinge`, `swing`, `tone`, `numeral`, `opens: "never" | "once"`, `mat`), `windows` (`u`, `y`,
+     `shutters: "closed"` for the slatted street light), `holes` (a way through with no door).
+   - `lights` (`globe`, `sconce`, `hublot`) on a `circuit`, its `switches` (push-buttons, 1.0 to
+     1.7 m above the floor in front of them) and `timers` (seconds a press keeps it lit).
+   - `things` the kit draws (`letterboxes`, `coat`, `clock`, `calendar`, `table`, `chair`,
+     `slippers`, `camera`, `cup`, `stove`, `patch`, `doorway`, `mat`, `radiator`) with `zone`,
+     `tone`, `text`, `size`; `courts` seen through a window.
+   - `marks`: where the stage stands people. The room director (`interior.ts`) reads `landing`
+     (where the climb ends), `door` (where you stand before the door the story opens),
+     `threshold` (where you look in from) and `inside` (what you look at); the cast's marks
+     (`lilaStep`) wait for the stage. A mark you are walked to stands where a body fits (22 cm
+     clear all round): short of that, the walk ends at the nearest place that does, half a metre
+     off, and you see the door from the side.
+   The walking grid has one height a cell: no floor you walk may lie over another you walk (a
+   flight runs beside the corridor below it, never over it). `check` says so when it happens.
+4. **Draft, check, plan.** `$PY scripts/forge/forge.py draft <id>` writes
+   `web-frontend/lib/quartier/world/rooms/<id>.json` and `rooms/index.ts`; `check <id>` holds it
+   to the walking grid, the circuits, the marks and the canon's door; `plan <id>` draws
+   `var/forge/<id>/plan.svg`. No survey: the canon is the reference, and no open street photo
+   shows an interior, so the notes say so in a line.
+5. **Render and look.** The same `forge-render.mjs`, with the room file. The views: the arrival
+   in the dark and lit, from each of the stage's marks to the next, what the things say, each
+   flight from its top, each window, each door, the door the story opens standing open as the
+   stage frames it, and a plan of each floor cut under its ceiling. Ask, view by view: does each
+   line of the canon read (say which)? Is anything a «Never» of the canon (mess, decay, horror: a
+   coat must read as a coat, not a figure in the dark)? Is the dark dark and still legible on a
+   phone? Does the door's number read? Does anything float, gap or show the void?
+6. **Play it.** The standalone page with `?place=<id>&debug` opens the room even while it is
+   locked: press the button, climb, open the door once, see it shut and the light go out, come
+   back to find it shut, leave. `lib/quartier/room.test.js` builds every room file and holds it to
+   the same checks.
+7. **PR.** Commit the brief, its notes, the room file, `rooms/index.ts`, `world.json` and any kit
+   change (never `var/`), titled «Le Quartier forge: <what was built>».
 
 ## Rules
 

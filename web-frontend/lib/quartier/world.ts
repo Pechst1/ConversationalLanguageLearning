@@ -7,7 +7,9 @@
  * `quartier-forge` skill): the address a Papier or an episode names is surveyed from open map
  * data, turned into a site, rendered, looked at, revised, and written here with its site file. A
  * place the forge is working on shows on the map under scaffolding (`en_chantier`); a place of the
- * season the story has not reached yet is `locked`.
+ * season the story has not reached yet is `locked`. A room of the season (the stairwell, a flat) is
+ * written from the canon instead (`world/rooms`, `room.ts`); it is inside another place (`in`), and
+ * has no pin of its own.
  */
 import type { Value, Words } from './memory';
 import news from './world/news.json';
@@ -28,6 +30,10 @@ export interface WorldPlace {
   source?: { kind: 'season' | 'papier'; id: string; title_fr?: string };
   /** the forged site (`world/sites/<id>.json`), once there is one */
   site?: string | null;
+  /** a room of the season (`world/rooms/<id>.json`), written from the canon */
+  room?: string | null;
+  /** the place a room is inside: it is reached from there, not from the map */
+  in?: string;
   /** how you get there from the quai */
   ride?: Words;
 }
@@ -58,6 +64,8 @@ export const NEWS = (news as { places: NewsPlace[] }).places;
  */
 export function mapPlaces(world: World = WORLD, papier: NewsPlace[] = NEWS): WorldPlace[] {
   const have = new Set(world.places.map((p) => p.id));
+  // a room is inside a place on the map, not a pin of its own
+  const pinned = world.places.filter((p) => !p.in);
   const fresh = papier
     .filter((n) => !have.has(n.id))
     .map(
@@ -77,7 +85,7 @@ export function mapPlaces(world: World = WORLD, papier: NewsPlace[] = NEWS): Wor
         site: null,
       }),
     );
-  return world.places.concat(fresh);
+  return pinned.concat(fresh);
 }
 
 export function placeOf(id: string, world: World = WORLD): WorldPlace | null {

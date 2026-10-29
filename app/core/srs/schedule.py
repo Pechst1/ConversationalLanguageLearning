@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.core.srs.sm2 import (
     DEFAULT_EASE_FACTOR,
@@ -191,7 +192,7 @@ def interval_for_score(
         # after this one compounds through the ease factor instead.
         return _seed_interval(score_0_10)
 
-    now = dt.datetime.now(dt.UTC)
+    now = datetime.now(dt.UTC)  # this name, so the test clock can move it
     phase = "review"
     decision = schedule_next(
         now=now,

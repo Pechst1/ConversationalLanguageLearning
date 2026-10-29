@@ -7,7 +7,9 @@
  * Around the place you are in sit the things that outlast it: the quarter's memory, your carnet,
  * and the map of the Paris the game has built so far. From the map you can ride to a place the
  * forge has built (`world/sites`): the engine is rebuilt there, a `Visit` directs it instead of the
- * episode's `Stage`, and «Rentrer au quai» brings you home with what you did there remembered.
+ * episode's `Stage`, and «Rentrer au quai» brings you home with what you did there remembered. A
+ * room of the season the forge wrote (`world/rooms`, the stairwell) is played by an `Interior`; a
+ * room is inside another place and has no pin of its own, so only `startPlace` reaches it today.
  * In the app the episode is today's (`day`): the page hands over the journey's story, or a card in
  * its stead, and the end card's lower half (the engine's recap, «Demain»). Without one (the
  * standalone page) the quarter plays its own copy of T1 day a.
@@ -22,11 +24,13 @@ import type { ArtSource } from '@/lib/quartier/cast';
 import { Course } from '@/lib/quartier/course';
 import { Crowd } from '@/lib/quartier/crowd';
 import { Quartier } from '@/lib/quartier/engine';
+import { Interior } from '@/lib/quartier/interior';
 import type { Stats } from '@/lib/quartier/engine';
 import { Memory, eligible } from '@/lib/quartier/memory';
 import type { Words } from '@/lib/quartier/memory';
 import { AMBIANCES } from '@/lib/quartier/palette';
 import type { AmbianceId } from '@/lib/quartier/palette';
+import type { RoomSpec } from '@/lib/quartier/room';
 import type { SiteSpec } from '@/lib/quartier/site';
 import { Stage } from '@/lib/quartier/stage';
 import type { AnswerUi, Cue, Director, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
@@ -34,6 +38,7 @@ import { pageOfCopy } from '@/lib/quartier/story';
 import type { HelpStep, Story, StoryPage } from '@/lib/quartier/story';
 import { Visit } from '@/lib/quartier/visit';
 import { placeOf, worldState } from '@/lib/quartier/world';
+import { ROOM_FILES } from '@/lib/quartier/world/rooms';
 import { SITE_FILES } from '@/lib/quartier/world/sites';
 import type { SeasonItemId } from '@/lib/season-items';
 
@@ -137,6 +142,8 @@ const COPY = {
     back: 'De retour au quai',
     backText: 'The evening goes on at Le Mistral. Walk about and talk to anyone, or play the episode again.',
     visitHowto: 'Tap a stallholder to talk, in French: say bonjour, ask a price, buy by the kilo or by the piece. Tap the ground to walk. «Rentrer» takes you back to the quai.',
+    roomHowto: 'Drag to look around. Tap the orange button to light the stairs: the light holds a while, then goes out. Tap the ground to walk. «Rentrer» takes you back to the quai.',
+    roomHint: 'Touche le sol pour marcher · touche le bouton orange pour la lumière',
     help: { hint: 'Un indice', words: 'Des mots', example: 'Un exemple' } as Record<HelpStep, string>,
     aide: 'Aide',
     again: 'Encore une fois',
@@ -180,6 +187,8 @@ const COPY = {
     back: 'De retour au quai',
     backText: 'Im Mistral geht der Abend weiter. Geh herum und sprich mit allen, oder spiel die Folge noch einmal.',
     visitHowto: 'Tippe auf jemanden am Stand, um zu reden, auf Französisch: sag bonjour, frag nach dem Preis, kauf nach Kilo oder Stück. Tippe auf den Boden, um zu gehen. «Rentrer» bringt dich zurück an den Quai.',
+    roomHowto: 'Wischen zum Umsehen. Tippe auf den orangen Knopf, um das Treppenlicht anzumachen: es bleibt eine Weile an und geht dann aus. Tippe auf den Boden, um zu gehen. «Rentrer» bringt dich zurück an den Quai.',
+    roomHint: 'Touche le sol pour marcher · touche le bouton orange pour la lumière',
     help: { hint: 'Un indice', words: 'Des mots', example: 'Un exemple' } as Record<HelpStep, string>,
     aide: 'Aide',
     again: 'Encore une fois',
@@ -212,9 +221,12 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   const [stats, setStats] = React.useState<Stats | null>(null);
   const [panel, setPanel] = React.useState<'carnet' | 'map' | null>(null);
   const [awayNotes, setAwayNotes] = React.useState<Words[]>([]);
-  // where you are: the quai, or a place the forge built (its site, once loaded)
-  const [place, setPlace] = React.useState(() => (startPlace && SITE_FILES[startPlace] ? startPlace : HOME));
+  // where you are: the quai, or a place the forge built (its site or its room, once loaded)
+  const [place, setPlace] = React.useState(() => (startPlace && (SITE_FILES[startPlace] || ROOM_FILES[startPlace]) ? startPlace : HOME));
   const [site, setSite] = React.useState<SiteSpec | null>(null);
+  const [room, setRoom] = React.useState<RoomSpec | null>(null);
+  // a forged place, street or room: its own title card and end card
+  const forged: { title: Words; can_do: Words } | null = site ?? room;
   // the ride you took, on the loading card; back on the quai from somewhere else
   const [ride, setRide] = React.useState<Words | null>(null);
   const [back, setBack] = React.useState(false);
@@ -266,14 +278,26 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
       try {
         // a forged place is data, loaded only when you go there
         let spec: SiteSpec | null = null;
+        let inside: RoomSpec | null = null;
         if (place !== HOME) {
           const file = SITE_FILES[place];
-          if (!file) throw new Error(`Nothing is built at ${place} yet`);
-          spec = await file();
+          const roomFile = ROOM_FILES[place];
+          if (!file && !roomFile) throw new Error(`Nothing is built at ${place} yet`);
+          if (file) spec = await file();
+          else inside = await roomFile();
           if (cancelled) return;
         }
         setSite(spec);
-        const eq = new Quartier({ canvas, art: ART, ambiance: spec ? spec.ambiance : ambiance, site: spec ?? undefined, cast, onProgress: (share, label) => !cancelled && setLoading({ share, label }) });
+        setRoom(inside);
+        const eq = new Quartier({
+          canvas,
+          art: ART,
+          ambiance: spec ? spec.ambiance : inside ? inside.ambiance : ambiance,
+          site: spec ?? undefined,
+          room: inside ?? undefined,
+          cast,
+          onProgress: (share, label) => !cancelled && setLoading({ share, label }),
+        });
         q = eq;
         engine.current = eq;
         const sn = new Sound();
@@ -282,8 +306,9 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         await eq.load();
         if (cancelled) return;
         const opts = { level, native, onCue: (c: Cue) => sn.cue(c), onSay: (fr: string, heat: number) => sn.announce(fr, heat), memory };
-        // a place where the news happens plays the event; a street, its people and their trade
-        const director: Director = spec ? (spec.venue ? new Course(eq, opts) : new Visit(eq, opts)) : new Stage(eq, undefined, opts);
+        // a place where the news happens plays the event; a street, its people and their trade; a
+        // room of the season, what the canon gives it
+        const director: Director = spec ? (spec.venue ? new Course(eq, opts) : new Visit(eq, opts)) : inside ? new Interior(eq, opts) : new Stage(eq, undefined, opts);
         st = director;
         stage.current = director;
         unsubscribe = director.subscribe(setUi);
@@ -297,7 +322,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
           last.copy(eq.feet);
           const a = AMBIANCES[eq.ambiance];
           const neon = eq.parts ? eq.camera.position.distanceTo(eq.parts.neon.center) : 999;
-          sn.update({ indoors: eq.indoors, walking: moved, rain: a.rain, night: a.night > 0.5, neon, din: director.din?.() });
+          sn.update({ indoors: eq.indoors, walking: moved, rain: a.rain, night: a.night > 0.5, neon, din: director.din?.(), quiet: Boolean(inside) });
           if (showStats && now - statAt > 0.5) {
             statAt = now;
             setStats({ ...eq.stats });
@@ -306,7 +331,9 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         eq.start();
         setLoading(null);
         onReady?.(eq, director, memory);
-        // the street fills while you read the title card; a market more than the quai at night
+        // the street fills while you read the title card; a market more than the quai at night;
+        // nobody passes through a stairwell after closing
+        if (inside) return;
         crowd = new Crowd(eq, { count: spec ? 24 : 10, spots: spec?.spots, onNear: (key) => director.passerby(key, false) });
         director.setStreet(crowd);
         await crowd.load();
@@ -380,6 +407,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
     setFailed(null);
     setStats(null);
     setSite(null);
+    setRoom(null);
     setRide(id === HOME ? null : to?.ride ?? null);
     setBack(id === HOME);
     setLoading({ share: 0, label: 'Les encres' });
@@ -405,10 +433,10 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   // once a play reaches its end card, the page hears that the engine has the day
   React.useEffect(() => {
     if (phase === 'scene') played.current = false;
-    if (phase !== 'end' || site || played.current) return;
+    if (phase !== 'end' || forged || played.current) return;
     played.current = true;
     onPlayed.current?.();
-  }, [phase, site]);
+  }, [phase, forged]);
 
   const walkable = (phase === 'roam' || Boolean(ui?.goal) || Boolean(ui?.moment)) && !ui?.talk && !ui?.answer && !ui?.aside;
   // a line outside the script (why you leave, welcome back) takes the speaker's card
@@ -423,7 +451,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   return (
     <div className={`qz${ui?.silent ? ' qz-letterbox' : ''}`} data-phase={phase} data-beat={ui?.beat ?? undefined} data-place={place}>
       <style dangerouslySetInnerHTML={{ __html: QUARTIER_CSS }} />
-      <canvas key={place} ref={canvasRef} className="qz-canvas" aria-label={site ? `${name}, ${site.title.fr.toLowerCase()}` : 'Le quai de Valmy, la nuit, sous la pluie'} />
+      <canvas key={place} ref={canvasRef} className="qz-canvas" aria-label={forged ? `${name}, ${forged.title.fr.toLowerCase()}` : 'Le quai de Valmy, la nuit, sous la pluie'} />
 
       {ready ? (
         <>
@@ -434,9 +462,9 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
             {ui?.canLeave ? (
               <button type="button" className="qz-leave" onClick={() => st?.leave()}>
                 <IconDoor />
-                {site ? copy.home : copy.leaveScene}
+                {forged ? copy.home : copy.leaveScene}
               </button>
-            ) : site ? (
+            ) : forged ? (
               <div className="qz-title">
                 <em>{name}</em>
               </div>
@@ -452,7 +480,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
             <button type="button" className="qz-round" aria-label={copy.carnet} onClick={() => setPanel('carnet')}>
               <IconCarnet />
             </button>
-            {site ? null : (
+            {forged ? null : (
               <button type="button" className="qz-round" aria-label={ambiance === 'nuit' ? 'Le matin' : 'La nuit'} onClick={toggleAmbiance}>
                 {ambiance === 'nuit' ? <IconMoon /> : <IconSun />}
               </button>
@@ -551,7 +579,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
 
       {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
 
-      {phase === 'roam' && !ui?.talk && !ui?.goal ? <div className="qz-hint">{copy.roamHint}</div> : null}
+      {phase === 'roam' && !ui?.talk && !ui?.goal ? <div className="qz-hint">{room ? copy.roomHint : copy.roamHint}</div> : null}
       {phase === 'roam' && ui?.met ? (
         <div key={ui.met.at} className="qz-met" data-char={ui.met.char}>
           {ui.met.name}
@@ -603,25 +631,25 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {ready && phase === 'title' && site ? (
-        <div className="qz-cover qz-cover--day">
+      {ready && phase === 'title' && forged ? (
+        <div className={`qz-cover ${room ? 'qz-cover--night' : 'qz-cover--day'}`}>
           <div className="qz-card">
             <p className="qz-kicker">{name}</p>
-            <h1 className="qz-h">{site.title.fr}</h1>
+            <h1 className="qz-h">{forged.title.fr}</h1>
             {here ? <p className="qz-date">{here.why.fr}</p> : null}
             <p className="qz-cando" lang="fr">
-              {site.can_do.fr}
-              {translate ? <small style={{ display: 'block', marginTop: 6, color: 'var(--qz-muted)' }}>{site.can_do[native]}</small> : null}
+              {forged.can_do.fr}
+              {translate ? <small style={{ display: 'block', marginTop: 6, color: 'var(--qz-muted)' }}>{forged.can_do[native]}</small> : null}
             </p>
             <button type="button" className="qz-primary" onClick={begin}>
               {copy.start}
             </button>
-            <p className="qz-howto">{copy.visitHowto}</p>
+            <p className="qz-howto">{room ? copy.roomHowto : copy.visitHowto}</p>
           </div>
         </div>
       ) : null}
 
-      {ready && phase === 'title' && !site && back && !day?.note ? (
+      {ready && phase === 'title' && !forged && back && !day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{name}</p>
@@ -645,7 +673,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
       ) : null}
 
       {/* where the day stands, back from a ride too: a talk left midway is the Feuilleton's, not played again */}
-      {ready && phase === 'title' && !site && day?.note ? (
+      {ready && phase === 'title' && !forged && day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{day.note.kicker ?? copy.yourDay}</p>
@@ -669,7 +697,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {ready && phase === 'title' && !site && !back && !day?.note ? (
+      {ready && phase === 'title' && !forged && !back && !day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{page ? episodeOf(page) : copy.yourDay}</p>
@@ -695,12 +723,12 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {phase === 'end' && site ? (
-        <div className="qz-cover qz-cover--day">
+      {phase === 'end' && forged ? (
+        <div className={`qz-cover ${room ? 'qz-cover--night' : 'qz-cover--day'}`}>
           <div className="qz-card qz-card--end">
             <p className="qz-kicker">{name}</p>
             <h1 className="qz-h">{copy.seeYou}</h1>
-            <p className="qz-date">{site.title.fr}</p>
+            <p className="qz-date">{forged.title.fr}</p>
             {ui?.recap?.did.length ? <Recap title={copy.today} lines={ui.recap.did} translate={translate} /> : null}
             {ui?.recap?.tomorrow.length ? <Recap title={copy.nextTime} lines={ui.recap.tomorrow} translate={translate} /> : null}
             <button type="button" className="qz-primary" onClick={() => travel(HOME)}>
@@ -721,7 +749,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {phase === 'end' && !site ? (
+      {phase === 'end' && !forged ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card qz-card--end">
             <p className="qz-kicker">{episodeOf(page)}</p>
