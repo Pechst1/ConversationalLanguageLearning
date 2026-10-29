@@ -1641,8 +1641,10 @@ def test_a_courrier_note_never_names_an_accent_the_corrected_form_does_not_have(
     assert spelling, "the real fix (aujourdhui -> aujourd'hui) must survive"
     for item in spelling:
         shown = f"{item['why_wrong']} {item['repair_hint']}".casefold()
-        assert "accent" not in shown, f"the note names an accent that is not in the form: {shown!r}"
-        assert "apostrophe" in shown, f"the note should name the apostrophe, the one real change: {shown!r}"
+        if "accent" in shown:
+            raise AssertionError(f"the note names an accent that is not in the form: {shown!r}")
+        if "apostrophe" not in shown:
+            raise AssertionError(f"the note should name the apostrophe, the one real change: {shown!r}")
 
 
 class _DownLLM:
