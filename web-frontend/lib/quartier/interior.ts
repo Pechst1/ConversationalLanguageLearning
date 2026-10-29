@@ -171,8 +171,8 @@ export class Interior implements Director {
   go() {
     const g = this.goal;
     if (!g) return;
-    void this.q.walkTo(g.to, STRIDE).then((ok) => {
-      if (!ok || this.goal !== g || this.busy) return;
+    void this.reach(g.to).then((there) => {
+      if (!there || this.goal !== g || this.busy) return;
       const s = g.switchKey ? this.room.switches.find((x) => x.key === g.switchKey) : null;
       if (s) this.face(s.at);
       else if (this.step === 'door') this.faceDoor();
@@ -400,7 +400,7 @@ export class Interior implements Director {
         // a button out of reach: walk to it, then press
         const stand = this.standBy(s.at, s.key);
         if (Math.hypot(this.q.feet.x - stand.x, this.q.feet.z - stand.z) > 1.6) {
-          void this.q.walkTo(stand, STRIDE).then((ok) => ok && !this.busy && this.press());
+          void this.reach(stand).then((there) => there && !this.busy && this.press());
         } else this.press();
         return;
       }
@@ -409,7 +409,7 @@ export class Interior implements Director {
         if (!d) return;
         const before = this.mark('door', d.front);
         if (Math.hypot(this.q.feet.x - before.x, this.q.feet.z - before.z) > 1.8) {
-          void this.q.walkTo(before, STRIDE).then((ok) => ok && void this.openDoor());
+          void this.reach(before).then((there) => there && void this.openDoor());
         } else void this.openDoor();
       }
       return;
@@ -499,6 +499,17 @@ export class Interior implements Director {
     const cam = this.q.camera;
     const want = at.clone().sub(cam.position).normalize();
     return cam.getWorldDirection(new Vector3()).dot(want) > Math.cos(0.05);
+  }
+
+  /**
+   * Walk there; true only once you stand there, in the room as you left it. A tap elsewhere or
+   * the thumb on the way ends the walk too, and the engine says true then as well: that is not
+   * arriving, and nothing is pressed or opened from afar.
+   */
+  private async reach(to: Vector3) {
+    const end = this.q.nav.nearest(to.x, to.z, 4);
+    const ok = await this.q.walkTo(to, STRIDE);
+    return ok && !this.disposed && this.ui.phase === 'roam' && end !== null && Math.hypot(this.q.feet.x - end[0], this.q.feet.z - end[1]) < 0.1;
   }
 
   /** Where you stand to press a button: a little out from the wall, on the floor. */
