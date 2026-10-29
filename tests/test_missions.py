@@ -1588,7 +1588,7 @@ def test_an_intonation_question_is_never_corrected_to_an_inversion(db_session):
     assert [item["corrected_target"] for item in correction["errata"]] == ["Le radiateur est froid"]
 
 
-def test_a_courrier_note_never_names_an_accent_the_corrected_form_does_not_have(db_session):
+def test_courrier_note_fits_form(db_session):
     """LIVE WALK 2026-10-29 (#369): «aujourdhui» -> «aujourd'hui» was explained with
     «an accent on « hui »». The corrected form has an apostrophe and no accent
     anywhere; the note was the model's raw words, never checked against the form."""
