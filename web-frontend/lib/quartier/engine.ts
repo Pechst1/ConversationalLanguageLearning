@@ -4,7 +4,8 @@
  * You are a camera at eye height on the walking grid. A thumb (or WASD) walks, a drag looks, a
  * tap walks to where you tapped or touches whoever you tapped. The stage director (`stage.ts`)
  * drives the rest through the methods here: walk you somewhere, turn your head toward a speaker,
- * narrow the lens for a silent panel, open the door, light the neon.
+ * narrow the lens for a silent panel, open the door, light the neon. It builds the quai de Valmy
+ * and Le Mistral, or a place the forge built (`site.ts`), or a room of the season (`room.ts`).
  *
  * Every frame: the canal's mirror at half resolution (only when water is in view), the plate
  * (the scene in colour, line ids and depth), then the print pass to the screen. The resolution
@@ -70,10 +71,15 @@ import { PLAN, buildQuai } from './quai';
 import type { Quai } from './quai';
 import { Rain } from './rain';
 import { fontsReady, neonTexture, printAtlas } from './signs';
+import { buildRoom } from './room';
+import type { RoomBuilt, RoomSpec } from './room';
 import { buildSite } from './site';
 import type { SiteBuilt, SiteSpec } from './site';
 
 export const EYE = 1.62;
+
+/** A room's light once its circuit has gone out: the night through its windows, blue and faint. */
+const ROOM_DARK = { lit: new Vector3(0.36, 0.38, 0.52), shade: new Vector3(0.2, 0.22, 0.33) };
 
 export interface Spot {
   id: string;
@@ -111,6 +117,8 @@ export interface QuartierOptions {
   onProgress?: (share: number, label: string) => void;
   /** a place the forge built (`site.ts`); without one, the quai de Valmy and Le Mistral */
   site?: SiteSpec;
+  /** a room of the season (`room.ts`): its walls, lamps and doors, and what its windows show */
+  room?: RoomSpec;
   /** the cast in the round, sculpted (`cast3d`), or on `paper` as cut-out cards */
   cast?: 'round' | 'paper';
 }
@@ -148,6 +156,8 @@ export class Quartier {
   parts?: MistralParts;
   /** the forged place, when this is one */
   site?: SiteBuilt;
+  /** the room of the season, when this is one */
+  room?: RoomBuilt;
   ambiance: AmbianceId;
   /** everyone on stage in the round, or on paper as cut-out cards (`?cast=paper`) */
   readonly cast: 'round' | 'paper';
@@ -196,6 +206,13 @@ export class Quartier {
   private ink!: ShaderMaterial;
   private doorOpen = 0;
   private doorTarget = 0;
+  /** a room's doors, each swung by its key (`openDoor(open, key)`) */
+  private leaves: Array<{ key: string; leaf: Object3D; turn: number; open: number; target: number }> = [];
+  /** a room's lamp glass, lit and gone out, with the circuit it is on */
+  private bulbs: Array<{ circuit: string | null; lit: Mesh; dark: Mesh }> = [];
+  /** a room's circuits: 1 lit, 0 gone out */
+  private roomLight = 1;
+  private roomLamp = new Vector3();
   private statics: Mesh[] = [];
   /** the façades' small relief, tile by tile, shown only near you */
   private fines: Array<{ mesh: Mesh; center: Vector3; radius: number }> = [];
@@ -222,18 +239,19 @@ export class Quartier {
     this.renderer.info.autoReset = false;
     this.scale = opts.scale ?? Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
     this.resolution = opts.resolution ?? 'auto';
-    // a forged place has no canal to mirror
-    this.mirrorOn = (opts.mirror ?? true) && !opts.site;
-    this.ambiance = opts.ambiance ?? opts.site?.ambiance ?? 'nuit';
+    // a forged place has no canal to mirror, nor a room
+    this.mirrorOn = (opts.mirror ?? true) && !opts.site && !opts.room;
+    this.ambiance = opts.ambiance ?? opts.site?.ambiance ?? opts.room?.ambiance ?? 'nuit';
     this.art = opts.art;
     this.onProgress = opts.onProgress;
     this.camera.rotation.order = 'YXZ';
     this.cast = opts.cast ?? 'round';
     // in the round, the cast sit in Le Mistral's booth and on its stools
-    const seats = opts.site ? [] : SEATS;
+    const seats = opts.site || opts.room ? [] : SEATS;
     this.troupe = new Troupe<Figure>(this.world, opts.art, 840, this.cast === 'paper' ? undefined : (spec) => roundFigure(this.world, spec, seats));
     this.print = new PrintPass(2, 2, { line: 1, idLines: 0.55, halftone: 0.55, grain: 1 });
     this.scene.add(this.troupe.group);
+    this.roomLamp.copy(this.world.uRoomLamp.value);
   }
 
   on(fn: Listener) {
@@ -284,6 +302,7 @@ export class Quartier {
    */
   async load() {
     const site = this.opts.site;
+    const room = this.opts.room;
     const step = async (share: number, label: string) => {
       this.alive();
       this.onProgress?.(share, label);
@@ -292,7 +311,7 @@ export class Quartier {
     };
     await step(0.02, 'Les encres');
     await fontsReady();
-    await step(0.08, site ? site.title.fr : 'Le quai de Valmy');
+    await step(0.08, site ? site.title.fr : room ? room.title.fr : 'Le quai de Valmy');
     const B: Build = {
       dry: new Press(),
       fine: new Press(),
@@ -308,8 +327,12 @@ export class Quartier {
     };
     if (site) {
       this.site = buildSite(B, site);
-      const room = this.site.landmarks.find((l) => l.room)?.room;
-      this.rainRoom.set(room ? room[0] : 0, room ? room[1] : 0, room ? room[2] : -1, room ? room[3] : -1);
+      const hall = this.site.landmarks.find((l) => l.room)?.room;
+      this.rainRoom.set(hall ? hall[0] : 0, hall ? hall[1] : 0, hall ? hall[2] : -1, hall ? hall[3] : -1);
+    } else if (room) {
+      this.room = buildRoom(B, room);
+      const [x0, z0, x1, z1] = this.room.dry;
+      this.rainRoom.set(x0, z0, x1, z1);
     } else {
       const quai = buildQuai(B);
       this.quai = quai;
@@ -322,6 +345,9 @@ export class Quartier {
     if (this.site) {
       const r = this.site.spec.radius.build + 10;
       this.lightMap = bakeLightMap(B.lamps, { x0: -r, z0: -r, x1: r, z1: r }, 2.2, this.site.under);
+    } else if (this.room) {
+      // a room is small: a finer map, so a hall's lamp lays a pool of its own
+      this.lightMap = bakeLightMap(B.lamps, this.room.bounds, 4, this.room.inside);
     } else {
       const bounds = { x0: -185, z0: -250, x1: 95, z1: 250 };
       this.lightMap = bakeLightMap(B.lamps, bounds, 2.2, (x, z) => x > ROOM.x0 - 0.3 && x < ROOM.x1 + 0.05 && z > ROOM.z0 - 0.3 && z < ROOM.z1 + 0.05);
@@ -332,12 +358,14 @@ export class Quartier {
     if (this.site) {
       const r = this.site.spec.radius.walk + 3;
       this.nav = new Nav(B.walk, B.blocks, { x0: -r, z0: -r, x1: r, z1: r });
+    } else if (this.room) {
+      this.nav = new Nav(B.walk, B.blocks, this.room.bounds);
     } else {
       this.nav = new Nav(B.walk, B.blocks, { x0: -182, z0: -212, x1: 32, z1: 212 });
     }
     await step(0.56, 'L’impression');
     this.assemble(B);
-    if (!this.site) {
+    if (!this.site && !this.room) {
       await step(0.66, 'La troupe');
       await this.loadCast();
     }
@@ -345,6 +373,7 @@ export class Quartier {
     applyAmbiance(this.world, this.light());
     this.applyAmbianceExtras();
     if (this.site) this.place(this.site.start.pos, this.site.start.look);
+    else if (this.room) this.place(this.room.start.pos, this.room.start.look);
     else this.place(PLAN.start.pos, PLAN.start.look);
     this.resize();
     await step(1, 'Prêt');
@@ -479,10 +508,31 @@ export class Quartier {
       this.scene.add(cup);
       this.props.set('cup', { object: cup });
     }
+    if (this.room) this.assembleRoom(this.room, ink);
     // the rain
     this.scene.add(this.rain.mesh);
     // the easel's old man: a tiny silhouette at a dim window
     if (this.quai?.easel) this.addEasel(this.quai.easel);
+  }
+
+  /** A room's moving parts: its doors on their hinges, its lamps' glass lit and gone out. */
+  private assembleRoom(r: RoomBuilt, ink: ShaderMaterial) {
+    for (const d of r.doors) {
+      const hinge = new Group();
+      hinge.position.copy(d.hinge);
+      hinge.rotation.y = d.angle;
+      const leaf = new Mesh(d.leaf.geometry(), ink);
+      hinge.add(leaf);
+      this.scene.add(hinge);
+      this.leaves.push({ key: d.key, leaf, turn: d.sign * d.dir * d.max, open: 0, target: 0 });
+    }
+    for (const b of r.bulbs) {
+      const lit = new Mesh(b.lit.geometry(), ink);
+      const dark = new Mesh(b.dark.geometry(), ink);
+      dark.visible = false;
+      this.scene.add(lit, dark);
+      this.bulbs.push({ circuit: b.circuit, lit, dark });
+    }
   }
 
   /** «L.» at his easel: background only, never larger than a thumbnail, never face-on. */
@@ -594,6 +644,33 @@ export class Quartier {
     if (this.neonHalo) this.neonHalo.visible = a.night > 0.5;
     if (this.neon) (this.neon.material as ShaderMaterial).uniforms.uGlow.value = a.night > 0.5 ? 1 : 0.25;
     this.print.set({ fogFar: a.fogFar, halftone: a.night > 0.5 ? 0.42 : 0.6, idLines: a.night > 0.5 ? 0.45 : 0.6 });
+    if (this.room) {
+      // a room's lamps are its light: gone out, it keeps the night of its windows
+      const w = this.world;
+      const k = this.roomLight;
+      w.uIndoorLit.value.lerp(ROOM_DARK.lit, 1 - k);
+      w.uIndoorShade.value.lerp(ROOM_DARK.shade, 1 - k);
+      w.uRoomLamp.value.copy(this.roomLamp).multiplyScalar(k);
+      for (const b of this.bulbs) {
+        const on = b.circuit === null || k > 0.5;
+        b.lit.visible = on;
+        b.dark.visible = !on;
+      }
+    }
+  }
+
+  /**
+   * A room's lamps on their circuit: 1 lit, 0 gone out (the stairwell's minuterie clicking off).
+   * Out, the room keeps the night of its windows and the glow of its push-buttons.
+   */
+  setRoomLight(level: number) {
+    this.roomLight = Math.max(0, Math.min(1, level));
+    applyAmbiance(this.world, this.light());
+    this.applyAmbianceExtras();
+  }
+
+  get roomLit() {
+    return this.roomLight;
   }
 
   /** The light someone standing here receives (a card, or a person in the round). */
@@ -618,6 +695,7 @@ export class Quartier {
   inRoom(p: Vector3) {
     // a forged place's hall is lit by the day, like the street
     if (this.site) return false;
+    if (this.room) return this.room.inside(p.x, p.z);
     return p.x > ROOM.x0 && p.x < ROOM.x1 && p.z > ROOM.z0 && p.z < ROOM.z1 && p.x + p.z < -36.3;
   }
 
@@ -681,8 +759,10 @@ export class Quartier {
     this.fovTarget = fov;
   }
 
-  openDoor(open: boolean) {
-    this.doorTarget = open ? 1 : 0;
+  /** Open or shut Le Mistral's door, or one of a room's by its key (a pair of leaves together). */
+  openDoor(open: boolean, key?: string) {
+    if (key === undefined) this.doorTarget = open ? 1 : 0;
+    for (const l of this.leaves) if (key === undefined || l.key === key || l.key.startsWith(`${key}:`)) l.target = open ? 1 : 0;
   }
 
   /** The neon: 1 lit, 0 dark; a fraction flickers. */
@@ -1031,6 +1111,11 @@ export class Quartier {
       const sign = d.userData.sign as number;
       const leaf = d.children[0];
       if (leaf) leaf.rotation.y = sign * this.doorOpen * 1.35;
+    }
+    // a flat's door is heavier than the café's: it swings slowly
+    for (const l of this.leaves) {
+      l.open += (l.target - l.open) * Math.min(1, dt * 2.2);
+      l.leaf.rotation.y = l.turn * l.open;
     }
   }
 

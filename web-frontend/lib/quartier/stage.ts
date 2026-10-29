@@ -147,7 +147,8 @@ export interface StageUi {
   recap: { did: Array<{ text: string; native: string }>; tomorrow: Array<{ text: string; native: string }> } | null;
 }
 
-export type Cue = 'bell' | 'door' | 'key' | 'cup' | 'chair' | 'paper' | 'phone';
+/** The sounds a director asks for; `switch` and `tick` are a stairwell's minuterie (the press, its clockwork). */
+export type Cue = 'bell' | 'door' | 'key' | 'cup' | 'chair' | 'paper' | 'phone' | 'switch' | 'tick';
 
 /** What a place adds to the sound as it goes (`audio.ts`), each from 0 to 1. */
 export interface Din {

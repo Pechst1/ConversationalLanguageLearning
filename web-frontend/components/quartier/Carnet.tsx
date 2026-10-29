@@ -33,8 +33,12 @@ export interface CarnetProps {
 
 const DAYS: Record<string, string> = { t1a: 'Épisode 1', roam: 'En te promenant' };
 
-/** The label of a day in the carnet: an episode, a walk, or a visit to a place (`visit.<place>`). */
-const dayOf = (day: string) => DAYS[day] ?? (day.indexOf('visit.') === 0 ? WORLD.places.find((p) => p.id === day.slice(6))?.name.fr : undefined);
+/** The label of a day in the carnet: an episode, a walk, or a visit to a place or a room (`visit.<place>`, `room.<room>`). */
+const dayOf = (day: string) => {
+  if (DAYS[day]) return DAYS[day];
+  const m = /^(visit|room)\.(.+)$/.exec(day);
+  return m ? WORLD.places.find((p) => p.id === m[2])?.name.fr : undefined;
+};
 
 /** A face for the carnet: the troupe's own drawing, cropped to the head. */
 function Portrait({ who, expression }: { who: string; expression: ExpressionId }) {

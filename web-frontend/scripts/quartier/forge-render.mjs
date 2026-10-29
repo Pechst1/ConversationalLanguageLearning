@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Le Quartier · photograph a forged place the way a player first sees it, for the forge to look at.
-//   node scripts/quartier/forge-render.mjs <site.json> <out-dir> [--size 390x844] [--scale 2]
+//   node scripts/quartier/forge-render.mjs <site.json|room.json> <out-dir> [--size 390x844] [--scale 2]
 // Writes one PNG per view (the arrival, the landmarks inside and out, the market, the edge, a
-// look from above), a contact sheet of them all (`sheet.png`), and `render.json` with the load
-// time, the time the place's people then take to stand up, and the frame's cost per view. The
-// forge reads the sheet and decides what to revise.
+// look from above; for a room, its arrival in the dark and lit, its marks, flights, windows and
+// doors), a contact sheet of them all (`sheet.png`), and `render.json` with the load time, the
+// time the place's people then take to stand up, and the frame's cost per view. The forge reads
+// the sheet and decides what to revise.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -24,7 +25,7 @@ const opt = (name, fallback) => {
 };
 const [sitePathArg, outDirArg] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
 if (!sitePathArg || !outDirArg) {
-  console.error('usage: forge-render.mjs <site.json> <out-dir> [--size 390x844] [--scale 2]');
+  console.error('usage: forge-render.mjs <site.json|room.json> <out-dir> [--size 390x844] [--scale 2]');
   process.exit(2);
 }
 const sitePath = path.resolve(sitePathArg);

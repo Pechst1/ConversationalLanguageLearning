@@ -20,6 +20,7 @@ import { PATTERN, Press, nextId } from './geo';
 import type { Paint, Shape2 } from './geo';
 import { INKS, TONES, css, mix, rgb } from './palette';
 import { letteringArt, slateArt, SERIF, SANS } from './signs';
+import { facadeLining, globeLamp, roundTable, wainscotWall } from './room';
 
 /** The café's room, in world coordinates. */
 export const ROOM = {
@@ -127,33 +128,17 @@ export function buildMistral(B: Build, building: BuildingInfo): MistralParts {
   const plan: Shape2 = [[R.x0, R.z0], [R.x1, R.z0], cornerQ, cornerL, [R.x0, R.z1]];
   D.prism(plan, R.floor - 0.2, R.floor, floor, { sides: false });
   D.prism(plan, R.ceiling, R.ceiling + 0.05, ceiling, { top: false, sides: false, bottom: true });
-  // back wall (west), behind the zinc, and the north wall behind the booth
-  const wall = (x0: number, z0: number, x1: number, z1: number) => {
-    // a wall seen from the room: wainscot, rail, upper wall
-    const f = frameOf([x0, z0], [x1, z1]);
-    D.push(f.m);
-    D.box(f.len / 2, 0.55 + R.floor, -0.05, f.len, 1.1, 0.1, wainscot, { nz: false });
-    D.box(f.len / 2, 1.13 + R.floor, 0.0, f.len, 0.07, 0.08, rail, { nz: false });
-    D.box(f.len / 2, (1.1 + R.ceiling) / 2 + R.floor / 2, -0.06, f.len, R.ceiling - 1.1, 0.1, wallUpper, { nz: false });
-    D.sweep(new Vector3(0, R.ceiling - 0.22, 0), new Vector3(f.len, R.ceiling - 0.22, 0), [[0, 0], [0.06, 0.04], [0.12, 0.16], [0.14, 0.22], [0, 0.22]], ceiling, { caps: true });
-    D.pop();
-  };
-  // walls run with the room on their right
-  wall(R.x0, R.z1, R.x0, R.z0);
-  wall(R.x0, R.z0, R.x1, R.z0);
-  // the façades' inner lining: above the openings, and the piers
-  const lining = (a: [number, number], b: [number, number], u0: number, u1: number) => {
-    const f = frameOf(a, b);
-    D.push(f.m);
-    D.box(f.len / 2, (openTop + R.ceiling) / 2, -0.02, f.len, R.ceiling - openTop, 0.04, wallUpper, { nz: false });
-    if (u0 > 0) D.box(u0 / 2, openTop / 2, -0.02, u0, openTop, 0.04, wallUpper, { nz: false });
-    if (u1 < f.len) D.box((u1 + f.len) / 2, openTop / 2, -0.02, f.len - u1, openTop, 0.04, wallUpper, { nz: false });
-    D.pop();
-  };
-  // (inner faces of the façades, walked with the room on the right)
-  lining(cornerQ, [R.x1, R.z0], 0.24, 9.29);
-  lining(cornerL, cornerQ, 0.244, 3.784);
-  lining([R.x0, R.z1], cornerL, 1.38, 7.25);
+  // back wall (west), behind the zinc, and the north wall behind the booth: wainscot, rail, upper
+  // wall, the cornice in the ceiling's paint (the room kit's wall, `room.ts`); walls run with the
+  // room on their right
+  const shell = { wainscot, rail, upper: wallUpper, cornice: ceiling };
+  wainscotWall(D, [R.x0, R.z1], [R.x0, R.z0], R.floor, R.ceiling, shell);
+  wainscotWall(D, [R.x0, R.z0], [R.x1, R.z0], R.floor, R.ceiling, shell);
+  // the façades' inner lining: above the openings, and the piers (inner faces of the façades,
+  // walked with the room on the right)
+  facadeLining(D, cornerQ, [R.x1, R.z0], 0.24, 9.29, openTop, R.ceiling, wallUpper);
+  facadeLining(D, cornerL, cornerQ, 0.244, 3.784, openTop, R.ceiling, wallUpper);
+  facadeLining(D, [R.x0, R.z1], cornerL, 1.38, 7.25, openTop, R.ceiling, wallUpper);
 
   /* ---- the shop front, outside ----------------------------------------------------------- */
   const quai = frameOf([-27, -9], [-27, -28.5]);
@@ -375,18 +360,10 @@ export function buildMistral(B: Build, building: BuildingInfo): MistralParts {
   B.blocks.push([[-29.4, -17.05], [-28.8, -17.05], [-28.8, -16.45], [-29.4, -16.45]]);
 
   /* ---- tables by the windows -------------------------------------------------------------- */
-  const roundTable = (x: number, z: number, chairs: number[]) => {
-    const iron: Paint = indoor({ color: mix(TONES.iron, INKS.ink, 0.3), id: nextId() });
-    D.cylinder(x, R.floor, z, 0.22, 0.05, 0.06, 6, iron, { flat: true });
-    D.cylinder(x, R.floor + 0.06, z, 0.03, 0.03, 0.66, 5, iron, { flat: true });
-    D.cylinder(x, R.floor + 0.72, z, 0.32, 0.32, 0.035, 12, indoor({ color: TONES.marble, wet: 0.4, id: nextId() }));
-    chairs.forEach((a) => chair(B, x + Math.sin(a) * 0.62, z + Math.cos(a) * 0.62, a + Math.PI, false, R.floor));
-    B.blocks.push([[x - 0.55, z - 0.55], [x + 0.55, z - 0.55], [x + 0.55, z + 0.55], [x - 0.55, z + 0.55]]);
-  };
-  roundTable(-28.25, -14.6, [Math.PI / 2 + 0.3, -Math.PI / 2 - 0.2]);
-  roundTable(-28.25, -11.4, [Math.PI / 2, 0.1]);
-  roundTable(-33.4, -7.25, [Math.PI, 0.6]);
-  roundTable(-35.8, -7.25, [Math.PI + 0.3]);
+  roundTable(B, -28.25, -14.6, [Math.PI / 2 + 0.3, -Math.PI / 2 - 0.2], R.floor);
+  roundTable(B, -28.25, -11.4, [Math.PI / 2, 0.1], R.floor);
+  roundTable(B, -33.4, -7.25, [Math.PI, 0.6], R.floor);
+  roundTable(B, -35.8, -7.25, [Math.PI + 0.3], R.floor);
   // the coat stand by the door, a coat on it
   {
     const x = -27.75;
@@ -404,12 +381,7 @@ export function buildMistral(B: Build, building: BuildingInfo): MistralParts {
   const globes = [new Vector3(-31.6, 3.25, -15.6), new Vector3(-31.6, 3.25, -11.0), new Vector3(-30.0, 3.25, -8.0)];
   const globePaint: Paint = indoor({ color: mix(INKS.card, INKS.sunflower, 0.35), glow: 1, id: nextId() });
   const cord: Paint = indoor({ color: INKS.ink, id: nextId() });
-  for (const p of globes) {
-    D.ball(p.x, p.y, p.z, 0.22, 0.22, 0.22, globePaint, 1, { smooth: true });
-    D.bar(new Vector3(p.x, p.y + 0.2, p.z), new Vector3(p.x, R.ceiling, p.z), 0.015, cord);
-    D.cylinder(p.x, p.y + 0.16, p.z, 0.07, 0.05, 0.08, 6, brass, { flat: true });
-    B.lamps.push({ pos: p.clone(), color: rgb(mix(INKS.sunflower, INKS.card, 0.25)), power: 1.0, range: 7.5, glint: false, indoor: true });
-  }
+  for (const p of globes) globeLamp(B, p, R.ceiling, { glass: globePaint, cord, brass }, { power: 1.0, range: 7.5 });
   {
     const s = new Vector3(-30.2, 2.2, R.z0 + 0.12);
     D.lathe(s.x, s.y - 0.12, s.z + 0.1, [[0.06, 0], [0.12, 0.15], [0.1, 0.2], [0, 0.2]], 8, globePaint, { flat: true });

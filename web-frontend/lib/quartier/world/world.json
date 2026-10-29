@@ -38,6 +38,19 @@
       "ride": { "fr": "Le métro jusqu'à la porte d'Auteuil, puis le bois de Boulogne à pied.", "en": "The metro to Porte d'Auteuil, then on foot through the Bois de Boulogne.", "de": "Die Metro bis Porte d'Auteuil, dann zu Fuß durch den Bois de Boulogne." }
     },
     {
+      "id": "escalier_mistral",
+      "name": { "fr": "L'escalier du Mistral", "en": "The stairs above Le Mistral", "de": "Das Treppenhaus über dem Mistral" },
+      "lat": 48.87298,
+      "lon": 2.36372,
+      "status": "locked",
+      "kind": "season",
+      "why": { "fr": "Au premier, une porte avec un «1» en laiton : l'appartement d'Odile.", "en": "On the first floor, a door with a brass «1»: Odile's flat.", "de": "Im ersten Stock eine Tür mit einer «1» aus Messing: Odiles Wohnung." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "escalier_mistral",
+      "in": "quai_de_valmy"
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,
