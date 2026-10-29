@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as _dt
 import sys
 import threading
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -25,6 +26,9 @@ _REAL_DATETIME = _dt.datetime
 _REAL_DATE = _dt.date
 _lock = threading.Lock()
 _offset = _dt.timedelta(0)
+# A source of "now" that replaces the real clock outright (the learner walk's frozen
+# month); ``None`` reads the real clock plus the offset.
+_source: Callable[[], _dt.datetime] | None = None
 _installed = False
 
 # Modules whose names are left alone: schemas build pydantic models from the real
@@ -62,11 +66,34 @@ def set_offset(delta: _dt.timedelta) -> _dt.timedelta:
     return _offset
 
 
+def follow(source: Callable[[], _dt.datetime] | None) -> None:
+    """Read "now" from ``source`` (an aware ``datetime``) instead of the real clock.
+
+    The learner walk plays a month in a minute: its clock stands still within a day
+    and moves only when the walk turns the day, so what comes due on day 30 is the
+    same on any calendar date. ``None`` goes back to the real clock plus the offset.
+    """
+
+    global _source
+    if _production():
+        raise RuntimeError("the test clock is refused in production")
+    with _lock:
+        _source = source
+
+
+def _now(tz: Any = None) -> _dt.datetime:
+    if _source is None:
+        return _REAL_DATETIME.now(tz) + _offset
+    moment = _source()
+    return moment.astimezone(tz) if tz is not None else moment.astimezone().replace(tzinfo=None)
+
+
 def uninstall() -> int:
     """Put the real ``datetime`` / ``date`` back into every ``app.*`` module and zero the offset."""
 
     global _installed
     set_offset(_dt.timedelta(0))
+    follow(None)
     moved = 0
     for module in list(sys.modules.values()):
         if module is None or not getattr(module, "__name__", "").startswith("app."):
@@ -111,15 +138,15 @@ class ShiftedDatetime(metaclass=_DatetimeMeta):
 
     @staticmethod
     def now(tz: Any = None) -> _dt.datetime:
-        return _REAL_DATETIME.now(tz) + _offset
+        return _now(tz)
 
     @staticmethod
     def utcnow() -> _dt.datetime:
-        return _REAL_DATETIME.now(_dt.UTC).replace(tzinfo=None) + _offset
+        return _now(_dt.UTC).replace(tzinfo=None)
 
     @staticmethod
     def today() -> _dt.datetime:
-        return _REAL_DATETIME.now() + _offset
+        return _now()
 
     def __class_getitem__(cls, item: Any) -> Any:  # pragma: no cover
         return cls
@@ -147,22 +174,26 @@ class ShiftedDate(metaclass=_DateMeta):
 
     @staticmethod
     def today() -> _dt.date:
-        return (_REAL_DATETIME.now() + _offset).date()
+        return _now().date()
 
 
 for _name in ("fromisoformat", "fromtimestamp", "fromordinal", "fromisocalendar"):
     setattr(ShiftedDate, _name, staticmethod(getattr(_REAL_DATE, _name)))
 
 
-def install() -> int:
-    """Swap the stand-ins into every loaded ``app.*`` module; returns how many names moved."""
+def install(keep_real: tuple[str, ...] = ()) -> int:
+    """Swap the stand-ins into every loaded ``app.*`` module; returns how many names moved.
+
+    ``keep_real`` names more module prefixes to leave on the real clock.
+    """
 
     global _installed
     if _production():
         raise RuntimeError("the test clock is refused in production")
+    skip = _SKIP_PREFIXES + tuple(keep_real)
     moved = 0
     for name, module in list(sys.modules.items()):
-        if module is None or not name.startswith("app.") or name.startswith(_SKIP_PREFIXES):
+        if module is None or not name.startswith("app.") or name.startswith(skip):
             continue
         for attr, stand_in, real in (
             ("datetime", ShiftedDatetime, _REAL_DATETIME),
