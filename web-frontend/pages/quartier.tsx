@@ -3,7 +3,7 @@
  * rain, Le Mistral, the cast (components/quartier, lib/quartier).
  *
  * The story is today's journey (`lib/quartier/journey-story.ts`). When it is a day the quarter
- * has blocking for (T1 day a, for now) the scene plays here, every answer read by the engine; the
+ * has blocking for (T1 days a and b) the scene plays here, every answer read by the engine; the
  * rest of the day (the words, the grammar) follows in the Feuilleton's own steps, over the quarter.
  * Any other day, or one left in the middle of its talk, is the Feuilleton's to read.
  *

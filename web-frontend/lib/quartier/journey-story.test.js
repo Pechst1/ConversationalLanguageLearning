@@ -139,7 +139,7 @@ test('what /quartier does with each state of the day', () => {
   assert.equal(kind(journey({ status: 'ended_early', current: null })), 'done');
   assert.equal(kind(journey({ status: 'unavailable' })), 'handoff:unavailable');
   assert.equal(kind(journey({ stage: null })), 'handoff:day', 'off an authored page');
-  assert.equal(kind(journey({ stage: { ...STAGE, key: 't1.b' } })), 'handoff:day', 'a day with no blocking');
+  assert.equal(kind(journey({ stage: { ...STAGE, key: 't1.c' } })), 'handoff:day', 'a day with no blocking');
   assert.equal(kind(journey()), 'play');
   assert.equal(kind(journey({ status: 'paused' })), 'play');
   assert.equal(kind(journey({ current: 'talk' })), 'play', 'nothing answered yet');
@@ -154,7 +154,7 @@ test('a day the quarter stages keeps its page wherever it stands: its people tal
   for (const j of [journey(), journey({ current: 'talk', turn: 2 }), journey({ current: 'words' }), journey({ status: 'completed', current: null })]) {
     assert.equal(stagedPageOf(j)?.key, 't1.a', `${j.status} at ${j.current_step_id}`);
   }
-  assert.equal(stagedPageOf(journey({ stage: { ...STAGE, key: 't1.b' } })), null, 'a day with no blocking');
+  assert.equal(stagedPageOf(journey({ stage: { ...STAGE, key: 't1.c' } })), null, 'a day with no blocking');
   assert.equal(stagedPageOf(journey({ stage: null })), null);
   assert.equal(stagedPageOf(null), null);
 });

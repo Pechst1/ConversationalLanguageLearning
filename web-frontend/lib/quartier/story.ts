@@ -121,8 +121,20 @@ export interface StoryPage {
   storylets: Storylet[];
 }
 
-/** The days the quarter can stage, by their blocking: in phase 1, T1 day a alone. */
-export const STAGED_DAYS = ['t1.a'];
+/** The days the quarter can stage, by their blocking: T1 day a, and day b (the café, then the stairwell). */
+export const STAGED_DAYS = ['t1.a', 't1.b'];
+
+/** Where a page's panel plays in a room of the season rather than the café: the stairwell and Odile's door (T1 R1–R4). */
+export const ROOM_OF: Record<string, string> = {
+  stairwell: 'escalier_mistral',
+  odile_flat: 'escalier_mistral',
+};
+
+/** The room a movement plays in, if it is one (a hook plays where the room's scene ends). */
+export function roomOf(m: StoryMovement): string | null {
+  const at = m.kind === 'panel' ? m.location_id : m.panel.location_id;
+  return (at && ROOM_OF[at]) ?? null;
+}
 
 /** The questions of a page, in order. */
 export function turnsOf(page: StoryPage): StoryTurn[] {
