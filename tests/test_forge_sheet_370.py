@@ -52,7 +52,7 @@ def _lines(db_session, user, concept, attempts) -> list[tuple[str, bool]]:
     return [(line["fr"], line["fixed"]) for line in progress["proof"]]
 
 
-def test_a_kept_line_is_what_the_learner_wrote_not_a_clipped_echo(db_session):
+def test_kept_line_is_verbatim(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_A2_NEG_001")
     attempts = [
@@ -65,7 +65,7 @@ def test_a_kept_line_is_what_the_learner_wrote_not_a_clipped_echo(db_session):
     assert _lines(db_session, user, concept, attempts) == [("J'ai acheté des pommes de terre", False)]
 
 
-def test_a_missed_free_line_is_never_replaced_by_the_models_example(db_session):
+def test_miss_not_models_example(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_A2_NEG_001")
     attempts = [
@@ -76,7 +76,7 @@ def test_a_missed_free_line_is_never_replaced_by_the_models_example(db_session):
     assert _lines(db_session, user, concept, attempts) == []
 
 
-def test_a_correction_that_only_drops_words_is_not_shown_as_a_fix(db_session):
+def test_clip_is_not_a_fix(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_A2_NEG_001")
     attempts = [
@@ -88,7 +88,7 @@ def test_a_correction_that_only_drops_words_is_not_shown_as_a_fix(db_session):
     assert _lines(db_session, user, concept, attempts) == []
 
 
-def test_a_checked_correction_of_a_miss_is_shown_as_fixed(db_session):
+def test_checked_fix_shown(db_session):
     user = _user(db_session)
     concept = _concept(db_session, "FR_A2_NEG_001")
     attempts = [
@@ -100,7 +100,7 @@ def test_a_checked_correction_of_a_miss_is_shown_as_fixed(db_session):
     assert _lines(db_session, user, concept, attempts) == [("J'ai acheté des pommes de terre", True)]
 
 
-def test_the_level_on_the_sheet_is_the_level_after_the_rules_last_item(db_session):
+def test_level_after_last_item(db_session):
     """A recorded run: free line read as a hit at once (+1), then the model reads
     it as a miss. The sheet must say the level the learner stands on now."""
 
