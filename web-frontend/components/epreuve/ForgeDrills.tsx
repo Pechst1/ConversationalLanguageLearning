@@ -40,6 +40,7 @@ export function ForgeTypedField({
   onChange,
   onSubmit,
   submitted = false,
+  sending = false,
   verdict = null,
   copy,
 }: {
@@ -48,6 +49,13 @@ export function ForgeTypedField({
   /** Return on the keyboard checks the answer. */
   onSubmit?: () => void;
   submitted?: boolean;
+  /**
+   * The answer is sent and the verdict is not back. The field is read-only from
+   * the tap on «Check», not from the verdict: letters typed in between were never
+   * graded, and then vanished from under the learner's hands when the verdict
+   * arrived (#285, the Browser walk on de day 4).
+   */
+  sending?: boolean;
   verdict?: 'right' | 'wrong' | null;
   copy: ForgeCopy;
 }) {
@@ -77,15 +85,15 @@ export function ForgeTypedField({
         autoCapitalize="none"
         spellCheck={false}
         enterKeyHint="done"
-        readOnly={submitted}
+        readOnly={submitted || sending}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return;
           event.preventDefault();
-          if (!submitted) onSubmit?.();
+          if (!submitted && !sending) onSubmit?.();
         }}
       />
-      {!submitted && (
+      {!submitted && !sending && (
         <div className="forge-accents" role="group" aria-label={copy.accents_label}>
           {ACCENTS.map((letter) => (
             <button

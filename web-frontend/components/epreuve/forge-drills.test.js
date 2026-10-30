@@ -65,6 +65,37 @@ test('the typed field is French, never corrected by the phone, with the accents 
   assert.doesNotMatch(checked, /forge-accents/, 'no accents once checked');
 });
 
+// #285: the Browser walk typed into a «Tipp die fehlende Form ein.» gap, the verdict of
+// the earlier tap on «Check» arrived mid-word, and the gap turned read-only under the
+// walk's fingers: «the field does not hold it, focus is on input». A learner who keeps
+// typing after tapping «Check» loses letters the same way, and sees a verdict for words
+// that are no longer the ones in the box. The field is the answer that was sent, from the
+// tap on «Check», not from the verdict.
+test('the typed field is read-only from the tap on «Check», not only from the verdict', () => {
+  const fc = forgeCopy('de');
+  const sending = render('de', h(Drills.ForgeTypedField, { value: 'mangé', onChange: () => undefined, sending: true, copy: fc }));
+  assert.match(sending, /<input class="forge-typed__input"[^>]* readonly=""/, 'letters typed while the check is out would never be graded');
+  assert.doesNotMatch(sending, /forge-accents/, 'no accent can add a letter to an answer that was sent');
+  assert.doesNotMatch(sending, /data-verdict/, 'no verdict yet');
+
+  const idle = render('de', h(Drills.ForgeTypedField, { value: 'mang', onChange: () => undefined, copy: fc }));
+  assert.doesNotMatch(idle, /readonly=""/);
+  assert.match(idle, /forge-accents/);
+});
+
+test('every answer box on the séance page is frozen while its check is out', () => {
+  const boxes = PAGE.split('<textarea').slice(1).map((rest) => rest.slice(0, rest.indexOf('/>')));
+  const answerBoxes = boxes.filter((tag) => /readOnly=\{submitted/.test(tag));
+  assert.equal(answerBoxes.length, 3, 'the transform, output-ladder and produce boxes');
+  for (const tag of answerBoxes) assert.match(tag, /readOnly=\{submitted \|\| sending\}/, tag.slice(0, 80));
+  for (const panel of ['RecognizePanel', 'TransformPanel', 'OutputLadderPanel', 'ProducePanel']) {
+    const at = PAGE.indexOf(`<${panel}\n`);
+    assert.ok(at > 0, `${panel} is rendered`);
+    assert.match(PAGE.slice(at, PAGE.indexOf('/>', at)), /sending=\{submitting\}/, `${panel} is told a check is out`);
+  }
+  assert.match(PAGE, /<ForgeTypedField[\s\S]*?sending=\{sending\}/);
+});
+
 // ---------------------------------------------------------------------------
 // 2 · «Dictée»
 // ---------------------------------------------------------------------------
