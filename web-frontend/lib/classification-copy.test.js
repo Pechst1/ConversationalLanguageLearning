@@ -17,6 +17,15 @@ test('display localization keeps stored grading keys and French sentences intact
   assert.equal(classificationCopy(key, 'en'), key);
 });
 
+test('the item\'s own label table (#196) wins, and a label the floor does not know is not left English', () => {
+  const table = { fr: { 'pronoun choice': 'choix du pronom' }, de: { 'pronoun choice': 'Pronomenwahl' } };
+  assert.equal(classificationCopy('pronoun choice', 'fr', table), 'choix du pronom');
+  assert.equal(classificationCopy('pronoun choice', 'de', table), 'Pronomenwahl');
+  assert.equal(classificationCopy('pronoun choice', 'en', table), 'pronoun choice');
+  // No table: the floor, as before.
+  assert.equal(classificationCopy('future result', 'fr', null), 'conséquence au futur');
+});
+
 test('classification asks for a category rather than a cloze completion', () => {
   assert.equal(classificationGoal('fr'), 'Classe cette forme.');
 });

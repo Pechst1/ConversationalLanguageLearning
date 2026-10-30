@@ -4162,7 +4162,7 @@ function ExerciseFeedbackMoment({
     && (classifyItem.classify_kind === 'judgement' || (!classifyItem.classify_kind && isJudgementLabels(classifyItem.labels)));
   const display = (value: string) => judgementItem
     ? judgementLabel(value, language, classifyItem?.label_l10n)
-    : isLabelCompare ? classificationCopy(value, language) : value;
+    : isLabelCompare ? classificationCopy(value, language, classifyItem?.label_l10n) : value;
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   // Owner, 2026-10-19: what the learner typed in each wrong part of their line.
   const [partsTyped, setPartsTyped] = useState<Record<string, Record<number, string>>>({});
@@ -4556,7 +4556,7 @@ function RecognizePanel({
                   disabled={submitted}
                   onClick={() => updateAnswer(item.id, label)}
                   contentLang={pair ? 'fr' : cueLanguage}
-                >{judgement ? judgementLabel(label, cueLanguage, item.label_l10n) : pair ? label : classificationCopy(label, cueLanguage)}</EpOpt>
+                >{judgement ? judgementLabel(label, cueLanguage, item.label_l10n) : pair ? label : classificationCopy(label, cueLanguage, item.label_l10n)}</EpOpt>
               ))}
             </EpOpts>
           </>
