@@ -33,8 +33,8 @@ from app.services.journey_contracts import (
     SCENE_QUESTION_GRACE,
     StepKind,
 )
-from app.services.journey_planner import plan_journey, scene_exchange_floor
-from tests.test_journey_planner import SCENE_FITTING, _brief, _response_task
+from app.services.journey_planner import PacingProfile, plan_journey, scene_exchange_floor
+from tests.test_journey_planner import SCENE_FITTING, _brief, _candidate, _response_task
 
 OPENING = "Tu vas dire quoi pour ta date et ton retour ?"
 LEARNER = "Je veux retourner le deux decembre, parce que je suis fatigue de Berlin."
@@ -79,6 +79,21 @@ def test_a_practice_day_keeps_its_exchanges_at_every_band(budget, band):
         scenario=_generated(level_band=band), candidates=[SCENE_FITTING], budget_seconds=budget, practice=True
     )
     assert _respond(plan).public_prompt["max_turns"] >= _floor(budget)
+
+
+@pytest.mark.parametrize("pace", [(0.9, 1.0), (0.7, 1.2)])
+def test_a_classic_day_with_one_due_word_keeps_its_exchanges(pace):
+    """Review on #394: the classic plan's recall fallback («reply reduced to one turn
+    so a recall step fits the budget») cut a Régulier scene below the floor."""
+
+    from tests.test_wp128_time_budget import engine_brief
+
+    due = _candidate(identifier="v-due", label_fr="le mot", priority=9.0, due_since_days=5)
+    plan = plan_journey(
+        scenario=engine_brief(level_band="A1"), candidates=[due], budget_seconds=600,
+        pace=PacingProfile(*pace, 40),
+    )
+    assert _respond(plan).public_prompt["max_turns"] >= MIN_SCENE_EXCHANGES, plan.rationale
 
 
 @pytest.mark.parametrize("budget", [300, 600])

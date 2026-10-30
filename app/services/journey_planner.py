@@ -3254,7 +3254,7 @@ def plan_journey(
     if (
         not first_day
         and not longer_day
-        and turns > 1
+        and turns > floor
         and dropped
         and not any(not skipped for _e, _t, _c, skipped in recalls)
     ):
