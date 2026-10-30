@@ -139,6 +139,7 @@ import {
   closesConversation,
   continuesConversation,
   correctionNotes,
+  drawsEachVoice,
   exchangeFromResult,
   exchangeProgress,
   parseLocalThread,
@@ -1044,7 +1045,7 @@ export function RespondStepView({
         }
       : null;
   // A reply several people say is drawn at once, one bubble each (no typing-in).
-  const manyVoiced = (result?.character_lines?.length ?? 0) > 1;
+  const manyVoiced = drawsEachVoice(result?.character_lines, step.prompt.character_id);
   let bubbles = letter ? [] : threadBubbles({ prompt: step.prompt, local, inFlight });
   // The reply that just arrived types in; whatever follows it waits for it.
   const typingIndex =

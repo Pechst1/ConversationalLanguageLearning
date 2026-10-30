@@ -32,6 +32,7 @@ from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
+from app.services.forge_item_validator import cast_names, reaction_problems
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -55,6 +56,7 @@ from app.services.vocabulary_credit import (
     VocabularyCreditService,
 )
 from app.services.word_match import target_occurs_in
+from app.utils.timestamps import utc_iso
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v2"
 
@@ -3653,6 +3655,7 @@ class MissionCorrectionService:
             correction.get("errata") or [],
             mission=mission,
             submission_text=text,
+            language=language,
         )
         correction["correction_debug"] = {
             "prompt_version": correction.get("_prompt_version") or MISSION_CORRECTION_PROMPT_VERSION,
@@ -3664,7 +3667,11 @@ class MissionCorrectionService:
         correction = self._apply_vocabulary_feedback(
             mission=mission, text=text, correction=correction, language=language
         )
-        correction["corrected_answer"] = self._complete_corrected_answer(text=text, correction=correction)
+        # #318: the sentence the learner copies goes through the same rules as their
+        # own: a model rewrite never prints «le appartement».
+        correction["corrected_answer"] = correction_contract.repair_text(
+            self._complete_corrected_answer(text=text, correction=correction)
+        )
         # Design contract, principle 4: a card headed "Correction" has to be backed
         # by a repair. When every erratum failed the gates, the provider's polished
         # rewrite is a style preference — hand back the learner's own sentence so
@@ -3786,6 +3793,7 @@ class MissionCorrectionService:
         *,
         mission: RealWorldMission,
         submission_text: str,
+        language: Any = None,
     ) -> list[dict[str, Any]]:
         """The three gates every erratum must pass before it can become a card.
 
@@ -3826,20 +3834,20 @@ class MissionCorrectionService:
                 continue
             if not self._quote_is_grounded(erratum, submission_text=submission_text):
                 continue
-            if not correction_contract.edit_is_grounded(
-                submission_text,
-                erratum.get("learner_text"),
-                erratum.get("corrected_target"),
-                erratum.get("why_wrong"),
-                strict_span=False,
-            ):
-                # #250: the note cites a subject that is not in the reply, or the
-                # swapped form is wrong for the subject in front of it.
+            verified = correction_contract.verify_erratum(submission_text, erratum, strict_span=False)
+            if verified is None:
+                # #250: the note cites a subject that is not in the reply, the swapped
+                # form is wrong for the subject in front of it, the fix rewrites who
+                # acts («il est» -> «ils sont»), or it does not settle into French the
+                # rules accept. A fix that settles is shown settled (#318: «le
+                # appartement» reaches the learner as «l'appartement»).
                 continue
-            narrowed = self._narrow_erratum(erratum, submission_text=submission_text)
+            narrowed = self._narrow_erratum(verified, submission_text=submission_text)
             if narrowed is None:
                 continue
-            cleaned.append(narrowed)
+            # #369: the explanation is held to the corrected form it explains
+            # («an accent on « hui »» for aujourd'hui is replaced, not shown).
+            cleaned.append(correction_contract.reconcile_notes(narrowed, language=copy_language(language)))
         return cleaned
 
     @staticmethod
@@ -6481,10 +6489,21 @@ def _unassessed_acknowledgement(mission: Any) -> str:
     """The correspondent's honest answer when nothing could assess the letter: it was
     read, and nothing is claimed about it (EXPERIENCE-REVIEW 2026-10-04)."""
 
-    messenger = (getattr(mission, "prompt_payload", None) or {}).get("messenger") or {}
+    payload = getattr(mission, "prompt_payload", None) or {}
+    messenger = payload.get("messenger") or {}
     register = str(messenger.get("register") or "")
     opening = str(messenger.get("opening_message") or "")
-    tu = "tu" in register.split() or "tu /" in register or opening.startswith(("Salut", "Coucou")) or " toi" in opening
+    # #350: the register the letter was written in outranks a guess from its first words
+    # (a tu letter from Gus opening «Bonjour, c'est Gus» was answered «votre message»).
+    declared = register_word(messenger.get("target_register") or payload.get("target_register"))
+    tu = (
+        declared == "tu"
+        if declared
+        else "tu" in register.split()
+        or "tu /" in register
+        or opening.startswith(("Salut", "Coucou"))
+        or " toi" in opening
+    )
     if tu:
         return "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
     return "Merci pour votre message, je l'ai bien lu. Je vous réponds rapidement."
@@ -6659,10 +6678,15 @@ class MissionConversationService:
         name = _compact_text(character.get("name"), max_length=80) or "Ton interlocuteur"
         role = _compact_text(character.get("role"), max_length=120)
         register = _compact_text(character.get("register"), max_length=40) or "vous"
-        if not self.llm:
+
+        def calm_acknowledgement() -> str:
+            # Says nothing that could be wrong: no fact, no name, no number.
             if register == "tu":
                 return f"{name} hoche la tête. « Je comprends. Et maintenant, qu'est-ce que tu proposes ? »"
             return f"{name} acquiesce. « Je comprends. Et maintenant, qu'est-ce que vous proposez ? »"
+
+        if not self.llm:
+            return calm_acknowledgement()
 
         context = json.dumps(
             {
@@ -6679,7 +6703,10 @@ class MissionConversationService:
             "character, in natural French, in 1-3 short sentences. React to the learner's meaning, "
             "add one concrete in-world detail, and move the scene forward. You are never a language "
             "teacher: never correct, grade, praise, mention grammar, or reveal that this is an exercise. "
-            "If the French is imperfect but understandable, simply answer in character."
+            "If the French is imperfect but understandable, simply answer in character. "
+            "Keep the learner's own person and number: if they said «il», you speak of «il», not «ils», and "
+            "the other way round. Name only people the learner or the scene already named, or these: "
+            f"{', '.join(sorted(cast_names()))}. Never invent a person, a place or a fact."
         )
         try:
             result = self.llm.generate_chat_completion(
@@ -6695,7 +6722,15 @@ class MissionConversationService:
                 request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
             )
             _record_mission_llm_cost(self.db, user_id=user_id, result=result, purpose="atelier_character_reply")
-            return _compact_text(result.content, max_length=600)
+            reply = _compact_text(result.content, max_length=600)
+            # ROOT CAUSE #145/#147: the reaction had no ledger. A reply that invents a
+            # person or changes the learner's person/number is not shown: the character
+            # nods instead, which is always true.
+            problems = reaction_problems(reply, learner_text=user_text, grounded=(scene_context, opener, name))
+            if problems:
+                logger.info("Atelier reaction held back", problems=[problem.kind for problem in problems])
+                return calm_acknowledgement()
+            return reply
         except LLMProviderError as exc:
             logger.debug("Atelier serial conversation fallback", error=str(exc))
             if register == "tu":
@@ -7488,9 +7523,9 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             target_vocabulary_count=len(mission.target_vocabulary_ids or []),
             concept_ids=mission.selected_concept_ids or [],
         ),
-        "created_at": mission.created_at.isoformat() if mission.created_at else None,
-        "started_at": mission.started_at.isoformat() if mission.started_at else None,
-        "completed_at": mission.completed_at.isoformat() if mission.completed_at else None,
+        "created_at": utc_iso(mission.created_at),
+        "started_at": utc_iso(mission.started_at),
+        "completed_at": utc_iso(mission.completed_at),
     }
     outcome = (mission.recap_payload or {}).get("outcome") if mission.recap_payload else None
     if getattr(mission, "serial_thread_id", None) and isinstance(outcome, dict):
@@ -7514,7 +7549,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "correction": attempt.correction_payload or {},
                 "verdict": attempt.verdict,
                 "score_0_4": attempt.score_0_4,
-                "created_at": attempt.created_at.isoformat() if attempt.created_at else None,
+                "created_at": utc_iso(attempt.created_at),
             }
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
@@ -7527,7 +7562,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "text": turn.text,
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
-                "created_at": turn.created_at.isoformat() if turn.created_at else None,
+                "created_at": utc_iso(turn.created_at),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]

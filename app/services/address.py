@@ -78,10 +78,30 @@ def register_of(value: Any) -> Register | None:
     return "tu" if text.startswith("tu") else "vous"
 
 
+def _same_person(left: str, right: str) -> bool:
+    """Do two ids name one person? The cast registry decides (#147), not the spelling."""
+
+    if left == right:
+        return True
+    from app.services import cast_registry
+
+    resolved = cast_registry.resolve_id(left)
+    return resolved is not None and resolved == cast_registry.resolve_id(right)
+
+
 def _relationship_register(state: Mapping[str, Any] | None, character_id: str) -> Register | None:
     relationships = (state or {}).get("relationships") if isinstance(state, Mapping) else None
-    entry = relationships.get(character_id) if isinstance(relationships, Mapping) else None
-    return register_of(entry.get("register")) if isinstance(entry, Mapping) else None
+    if not isinstance(relationships, Mapping):
+        return None
+    # The id asked for first, then any row that names the same person («gus» asked, the
+    # engine recorded «augustin_de_roncourt»).
+    rows = sorted(relationships.items(), key=lambda item: str(item[0]) != character_id)
+    for key, entry in rows:
+        if isinstance(entry, Mapping) and _same_person(str(key), character_id):
+            found = register_of(entry.get("register"))
+            if found:
+                return found
+    return None
 
 
 def _season_register(state: Mapping[str, Any] | None, character_id: str) -> Register | None:
@@ -101,18 +121,25 @@ def _season_register(state: Mapping[str, Any] | None, character_id: str) -> Regi
         if not season_id:
             return None
         season = load_season(season_id)
-        member = next((row for row in season.cast if row.id == character_id), None)
+        # The scene reads the season row by the season's own id; a surface may spell the
+        # same person otherwise (the season's «odile» is the registry's «odile_ferrand»).
+        member = next((row for row in season.cast if row.id == character_id), None) or next(
+            (row for row in season.cast if _same_person(row.id, character_id)), None
+        )
         if member is None:
             return None
         stored = live.get(SEASON_KEY)
         flags = effective_flags(season, stored if isinstance(stored, dict) else None)
-        return register_of(flags.get(f"register.{character_id}") or member.address)
+        return register_of(flags.get(f"register.{member.id}") or member.address)
     except Exception:  # noqa: BLE001 - a missing season file must not break a letter
         return None
 
 
 def character_register(state: Mapping[str, Any] | None, character_id: Any) -> Register:
     """How ``character_id`` addresses the learner: «tu» or «vous». The one resolver.
+
+    ``character_id`` may be any spelling the cast registry knows (a scene id, an alias, a
+    portrait directory): every lookup below goes through :func:`_same_person`.
 
     1. the landlord and office clerks: «vous», always;
     2. the register the relationship map records (the story writes «tu» there when the
@@ -122,8 +149,15 @@ def character_register(state: Mapping[str, Any] | None, character_id: Any) -> Re
     4. «vous».
     """
 
-    key = str(character_id or "")
-    if not key or key in ALWAYS_VOUS or key.startswith(ALWAYS_VOUS_PREFIXES):
+    key = str(character_id or "").strip()
+    if not key:
+        return DEFAULT_CHARACTER_REGISTER
+    from app.services import cast_registry
+
+    canonical = cast_registry.resolve_id(key) or key
+    if any(
+        name in ALWAYS_VOUS or name.startswith(ALWAYS_VOUS_PREFIXES) for name in (key, canonical)
+    ):
         return DEFAULT_CHARACTER_REGISTER
     return (
         _relationship_register(state, key)

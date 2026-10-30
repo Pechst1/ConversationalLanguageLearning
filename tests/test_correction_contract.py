@@ -346,3 +346,218 @@ def test_the_tutor_lane_never_corrects_the_intonation_question():
     lanes.validate_tutor(verdict, _payload(INTONATION))
     assert verdict.correction_span_fr is None and verdict.correction_fr is None
     assert verdict.correction_note_native is None
+
+
+# ---------------------------------------------------------------------------
+# one checker for every edit: grounded, same subject, swaps that hold, settled
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "sentence, span, fix, reason",
+    [
+        # the learner chose «il»: agreeing the verb never picks a new subject
+        ("Il est content.", "il est", "ils sont", "changes_subject"),
+        ("Il est vieille.", "Il est vieille", "Ils sont vieilles", "changes_subject"),
+        # «est» is right for «elle»; the swap hides inside a longer span
+        ("Elle est vielle et fatiguée.", "est vielle", "sont vieilles", "person_swap"),
+        ("Nous sommes contents.", "sommes", "sont", "not_grounded"),
+    ],
+)
+def test_the_checker_rejects_a_fix_that_rewrites_who_acts(sentence, span, fix, reason):
+    verdict = _contract().verify_edit(sentence, span, fix)
+    assert not verdict.ok
+    assert verdict.reason == reason
+
+
+@pytest.mark.parametrize(
+    "sentence, span, fix, shown",
+    [
+        # #318: the model's «le appartement» reaches the learner as «l'appartement»
+        ("J'habite dans la appartement.", "la appartement", "le appartement", "l'appartement"),
+        ("Je vais à la école.", "la école", "le école", "l'école"),
+        ("J'ai les livre.", "les livre", "les livres", "les livres"),
+        ("Je suis allé à le marché.", "à le marché", "au marché", "au marché"),
+        ("Tu est fatigué.", "est", "es", "es"),
+    ],
+)
+def test_the_checker_settles_a_model_fix_before_the_learner_sees_it(sentence, span, fix, shown):
+    verdict = _contract().verify_edit(sentence, span, fix)
+    assert verdict.ok
+    assert verdict.replacement == shown
+
+
+def test_a_fix_the_rules_widen_keeps_the_span_it_replaces():
+    # a model that quotes only the article: «la» -> «le» before «appartement» is shown
+    # as «la appartement» -> «l'appartement», never «la» -> «l» («l appartement»)
+    contract = _contract()
+    verdict = contract.verify_edit("la appartement", "la", "le")
+    assert (verdict.ok, verdict.span, verdict.replacement) == (True, "la appartement", "l'appartement")
+    span, fix, note = contract.first_valid_edit("Je vends la appartement.", "la", "le", "Use « le ».")
+    assert (span, fix, note) == ("la appartement", "l'appartement", "Use « l'appartement ».")
+    kept = contract.grounded_errata(
+        "Je vends la appartement.",
+        [{"learner_text": "la", "corrected_target": "le", "why_wrong": "Use « le ».",
+          "task_error_type": "gender_agreement"}],
+    )
+    assert (kept[0]["learner_text"], kept[0]["corrected_target"]) == ("la appartement", "l'appartement")
+
+
+def test_the_scene_turn_shows_the_settled_fix_and_requotes_its_note():
+    span, fix, note = _contract().first_valid_edit(
+        "J'habite dans la appartement.", "la appartement", "le appartement", "Use « le appartement »."
+    )
+    assert (span, fix) == ("la appartement", "l'appartement")
+    assert note == "Use « l'appartement »."
+
+
+def test_errata_carry_the_settled_fix_in_every_note():
+    kept = _contract().grounded_errata(
+        "J'habite dans la appartement.",
+        [{"learner_text": "la appartement", "corrected_target": "le appartement",
+          "why_wrong": "« appartement » is masculine: « le appartement ».", "task_error_type": "gender_agreement"}],
+    )
+    assert kept[0]["corrected_target"] == "l'appartement"
+    assert "« l'appartement »" in kept[0]["why_wrong"]
+
+
+def test_a_requoted_note_only_changes_the_quoted_fix():
+    requote = _contract()._requote
+    note = "After a negation, « des » becomes « de »: « de amis »."
+    assert requote(note, "de amis", "d'amis") == "After a negation, « des » becomes « de »: « d'amis »."
+    # a short fix is never replaced inside the explanation itself
+    assert requote("Use de here: « de ».", "de", "d'") == "Use de here: « d' »."
+
+
+def test_repair_text_settles_a_whole_corrected_sentence():
+    repair = _contract().repair_text
+    assert repair("Je pense que le appartement est grand.") == "Je pense que l'appartement est grand."
+    assert repair("Je ne pas aime le café.") == "Je n'aime pas le café."
+    assert repair("Je suis allé au marché.") == "Je suis allé au marché."
+
+
+# ---------------------------------------------------------------------------
+# the phrase rules: closed evidence, each with the near-miss it must leave alone
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "sentence, span, fix",
+    [
+        ("Je ne pas parle allemand.", "ne pas parle", "ne parle pas"),
+        ("Je ne pas aime le café.", "ne pas aime", "n'aime pas"),
+        ("Je ne rien comprends.", "ne rien comprends", "ne comprends rien"),
+        ("Je n'ai vu pas le film.", "ai vu pas", "ai pas vu"),
+        ("Je peux de venir.", "de venir", "venir"),
+        ("Tu devrais de te reposer.", "de te reposer", "te reposer"),
+        ("Je ne mange pas jamais de viande.", "pas jamais", "jamais"),
+        ("Je n'ai pas aucune idée.", "pas aucune", "aucune"),
+        ("Il n'y a pas du pain.", "du pain", "de pain"),
+        ("Je n'ai pas des amis.", "des amis", "d'amis"),
+        ("Il habite en face la gare.", "en face", "en face de"),
+        ("J'habite à côté le parc.", "à côté le", "à côté du"),
+        ("Avant partir, je ferme la fenêtre.", "Avant", "Avant de"),
+        ("Je vais a Paris.", "a", "à"),
+        ("Je vais a le marché.", "a le", "au"),
+        ("Hier je suis allé a le marché.", "a le", "au"),
+        ("On reste a la maison.", "a", "à"),
+        ("J'ai pensé a toi.", "a", "à"),
+        ("Je suis vingt ans.", "Je suis", "J'ai"),
+        ("C'est je.", "je", "moi"),
+        ("Je vais chez il.", "il", "lui"),
+        ("Il lit des journals.", "journals", "journaux"),
+        ("Quel heure est-il ?", "Quel", "Quelle"),
+        ("J'ai travaillé tout la semaine.", "tout", "toute"),
+        ("Je viens tout les jours.", "tout", "tous"),
+        ("J'ai les livre.", "livre", "livres"),
+        ("Ce ami est gentil.", "Ce", "Cet"),
+        ("Ma amie est là.", "Ma", "Mon"),
+        ("Je parle à les enfants.", "à les", "aux"),
+        ("Mes grand parents habitent à Lyon.", "grand parents", "grands-parents"),
+        ("Si il pleut, je reste.", "Si il", "S'il"),
+    ],
+)
+def test_the_phrase_rules_fix_the_classic_mistakes(sentence, span, fix):
+    edits = _contract().deterministic_edits(sentence)
+    assert (span, fix) in _pairs(edits), [(e.rule_id, e.span, e.replacement) for e in edits]
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Je préfère ne pas manger.",  # an infinitive keeps «ne pas» in front
+        "Je me dois de le dire.",  # «se devoir de»
+        "Je voudrais de l'eau.",  # a partitive, not «de» + infinitive
+        "Ce n'est pas rien.",  # an idiom
+        "Mais pas jamais.",  # no «ne»: an answer to «never?»
+        "Il n'a pas du tout faim.",
+        "Ce n'est pas du pain.",  # être keeps the article
+        "Il y a un chat.",
+        "Le projet auquel je croyais a échoué.",  # that «a» is the main clause's avoir
+        "Ce que je pense a changé.",
+        "Ce que j'ai dit a changé sa vie.",
+        "Ce que j'ai fait a de la valeur.",
+        "Le gâteau préparé a une saveur.",
+        "Elle est deux ans plus jeune.",
+        "Pour je ne sais quoi.",
+        "Elles ont toutes les cheveux longs.",  # «toutes» agrees with «elles»
+        "Je vais les livrer.",  # «les» is a pronoun before an infinitive
+        "Je n'ai vu personne.",  # «personne» does follow the participle
+        "Après il est parti.",
+        "Il a les yeux bleus.",
+        "Il habite au lieu le plus proche.",
+        "Il regarde en face la réalité.",  # «en face» says how; «la réalité» is the object
+        "Je n'ai pas du pain mais du riz.",  # a contrast keeps the article
+        # unsure means silent: «d'un café» or «un café»? «leur voiture» or «leurs voitures»?
+        "Je voudrais de un café.",
+        "Ils ont pris leurs voiture.",
+        "J'ai reve de toi.",  # «rêvé», not «rêve»
+    ],
+)
+def test_the_phrase_rules_leave_the_near_misses_alone(sentence):
+    edits = _contract().deterministic_edits(sentence)
+    assert edits == [], [(e.rule_id, e.span, e.replacement) for e in edits]
+
+
+# ---------------------------------------------------------------------------
+# #318: «la appartement» is «l'appartement», and no fix is itself wrong French
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "sentence, fixed",
+    [
+        ("je veux vendre la appartement", "je veux vendre l'appartement"),
+        ("Je regarde le ami de Lila.", "Je regarde l'ami de Lila."),
+        ("C'est la maison de Odile.", "C'est la maison d'Odile."),
+        ("Je vais à la école.", "Je vais à l'école."),
+        ("je regarde la appartement de ma grand mere", "je regarde l'appartement de ma grand-mère"),
+    ],
+)
+def test_318_the_walk_lines_get_the_elided_form(sentence, fixed):
+    contract = _contract()
+    edits = contract.deterministic_edits(sentence)
+    assert contract.apply_edits(sentence, edits) == fixed
+    assert not any(e.rule_id == "FR_GENDER_DET" for e in edits)
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # the review of the first #318 attempt (#321): none of these elides
+        "Le ou la responsable viendra.",
+        "Je veux le ou la chercher.",
+        "Il y a le ou les clés.",
+        "Tu choisis la ou le plus grand.",
+        "On choisit de ou à Paris.",
+        "Je vais le euh faire.",
+        "C'est la où il habite.",
+        "Donne-le à Paul.",
+        "Dis-le au directeur.",
+        "Le héros mange un haricot avec la hache.",
+        "Le onze, il a dit oui à la une du journal.",
+    ],
+)
+def test_318_no_elision_before_a_word_that_does_not_take_it(sentence):
+    edits = _contract().deterministic_edits(sentence)
+    assert edits == [], [(e.rule_id, e.span, e.replacement) for e in edits]

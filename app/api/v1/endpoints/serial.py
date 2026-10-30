@@ -21,6 +21,7 @@ from app.schemas.serial import (
     SerialThreadCreateRequest,
     SerialThreadRead,
 )
+from app.services.chrome_language import user_chrome_language
 from app.services.serial import SerialThreadService
 
 router = APIRouter(prefix="/serial", tags=["serial"])
@@ -128,7 +129,10 @@ async def get_current_serial_cast(
     _ensure_enabled()
     service = SerialThreadService(db)
     thread = await service.get_or_create_thread(current_user)
-    return {"thread_id": str(thread.id), "cast": service.cast_payload(thread)}
+    return {
+        "thread_id": str(thread.id),
+        "cast": service.cast_payload(thread, language=user_chrome_language(current_user)),
+    }
 
 
 @router.post("/threads/current/avatar")

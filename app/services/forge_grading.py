@@ -421,6 +421,50 @@ def is_french_word(word: Any) -> bool:
         return False
 
 
+_LINE_WORD = re.compile(r"[^\W\d_](?:[\w'’-]*[^\W_])?")
+
+#: Function words of the two languages a learner's line slips into. The lexicon
+#: knows only a few thousand forms (it lacks «cherché»), so «not in the lexicon»
+#: would skip good French lines; these are words that are *certainly* not French.
+_FOREIGN_FUNCTION_WORDS = frozenset(
+    {
+        # German
+        "im", "war", "waren", "ist", "sind", "bin", "bist", "ich", "du", "er", "wir", "ihr",
+        "und", "oder", "aber", "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen",
+        "nicht", "kein", "keine", "mit", "von", "zu", "zum", "zur", "auf", "für", "nach", "bei",
+        "auch", "wie", "was", "wo", "ja", "nein", "noch", "schon", "sehr", "habe", "hat",
+        "haben", "gehe", "gehen", "heute", "gestern", "morgen", "wohne", "heisse", "heiße",
+        # English
+        "the", "and", "is", "were", "are", "am", "with", "you", "your", "have", "has",
+        "had", "to", "of", "it", "my", "he", "she", "we", "they", "at", "in", "not", "but",
+        "this", "that", "from", "for", "go", "went", "live", "like",
+    }
+)
+
+
+def foreign_words(line: Any) -> list[str]:
+    """The words of ``line`` that are certainly not French (``[]``: nothing in it says so).
+
+    #348: a line is the *target* of a drill only if it is French. «Im est au
+    Mistral, Marin.» was a stored target, made by swapping one word of the
+    learner's German-tinged «Im war au Mistral, Marin.»: the swap fixed the span
+    the error named and nothing else, and nothing ever asked whether the rest of
+    the line was French. The test is one-sided on purpose (the lexicon is small;
+    an unknown word is not a foreign one): a German or English function word, or
+    a German letter, in a word the French lexicon does not know.
+    """
+
+    found: list[str] = []
+    for match in _LINE_WORD.finditer(str(line or "")):
+        token = match.group(0)
+        folded = _fold_word(token)
+        if is_french_word(token):
+            continue
+        if folded in _FOREIGN_FUNCTION_WORDS or re.search("[äöüßÄÖÜ]", token):
+            found.append(token)
+    return found
+
+
 def _all_french(fragment: Any) -> bool:
     words = [word for word in re.findall(r"[^\W\d_][\w'’-]*", str(fragment or "")) if word]
     return bool(words) and all(is_french_word(word) for word in words)
@@ -846,6 +890,7 @@ __all__ = [
     "drop_false_english",
     "is_author_note",
     "fold_typography",
+    "foreign_words",
     "is_french_word",
     "mark_given",
     "matches_accepted",

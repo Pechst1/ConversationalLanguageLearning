@@ -16,6 +16,7 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
+from app.services.forge_item_validator import advice, situation_problems
 from app.services.grammar_feedback import infer_grammar_profile
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
@@ -1053,6 +1054,12 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
             errors.append(f"output_ladder.{round_name} item is incomplete")
         elif _is_generic_output_ladder_prompt(item.get("prompt")):
             errors.append(f"output_ladder.{round_name} prompt must give a concrete mini-situation")
+        else:
+            # #267: the situation must make sense, not only exist.
+            errors.extend(
+                f"output_ladder.{round_name} prompt {advice(problem)}"
+                for problem in situation_problems(item.get("prompt"))
+            )
     return errors
 
 

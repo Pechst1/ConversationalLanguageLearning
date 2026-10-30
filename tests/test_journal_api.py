@@ -380,7 +380,16 @@ def test_the_followup_line_appears_a_week_later_and_records_its_signal(
         headers=headers,
         json={"text": "J’ai rapporté le livre, comme promis."},
     ).json()
-    assert answered["followup"] is None  # nothing else is due
+    # The answer comes back with its own result (#337): the learner is shown
+    # what the line scored, not a card that simply vanishes.
+    assert answered["followup"] is not None
+    assert answered["followup"]["answered"] is True
+    assert answered["followup"]["signal"] == "used_again_later"
+    assert answered["followup"]["facts_total"] >= 1
+    assert 1 <= answered["followup"]["facts_matched"] <= answered["followup"]["facts_total"]
+    # Nothing else is due, so the next read has no follow-up at all.
+    after = journal_client.get("/api/v1/journal/state", headers=headers).json()
+    assert after["followup"] is None
 
     entry = db_session.query(JournalEntry).filter(JournalEntry.id == uuid.UUID(entry_id)).one()
     db_session.refresh(entry)

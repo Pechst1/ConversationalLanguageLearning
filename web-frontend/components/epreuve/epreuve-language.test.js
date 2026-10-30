@@ -85,7 +85,7 @@ const FRENCH_CHROME = [
   'Recopie la correction',
   'Comparer',
   'Touche pour parler',
-  'Relecture interrompue.',
+  'Je n’ai pas pu vérifier cette réponse. Réessaie.',
   'Relancer',
   'Préparation de la séance…',
   'Réessayer',
@@ -112,6 +112,15 @@ test('an A1 English learner reads the Épreuve chrome in English', () => {
   assert.ok(html.includes('lang="fr"'));
   assert.ok(html.includes('Le passé composé'));
   assert.ok(html.includes(`class="av2 ep-shell`));
+});
+
+test('the failed-check notice says plainly that the answer was not checked and to try again (#334)', () => {
+  for (const language of ['en', 'fr', 'de']) {
+    const t = epreuveCopy(language);
+    assert.ok(t.relecture_failed.length > 20, `${language}: a plain sentence, not a label`);
+    assert.ok(!/second check|zweite Prüfung|relecture/i.test(t.relecture_failed), `${language}: no jargon`);
+  }
+  assert.match(epreuveCopy('en').relecture_failed, /could not check.*try again/i);
 });
 
 test('an A1 German learner reads it in German', () => {

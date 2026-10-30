@@ -25,6 +25,7 @@ import {
   burstSeconds,
   insertAt,
   spotChanged,
+  spotDraftEdits,
   spotTokens,
   type BurstRow,
 } from '@/lib/forge-drills';
@@ -39,6 +40,7 @@ export function ForgeTypedField({
   onChange,
   onSubmit,
   submitted = false,
+  sending = false,
   verdict = null,
   copy,
 }: {
@@ -47,6 +49,13 @@ export function ForgeTypedField({
   /** Return on the keyboard checks the answer. */
   onSubmit?: () => void;
   submitted?: boolean;
+  /**
+   * The answer is sent and the verdict is not back. The field is read-only from
+   * the tap on «Check», not from the verdict: letters typed in between were never
+   * graded, and then vanished from under the learner's hands when the verdict
+   * arrived (#285, the Browser walk on de day 4).
+   */
+  sending?: boolean;
   verdict?: 'right' | 'wrong' | null;
   copy: ForgeCopy;
 }) {
@@ -76,15 +85,15 @@ export function ForgeTypedField({
         autoCapitalize="none"
         spellCheck={false}
         enterKeyHint="done"
-        readOnly={submitted}
+        readOnly={submitted || sending}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return;
           event.preventDefault();
-          if (!submitted) onSubmit?.();
+          if (!submitted && !sending) onSubmit?.();
         }}
       />
-      {!submitted && (
+      {!submitted && !sending && (
         <div className="forge-accents" role="group" aria-label={copy.accents_label}>
           {ACCENTS.map((letter) => (
             <button
@@ -206,6 +215,18 @@ export function ForgeListen({ text, copy, synthesize }: { text: string; copy: Fo
 
 /* ---------- «Trouve l'erreur» · «Ta phrase» ---------- */
 
+/**
+ * A tapped word opens in a field that holds it. The learner is replacing it,
+ * so the word opens selected and the first key typed takes its place; with the
+ * caret left at its end «la» + «l'» became «lal'» (#335). A field that opens
+ * holding text the learner is to replace always opens selected.
+ */
+function selectWhenOpened(input: HTMLInputElement | null) {
+  if (!input) return;
+  input.focus();
+  input.setSelectionRange(0, input.value.length);
+}
+
 export function ForgeSpot({
   sentence,
   edits,
@@ -226,19 +247,25 @@ export function ForgeSpot({
   const [editing, setEditing] = React.useState<number | null>(null);
   const [draft, setDraft] = React.useState('');
   const has = (index: number) => Object.prototype.hasOwnProperty.call(edits, index);
+  // What the answer was when the word was opened: Escape puts it back.
+  const before = React.useRef<Record<number, string>>({});
   const start = (index: number) => {
     if (submitted) return;
+    before.current = edits;
     setEditing(index);
     setDraft(has(index) ? edits[index] : tokens[index].word);
   };
-  const commit = () => {
+  // The fix is the answer as it is typed (#357), so Check lights with the first
+  // letter; closing the field only stops editing.
+  const type = (value: string) => {
     if (editing === null) return;
-    const value = draft.replace(/\s+/g, ' ').trim();
-    const next = { ...edits };
-    if (value === tokens[editing].word) delete next[editing];
-    else next[editing] = value;
+    setDraft(value);
+    onEdits(spotDraftEdits(tokens, edits, editing, value));
+  };
+  const close = () => setEditing(null);
+  const cancel = () => {
+    onEdits(before.current);
     setEditing(null);
-    onEdits(next);
   };
   return (
     <div className="forge-spot">
@@ -254,20 +281,21 @@ export function ForgeSpot({
                 value={draft}
                 size={Math.max(4, draft.length + 1)}
                 aria-label={fillForge(copy.spot_edit_label, { word: token.word })}
+                ref={selectWhenOpened}
                 autoFocus
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="none"
                 spellCheck={false}
                 enterKeyHint="done"
-                onChange={(event) => setDraft(event.target.value)}
-                onBlur={commit}
+                onChange={(event) => type(event.target.value)}
+                onBlur={close}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     event.preventDefault();
-                    commit();
+                    close();
                   } else if (event.key === 'Escape') {
-                    setEditing(null);
+                    cancel();
                   }
                 }}
               />
@@ -308,6 +336,11 @@ export function ForgeSpot({
 /* ---------- «Rafale» ---------- */
 
 type Judged = Record<string, any>;
+
+/** Is this judgement label «Correct» (the sentence needs nothing)? */
+function isRightCall(label: string): boolean {
+  return label.normalize('NFC').trim().toLowerCase() === 'correct';
+}
 
 /**
  * Four judgements, one at a time; each tap moves on. The fourth sends all four
@@ -389,6 +422,7 @@ export function ForgeRafaleResult({
   cheer,
   coach,
   coachMood,
+  rule,
   onNext,
   nextLabel,
 }: {
@@ -399,6 +433,8 @@ export function ForgeRafaleResult({
   cheer?: string | null;
   coach?: Coach | null;
   coachMood?: PortraitMood;
+  /** The rule's one line («Règle : …»), said under every miss. */
+  rule?: string | null;
   onNext: () => void;
   nextLabel: string;
 }) {
@@ -414,13 +450,27 @@ export function ForgeRafaleResult({
           const item = items.find((entry) => String(entry.id) === row.itemId);
           return (
             <li key={row.itemId} data-correct={row.correct ? 'true' : 'false'}>
-              <span className="forge-rafale__mark" aria-hidden="true">
+              <span
+                className="forge-rafale__mark"
+                {...(row.correct ? { 'aria-hidden': true } : { role: 'img', 'aria-label': copy.rafale_miss })}
+              >
                 {row.correct ? <CheckIcon size={12} /> : <RepairIcon size={12} />}
               </span>
               <div className="forge-rafale__text">
                 <p className="forge-rafale__sentence" lang="fr">{row.sentence}</p>
+                {/* A miss says the call made, the right one, and why (#358). */}
                 {!row.correct && row.expected && (
-                  <p className="forge-rafale__was">{judgementLabel(row.expected, language, item?.label_l10n)}</p>
+                  <p className="forge-rafale__was">
+                    {fillForge(copy.rafale_said, {
+                      said: row.answer ? judgementLabel(row.answer, language, item?.label_l10n) : '–',
+                      right: judgementLabel(row.expected, language, item?.label_l10n),
+                    })}
+                  </p>
+                )}
+                {!row.correct && (
+                  <p className="forge-rafale__why">
+                    {[isRightCall(row.expected) ? copy.rafale_why_right : copy.rafale_why_wrong, rule || null].filter(Boolean).join(' ')}
+                  </p>
                 )}
                 {row.correctedFr && <p className="forge-rafale__fix" lang="fr">{row.correctedFr}</p>}
               </div>
@@ -595,6 +645,8 @@ export function ForgeDrillStyles() {
 .av2 .forge-rafale__rows li[data-correct='false'] .forge-rafale__mark { background: var(--av2-red); color: var(--av2-on-red); }
 .av2 .forge-rafale__text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .av2 .forge-rafale__sentence { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.3; color: var(--av2-ink); overflow-wrap: anywhere; }
+.av2 .forge-rafale__rows li[data-correct='false'] { background: var(--av2-tint-wrong); }
+.av2 .forge-rafale__why { margin: 0; font-size: var(--av2-t-body); font-weight: 600; color: var(--av2-ink-2); overflow-wrap: anywhere; }
 .av2 .forge-rafale__was { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
 .av2 .forge-rafale__fix { margin: 0; font-size: var(--av2-t-body); font-weight: 600; color: var(--av2-green); overflow-wrap: anywhere; }
     `}</style>

@@ -339,6 +339,129 @@ test('the cycle ends at retenir, and restart is a real reset', () => {
 });
 
 // ---------------------------------------------------------------------------
+// #277 — the prediction is only asked when the scene can answer it
+// ---------------------------------------------------------------------------
+
+/**
+ * The scene from the 22 Oct live walk: «Lila et la boîte». The last line is
+ * narration — «Sous la boîte, un papier plié dépasse. Lila ne l'a pas encore
+ * vu.» Lila never answers, so «Lila dit oui / refuse» has no answer in the text.
+ */
+const lilaScene = {
+  ...agreeing,
+  id: 'scene-lila',
+  scene_id: 'scene-lila',
+  title_fr: 'Lila et la boîte',
+  panels: [
+    {
+      id: 'pl',
+      index: 0,
+      narration_fr: 'Lila Bonnet range le grenier avec une grande boîte en carton.',
+      dialogue: [
+        { character_id: 'lila', character_name: 'Lila Bonnet', text_fr: 'Cette boîte est lourde.' },
+        { character_id: 'toi', text_fr: 'Je peux la porter ?' },
+        { character_id: 'lila', character_name: 'Lila Bonnet', text_fr: 'Elle est à ma grand-mère.' },
+        { character_id: 'toi', text_fr: 'Elle est belle.' },
+        { character_id: 'lila', character_name: 'Lila Bonnet', text_fr: 'Regarde, il y a un ruban.' },
+      ],
+      image_url: null,
+      image_status: 'unavailable',
+    },
+    {
+      id: 'pm',
+      index: 1,
+      narration_fr: 'Sous la boîte, un papier plié dépasse. Lila ne l’a pas encore vu.',
+      dialogue: [],
+      image_url: null,
+      image_status: 'unavailable',
+    },
+  ],
+};
+
+const STILL_AUDIO = {
+  state: { kind: 'idle' },
+  clips: [],
+  prepare() {},
+  play() {},
+  playFrom() {},
+  stop() {},
+  busy: false,
+  heard: false,
+};
+
+function openingRadio(episode) {
+  const { EpisodeRadio } = require('./StoryEpisodeReader.tsx');
+  return renderToStaticMarkup(
+    React.createElement(EpisodeRadio, {
+      episode,
+      copy: journeyCopy('en'),
+      audio: STILL_AUDIO,
+      onContinue() {},
+      onReadInstead() {},
+    }),
+  );
+}
+
+test('#277 · a scene with no ending is not asked «How does it end?»', () => {
+  assert.equal(model.verifyEpisodeGuess(lilaScene, null).supported, null, 'the fixture settles nothing');
+  const html = openingRadio(lilaScene);
+  assert.ok(!/how does it end/i.test(html), 'no question about an ending that is not there');
+  assert.ok(!html.includes('dit oui') && !html.includes('refuse ou propose'), 'no guess options');
+  assert.ok(!html.includes('data-radio-stage="predire"'), 'the prediction stage is skipped');
+  assert.ok(html.includes('data-radio-stage="ecouter"'), 'the learner goes straight to listening');
+});
+
+test('#277 · the cycle is offered a guess exactly when the check can answer it', () => {
+  for (const [episode, settles] of [
+    [agreeing, true],
+    [refusing, true],
+    [openEnded, false],
+    [lilaScene, false],
+  ]) {
+    assert.equal(model.episodeSettlesOutcome(episode), settles, episode.id);
+    const start = model.radioInitialFor(episode);
+    assert.equal(start.asked, settles, `${episode.id}: asked`);
+    assert.equal(start.stage, settles ? 'predire' : 'ecouter', `${episode.id}: first stage`);
+    assert.equal(model.radioStagesFor(start).includes('predire'), settles);
+    // A restart keeps the answer to «is there anything to guess?».
+    assert.deepEqual(model.radioReduce(start, { type: 'restart' }), start);
+  }
+  // Without a question the cycle still cannot be short-circuited: no verifying before hearing.
+  const unasked = model.radioInitialFor(lilaScene);
+  assert.equal(model.radioReduce(unasked, { type: 'verify' }).stage, 'ecouter');
+  const heard = model.radioReduce(unasked, { type: 'heard' });
+  assert.equal(model.radioReduce(heard, { type: 'verify' }).stage, 'verifier');
+});
+
+test('#277 · an unasked cycle shows no question and no verdict on a guess nobody made', () => {
+  const { EpisodeRadioView } = require('./StoryEpisodeReader.tsx');
+  const state = { ...model.radioInitialFor(lilaScene), stage: 'verifier', heard: true };
+  const html = renderToStaticMarkup(
+    React.createElement(EpisodeRadioView, {
+      episode: lilaScene,
+      copy: journeyCopy('en'),
+      audio: STILL_AUDIO,
+      state,
+      text: model.RADIO_TEXT_INITIAL,
+      verification: model.verifyEpisodeGuess(lilaScene, state.guess),
+      onContinue() {},
+      onReadInstead() {},
+      dispatch() {},
+      dispatchText() {},
+    }),
+  );
+  assert.ok(!/how does it end/i.test(html));
+  assert.ok(!html.includes('neither guess is wrong'));
+  assert.ok(!html.includes('data-radio-task'));
+});
+
+test('#277 · a scene that does settle still starts with the guess', () => {
+  const html = openingRadio(agreeing);
+  assert.ok(html.includes('data-radio-stage="predire"'));
+  assert.ok(html.includes('dit oui'));
+});
+
+// ---------------------------------------------------------------------------
 // The remembered preference
 // ---------------------------------------------------------------------------
 

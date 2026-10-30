@@ -56,7 +56,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
-from app.services import correction_contract, lane_guards, story_memory
+from app.services import (
+    cast_registry,
+    correction_contract,
+    lane_guards,
+    speaker_labels,
+    story_memory,
+)
 from app.services import living_story as engine
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.journey_contracts import (
@@ -578,6 +584,10 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
 
     story = payload.get("story") or {}
     scene = payload.get("scene") or {}
+    # #313 (root cause #145): the label is the screen's, never part of the line. The
+    # speaker's own «Camille : …» loses it; «Lila : …» said by Camille is a character
+    # answering for someone else, refused with the reason.
+    voice.reply_fr = _settled_speaker(voice.reply_fr, payload)
     if engine._same_utterance(voice.reply_fr, payload["learner_text"]):
         raise engine.StoryUnavailable(
             "reply_echoes_learner",
@@ -624,7 +634,93 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     voice.understood_intent = _neutral_intent(voice.understood_intent, payload, address, own)
     if (payload.get("turn_plan") or {}).get("clarify_form_fr"):
         voice.needs_clarification = True
+    # #315: a person the thread never named («M. Delmas a la clé ?») has no referent.
+    bare = _check_introduced(voice.reply_fr, payload)
     engine.reply_soft_check(voice, level, lexical, payload["learner_text"])
+    if bare:
+        raise engine.SoftRejection(
+            "reply_unintroduced_person",
+            hint=(
+                f"{bare} appear in the reply but nothing in the scene introduced them. Name only "
+                "the cast and people the scene or the learner already mentioned."
+            ),
+        )
+
+
+def _scene_name_table(payload: dict) -> dict[str, str]:
+    return speaker_labels.name_table(((payload.get("story") or {}).get("world") or {}).get("cast") or [])
+
+
+def _settled_speaker(reply: str, payload: dict) -> str:
+    """``reply`` without the speaker's own «Name :» labels; refused when it carries
+    another person's (a character speaking for them)."""
+
+    scene = payload.get("scene") or {}
+    clean, foreign = speaker_labels.settle_labels(
+        reply, scene.get("character_id"), _scene_name_table(payload)
+    )
+    if foreign:
+        names = ", ".join(sorted({cast_registry.display_name(person, person) for person in foreign}))
+        raise engine.StoryUnavailable(
+            "reply_speaks_for_other",
+            hint=(
+                f"The reply starts with «{names} :» — a label, and another character's. One "
+                "character speaks, in their own words and with no name in front of the line; "
+                "they never speak for someone else. Answer as yourself."
+            ),
+        )
+    return clean or reply
+
+
+def _introduced_texts(payload: dict) -> list[str]:
+    """Everything the learner has been shown or said in this thread: the words a name
+    must already be in to count as introduced."""
+
+    story = payload.get("story") or {}
+    learner_texts, speaker_texts = thread_voices(payload)
+    world = story.get("world") or {}
+    scene = payload.get("scene") or {}
+    texts = [
+        *learner_texts,
+        *speaker_texts,
+        str(scene.get("title_fr") or ""),
+        str(scene.get("premise_fr") or ""),
+        *[str(row.get("name") or "") for row in world.get("cast") or [] if isinstance(row, dict)],
+        *[
+            str(value)
+            for row in world.get("locations") or []
+            if isinstance(row, dict)
+            for value in row.values()
+            if isinstance(value, str)
+        ],
+        *[str(item) for item in story.get("story_so_far") or [] if isinstance(item, str)],
+        *[str(c.get("text_fr") or "") for c in story.get("commitments") or [] if isinstance(c, dict)],
+        str((story.get("learner") or {}).get("name") or ""),
+        str(story_memory.name_in(story.get(story_memory.MEMORY_KEY)) or ""),
+        " ".join(speaker_labels.name_table().keys()),
+        str(story.get(story_memory.MEMORY_KEY) or ""),
+    ]
+    return [text for text in texts if text.strip()]
+
+
+def _check_introduced(reply: str, payload: dict) -> list[str]:
+    """#315 (root cause #145: the scene holds no state of what is established): a reply
+    names no person that is neither in the cast, nor said by the learner, nor already on
+    the page. A titled name nobody held is refused outright. A bare capitalised name is
+    returned for the caller to refuse once, after the other soft checks, and serve if it
+    comes back (a place is the usual false positive)."""
+
+    titled, bare = lane_guards.unintroduced_people(reply, lane_guards.established_words(_introduced_texts(payload)))
+    if titled:
+        raise engine.StoryUnavailable(
+            "reply_unintroduced_person",
+            hint=(
+                f"{titled} has not been introduced: the learner has never heard of them. Do not "
+                "name anyone who is not in the cast or already in the scene; say «quelqu'un» or "
+                "leave it out."
+            ),
+        )
+    return bare
 
 
 def _neutral_intent(intent: str, payload: dict, address: str | None, own: frozenset[str]) -> str:

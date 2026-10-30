@@ -3915,6 +3915,7 @@ function SessionView({
                       cheer={forgeCheer(currentCorrection, fc)}
                       coach={ruleCoach}
                       coachMood={coachMood(currentCorrection, { correct: burstMarks.every((row) => row.correct) })}
+                      rule={feedbackRuleLine(activeSet, activeConcept, t)}
                       onNext={feedbackNext}
                       nextLabel={feedbackNextLabel}
                     />
@@ -3943,6 +3944,7 @@ function SessionView({
                       updateAnswer={updateAnswer}
                       correction={currentCorrection}
                       submitted={currentSubmitted}
+                      sending={submitting}
                       drill={drill}
                       onSubmit={nextDisabled ? undefined : submitAttempt}
                     />
@@ -3965,6 +3967,7 @@ function SessionView({
                     updateAnswer={updateAnswer}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
+                    sending={submitting}
                     drill={drill}
                   />
                   <ActionRow
@@ -3986,6 +3989,7 @@ function SessionView({
                     updateAnswer={(value) => updateAnswer('text', value)}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
+                    sending={submitting}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -4008,6 +4012,7 @@ function SessionView({
                     updateAnswer={(value) => updateAnswer('text', value)}
                     correction={currentCorrection}
                     submitted={currentSubmitted}
+                    sending={submitting}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -4161,7 +4166,7 @@ function ExerciseFeedbackMoment({
     && (classifyItem.classify_kind === 'judgement' || (!classifyItem.classify_kind && isJudgementLabels(classifyItem.labels)));
   const display = (value: string) => judgementItem
     ? judgementLabel(value, language, classifyItem?.label_l10n)
-    : isLabelCompare ? classificationCopy(value, language) : value;
+    : isLabelCompare ? classificationCopy(value, language, classifyItem?.label_l10n) : value;
   const [followUps, setFollowUps] = useState<Record<string, FollowUpDraft>>({});
   // Owner, 2026-10-19: what the learner typed in each wrong part of their line.
   const [partsTyped, setPartsTyped] = useState<Record<string, Record<number, string>>>({});
@@ -4178,10 +4183,16 @@ function ExerciseFeedbackMoment({
   const repairOutcome = followUps[feedbackKey]?.outcome ?? null;
   useEffect(() => {
     if (!shownVerdict) return undefined;
+    let release = () => {};
     let frame = window.requestAnimationFrame(() => {
-      frame = window.requestAnimationFrame(() => keepCardAboveSheet(feedbackRef.current));
+      frame = window.requestAnimationFrame(() => {
+        release = keepCardAboveSheet(feedbackRef.current);
+      });
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      release();
+    };
   }, [feedbackKey, shownVerdict, repairOutcome]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
@@ -4427,6 +4438,7 @@ function RecognizePanel({
   updateAnswer,
   correction,
   submitted,
+  sending = false,
   drill = null,
   onSubmit,
 }: {
@@ -4437,6 +4449,8 @@ function RecognizePanel({
   updateAnswer: (key: string, value: any) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
+  /** «Check» is sent and the verdict is not back: the answer is what was sent (#285). */
+  sending?: boolean;
   /** La Forge: how the item is posed (`lib/forge-drills.ts`); null: the classic way. */
   drill?: ForgeDrill | null;
   /** «Tape la forme»: Return on the keyboard checks the answer. */
@@ -4472,6 +4486,7 @@ function RecognizePanel({
               onChange={(value) => updateAnswer(item.id, value)}
               onSubmit={onSubmit}
               submitted={submitted}
+              sending={sending}
               verdict={submitted && feedback && !feedback.unscored ? (feedback.correct ? 'right' : 'wrong') : null}
               copy={fc}
             />
@@ -4555,7 +4570,7 @@ function RecognizePanel({
                   disabled={submitted}
                   onClick={() => updateAnswer(item.id, label)}
                   contentLang={pair ? 'fr' : cueLanguage}
-                >{judgement ? judgementLabel(label, cueLanguage, item.label_l10n) : pair ? label : classificationCopy(label, cueLanguage)}</EpOpt>
+                >{judgement ? judgementLabel(label, cueLanguage, item.label_l10n) : pair ? label : classificationCopy(label, cueLanguage, item.label_l10n)}</EpOpt>
               ))}
             </EpOpts>
           </>
@@ -4575,6 +4590,7 @@ function TransformPanel({
   updateAnswer,
   correction,
   submitted,
+  sending = false,
   drill = null,
 }: {
   payload: Record<string, any>;
@@ -4583,6 +4599,8 @@ function TransformPanel({
   updateAnswer: (key: string, value: any) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
+  /** «Check» is sent and the verdict is not back: the answer is what was sent (#285). */
+  sending?: boolean;
   /** La Forge: «spot» and «mine» are tapped and fixed, not retyped. */
   drill?: ForgeDrill | null;
 }) {
@@ -4636,7 +4654,7 @@ function TransformPanel({
         value={answers[item.id] || ''}
         onChange={(event) => updateAnswer(item.id, event.target.value)}
         placeholder={t.transform_placeholder}
-        readOnly={submitted}
+        readOnly={submitted || sending}
       />
       {modelAudio}
     </div>
@@ -4888,6 +4906,7 @@ function OutputLadderPanel({
   updateAnswer,
   correction,
   submitted,
+  sending = false,
 }: {
   payload: Record<string, any>;
   round: 'sentence' | 'speak' | 'conversation';
@@ -4895,6 +4914,8 @@ function OutputLadderPanel({
   updateAnswer: (value: string) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
+  /** «Check» is sent and the verdict is not back: the answer is what was sent (#285). */
+  sending?: boolean;
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -5002,7 +5023,7 @@ function OutputLadderPanel({
       <textarea
         value={answer}
         onChange={(event) => updateAnswer(event.target.value)}
-        readOnly={submitted}
+        readOnly={submitted || sending}
         className="ep-composed-input"
         placeholder={t[`${round}_placeholder` as const]}
       />
@@ -5032,6 +5053,7 @@ function ProducePanel({
   updateAnswer,
   correction,
   submitted,
+  sending = false,
 }: {
   concepts: AtelierConcept[];
   exerciseSets: AtelierExerciseSet[];
@@ -5041,6 +5063,8 @@ function ProducePanel({
   updateAnswer: (value: string) => void;
   correction: Record<string, any> | null;
   submitted: boolean;
+  /** «Check» is sent and the verdict is not back: the answer is what was sent (#285). */
+  sending?: boolean;
 }) {
   const produce = payload.produce || {};
   const requirements = (produce.requirements || []).map((req: any) => ({
@@ -5070,7 +5094,7 @@ function ProducePanel({
           ))}
         </div>
       )}
-      <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder={t.produce_placeholder} readOnly={submitted} />
+      <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder={t.produce_placeholder} readOnly={submitted || sending} />
       <div className="word-count">{wordRangeText(t, wordCount(answer), produce.min_words, produce.max_words)}</div>
     </div>
   );
