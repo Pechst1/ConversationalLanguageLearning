@@ -422,6 +422,8 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         **({"source_fr": task.source_fr} if task.source_fr else {}),
         # #240: only when not the default, so every stored task reads as before.
         **({"options_kind": task.options_kind} if task.options_kind != "variants" else {}),
+        **({"slip_fr": task.slip_fr} if task.slip_fr else {}),
+        **({"rule_native": task.rule_native} if task.rule_native else {}),
     }
 
 
@@ -444,6 +446,8 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         goal_native=payload.get("goal_native") or None,
         source_fr=payload.get("source_fr") or None,
         options_kind="sentences" if payload.get("options_kind") == "sentences" else "variants",
+        slip_fr=payload.get("slip_fr") or None,
+        rule_native=payload.get("rule_native") or None,
     )
 
 
@@ -6006,7 +6010,8 @@ class DailyJourneyService:
             available = {
                 HelpKind.HINT: (None, task.hint_native),
                 HelpKind.TRANSLATION: (None, task.translation_native),
-                HelpKind.SOLUTION: (task.solution_fr, None),
+                # #278: a repair's answer comes with the rule it was about.
+                HelpKind.SOLUTION: (task.solution_fr, task.rule_native),
             }
         else:
             response = _response_task_from_json(private["response_task"])

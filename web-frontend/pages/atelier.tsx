@@ -4110,7 +4110,7 @@ function ActionRow({
   );
 }
 
-function ExerciseFeedbackMoment({
+export function ExerciseFeedbackMoment({
   feedback,
   submitted,
   rule,

@@ -129,7 +129,7 @@ import {
   useTypedText,
 } from './ReplyStage';
 import { ExchangeTokens, RespondThread } from './RespondThread';
-import { drillGoalLine, recallMetLine, type DrillGoal } from './drill-frame';
+import { drillGoalLine, recallMetLine, slipSegments, type DrillGoal } from './drill-frame';
 import { StoryEpisodeReader } from './StoryEpisodeReader';
 import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-episode-model';
 import { getStoryEpisodeEntry, loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
@@ -603,10 +603,22 @@ export function RecallStepView({
   // a clip, the phrase stays unprinted until the answer is graded.
   const dictating = isDictation(step.prompt);
   const heard = !dictating && listenTapHasAudio(step.prompt) && !clipFailed;
-  const headline =
+  // #278: a repair prints the learner's own sentence with the wrong part marked.
+  const slipParts = slipSegments(step.prompt.prompt_fr, step.prompt.slip_fr);
+  const headline: React.ReactNode =
     heard && !graded
       ? step.prompt.instruction_native
-      : step.prompt.prompt_fr || step.prompt.instruction_native;
+      : slipParts
+        ? slipParts.map((part, index) =>
+            part.slip ? (
+              <mark key={index} className="av2-slip">
+                {frenchSpacing(part.text)}
+              </mark>
+            ) : (
+              <React.Fragment key={index}>{frenchSpacing(part.text)}</React.Fragment>
+            ),
+          )
+        : step.prompt.prompt_fr || step.prompt.instruction_native;
   // A listening item keeps its phrase unprinted until graded: no goal that could print it.
   const goal = (heard || dictating) && !graded ? null : drillGoalLine(step.prompt);
 
@@ -616,7 +628,7 @@ export function RecallStepView({
     <StepFrame
       label={null}
       headline={headline}
-      headlineLang={headline === step.prompt.prompt_fr && step.prompt.prompt_fr ? 'fr' : undefined}
+      headlineLang={(slipParts || headline === step.prompt.prompt_fr) && step.prompt.prompt_fr ? 'fr' : undefined}
       // La troupe vivante: the drill is someone's line. They stay still while the learner works
       // and act once the answer is in: their own «bravo», their own «oups».
       speaker={speaker}

@@ -36,6 +36,32 @@ test('a word inside another word is not the word', () => {
   assert.deepEqual(repairParts('Il avec a fini', [{ learner_text: 'a', corrected_target: 'est' }])[1], { wrong: 'a', fix: 'est', erratum: 0 });
 });
 
+// #282 (live walk 22 Oct): «Replace «à le» with «au» here.» over a field holding
+// «à le marché aux puces»: typing «au», as told, was refused. The gap holds the words
+// that differ, so the instruction, the field and the fix say the same thing.
+test('a gap holds only the words that differ, and the rest of the stretch stays text', () => {
+  const line = 'Il est à le marché aux puces avec Romy';
+  const parts = repairParts(line, [{ learner_text: 'à le marché aux puces', corrected_target: 'au marché aux puces', task_error_type: 'preposition' }]);
+  assert.deepEqual(parts, [
+    { text: 'Il est ' },
+    { wrong: 'à le', fix: 'au', erratum: 0 },
+    { text: ' marché aux puces avec Romy' },
+  ]);
+  assert.equal(assembleRepair(parts, { 1: 'au' }), 'Il est au marché aux puces avec Romy');
+  assert.ok(gapIsFixed('au', parts[1].fix));
+});
+
+test('an insertion keeps a word to hold its gap, a stretch with nothing in common stays whole', () => {
+  assert.deepEqual(
+    repairParts('Je vois la maison', [{ learner_text: 'la maison', corrected_target: 'la grande maison' }])[1],
+    { wrong: 'maison', fix: 'grande maison', erratum: 0 },
+  );
+  assert.deepEqual(
+    repairParts('Un grand maison', [{ learner_text: 'Un grand', corrected_target: 'Une grande' }])[0],
+    { wrong: 'Un grand', fix: 'Une grande', erratum: 0 },
+  );
+});
+
 test('a gap is fixed by its fix, accents counting, typography not', () => {
   assert.ok(gapIsFixed('Tâches', 'tâches'));
   assert.ok(!gapIsFixed('taches', 'tâches'));
