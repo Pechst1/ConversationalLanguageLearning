@@ -998,6 +998,17 @@ def _clause_before(tokens: list[str], index: int) -> list[str]:
     return before
 
 
+def _clause_after(tokens: list[str], index: int) -> list[str]:
+    """The words of the clause after ``tokens[index]`` (stops at punctuation)."""
+
+    after: list[str] = []
+    for token in tokens[index + 1 :]:
+        if not _is_word(token):
+            break
+        after.append(token)
+    return after
+
+
 #: Object pronouns that sit between a subject and its verb («je lui ai», «il nous a»).
 _OBJECT_CLITICS = frozenset(
     {"me", "m", "te", "t", "se", "s", "lui", "leur", "nous", "vous", "le", "la", "l", "les", "moi", "toi"}
@@ -1123,7 +1134,10 @@ def correction_is_grounded(
     # The span may stand twice («Elle est là. Toi est gentil.»): one place where the
     # correction holds is enough.
     return any(
-        _swap_holds(_clause_before(text_tokens, place[position]), old_persons, new_persons)
+        _swap_holds(
+            _clause_before(text_tokens, place[position]), old_persons, new_persons,
+            after=_clause_after(text_tokens, place[position]),
+        )
         for place in places
     )
 
@@ -1166,22 +1180,32 @@ def person_swaps_hold(learner_text: object, span: object, corrected: object) -> 
         return True
     return any(
         all(
-            _swap_holds(_clause_before(text_tokens, place[position]), _FORM_PERSONS[old], _FORM_PERSONS[new])
+            _swap_holds(
+                _clause_before(text_tokens, place[position]), _FORM_PERSONS[old], _FORM_PERSONS[new],
+                after=_clause_after(text_tokens, place[position]),
+            )
             for position, old, new in swaps
         )
         for place in places
     )
 
 
-def _swap_holds(before: list[str], old_persons: frozenset[str], new_persons: frozenset[str]) -> bool:
+def _swap_holds(
+    before: list[str],
+    old_persons: frozenset[str],
+    new_persons: frozenset[str],
+    *,
+    after: list[str] = (),
+) -> bool:
     person = _subject_person(before)
     if person is not None:
         return person not in old_persons and person in new_persons
     if new_persons == {"3pl"} and "3sg" in old_persons:
         # A singular form made plural needs something plural in front of it: «Solvel
         # est» -> «sont» passed because a name cannot be read (#250, 26 Oct). A
-        # plural determiner, a plural pronoun or a coordination must be there.
-        return bool(set(before) & _PLURAL_EVIDENCE)
+        # plural determiner, a plural pronoun or a coordination must be there, or a
+        # plural subject right after it («Où est les toilettes ?»).
+        return bool(set(before) & _PLURAL_EVIDENCE) or bool(after[:1] and after[0] in _PLURAL_EVIDENCE)
     # Subject unreadable: a first/second-person replacement still needs its pronoun
     # somewhere in the clause («est → es» with no «tu» or «toi» in it was the #193 bug).
     if not any(p in {"3sg", "3pl"} for p in new_persons):

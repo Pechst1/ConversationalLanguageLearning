@@ -109,6 +109,7 @@ def test_a_note_that_hangs_its_rule_on_the_plural_subject_ils_needs_ils():
         ("Mes amis est contents.", True),
         ("Paul et Marie est là.", True),
         ("Les enfants est fatigués.", True),
+        ("Où est les toilettes ?", True),  # the plural subject follows the verb
     ],
 )
 def test_a_singular_form_is_made_plural_only_after_something_plural(text, ok):
@@ -138,3 +139,22 @@ def test_free_production_shows_only_errata_about_the_answer():
     assert ("est", "sont") not in shown
     assert ("une bon", "une bonne") in shown
     assert {"learner_text": "est", "reason": "not_in_sentence"} in refined["dropped_errata"]
+
+
+def test_free_production_shows_the_settled_fix_even_when_nothing_is_dropped():
+    from app.services.forge_grading import refine_production_correction
+
+    refined = refine_production_correction(
+        {
+            "verdict": "partial",
+            "errata": [
+                {"learner_text": "la", "corrected_target": "le", "why_wrong": "«appartement» is masculine.",
+                 "task_error_type": "grammar_target"},
+            ],
+        },
+        learner_text="Je visite la appartement.",
+        accepted=["Je visite l'appartement."],
+    )
+    assert [(e["learner_text"], e["corrected_target"]) for e in refined["errata"]] == [
+        ("la appartement", "l'appartement")
+    ]

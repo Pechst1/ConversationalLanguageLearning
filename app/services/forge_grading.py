@@ -803,8 +803,9 @@ def refine_production_correction(
         list(refined.get("errata") or []), list(refined.get("lexical_gaps") or [])
     )
     errata, unproven = held_to_sentence(errata, learner_text, language)
+    if refined.get("errata") is not None or errata:
+        refined["errata"] = errata  # settled fixes and reconciled notes, dropped or not
     if unproven:
-        refined["errata"] = errata
         refined["dropped_errata"] = [
             {"learner_text": item.get("learner_text"), "reason": "not_in_sentence"} for item in unproven
         ]
