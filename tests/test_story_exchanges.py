@@ -8,6 +8,7 @@ objective across the whole conversation. Fake provider only, never a paid call.
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 
 from app.services import living_story as engine
@@ -49,6 +50,17 @@ def test_a_wording_question_takes_the_turn_instead():
 def test_a_met_first_reply_keeps_the_conversation_open(
     assembled_client, db_session, journey_enabled, clock, provider, jobs
 ):
+    # The fake model says something new at each exchange: one that said its previous
+    # line again would be refused as a repeat of the thread (#349).
+    fresh = iter(f"Alors, parlons du point {n}. Qu'en pensez-vous ?" for n in range(1, 20))
+    original = provider.generate_chat_completion
+
+    def say_something_new(messages, **kwargs):
+        if json.loads(messages[0]["content"])["output_schema"]["title"] == "VoiceReply":
+            provider.voice = {**provider.voice, "reply_fr": next(fresh)}
+        return original(messages, **kwargs)
+
+    provider.generate_chat_completion = say_something_new
     d = driver(assembled_client, db_session)
     step = harness._to_respond(d)
     assert step["prompt"]["max_turns"] >= 2

@@ -10,7 +10,7 @@
     "tone": "warm, wry, romantic, lightly satirical — comedy that hides real feeling",
     "recurring_locations": [
       { "id": "le_mistral", "name": "Le Mistral", "name_fr": "Le Mistral", "type": "café-bar", "description": "A narrow corner café-bar with a worn zinc counter near the Canal. The group's headquarters — their booth in the back is unofficially theirs. Open late, smells of coffee and rain.", "use": "home base — but NOT every episode; the anchor, not the default" },
-      { "id": "user_apartment", "name": "Your apartment", "name_fr": "Votre appartement", "type": "home", "description": "A sixth-floor walk-up studio with a temperamental radiator and a view of zinc rooftops. The arrival point of the whole story." },
+      { "id": "user_apartment", "name": "Your apartment", "name_fr": "Ton appartement", "type": "home", "description": "A sixth-floor walk-up studio with a temperamental radiator and a view of zinc rooftops. The arrival point of the whole story." },
       { "id": "marin_lila_flat", "name": "Marin & Lila's flat", "name_fr": "L’appartement de Marin et Lila", "type": "home", "description": "A cramped, art-covered two-room flat near République, always full of people and casserole." },
       { "id": "newsroom", "name": "Romy's newsroom", "name_fr": "La rédaction de Romy", "type": "workplace", "description": "A glass-walled open-plan TV/online newsroom, screens everywhere — the diegetic gateway for the daily news seed." },
       { "id": "ngo_office", "name": "Marin's NGO office", "name_fr": "Le bureau de l’ONG de Marin", "type": "workplace", "description": "A cluttered environmental-NGO office with protest posters and dying plants Marin keeps reviving." },

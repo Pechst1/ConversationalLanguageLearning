@@ -365,6 +365,26 @@ def turn_example(turn: dict[str, Any] | None) -> str | None:
     )
 
 
+def turn_addressee(turn: dict[str, Any] | None, scenario) -> str:
+    """Who the learner is answering on this turn: the turn's own addressee (a posed
+    «choix» is put by Lila even on Camille's day), else the scene's character."""
+
+    return str((turn or {}).get("to") or scenario.character_id)
+
+
+def routed_sentence(reply: dict[str, Any], understood: bool) -> str | None:
+    """The sentence the learner's answer amounts to, for the line they repeat aloud.
+
+    The routed reply's own first example (a card's label for a «Le choix»), only
+    when the page really heard that reply and it is not the clumsy-but-sincere one:
+    a fallback route says nothing the learner meant."""
+
+    if not understood or reply.get("clumsy"):
+        return None
+    examples = [str(example).strip() for example in reply.get("examples") or [] if str(example).strip()]
+    return examples[0] if examples else None
+
+
 def hint_for(turn: dict[str, Any] | None, language: str | None) -> str | None:
     """The turn's hint: the *opening* of an example reply to finish, never the whole
     reply — that is the «suggested response», one tap further (EXPERIENCE-REVIEW
@@ -1028,7 +1048,13 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             for line in ((upcoming_turn or {}).get("panel") or {}).get("lines") or []
             if line.get("text_native")
         ).strip() or None,
-        route={"turn": str(turn.get("id")), "reply": str(reply.get("id"))},
+        route={
+            "turn": str(turn.get("id")),
+            "reply": str(reply.get("id")),
+            # What the learner meant, as a sentence they could say: the recap's
+            # «une phrase à redire» is this, never the question's scripted example.
+            **({"say_fr": said} if (said := routed_sentence(reply, understood)) else {}),
+        },
         heard=_heard(choice, reply),
         stage=stage,
     )
@@ -1111,7 +1137,7 @@ def _ask_again_evaluation(
             # The authored named line already greets a name; any other reaction to
             # what was said comes first.
             panel = {**panel, "lines": [*ack_panel(turn, ack)["lines"], *panel["lines"]]}
-    addressee = str(scenario.character_id)
+    addressee = turn_addressee(turn, scenario)
     beats = [panel] if panel else []
     correction = margin_correction(
         db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history

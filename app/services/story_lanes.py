@@ -208,7 +208,10 @@ VOICE = """You are one character of Atelier, speaking back to the learner in a s
 scene. Return only JSON matching output_schema. You do not grade and you do not correct.
 reply_fr is the character answering the learner's actual meaning in their own voice and
 register — agree, refuse, ask back, react — never a restatement or copy of the learner's
-sentence and never the learner's next line. Understand the whole turn: negation, refusal,
+sentence and never the learner's next line. You never name yourself in it: when the
+learner's words are about you («ma amie Lila», said to Lila), say moi, me or toi
+(«tu restes pour me voir»). feeling_shift is colder only when your own words are cold:
+a character who says «D'accord, je ne te force pas» has not cooled. Understand the whole turn: negation, refusal,
 paraphrase, pronouns, revised choices; never turn 'I do not want coffee' into ordering
 coffee. The reply is emotional truth, not customer service: show how the words land on
 you (relief, disappointment, a joke to cover hurt, warmth), answering from mood and
@@ -273,7 +276,8 @@ after met, a success after not_yet). When released.outcome_corrected_from is set
 grade was corrected after release: write the ending of that corrected outcome.
 resolution_fr (French) is how the scene ends after that reply: the app prints it in the
 character's speech bubble, under their name, so it is the character's own last spoken
-line, in the first person, with no narration about them and no quotation marks.
+line, in the first person, with no narration about them and no quotation marks. They never
+name themselves in it: the learner's words about them come back as moi, me or toi.
 summary_native (in story.control_language) says in one or two plain sentences what
 happened in the story and what the character wants or will do next — a refusal or a
 partial result still gets an honest ending, never invented success. It is not feedback:
@@ -366,9 +370,34 @@ def _reply_register(payload: dict) -> str | None:
     return season if season in ("tu", "vous") else None
 
 
+def _history_by_speaker(history: list) -> list:
+    """The thread as a model reads it, with nobody's name inside a string.
+
+    #349 (root cause #145): an exchange the scene kept as a transcript («…Et Gus ?» then «Gus :
+    La fête ?») taught the voice to write transcripts, and a pasted history or a
+    «Gus : » label became the next line. An exchange stored with its spoken ``lines`` is
+    sent as ``said``: one row per speaker, the words only. One without ``lines`` is one
+    voice and goes as it was.
+    """
+
+    out: list = []
+    for exchange in history:
+        lines = exchange.get("lines") if isinstance(exchange, dict) else None
+        if not lines:
+            out.append(exchange)
+            continue
+        said = [
+            {"by": str(line.get("speaker_name") or line.get("speaker_id") or ""), "text_fr": str(line.get("text_fr") or "")}
+            for line in lines
+            if isinstance(line, dict) and str(line.get("text_fr") or "").strip()
+        ]
+        out.append({**{k: v for k, v in exchange.items() if k not in ("character", "lines")}, "said": said})
+    return out
+
+
 def _turn_tail(payload: dict) -> dict:
     return {
-        "history": payload.get("history") or [],
+        "history": _history_by_speaker(payload.get("history") or []),
         "learner_text": payload["learner_text"],
         "turn_plan": payload.get("turn_plan") or {},
     }
@@ -588,6 +617,10 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     # speaker's own «Camille : …» loses it; «Lila : …» said by Camille is a character
     # answering for someone else, refused with the reason.
     voice.reply_fr = _settled_speaker(voice.reply_fr, payload)
+
+
+
+    _check_not_the_thread(voice.reply_fr, payload)
     if engine._same_utterance(voice.reply_fr, payload["learner_text"]):
         raise engine.StoryUnavailable(
             "reply_echoes_learner",
@@ -625,6 +658,10 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
         voice.reply_fr, learner_texts=learner_texts, speaker_texts=speaker_texts, register=expected
     )
     engine._check_register([voice.reply_fr], level)
+    # #212: the speaker never names themselves, and a cooling the reply itself gives
+    # way on is not printed under their name.
+    engine._check_speaker_not_named([voice.reply_fr], payload)
+    voice.feeling_shift = engine.reconciled_feeling_shift(voice.feeling_shift, [voice.reply_fr])
     said = engine._address_register([voice.reply_fr])
     if expected and said and said != expected:
         raise engine.StoryUnavailable(
@@ -721,6 +758,23 @@ def _check_introduced(reply: str, payload: dict) -> list[str]:
             ),
         )
     return bare
+
+
+def _check_not_the_thread(reply: str, payload: dict) -> None:
+    """#349 (root cause #145): a reply is the next line, not the scene so far. Refused
+    with the reason when it says again what the characters already said."""
+
+    _, speaker_texts = thread_voices(payload)
+    table = _scene_name_table(payload)
+    earlier = [line for text in speaker_texts for _, line in speaker_labels.labels_in(text, table)]
+    if lane_guards.echoed_thread(reply, earlier):
+        raise engine.StoryUnavailable(
+            "reply_repeats_thread",
+            hint=(
+                "The reply says again what was already said in this scene. Write only the "
+                "next thing this character says, new, and stop at the end of it."
+            ),
+        )
 
 
 def _neutral_intent(intent: str, payload: dict, address: str | None, own: frozenset[str]) -> str:

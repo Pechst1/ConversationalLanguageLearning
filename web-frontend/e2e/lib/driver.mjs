@@ -1,7 +1,17 @@
 // A screen-reading driver for the daily journey: it looks at what is on the phone-sized
 // page, decides what a learner would do next, does it, and records every distinct screen.
 
-export const SNAPSHOT_FN = () => {
+/**
+ * The one definition of «a field a learner can type into»: enabled and not read-only.
+ * A graded answer stays on a miss screen read-only (a «Tape la forme» gap after its
+ * verdict) above the repair field. #285: the walk asked «is there a field?» with this
+ * predicate (fieldEnabled) but clicked the first field matching a looser one (not
+ * disabled), so it clicked the graded gap, typed into nothing, and reported that focus
+ * had landed on «Tipp die fehlende Form ein.».
+ */
+export const TYPEABLE_FIELD = 'textarea:not([disabled]):not([readonly]), input[type=text]:not([disabled]):not([readonly])';
+
+export const SNAPSHOT_FN = (typeable) => {
   const vis = (el) => {
     const r = el.getBoundingClientRect();
     const s = getComputedStyle(el);
@@ -57,7 +67,23 @@ export const SNAPSHOT_FN = () => {
     epFeedback: q('.ep-feedback').map((n) => ({ verdict: n.getAttribute('data-verdict'), text: n.innerText.trim() })),
     frTexts: q('[lang=fr]').map((n) => n.innerText.trim()).filter(Boolean),
     threadCue: (q('.av2-thread__cue')[0] || {}).innerText || '',
-    fieldEnabled: q('textarea, input[type=text]').some((n) => !n.disabled && !n.readOnly),
+    fieldEnabled: q(typeable).length > 0,
+    // #282: the miss screen's geometry, for the layout checks (e2e/lib/miss-layout.mjs).
+    layout: (() => {
+      const box = (n) => {
+        const r = n.getBoundingClientRect();
+        return { left: Math.round(r.left), top: Math.round(r.top), right: Math.round(r.right), bottom: Math.round(r.bottom) };
+      };
+      return {
+        height: window.innerHeight,
+        exercise: q('.ep-exercise').map(box),
+        bubbles: q('.cameo-bubble').map(box),
+        sheet: q('.ep-foot').map(box),
+        compare: q('.ep-repair__submit').map(box),
+        gaps: q('.ep-parts__gap').map((n) => n.value),
+        hints: q('.ep-repair-hint').map((n) => n.innerText.trim()),
+      };
+    })(),
     theme: document.documentElement.getAttribute('data-theme'),
     scrollW: document.documentElement.scrollWidth,
     innerW: window.innerWidth,
@@ -69,7 +95,7 @@ export async function snapshot(page) {
   // it away, so the note never reads as part of the question under it.
   const note = page.locator('[data-first-step] .first-sticker__ok');
   if (await note.count()) await note.first().click().catch(() => {});
-  return page.evaluate(SNAPSHOT_FN);
+  return page.evaluate(SNAPSHOT_FN, TYPEABLE_FIELD);
 }
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

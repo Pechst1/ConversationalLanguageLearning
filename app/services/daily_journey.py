@@ -149,7 +149,7 @@ from app.services.journey_learning import recall_learner_text, record_daily_prac
 from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
 from app.services.recall_meanings import apply_meaning, native_meanings
 from app.services.revue.policy import revue_day_allowed_for
-from app.services.seals import edition_no_for, mastery_today_for
+from app.services.seals import EDITION_KEY, assign_edition_no, edition_no_for, mastery_today_for
 from app.services.spoken_reply import repeat_line_for
 from app.services.vocabulary_pace import JOURNEY_NEW_WORDS_KEY, journey_new_word_room
 
@@ -422,6 +422,8 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         **({"source_fr": task.source_fr} if task.source_fr else {}),
         # #240: only when not the default, so every stored task reads as before.
         **({"options_kind": task.options_kind} if task.options_kind != "variants" else {}),
+        **({"slip_fr": task.slip_fr} if task.slip_fr else {}),
+        **({"rule_native": task.rule_native} if task.rule_native else {}),
     }
 
 
@@ -444,6 +446,8 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         goal_native=payload.get("goal_native") or None,
         source_fr=payload.get("source_fr") or None,
         options_kind="sentences" if payload.get("options_kind") == "sentences" else "variants",
+        slip_fr=payload.get("slip_fr") or None,
+        rule_native=payload.get("rule_native") or None,
     )
 
 
@@ -918,6 +922,18 @@ def _coulisses_state(
         return status, None, title, None, None
     name = _cast_name(db, scene, pov) if pov and not isinstance(scene, (dict, str)) else None
     return status, scene_id, title, pov, name
+
+
+def _assigned_edition_no(db: Session, journey: DailyJourney, serial_episode_id: Any) -> int | None:
+    """#314: the day's issue number, or ``None`` (read back by the old rule) if it cannot be told."""
+
+    return run_best_effort(
+        db,
+        "daily_journey: issue number",
+        lambda: assign_edition_no(db, journey, serial_episode_id),
+        default=None,
+        log=logger,
+    )
 
 
 def _is_reprise(brief: Any) -> bool:
@@ -2621,8 +2637,16 @@ class DailyJourneyService:
         plan was stored). ``None`` for both on an authored day."""
 
         context = _journey_story_context(journey)
+        reread = {"reread_native": self._reread_note(journey)}
         if not context.get("scene_id"):
-            return {"previously_fr": None, "premise_native": None, "margin_notes": None, "season_part": None, "stage": None}
+            return {
+                "previously_fr": None,
+                "premise_native": None,
+                "margin_notes": None,
+                "season_part": None,
+                "stage": None,
+                **reread,
+            }
         from app.services.story_archive import scene_step_story_fields
 
         fields = run_best_effort(
@@ -2636,7 +2660,20 @@ class DailyJourneyService:
         # premise already (STORY-ORIENTATION): the scene does not say it twice.
         if _stored_season_intro(journey).get("premise_native"):
             fields = {**fields, "premise_native": None}
-        return fields
+        return {**fields, **reread}
+
+    def _reread_note(self, journey: DailyJourney) -> str | None:
+        """#314: «Today we read it again, then you answer», for a re-read day only."""
+
+        from app.services.season.reprise import is_reprise_journey, reprise_text
+        from app.services.story_archive import _journey_language
+
+        if not is_reprise_journey(journey):
+            return None
+        snapshot = journey.scenario_snapshot if isinstance(journey.scenario_snapshot, dict) else {}
+        return reprise_text(
+            "season_reprise_intro", _journey_language(journey), title=str(snapshot.get("title_fr") or "")
+        )
 
     def _epreuve_snapshot_fields(self, journey: DailyJourney) -> dict[str, Any]:
         from app.services.can_do import epreuve_snapshot_view, scene_script
@@ -5070,6 +5107,9 @@ class DailyJourneyService:
             # that earned it: the core the rhythm budgets, its in-day
             # extensions, and whether the story alone is a longer day.
             "time_budget": _plan_time_budget(plan),
+            # #314. The day's issue number, decided once here: Home, the reader, the
+            # recap and the Feuilleton archive all read this one number.
+            EDITION_KEY: _assigned_edition_no(self.db, journey, brief.serial_episode_id),
         }
         if fallback:
             # WP-69. The story engine could not write this day and an authored
@@ -5970,7 +6010,8 @@ class DailyJourneyService:
             available = {
                 HelpKind.HINT: (None, task.hint_native),
                 HelpKind.TRANSLATION: (None, task.translation_native),
-                HelpKind.SOLUTION: (task.solution_fr, None),
+                # #278: a repair's answer comes with the rule it was about.
+                HelpKind.SOLUTION: (task.solution_fr, task.rule_native),
             }
         else:
             response = _response_task_from_json(private["response_task"])

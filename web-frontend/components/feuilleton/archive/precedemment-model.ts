@@ -47,6 +47,16 @@ export function premiseView({ premise, dismissed }: { premise: unknown; dismisse
   return premise.trim() || null;
 }
 
+/**
+ * #314: a re-read day says so before panel 1 (`prompt.reread_native`: «Today we read
+ * it again, then you answer»), not only on the closing panel. `null` once read, or
+ * on any other day.
+ */
+export function rereadView({ reread, dismissed }: { reread: unknown; dismissed: boolean }): string | null {
+  if (dismissed || typeof reread !== 'string') return null;
+  return reread.trim() || null;
+}
+
 /** The per-scene memory key: a box read once stays read on a reload. */
 export function precedemmentKey(journeyId: string, stepId: string): string {
   return `atelier:precedemment:${journeyId}:${stepId}`;

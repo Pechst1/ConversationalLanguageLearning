@@ -58,6 +58,12 @@ from app.services.lexical_coverage import (
 )
 from app.services.llm_service import LLMService, provider_for_model
 from app.services.season.director import SeasonChecklist
+from app.services.sentence_line import (
+    drop_cut_tail,
+    is_planning_note,
+    question_line,
+    whole_sentences,
+)
 from app.services.word_match import target_occurs_in
 
 logger = logging.getLogger(__name__)
@@ -199,6 +205,8 @@ CHRONICLE_SEASON_HEAD_FACTS = 3
 # middle, never from the beginning and never from the last chapters.
 CHRONICLE_PROMPT_CHARS = 1200
 CHRONICLE_LINE_CHARS = 150
+#: One half of a chapter's «question → résolution» line: whole sentences within this (#268).
+DIGEST_PART_CHARS = 160
 CHRONICLE_HEAD_LINES = 3
 CHRONICLE_TAIL_LINES = 3
 # `consequences[]` — the durable ledger. A branch the learner made true, a character
@@ -667,7 +675,10 @@ a different character or a different location from that pair. The whole cast and
 location belong to this life, not only the café and one friend. A chapter is bounded:
 when chapter.resolved or chapter.exhausted is true, or chapter is null, open a NEW
 chapter with a new title and a genuinely new dramatic question — never a question listed
-in resolved_chapter_questions, and never a rewording of one. suggested_response_fr is what the
+in resolved_chapter_questions, and never a rewording of one. title_fr is this scene's own
+headline, about what happens in it: never a title already listed in
+recent_situations[].title_fr, and never the chapter's title again after its first scene.
+suggested_response_fr is what the
 learner could actually say (one sentence at A1 and A2, up to three short sentences from
 B1), never a list of alternatives with slashes or brackets.
 PLAIN SPEECH. Characters talk like people in that moment, about the concrete thing in
@@ -681,7 +692,9 @@ An invitation can be declined; do not railroad the learner. character_id
 is the cast member who addresses the learner and must be an id from world.cast; every
 dialogue character_id likewise; the learner is never a character_id. world.cast[].pronoun_fr
 is the pronoun the story uses for that person (il or elle); when it is null, use their
-name, never a pronoun. The person the
+name, never a pronoun. world.cast[].role_fr, when present, is the job or place the
+learner has been told for that person: never give them another occupation, in a line or
+a caption. The person the
 objective asks the learner to talk to IS character_id: never "Ask Romy…" while Marin is
 the one who speaks to the learner and answers — if the learner must talk to Romy, Romy is
 character_id and says opening_line_fr. location_id must
@@ -986,7 +999,8 @@ what the learner asserts from hypotheticals, quoted language and things they rej
 Never turn 'I do not want coffee' into ordering coffee. Stay in the character's register
 and knowledge. reply_fr is the character speaking back in their own voice, answering
 the learner's actual meaning; it is never a restatement or copy of the learner's
-sentence. A relevant new proposal may
+sentence, and the character never names themselves in it: the learner's words about
+the character («ma amie Lila», said to Lila) come back as moi, me or toi. A relevant new proposal may
 become a source-grounded in-story commitment for a later scene. It is not real biography.
 State understood_intent and exact verbatim evidence_quotes from learner turns. When the
 learner explicitly promises an action (coming, bringing, organising, calling, paying) with
@@ -2055,7 +2069,9 @@ def manages_story(db: Session, user: User) -> bool:
 # table, so no thread shows «Your apartment» inside a French sentence.
 LOCATION_NAMES_FR: dict[str, str] = {
     "le_mistral": "Le Mistral",
-    "user_apartment": "Votre appartement",
+    # The app says tu to the learner (#144), the place included: this is a caption the
+    # app writes, not a line a character says.
+    "user_apartment": "Ton appartement",
     "marin_lila_flat": "L’appartement de Marin et Lila",
     "newsroom": "La rédaction de Romy",
     "ngo_office": "Le bureau de l’ONG de Marin",
@@ -2072,9 +2088,10 @@ def location_display_name(location: dict | None) -> str:
     """The French name a learner reads for a world-bible place."""
     if not isinstance(location, dict):
         return ""
+    # The app's own table first: a stored bible copy that predates it still says «Votre».
     return (
-        str(location.get("name_fr") or "").strip()
-        or LOCATION_NAMES_FR.get(str(location.get("id") or ""), "")
+        LOCATION_NAMES_FR.get(str(location.get("id") or ""), "")
+        or str(location.get("name_fr") or "").strip()
         or str(location.get("name") or "").strip()
         or str(location.get("id") or "").strip()
     )
@@ -2153,14 +2170,19 @@ def speech_at_level(text: str, level: str) -> str:
 
 
 def _cast_with_pronouns(cast: list[dict], *, flags: dict) -> list[dict]:
-    """Each cast row with ``pronoun_fr`` («il», «elle», or ``None``: use the name)."""
+    """Each cast row with ``pronoun_fr`` («il», «elle», or ``None``: use the name) and
+    ``role_fr``, the one role the learner reads for that person on every surface
+    (#265; absent when nobody has written one)."""
 
-    from app.services.cast_registry import pronoun_for
+    from app.services.cast_registry import pronoun_for, role
 
-    return [
-        {**member, "pronoun_fr": pronoun_for(member.get("id"), gender=member.get("gender"), flags=flags)}
-        for member in cast
-    ]
+    rows = []
+    for member in cast:
+        row = {**member, "pronoun_fr": pronoun_for(member.get("id"), gender=member.get("gender"), flags=flags)}
+        if role(member.get("id")):
+            row["role_fr"] = role(member.get("id"))
+        rows.append(row)
+    return rows
 
 
 def _cast_for_level(cast: list[dict], level: str) -> list[dict]:
@@ -2823,6 +2845,10 @@ def _one_line(text: Any, limit: int = CHRONICLE_LINE_CHARS) -> str:
     return value if len(value) <= limit else value[: limit - 1].rstrip() + "…"
 
 
+def _question_key(text: Any) -> str:
+    return " ".join(re.findall(r"\w+", str(text or "").casefold()))
+
+
 def chapter_digest(
     chapter: dict,
     draft: SceneDraft,
@@ -2853,8 +2879,9 @@ def chapter_digest(
         "season": int(season),
         "day": int(day),
         "title_fr": _one_line(chapter.get("title_fr"), 80),
-        "question": _one_line(chapter.get("dramatic_question"), 120),
-        "resolved_fr": _one_line(turn.callback_fr or turn.resolution_fr, 120),
+        # #268: cut on a sentence, never on a character («… Alors,… →»).
+        "question": question_line(chapter.get("dramatic_question"), DIGEST_PART_CHARS),
+        "resolved_fr": whole_sentences(turn.callback_fr or turn.resolution_fr, DIGEST_PART_CHARS),
         "development": _one_line(chapter.get("last_development") or "", 100),
         "characters": characters,
         "location_id": draft.location_id,
@@ -2954,11 +2981,19 @@ def chronicle_after_chapter(
         return rows
     if any(row.get("event_id") == event_id for row in rows):
         return rows
-    rows.append(
-        chapter_digest(
-            chapter, draft, turn, event_id=event_id, day=day, season=season, scene_id=scene_id, date=date
-        )
+    row = chapter_digest(
+        chapter, draft, turn, event_id=event_id, day=day, season=season, scene_id=scene_id, date=date
     )
+    # #268: every season tentpole carries the season's one question, so a second closed
+    # chapter would file the first one's blurb. It is filed under its own scene's opening.
+    asked = {_question_key(earlier.get("question")) for earlier in rows if earlier.get("question")}
+    if _question_key(row.get("question")) in asked:
+        row["question"] = (
+            whole_sentences(draft.premise_fr, DIGEST_PART_CHARS)
+            or _one_line(draft.chapter.title_fr, 80)
+            or row["question"]
+        )
+    rows.append(row)
     return fold_chronicle(rows)
 
 
@@ -3720,8 +3755,9 @@ def chapter_digest_line(row: dict | None) -> str | None:
 
     if not row:
         return None
-    question = _one_line(row.get("question"), 110)
-    resolved = _one_line(row.get("resolved_fr") or row.get("development"), 110)
+    # A row an older version cut mid-sentence is read back without its fragment.
+    question = drop_cut_tail(question_line(row.get("question"), DIGEST_PART_CHARS))
+    resolved = drop_cut_tail(whole_sentences(row.get("resolved_fr") or row.get("development"), DIGEST_PART_CHARS))
     if question and resolved:
         return f"{question} → {resolved}"
     return question or resolved or None
@@ -5611,6 +5647,95 @@ def _check_address(texts: list[str], address: str | None, *, own: frozenset[str]
         )
 
 
+# Live walk 2026-10-18 (#212). The model is handed the learner's words as text, not as
+# roles: «ma amie Lila», said TO Lila, came back in Lila's own mouth as «pour voir Lila».
+# Who is speaking is a fact of the scene record (``scene.character_id``), so it is checked
+# there, on every line the character says, instead of trusting the prompt to re-point the
+# name. The one place a speaker may say their own name is to introduce themselves.
+_SELF_INTRODUCTION = re.compile(
+    r"(?:je\s+suis|c['’]est|m['’]appelle|appelle[-\s]moi|on\s+m['’]appelle|moi\s*,?)\s*(?:\w+\s+)?$",
+    re.IGNORECASE,
+)
+
+
+def speaker_names(payload: dict) -> list[str]:
+    """The names the addressed character answers to in ``payload`` (first name, nickname),
+    empty when the payload does not say who speaks."""
+
+    character_id = str((payload.get("scene") or {}).get("character_id") or "")
+    cast = ((payload.get("story") or {}).get("world") or {}).get("cast") or []
+    member = next((m for m in cast if isinstance(m, dict) and str(m.get("id")) == character_id), None)
+    if not member or not str(member.get("name") or "").strip():
+        return []
+    names = [short_name(member), str(member["name"]).split()[0]]
+    return [name for name in dict.fromkeys(names) if len(name) >= 3]
+
+
+def self_named(text: str, names: list[str]) -> str | None:
+    """The name from ``names`` that ``text`` says outside a self-introduction, or None."""
+
+    for name in names:
+        for match in re.finditer(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text or "", re.IGNORECASE):
+            if _SELF_INTRODUCTION.search(text[max(0, match.start() - 24) : match.start()]):
+                continue
+            return name
+    return None
+
+
+def _check_speaker_not_named(texts: list[str], payload: dict) -> None:
+    names = speaker_names(payload)
+    for text in texts:
+        name = self_named(text, names) if names else None
+        if name:
+            raise StoryUnavailable(
+                "speaker_names_self",
+                hint=(
+                    f"You are {name}: «{_one_line(text, 120)}» has {name} say their own name, "
+                    f"as if they were someone else. When the learner's words are about you "
+                    f"(«ma amie {name}», said to {name}), say it with moi, me or toi: «tu restes "
+                    "pour me voir», «pour moi». A speaker names themselves only to introduce "
+                    "themselves («Moi, c'est …»)."
+                ),
+            )
+
+
+# Mood follows the last exchange (#212). ``feeling_shift`` is the model's word for how
+# the learner's words landed; «Lila Bonnet is a little cross» was printed under a Lila
+# who had just said «D'accord, je ne te force pas». A cooling is dropped when the
+# character's own closing lines give way and carry nothing cold; it is never raised.
+_YIELDING_MARKERS = (
+    "d accord", "pas de souci", "pas de probleme", "pas grave", "ne te force pas",
+    "ne vous force pas", "tant mieux",
+)
+_COLD_MARKERS = (
+    "tant pis", "dommage", "decu", "decue", "vexe", "vexee", "fache", "fachee", "franchement",
+    "aurais pu", "pas content", "pas contente", "laisse tomber", "peu importe",
+    "comme tu voudras", "si tu le dis", "triste", "deteste",
+)
+
+
+def _plain(text: str) -> str:
+    import unicodedata
+
+    stripped = "".join(
+        ch for ch in unicodedata.normalize("NFKD", text or "") if not unicodedata.combining(ch)
+    )
+    return f" {_folded(stripped)} "
+
+
+def reconciled_feeling_shift(shift: str, lines: list[str]) -> str:
+    """``shift``, with a «colder» that the character's own lines contradict made «steady»."""
+
+    if shift != "colder":
+        return shift
+    said = _plain(" ".join(line for line in lines if line))
+    if any(f" {marker} " in said for marker in _COLD_MARKERS):
+        return shift
+    if any(f" {marker} " in said for marker in _YIELDING_MARKERS):
+        return "steady"
+    return shift
+
+
 # WP-103 T5 (the owner's test, 2026-09-29): Marin answered an A1 learner in 43 words.
 # An engine reply is the next thing the learner reads: at A1 one or two short sentences
 # of at most 15 words, at A2 at most 25; B1 and up keep their caps. A reply above the
@@ -6542,6 +6667,57 @@ def readdress(text: str | None, word: str, other: dict, addressed: dict, *, pron
     return head + _swap_pronouns(tail, to_masculine=genders[1] == "m")
 
 
+_ROMAN = ("II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X")
+_ROMAN_SUFFIX = re.compile(r"\s*[,·-]\s*(?:II|III|IV|V|VI|VII|VIII|IX|X)\s*$")
+
+
+def _taken_scene_titles(context: dict) -> set[str]:
+    """The headlines the earlier scenes of this life wear (folded), from ``recent_situations``."""
+
+    return {
+        folded
+        for item in context.get("recent_situations") or []
+        if (folded := _folded(str(item.get("title_fr") or "")))
+    }
+
+
+def unique_scene_title(title: str, taken: set[str]) -> str:
+    """``title``, or — when an earlier scene already wears it — the feuilleton's own way of
+    telling two episodes of one story apart: «Une habitude au zinc, II»."""
+
+    if _folded(title) not in taken:
+        return title
+    base = _ROMAN_SUFFIX.sub("", title).strip()
+    for numeral in _ROMAN:
+        candidate = f"{base[: 100 - len(numeral) - 2].rstrip()}, {numeral}"
+        if _folded(candidate) not in taken:
+            return candidate
+    return title
+
+
+def _check_scene_title(draft: SceneDraft, context: dict) -> None:
+    """#194. Nº 5 and Nº 6 of the live walk were both «Une habitude au zinc»: the model
+    copied the chapter's title onto every scene of the chapter, and nothing compared a
+    scene's headline with the scenes already published. Soft: one retry names the taken
+    title; if it repeats, the numbered one is served — a title never costs a day."""
+
+    taken = _taken_scene_titles(context)
+    if _folded(draft.title_fr) not in taken:
+        return
+    repaired = draft.model_copy(deep=True)
+    repaired.title_fr = unique_scene_title(draft.title_fr, taken)
+    raise SoftRejection(
+        "repeated_scene_title",
+        hint=(
+            f"title_fr «{draft.title_fr}» is already the title of an earlier scene "
+            "(recent_situations[].title_fr). title_fr is this scene's own headline, about "
+            "what happens in it: it is never the chapter's title again after the chapter's "
+            "first scene, and never a title already used."
+        ),
+        proposal=repaired,
+    )
+
+
 def _check_addressee(draft: SceneDraft, context: dict) -> None:
     """WP-103 T4. The objective's addressee is the addressed character.
 
@@ -6871,7 +7047,10 @@ def _validate_scene(draft: SceneDraft, context: dict):
     draft.chapter.title_fr = clean(draft.chapter.title_fr)
     draft.chapter.dramatic_question = clean(draft.chapter.dramatic_question)
     for panel in draft.panels:
-        panel.narration_fr = clean(panel.narration_fr)
+        # #263: a caption is a line of the scene. The model's scratch note about it («(!)»,
+        # «40 × 1 000 €», «M. M. :») is dropped, never printed under the picture; a panel
+        # left with no caption is a legal panel (the reader draws the picture alone).
+        panel.narration_fr = "" if is_planning_note(panel.narration_fr) else clean(panel.narration_fr)
         for line in panel.dialogue:
             line.text_fr = clean(line.text_fr)
     learner_text = [
@@ -7259,6 +7438,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _validate_lexicon(draft, context)
     # Last, on the draft every hard guard has accepted: a soft rejection carries a
     # scene that is servable as it stands.
+    _check_scene_title(draft, context)
     _check_addressee(draft, context)
     _check_reading_aids(draft, context)
     _check_story_words(draft, context)
@@ -7492,6 +7672,9 @@ def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBr
     character = next(c for c in context["world"]["cast"] if c["id"] == draft.character_id)
     location = next(c for c in context["world"]["locations"] if c["id"] == draft.location_id)
     situation_id = f"story_{uuid4().hex}"
+    # #194: the scene record is made here, once. Whatever path got the draft this far (a
+    # soft rejection accepted after its retry included), no two scenes leave it with one title.
+    draft.title_fr = unique_scene_title(draft.title_fr, _taken_scene_titles(context))
     return ScenarioBrief(
         scenario_key=situation_id,
         content_version=VERSION,
@@ -9035,6 +9218,8 @@ def bind_journey(
         *live.get("recent_situations", []),
         {
             "id": str(brief.scenario_key),
+            # #194: the scene's own headline, so no later scene can be served under it.
+            "title_fr": draft.title_fr,
             "novelty_key": draft.novelty_key,
             "premise_fr": draft.premise_fr,
             "objective_native": draft.objective_native,
@@ -9324,7 +9509,7 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
     context["world"]["cast"] = [
         member
         if member["id"] == scenario.character_id
-        else {key: member.get(key) for key in ("id", "name", "role", "pronoun_fr")}
+        else {key: member.get(key) for key in ("id", "name", "role", "role_fr", "pronoun_fr")}
         for member in context["world"]["cast"]
     ]
     context["relationships"] = {
@@ -9587,6 +9772,12 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
             language=story.get("control_language"),
         )
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
+    # #212: the speaker never names themselves in their own lines, and the mood label
+    # is the one their last lines left.
+    _check_speaker_not_named(
+        [turn.reply_fr, turn.resolution_fr] if reply_checks else [turn.resolution_fr], payload
+    )
+    turn.feeling_shift = reconciled_feeling_shift(turn.feeling_shift, [turn.reply_fr, turn.resolution_fr])
     if turn.outcome == "met" and (turn.needs_clarification or not turn.evidence_quotes):
         raise StoryUnavailable(
             "unsupported_success",

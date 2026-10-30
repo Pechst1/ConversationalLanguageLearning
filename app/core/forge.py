@@ -486,6 +486,56 @@ class ForgeState:
         rung = pick.entry_rung() if pick.served == 0 else pick.rung
         return Slot(position, pick.concept_id, rung, pick.role)
 
+    # -- settling a provisional answer ----------------------------------------
+
+    def settle(self, entry: dict[str, Any], verdict: Verdict) -> int:
+        """The real verdict of an answer ``record`` moved provisionally (#281).
+
+        The level has one writer. An unchecked answer with a local «uses the rule»
+        reading stepped the rule up at once (``entry["rung_move"]``); when the
+        model's reading lands, or is known never to (``verdict`` stays unchecked),
+        that step is replaced by the one the real verdict makes: a miss goes down,
+        an unread answer stays where it was. Returns the rule's new rung.
+        """
+
+        track = self.track(int(entry["concept_id"]))
+        if track is None:
+            return clamp_rung(entry.get("rung"))
+        rung = clamp_rung(entry.get("rung"))
+        moved = int(entry.get("rung_move") or 0)
+        position = int(entry.get("position", -1))
+        later_checked = any(
+            other is not entry
+            and int(other.get("concept_id", -1)) == track.concept_id
+            and int(other.get("position", -1)) > position
+            and other.get("checked")
+            for other in self.history
+        )
+        if self.mode == MODE_SEANCE and later_checked:
+            # A later answer on this rule was read and moved the level from where
+            # this one left it: that verified step owns the level now, and taking
+            # this one's delta off a capped or topped rung would undo it.
+            entry["rung_move"] = 0
+        elif self.mode == MODE_SEANCE:
+            final = step_rung(rung, Verdict(verdict.outcome, checked=verdict.checked)) - rung if verdict.checked else 0
+            track.rung = clamp_rung(track.rung - moved + final)
+            if moved > 0 and final <= 0 and rung == TOP_RUNG and not any(
+                other is not entry
+                and int(other.get("concept_id", -1)) == track.concept_id
+                and other.get("checked")
+                and other.get("outcome") == OUTCOME_CORRECT
+                and clamp_rung(other.get("rung")) == TOP_RUNG
+                for other in self.history
+            ):
+                track.topped = False
+            if verdict.checked and not (verdict.correct or verdict.partial) and not self.finished:
+                gap = reprise_gap(track.concept_id, int(entry.get("position", self.position)))
+                track.reprise_at = min(self.position + gap, self.length - 1)
+                if track.reprise_at <= self.position:
+                    track.reprise_at = None
+            entry["rung_move"] = final
+        return track.rung
+
     # -- recording one answer ------------------------------------------------
 
     def record(
@@ -507,6 +557,7 @@ class ForgeState:
             self.tracks.append(track)
         position = self.position
         rung = clamp_rung(rung)
+        rung_before = track.rung
         evidence = evidence_for(rung, verdict)
         decision = EvidenceDecision(
             concept_id=track.concept_id,
@@ -559,6 +610,9 @@ class ForgeState:
                 "outcome": verdict.outcome,
                 "checked": verdict.checked,
                 "fingerprint": fingerprint,
+                # How far this answer moved the rule's level: :meth:`settle` takes
+                # a provisional move back when the real verdict disagrees.
+                "rung_move": track.rung - rung_before,
                 **decision.ledger(),
             }
         )

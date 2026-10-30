@@ -10,6 +10,7 @@
 // Relative, not `@/`: the reader's node tests load this model without the alias.
 import { castIdFor, type StageMood } from '../../../lib/cast-faces';
 import type { PortraitMood } from '../../../lib/onboarding-portraits';
+import { isPlanningNote } from './planning-note';
 
 export type ReaderScene = {
   id: string;
@@ -266,10 +267,32 @@ export function panelLines(panel: ReaderPanelSource): ReaderLine[] {
     });
 }
 
+/**
+ * #269: a panel whose reply is the balloon on the picture still reads in the order it
+ * was said. The lines that came before the learner's reply (the question it answers)
+ * are read above the picture, the balloon on it, what came after below it — never the
+ * answer first and the question under it.
+ */
+export function replyReadingOrder(lines: ReaderLine[]): {
+  before: ReaderLine[];
+  bubble: ReaderLine | null;
+  after: ReaderLine[];
+} {
+  const index = lines.findIndex((line) => line.you);
+  const at = index >= 0 ? index : 0;
+  if (!lines.length) return { before: [], bubble: null, after: [] };
+  return { before: lines.slice(0, at), bubble: lines[at], after: lines.slice(at + 1) };
+}
+
 /* The caption prints only when it adds something the dialogue does not. */
 export function panelCaption(panel: ReaderPanelSource, lines: ReaderLine[]): string {
   const caption = String(panel?.overlay_payload?.caption?.fr || '').trim();
-  if (!caption) return lines.length ? '' : String(panel?.beat || '').trim();
+  // #263: a note about the scene is not a caption of it, whichever field carried it.
+  if (isPlanningNote(caption)) return '';
+  if (!caption) {
+    const beat = String(panel?.beat || '').trim();
+    return lines.length || isPlanningNote(beat) ? '' : beat;
+  }
   const spoken = lines.map((line) => normalizeReaderText(line.fr));
   return spoken.includes(normalizeReaderText(caption)) ? '' : caption;
 }

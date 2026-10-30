@@ -68,11 +68,6 @@
     {
       "character_id": "romy_tremblay",
       "name": "Romy",
-      "role_native": {
-        "en": "A journalist from Québec, new in Paris too.",
-        "de": "Journalistin aus Québec, auch neu in Paris.",
-        "fr": "Journaliste québécoise, elle aussi nouvelle à Paris."
-      },
       "line_fr": "Salut ! Moi, c'est Romy.",
       "line_native": {
         "en": "Hi! I'm Romy.",
@@ -83,10 +78,10 @@
     {
       "character_id": "marin_leveque",
       "name": "Marin",
-      "role_native": {
-        "en": "Your first friend in Paris. Kind, always there.",
-        "de": "Dein erster Freund in Paris. Herzlich, immer da.",
-        "fr": "Ton premier ami à Paris. Gentil, toujours là."
+      "trait_native": {
+        "en": "Kind, always there.",
+        "de": "Herzlich, immer da.",
+        "fr": "Gentil, toujours là."
       },
       "line_fr": "Bienvenue au Mistral ! Tu es d'où ?",
       "line_native": {
@@ -98,10 +93,10 @@
     {
       "character_id": "lila_bonnet",
       "name": "Lila",
-      "role_native": {
-        "en": "A teacher and painter. She has plans for you.",
-        "de": "Lehrerin und Malerin. Sie hat Pläne mit dir.",
-        "fr": "Institutrice et peintre. Elle a des projets pour toi."
+      "trait_native": {
+        "en": "She has plans for you.",
+        "de": "Sie hat Pläne mit dir.",
+        "fr": "Elle a des projets pour toi."
       },
       "line_fr": "Moi, c'est Lila. Et toi ?",
       "line_native": {
