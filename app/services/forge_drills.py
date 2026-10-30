@@ -424,6 +424,13 @@ def mine_fits(learner: Any, corrected: Any) -> bool:
 
     if not is_real_correction(learner, corrected):
         return False
+    from app.services.forge_grading import foreign_words
+
+    # #348: the corrected line is the key the learner is graded against. A stored
+    # correction fixes the span the error named; a German word elsewhere in the
+    # line («Im war au Mistral» → «Im est au Mistral») survives into the key.
+    if foreign_words(corrected) or foreign_words(learner):
+        return False
     left, right = _words(learner), _words(corrected)
     if not (MINE_MIN_WORDS <= len(left) <= MINE_MAX_WORDS and MINE_MIN_WORDS <= len(right) <= MINE_MAX_WORDS + 2):
         return False
