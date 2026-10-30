@@ -51,6 +51,19 @@
       "in": "quai_de_valmy"
     },
     {
+      "id": "user_apartment",
+      "name": { "fr": "Ton studio", "en": "Your studio", "de": "Dein Studio" },
+      "lat": 48.87291,
+      "lon": 2.36375,
+      "status": "locked",
+      "kind": "season",
+      "why": { "fr": "Au sixième sans ascenseur : le studio loué pour la semaine, et son radiateur froid.", "en": "Six floors up with no lift: the studio rented for the week, and its cold radiator.", "de": "Im sechsten Stock ohne Aufzug: das für die Woche gemietete Studio und seine kalte Heizung." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "user_apartment",
+      "in": "quai_de_valmy"
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,

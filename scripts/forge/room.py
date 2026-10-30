@@ -23,8 +23,8 @@ import math
 FLOOR_FINISHES = {"cabochons", "boards", "tomettes", "cobbles", "stone"}
 WALL_FINISHES = {"wainscot", "plaster", "stone"}
 ZONES = {"room", "sealed", "out"}
-TONES = {"ochre", "cream", "faux", "wainscot", "stone", "porch", "oxblood", "brown", "wood", "grey", "celadon", "white", "render", "coat", "oilcloth"}
-THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway"}
+TONES = {"ochre", "cream", "faux", "wainscot", "stone", "porch", "oxblood", "brown", "wood", "grey", "celadon", "white", "render", "coat", "oilcloth", "blanket", "navy"}
+THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette"}
 LIGHTS = {"globe", "sconce", "hublot"}
 DIRS = {"x+": (1, 0), "x-": (-1, 0), "z+": (0, 1), "z-": (0, -1)}
 
@@ -273,6 +273,7 @@ def draft(brief: dict, place: dict | None = None):
         "ambiance": brief.get("ambiance", "nuit"),
         "title": brief["title"],
         "can_do": brief["can_do"],
+        **({"arrive": brief["arrive"]} if brief.get("arrive") else {}),
         "start": brief["start"],
         "floors": floors,
         "flights": brief.get("flights", []),
@@ -501,6 +502,13 @@ def check(room: dict) -> list[str]:
             p.append(f"thing {t['kind']} is not one the kit draws")
         if t.get("tone") and t["tone"] not in TONES:
             p.append(f"thing {t['kind']}: tone {t['tone']}")
+        for k in ("look", "did"):
+            if k in t and not all((t[k] or {}).get(lang) for lang in ("fr", "en", "de")):
+                p.append(f"thing {t['kind']}: its {k} in three languages")
+        if t.get("did") and not t.get("look"):
+            p.append(f"thing {t['kind']}: the end card remembers a look the room never gives")
+    if room.get("arrive") and not all(room["arrive"].get(lang) for lang in ("fr", "en", "de")):
+        p.append("arrive in three languages")
     # the marks: on the ground at its height, in a doorway, or a sight in a room not entered yet
     for k, (x, y, z) in room["marks"].items():
         wy = walk_y(room, x, z)

@@ -3,4 +3,5 @@ import type { RoomSpec } from '../../room';
 
 export const ROOM_FILES: Record<string, () => Promise<RoomSpec>> = {
   escalier_mistral: () => import('./escalier_mistral.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
+  user_apartment: () => import('./user_apartment.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
 };
