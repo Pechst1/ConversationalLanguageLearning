@@ -8,6 +8,7 @@ import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
+import { clockTime } from '@/lib/clock-time';
 import { castDisplayName } from '@/components/atelier-v2/journey/journey-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
@@ -407,12 +408,9 @@ function currentComposerInstruction(
 
 // Slip time rule ("08 h 12"), printed only when the turn carries a timestamp —
 // never invented (honest-data contract).
+// The server stamps UTC; the slip shows the device's clock (#316).
 function slipTime(turn: Record<string, any> | null): string | undefined {
-  const raw = turn?.created_at || turn?.timestamp || null;
-  if (!raw) return undefined;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return `${String(date.getHours()).padStart(2, '0')} h ${String(date.getMinutes()).padStart(2, '0')}`;
+  return clockTime(turn?.created_at || turn?.timestamp || null);
 }
 
 // «12 septembre» / «12 September» / «12. September», in the chrome locale.
