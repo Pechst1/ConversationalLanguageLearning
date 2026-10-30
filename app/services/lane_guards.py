@@ -842,3 +842,43 @@ def unintroduced_people(text: str, established: frozenset[str]) -> tuple[list[st
             continue
         bare.append(word)
     return list(dict.fromkeys(titled)), list(dict.fromkeys(bare))
+
+
+# ---------------------------------------------------------------------------
+# #349 — a reply that pastes the thread back
+# ---------------------------------------------------------------------------
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+|\n+")
+
+
+def _sentences_of(texts: list[str]) -> list[str]:
+    """Folded sentences of ``texts`` (duplicates dropped, order kept)."""
+
+    found: list[str] = []
+    for text in texts:
+        for part in _SENTENCE_SPLIT.split(str(text or "")):
+            folded = engine._folded(part)
+            if folded and folded not in found:
+                found.append(folded)
+    return found
+
+
+def echoed_thread(reply: str, earlier: list[str]) -> list[str]:
+    """The earlier lines of the scene that ``reply`` says again, or ``[]``.
+
+    #349 (root cause #145): handed its past as text, the model pasted it into the new
+    line. An echo is one earlier sentence of five words or more repeated whole, or two
+    different earlier sentences of three words or more. A short habit («Merci.»,
+    «Et Gus ?») and a shared word are no echo. ``earlier`` is what the characters
+    said (never the learner's words: ``check_echo`` owns those), labels already removed.
+    """
+
+    said = f" {engine._folded(reply)} "
+    repeated = [
+        sentence
+        for sentence in _sentences_of(earlier)
+        if len(sentence.split()) >= 3 and f" {sentence} " in said
+    ]
+    if any(len(sentence.split()) >= 5 for sentence in repeated) or len(repeated) >= 2:
+        return repeated
+    return []

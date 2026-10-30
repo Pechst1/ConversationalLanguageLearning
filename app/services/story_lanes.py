@@ -366,9 +366,34 @@ def _reply_register(payload: dict) -> str | None:
     return season if season in ("tu", "vous") else None
 
 
+def _history_by_speaker(history: list) -> list:
+    """The thread as a model reads it, with nobody's name inside a string.
+
+    #349 (root cause #145): an exchange the scene kept as a transcript («…Et Gus ?» then «Gus :
+    La fête ?») taught the voice to write transcripts, and a pasted history or a
+    «Gus : » label became the next line. An exchange stored with its spoken ``lines`` is
+    sent as ``said``: one row per speaker, the words only. One without ``lines`` is one
+    voice and goes as it was.
+    """
+
+    out: list = []
+    for exchange in history:
+        lines = exchange.get("lines") if isinstance(exchange, dict) else None
+        if not lines:
+            out.append(exchange)
+            continue
+        said = [
+            {"by": str(line.get("speaker_name") or line.get("speaker_id") or ""), "text_fr": str(line.get("text_fr") or "")}
+            for line in lines
+            if isinstance(line, dict) and str(line.get("text_fr") or "").strip()
+        ]
+        out.append({**{k: v for k, v in exchange.items() if k not in ("character", "lines")}, "said": said})
+    return out
+
+
 def _turn_tail(payload: dict) -> dict:
     return {
-        "history": payload.get("history") or [],
+        "history": _history_by_speaker(payload.get("history") or []),
         "learner_text": payload["learner_text"],
         "turn_plan": payload.get("turn_plan") or {},
     }
@@ -588,6 +613,10 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     # speaker's own «Camille : …» loses it; «Lila : …» said by Camille is a character
     # answering for someone else, refused with the reason.
     voice.reply_fr = _settled_speaker(voice.reply_fr, payload)
+
+
+
+    _check_not_the_thread(voice.reply_fr, payload)
     if engine._same_utterance(voice.reply_fr, payload["learner_text"]):
         raise engine.StoryUnavailable(
             "reply_echoes_learner",
@@ -721,6 +750,23 @@ def _check_introduced(reply: str, payload: dict) -> list[str]:
             ),
         )
     return bare
+
+
+def _check_not_the_thread(reply: str, payload: dict) -> None:
+    """#349 (root cause #145): a reply is the next line, not the scene so far. Refused
+    with the reason when it says again what the characters already said."""
+
+    _, speaker_texts = thread_voices(payload)
+    table = _scene_name_table(payload)
+    earlier = [line for text in speaker_texts for _, line in speaker_labels.labels_in(text, table)]
+    if lane_guards.echoed_thread(reply, earlier):
+        raise engine.StoryUnavailable(
+            "reply_repeats_thread",
+            hint=(
+                "The reply says again what was already said in this scene. Write only the "
+                "next thing this character says, new, and stop at the end of it."
+            ),
+        )
 
 
 def _neutral_intent(intent: str, payload: dict, address: str | None, own: frozenset[str]) -> str:
