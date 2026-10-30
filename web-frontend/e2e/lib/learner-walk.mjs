@@ -22,6 +22,29 @@ const STEP_RE = /(Step \d+ of \d+|Schritt \d+ von \d+|Étape \d+ sur \d+)/;
 const REPLIES = ['Oui, je peux vous aider samedi.', 'Merci, à samedi !', 'Avec plaisir, à bientôt.', 'D’accord, je viens.'];
 const FREE = 'Je voudrais un café, s’il vous plaît.';
 
+/** #319: a reading is settled when it repeats SETTLE_STEADY times, SETTLE_STEP_MS apart. */
+const SETTLE_KEYS = ['cardTop', 'cardBottom', 'sheetTop', 'headerBottom'];
+const SETTLE_STEADY = 4;
+const SETTLE_STEP_MS = 100;
+const SETTLE_MAX_MS = 6000;
+
+/** Where the correction card is, in viewport pixels (runs in the page). null: no wrong verdict on screen. */
+function measureForgeMiss() {
+  const feedback = document.querySelector('.ep-feedback[data-verdict="wrong"]');
+  const foot = feedback && (feedback.querySelector('.ep-foot') || document.querySelector('.ep-foot'));
+  const card = feedback && [...feedback.children].find((el) => !el.classList.contains('ep-foot'));
+  if (!foot || !card) return null;
+  const top = document.querySelector('.ep-top');
+  const c = card.getBoundingClientRect();
+  return {
+    cardTop: Math.round(c.top),
+    cardBottom: Math.round(c.bottom),
+    sheetTop: Math.round(Math.min(foot.getBoundingClientRect().top, window.innerHeight)),
+    headerBottom: Math.round(top ? Math.max(0, top.getBoundingClientRect().bottom) : 0),
+    text: (card.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+  };
+}
+
 export class LearnerWalk {
   constructor({ page, findings, outDir, lang, level, stack, shots, scale }) {
     Object.assign(this, { page, findings, outDir, lang, level, stack, shots, scale });
@@ -216,25 +239,14 @@ export class LearnerWalk {
   /**
    * #239: after a La Forge miss the correction card (the right sentence and why) is
    * fully visible between the sticky header and the sticky verdict sheet, without
-   * the learner scrolling. Measured once the page has had time to scroll it there.
+   * the learner scrolling. Measured once the page has scrolled it there.
+   *
+   * #319: the page scrolls smoothly, and how long that takes depends on the distance
+   * and on how busy the machine is, so a fixed wait measured a card still on its way
+   * (fr, 23 Oct). The card is measured until it has stopped moving, not after a guess.
    */
   async forgeMissInView(kind) {
-    await sleep(900);
-    const box = await this.page.evaluate(() => {
-      const feedback = document.querySelector('.ep-feedback[data-verdict="wrong"]');
-      const foot = feedback && (feedback.querySelector('.ep-foot') || document.querySelector('.ep-foot'));
-      const card = feedback && [...feedback.children].find((el) => !el.classList.contains('ep-foot'));
-      if (!foot || !card) return null;
-      const top = document.querySelector('.ep-top');
-      const c = card.getBoundingClientRect();
-      return {
-        cardTop: Math.round(c.top),
-        cardBottom: Math.round(c.bottom),
-        sheetTop: Math.round(Math.min(foot.getBoundingClientRect().top, window.innerHeight)),
-        headerBottom: Math.round(top ? Math.max(0, top.getBoundingClientRect().bottom) : 0),
-        text: (card.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 120),
-      };
-    }).catch(() => null);
+    const box = await this.settledBox(measureForgeMiss);
     if (!box) return;
     const fits = box.cardBottom - box.cardTop <= box.sheetTop - box.headerBottom;
     const inView = fits
@@ -246,6 +258,26 @@ export class LearnerWalk {
       `the correction runs under the verdict sheet: card ${box.cardTop}–${box.cardBottom}, header ends ${box.headerBottom}, sheet starts ${box.sheetTop}: «${box.text}»`,
       this.where({ kind }),
     );
+  }
+
+  /**
+   * Measures with `measure` (run in the page) until the same numbers come back
+   * SETTLE_STEADY times in a row, then returns them; after SETTLE_MAX_MS it returns
+   * the last reading, so a card that never stops still gets judged where it is.
+   * null when there is nothing to measure.
+   */
+  async settledBox(measure) {
+    const t0 = Date.now();
+    let last = null;
+    let steady = 0;
+    for (;;) {
+      const box = await this.page.evaluate(measure).catch(() => null);
+      if (!box) return null;
+      steady = last && SETTLE_KEYS.every((k) => box[k] === last[k]) ? steady + 1 : 0;
+      last = box;
+      if (steady >= SETTLE_STEADY || Date.now() - t0 >= SETTLE_MAX_MS) return box;
+      await sleep(SETTLE_STEP_MS);
+    }
   }
 
   async act(s, kind, state) {
