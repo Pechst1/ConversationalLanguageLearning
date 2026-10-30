@@ -142,6 +142,21 @@ async function playTheDay(native) {
   const tally = await page.locator('.av2-tally__n').allInnerTexts().catch(() => []);
   findings.check('fertig-tallies-scene-words-exercises', tally.length === 3 && Number(tally[0]) === 1 && Number(tally[1]) > 0 && Number(tally[2]) > 0, `tally: ${tally.join(' · ')}`, where('fertig'));
   findings.check('fertig-offers-ten-more-words', (await page.locator('[data-more-words]').count()) === 1, 'no «Noch 10 Wörter»', where('fertig'));
+  // #359: the Done screen names tomorrow's open question (the line Home prints, checked below
+  // against Home), and the curtain call's «End of the session» tag is centred over the cast and
+  // touches no bubble at phone width.
+  const tomorrowOnFertig = (await page.locator('[data-tomorrow] .journey-today-card__hint').first().innerText().catch(() => '')).trim();
+  const tag = await page.evaluate(() => {
+    const box = (el) => { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; };
+    const el = document.querySelector('.cameo-troupe > .cameo-reason');
+    if (!el) return null;
+    return { tag: box(el), bubbles: [...document.querySelectorAll('.cameo-troupe .cameo-bubble')].map(box), width: window.innerWidth };
+  }).catch(() => null);
+  if (tag) {
+    const mid = (tag.tag.left + tag.tag.right) / 2;
+    const touches = tag.bubbles.filter((b) => !(b.top >= tag.tag.bottom + 4 || b.left >= tag.tag.right || b.right <= tag.tag.left)).length;
+    findings.check('fertig-badge-clear-of-the-cast', Math.abs(mid - tag.width / 2) <= 24 && touches === 0, `tag ${Math.round(tag.tag.left)}–${Math.round(tag.tag.right)} of ${tag.width}px, touching ${touches} bubbles`, where('fertig'));
+  }
   await walk.shoot('fertig');
 
   // 6 · La Une after: every step done.
@@ -154,6 +169,8 @@ async function playTheDay(native) {
   // #143: «20 Wörter — erledigt» on La Une after «Fertig» counted 19.
   const wordsRow = await page.locator('[data-day-session] [data-part="words"]').first().innerText().catch(() => '');
   findings.check('la-une-words-match-fertig', Number((wordsRow.match(/\d+/) || [])[0]) === Number(tally[1]), `La Une «${wordsRow.trim()}», Fertig ${tally[1]}`, where('home'));
+  const tomorrowOnHome = (await page.locator('.journey-today-card__teaser .journey-today-card__hint').first().innerText().catch(() => '')).trim();
+  findings.check('fertig-names-tomorrows-question', tomorrowOnFertig === tomorrowOnHome, `Done screen «${tomorrowOnFertig}», Home «${tomorrowOnHome}»`, where('fertig'));
   await walk.shoot('home-after');
   await context.close();
 }

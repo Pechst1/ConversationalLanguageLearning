@@ -409,12 +409,14 @@ export function CameoLayer() {
           aria-live="polite"
         >
           <Reason cameo={shown} language={language} />
-          {shown.figures.map((figure, i) => (
-            <span key={figure.id} className="cameo-troupe__member" style={{ '--i': i } as CSSProperties}>
-              <Bubble cameo={shown} language={language} figureIndex={i} />
-              <CameoFace cameo={shown} figure={figure} size={shown.figures.length > 4 ? 70 : 96} />
-            </span>
-          ))}
+          <span className="cameo-troupe__row">
+            {shown.figures.map((figure, i) => (
+              <span key={figure.id} className="cameo-troupe__member" style={{ '--i': i } as CSSProperties}>
+                <Bubble cameo={shown} language={language} figureIndex={i} />
+                <CameoFace cameo={shown} figure={figure} size={shown.figures.length > 4 ? 70 : 96} />
+              </span>
+            ))}
+          </span>
         </div>
       )}
 
