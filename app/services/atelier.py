@@ -71,6 +71,7 @@ from app.services.forge_grading import (
 from app.services.forge_grading import (
     TO_CORRECT_LABEL as JUDGEMENT_TO_CORRECT,
 )
+from app.services.forge_item_validator import advice, situation_problems
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -3079,6 +3080,8 @@ class AtelierExerciseGenerator:
             errors.append("produce source_fragment, prompt, or requirements missing")
         elif _is_vague_output_prompt(produce.get("prompt")):
             errors.append("produce prompt must set a concrete situation")
+        else:
+            errors.extend(f"produce prompt {advice(problem)}" for problem in situation_problems(produce.get("prompt")))
         ladder = payload.get("output_ladder") or {}
         for key in ("sentence", "speak", "conversation"):
             items = (ladder.get(key) or {}).get("items") or []
@@ -3098,6 +3101,12 @@ class AtelierExerciseGenerator:
                     continue
                 if _is_vague_output_prompt(item.get("prompt")):
                     errors.append(f"output_ladder.{key} item {item_id(item)} prompt must give a concrete situation")
+                    continue
+                # ROOT CAUSE #146: the guard knew the shape of a situation, never its sense.
+                errors.extend(
+                    f"output_ladder.{key} item {item_id(item)} prompt {advice(problem)}"
+                    for problem in situation_problems(item.get("prompt"))
+                )
         return errors
 
     @staticmethod
@@ -5379,24 +5388,28 @@ class AtelierCorrectionService:
         correction = dict(attempt.correction_payload or {})
         if correction.get("world_reply"):
             return
-        item = next(
-            (
-                candidate
-                for candidate in (attempt.prompt_payload or {}).get("items") or []
-                if isinstance(candidate, dict) and isinstance(candidate.get("character"), dict)
-            ),
-            None,
-        )
+        # ROOT CAUSE #146/#145: the reaction belongs to the item the learner
+        # answered (its id ends the exercise id), not to the first item of the
+        # set that happens to carry a badge: Margaux asked, Lila answered.
+        answered = str(attempt.exercise_id or "").split(":")[-1].strip()
+        posed = [c for c in (attempt.prompt_payload or {}).get("items") or [] if isinstance(c, dict)]
+        speakers = [c for c in posed if isinstance(c.get("character"), dict)]
+        item = next((c for c in speakers if str(c.get("id") or "") == answered), None)
+        if item is None and not any(str(c.get("id") or "") == answered for c in posed):
+            item = speakers[0] if speakers else None  # an id the set does not name: its one speaker
         if not item:
             return
         from app.services.missions import MissionConversationService
 
         serial_context = item.get("serial_context") or {}
         character = item.get("character") or {}
+        # A coached scene (La Forge) opens with the coach's own French line.
+        scene_lines = [line for line in ((item.get("scene") or {}).get("lines") or []) if isinstance(line, dict)]
+        coach_line = next((str(line.get("fr") or "") for line in scene_lines if line.get("speaker") != "learner"), "")
         try:
             reply = MissionConversationService(self.db).respond_for_atelier(
                 character=character,
-                opener=str(serial_context.get("opener") or item.get("prompt") or ""),
+                opener=str(coach_line or serial_context.get("opener") or item.get("prompt") or ""),
                 scene_context=str(serial_context.get("scene_context") or ""),
                 user_text=str((attempt.answer_payload or {}).get("text") or "").strip(),
                 user_id=user.id,
