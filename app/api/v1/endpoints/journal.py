@@ -102,6 +102,11 @@ class JournalFollowupView(BaseModel):
     answered: bool = False
     text: str | None = None
     signal: str | None = None
+    #: How much of the scene the one-line answer named, so the answer can be
+    #: met with a result and not only a card that disappears (#337). ``None``
+    #: until answered.
+    facts_total: int | None = None
+    facts_matched: int | None = None
 
 
 class JournalEnvelope(BaseModel):
@@ -165,6 +170,8 @@ def _entry_view(entry: JournalEntry) -> JournalEntryView:
 
 
 def _followup_view(entry: JournalEntry) -> JournalFollowupView:
+    answered = entry.followup_answered_at is not None
+    recall = dict(entry.followup_recall or {}) if answered else {}
     return JournalFollowupView(
         entry_id=str(entry.id),
         prompt_fr=str(entry.followup_prompt_fr or ""),
@@ -172,14 +179,23 @@ def _followup_view(entry: JournalEntry) -> JournalFollowupView:
         answered=entry.followup_answered_at is not None,
         text=entry.followup_text,
         signal=entry.followup_signal,
+        facts_total=int(recall.get("facts_total") or 0) if answered else None,
+        facts_matched=len(recall.get("matched") or []) if answered else None,
     )
 
 
 def _envelope(
-    db: Session, user: User, entry: JournalEntry | None
+    db: Session,
+    user: User,
+    entry: JournalEntry | None,
+    *,
+    answered_followup: JournalEntry | None = None,
 ) -> JournalEnvelope:
     service = JournalService(db)
-    followup = service.followup_due(user)
+    # ``followup_due`` only ever returns an *unanswered* line, so the answer to
+    # it has no way to come back unless the route that took it says so. The
+    # answering route hands its entry in, and the learner sees the result.
+    followup = answered_followup or service.followup_due(user)
     return JournalEnvelope(
         status=str(entry.status) if entry is not None else "none",
         entry=_entry_view(entry) if entry is not None else None,
@@ -299,5 +315,10 @@ def answer_followup(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Une phrase suffit.",
         )
-    JournalService(db).answer_followup(current_user, entry, text=payload.text)
-    return _envelope(db, current_user, JournalService(db).offer(current_user))
+    answered = JournalService(db).answer_followup(current_user, entry, text=payload.text)
+    return _envelope(
+        db,
+        current_user,
+        JournalService(db).offer(current_user),
+        answered_followup=answered if answered.followup_answered_at is not None else None,
+    )

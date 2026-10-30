@@ -640,6 +640,7 @@ export default function MissionsPage() {
   const [mission, setMission] = useState<RealWorldMission | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [rechecking, setRechecking] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -930,6 +931,11 @@ export default function MissionsPage() {
   };
 
   const startFreshMission = async () => {
+    // A letter is a paid generation that takes ~20 s. `creating` only reaches
+    // the button on the next render, so a fast second tap would otherwise
+    // start a second letter; the ref closes that window (#337).
+    if (creatingRef.current || creating) return;
+    creatingRef.current = true;
     setError(null);
     try {
       const next = await createSeededMission({
@@ -943,6 +949,8 @@ export default function MissionsPage() {
     } catch (createError) {
       console.error(createError);
       toast.error(t.toast_new_failed);
+    } finally {
+      creatingRef.current = false;
     }
   };
 
@@ -1319,11 +1327,11 @@ export default function MissionsPage() {
                     {isSerialAct && completedNextSerial?.thread_id ? (
                       <CrGhost primary href={routeForMissionSerialBeat(completedNextSerial)}>{t.next_act}</CrGhost>
                     ) : (
-                      <CrGhost primary onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
+                      <CrGhost primary onClick={startFreshMission} pending={creating} pendingLabel={t.new_courrier_opening}>{t.new_courrier}</CrGhost>
                     )}
                     <CrGhost href="/atelier" onClick={returnToAtelierHome}>{t.back_atelier}</CrGhost>
                     {isSerialAct && completedNextSerial?.thread_id && (
-                      <CrGhost quiet onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
+                      <CrGhost quiet onClick={startFreshMission} pending={creating} pendingLabel={t.new_courrier_opening}>{t.new_courrier}</CrGhost>
                     )}
                   </div>
                 </section>
@@ -1335,7 +1343,7 @@ export default function MissionsPage() {
                   past, and offering a retry would be pretending it is not. */}
               {lapsed && (
                 <div className="cr-nexts">
-                  <CrGhost primary onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
+                  <CrGhost primary onClick={startFreshMission} pending={creating} pendingLabel={t.new_courrier_opening}>{t.new_courrier}</CrGhost>
                   <CrGhost href="/atelier" onClick={returnToAtelierHome}>{t.back_atelier}</CrGhost>
                 </div>
               )}

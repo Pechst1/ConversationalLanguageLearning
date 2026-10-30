@@ -356,6 +356,9 @@ export interface JournalFollowup {
   text?: string | null;
   /** 'used_again_later' | 'not_recalled' | null */
   signal?: string | null;
+  /** How much of the scene the answer named; set once answered (#337). */
+  facts_total?: number | null;
+  facts_matched?: number | null;
 }
 
 export interface JournalEnvelope {

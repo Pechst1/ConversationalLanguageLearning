@@ -612,6 +612,8 @@ export function CrGhost({
   quiet = false,
   primary = false,
   disabled = false,
+  pending = false,
+  pendingLabel,
 }: {
   children: React.ReactNode;
   href?: string;
@@ -619,6 +621,11 @@ export function CrGhost({
   quiet?: boolean;
   primary?: boolean;
   disabled?: boolean;
+  /** A request behind this press is in flight (#337): the button says so in
+   *  words and is busy, instead of only dimming. A press that starts a slow
+   *  generation must pass this; `disabled` alone is silent. */
+  pending?: boolean;
+  pendingLabel?: string;
 }) {
   if (href) {
     return (
@@ -638,6 +645,8 @@ export function CrGhost({
       className={quiet ? 'cr-ghost--quiet' : undefined}
       onClick={onClick}
       disabled={disabled}
+      pending={pending}
+      pendingLabel={pendingLabel}
       iconAfter={primary ? <ArrowRightIcon size={18} /> : undefined}
     >
       {children}
