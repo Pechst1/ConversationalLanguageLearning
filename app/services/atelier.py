@@ -8087,16 +8087,28 @@ class AtelierSRSService:
         return re.findall(r"[\w']+", str(text or "").replace("\u2019", "'").casefold())
 
     @classmethod
-    def _is_clip(cls, learner: str, candidate: str) -> bool:
+    def _is_clip(cls, learner: str, candidate: str, flagged: list[str] | None = None) -> bool:
         """The candidate only drops words of the learner's line (a clipped echo).
 
         A correction replaces or reorders something; a line that is the
-        learner's own words minus some of them corrects nothing.
+        learner's own words minus some of them corrects nothing, unless the
+        words it drops are the ones a checked erratum flagged (``flagged``: the
+        errata's ``learner_text``).
         """
 
         mine, theirs = cls._words_of(learner), cls._words_of(candidate)
         if not theirs or len(theirs) >= len(mine):
             return False
+        wrong = set(cls._words_of(" ".join(flagged or [])))
+        if wrong:
+            # A checked erratum named words the learner wrote and should not have
+            # («Je peux de venir» → «Je peux venir»): dropping them is the fix.
+            dropped = list(mine)
+            for word in theirs:
+                if word in dropped:
+                    dropped.remove(word)
+            if dropped and set(dropped) <= wrong:
+                return False
         position = 0
         for word in mine:
             if word == theirs[position]:
@@ -8134,7 +8146,12 @@ class AtelierSRSService:
         text = ""
         if attempt.round in {"sentence", "speak", "conversation", "produce"}:
             rewrite = cls._published_phrase_text(attempt)
-            fixed_by_checker = bool(rewrite) and rewrite != learner and not cls._is_clip(learner, rewrite)
+            flagged = [
+                str(erratum.get("learner_text") or "")
+                for erratum in correction.get("errata") or []
+                if isinstance(erratum, dict)
+            ]
+            fixed_by_checker = bool(rewrite) and rewrite != learner and not cls._is_clip(learner, rewrite, flagged)
             if right:
                 text = rewrite if fixed_by_checker else learner
             else:

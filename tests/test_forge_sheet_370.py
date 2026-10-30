@@ -31,6 +31,7 @@ def _sentence(
     corrected: str | None = None,
     example: str = "",
     key: str = "a",
+    flagged: str | None = None,
 ) -> AtelierAttempt:
     return AtelierAttempt(
         concept_id=concept_id,
@@ -39,7 +40,11 @@ def _sentence(
         exercise_id=f"forge:{concept_id}:sentence:{key}",
         prompt_payload={"items": [{"id": key, "example_answer": example}]},
         answer_payload={"text": typed},
-        correction_payload={"checked": True, **({"corrected_answer": corrected} if corrected else {})},
+        correction_payload={
+            "checked": True,
+            **({"corrected_answer": corrected} if corrected else {}),
+            **({"errata": [{"learner_text": flagged}]} if flagged else {}),
+        },
         verdict=verdict,
         score_0_4=4.0 if verdict in {"correct", "accepted"} else 1.0,
     )
@@ -86,6 +91,20 @@ def test_clip_is_not_a_fix(db_session):
         ),
     ]
     assert _lines(db_session, user, concept, attempts) == []
+
+
+def test_checked_deletion_is_a_fix(db_session):
+    """A correction that only drops the words an erratum flagged is a real fix."""
+
+    user = _user(db_session)
+    concept = _concept(db_session, "FR_A2_NEG_001")
+    attempts = [
+        _sentence(
+            concept.id, typed="Je peux de venir demain.", verdict="incorrect",
+            corrected="Je peux venir demain.", key="d", flagged="de",
+        ),
+    ]
+    assert _lines(db_session, user, concept, attempts) == [("Je peux venir demain.", True)]
 
 
 def test_checked_fix_shown(db_session):
