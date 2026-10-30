@@ -286,6 +286,42 @@ def test_a_repaired_erratum_puts_the_key_back(
     assert scene_cache_key(db_session, user, input_mode=InputMode.TEXT) == empty
 
 
+def test_a_mistake_falling_due_later_today_keeps_the_key(
+    db_session: Session, cache_enabled: None
+) -> None:
+    """The night's prefetch and the morning's create read the same day.
+
+    Keyed on "due now", a mistake due at 8 o'clock made the 3 o'clock scene stale
+    by the time the learner opened the app, and every day was written live.
+    """
+
+    user = make_user(db_session, "key-later-today@example.com")
+    error = record_erratum(db_session, user)
+    error.next_review_date = journey_latency._end_of_learner_day(user) - timedelta(minutes=1)
+    db_session.commit()
+    night = scene_cache_key(db_session, user, input_mode=InputMode.TEXT)
+
+    error.next_review_date = datetime.now(UTC) - timedelta(minutes=1)
+    db_session.commit()
+    assert scene_cache_key(db_session, user, input_mode=InputMode.TEXT) == night
+
+    # tomorrow's mistakes are tomorrow's
+    error.next_review_date = journey_latency._end_of_learner_day(user) + timedelta(hours=1)
+    db_session.commit()
+    assert scene_cache_key(db_session, user, input_mode=InputMode.TEXT) != night
+
+
+def test_the_prefetch_key_does_not_depend_on_the_input_mode(
+    db_session: Session, cache_enabled: None
+) -> None:
+    """The prefetch writes for text, the app asks in voice: the same scene serves both."""
+
+    user = make_user(db_session, "key-voice@example.com")
+    assert scene_cache_key(db_session, user, input_mode=InputMode.TEXT) == scene_cache_key(
+        db_session, user, input_mode=InputMode.VOICE
+    )
+
+
 # ---------------------------------------------------------------------------
 # 3. WP-26 — the envelope says whether the draft is warm
 # ---------------------------------------------------------------------------

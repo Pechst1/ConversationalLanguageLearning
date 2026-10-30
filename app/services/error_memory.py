@@ -215,8 +215,17 @@ class ErrorMemoryService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def due_error_records(self, user: User, *, limit: int = 20, review_modes: set[str] | None = None) -> list[UserError]:
-        now = datetime.now(UTC)
+    def due_error_records(
+        self,
+        user: User,
+        *,
+        limit: int = 20,
+        review_modes: set[str] | None = None,
+        due_by: datetime | None = None,
+    ) -> list[UserError]:
+        # ``due_by``: due by then rather than now (the prefetch's cache key reads the
+        # learner's whole day, so a scene written at night still matches at noon).
+        now = due_by or datetime.now(UTC)
         query = (
             self.db.query(UserError)
             .filter(
