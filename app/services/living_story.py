@@ -30,7 +30,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
-from app.services import correction_contract, story_memory
+from app.services import correction_contract, scene_ledger, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.journey_contracts import (
@@ -1036,6 +1036,11 @@ resolution_fr is the character's own last spoken line (it is printed in their sp
 bubble: no narration about them, no quotation marks), and summary_native tells the same
 ending as story, never what the learner did or did not ask;
 callback_fr is a concise fact, not a copy of dialogue. No predetermined outcome list.
+When this reply ends the scene it asks nothing new: reply_fr and resolution_fr close on a
+statement, never on a question the learner can no longer answer.
+turn_plan.learner_asked, when not null, is a question the learner just asked: reply_fr
+answers it first, plainly and in character, before anything else. ledger lists what this
+scene has asked so far: never ask again a question whose answered_at is set.
 Commitments require exact learner source_quote; only resolve known commitment IDs when
 the exchange actually resolves them. chapter_resolved only if the chapter's question
 has genuinely reached closure, and never before scene.beat is turn or resolution: a
@@ -4706,13 +4711,15 @@ _TEASER_FRAMES = {
         {"tu": "Tu n'as pas oublié ? « {text} »", "vous": "Vous n'avez pas oublié ? « {text} »"},
         {"tu": "Tu as promis, hein : « {text} »", "vous": "Vous avez promis, hein : « {text} »"},
     ),
+    # #378: guillemets hold only words somebody said. A planted detail and a season
+    # question are the story's, not a line of dialogue: they are told, not quoted.
     "plant": (
-        {"tu": "Je repense à ce détail : « {text} »", "vous": "Je repense à ce détail : « {text} »"},
-        {"tu": "Tu as remarqué ? « {text} »", "vous": "Vous avez remarqué ? « {text} »"},
+        {"tu": "Je repense à ce détail. {text}", "vous": "Je repense à ce détail. {text}"},
+        {"tu": "Tu as remarqué ? {text}", "vous": "Vous avez remarqué ? {text}"},
     ),
     "thread": (
-        {"tu": "Il faudra qu'on en parle : « {text} »", "vous": "Il faudra qu'on en parle : « {text} »"},
-        {"tu": "Demain, peut-être, on saura : « {text} »", "vous": "Demain, peut-être, on saura : « {text} »"},
+        {"tu": "Il faudra qu'on en parle. {text}", "vous": "Il faudra qu'on en parle. {text}"},
+        {"tu": "Demain, peut-être, on saura. {text}", "vous": "Demain, peut-être, on saura. {text}"},
     ),
 }
 
@@ -4754,9 +4761,14 @@ def teaser_candidates(live: dict, world: dict) -> list[dict]:
 
     rows: list[dict] = []
     for row in live.get("commitments") or []:
-        if isinstance(row, dict) and row.get("status") == "open" and row.get("id") and row.get("text_fr"):
+        # #378: a promise is quoted in the learner's own words (``source_quote``), never
+        # in the model's restatement of it: the walk of 30 Oct read «Tu n'as pas oublié ?
+        # « Je serai chez moi après quatorze heures. »», a sentence nobody said. A row
+        # with no words of the learner's is not quoted at all.
+        quote = str(row.get("source_quote") or "").strip() if isinstance(row, dict) else ""
+        if isinstance(row, dict) and row.get("status") == "open" and row.get("id") and quote:
             rows.append({
-                "ref": str(row["id"]), "kind": "commitment", "text_fr": str(row["text_fr"]),
+                "ref": str(row["id"]), "kind": "commitment", "text_fr": quote,
                 "characters": [str(who) for who in row.get("witnesses") or []],
             })
     for row in live.get("planted") or []:
@@ -9526,6 +9538,10 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
     if (scenario.story_context.get("draft") or {}).get("carries_over"):
         context["carries_over"] = True
     turns_left = max(0, task.max_turns - turn_index)
+    # #145 / #378: what this scene has asked and answered so far, rebuilt from its lines.
+    ledger = scene_ledger.build(
+        opening_line_fr=task.opening_line_fr, history=history, learner_text=answer.text
+    )
     return {
         # Filtered even though `story_context` builds no lexicon: the actor's ignorance
         # of the learner's vocabulary is a property, not an accident of where the
@@ -9553,7 +9569,10 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
             # A scene is a conversation of `max_turns` exchanges, not one line: until
             # the last one the character answers and moves the scene on.
             "keep_talking": keeps_talking(task, turn_index, self_repair=self_repair),
+            # #378: the learner's question this reply answers first, or None.
+            "learner_asked": ledger["learner_asked"],
         },
+        "ledger": ledger,
     }
 
 
@@ -9630,14 +9649,25 @@ def reply_lexical_checker(db: Session, user: User, payload: dict):
     return lambda reply: lexical_issue_for_known(known, reply=reply, seen=seen, names=names)
 
 
-def keeps_talking(task: ResponseTask, turn_index: int, *, self_repair=None) -> bool:
+def keeps_talking(task: ResponseTask, turn_index: int, *, self_repair=None, reply_fr: str | None = None) -> bool:
     """True while the scene's conversation has exchanges left after this turn.
 
     A wording question from the app (WP-36) takes the turn instead: the scene
     stays open for it anyway, and a follow-up question would bury it.
+
+    ``reply_fr`` (#378), the character's reply once it is known: a reply that
+    still asks the learner something keeps the scene open for the answer past the
+    planned exchanges (``scene_ledger.keeps_open_for``). The scene ends only once
+    its own question is answered.
     """
 
-    return self_repair is None and int(turn_index) + 1 < int(task.max_turns or 1)
+    if self_repair is not None:
+        return False
+    if int(turn_index) + 1 < int(task.max_turns or 1):
+        return True
+    return reply_fr is not None and scene_ledger.keeps_open_for(
+        reply_fr, turn_index=turn_index, max_turns=int(task.max_turns or 1)
+    )
 
 
 def _folded(text: str) -> str:
@@ -9972,6 +10002,11 @@ def evaluate_turn(
             needs_repair = True
         if payload["turn_plan"]["keep_talking"]:
             needs_repair = True  # the conversation has exchanges left
+        question_open = not needs_repair and keeps_talking(
+            task, turn_index, self_repair=self_repair, reply_fr=turn.reply_fr
+        )
+        if question_open:
+            needs_repair = True  # #378: the character's question waits for its answer
         # An exhausted clarification must still have an honest AI-written ending.
         if not needs_repair and (not turn.resolution_fr or not turn.summary_native):
             raise StoryUnavailable(
@@ -10027,6 +10062,7 @@ def evaluate_turn(
             correction=correction,
             consequence=proposal,
             needs_repair=needs_repair,
+            question_open=question_open,
             failure_reason="reply_source:model",
             heard={"meant": turn.understood_intent},
         )

@@ -221,32 +221,51 @@ export function CameoLayer() {
 
   // #282: a solo cameo stands where its bubble covers neither the prompt, the answer, the
   // correction nor the verdict sheet; with no such place on the screen it does not come.
+  // The screen can move under a standing cameo (the next item renders, the page scrolls to
+  // the miss), so the place is checked again whenever the page changes, not only on arrival.
   useLayoutEffect(() => {
     const root = soloEl.current;
     const talk = root?.querySelector<HTMLElement>('.cameo-solo__talk');
     if (!shown || shown.kind !== 'solo' || !root || !talk) return;
-    const zones = Array.from(document.querySelectorAll(KEEP_CLEAR_SELECTOR))
-      .filter((node) => !node.closest('.cameo-layer'))
-      .map((node) => node.getBoundingClientRect())
-      .filter((rect) => rect.width > 0 && rect.height > 0);
-    if (!zones.length) return;
-    // Layout sizes, not painted ones: the bubble pops in from a smaller scale.
-    const base = root.getBoundingClientRect();
-    const left = base.left + talk.offsetLeft;
-    const bubbleTop = base.top + talk.offsetTop;
-    const top = clearBubbleTop(
-      { left, right: left + talk.offsetWidth, height: talk.offsetHeight },
-      zones,
-      window.innerHeight,
-      bubbleTop,
-    );
-    if (top === null) {
-      if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
-      leaveTimer.current = null;
-      setShown(null);
-      return;
-    }
-    root.style.top = `${base.top + (top - bubbleTop)}px`;
+    const place = () => {
+      const zones = Array.from(document.querySelectorAll(KEEP_CLEAR_SELECTOR))
+        .filter((node) => !node.closest('.cameo-layer'))
+        .map((node) => node.getBoundingClientRect())
+        .filter((rect) => rect.width > 0 && rect.height > 0);
+      if (!zones.length) return;
+      // Layout sizes, not painted ones: the bubble pops in from a smaller scale.
+      const base = root.getBoundingClientRect();
+      const left = base.left + talk.offsetLeft;
+      const bubbleTop = base.top + talk.offsetTop;
+      const top = clearBubbleTop(
+        { left, right: left + talk.offsetWidth, height: talk.offsetHeight },
+        zones,
+        window.innerHeight,
+        bubbleTop,
+      );
+      if (top === null) {
+        if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+        leaveTimer.current = null;
+        setShown(null);
+        return;
+      }
+      if (top !== bubbleTop) root.style.top = `${base.top + (top - bubbleTop)}px`;
+    };
+    place();
+    let frame: number | null = null;
+    const again = () => {
+      if (frame === null) frame = window.requestAnimationFrame(() => { frame = null; place(); });
+    };
+    const watcher = typeof MutationObserver === 'undefined' ? null : new MutationObserver(again);
+    watcher?.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+    window.addEventListener('scroll', again, { passive: true, capture: true });
+    window.addEventListener('resize', again);
+    return () => {
+      watcher?.disconnect();
+      window.removeEventListener('scroll', again, { capture: true } as EventListenerOptions);
+      window.removeEventListener('resize', again);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
   }, [shown?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const later = useCallback((fn: () => void, ms: number) => {

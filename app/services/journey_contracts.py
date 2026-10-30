@@ -39,6 +39,22 @@ MAX_RECALL_STEPS = 2
 #: The ceiling on a reply's normal turns. The rhythm decides how many a day
 #: actually plans (``RhythmCaps.max_turns``); authored scenes keep their own two.
 MAX_RESPOND_TURNS = 4
+#: #145 / #378 (owner decision 2026-10-30, «Kern zuerst»): a generated scene is a
+#: conversation of at least this many real exchanges from Régulier up, the first
+#: day included. The live walk of 30 Oct had one reply, then «Lila doit partir».
+#: The planner never cuts a generated scene below it; an authored page keeps its own
+#: count (``ResponseTask.min_turns``).
+MIN_SCENE_EXCHANGES = 3
+#: Léger keeps its five minutes (WP-75, WP-78): three exchanges are 6.5 to 9
+#: minutes at A1 to B1 and leave no drill, so the rhythm plans what fits, down to
+#: one. The scene still never closes under the character's open question
+#: (:data:`SCENE_QUESTION_GRACE`).
+LEGER_SCENE_EXCHANGES = 1
+#: #378: the scene ends only once its own question is answered. When the
+#: character's reply on the last planned exchange still asks the learner
+#: something, the scene stays open for the answer, at most this many extra
+#: exchanges (``scene_ledger.question_keeps_open``).
+SCENE_QUESTION_GRACE = 2
 #: A short day still has to be a day: scene, response, ending.
 MIN_PLANNED_STEPS = 3
 #: WP-78 — «une vraie journée de pratique». Plan contract version 3 adds the
@@ -60,7 +76,8 @@ MAX_WARMUP_RECALL_STEPS = 3
 #: The four rhythms' budgets (WORK-PACKAGES-2026-09-23-learning §2.2): Léger
 #: 5 min, Régulier 10 (the default), Soutenu 20, Intensif 30. A longer rhythm
 #: makes the movements longer, never more numerous — one scene, one reply, one
-#: ending on every rhythm (no rhythm plans a second episode).
+#: ending on every rhythm (no rhythm plans a second episode). The reply is a
+#: conversation of at least :data:`MIN_SCENE_EXCHANGES` exchanges from Régulier up.
 RHYTHM_BUDGETS: tuple[int, ...] = (300, 600, 1200, 1800)
 
 
@@ -92,8 +109,9 @@ class RhythmCaps:
     #: How often one target may come back in one day (never in the same format).
     uses_per_target: int
     #: The reply's exchanges. A story-engine scene keeps the conversation going
-    #: until the last one (``turn_plan.keep_talking``): two on Léger, three on
-    #: Régulier, four on Soutenu and Intensif. Authored scenes stay at their two.
+    #: until the last one (``turn_plan.keep_talking``): up to two on Léger, three
+    #: on Régulier, four on Soutenu and Intensif (#378: from Régulier up a
+    #: generated scene never has fewer). Authored scenes stay at their own count.
     max_turns: int
     #: How many of the learner's daily new words the word drill leaves for the
     #: day until the day is planned (§5: one intake pool, the journey first).
@@ -1330,6 +1348,9 @@ class ResponseEvaluation:
     correction: Correction | None = None
     consequence: StoryOutcomeProposal | None = None
     needs_repair: bool = False
+    #: #378: the scene stays open because the character's reply asks the learner
+    #: something, past the planned exchanges (``SCENE_QUESTION_GRACE`` at most).
+    question_open: bool = False
     turn_consumed: bool = True
     pending: bool = False
     failure_reason: str | None = None

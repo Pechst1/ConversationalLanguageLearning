@@ -87,6 +87,7 @@ from app.schemas.daily_journey import (
     forge_href_for,
     practice_href_for,
 )
+from app.services import scene_ledger
 from app.services.chrome_language import user_chrome_language
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
@@ -99,6 +100,7 @@ from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
     FIRST_DAY_KIND,
     READ_MIN_BUDGET_SECONDS,
+    SCENE_QUESTION_GRACE,
     TERMINAL_JOURNEY_STATUSES,
     AppliedEvidence,
     AssistanceLevel,
@@ -5322,6 +5324,8 @@ class DailyJourneyService:
             }
         )
         private["turns"] = history
+        # #145 / #378: what the scene asked and what was answered, kept with its turns.
+        private["ledger"] = scene_ledger.build(opening_line_fr=task.opening_line_fr, history=history)
         # Persisted before the ending is settled: WP-06 renders the resolution
         # from the learner's own turns, and the decisive one is this turn.
         step.private_task = private
@@ -5329,6 +5333,11 @@ class DailyJourneyService:
         # CONTRACTS §3: two normal turns PLUS one optional repair, not two in
         # total. WP-06 owns the arithmetic.
         budget = self.adapters.conversation.turn_budget(task)
+        question_open = bool(getattr(evaluation, "question_open", False))
+        if question_open:
+            # #378: the character asked the learner something; the scene takes the
+            # answer, at most SCENE_QUESTION_GRACE exchanges past the plan.
+            budget += SCENE_QUESTION_GRACE
         repair_available = evaluation.needs_repair and step.turns_used < budget
         next_turn: NextTurn | None = None
         if repair_available:
@@ -5356,6 +5365,10 @@ class DailyJourneyService:
             if history[-1].get("free"):
                 # The exchange the nudge did not use is still owed: one more token.
                 prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1
+            elif question_open and step.turn_index >= int(prompt.get("max_turns") or 1):
+                # #378: the extra exchange the open question takes is counted, so
+                # the scene never reads «4 of 3».
+                prompt["max_turns"] = step.turn_index + 1
             # WP-89 «Le fil»: the conversation so far, so a reloaded client can
             # redraw it. Public by construction: what was said and shown.
             prompt["thread"] = _public_thread(history)

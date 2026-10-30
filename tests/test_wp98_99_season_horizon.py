@@ -189,7 +189,8 @@ def _material_live(season: int) -> dict:
              "character_id": "lila_bonnet", "weight": 3, "day": 20, "last_referenced": None},
         ],
         "commitments": [
-            {"id": "e3:commitment:0", "text_fr": "Apporter du pain dimanche chez Marin.", "status": "open",
+            {"id": "e3:commitment:0", "text_fr": "Apporter du pain dimanche chez Marin.",
+             "source_quote": "J'apporte du pain dimanche chez Marin.", "status": "open",
              "witnesses": ["marin_leveque"], "day": 30},
         ],
         "secrets": {"margaux_barman": "revealed", "lila_bonnet": "hinted"},

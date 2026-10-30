@@ -48,10 +48,12 @@ from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
     DESK_KINDS,
     INPUT_FLOOR_SHARE,
+    LEGER_SCENE_EXCHANGES,
     LISTENING_RECALL_FORMATS,
     MAX_PLANNED_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
+    MIN_SCENE_EXCHANGES,
     READ_MIN_BUDGET_SECONDS,
     ControlLanguage,
     DayShape,
@@ -2431,6 +2433,28 @@ def _spoken_words(panels: Any) -> int:
     return total
 
 
+def scene_exchange_floor(
+    scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int = RHYTHM_FIVE_MINUTES * 2
+) -> int:
+    """The fewest exchanges the plan may give today's reply.
+
+    An authored page or content scene keeps its own minimum (``min_turns``: «Le
+    choix», a gate, a turn that routes); its count is the page's. A generated
+    (story-engine) scene (#378, owner
+    decision 2026-10-30) is a conversation of at least
+    :data:`MIN_SCENE_EXCHANGES` from Régulier up, and of
+    :data:`LEGER_SCENE_EXCHANGES` on Léger: the live walk of 30 Oct was cut to one
+    reply to fit a new rule, and the character's question then closed the scene.
+    A longer day is said before the learner starts, never a hidden cut.
+    """
+
+    authored_min = max(1, int(getattr(task, "min_turns", 0) or 0))
+    if not draft_of(scenario) or authored_turns(scenario) or scenario.is_authored_fallback:
+        return authored_min
+    floor = LEGER_SCENE_EXCHANGES if budget_seconds <= RHYTHM_FIVE_MINUTES else MIN_SCENE_EXCHANGES
+    return max(authored_min, min(floor, MAX_RESPOND_TURNS))
+
+
 def authored_turns(scenario: ScenarioBrief) -> list[AuthoredExchange]:
     """WP-128: an authored (season) page's exchanges, in the order the runtime
     asks them — ``("card", words on the cards)`` for «Le choix», else
@@ -3017,19 +3041,22 @@ def plan_journey(
             rhythm_caps(budget_seconds).max_turns,
         ),
     )
-    if first_day:
-        # WP-75: the first reply is one turn (a repair is still allowed), so
-        # the two quick recall wins fit in front of it inside five minutes.
+    floor = scene_exchange_floor(scenario, task, budget_seconds)
+    if first_day and floor <= 1:
+        # WP-75: the first reply of an authored page is one turn (a repair is
+        # still allowed), so the two quick recall wins fit in front of it inside
+        # five minutes. #378: a generated scene keeps its three exchanges.
         turns = 1
-    # WP-113: an authored day's «Le choix» is never cut by the rhythm.
-    turns = max(turns, int(getattr(task, "min_turns", 0) or 0))
+    # WP-113: an authored day's «Le choix» is never cut by the rhythm; #378: a
+    # generated scene is never cut below MIN_SCENE_EXCHANGES.
+    turns = max(turns, floor)
     optional_turns = 0
     if practice and not first_day and band in LOW_BANDS and rhythm_caps(budget_seconds).budget_seconds <= 600:
         # WP-129 (owner decision): fewer reply exchanges, more practice items —
         # on Léger and Régulier, where the reply filled the day. Soutenu and
         # Intensif keep their four: a longer rhythm buys story and input
         # (WP-93), and their days had room for items already.
-        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, int(getattr(task, "min_turns", 0) or 0))
+        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, floor)
         if turns > core_turns:
             optional_turns = turns - core_turns
             turns = core_turns
@@ -3046,7 +3073,7 @@ def plan_journey(
     )
     resolution_cost = resolution_seconds(scenario, outcome_key, spt=spt, multiplier=multiplier)
     respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier, band=band, authored=authored)
-    min_turns = max(1, int(getattr(task, "min_turns", 0) or 0))
+    min_turns = floor
     while scene_cost + respond_cost + resolution_cost > budget_seconds and turns > min_turns:
         turns -= 1
         respond_cost = respond_seconds(
@@ -3227,7 +3254,7 @@ def plan_journey(
     if (
         not first_day
         and not longer_day
-        and turns > 1
+        and turns > floor
         and dropped
         and not any(not skipped for _e, _t, _c, skipped in recalls)
     ):
@@ -5384,7 +5411,7 @@ def _plan_practice_day(
         )
 
     respond_cost, items = attempt(turns)
-    min_turns = max(1, int(getattr(task, "min_turns", 0) or 0))
+    min_turns = scene_exchange_floor(scenario, task, budget_seconds)
     if intro_card and not intro_reserve(turns) and turns > min_turns:
         # The new unit is worth the reply's second turn. WP-128: and, when the
         # band composes slowly, its third — down to the reply's minimum (one
@@ -5440,7 +5467,7 @@ def _plan_practice_day(
         not forced_intro
         and caps.budget_seconds <= RHYTHM_FIVE_MINUTES
         and len(items) + len(intro_reserve(turns)) < caps.target_items
-        and turns > 1
+        and turns > min_turns
         and not (intro_card and not intro_reserve(turns - 1))
     ):
         # The reply keeps its repair; it gives up its second turn so the day
