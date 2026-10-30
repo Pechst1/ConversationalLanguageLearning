@@ -37,6 +37,7 @@ import {
 } from './carte-model';
 import { drawingUrl } from './carte-projection';
 import { CartePinCard } from './CartePinCard';
+import { CartePlate } from './CartePlate';
 import { clusterDue } from './palais-model';
 
 const drawingCache = new Map<CarteLevel, Promise<string>>();
@@ -318,12 +319,7 @@ export function Carte({
         onClose={() => setPlace(null)}
       >
         <div className="carte-card">
-          {place?.members[0]?.item.plateUrl && (
-            <div className="carte-card__plate" aria-hidden="true">
-              {/* eslint-disable-next-line @next/next/no-img-element -- a static plate, already sized */}
-              <img src={place.members[0].item.plateUrl} alt="" loading="lazy" decoding="async" />
-            </div>
-          )}
+          <CartePlate url={place?.members[0]?.item.plateUrl} />
           <p className="carte-card__made" lang="fr">
             {place?.members[0]?.item.labelFr}
           </p>
