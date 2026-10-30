@@ -37,6 +37,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
+from app.services import order_rules
 from app.services.address import address_instruction
 from app.services.answer_acceptance import accent_policy, is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
@@ -834,20 +835,38 @@ def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> b
     return bool(fixed) and not fixed <= learner_words
 
 
-def _form_right_only_order_differs(item: dict[str, Any], learner: str, target: str) -> bool:
+def _form_right_only_order_differs(
+    item: dict[str, Any], learner: str, target: str, concept: Any = None
+) -> bool:
     """#174/#173: a tile build that uses exactly the key's words and keeps the
-    rule's form (``target_span``) intact, so only the order of the rest differs.
+    rule's form intact, so only the order of the rest differs.
 
-    When the rule *is* the order (negation, pronoun placement, inversion) the form
-    span itself is broken by a wrong order, and this is False: the rule is cited."""
+    The form is the item's ``target_span``, or, for a unit whose rule *is* an order
+    (pronoun order, ne … pas: :mod:`order_rules`), the stretch the rule orders in the
+    key (#271). When a wrong order breaks that form this is False: the rule is cited."""
 
-    span = _normalize(item.get("target_span"))
     learner_norm, target_norm = _normalize(learner), _normalize(target)
-    if not span or not learner_norm or learner_norm == target_norm:
+    if not learner_norm or learner_norm == target_norm:
         return False
     if sorted(learner_norm.split()) != sorted(target_norm.split()):
         return False
-    return f" {span} " in f" {learner_norm} "
+    span = _normalize(item.get("target_span"))
+    if span:
+        return f" {span} " in f" {learner_norm} "
+    intact = order_rules.form_intact(getattr(concept, "external_id", None), learner, target)
+    return bool(intact)
+
+
+def _reorders_what_the_rule_orders(concept: Any, learner: str, target: str) -> bool:
+    """#271: ``learner`` is ``target``'s words in another order, and the order broken
+    is the one the unit teaches (:mod:`order_rules`)."""
+
+    learner_norm, target_norm = _normalize(learner), _normalize(target)
+    if not learner_norm or learner_norm == target_norm:
+        return False
+    if sorted(learner_norm.split()) != sorted(target_norm.split()):
+        return False
+    return order_rules.form_intact(getattr(concept, "external_id", None), learner, target) is False
 
 
 def _keyed_verdict(
@@ -971,7 +990,8 @@ def _judgement_sentence(item: dict[str, Any]) -> str:
 
 def _join_french_tokens(tokens: list[Any]) -> str:
     text = " ".join(str(token).strip() for token in tokens if str(token).strip())
-    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    # French sets ? ! : ; off by a space («demain ?»), never . or , (#271).
+    text = re.sub(r"\s+([,.])", r"\1", text)
     text = re.sub(r"([cdjlmnst])'\s+", r"\1'", text, flags=re.IGNORECASE)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -5309,6 +5329,8 @@ class AtelierCorrectionService:
         if correction.get("evidence_applied"):
             return True
         outcome = ForgeService(self.db).amend_attempt(user=user, session=session, attempt=attempt, commit=False)
+        # The forge settles the level shown on the correction itself: build on that.
+        correction = {**dict(attempt.correction_payload or {})}
         if outcome.get("amended"):
             correction["evidence_applied"] = {"mode": "forge", "at": self._now_iso()}
             attempt.correction_payload = correction
@@ -5915,7 +5937,11 @@ class AtelierCorrectionService:
                 if verdict.accent_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": verdict.expected or target})
                 continue
-            if mode == "word_bank" and item.get("lesson_external_id") and _form_right_only_order_differs(item, learner_text, str(target or "")):
+            if mode == "word_bank" and _reorders_what_the_rule_orders(concept, learner_text, str(target or "")):
+                # #271: the right words, in an order the unit's own rule fixes (the
+                # two pronouns, ne … pas): that is the rule, cited with its order.
+                errata.append(self._order_rule_erratum(concept, item, learner_text, str(target or "")))
+            elif mode == "word_bank" and item.get("lesson_external_id") and _form_right_only_order_differs(item, learner_text, str(target or ""), concept):
                 # #174: the rule's form is placed right; only the order of the rest
                 # differs. Say that, and never blame the day's rule for it.
                 errata.append(self._word_order_erratum(concept, item, learner_text, str(target or "")))
@@ -6399,10 +6425,38 @@ class AtelierCorrectionService:
             label = _copy("atelier.word_bank.label_word_order", language)
             why = _copy("atelier.word_bank.order_why", language)
             repair = _copy("atelier.word_bank.order_repair", language, target=target)
+            task_type = "word_order"
         elif label_is_default:
             label = _copy("atelier.word_bank.label_target_sentence", language)
 
         return [self._word_bank_erratum_payload(concept, item, label, learner_text, target, why, repair, task_type)]
+
+    def _order_rule_erratum(
+        self,
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        learner_text: str,
+        target: str,
+    ) -> dict[str, Any]:
+        """#271 / #146: the miss reorders the elements the unit's rule orders (the two
+        pronouns, ne … pas), so the rule is cited with its order, not «word order»."""
+
+        from app.services.grammar_units import native_rule
+
+        language = self.explanation_language
+        rule = (native_rule(concept, language) if concept else None) or (
+            infer_grammar_profile(concept).pattern if concept else ""
+        )
+        return self._word_bank_erratum_payload(
+            concept,
+            item,
+            _concept_title_for(concept, language) if concept else _copy("atelier.word_bank.label_target_sentence", language),
+            learner_text,
+            target,
+            _copy("atelier.word_bank.rule_order_why", language, rule=rule),
+            _copy("atelier.word_bank.rule_order_repair", language, target=target),
+            self._task_type_for(concept, item),
+        )
 
     def _word_order_erratum(
         self,
