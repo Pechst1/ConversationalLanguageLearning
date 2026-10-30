@@ -294,7 +294,7 @@ const FR: EpreuveCopy = {
   notebook_added: 'Ajouté au carnet',
   rule_line: 'La règle · {title}',
   relecture_pending: 'Relecture en cours…',
-  relecture_failed: 'Je n’ai pas pu vérifier cette réponse. Réessayez.',
+  relecture_failed: 'Je n’ai pas pu vérifier cette réponse. Réessaie.',
   relecture_done: 'Relecture terminée',
   second_check_better: 'Relecture : finalement, la ligne est juste.',
   second_check_worse: 'Relecture : il reste une faute — vois la correction.',
