@@ -25,7 +25,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.services import story_memory
+from app.services import speaker_labels, story_memory
 from app.services.cast_registry import display_name
 
 #: A deterministic match must share this much of an example reply's content words.
@@ -383,6 +383,10 @@ def clean_ack(ack: str | None, *, learner_text: str, address: str | None) -> str
         return None
     if reply_is_not_french(text) or "{" in text or "}" in text:
         return None
+    # #313: the acknowledgement is the addressee's words; a «Lila : …» in front of it is
+    # the transcript pattern the model copied, and it is drawn under the addressee.
+    if any(person for person, _ in speaker_labels.labels_in(text, speaker_labels.name_table())):
+        return None
     probe = _PLURAL_VOUS.sub(" ", text)
     if address == "tu" and _VOUS_MARKERS.search(probe):
         return None
@@ -477,10 +481,15 @@ def _short(name: str | None, who: str) -> str:
     return tokens[0]
 
 
-def reaction_text(panels: list[dict[str, Any]], *, addressee: str) -> str:
+def reaction_text(panels: list[dict[str, Any]], *, addressee: str, labelled: bool = True) -> str:
     """The reaction as one reply: the addressee's lines as they are, anyone else's
     lines with their name («Margaux : Elle prenait ça.»). Captions and silent panels
-    stay on the page."""
+    stay on the page.
+
+    ``labelled=False`` is the reply as the learner reads it (#313): the words only.
+    Who says each of them travels in :func:`reaction_lines`, which the screen draws a
+    bubble from; a «Lila : » in the words printed the label under the addressee's face.
+    The labelled form is the transcript the classifier and the critic read."""
 
     parts: list[str] = []
     for panel in panels:
@@ -489,7 +498,7 @@ def reaction_text(panels: list[dict[str, Any]], *, addressee: str) -> str:
             if not text or line.get("kind") not in ("speech", "all"):
                 continue
             who = str(line.get("who") or "")
-            parts.append(text if who == addressee else f"{_short(line.get('name'), who)} : {text}")
+            parts.append(text if who == addressee or not labelled else f"{_short(line.get('name'), who)} : {text}")
     return "\n".join(parts)
 
 
