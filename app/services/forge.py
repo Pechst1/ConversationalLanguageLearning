@@ -1702,7 +1702,9 @@ class ForgeService:
             elif not evidence.correct and not track.scheduled_failure:
                 decision.schedule = True
                 track.scheduled_failure = True
-        entry.update({"amended": True, "outcome": verdict.outcome, **decision.ledger(), "checked": verdict.checked})
+        # An unread answer is settled (its provisional step taken back) but not
+        # amended: a retried review that does read it still counts, once.
+        entry.update({"amended": verdict.checked, "outcome": verdict.outcome, **decision.ledger(), "checked": verdict.checked})
         self._write_evidence(user=user, state=state, decision=decision, verdict=verdict, attempt=attempt,
                              now=datetime.now(UTC))
         shown = dict(correction.get("forge") or {})

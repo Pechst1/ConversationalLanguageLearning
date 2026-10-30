@@ -141,6 +141,34 @@ def test_an_answer_nobody_could_read_never_climbs(db_session: Session, monkeypat
     )
 
 
+def test_a_retried_review_that_reads_an_unread_answer_still_counts_it(db_session: Session, monkeypatch) -> None:
+    """The failed review settles the provisional step without using up the answer:
+    the retry that does read it moves the level once."""
+
+    user, concept, session, forge = _seated(db_session, Rung.PRODUCE, monkeypatch)
+
+    class _Down:
+        def generate_error_detection(self, messages, **kwargs):
+            from app.services.llm_service import LLMProviderError
+
+            raise LLMProviderError("down")
+
+    service = AtelierCorrectionService(db_session, llm_service=_Down())
+    attempt = _sentence(service, session, user, concept, forge, USES_THE_FORM)
+    forge.observe_attempt(user=user, session=session, attempt=attempt)
+    service.run_ai_review_for_attempt(attempt.id)
+    assert _levels(db_session, user, concept, session, attempt) == (Rung.PRODUCE, Rung.PRODUCE, Rung.PRODUCE)
+
+    retry = AtelierCorrectionService(
+        db_session, llm_service=_FakeLLMService({"verdict": "accepted", "score_0_4": 4, "errata": []})
+    )
+    db_session.refresh(attempt)
+    retry.mark_ai_review_pending(attempt)
+    retry.run_ai_review_for_attempt(attempt.id)
+
+    assert _levels(db_session, user, concept, session, attempt) == (Rung.FREE_USE, Rung.FREE_USE, Rung.FREE_USE)
+
+
 def test_an_answer_that_is_unavailable_from_the_start_does_not_climb(db_session: Session, monkeypatch) -> None:
     user, concept, session, forge = _seated(db_session, Rung.PRODUCE, monkeypatch, relecture=False)
     service = AtelierCorrectionService(db_session)
@@ -220,3 +248,23 @@ def test_verdict_from_attempt_never_reads_a_local_hit_of_an_unavailable_answer(s
     assert verdict.checked is False and verdict.local is None
     attempt.correction_payload = {"assessment_status": "provisional", "local_check": {"detector": "hit"}}
     assert verdict_from_attempt(attempt).local == "correct"
+
+
+def test_settling_an_earlier_miss_keeps_a_later_checked_top_rung_success() -> None:
+    """A provisional hit stepped PRODUCE to FREE_USE; the next answer, read and right
+    at FREE_USE, topped the rule. The first answer's late «not yet» does not undo that."""
+
+    from app.core import forge as core
+
+    state = core.ForgeState.seance([core.ForgeUnit(1, core.Role.TODAY.value, int(Rung.PRODUCE))], length=6)
+    state.record(
+        concept_id=1, rung=int(Rung.PRODUCE),
+        verdict=core.Verdict(core.OUTCOME_CORRECT, checked=False, local=core.OUTCOME_CORRECT),
+    )
+    first = state.history[-1]
+    state.record(concept_id=1, rung=int(Rung.FREE_USE), verdict=core.Verdict(core.OUTCOME_CORRECT, checked=True))
+    track = state.track(1)
+    assert (track.rung, track.topped) == (Rung.FREE_USE, True)
+
+    assert state.settle(first, core.Verdict(core.OUTCOME_INCORRECT, checked=True)) == Rung.FREE_USE
+    assert track.topped is True

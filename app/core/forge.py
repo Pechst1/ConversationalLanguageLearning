@@ -503,7 +503,20 @@ class ForgeState:
             return clamp_rung(entry.get("rung"))
         rung = clamp_rung(entry.get("rung"))
         moved = int(entry.get("rung_move") or 0)
-        if self.mode == MODE_SEANCE:
+        position = int(entry.get("position", -1))
+        later_checked = any(
+            other is not entry
+            and int(other.get("concept_id", -1)) == track.concept_id
+            and int(other.get("position", -1)) > position
+            and other.get("checked")
+            for other in self.history
+        )
+        if self.mode == MODE_SEANCE and later_checked:
+            # A later answer on this rule was read and moved the level from where
+            # this one left it: that verified step owns the level now, and taking
+            # this one's delta off a capped or topped rung would undo it.
+            entry["rung_move"] = 0
+        elif self.mode == MODE_SEANCE:
             final = step_rung(rung, Verdict(verdict.outcome, checked=verdict.checked)) - rung if verdict.checked else 0
             track.rung = clamp_rung(track.rung - moved + final)
             if moved > 0 and final <= 0 and rung == TOP_RUNG and not any(
