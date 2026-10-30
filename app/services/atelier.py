@@ -812,6 +812,25 @@ def _item_keys(item: dict[str, Any], target: Any, *, mode: str | None = None) ->
     return keys
 
 
+def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> bool:
+    """#380: a typed miss that changes a word every choice of the item shares.
+
+    The choices of a rule item differ only in the rule's form («la / le / les
+    poste»; «On préfère / préfères / préfèrent»). A word they all share (the noun,
+    the pronoun) is not what the rule is about, so a learner who changed it («la
+    gare», «Nous préférons») did not slip on the rule, and reciting the rule's
+    headline would blame the wrong thing. Without two distinct choices the item
+    gives no such evidence and this is False."""
+
+    options = [str(option) for option in (item.get("choices") or item.get("options") or []) if isinstance(option, str)]
+    forms = [_normalize(option).split() for option in dict.fromkeys([target, *options]) if _normalize(option)]
+    if len(forms) < 2:
+        return False
+    fixed = set.intersection(*(set(form) for form in forms))
+    learner_words = set(_normalize(learner).split())
+    return bool(fixed) and not fixed <= learner_words
+
+
 def _form_right_only_order_differs(item: dict[str, Any], learner: str, target: str) -> bool:
     """#174/#173: a tile build that uses exactly the key's words and keeps the
     rule's form (``target_span``) intact, so only the order of the rest differs.
@@ -5946,16 +5965,26 @@ class AtelierCorrectionService:
             language = self.explanation_language
             why = _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
-            if normalize_language(language) == "en" and explanation:
+            outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
+            if outside_rule:
+                # #380: say what differs in the learner's text, not the rule's headline.
+                why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
+            elif normalize_language(language) == "en" and explanation:
                 why = f"{why} {explanation}"
             else:
                 why = f"{why} {_copy('atelier.recognize.rule_reference', language, title=_concept_title_for(concept, language))}"
+            if outside_rule:
+                repair = _copy("atelier.recognize.other_words_repair", language)
+            elif normalize_language(language) == "en":
+                repair = infer_grammar_profile(concept).pattern
+            else:
+                repair = self._repair_for(concept)
             return self._recognize_erratum_payload(
                 concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
                 why=why,
                 # QA-FORGE: the profile's pattern is an English formula
                 # («subject + present verb ending»); other languages get their own line.
-                repair=infer_grammar_profile(concept).pattern if normalize_language(language) == "en" else self._repair_for(concept),
+                repair=repair,
                 task_type=self._task_type_for(concept, item),
             )
         if mode == "fill":

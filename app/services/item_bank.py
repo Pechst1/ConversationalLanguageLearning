@@ -1495,6 +1495,8 @@ _FILTER_ALIASES = {"def": "def_", "en": "en_"}
 #: matter for the agreement of a participle or adjective, «you» and «they» for the
 #: person itself.
 _UNDERSPECIFIED_SUBJECTS = frozenset({"I", "we", "you", "they"})
+#: A «we» gloss that also names «our» / «us»: only «nous … notre» is that sentence.
+_OUR_US = re.compile(r"\b(?:our|ours|ourselves|us)\b", re.IGNORECASE)
 
 #: What else in a frame's own text would name the same person as a subject slot
 #: (a literal «Tu», «ton», «ils»): a frame with one cannot swap the slot alone.
@@ -1504,7 +1506,10 @@ _PERSON_FAMILY = {
     "ils": re.compile(r"\b(?:ils|elles|eux)\b", re.IGNORECASE),
     "elles": re.compile(r"\b(?:ils|elles|eux)\b", re.IGNORECASE),
     "je": re.compile(r"\b(?:je|j|moi|mon|ma|mes|me|m|nous|notre|nos)\b", re.IGNORECASE),
-    "nous": re.compile(r"\b(?:je|j|moi|mon|ma|mes|me|m|nous|notre|nos)\b", re.IGNORECASE),
+    "nous": re.compile(r"\b(?:je|j|moi|mon|ma|mes|me|m|nous|on|notre|nos)\b", re.IGNORECASE),
+    # #380: English «we» is «nous» and «on»; a frame that writes either itself
+    # («Nous, [[…]]», «… et moi») cannot swap the subject alone.
+    "on": re.compile(r"\b(?:je|j|moi|mon|ma|mes|me|m|nous|on|notre|nos|se|s|soi)\b", re.IGNORECASE),
 }
 
 
@@ -2009,9 +2014,11 @@ class ItemBank:
     def _person_variants(self, frame: _Frame, bindings: dict[str, dict[str, Any]], sentence: str) -> list[str]:
         """#295: ``sentence`` again with each other person the English allows.
 
-        English «they» is «ils» or «elles», «you» is «tu» or «vous» (and, with an
-        agreeing adjective or participle, a man or a woman): the gloss names no
-        one of them, so the key may not either. The frame redoes the agreement.
+        English «they» is «ils» or «elles», «you» is «tu» or «vous», «we» is «nous»
+        or «on» (and, with an agreeing adjective or participle, a man or a woman):
+        the gloss names no one of them, so the key may not either (#380: «We prefer
+        Le Mistral» refused the standard «Nous préférons»). The frame redoes the
+        agreement.
         The naturalness checker is not asked: it keeps odd sentences out of what
         the learner is *shown* (a «vous» to a friend), not out of what is right.
 
@@ -2026,17 +2033,19 @@ class ItemBank:
         for slot, entry in bindings.items():
             tags = entry.get("tags") or []
             english, french = entry.get("en"), entry.get("fr")
-            if "pron" not in tags or "on" in tags or not isinstance(english, str) or english not in _UNDERSPECIFIED_SUBJECTS:
+            if "pron" not in tags or not isinstance(english, str) or english not in _UNDERSPECIFIED_SUBJECTS:
                 continue
             family = _PERSON_FAMILY.get(str(french))
             if french not in written or (family and family.search(literal)):
                 continue
-            for other in self.lex.pool("pron"):
-                if (
-                    other.get("en") != english
-                    or other.get("id") == entry.get("id")
-                    or "on" in (other.get("tags") or [])
-                ):
+            if english == "we" and _OUR_US.search(self._render_text(frame.en, bindings, english=True)):
+                # «We look for our watch»: «on cherche sa montre» is not «notre».
+                continue
+            candidates = [other for other in self.lex.pool("pron") if other.get("en") == english]
+            # «On est malades» (agreeing with «we») is as right as «On est malade».
+            candidates += [{**other, "n": "p"} for other in candidates if other.get("fr") == "on"]
+            for other in candidates:
+                if other.get("id") == entry.get("id") and other.get("n") == entry.get("n"):
                     continue
                 try:
                     rendered = self.render(frame, {**bindings, slot: other}, alternatives=False)
