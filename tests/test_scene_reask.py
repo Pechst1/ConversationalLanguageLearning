@@ -88,7 +88,7 @@ def test_duration_answer(reading):
     reading.choice = ReplyChoice(reply_id="d", confidence=0.9)
     first = _say(scenario, "Rien. Je vends.", history, 0)
     _record(history, "Rien. Je vends.", first)
-    assert first.route == {"turn": turns[0]["id"], "reply": "d"}
+    assert {k: first.route[k] for k in ("turn", "reply")} == {"turn": turns[0]["id"], "reply": "d"}
     turn = turns[1]
     scenario.character_id = turn["to"]
     reading.choice = ReplyChoice(

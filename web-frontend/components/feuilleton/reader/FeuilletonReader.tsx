@@ -1028,7 +1028,7 @@ function PanelBody({
   if (variant) {
     // WP-110: when the learner spoke in this panel, their line is the balloon;
     // the characters keep their captions (S-2/F-2).
-    // #269: the question the reply answers is read above the picture, the reply on it.
+    // Issue 269: the question the reply answers is read above the picture, the reply on it.
     const order = variant === 'bubble' ? replyReadingOrder(stage.lines) : null;
     const bubbleLine = order ? order.bubble : null;
     const speechOf = (rows: ReaderLine[]) =>
