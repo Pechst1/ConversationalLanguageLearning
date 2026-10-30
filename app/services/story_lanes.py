@@ -60,6 +60,7 @@ from app.services import (
     cast_registry,
     correction_contract,
     lane_guards,
+    scene_ledger,
     speaker_labels,
     story_memory,
 )
@@ -246,6 +247,13 @@ learner_text or history already answers: when the learner said no or kept someth
 themselves, take it as their answer, and the next need comes from the scene (the phone
 rings, the agent is waiting, someone comes in). needs_clarification stays false unless the
 meaning is genuinely unclear. When it is false, do not open a new topic.
+turn_plan.learner_asked, when not null, is a question the learner just asked you: answer
+it first, plainly and in character (yes, no, a fact from the scene, or that you do not
+know), before anything else; never skip it, never answer it with a question of your own.
+ledger lists what this scene has asked so far (asked[].by, text_fr, answered_at): never
+ask again a question whose answered_at is set.
+When turn_plan.keep_talking is false this reply may be the scene's last line: answer and
+react, and close on a statement; do not ask a new question.
 feeling_shift is warmer or colder when this exchange really moved you, steady otherwise.
 who_is_who says who is speaking: you are who_is_who.you_are; learner_text and every
 history[].learner are the LEARNER's words, history[].character are yours. Never repeat,
@@ -286,7 +294,8 @@ resolution_fr, never a different one. The ending may be bittersweet; it is never
 learner's words did not answer it, the character draws their own conclusion from what
 was said, in character («Pas de nom, alors. D'accord, je garde ça pour moi.»); never
 «on verra demain», «elle reviendra demain» or «la question reste ouverte», unless
-story.carries_over is true. Keep resolution_fr at the learner's level (A1 at most
+story.carries_over is true. resolution_fr ends on a statement, never on a question:
+the learner cannot answer it any more. Keep resolution_fr at the learner's level (A1 at most
 35 words, A2 55, B1 85, B2 110, C1 140). callback_fr is a concise fact to remember, not
 a copy of dialogue.
 When the learner explicitly promises an action in their own words, emit a commitment whose
@@ -468,6 +477,7 @@ def voice_payload(payload: dict) -> dict:
         **({"agency": turn_agency} if (turn_agency := _season_agency(payload)) else {}),
         # «Ton cap»: where the learner stands on going home or staying.
         **({"heading": heading} if (heading := _season_heading(payload)) else {}),
+        **({"ledger": ledger} if (ledger := payload.get("ledger")) else {}),
         **_turn_tail(payload),
     }
 
@@ -1092,6 +1102,11 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     lane_guards.check_season_spoiler(written, payload)
     # The ending goes in the character's bubble and the summary under it tells the story.
     lane_guards.check_ending_voice(turn.resolution_fr, turn.summary_native, _character_name(payload))
+    # #378: the scene's last line is printed under the character's name with no reply
+    # box after it. A question at its end could never be answered: it is dropped when
+    # something before it still stands.
+    if not story.get("carries_over"):
+        turn.resolution_fr = scene_ledger.without_trailing_question(turn.resolution_fr)
     if not turn.resolution_fr or not turn.summary_native:
         raise engine.StoryUnavailable(
             "missing_generated_ending",
@@ -1394,6 +1409,11 @@ def evaluate_turn_lanes(
             needs_repair = True  # WP-36: the app's question keeps the scene open.
         if (payload.get("turn_plan") or {}).get("keep_talking"):
             needs_repair = True  # the conversation has exchanges left
+        question_open = not needs_repair and engine.keeps_talking(
+            task, turn_index, self_repair=self_repair, reply_fr=voice.reply_fr
+        )
+        if question_open:
+            needs_repair = True  # #378: the character's question waits for its answer
         correction = None
         if tutor.correction_span_fr and tutor.correction_fr and tutor.correction_note_native:
             candidate = Correction(
@@ -1450,6 +1470,7 @@ def evaluate_turn_lanes(
             correction=correction,
             consequence=proposal,
             needs_repair=needs_repair,
+            question_open=question_open,
             failure_reason="reply_source:model",
             heard={"meant": voice.understood_intent},
         )
