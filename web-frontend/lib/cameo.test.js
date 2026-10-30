@@ -261,3 +261,46 @@ test('an object whose person the learner has not met is handed over by somebody 
   assert.notEqual(out[0].figures[0].id, 'romy_tremblay');
   assert.equal(out[0].figures[0].line.fr, 'Tiens. Ça, c’est à toi maintenant.');
 });
+
+/* #302: a miss is one event, however many times the screen reports it. */
+const attempt = (event, id) => ({ ...event, attempt: id });
+
+test('#302: right, right, wrong reported twice for one attempt is one miss, not «Two mistakes in a row»', () => {
+  const rand = () => 0.3;
+  const { out, state } = run([
+    attempt(right(), 'a1'),
+    attempt(right(), 'a2'),
+    attempt(wrong(), 'a3'),
+    attempt(wrong(), 'a3'), // the same checked item, told again (an effect run twice, a screen remounted)
+  ], rand);
+  assert.equal(out[3], null, 'one miss never brings the comforter');
+  assert.equal(state.wrongRun, 1, 'the miss counts once');
+});
+
+test('#302: the same attempt told twice counts once for a streak too', () => {
+  const { state } = run([attempt(right(), 'a1'), attempt(right(), 'a1'), attempt(right(), 'a1')]);
+  assert.equal(state.streak, 1);
+});
+
+test('#302: two different misses in a row still bring the comforter', () => {
+  const rand = () => 0.3;
+  const { out } = run([attempt(wrong(), 'a1'), attempt(wrong(), 'a2')], rand);
+  assert.equal(out[1].trigger, 'comfort');
+  assert.equal(out[1].reason.en, 'Two mistakes in a row');
+});
+
+test('#302: a retry is a new attempt, so a retried miss counts again', () => {
+  const rand = () => 0.3;
+  const { out } = run([attempt(wrong(), 'a1'), attempt(wrong(), 'a1'), attempt(wrong(), 'a2')], rand);
+  assert.equal(out[1], null);
+  assert.equal(out[2].trigger, 'comfort');
+});
+
+test('#302: every screen that reports a checked answer names the attempt', () => {
+  const epreuve = fs.readFileSync(path.join(WEB_ROOT, 'components/epreuve/Epreuve.tsx'), 'utf8');
+  const emit = epreuve.match(/emitCameo\(\{ type: 'answer'[^)]*\}\)/);
+  assert.ok(emit, 'the verdict band reports the answer');
+  assert.match(emit[0], /attempt:/, 'the band says which attempt it is reporting');
+  const session = fs.readFileSync(path.join(WEB_ROOT, 'components/atelier-v2/journey/JourneySession.tsx'), 'utf8');
+  assert.match(session.match(/emitCameo\(\{ type: 'answer'[^)]*\}\)/)[0], /attempt:/);
+});
