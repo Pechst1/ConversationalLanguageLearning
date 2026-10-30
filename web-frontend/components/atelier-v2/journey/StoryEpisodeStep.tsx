@@ -101,6 +101,7 @@ export function StoryEpisodeStep({
   // condition to someone who never asked for it is how a good idea gets
   // measured as a bad one.
   const [listenFirst, setListenFirst] = useState(false);
+  const [declinedStep, setDeclinedStep] = useState<string | null>(null);
   useEffect(() => {
     setListenFirst(readListenFirst());
   }, []);
@@ -143,6 +144,7 @@ export function StoryEpisodeStep({
     audioAvailable,
     preferred: listenFirst,
     dealt: Boolean(step.prompt.listen_first),
+    declined: declinedStep === step.id,
   });
   const audio = useEpisodeAudio({
     sceneId,
@@ -159,10 +161,16 @@ export function StoryEpisodeStep({
     speaking: lineVoice.speakingKey !== null || audio.state.kind === 'playing',
   });
 
-  const chooseMode = useCallback((enabled: boolean) => {
-    setListenFirst(enabled);
-    writeListenFirst(enabled);
-  }, []);
+  // «Lire plutôt» on this scene. Remembered per scene, not stored: a planner-dealt
+  // listening day must not stay switched off for every later scene by one tap.
+  const chooseMode = useCallback(
+    (enabled: boolean) => {
+      setListenFirst(enabled);
+      writeListenFirst(enabled);
+      setDeclinedStep(enabled ? null : step.id);
+    },
+    [step.id],
+  );
 
   const recordPrediction = useCallback(
     (guess: EpisodeGuessId, verification: EpisodeVerification) => {

@@ -229,6 +229,17 @@ def fake_transcriber_active() -> bool:
     )
 
 
+def _last_route(private: dict[str, Any]) -> dict[str, Any] | None:
+    """The route of the learner's last real answer (a free «ask again» does not count)."""
+
+    for exchange in reversed(private.get("turns") or []):
+        if not isinstance(exchange, dict) or exchange.get("free"):
+            continue
+        route = exchange.get("route")
+        return route if isinstance(route, dict) else None
+    return None
+
+
 def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | None:
     """The one useful line the recap offers to repeat, once the reply is closed.
 
@@ -242,9 +253,19 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
         return None
     private = step.private_task if isinstance(step.private_task, dict) else {}
     task = private.get("response_task") if isinstance(private.get("response_task"), dict) else {}
-    line = str(task.get("suggested_response_fr") or "").strip()
-    if line:
-        return line
+    routed = _last_route(private)
+    if routed is not None:
+        # An authored page routes the learner's answer. What they meant is the
+        # route's own sentence; the question's scripted example is one of the
+        # *other* answers as often as not («Donner une clé à Lila» after «Pas
+        # encore»), so a routed turn never falls back to it.
+        line = str(routed.get("say_fr") or "").strip()
+        if line:
+            return line
+    else:
+        line = str(task.get("suggested_response_fr") or "").strip()
+        if line:
+            return line
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
     return corrected if len(corrected.split()) >= 3 else None
 

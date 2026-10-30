@@ -933,7 +933,8 @@ export function writeListenFirst(enabled: boolean): void {
  * Three answers, and only three:
  *
  * * `'cycle'` — go straight into predict → listen → verify → retain, because
- *   the learner asked for it or the planner dealt «jour d'écoute»;
+ *   the learner asked for it or the planner dealt «jour d'écoute» — unless they
+ *   have since taken the cycle's own way out («Lire plutôt»), which outranks both;
  * * `'before_first_panel'` — the quiet link, above the panels, where it can
  *   still be taken;
  * * `'none'` — this deployment cannot speak the scene. No offer is made at all,
@@ -945,6 +946,7 @@ export function listenFirstPlacement({
   audioAvailable,
   preferred = false,
   dealt = false,
+  declined = false,
 }: {
   /** The server's own answer about this deployment (`prompt.audio_available`). */
   audioAvailable: boolean;
@@ -952,8 +954,16 @@ export function listenFirstPlacement({
   preferred?: boolean;
   /** WP-66 dealt a listening day for this scene (`prompt.listen_first`). */
   dealt?: boolean;
+  /**
+   * The learner took «Lire plutôt» on this scene. The cycle has two reasons to
+   * open (their remembered choice, the planner's deal) and the exit used to undo
+   * only the first, so on a dealt day it did nothing at all (#276). An exit is a
+   * decision about the placement itself, and it wins over both.
+   */
+  declined?: boolean;
 }): ListenFirstPlacement {
   if (!audioAvailable) return 'none';
+  if (declined) return 'before_first_panel';
   return preferred || dealt ? 'cycle' : 'before_first_panel';
 }
 
