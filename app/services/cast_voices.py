@@ -47,6 +47,8 @@ import hashlib
 import re
 from dataclasses import dataclass
 
+from app.services.cast_roles import role_of
+
 #: The id narration lines carry, in the episode manifest and in the cache.
 NARRATOR_ID = "narrator"
 
@@ -213,7 +215,7 @@ _PERSONA: dict[str, tuple[str, str]] = {
     ),
     "lila_bonnet": (
         _ACCENT_PARIS,
-        "Personnage : Lila, 31 ans, institutrice et peintre. Voix claire, vive et lumineuse, "
+        f"Personnage : Lila, 31 ans, {role_of('lila_bonnet')}. Voix claire, vive et lumineuse, "
         "taquine, généreuse ; juste une pointe de chaleur méridionale dans le rythme, sans accent marqué.",
     ),
     "augustin_de_roncourt": (

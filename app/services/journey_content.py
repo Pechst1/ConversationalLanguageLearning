@@ -53,6 +53,7 @@ from app.config import settings
 from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
+from app.services.cast_roles import role_line
 from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
     FALLBACK_CONTROL_LANGUAGE,
@@ -1904,7 +1905,11 @@ def first_day_cast_intro(native_language: str | None) -> list[dict[str, str]]:
             {
                 "character_id": str(row.get("character_id") or ""),
                 "name": str(row.get("name") or ""),
-                "role_native": _localized(row.get("role_native"), language),
+                # #265: «Role. Trait.» — the role is the cast registry's, the file keeps the trait.
+                "role_native": role_line(
+                    row.get("character_id"), language, _localized(row.get("trait_native"), language)
+                )
+                or _localized(row.get("role_native"), language),
                 "line_fr": str(row.get("line_fr") or ""),
                 "line_native": _localized(row.get("line_native"), language),
             }

@@ -689,7 +689,9 @@ An invitation can be declined; do not railroad the learner. character_id
 is the cast member who addresses the learner and must be an id from world.cast; every
 dialogue character_id likewise; the learner is never a character_id. world.cast[].pronoun_fr
 is the pronoun the story uses for that person (il or elle); when it is null, use their
-name, never a pronoun. The person the
+name, never a pronoun. world.cast[].role_fr, when present, is the job or place the
+learner has been told for that person: never give them another occupation, in a line or
+a caption. The person the
 objective asks the learner to talk to IS character_id: never "Ask Romy…" while Marin is
 the one who speaks to the learner and answers — if the learner must talk to Romy, Romy is
 character_id and says opening_line_fr. location_id must
@@ -2161,14 +2163,19 @@ def speech_at_level(text: str, level: str) -> str:
 
 
 def _cast_with_pronouns(cast: list[dict], *, flags: dict) -> list[dict]:
-    """Each cast row with ``pronoun_fr`` («il», «elle», or ``None``: use the name)."""
+    """Each cast row with ``pronoun_fr`` («il», «elle», or ``None``: use the name) and
+    ``role_fr``, the one role the learner reads for that person on every surface
+    (#265; absent when nobody has written one)."""
 
-    from app.services.cast_registry import pronoun_for
+    from app.services.cast_registry import pronoun_for, role
 
-    return [
-        {**member, "pronoun_fr": pronoun_for(member.get("id"), gender=member.get("gender"), flags=flags)}
-        for member in cast
-    ]
+    rows = []
+    for member in cast:
+        row = {**member, "pronoun_fr": pronoun_for(member.get("id"), gender=member.get("gender"), flags=flags)}
+        if role(member.get("id")):
+            row["role_fr"] = role(member.get("id"))
+        rows.append(row)
+    return rows
 
 
 def _cast_for_level(cast: list[dict], level: str) -> list[dict]:
@@ -9349,7 +9356,7 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
     context["world"]["cast"] = [
         member
         if member["id"] == scenario.character_id
-        else {key: member.get(key) for key in ("id", "name", "role", "pronoun_fr")}
+        else {key: member.get(key) for key in ("id", "name", "role", "role_fr", "pronoun_fr")}
         for member in context["world"]["cast"]
     ]
     context["relationships"] = {
