@@ -927,6 +927,8 @@ _BETWEEN = frozenset({"ne", "n", "y", "en", "toujours", "déjà", "aussi", "vrai
 _PLURAL_DETERMINERS = frozenset(
     {"les", "mes", "tes", "ses", "nos", "vos", "leurs", "des", "ces", "plusieurs", "deux", "trois", "quatre", "cinq"}
 )
+#: What makes a subject a plural one when no pronoun says so.
+_PLURAL_EVIDENCE = _PLURAL_DETERMINERS | {"ils", "elles", "eux", "et", "beaucoup", "gens"}
 _SINGULAR_DETERMINERS = frozenset(
     {"le", "la", "l", "un", "une", "mon", "ma", "ton", "ta", "son", "sa", "notre", "votre", "leur", "cet", "cette"}
 )
@@ -939,9 +941,13 @@ _PERSON_MARKERS: dict[str, frozenset[str]] = {
     "2pl": frozenset({"vous", "toi", "tu"}),
 }
 #: «after 'tu'», «avec je», «with vous», «nach tu»: a note that hangs its rule on a subject.
+#: «with the plural subject « ils »», «mit dem Subjekt „ils“» (#250: the live note
+#: hung «→ sont» on an «ils» no sentence had) count as citing it too.
 _CITED_SUBJECT = re.compile(
-    r"\b(?:after|with|following|nach|mit|avec|apr[eè]s|derri[eè]re)\s+[«'‘’\"“]?\s*"
-    r"(je|j|tu|il|elle|on|nous|vous|ils|elles)\b",
+    r"\b(?:after|with|following|nach|mit|avec|apr[eè]s|derri[eè]re)\s+"
+    r"(?:(?:the|a|dem|einem|le|un)\s+)?(?:(?:plural|singular|pluriel|singulier)\s+)?"
+    r"(?:(?:subject|Subjekt|sujet)\s+)?(?:(?:pluriel|singulier)\s+)?"
+    r"[«'‘’\"“„]?\s*(je|j|tu|il|elle|on|nous|vous|ils|elles)\b",
     re.IGNORECASE,
 )
 _CITED_EQUIVALENTS: dict[str, frozenset[str]] = {
@@ -1171,6 +1177,11 @@ def _swap_holds(before: list[str], old_persons: frozenset[str], new_persons: fro
     person = _subject_person(before)
     if person is not None:
         return person not in old_persons and person in new_persons
+    if new_persons == {"3pl"} and "3sg" in old_persons:
+        # A singular form made plural needs something plural in front of it: «Solvel
+        # est» -> «sont» passed because a name cannot be read (#250, 26 Oct). A
+        # plural determiner, a plural pronoun or a coordination must be there.
+        return bool(set(before) & _PLURAL_EVIDENCE)
     # Subject unreadable: a first/second-person replacement still needs its pronoun
     # somewhere in the clause («est → es» with no «tu» or «toi» in it was the #193 bug).
     if not any(p in {"3sg", "3pl"} for p in new_persons):

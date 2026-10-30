@@ -750,6 +750,35 @@ def _held_to_accent(refined: dict[str, Any], reading: Any, *, learner_text: Any,
     return refined
 
 
+#: Errata about the task, not about a span of French: they are the app's, not checked.
+_UNCHECKED_ERRATA = frozenset({"task_compliance", "length_compliance", "lexical_gap"})
+
+
+def held_to_sentence(
+    errata: list[dict[str, Any]], learner_text: Any, language: Any = "en"
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """``(shown, dropped)``: the model's errata through the one checker every
+    correction passes (#250, ``correction_contract.verify_erratum``), each note held
+    to its own fix (``reconcile_notes``, #369). Free production printed the model's
+    errata as they came: a «sont» for a subject «ils» the answer never had."""
+
+    from app.services import correction_contract
+
+    text = str(learner_text or "")
+    shown: list[dict[str, Any]] = []
+    dropped: list[dict[str, Any]] = []
+    for erratum in errata:
+        if not text or str(erratum.get("task_error_type") or "") in _UNCHECKED_ERRATA:
+            shown.append(erratum)
+            continue
+        verified = correction_contract.verify_erratum(text, erratum, strict_span=False)
+        if verified is None:
+            dropped.append(erratum)
+            continue
+        shown.append(correction_contract.reconcile_notes(verified, language=str(language or "en")[:2]))
+    return shown, dropped
+
+
 def refine_production_correction(
     correction: dict[str, Any],
     *,
@@ -773,11 +802,22 @@ def refine_production_correction(
     errata, gaps, dropped = drop_false_english(
         list(refined.get("errata") or []), list(refined.get("lexical_gaps") or [])
     )
+    errata, unproven = held_to_sentence(errata, learner_text, language)
+    if unproven:
+        refined["errata"] = errata
+        refined["dropped_errata"] = [
+            {"learner_text": item.get("learner_text"), "reason": "not_in_sentence"} for item in unproven
+        ]
+        if not errata and not gaps:
+            refined["corrected_answer"] = str(learner_text or refined.get("corrected_answer") or "")
     if dropped:
         refined["errata"], refined["lexical_gaps"] = errata, gaps
         refined["dropped_errata"] = [
-            {"learner_text": item.get("learner_text"), "reason": "french_word_called_english"}
-            for item in dropped
+            *refined.get("dropped_errata", []),
+            *(
+                {"learner_text": item.get("learner_text"), "reason": "french_word_called_english"}
+                for item in dropped
+            ),
         ]
     reading = accent_reading(learner_text, accepted, accents=accents)
     if reading is not None:
