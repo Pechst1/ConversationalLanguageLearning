@@ -174,6 +174,18 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Regel: {title}.",
         "fr": "Règle : {title}.",
     },
+    # #380: a miss that changes a word every choice shares (the noun, the pronoun)
+    # is not a slip in the day's rule, so it must not recite the rule.
+    "atelier.recognize.other_words": {
+        "en": "The rule is not what differs here: this line asks for “{target}”, not “{learner}”.",
+        "de": "Die Regel ist hier nicht der Unterschied: Die Zeile verlangt „{target}“, nicht „{learner}“.",
+        "fr": "Ce n’est pas la règle qui diffère ici : la ligne demande « {target} », pas « {learner} ».",
+    },
+    "atelier.recognize.other_words_repair": {
+        "en": "Read the English line again and type the words it asks for.",
+        "de": "Lies die englische Zeile noch einmal und tippe die gesuchten Wörter.",
+        "fr": "Relis la ligne anglaise et tape les mots qu’elle demande.",
+    },
     "atelier.recognize.missing_label": {
         "en": "Missing answer",
         "de": "Fehlende Antwort",
