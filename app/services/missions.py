@@ -6483,10 +6483,21 @@ def _unassessed_acknowledgement(mission: Any) -> str:
     """The correspondent's honest answer when nothing could assess the letter: it was
     read, and nothing is claimed about it (EXPERIENCE-REVIEW 2026-10-04)."""
 
-    messenger = (getattr(mission, "prompt_payload", None) or {}).get("messenger") or {}
+    payload = getattr(mission, "prompt_payload", None) or {}
+    messenger = payload.get("messenger") or {}
     register = str(messenger.get("register") or "")
     opening = str(messenger.get("opening_message") or "")
-    tu = "tu" in register.split() or "tu /" in register or opening.startswith(("Salut", "Coucou")) or " toi" in opening
+    # #350: the register the letter was written in outranks a guess from its first words
+    # (a tu letter from Gus opening «Bonjour, c'est Gus» was answered «votre message»).
+    declared = register_word(messenger.get("target_register") or payload.get("target_register"))
+    tu = (
+        declared == "tu"
+        if declared
+        else "tu" in register.split()
+        or "tu /" in register
+        or opening.startswith(("Salut", "Coucou"))
+        or " toi" in opening
+    )
     if tu:
         return "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
     return "Merci pour votre message, je l'ai bien lu. Je vous réponds rapidement."
