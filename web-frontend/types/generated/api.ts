@@ -5776,6 +5776,11 @@ export interface components {
             margin_notes?: components["schemas"]["MarginNote"][];
             /** Panels */
             panels?: components["schemas"]["ArchivePanel"][] | null;
+            /**
+             * Reread
+             * @default false
+             */
+            reread?: boolean;
             /** Scene Id */
             scene_id?: string | null;
             /** Special */
@@ -8065,6 +8070,11 @@ export interface components {
             edition_no: number | null;
             /** Image Url */
             image_url: string | null;
+            /**
+             * Reread
+             * @default false
+             */
+            reread: boolean;
             /** Season Title Fr */
             season_title_fr: string | null;
             /** Teaser Fr */
@@ -13428,6 +13438,8 @@ export interface components {
             premise_native: string | null;
             /** Previously Fr */
             previously_fr: string[] | null;
+            /** Reread Native */
+            reread_native: string | null;
             season_part: components["schemas"]["SeasonPart"] | null;
             /** Setup Fr */
             setup_fr: string;

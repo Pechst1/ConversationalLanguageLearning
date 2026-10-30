@@ -176,6 +176,7 @@ export function TrustMeter({ trust, language = null }: { trust: number | null; l
 export function Precedemment({
   lines,
   premise = null,
+  reread = null,
   language = null,
   onRead,
   journeyId = null,
@@ -183,6 +184,8 @@ export function Precedemment({
   lines: string[];
   /** Walk #77: who the learner is and what is at stake, in their language. */
   premise?: string | null;
+  /** #314: a re-read day's one sentence («Today we read it again, then you answer»). */
+  reread?: string | null;
   language?: ControlLanguage | null;
   onRead: () => void;
   journeyId?: string | null;
@@ -197,6 +200,14 @@ export function Precedemment({
   );
   return (
     <section className="fa-previously" aria-label={t.previously_aria} data-precedemment="">
+      {reread && (
+        <>
+          <p className="av2-label">{t.reread}</p>
+          <p className="av2-body fa-previously__premise" data-reread="">
+            {reread}
+          </p>
+        </>
+      )}
       {premise && (
         <>
           <p className="av2-label">{t.premise}</p>

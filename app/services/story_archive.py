@@ -650,6 +650,7 @@ def _day_payloads(
     scene_by_journey: dict[str, GraphicNovelScene],
 ) -> dict[str, dict[str, Any]]:
     from app.services.seals import edition_numbers
+    from app.services.season.reprise import is_reprise_journey
 
     if not journeys:
         return {}
@@ -720,6 +721,7 @@ def _day_payloads(
             "scene_id": str(scene.id) if scene is not None else None,
             "title_fr": (scene.title if scene is not None else "") or str(snapshot.get("title_fr") or ""),
             "edition_no": editions.get(journey.id),
+            "reread": is_reprise_journey(journey),
             "image_url": image,
             "character_id": str(snapshot.get("character_id") or "") or None,
             "learner_lines": _learner_lines(kinds.get("respond")),

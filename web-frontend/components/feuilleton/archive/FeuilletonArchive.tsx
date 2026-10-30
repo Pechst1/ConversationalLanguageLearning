@@ -296,6 +296,7 @@ export function plancheKicker(day: ArchiveDay, language: ControlLanguage | null)
   return [
     day.edition_no !== null ? faFill(t.edition_n, { n: day.edition_no }) : '',
     archiveDate(day.date, language),
+    day.reread ? t.reread : '',
     day.special === 'epreuve' ? canDoCopy(language).special_kicker : '',
   ]
     .filter(Boolean)
