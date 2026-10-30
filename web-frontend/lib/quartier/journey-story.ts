@@ -537,6 +537,9 @@ export class JourneyStory implements Story {
     // question stays open until the engine has heard enough
     const to = this.turn(turnId)?.to ?? 'caption';
     const lines: StoryLine[] = (r.character_lines ?? []).map((l) => ({ who: l.speaker_id ?? to, name: l.speaker_name, kind: 'speech', text_fr: l.text_fr }));
+    // a scene the engine wrote answers in one reply, without the lines split out
+    const reply = r.character_reply_fr?.trim();
+    if (!lines.length && reply) lines.push({ who: to, name: this.turn(turnId)?.to_name ?? null, kind: 'speech', text_fr: reply });
     const next = r.next_turn ? turnId : null;
     const said: StoryPanel[] = lines.length ? [{ kind: 'panel', id: `${turnId}.said.${r.journey.revision}`, lines }] : [];
     return { turn: turnId, reply: null, beats: said, next, closing: next === null, mend, goesOn: next !== null };

@@ -182,6 +182,14 @@ test('a talk the engine keeps open goes on turn after turn, then closes', async 
   assert.notEqual(first.beats[0].id, last.beats[0].id, 'each turn’s lines are their own beat');
 });
 
+test('a reply without its lines split out is still said, by whoever the talk is with', async () => {
+  const result = { pending: false, journey: written({ revision: 5, current: 'talk', turn: 1 }), correction: null, character_lines: [], character_reply_fr: 'Sous le paillasson ? Et tu l’as laissée là ?', next_turn: { step_id: 'talk' }, stage: null };
+  const { story } = storyOn(written({ revision: 4, current: 'talk' }), { attempt: async () => result });
+  const heard = await story.answer('jour.talk', 'Elle est sous le paillasson.');
+  assert.deepEqual(heard.beats[0].lines.map((l) => [l.who, l.name, l.text_fr]), [['lila_bonnet', 'Lila', 'Sous le paillasson ? Et tu l’as laissée là ?']]);
+  assert.equal(heard.goesOn, true);
+});
+
 test('the scene picks the day up where the warm-up left it', async () => {
   const { story, of } = storyOn(written({ current: 'rule' }), { advance: async () => written({ revision: 6, current: 'talk' }) });
   story.follow(written({ revision: 2, current: 'rule' }));
