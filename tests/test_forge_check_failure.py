@@ -84,8 +84,8 @@ def test_the_recap_never_prints_the_model_answer_as_an_unchecked_sentence(db_ses
     assert example, "the item carries a model answer, which is not the learner's work"
 
     # Skipped while the second check is still running ...
-    pending = AtelierSRSService(db_session)._forge_proof_sentence(attempt)
-    assert pending == "", f"a provisional answer is not proof of anything: {pending!r}"
+    pending = AtelierSRSService(db_session)._forge_proof_line(attempt)
+    assert pending is None, f"a provisional answer is not proof of anything: {pending!r}"
 
     # ... and after it stopped.
     failed = service.run_ai_review_for_attempt(attempt.id)

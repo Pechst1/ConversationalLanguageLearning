@@ -8000,37 +8000,108 @@ class AtelierSRSService:
             ).strip()
         return ""
 
+    @staticmethod
+    def _words_of(text: str) -> list[str]:
+        return re.findall(r"[\w']+", str(text or "").replace("\u2019", "'").casefold())
+
     @classmethod
-    def _forge_proof_sentence(cls, attempt: AtelierAttempt) -> str:
-        """One French sentence an answer proves (WP-S6 recap): the whole line,
-        never a lone article or a verdict label."""
+    def _is_clip(cls, learner: str, candidate: str) -> bool:
+        """The candidate only drops words of the learner's line (a clipped echo).
+
+        A correction replaces or reorders something; a line that is the
+        learner's own words minus some of them corrects nothing.
+        """
+
+        mine, theirs = cls._words_of(learner), cls._words_of(candidate)
+        if not theirs or len(theirs) >= len(mine):
+            return False
+        position = 0
+        for word in mine:
+            if word == theirs[position]:
+                position += 1
+                if position == len(theirs):
+                    return True
+        return False
+
+    @classmethod
+    def _forge_proof_line(cls, attempt: AtelierAttempt) -> tuple[str, bool] | None:
+        """One line of the end sheet (WP-S6, #370): ``(French line, fixed)``.
+
+        Every line comes from this attempt's own answer. A right answer is the
+        learner's words verbatim (the corrector's rewrite only stands in for it
+        when it is a real fix, never a clipped echo). A miss shows the *checked
+        correction* of what was written: the item's key for the keyed formats,
+        the corrector's rewrite for a free line. The item's ``example_answer``
+        is the model's sentence, not the learner's and not a correction of it,
+        so it is never a line. An answer nobody checked proves nothing.
+        """
 
         correction = attempt.correction_payload if isinstance(attempt.correction_payload, dict) else {}
         if (
-            correction.get("assessment_status") in {"provisional", "unavailable"}
-            or correction.get("evidence_hold")
+            correction.get("evidence_hold")
+            or correction.get("assessment_status") in {"unavailable", "provisional"}
             or attempt.verdict == "needs_review"
         ):
-            # Nobody read this answer: the item's model line is not something it proved.
-            return ""
+            # Nobody read this answer: it proves nothing (#334).
+            return None
         prompt = attempt.prompt_payload or {}
         items = prompt.get("items") if isinstance(prompt.get("items"), list) else []
         item = items[0] if len(items) == 1 and isinstance(items[0], dict) else {}
+        right = attempt.verdict in {"correct", "accepted"}
+        learner = re.sub(r"\s+", " ", cls._answer_text(attempt.answer_payload or {})).strip()
         text = ""
-        if attempt.round in {"sentence", "speak", "conversation"}:
-            text = cls._published_phrase_text(attempt) if attempt.verdict in {"correct", "accepted"} else ""
-            text = text or str(item.get("example_answer") or "")
-        elif attempt.round == "transform":
-            text = str(item.get("expected_answer") or "")
-        elif attempt.mode == "fill":
-            blank = str(item.get("prompt") or "")
-            answer = str(item.get("correct_answer") or "")
-            if "___" in blank and answer:
-                text = re.sub(r"\s*\([^)]*\)\s*$", "", blank.replace("___", answer, 1))
-        elif attempt.mode == "word_bank" or item.get("classify_kind") == "minimal_pair":
-            text = str(item.get("correct_answer") or "")
+        if attempt.round in {"sentence", "speak", "conversation", "produce"}:
+            rewrite = cls._published_phrase_text(attempt)
+            fixed_by_checker = bool(rewrite) and rewrite != learner and not cls._is_clip(learner, rewrite)
+            if right:
+                text = rewrite if fixed_by_checker else learner
+            else:
+                text = rewrite if fixed_by_checker else ""
+        else:
+            key = ""
+            if attempt.round == "transform":
+                key = str(item.get("expected_answer") or "")
+            elif attempt.mode == "fill":
+                blank = str(item.get("prompt") or "")
+                answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")
+                if "___" in blank and answer:
+                    key = re.sub(r"\s*\([^)]*\)\s*$", "", blank.replace("___", answer, 1))
+            elif attempt.mode == "word_bank":
+                key = (learner if right and len(learner.split()) >= 2 else "") or str(item.get("correct_answer") or "")
+            elif item.get("classify_kind") == "minimal_pair":
+                key = str(item.get("correct_answer") or "")
+            text = key
         text = re.sub(r"\s+", " ", text).strip()
-        return text if len(text.split()) >= 2 else ""
+        if len(text.split()) < 2:
+            return None
+        return text, not right
+
+    @staticmethod
+    def _forge_level_after_last_item(track: Any, history: list[dict[str, Any]]) -> int:
+        """The level a rule stands on after the last item the grader read (#370).
+
+        Read from the day's recorded answers (the ladder's own step rule over
+        the rule's last *checked* item), not from the staircase's running value:
+        that one can still hold a provisional climb («uses the rule», read by
+        the instant detector) which the model's later reading took back, and the
+        sheet showed that stale level next to a «Not yet». A rule with no
+        checked item keeps its running level; nothing contradicts it.
+        """
+
+        from app.core import forge as forge_core
+
+        last = next(
+            (
+                entry
+                for entry in reversed(history)
+                if int(entry.get("concept_id", -1)) == int(track.concept_id) and entry.get("checked")
+            ),
+            None,
+        )
+        if last is None:
+            return forge_core.clamp_rung(track.rung)
+        outcome = str(last.get("outcome") or forge_core.OUTCOME_INCORRECT)
+        return forge_core.step_rung(int(last.get("rung", track.rung)), forge_core.Verdict(outcome, checked=True))
 
     def _forge_rule_progress(
         self,
@@ -8070,12 +8141,15 @@ class AtelierSRSService:
             reverse=True,
         )
         for _index, attempt in ranked:
-            sentence = self._forge_proof_sentence(attempt)
+            proof = self._forge_proof_line(attempt)
+            if proof is None:
+                continue
+            sentence, fixed = proof
             key = sentence.casefold()
-            if not sentence or key in seen:
+            if key in seen:
                 continue
             seen.add(key)
-            lines.append({"fr": sentence, "fixed": attempt.verdict not in {"correct", "accepted"}})
+            lines.append({"fr": sentence, "fixed": fixed})
             if len(lines) == 2:
                 break
         next_review = getattr(progress, "next_review", None)
@@ -8234,6 +8308,10 @@ class AtelierSRSService:
         }
         if forge_state is not None:  # WP-S3: each rule's rung, and the evidence written
             plan = (session.quote_payload or {}).get("forge") or {}
+            levels = {
+                track.concept_id: self._forge_level_after_last_item(track, forge_state.history)
+                for track in forge_state.tracks
+            }
             recap["forge"] = {
                 # WP-S4: where the block came from; a folded block returns to its step.
                 "origin": plan.get("origin"),
@@ -8248,8 +8326,8 @@ class AtelierSRSService:
                     {
                         "concept_id": track.concept_id,
                         "role": track.role,
-                        "rung": track.rung,
-                        "rung_name": forge_rung_name(track.rung),
+                        "rung": levels[track.concept_id],
+                        "rung_name": forge_rung_name(levels[track.concept_id]),
                         "served": track.served,
                         **self._forge_rule_progress(
                             user=user,
