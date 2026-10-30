@@ -384,6 +384,182 @@ def _grounded(
 
 
 # ---------------------------------------------------------------------------
+# The note is checked against the form it explains (#369)
+# ---------------------------------------------------------------------------
+#
+# Why this was possible: the model writes two things, the corrected form and a
+# sentence about it, and only the form was ever checked. «aujourdhui» ->
+# «aujourd'hui» was shown with «an accent on « hui »»: the form was right, the
+# explanation named a character the form does not have. A note is a *claim about
+# characters*; the characters are right there in the (span, replacement) pair, so
+# the claim can be checked without a model. A note whose claim the pair does not
+# bear out is replaced by one derived from the pair itself.
+
+_ACCENT_CLAIM = re.compile(
+    r"accent|aigu|circonflex|tr[ée]ma|c[ée]dill|diacrit|umlaut|di(?:a)?eresis|"
+    r"akzent|zirkumflex",
+    re.IGNORECASE,
+)
+_APOSTROPHE_CLAIM = re.compile(r"apostroph", re.IGNORECASE)
+_QUOTED = re.compile(r"«\s*([^»]+?)\s*»|“\s*([^”]+?)\s*”|\"([^\"]+)\"")
+
+_MARK_NAMES: dict[str, dict[str, str]] = {
+    "́": {"en": "acute accent", "fr": "accent aigu", "de": "Akut"},
+    "̀": {"en": "grave accent", "fr": "accent grave", "de": "Gravis"},
+    "̂": {"en": "circumflex", "fr": "accent circonflexe", "de": "Zirkumflex"},
+    "̈": {"en": "diaeresis", "fr": "tréma", "de": "Trema"},
+    "̧": {"en": "cedilla", "fr": "cédille", "de": "Cedille"},
+}
+
+
+def _marked_letters(value: object) -> list[str]:
+    """The letters of ``value`` that carry a diacritic (NFC form, reading order)."""
+    out: list[str] = []
+    for char in _norm(value):
+        decomposed = unicodedata.normalize("NFD", char)
+        if len(decomposed) > 1 and any(unicodedata.combining(c) for c in decomposed[1:]):
+            out.append(char.casefold())
+    return out
+
+
+def _strip_marks(value: object) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", _norm(value)) if not unicodedata.combining(c))
+
+
+def _base_letters(value: object) -> set[str]:
+    return {c.casefold() for c in _strip_marks(value) if c.isalpha()}
+
+
+def _quoted_fragments(note: str) -> list[str]:
+    return [next(g for g in m.groups() if g) for m in _QUOTED.finditer(note)]
+
+
+def _changed_marked_letters(span: str, replacement: str) -> list[str]:
+    """Diacritic letters the replacement has more of than the span."""
+    old = _marked_letters(span)
+    out: list[str] = []
+    for letter in _marked_letters(replacement):
+        if letter in old:
+            old.remove(letter)
+        else:
+            out.append(letter)
+    return out
+
+
+def note_matches_form(span: object, replacement: object, note: object) -> bool:
+    """Whether a note's claims about characters are true of the (span, replacement) pair.
+
+    One-sided, like :func:`edit_is_grounded`: it rejects only a claim it can prove
+    false (an accent where no diacritic changes, an apostrophe where none changes,
+    a quoted accented letter in neither form, an accent «on « hui »» when the
+    letters it names have no diacritic in the corrected form). A note that makes no
+    claim about characters always passes.
+    """
+    text = _norm(note).strip()
+    old, new = _norm(span), _norm(replacement)
+    if not text or not new:
+        return True
+    quoted = _quoted_fragments(text)
+    # A quoted accented letter («ç») must be in one of the two forms.
+    for fragment in quoted:
+        fragment_marks = _marked_letters(fragment)
+        if len(fragment.strip()) == 1 and fragment_marks:
+            if fragment_marks[0] not in _marked_letters(new) + _marked_letters(old):
+                return False
+    if _ACCENT_CLAIM.search(text):
+        added = _changed_marked_letters(old, new)
+        removed = _changed_marked_letters(new, old)
+        changed = added or removed
+        if not changed:
+            return False  # no diacritic is added, removed or swapped
+        # «an accent on « hui »»: the words the note points at must contain a letter
+        # that really changed. A quoted fragment is a pointer, never a new fact.
+        pointed = [f for f in quoted if _base_letters(f)]
+        if pointed:
+            needed = {b for letter in changed for b in _base_letters(letter)} | set(changed)
+            if not any((_base_letters(f) & needed) or (set(f.casefold()) & set(changed)) for f in pointed):
+                return False
+    if _APOSTROPHE_CLAIM.search(text) and old.count("'") == new.count("'"):
+        return False
+    return True
+
+
+_FORM_NOTES: dict[str, dict[str, str]] = {
+    "apostrophe_added": {
+        "en": "An apostrophe is missing: « {new} ».",
+        "fr": "Il manque une apostrophe : « {new} ».",
+        "de": "Es fehlt ein Apostroph: « {new} ».",
+    },
+    "apostrophe_removed": {
+        "en": "No apostrophe here: « {new} ».",
+        "fr": "Pas d'apostrophe ici : « {new} ».",
+        "de": "Hier steht kein Apostroph: « {new} ».",
+    },
+    "accent": {
+        "en": "Spelling: the {mark} on « {letter} » — « {new} ».",
+        "fr": "Orthographe : {mark} sur « {letter} » — « {new} ».",
+        "de": "Schreibung: {mark} auf « {letter} » — « {new} ».",
+    },
+    "hyphen": {
+        "en": "Hyphen: « {new} ».",
+        "fr": "Trait d'union : « {new} ».",
+        "de": "Bindestrich: « {new} ».",
+    },
+    "form": {
+        "en": "The correct form is « {new} ».",
+        "fr": "La forme correcte est « {new} ».",
+        "de": "Die richtige Form ist « {new} ».",
+    },
+}
+
+
+def _mark_of(letter: str) -> str | None:
+    for part in unicodedata.normalize("NFD", letter)[1:]:
+        if part in _MARK_NAMES:
+            return part
+    return None
+
+
+def note_from_form(span: object, replacement: object, *, language: str | None = None) -> str:
+    """A note written from the (span, replacement) pair alone, true by construction."""
+    old, new = _norm(span).strip(), _norm(replacement).strip()
+    fills = {"new": new, "old": old}
+    if old.replace("'", "").casefold() == new.replace("'", "").casefold() and old.count("'") != new.count("'"):
+        kind = "apostrophe_added" if new.count("'") > old.count("'") else "apostrophe_removed"
+        return _pick(_FORM_NOTES[kind], language).format(**fills)
+    added = _changed_marked_letters(old, new)
+    if added and _strip_marks(old).casefold() == _strip_marks(new).casefold():
+        letter = added[0]
+        mark = _mark_of(letter)
+        if mark is not None:
+            return _pick(_FORM_NOTES["accent"], language).format(
+                mark=_pick(_MARK_NAMES[mark], language), letter=letter, **fills
+            )
+    if old.count("-") != new.count("-") and old.replace("-", " ").casefold() == new.replace("-", " ").casefold():
+        return _pick(_FORM_NOTES["hyphen"], language).format(**fills)
+    return _pick(_FORM_NOTES["form"], language).format(**fills)
+
+
+def note_for_form(span: object, replacement: object, note: object, *, language: str | None = None) -> str:
+    """``note`` when the pair bears out what it says, else a note written from the pair."""
+    text = "" if note is None else str(note)
+    if not text.strip() or note_matches_form(span, replacement, text):
+        return text
+    return note_from_form(span, replacement, language=language)
+
+
+def reconcile_notes(erratum: Mapping[str, Any], *, language: str | None = None) -> dict[str, Any]:
+    """The erratum with every explanation held to its own (learner_text, corrected_target)."""
+    out = dict(erratum)
+    for key in ("why_wrong", "repair_hint"):
+        if out.get(key):
+            out[key] = note_for_form(
+                out.get("learner_text"), out.get("corrected_target"), out[key], language=language
+            )
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Deterministic edits
 # ---------------------------------------------------------------------------
 
@@ -1534,7 +1710,7 @@ def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) ->
     return _settle(source, composed, cast, depth + 1)
 
 
-_QUOTED = "«“\"‘'"
+_OPEN_QUOTES = "«“\"‘'"
 _UNQUOTED = "»”\"’'"
 
 
@@ -1544,7 +1720,7 @@ def _requote(note: str, old: str, new: str) -> str:
     never replaced inside the rest of the explanation."""
     if not note or not old or old == new:
         return note
-    pattern = re.compile(f"([{_QUOTED}]\\s*){re.escape(old)}(\\s*[{_UNQUOTED}])")
+    pattern = re.compile(f"([{_OPEN_QUOTES}]\\s*){re.escape(old)}(\\s*[{_UNQUOTED}])")
     out, count = pattern.subn(lambda m: m.group(1) + new + m.group(2), note)
     if count or len(old) < 4:
         return out
@@ -1962,10 +2138,15 @@ def deterministic_errata(
 
 
 def grounded_errata(
-    text: object, errata: Iterable[Mapping[str, Any]], *, strict_span: bool = False
+    text: object,
+    errata: Iterable[Mapping[str, Any]],
+    *,
+    strict_span: bool = False,
+    language: str | None = None,
 ) -> list[dict[str, Any]]:
     """The errata whose (learner_text, corrected_target, why_wrong) pass
-    :func:`edit_is_grounded`. Authored task/vocabulary notes pass untouched."""
+    :func:`edit_is_grounded`, each with its notes held to its own corrected form
+    (:func:`reconcile_notes`, #369). Authored task/vocabulary notes pass untouched."""
     kept: list[dict[str, Any]] = []
     seen: set[str] = set()
     for item in errata:
@@ -1979,7 +2160,7 @@ def grounded_errata(
             continue  # one note per issue, not two near-duplicates (#93)
         verified = verify_erratum(text, item, strict_span=strict_span)
         if verified is not None:
-            kept.append(verified)
+            kept.append(reconcile_notes(verified, language=language))
             if quoted:
                 seen.add(quoted)
     return kept
@@ -2025,7 +2206,7 @@ def merge_deterministic_errata(
     people: Mapping[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Grounded model errata plus the deterministic ones that do not overlap them."""
-    kept = grounded_errata(text, errata)
+    kept = grounded_errata(text, errata, language=language)
     source = ("" if text is None else str(text)).casefold()
     taken: list[tuple[int, int]] = []
     for item in kept:
@@ -2056,6 +2237,9 @@ def first_valid_edit(
         verdict = verify_edit(text, span, replacement, note, people=people)
         if verdict.ok and verdict.replacement:
             shown = _requote(str(note), str(replacement), verdict.replacement) if note else None
+            if shown:
+                # #93: a note naming an accent the corrected form lacks is rewritten.
+                shown = note_for_form(verdict.span or span, verdict.replacement, shown, language=language) or None
             return verdict.span or str(span), verdict.replacement, shown
     edits = deterministic_edits(text, people=people)
     if edits:
@@ -2077,6 +2261,10 @@ __all__ = [
     "known_people",
     "merge_deterministic_errata",
     "repair_text",
+    "note_for_form",
+    "note_from_form",
+    "note_matches_form",
+    "reconcile_notes",
     "to_erratum",
     "verify_edit",
     "verify_erratum",
