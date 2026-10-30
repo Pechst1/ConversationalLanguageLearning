@@ -1734,8 +1734,8 @@ export interface SerialArchiveEpisode {
 export interface SerialCastMember {
   id: string;
   name: string;
+  /** #298: the learner-facing line under the name, in the interface language. */
   role?: string | null;
-  dynamic_with_user?: string | null;
   model_sheet_url?: string | null;
   accent_colour?: string | null;
   /** WP-97: the engine's trust, 0..5 — it can fall. `null` before any exchange. */

@@ -14,6 +14,10 @@ voice, first day), and every surface reads it **by id**:
   (``app/data/season/s1/world.json`` ``cast``), so a pronoun follows the canon;
 * ``voice`` comes from :mod:`app.services.cast_voices`;
 * ``face`` is the drawn portrait directory, found on disk, never typed twice;
+* the card line (:func:`card_line`) is the one sentence a cast card shows about a
+  person, written for the learner per interface language in ``cast_cards.json``;
+  never the world bible's ``role`` / ``dynamic_with_user``, which are briefs for the
+  writers (#298);
 * ``first_day`` is ``(tentpole, day letter)`` of the person's first authored page;
 * the pronoun the story uses for a person (:func:`pronoun_for`) comes from the same
   row, and for the one person whose gender the learner picks (Camille) from that
@@ -37,6 +41,7 @@ from app.services.cast_voices import CAST_VOICES
 
 _REPO = Path(__file__).resolve().parents[2]
 WORLD_PATH = _REPO / "app" / "data" / "season" / "s1" / "world.json"
+CARDS_PATH = _REPO / "app" / "data" / "season" / "s1" / "cast_cards.json"
 DRAWN_FACES_DIR = _REPO / "web-frontend" / "public" / "assets" / "serial" / "drawn"
 
 #: What the learner reads for each person.
@@ -141,6 +146,25 @@ def _registry() -> dict[str, CastMember]:
             first_day=_FIRST_APPEARANCE.get(cast_id, (1, "a")),
         )
     return members
+
+
+@lru_cache(maxsize=1)
+def _cards() -> dict[str, dict[str, str]]:
+    data = json.loads(CARDS_PATH.read_text(encoding="utf-8"))
+    return {str(cid): dict(row) for cid, row in (data.get("cards") or {}).items()}
+
+
+def card_line(character_id: str | None, language: str | None = "en") -> str:
+    """What a cast card says about this person, in the learner's interface language.
+
+    ``""`` when nobody wrote a line: a card then shows the name only. It never falls
+    back to the world bible's text, which is the author's (#298).
+    """
+
+    cast_id = resolve_id(character_id)
+    row = _cards().get(cast_id or "") or {}
+    code = str(language or "en").strip().lower().replace("_", "-").split("-")[0]
+    return str(row.get(code) or row.get("en") or "")
 
 
 def all_members() -> dict[str, CastMember]:

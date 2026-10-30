@@ -129,7 +129,9 @@ def _serial_conversation_context(db: Session, user: User) -> dict[str, Any] | No
     if mission_character_id:
         preferred_ids.insert(0, mission_character_id)
 
-    cast = serial_service.cast_payload(thread)
+    # #298: this character is echoed to the browser, so it carries the learner's card
+    # line, not the story bible's brief.
+    cast = serial_service.cast_payload(thread, language=user_chrome_language(user))
     if not cast:
         return None
     by_id = {str(member.get("id")): member for member in cast if member.get("id")}
