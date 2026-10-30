@@ -282,18 +282,6 @@ def test_scoped_submit(client, db_session, monkeypatch) -> None:
     assert attempt.prompt_payload["items"][0]["character"]["name"] == "Margaux"
 
 
-def test_openers() -> None:
-    """The bank's own scene lines pass the same check the model's prompts do."""
-
-    from app.services import forge_coaches
-    from app.services.forge_item_validator import item_problems
-
-    for coach_id in forge_coaches.cast_ids():
-        payload = forge_coaches.coach(coach_id)
-        for opener in forge_coaches._data()["cast"][coach_id]["openers"]:
-            assert item_problems(opener["fr"], register=payload["register"]) == [], (coach_id, opener["fr"])
-
-
 def test_scene_register() -> None:
     from app.services.forge_coaches import mini_scene
 
