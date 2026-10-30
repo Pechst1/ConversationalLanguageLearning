@@ -20,6 +20,7 @@
 
 import type { ControlLanguage, GrammarFocus, StoryEpisode, StoryPanel } from '@/types/daily-journey';
 import { lineMarkRanges } from '@/components/feuilleton/reader/grammar-marks';
+import { isPlanningNote } from '@/components/feuilleton/reader/planning-note';
 import {
   readerCharacterKey,
   type ReaderLine,
@@ -104,9 +105,11 @@ export function storyCharacterName(
  * emitting it needs no second change here.
  */
 export function stripPanelPrefix(text: string | null | undefined): string {
-  return String(text ?? '')
+  const line = String(text ?? '')
     .replace(/^\s*panneau\s*n?[°º]?\s*\d+\s*[:.\-–—]\s*/i, '')
     .trim();
+  // #263: the director's scratch note is not narration; a scene stored with one prints none.
+  return isPlanningNote(line) ? '' : line;
 }
 
 /**
