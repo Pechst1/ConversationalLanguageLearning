@@ -70,6 +70,10 @@ test('every walk the scene asks for has a way through the streets', () => {
     ['the door to the zinc', MARKS.doorIn, MARKS.atZinc],
     ['the booth to beside you', MARKS.boothMiddle, MARKS.zincBeside],
     ['the booth to the chair', MARKS.boothMiddle, MARKS.pulledChair],
+    // a day without blocking: whoever a question is put to comes over, and goes back after
+    ['the booth corner to beside you', MARKS.boothCorner, MARKS.zincBeside],
+    ['the booth’s end to beside you', MARKS.boothLeft, MARKS.zincBeside],
+    ['Camille’s table to beside you', new Vector3(-33.95, 0, -11.0), MARKS.zincBeside],
   ];
   for (const [label, a, b] of ways) {
     const start = nav.nearest(a.x, a.z, 3);

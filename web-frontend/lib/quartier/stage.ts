@@ -1,6 +1,9 @@
 /**
- * Le Quartier · the stage director: a day of the season played in the quarter. In phase 1 that is
- * T1, day a («Le mauvais accueil»), the one day it has blocking for (`story.STAGED_DAYS`).
+ * Le Quartier · the stage director: a day of the season played in the quarter. In phase 1 it has
+ * blocking for T1, day a («Le mauvais accueil») (`story.STAGED_DAYS`). Any other day (an authored
+ * page without blocking, or a scene the story engine wrote today) plays at Le Mistral as it is
+ * written: you at the zinc, the regulars in the room, each line said by whoever says it, and the
+ * question asked by whoever it is put to, who comes over to the zinc to hear your answer.
  *
  * The words are the story engine's (`story.ts`): in the app the page the server resolved for this
  * learner, read through today's journey; nothing here writes a line of the story. What the
@@ -32,11 +35,13 @@ import { CHAIR, MARKS } from './mistral';
 import { AMBIANCES } from './palette';
 import { STRIDE } from './pace';
 import { PLAN } from './quai';
-import { OfflineStory, hookOf, nextTurn, storyletOf } from './story';
+import { OfflineStory, STAGED_DAYS, hookOf, nextTurn, storyletOf } from './story';
 import type { Answered, Ask, Help, HelpStep, Heard, Mend, Story, StoryHook, StoryLine, StoryPanel, StoryPerson, StoryTurn } from './story';
 
-/** The day's id in the quarter's memory. */
-export const DAY = 't1a';
+/** The day's id in the quarter's memory (`t1a`; `jour2026-10-30` for a day the engine wrote). */
+export function dayOf(page: { key: string }) {
+  return page.key.replace('.', '');
+}
 
 /* ------------------------------------------------------------------------------------------ */
 /* what the screen shows                                                                      */
@@ -370,6 +375,16 @@ export class Stage implements Director {
     return this.story.page;
   }
 
+  /** Its id in the quarter's memory. */
+  private get day() {
+    return dayOf(this.story.page);
+  }
+
+  /** The director has blocking for the day; else it plays the page's lines where they fall. */
+  private get blocked() {
+    return STAGED_DAYS.includes(this.story.page.key);
+  }
+
   get replayable() {
     return this.story.replayable;
   }
@@ -448,12 +463,12 @@ export class Stage implements Director {
     return { fr, en: this.native === 'en' ? (native ?? '') : '', de: this.native === 'de' ? (native ?? '') : '' };
   }
 
-  private remember(effects: Effect | Effect[] | undefined, day = DAY) {
+  private remember(effects: Effect | Effect[] | undefined, day = this.day) {
     this.memory.apply(day, effects);
   }
 
   /** What a gesture brought back, into the quarter's memory: what you learned, the flags, the regard. */
-  private keep(a: Answered | null, who?: CastId, day = DAY) {
+  private keep(a: Answered | null, who?: CastId, day = this.day) {
     if (!a) return;
     const effects: Effect[] = [];
     for (const l of a.learned) effects.push({ kind: 'learn', key: l.id, words: this.words(l.text_fr, l.text_native), who });
@@ -600,7 +615,7 @@ export class Stage implements Director {
       beat: s.beat,
       wentOut: false,
     };
-    if (!this.memory.fact('t1.walked_out')) {
+    if (storyletOf(this.story.page, 'walk_out') && !this.memory.fact('t1.walked_out')) {
       this.remember(LEAVE.effects);
       const away = this.away;
       void this.story.gesture({ storylet: 'walk_out', at: s.beat }).then((a) => {
@@ -680,7 +695,7 @@ export class Stage implements Director {
     if (!person || !TALKERS[id] || this.away) return;
     const f = this.fig(key);
     if (!f || !f.visible) return;
-    const day = this.ui.phase === 'roam' ? 'roam' : DAY;
+    const day = this.ui.phase === 'roam' ? 'roam' : this.day;
     if (!this.memory.state()[`met.${id}`]) this.remember({ kind: 'meet', who: id }, day);
     const talking = { who: id, day };
     this.talking = talking;
@@ -1263,6 +1278,49 @@ export class Stage implements Director {
     this.away = null;
     this.restore = null;
     this.talking = null;
+    this.beside = null;
+    if (!this.blocked) this.resetInside();
+  }
+
+  /** Who stands beside you at the zinc, come over for a question (a day without blocking). */
+  private beside: string | null = null;
+
+  /**
+   * A day without blocking: you at the zinc, Le Mistral open, the regulars where they spend the
+   * evening. Camille is there only when the page has her say something.
+   */
+  private resetInside() {
+    this.q.place(MARKS.atZinc, MARKS.boothMiddle.clone().setY(1.5));
+    const speaks = new Set(
+      this.story.page.movements.flatMap((m) => (m.kind === 'panel' ? m.lines : m.panel.lines).map((l) => l.who).concat(m.kind === 'turn' ? [m.to] : [])),
+    );
+    for (const [k, at] of EVENING) {
+      const f = this.fig(k);
+      if (!f) continue;
+      f.place(at);
+      f.visible = k !== 'camille_marchand' || speaks.has(k);
+    }
+    this.camilleNamed = true;
+  }
+
+  /** Whoever a question is put to comes to the zinc beside you; whoever stood there goes back to their place. */
+  private async comeOver(gen: number, key: string) {
+    if (this.beside === key) return;
+    const f = this.fig(key);
+    if (!f) return;
+    const before = this.beside;
+    this.beside = key;
+    const home = EVENING.find(([k]) => k === before)?.[1];
+    if (before && home) void this.walkFig(gen, before, home, 1.0).catch(() => undefined);
+    // Margaux answers from behind the zinc
+    if (key === 'margaux_barman') {
+      this.look(f.face(), 2.0);
+      return;
+    }
+    f.visible = true;
+    f.seat = 0;
+    const follow = this.q.onTick(() => this.look(f.face(), 2.0));
+    await this.walkFig(gen, key, MARKS.zincBeside, 1.0).finally(follow);
   }
 
   private progress(id: string) {
@@ -1275,12 +1333,16 @@ export class Stage implements Director {
     const gen = ++this.gen;
     this.clearWaits();
     this.reset();
-    this.memory.beginDay(DAY);
-    this.remember([
-      { kind: 'place', id: 'quai_de_valmy', status: 'visited' },
-      { kind: 'item', id: 'cle_cigale', holder: 'toi' },
-      { kind: 'item', id: 'enveloppe', holder: 'toi' },
-    ]);
+    this.memory.beginDay(this.day);
+    if (this.blocked) {
+      this.remember([
+        { kind: 'place', id: 'quai_de_valmy', status: 'visited' },
+        { kind: 'item', id: 'cle_cigale', holder: 'toi' },
+        { kind: 'item', id: 'enveloppe', holder: 'toi' },
+      ]);
+    } else {
+      this.remember({ kind: 'place', id: 'le_mistral', status: 'visited' });
+    }
     const page = this.story.page;
     this.routes = {};
     this.asking = nextTurn(page, null, {});
@@ -1292,8 +1354,13 @@ export class Stage implements Director {
           // a question the engine does not ask today (its `only_after` did not hold) is not asked here either
           if (m.id === this.asking) await this.turn(gen, m);
         } else if (m.kind === 'hook') {
-          await this.moment(gen);
-          await this.hook(gen, m);
+          // the moment before the bell is the day's that has people to talk to
+          if (storyletOf(page, 'talk')) await this.moment(gen);
+          if (this.blocked) await this.hook(gen, m);
+          else {
+            this.progress(m.id);
+            await this.beat(gen, m.panel);
+          }
         } else {
           await this.panel(gen, m);
         }
@@ -1314,7 +1381,7 @@ export class Stage implements Director {
   private recap(): StageUi['recap'] {
     const did = this.memory
       .journal()
-      .filter((j) => j.day === DAY)
+      .filter((j) => j.day === this.day)
       .slice(0, 4)
       .reverse()
       .map((j) => this.say(j.words));
@@ -1324,6 +1391,8 @@ export class Stage implements Director {
   /** A panel of the page: its blocking where the director has some, else its lines, spoken in turn. */
   private async panel(gen: number, m: StoryPanel) {
     this.progress(m.id);
+    // another day's ids may read like day a's («a.p1»): its blocking is day a's alone
+    if (!this.blocked) return this.beat(gen, m);
     switch (m.id) {
       case 'a.p1':
         await this.p1(gen, m);
@@ -1473,14 +1542,19 @@ export class Stage implements Director {
         this.asking = heard.next;
         break;
       }
-      again = true;
+      // a talk the engine keeps open: what they said back is the next thing you answer
+      again = !heard.goesOn;
     }
     // whatever was said to Margaux, the key ends up back on the zinc in front of you: yours to take, or not
-    if (turn.id === 'a.turn2') await this.keyBack(gen);
+    if (this.blocked && turn.id === 'a.turn2') await this.keyBack(gen);
   }
 
   /** What happens in the room before a question is asked. */
   private async setUp(gen: number, turn: StoryTurn) {
+    if (!this.blocked) {
+      await this.comeOver(gen, turn.to);
+      return;
+    }
     if (turn.id === 'a.turn1') {
       // Gus at the zinc beside you: who are you, exactly?
       const gus = this.fig('augustin_de_roncourt');
@@ -1514,8 +1588,8 @@ export class Stage implements Director {
 
   /** What the room does with what you said: the first line back, then the reply the engine read. */
   private async react(gen: number, turn: StoryTurn, heard: Heard) {
-    this.set({ beat: heard.reply === null ? `${turn.id}.again` : `${turn.id}.${heard.reply}` });
-    if (heard.reply !== null) this.remember(REPLY_EFFECTS[`${turn.id}.${heard.reply}`]);
+    this.set({ beat: heard.reply !== null ? `${turn.id}.${heard.reply}` : heard.goesOn ? `${turn.id}.on` : `${turn.id}.again` });
+    if (heard.reply !== null && this.blocked) this.remember(REPLY_EFFECTS[`${turn.id}.${heard.reply}`]);
     // your line stays while the room takes it in; a correction stays until you have read it
     if (heard.mend) await this.waitTap(gen);
     else await this.wait(gen, 1.2);
@@ -1523,7 +1597,7 @@ export class Stage implements Director {
     // the tail of the talk is the hook's panel, which the hook stages from the page
     const tail = hookOf(this.story.page)?.panel.id;
     const beats = heard.beats.filter((b) => b.id !== tail);
-    if (heard.reply !== null && (turn.id === 'a.cafe' || turn.id === 'a.key')) {
+    if (heard.reply !== null && this.blocked && (turn.id === 'a.cafe' || turn.id === 'a.key')) {
       const first = beats.filter((b) => /\.ack$/.test(b.id));
       for (const b of first) await this.beat(gen, b);
       const rest = beats.filter((b) => !/\.ack$/.test(b.id));
@@ -1706,6 +1780,7 @@ export class Stage implements Director {
 
   /** One beat of a reply: lines, or a silent panel acted out by its id. */
   private async beat(gen: number, b: StoryPanel) {
+    if (!this.blocked) return this.plainBeat(gen, b);
     const id = b.id;
     if (SILENT_BEATS.cup.test(id)) {
       // Margaux sets a café crème in front of you; nobody ordered it
@@ -1776,6 +1851,17 @@ export class Stage implements Director {
         if (gus) await this.tween(gen, 1.2, (t) => (gus.seat = 0.2 * t));
       }
       if (line.direction?.startsWith('triumphant') || line.direction === 'delighted') this.fig(line.who)?.hop();
+    });
+  }
+
+  /** A beat of a day without blocking: its lines, each said by whoever says it; a silence held. */
+  private async plainBeat(gen: number, b: StoryPanel) {
+    if (b.silence && !b.lines.length) {
+      await this.silent(gen, 1.8);
+      return;
+    }
+    await this.lines(gen, b, (line) => {
+      if (line.direction?.startsWith('triumphant') || line.direction === 'delighted' || line.mood === 'happy') this.fig(line.who)?.hop();
     });
   }
 }
