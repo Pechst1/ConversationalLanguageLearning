@@ -1031,7 +1031,8 @@ class JournalService:
             "assessment_truncated": bool(truncated or correction.get("assessment_truncated")),
             "verdict": correction.get("verdict"),
             "score_0_4": correction.get("score_0_4"),
-            "corrected_answer": correction.get("corrected_answer") or "",
+            # #318: the corrected text goes through the same rules as the learner's
+            "corrected_answer": correction_contract.repair_text(correction.get("corrected_answer") or ""),
             "explanation_language": correction.get("explanation_language"),
             "model": (correction.get("correction_debug") or {}).get("model"),
             "foreground": foreground_view,

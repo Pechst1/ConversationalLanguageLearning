@@ -3664,7 +3664,11 @@ class MissionCorrectionService:
         correction = self._apply_vocabulary_feedback(
             mission=mission, text=text, correction=correction, language=language
         )
-        correction["corrected_answer"] = self._complete_corrected_answer(text=text, correction=correction)
+        # #318: the sentence the learner copies goes through the same rules as their
+        # own: a model rewrite never prints «le appartement».
+        correction["corrected_answer"] = correction_contract.repair_text(
+            self._complete_corrected_answer(text=text, correction=correction)
+        )
         # Design contract, principle 4: a card headed "Correction" has to be backed
         # by a repair. When every erratum failed the gates, the provider's polished
         # rewrite is a style preference — hand back the learner's own sentence so
@@ -3826,17 +3830,15 @@ class MissionCorrectionService:
                 continue
             if not self._quote_is_grounded(erratum, submission_text=submission_text):
                 continue
-            if not correction_contract.edit_is_grounded(
-                submission_text,
-                erratum.get("learner_text"),
-                erratum.get("corrected_target"),
-                erratum.get("why_wrong"),
-                strict_span=False,
-            ):
-                # #250: the note cites a subject that is not in the reply, or the
-                # swapped form is wrong for the subject in front of it.
+            verified = correction_contract.verify_erratum(submission_text, erratum, strict_span=False)
+            if verified is None:
+                # #250: the note cites a subject that is not in the reply, the swapped
+                # form is wrong for the subject in front of it, the fix rewrites who
+                # acts («il est» -> «ils sont»), or it does not settle into French the
+                # rules accept. A fix that settles is shown settled (#318: «le
+                # appartement» reaches the learner as «l'appartement»).
                 continue
-            narrowed = self._narrow_erratum(erratum, submission_text=submission_text)
+            narrowed = self._narrow_erratum(verified, submission_text=submission_text)
             if narrowed is None:
                 continue
             cleaned.append(narrowed)
