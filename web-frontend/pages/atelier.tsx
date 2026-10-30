@@ -13,6 +13,7 @@ import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
 import { itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { clearTheSheet } from '@/lib/sheet-clearance';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
@@ -4202,6 +4203,14 @@ export function ExerciseFeedbackMoment({
       release();
     };
   }, [feedbackKey, shownVerdict, repairOutcome]);
+  // #282: a miss then scrolls on until its last repair and «Compare» stand clear of the
+  // sheet (fonts and the coach's portrait settle a moment later and push them down).
+  const missOpen = Boolean(submitted && feedback && !feedback.correct && !feedback.unscored);
+  useEffect(() => {
+    if (!missOpen) return undefined;
+    const later = [150, 600].map((ms) => window.setTimeout(() => clearTheSheet(feedbackRef.current), ms));
+    return () => later.forEach((id) => window.clearTimeout(id));
+  }, [missOpen, feedbackKey]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
   // verdict to show — the grading character says so, and a verdict shown later
