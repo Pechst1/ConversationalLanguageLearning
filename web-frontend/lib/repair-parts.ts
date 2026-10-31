@@ -93,11 +93,53 @@ export function repairParts(learner: string, errata: Erratum[] | null | undefine
   return parts;
 }
 
-/** The whole line with each gap filled by what the learner typed there. */
+/**
+ * The whole line with each gap filled by what the learner typed there (as
+ * {@link gapTyped} reads it: a gap typed with its neighbouring words holds the fix
+ * once, not the neighbours twice).
+ */
 export function assembleRepair(parts: RepairPart[], typed: Record<number, string>): string {
   return parts
-    .map((part, index) => ('text' in part ? part.text : (typed[index] ?? part.wrong)))
+    .map((part, index) => ('text' in part ? part.text : gapTyped(parts, index, typed[index] ?? part.wrong)))
     .join('');
+}
+
+/**
+ * #381 (live walk 30 Oct): what a gap holds once the words the line already has on
+ * either side of it are taken off. A gap holds only the words that differ («un» of
+ * «un tomate → une tomate», #282), but the correction above it shows the whole
+ * stretch, and a learner who types «une tomate» there has made the fix: that gap is
+ * not drawn red, and the line sent reads «une tomate», not «une tomate tomate». The
+ * typed text is returned as it is unless taking off neighbouring words leaves
+ * exactly the fix, so a wrong gap stays wrong.
+ */
+export function gapTyped(parts: RepairPart[], index: number, value: string): string {
+  const part = parts[index];
+  const typed = String(value ?? '');
+  if (!part || 'text' in part || gapIsFixed(typed, part.fix)) return typed;
+  const words = typed.trim().split(/\s+/).filter(Boolean);
+  const neighbour = (at: number): string[] => {
+    const next = parts[at];
+    return next && 'text' in next ? fold(next.text).split(' ').filter(Boolean) : [];
+  };
+  const before = neighbour(index - 1);
+  const after = neighbour(index + 1);
+  const same = (mine: string[], theirs: string[]) =>
+    mine.length === theirs.length && mine.every((word, at) => fold(word) === theirs[at]);
+  for (let lead = 0; lead <= Math.min(before.length, words.length - 1); lead += 1) {
+    for (let trail = 0; trail <= Math.min(after.length, words.length - 1 - lead); trail += 1) {
+      if (!lead && !trail) continue;
+      const rest = words.slice(lead, words.length - trail).join(' ');
+      if (
+        same(words.slice(0, lead), before.slice(before.length - lead)) &&
+        same(words.slice(words.length - trail), after.slice(0, trail)) &&
+        gapIsFixed(rest, part.fix)
+      ) {
+        return rest;
+      }
+    }
+  }
+  return typed;
 }
 
 /** Typography folded, accents kept: a gap is fixed when it reads as its fix. */
@@ -113,4 +155,53 @@ function fold(value: string): string {
 
 export function gapIsFixed(typed: string, fix: string): boolean {
   return fold(typed) === fold(fix);
+}
+
+/** A correction worth retyping or fixing in place: a line, not a word. */
+export function isRepairableLine(target: string): boolean {
+  const trimmed = target.trim();
+  if (!trimmed) return false;
+  const words = trimmed.split(/\s+/).length;
+  return words >= 3 || (words >= 2 && /[.!?…]$/.test(trimmed));
+}
+
+type RepairIssue = { corrected_target?: unknown; task_error_type?: unknown };
+type RepairRecords = Record<string, { status?: unknown } | null | undefined> | null | undefined;
+
+/**
+ * #381: where the repair step of a missed answer stands, for its verdict band.
+ *
+ *   complete  nothing is left to retype: «Continue» takes the place of the retry.
+ *   mended    there was a line to repair and every repair on screen was accepted:
+ *             the band takes the success state. «Line fixed. It comes back later.»
+ *             above a red «Not yet» read as two verdicts on one screen (live walks
+ *             30 and 31 Oct). A one-word fix has no repair step, so nothing was
+ *             mended and its «Not yet» stands; a label compare has none either.
+ *
+ * The repair fields on screen are the line fixed in place (`inPlace`, on the first
+ * correction) and a retype for every other correction that is a line.
+ */
+export function repairState({
+  issues,
+  repairs,
+  inPlace,
+  isLabelCompare,
+  needsNewAnswer,
+}: {
+  issues: RepairIssue[];
+  repairs: RepairRecords;
+  inPlace: boolean;
+  isLabelCompare: boolean;
+  needsNewAnswer: boolean;
+}): { complete: boolean; mended: boolean } {
+  const accepted = (index: number) => repairs?.[String(index)]?.status === 'ok';
+  const lines = issues.map((issue, index) => ({
+    index,
+    target: String(issue?.corrected_target || '').trim(),
+    task: issue?.task_error_type === 'task_compliance',
+  }));
+  const complete = !needsNewAnswer && (isLabelCompare || lines.every(({ index, target }) => !isRepairableLine(target) || accepted(index)));
+  if (isLabelCompare) return { complete, mended: false };
+  const fields = lines.filter(({ index, target, task }) => (inPlace && index === 0) || (!task && isRepairableLine(target)));
+  return { complete, mended: complete && fields.length > 0 && fields.every(({ index }) => accepted(index)) };
 }

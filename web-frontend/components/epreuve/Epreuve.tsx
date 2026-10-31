@@ -54,7 +54,7 @@ import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 import { epreuveCopy, fill, type EpreuveCopy } from './epreuve-copy';
-import { gapIsFixed, type RepairPart } from '@/lib/repair-parts';
+import { gapIsFixed, gapTyped, type RepairPart } from '@/lib/repair-parts';
 import { nextFinishState } from './finish-confirm';
 
 type Node = React.ReactNode;
@@ -743,13 +743,18 @@ export function EpPartsRepair({
       <p className="ep-parts" lang="fr">
         {parts.map((part, index) => {
           if ('text' in part) return <span key={index}>{part.text}</span>;
-          const value = typed[index] ?? (done ? part.fix : part.wrong);
-          const wrong = status === 'no' && !gapIsFixed(value, part.fix);
+          // #381: a gap typed with the words around it («une tomate» in the gap of «un»)
+          // holds the fix: it is not drawn red, and once the line is fixed it reads as sent.
+          const value = done ? gapTyped(parts, index, typed[index] ?? part.fix) : (typed[index] ?? part.wrong);
+          const wrong = status === 'no' && !gapIsFixed(gapTyped(parts, index, value), part.fix);
+          // Every gap to fix is drawn red; once the line is compared, a gap that reads as its
+          // fix is not, so «the words in red» are the ones still wrong.
+          const fixed = status === 'no' && !wrong;
           return (
             <input
               key={index}
               className="ep-parts__gap"
-              data-state={wrong ? 'wrong' : undefined}
+              data-state={wrong ? 'wrong' : fixed ? 'fixed' : undefined}
               value={value}
               size={Math.max(value.length, part.fix.length, 2) + 1}
               onChange={(event) => onChange?.({ ...typed, [index]: event.target.value })}
@@ -1438,6 +1443,7 @@ export function LEpreuveStyles() {
 .av2 .ep-parts__gap:focus { outline: none; color: var(--av2-ink); border-bottom-color: var(--av2-blue); }
 .av2 .ep-parts__gap:disabled { color: var(--av2-ink); border-bottom-color: transparent; }
 .av2 .ep-parts__gap[data-state="wrong"] { color: var(--av2-red-deep); text-decoration: underline wavy var(--av2-red); }
+.av2 .ep-parts__gap[data-state="fixed"] { color: var(--av2-green); }
 
 /* ============================================================
    LISTEN · RECORD
