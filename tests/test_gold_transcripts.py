@@ -128,6 +128,12 @@ def test_scene_payload_carries_the_item():
     assert payload["history"] == item["history"]
     assert payload["story"]["world"]["cast"][0]["id"] == "lila_bonnet"
     assert payload["scene"]["opening_line_fr"] == "Tu restes combien de temps ?"
+    # The bible's register sentence becomes the word the engine compares against.
+    for item in S.load_items("scene"):
+        member = S.scene_payload(item)["story"]["world"]["cast"][0]
+        assert member["register_with_user"] in {"tu", "vous"}, item["id"]
+    camille = S.load_items("scene", ["s18-no-dinner-cat"])[0]
+    assert S.scene_payload(camille)["story"]["world"]["cast"][0]["register_with_user"] == "vous"
 
 
 def test_forge_check_fails_a_wrong_verdict():

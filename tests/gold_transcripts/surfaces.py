@@ -84,7 +84,9 @@ def scene_payload(item: dict) -> dict:
     character_id = item["character_id"]
     member = _world_cast()[character_id]
     cast_entry = {key: member[key] for key in CAST_KEYS if member.get(key) is not None}
-    cast_entry["register_with_user"] = item.get("register") or member.get("register_with_user") or "tu"
+    # The bible writes a sentence («vous — theatrical … until T3»); the engine carries the word.
+    declared = str(item.get("register") or member.get("register_with_user") or "tu")
+    cast_entry["register_with_user"] = "vous" if declared.strip().lower().startswith("vous") else "tu"
     cast_entry["register_note"] = payload["story"]["world"]["cast"][0].get("register_note")
     story = payload["story"]
     story["level"] = item.get("level", "A1")
