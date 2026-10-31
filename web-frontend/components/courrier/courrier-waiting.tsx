@@ -23,17 +23,39 @@ import { courrierCopy, crFill } from './courrier-copy';
 /** The one key both surfaces share, so two rows are one request. */
 export const COURRIER_TODAY_KEY = 'missions/today';
 
-/** A letter still owed: available (unread) or half answered. `lapsed` and
- *  `completed` are not waiting on anybody and never raise a row. */
-export function courrierAwaitingLetter(today: {
+type CourrierDay = {
   active_mission?: RealWorldMission | null;
   weekly_mission?: RealWorldMission | null;
   post_session_recommendation?: RealWorldMission | null;
-} | null): RealWorldMission | null {
+} | null | undefined;
+
+/** A letter still owed: available (unread) or half answered. `lapsed` and
+ *  `completed` are not waiting on anybody and never raise a row. */
+export function courrierAwaitingLetter(today: CourrierDay): RealWorldMission | null {
   if (!today) return null;
   const open = (mission: RealWorldMission | null | undefined) =>
     mission && (mission.status === 'available' || mission.status === 'in_progress') ? mission : null;
   return open(today.active_mission) || open(today.weekly_mission) || open(today.post_session_recommendation) || null;
+}
+
+/**
+ * The one answer to «which mission is the Courrier's today?» (#400).
+ *
+ * Home's letter row and the Courrier tab used to each walk the day's three
+ * slots in their own way: Home skipped a finished letter, the page opened it,
+ * so Home could name one letter while the tab showed another. Both read this.
+ *
+ * `waiting` is whether somebody is owed an answer; the row on Home exists only
+ * then. When nothing waits, `mission` is the newest finished letter, so the
+ * tab still has something to show, and `null` when the day has nothing at all.
+ */
+export function courrierTarget(today: CourrierDay): { mission: RealWorldMission | null; waiting: boolean } {
+  const awaiting = courrierAwaitingLetter(today);
+  if (awaiting) return { mission: awaiting, waiting: true };
+  return {
+    mission: today?.active_mission || today?.weekly_mission || today?.post_session_recommendation || null,
+    waiting: false,
+  };
 }
 
 export function useCourrierLetter(): RealWorldMission | null {
@@ -41,7 +63,11 @@ export function useCourrierLetter(): RealWorldMission | null {
   useEffect(() => {
     let alive = true;
     oncePerLoad(COURRIER_TODAY_KEY, () => apiService.getMissionsToday())
-      .then((today) => { if (alive) setLetter(courrierAwaitingLetter(today)); })
+      .then((today) => {
+        if (!alive) return;
+        const target = courrierTarget(today);
+        setLetter(target.waiting ? target.mission : null);
+      })
       .catch(() => { /* the Courrier is an enrichment here — the screen stands without it */ });
     return () => { alive = false; };
   }, []);

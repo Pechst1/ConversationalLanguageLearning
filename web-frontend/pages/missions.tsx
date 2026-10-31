@@ -55,6 +55,14 @@ import {
   crOutcomeSentence,
 } from '@/components/courrier/Correspondance';
 import { courrierCopy, crFill, useCrCopy, type CourrierCopy } from '@/components/courrier/courrier-copy';
+import { courrierTarget } from '@/components/courrier/courrier-waiting';
+// The conversation's own order (turn counter) and the composer that reads it (#397, review on #411).
+import {
+  compactText,
+  currentComposerInstruction,
+  latestAssistantTurn,
+  missionTurns,
+} from '@/components/courrier/mission-turns';
 import apiService, {
   IntakeArtefact,
   IntakeEnvelope,
@@ -108,12 +116,6 @@ function queryNumberList(value: string | string[] | undefined) {
   return queryStringList(value)
     .map((item) => Number(item))
     .filter((item) => Number.isFinite(item));
-}
-
-function compactText(value: unknown, max = 180) {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 1).trim()}...`;
 }
 
 function _normalizeVisibleMessage(value: unknown) {
@@ -222,17 +224,6 @@ function missionFrame(mission: RealWorldMission | null, messenger: MissionMessen
   );
   const askLang: string = localized ? chromeLang : 'fr';
   return { frame, ask, askLang };
-}
-
-function pickMission(today: MissionToday | null) {
-  return today?.active_mission
-    || today?.weekly_mission
-    || today?.post_session_recommendation
-    || null;
-}
-
-function missionTurns(mission: RealWorldMission | null) {
-  return [...(mission?.turns || [])].sort((a, b) => Number(a.turn_index || 0) - Number(b.turn_index || 0));
 }
 
 // The word ribbon ("à placer :") — the target word itself, marked "used" once it
@@ -376,36 +367,6 @@ function correctedReply(correction: Record<string, any> | undefined, learnerText
   return corrected;
 }
 
-function currentComposerInstruction(
-  mission: RealWorldMission | null,
-  base: { label: string; instruction: string; placeholder: string },
-  t: CourrierCopy,
-): { label: string; instruction: string; placeholder: string } {
-  if (!missionTurns(mission).some((turn) => turn.role === 'user')) return base;
-  const assistantTurns = missionTurns(mission).filter((turn) => turn.role === 'assistant');
-  const latest = assistantTurns.slice(-1)[0] as Record<string, any> | undefined;
-  if (!latest) {
-    return base;
-  }
-  const assistantText = compactText(latest.text, 150);
-  const branch = latest.audio_payload?.branch || {};
-  const state = String(branch.state || '');
-  if (state === 'understood') {
-    return {
-      label: t.composer_label_last,
-      instruction: t.composer_instruction_last,
-      placeholder: t.composer_placeholder_last,
-    };
-  }
-  return {
-    label: t.composer_label_reply,
-    instruction: assistantText
-      ? crFill(t.composer_instruction_quoted, { text: assistantText })
-      : t.composer_instruction_reply,
-    placeholder: t.composer_placeholder_reply,
-  };
-}
-
 // Slip time rule ("08 h 12"), printed only when the turn carries a timestamp —
 // never invented (honest-data contract).
 // The server stamps UTC; the slip shows the device's clock (#316).
@@ -441,7 +402,7 @@ function deskStatusLine(mission: RealWorldMission | null, format: MissionFormat,
 }
 
 function latestAssistantReply(mission: RealWorldMission | null) {
-  return missionTurns(mission).filter((turn) => turn.role === 'assistant').slice(-1)[0]?.text || '';
+  return latestAssistantTurn(mission)?.text || '';
 }
 
 function hasInteraction(mission: RealWorldMission | null) {
@@ -780,7 +741,8 @@ export default function MissionsPage() {
       const nextToday = await apiService.getMissionsToday();
       if (!isCurrent()) return;
       setToday(nextToday);
-      const next = pickMission(nextToday);
+      // #400: the same pick Home's letter row makes (`courrierTarget`).
+      const next = courrierTarget(nextToday).mission;
       if (next) {
         setMission(next);
         setCompletedNextSerial(null);
@@ -1227,8 +1189,9 @@ export default function MissionsPage() {
                         {turn.text}
                       </CrSlip>
                       {/* WP-74 / #250 / #251: no grader ran and the shared model-free pass found
-                          nothing. Not a pass and not a dead end: «No corrections found», and
-                          the corrector can be asked again while the thread is open. */}
+                          nothing. Not a pass and not a dead end: «Not checked yet» (never «No
+                          corrections found», which says the reply is clean), and the corrector
+                          can be asked again while the thread is open. */}
                       {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
                         <>
                           <p className="cr-unassessed" role="status">{t.unassessed}</p>

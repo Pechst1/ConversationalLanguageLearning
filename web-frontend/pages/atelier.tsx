@@ -160,7 +160,7 @@ import {
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { fillForge, forgeCopy } from '@/lib/forge-copy';
+import { fillForge, forgeCopy, forgeRoleTag } from '@/lib/forge-copy';
 import {
   clampRung,
   correctionAnchor,
@@ -3868,6 +3868,7 @@ function SessionView({
               rung={forgeRung}
               levelRule={forge.level_rule}
               eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
+              tag={forgeTestOut ? null : forgeRoleTag(fc, forgeNext?.role)}
               ruleLabel={t.rule}
               ruleOpen={ruleExpanded}
               onRule={ruleIntro ? undefined : toggleRule}

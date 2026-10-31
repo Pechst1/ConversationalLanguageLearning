@@ -14,7 +14,7 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { FORGE_COPY, fillForge, forgeCopy, forgeRungLabel } = require('./forge-copy.ts');
+const { FORGE_COPY, fillForge, forgeCopy, forgeRoleTag, forgeRungLabel } = require('./forge-copy.ts');
 
 function leaves(value, prefix = '') {
   if (value && typeof value === 'object') {
@@ -134,4 +134,18 @@ test('the header level is the rule’s level, not the warm-up item’s rung', ()
   assert.equal(headerLevel({ ruleRung: 0, itemRung: 3, testOut: true }), 3);
   assert.equal(headerLevel({ itemRung: 2 }), 2);
   assert.equal(headerLevel({ answeredRung: null, ruleRung: 4, itemRung: 3 }), 4);
+});
+
+test('#169 an item of another rule in «Forge today\'s rule» says it is a review, and the page shows it', () => {
+  for (const language of ['en', 'de', 'fr']) {
+    const copy = forgeCopy(language);
+    assert.equal(forgeRoleTag(copy, 'today'), null, language);
+    assert.equal(forgeRoleTag(copy, undefined), null, language);
+    assert.equal(forgeRoleTag(copy, 'due'), copy.review_tag, language);
+    assert.equal(forgeRoleTag(copy, 'contrast'), copy.contrast_tag, language);
+  }
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+  assert.match(page, /tag=\{forgeTestOut \? null : forgeRoleTag\(fc, forgeNext\?\.role\)\}/);
+  const head = fs.readFileSync(path.join(WEB_ROOT, 'components/epreuve/Forge.tsx'), 'utf8');
+  assert.match(head, /forge-head__tag/);
 });

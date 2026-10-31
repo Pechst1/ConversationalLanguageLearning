@@ -450,13 +450,13 @@
         "de": "Nächsten Donnerstag komme ich mit Solvel. Wir sehen uns die Wohnung an."
       }
     },
-    "e4159cb7faf6": {
-      "a1": "Jeudi prochain, dix-huit heures.",
-      "b2": "Jeudi prochain, dix-huit heures précises.",
-      "c1": "Jeudi prochain, dix-huit heures. Sans faute.",
+    "c35b12542a49": {
+      "a1": "Jeudi prochain, dix-huit heures. Je viens voir l'appartement.",
+      "b2": "Jeudi prochain, dix-huit heures précises, pour la visite de l'appartement.",
+      "c1": "Jeudi prochain, dix-huit heures, pour la visite de l'appartement. Sans faute.",
       "a1_native": {
-        "en": "Next Thursday, six o'clock.",
-        "de": "Nächsten Donnerstag, achtzehn Uhr."
+        "en": "Next Thursday, six o'clock. I'm coming to see the flat.",
+        "de": "Nächsten Donnerstag, achtzehn Uhr. Ich komme die Wohnung ansehen."
       }
     },
     "06929c2a5364": {

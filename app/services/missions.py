@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 
 from loguru import logger
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -5072,28 +5073,7 @@ class MissionScheduler:
         else:
             story_mission = await self._ensure_ad_hoc_letter(user)
             weekly = await self.ensure_weekly(user)
-        active = (
-            self.db.query(RealWorldMission)
-            .filter(
-                RealWorldMission.user_id == user.id,
-                RealWorldMission.status == "in_progress",
-                RealWorldMission.serial_thread_id.is_(None),
-            )
-            .order_by(RealWorldMission.updated_at.desc())
-            .first()
-        )
-        if not active:
-            active = (
-                self.db.query(RealWorldMission)
-                .filter(
-                    RealWorldMission.user_id == user.id,
-                    RealWorldMission.cadence == "ad_hoc",
-                    RealWorldMission.status == "available",
-                    RealWorldMission.serial_thread_id.is_(None),
-                )
-                .order_by(RealWorldMission.created_at.desc())
-                .first()
-            )
+        active = self._open_courrier_mission(user)
         post_session = (
             self.db.query(RealWorldMission)
             .filter(
@@ -5122,6 +5102,43 @@ class MissionScheduler:
             "active_mission": serialize_mission(active or story_mission) if (active or story_mission) else None,
             "recent_completed": [serialize_mission(row, include_children=False) for row in recent],
         }
+
+    @staticmethod
+    def _last_touched(mission: RealWorldMission) -> datetime:
+        """When the mission last had any life: made, changed or answered in."""
+
+        moments = [_aware(mission.created_at), _aware(mission.updated_at)]
+        moments.extend(_aware(turn.created_at) for turn in mission.turns or [])
+        return max((moment for moment in moments if moment is not None), default=datetime.min.replace(tzinfo=UTC))
+
+    def _open_courrier_mission(self, user: User) -> RealWorldMission | None:
+        """The one mission the Courrier opens (#397).
+
+        Every open thread competes on its last sign of life, newest first, and
+        a thread already begun wins a tie. It used to be «any thread in
+        progress, most recently updated», so a thread answered three nights ago
+        outranked the message opened after tonight's scene: the page reopened
+        old replies instead of the day's mission. A mission set aside this way
+        is not lost: it is the open one with the freshest life again as soon as
+        the newer one is finished.
+        """
+
+        rows = (
+            self.db.query(RealWorldMission)
+            .filter(
+                RealWorldMission.user_id == user.id,
+                RealWorldMission.serial_thread_id.is_(None),
+                or_(
+                    RealWorldMission.status == "in_progress",
+                    and_(
+                        RealWorldMission.status == "available",
+                        RealWorldMission.cadence.in_(["ad_hoc", "post_session"]),
+                    ),
+                ),
+            )
+            .all()
+        )
+        return max(rows, key=lambda row: (self._last_touched(row), row.status == "in_progress"), default=None)
 
     def _sweep_correspondence(self, user: User) -> list[RealWorldMission]:
         """Let overdue letters lapse. Never blocks the Courrier from opening."""

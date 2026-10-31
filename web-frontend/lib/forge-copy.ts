@@ -28,6 +28,12 @@ export type ForgeCopy = {
   test_out_starting: string;
   test_out_failed_start: string;
   test_out_eyebrow: string;
+  /**
+   * #169: an item of another rule inside «Forge today's rule» names itself and
+   * says why it is there (a rule you were taught, due for review today).
+   */
+  review_tag: string;
+  contrast_tag: string;
   /** The rule sheet's quiet way to the épreuve. */
   sheet_test_out: string;
   /** The rule's level (a rung, 1–6), its screen-reader name and what it means. */
@@ -97,6 +103,8 @@ const EN: ForgeCopy = {
   test_out_starting: 'Preparing the test…',
   test_out_failed_start: 'The test could not start. Try again.',
   test_out_eyebrow: 'Test out',
+  review_tag: 'Review · due today',
+  contrast_tag: 'Contrast · a rule you know',
   sheet_test_out: 'Know it already? Take the test',
   level: 'Level {n}',
   level_label: 'Your level on this rule: {n} of 6. Tap to see how it works.',
@@ -170,6 +178,8 @@ const DE: ForgeCopy = {
   test_out_starting: 'Die Prüfung wird vorbereitet …',
   test_out_failed_start: 'Die Prüfung konnte nicht starten. Bitte noch einmal.',
   test_out_eyebrow: 'Regelprüfung',
+  review_tag: 'Wiederholung · heute fällig',
+  contrast_tag: 'Gegenüberstellung · eine Regel, die du kennst',
   sheet_test_out: 'Kannst du sie schon? Direkt prüfen',
   level: 'Stufe {n}',
   level_label: 'Deine Stufe bei dieser Regel: {n} von 6. Tippen für die Erklärung.',
@@ -243,6 +253,8 @@ const FR: ForgeCopy = {
   test_out_starting: 'Préparation de l’épreuve…',
   test_out_failed_start: 'L’épreuve n’a pas pu démarrer. Réessaie.',
   test_out_eyebrow: 'Épreuve de la règle',
+  review_tag: 'Révision · à revoir aujourd’hui',
+  contrast_tag: 'Contraste · une règle que tu connais',
   sheet_test_out: 'Tu la connais déjà ? Passe l’épreuve',
   level: 'Niveau {n}',
   level_label: 'Ton niveau sur cette règle : {n} sur 6. Touche pour l’explication.',
@@ -315,6 +327,16 @@ export function forgeCopy(language: ControlLanguage | string | null | undefined)
 }
 
 /** «{n}» style placeholders. */
+/**
+ * #169: the line over an item of another rule inside «Forge today's rule» —
+ * which kind of rule it is and why it is there. Today's rule needs none.
+ */
+export function forgeRoleTag(copy: ForgeCopy, role: string | null | undefined): string | null {
+  if (role === 'due') return copy.review_tag;
+  if (role === 'contrast') return copy.contrast_tag;
+  return null;
+}
+
 export function fillForge(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_match, name: string) => String(values[name] ?? ''));
 }
