@@ -289,7 +289,7 @@ information and drops the movement. Haptics through `@capacitor/haptics`, gated 
 
 Today a learner meets the daily seal and its rings, logo tokens, the almanac's plates,
 achievements with avatar rewards and the saucer streak. Adding gold beside them would make
-six reward systems. Recommendation (owner decision, reversible):
+six reward systems. Decided by Vincent on 31 Oct 2026 (reversible):
 
 - **Gold** is the one currency.
 - **Pieces** (pins, pencils, objects) are what you own. Achievement rewards become pieces.
@@ -435,9 +435,14 @@ pushes toward any of these, push back: it breaks the brand and the ethics (Packa
 
 ## 21. Owner decisions
 
-1. **The name.** «L'or / feuilles d'or» (recommended) or plain «XP».
-2. **Consolidation (§12).** Retire tokens and plates as a visible currency (recommended)
-   or keep both.
+Decided by Vincent on 31 Oct 2026:
+
+1. **The name.** «L'or», counted in feuilles d'or (not «XP»).
+2. **Consolidation (§12).** L'or is the one currency. Tokens and plates keep minting as
+   history but leave the screen.
+
+Still open (needed by O-4 and O-5, not before):
+
 3. **How the week's piece is won.** Both editions (recommended: everyone with a full week
    gets the regular one, the table's top three the numbered one) or rank only.
 4. **Names on Le Papier's palmarès.** Opt-in (recommended) or never printed.
