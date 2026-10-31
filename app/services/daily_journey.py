@@ -426,6 +426,8 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         **({"options_kind": task.options_kind} if task.options_kind != "variants" else {}),
         **({"slip_fr": task.slip_fr} if task.slip_fr else {}),
         **({"rule_native": task.rule_native} if task.rule_native else {}),
+        # #155: only when set, so every other stored task reads as before.
+        **({"speaker_id": task.speaker_id} if task.speaker_id else {}),
     }
 
 
@@ -450,6 +452,7 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         options_kind="sentences" if payload.get("options_kind") == "sentences" else "variants",
         slip_fr=payload.get("slip_fr") or None,
         rule_native=payload.get("rule_native") or None,
+        speaker_id=payload.get("speaker_id") or None,
     )
 
 

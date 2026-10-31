@@ -431,10 +431,22 @@ class RecallMet(JourneyModel):
     place_label_fr: str
 
 
+class RecallSpeaker(JourneyModel):
+    """#155: who says the line of today's scene a recall item is cut from — the
+    face that asks the item and the name in «… te sourit» under a right answer.
+    ``name`` is the cast registry's short name («Gus», never the world bible's
+    «Augustin « Gus » de Roncourt»)."""
+
+    id: str
+    name: str
+
+
 class RecallPrompt(JourneyModel):
     # This serializer drops audio_url on silent formats, leaving all other defaults.
     model_config = ConfigDict(
-        json_schema_extra=lambda schema: _drop_required(schema, "audio_url", "met", "retry", "slip_fr"),
+        json_schema_extra=lambda schema: _drop_required(
+            schema, "audio_url", "met", "retry", "slip_fr", "speaker"
+        ),
     )
     #: WP-66 brought three Séance formats into the daily loop. Additive: the
     #: three originals are unchanged, so a step persisted before this package
@@ -499,6 +511,11 @@ class RecallPrompt(JourneyModel):
     #: Owner request 2026-10-17 (additive): a drill missed earlier in the same run,
     #: asked once more at the run's end. Omitted on every first ask.
     retry: bool | None = None
+    #: #155 (additive): who says the scene line this item is cut from. The device
+    #: draws this face beside the item and names this person under a right answer;
+    #: without it, it keeps the rule's coach or the day's character. Omitted on an
+    #: item that is not cut from a character's line, and on «Qui a dit ça ?».
+    speaker: RecallSpeaker | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_audio(self, handler: Any):
@@ -516,6 +533,8 @@ class RecallPrompt(JourneyModel):
             data.pop("slip_fr", None)
         if isinstance(data, dict) and not data.get("retry"):
             data.pop("retry", None)
+        if isinstance(data, dict) and data.get("speaker") is None:
+            data.pop("speaker", None)
         return data
 
 
