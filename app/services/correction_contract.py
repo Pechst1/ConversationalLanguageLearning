@@ -2137,6 +2137,70 @@ def deterministic_errata(
     return [to_erratum(edit, language=language) for edit in deterministic_edits(text, people=people)]
 
 
+#: #119: the unit that teaches «l'» and «d'» in front of a vowel («Le, la, l', les»).
+ARTICLE_ELISION_UNIT = "FR2_A11_LE_LA"
+
+
+def elides_an_article(learner_text: object, corrected_text: object, context: object = None) -> bool:
+    """#119: whether a correction elides an article or «de»: «la appartement» →
+    «l'appartement», «le hôtel» → «l'hôtel», «de Odile» → «d'Odile».
+
+    Read off the pair, whoever wrote it (this contract or a model): the learner wrote
+    «le», «la» or «de», a space and a word, and the correction glues «l'» or «d'» to
+    that same word. «le» / «la» are the article only in front of a noun the lexicon
+    knows, and not after a subject or another pronoun: «je le aime» → «je l'aime» is
+    an object pronoun, not the article rule's. The contract's own errata quote only
+    «le aime», so ``context`` (the learner's whole text) supplies the word before it.
+    """
+
+    wrong, right = _norm(learner_text), _norm(corrected_text)
+    tokens = _tokens(wrong)
+    for i, tok in enumerate(tokens[:-1]):
+        if tok.low not in {"le", "la", "de"}:
+            continue
+        nxt = tokens[i + 1]
+        if wrong[tok.end : nxt.start].strip(" \u00a0") != "" or wrong[tok.end : nxt.start] == "":
+            continue  # only a plain space: «l'», «de-», a comma are not this slip
+        if i > 0 and wrong[tokens[i - 1].end : tok.start] in {"'", "-"}:
+            continue  # part of a longer word («aujourd'hui»)
+        if tok.low != "de" and not _an_article_before(wrong, tokens, i, context):
+            continue
+        glued = "d" if tok.low == "de" else "l"
+        if re.search(rf"(?<![^\W\d_]){glued}'\s?{re.escape(wrong[nxt.start : nxt.end])}(?![^\W\d_])", right, re.IGNORECASE):
+            return True
+    return False
+
+
+def _an_article_before(wrong: str, tokens: list[Tok], index: int, context: object) -> bool:
+    """Is ``tokens[index]`` («le» / «la») the article of the word after it?
+
+    Not after a subject or another pronoun («je le aime», «il me la a donnée»), read
+    from the pair or, when the pair starts with it, from ``context``; and only in
+    front of a noun the lexicon knows: «je vais le acheter» is a pronoun before a
+    verb, and a word the lexicon does not know is left to the corrector's own label.
+    """
+
+    from app.services.lexicon_grammar import lexicon_pos
+
+    before = tokens[index - 1].low if index > 0 else _word_before(context, wrong[tokens[index].start :])
+    if before in _PRONOUN_CONTEXT:
+        return False
+    return lexicon_pos(tokens[index + 1].low) == "noun"
+
+
+def _word_before(context: object, quoted: str) -> str | None:
+    """The word right in front of ``quoted`` where the learner wrote it in ``context``."""
+
+    text = _norm(context)
+    if not text.strip() or not quoted.strip():
+        return None
+    found = re.search(rf"(?<![^\W\d_]){re.escape(quoted.strip())}(?![^\W\d_])", text, re.IGNORECASE)
+    if found is None:
+        return None
+    ahead = _tokens(text[: found.start()])
+    return ahead[-1].low if ahead else None
+
+
 def grounded_errata(
     text: object,
     errata: Iterable[Mapping[str, Any]],
