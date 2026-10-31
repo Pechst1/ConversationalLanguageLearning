@@ -1,14 +1,14 @@
 """Run the gold sets against the real model, judge them, score them, report them.
 
 * :class:`Meter` stands in front of the real ``LLMService``: every call (the app's own
-  and the judge's) is priced before it is sent and refused once the night's cap would be
+  and the judge's) is priced before it is sent and refused once the run's cap would be
   passed, so a run can never spend more than ``--max-usd``.
 * :func:`apply_profile` sets the app's settings to what production runs: the values
   ``render.yaml`` declares for the API service, then any ``--set KEY=VALUE`` on top (how a
   writer-model comparison runs the same inputs with another model).
 * :func:`judge_item` asks the judge model the fixed criteria of ``criteria.py``.
-* :func:`render_report` writes the nightly comment: a score per surface, its trend over
-  the last nights of the same criteria, and the items that lost points. The comment
+* :func:`render_report` writes the weekly comment: a score per surface, its trend over
+  the last runs of the same criteria, and the items that lost points. The comment
   carries its scores in a hidden marker, so the comments on the digest issue are the
   history (:func:`parse_history`).
 """
@@ -33,7 +33,7 @@ from tests.gold_transcripts.criteria import CRITERIA, CRITERIA_VERSION, SURFACE_
 REPO_SLUG = os.environ.get("LOOP_REPO", "Pechst1/ConversationalLanguageLearning")
 DIGEST_ISSUE = 121
 MARKER = "<!-- gold-scores "
-#: Owner rule for this runner: about US$1–2 a night. Above this the run refuses.
+#: Owner rule for this runner: about US$1–2 a run. Above this the run refuses.
 HARD_CAP_USD = 2.0
 DEFAULT_CAP_USD = 1.5
 DEFAULT_JUDGE = "gpt-6.1-sol"
@@ -375,7 +375,7 @@ def run(
             client.role = "app"
         try:
             output = S.SURFACES[surface](item, client)
-        except Exception as exc:  # noqa: BLE001 - one crashing item must not stop the night
+        except Exception as exc:  # noqa: BLE001 - one crashing item must not stop the run
             output = {"failure": f"crash: {type(exc).__name__}: {S.compact(exc, 200)}"}
         if getattr(client, "exhausted", False):
             row.update(status="not_run", reason="spending cap reached during the app's own call")
@@ -490,7 +490,7 @@ def trend_cells(history: list[dict], result: dict, surface: str, nights: int = 7
     series = [e["scores"][surface] for e in same][-(nights - 1):] + ([now] if now is not None else [])
     trail = " → ".join(f"{v:.0f}" for v in series) if series else "–"
     if not same or now is None:
-        return "first night", trail
+        return "first run", trail
     delta = now - same[-1]["scores"][surface]
     return (f"{delta:+.0f}" if abs(delta) >= 0.5 else "="), trail
 
@@ -503,7 +503,7 @@ def render_report(result: dict, history: list[dict]) -> str:
         "Fixed learner inputs from the live walks, run against the production prompts and models and scored "
         "by a judge on fixed written criteria (`tests/gold_transcripts/`). A story fix is proven when its "
         "surface's score moves.", "",
-        "| surface | score | vs last night | last nights | scored | weakest criterion |",
+        "| surface | score | vs last run | last runs | scored | weakest criterion |",
         "|---|---|---|---|---|---|",
     ]
     for surface, summary in result["surfaces"].items():
@@ -530,9 +530,9 @@ def render_report(result: dict, history: list[dict]) -> str:
     ]
     previous = [e for e in history if e.get("label") == label and e.get("date") != result["date"]]
     if previous and previous[-1].get("criteria") != result["criteria_version"]:
-        lines.append("The criteria changed since the last night: the trend starts again.")
+        lines.append("The criteria changed since the last run: the trend starts again.")
     elif previous and previous[-1].get("sets") not in (None, sets_digest(result)):
-        lines.append("The gold inputs changed since the last night (see the PR that changed them): read the change with that in mind.")
+        lines.append("The gold inputs changed since the last run (see the PR that changed them): read the change with that in mind.")
     lost = []
     for surface, rows in result["items"].items():
         for row in rows:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Score the story surfaces every night on fixed learner inputs (gold transcripts).
+"""Score the story surfaces every week on fixed learner inputs (gold transcripts).
 
     python scripts/gold_transcripts.py plan                       # what a run would send and cost; no key, no call
     python scripts/gold_transcripts.py run --max-usd 1.5          # paid: production prompts + models, judged
@@ -14,7 +14,7 @@ walks), the criteria in ``tests/gold_transcripts/criteria.py``. A run drives the
 production runs (the scene's reply lanes, La Forge's second check, the Courrier's reply and
 its correction) with the settings ``render.yaml`` declares for the API service, then asks a
 judge model the fixed criteria. Every call goes through a meter that refuses the call that
-could pass ``--max-usd`` (at most US$2). Never run from PR CI: the nightly routine runs it.
+could pass ``--max-usd`` (at most US$2). Never run from PR CI: the weekly routine runs it.
 """
 
 from __future__ import annotations
@@ -114,13 +114,13 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(f"run refuses: no API key in the environment ({' or '.join(API_KEY_ENVS)}).")
         return 2
     if args.max_usd is None or args.max_usd <= 0:
-        print(f"run refuses without an explicit cap: --max-usd {R.DEFAULT_CAP_USD} (owner rule: about US$1–2 a night).")
+        print(f"run refuses without an explicit cap: --max-usd {R.DEFAULT_CAP_USD} (owner rule: about US$1–2 a run).")
         return 2
     if args.max_usd > R.HARD_CAP_USD:
-        print(f"run refuses a cap above US${R.HARD_CAP_USD:.2f} a night; ask the owner first.")
+        print(f"run refuses a cap above US${R.HARD_CAP_USD:.2f} a run; ask the owner first.")
         return 2
     if os.environ.get("CI") and not args.allow_ci:
-        print("run refuses inside CI: gold transcripts are paid and run from the nightly routine only.")
+        print("run refuses inside CI: gold transcripts are paid and run from the weekly routine only.")
         return 2
     from app.services.llm_service import LLMService
 
@@ -155,7 +155,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if args.label != "production" and not args.post_comparison:
             print("not posted: a comparison run (--label) posts only with --post-comparison.")
         elif args.limit or args.id or args.surface:
-            print("not posted: a partial run (--limit/--id/--surface) is not a nightly score.")
+            print("not posted: a partial run (--limit/--id/--surface) is not a production score.")
         else:
             print("posted: " + R.post_comment(report))
     return 0
@@ -189,7 +189,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--max-usd", type=float, default=None, help=f"spending cap (required, at most {R.HARD_CAP_USD})")
     run.add_argument("--id", action="append", help="only this item (repeatable)")
     run.add_argument("--label", default="production", help="the run's name in the history; anything but «production» is a comparison")
-    run.add_argument("--date", default=None, help="the night's date (default: today, UTC)")
+    run.add_argument("--date", default=None, help="the run's date (default: today, UTC)")
     run.add_argument("--out", default=None, help="where the full results JSON goes (default var/gold/<date>-<label>.json)")
     run.add_argument("--post", action="store_true", help=f"post the report on issue #{R.DIGEST_ISSUE}")
     run.add_argument("--post-comparison", action="store_true", help="allow --post for a comparison run")

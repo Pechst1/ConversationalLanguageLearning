@@ -1,6 +1,6 @@
 # Gold transcripts
 
-Fixed learner inputs, taken from the live walks, run every night against the production
+Fixed learner inputs, taken from the live walks, run every Sunday against the production
 prompts and models and scored by a judge on fixed written criteria. A story fix counts as
 proven when it moves its surface's score here.
 
@@ -20,7 +20,7 @@ proven when it moves its surface's score here.
 - `criteria.py`: the criteria, each a yes/no question. `check` criteria are decided in code
   (did a fallback show, does the verdict match the truth, are quoted words the learner's);
   `judge` criteria go to the judge model. Editing a criterion changes `CRITERIA_VERSION`,
-  and the trend only compares nights with the same version.
+  and the trend only compares runs with the same version.
 - `surfaces.py`: one adapter per surface, driving the production functions with the model
   client handed in. No database: cost-ledger writes are dropped, lookups find nothing.
 - `runner.py`: the spending meter, the production profile (`render.yaml`'s values for
@@ -30,14 +30,14 @@ proven when it moves its surface's score here.
 
 ```
 python scripts/gold_transcripts.py plan                       # no key, no spend: calls and worst-case cost
-python scripts/gold_transcripts.py run --max-usd 1.5 --post   # the nightly run (posts on #121)
-python scripts/gold_transcripts.py trend                      # the nights so far
+python scripts/gold_transcripts.py run --max-usd 1.5 --post   # the weekly run (posts on #121)
+python scripts/gold_transcripts.py trend                      # the runs so far
 ```
 
 The run needs `OPENAI_API_KEY` (and `ANTHROPIC_API_KEY` for a Claude model), refuses
 without `--max-usd`, refuses a cap above US$2 and refuses inside CI. Every call, the app's
 and the judge's, is priced before it is sent and refused once it could pass the cap; the
-items left are reported as «not run». A full night costs about US$0.40–0.60.
+items left are reported as «not run». A full run costs about US$0.40–0.60.
 
 Scoring: each item scores the share of its applicable criteria it passes; an item whose
 answer was a fallback (a «second check stopped», a stock Courrier line, a failed lane)
