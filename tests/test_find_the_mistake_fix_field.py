@@ -118,3 +118,36 @@ def test_no_right_word_blamed(built: str) -> None:
     assert "does not belong" not in why, why
     # The guard: no word named as wrong is a word the target line holds.
     assert not {word for word in wrong if word in tokens(HAT_ANSWER)}, wrong
+
+
+# -- #406 review: a right fragment still counts when the line repeats its first word --
+
+PLAN_SOURCE = "Nous allons nous amusons avec des amis demain."
+PLAN_ANSWER = "Nous allons nous amuser avec des amis demain."
+
+
+def _plan_verdict(learner: str) -> str:
+    base = default_bank().generate("FR2_A12_FUTUR_PROCHE", 1, seed=3)[0]
+    item = dataclasses.replace(base, sentence=PLAN_ANSWER, wrong_sentences=(PLAN_SOURCE,), traps=("amusons",))
+    payload = transform_item(item)
+    assert payload is not None
+    correction = AtelierCorrectionService(None)._correct_transform_rule_based(
+        None, {"items": [payload]}, {"answers": {payload["id"]: learner}}
+    )
+    return str(correction["verdict"])
+
+
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "nous amuser avec des amis demain",  # starts and ends on the line's own edge words
+        "nous amuser",
+        "amuser",
+    ],
+)
+def test_right_fragment_with_repeated_edge_word(fragment: str) -> None:
+    assert _plan_verdict(fragment) == "correct", fragment
+
+
+def test_wrong_fragment_with_repeated_edge_word_is_a_miss() -> None:
+    assert _plan_verdict("nous amusez avec des amis demain") == "incorrect"

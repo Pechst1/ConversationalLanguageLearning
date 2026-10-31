@@ -618,18 +618,23 @@ def judge_repair(
     shown = fold_typography(source).split()
     whole = len(said) >= len(shown)
     for key in keys:
-        if _typed_edge_to_edge(said, shown, fold_typography(key).split()):
-            # #395: «On n'a pas d'chapeau, Gus.» has one word fewer than «On n'a pas
-            # un chapeau, Gus.» (the page joins an elision to the next word), so a
-            # word count alone read the whole line as a fragment and spliced it into
-            # the source: «on n'a pas d'chapeau gus chapeau gus». A line that starts
-            # and ends on the source's own unchanged edge words is the whole line.
-            whole = True
-            continue
+        # #395: «On n'a pas d'chapeau, Gus.» has one word fewer than «On n'a pas
+        # un chapeau, Gus.» (the page joins an elision to the next word), so a
+        # word count alone read the whole line as a fragment and spliced it into
+        # the source: «on n'a pas d'chapeau gus chapeau gus». A line that starts
+        # and ends on the source's own unchanged edge words is the whole line.
+        edge_to_edge = _typed_edge_to_edge(said, shown, fold_typography(key).split())
+        whole = whole or edge_to_edge
         for sentence, part, _context in repair_readings(answer, source, key):
             if fold_typography(sentence) == fold_typography(answer):
                 continue
             verdict = judge(sentence, [key], accents=accents, typo=typo, article_optional=article_optional)
+            # The edge test only decides how a miss is shown, never whether a right
+            # part is accepted: «nous amuser avec des amis demain» starts and ends on
+            # «Nous allons nous amusons avec des amis demain.»'s edge words and is
+            # still the right part (#406 review). A right reading always wins.
+            if edge_to_edge and not verdict.correct:
+                continue
             if _repair_rank(verdict) > _repair_rank(best):
                 best = replace(verdict, read_as=sentence, expected_part=part)
     if best.correct or whole or best.read_as is not None:
