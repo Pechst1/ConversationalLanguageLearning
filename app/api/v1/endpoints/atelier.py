@@ -747,6 +747,30 @@ def _stamp_forge_origin(db: Session, session: AtelierSession, payload: Any) -> N
     db.refresh(session)
 
 
+def _stamp_unforged_origin(session: AtelierSession, payload: Any) -> None:
+    """#169: a prepared séance not yet composed takes the request's origin and
+    length, so the forge composes it as the step that opened it (the day's
+    step keeps to today's rule) instead of as a generic plan."""
+
+    origin = getattr(payload, "origin", None) if payload is not None else None
+    if not origin or is_forge_session(session):
+        return
+    quote = dict(session.quote_payload or {})
+    forge = dict(quote.get("forge") or {}) if isinstance(quote.get("forge"), dict) else {}
+    if forge.get("units") is not None:
+        return
+    forge["origin"] = origin
+    budget = getattr(payload, "budget_seconds", None)
+    if budget:
+        forge["budget_seconds"] = int(budget)
+    step_id = getattr(payload, "journey_step_id", None)
+    if step_id:
+        forge["journey_step_id"] = str(step_id)
+    quote["forge"] = forge
+    session.quote_payload = quote
+    flag_modified(session, "quote_payload")
+
+
 def _park_session(db: Session, session: AtelierSession) -> None:
     # WP-S8: a forge séance set aside unfinished is an abandon (once per séance).
     record_forge_abandoned(db, session, reason="parked")
@@ -1350,6 +1374,7 @@ def start_session(
     if not payload or not (payload.concept_ids or payload.preferred_concept_id or payload.preferred_vocabulary_ids):
         resumable = _resumable_session(db, current_user)
         if resumable is not None:
+            _stamp_unforged_origin(resumable, payload)
             resumable.status = "in_progress"
             db.add(resumable)
             db.commit()
@@ -1391,11 +1416,14 @@ def start_session(
         # WP-S4 — La Forge's one picker: the chosen rule (or today's) first,
         # then due rules and introduced contrast partners. No padding from
         # teaching order; a new rule only through the rhythm quota.
+        origin = (payload.origin if payload else None) or ("practice" if preferred_id else "after_day")
         forge = forge_plan(
             db,
             current_user,
             preferred_concept_id=preferred_id,
             budget_seconds=payload.budget_seconds if payload else None,
+            # #169: the day's step («Forge today's rule») keeps to today's rule.
+            origin=origin,
         )
         selections = scheduler.selections_for_plan(
             current_user, forge, limit=scheduler.concept_limit(current_user)
@@ -1423,7 +1451,7 @@ def start_session(
     if forge is not None:
         quote["forge"] = {
             **forge.as_payload(),
-            "origin": (payload.origin if payload else None) or ("practice" if preferred_id else "after_day"),
+            "origin": origin,
             "journey_step_id": str(payload.journey_step_id) if payload and payload.journey_step_id else None,
         }
     session = AtelierSession(

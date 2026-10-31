@@ -1093,7 +1093,16 @@ def _aware(value: datetime | None) -> datetime | None:
 #: ``origin`` / ``journey_step_id``). They share ``quote_payload["forge"]`` with
 #: the engine's state (:meth:`ForgeState.to_dict`) — one source of truth for the
 #: séance's rules; no key of one names a key of the other.
-PLAN_KEYS = ("units", "budget_seconds", "reason", "rhythm", "new_concept_id", "origin", "journey_step_id")
+PLAN_KEYS = (
+    "units",
+    "budget_seconds",
+    "reason",
+    "rhythm",
+    "new_concept_id",
+    "origin",
+    "journey_step_id",
+    "review_share",
+)
 
 
 def _plan_payload_of(session: AtelierSession) -> dict[str, Any]:
@@ -1121,11 +1130,14 @@ class ForgePlanComposer:
         plan: dict[str, Any] | None = None,
         preferred_concept_id: int | None = None,
         budget_seconds: int | None = None,
+        origin: str | None = None,
     ) -> None:
         self.db = db
         self.plan = dict(plan) if isinstance(plan, dict) and plan.get("units") is not None else None
         self.preferred_concept_id = preferred_concept_id
         self.budget_seconds = budget_seconds
+        #: #169: the step that opened the séance («Forge today's rule» keeps to today's rule).
+        self.origin = origin
 
     def pick(self, user: User, *, now: datetime) -> list[PickedUnit]:
         if self.plan is None:
@@ -1137,6 +1149,7 @@ class ForgePlanComposer:
                 now,
                 preferred_concept_id=self.preferred_concept_id,
                 budget_seconds=self.budget_seconds,
+                origin=self.origin,
             )
             self.plan = fresh.as_payload()
         units: list[PickedUnit] = []
@@ -1283,10 +1296,13 @@ class ForgeService:
         quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
         plan = _plan_payload_of(session)
         if composer is None:
+            budget_hint = plan.get("budget_seconds")
             composer = ForgePlanComposer(
                 self.db,
                 plan=plan or None,
                 preferred_concept_id=quote.get("forge_today_concept_id"),
+                budget_seconds=int(budget_hint) if isinstance(budget_hint, (int, float)) and budget_hint > 0 else None,
+                origin=plan.get("origin"),
             )
         picked = composer.pick(user, now=now)
         if isinstance(composer, ForgePlanComposer) and composer.plan is not None:
@@ -1308,7 +1324,13 @@ class ForgeService:
             units = [ForgeUnit(u.concept_id, u.role, u.rung, is_new=False, needs_spaced=u.needs_spaced) for u in units]
         budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
         length = core.seance_length(budget or seance_budget_seconds(user), seconds_per_item(self.db, user))
-        state = ForgeState.seance(units, length=length)
+        share = plan.get("review_share")
+        state = ForgeState.seance(
+            units,
+            length=length,
+            # #169: the day's step caps the review items (``forge_picker.DAY_REVIEW_SHARE``).
+            review_share=float(share) if isinstance(share, (int, float)) and not keep_concepts else None,
+        )
         concept_ids = [track.concept_id for track in state.tracks]
         if concept_ids:
             session.selected_concept_ids = concept_ids
