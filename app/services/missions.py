@@ -2516,12 +2516,20 @@ class MissionGenerator:
                 or matching
                 or catalogue
             )
-        # The last letter's channel is out whenever anything else is left: the same
-        # channel twice in a row reads as a repeat even when the setup changed.
-        last_channel = str((recent_variety[0] if recent_variety else {}).get("channel") or "")
-        if last_channel:
-            other_channel = [item for item in pool if str(item.get("channel") or "") != last_channel]
-            pool = other_channel or pool
+        # Channels are kept out by recency, as far back as the pool allows: first
+        # every channel in the recent window, then all but the oldest, down to the
+        # last letter's alone. The same channel twice in a row reads as a repeat
+        # even when the setup changed, and keeping out only the last one let eight
+        # letters land on five channels for some seeds.
+        recent_channel_order = [str(seen.get("channel") or "") for seen in recent_variety]
+        for depth in range(len(recent_channel_order), 0, -1):
+            banned = set(recent_channel_order[:depth]) - {""}
+            if not banned:
+                continue
+            other_channel = [item for item in pool if str(item.get("channel") or "") not in banned]
+            if other_channel:
+                pool = other_channel
+                break
         weighted = [
             (
                 item,
