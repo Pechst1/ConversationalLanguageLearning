@@ -416,6 +416,75 @@ def run(
     }
 
 
+def rejudge(
+    result: dict, *, judge_client: Any, judge_model: str, progress: Callable[[str], None] | None = None
+) -> dict:
+    """The same app answers scored by another judge: every judged item of ``result`` is
+    asked again, the deterministic checks and the fallbacks stay as they were. This is how
+    a judge change is calibrated before it replaces the old one."""
+
+    rows_out: dict[str, list[dict]] = {}
+    for surface, rows in result["items"].items():
+        items = {item["id"]: item for item in S.load_items(surface)}
+        checked = {c.id for c in CRITERIA[surface] if c.by == "check"}
+        rows_out[surface] = []
+        for row in rows:
+            row = dict(row)
+            item = items.get(row["id"])
+            if row["status"] != "scored" or row.get("failure") or item is None or "output" not in row:
+                rows_out[surface].append(row)
+                continue
+            if getattr(judge_client, "exhausted", False):
+                row.update(status="not_run", reason="spending cap reached")
+                rows_out[surface].append(row)
+                continue
+            verdicts = {cid: tuple(v) for cid, v in row["verdicts"].items() if cid in checked}
+            try:
+                verdicts.update(judge_item(judge_client, surface, item, row["output"], model=judge_model))
+            except Exception as exc:  # noqa: BLE001 - one failed judgement must not stop the rest
+                row.update(status="not_run", reason=f"judge failed: {S.compact(exc, 160)}")
+                rows_out[surface].append(row)
+                continue
+            row.update(verdicts=verdicts, score=item_score(verdicts))
+            rows_out[surface].append(row)
+            if progress:
+                progress(f"{surface} {row['id']}: {row['score'] if row['score'] is None else round(row['score'] * 100)}")
+    out = dict(result)
+    out.update(
+        judge_model=judge_model, rejudged_from=result.get("judge_model"),
+        surfaces={s: summarize(s, rows_out[s]) for s in rows_out}, items=rows_out,
+    )
+    return out
+
+
+def judge_agreement(a: dict, b: dict) -> dict[str, dict]:
+    """Per surface: both scores and how often the two judges gave the same verdict on
+    the same judged criterion of the same answer (pass/fail/na)."""
+
+    report: dict[str, dict] = {}
+    for surface, rows_a in a["items"].items():
+        rows_b = {row["id"]: row for row in b["items"].get(surface, [])}
+        same = total = 0
+        flips: list[str] = []
+        for row in rows_a:
+            other = rows_b.get(row["id"])
+            if not other or row["status"] != "scored" or other["status"] != "scored" or row.get("failure"):
+                continue
+            for criterion in judged(surface):
+                va = (row["verdicts"].get(criterion.id) or ("na", ""))[0]
+                vb = (other["verdicts"].get(criterion.id) or ("na", ""))[0]
+                total += 1
+                if va == vb:
+                    same += 1
+                else:
+                    flips.append(f"{row['id']} {criterion.id}: {va}→{vb}")
+        report[surface] = {
+            "score_a": a["surfaces"][surface]["score"], "score_b": b["surfaces"][surface]["score"],
+            "agreement": round(same / total, 3) if total else None, "verdicts": total, "flips": flips,
+        }
+    return report
+
+
 # ---------------------------------------------------------------------------
 # Report and history
 # ---------------------------------------------------------------------------
@@ -426,6 +495,7 @@ def marker_entry(result: dict) -> dict:
         "date": result["date"],
         "label": result["label"],
         "criteria": result["criteria_version"],
+        "judge": result.get("judge_model"),
         "sets": sets_digest(result),
         "scores": {s: v["score"] for s, v in result["surfaces"].items()},
         "spent": round(result.get("spent_usd", 0.0), 4),
@@ -478,13 +548,21 @@ def post_comment(body: str, issue: int = DIGEST_ISSUE) -> str:
     return json.loads(out.stdout).get("html_url", "")
 
 
+#: The judge of the entries written before the history recorded one.
+FIRST_JUDGE = "gpt-6.1-sol"
+
+
+def entry_judge(entry: dict) -> str:
+    return entry.get("judge") or FIRST_JUDGE
+
+
 def trend_cells(history: list[dict], result: dict, surface: str, nights: int = 7) -> tuple[str, str]:
     """(change vs the last comparable night, the last ``nights`` scores) for a surface."""
 
     same = [
         e for e in history
         if e.get("label") == result["label"] and e.get("criteria") == result["criteria_version"]
-        and e.get("date") != result["date"] and (e.get("scores") or {}).get(surface) is not None
+        and entry_judge(e) == result.get("judge_model") and e.get("date") != result["date"] and (e.get("scores") or {}).get(surface) is not None
     ]
     now = result["surfaces"][surface]["score"]
     series = [e["scores"][surface] for e in same][-(nights - 1):] + ([now] if now is not None else [])
@@ -531,6 +609,8 @@ def render_report(result: dict, history: list[dict]) -> str:
     previous = [e for e in history if e.get("label") == label and e.get("date") != result["date"]]
     if previous and previous[-1].get("criteria") != result["criteria_version"]:
         lines.append("The criteria changed since the last run: the trend starts again.")
+    elif previous and entry_judge(previous[-1]) != result.get("judge_model"):
+        lines.append(f"The judge changed since the last run (was `{entry_judge(previous[-1])}`): the trend starts again.")
     elif previous and previous[-1].get("sets") not in (None, sets_digest(result)):
         lines.append("The gold inputs changed since the last run (see the PR that changed them): read the change with that in mind.")
     lost = []
