@@ -158,3 +158,60 @@ def test_free_production_shows_the_settled_fix_even_when_nothing_is_dropped():
     assert [(e["learner_text"], e["corrected_target"]) for e in refined["errata"]] == [
         ("la appartement", "l'appartement")
     ]
+
+
+# ---------------------------------------------------------------------------
+# The Feuilleton short sentence goes through the same checker
+# ---------------------------------------------------------------------------
+
+
+def _model_reading(errata, *, verdict="partial", corrected=""):
+    return {"verdict": verdict, "score_0_4": 2, "corrected_answer": corrected, "why": "model why",
+            "repair": "model repair", "errata": errata}
+
+
+def test_the_feuilleton_drops_a_correction_about_a_subject_the_sentence_lacks():
+    from app.services.graphic_novel import _held_to_sentence
+
+    text = "Mon chat est très grand."
+    out = _held_to_sentence(
+        _model_reading(
+            [{"learner_text": "est", "corrected_target": "sont", "why_wrong": EST_SONT, "repair_hint": "",
+              "task_error_type": "grammar"}],
+            corrected="Mon chat sont très grand.",
+        ),
+        text,
+    )
+    assert out["errata"] == []
+    assert out["corrected_answer"] == text and out["verdict"] == "accepted"
+    assert "ils" not in out["why"]
+
+
+def test_the_feuilleton_keeps_a_real_fix_and_adds_what_the_model_missed():
+    from app.services.graphic_novel import _held_to_sentence
+
+    text = "Je ne vends pas la appartement. Elle est a ma grand-mère."
+    out = _held_to_sentence(
+        _model_reading(
+            [{"learner_text": "est", "corrected_target": "sont", "why_wrong": EST_SONT, "repair_hint": "",
+              "task_error_type": "grammar"}]
+        ),
+        text,
+    )
+    shown = {(e["learner_text"], e["corrected_target"]) for e in out["errata"]}
+    assert ("est", "sont") not in shown
+    assert ("la appartement", "l'appartement") in shown
+    assert out["verdict"] == "partial" and "l'appartement" in out["corrected_answer"]
+
+
+def test_the_feuilleton_leaves_a_verified_reading_as_the_model_wrote_it():
+    from app.services.graphic_novel import _held_to_sentence
+
+    reading = _model_reading(
+        [{"learner_text": "une café", "corrected_target": "un café", "why_wrong": "«café» is masculine.",
+          "repair_hint": "un café", "task_error_type": "gender"}],
+        corrected="Je voudrais un café.",
+    )
+    out = _held_to_sentence(reading, "Je voudrais une café.")
+    assert out["verdict"] == "partial" and out["why"] == "model why"
+    assert [(e["learner_text"], e["corrected_target"]) for e in out["errata"]] == [("une café", "un café")]

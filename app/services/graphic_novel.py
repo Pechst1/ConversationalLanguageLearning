@@ -6957,10 +6957,54 @@ class GraphicNovelCorrectionService:
                 }
                 for item in parsed.get("errata") or []
             ]
-            return parsed
+            return _held_to_sentence(parsed, text)
         except (LLMProviderError, AttributeError, json.JSONDecodeError, ValueError) as exc:
             logger.debug("Graphic novel correction fallback", error=str(exc))
             return None
+
+def _held_to_sentence(parsed: dict[str, Any], text: str) -> dict[str, Any]:
+    """The model's short-sentence correction through the one checker every correction
+    passes (#250): each erratum is verified against the learner's sentence and its
+    note held to its fix, and the model-free pass adds what the model missed. A
+    correction built on an erratum that was rejected is rebuilt from what is left;
+    when nothing is left, the sentence stands as written."""
+
+    from app.services import correction_contract
+
+    proposed = [item for item in parsed.get("errata") or [] if isinstance(item, dict)]
+    kept = correction_contract.merge_deterministic_errata(text, proposed)
+    concept_id = next((item.get("concept_id") for item in proposed), None)
+    kept = [{**item, "concept_id": item.get("concept_id") or concept_id} for item in kept]
+    unchanged = [
+        (item.get("learner_text"), item.get("corrected_target")) for item in kept
+    ] == [(item.get("learner_text"), item.get("corrected_target")) for item in proposed]
+    if unchanged:
+        return {**parsed, "errata": kept}
+    out = {**parsed, "errata": kept}
+    if not kept:
+        out.update(
+            verdict="accepted",
+            score_0_4=max(float(parsed.get("score_0_4") or 0), 3.0),
+            corrected_answer=text,
+            why="",
+            repair="",
+        )
+        return out
+    corrected = text
+    for item in kept:
+        span, fix = str(item.get("learner_text") or ""), str(item.get("corrected_target") or "")
+        if span and fix and span in corrected:
+            corrected = corrected.replace(span, fix, 1)
+    first = kept[0]
+    out.update(
+        verdict="partial",
+        score_0_4=min(float(parsed.get("score_0_4") or 2), 3.0),
+        corrected_answer=corrected,
+        why=str(first.get("why_wrong") or ""),
+        repair=str(first.get("repair_hint") or ""),
+    )
+    return out
+
 
 def _scene_chrome_language(scene: GraphicNovelScene | None) -> str:
     """The one-language rule for this scene's reader (French when unknown)."""
