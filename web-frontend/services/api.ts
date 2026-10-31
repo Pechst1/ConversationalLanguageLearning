@@ -309,8 +309,8 @@ export interface JournalCorrection {
    *  'no_check_target' cannot be retried. */
   failure_reason?: string | null;
   /** 'model' | 'deterministic'. A deterministic check is the model-free pass of the shared corrector
-   *  (#250): it marks real mistakes but cannot say a text is right, so a clean result reads
-   *  «No corrections found», and `retryable` says whether the model could be asked again. */
+   *  (#250): it marks real mistakes but cannot say a text is right, so a clean result says it was
+   *  a basic check only (never «nothing found»), and `retryable` says whether the model could be asked again. */
   checker?: string | null;
   retryable?: boolean;
   explanation_language?: string | null;

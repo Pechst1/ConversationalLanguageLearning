@@ -69,3 +69,67 @@ def test_utc_iso_keeps_an_aware_stamp_and_marks_a_naive_one():
     assert utc_iso(NAIVE) == "2026-10-24T02:06:00+00:00"
     berlin = datetime(2026, 10, 24, 4, 6, tzinfo=timezone(timedelta(hours=2)))
     assert utc_iso(berlin) == "2026-10-24T02:06:00+00:00"
+
+
+# ---------------------------------------------------------------------------
+# #397: the thread keeps the conversation's order, and a turn is stamped when it
+# is written.
+# ---------------------------------------------------------------------------
+
+
+def _turn(index: int, role: str, at: datetime) -> RealWorldMissionTurn:
+    turn = RealWorldMissionTurn(id=uuid4(), turn_index=index, role=role, mode="chat", text=f"t{index}")
+    turn.created_at = at
+    return turn
+
+
+def test_the_thread_keeps_the_conversations_order():
+    """#397 / review on #411: turns are listed by the counter, the order they were said
+    in. The out-of-order times were stamps of the transaction's start (fixed below);
+    sorting by them would move an older reply below the real last one, and the page's
+    composer reads the last assistant turn from this list."""
+    base = datetime(2026, 10, 31, 2, 57, 0)
+    mission = _mission()
+    mission.turns = [
+        _turn(3, "assistant", base),
+        _turn(1, "assistant", base + timedelta(minutes=1)),
+        _turn(2, "user", base + timedelta(minutes=14)),
+    ]
+
+    payload = serialize_mission(mission)
+
+    assert [turn["turn_index"] for turn in payload["turns"]] == [1, 2, 3]
+
+
+def test_a_turn_is_stamped_when_it_is_written(db_session):
+    """#397: a stamp the database sets is the time its transaction began, so a reply
+    written after a slow correction was stamped before it. The writer stamps it."""
+    from app.db.models.user import User
+
+    user = User(
+        id=uuid4(),
+        email=f"stamp-{uuid4().hex}@example.com",
+        hashed_password="test",
+        native_language="en",
+        target_language="fr",
+        proficiency_level="A1",
+    )
+    db_session.add(user)
+    mission = _mission()
+    mission.user_id = user.id
+    mission.created_at = None
+    mission.started_at = None
+    db_session.add(mission)
+    db_session.commit()
+
+    stamps = []
+    for index in (1, 2, 3):
+        turn = RealWorldMissionTurn(
+            mission_id=mission.id, user_id=user.id, turn_index=index, role="user", mode="chat", text=f"t{index}"
+        )
+        db_session.add(turn)
+        db_session.commit()
+        db_session.refresh(turn)
+        stamps.append(turn.created_at)
+
+    assert stamps[0] < stamps[1] < stamps[2], stamps
