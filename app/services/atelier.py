@@ -2298,55 +2298,66 @@ def _is_vague_output_prompt(prompt: Any) -> bool:
     return len(normalized.split()) < 6 and not has_direct_dialogue or not (has_scene_signal or has_direct_dialogue)
 
 
-def _fallback_output_prompt_for(concept: GrammarConcept | None, round_name: str) -> str:
-    lesson = lesson_for(concept)
-    if lesson:
-        return lesson["scene"]
+#: The grammar families with their own fallback situations; every other rule gets
+#: the generic ones (``learner_copy``: ``atelier.fallback.prompt.<family>.<round>``).
+_FALLBACK_PROMPT_FAMILIES = ("tense_aspect", "si_present_result_form", "article_after_negation")
+_FALLBACK_OUTPUT_ROUNDS = ("sentence", "speak", "conversation")
+
+
+def _fallback_family(concept: GrammarConcept | None) -> str:
     profile = infer_grammar_profile(concept) if concept else None
-    profile_key = profile.key if profile else ""
-    prompts: dict[str, dict[str, str]] = {
-        "tense_aspect": {
-            "sentence": "Yesterday a friend asks why you arrived late. Explain what was happening and what happened in one French sentence.",
-            "speak": "A colleague asks what you were doing when the phone rang. Say one sentence with the background and the event.",
-            "conversation": "Message received: « Pourquoi tu n'as pas répondu hier soir ? » Reply with what was going on and what happened.",
-        },
-        "si_present_result_form": {
-            "sentence": "A colleague asks: « Tu termines tôt aujourd'hui ? » Answer with what you will do if that happens.",
-            "speak": "A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.",
-            "conversation": "Message received: « S'il pleut demain, on fait quoi ? » Reply with a real condition and its consequence.",
-        },
-        "article_after_negation": {
-            "sentence": "A friend asks what food or drink is left at home today. Say one thing you do not have.",
-            "speak": "At a cafe, someone asks what is available. Say one missing item with ne...pas de/d'.",
-            "conversation": "Message received: « Tu as encore du café ? » Reply with a negated quantity.",
-        },
-    }
-    fallback = {
-        "sentence": "A friend asks for one concrete update about today. Answer in French with one complete sentence.",
-        "speak": "Ton amie demande : « Quel est ton programme pour demain matin ? » Donne une activité et une heure précises.",
-        "conversation": "Message received: « Qu'est-ce qui se passe ? » Reply naturally in French.",
-    }
-    return prompts.get(profile_key, fallback).get(round_name, fallback["sentence"])
+    key = profile.key if profile else ""
+    return key if key in _FALLBACK_PROMPT_FAMILIES else "generic"
+
+
+def _fallback_output_prompt_key(concept: GrammarConcept | None, round_name: str) -> str | None:
+    """The copy key of a rule's fallback task for one output round; ``None`` when a
+    curated lesson gives the rule its own scene."""
+
+    if lesson_for(concept):
+        return None
+    round_name = round_name if round_name in _FALLBACK_OUTPUT_ROUNDS else "sentence"
+    return f"atelier.fallback.prompt.{_fallback_family(concept)}.{round_name}"
+
+
+def _fallback_produce_prompt_key(concept: GrammarConcept | None) -> str | None:
+    """The copy key of a rule's fallback paragraph task; ``None`` for a curated lesson."""
+
+    if lesson_for(concept):
+        return None
+    return f"atelier.fallback.produce.{_fallback_family(concept)}"
+
+
+def _fallback_output_prompt_for(concept: GrammarConcept | None, round_name: str) -> str:
+    key = _fallback_output_prompt_key(concept, round_name)
+    return lesson_for(concept)["scene"] if key is None else _copy(key, "en")
 
 
 def _fallback_produce_prompt_for(concept: GrammarConcept | None) -> str:
-    lesson = lesson_for(concept)
-    if lesson:
-        return lesson["scene"]
-    profile = infer_grammar_profile(concept) if concept else None
-    profile_key = profile.key if profile else ""
-    prompts: dict[str, str] = {
-        "tense_aspect": "A friend asks what happened yesterday when your plans changed. Write a short French note that contrasts the background scene with the completed events.",
-        "si_present_result_form": "A teammate asks how tomorrow's plan changes if the weather or timing changes. Write a short French reply with real si-conditions and their consequences.",
-        "article_after_negation": "A roommate asks what supplies are missing before shopping. Write a short French note naming what you do not have.",
-    }
-    if profile_key in prompts:
-        return prompts[profile_key]
-    pattern = profile.pattern if profile else "the target grammar pattern"
-    return (
-        "A friend asks for a short update about today's plan. "
-        f"Write a French note with concrete details, making this pattern visible: {pattern}"
-    )
+    key = _fallback_produce_prompt_key(concept)
+    return lesson_for(concept)["scene"] if key is None else _copy(key, "en")
+
+
+def _prompt_table(key: str | None) -> dict[str, str] | None:
+    """#196: a fallback task in every chrome language (``prompt_l10n``, as the item bank
+    stores its cues): the stored ``prompt`` stays the English column (what the grader
+    reads), and the learner is served the column of their own chrome language."""
+
+    if key is None:
+        return None
+    return {language: _copy(key, language) for language in ("en", "de", "fr")}
+
+
+def _with_fallback_prompt(node: dict[str, Any], key: str | None, prompt: str) -> dict[str, Any]:
+    """``node`` asking ``prompt``, with that task's table when it is a fallback task."""
+
+    node["prompt"] = prompt
+    table = _prompt_table(key)
+    if table:
+        node["prompt_l10n"] = table
+    else:
+        node.pop("prompt_l10n", None)
+    return node
 
 
 @dataclass(frozen=True)
@@ -3726,6 +3737,7 @@ class AtelierExerciseGenerator:
                                 round_name="sentence",
                                 kind="short_sentence",
                                 prompt=_fallback_output_prompt_for(concept, "sentence"),
+                                prompt_key=_fallback_output_prompt_key(concept, "sentence"),
                                 example=sentences[0],
                                 min_words=5,
                                 max_words=24,
@@ -3740,6 +3752,7 @@ class AtelierExerciseGenerator:
                                 round_name="speak",
                                 kind="spoken_response",
                                 prompt=_fallback_output_prompt_for(concept, "speak"),
+                                prompt_key=_fallback_output_prompt_key(concept, "speak"),
                                 example=sentences[1],
                                 min_words=5,
                                 max_words=24,
@@ -3754,6 +3767,7 @@ class AtelierExerciseGenerator:
                                 round_name="conversation",
                                 kind="conversation_turn",
                                 prompt=_fallback_output_prompt_for(concept, "conversation"),
+                                prompt_key=_fallback_output_prompt_key(concept, "conversation"),
                                 example=sentences[2],
                                 min_words=6,
                                 max_words=30,
@@ -3766,6 +3780,7 @@ class AtelierExerciseGenerator:
         for mode in ATELIER_RECOGNIZE_MODES:
             payload["recognize"][mode]["items"] = payload["recognize"][mode]["items"][:ATELIER_ITEMS_PER_RECOGNIZE_MODE]
         payload["transform"]["items"] = payload["transform"]["items"][:ATELIER_TRANSFORM_ITEMS]
+        _with_fallback_prompt(payload["produce"], _fallback_produce_prompt_key(concept), payload["produce"]["prompt"])
         return payload
 
     def _fallback_sentences(self, concept: GrammarConcept) -> list[str]:
@@ -4251,8 +4266,12 @@ class AtelierExerciseGenerator:
         example: str,
         min_words: int,
         max_words: int,
+        prompt_key: str | None = None,
     ) -> dict[str, Any]:
-        return {
+        """One output-round item; ``prompt_key`` is the copy key of a fallback task, whose
+        table goes with it (#196). A curated lesson's scene has no key and no table."""
+
+        item = {
             "id": f"{prefix}-fallback-{round_name}",
             "type": kind,
             "instruction": _copy("atelier.fallback.output_instruction", "en"),
@@ -4270,6 +4289,7 @@ class AtelierExerciseGenerator:
             "min_words": min_words,
             "max_words": max_words,
         }
+        return _with_fallback_prompt(item, prompt_key, prompt)
 
     def _normalize_llm_exercise_payload(self, concept: GrammarConcept, payload: dict[str, Any]) -> dict[str, Any]:
         incoming = dict(payload)
@@ -4358,7 +4378,7 @@ class AtelierExerciseGenerator:
             }
         ]
         if _is_vague_output_prompt(produce.get("prompt")):
-            produce["prompt"] = _fallback_produce_prompt_for(concept)
+            _with_fallback_prompt(produce, _fallback_produce_prompt_key(concept), _fallback_produce_prompt_for(concept))
         produce["min_words"] = int(produce.get("min_words") or 70)
         produce["max_words"] = int(produce.get("max_words") or 140)
         payload["produce"] = produce
@@ -4383,7 +4403,9 @@ class AtelierExerciseGenerator:
                 ]
                 item["id"] = str(item.get("id") or f"{concept.external_id or concept.id}-{round_name}-{index + 1}")
                 if _is_vague_output_prompt(item.get("prompt")):
-                    item["prompt"] = _fallback_output_prompt_for(concept, round_name)
+                    _with_fallback_prompt(
+                        item, _fallback_output_prompt_key(concept, round_name), _fallback_output_prompt_for(concept, round_name)
+                    )
                 item["min_words"] = int(item.get("min_words") or (5 if round_name == "sentence" else 6))
                 item["max_words"] = int(item.get("max_words") or (30 if round_name == "conversation" else 24))
                 normalized_items.append(item)
