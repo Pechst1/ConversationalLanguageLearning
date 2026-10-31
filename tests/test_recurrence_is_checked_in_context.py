@@ -215,3 +215,11 @@ def test_the_feuilleton_leaves_a_verified_reading_as_the_model_wrote_it():
     out = _held_to_sentence(reading, "Je voudrais une café.")
     assert out["verdict"] == "partial" and out["why"] == "model why"
     assert [(e["learner_text"], e["corrected_target"]) for e in out["errata"]] == [("une café", "un café")]
+
+
+def test_the_feuilleton_corrects_the_slip_where_it_stands_not_its_first_lookalike():
+    from app.services.graphic_novel import _held_to_sentence
+
+    text = "Je suis à Paris. Elle suis à Lyon."
+    out = _held_to_sentence(_model_reading([], verdict="accepted", corrected=text), text)
+    assert out["corrected_answer"] == "Je suis à Paris. Elle est à Lyon."

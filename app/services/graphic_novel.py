@@ -6990,11 +6990,22 @@ def _held_to_sentence(parsed: dict[str, Any], text: str) -> dict[str, Any]:
             repair="",
         )
         return out
-    corrected = text
+    # The model's verified fixes at the place they were verified (the first time the
+    # span stands in the learner's sentence), then the model-free pass on the result,
+    # which finds its own slips at their own positions («Je suis… Elle suis»).
+    corrected, taken = text, []
     for item in kept:
+        if item.get("source") == "deterministic":
+            continue
         span, fix = str(item.get("learner_text") or ""), str(item.get("corrected_target") or "")
-        if span and fix and span in corrected:
-            corrected = corrected.replace(span, fix, 1)
+        at = text.find(span) if span and fix else -1
+        if at < 0 or any(at < end and start < at + len(span) for start, end in taken):
+            continue
+        taken.append((at, at + len(span)))
+    for start, end in sorted(taken, reverse=True):
+        fix = next(str(i.get("corrected_target")) for i in kept if i.get("learner_text") == text[start:end])
+        corrected = corrected[:start] + fix + corrected[end:]
+    corrected = correction_contract.repair_text(corrected)
     first = kept[0]
     out.update(
         verdict="partial",
