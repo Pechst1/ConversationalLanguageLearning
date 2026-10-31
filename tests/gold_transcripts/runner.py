@@ -383,9 +383,11 @@ def parse_verdicts(surface: str, content: str) -> dict[str, tuple[str, str]]:
 
 def item_score(verdicts: dict[str, tuple[str, str]], surface: str | None = None) -> float | None:
     if surface == "page":
+        # Every asked question counts: one the judge left unrated earns nothing.
+        asked = [c.id for c in judged("page") if c.id in verdicts]
         ratings = page_ratings(verdicts)
-        if ratings:
-            return sum((r - 1) / 4 for r in ratings.values()) / len(ratings)
+        if asked:
+            return sum((ratings[key] - 1) / 4 if key in ratings else 0.0 for key in asked) / len(asked)
     counted = [v for v, _ in verdicts.values() if v in {"pass", "fail"}]
     return (sum(1 for v in counted if v == "pass") / len(counted)) if counted else None
 

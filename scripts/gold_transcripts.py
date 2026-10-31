@@ -182,13 +182,20 @@ def cmd_run(args: argparse.Namespace) -> int:
 def cmd_rejudge(args: argparse.Namespace) -> int:
     """Score a saved run's answers with another judge and compare the two judges."""
 
+    source = Path(args.results)
+    before = json.loads(source.read_text(encoding="utf-8")) if source.exists() else {}
+    try:
+        R.judge_for(list(before.get("items") or {}), args.judge_model)
+    except ValueError as exc:
+        print(f"rejudge refuses: {exc}.")
+        return 2
     refused = _refuse_paid(args, "rejudge")
     if refused is not None:
         return refused
+    if not before:
+        print(f"rejudge refuses: no results at {source}.")
+        return 2
     from app.services.llm_service import LLMService
-
-    source = Path(args.results)
-    before = json.loads(source.read_text(encoding="utf-8"))
     applied = R.apply_profile()
     try:
         meter = R.Meter(inner=LLMService(), cap_usd=args.max_usd)

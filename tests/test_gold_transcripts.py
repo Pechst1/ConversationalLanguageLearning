@@ -385,7 +385,7 @@ def test_a_judge_change_restarts_the_trend():
     assert "first run" in report and "The judge changed" in report
 
 
-def test_no_claude_judge_grades_the_claude_night_writer(monkeypatch):
+def test_no_claude_judge_grades_the_claude_night_writer(monkeypatch, tmp_path, capsys):
     assert R.judge_for(["scene", "forge"]) == R.DEFAULT_JUDGE
     assert R.judge_for(["page"]) == R.PAGE_JUDGE and not R.PAGE_JUDGE.startswith("claude")
     with pytest.raises(ValueError):
@@ -394,6 +394,16 @@ def test_no_claude_judge_grades_the_claude_night_writer(monkeypatch):
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     assert cli.main(["plan", "--surface", "page", "--judge-model", "claude-sonnet-5-5"]) == 2
+    saved = tmp_path / "pages.json"
+    saved.write_text(json.dumps({"judge_model": R.PAGE_JUDGE, "items": {"page": []}}), encoding="utf-8")
+    assert cli.main(["rejudge", str(saved), "--judge-model", "claude-sonnet-5-5", "--max-usd", "1"]) == 2
+    assert "Claude model" in capsys.readouterr().out
+
+
+def test_an_unrated_page_question_earns_nothing():
+    verdicts = {"served": ("pass", ""), "natural": ("pass", "5/5 fine")}
+    verdicts.update({c.id: ("fail", "judge: no verdict") for c in judged("page") if c.id != "natural"})
+    assert R.item_score(verdicts, "page") == 1 / len(judged("page"))
 
 
 def test_cli_maps_the_environment_anthropic_key(monkeypatch):
