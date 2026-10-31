@@ -93,17 +93,20 @@ def _hat_miss(built: str) -> dict:
         "On n'a pas d'chapeau, Gus.",  # «un» → «d'», the page joins the elision to the next word
         "On n'a pas d' chapeau, Gus.",
     ],
+    ids=["elided", "spaced"],
 )
-def test_a_missed_fix_shows_the_sentence_the_learner_built(built: str) -> None:
+def test_miss_shows_own_line(built: str) -> None:
     erratum = _hat_miss(built)
 
     # Case, punctuation and order are the learner's own, and nothing is spliced in twice.
-    assert erratum["learner_text"] == built
+    assert erratum["learner_text"] == built, "the struck-through line is the learner's own"
     assert erratum["corrected_target"] == HAT_ANSWER
 
 
-@pytest.mark.parametrize("built", ["On n'a pas d'chapeau, Gus.", "On n'a pas d' chapeau, Gus."])
-def test_the_explanation_never_calls_a_word_wrong_that_the_target_has(built: str) -> None:
+@pytest.mark.parametrize(
+    "built", ["On n'a pas d'chapeau, Gus.", "On n'a pas d' chapeau, Gus."], ids=["elided", "spaced"]
+)
+def test_no_right_word_blamed(built: str) -> None:
     from app.services.forge_grading import tokens
 
     erratum = _hat_miss(built)

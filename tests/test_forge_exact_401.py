@@ -52,7 +52,7 @@ def _submit_free_text(db_session: Session, monkeypatch, *, text_for):
     return user, session, forge, attempt
 
 
-def test_the_items_own_answer_is_right_without_the_model(db_session: Session, monkeypatch) -> None:
+def test_own_answer_right_no_model(db_session: Session, monkeypatch) -> None:
     def typed(accepted: list[str]) -> str:
         assert accepted, "the item carries an accepted answer"
         # Case, final punctuation and apostrophe style do not matter.
@@ -73,7 +73,7 @@ def test_the_items_own_answer_is_right_without_the_model(db_session: Session, mo
     assert view["rules"][0]["rung"] == int(Rung.FREE_USE)
 
 
-def test_a_sentence_the_key_does_not_cover_still_waits_for_the_relecture(db_session: Session, monkeypatch) -> None:
+def test_other_sentence_waits(db_session: Session, monkeypatch) -> None:
     _user, _session, _forge, attempt = _submit_free_text(
         db_session, monkeypatch, text_for=lambda _accepted: "Je ne bois pas de café le soir."
     )
