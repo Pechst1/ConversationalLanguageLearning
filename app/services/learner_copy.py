@@ -1148,6 +1148,95 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Benutze die Zielgrammatik sichtbar in deiner Antwort.",
         "fr": "Emploie visiblement la grammaire visée dans ta réponse.",
     },
+    # -- the fallback set's task text (#196): a rule with no task of its own gets
+    # one of these situations. The English column is the text sets cached before
+    # #196 still hold, byte for byte, so the serve-time lookup finds them
+    # (``fallback_prompt_table``); the quoted French is what the learner answers.
+    "atelier.fallback.prompt.tense_aspect.sentence": {
+        "en": "Yesterday a friend asks why you arrived late. Explain what was happening and what happened in one French sentence.",
+        "de": "Ein Freund fragt dich, warum du gestern zu spät warst. Erkläre in einem französischen Satz, was gerade los war und was dann passiert ist.",
+        "fr": "Un ami te demande pourquoi tu étais en retard hier. Explique en une phrase ce qui se passait et ce qui s’est passé.",
+    },
+    "atelier.fallback.prompt.tense_aspect.speak": {
+        "en": "A colleague asks what you were doing when the phone rang. Say one sentence with the background and the event.",
+        "de": "Eine Kollegin fragt dich, was du gerade gemacht hast, als das Telefon klingelte. Sag einen Satz auf Französisch mit dem Hintergrund und dem Ereignis.",
+        "fr": "Une collègue te demande ce que tu faisais quand le téléphone a sonné. Dis une phrase avec le contexte et l’événement.",
+    },
+    "atelier.fallback.prompt.tense_aspect.conversation": {
+        "en": "Message received: « Pourquoi tu n'as pas répondu hier soir ? » Reply with what was going on and what happened.",
+        "de": "Neue Nachricht: « Pourquoi tu n’as pas répondu hier soir ? » Antworte mit dem, was gerade los war, und dem, was dann passiert ist.",
+        "fr": "Message reçu : « Pourquoi tu n’as pas répondu hier soir ? » Réponds avec ce qui se passait et ce qui s’est passé.",
+    },
+    "atelier.fallback.prompt.si_present_result_form.sentence": {
+        "en": "A colleague asks: « Tu termines tôt aujourd'hui ? » Answer with what you will do if that happens.",
+        "de": "Ein Kollege fragt: « Tu termines tôt aujourd’hui ? » Antworte mit dem, was du tun wirst, wenn es so kommt.",
+        "fr": "Un collègue te demande : « Tu termines tôt aujourd’hui ? » Réponds en disant ce que tu feras si c’est le cas.",
+    },
+    "atelier.fallback.prompt.si_present_result_form.speak": {
+        "en": "A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.",
+        "de": "Eine Freundin fragt, was du machst, wenn es morgen regnet. Gib eine natürliche Antwort mit si + Präsens.",
+        "fr": "Une amie te demande ce que tu feras s’il pleut demain. Donne une réponse naturelle avec si + présent.",
+    },
+    "atelier.fallback.prompt.si_present_result_form.conversation": {
+        "en": "Message received: « S'il pleut demain, on fait quoi ? » Reply with a real condition and its consequence.",
+        "de": "Neue Nachricht: « S’il pleut demain, on fait quoi ? » Antworte mit einer echten Bedingung und ihrer Folge.",
+        "fr": "Message reçu : « S’il pleut demain, on fait quoi ? » Réponds avec une condition réelle et sa conséquence.",
+    },
+    "atelier.fallback.prompt.article_after_negation.sentence": {
+        "en": "A friend asks what food or drink is left at home today. Say one thing you do not have.",
+        "de": "Ein Freund fragt, was heute zu Hause noch zu essen oder zu trinken da ist. Nenne eine Sache, die du nicht hast.",
+        "fr": "Un ami te demande ce qu’il reste à manger ou à boire chez toi aujourd’hui. Dis une chose que tu n’as pas.",
+    },
+    "atelier.fallback.prompt.article_after_negation.speak": {
+        "en": "At a cafe, someone asks what is available. Say one missing item with ne...pas de/d'.",
+        "de": "Im Café fragt jemand, was es gibt. Nenne etwas, das fehlt, mit ne… pas de/d’.",
+        "fr": "Au café, quelqu’un demande ce qu’il y a. Cite une chose qui manque, avec ne… pas de/d’.",
+    },
+    "atelier.fallback.prompt.article_after_negation.conversation": {
+        "en": "Message received: « Tu as encore du café ? » Reply with a negated quantity.",
+        "de": "Neue Nachricht: « Tu as encore du café ? » Antworte mit einer verneinten Mengenangabe.",
+        "fr": "Message reçu : « Tu as encore du café ? » Réponds avec une quantité à la forme négative.",
+    },
+    "atelier.fallback.prompt.generic.sentence": {
+        "en": "A friend asks for one concrete update about today. Answer in French with one complete sentence.",
+        "de": "Ein Freund möchte eine konkrete Neuigkeit von deinem Tag hören. Antworte mit einem ganzen Satz auf Französisch.",
+        "fr": "Une amie te demande une nouvelle concrète de ta journée. Réponds par une phrase complète.",
+    },
+    # Stored in French before #196 (``fallback_prompt_table`` still finds that text).
+    "atelier.fallback.prompt.generic.speak": {
+        "en": "Your friend asks: « Quel est ton programme pour demain matin ? » Give one activity and an exact time.",
+        "de": "Deine Freundin fragt: « Quel est ton programme pour demain matin ? » Nenne eine Aktivität und eine genaue Uhrzeit.",
+        "fr": "Ton amie demande : « Quel est ton programme pour demain matin ? » Donne une activité et une heure précises.",
+    },
+    "atelier.fallback.prompt.generic.conversation": {
+        "en": "Message received: « Qu'est-ce qui se passe ? » Reply naturally in French.",
+        "de": "Neue Nachricht: « Qu’est-ce qui se passe ? » Antworte ganz natürlich auf Französisch.",
+        "fr": "Message reçu : « Qu’est-ce qui se passe ? » Réponds naturellement.",
+    },
+    # The paragraph round («produce»).
+    "atelier.fallback.produce.tense_aspect": {
+        "en": "A friend asks what happened yesterday when your plans changed. Write a short French note that contrasts the background scene with the completed events.",
+        "de": "Ein Freund fragt, was gestern passiert ist, als sich deine Pläne geändert haben. Schreib eine kurze Nachricht auf Französisch, die den Hintergrund der Szene den abgeschlossenen Ereignissen gegenüberstellt.",
+        "fr": "Un ami te demande ce qui s’est passé hier quand tes projets ont changé. Écris un court message qui oppose le contexte (ce qui se passait) aux actions terminées.",
+    },
+    "atelier.fallback.produce.si_present_result_form": {
+        "en": "A teammate asks how tomorrow's plan changes if the weather or timing changes. Write a short French reply with real si-conditions and their consequences.",
+        "de": "Eine Teamkollegin fragt, wie sich der Plan für morgen ändert, wenn sich das Wetter oder die Uhrzeit ändert. Schreib eine kurze Antwort auf Französisch mit echten si-Bedingungen und ihren Folgen.",
+        "fr": "Une coéquipière te demande comment le plan de demain change si la météo ou l’horaire change. Écris une courte réponse avec de vraies conditions en si et leurs conséquences.",
+    },
+    "atelier.fallback.produce.article_after_negation": {
+        "en": "A roommate asks what supplies are missing before shopping. Write a short French note naming what you do not have.",
+        "de": "Deine Mitbewohnerin fragt vor dem Einkaufen, was fehlt. Schreib eine kurze Notiz auf Französisch und nenne, was du nicht hast.",
+        "fr": "Ta colocataire te demande ce qui manque avant les courses. Écris un petit mot qui dit ce que tu n’as pas.",
+    },
+    # Before #196 the English ended «…, making this pattern visible: <the unit's
+    # pattern>». The pattern carries English glosses («le + masc. noun»), so no
+    # column quotes it; the rule card on the same screen shows it.
+    "atelier.fallback.produce.generic": {
+        "en": "A friend asks for a short update about today's plan. Write a French note with concrete details, with today's rule clearly visible.",
+        "de": "Eine Freundin fragt, wie dein Plan für heute aussieht. Schreib eine kurze Nachricht auf Französisch mit konkreten Details, in der die Regel von heute gut zu sehen ist.",
+        "fr": "Une amie te demande où en est ton programme d’aujourd’hui. Écris un petit message avec des détails concrets, où la règle du jour se voit bien.",
+    },
     # -- app/services/vocabulary_credit.py: a word's repair, in the learner's language.
     # EXPERIENCE-REVIEW 2026-10-04: these were English literals; a German learner read
     # «The word appartement needs another repair in context.» in the day's items.
@@ -1366,10 +1455,58 @@ def learner_text_for_english(text: Any, native_language: Any = None) -> str:
     return learner_text(key, native_language)
 
 
+#: #196: La Forge's fallback task texts (``atelier.fallback.prompt.*`` and
+#: ``atelier.fallback.produce.*``) as cached sets hold them: the English column,
+#: the generic speak task that was stored in French, and the generic paragraph
+#: task that ended with the unit's pattern.
+FALLBACK_PROMPT_KEYS: tuple[str, ...] = tuple(
+    key for key in LEARNER_COPY if key.startswith(("atelier.fallback.prompt.", "atelier.fallback.produce."))
+)
+_STORED_PROMPTS: dict[str, str] = {LEARNER_COPY[key]["en"]: key for key in FALLBACK_PROMPT_KEYS}
+_STORED_PROMPTS[LEARNER_COPY["atelier.fallback.prompt.generic.speak"]["fr"]] = "atelier.fallback.prompt.generic.speak"
+_STORED_PROMPT_PREFIXES: tuple[tuple[str, str], ...] = (
+    (
+        "A friend asks for a short update about today's plan. "
+        "Write a French note with concrete details, making this pattern visible:",
+        "atelier.fallback.produce.generic",
+    ),
+)
+
+
+def fallback_prompt_key(text: Any) -> str | None:
+    """The copy key of a La Forge fallback task text as a set stored it, if it is one."""
+
+    stored = " ".join(str(text or "").split())
+    if not stored:
+        return None
+    key = _STORED_PROMPTS.get(stored)
+    if key is not None:
+        return key
+    return next((key for prefix, key in _STORED_PROMPT_PREFIXES if stored.startswith(prefix)), None)
+
+
+def fallback_prompt_table(text: Any) -> dict[str, str] | None:
+    """``prompt_l10n`` (every chrome language) for a stored fallback task text (#196).
+
+    Exercise sets are generated once and shared, so a set cached before its task
+    carried a table holds only the English sentence; the serve-time layer
+    (``item_bank.with_goal``) gives it this table, like a stored instruction.
+    Anything else (a model-written task, a curated lesson's scene) is ``None``.
+    """
+
+    key = fallback_prompt_key(text)
+    if key is None:
+        return None
+    return {language: learner_text(key, language) for language in SUPPORTED_COPY_LANGUAGES}
+
+
 __all__ = [
+    "FALLBACK_PROMPT_KEYS",
     "LEARNER_COPY",
     "SUPPORTED_COPY_LANGUAGES",
     "copy_language",
+    "fallback_prompt_key",
+    "fallback_prompt_table",
     "key_for_english",
     "learner_text",
     "learner_text_for_english",
