@@ -80,3 +80,12 @@ def test_a_noun_swap_follows_the_gender_and_never_redoes_an_adjective():
 def test_a_phone_may_be_a_portable():
     # Walk 24 Oct (a1-de): «Margaux hat ein Handy im Wohnzimmer» refused «un portable».
     assert judge("Margaux a un portable dans le salon.", ["Margaux a un téléphone dans le salon."]).correct
+
+
+
+def test_a_noun_swap_never_changes_another_word_or_sense():
+    # Review on #424: agreement further on, a verb homograph, a word with another sense.
+    assert noun_variants("Le miroir est petit.") == []
+    assert noun_variants("Marin a un tableau très ancien.") == []
+    assert not judge("Je portable à ma mère.", ["Je téléphone à ma mère."], typo=False).correct
+    assert not judge("Je mange un miroir.", ["Je mange une glace."], typo=False).correct

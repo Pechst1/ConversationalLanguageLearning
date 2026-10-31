@@ -949,6 +949,13 @@ _PLAIN_DETERMINERS = frozenset(
     {"le", "la", "les", "un", "une", "des", "du", "de", "au", "aux", "à", "ce", "cette", "ces",
      "mon", "ma", "mes", "ton", "ta", "tes", "son", "sa", "ses", "notre", "votre", "leur", "nos", "vos", "leurs"}
 )
+#: Adjectives that stand before a noun: a noun after one still has its determiner
+#: further back («un nouvel immeuble»).
+_ADJECTIVE_SLOTS = frozenset(
+    {"petit", "petite", "grand", "grande", "nouveau", "nouvel", "nouvelle", "vieux", "vieil", "vieille",
+     "beau", "bel", "belle", "bon", "bonne", "joli", "jolie", "gros", "grosse", "autre", "même", "premier",
+     "première", "dernier", "dernière"}
+)
 #: Words after a noun that may point back to it and carry its gender.
 _REFERENCES = frozenset({"il", "elle", "lui", "celui", "celle", "lequel", "laquelle"})
 
@@ -996,8 +1003,9 @@ def _noun_alternatives() -> tuple[tuple[str, str, str, str], ...]:
             word = alternative.get("fr") if isinstance(alternative, dict) else alternative
             gender = (alternative.get("g") if isinstance(alternative, dict) else None) or entry.get("g")
             if isinstance(word, str) and entry.get("fr") and entry.get("g") in {"m", "f"} and gender in {"m", "f"}:
+                # One way only: the item's noun may be given as its alternative, not the
+                # reverse («une glace» to eat is not «un miroir»).
                 pairs.append((entry["fr"], entry["g"], word, gender))
-                pairs.append((word, gender, entry["fr"], entry["g"]))
     genders = _lemma_genders()
     for short, full in _CLIPPED_NOUNS.items():
         gender = genders.get(strip_accents(full)) or genders.get(strip_accents(short))
@@ -1031,6 +1039,9 @@ def noun_variants(sentence: str) -> list[str]:
             replacement = folded_other + ("s" if plural and " " not in folded_other else "")
             elided = match.group(1)
             previous = before.split()[-1:] if before.strip() else []
+            bare = not before.strip() and not after.strip()  # the noun alone (a recall key)
+            if not elided and not bare and not (previous and previous[0] in _PLAIN_DETERMINERS | _ADJECTIVE_SLOTS):
+                continue  # a noun has its determiner: «je téléphone à…» is the verb
             if (
                 not elided
                 and previous
@@ -1040,8 +1051,8 @@ def noun_variants(sentence: str) -> list[str]:
                 continue  # «un nouvel immeuble» is not «un nouvel bâtiment»
             if gender != other_gender:
                 following = after.split()
-                if following[:1] and _is_adjective(following[0]):
-                    continue
+                if any(_is_adjective(word) or word.endswith(("é", "ée", "és", "ées")) for word in following):
+                    continue  # «le miroir est petit», «un tableau très ancien»: agreement follows
                 if previous and previous[0] not in _PLAIN_DETERMINERS:
                     continue  # an adjective in front would need its other gender
                 if _refers_back(following):
