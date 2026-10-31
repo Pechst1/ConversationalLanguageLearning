@@ -442,11 +442,20 @@ test('«Demain»: Home’s finished card offers tomorrow’s threads under «La 
     tomorrow,
   };
   const done = { id: 'j-10', contract_version: 1, revision: 4, status: 'completed', local_date: '2026-09-29', timezone: 'Europe/Paris', budget_seconds: 600, estimated_active_seconds: 300, current_step_id: null, scenario: SCENARIO, steps: [], recap, retry: null };
-  const html = render(h(JourneyTodayCard, { controller: controllerFor({ ...ENVELOPE, journey: done }, 'en'), onOpen: () => {} }));
+  // #382: the choice is a question for the open day (words and grammar still to do) ...
+  const html = render(h(JourneyTodayCard, { controller: controllerFor({ ...ENVELOPE, journey: done }, 'en'), onOpen: () => {}, restOfDayOpen: true }));
   assert.ok(html.includes('On va cuisiner avec Lila'), 'the hint is the pick');
   assert.match(html, /role="group" aria-label="Choose where tomorrow goes"/);
   assert.equal((html.match(/aria-pressed="true"/g) || []).length, 1);
   assert.ok(html.includes('Parler du plan d’Odile avec Marin'));
+  // ... and says what it is for: where tomorrow goes.
+  assert.match(html, /Where does tomorrow go\?/);
+  assert.doesNotMatch(html, />Choose<\b(?! where)/);
+  // Once the day is done it settles: the line it settled on stays, the chips go.
+  const settled = render(h(JourneyTodayCard, { controller: controllerFor({ ...ENVELOPE, journey: done }, 'en'), onOpen: () => {}, restOfDayOpen: false }));
+  assert.ok(settled.includes('On va cuisiner avec Lila'), 'the settled line stays');
+  assert.doesNotMatch(settled, /av2-tomorrow/);
+  assert.ok(!settled.includes('Parler du plan d’Odile avec Marin'));
   // An early stop names no tomorrow on Home, so it offers none.
   const early = { ...done, status: 'ended_early', recap: { ...recap, completion_kind: 'early' } };
   const quietHtml = render(h(JourneyTodayCard, { controller: controllerFor({ ...ENVELOPE, journey: early }, 'en'), onOpen: () => {} }));

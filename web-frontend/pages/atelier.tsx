@@ -132,6 +132,7 @@ import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
 import { DaySessionNext, TempoSheet } from '@/components/atelier-v2/home/DaySession';
 import {
   daySessionCopy,
+  homeDayChip,
   sessionMarkState,
   sessionMore,
   sessionNextAction,
@@ -3107,6 +3108,11 @@ function TodayView({
       ];
 
   const sessionCopy = daySessionCopy(chromeLanguage);
+  const homeChip = homeDayChip(
+    streak,
+    Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
+    daySession,
+  );
   const sessionNext = sessionNextAction(daySession, chromeLanguage);
   const sessionExtra = sessionMore(daySession, chromeLanguage);
   const homeHero = daySession && (sessionNext || sessionExtra) ? (
@@ -3129,9 +3135,11 @@ function TodayView({
       dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
       editionLabel={editionLabel}
       special={specialEdition}
-      streak={streak}
+      streak={homeChip.streak}
       // WP-79: the server's checked `streak.today_done` (WP-80), never inferred.
-      dayDone={Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done)}
+      // #396: with the day's session, «done» is the session's Done step, so the
+      // chip does not move while the grammar step is still to do.
+      dayDone={homeChip.dayDone}
       settingsHref="/settings"
       // WP-D5: the streak opens «Vos sceaux» in Cahier → Relevé.
       streakHref="/notebook?mode=releve#sceaux"

@@ -431,11 +431,38 @@ export function storyStartIndex(episode: StoryEpisode | null | undefined, stageC
   return Math.min(Math.floor(saved), stageCount - 1);
 }
 
-/** The reader's eyebrow: chapter title when the engine has one. */
+const foldTitle = (value: string) =>
+  value.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+/**
+ * #403: a chapter's title as a label over the day's own title. A chapter spans
+ * several days and its title is often the title of its first day («Le mauvais
+ * accueil» over «La lettre» on day 2), so printed bare it reads as yesterday's
+ * episode. It is named as the chapter it is. A chapter title that already says
+ * so («Chapitre 1 · …») stays as it is; one that is the day's own title is
+ * returned bare, for the head to drop as a repeat.
+ */
+export function chapterKicker(chapterTitle: string | null | undefined, dayTitle?: string | null): string {
+  const chapter = String(chapterTitle ?? '').trim();
+  if (!chapter) return '';
+  const day = String(dayTitle ?? '').trim();
+  if (day && foldTitle(day) === foldTitle(chapter)) return chapter;
+  return /^chapitre\b/i.test(chapter) ? chapter : `Chapitre · ${chapter}`;
+}
+
+/** The chapter's label under a title that already says the day's name; `null` when it would repeat it. */
+export function chapterLabelUnder(chapterTitle: string | null | undefined, dayTitle?: string | null): string | null {
+  const label = chapterKicker(chapterTitle, dayTitle);
+  const day = String(dayTitle ?? '').trim();
+  if (!label || (day && foldTitle(day) === foldTitle(label))) return null;
+  return label;
+}
+
+/** The reader's eyebrow: the chapter, named as one, when the engine has one. */
 export function storyEpisodeLabel(episode: StoryEpisode | null | undefined): string {
   if (!episode) return '';
   const chapter = episode.chapter?.title_fr ? String(episode.chapter.title_fr).trim() : '';
-  return chapter || 'Le feuilleton';
+  return chapterKicker(chapter, episode.title_fr) || 'Le feuilleton';
 }
 
 // ---------------------------------------------------------------------------

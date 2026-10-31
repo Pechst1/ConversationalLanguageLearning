@@ -10,12 +10,17 @@
  * again, and the light goes out on it. What it remembers is keyed to the room: a door the story
  * opens once stays shut on your next visit.
  *
+ * Given the day's story (`scene`), the room plays the season's own page from where the café left
+ * it: T1 day b after closing. Lila has followed you in without asking; you light the stairs and
+ * climb (R1), the door opens on the kitchen (R2) and shuts again (R3), Lila says her piece on the
+ * step (R4), the light clicks off on the hook, and the engine closes the scene. The words are the
+ * page's; the room only adds where it happens.
+ *
  * A room with no minuterie (the learner's studio) is lit when you come in, and says where you are;
  * a tap on a thing the canon names there (the phone with the return ticket, the cold radiator)
  * says what it is, and the end card remembers it.
  *
- * The season's scenes will be played in a room by the stage; until then this is what a room
- * offers. It publishes the `StageUi` a visit does, so the screen lays it out the same way.
+ * It publishes the `StageUi` a visit does, so the screen lays it out the same way.
  */
 import { Vector3 } from 'three';
 
@@ -24,8 +29,10 @@ import { Memory } from './memory';
 import type { Words } from './memory';
 import { STRIDE } from './pace';
 import type { RoomBuilt } from './room';
-import { BLANK } from './stage';
-import type { Cue, Din, Director, Level, Native, StageUi, Street } from './stage';
+import { BLANK, dayOf, personOf } from './stage';
+import type { Cue, Din, Director, Level, Native, SpeechUi, StageUi, Street } from './stage';
+import { hookOf, roomOf } from './story';
+import type { Story, StoryLine, StoryPanel } from './story';
 
 const w = (fr: string, en: string, de: string): Words => ({ fr, en, de });
 
@@ -55,7 +62,12 @@ export interface InteriorOptions {
   /** what the quarter remembers (shared with the quai) */
   memory?: Memory;
   onCue?: (cue: Cue) => void;
+  /** the day's story, when its page goes on in this room (T1 day b's stairwell) */
+  scene?: Story;
 }
+
+/** Who follows you into the stairwell after closing (T1 R1), and how tall she stands. */
+const FOLLOWER = { key: 'lila_bonnet', height: 1.62 };
 
 export class Interior implements Director {
   ui: StageUi = { ...BLANK };
@@ -85,14 +97,27 @@ export class Interior implements Director {
   private stopTick: () => void;
   private stopHit: () => void;
   private disposed = false;
+  /** the day's story, played on here; null for a visit of the room on its own */
+  private scene: Story | null;
+  /** the page's panels this room plays (R1 to R4), and its hook */
+  private panels: StoryPanel[] = [];
+  private hook: StoryPanel | null = null;
 
   constructor(private q: Quartier, opts: InteriorOptions = {}) {
     if (!q.room) throw new Error('An interior is a room of the season');
     this.room = q.room;
-    this.day = `room.${q.room.spec.id}`;
+    let day = `room.${q.room.spec.id}`;
     this.native = opts.native ?? 'en';
     this.onCue = opts.onCue;
     this.memory = opts.memory ?? new Memory(false);
+    this.scene = opts.scene ?? null;
+    if (this.scene) {
+      const page = this.scene.page;
+      day = dayOf(page);
+      this.panels = page.movements.filter((m): m is StoryPanel => m.kind === 'panel' && roomOf(m) === this.room.spec.id);
+      this.hook = hookOf(page)?.panel ?? null;
+    }
+    this.day = day;
     this.stopTick = q.onTick(() => this.tick());
     this.stopHit = q.on((hit) => this.hit(hit));
   }
@@ -156,16 +181,27 @@ export class Interior implements Director {
     this.room.openings.filter((o) => o.opens === 'once').forEach((o) => this.q.addSpot({ id: `door:${o.key}`, pos: o.centre.clone(), radius: 0.55, enabled: true }));
     this.room.spec.things.forEach((t, i) => t.look && this.q.addSpot({ id: `thing:${i}`, pos: new Vector3(t.at[0], t.at[1] + 0.05, t.at[2]), radius: 0.3, enabled: true }));
     this.q.setRoomLight(this.steady ? 1 : 0);
+    // after closing, Lila has followed you in without asking: a step behind you, in the dark
+    if (this.scene && this.panels.some((p) => (p.in_frame ?? []).includes(FOLLOWER.key))) {
+      const behind = this.mark('streetDoor', this.room.start.pos);
+      const f = await this.q.troupe.add({ key: FOLLOWER.key, height: FOLLOWER.height }, behind);
+      if (f) f.visible = true;
+    }
   }
 
   begin() {
     if (this.memory.places()[this.room.spec.id] !== 'visited') this.memory.apply(this.day, { kind: 'place', id: this.room.spec.id, status: 'visited' });
-    this.step = this.opened() || this.steady ? 'done' : 'light';
-    this.show({ ...BLANK, phase: 'roam', canLeave: true, caption: this.say(this.room.spec.arrive ?? LINES.arrive) });
+    // the story opens the door (R2) whatever an earlier visit did
+    this.step = (this.opened() && !this.scene) || this.steady ? 'done' : 'light';
+    this.show({ ...BLANK, phase: 'roam', canLeave: true, caption: this.say(this.room.spec.arrive ?? LINES.arrive), beat: this.panels[0]?.id ?? null, progress: this.scene ? 0.8 : 0 });
     this.nextGoal();
   }
 
   tap() {
+    if (this.ui.aside) {
+      this.show({ aside: null });
+      return;
+    }
     if (this.tapWait) {
       const go = this.tapWait;
       this.tapWait = null;
@@ -212,9 +248,9 @@ export class Interior implements Director {
     // nothing waits in a room
   }
 
-  /** Back to the street door, in the dark. */
+  /** Back to the street door, in the dark. Not in the middle of the day's scene: the engine has it. */
   replay() {
-    if (this.busy) return;
+    if (this.busy || this.scene) return;
     this.q.place(this.room.start.pos, this.room.start.look);
     this.litUntil = 0;
     this.q.setRoomLight(this.steady ? 1 : 0);
@@ -227,9 +263,13 @@ export class Interior implements Director {
     this.nextGoal();
   }
 
-  /** «Rentrer»: the end card, with what you did here. */
+  /** «Rentrer»: the end card, with what you did here. Mid-scene, the engine has the day as it stands. */
   leave() {
     if (this.busy) return;
+    if (this.scene) {
+      void this.finish();
+      return;
+    }
     this.goal = null;
     this.q.stop();
     this.q.showWay(null);
@@ -301,6 +341,23 @@ export class Interior implements Director {
     this.did.add('lit');
     if (this.step === 'light') this.step = 'climb';
     this.nextGoal();
+    this.follow();
+  }
+
+  /** Lila, behind you on the lower steps (R1): she has followed without asking. */
+  private follow() {
+    const f = this.scene ? this.q.troupe.get(FOLLOWER.key) : null;
+    if (!f || f.walking || f.pos.distanceTo(this.mark('lilaStep', f.pos)) < 0.3) return;
+    const to = this.mark('lilaStep', f.pos);
+    const path = this.q.nav.path(f.pos.clone(), to) ?? [to];
+    f.walk([f.pos.clone(), ...path], 1.2);
+  }
+
+  /** Lila on her step, whether or not she has climbed it yet (you were quicker up the stairs). */
+  private settle() {
+    const f = this.scene ? this.q.troupe.get(FOLLOWER.key) : null;
+    const at = f ? this.mark('lilaStep', f.pos) : null;
+    if (f && at && f.pos.distanceTo(at) > 0.3) f.place(at);
   }
 
   /** The minuterie runs out: the relay clacks, and the stairwell is dark. */
@@ -321,7 +378,7 @@ export class Interior implements Director {
   private async openDoor() {
     const d = this.door;
     if (!d || this.busy) return;
-    if (this.opened()) {
+    if (this.opened() && (!this.scene || this.step === 'done')) {
       this.show({ caption: this.say(LINES.shut) });
       return;
     }
@@ -354,11 +411,14 @@ export class Interior implements Director {
     this.q.place(sill, inside);
     this.q.look(inside, 4);
     this.lensAcross(46);
-    this.show({ beat: 'door.look', waitingTap: true, progress: 0.65 });
+    this.show({ beat: this.panelId(1, 'door.look'), waitingTap: true, progress: this.scene ? 0.86 : 0.65 });
     if (!(await this.wait(5200, true))) return;
     // R3: the door closing again, from where you stood before it, looking in: you have not gone
     // in (the threshold is where the leaf shuts, so you are back on the landing first)
-    this.show({ beat: 'door.close', waitingTap: false, progress: 0.8 });
+    this.show({ beat: this.panelId(2, 'door.close'), waitingTap: false, progress: this.scene ? 0.9 : 0.8 });
+    // Lila sits on the step, chin on her knees
+    const lila = this.scene ? this.q.troupe.get(FOLLOWER.key) : null;
+    if (lila) lila.seat = 0.35;
     const away = d.front.clone().sub(d.centre).setY(0).normalize();
     const through = d.centre.clone().addScaledVector(away, -3).setY(d.centre.y - 0.35);
     this.q.place(before, through);
@@ -375,6 +435,10 @@ export class Interior implements Director {
     ]);
     this.did.add('opened');
     this.step = 'done';
+    if (this.scene) {
+      void this.onStep();
+      return;
+    }
     this.q.look(d.centre.clone(), 3);
     // and the light goes out on it
     this.litUntil = Math.min(this.litUntil, performance.now() + 1700);
@@ -406,9 +470,104 @@ export class Interior implements Director {
     });
   }
 
+  /* ---- the day's story, played on here ------------------------------------------------------------ */
+
+  /** The id of the room's `i`th panel of the page (R1, R2, R3), else the visit's own beat. */
+  private panelId(i: number, fallback: string) {
+    return this.panels[i]?.id ?? fallback;
+  }
+
+  private waitTap(): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.tapWait = () => resolve(!this.disposed);
+    });
+  }
+
+  private speechOf(line: StoryLine): SpeechUi {
+    const p = personOf(line.who) ?? { char: 'passant' as const, name: line.name ?? 'Quelqu’un' };
+    return { who: line.who, char: p.char, name: p.name, text: line.text_fr, native: line.text_native ?? null, direction: line.direction ?? null };
+  }
+
+  /** A panel's lines, each card waiting for a tap; a caption over the dark when it is one. */
+  private async lines(panel: StoryPanel) {
+    for (const line of panel.lines) {
+      if (this.disposed) return;
+      const caption = line.who === 'caption' || line.kind === 'caption';
+      const f = caption ? null : this.q.troupe.get(line.who);
+      if (f) {
+        f.talk(0.9 + line.text_fr.length * 0.045);
+        this.q.look(f.face(), 3);
+      }
+      this.show(caption ? { caption: { text: line.text_fr, native: line.text_native ?? null }, speech: null } : { caption: null, speech: this.speechOf(line) });
+      this.show({ waitingTap: true });
+      await this.waitTap();
+      this.show({ waitingTap: false });
+    }
+    this.show({ caption: null, speech: null });
+  }
+
+  /**
+   * After the door (R3): the rest of the room's panels (R4, Lila on the step, under the timed light),
+   * then the hook as the light clicks off, then the engine closes the scene and the end card.
+   */
+  private async onStep() {
+    this.busy = true;
+    this.show({ phase: 'scene', silent: false, canLeave: false });
+    // the light holds while Lila talks
+    this.litUntil = Math.max(this.litUntil, performance.now() + 30000);
+    this.settle();
+    const lila = this.q.troupe.get(FOLLOWER.key);
+    if (lila) this.q.look(lila.face(), 3);
+    for (const p of this.panels.slice(3)) {
+      this.show({ beat: p.id, progress: 0.94 });
+      await this.lines(p);
+    }
+    if (this.disposed) return;
+    // the hook: the minuterie runs out, and in the dark, tomorrow
+    if (this.hook) {
+      this.show({ beat: this.hook.id, progress: 0.98, silent: true });
+      this.litUntil = 0;
+      this.q.setRoomLight(0);
+      this.onCue?.('switch');
+      if (!(await this.wait(900))) return;
+      await this.lines(this.hook);
+    }
+    await this.finish();
+  }
+
+  /** The scene is played: the engine moves the day on, then the end card says what you did tonight. */
+  private async finish() {
+    if (this.closing) return;
+    this.closing = true;
+    this.busy = true;
+    this.goal = null;
+    this.q.stop();
+    this.q.showWay(null);
+    this.q.look(null);
+    this.q.frozen = false;
+    await this.scene?.close().catch(() => undefined);
+    if (this.disposed) return;
+    this.busy = false;
+    // tonight in the café (the newest first in the carnet), then the stairs
+    const cafe = this.memory
+      .journal()
+      .filter((j) => j.day === this.day && j.words.fr !== LINES.opened.fr)
+      .slice(0, 3)
+      .reverse()
+      .map((j) => this.say(j.words));
+    const here = (['lit', 'climbed', 'opened'] as const).filter((k) => this.did.has(k)).map((k) => this.say(LINES[k]));
+    this.show({ phase: 'end', silent: false, canLeave: false, goal: null, caption: null, speech: null, aside: null, progress: 1, recap: { did: [...cafe, ...here], tomorrow: [] } });
+  }
+
+  private closing = false;
+
   /* ---- the frame ------------------------------------------------------------------------------ */
 
   private hit(hit: Hit) {
+    if (this.ui.aside || (this.tapWait && this.ui.waitingTap)) {
+      this.tap();
+      return;
+    }
     if (this.ui.phase !== 'roam' || this.busy) return;
     if (hit.kind === 'spot') {
       if (hit.id.indexOf('switch:') === 0) {
@@ -465,6 +624,11 @@ export class Interior implements Director {
         this.step = 'door';
         this.nextGoal();
         this.faceDoor();
+        // R1: a door with a brass «1», and Lila on the lower steps behind you
+        if (this.scene) {
+          this.settle();
+          this.show({ beat: this.panelId(0, 'door'), progress: 0.84 });
+        }
       }
     }
     // the lens opened for the door closes again once you walk off the landing
