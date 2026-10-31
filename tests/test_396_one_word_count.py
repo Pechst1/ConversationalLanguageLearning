@@ -219,3 +219,68 @@ def test_396_one_number_from_home_before_the_scene_to_the_done_screen(
     finished = _session(db_session, user)
     assert _words_step(finished)["count"] == home["count"]
     assert finished["tally"]["words"] == home["count"], f"Done says {finished['tally']['words']} Words"
+
+
+def _setup_day(db_session: Session, user, monkeypatch: pytest.MonkeyPatch, reserved: set[int]) -> None:
+    user.daily_pace = "normal"
+    user.new_words_per_day = 20
+    db_session.commit()
+    monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *_a, **_k: 1.0)
+    monkeypatch.setattr(vocabulary_pace, "journey_reservation", lambda *_a, **_k: (True, set(reserved)))
+
+
+def test_396_a_scene_word_already_due_is_counted_once(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A word the scene met and the learner missed is due again: it is the
+    scene's card and one of the reviews due. The deck deals it once; Home
+    counted it twice (PR #419 review)."""
+
+    headers, user = _login(client, db_session)
+    supply = _supply(db_session, 40, "w396once")
+    now = datetime.now(UTC)
+    db_session.add(
+        UserVocabularyProgress(
+            user_id=user.id, word_id=supply[0], state="relearning", phase="relearn", reps=1, lapses=1,
+            due_at=now - timedelta(minutes=5), next_review_date=now - timedelta(minutes=5), due_date=now.date(),
+            last_review_date=now - timedelta(minutes=20), created_at=now - timedelta(minutes=30),
+        )
+    )
+    db_session.commit()
+    _setup_day(db_session, user, monkeypatch, {supply[0]})
+
+    promised = _words_step(_session(db_session, user))
+    cards = _cards(_deck(client, headers, DAY))
+    assert cards.count(supply[0]) == 1
+    assert promised["count"] == len(cards) == 20, f"Home said {promised['count']}, the review opens at 0/{len(cards)}"
+
+
+def test_396_a_card_the_lexique_left_keeps_its_place_in_the_count(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Lexique opened first deals a fragile card next to its new words; the
+    day deck keeps it, so Home counts it (PR #419 review)."""
+
+    from tests.test_wp154_drill_reload import SESSION
+
+    headers, user = _login(client, db_session)
+    _supply(db_session, 40, "w396lex")
+    now = datetime.now(UTC)
+    fragile = _supply(db_session, 1, "w396frag")[0]
+    db_session.add(
+        UserVocabularyProgress(
+            user_id=user.id, word_id=fragile, state="review", phase="review", reps=4, lapses=2,
+            proficiency_score=20, due_at=now + timedelta(days=2), next_review_date=now + timedelta(days=2),
+            due_date=(now + timedelta(days=2)).date(), last_review_date=now - timedelta(days=2),
+            created_at=now - timedelta(days=20),
+        )
+    )
+    db_session.commit()
+    _setup_day(db_session, user, monkeypatch, set())
+
+    lexique = _deck(client, headers, SESSION)
+    assert fragile in _cards(lexique), "the Lexique deals the fragile card"
+    promised = _words_step(_session(db_session, user))
+    cards = _cards(_deck(client, headers, DAY))
+    assert fragile in cards
+    assert promised["count"] == len(cards) == 21, f"Home said {promised['count']}, the review opens at 0/{len(cards)}"

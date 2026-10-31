@@ -410,7 +410,7 @@ def day_deck(db: Session, user: Any, *, reviews_due: int, now: datetime | None =
     if plan is not None:
         # #396: the day's plan, picked at the first read of the day.
         if not day_words.is_dealt(plan):
-            return day_words.planned_counts(db, user, plan, now=now)
+            return day_words.planned_counts(db, user, plan, now=now, batch=batch)
         remaining = drill_batch.remaining_items(
             db, user, day_words.day_items(batch), reserved_new=day_words.remaining_reserved(batch, reserved)
         )

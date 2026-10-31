@@ -211,12 +211,34 @@ def ensure_plan(db: Session, user: Any, *, now: datetime | None = None, commit: 
     return batch
 
 
-def planned_counts(db: Session, user: Any, plan: dict[str, Any], *, now: datetime) -> tuple[int, int]:
-    """``(new, reviews)`` the day deck will hold, before it is dealt."""
+def planned_counts(
+    db: Session, user: Any, plan: dict[str, Any], *, now: datetime, batch: Any = None
+) -> tuple[int, int]:
+    """``(new, reviews)`` the day deck will hold, before it is dealt: what
+    :func:`deal_items` will deal, counted the same way.
 
-    _planned, _reserved, slots = scene_words(db, user, plan, now=now)
-    reviews = len(plan.get("reviews") or [])
-    return slots + drill_room(db, user, plan, now=now), reviews
+    A word is counted once: a scene word already due is the scene's, not also a
+    review. A card a smaller deck dealt earlier today (the Lexique) and left
+    unanswered keeps its place in the day deck, so it is counted too.
+    """
+
+    from app.services import drill_batch
+
+    planned, reserved, slots = scene_words(db, user, plan, now=now)
+    review_ids = {int(value) for value in plan.get("reviews") or []} - reserved
+    room = drill_room(db, user, plan, now=now)
+    kept_new = 0
+    if batch is not None and batch.items:
+        kept = drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved)
+        for item in kept:
+            word_id = int(item.get("word_id") or 0)
+            if not word_id or word_id in reserved:
+                continue
+            if item.get("list") == "new_words":
+                kept_new += 1
+            else:
+                review_ids.add(word_id)
+    return slots + max(room, kept_new), len(review_ids)
 
 
 def _scene_cards(
