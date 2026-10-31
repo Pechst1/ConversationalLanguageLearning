@@ -73,6 +73,7 @@ test('the séance passes the rule coach to the card, the feedback and the scene 
   assert.match(page, /const mood = coachMood\(correction, \{ correct: feedback\.correct \}\);/);
   // La Forge cheers a right answer («Niveau 4 ↑ · 3 d'affilée») where the rule line was.
   assert.match(page, /<EpVerdict tone="go" sub=\{cheer \|\| rule\} coach=\{coach\} coachMood=\{mood\}[ >]/);
-  assert.match(page, /<EpVerdict tone="no" sub=\{rule\} coach=\{coach\} coachMood=\{mood\}[ >]/);
+  // A miss's band; #381: the success state, the coach pleased, once its line is mended.
+  assert.match(page, /<EpVerdict tone=\{mended \? 'go' : 'no'\} sub=\{rule\} coach=\{coach\} coachMood=\{mended \? 'happy' : mood\}[ >]/);
   assert.match(page, /item\.scene && character\.id && \(\s*<CastPortrait/);
 });

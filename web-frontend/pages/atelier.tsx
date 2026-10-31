@@ -188,7 +188,7 @@ import {
   type ForgeDrill,
 } from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
-import { assembleRepair, repairParts } from '@/lib/repair-parts';
+import { assembleRepair, isRepairableLine, repairParts, repairState } from '@/lib/repair-parts';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
@@ -4259,11 +4259,15 @@ export function ExerciseFeedbackMoment({
   // The typed retype only gates Next for corrections that are real lines;
   // one-word fixes are settled by the galley marks alone.
   const needsNewAnswer = issues.some((issue) => issue.task_error_type === 'task_compliance' || !issue.corrected_target);
-  const repairsComplete = !needsNewAnswer && (isLabelCompare || issues.every((issue, index) => {
-    const target = String(issue.corrected_target || '').trim();
-    if (!isRepairableLine(target)) return true;
-    return repairs[String(index)]?.status === 'ok';
-  }));
+  // #381: one reading of the repair step for the band and the buttons: once every line
+  // on screen is mended, the band says so instead of «Not yet» under «Line fixed».
+  const { complete: repairsComplete, mended } = repairState({
+    issues,
+    repairs,
+    inPlace: Boolean(lineParts),
+    isLabelCompare: Boolean(isLabelCompare),
+    needsNewAnswer,
+  });
   // WP-S1: the verdict on screen is the local one and it never waits. The
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
@@ -4326,7 +4330,9 @@ export function ExerciseFeedbackMoment({
   }
 
   return (
-    <div className="ep-feedback" data-verdict="wrong" ref={feedbackRef}>
+    // The answer stays a miss (`data-verdict`, the line comes back later); `data-mended`
+    // says its line was fixed.
+    <div className="ep-feedback" data-verdict="wrong" data-mended={mended ? 'true' : undefined} ref={feedbackRef}>
       {issues.map((issue, index) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
@@ -4402,9 +4408,13 @@ export function ExerciseFeedbackMoment({
       )}
       {/* The design's blush footer: badge + "Presque." with the rule as its
           13px line, then the primary — Continuer once the line is recopied,
-          otherwise the retry. The quiet links stay third-tier underneath. */}
-      <EpFoot tone="wrong">
-        <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
+          otherwise the retry. The quiet links stay third-tier underneath.
+          #381: a mended line turns the band to the success state (the same
+          band, so the cast still counts the answer once, as a miss). */}
+      <EpFoot tone={mended ? 'correct' : 'wrong'}>
+        <EpVerdict tone={mended ? 'go' : 'no'} sub={rule} coach={coach} coachMood={mended ? 'happy' : mood} attempt={attempt}>
+          {mended ? t.verdict_correct : t.verdict_wrong}
+        </EpVerdict>
         {repairsComplete
           ? (!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>)
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
@@ -4848,13 +4858,6 @@ function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: 
 // "Recopie la correction" is a line-level exercise: retyping a one-word fill
 // option or a classify label teaches nothing, so the typed repair only appears
 // when the corrected target is an actual sentence.
-function isRepairableLine(target: string): boolean {
-  const trimmed = target.trim();
-  if (!trimmed) return false;
-  const words = trimmed.split(/\s+/).length;
-  return words >= 3 || (words >= 2 && /[.!?…]$/.test(trimmed));
-}
-
 function browserSpeak(text: string, onDone: () => void) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     onDone();

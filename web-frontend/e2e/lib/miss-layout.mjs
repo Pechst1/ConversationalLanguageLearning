@@ -6,6 +6,9 @@
 //   repair-field-matches-the-instruction
 //                                   the words the instruction names («Replace «à le» with «au»»)
 //                                   are the words the field holds
+//   repaired-line-has-no-failure-banner
+//                                   once every repair on screen is accepted («Line fixed»), the
+//                                   verdict band under it is no «Not yet» (#381)
 
 const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 
@@ -47,6 +50,14 @@ export function missLayoutChecks(layout) {
       name: 'repair-field-matches-the-instruction',
       ok: gaps.some((value) => fold(value) === fold(named)),
       detail: `the instruction names «${named}» but the field holds ${gaps.map((value) => `«${value}»`).join(' · ')}`,
+    });
+  }
+  const repairs = layout.repairs || [];
+  if (repairs.length && repairs.every((status) => status === 'ok')) {
+    checks.push({
+      name: 'repaired-line-has-no-failure-banner',
+      ok: !layout.failBands,
+      detail: `every repair on screen is accepted, yet ${layout.failBands} «Not yet» band(s) still stand under it`,
     });
   }
   return checks;
