@@ -39,7 +39,7 @@ from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services import order_rules
 from app.services.address import address_instruction
-from app.services.answer_acceptance import accent_policy, is_preference_swap
+from app.services.answer_acceptance import accent_policy, is_preference_swap, widened_answers
 from app.services.atelier_assets import AtelierAssetService
 
 # WP-16 additive: the correction call's request bound and its cost row.
@@ -131,7 +131,12 @@ def _accepted_answers(prompt_payload: dict[str, Any]) -> list[str]:
         item.get("example_answer"),
         prompt_payload.get("example_answer"),
     ]
-    return [str(value) for value in dict.fromkeys(values) if isinstance(value, str) and value.strip()]
+    stored = [str(value) for value in dict.fromkeys(values) if isinstance(value, str) and value.strip()]
+    # #174 / #380: one accept-list, not one stored string. «We prefer Le Mistral»
+    # takes «Nous préférons» as well as «On préfère», «the post office» takes «le
+    # bureau de poste» as well as «la poste».
+    english = item.get("prompt_en") or item.get("prompt") or prompt_payload.get("prompt")
+    return widened_answers(stored, english=english)
 
 
 def _free_answer_accents(concept: Any, prompt_payload: dict[str, Any]) -> str:
