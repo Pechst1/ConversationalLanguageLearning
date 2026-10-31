@@ -160,6 +160,13 @@ def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> s
     the sentence capital hides that. Opening the sentence with «Sie (alle)» names the
     plural without a head-count the bank does not know. Mid-sentence «sie» is lowercase
     and already unambiguous, so only the sentence start is rewritten.
+
+    A sentence said *to* someone is the exception (#384): «Sie (alle) sind fertig, Lila.»
+    read as «you all, Lila», a capital «Sie» and a name to say it to. There the name
+    leads and the pronoun loses its capital: «Lila, sie sind fertig.» A small «sie»
+    before a plural verb can only be «they», so nothing is added. «alle» would be one
+    more word to translate («tous») and would stand wrongly before a reflexive
+    («sie ziehen alle sich an», review on #409).
     """
 
     if not re.match(r"Sie\s", text):
@@ -168,7 +175,25 @@ def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> s
         isinstance(entry, dict) and _german_pronoun_subject(entry) and _german_person(entry) == 5
         for entry in bindings.values()
     )
-    return "Sie (alle)" + text[3:] if plural_subject else text
+    if not plural_subject:
+        return text
+    return _name_first(text, bindings.get("VOC")) or "Sie (alle)" + text[3:]
+
+
+def _name_first(text: str, vocative: Any) -> str | None:
+    """#384: «Sie sind fertig, Lila.» → «Lila, sie sind fertig.», wherever the name stands
+    («Sie wollen Birnen, Lila? Ja, …» → «Lila, sie wollen Birnen? Ja, …»). ``None`` when
+    the sentence names nobody it is said to (the frame's ``VOC`` binding)."""
+
+    if not isinstance(vocative, dict):
+        return None
+    name = str(vocative.get("deu") or vocative.get("fr") or "").strip()
+    if not name:
+        return None
+    said_to = re.match(rf"Sie\s+(.+?),\s+{re.escape(name)}(?=[.?!])", text, re.DOTALL)
+    if said_to is None:
+        return None
+    return f"{name}, sie {said_to.group(1)}{text[said_to.end():]}"
 
 
 def _german_pronoun_subject(entry: dict[str, Any]) -> bool:
