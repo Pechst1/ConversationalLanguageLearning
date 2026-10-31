@@ -92,21 +92,22 @@ def test_the_learners_earlier_exchanges_do_not_veto_the_line():
 
 
 @pytest.mark.parametrize(
-    ("text", "numbers"),
+    ("said", "same", "other"),
     [
-        ("le deux decembre", {2}),
-        ("le 19 décembre", {19}),
-        ("dix-neuf heures", {19}),
-        ("vingt et un jours", {21}),
-        ("quatre-vingt-dix euros", {90}),
-        ("deux cents euros", {200}),
-        ("un café et une baguette", set()),
+        ("Je rentre le dix-neuf décembre.", "Je rentre le 19 décembre.", "Je rentre le 12 décembre."),
+        ("Je rentre le vingt et un décembre.", "Je rentre le 21 décembre.", "Je rentre le 20 décembre."),
+        ("Ça coûte quatre-vingt-dix euros.", "Ça coûte 90 euros.", "Ça coûte 14 euros."),
+        ("Ça coûte deux cents euros.", "Ça coûte 200 euros.", "Ça coûte 2 euros."),
     ],
 )
-def test_numbers_in_words_and_digits(text, numbers):
-    from app.services.learner_facts import numbers_of
+def test_numbers_in_words_and_digits_are_the_same_fact(said, same, other):
+    assert spoken_reply.repeat_line_for(_step(said, same)) == same
+    assert spoken_reply.repeat_line_for(_step(said, other)) == said
 
-    assert numbers_of(text) == frozenset(numbers)
+
+def test_an_article_is_not_a_number():
+    suggested = "Je voudrais un café et une baguette."
+    assert spoken_reply.repeat_line_for(_step("Un café et une baguette, s'il vous plaît.", suggested)) == suggested
 
 
 def test_the_audio_door_reads_the_same_line_as_the_recap():
