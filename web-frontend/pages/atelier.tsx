@@ -186,7 +186,7 @@ import {
   type ForgeDrill,
 } from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
-import { assembleRepair, repairParts } from '@/lib/repair-parts';
+import { assembleRepair, isRepairableLine, repairParts, repairProgress } from '@/lib/repair-parts';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
@@ -3777,10 +3777,16 @@ function SessionView({
 
   // ---- La Forge (owner, 2026-10-18): one progress bar, the rule once, its level. ----
   const forgeProgress = forge ? seanceCount(forge, activeItemId) : null;
-  // The level is the rung the item on screen is posed at; once it is answered,
-  // the rung the answer moved it to (a right answer climbs one, a miss drops one).
+  // The level is the rule's own (#402): what the learner ended the last séance on,
+  // not the rung the item on screen happens to be posed at (a due rule's first item
+  // is a warm-up below it). Once answered, the level the answer moved it to (a right
+  // answer climbs one; a miss keeps it, `forge.level_rule`).
   const answeredRung = currentSubmitted ? Number(currentCorrection?.forge?.new_rung) : NaN;
-  const forgeRung = clampRung(Number.isFinite(answeredRung) ? answeredRung : forgeNext?.rung ?? forgeRule?.rung ?? 0);
+  const forgeRung = clampRung(
+    Number.isFinite(answeredRung)
+      ? answeredRung
+      : (forgeTestOut ? forgeNext?.rung : forgeRule?.rung) ?? forgeNext?.rung ?? 0,
+  );
   // How the item on screen is posed (`lib/forge-drills.ts`); null: the classic way.
   const drill: ForgeDrill | null = forge && activeConcept && !isRetest
     ? drillOnScreen(forge.next, currentCorrection, { conceptId: activeConcept.id, round, mode, itemId: activeItemId })
@@ -3861,6 +3867,7 @@ function SessionView({
               copy={fc}
               title={activeConceptTitle}
               rung={forgeRung}
+              levelRule={forge.level_rule}
               eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
               ruleLabel={t.rule}
               ruleOpen={ruleExpanded}
@@ -4244,11 +4251,9 @@ export function ExerciseFeedbackMoment({
   // The typed retype only gates Next for corrections that are real lines;
   // one-word fixes are settled by the galley marks alone.
   const needsNewAnswer = issues.some((issue) => issue.task_error_type === 'task_compliance' || !issue.corrected_target);
-  const repairsComplete = !needsNewAnswer && (isLabelCompare || issues.every((issue, index) => {
-    const target = String(issue.corrected_target || '').trim();
-    if (!isRepairableLine(target)) return true;
-    return repairs[String(index)]?.status === 'ok';
-  }));
+  // #381: once every line is mended, «Line fixed» is the verdict on screen: the
+  // failure banner steps aside instead of sitting under it.
+  const { complete: repairsComplete, mended: lineMended } = repairProgress({ issues, repairs, isLabelCompare: !!isLabelCompare, needsNewAnswer });
   // WP-S1: the verdict on screen is the local one and it never waits. The
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
@@ -4388,8 +4393,10 @@ export function ExerciseFeedbackMoment({
       {/* The design's blush footer: badge + "Presque." with the rule as its
           13px line, then the primary — Continuer once the line is recopied,
           otherwise the retry. The quiet links stay third-tier underneath. */}
-      <EpFoot tone="wrong">
-        <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
+      <EpFoot tone={lineMended ? 'correct' : 'wrong'}>
+        {!lineMended && (
+          <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
+        )}
         {repairsComplete
           ? (!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>)
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
@@ -4833,13 +4840,6 @@ function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: 
 // "Recopie la correction" is a line-level exercise: retyping a one-word fill
 // option or a classify label teaches nothing, so the typed repair only appears
 // when the corrected target is an actual sentence.
-function isRepairableLine(target: string): boolean {
-  const trimmed = target.trim();
-  if (!trimmed) return false;
-  const words = trimmed.split(/\s+/).length;
-  return words >= 3 || (words >= 2 && /[.!?…]$/.test(trimmed));
-}
-
 function browserSpeak(text: string, onDone: () => void) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     onDone();

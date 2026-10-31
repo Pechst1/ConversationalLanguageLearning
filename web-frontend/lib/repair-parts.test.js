@@ -67,3 +67,32 @@ test('a gap is fixed by its fix, accents counting, typography not', () => {
   assert.ok(!gapIsFixed('taches', 'tâches'));
   assert.ok(gapIsFixed('l’hôtel', "l'hôtel"));
 });
+
+// #381: «Je voudrais un tomate, sil te plait.» The learner typed «une tomate» in the gap
+// that holds «un» (the shared «tomate» stays text): the line read «une tomate tomate» and
+// the right word was drawn red.
+test('a gap typed with the neighbouring word the line already holds is the same fix', () => {
+  const line = 'Je voudrais un tomate, sil te plait.';
+  const parts = repairParts(line, [
+    { learner_text: 'un tomate', corrected_target: 'une tomate', task_error_type: 'agreement' },
+    { learner_text: 'sil te plait', corrected_target: "s'il te plaît", task_error_type: 'spelling' },
+  ]);
+  assert.equal(assembleRepair(parts, { 1: 'une tomate', 3: 'sil te plait' }), 'Je voudrais une tomate, sil te plait.');
+  const { gapTyped } = require('./repair-parts.ts');
+  assert.ok(gapIsFixed(gapTyped(parts, 1, 'une tomate'), parts[1].fix), 'the right word is not red');
+  assert.ok(!gapIsFixed(gapTyped(parts, 3, 'sil te plait'), parts[3].fix), 'the wrong word still is');
+});
+
+// #381: «Line fixed» and the red «Not yet» on one screen.
+test('a repaired line takes the failure banner away; an unrepaired one keeps it', () => {
+  const { repairProgress } = require('./repair-parts.ts');
+  assert.equal(typeof repairProgress, 'function', 'the repaired state is computed in one place');
+  const issues = [{ learner_text: 'sil te plait', corrected_target: "s'il te plaît, une tomate" }];
+  const done = repairProgress({ issues, repairs: { 0: { status: 'ok' } }, isLabelCompare: false, needsNewAnswer: false });
+  assert.deepEqual(done, { complete: true, mended: true });
+  const open = repairProgress({ issues, repairs: { 0: { status: 'no' } }, isLabelCompare: false, needsNewAnswer: false });
+  assert.deepEqual(open, { complete: false, mended: false });
+  // One-word fixes have no repair step: nothing was mended, the verdict stands.
+  const word = repairProgress({ issues: [{ corrected_target: 'tâches' }], repairs: {}, isLabelCompare: false, needsNewAnswer: false });
+  assert.deepEqual(word, { complete: true, mended: false });
+});

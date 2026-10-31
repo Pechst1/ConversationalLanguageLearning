@@ -2361,6 +2361,15 @@ MINE_INSTRUCTION_L10N: dict[str, str] = {
     "fr": "Tu as écrit ça plus tôt. Corrige l’erreur.",
 }
 
+#: #402: a saved mistake whose line is mostly the exercise's own words (the learner
+#: retyped a printed sentence and slipped on one word): the card must not claim
+#: the whole line, so it asks for the mistake only.
+MINE_PART_INSTRUCTION_L10N: dict[str, str] = {
+    "en": "Fix your mistake in this line.",
+    "de": "Korrigiere deinen Fehler in dieser Zeile.",
+    "fr": "Corrige ton erreur dans cette ligne.",
+}
+
 _INSTRUCTIONS = {
     "forge.word_bank": "Build it. One word is extra.",
     "forge.word_bank_all": "Build the sentence.",
@@ -2370,6 +2379,7 @@ _INSTRUCTIONS = {
     "forge.conversation": "Reply in French, with today's rule.",
     "forge.scene": "Answer in French, with the rule of the day.",
     "forge.mine": MINE_INSTRUCTION_L10N["en"],
+    "forge.mine_part": MINE_PART_INSTRUCTION_L10N["en"],
 }
 
 
@@ -2449,6 +2459,7 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
         "fr": "Réponds en français, avec la règle du jour.",
     },
     "forge.mine": MINE_INSTRUCTION_L10N,
+    "forge.mine_part": MINE_PART_INSTRUCTION_L10N,
 }
 
 #: #300: a repair with more than one wrong word says how many to fix.

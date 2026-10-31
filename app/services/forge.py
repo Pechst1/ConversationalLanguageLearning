@@ -648,7 +648,17 @@ class BankItemProvider:
             if key in seen:
                 continue
             seen.add(key)
-            found.append({"error_id": str(row.id), "source": source, "expected": expected})
+            found.append(
+                {
+                    "error_id": str(row.id),
+                    "source": source,
+                    "expected": expected,
+                    # #402: only the slip is surely the learner's; the rest of the
+                    # line is theirs only when they composed it themselves.
+                    "own_words": re.sub(r"\s+", " ", str(row.original_text or "")).strip(),
+                    "own_line": _mine_line_is_theirs(self.db, row, source),
+                }
+            )
             if len(found) >= self.MINE_MAX_ERRORS:
                 break
         self._mine[concept_id] = found
@@ -681,6 +691,8 @@ class BankItemProvider:
                     source=candidate["source"],
                     expected=candidate["expected"],
                     lesson_external_id=concept.external_id,
+                    own_words=candidate.get("own_words"),
+                    own_line=bool(candidate.get("own_line", True)),
                 )
                 index = self._seat(concept, round_name="transform", mode="rewrite", built=built, rung=int(Rung.TRANSFORM))
                 item = built
@@ -1031,32 +1043,81 @@ def _mine_sentence(db: Session, error: Any) -> tuple[str, str]:
     return learner, corrected
 
 
+def _free_text(answer_payload: Any) -> str:
+    """The learner's own composed text of an attempt (a free line), not a typed
+    answer to a printed exercise."""
+
+    text = answer_payload.get("text") if isinstance(answer_payload, dict) else None
+    return text.strip() if isinstance(text, str) else ""
+
+
+def _mine_line_is_theirs(db: Session, error: Any, line: str) -> bool:
+    """Is every word of ``line`` the learner's own (#402)?
+
+    True when the saved span is the whole line, or the line sits in text the
+    learner composed (a free sentence, a conversation message). A line cut from an
+    answer typed against a *printed* exercise sentence is mostly the exercise's:
+    only the slip is theirs.
+    """
+
+    learner = re.sub(r"\s+", " ", str(error.original_text or "")).strip()
+    folded = re.sub(r"\s+", " ", str(line or "")).strip().lower()
+    if not folded or folded == learner.lower():
+        return True
+    try:
+        if getattr(error, "source_attempt_id", None):
+            attempt = db.get(AtelierAttempt, error.source_attempt_id)
+            free = _free_text(attempt.answer_payload) if attempt is not None else ""
+            return bool(free) and folded in re.sub(r"\s+", " ", free).lower()
+        if getattr(error, "message_id", None):
+            return True  # a conversation message is the learner's own composition
+    except Exception:  # pragma: no cover - a label is a nicety
+        return False
+    return False
+
+
 #: The goal of «Ta phrase», in the three chrome languages: its instruction.
 MINE_GOAL_L10N: dict[str, str] = MINE_INSTRUCTION_L10N
 
 
 def mine_payload_item(
-    *, item_id: str, error_id: Any, source: str, expected: str, lesson_external_id: str | None
+    *,
+    item_id: str,
+    error_id: Any,
+    source: str,
+    expected: str,
+    lesson_external_id: str | None,
+    own_words: str | None = None,
+    own_line: bool = True,
 ) -> dict[str, Any]:
-    """A saved mistake as a repair item: graded by the transform key like any other."""
+    """A saved mistake as a repair item: graded by the transform key like any other.
 
+    #402: ``own_words`` are the words the learner wrote; when the rest of the line is
+    the exercise's (``own_line`` False) the card says «your mistake in this line»,
+    not «you wrote this».
+    """
+
+    from app.services.item_bank import MINE_PART_INSTRUCTION_L10N
     from app.services.item_bank import fingerprint as bank_fingerprint
 
+    goal = MINE_GOAL_L10N if own_line else MINE_PART_INSTRUCTION_L10N
     item: dict[str, Any] = {
         "id": item_id,
         "type": "rewrite",
-        "instruction": MINE_GOAL_L10N["en"],
-        "instruction_key": "forge.mine",
+        "instruction": goal["en"],
+        "instruction_key": "forge.mine" if own_line else "forge.mine_part",
         "source": source,
         "source_fr": source,
         "expected_answer": expected,
         "accepted_answers": [expected],
-        "goal_native": MINE_GOAL_L10N["en"],
-        "goal_l10n": dict(MINE_GOAL_L10N),
+        "goal_native": goal["en"],
+        "goal_l10n": dict(goal),
         "personal": True,
         "error_id": str(error_id),
         "bank_fingerprint": bank_fingerprint(expected),
     }
+    if own_words:
+        item["own_words"] = own_words
     window = drills.spot_window(source, expected)
     if window is not None:
         item["wrong_span"] = " ".join(drills.fold_key(source).split()[window[0]:window[1]])
@@ -1203,11 +1264,17 @@ def forge_units(db: Session, user: User, picked: Iterable[PickedUnit], *, now: d
             and now - introduced >= timedelta(days=HELD_SPACED_AFTER_DAYS)
             and progress.spaced_success_at is None
         )
+        # #402: the rule's level is what the learner ended on. How the first item
+        # is posed (a warm-up step after the spacing, minimal pairs first) is the
+        # unit's ``warmup``, never a lower level.
+        warmup: int | None = None
         if unit.role == Role.DUE.value:
-            rung = max(0, rung - 1)  # a warm-up step after the spacing
+            warmup = max(0, rung - 1)
         elif unit.role == Role.CONTRAST.value:
-            rung = min(rung, int(Rung.DISCRIMINATE))  # minimal pairs first
-        units.append(ForgeUnit(unit.concept_id, unit.role, rung, is_new=is_new, needs_spaced=needs_spaced))
+            warmup = min(rung, int(Rung.DISCRIMINATE))
+        units.append(
+            ForgeUnit(unit.concept_id, unit.role, rung, is_new=is_new, needs_spaced=needs_spaced, warmup=warmup)
+        )
     return units
 
 
@@ -1305,7 +1372,10 @@ class ForgeService:
         units = forge_units(self.db, user, picked, now=now)
         if keep_concepts:
             # The learner chose these rules: keep every one of them.
-            units = [ForgeUnit(u.concept_id, u.role, u.rung, is_new=False, needs_spaced=u.needs_spaced) for u in units]
+            units = [
+                ForgeUnit(u.concept_id, u.role, u.rung, is_new=False, needs_spaced=u.needs_spaced, warmup=u.warmup)
+                for u in units
+            ]
         budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
         length = core.seance_length(budget or seance_budget_seconds(user), seconds_per_item(self.db, user))
         state = ForgeState.seance(units, length=length)
@@ -1564,6 +1634,9 @@ class ForgeService:
             # or provisional answer neither extends nor breaks it) and the flags
             # the page reads, so the owner can switch each feature off.
             "combo": {"run": combo, "best": best_combo},
+            # #402: what a right and a wrong answer do to the level, from the
+            # staircase itself: the page's legend states this, not its own prose.
+            "level_rule": core.level_rule(),
             "features": forge_features(),
             "rules": [
                 {
@@ -1645,6 +1718,9 @@ class ForgeService:
             "rung": int(rung),
             "rung_name": core.rung_name(rung),
             "new_rung": decision.new_rung,
+            # #402: the level before this answer: an item posed below it (a warm-up)
+            # is not a climb, so the cheer compares with this, not with ``rung``.
+            "level_before": decision.new_rung - int(state.history[-1].get("rung_move") or 0),
             "counted": decision.counted,
             "schedule": decision.schedule,
             # How the item was posed, and the run of right answers it leaves.

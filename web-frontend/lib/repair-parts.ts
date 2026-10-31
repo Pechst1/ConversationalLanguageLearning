@@ -96,7 +96,7 @@ export function repairParts(learner: string, errata: Erratum[] | null | undefine
 /** The whole line with each gap filled by what the learner typed there. */
 export function assembleRepair(parts: RepairPart[], typed: Record<number, string>): string {
   return parts
-    .map((part, index) => ('text' in part ? part.text : (typed[index] ?? part.wrong)))
+    .map((part, index) => ('text' in part ? part.text : gapTyped(parts, index, typed[index] ?? part.wrong)))
     .join('');
 }
 
@@ -113,4 +113,64 @@ function fold(value: string): string {
 
 export function gapIsFixed(typed: string, fix: string): boolean {
   return fold(typed) === fold(fix);
+}
+
+const wordsOf = (value: string) => fold(value).split(' ').filter(Boolean);
+
+/**
+ * #381: what a gap holds once the words the line already has around it are taken
+ * off. A gap holds only the words that differ («un» of «un tomate»), yet a learner
+ * told to fix the underlined words types the whole stretch («une tomate»): that is
+ * the same fix, not a second «tomate» in the line and a right word drawn red. The
+ * typed text is returned as it is unless dropping the neighbour's words gives the fix.
+ */
+export function gapTyped(parts: RepairPart[], index: number, value: string): string {
+  const part = parts[index];
+  if (!part || 'text' in part || gapIsFixed(value, part.fix)) return value;
+  const before = parts[index - 1] && 'text' in parts[index - 1] ? wordsOf((parts[index - 1] as { text: string }).text) : [];
+  const after = parts[index + 1] && 'text' in parts[index + 1] ? wordsOf((parts[index + 1] as { text: string }).text) : [];
+  const typed = String(value || '').trim().split(/\s+/).filter(Boolean);
+  const same = (left: string[], right: string[]) => left.length === right.length && left.every((word, i) => fold(word) === right[i]);
+  for (let k = Math.min(after.length, typed.length - 1); k >= 1; k -= 1) {
+    const rest = typed.slice(0, typed.length - k);
+    if (same(typed.slice(typed.length - k), after.slice(0, k)) && gapIsFixed(rest.join(' '), part.fix)) return rest.join(' ');
+  }
+  for (let k = Math.min(before.length, typed.length - 1); k >= 1; k -= 1) {
+    const rest = typed.slice(k);
+    if (same(typed.slice(0, k), before.slice(before.length - k)) && gapIsFixed(rest.join(' '), part.fix)) return rest.join(' ');
+  }
+  return value;
+}
+
+/** A correction worth retyping or fixing in place: a line, not a word. */
+export function isRepairableLine(target: string): boolean {
+  const trimmed = target.trim();
+  if (!trimmed) return false;
+  const words = trimmed.split(/\s+/).length;
+  return words >= 3 || (words >= 2 && /[.!?…]$/.test(trimmed));
+}
+
+/**
+ * #381: where the repair step of a missed answer stands. `complete`: nothing is left
+ * to retype (it gates «Continue»). `mended`: there was a line to repair and every one
+ * was accepted, so the failure banner has nothing left to say: «Line fixed» and a red
+ * «Not yet» on one screen read as two verdicts. A one-word fix has no repair step, so
+ * it is never «mended» and its verdict stands.
+ */
+export function repairProgress({
+  issues,
+  repairs,
+  isLabelCompare,
+  needsNewAnswer,
+}: {
+  issues: Array<{ corrected_target?: unknown }>;
+  repairs: Record<string, { status?: string | null } | undefined> | null | undefined;
+  isLabelCompare: boolean;
+  needsNewAnswer: boolean;
+}): { complete: boolean; mended: boolean } {
+  const lines = issues
+    .map((issue, index) => ({ index, target: String(issue.corrected_target || '').trim() }))
+    .filter((issue) => isRepairableLine(issue.target));
+  const complete = !needsNewAnswer && (isLabelCompare || lines.every((issue) => repairs?.[String(issue.index)]?.status === 'ok'));
+  return { complete, mended: complete && !isLabelCompare && lines.length > 0 };
 }

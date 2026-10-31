@@ -420,6 +420,13 @@ export class LearnerWalk {
         this.pageChecks(s, kind);
         await this.stepPass(s, kind, state);
         const verdict = s.graded[0]?.state || s.epFeedback[0]?.verdict;
+        // #381: «Line fixed» and a red «Not yet» are two verdicts on one line.
+        this.findings.check(
+          'repaired-line-has-no-failure-banner',
+          !(s.repairsAccepted > 0 && s.repairsOpen === 0 && s.failBands > 0),
+          `the line is fixed and «Not yet» still shows: «${s.text.slice(0, 140)}»`,
+          this.where({ kind }),
+        );
         if (verdict) {
           this.findings.check('one-verdict-on-screen', s.graded.length + s.epFeedback.length === 1, `${s.graded.length + s.epFeedback.length} verdicts at once`, this.where({ kind }));
           if (verdict === 'wrong') {

@@ -68,6 +68,19 @@ export function levelText(copy: ForgeCopy, rung: unknown): string {
   return fillForge(copy.level, { n: clampRung(rung) + 1 });
 }
 
+/** What a right and a wrong answer do to a rule's level: `forge.level_rule`, from the staircase itself. */
+export type LevelRule = { right?: number | null; wrong?: number | null } | null | undefined;
+
+/**
+ * #402: the level legend under the header. It states the rule the server applies
+ * (`forge.level_rule`, `app/core/forge.py`): a miss that takes a level away says
+ * «down one»; with no rule or a miss that keeps the level, it says the level stays.
+ */
+export function levelExplain(copy: ForgeCopy, rule: LevelRule): string {
+  const wrong = Number(rule?.wrong);
+  return Number.isFinite(wrong) && wrong < 0 ? copy.level_explain_down : copy.level_explain;
+}
+
 type ForgeViewLike = {
   length?: number | null;
   answered?: number | null;

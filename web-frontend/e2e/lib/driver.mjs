@@ -64,6 +64,10 @@ export const SNAPSHOT_FN = (typeable) => {
     // A request the screen says is in flight (Action's `pending`: disabled,
     // aria-busy, «La scène se prépare…»): waiting, not stuck.
     pending: document.querySelector('[data-pending="true"], [aria-busy="true"]') !== null,
+    // #381: the repair cards accepted, the ones still open, and the failure banners on screen.
+    repairsAccepted: q('.ep-repair[data-status="ok"]').length,
+    repairsOpen: q('.ep-repair:not([data-status="ok"])').length,
+    failBands: q('.ep-feedback .ep-verdict[data-tone="wrong"]').length,
     epFeedback: q('.ep-feedback').map((n) => ({ verdict: n.getAttribute('data-verdict'), text: n.innerText.trim() })),
     frTexts: q('[lang=fr]').map((n) => n.innerText.trim()).filter(Boolean),
     threadCue: (q('.av2-thread__cue')[0] || {}).innerText || '',

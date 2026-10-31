@@ -54,7 +54,7 @@ import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 import { epreuveCopy, fill, type EpreuveCopy } from './epreuve-copy';
-import { gapIsFixed, type RepairPart } from '@/lib/repair-parts';
+import { gapIsFixed, gapTyped, type RepairPart } from '@/lib/repair-parts';
 import { nextFinishState } from './finish-confirm';
 
 type Node = React.ReactNode;
@@ -744,7 +744,7 @@ export function EpPartsRepair({
         {parts.map((part, index) => {
           if ('text' in part) return <span key={index}>{part.text}</span>;
           const value = typed[index] ?? (done ? part.fix : part.wrong);
-          const wrong = status === 'no' && !gapIsFixed(value, part.fix);
+          const wrong = status === 'no' && !gapIsFixed(gapTyped(parts, index, value), part.fix);
           return (
             <input
               key={index}

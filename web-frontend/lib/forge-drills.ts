@@ -275,7 +275,10 @@ export function forgeCheer(correction: Record<string, any> | null | undefined, c
   const forge = correction?.forge;
   if (!forge || typeof forge !== 'object') return null;
   const parts: string[] = [];
-  const rung = Number(forge.rung);
+  // #402: a climb is measured from the level before the answer; an item posed below
+  // it (a warm-up) is not one. An older server sends only the item's rung.
+  const levelBefore = Number(forge.level_before);
+  const rung = Number.isFinite(levelBefore) ? levelBefore : Number(forge.rung);
   const after = Number(forge.new_rung);
   if (forge.held) parts.push(copy.cheer_held);
   else if (Number.isFinite(rung) && Number.isFinite(after) && after > rung) parts.push(fillForge(copy.level_up, { n: clampRung(after) + 1 }));

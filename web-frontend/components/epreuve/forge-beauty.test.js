@@ -107,11 +107,14 @@ test('the level explains itself in a sentence, in every language', () => {
     assert.match(explain, /1/);
     assert.match(explain, /6/);
   }
-  assert.equal(FORGE_COPY.fr.level_explain, 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : un de moins, et la règle revient bientôt.');
+  // #402: a miss keeps the level (owner decision #88), so the default legend says so;
+  // «un de moins» is only for a server whose rule takes a level away (`level_explain_down`).
+  assert.equal(FORGE_COPY.fr.level_explain, 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : le niveau reste, et la règle revient bientôt.');
+  assert.equal(FORGE_COPY.fr.level_explain_down, 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : un de moins, et la règle revient bientôt.');
   // The head explains it unasked the first time (a device remembers it).
   const source = fs.readFileSync(path.join(__dirname, 'Forge.tsx'), 'utf8');
   assert.match(source, /const LEVEL_EXPLAINED = 'forge\.level-explained';/);
-  assert.match(source, /\{explain && !eyebrow && <p className="forge-head__explain">\{copy\.level_explain\}<\/p>\}/);
+  assert.match(source, /\{explain && !eyebrow && <p className="forge-head__explain">\{levelExplain\(copy, levelRule\)\}<\/p>\}/);
 });
 
 // ---------------------------------------------------------------------------
