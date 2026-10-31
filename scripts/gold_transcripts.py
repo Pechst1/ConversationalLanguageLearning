@@ -7,6 +7,10 @@
     python scripts/gold_transcripts.py run --surface scene --limit 3 --max-usd 0.2   # a quick look
     python scripts/gold_transcripts.py run --label haiku-live --set STORY_LIVE_MODEL=claude-haiku-5-5 --max-usd 1
                                                                    # same inputs, another model (a comparison run)
+    python scripts/gold_transcripts.py run --surface page --label writer-sonnet --set STORY_WRITER_MODEL=claude-sonnet-5-5 --max-usd 1.5
+                                                                   # the night writer's pages (not in the weekly run)
+    python scripts/gold_transcripts.py rejudge var/gold/<date>-production.json --judge-model claude-sonnet-5-5 --max-usd 1
+                                                                   # the same answers, another judge (calibrate a judge change)
     python scripts/gold_transcripts.py trend                       # the history kept in the digest comments
 
 The inputs live in ``tests/gold_transcripts/sets/`` (20–30 per surface, taken from the live
@@ -29,19 +33,26 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 os.environ.setdefault("SECRET_KEY", "gold-transcripts")
+# The cloud environment keeps the Anthropic key under its own name; the app reads ANTHROPIC_API_KEY.
+if not os.environ.get("ANTHROPIC_API_KEY") and os.environ.get("ATELIER_ANTHROPIC_API_KEY"):
+    os.environ["ANTHROPIC_API_KEY"] = os.environ["ATELIER_ANTHROPIC_API_KEY"]
 
 from loguru import logger  # noqa: E402
 
 from tests.gold_transcripts import runner as R  # noqa: E402
 from tests.gold_transcripts import surfaces as S  # noqa: E402
-from tests.gold_transcripts.criteria import CRITERIA, CRITERIA_VERSION  # noqa: E402
+from tests.gold_transcripts.criteria import (  # noqa: E402
+    CRITERIA,
+    CRITERIA_VERSION,
+    WEEKLY_SURFACES,
+)
 
 API_KEY_ENVS = ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")
 OUT = REPO / "var" / "gold"
 
 
 def _sets(args: argparse.Namespace) -> list[str]:
-    return args.surface or list(S.SURFACES)
+    return args.surface or list(WEEKLY_SURFACES)
 
 
 def _overrides(pairs: list[str] | None) -> dict[str, str]:
@@ -109,19 +120,26 @@ def cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_run(args: argparse.Namespace) -> int:
+def _refuse_paid(args: argparse.Namespace, command: str = "run") -> int | None:
     if not any(os.environ.get(name) for name in API_KEY_ENVS):
-        print(f"run refuses: no API key in the environment ({' or '.join(API_KEY_ENVS)}).")
+        print(f"{command} refuses: no API key in the environment ({' or '.join(API_KEY_ENVS)}).")
         return 2
     if args.max_usd is None or args.max_usd <= 0:
-        print(f"run refuses without an explicit cap: --max-usd {R.DEFAULT_CAP_USD} (owner rule: about US$1–2 a run).")
+        print(f"{command} refuses without an explicit cap: --max-usd {R.DEFAULT_CAP_USD} (owner rule: about US$1–2 a run).")
         return 2
     if args.max_usd > R.HARD_CAP_USD:
-        print(f"run refuses a cap above US${R.HARD_CAP_USD:.2f} a run; ask the owner first.")
+        print(f"{command} refuses a cap above US${R.HARD_CAP_USD:.2f} a run; ask the owner first.")
         return 2
     if os.environ.get("CI") and not args.allow_ci:
-        print("run refuses inside CI: gold transcripts are paid and run from the weekly routine only.")
+        print(f"{command} refuses inside CI: gold transcripts are paid and run from the weekly routine only.")
         return 2
+    return None
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    refused = _refuse_paid(args)
+    if refused is not None:
+        return refused
     from app.services.llm_service import LLMService
 
     applied = R.apply_profile(_overrides(args.set))
@@ -161,6 +179,49 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_rejudge(args: argparse.Namespace) -> int:
+    """Score a saved run's answers with another judge and compare the two judges."""
+
+    source = Path(args.results)
+    before = json.loads(source.read_text(encoding="utf-8")) if source.exists() else {}
+    try:
+        R.judge_for(list(before.get("items") or {}), args.judge_model)
+    except ValueError as exc:
+        print(f"rejudge refuses: {exc}.")
+        return 2
+    refused = _refuse_paid(args, "rejudge")
+    if refused is not None:
+        return refused
+    if not before:
+        print(f"rejudge refuses: no results at {source}.")
+        return 2
+    from app.services.llm_service import LLMService
+    applied = R.apply_profile()
+    try:
+        meter = R.Meter(inner=LLMService(), cap_usd=args.max_usd)
+        meter.role = "judge"
+        after = R.rejudge(
+            before, judge_client=meter, judge_model=args.judge_model,
+            progress=(lambda line: print(line, flush=True)) if args.verbose else None,
+        )
+        after.update(spent_usd=round(meter.spent_usd, 4), cap_usd=args.max_usd, call_log=meter.log)
+    finally:
+        R.restore_profile(applied)
+    out = source.with_name(f"{source.stem}-judge-{args.judge_model}.json")
+    out.write_text(json.dumps(after, ensure_ascii=False, indent=1, default=str) + "\n", encoding="utf-8")
+    print(f"judge {before.get('judge_model')} → {args.judge_model} on the answers of {source.name}")
+    print(f"{'surface':12s} {'old':>5s} {'new':>5s}  verdicts agree")
+    for surface, row in R.judge_agreement(before, after).items():
+        old = "–" if row["score_a"] is None else f"{row['score_a']:.0f}"
+        new = "–" if row["score_b"] is None else f"{row['score_b']:.0f}"
+        agree = "–" if row["agreement"] is None else f"{100 * row['agreement']:.0f}% of {row['verdicts']}"
+        print(f"{surface:12s} {old:>5s} {new:>5s}  {agree}")
+        for flip in row["flips"][: args.show_flips]:
+            print(f"    {flip}")
+    print(f"spent US${meter.spent_usd:.3f} · full results: {out}")
+    return 0
+
+
 def cmd_trend(args: argparse.Namespace) -> int:
     history = R.parse_history(R.issue_comment_bodies())
     if not history:
@@ -184,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--surface", action="append", choices=list(S.SURFACES), help="only this surface (repeatable)")
         p.add_argument("--limit", type=int, default=None, help="only the first N items of each surface")
         p.add_argument("--set", action="append", metavar="KEY=VALUE", help="an app setting on top of render.yaml (repeatable)")
-        p.add_argument("--judge-model", default=R.DEFAULT_JUDGE)
+        p.add_argument("--judge-model", default=None, help=f"default {R.DEFAULT_JUDGE}; {R.PAGE_JUDGE} when pages are scored")
     run = sub.choices["run"]
     run.add_argument("--max-usd", type=float, default=None, help=f"spending cap (required, at most {R.HARD_CAP_USD})")
     run.add_argument("--id", action="append", help="only this item (repeatable)")
@@ -195,12 +256,25 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--post-comparison", action="store_true", help="allow --post for a comparison run")
     run.add_argument("--allow-ci", action="store_true", help=argparse.SUPPRESS)
     run.add_argument("--verbose", "-v", action="store_true")
+    rejudge = sub.add_parser("rejudge", help="score a saved run's answers with another judge")
+    rejudge.add_argument("results", help="a results JSON written by run (var/gold/<date>-<label>.json)")
+    rejudge.add_argument("--judge-model", required=True)
+    rejudge.add_argument("--max-usd", type=float, default=None, help=f"spending cap (required, at most {R.HARD_CAP_USD})")
+    rejudge.add_argument("--show-flips", type=int, default=8, help="verdicts that changed, shown per surface")
+    rejudge.add_argument("--allow-ci", action="store_true", help=argparse.SUPPRESS)
+    rejudge.add_argument("--verbose", "-v", action="store_true")
     trend = sub.add_parser("trend")
-    trend.add_argument("--nights", type=int, default=14)
+    trend.add_argument("--runs", "--nights", dest="nights", type=int, default=14)
     args = parser.parse_args(argv)
 
     logger.remove()  # the engine logs every refusal; the report says what matters
-    return {"plan": cmd_plan, "run": cmd_run, "trend": cmd_trend}[args.command](args)
+    if args.command in ("plan", "run"):
+        try:
+            args.judge_model = R.judge_for(_sets(args), args.judge_model)
+        except ValueError as exc:
+            print(f"{args.command} refuses: {exc}.")
+            return 2
+    return {"plan": cmd_plan, "run": cmd_run, "rejudge": cmd_rejudge, "trend": cmd_trend}[args.command](args)
 
 
 if __name__ == "__main__":

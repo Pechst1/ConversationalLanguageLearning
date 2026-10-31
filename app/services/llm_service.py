@@ -109,7 +109,8 @@ class ProviderCircuitOpenError(LLMProviderError):
 #: rows (2026-10-15, plan decisions 9 and 10) are the list prices per 1M:
 #: gpt-5.5 $5/$30, gpt-6.1-sol $2/$10, gpt-6-luna $0.10/$0.50, claude-sonnet-5-5
 #: $2/$10, claude-haiku-5-5 $0.10/$0.50 (prompts up to 100K tokens; the story
-#: prompts are far below that).
+#: prompts are far below that). claude-opus-5-5 $4/$20 (2026-10-31, the writer comparison
+#: of story plan Phase 2).
 TEXT_PRICES_PER_1K_TOKENS: dict[str, dict[str, float]] = {
     "gpt-6.1-sol": {"prompt": 0.002, "completion": 0.01},
     "gpt-6-luna": {"prompt": 0.0001, "completion": 0.0005},
@@ -124,6 +125,7 @@ TEXT_PRICES_PER_1K_TOKENS: dict[str, dict[str, float]] = {
     "gpt-3.5-turbo": {"prompt": 0.0005, "completion": 0.0015},
     "claude-haiku-5-5": {"prompt": 0.0001, "completion": 0.0005},
     "claude-sonnet-5-5": {"prompt": 0.002, "completion": 0.01},
+    "claude-opus-5-5": {"prompt": 0.004, "completion": 0.02},
     "claude-3-5-sonnet": {"prompt": 0.003, "completion": 0.015},
     "claude-3-sonnet": {"prompt": 0.003, "completion": 0.015},
 }

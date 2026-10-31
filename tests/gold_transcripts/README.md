@@ -10,6 +10,15 @@ proven when it moves its surface's score here.
 | `forge` | La Forge free text: the Atelier corrector's sentence round, then the second-check merge (`_merge_relecture`) | 28 |
 | `courrier` | the Courrier correspondent's reply (`MissionConversationService.respond`) | 24 |
 | `correction` | the correction under a letter (`MissionCorrectionService.correct_submission`) | 26 |
+| `page` (asked for, not weekly) | the night writer's page written ahead of time: `story_split.draw` (planner, author, aids) inside the production retry loop with the story critic and the scene guards, on a captured `story_context()` | 24 |
+
+The judge of the weekly run is `claude-sonnet-5-5` (31 Oct: on the same answers it agreed
+with `gpt-6.1-sol` on 87–91% of verdicts and scored 2–7 points lower). The script gives
+`ANTHROPIC_API_KEY` the environment's `ATELIER_ANTHROPIC_API_KEY`. The `page` surface is
+judged by `gpt-6.1-sol` (a Claude judge is refused there: the writer is a Claude model) on
+the story judge's questions (`app/services/season/story_judge.py`) rated 1–5; a page's score
+is the mean of (rating − 1) / 4, and the report adds days lost and seconds per page against
+the prefetch's 330 s. A judge change restarts the trend, like a criteria change.
 
 ## Files
 
@@ -56,11 +65,20 @@ python scripts/gold_transcripts.py run --label luna-vs-haiku --set STORY_LIVE_MO
 python scripts/gold_transcripts.py run --label sonnet-judge --judge-model claude-sonnet-5-5 --max-usd 1
 ```
 
-`--set` takes any app setting. To compare the model that writes the day's page ahead of
-time (`STORY_WRITER_MODEL`), add a `page` surface: an adapter that calls
-`story_split.draw` on captured contexts (as `tests/prompt_regression/harness.py` does with
-replayed answers), a `sets/page.json`, and its criteria. The meter, judge, report and
-trend need no change.
+`--set` takes any app setting. The night writer (`STORY_WRITER_MODEL`) is compared on the
+`page` surface:
+
+```
+python scripts/gold_transcripts.py run --surface page --label writer-opus \
+    --set STORY_WRITER_MODEL=claude-opus-5-5 --set STORY_WRITER_REASONING_EFFORT=medium --max-usd 1.5
+python scripts/gold_transcripts.py rejudge var/gold/<date>-production.json --judge-model gpt-5.5 --max-usd 1
+```
+
+A page costs about US$0.04 on Haiku 5.5, US$0.21 on Sonnet 5.5 and US$0.30 on Opus 5.5
+(31 Oct, critic included). The page contexts are recaptured with
+`GOLD_CAPTURE_PAGES=1 python -m pytest tests/gold_transcripts/test_capture_pages.py` when the
+story context changes shape. `rejudge` scores a saved run's answers with another judge and
+prints how often the two agree: run it before changing the judge.
 
 ## Adding an input
 

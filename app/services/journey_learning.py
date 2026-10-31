@@ -2329,6 +2329,10 @@ def evaluate_recall(
         if correction is not None and task.task_type == "choice" and task.options_kind == "sentences":
             # #240: the other card is not this card corrected; say which one carries the rule.
             correction = replace(correction, kind="pick")
+        if correction is not None and task.task_type == "listen_tap":
+            # #167: «to write → coopérative» drew a meaning as if it were French to
+            # fix. A missed meaning shows the French word and what it means.
+            correction = replace(correction, kind="meaning")
         if correction is None and _is_free_sentence(task) and learner_text and expected:
             # WP-129: a free sentence that did not use the unit is not a slip in
             # one span: the learner sees a model sentence that does, whole.

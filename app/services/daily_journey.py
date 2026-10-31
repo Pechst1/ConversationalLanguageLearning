@@ -636,17 +636,19 @@ def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
         key = answer_key_for(str(step.id), private.get("recall_task"))
         if key is not None:
             prompt["answer_key"] = key
-        if (
-            prompt.get("task_type") == "listen_tap"
-            and prompt.get("audio_url")
-            and not settings.ATELIER_EPISODE_AUDIO_ENABLED
-        ):
-            # WP-91: planned with a clip, projected after audio was switched
-            # off — the phrase is printed again and the item is read-and-tap,
-            # exactly as a day planned without audio.
+        if prompt.get("task_type") == "listen_tap" and prompt.get("audio_url"):
+            # #167: a heard phrase carries its French, so it can be read when
+            # there is no sound and is shown once the answer is in. A day planned
+            # before #167 stored none: it is read back from the task. It is the
+            # question, not the answer (the answer is a meaning).
             task = private.get("recall_task") if isinstance(private.get("recall_task"), dict) else {}
-            prompt["prompt_fr"] = task.get("prompt_fr")
-            prompt["audio_url"] = None
+            if not prompt.get("prompt_fr"):
+                prompt["prompt_fr"] = task.get("prompt_fr")
+            if not settings.ATELIER_EPISODE_AUDIO_ENABLED:
+                # WP-91: planned with a clip, projected after audio was switched
+                # off — the item is read-and-tap, exactly as a day planned
+                # without audio.
+                prompt["audio_url"] = None
     elif StepKind(step.kind) is StepKind.RULE and "review" in prompt and not _RULE_PROMPT_HAS_REVIEW:
         # WP-129 (D7): the tentpole's review in context says ``review`` to the
         # client once ``RulePrompt`` carries the field; a schema without it

@@ -184,8 +184,9 @@ def test_a_regulier_day_with_audio_holds_three_real_listening_items(band, langua
     for step in heard:
         RecallPrompt.model_validate(step.public_prompt)
         if step.public_prompt["task_type"] == "listen_tap":
-            # Heard, not read: the phrase is not printed.
-            assert step.public_prompt["prompt_fr"] is None
+            # Heard first; #167: the payload carries the phrase, so a learner
+            # without sound can read it and every learner sees it once answered.
+            assert step.public_prompt["prompt_fr"] == step.private_task.prompt_fr
             clip = step.public_prompt["audio_url"].removeprefix(LINE_AUDIO_PATH_PREFIX)
             voice = cast_voices.voice_of_clip_id(clip)
             assert clip == clip_id_for(voice, step.private_task.prompt_fr)
@@ -653,8 +654,13 @@ def test_a_listening_items_clip_is_spoken_on_first_request_and_only_for_its_owne
         prompt = public["prompt"]
         task = row.private_task["recall_task"]
         spoken = task["solution_fr"] if prompt["task_type"] == "dictation" else task["prompt_fr"]
-        assert prompt["prompt_fr"] is None
-        assert spoken.lower() not in json.dumps(prompt, ensure_ascii=False).lower()
+        if prompt["task_type"] == "dictation":
+            # The dictated line is the answer: never sent.
+            assert prompt["prompt_fr"] is None
+            assert spoken.lower() not in json.dumps(prompt, ensure_ascii=False).lower()
+        else:
+            # #167: the heard phrase is the question, and it rides along with its clip.
+            assert prompt["prompt_fr"] == spoken
         before = len(fake_tts.calls)
         response = assembled_client.get(prompt["audio_url"], headers=headers)
         assert response.status_code == 200, response.text
@@ -695,6 +701,26 @@ def test_a_day_with_listening_items_plays_to_the_end(
     assert driver.finish("complete").status_code == 200
 
 
+def test_a_heard_phrase_stored_without_its_text_is_read_back_from_its_task(
+    assembled_client, journey_enabled, clock, db_session, audio_on, fake_tts, practice_day
+) -> None:
+    """#167: a day planned before the fix stored a heard phrase with no French
+    (WP-91 held it back on the server). Projected now, it carries the phrase like a
+    new day, so «Show the text» and the answer screen have the word to print."""
+
+    headers, driver, _user = _day(assembled_client, db_session, "wp91-167")
+    public, row = next(
+        (public, row) for public, row in _listening_steps(db_session, driver)
+        if public["prompt"]["task_type"] == "listen_tap"
+    )
+    row.public_prompt = {**dict(row.public_prompt), "prompt_fr": None}
+    db_session.commit()
+    snapshot = assembled_client.get(f"/api/v1/daily-journeys/{driver.id}", headers=headers).json()
+    step = next(s for s in snapshot["steps"] if s["id"] == public["id"])
+    assert step["prompt"]["prompt_fr"] == row.private_task["recall_task"]["prompt_fr"]
+    assert step["prompt"]["audio_url"] == public["prompt"]["audio_url"], "still heard first"
+
+
 def test_audio_switched_off_after_planning_reprints_the_phrase(
     assembled_client, journey_enabled, clock, db_session, fake_tts, practice_day, monkeypatch
 ) -> None:
@@ -704,7 +730,7 @@ def test_audio_switched_off_after_planning_reprints_the_phrase(
         step for step in driver.journey["steps"]
         if step["kind"] == "recall" and step["prompt"]["task_type"] == "listen_tap"
     ]
-    assert taps and all(step["prompt"]["prompt_fr"] is None for step in taps)
+    assert taps and all(step["prompt"]["audio_url"] and step["prompt"]["prompt_fr"] for step in taps)
     monkeypatch.setattr(settings, "ATELIER_EPISODE_AUDIO_ENABLED", False)
     snapshot = assembled_client.get(f"/api/v1/daily-journeys/{driver.id}", headers=headers).json()
     for step in snapshot["steps"]:

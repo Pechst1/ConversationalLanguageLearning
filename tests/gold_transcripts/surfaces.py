@@ -22,6 +22,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 SETS = ROOT / "sets"
+#: The page surface's captured story contexts, one per item of sets/page.json.
+PAGES = SETS / "pages"
 REPO = ROOT.parents[1]
 #: The production story payload the scene items are laid on (a captured golden turn).
 SCENE_TEMPLATE = REPO / "tests" / "prompt_regression" / "cases" / "turn-a1-reason-ignored.json"
@@ -372,11 +374,92 @@ def run_correction(item: dict, client: Any) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# The night writer's page: story_split's planner, author and aids, the story critic and
+# the scene guards, through the production retry loop (``living_story._approved``)
+# ---------------------------------------------------------------------------
+
+#: The prefetch's budget for one page written ahead of time.
+PAGE_BUDGET_SECONDS = 330
+
+
+def page_context(item: dict) -> dict:
+    """The item's captured ``story_context`` with its season runtime handle rebuilt."""
+
+    from app.services.season.format import load_season
+
+    context = json.loads((PAGES / f"{item['id']}.json").read_text(encoding="utf-8"))
+    context.pop("_captured", None)
+    today = context.pop("_season", None)
+    if today:
+        context["_season"] = SimpleNamespace(
+            season=load_season(today["season_id"]), flags=dict(today["flags"]), seed=today["seed"]
+        )
+    return context
+
+
+def page_lines(draft: Any, context: dict) -> list[str]:
+    """The page as the live-read transcripts write it (``season.transcript``)."""
+
+    from app.services.season.transcript import render_generated_day
+
+    names = {
+        str(member.get("id")): str(member.get("name") or member.get("id"))
+        for member in ((context.get("world") or {}).get("cast") or [])
+        if isinstance(member, dict)
+    }
+    lines = render_generated_day(draft.model_dump(mode="json"), [], {}, names=names)
+    return [line for line in lines if not line.startswith("*Checklist")]
+
+
+def run_page(item: dict, client: Any) -> dict:
+    from uuid import uuid4
+
+    from app.services import living_story as engine
+    from app.services import story_split
+
+    context = page_context(item)
+    reviews: list[dict] = []
+    started = time.monotonic()
+    with _patched(engine, "_client", lambda: client), engine.written_ahead_of_time():
+        if not story_split.applies(context):
+            return {"failure": "story_split does not apply to this context", "seconds": 0.0}
+        try:
+            draft, usage = engine._approved(
+                engine.DIRECTOR,
+                engine._prompt_payload(context),
+                engine.SceneDraft,
+                lambda p: engine._validate_scene(p, context),
+                db=_NoDB(),
+                user=SimpleNamespace(id=uuid4()),
+                candidates=1,
+                choose=lambda p: engine._scene_score(p, context),
+                story_review=engine._season_story_review(context, reviews),
+                digest=lambda p: engine.scene_digest(p, context),
+                draw=story_split.draw(context),
+            )
+        except engine.StoryUnavailable as exc:
+            return {"failure": f"lost day: {exc}", "seconds": round(time.monotonic() - started, 1), "reviews": len(reviews)}
+    seconds = round(time.monotonic() - started, 1)
+    return {
+        "failure": None if seconds <= PAGE_BUDGET_SECONDS else f"lost day: {seconds:.0f} s, over the {PAGE_BUDGET_SECONDS} s budget",
+        "seconds": seconds,
+        "title": draft.title_fr,
+        "objective": draft.objective_native,
+        "lead": draft.character_id,
+        "page_lines": page_lines(draft, context),
+        "attempts": len({entry.get("attempt") for entry in usage if isinstance(entry, dict)}) or 1,
+        "model_calls": len(usage),
+        "reviews": len(reviews),
+    }
+
+
 SURFACES: dict[str, Callable[[dict, Any], dict]] = {
     "scene": run_scene,
     "forge": run_forge,
     "courrier": run_courrier,
     "correction": run_correction,
+    "page": run_page,
 }
 
 
@@ -404,7 +487,7 @@ def checks(surface: str, item: dict, output: dict) -> dict[str, tuple[str, str]]
             "served": served,
             "quotes_real": ("na", "no grade") if failed else (("fail", f"invented: {invented}") if invented else ("pass", "")),
         }
-    if surface == "courrier":
+    if surface in ("courrier", "page"):
         return {"served": served}
     if surface == "forge":
         want = bool(truth.get("correct"))
