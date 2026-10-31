@@ -1,7 +1,8 @@
 /**
  * Le Quartier · today's journey, as the story the quarter stages (`story.ts`).
  *
- * The page is the one the server resolved for this learner, on the scene step (`prompt.stage`).
+ * The page is the one the server resolved for this learner, on the scene step (`prompt.stage`); on
+ * a day the story engine wrote (no authored page), the scene's own panels and its talk.
  * The answers go through the Feuilleton's own attempts endpoint and the help through its help
  * endpoint, which records each step before it is shown; the gestures go to `POST …/choices`. The
  * journey moves on the way the Feuilleton moves it: the scene is acknowledged when its first
@@ -159,16 +160,88 @@ export function pageOfStage(x: unknown): StoryPage | null {
   };
 }
 
-/** Today's page, from the journey's scene step; `null` off an authored season page. */
+/** Today's page, from the journey's scene step: the authored season page, else the scene written today. */
 export function pageOfJourney(journey: JourneySnapshot | null): StoryPage | null {
   const scene = journey?.steps.find((s): s is SceneStep => s.kind === 'scene');
-  return scene ? pageOfStage(scene.prompt.stage) : null;
+  if (!journey || !scene) return null;
+  return pageOfStage(scene.prompt.stage) ?? pageOfScene(journey, scene);
 }
 
-/** Today's page when it is a day the quarter has blocking for, wherever the day stands; else `null`. */
+/**
+ * A scene the story engine wrote for today (no authored page, so no `stage`): its panels, the
+ * narration as captions and the dialogue as lines, then the talk as one question to whoever it is
+ * with. The quarter plays it at Le Mistral without blocking; the talk goes on turn after turn for
+ * as long as the engine keeps it open. `null` without a talk: nothing to answer, nothing to play.
+ */
+export function pageOfScene(journey: JourneySnapshot, scene: SceneStep): StoryPage | null {
+  const talk = talkOf(journey);
+  if (!talk) return null;
+  const p: Raw = isRaw(scene.prompt) ? (scene.prompt as unknown as Raw) : {};
+  const movements: StoryMovement[] = [];
+  const panels = Array.isArray(p.panels) ? p.panels : [];
+  panels.forEach((x, i) => {
+    if (!isRaw(x)) return;
+    const lines: StoryLine[] = [];
+    const narration = str(x.narration_fr)?.trim();
+    if (narration) lines.push({ who: 'caption', name: null, kind: 'caption', mood: null, direction: null, text_fr: narration, text_native: null });
+    for (const d of Array.isArray(x.dialogue) ? x.dialogue : []) {
+      if (!isRaw(d) || typeof d.text_fr !== 'string' || !d.text_fr.trim()) continue;
+      const who = str(d.character_id) ?? 'caption';
+      lines.push({ who, name: str(d.character_name), kind: who === 'caption' ? 'caption' : 'speech', mood: str(d.mood), direction: null, text_fr: d.text_fr, text_native: str(d.text_native) });
+    }
+    if (!lines.length) return;
+    const inFrame = Array.from(new Set(lines.map((l) => l.who).filter((w) => w !== 'caption')));
+    movements.push({ kind: 'panel', id: `jour.p${i + 1}`, visual: null, location_id: null, in_frame: inFrame, silence: false, lines });
+  });
+  const setup = str(p.setup_fr)?.trim();
+  if (!movements.length && setup) {
+    movements.push({ kind: 'panel', id: 'jour.p1', visual: null, location_id: null, in_frame: [], silence: false, lines: [{ who: 'caption', name: null, kind: 'caption', mood: null, direction: null, text_fr: setup, text_native: str(p.setup_native) }] });
+  }
+  const t = talk.prompt;
+  const to = t.character_id || 'caption';
+  const asked = t.character_line_fr?.trim();
+  movements.push({
+    kind: 'turn',
+    id: 'jour.talk',
+    to,
+    to_name: t.character_name || null,
+    task_native: t.objective_native || str(p.objective_native),
+    choice: false,
+    only_after: null,
+    panel: {
+      kind: 'panel',
+      id: 'jour.talk.ask',
+      visual: null,
+      location_id: null,
+      in_frame: [to],
+      silence: false,
+      lines: asked ? [{ who: to, name: t.character_name || null, kind: 'speech', mood: null, direction: null, text_fr: asked, text_native: null }] : [],
+    },
+  });
+  const scenario: Raw = isRaw(journey.scenario) ? (journey.scenario as unknown as Raw) : {};
+  return {
+    season_id: '',
+    segment: 'jour',
+    day: journey.local_date ?? '',
+    key: `jour.${journey.local_date ?? journey.id}`,
+    number: typeof journey.edition_no === 'number' ? journey.edition_no : null,
+    title_fr: str(scenario.title_fr) ?? '',
+    story_date_fr: null,
+    location_id: str(scenario.location_id),
+    can_do_native: str(scenario.objective_native) ?? str(p.objective_native),
+    movements,
+    storylets: [],
+  };
+}
+
+/** Today's page, wherever the day stands; `null` on a day without a scene to play. */
 export function stagedPageOf(journey: JourneySnapshot | null): StoryPage | null {
-  const page = pageOfJourney(journey);
-  return page && STAGED_DAYS.includes(page.key) ? page : null;
+  return pageOfJourney(journey);
+}
+
+/** Whether the director has blocking for the page (`STAGED_DAYS`), or plays its lines where it is. */
+export function blockedPage(page: StoryPage | null): boolean {
+  return Boolean(page && STAGED_DAYS.includes(page.key));
 }
 
 /** The talk of the scene: the first respond step after it. */
@@ -191,11 +264,13 @@ export type Today =
   | { kind: 'preparing' }
   /** the scene is ahead: the quarter plays it */
   | { kind: 'play'; page: StoryPage }
+  /** the day opens with the Feuilleton's own steps (a rule, a few words): they come first, over the quarter, then the scene */
+  | { kind: 'before'; page: StoryPage }
   /** the scene is played: the rest of the day is the Feuilleton's steps */
   | { kind: 'practice'; page: StoryPage }
   /** the day is over: its recap */
   | { kind: 'done' }
-  /** the Feuilleton reads it: a day the quarter has no blocking for, or one left mid-question */
+  /** the Feuilleton reads it: a day without a scene, or one left mid-question */
   | { kind: 'handoff'; why: 'day' | 'midway' | 'unavailable' };
 
 export function todayOf(journey: JourneySnapshot | null): Today {
@@ -208,8 +283,8 @@ export function todayOf(journey: JourneySnapshot | null): Today {
   if (!page || !scene) return { kind: 'handoff', why: 'day' };
   const step = currentStepOf(journey);
   if (!step) return { kind: 'practice', page };
-  // steps before the scene are the Feuilleton's, in its order
-  if (step.ordinal < scene.ordinal) return { kind: 'handoff', why: 'day' };
+  // steps before the scene are the Feuilleton's, in its order, played over the quarter
+  if (step.ordinal < scene.ordinal) return { kind: 'before', page };
   if (step.kind === 'scene') return { kind: 'play', page };
   const talk = talkOf(journey);
   if (talk && step.id === talk.id && step.status !== 'completed') {
@@ -297,6 +372,15 @@ export class JourneyStory implements Story {
   /** The journey as the engine last handed it back. */
   get snapshot(): JourneySnapshot {
     return this.journey;
+  }
+
+  /**
+   * The journey as it moved on outside the scene (the warm-up before it, played in the Feuilleton's
+   * steps over the quarter): the scene picks the day up where it now stands. Only a newer read.
+   */
+  follow(journey: JourneySnapshot) {
+    if (journey.id !== this.journey.id || journey.revision <= this.journey.revision) return;
+    this.journey = journey;
   }
 
   private take(journey: JourneySnapshot) {
@@ -453,8 +537,12 @@ export class JourneyStory implements Story {
     // question stays open until the engine has heard enough
     const to = this.turn(turnId)?.to ?? 'caption';
     const lines: StoryLine[] = (r.character_lines ?? []).map((l) => ({ who: l.speaker_id ?? to, name: l.speaker_name, kind: 'speech', text_fr: l.text_fr }));
+    // a scene the engine wrote answers in one reply, without the lines split out
+    const reply = r.character_reply_fr?.trim();
+    if (!lines.length && reply) lines.push({ who: to, name: this.turn(turnId)?.to_name ?? null, kind: 'speech', text_fr: reply });
     const next = r.next_turn ? turnId : null;
-    return { turn: turnId, reply: null, beats: lines.length ? [{ kind: 'panel', id: `${turnId}.said`, lines }] : [], next, closing: next === null, mend };
+    const said: StoryPanel[] = lines.length ? [{ kind: 'panel', id: `${turnId}.said.${r.journey.revision}`, lines }] : [];
+    return { turn: turnId, reply: null, beats: said, next, closing: next === null, mend, goesOn: next !== null };
   }
 
   async help(turnId: string, step: HelpStep): Promise<Help | null> {

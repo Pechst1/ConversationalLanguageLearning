@@ -274,11 +274,14 @@ def errata_targets_for_user(
     *,
     limit: int = DEFAULT_TARGET_LIMIT,
     now: datetime | None = None,
+    due_by: datetime | None = None,
 ) -> list[ErrataTarget]:
-    """The learner's ranked errata targets. Reads the queue; changes nothing."""
+    """The learner's ranked errata targets. Reads the queue; changes nothing.
 
-    records = ErrorMemoryService(db).due_error_records(user, limit=max(limit * 6, 12))
-    return rank_errata_targets(records, limit=limit, now=now)
+    ``due_by`` widens "due" from now to that moment, and ranks as of then."""
+
+    records = ErrorMemoryService(db).due_error_records(user, limit=max(limit * 6, 12), due_by=due_by)
+    return rank_errata_targets(records, limit=limit, now=due_by or now)
 
 
 def errata_candidates_for_user(

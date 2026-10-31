@@ -121,7 +121,7 @@ export interface StoryPage {
   storylets: Storylet[];
 }
 
-/** The days the quarter can stage, by their blocking: in phase 1, T1 day a alone. */
+/** The days the director has blocking for: in phase 1, T1 day a alone. Any other page plays its lines at Le Mistral. */
 export const STAGED_DAYS = ['t1.a'];
 
 /** The questions of a page, in order. */
@@ -199,6 +199,8 @@ export interface Heard {
   next: string | null;
   closing: boolean;
   mend: Mend | null;
+  /** the talk goes on (a scene written today): the question stays open, asked anew, not again */
+  goesOn?: boolean;
 }
 
 /** A gesture, as the engine takes it. */
