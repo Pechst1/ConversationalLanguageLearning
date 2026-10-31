@@ -1,0 +1,231 @@
+{
+ "surface": "scene",
+ "about": "Free scene answers from the live walks (docs/ops/live-walks/<date>.md). Each item is one learner answer to the character's question, laid on the captured A1 story payload of tests/prompt_regression with the character taken from the season's world bible. 'verbatim' quotes the report; 'reconstructed' completes a reply the report only quotes in part, keeping every quoted fragment. 'truth' is what the judge is told: the errors really in the answer, whether it refuses, what is off-script.",
+ "items": [
+  {
+   "id": "s01-reason-restaurant",
+   "source": "live walk 2026-10-20, replies played (verbatim); #254",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Là-haut", "premise_fr": "Lila et toi êtes dans l'appartement d'Odile. Il y a des photos par terre.", "objective_native": "Tell Lila why you think Odile left.", "objective_semantics": "Met when the learner gives a reason or a guess, or says they do not know.", "opening_line_fr": "Pourquoi elle est partie, Odile ?", "suggested_response_fr": "Je ne sais pas. Elle était fatiguée ?"},
+   "learner_text": "Je ne sais pas beaucoup. Odile est parti parce que la restaurant était très difficile, je pense.",
+   "truth": {"errors": ["est parti → est partie (Odile)", "la restaurant → le restaurant"], "refusal": false, "off_script": null}
+  },
+  {
+   "id": "s02-no-photo-gateau",
+   "source": "live walk 2026-10-20, replies played (verbatim)",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Là-haut", "premise_fr": "Lila tient une photo d'Odile. Gus attend en bas.", "objective_native": "Tell Lila whether you show the photo to Gus.", "objective_semantics": "Met when the learner says yes or no about showing the photo.", "opening_line_fr": "On montre la photo à Gus ?", "suggested_response_fr": "Oui, on la montre à Gus."},
+   "learner_text": "Non, je ne montre pas la photo à Gus. Mais est-ce que le gâteau est pour le chat de Marin ? Moi, je préfère le fromage.",
+   "truth": {"errors": [], "refusal": true, "off_script": "asks whether the cake is for Marin's cat; prefers cheese"}
+  },
+  {
+   "id": "s03-keep-kitchen",
+   "source": "live walk 2026-10-21, replies played (verbatim)",
+   "character_id": "camille_marchand",
+   "scene": {"title_fr": "L'appartement d'Odile", "premise_fr": "Camille fait l'inventaire de l'appartement d'Odile avec toi.", "objective_native": "Tell Camille what you want to keep from the flat.", "objective_semantics": "Met when the learner names something they keep, or says they keep nothing.", "opening_line_fr": "Qu'est-ce que tu gardes, ici ?", "suggested_response_fr": "Je garde la lampe."},
+   "learner_text": "Je garde la cuisine, parce que Odile aimait cuisiner. Je ne veux pas vendre les meubles, il sont très beau.",
+   "truth": {"errors": ["parce que Odile → parce qu'Odile", "il sont → ils sont", "très beau → très beaux"], "refusal": false, "off_script": null}
+  },
+  {
+   "id": "s04-no-photo-bastien",
+   "source": "live walk 2026-10-21, replies played (verbatim)",
+   "character_id": "camille_marchand",
+   "scene": {"title_fr": "L'appartement d'Odile", "premise_fr": "Camille a trouvé une photo d'Odile dans un tiroir.", "objective_native": "Tell Camille whether you keep Odile's photo.", "objective_semantics": "Met when the learner says whether they keep the photo.", "opening_line_fr": "Tu gardes la photo d'Odile ?", "suggested_response_fr": "Oui, je la garde."},
+   "learner_text": "Non, je ne garde pas la photo de Odile. Mais est-ce que Bastien aime les chats ? Moi, je préfère le fromage.",
+   "truth": {"errors": ["de Odile → d'Odile"], "refusal": true, "off_script": "asks whether Bastien likes cats; prefers cheese"}
+  },
+  {
+   "id": "s05-three-days-tired",
+   "source": "live walk 2026-10-21, replies played (reconstructed from «Je reste trois jours… Je suis très fatigué, le voyage été long.»); #262",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Là-haut", "premise_fr": "Tu arrives avec ta valise. Lila t'ouvre la porte.", "objective_native": "Tell Lila how long you are staying.", "objective_semantics": "Met when the learner gives a length of stay.", "opening_line_fr": "Tu restes combien de temps ?", "suggested_response_fr": "Je reste une semaine."},
+   "learner_text": "Je reste trois jours. Je suis très fatigué, le voyage été long.",
+   "truth": {"errors": ["le voyage été long → le voyage a été long"], "refusal": false, "off_script": null}
+  },
+  {
+   "id": "s06-three-days-notary",
+   "source": "live walk 2026-10-21, second reply after Lila re-asked «Je demande : combien de temps tu restes ?» (verbatim); #262",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Là-haut", "premise_fr": "Tu arrives avec ta valise. Lila t'ouvre la porte.", "objective_native": "Tell Lila how long you are staying.", "objective_semantics": "Met when the learner gives a length of stay.", "opening_line_fr": "Tu restes combien de temps ?", "suggested_response_fr": "Je reste une semaine."},
+   "history": [{"learner": "Je reste trois jours. Je suis très fatigué, le voyage été long.", "character": "Je demande : combien de temps tu restes ?"}],
+   "learner_text": "Trois jours. Je dois parler avec le notaire demain.",
+   "truth": {"errors": [], "refusal": false, "off_script": null, "note": "the learner already answered «trois jours» twice; asking again is a re-ask"}
+  },
+  {
+   "id": "s07-cest-marin",
+   "source": "live walk 2026-10-22, first reply (verbatim start «Je pense que cest Marin. Il est le grand chef, non ?»); #193",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Lila et la boîte", "premise_fr": "La boîte d'Odile a disparu du placard. Lila cherche.", "objective_native": "Tell Lila who you think took the box.", "objective_semantics": "Met when the learner names someone, or says they do not know.", "opening_line_fr": "Qui a pris la boîte, à ton avis ?", "suggested_response_fr": "Je pense que c'est Gus."},
+   "learner_text": "Je pense que cest Marin. Il est le grand chef, non ?",
+   "truth": {"errors": ["cest → c'est"], "refusal": false, "off_script": null, "note": "there is no «ils» in the answer; «est → sont» would be a false correction"}
+  },
+  {
+   "id": "s08-not-marin-pizza",
+   "source": "live walk 2026-10-22, second reply (reconstructed from «non, je ne pense pas que ce…» plus an off-script pizza request)",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Lila et la boîte", "premise_fr": "La boîte d'Odile a disparu du placard. Lila cherche.", "objective_native": "Tell Lila whether you think Marin took the box.", "objective_semantics": "Met when the learner says yes or no about Marin.", "opening_line_fr": "Alors, c'est Marin ?", "suggested_response_fr": "Oui, c'est Marin."},
+   "learner_text": "Non, je ne pense pas que c'est Marin. Lila, on commande une pizza ?",
+   "truth": {"errors": ["que c'est → que ce soit (subjunctive after «je ne pense pas que»; above A1, a light note at most)"], "refusal": true, "off_script": "asks Lila to order a pizza"}
+  },
+  {
+   "id": "s09-cold-grandmother",
+   "source": "live walk 2026-10-17, replies played (reconstructed from «Je suis froid … Ma grand-mère est mort …»); #193",
+   "character_id": "marin_leveque",
+   "scene": {"title_fr": "Une habitude au zinc", "premise_fr": "Il pleut. Tu entres au Mistral. Marin essuie un verre.", "objective_native": "Tell Marin how you are and why you came.", "objective_semantics": "Met when the learner says how they are or why they came.", "opening_line_fr": "Ça va ? Tu as l'air triste.", "suggested_response_fr": "Ça va. Je suis un peu fatigué."},
+   "learner_text": "Je suis froid. Ma grand-mère est mort l'année dernière, et je viens pour son appartement.",
+   "truth": {"errors": ["je suis froid → j'ai froid", "est mort → est morte"], "refusal": false, "off_script": null, "note": "«es, not est» would be a false correction"}
+  },
+  {
+   "id": "s10-no-talk-pablo",
+   "source": "live walk 2026-10-17, replies played (reconstructed from «Non, je ne veux pas parler» plus «ton chat Pablo»)",
+   "character_id": "marin_leveque",
+   "scene": {"title_fr": "Une habitude au zinc", "premise_fr": "Margaux attend au bout du zinc. Marin te regarde.", "objective_native": "Tell Marin whether you want to talk to Margaux.", "objective_semantics": "Met when the learner says yes or no.", "opening_line_fr": "Tu veux parler à Margaux ?", "suggested_response_fr": "Oui, je veux bien."},
+   "learner_text": "Non, je ne veux pas parler. Ton chat Pablo dort sur la chaise, regarde !",
+   "truth": {"errors": [], "refusal": true, "off_script": "points at a cat called Pablo sleeping on a chair"}
+  },
+  {
+   "id": "s11-stay-soup",
+   "source": "live walk 2026-10-17, replies played (verbatim)",
+   "character_id": "marin_leveque",
+   "scene": {"title_fr": "Une habitude au zinc", "premise_fr": "Marin ferme le café. Il prend sa veste.", "objective_native": "Tell Marin whether you come to the party tonight.", "objective_semantics": "Met when the learner says whether they come.", "opening_line_fr": "Tu viens à la fête ce soir ?", "suggested_response_fr": "Oui, je viens !"},
+   "learner_text": "Non. Je reste ici ce soir, avec la soupe et le chat.",
+   "truth": {"errors": [], "refusal": true, "off_script": null}
+  },
+  {
+   "id": "s12-not-wednesday-pablo",
+   "source": "live walk 2026-10-16, replies played (reconstructed from «Non, je ne rentre pas mercredi» plus «mon chat Pablo»); #171",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Une habitude au zinc", "premise_fr": "Lila boit un café au zinc avec toi.", "objective_native": "Tell Lila when you go home.", "objective_semantics": "Met when the learner says when they go home, or that they do not go home yet.", "opening_line_fr": "Tu rentres mercredi ?", "suggested_response_fr": "Oui, je rentre mercredi."},
+   "learner_text": "Non, je ne rentre pas mercredi. Mon chat Pablo reste chez ma voisine.",
+   "truth": {"errors": [], "refusal": true, "off_script": "mentions the cat Pablo staying with a neighbour"}
+  },
+  {
+   "id": "s13-je-pas-peux",
+   "source": "live walk 2026-10-16, replies played (reconstructed from «je pas peux» and «semaine»)",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Une habitude au zinc", "premise_fr": "Lila prépare une sortie au canal.", "objective_native": "Tell Lila whether you can come this week.", "objective_semantics": "Met when the learner says whether they can come.", "opening_line_fr": "Tu viens au canal avec nous cette semaine ?", "suggested_response_fr": "Oui, je viens."},
+   "learner_text": "Je pas peux venir cette semaine, je travaille beaucoup.",
+   "truth": {"errors": ["je pas peux → je ne peux pas"], "refusal": true, "off_script": null}
+  },
+  {
+   "id": "s14-ma-amie-boulangerie",
+   "source": "live walk 2026-10-18, replies played (reconstructed from «… voir ma amie Lila et le boulangerie de ma grand-mère»); #212",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Le billet du 2 décembre", "premise_fr": "Lila regarde ton billet de train pour le 2 décembre.", "objective_native": "Tell Lila why you are staying in Paris.", "objective_semantics": "Met when the learner gives a reason to stay, or says they do not know.", "opening_line_fr": "Pourquoi tu restes à Paris ?", "suggested_response_fr": "Je reste pour le café."},
+   "learner_text": "Je reste pour voir ma amie Lila et le boulangerie de ma grand-mère.",
+   "truth": {"errors": ["ma amie → mon amie", "le boulangerie → la boulangerie"], "refusal": false, "off_script": null, "note": "the learner speaks to Lila about Lila; the reply must not say «tu restes pour voir Lila»"}
+  },
+  {
+   "id": "s15-no-agent-dog",
+   "source": "live walk 2026-10-18, replies played (verbatim parts «Non, Lila. Je ne veux pas parler à l'agent» and «un chien dans la rue avec un chapeau»)",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Le billet du 2 décembre", "premise_fr": "Lila a le numéro de l'agence de voyage.", "objective_native": "Tell Lila whether you call the travel agent.", "objective_semantics": "Met when the learner says whether they call.", "opening_line_fr": "Tu appelles l'agent pour le billet ?", "suggested_response_fr": "Oui, j'appelle."},
+   "learner_text": "Non, Lila. Je ne veux pas parler à l'agent. Regarde, il y a un chien dans la rue avec un chapeau !",
+   "truth": {"errors": [], "refusal": true, "off_script": "a dog in the street wearing a hat"}
+  },
+  {
+   "id": "s16-le-bouillotte",
+   "source": "live walk 2026-10-19, replies played (verbatim)",
+   "character_id": "marin_leveque",
+   "scene": {"title_fr": "Gus et l'habitué", "premise_fr": "Marin tient un objet en caoutchouc rouge. Il ne connaît pas le mot.", "objective_native": "Tell Marin what the object is called.", "objective_semantics": "Met when the learner names the object or describes it.", "opening_line_fr": "Comment ça s'appelle, ce truc ?", "suggested_response_fr": "C'est une bouillotte."},
+   "learner_text": "Ça s'appelle le bouillotte, Marin. Elle est très chaude et j'aime la rouge.",
+   "truth": {"errors": ["le bouillotte → la bouillotte"], "refusal": false, "off_script": null}
+  },
+  {
+   "id": "s17-no-moon-boat",
+   "source": "live walk 2026-10-19, replies played (verbatim)",
+   "character_id": "marin_leveque",
+   "scene": {"title_fr": "Gus et l'habitué", "premise_fr": "Marin te tend la bouillotte d'Odile.", "objective_native": "Tell Marin whether the hot-water bottle is for you.", "objective_semantics": "Met when the learner says whether it is for them.", "opening_line_fr": "Elle est pour toi, la bouillotte ?", "suggested_response_fr": "Oui, merci !"},
+   "learner_text": "Non, Marin, elle n'est pas pour moi. Mais est-ce que Gus a un bateau sur la lune ? Moi, je préfère les pommes de terre.",
+   "truth": {"errors": [], "refusal": true, "off_script": "asks whether Gus has a boat on the moon; prefers potatoes"}
+  },
+  {
+   "id": "s18-no-dinner-cat",
+   "source": "live walk 2026-10-25, the «non» reply (reconstructed from «Non, je ne veux pas manger…» with an off-script cat); #132",
+   "character_id": "camille_marchand",
+   "scene": {"title_fr": "L'appartement s'ouvre", "premise_fr": "Camille t'invite à dîner après la visite.", "objective_native": "Tell Camille whether you eat with her tonight.", "objective_semantics": "Met when the learner says whether they come to dinner.", "opening_line_fr": "Tu manges avec nous ce soir ?", "suggested_response_fr": "Oui, avec plaisir."},
+   "learner_text": "Non, je ne veux pas manger avec vous ce soir. Mon chat m'attend à la maison.",
+   "truth": {"errors": [], "refusal": true, "off_script": "the cat waiting at home", "note": "the walk got «Oui. Bon appétit !», which ignores the refusal"}
+  },
+  {
+   "id": "s19-no-promise-solvel",
+   "source": "live walk 2026-10-26, the one scene reply (reconstructed from «Non, Gus, je ne promets pas…» and «une bon offre»); #250",
+   "character_id": "augustin_de_roncourt",
+   "scene": {"title_fr": "Deux promesses", "premise_fr": "Gus pose une lettre de Solvel sur le zinc.", "objective_native": "Tell Gus if you promise not to sell to Solvel.", "objective_semantics": "Met when the learner promises or refuses to promise.", "opening_line_fr": "Tu me promets de ne pas vendre à Solvel ?", "suggested_response_fr": "Oui, je te promets."},
+   "learner_text": "Non, Gus, je ne promets pas. Solvel est une bon offre.",
+   "truth": {"errors": ["une bon offre → une bonne offre", "Solvel est une bonne offre → Solvel fait une bonne offre (light)"], "refusal": true, "off_script": null, "note": "«est → sont» with a plural «ils» would be a false correction"}
+  },
+  {
+   "id": "s20-no-sell-appartement",
+   "source": "live walk 2026-10-27, first scene reply (reconstructed from a clear «non» with «la appartement»); #132",
+   "character_id": "marin_leveque",
+   "scene": {"title_fr": "Deux promesses", "premise_fr": "Marin parle de la coopérative du quartier.", "objective_native": "Tell Marin if you will sell the flat to the co-op.", "objective_semantics": "Met when the learner says whether they sell to the co-op.", "opening_line_fr": "Tu vends l'appartement à la coopérative ?", "suggested_response_fr": "Oui, je le vends."},
+   "learner_text": "Non, je ne vends pas la appartement à la coopérative. Je veux rester ici.",
+   "truth": {"errors": ["la appartement → l'appartement"], "refusal": true, "off_script": null, "note": "the walk got «Merci. Merci.», which ignores the refusal"}
+  },
+  {
+   "id": "s21-gus-cat-question",
+   "source": "live walk 2026-10-27, off-script cat question (reconstructed)",
+   "character_id": "augustin_de_roncourt",
+   "scene": {"title_fr": "Deux promesses", "premise_fr": "Gus lit le journal au zinc.", "objective_native": "Tell Gus what you think of the co-op's plan.", "objective_semantics": "Met when the learner gives an opinion, or says they do not know.", "opening_line_fr": "Et toi, tu en penses quoi, du plan de la coopérative ?", "suggested_response_fr": "Je pense que c'est une bonne idée."},
+   "learner_text": "Je ne sais pas. Gus, tu as un chat ? Mon chat aime le café.",
+   "truth": {"errors": [], "refusal": false, "off_script": "asks Gus whether he has a cat; my cat likes the café"}
+  },
+  {
+   "id": "s22-no-sell-grandmother",
+   "source": "live walk 2026-10-28, scene (verbatim start «Non, je ne vends pas mon appartement»); #132",
+   "character_id": "augustin_de_roncourt",
+   "scene": {"title_fr": "Pour elle", "premise_fr": "Dans le bureau de Marin, Gus te montre l'offre de Solvel.", "objective_native": "Tell Gus whether you sell your flat.", "objective_semantics": "Met when the learner says whether they sell.", "opening_line_fr": "Alors, tu vends ton appartement ?", "suggested_response_fr": "Oui, je vends."},
+   "learner_text": "Non, je ne vends pas mon appartement. C'est l'appartement de ma grand-mère.",
+   "truth": {"errors": [], "refusal": true, "off_script": null}
+  },
+  {
+   "id": "s23-chrysanthemes",
+   "source": "live walk 2026-10-28, off-script reply (reconstructed from «chrysanthèmes, grand-mère»)",
+   "character_id": "augustin_de_roncourt",
+   "scene": {"title_fr": "Pour elle", "premise_fr": "Gus prépare la fête de samedi au Mistral.", "objective_native": "Tell Gus what you bring to the party.", "objective_semantics": "Met when the learner says what they bring, or that they bring nothing.", "opening_line_fr": "Tu apportes quoi, samedi ?", "suggested_response_fr": "J'apporte du pain."},
+   "learner_text": "Demain, j'achète des chrysanthèmes pour ma grand-mère. Elle aimait les fleurs.",
+   "truth": {"errors": [], "refusal": false, "off_script": "chrysanthemums for the grandmother instead of the party; the reply should acknowledge it", "note": "the walk got «C'est une fête. Pas une réunion.», which ignores it"}
+  },
+  {
+   "id": "s24-cat-tres-grand",
+   "source": "live walk 2026-10-29, first scene reply (verbatim); #250",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Lila écrit les cartes", "premise_fr": "Lila écrit des cartes devant un mur de photos.", "objective_native": "Tell Lila what to write on the card.", "objective_semantics": "Met when the learner dictates something to write.", "opening_line_fr": "J'écris quoi sur la carte ?", "suggested_response_fr": "Écris : merci pour tout."},
+   "learner_text": "Ecris: mon chat est tres grand. Lila, tu a un chat aussi ?",
+   "truth": {"errors": ["Ecris → Écris", "tres → très", "tu a → tu as"], "refusal": false, "off_script": "asks whether Lila has a cat too", "note": "«→ sont» would be a false correction"}
+  },
+  {
+   "id": "s25-no-name-card",
+   "source": "live walk 2026-10-29, the «non» reply (verbatim start «Non, je ne veux pas ecrire mon nom…»)",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Lila écrit les cartes", "premise_fr": "Lila te tend un stylo et une carte pour la fête.", "objective_native": "Tell Lila whether you sign the card with your name.", "objective_semantics": "Met when the learner says whether they sign.", "opening_line_fr": "Tu écris ton nom sur la carte ?", "suggested_response_fr": "Oui, j'écris mon nom."},
+   "learner_text": "Non, je ne veux pas ecrire mon nom sur la carte. Écris le nom de ma grand-mère.",
+   "truth": {"errors": ["ecrire → écrire"], "refusal": true, "off_script": null}
+  },
+  {
+   "id": "s26-return-december",
+   "source": "live walk 2026-10-30, the one scene reply (verbatim); #378, #379",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Lila écoute ton appel", "premise_fr": "Lila t'écoute parler au téléphone de ton retour à Berlin.", "objective_native": "Tell Lila when you go back and why.", "objective_semantics": "Met when the learner gives a date or a reason.", "opening_line_fr": "Tu rentres quand, à Berlin ?", "suggested_response_fr": "Je rentre le 19 décembre."},
+   "learner_text": "Je veux retourner le deux decembre, parce que je suis fatigue de Berlin. Mais j ai peur de le restaurant.",
+   "truth": {"errors": ["decembre → décembre", "fatigue → fatigué(e)", "j ai → j'ai", "de le restaurant → du restaurant"], "refusal": false, "off_script": "afraid of the restaurant", "note": "«je suis» is correct: «suis → est» would be a false correction; the date stays the 2nd"}
+  },
+  {
+   "id": "s27-plan-odile",
+   "source": "live walk 2026-10-23, the one scene reply with a clear «non» and two real slips (reconstructed)",
+   "character_id": "marin_leveque",
+   "scene": {"title_fr": "Marin et le plan d'Odile", "premise_fr": "Marin a trouvé un plan du café dessiné par Odile.", "objective_native": "Tell Marin whether he can use Odile's plan.", "objective_semantics": "Met when the learner says yes or no.", "opening_line_fr": "Je peux utiliser son plan, tu crois ?", "suggested_response_fr": "Oui, tu peux utiliser son plan."},
+   "learner_text": "Non, tu ne peux pas. Odile a utilisé le plan pour son café, il est a elle.",
+   "truth": {"errors": ["a elle → à elle"], "refusal": true, "off_script": null}
+  },
+  {
+   "id": "s28-vient-samedi",
+   "source": "live walk 2026-10-31, scene «Lila et le toit» (verbatim)",
+   "character_id": "lila_bonnet",
+   "scene": {"title_fr": "Lila et le toit", "premise_fr": "Sur le toit, Lila parle de M. Marchand, qui ne descend plus.", "objective_native": "Tell Lila what to say to M. Marchand.", "objective_semantics": "Met when the learner suggests what to say or do.", "opening_line_fr": "On lui dit quoi, à M. Marchand ?", "suggested_response_fr": "Viens parler avec nous."},
+   "learner_text": "Vient parler avec lui samedi, s il te plait.",
+   "truth": {"errors": ["Vient → Viens", "s il te plait → s'il te plaît"], "refusal": false, "off_script": null}
+  }
+ ]
+}
