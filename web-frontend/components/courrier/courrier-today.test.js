@@ -116,6 +116,45 @@ test('the page lists turns by the turn counter, the order the conversation took'
   // #397 / review on #411: the composer reads the last assistant turn from this list,
   // so an older reply with a later stamp must never move below the real last one.
   const page = read('pages', 'missions.tsx');
-  assert.match(page, /function missionTurns[\s\S]{0,400}turn_index/);
-  assert.doesNotMatch(page, /inStoredOrder\(/);
+  assert.match(page, /from '@\/components\/courrier\/mission-turns'/);
+  assert.doesNotMatch(page, /function missionTurns|function currentComposerInstruction|inStoredOrder\(/);
+  assert.match(read('components', 'courrier', 'mission-turns.ts'), /function missionTurns[\s\S]{0,400}turn_index/);
+});
+
+test('the composer answers the highest turn index even when an earlier reply carries a later time', () => {
+  const Turns = require('./mission-turns.ts');
+  const t = courrierCopy('en');
+  const base = { label: 'base', instruction: 'base', placeholder: 'base' };
+  // An old thread: the reply at turn 2 was stamped after the actual latest reply at turn 4.
+  const thread = {
+    id: 'm-old',
+    turns: [
+      { id: 3, turn_index: 3, role: 'user', text: 'Et le marché ?', created_at: '2026-10-31T02:55:00+00:00' },
+      {
+        id: 2,
+        turn_index: 2,
+        role: 'assistant',
+        text: 'Merci, à demain.',
+        created_at: '2026-10-31T03:30:00+00:00',
+        audio_payload: { branch: { state: 'understood' } },
+      },
+      {
+        id: 4,
+        turn_index: 4,
+        role: 'assistant',
+        text: 'Le marché ouvre à quelle heure ?',
+        created_at: '2026-10-31T03:00:00+00:00',
+        audio_payload: { branch: { state: 'clarify' } },
+      },
+      { id: 1, turn_index: 1, role: 'user', text: 'Bonjour Lila !', created_at: '2026-10-31T02:50:00+00:00' },
+    ],
+  };
+
+  assert.deepEqual(Turns.missionTurns(thread).map((turn) => turn.id), [1, 2, 3, 4]);
+  assert.equal(Turns.latestAssistantTurn(thread).id, 4);
+
+  const copy = Turns.currentComposerInstruction(thread, base, t);
+  assert.equal(copy.label, t.composer_label_reply, 'the stale «understood» reply closed the thread');
+  assert.notEqual(copy.instruction, t.composer_instruction_last);
+  assert.match(copy.instruction, /Le marché ouvre à quelle heure/);
 });
