@@ -48,7 +48,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 AccentPolicy = Literal["lenient", "strict"]
 
@@ -446,6 +446,23 @@ def judge(
     candidates = [str(item) for item in [*accepted, *alternatives] if item and str(item).strip()]
     if not learner or not candidates:
         return Verdict(correct=False, expected=candidates[0] if candidates else None)
+    verdict = _judge_candidates(learner, candidates, accents=accents, typo=typo, article_optional=article_optional)
+    if verdict.correct:
+        return verdict
+    # #174: the same sentence with a noun's other right word («un appart», «le bureau
+    # de poste») is right too. Tried only after a miss, so a miss still names the
+    # item's own answer.
+    variants = [variant for candidate in candidates for variant in noun_variants(candidate)]
+    if variants:
+        widened = _judge_candidates(learner, variants, accents=accents, typo=typo, article_optional=article_optional)
+        if widened.correct:
+            return widened
+    return verdict
+
+
+def _judge_candidates(
+    learner: str, candidates: list[str], *, accents: AccentPolicy, typo: bool, article_optional: bool
+) -> Verdict:
     best: Verdict | None = None
     for candidate in candidates:
         target = fold_typography(candidate)
@@ -506,6 +523,23 @@ def _repair_bounds(source: list[str], target: list[str]) -> tuple[int, int]:
     while tail < limit - head and source[-1 - tail] == target[-1 - tail]:
         tail += 1
     return head, tail
+
+
+def _typed_edge_to_edge(said: list[str], shown: list[str], right: list[str]) -> bool:
+    """Did the learner type the whole line: its unchanged first and last word included?
+
+    A part ("vertes", "chaises vertes") leaves out at least one edge word the
+    source keeps; a whole line never does, however many words an elision glued.
+    When the change is at an edge itself there is no unchanged word to prove it,
+    and the word count (:func:`judge_repair`) decides as before.
+    """
+
+    if not said or not shown or not right or shown == right:
+        return False
+    head, tail = _repair_bounds(shown, right)
+    # Only an unchanged word on BOTH sides can prove it: «la prends pas» starts like
+    # «La tomate ? ... pas la !» by luck when the end of the line is what changed.
+    return head > 0 and tail > 0 and said[0] == shown[0] and said[-1] == shown[-1]
 
 
 def repair_readings(answer: object, source: object, target: object) -> list[tuple[str, str, int]]:
@@ -597,12 +631,27 @@ def judge_repair(
     best = judge(answer, keys, accents=accents, typo=typo, article_optional=article_optional)
     if best.exact or not str(source or "").strip():
         return best
-    whole = len(fold_typography(answer).split()) >= len(fold_typography(source).split())
+    said = fold_typography(answer).split()
+    shown = fold_typography(source).split()
+    whole = len(said) >= len(shown)
     for key in keys:
+        # #395: «On n'a pas d'chapeau, Gus.» has one word fewer than «On n'a pas
+        # un chapeau, Gus.» (the page joins an elision to the next word), so a
+        # word count alone read the whole line as a fragment and spliced it into
+        # the source: «on n'a pas d'chapeau gus chapeau gus». A line that starts
+        # and ends on the source's own unchanged edge words is the whole line.
+        edge_to_edge = _typed_edge_to_edge(said, shown, fold_typography(key).split())
+        whole = whole or edge_to_edge
         for sentence, part, _context in repair_readings(answer, source, key):
             if fold_typography(sentence) == fold_typography(answer):
                 continue
             verdict = judge(sentence, [key], accents=accents, typo=typo, article_optional=article_optional)
+            # The edge test only decides how a miss is shown, never whether a right
+            # part is accepted: «nous amuser avec des amis demain» starts and ends on
+            # «Nous allons nous amusons avec des amis demain.»'s edge words and is
+            # still the right part (#406 review). A right reading always wins.
+            if edge_to_edge and not verdict.correct:
+                continue
             if _repair_rank(verdict) > _repair_rank(best):
                 best = replace(verdict, read_as=sentence, expected_part=part)
     if best.correct or whole or best.read_as is not None:
@@ -735,27 +784,329 @@ _ON_NOUS: dict[str, str] = {
 }
 
 
+@lru_cache(maxsize=1)
+def _core_lexicon() -> dict[str, Any]:
+    path = Path(__file__).resolve().parents[1] / "data" / "lexical" / "fr_core_lexicon.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):  # pragma: no cover - a missing lexicon never breaks grading
+        return {}
+
+
+def _lemma_of(form: str) -> str | None:
+    data = _core_lexicon()
+    if form in (data.get("lemmas") or {}):
+        return form
+    return (data.get("forms") or {}).get(form)
+
+
+def _er_plural(lemma: str) -> str:
+    stem = lemma[:-2]
+    if stem.endswith("g"):
+        return stem + "eons"
+    if stem.endswith("c"):
+        return stem[:-1] + "çons"
+    return stem + "ons"
+
+
+def _er_singular(lemma: str) -> str | None:
+    """The 3rd singular present of an -er verb, stem changes included (préfère,
+    achète, appelle, jette), read back from the lexicon so a guess is never used."""
+
+    stem = lemma[:-2]
+    candidates = [stem + "e"]
+    for vowel in ("é", "e"):
+        at = stem.rfind(vowel)
+        if at >= 0:
+            candidates.append(stem[:at] + "è" + stem[at + 1 :] + "e")
+    if stem[-1:] in {"l", "t"}:
+        candidates.append(stem + stem[-1] + "e")
+    for candidate in candidates:
+        if _lemma_of(candidate) == lemma:
+            return candidate
+    if lemma in (_core_lexicon().get("lemmas") or {}) and not re.search(r"[eé][^aeiouyéèêë]+$", stem):
+        return stem + "e"  # «laisser» → «laisse»: no stem change is possible
+    return None
+
+
+def _plural_of(verb: str) -> str | None:
+    if verb in _ON_NOUS:
+        return _ON_NOUS[verb]
+    lemma = _lemma_of(verb)
+    if lemma is None and verb.endswith("e") and verb[:-1] + "er" in (_core_lexicon().get("lemmas") or {}):
+        lemma = verb[:-1] + "er"
+    if not lemma or not lemma.endswith("er") or lemma == "aller" or _er_singular(lemma) != verb:
+        return None
+    return _er_plural(lemma)
+
+
+def _singular_of(verb: str) -> str | None:
+    singular = next((sg for sg, pl in _ON_NOUS.items() if pl == verb), None)
+    if singular:
+        return singular
+    lemma = _lemma_of(verb)
+    if lemma is None and verb.endswith("ons"):
+        # The lexicon lists few «nous» forms: «préférons» is read back as «préférer».
+        stem = verb[:-3]
+        stem = stem[:-1] if stem.endswith("ge") else stem[:-1] + "c" if stem.endswith("ç") else stem
+        lemma = stem + "er" if stem + "er" in (_core_lexicon().get("lemmas") or {}) else None
+    if not lemma or not lemma.endswith("er") or lemma == "aller" or _er_plural(lemma) != verb:
+        return None
+    return _er_singular(lemma)
+
+
+#: Words that may stand between «on»/«nous» and its verb: negation and object pronouns.
+_BEFORE_VERB = frozenset({"ne", "y", "en", "le", "la", "les", "lui", "leur", "me", "te", "vous"})
+_ELIDED = ("n'", "l'", "m'", "t'", "s'")
+#: After these, a «nous» at the start of a clause is its subject.
+_CLAUSE_OPENERS = frozenset({"et", "mais", "que", "qu", "quand", "si", "alors", "puis", "donc", "ou", "parce", "car"})
+
+
 def on_nous_variants(sentence: str) -> list[str]:
-    """«On va au marché» ↔ «Nous allons au marché» (regular -er verbs and the table)."""
+    """«On va au marché» ↔ «Nous allons au marché»: the same sentence with the other
+    «we». Negation and object pronouns may stand between («on ne boit pas» ↔ «nous ne
+    buvons pas»), a reflexive follows the subject («on se lève» ↔ «nous nous levons»),
+    and an -er verb's stem change is read from the lexicon («on préfère» ↔ «nous
+    préférons»). A verb it cannot conjugate with certainty gives no variant."""
+
+    words = fold_typography(sentence).split()
+    out: list[str] = []
+    for index, pronoun in enumerate(words):
+        if pronoun not in {"on", "nous"}:
+            continue
+        if pronoun == "nous" and index > 0 and words[index - 1] not in _CLAUSE_OPENERS:
+            continue  # «il nous voit»: an object
+        j = index + 1
+        reflexive = None
+        if pronoun == "nous" and j < len(words) and words[j] == "nous":
+            reflexive, j = j, j + 1
+        elif pronoun == "on" and j < len(words) and words[j] in {"se"}:
+            reflexive, j = j, j + 1
+        while j < len(words) and words[j] in _BEFORE_VERB and j - index < 4:
+            j += 1
+        if j >= len(words):
+            continue
+        token = words[j]
+        prefix = ""
+        for elided in _ELIDED:
+            if token.startswith(elided):
+                prefix, token = elided, token[len(elided):]
+                break
+        if pronoun == "on" and prefix == "s'":
+            reflexive = j  # «on s'appelle»: the reflexive is elided onto the verb
+        if pronoun == "nous" and prefix == "s'":
+            continue
+        changed = _plural_of(token) if pronoun == "on" else _singular_of(token)
+        if not changed:
+            continue
+        new = list(words)
+        new[index] = "nous" if pronoun == "on" else "on"
+        if pronoun == "on":
+            if prefix == "s'":
+                new[j] = "nous " + changed
+            else:
+                new[j] = prefix + changed
+                if reflexive is not None:
+                    new[reflexive] = "nous"
+        else:
+            vowel = bool(_VOWEL_START.match(changed))
+            new[j] = prefix + changed
+            if reflexive is not None:
+                if vowel:
+                    new[reflexive] = ""
+                    new[j] = "s'" + new[j]
+                else:
+                    new[reflexive] = "se"
+        out.append(" ".join(word for word in new if word))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# One accept-list: every right way to say the item's sentence (#174)
+# ---------------------------------------------------------------------------
+
+#: Everyday short forms a learner writes for the full noun (core lexicon «familier»).
+_CLIPPED_NOUNS: dict[str, str] = {
+    "appart": "appartement",
+    "resto": "restaurant",
+    "télé": "télévision",
+    "frigo": "réfrigérateur",
+    "ordi": "ordinateur",
+    "ciné": "cinéma",
+    "appli": "application",
+    "prof": "professeur",
+}
+_ARTICLE_FOR = {
+    ("le", "f"): "la", ("la", "m"): "le", ("un", "f"): "une", ("une", "m"): "un",
+    ("du", "f"): "de la", ("de la", "m"): "du", ("au", "f"): "à la", ("à la", "m"): "au",
+    ("ce", "f"): "cette", ("cette", "m"): "ce", ("mon", "f"): "ma", ("ma", "m"): "mon",
+    ("ton", "f"): "ta", ("ta", "m"): "ton", ("son", "f"): "sa", ("sa", "m"): "son",
+}
+
+
+#: Determiners after which a noun can be swapped as is (no adjective in between).
+_PLAIN_DETERMINERS = frozenset(
+    {"le", "la", "les", "un", "une", "des", "du", "de", "au", "aux", "à", "ce", "cette", "ces",
+     "mon", "ma", "mes", "ton", "ta", "tes", "son", "sa", "ses", "notre", "votre", "leur", "nos", "vos", "leurs"}
+)
+#: Adjectives that stand before a noun: a noun after one still has its determiner
+#: further back («un nouvel immeuble»).
+_ADJECTIVE_SLOTS = frozenset(
+    {"petit", "petite", "grand", "grande", "nouveau", "nouvel", "nouvelle", "vieux", "vieil", "vieille",
+     "beau", "bel", "belle", "bon", "bonne", "joli", "jolie", "gros", "grosse", "autre", "même", "premier",
+     "première", "dernier", "dernière"}
+)
+#: Words after a noun that may point back to it and carry its gender.
+_REFERENCES = frozenset({"il", "elle", "lui", "celui", "celle", "lequel", "laquelle"})
+
+
+def _is_verb(word: str) -> bool:
+    data = _core_lexicon()
+    lemma = _lemma_of(word) or word
+    return str(((data.get("lemmas") or {}).get(lemma) or {}).get("pos") or "").startswith("verb")
+
+
+#: After these, «le»/«la» is an object pronoun («je le ferme», «ne la vois»).
+_OBJECT_AFTER = frozenset({"je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ne", "n'", "me", "te", "se"})
+
+
+def _refers_back(words: list[str]) -> bool:
+    """Is there a pronoun among ``words`` that may stand for a noun before them
+    («il», «elle», or an object «le»/«la»/«l'» in front of a verb)?"""
+
+    for index, word in enumerate(words):
+        if word in _REFERENCES:
+            return True
+        following = words[index + 1] if index + 1 < len(words) else ""
+        previous = words[index - 1] if index else ""
+        if word in {"le", "la"} and (previous in _OBJECT_AFTER or (following and _is_verb(following))):
+            return True
+        if word.startswith("l'") and _is_verb(word[2:]):
+            return True
+    return False
+
+
+@lru_cache(maxsize=1)
+def _noun_alternatives() -> tuple[tuple[str, str, str, str], ...]:
+    """``(word, gender, other word, other gender)`` for every noun the app knows a
+    second right French word for: the item bank's ``alt_fr`` (both ways) and the
+    everyday short forms."""
+
+    pairs: list[tuple[str, str, str, str]] = []
+    path = Path(__file__).resolve().parents[1] / "data" / "grammar_templates" / "lexicon.json"
+    try:
+        nouns = json.loads(path.read_text(encoding="utf-8")).get("nouns") or []
+    except (OSError, ValueError):  # pragma: no cover
+        nouns = []
+    for entry in nouns:
+        for alternative in entry.get("alt_fr") or []:
+            word = alternative.get("fr") if isinstance(alternative, dict) else alternative
+            gender = (alternative.get("g") if isinstance(alternative, dict) else None) or entry.get("g")
+            if isinstance(word, str) and entry.get("fr") and entry.get("g") in {"m", "f"} and gender in {"m", "f"}:
+                # One way only: the item's noun may be given as its alternative, not the
+                # reverse («une glace» to eat is not «un miroir»).
+                pairs.append((entry["fr"], entry["g"], word, gender))
+    genders = _lemma_genders()
+    for short, full in _CLIPPED_NOUNS.items():
+        gender = genders.get(strip_accents(full)) or genders.get(strip_accents(short))
+        if gender in {"m", "f"}:
+            pairs.append((short, gender, full, gender))
+            pairs.append((full, gender, short, gender))
+    return tuple(pairs)
+
+
+def _is_adjective(word: str) -> bool:
+    data = _core_lexicon()
+    lemma = _lemma_of(word) or word
+    return ((data.get("lemmas") or {}).get(lemma) or {}).get("pos") == "adjective"
+
+
+def noun_variants(sentence: str) -> list[str]:
+    """The sentence again with each noun swapped for its other right word («la poste»
+    → «le bureau de poste», «un appartement» → «un appart»), the article in front
+    following the new noun's gender. Where the gender changes and an adjective follows
+    the noun, no variant is made: its agreement is not this function's to redo."""
 
     text = fold_typography(sentence)
-    words = text.split()
     out: list[str] = []
-    for index in range(len(words) - 1):
-        pronoun, verb = words[index], words[index + 1]
-        if pronoun == "on":
-            plural = _ON_NOUS.get(verb)
-            if plural is None and verb.endswith("e") and len(verb) > 3:
-                plural = verb[:-1] + ("eons" if verb.endswith("ge") else "ons")
-            if plural:
-                out.append(" ".join([*words[:index], "nous", plural, *words[index + 2:]]))
-        elif pronoun == "nous":
-            singular = next((sg for sg, pl in _ON_NOUS.items() if pl == verb), None)
-            if singular is None and verb.endswith("ons") and len(verb) > 5:
-                singular = verb[:-4] + "e" if verb.endswith("eons") else verb[:-3] + "e"
-            if singular:
-                out.append(" ".join([*words[:index], "on", singular, *words[index + 2:]]))
+    for word, gender, other, other_gender in _noun_alternatives():
+        folded_word, folded_other = fold_typography(word), fold_typography(other)
+        for match in re.finditer(rf"(?<![\w'])(l'|d')?{re.escape(folded_word)}s?(?![\w'])", text):
+            plural = match.group(0).endswith("s") and not folded_word.endswith("s")
+            if plural and gender != other_gender:
+                continue
+            before, after = text[: match.start()], text[match.end():]
+            replacement = folded_other + ("s" if plural and " " not in folded_other else "")
+            elided = match.group(1)
+            previous = before.split()[-1:] if before.strip() else []
+            bare = not before.strip() and not after.strip()  # the noun alone (a recall key)
+            if not elided and not bare and not (previous and previous[0] in _PLAIN_DETERMINERS | _ADJECTIVE_SLOTS):
+                continue  # a noun has its determiner: «je téléphone à…» is the verb
+            if (
+                not elided
+                and previous
+                and previous[0] not in _PLAIN_DETERMINERS
+                and bool(_VOWEL_START.match(folded_word)) != bool(_VOWEL_START.match(folded_other))
+            ):
+                continue  # «un nouvel immeuble» is not «un nouvel bâtiment»
+            if gender != other_gender:
+                following = after.split()
+                if any(_is_adjective(word) or word.endswith(("é", "ée", "és", "ées")) for word in following):
+                    continue  # «le miroir est petit», «un tableau très ancien»: agreement follows
+                if previous and previous[0] not in _PLAIN_DETERMINERS:
+                    continue  # an adjective in front would need its other gender
+                if _refers_back(following):
+                    continue  # «… le carton ? Oui, je le ferme»: the pronoun follows the noun
+                head = before.rstrip().rsplit(" ", 2)
+                swapped = False
+                for size in (2, 1):
+                    article = " ".join(head[-size:]) if len(head) >= size else ""
+                    new_article = _ARTICLE_FOR.get((article, other_gender))
+                    if article and new_article:
+                        before = before.rstrip()[: -len(article)] + new_article + " "
+                        swapped = True
+                        break
+                if not swapped and not elided:
+                    continue
+            if not elided and previous and previous[0] in {"le", "la"} and _VOWEL_START.match(replacement):
+                before = before.rstrip()[: -len(previous[0])]
+                replacement = "l'" + replacement
+            elif elided == "l'" and not _VOWEL_START.match(replacement):
+                replacement = ("le " if other_gender == "m" else "la ") + replacement
+            elif elided == "d'" and not _VOWEL_START.match(replacement):
+                replacement = "de " + replacement
+            elif elided:
+                replacement = elided + replacement
+            out.append(" ".join(f"{before}{replacement}{after}".split()))
     return out
+
+
+def widened_answers(accepted: Iterable[object], *, english: object = None) -> list[str]:
+    """Every right way to give the item's answer, not one stored string (#174, #380).
+
+    The accepted answers, each with its nouns' other right words (:func:`noun_variants`)
+    and, when the English says «we» and neither «our» nor «us» (an «on» would need
+    «notre» → «sa»), the other «we» (:func:`on_nous_variants`). A miss is still a miss:
+    a variant is the same sentence with an equivalent word, never a looser match."""
+
+    base = [str(item) for item in accepted if item and str(item).strip()]
+    out: list[str] = list(base)
+    we = isinstance(english, str) and re.search(r"\bwe\b", english, re.IGNORECASE) and not re.search(
+        r"\b(?:our|ours|us)\b", english, re.IGNORECASE
+    )
+    for sentence in base:
+        people = [sentence, *(on_nous_variants(sentence) if we else [])]
+        for variant in people:
+            out.append(variant)
+            out.extend(noun_variants(variant))
+    seen: set[str] = set()
+    unique: list[str] = []
+    for item in out:
+        key = fold_typography(item)
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
 
 
 # ---------------------------------------------------------------------------

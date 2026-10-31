@@ -1,9 +1,11 @@
 /**
- * Le Quartier · the stage director: a day of the season played in the quarter. In phase 1 it has
- * blocking for T1, day a («Le mauvais accueil») (`story.STAGED_DAYS`). Any other day (an authored
- * page without blocking, or a scene the story engine wrote today) plays at Le Mistral as it is
- * written: you at the zinc, the regulars in the room, each line said by whoever says it, and the
- * question asked by whoever it is put to, who comes over to the zinc to hear your answer.
+ * Le Quartier · the stage director: a day of the season played in the quarter. It has blocking for
+ * T1 day a («Le mauvais accueil») and day b («La lettre») in the café (`story.STAGED_DAYS`); day b
+ * goes on after closing in the stairwell next door, which the room's director plays (`interior.ts`).
+ * Any other day (an authored page without blocking, or a scene the story engine wrote today) plays
+ * at Le Mistral as it is written: you at the zinc, the regulars in the room, each line said by
+ * whoever says it, and the question asked by whoever it is put to, who comes over to the zinc to
+ * hear your answer.
  *
  * The words are the story engine's (`story.ts`): in the app the page the server resolved for this
  * learner, read through today's journey; nothing here writes a line of the story. What the
@@ -35,10 +37,10 @@ import { CHAIR, MARKS } from './mistral';
 import { AMBIANCES } from './palette';
 import { STRIDE } from './pace';
 import { PLAN } from './quai';
-import { OfflineStory, STAGED_DAYS, hookOf, nextTurn, storyletOf } from './story';
+import { OfflineStory, STAGED_DAYS, hookOf, nextTurn, roomOf, storyletOf } from './story';
 import type { Answered, Ask, Help, HelpStep, Heard, Mend, Story, StoryHook, StoryLine, StoryPanel, StoryPerson, StoryTurn } from './story';
 
-/** The day's id in the quarter's memory (`t1a`; `jour2026-10-30` for a day the engine wrote). */
+/** The day's id in the quarter's memory (`t1a`, `t1b`; `jour2026-10-30` for a day the engine wrote). */
 export function dayOf(page: { key: string }) {
   return page.key.replace('.', '');
 }
@@ -176,6 +178,11 @@ export interface StageOptions {
   /** what the quarter remembers (the screen passes the phone's; tests a fresh one) */
   memory?: Memory;
   street?: Street;
+  /**
+   * The page goes on in a room of the season (day b's stairwell): the screen builds the room and
+   * its director picks the story up at `from`. Without it, the panels play where you are.
+   */
+  onRoom?: (to: { room: string; story: Story; from: string }) => void;
 }
 
 const PEOPLE: Record<string, { char: CharKey; name: string }> = {
@@ -220,10 +227,26 @@ export const SILENT_BEATS: Record<string, RegExp> = {
   slide: /\.cafe\.declined\.r\d+$/,
   /** the key ring taken: into your pocket */
   pocket: /\.key\.take\.r\d+$/,
+  /** Gus reads the price aloud: every face in the café turns to the zinc */
+  faces: /\.letter\.gus\.r\d+$/,
 };
 
-/** The movements of T1 day a this director has blocking for, in the order the page plays them. */
-export const STAGED = ['a.p1', 'a.p2', 'a.p3', 'a.p4', 'a.p5', 'a.turn1', 'a.cafe', 'a.turn2', 'a.key', 'a.hook'];
+/**
+ * The movements of T1 this director has blocking for, in the order the pages play them: day a,
+ * then day b in the café (its stairwell, R1 to R4, and the hook are the room's: `interior.ts`).
+ */
+export const STAGED = [
+  'a.p1', 'a.p2', 'a.p3', 'a.p4', 'a.p5', 'a.turn1', 'a.cafe', 'a.turn2', 'a.key', 'a.hook',
+  'b.cup', 'b.camille', 'b.p1', 'b.p2', 'b.p3', 'b.turn1', 'b.p5', 'b.p6', 'b.letter', 'b.key', 'b.r1', 'b.r2', 'b.r3', 'b.r4', 'b.suivre',
+];
+
+/** Who takes the notary's letter, by the reply to «À qui tu montres la lettre ?». */
+const READERS: Record<string, string> = {
+  margaux: 'margaux_barman',
+  lila: 'lila_bonnet',
+  gus: 'augustin_de_roncourt',
+  marin: 'marin_leveque',
+};
 
 /** Where the cast spend the rest of the evening, once the day is played. */
 const EVENING: Array<[string, Vector3]> = [
@@ -322,6 +345,7 @@ export class Stage implements Director {
   private level: Level;
   private native: Native;
   private onCue?: (cue: Cue) => void;
+  private onRoom?: StageOptions['onRoom'];
   private street?: Street;
   private story: Story;
   /** the reply each question took today, and the question the engine asks next */
@@ -362,6 +386,7 @@ export class Stage implements Director {
     this.level = opts.level ?? 'a2';
     this.native = opts.native ?? 'en';
     this.onCue = opts.onCue;
+    this.onRoom = opts.onRoom;
     this.street = opts.street;
     const memory = opts.memory ?? new Memory(false);
     this.memory = memory;
@@ -1274,12 +1299,15 @@ export class Stage implements Director {
       chair.position.copy(CHAIR.tucked);
       chair.rotation.set(0, 0, 0);
     }
+    this.envHome.set(this.keyHome.x + 0.04, this.keyHome.y - 0.006, this.keyHome.z - 0.17);
     this.camilleNamed = false;
+    this.closedUp = false;
     this.away = null;
     this.restore = null;
     this.talking = null;
     this.beside = null;
     if (!this.blocked) this.resetInside();
+    else if (this.day === 't1b') this.resetB();
   }
 
   /** Who stands beside you at the zinc, come over for a question (a day without blocking). */
@@ -1323,6 +1351,55 @@ export class Stage implements Director {
     await this.walkFig(gen, key, MARKS.zincBeside, 1.0).finally(follow);
   }
 
+  /** Where the notary's envelope lies on the zinc, once it is out. */
+  private envHome = new Vector3();
+  /** the café has closed for the night (day b): the regulars gone, the neon off */
+  private closedUp = false;
+
+  /**
+   * Day b: the next evening at the zinc, the regulars in the booth, the envelope in front of you.
+   * The key ring is where day a left it: behind the till (the page asks Margaux for it), or yours.
+   * After a «non merci» the cup is still in front of Odile's stool.
+   */
+  private resetB() {
+    const page = this.story.page;
+    this.q.place(MARKS.atZinc, MARKS.doorway.clone().setY(1.6));
+    for (const [k, at] of EVENING) {
+      const f = this.fig(k);
+      if (!f || k === 'camille_marchand') continue;
+      f.place(at);
+      f.visible = true;
+    }
+    const env = this.prop('envelope');
+    if (env) {
+      env.position.copy(this.envHome);
+      env.rotation.set(0, 0.25, 0);
+      env.visible = true;
+    }
+    this.keyWith = page.movements.some((m) => m.id === 'b.key') ? 'margaux' : 'toi';
+    const cup = this.prop('cup');
+    if (cup && page.movements.some((m) => m.id === 'b.cup')) {
+      cup.position.copy(ODILE_PLACE);
+      cup.visible = true;
+    }
+    // Camille is known since yesterday's hook: the cards print the name
+    this.camilleNamed = true;
+  }
+
+  /** Stand someone up in full who waited as a silhouette (Camille in the doorway, day a). */
+  private async inFull(key: string, height: number) {
+    const t = this.q.troupe;
+    const f = t.get(key);
+    if (!f || this.unveiled.has(key)) return;
+    this.unveiled.add(key);
+    const at = f.pos.clone();
+    t.remove(key);
+    const g = await t.add({ key, height }, at);
+    if (g) g.visible = false;
+  }
+
+  private unveiled = new Set<string>();
+
   private progress(id: string) {
     const all = this.story.page.movements;
     const i = all.findIndex((m) => m.id === id);
@@ -1332,6 +1409,9 @@ export class Stage implements Director {
   private async play() {
     const gen = ++this.gen;
     this.clearWaits();
+    // day b plays Camille in the round, at the zinc
+    if (this.day === 't1b') await this.inFull('camille_marchand', 1.72);
+    if (gen !== this.gen) return;
     this.reset();
     this.memory.beginDay(this.day);
     if (this.blocked) {
@@ -1350,6 +1430,12 @@ export class Stage implements Director {
     try {
       for (const m of page.movements) {
         this.alive(gen);
+        // the page goes on in a room of the season: the screen builds it, and its director plays on
+        const room = this.blocked ? roomOf(m) : null;
+        if (room && this.onRoom) {
+          await this.toRoom(gen, room, m.id);
+          return;
+        }
         if (m.kind === 'turn') {
           // a question the engine does not ask today (its `only_after` did not hold) is not asked here either
           if (m.id === this.asking) await this.turn(gen, m);
@@ -1406,6 +1492,18 @@ export class Stage implements Director {
         return this.p4(gen, m);
       case 'a.p5':
         return this.p5(gen, m);
+      case 'b.cup':
+        return this.bCup(gen);
+      case 'b.p1':
+        return this.bP1(gen, m);
+      case 'b.p2':
+        return this.bP2(gen, m);
+      case 'b.p3':
+        return this.bP3(gen, m);
+      case 'b.p5':
+        return this.bP5(gen);
+      case 'b.p6':
+        return this.bP6(gen, m);
       default:
         return this.beat(gen, m);
     }
@@ -1525,6 +1623,219 @@ export class Stage implements Director {
     return d.multiplyScalar(len);
   }
 
+  /* ---- day b, «La lettre» ------------------------------------------------------------------ */
+
+  /** b.cup · silent: yesterday's café crème, cold, in front of Odile's empty stool. Nobody has moved it. */
+  private async bCup(gen: number) {
+    this.look(ODILE_PLACE, 2.0);
+    this.lens(44);
+    await this.silent(gen, 2.4);
+    this.lens(60);
+  }
+
+  /** b.p1 · the bell: Camille, dripping, helmet under one arm, comes to the zinc. A towel, a chocolate. */
+  private async bP1(gen: number, panel: StoryPanel) {
+    const q = this.q;
+    const camille = this.fig('camille_marchand');
+    q.openDoor(true);
+    this.onCue?.('bell');
+    for (const k of ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet']) this.fig(k)?.hop();
+    if (camille) {
+      camille.place(MARKS.doorway);
+      camille.visible = true;
+      this.look(camille.face(), 2.4);
+      await this.wait(gen, 0.8);
+      const follow = q.onTick(() => this.look(camille.face(), 2.2));
+      await this.walkFig(gen, 'camille_marchand', MARKS.zincBeside, 1.0);
+      follow();
+    }
+    q.openDoor(false);
+    this.onCue?.('door');
+    await this.lines(gen, panel, async (line, i) => {
+      // «Chocolat ?»: a cup nobody ordered, in front of Camille (unless yesterday's is still at Odile's place)
+      const cup = this.prop('cup');
+      if (i === 0 && line.who === 'margaux_barman' && cup && !cup.visible && camille) {
+        const to = new Vector3(MARKS.zincBeside.x - 0.95, MARKS.zincTop.y + 0.002, MARKS.zincBeside.z);
+        cup.position.copy(to).add(new Vector3(-0.5, 0, 0));
+        cup.visible = true;
+        this.onCue?.('cup');
+        const from = cup.position.clone();
+        await this.tween(gen, 0.6, (t) => cup.position.lerpVectors(from, to, t));
+      }
+    });
+  }
+
+  /** b.p2 · Camille and you, face to face; behind you the booth listens without shame. */
+  private async bP2(gen: number, panel: StoryPanel) {
+    for (const k of ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet']) {
+      this.fig(k)?.hop();
+      await this.wait(gen, 0.12);
+    }
+    // Gus's menu held up as a screen; Marin forgets his soup
+    this.fig('augustin_de_roncourt')?.bow(0.2, 1.4);
+    await this.lines(gen, panel);
+  }
+
+  /** b.p3 · Solvel's card slid across the zinc, a tap on your envelope. */
+  private async bP3(gen: number, panel: StoryPanel) {
+    this.fig('camille_marchand')?.bow(0.25, 0.9);
+    this.onCue?.('paper');
+    this.look(this.envHome, 2.4);
+    this.lens(48);
+    await this.wait(gen, 1.0);
+    this.lens(60);
+    await this.lines(gen, panel);
+  }
+
+  /** b.p5 · silent: the door closes behind Camille; the room turns, as one, to you and the envelope. */
+  private async bP5(gen: number) {
+    const q = this.q;
+    await this.silent(gen, 1.6, async () => {
+      const camille = this.fig('camille_marchand');
+      if (camille) {
+        const follow = q.onTick(() => this.look(camille.face(), 2.0));
+        await this.walkFig(gen, 'camille_marchand', MARKS.doorway, 1.15);
+        follow();
+        q.openDoor(true);
+        this.onCue?.('bell');
+        await this.wait(gen, 0.6);
+        camille.visible = false;
+        q.openDoor(false);
+        this.onCue?.('door');
+      }
+      for (const k of ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet', 'margaux_barman']) this.fig(k)?.hop();
+      this.look(this.envHome, 2.2);
+    });
+  }
+
+  /** b.p6 · Lila pulls her chair up to the zinc; four hands more or less open for the letter. */
+  private async bP6(gen: number, panel: StoryPanel) {
+    const lila = this.fig('lila_bonnet');
+    if (lila) {
+      this.onCue?.('chair');
+      const follow = this.q.onTick(() => this.look(lila.face(), 2.2));
+      await this.walkFig(gen, 'lila_bonnet', MARKS.zincBeside, 1.1);
+      follow();
+    }
+    void this.walkFig(gen, 'augustin_de_roncourt', MARKS.bowStop, 0.9).catch(() => undefined);
+    void this.walkFig(gen, 'marin_leveque', MARKS.pulledChair, 0.8).catch(() => undefined);
+    await this.lines(gen, panel, (line) => {
+      if (line.who === 'augustin_de_roncourt') this.fig(line.who)?.bow(0.4, 1.2);
+    });
+  }
+
+  /** Where someone standing in the café holds something out to you. */
+  private handOf(key: string) {
+    const f = this.fig(key);
+    if (!f) return null;
+    if (key === 'margaux_barman') return f.pos.clone().add(new Vector3(0.42, 0.98, 0.3));
+    const d = new Vector3(this.q.feet.x - f.pos.x, 0, this.q.feet.z - f.pos.z).normalize();
+    return f.pos.clone().addScaledVector(d, 0.32).add(new Vector3(0, 1.02, 0));
+  }
+
+  /** Something into your pocket: up in front of you, then down and out of sight. */
+  private async pocket(gen: number, obj: Object3D) {
+    await this.carry(gen, obj, 0.5, () => this.inView(0.25, 0.55, 0.45));
+    await this.wait(gen, 0.4);
+    await this.carry(gen, obj, 0.35, () => this.inView(0.3, 1.4, 0.45));
+    obj.visible = false;
+  }
+
+  /** The letter, to whoever the engine heard you give it to: read there, then back, or kept. */
+  private async letter(gen: number, reply: string, beats: StoryPanel[]) {
+    const env = this.prop('envelope');
+    const reader = READERS[reply];
+    const hand = reader ? this.handOf(reader) : null;
+    if (env && hand) {
+      this.onCue?.('paper');
+      this.look(hand, 2.2);
+      await this.carry(gen, env, 0.8, () => ({ pos: hand, turn: this.facing(hand.clone().sub(this.q.camera.position), 0.3) }));
+    } else if (env && reply === 'nobody') {
+      // into a pocket; Margaux gives a small nod
+      this.onCue?.('paper');
+      await this.pocket(gen, env);
+      this.fig('margaux_barman')?.bow(0.15, 0.8);
+    }
+    for (const b of beats) await this.beat(gen, b);
+    if (!env || !env.visible) return;
+    if (reply === 'margaux') {
+      // she folds it and slides it back into your inside pocket herself
+      this.onCue?.('paper');
+      await this.pocket(gen, env);
+    } else {
+      await this.carry(gen, env, 0.6, () => ({ pos: this.envHome, turn: new Quaternion().setFromEuler(new Euler(0, 0.25, 0)) }));
+    }
+  }
+
+  /**
+   * After closing: the neon off, the regulars gone home through the door, Margaux at the till.
+   * The envelope goes into your coat. Once a night.
+   */
+  private async afterHours(gen: number) {
+    if (this.closedUp) return;
+    this.closedUp = true;
+    const q = this.q;
+    this.set({ silent: true, speech: null, caption: null });
+    this.look(MARKS.doorway.clone().setY(1.5), 1.6);
+    q.setNeon(0);
+    this.prop('cup')?.position.copy(ODILE_PLACE);
+    const env = this.prop('envelope');
+    if (env?.visible) env.visible = false;
+    q.openDoor(true);
+    this.onCue?.('bell');
+    const going = ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet'].filter((k) => this.fig(k)?.visible);
+    await Promise.all(going.map((k, i) => this.walkFig(gen, k, MARKS.doorway.clone().add(new Vector3(0.3 * i, 0, 0.2 * i)), 1.3)));
+    for (const k of going) {
+      const f = this.fig(k);
+      if (f) f.visible = false;
+    }
+    q.openDoor(false);
+    this.onCue?.('door');
+    const margaux = this.fig('margaux_barman');
+    if (margaux && margaux.pos.distanceTo(MARKS.zincInside) > 0.3) await this.walkFig(gen, 'margaux_barman', MARKS.zincInside, 0.9);
+    await this.wait(gen, 0.8);
+    this.set({ silent: false });
+  }
+
+  /** The key ring Margaux kept behind the till, back to you whatever you said: on the zinc, or held up until you take it. */
+  private async keyBack2(gen: number, reply: string, beats: StoryPanel[]) {
+    const key = this.prop('key');
+    const hand = this.handOf('margaux_barman');
+    if (key && hand) {
+      key.position.copy(BEHIND_TILL);
+      key.quaternion.copy(this.keyFlat);
+      key.visible = true;
+      this.onCue?.('key');
+      if (reply === 'other') {
+        this.look(hand, 2.2);
+        await this.carry(gen, key, 0.7, () => ({ pos: hand, turn: this.facing(hand.clone().sub(this.q.camera.position), 0.3) }));
+      } else {
+        this.look(this.keyHome, 2.2);
+        await this.carry(gen, key, 0.8, () => ({ pos: this.keyHome, turn: this.keyFlat }));
+      }
+    }
+    for (const b of beats) await this.beat(gen, b);
+    if (key?.visible) {
+      this.onCue?.('key');
+      await this.pocket(gen, key);
+    }
+    this.keyWith = 'toi';
+  }
+
+  /** Out by the café's door after closing: the stairwell is next door, in the same building. */
+  private async toRoom(gen: number, room: string, from: string) {
+    await this.afterHours(gen);
+    this.progress(from);
+    this.freeze(false);
+    this.look(null);
+    this.q.openDoor(true);
+    this.onCue?.('bell');
+    await this.q.walkTo(MARKS.doorIn, 1.4);
+    this.alive(gen);
+    this.set({ speech: null, caption: null, silent: false, waitingTap: false });
+    this.onRoom?.({ room, story: this.story, from });
+  }
+
   /**
    * A question: the room sets it up, asks it, and waits for your French. The engine reads it and
    * the room plays what it heard; asked again, the sheet opens again on the same question.
@@ -1583,6 +1894,17 @@ export class Stage implements Director {
       // the key ring on the zinc: take it, or leave it with Margaux
       await this.keyBack(gen);
       this.lookAbove(this.keyHome);
+    } else if (turn.id === 'b.turn1') {
+      const camille = this.fig('camille_marchand');
+      if (camille) this.look(camille.face(), 2.4);
+    } else if (turn.id === 'b.letter') {
+      // the envelope on the zinc, and four hands more or less open
+      this.lookAbove(this.envHome);
+    } else if (turn.id === 'b.key') {
+      // after closing: Margaux counts the till; behind her, the cicada
+      await this.afterHours(gen);
+      const margaux = this.fig('margaux_barman');
+      if (margaux) this.look(margaux.face(), 2.4);
     }
   }
 
@@ -1594,15 +1916,19 @@ export class Stage implements Director {
     if (heard.mend) await this.waitTap(gen);
     else await this.wait(gen, 1.2);
     this.set({ you: null, mend: null });
-    // the tail of the talk is the hook's panel, which the hook stages from the page
+    // the tail of the talk is the page's own panels after its last question (and the hook's), which
+    // the director stages from the page in their turn
+    const page = new Set(this.story.page.movements.map((m) => m.id));
     const tail = hookOf(this.story.page)?.panel.id;
-    const beats = heard.beats.filter((b) => b.id !== tail);
-    if (heard.reply !== null && this.blocked && (turn.id === 'a.cafe' || turn.id === 'a.key')) {
+    const beats = heard.beats.filter((b) => b.id !== tail && !page.has(b.id));
+    if (heard.reply !== null && this.blocked && ['a.cafe', 'a.key', 'b.letter', 'b.key'].includes(turn.id)) {
       const first = beats.filter((b) => /\.ack$/.test(b.id));
       for (const b of first) await this.beat(gen, b);
       const rest = beats.filter((b) => !/\.ack$/.test(b.id));
       if (turn.id === 'a.cafe') await this.cafe(gen, heard.reply, rest);
-      else await this.key(gen, heard.reply, rest);
+      else if (turn.id === 'a.key') await this.key(gen, heard.reply, rest);
+      else if (turn.id === 'b.letter') await this.letter(gen, heard.reply, rest);
+      else await this.keyBack2(gen, heard.reply, rest);
       return;
     }
     for (const b of beats) await this.beat(gen, b);
@@ -1721,6 +2047,11 @@ export class Stage implements Director {
   /** a.hook · the bell again: someone in a wet helmet holds up a key. Two keys, one door. */
   private async hook(gen: number, hook: StoryHook) {
     this.progress(hook.id);
+    if (hook.id !== 'a.hook') {
+      // a hook the director has no blocking for: its panel, letterboxed
+      await this.beat(gen, hook.panel);
+      return;
+    }
     const q = this.q;
     q.openDoor(true);
     this.onCue?.('bell');
@@ -1782,7 +2113,9 @@ export class Stage implements Director {
   private async beat(gen: number, b: StoryPanel) {
     if (!this.blocked) return this.plainBeat(gen, b);
     const id = b.id;
-    if (SILENT_BEATS.cup.test(id)) {
+    // day a's silent beats are its own (day b has replies of the same letters, with lines)
+    const dayA = id.startsWith('a.');
+    if (dayA && SILENT_BEATS.cup.test(id)) {
       // Margaux sets a café crème in front of you; nobody ordered it
       await this.silent(gen, 2.4, async () => {
         const margaux = this.fig('margaux_barman');
@@ -1800,7 +2133,7 @@ export class Stage implements Director {
       });
       return;
     }
-    if (SILENT_BEATS.deflate.test(id)) {
+    if (dayA && SILENT_BEATS.deflate.test(id)) {
       // Gus's triumph goes out of him; the room looks from him to you
       void this.q.troupe.face('augustin_de_roncourt', 'neutre', null);
       await this.silent(gen, 2.2, async () => {
@@ -1812,7 +2145,17 @@ export class Stage implements Director {
       });
       return;
     }
-    if (/\.c\.r1$/.test(id)) {
+    if (SILENT_BEATS.faces.test(id) && b.silence && !b.lines.length) {
+      // every face in the café turns to the zinc
+      await this.silent(gen, 2.0, async () => {
+        this.look(new Vector3(-31.0, 1.5, -15.5), 1.4);
+        this.q.troupe.people.forEach((f) => f.visible && f.hop());
+        await this.wait(gen, 0.4);
+        this.q.troupe.people.forEach((f) => f.visible && f.hop());
+      });
+      return;
+    }
+    if (dayA && /\.c\.r1$/.test(id)) {
       // you hold up the key ring; the cicada catches the light; Lila jumps up
       const key = this.prop('key');
       if (key) {

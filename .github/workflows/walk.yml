@@ -9,9 +9,12 @@ on:
   schedule:
     - cron: '17 2 * * *'
 
+# Called from CI, this walk is one of the checks Render waits for before it deploys a
+# commit on main, so it is never cancelled there; the event name keeps the nightly
+# schedule and CI's call in separate groups so one cannot cancel the other.
 concurrency:
-  group: walk-${{ github.ref }}
-  cancel-in-progress: true
+  group: walk-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   walk:

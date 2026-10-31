@@ -61,7 +61,9 @@ Lanes:
   it is caught. Always a draft with `needs-owner-review`. No paid model calls in tests.
   `scripts/prompt_regression.py` replays 10 golden story cases (`tests/prompt_regression/`)
   through the real planner, writer and reply checks with recorded answers: a changed
-  prompt shows as a snapshot diff the PR must explain.
+  prompt shows as a snapshot diff the PR must explain. A story fix counts as proven only
+  when it moves its surface's gold-transcript score on the runs after it is deployed
+  (see «Gold transcripts» below).
 
 ## The nightly routines
 
@@ -122,6 +124,30 @@ and live walks apart. The explore walk regenerates it with each report.
 **Merged is not live.** Render deploys only after main's checks pass, so the live
 walk compares `GET /health` → `release` (the deployed commit) with the merge commit
 before it re-tests a fix.
+
+## Gold transcripts (the story score)
+
+The walks say whether a day felt right; they cannot say whether a story fix helped,
+because each walk plays different text. The gold transcripts can: 20 to 30 fixed learner
+inputs per surface (scene answer, La Forge free text, Courrier reply, correction), taken
+from the live-walk reports, run every Sunday against the production prompts and models
+(`render.yaml`'s values for `atelier-api`) and scored 0–100 by a judge model on fixed
+written criteria (`tests/gold_transcripts/criteria.py`).
+
+- **When:** the «Weekly gold transcripts» cloud routine, Sundays 05:40 Berlin, before the night
+  shift (weekly by the owner's choice, 31 Oct; run it by hand after a story fix is deployed):
+  `python scripts/gold_transcripts.py run --max-usd 1.5 --post`. Never in PR CI (the
+  script refuses there); the offline tests in `tests/test_gold_transcripts.py` run in CI.
+- **Cost:** every call goes through a meter that refuses the call that could pass the cap
+  (US$1.50 a run, at most US$2); a full run costs about US$0.40, under US$2 a month.
+- **Where:** its own comment on the digest issue (#121): per surface the score, the change
+  since the last run, the last seven runs, and the weakest criterion; the items that
+  lost points under a fold. The hidden `gold-scores` line in each comment is the history.
+- **Proof:** a story-lane fix is proven when its surface's score moves on the runs after
+  it is deployed. A drop with no story change is a regression to look at; changing a
+  criterion restarts the trend.
+- **Comparing models:** `--label NAME --set KEY=VALUE` runs the same inputs with other
+  settings outside the production trend (`tests/gold_transcripts/README.md`).
 
 ## Live mode (owner decision)
 

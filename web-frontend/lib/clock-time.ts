@@ -32,3 +32,4 @@ export function clockTime(raw: unknown): string | undefined {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(date.getHours())} h ${pad(date.getMinutes())}`;
 }
+

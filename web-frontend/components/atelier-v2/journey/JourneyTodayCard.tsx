@@ -494,8 +494,10 @@ function JourneyTodayBody({
           scene={phase.journey?.scenario ? sceneOf(phase.journey.scenario, headline) : null}
         >
           <TomorrowLine line={tomorrow} language={controlLanguage} />
-          {/* «Demain»: the threads tomorrow may follow, picked here or on the recap. */}
-          {tomorrow && (
+          {/* «Demain»: the threads tomorrow may follow, picked here or on the recap.
+              #382: a question for the open day, not a card that sits on Home
+              after the day is done: then only the line it settled on remains. */}
+          {tomorrow && restOfDayOpen && (
             <TomorrowChoice
               choice={tomorrowChoice(phase.recap)}
               language={controlLanguage}

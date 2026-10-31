@@ -9,10 +9,14 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same branch makes the older run moot.
+# A newer push to a PR branch makes the older run moot. On main it does not:
+# Render deploys a commit only when its checks pass (autoDeployTrigger: checksPass),
+# so a cancelled run on main is a commit that never deploys. On 31 Oct ten merges in
+# a row each cancelled the run before it and production stayed on a8b0bff for hours.
+# On main the runs queue instead (GitHub keeps one running and the newest pending).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   browser-walk:

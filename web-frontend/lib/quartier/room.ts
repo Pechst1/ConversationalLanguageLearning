@@ -150,7 +150,12 @@ export type ThingKind =
   | 'cup'
   | 'stove'
   | 'patch'
-  | 'doorway';
+  | 'doorway'
+  | 'bed'
+  | 'phone'
+  | 'keys'
+  | 'suitcase'
+  | 'kitchenette';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -164,6 +169,10 @@ export interface RoomThing {
   tone?: string;
   /** width and height, for what has a size of its own (a patch of paint, a doorway) */
   size?: [number, number];
+  /** a tap on it says this (the phone's return ticket, the cold radiator) */
+  look?: Words;
+  /** and the end card remembers it so («Tu as regardé ton billet de retour.») */
+  did?: Words;
 }
 
 /** A courtyard seen through a window: cobbles, the backs of the houses round it, a few lit windows. */
@@ -178,6 +187,8 @@ export interface RoomCourt {
   /** share of its windows lit */
   lit: number;
   seed: number;
+  /** a mansard over each side: the zinc, its dormers, the chimney stacks (seen from a top floor) */
+  roofs?: boolean;
 }
 
 export interface RoomSpec {
@@ -189,6 +200,8 @@ export interface RoomSpec {
   ambiance: AmbianceId;
   title: Words;
   can_do: Words;
+  /** what the screen says as you come in (a room without a minuterie is lit, and says where you are) */
+  arrive?: Words;
   start: { pos: XZ; look: XYZ };
   floors: RoomFloor[];
   flights: RoomFlight[];
@@ -336,6 +349,10 @@ export const ROOM_TONES: Record<string, Hex> = {
   coat: mix(mix(INKS.green, INKS.sunflower, 0.16), INKS.paper, 0.14),
   /** the oilcloth on a kitchen table, its check faded */
   oilcloth: mix(INKS.cobalt, INKS.paper, 0.55),
+  /** a grey wool blanket, a little blue */
+  blanket: mix(mix(INKS.paper, INKS.ink, 0.45), INKS.cobalt, 0.12),
+  /** a hard-shell suitcase, dark blue */
+  navy: mix(INKS.cobalt, INKS.ink, 0.45),
 };
 
 const toneOf = (name: string | undefined, fallback: Hex): Hex => (name && ROOM_TONES[name] !== undefined ? ROOM_TONES[name] : fallback);
@@ -976,6 +993,110 @@ function thing(B: Build, t: RoomThing, i: number) {
       });
       return;
     }
+    case 'bed': {
+      // a single divan against the wall: the frame on short legs, the mattress, the pillow at the
+      // head (the back), a grey wool blanket over the rest and hanging over the sides and the foot
+      const [w, d] = t.size ?? [0.9, 1.95];
+      const frame = zoned(mix(TONES.wood, INKS.ink, 0.25), z);
+      const sheet = zoned(mix(INKS.card, INKS.paper, 0.5), z);
+      const wool = zoned(toneOf(t.tone, ROOM_TONES.blanket), z, { pattern: PATTERN.ribs });
+      D.at(x, y, zz, rot, () => {
+        for (const [lx, lz] of [[-w / 2 + 0.05, -d / 2 + 0.05], [w / 2 - 0.05, -d / 2 + 0.05], [-w / 2 + 0.05, d / 2 - 0.05], [w / 2 - 0.05, d / 2 - 0.05]] as Array<[number, number]>) D.box(lx, 0.07, lz, 0.05, 0.14, 0.05, frame, { ny: false });
+        D.box(0, 0.2, 0, w, 0.12, d, frame);
+        D.box(0, 0.33, 0, w - 0.04, 0.14, d - 0.04, sheet);
+        D.box(0, 0.445, -d / 2 + 0.24, w - 0.22, 0.09, 0.36, sheet);
+        D.box(0, 0.415, 0.2, w + 0.04, 0.03, d - 0.62, wool);
+        for (const sx of [-1, 1]) D.box(sx * (w / 2 + 0.01), 0.32, 0.2, 0.02, 0.2, d - 0.62, wool);
+        D.box(0, 0.32, d / 2 + 0.01, w + 0.04, 0.2, 0.02, wool);
+        // the sheet turned down over the blanket's edge, and a plain headboard
+        D.box(0, 0.437, -d / 2 + 0.53, w + 0.03, 0.025, 0.14, sheet);
+        D.box(0, 0.46, -d / 2 - 0.015, w, 0.64, 0.03, frame);
+      });
+      B.blocks.push(centred(x, zz, rot, w + 0.06, d + 0.04));
+      return;
+    }
+    case 'phone': {
+      // a phone lying on a fold of the blanket, its screen lit and turned a little toward you, and
+      // on it what it says (the return ticket): body and screen tilt together
+      const lean = 0.3;
+      const black = zoned(mix(INKS.ink, INKS.cobalt, 0.1), z, { wet: 0.5 });
+      const glow: Paint = { color: mix(INKS.card, INKS.cobalt, 0.1), glow: 1, id: nextId() };
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeRotationX(lean));
+        D.box(0, 0.0, 0, 0.078, 0.009, 0.16, black);
+        D.quadXYZ([-0.034, 0.0052, 0.072, 0.034, 0.0052, 0.072, 0.034, 0.0052, -0.072, -0.034, 0.0052, -0.072], glow);
+        D.pop();
+      });
+      const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
+      const c = new Vector3(x, y, zz).addScaledVector(n, 0.0055);
+      B.signs.push({ key, center: c, normal: n, width: 0.064, height: 0.138, density: 2400, draw: phoneArt(t.text ?? []), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
+    case 'keys': {
+      // Odile's key ring lying flat: the old brass key, its ring, and the small enamel cicada,
+      // green and gold, face up (a little larger than life, so a phone shows it)
+      const brass = zoned(TONES.brass, z, { wet: 0.6 });
+      const enamel = zoned(mix(INKS.green, INKS.sunflower, 0.14), z, { wet: 0.5 });
+      const gold = zoned(mix(INKS.sunflower, INKS.ochre, 0.4), z, { wet: 0.6 });
+      const k = 1.35;
+      D.at(x, y, zz, rot, () => {
+        for (let i = 0; i < 12; i++) {
+          const a0 = (i / 12) * Math.PI * 2;
+          const a1 = ((i + 1) / 12) * Math.PI * 2;
+          D.bar(new Vector3(Math.cos(a0) * 0.022 * k, 0.004, Math.sin(a0) * 0.022 * k), new Vector3(Math.cos(a1) * 0.022 * k, 0.004, Math.sin(a1) * 0.022 * k), 0.0035 * k, brass);
+        }
+        D.cylinder(0.042 * k, 0.001, 0, 0.013 * k, 0.013 * k, 0.005, 10, brass, { flat: true, caps: true });
+        D.box(0.09 * k, 0.003, 0, 0.075 * k, 0.005, 0.008 * k, brass);
+        D.box(0.122 * k, 0.003, 0.009 * k, 0.014 * k, 0.005, 0.016 * k, brass);
+        D.ball(-0.042 * k, 0.007, 0, 0.012 * k, 0.007 * k, 0.021 * k, enamel, 0);
+        D.ball(-0.042 * k, 0.01, -0.013 * k, 0.009 * k, 0.006 * k, 0.007 * k, gold, 0);
+      });
+      return;
+    }
+    case 'suitcase': {
+      // a hard-shell cabin suitcase standing on its wheels, its handle down, two ribs down the shell
+      const tone = toneOf(t.tone, ROOM_TONES.navy);
+      const shell = zoned(tone, z, { wet: 0.35 });
+      const rib = zoned(mix(tone, INKS.ink, 0.3), z);
+      const black = zoned(mix(INKS.ink, INKS.cobalt, 0.1), z);
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.33, 0, 0.4, 0.56, 0.24, shell);
+        for (const lx of [-0.11, 0.11]) D.box(lx, 0.33, 0.123, 0.06, 0.5, 0.01, rib);
+        D.box(0, 0.62, -0.085, 0.17, 0.025, 0.035, black);
+        for (const lx of [-0.16, 0.16]) D.box(lx, 0.025, -0.09, 0.03, 0.05, 0.05, black, { ny: false });
+      });
+      B.blocks.push(centred(x, zz, rot, 0.44, 0.28));
+      return;
+    }
+    case 'kitchenette': {
+      // a studio's kitchen against a wall: a cupboard under its worktop, the sink and its tap, two
+      // hot plates, a shelf above (its back on the wall, its front to the room)
+      const w = t.size?.[0] ?? 1.2;
+      const d = 0.58;
+      const front = zoned(mix(INKS.card, INKS.paper, 0.4), z);
+      const seam = zoned(mix(INKS.card, INKS.ink, 0.35), z);
+      const top = zoned(mix(TONES.wood, INKS.paper, 0.2), z);
+      const steel = zoned(mix(INKS.paper, INKS.ink, 0.3), z, { wet: 0.8 });
+      const basin = zoned(mix(INKS.paper, INKS.ink, 0.55), z, { wet: 0.8 });
+      const black = zoned(mix(INKS.ink, INKS.cobalt, 0.12), z);
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.43, d / 2, w, 0.86, d, front, { ny: false });
+        D.box(0, 0.88, d / 2 + 0.01, w + 0.02, 0.04, d + 0.03, top);
+        D.box(0, 0.43, d + 0.003, 0.008, 0.78, 0.004, seam);
+        for (const u of [-0.06, 0.06]) D.box(u, 0.72, d + 0.012, 0.016, 0.07, 0.016, black);
+        // the sink, a little left; its tap from the wall
+        D.box(-w / 4, 0.902, d / 2, 0.42, 0.006, 0.36, steel);
+        D.box(-w / 4, 0.906, d / 2, 0.34, 0.004, 0.28, basin);
+        D.bar(new Vector3(-w / 4, 0.9, 0.07), new Vector3(-w / 4, 1.12, 0.07), 0.012, steel);
+        D.bar(new Vector3(-w / 4, 1.12, 0.07), new Vector3(-w / 4, 1.1, 0.22), 0.011, steel);
+        // two hot plates, a little right
+        for (const u of [w / 4 - 0.11, w / 4 + 0.12]) D.cylinder(u, 0.9, d / 2, 0.085, 0.085, 0.012, 12, black, { flat: true, caps: true });
+        // the shelf
+        D.box(0, 1.55, 0.12, w, 0.025, 0.24, top);
+      });
+      B.blocks.push(footprint(x, zz, rot, w + 0.04, d + 0.04));
+      return;
+    }
     default:
       return;
   }
@@ -986,6 +1107,35 @@ function footprint(x: number, z: number, rot: number, w: number, d: number): XZ[
   const c = Math.cos(rot);
   const s = Math.sin(rot);
   return [[-w / 2, 0], [w / 2, 0], [w / 2, d], [-w / 2, d]].map(([px, pz]): XZ => [x + px * c + pz * s, z - px * s + pz * c]);
+}
+
+/** A rectangle centred on (x, z), turned by `rot`, `w` across its front and `d` deep. */
+function centred(x: number, z: number, rot: number, w: number, d: number): XZ[] {
+  const c = Math.cos(rot);
+  const s = Math.sin(rot);
+  return [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([px, pz]): XZ => [x + px * c + pz * s, z - px * s + pz * c]);
+}
+
+/** A phone's lit screen: the ticket's lines, the first in bold (the screen is the light here). */
+function phoneArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.cobalt, 0.06));
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.ink, 0.2));
+    ctx.fillRect(0, 0, w, h * 0.16);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = css(INKS.ink);
+    lines.forEach((text, i) => {
+      let s = Math.round(w * (i === 0 ? 0.15 : 0.1));
+      ctx.font = SANS(s, i === 0 ? 700 : 500);
+      while (s > 6 && ctx.measureText(text).width > w * 0.9) {
+        s -= 1;
+        ctx.font = SANS(s, i === 0 ? 700 : 500);
+      }
+      ctx.fillText(text, w / 2, h * (0.36 + i * 0.13));
+    });
+  };
 }
 
 /** A letterbox's card: a name typed on a slip. */
@@ -1122,6 +1272,7 @@ function court(B: Build, c: RoomCourt) {
     D.quadXYZ([f.len * 0.3 - 0.5, 0, 0.01, f.len * 0.3 + 0.5, 0, 0.01, f.len * 0.3 + 0.5, 2.3, 0.01, f.len * 0.3 - 0.5, 2.3, 0.01], zoned(mix(INKS.green, INKS.ink, 0.45), 'out'));
     // a drainpipe down the wall
     D.bar(new Vector3(f.len * 0.85, 0, 0.08), new Vector3(f.len * 0.85, top, 0.08), 0.09, zinc);
+    if (c.roofs) mansard(D, f.len, top, () => rand() < c.lit, lit, pane);
     D.pop();
   }
   // bins against the wall, green with their lids
@@ -1135,6 +1286,44 @@ function court(B: Build, c: RoomCourt) {
   }
   // a lamp over the courtyard door, and its pool on the cobbles
   B.lamps.push({ pos: new Vector3((c.x0 + c.x1) / 2, 2.8, c.z0 + 0.6), color: rgb(mix(INKS.sunflower, INKS.card, 0.2)), power: 0.7, range: 5.5, glint: true });
+}
+
+/**
+ * A mansard over a side of a courtyard, in its frame (the courtyard on +w): the gutter, the steep
+ * zinc brisis with a dormer a bay, the shallow terrasson behind it, and the chimney stacks with
+ * their pots. What a top floor sees across the courtyard at night.
+ */
+function mansard(D: Press, len: number, top: number, on: () => boolean, lit: Paint, pane: Paint) {
+  const zinc = zoned(TONES.zinc, 'out', { pattern: PATTERN.seams });
+  const zincDark = zoned(TONES.zincDark, 'out', { pattern: PATTERN.seams });
+  const cheek = zoned(TONES.zincDark, 'out');
+  const stack = zoned(TONES.chimney, 'out');
+  const pot = zoned(TONES.pot, 'out');
+  const frame = zoned(mix(INKS.card, INKS.ochre, 0.12), 'out');
+  const rise = 2.7;
+  const back = 1.0;
+  const crest = 3.4;
+  const far = 4.2;
+  D.box(len / 2, top + 0.06, 0.04, len, 0.12, 0.18, cheek);
+  D.quadXYZ([0, top, 0, len, top, 0, len, top + rise, -back, 0, top + rise, -back], zinc);
+  D.quadXYZ([0, top + rise, -back, len, top + rise, -back, len, top + crest, -far, 0, top + crest, -far], zincDark);
+  const bays = Math.max(1, Math.round(len / 2.6));
+  for (let i = 0; i < bays; i++) {
+    const u = ((i + 0.5) * len) / bays;
+    // the dormer: its cheeks in zinc, a painted frame round its window, a cap over it
+    D.box(u, top + 1.05, -0.45, 1.1, 1.7, 0.5, cheek);
+    D.quadXYZ([u - 0.45, top + 0.36, -0.195, u + 0.45, top + 0.36, -0.195, u + 0.45, top + 1.78, -0.195, u - 0.45, top + 1.78, -0.195], frame);
+    D.quadXYZ([u - 0.34, top + 0.46, -0.19, u + 0.34, top + 0.46, -0.19, u + 0.34, top + 1.66, -0.19, u - 0.34, top + 1.66, -0.19], on() ? lit : pane);
+    D.box(u, top + 1.95, -0.46, 1.24, 0.1, 0.62, zincDark);
+  }
+  // the stacks on the party walls, three pots each
+  const stacks = Math.max(1, Math.round(len / 5.5));
+  for (let k = 0; k < stacks; k++) {
+    const u = ((k + 0.5) * len) / stacks + 0.6;
+    D.box(u, top + 3.55, -2.6, 0.95, 1.3, 0.45, stack);
+    D.box(u, top + 4.24, -2.6, 1.05, 0.08, 0.55, stack);
+    for (let j = 0; j < 3; j++) D.cylinder(u - 0.3 + j * 0.3, top + 4.28, -2.6, 0.075, 0.09, 0.36, 8, pot);
+  }
 }
 
 /* ------------------------------------------------------------------------------------------ */

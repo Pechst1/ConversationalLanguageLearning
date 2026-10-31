@@ -5,7 +5,7 @@
 // `world/rooms` and hold it to the drafter's own checks: you walk in from the street door and up
 // the flight to the door the story opens, the push-buttons are in reach and light a circuit that
 // goes out, the stage's marks stand where someone can stand, and the door the story opens once
-// carries its number. And the map agrees with the files: a room is a locked place inside another
+// carries its number; what you can tap says what it is, and you can walk up to it. And the map agrees with the files: a room is a locked place inside another
 // (Le Mistral's stairwell is in the quai), not a pin of its own, until the story opens it.
 
 const assert = require('node:assert/strict');
@@ -160,6 +160,30 @@ test('the door the story opens once carries its brass number, and every opening 
       assert.ok(w, `${file}: an opening in no wall`);
       const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
       assert.ok(o.u0 >= -0.001 && o.u0 < o.u1 && o.u1 <= len + 0.001, `${file}: ${o.key ?? 'a hole'} runs off its wall`);
+    });
+  });
+});
+
+test('what you can tap says what it is in three languages, and you can walk up to it', () => {
+  rooms.forEach(({ file, room }) => {
+    const { built: r, nav } = built.get(file);
+    if (room.arrive) assert.ok(words(room.arrive), `${file}: the arrival's caption in three languages`);
+    room.things.forEach((t) => {
+      if (t.did) assert.ok(t.look, `${file}: ${t.kind} is remembered but cannot be tapped`);
+      if (!t.look) return;
+      assert.ok(words(t.look) && (!t.did || words(t.did)), `${file}: ${t.kind} says itself in three languages`);
+      // somewhere within arm's length and a step of it you can stand, and walk to from the door
+      let near = null;
+      for (let a = 0; a < 16 && !near; a++) {
+        for (const d of [0.4, 0.6, 0.8, 1.0, 1.2]) {
+          const p = { x: t.at[0] + Math.sin((a * Math.PI) / 8) * d, z: t.at[2] + Math.cos((a * Math.PI) / 8) * d };
+          if (nav.walkable(p.x, p.z)) {
+            near = new r.start.pos.constructor(p.x, nav.heightAt(p.x, p.z), p.z);
+            break;
+          }
+        }
+      }
+      assert.ok(near && reach(nav, r.start.pos, near), `${file}: nobody can walk up to the ${t.kind}`);
     });
   });
 });

@@ -28,12 +28,20 @@ export type ForgeCopy = {
   test_out_starting: string;
   test_out_failed_start: string;
   test_out_eyebrow: string;
+  /**
+   * #169: an item of another rule inside «Forge today's rule» names itself and
+   * says why it is there (a rule you were taught, due for review today).
+   */
+  review_tag: string;
+  contrast_tag: string;
   /** The rule sheet's quiet way to the épreuve. */
   sheet_test_out: string;
   /** The rule's level (a rung, 1–6), its screen-reader name and what it means. */
   level: string;
   level_label: string;
   level_explain: string;
+  /** The legend for a rule where a miss does take a level away (the server says so, `forge.level_rule`). */
+  level_explain_down: string;
   /** The line under a right answer. */
   level_up: string;
   run_cheer: string;
@@ -95,10 +103,13 @@ const EN: ForgeCopy = {
   test_out_starting: 'Preparing the test…',
   test_out_failed_start: 'The test could not start. Try again.',
   test_out_eyebrow: 'Test out',
+  review_tag: 'Review · due today',
+  contrast_tag: 'Contrast · a rule you know',
   sheet_test_out: 'Know it already? Take the test',
   level: 'Level {n}',
   level_label: 'Your level on this rule: {n} of 6. Tap to see how it works.',
-  level_explain: 'Your level on this rule, from 1 to 6. Right: up one. Wrong: down one, and the rule comes back soon.',
+  level_explain: 'Your level on this rule, from 1 to 6. Right: up one. Wrong: your level stays, and the rule comes back soon.',
+  level_explain_down: 'Your level on this rule, from 1 to 6. Right: up one. Wrong: down one, and the rule comes back soon.',
   level_up: 'Level {n} ↑',
   run_cheer: '{n} in a row',
   cheer_held: 'The rule is yours!',
@@ -167,10 +178,13 @@ const DE: ForgeCopy = {
   test_out_starting: 'Die Prüfung wird vorbereitet …',
   test_out_failed_start: 'Die Prüfung konnte nicht starten. Bitte noch einmal.',
   test_out_eyebrow: 'Regelprüfung',
+  review_tag: 'Wiederholung · heute fällig',
+  contrast_tag: 'Gegenüberstellung · eine Regel, die du kennst',
   sheet_test_out: 'Kannst du sie schon? Direkt prüfen',
   level: 'Stufe {n}',
   level_label: 'Deine Stufe bei dieser Regel: {n} von 6. Tippen für die Erklärung.',
-  level_explain: 'Deine Stufe bei dieser Regel, von 1 bis 6. Richtig: eine hoch. Falsch: eine runter, und die Regel kommt bald wieder.',
+  level_explain: 'Deine Stufe bei dieser Regel, von 1 bis 6. Richtig: eine hoch. Falsch: die Stufe bleibt, und die Regel kommt bald wieder.',
+  level_explain_down: 'Deine Stufe bei dieser Regel, von 1 bis 6. Richtig: eine hoch. Falsch: eine runter, und die Regel kommt bald wieder.',
   level_up: 'Stufe {n} ↑',
   run_cheer: '{n} in Folge',
   cheer_held: 'Die Regel sitzt!',
@@ -239,10 +253,13 @@ const FR: ForgeCopy = {
   test_out_starting: 'Préparation de l’épreuve…',
   test_out_failed_start: 'L’épreuve n’a pas pu démarrer. Réessaie.',
   test_out_eyebrow: 'Épreuve de la règle',
+  review_tag: 'Révision · à revoir aujourd’hui',
+  contrast_tag: 'Contraste · une règle que tu connais',
   sheet_test_out: 'Tu la connais déjà ? Passe l’épreuve',
   level: 'Niveau {n}',
   level_label: 'Ton niveau sur cette règle : {n} sur 6. Touche pour l’explication.',
-  level_explain: 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : un de moins, et la règle revient bientôt.',
+  level_explain: 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : le niveau reste, et la règle revient bientôt.',
+  level_explain_down: 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : un de moins, et la règle revient bientôt.',
   level_up: 'Niveau {n} ↑',
   run_cheer: '{n} d’affilée',
   cheer_held: 'Règle acquise !',
@@ -310,6 +327,16 @@ export function forgeCopy(language: ControlLanguage | string | null | undefined)
 }
 
 /** «{n}» style placeholders. */
+/**
+ * #169: the line over an item of another rule inside «Forge today's rule» —
+ * which kind of rule it is and why it is there. Today's rule needs none.
+ */
+export function forgeRoleTag(copy: ForgeCopy, role: string | null | undefined): string | null {
+  if (role === 'due') return copy.review_tag;
+  if (role === 'contrast') return copy.contrast_tag;
+  return null;
+}
+
 export function fillForge(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_match, name: string) => String(values[name] ?? ''));
 }

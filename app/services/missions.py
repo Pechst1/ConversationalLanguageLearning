@@ -6,10 +6,12 @@ import json
 import re
 import unicodedata
 from datetime import UTC, date, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
 from loguru import logger
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -2514,12 +2516,20 @@ class MissionGenerator:
                 or matching
                 or catalogue
             )
-        # The last letter's channel is out whenever anything else is left: the same
-        # channel twice in a row reads as a repeat even when the setup changed.
-        last_channel = str((recent_variety[0] if recent_variety else {}).get("channel") or "")
-        if last_channel:
-            other_channel = [item for item in pool if str(item.get("channel") or "") != last_channel]
-            pool = other_channel or pool
+        # Channels are kept out by recency, as far back as the pool allows: first
+        # every channel in the recent window, then all but the oldest, down to the
+        # last letter's alone. The same channel twice in a row reads as a repeat
+        # even when the setup changed, and keeping out only the last one let eight
+        # letters land on five channels for some seeds.
+        recent_channel_order = [str(seen.get("channel") or "") for seen in recent_variety]
+        for depth in range(len(recent_channel_order), 0, -1):
+            banned = set(recent_channel_order[:depth]) - {""}
+            if not banned:
+                continue
+            other_channel = [item for item in pool if str(item.get("channel") or "") not in banned]
+            if other_channel:
+                pool = other_channel
+                break
         weighted = [
             (
                 item,
@@ -5072,28 +5082,7 @@ class MissionScheduler:
         else:
             story_mission = await self._ensure_ad_hoc_letter(user)
             weekly = await self.ensure_weekly(user)
-        active = (
-            self.db.query(RealWorldMission)
-            .filter(
-                RealWorldMission.user_id == user.id,
-                RealWorldMission.status == "in_progress",
-                RealWorldMission.serial_thread_id.is_(None),
-            )
-            .order_by(RealWorldMission.updated_at.desc())
-            .first()
-        )
-        if not active:
-            active = (
-                self.db.query(RealWorldMission)
-                .filter(
-                    RealWorldMission.user_id == user.id,
-                    RealWorldMission.cadence == "ad_hoc",
-                    RealWorldMission.status == "available",
-                    RealWorldMission.serial_thread_id.is_(None),
-                )
-                .order_by(RealWorldMission.created_at.desc())
-                .first()
-            )
+        active = self._open_courrier_mission(user)
         post_session = (
             self.db.query(RealWorldMission)
             .filter(
@@ -5122,6 +5111,43 @@ class MissionScheduler:
             "active_mission": serialize_mission(active or story_mission) if (active or story_mission) else None,
             "recent_completed": [serialize_mission(row, include_children=False) for row in recent],
         }
+
+    @staticmethod
+    def _last_touched(mission: RealWorldMission) -> datetime:
+        """When the mission last had any life: made, changed or answered in."""
+
+        moments = [_aware(mission.created_at), _aware(mission.updated_at)]
+        moments.extend(_aware(turn.created_at) for turn in mission.turns or [])
+        return max((moment for moment in moments if moment is not None), default=datetime.min.replace(tzinfo=UTC))
+
+    def _open_courrier_mission(self, user: User) -> RealWorldMission | None:
+        """The one mission the Courrier opens (#397).
+
+        Every open thread competes on its last sign of life, newest first, and
+        a thread already begun wins a tie. It used to be «any thread in
+        progress, most recently updated», so a thread answered three nights ago
+        outranked the message opened after tonight's scene: the page reopened
+        old replies instead of the day's mission. A mission set aside this way
+        is not lost: it is the open one with the freshest life again as soon as
+        the newer one is finished.
+        """
+
+        rows = (
+            self.db.query(RealWorldMission)
+            .filter(
+                RealWorldMission.user_id == user.id,
+                RealWorldMission.serial_thread_id.is_(None),
+                or_(
+                    RealWorldMission.status == "in_progress",
+                    and_(
+                        RealWorldMission.status == "available",
+                        RealWorldMission.cadence.in_(["ad_hoc", "post_session"]),
+                    ),
+                ),
+            )
+            .all()
+        )
+        return max(rows, key=lambda row: (self._last_touched(row), row.status == "in_progress"), default=None)
 
     def _sweep_correspondence(self, user: User) -> list[RealWorldMission]:
         """Let overdue letters lapse. Never blocks the Courrier from opening."""
@@ -6482,7 +6508,32 @@ def _learner_level_code(db: Session, user: Any) -> str | None:
     code = str(level or "").strip().upper()[:2]
     return code if code in {"A1", "A2", "B1", "B2", "C1", "C2"} else None
 
-def _unassessed_acknowledgement(mission: Any) -> str:
+def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
+    """How the letter's correspondent addresses the learner *today*, when they are in the
+    cast: «tu» or «vous» from the one resolver the scene reads (#147 / #350).
+
+    A letter stores the register it was written in. A thread that reopens days later
+    (31 Oct: a letter from before T3) kept Gus on «vous» while the scenes had moved to
+    «tu». ``None`` for a contact outside the cast (a clerk, a shop): its letter decides.
+    """
+
+    correspondent = courrier.correspondent_of(mission)
+    raw = str(correspondent.get("id") or "")
+    name = str(correspondent.get("name") or "")
+    cast_id = cast_registry.resolve_id(raw) or (cast_registry.people_named(name) or [None])[0]
+    user_id = getattr(user, "id", None) or getattr(mission, "user_id", None)
+    if not cast_id or db is None or user_id is None:
+        return None
+    try:
+        thread = courrier.active_thread(db, SimpleNamespace(id=user_id))
+    except Exception:  # noqa: BLE001 - a reply never fails on a register read
+        return None
+    if thread is None:
+        return None
+    return courrier.learner_register(thread, cast_id)
+
+
+def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None) -> str:
     """The correspondent's honest answer when nothing could assess the letter: it was
     read, and nothing is claimed about it (EXPERIENCE-REVIEW 2026-10-04)."""
 
@@ -6491,8 +6542,9 @@ def _unassessed_acknowledgement(mission: Any) -> str:
     register = str(messenger.get("register") or "")
     opening = str(messenger.get("opening_message") or "")
     # #350: the register the letter was written in outranks a guess from its first words
-    # (a tu letter from Gus opening «Bonjour, c'est Gus» was answered «votre message»).
-    declared = register_word(messenger.get("target_register") or payload.get("target_register"))
+    # (a tu letter from Gus opening «Bonjour, c'est Gus» was answered «votre message»);
+    # the register the story has today outranks both (#147).
+    declared = register_now or register_word(messenger.get("target_register") or payload.get("target_register"))
     tu = (
         declared == "tu"
         if declared
@@ -6529,6 +6581,14 @@ class MissionConversationService:
         # teaching instructions that would tempt the model into tutor mode.
         success_objectives = (mission.prompt_payload or {}).get("success_objectives") or []
         feeling = MissionScheduler.feeling_toward_learner(mission.prompt_payload)
+        # #147 / #350: a cast member's register is read now, from the record the scene
+        # reads, not from the letter's copy of it.
+        register_now = live_register(self.db, user, mission)
+        register_phrase = (
+            ("tu / registre familier" if register_now == "tu" else "vous / registre poli")
+            if register_now
+            else messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register")
+        )
         context = json.dumps(
             {
                 "scene_title": mission.title,
@@ -6536,7 +6596,7 @@ class MissionConversationService:
                 "your_goals_for_this_scene": success_objectives,
                 "stakes_level": int(getattr(mission, "stakes_level", None) or 1),
                 "scene_so_far": mission.source_snapshot,
-                "register": messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register"),
+                "register": register_phrase,
                 "branch_state": preliminary_branch,
                 **({"how_you_feel_about_them": feeling} if feeling else {}),
             },
@@ -6576,7 +6636,7 @@ class MissionConversationService:
         # form and the learner's band (a deterministic check, then one rewrite, then the
         # register-aware acknowledgement).
         level = _learner_level_code(self.db, user)
-        expected = register_word(
+        expected = register_now or register_word(
             messenger.get("target_register") or messenger.get("register") or (mission.prompt_payload or {}).get("target_register")
         )
         # The actor is told which French to write, never that its reader is a beginner.
@@ -6602,6 +6662,7 @@ class MissionConversationService:
                         mission=mission,
                         user_text=user_text,
                         user=user,
+                        register=register_phrase,
                         call=lambda extra, prompt=system + hint: self.llm.generate_chat_completion(
                             messages=messages,
                             system_prompt=f"{prompt} {extra}",
@@ -6613,13 +6674,20 @@ class MissionConversationService:
                     )
                 logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
                 hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
-            return _unassessed_acknowledgement(mission)
+            return _unassessed_acknowledgement(mission, register_now=register_now)
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
 
     def _keep_relatives_with_their_owner(
-        self, reply: str, *, mission: RealWorldMission, user_text: str, user: User, call: Any
+        self,
+        reply: str,
+        *,
+        mission: RealWorldMission,
+        user_text: str,
+        user: User,
+        call: Any,
+        register: Any = None,
     ) -> str:
         """#253 (root cause #145): the thread's established facts bind the next line.
 
@@ -6655,7 +6723,7 @@ class MissionConversationService:
             reply,
             learner_texts=learner_texts,
             speaker_texts=speaker_texts,
-            register=str(messenger.get("target_register") or payload.get("target_register") or ""),
+            register=str(register or messenger.get("target_register") or payload.get("target_register") or ""),
         )
 
     def respond_for_atelier(
@@ -7014,8 +7082,13 @@ class MissionConversationService:
         messenger = (mission.prompt_payload or {}).get("messenger") or {}
         # The resolved register of this correspondent (``tu / …`` or ``vous / …``, from
         # ``app.services.address``) outranks a guess from the prose of ``realism_rules``.
+        # #147: a cast member's register is today's (``live_register``), not the letter's copy.
+        register_now = live_register(getattr(self, "db", None), None, mission)
         declared_register = str(
-            messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register") or ""
+            register_now
+            or messenger.get("target_register")
+            or (mission.prompt_payload or {}).get("target_register")
+            or ""
         ).strip().lower()
         expected_register = (
             declared_register

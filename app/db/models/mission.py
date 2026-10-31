@@ -73,9 +73,14 @@ class RealWorldMission(Base):
     recap_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # #397: the writer's clock, not the transaction's: ``func.now()`` is when the
+    # transaction began, so a row written after a slow model call was stamped
+    # before the call. ``server_default`` stays for raw inserts (no migration).
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=app_now, server_default=func.now(), nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True), default=app_now, server_default=func.now(), onupdate=app_now, nullable=False
     )
 
     user: Mapped[User] = relationship("User")
@@ -139,7 +144,10 @@ class RealWorldMissionTurn(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     audio_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     correction_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # #397: stamped when the turn is written (see RealWorldMission.created_at).
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=app_now, server_default=func.now(), nullable=False
+    )
 
     mission: Mapped[RealWorldMission] = relationship("RealWorldMission", back_populates="turns")
     user: Mapped[User] = relationship("User")

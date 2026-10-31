@@ -130,7 +130,7 @@ You walk into Le Mistral with a suitcase, the notary's envelope and a key on you
 - **(c)** *«Plus simple pour vous, ou pour moi ?»* → CAMILLE *(a small smile, the first)* · A2 «Pour mon grand-père. Il a soixante-quatorze ans et quatre étages.» · B1 «Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.»
 - **(d) Clumsy but sincere.** *«Je… arrive. Aujourd'hui. Je sais rien. Pas vendre ce soir.»* → CAMILLE · A2 «D'accord. Pas ce soir.» *(puts the helmet back on)* «Jeudi prochain, je viens avec Solvel. Pour voir l'appartement.»
 
-In every route, Camille sets the visit: **«Jeudi prochain, dix-huit heures.»** This is T2 Day B.
+In every route, Camille sets the visit: **«Jeudi prochain, dix-huit heures. Je viens visiter l'appartement.»** This is T2 Day B.
 
 > **Note.** Camille disagrees with nobody yet, but is precise, and precision is the start of their friction with the learner. Camille's lines never agree an adjective with Camille.
 

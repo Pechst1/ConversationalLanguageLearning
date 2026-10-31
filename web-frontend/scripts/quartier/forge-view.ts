@@ -98,7 +98,8 @@ function roomViews(r: RoomBuilt): View[] {
     if (!t.text?.length || (t.zone ?? 'room') !== 'room') return;
     const at = new Vector3(t.at[0], t.at[1], t.at[2]);
     const facing = new Vector3(Math.sin(t.rot ?? 0), 0, Math.cos(t.rot ?? 0));
-    out.push({ name: `${t.kind}-${i}`, pos: stepBack(at.clone().addScaledVector(facing, 0.45), facing, 0.8), look: at });
+    // a phone's screen is read the way a hand brings it up: the lens closes on it
+    out.push({ name: `${t.kind}-${i}`, pos: stepBack(at.clone().addScaledVector(facing, 0.45), facing, 0.8), look: at, fov: t.kind === 'phone' ? 18 : undefined });
   });
   // down each flight from its top
   for (const f of s.flights) {

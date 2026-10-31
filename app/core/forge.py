@@ -9,10 +9,13 @@ its evidence decisions into ``apply_grammar_evidence`` calls; the simulation
 
     recognise → discriminate → build → transform → produce → free_use
 
-A checked correct answer moves the rule up one rung, a checked error down one
-and books a **reprise**: the same rule comes back 3–5 items later, with a
-different item (the item provider is asked to exclude what was served). A
-partial answer keeps the rung. An unchecked answer (the grader could not look)
+A checked correct answer moves the rule up one rung. A checked error keeps the
+rung (owner decision #88: a miss never steps down inside a séance) and books a
+**reprise**: the same rule comes back 3–5 items later, with a different item
+(the item provider is asked to exclude what was served). A partial answer keeps
+the rung. What a right and a wrong answer do is :data:`RIGHT_STEP` /
+:data:`MISS_STEP`, the one place the page's level legend reads it from
+(:func:`level_rule`). An unchecked answer (the grader could not look)
 moves nothing and counts for nothing. A correct ``free_use`` *tops the rule
 out* for this séance: it has nothing left to prove today, so it stops taking
 slots. That is the old adaptive lock folded in — every clean answer retires its
@@ -22,7 +25,9 @@ rung, and a rule that is clean at the top retires altogether.
 contrast partners (shares renormalised over the roles that are present, and
 over the rules still able to take a slot). Never two items of one rule back to
 back (the one exception: a séance with a single rule). At most
-:data:`MAX_NEW_RULES` brand-new rule per séance.
+:data:`MAX_NEW_RULES` brand-new rule per séance. The day's step («Forge
+today's rule», #169) sets ``review_share`` instead: today's rule throughout,
+review rules only within that share (:meth:`ForgeState._today_first_slot`).
 
 **Evidence, with caps.** Every checked answer yields exactly one evidence
 entry. Within one séance only the first success per rule per rung — and the
@@ -194,6 +199,19 @@ class Verdict:
         return cls(OUTCOME_INCORRECT, confidence=confidence)
 
 
+#: What one checked answer does to a rule's level: the single statement of the
+#: staircase's rule. :func:`step_rung` applies it and :func:`level_rule` hands it
+#: to the page, so the level legend cannot say something else (#402).
+RIGHT_STEP = 1
+MISS_STEP = 0
+
+
+def level_rule() -> dict[str, int]:
+    """The staircase's rule as the page's legend reads it: the step of a right and of a wrong answer."""
+
+    return {"right": RIGHT_STEP, "wrong": MISS_STEP}
+
+
 def step_rung(rung: int, verdict: Verdict) -> int:
     """The staircase: up on correct, stay on anything else.
 
@@ -207,10 +225,24 @@ def step_rung(rung: int, verdict: Verdict) -> int:
     if not verdict.checked:
         # A provisional «uses the rule» moves on; a provisional miss is only a
         # hint and never takes a rung away.
-        return clamp_rung(rung + 1) if verdict.local == OUTCOME_CORRECT else rung
+        return clamp_rung(rung + RIGHT_STEP) if verdict.local == OUTCOME_CORRECT else rung
     if verdict.correct:
-        return clamp_rung(rung + 1)
-    return rung
+        return clamp_rung(rung + RIGHT_STEP)
+    return clamp_rung(rung + MISS_STEP)
+
+
+def step_level(level: int, item_rung: int, verdict: Verdict) -> int:
+    """A rule's level after an item posed at ``item_rung``.
+
+    An item posed *below* the level (a due rule's warm-up, a contrast partner's
+    minimal pair) is a way of posing the question, not the learner's level: it
+    neither lifts the level nor takes it away (#402). At or above the level it is
+    the ordinary staircase step.
+    """
+
+    level = clamp_rung(level)
+    after = step_rung(item_rung, verdict)
+    return max(level, after) if clamp_rung(item_rung) < level else after
 
 
 def evidence_for(rung: int, verdict: Verdict) -> Evidence | None:
@@ -249,6 +281,10 @@ class ForgeUnit:
     #: Introduced ≥ 14 days ago, not held, no spaced success yet: its first
     #: item today is posed in a spaced format (WP-L4 «Tenue» needs one).
     needs_spaced: bool = False
+    #: The rung of the rule's first item when it is posed *below* the level (a
+    #: due rule's warm-up, a contrast partner's minimal pair). The level itself
+    #: stays ``rung``: it is what the learner ended the last séance on.
+    warmup: int | None = None
 
 
 @dataclass(slots=True)
@@ -265,11 +301,18 @@ class RuleTrack:
     scheduled_success_rungs: list[int] = field(default_factory=list)
     scheduled_failure: bool = False
     exhausted_rungs: list[int] = field(default_factory=list)
+    #: See :attr:`ForgeUnit.warmup`; cleared by the first right answer on it.
+    warmup: int | None = None
 
     def entry_rung(self) -> int:
+        """The rung an item of this rule is posed at: the level, or its easier entry."""
+
+        rung = self.rung
+        if self.warmup is not None:
+            rung = min(rung, clamp_rung(self.warmup))
         if self.needs_spaced:
-            return min(self.rung, int(Rung.TRANSFORM))
-        return self.rung
+            rung = min(rung, int(Rung.TRANSFORM))
+        return rung
 
 
 @dataclass(slots=True)
@@ -312,6 +355,14 @@ class EvidenceDecision:
         }
 
 
+def _pose_rung(track: RuleTrack) -> int:
+    """The rung of the rule's next item: its easier entry on the first item and
+    while the warm-up is still open (a miss on it brings back an easy item, not a
+    hard one), else the level."""
+
+    return track.entry_rung() if track.served == 0 or track.warmup is not None else track.rung
+
+
 def _prepare_units(units: Iterable[ForgeUnit]) -> list[ForgeUnit]:
     """De-duplicate, and keep at most :data:`MAX_NEW_RULES` brand-new rules."""
 
@@ -347,11 +398,14 @@ class ForgeState:
     plan: list[int] = field(default_factory=list)
     finished: bool = False
     result: dict[str, Any] | None = None
+    #: #169: the day's step («Forge today's rule»): the share of items the
+    #: non-today rules may take at most (``None``: :data:`ROLE_SHARES`).
+    review_share: float | None = None
 
     # -- construction ------------------------------------------------------
 
     @classmethod
-    def seance(cls, units: Iterable[ForgeUnit], *, length: int) -> ForgeState:
+    def seance(cls, units: Iterable[ForgeUnit], *, length: int, review_share: float | None = None) -> ForgeState:
         prepared = _prepare_units(units)
         tracks = [
             RuleTrack(
@@ -359,10 +413,16 @@ class ForgeState:
                 role=str(unit.role),
                 rung=clamp_rung(unit.rung),
                 needs_spaced=bool(unit.needs_spaced),
+                warmup=(
+                    clamp_rung(unit.warmup)
+                    if unit.warmup is not None and clamp_rung(unit.warmup) < clamp_rung(unit.rung)
+                    else None
+                ),
             )
             for unit in prepared
         ]
-        return cls(mode=MODE_SEANCE, length=max(1, int(length)), tracks=tracks)
+        share = None if review_share is None else max(0.0, min(1.0, float(review_share)))
+        return cls(mode=MODE_SEANCE, length=max(1, int(length)), tracks=tracks, review_share=share)
 
     @classmethod
     def test_out(cls, concept_id: int, *, short: bool = False) -> ForgeState:
@@ -389,6 +449,7 @@ class ForgeState:
             "plan": list(self.plan),
             "finished": self.finished,
             "result": self.result,
+            "review_share": self.review_share,
         }
 
     @classmethod
@@ -404,12 +465,39 @@ class ForgeState:
             plan=[int(item) for item in raw.get("plan") or []],
             finished=bool(raw.get("finished")),
             result=raw.get("result"),
+            review_share=float(raw["review_share"]) if isinstance(raw.get("review_share"), (int, float)) else None,
         )
 
     # -- reading -----------------------------------------------------------
 
     def track(self, concept_id: int) -> RuleTrack | None:
         return next((track for track in self.tracks if track.concept_id == int(concept_id)), None)
+
+    def level_read(self, concept_id: int) -> int:
+        """The rule's level with every move the grader has not read yet taken back.
+
+        The level has one writer (:meth:`record`, :meth:`settle`); this only
+        subtracts a provisional climb («uses the rule», the instant detector) whose
+        relecture is still running, the way :meth:`settle` will if the model says
+        «not yet» (#370). A climb followed by a checked answer on the rule is owned
+        by that answer and stays. The end sheet reads this, so the level it shows
+        and the stored level the next day opens on are one number (#402).
+        """
+
+        track = self.track(concept_id)
+        if track is None:
+            return 0
+        entries = sorted(
+            (entry for entry in self.history if int(entry.get("concept_id", -1)) == track.concept_id),
+            key=lambda entry: int(entry.get("position", 0)),
+        )
+        pending = 0
+        for entry in entries:
+            if entry.get("checked"):
+                pending = 0
+            elif not entry.get("settled") and int(entry.get("rung_move") or 0) > 0:
+                pending += int(entry.get("rung_move") or 0)
+        return clamp_rung(track.rung - pending)
 
     @property
     def position(self) -> int:
@@ -451,6 +539,8 @@ class ForgeState:
         live = [track for track in self.tracks if not track.topped]
         if not live:
             return None
+        if self.review_share is not None:
+            return self._today_first_slot(position, live)
         last = self.last_concept_id()
         single_rule = len(self.tracks) == 1
         eligible = [track for track in live if single_rule or track.concept_id != last]
@@ -463,7 +553,7 @@ class ForgeState:
         ]
         if due_reprises:
             pick = min(due_reprises, key=lambda track: (track.reprise_at, track.served))
-            return Slot(position, pick.concept_id, pick.rung, pick.role, reprise=True)
+            return Slot(position, pick.concept_id, _pose_rung(pick), pick.role, reprise=True)
 
         # A rule waiting for its reprise sits out until then, when it can.
         waiting = [track for track in eligible if track.reprise_at is None or track.reprise_at <= position]
@@ -483,8 +573,41 @@ class ForgeState:
         role = max(roles_present, key=lambda item: (deficits[item], -role_order.get(item, 3)))
         candidates = [track for track in pool if track.role == role]
         pick = min(candidates, key=lambda track: (track.served, track.rung, track.concept_id))
-        rung = pick.entry_rung() if pick.served == 0 else pick.rung
+        rung = _pose_rung(pick)
         return Slot(position, pick.concept_id, rung, pick.role)
+
+    def _today_first_slot(self, position: int, live: list[RuleTrack]) -> Slot | None:
+        """#169 — the day's step: today's rule, with review items as a capped share.
+
+        A review rule takes a slot only while the review items served stay
+        within ``review_share`` of the séance so far *including* this one
+        (``floor``: 0.25 puts them at items 4, 8, 12 — never item 2), and never
+        right after another review item. Today's rule may follow itself: the
+        day's step is about it. The cap holds even once today's rule is topped
+        out: the séance then ends rather than turn into a review séance.
+        """
+
+        today = [track for track in live if track.role == Role.TODAY.value]
+        side = [track for track in live if track.role != Role.TODAY.value]
+        last = self.last_concept_id()
+        side_served = sum(1 for entry in self.history if str(entry.get("role")) != Role.TODAY.value)
+        room = math.floor((self.review_share or 0.0) * (position + 1) + 1e-9) - side_served
+        last_was_side = bool(self.history) and str(self.history[-1].get("role")) != Role.TODAY.value
+        eligible_side = [track for track in side if track.concept_id != last]
+        if eligible_side and room > 0 and not last_was_side:
+            reprises = [t for t in eligible_side if t.reprise_at is not None and t.reprise_at <= position]
+            if reprises:
+                pick = min(reprises, key=lambda track: (track.reprise_at, track.served))
+                return Slot(position, pick.concept_id, pick.rung, pick.role, reprise=True)
+            pick = min(eligible_side, key=lambda track: (track.served, track.rung, track.concept_id))
+            rung = pick.entry_rung() if pick.served == 0 else pick.rung
+            return Slot(position, pick.concept_id, rung, pick.role)
+        if not today:
+            return None
+        pick = today[0]
+        reprise = pick.reprise_at is not None and pick.reprise_at <= position
+        rung = pick.entry_rung() if pick.served == 0 else pick.rung
+        return Slot(position, pick.concept_id, rung, pick.role, reprise=reprise)
 
     # -- settling a provisional answer ----------------------------------------
 
@@ -516,10 +639,28 @@ class ForgeState:
             # this one left it: that verified step owns the level now, and taking
             # this one's delta off a capped or topped rung would undo it.
             entry["rung_move"] = 0
+            if verdict.checked and verdict.correct:
+                track.warmup = None
         elif self.mode == MODE_SEANCE:
-            final = step_rung(rung, Verdict(verdict.outcome, checked=verdict.checked)) - rung if verdict.checked else 0
-            track.rung = clamp_rung(track.rung - moved + final)
-            if moved > 0 and final <= 0 and rung == TOP_RUNG and not any(
+            # The level before this answer moved it (a provisional move taken back),
+            # then the one step the real verdict makes from there.
+            base = clamp_rung(track.rung - moved)
+            # The item's rung is no floor here: it may have been chosen from a
+            # provisional climb an earlier settlement has since taken back. Posed
+            # above ``base``, it is read as posed at ``base`` (a miss keeps it, a
+            # right answer is the one step up); posed below, it is a warm-up.
+            posed = min(rung, base)
+            after = step_level(base, posed, Verdict(verdict.outcome, checked=verdict.checked)) if verdict.checked else base
+            final = after - base
+            track.rung = after
+            confirmed = verdict.checked and verdict.correct
+            if confirmed:
+                # A right answer read late warms the rule up and tops it out exactly
+                # as one read at once does (``record``).
+                track.warmup = None
+                if rung == TOP_RUNG and track.rung == TOP_RUNG:
+                    track.topped = True
+            elif rung == TOP_RUNG and not any(
                 other is not entry
                 and int(other.get("concept_id", -1)) == track.concept_id
                 and other.get("checked")
@@ -527,6 +668,7 @@ class ForgeState:
                 and clamp_rung(other.get("rung")) == TOP_RUNG
                 for other in self.history
             ):
+                # Its provisional top-out is withdrawn with it: the rule goes on.
                 track.topped = False
             if verdict.checked and not (verdict.correct or verdict.partial) and not self.finished:
                 gap = reprise_gap(track.concept_id, int(entry.get("position", self.position)))
@@ -534,6 +676,8 @@ class ForgeState:
                 if track.reprise_at <= self.position:
                     track.reprise_at = None
             entry["rung_move"] = final
+        # Its move is final now: :meth:`level_read` no longer takes it back.
+        entry["settled"] = True
         return track.rung
 
     # -- recording one answer ------------------------------------------------
@@ -579,7 +723,9 @@ class ForgeState:
                 track.scheduled_failure = True
 
             if self.mode == MODE_SEANCE:
-                track.rung = step_rung(rung, verdict)
+                track.rung = step_level(track.rung, rung, verdict)
+                if verdict.correct:
+                    track.warmup = None  # warmed up: the next item is posed at the level
                 if verdict.correct and rung == TOP_RUNG:
                     track.topped = True
                 if verdict.correct or verdict.partial:
@@ -593,7 +739,7 @@ class ForgeState:
         elif self.mode == MODE_SEANCE and verdict.local == OUTCOME_CORRECT:
             # Unchecked but the local check reads the rule: the staircase moves
             # on (no evidence, no reprise); the relecture decides the evidence.
-            track.rung = step_rung(rung, verdict)
+            track.rung = step_level(track.rung, rung, verdict)
             if rung == TOP_RUNG:
                 track.topped = True
         decision.new_rung = track.rung

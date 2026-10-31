@@ -39,7 +39,7 @@ from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services import order_rules
 from app.services.address import address_instruction
-from app.services.answer_acceptance import accent_policy, is_preference_swap
+from app.services.answer_acceptance import accent_policy, is_preference_swap, widened_answers
 from app.services.atelier_assets import AtelierAssetService
 
 # WP-16 additive: the correction call's request bound and its cost row.
@@ -131,7 +131,12 @@ def _accepted_answers(prompt_payload: dict[str, Any]) -> list[str]:
         item.get("example_answer"),
         prompt_payload.get("example_answer"),
     ]
-    return [str(value) for value in dict.fromkeys(values) if isinstance(value, str) and value.strip()]
+    stored = [str(value) for value in dict.fromkeys(values) if isinstance(value, str) and value.strip()]
+    # #174 / #380: one accept-list, not one stored string. «We prefer Le Mistral»
+    # takes «Nous préférons» as well as «On préfère», «the post office» takes «le
+    # bureau de poste» as well as «la poste».
+    english = item.get("prompt_en") or item.get("prompt") or prompt_payload.get("prompt")
+    return widened_answers(stored, english=english)
 
 
 def _free_answer_accents(concept: Any, prompt_payload: dict[str, Any]) -> str:
@@ -5647,14 +5652,24 @@ class AtelierCorrectionService:
                     correction["errata"] = []
                 elif acceptable and acceptable.get("wrong"):
                     correction["local_check"] = {**local_check, "trap": {"wrong": acceptable["wrong"], "right": acceptable["right"]}}
-            elif local_check is not None and text.strip() and self._can_schedule_ai_review():
+            elif local_check is not None and text.strip() and (
+                local_check["local_status"] == LOCAL_RIGHT or self._can_schedule_ai_review()
+            ):
+                # #401: an accepted answer is right by the key alone. Whether a model
+                # is configured decides only what happens to every OTHER sentence, so
+                # the key's verdict is never held back by the model's availability.
                 correction["local_check"] = local_check
-                correction["assessment_status"] = "provisional"
                 # WP-103 T9: before the model has read it, the séance says «Right» only
                 # for an accepted answer; anything else is «checking» («Je relis…»).
                 correction["local_status"] = local_check["local_status"]
                 if local_check["local_status"] == LOCAL_RIGHT:
                     correction.update({"verdict": "correct", "score_0_4": 4.0, "errata": [], "missing_targets": []})
+                # With no model to read it, the key's «Right» is the whole check.
+                correction["assessment_status"] = (
+                    "provisional"
+                    if self._can_schedule_ai_review()
+                    else "checked"
+                )
             else:
                 correction.update({
                     "verdict": "needs_review", "score_0_4": 0,
@@ -8175,33 +8190,6 @@ class AtelierSRSService:
             return None
         return text, not right
 
-    @staticmethod
-    def _forge_level_after_last_item(track: Any, history: list[dict[str, Any]]) -> int:
-        """The level a rule stands on after the last item the grader read (#370).
-
-        Read from the day's recorded answers (the ladder's own step rule over
-        the rule's last *checked* item), not from the staircase's running value:
-        that one can still hold a provisional climb («uses the rule», read by
-        the instant detector) which the model's later reading took back, and the
-        sheet showed that stale level next to a «Not yet». A rule with no
-        checked item keeps its running level; nothing contradicts it.
-        """
-
-        from app.core import forge as forge_core
-
-        last = next(
-            (
-                entry
-                for entry in reversed(history)
-                if int(entry.get("concept_id", -1)) == int(track.concept_id) and entry.get("checked")
-            ),
-            None,
-        )
-        if last is None:
-            return forge_core.clamp_rung(track.rung)
-        outcome = str(last.get("outcome") or forge_core.OUTCOME_INCORRECT)
-        return forge_core.step_rung(int(last.get("rung", track.rung)), forge_core.Verdict(outcome, checked=True))
-
     def _forge_rule_progress(
         self,
         *,
@@ -8408,7 +8396,9 @@ class AtelierSRSService:
         if forge_state is not None:  # WP-S3: each rule's rung, and the evidence written
             plan = (session.quote_payload or {}).get("forge") or {}
             levels = {
-                track.concept_id: self._forge_level_after_last_item(track, forge_state.history)
+                # #402: the staircase's own reading of each rule's level (one writer),
+                # never a recomputation from the last item's rung.
+                track.concept_id: forge_state.level_read(track.concept_id)
                 for track in forge_state.tracks
             }
             recap["forge"] = {

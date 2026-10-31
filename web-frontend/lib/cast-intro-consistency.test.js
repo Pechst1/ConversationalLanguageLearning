@@ -82,3 +82,46 @@ test('the journey hands the verdict the drill asker, not the scene character', (
   );
   assert.match(source, /speaker=\{step\?\.kind === 'recall' && asker \? asker : speaker\}/);
 });
+
+test('#155: a drill cut from a line of the scene is asked by, and smiles as, that line’s speaker', () => {
+  // Day of Gus; the recall item rebuilds Marin's line, and the server says so.
+  const journey = {
+    scenario: { character_id: 'augustin_de_roncourt', character_name: 'Augustin « Gus » de Roncourt' },
+    steps: [{ kind: 'rule', prompt: { concept_id: 4, rule_card: { speaker: 'lila_bonnet' } } }],
+  };
+  const fromMarin = {
+    kind: 'recall',
+    prompt: {
+      task_type: 'short_answer',
+      source_fr: '…Vous allez vraiment … l’appartement d’Odile ?',
+      target: { kind: 'grammar', id: 4 },
+      speaker: { id: 'marin_leveque', name: 'Marin' },
+    },
+  };
+  const asker = drillSpeaker(journey, fromMarin);
+  assert.deepEqual(asker, { id: 'marin_leveque', name: 'Marin' }, 'the line’s speaker, before the rule’s coach and the day');
+  assert.equal(faces.castIdFor(asker.id, asker.name), 'marin_leveque', 'the face is the one the name says');
+  // A payload with the world bible's full name still reads the cast's short name.
+  const full = { ...fromMarin, prompt: { ...fromMarin.prompt, speaker: { id: 'augustin_de_roncourt', name: 'Augustin « Gus » de Roncourt' } } };
+  assert.deepEqual(drillSpeaker(journey, full), { id: 'augustin_de_roncourt', name: 'Gus' });
+  // Without a line speaker the old order holds: the rule's coach, then the day's character.
+  const plain = { ...fromMarin, prompt: { ...fromMarin.prompt, speaker: undefined } };
+  assert.deepEqual(drillSpeaker(journey, plain), { id: 'lila_bonnet', name: 'Lila' });
+  const word = { kind: 'recall', prompt: { task_type: 'choice', target: { kind: 'vocabulary', id: 9 } } };
+  assert.deepEqual(drillSpeaker(journey, word), { id: 'augustin_de_roncourt', name: 'Gus' });
+});
+
+test('#155: the cheer under a right answer names the face beside the drill', () => {
+  require(path.join(WEB_ROOT, 'node_modules/sucrase/register/tsx'));
+  const apiPath = Module._resolveFilename('@/services/api', module, false);
+  require.cache[apiPath] = require.cache[apiPath] || {
+    id: apiPath, filename: apiPath, loaded: true, exports: { __esModule: true, default: {}, apiService: {} },
+  };
+  const { smileLine } = require('../components/atelier-v2/journey/ReplyStage.tsx');
+  const asker = drillSpeaker(
+    { scenario: { character_id: 'augustin_de_roncourt', character_name: 'Gus' }, steps: [] },
+    { kind: 'recall', prompt: { task_type: 'unscramble', target: { kind: 'vocabulary', id: 1 }, speaker: { id: 'marin_leveque', name: 'Marin' } } },
+  );
+  assert.equal(smileLine(asker.name, 'fr'), 'Marin te sourit');
+  assert.equal(smileLine(asker.name, 'en'), 'Marin smiles at you');
+});
