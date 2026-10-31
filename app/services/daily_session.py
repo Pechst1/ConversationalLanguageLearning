@@ -399,13 +399,24 @@ def day_deck(db: Session, user: Any, *, reviews_due: int, now: datetime | None =
     drill's room for new words and the reviews due.
     """
 
-    from app.services import drill_batch
+    from app.services import day_words, drill_batch
     from app.services.streak import local_today
     from app.services.vocabulary_pace import drill_new_word_room, reviews_left_today
 
     now = now or datetime.now(UTC)
     room, reserved = drill_new_word_room(db, user, now=now)
     batch = drill_batch.load_batch(db, user, local_today(user, now))
+    plan = day_words.read_plan(batch)
+    if plan is not None:
+        # #396: the day's plan, picked at the first read of the day.
+        if not day_words.is_dealt(plan):
+            return day_words.planned_counts(db, user, plan, now=now)
+        remaining = drill_batch.remaining_items(
+            db, user, day_words.day_items(batch), reserved_new=day_words.remaining_reserved(batch, reserved)
+        )
+        new = sum(1 for item in remaining if item.get("list") == "new_words")
+        pending = day_words.pending_scene_words(db, user, batch, now=now)
+        return new + pending, len(remaining) - new
     new_limit = min(room, DAY_DECK_NEW_WORDS)
     if batch is not None:
         remaining = drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved)
@@ -426,13 +437,18 @@ def dealt_deck(db: Session, user: Any, *, now: datetime | None = None) -> int | 
     went through, and the review's header opened on exactly that number.
     """
 
-    from app.services import drill_batch
+    from app.services import day_words, drill_batch
     from app.services.streak import local_today
     from app.services.vocabulary_pace import drill_new_word_room
 
     now = now or datetime.now(UTC)
     batch = drill_batch.load_batch(db, user, local_today(user, now))
-    items = list(batch.items or []) if batch is not None else []
+    if day_words.read_plan(batch) is not None:
+        # The size the day deck was dealt with; «more» cards appended later
+        # are the learner's extra, not the day's words.
+        return day_words.dealt_size(batch)
+    # A day without a plan (it could not be made): the batch, less its extras.
+    items = [item for item in (batch.items or []) if not item.get("extra")] if batch is not None else []
     if not items:
         return None
     _room, reserved = drill_new_word_room(db, user, now=now)
@@ -475,10 +491,14 @@ def build_session(
     forge_blocks_today: int,
     now: datetime | None = None,
 ) -> dict[str, Any]:
+    from app.services.day_words import ensure_plan
     from app.services.forge_picker import forge_budget_seconds
     from app.services.vocabulary_pace import daily_quota, introduced_today
 
     now = now or datetime.now(UTC)
+    # #396: the day's words are picked once, at the first read of the day; the
+    # word step, the deck and the Done screen all count that plan.
+    ensure_plan(db, user, now=now)
     return session_view(
         SessionInputs(
             pace=pace_of(user),

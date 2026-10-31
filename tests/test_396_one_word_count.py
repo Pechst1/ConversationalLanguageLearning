@@ -149,3 +149,73 @@ def test_396_an_answered_card_is_no_longer_counted_as_due(client: TestClient, db
 
     counted = ProgressService(db_session).count_due_reviews(user.id)
     assert counted == 0, f"Home still counts {counted} reviews after the learner answered all three"
+
+
+def test_396_one_number_from_home_before_the_scene_to_the_done_screen(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The walk's day, played through: Home before the scene (no journey planned
+    yet), the journey planned, the scene meeting its words and answering one of
+    the day's reviews, the hand-on, the review, Home after, «more» opened and
+    left, the Done screen. One number throughout (#396: 5 → 8 → 10 → 11)."""
+
+    headers, user = _login(client, db_session)
+    user.daily_pace = None
+    user.new_words_per_day = 10
+    db_session.commit()
+    supply = _supply(db_session, 40, "w396day")
+    now = datetime.now(UTC)
+    due = _supply(db_session, 4, "w396dayd")
+    for word_id in due:
+        db_session.add(
+            UserVocabularyProgress(
+                user_id=user.id, word_id=word_id, state="review", phase="review", reps=3,
+                due_at=now - timedelta(hours=3), last_review_date=now - timedelta(days=4),
+                next_review_date=now - timedelta(hours=3), due_date=(now - timedelta(days=1)).date(),
+                created_at=now - timedelta(days=9),
+            )
+        )
+    db_session.commit()
+    monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *_a, **_k: 1.0)
+    reservation: dict = {"planned": False, "ids": set()}
+    monkeypatch.setattr(
+        vocabulary_pace, "journey_reservation", lambda *_a, **_k: (reservation["planned"], set(reservation["ids"]))
+    )
+    reviews_before = ProgressService(db_session).count_due_reviews(user.id)
+    assert reviews_before == 4
+
+    # Home, before the scene: no journey planned, its share of the 10 kept free.
+    home = _words_step(_session(db_session, user))
+    assert home["count"] == 10 + 4, home
+    assert (home["new_left"], home["reviews"]) == (10, 4)
+
+    # The learner starts the scene: the journey is planned with three new words.
+    reservation.update(planned=True, ids=set(supply[:3]))
+    assert _words_step(_session(db_session, user))["count"] == home["count"], "planning the scene moves nothing"
+
+    # The scene meets its three words and answers one of the day's reviews.
+    _answer(client, headers, supply[:3])
+    _answer(client, headers, due[:1])
+    hand_on = _words_step(_session(db_session, user))
+    assert hand_on["count"] == home["count"], f"Home said {home['count']}, the hand-on «Next: {hand_on['count']} words»"
+
+    # The review opens on that number, the scene's words first.
+    cards = _cards(_deck(client, headers, DAY))
+    assert len(cards) == home["count"], f"Home said {home['count']}, the review opens at 0/{len(cards)}"
+    assert set(cards[:3]) == set(supply[:3])
+    assert set(due) <= set(cards), "the day's reviews stay the day's, the one the scene answered too"
+    assert _cards(_deck(client, headers, DAY)) == cards, "a reload is the same deck"
+
+    _answer(client, headers, cards)
+    assert _cards(_deck(client, headers, DAY)) == []
+    after = _session(db_session, user)
+    assert _words_step(after)["state"] == "done"
+    assert _words_step(after)["count"] == home["count"], f"Home after the deck: «{_words_step(after)['count']} words — done»"
+
+    # «10 more words» opened and left unanswered: still the day's number (#408 review).
+    extra = client.get("/api/v1/vocabulary/due-context", headers=headers, params={**DAY, "drill": "more", "extra": 10})
+    assert extra.status_code == 200, extra.text
+    assert _cards(extra.json()), "the extra deck deals new words"
+    finished = _session(db_session, user)
+    assert _words_step(finished)["count"] == home["count"]
+    assert finished["tally"]["words"] == home["count"], f"Done says {finished['tally']['words']} Words"
