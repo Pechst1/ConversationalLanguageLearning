@@ -22,6 +22,7 @@ from app.db.models.serial import SerialThread
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.chrome_language import user_chrome_language
 from app.services.daily_words import DailyWordSlateService
@@ -599,6 +600,11 @@ Maximum 2 phrases."""
             # (same rule the mission corrector applies to its errata).
             if not self._is_real_correction(error.span, suggestion):
                 continue
+            # #174 / #193: the detector's repair is model-written free text, the same
+            # flaw as a verdict not tied to the sentence it judges. It is filed and
+            # shown only when the learner's own words prove it (``_is_grounded``).
+            if not self._is_grounded(user_text, error.span, suggestion, error.message):
+                continue
             # One card per fix: a span that merely restates a repair already
             # filed (the same words inside a longer quote) is the same mistake.
             folded_span = self._fold_for_comparison(error.span)
@@ -860,6 +866,19 @@ Maximum 2 phrases."""
         original = cls._fold_for_comparison(span)
         repaired = cls._fold_for_comparison(suggestion)
         return bool(original and repaired and original != repaired)
+
+    @staticmethod
+    def _is_grounded(user_text: str, span: str, suggestion: str, note: str | None) -> bool:
+        """#174: whether a repair is about what the learner said. One right word
+        swapped for another («sans» → «pas»), a span they never said, a subject the
+        explanation leans on that is not in the sentence («after 'tu'»), or an
+        être/avoir/aller form already right for its subject is no mistake. The same
+        two checks the story lane runs on the tutor's corrections
+        (``answer_acceptance.is_preference_swap``, ``correction_is_grounded``)."""
+
+        if is_preference_swap(span, suggestion):
+            return False
+        return correction_is_grounded(user_text, span, suggestion, note)
 
     @staticmethod
     def _fold_for_comparison(value: str) -> str:
