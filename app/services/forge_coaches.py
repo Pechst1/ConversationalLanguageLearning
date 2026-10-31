@@ -140,6 +140,48 @@ def coach_for_concept(external_id: str | None, *, state: dict[str, Any] | None =
     return None
 
 
+def recast_scene(item: dict[str, Any], coach_payload: dict[str, Any] | None) -> dict[str, Any]:
+    """A shared item's two-line scene, said by this learner's coach (#147).
+
+    Exercise sets are built once for every learner, with the file's coach (Romy for the
+    question words). A learner who has not met Romy gets the stand-in from
+    :func:`coach_for_concept`; the scene's line, badge and prompt follow, so the person
+    who asks is the person who reacts. When the stand-in's register cannot say the line
+    («vous» on a «tu» line), the scene is posed without a speaker.
+    """
+
+    character = item.get("character") if isinstance(item.get("character"), dict) else None
+    if not character or not coach_payload or str(character.get("id")) == str(coach_payload.get("id")):
+        return item
+    old_name, new_name = str(character.get("name") or ""), str(coach_payload["name"])
+    lines = [dict(line) for line in ((item.get("scene") or {}).get("lines") or []) if isinstance(line, dict)]
+    said = next((line for line in lines if line.get("speaker") != "learner"), None)
+    fits = said is not None and not register_problems(str(said.get("fr") or ""), coach_payload.get("register"))
+
+    def retitle(text: Any) -> Any:
+        if not isinstance(text, str) or not old_name or not text.startswith(old_name):
+            return text
+        rest = text[len(old_name):]
+        return f"{new_name}{rest}" if fits else rest.lstrip(" :").lstrip()
+
+    out = dict(item)
+    out["prompt"] = retitle(item.get("prompt"))
+    if isinstance(item.get("prompt_l10n"), dict):
+        out["prompt_l10n"] = {key: retitle(value) for key, value in item["prompt_l10n"].items()}
+    if not fits:
+        out.pop("character", None)
+        out.pop("coach", None)
+        out.pop("scene", None)
+        return out
+    out["character"] = {"id": coach_payload["id"], "name": new_name, "register": coach_payload.get("register", "tu")}
+    out["coach"] = dict(coach_payload)
+    for line in lines:
+        if line is said:
+            line["speaker"], line["name"] = coach_payload["id"], new_name
+    out["scene"] = {**(item.get("scene") or {}), "lines": lines}
+    return out
+
+
 def story_state_of(db: Any, user: Any) -> dict[str, Any] | None:
     """The learner's story thread state when it says who they have met, else ``None``
     (the coaches then stay as the file has them: no story to read, nothing to filter)."""
@@ -265,5 +307,6 @@ __all__ = [
     "coach_mood",
     "family_for_unit",
     "mini_scene",
+    "recast_scene",
     "story_state_of",
 ]

@@ -54,7 +54,7 @@ from app.db.models.atelier import AtelierAttempt, AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services import forge_drills as drills
-from app.services.forge_coaches import coach_for_concept, coach_mood, story_state_of
+from app.services.forge_coaches import coach_for_concept, coach_mood, recast_scene, story_state_of
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
 FORGE_KEY = "forge"
@@ -1558,7 +1558,8 @@ class ForgeService:
                     # The item itself: a bank top-up is not in the exercise
                     # set the client loaded at the start. WP-103: its goal in the
                     # learner's language, no retired frame, no server-only key.
-                    "item": _public_item(dict(item.payload or {}), user),
+                    # #147: a shared scene is said by this learner's coach.
+                    "item": recast_scene(_public_item(dict(item.payload or {}), user), self.coach_for(slot.concept_id, user)),
                     # WP-S5: who teaches this rule.
                     "coach": self.coach_for(slot.concept_id, user),
                 }

@@ -326,3 +326,30 @@ def test_trombinoscope_lists_only_met_people(db_session) -> None:
     assert {"lila_bonnet", "augustin_de_roncourt", "margaux_barman", "landlord_marchand"} <= set(rows)
     assert rows["augustin_de_roncourt"]["register"] == "tu"
     assert rows["landlord_marchand"]["register"] == "vous"
+
+
+def test_shared_scene_is_said_by_the_learners_coach() -> None:
+    """Codex on #425: a shared exercise set's scene is Romy's; a learner who has not met
+    her gets it from the stand-in, badge, line and prompt alike."""
+
+    from app.services import item_bank
+
+    family = next(f for f in forge_coaches._data()["families"] if f["coach"] == "romy_tremblay")
+    romy = forge_coaches.coach_for_unit(family["units"][0])
+    scene = None
+    for unit in family["units"]:
+        for candidate in item_bank.default_bank().generate(unit, 24, seed="147", detector=item_bank.unit_detector(unit)):
+            scene = item_bank.scene_item(candidate, coach=romy, requirement={"label": unit, "target_count": 1})
+            if scene:
+                break
+        if scene:
+            break
+    assert scene and scene["character"]["id"] == "romy_tremblay"
+    stand_in = forge_coaches.coach_for_unit(family["units"][0], state=_day_19())
+    served = forge_coaches.recast_scene(scene, stand_in)
+    if "character" in served:
+        assert served["character"]["id"] == stand_in["id"]
+        assert served["prompt"].startswith(stand_in["name"])
+        assert served["scene"]["lines"][0]["speaker"] == stand_in["id"]
+    assert "Romy" not in served["prompt"]
+    assert forge_coaches.recast_scene(scene, romy) is scene
