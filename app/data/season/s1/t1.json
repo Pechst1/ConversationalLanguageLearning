@@ -496,7 +496,7 @@
           ],
           "after": [
             {"kind": "panel", "id": "b.turn1.after", "lines": [
-              {"who": "camille_marchand", "say": {"a2": "Jeudi prochain, dix-huit heures.", "native": {"en": "Next Thursday, six o'clock.", "de": "Nächsten Donnerstag, achtzehn Uhr."}}}
+              {"who": "camille_marchand", "say": {"a2": "Jeudi prochain, dix-huit heures. Je viens visiter l'appartement.", "native": {"en": "Next Thursday, six o'clock. I'm coming to see the flat.", "de": "Nächsten Donnerstag, achtzehn Uhr. Ich komme die Wohnung besichtigen."}}}
             ], "note": "In every route, Camille sets the visit. This is T2 Day B. Camille disagrees with nobody yet, but is precise, and precision is the start of their friction with the learner."}
           ]
         },

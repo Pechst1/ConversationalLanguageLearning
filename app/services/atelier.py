@@ -5647,14 +5647,24 @@ class AtelierCorrectionService:
                     correction["errata"] = []
                 elif acceptable and acceptable.get("wrong"):
                     correction["local_check"] = {**local_check, "trap": {"wrong": acceptable["wrong"], "right": acceptable["right"]}}
-            elif local_check is not None and text.strip() and self._can_schedule_ai_review():
+            elif local_check is not None and text.strip() and (
+                local_check["local_status"] == LOCAL_RIGHT or self._can_schedule_ai_review()
+            ):
+                # #401: an accepted answer is right by the key alone. Whether a model
+                # is configured decides only what happens to every OTHER sentence, so
+                # the key's verdict is never held back by the model's availability.
                 correction["local_check"] = local_check
-                correction["assessment_status"] = "provisional"
                 # WP-103 T9: before the model has read it, the séance says «Right» only
                 # for an accepted answer; anything else is «checking» («Je relis…»).
                 correction["local_status"] = local_check["local_status"]
                 if local_check["local_status"] == LOCAL_RIGHT:
                     correction.update({"verdict": "correct", "score_0_4": 4.0, "errata": [], "missing_targets": []})
+                # With no model to read it, the key's «Right» is the whole check.
+                correction["assessment_status"] = (
+                    "provisional"
+                    if self._can_schedule_ai_review()
+                    else "checked"
+                )
             else:
                 correction.update({
                     "verdict": "needs_review", "score_0_4": 0,

@@ -1,7 +1,7 @@
 {
  "version": 1,
  "season_id": "s1",
- "source": "263d874261c0",
+ "source": "2e3027d80eb5",
  "note": "Derived by scripts/build_season_lexicon.py from the tentpoles and level files; never edited by hand.",
  "days": {
   "e1.a@garder": {
@@ -4797,7 +4797,7 @@
       "en": "precise",
       "de": "genau, präzise"
      },
-     "sentence_fr": "Jeudi prochain, dix-huit heures précises.",
+     "sentence_fr": "Jeudi prochain, dix-huit heures précises, pour la visite de l'appartement.",
      "role": "new"
     },
     {
@@ -17657,6 +17657,7 @@
    "vie",
    "vieux",
    "visage",
+   "visiter",
    "vite",
    "vivre",
    "voir",
@@ -18139,6 +18140,7 @@
    "vie",
    "vieux",
    "visage",
+   "visiter",
    "vite",
    "vivre",
    "voir",
@@ -18719,6 +18721,7 @@
    "vie",
    "vieux",
    "visage",
+   "visite",
    "visiter",
    "vite",
    "vivre",

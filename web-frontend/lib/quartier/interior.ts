@@ -16,6 +16,10 @@
  * step (R4), the light clicks off on the hook, and the engine closes the scene. The words are the
  * page's; the room only adds where it happens.
  *
+ * A room with no minuterie (the learner's studio) is lit when you come in, and says where you are;
+ * a tap on a thing the canon names there (the phone with the return ticket, the cold radiator)
+ * says what it is, and the end card remembers it.
+ *
  * It publishes the `StageUi` a visit does, so the screen lays it out the same way.
  */
 import { Vector3 } from 'three';
@@ -46,6 +50,7 @@ const LINES = {
   opened: w('Tu as ouvert la porte du «1», puis tu l’as refermée.', 'You opened the door with the «1», then shut it again.', 'Du hast die Tür mit der «1» geöffnet und wieder geschlossen.'),
   waited: w('Tu as attendu en bas de l’escalier, dans le noir.', 'You waited at the foot of the stairs, in the dark.', 'Du hast unten an der Treppe im Dunkeln gewartet.'),
   until: w('La porte restera fermée jusqu’à mercredi.', 'The door will stay shut until Wednesday.', 'Die Tür bleibt bis Mittwoch zu.'),
+  around: w('Tu as fait le tour de la pièce.', 'You looked round the room.', 'Du hast dich im Zimmer umgesehen.'),
 };
 
 /** What you are on your way to do: the light, the flight, the door, nothing more. */
@@ -81,6 +86,8 @@ export class Interior implements Director {
   /** the door's moment is playing: the room waits */
   private busy = false;
   private did = new Set<'lit' | 'climbed' | 'opened'>();
+  /** the things you tapped (their index in the room file), for the end card */
+  private looked = new Set<number>();
   private tapWait: (() => void) | null = null;
   /** the latest turn of your head (`face`): an earlier one does not let go of it */
   private faced = 0;
@@ -163,11 +170,17 @@ export class Interior implements Director {
     return this.room.marks[key]?.clone() ?? fallback.clone();
   }
 
+  /** A room with no push-button has its light on: nothing to press, nothing goes out. */
+  private get steady() {
+    return this.room.switches.length === 0;
+  }
+
   /** The room is dark when you come in; its buttons glow, and a tap on one is a press. */
   async prepare() {
     this.room.switches.forEach((s) => this.q.addSpot({ id: `switch:${s.key}`, pos: s.at.clone(), radius: 0.3, enabled: true }));
     this.room.openings.filter((o) => o.opens === 'once').forEach((o) => this.q.addSpot({ id: `door:${o.key}`, pos: o.centre.clone(), radius: 0.55, enabled: true }));
-    this.q.setRoomLight(0);
+    this.room.spec.things.forEach((t, i) => t.look && this.q.addSpot({ id: `thing:${i}`, pos: new Vector3(t.at[0], t.at[1] + 0.05, t.at[2]), radius: 0.3, enabled: true }));
+    this.q.setRoomLight(this.steady ? 1 : 0);
     // after closing, Lila has followed you in without asking: a step behind you, in the dark
     if (this.scene && this.panels.some((p) => (p.in_frame ?? []).includes(FOLLOWER.key))) {
       const behind = this.mark('streetDoor', this.room.start.pos);
@@ -179,8 +192,8 @@ export class Interior implements Director {
   begin() {
     if (this.memory.places()[this.room.spec.id] !== 'visited') this.memory.apply(this.day, { kind: 'place', id: this.room.spec.id, status: 'visited' });
     // the story opens the door (R2) whatever an earlier visit did
-    this.step = this.opened() && !this.scene ? 'done' : 'light';
-    this.show({ ...BLANK, phase: 'roam', canLeave: true, caption: this.say(LINES.arrive), beat: this.panels[0]?.id ?? null, progress: this.scene ? 0.8 : 0 });
+    this.step = (this.opened() && !this.scene) || this.steady ? 'done' : 'light';
+    this.show({ ...BLANK, phase: 'roam', canLeave: true, caption: this.say(this.room.spec.arrive ?? LINES.arrive), beat: this.panels[0]?.id ?? null, progress: this.scene ? 0.8 : 0 });
     this.nextGoal();
   }
 
@@ -240,7 +253,7 @@ export class Interior implements Director {
     if (this.busy || this.scene) return;
     this.q.place(this.room.start.pos, this.room.start.look);
     this.litUntil = 0;
-    this.q.setRoomLight(0);
+    this.q.setRoomLight(this.steady ? 1 : 0);
     this.begin();
   }
 
@@ -260,14 +273,18 @@ export class Interior implements Director {
     this.goal = null;
     this.q.stop();
     this.q.showWay(null);
-    const did = (['lit', 'climbed', 'opened'] as const).filter((k) => this.did.has(k)).map((k) => this.say(LINES[k]));
+    const things = this.room.spec.things;
+    const did = [
+      ...(['lit', 'climbed', 'opened'] as const).filter((k) => this.did.has(k)).map((k) => this.say(LINES[k])),
+      ...Array.from(this.looked).sort((a, b) => a - b).flatMap((i) => (things[i]?.did ? [this.say(things[i].did as Words)] : [])),
+    ];
     this.show({
       phase: 'end',
       canLeave: false,
       goal: null,
       caption: null,
       aside: null,
-      recap: { did: did.length ? did : [this.say(LINES.waited)], tomorrow: this.did.has('opened') ? [this.say(LINES.until)] : [] },
+      recap: { did: did.length ? did : [this.say(this.steady ? LINES.around : LINES.waited)], tomorrow: this.did.has('opened') ? [this.say(LINES.until)] : [] },
     });
   }
 
@@ -561,6 +578,15 @@ export class Interior implements Director {
         if (Math.hypot(this.q.feet.x - stand.x, this.q.feet.z - stand.z) > 1.6) {
           void this.reach(stand).then((there) => there && !this.busy && this.press());
         } else this.press();
+        return;
+      }
+      if (hit.id.indexOf('thing:') === 0) {
+        // what it is, said where you stand: the phone on the bed reads from across the room
+        const i = Number(hit.id.slice(6));
+        const look = this.room.spec.things[i]?.look;
+        if (!look) return;
+        this.looked.add(i);
+        this.show({ caption: this.say(look) });
         return;
       }
       if (hit.id.indexOf('door:') === 0) {

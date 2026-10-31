@@ -109,6 +109,11 @@ PRs that the verifier proved red/green and labelled, all checks green, under 400
 outside the owner-only paths, one at a time, each only after CI passed on main's current
 head, so a red main always names one PR. Story-lane PRs always wait for the owner. The next
 live walk re-tests each merged fix once it is deployed.
+The cloud sessions' permission check refused that step as a merge without review on 30 and
+31 Oct, so the owner allowed exactly this one command in `.claude/settings.json`
+(`python scripts/loop/loop_queue.py merge-ready`, 31 Oct). The script's own checks above still
+decide what merges, and `.claude/` and `scripts/loop/` stay owner-only paths, so no night-shift
+PR can widen the rule.
 
 **Trend.** `python scripts/loop/rubric_trend.py --write` turns every walk report's score
 table into `docs/ops/walks/TREND.md`: each rubric question, night by night, fake-provider

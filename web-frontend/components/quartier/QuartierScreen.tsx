@@ -146,6 +146,8 @@ const COPY = {
     visitHowto: 'Tap a stallholder to talk, in French: say bonjour, ask a price, buy by the kilo or by the piece. Tap the ground to walk. «Rentrer» takes you back to the quai.',
     roomHowto: 'Drag to look around. Tap the orange button to light the stairs: the light holds a while, then goes out. Tap the ground to walk. «Rentrer» takes you back to the quai.',
     roomHint: 'Touche le sol pour marcher · touche le bouton orange pour la lumière',
+    litHowto: 'Drag to look around. Tap a thing to see what it is. Tap the ground to walk. «Rentrer» takes you back to the quai.',
+    litHint: 'Touche le sol pour marcher · touche une chose pour la regarder',
     help: { hint: 'Un indice', words: 'Des mots', example: 'Un exemple' } as Record<HelpStep, string>,
     aide: 'Aide',
     again: 'Encore une fois',
@@ -191,6 +193,8 @@ const COPY = {
     visitHowto: 'Tippe auf jemanden am Stand, um zu reden, auf Französisch: sag bonjour, frag nach dem Preis, kauf nach Kilo oder Stück. Tippe auf den Boden, um zu gehen. «Rentrer» bringt dich zurück an den Quai.',
     roomHowto: 'Wischen zum Umsehen. Tippe auf den orangen Knopf, um das Treppenlicht anzumachen: es bleibt eine Weile an und geht dann aus. Tippe auf den Boden, um zu gehen. «Rentrer» bringt dich zurück an den Quai.',
     roomHint: 'Touche le sol pour marcher · touche le bouton orange pour la lumière',
+    litHowto: 'Wischen zum Umsehen. Tippe auf etwas, um es anzusehen. Tippe auf den Boden, um zu gehen. «Rentrer» bringt dich zurück an den Quai.',
+    litHint: 'Touche le sol pour marcher · touche une chose pour la regarder',
     help: { hint: 'Un indice', words: 'Des mots', example: 'Un exemple' } as Record<HelpStep, string>,
     aide: 'Aide',
     again: 'Encore une fois',
@@ -604,7 +608,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
 
       {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
 
-      {phase === 'roam' && !ui?.talk && !ui?.goal ? <div className="qz-hint">{room ? copy.roomHint : copy.roamHint}</div> : null}
+      {phase === 'roam' && !ui?.talk && !ui?.goal ? <div className="qz-hint">{room ? (room.switches.length ? copy.roomHint : copy.litHint) : copy.roamHint}</div> : null}
       {phase === 'roam' && ui?.met ? (
         <div key={ui.met.at} className="qz-met" data-char={ui.met.char}>
           {ui.met.name}
@@ -669,7 +673,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
             <button type="button" className="qz-primary" onClick={begin}>
               {copy.start}
             </button>
-            <p className="qz-howto">{room ? copy.roomHowto : copy.visitHowto}</p>
+            <p className="qz-howto">{room ? (room.switches.length ? copy.roomHowto : copy.litHowto) : copy.visitHowto}</p>
           </div>
         </div>
       ) : null}
