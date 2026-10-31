@@ -153,3 +153,60 @@ def test_forge_state_round_trips_the_warmup(db_session) -> None:
     session, state = _day(db_session, user, concept.id)
     again = forge_state_of(session)
     assert again.track(concept.id).rung == 3 and again.track(concept.id).warmup == 2
+
+
+# -- review of #417: settlements read late ----------------------------------------
+
+
+def _provisional_hit() -> Verdict:
+    return Verdict(core.OUTCOME_INCORRECT, checked=False, local=core.OUTCOME_CORRECT)
+
+
+def test_a_warmup_confirmed_late_ends_the_warmup() -> None:
+    """A due rule stored at FREE_USE: its warm-up is a PRODUCE item, read by the
+    model after the fact. Once the model says «right», the next item is posed at
+    the level, not at another warm-up."""
+
+    state = ForgeState.seance(
+        [ForgeUnit(1, Role.DUE.value, int(Rung.FREE_USE), warmup=int(Rung.PRODUCE))], length=6
+    )
+    slot = state.next_slot()
+    assert slot.rung == int(Rung.PRODUCE)
+    state.record(concept_id=1, rung=slot.rung, verdict=_provisional_hit())
+    state.settle(state.history[-1], Verdict.right())
+    assert state.track(1).warmup is None
+    assert state.next_slot().rung == int(Rung.FREE_USE), "the warm-up is over: the next item is at the level"
+
+
+def test_two_rejected_provisional_climbs_leave_the_level_where_it_was() -> None:
+    """PRODUCE → provisional hit at PRODUCE (→ FREE_USE) → provisional hit at
+    FREE_USE; both read as misses, in order. The level is PRODUCE again, and the
+    rule is not topped out on an answer the model rejected."""
+
+    start = int(Rung.PRODUCE)
+    state = ForgeState.seance([ForgeUnit(1, Role.TODAY.value, start)], length=8)
+    state.record(concept_id=1, rung=start, verdict=_provisional_hit())
+    first = state.history[-1]
+    state.record(concept_id=1, rung=int(Rung.FREE_USE), verdict=_provisional_hit())
+    second = state.history[-1]
+    assert state.track(1).rung == int(Rung.FREE_USE) and state.track(1).topped
+
+    state.settle(first, Verdict.wrong())
+    assert state.track(1).rung == start
+    state.settle(second, Verdict.wrong())
+    assert state.track(1).rung == start, "two rejected answers raised the level back to FREE_USE"
+    assert state.level_read(1) == start
+    assert not state.track(1).topped, "a rejected top-rung answer does not retire the rule"
+
+
+def test_a_late_right_top_rung_answer_still_tops_the_rule_out() -> None:
+    start = int(Rung.PRODUCE)
+    state = ForgeState.seance([ForgeUnit(1, Role.TODAY.value, start)], length=8)
+    state.record(concept_id=1, rung=start, verdict=_provisional_hit())
+    first = state.history[-1]
+    state.record(concept_id=1, rung=int(Rung.FREE_USE), verdict=_provisional_hit())
+    second = state.history[-1]
+    state.settle(first, Verdict.wrong())
+    state.settle(second, Verdict.right())
+    assert state.track(1).rung == int(Rung.FREE_USE)
+    assert state.track(1).topped

@@ -596,14 +596,28 @@ class ForgeState:
             # this one left it: that verified step owns the level now, and taking
             # this one's delta off a capped or topped rung would undo it.
             entry["rung_move"] = 0
+            if verdict.checked and verdict.correct:
+                track.warmup = None
         elif self.mode == MODE_SEANCE:
             # The level before this answer moved it (a provisional move taken back),
             # then the one step the real verdict makes from there.
             base = clamp_rung(track.rung - moved)
-            after = step_level(base, rung, Verdict(verdict.outcome, checked=verdict.checked)) if verdict.checked else base
+            # The item's rung is no floor here: it may have been chosen from a
+            # provisional climb an earlier settlement has since taken back. Posed
+            # above ``base``, it is read as posed at ``base`` (a miss keeps it, a
+            # right answer is the one step up); posed below, it is a warm-up.
+            posed = min(rung, base)
+            after = step_level(base, posed, Verdict(verdict.outcome, checked=verdict.checked)) if verdict.checked else base
             final = after - base
             track.rung = after
-            if moved > 0 and final <= 0 and rung == TOP_RUNG and not any(
+            confirmed = verdict.checked and verdict.correct
+            if confirmed:
+                # A right answer read late warms the rule up and tops it out exactly
+                # as one read at once does (``record``).
+                track.warmup = None
+                if rung == TOP_RUNG and track.rung == TOP_RUNG:
+                    track.topped = True
+            elif rung == TOP_RUNG and not any(
                 other is not entry
                 and int(other.get("concept_id", -1)) == track.concept_id
                 and other.get("checked")
@@ -611,6 +625,7 @@ class ForgeState:
                 and clamp_rung(other.get("rung")) == TOP_RUNG
                 for other in self.history
             ):
+                # Its provisional top-out is withdrawn with it: the rule goes on.
                 track.topped = False
             if verdict.checked and not (verdict.correct or verdict.partial) and not self.finished:
                 gap = reprise_gap(track.concept_id, int(entry.get("position", self.position)))
