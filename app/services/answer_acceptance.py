@@ -1493,6 +1493,9 @@ def correction_is_grounded(
     * a subject the note leans on («after 'tu'») appears in the sentence;
     * when the correction changes a single être/avoir/aller form, that form is
       wrong for the subject in front of it and the replacement is right for it.
+      When it changes the verb itself («tu es faim» → «tu as faim», «elle a
+      partie» → «elle est partie»), only the replacement is checked: a form right
+      for its subject is still the wrong verb.
       A subject the sentence does not make clear never rejects.
     """
 
@@ -1513,6 +1516,11 @@ def correction_is_grounded(
     old_persons, new_persons = _FORM_PERSONS.get(old), _FORM_PERSONS.get(new)
     if old_persons is None or new_persons is None:
         return True
+    if _FORM_VERB.get(old) != _FORM_VERB.get(new):
+        # #174 (review on #440): «es» → «as», «a» → «est» (the auxiliary), «suis» →
+        # «ai» change the verb, not its person. That «es» suits «tu» proves nothing;
+        # only a replacement wrong for the subject («est» → «as» after «elle») does.
+        old_persons = frozenset()
     # The span may stand twice («Elle est là. Toi est gentil.»): one place where the
     # correction holds is enough.
     return any(
