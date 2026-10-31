@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.pilot_event import PilotEvent
-from app.services.learner_facts import contradicts
+from app.services.learner_facts import contradicts, latest_clash
 from app.services.transcription_cost import (
     TRANSCRIPTION_EVENT_TYPE,
     estimate_audio_seconds,
@@ -272,11 +272,9 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
         # A scene has several exchanges (#378): the date and the reason are often
         # given on the first turn and never repeated, so every real turn counts.
         turns = _learner_turns(private)
-        # The latest turn that clashes wins: a learner who corrected themselves
-        # («finalement le 5 mars») is offered the corrected fact.
-        clash = next(
-            (index for index in reversed(range(len(turns))) if contradicts(turns[index][0], line)), None
-        )
+        # Per kind of fact the latest turn that states it decides: a learner who
+        # corrected themselves («finalement le 5 mars») keeps the corrected fact.
+        clash = latest_clash([said for said, _ in turns], line)
         if line and clash is None:
             return line
         if line:

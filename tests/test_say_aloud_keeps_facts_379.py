@@ -146,3 +146,19 @@ def test_a_date_given_on_the_first_of_three_exchanges_still_counts():
     )
     line = spoken_reply.repeat_line_for(step, _correction("Je pars seul avec mon sac."))
     assert line == "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."
+
+
+def test_a_fact_corrected_back_to_the_line_lets_the_line_stand():
+    """Codex review on #414: «le 2», then «finalement le 19»: the 19th is the learner's."""
+
+    step = _step("Non, finalement le 19 décembre.", "Je rentre le 19 décembre.")
+    step.private_task["turns"].insert(0, {"learner": "Je rentre le 2 décembre.", "character": "Ah ?"})
+    assert spoken_reply.repeat_line_for(step) == "Je rentre le 19 décembre."
+
+
+def test_quatre_vingt_un_is_eighty_one():
+    """Codex review on #414."""
+
+    assert spoken_reply.repeat_line_for(_step("Ça coûte quatre-vingt-un euros.", "Ça coûte 81 euros.")) == (
+        "Ça coûte 81 euros."
+    )
