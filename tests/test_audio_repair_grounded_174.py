@@ -8,6 +8,11 @@ after 'tu'» on «Ma grand-mère est mort», #193), or one right word swapped fo
 («mais sans mon nom» → «mais pas mon nom», «Vous êtes disponible ?» → «Êtes-vous
 disponible ?», #93) went onto the recap and into the learner's mistakes. The studio now
 runs the two checks the story lane runs on the tutor's corrections.
+
+Review on #440: the person check of ``correction_is_grounded`` dropped a repair that
+changes the verb, not its person («Tu es faim» → «Tu as faim», «Elle a partie» → «Elle est
+partie»), because «es» is right for «tu». A verb change is now judged by its replacement
+alone, in the studio and in the story lane.
 """
 
 from __future__ import annotations
@@ -19,6 +24,7 @@ import pytest
 
 from app.core.error_detection.rules import DetectedError
 from app.db.models.session import ConversationMessage, LearningSession
+from app.services.answer_acceptance import correction_is_grounded
 from app.services.audio_session_service import AudioSessionService
 from tests.test_audio_story_regressions import StubLLMService, _user
 
@@ -44,10 +50,32 @@ from tests.test_audio_story_regressions import StubLLMService, _user
         ("Hier je allais au marché.", "je allais", "j'allais", "Élision devant une voyelle.", True),
         ("Toi est gentil.", "Toi est", "Toi es", "", True),
         ("Je aller au marché.", "je aller", "je vais", "Conjuguez le verbe.", True),
+        # A repair of the verb itself, not its person (review on #440).
+        ("Tu es faim.", "Tu es faim", "Tu as faim", "On dit avoir faim.", True),
+        ("Elle a partie hier.", "a", "est", "Partir prend être au passé composé.", True),
     ],
 )
 def test_a_studio_repair_must_be_about_what_was_said(said, span, suggestion, note, kept) -> None:
     assert AudioSessionService._is_grounded(said, span, suggestion, note) is kept
+
+
+@pytest.mark.parametrize(
+    ("said", "span", "suggestion", "kept"),
+    [
+        # être ↔ avoir ↔ aller: the form was right for its subject, the verb was not.
+        ("Tu es faim.", "es", "as", True),
+        ("Je suis faim.", "suis", "ai", True),
+        ("Nous avons allés au marché.", "avons", "sommes", True),
+        ("Marin est faim.", "est", "a", True),
+        # The replacement must still fit the subject.
+        ("Elle est contente.", "est", "as", False),
+        ("Ma grand-mère est mort.", "est", "ai", False),
+        # A subject the sentence does not name: «as» needs a «tu» or a «toi».
+        ("Marin est faim.", "est", "as", False),
+    ],
+)
+def test_a_verb_change_is_judged_by_its_replacement(said, span, suggestion, kept) -> None:
+    assert correction_is_grounded(said, span, suggestion) is kept
 
 
 def test_the_turn_files_and_shows_only_the_grounded_repair(db_session, monkeypatch) -> None:
