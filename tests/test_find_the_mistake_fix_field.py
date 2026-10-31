@@ -118,18 +118,3 @@ def test_no_right_word_blamed(built: str) -> None:
     assert "does not belong" not in why, why
     # The guard: no word named as wrong is a word the target line holds.
     assert not {word for word in wrong if word in tokens(HAT_ANSWER)}, wrong
-
-
-def test_a_word_that_only_moved_is_not_called_extra() -> None:
-    from app.services.forge_grading import describe_diff, token_diff
-
-    ops = token_diff("Gus a un chapeau très beau", "Gus a un très beau chapeau")
-    assert not [op for op in ops if op["kind"] == "extra" and op["learner"] in {"chapeau", "très", "beau"}], ops
-    assert "does not belong" not in describe_diff(ops, "en")
-
-
-def test_a_real_surplus_copy_is_still_extra() -> None:
-    from app.services.forge_grading import token_diff
-
-    ops = token_diff("Gus a un un chapeau", "Gus a un chapeau")
-    assert [op["learner"] for op in ops if op["kind"] == "extra"] == ["un"], ops

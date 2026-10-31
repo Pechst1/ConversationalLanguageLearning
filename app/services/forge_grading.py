@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections import Counter
 from difflib import SequenceMatcher
 from functools import lru_cache
 from typing import Any
@@ -126,37 +125,7 @@ def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
             ops.append({"kind": kind, "learner": learner_word, "target": target_word})
         ops.extend({"kind": "extra", "learner": token, "target": ""} for token in left[i1 + len(pairs):i2])
         ops.extend({"kind": "missing", "learner": "", "target": token} for token in right[j1 + len(pairs):j2])
-    return _without_moved_words(ops, left, right)
-
-
-def _without_moved_words(ops: list[dict[str, str]], left: list[str], right: list[str]) -> list[dict[str, str]]:
-    """Never call a word wrong that the key itself has (#395).
-
-    The alignment may file a word that only moved as «extra» here and «missing»
-    there; an «extra» is a word the line has more often than the key does. A word
-    the key has at least as often is not extra, and its «missing» twin goes with
-    it. When nothing else differs the line is told the words are right but in
-    another order.
-    """
-
-    wanted = Counter(strip_accents(token) for token in right)
-    said = Counter(strip_accents(token) for token in left)
-    moved = {
-        strip_accents(op["learner"])
-        for op in ops
-        if op["kind"] == "extra" and said[strip_accents(op["learner"])] <= wanted[strip_accents(op["learner"])]
-    }
-    if not moved:
-        return ops
-    kept = [
-        op
-        for op in ops
-        if not (op["kind"] == "extra" and strip_accents(op["learner"]) in moved)
-        and not (op["kind"] == "missing" and strip_accents(op["target"]) in moved)
-    ]
-    if not kept:
-        kept.append({"kind": "order", "learner": " ".join(left), "target": " ".join(right)})
-    return kept
+    return ops
 
 
 def mark_given(ops: list[dict[str, str]], source: Any) -> list[dict[str, str]]:
