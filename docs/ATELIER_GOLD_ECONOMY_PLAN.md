@@ -7,7 +7,9 @@ well designed in the existing design language, triggers dopamine, and works in t
 and in Le Quartier (3D).
 
 The visual design, with live prototypes of every reward moment, is the companion artifact
-«L'or de l'Atelier». This file is the engineering spec the implementation PRs follow.
+[«L'or de l'Atelier»](https://claude.ai/artifact/Rb3Ruya2ptBMfxwsCp9U1x). Its mint function
+implements the base values and rules of §4.1 and §4.2, so the page doubles as a worked
+example of the mint table. This file is the engineering spec the implementation PRs follow.
 
 ## Summary
 
