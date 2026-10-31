@@ -88,6 +88,7 @@ export function ForgeHead({
   title,
   rung,
   eyebrow,
+  tag = null,
   ruleLabel,
   ruleOpen = false,
   onRule,
@@ -96,6 +97,8 @@ export function ForgeHead({
   copy: ForgeCopy;
   title: Node;
   rung: number;
+  /** #169: an item of another rule names itself and why («Review · due today»). */
+  tag?: string | null;
   /** The item on screen: the explanation shown unasked steps aside on the next one. */
   itemKey?: string;
   /** A test-out names itself here instead of the level. */
@@ -119,6 +122,7 @@ export function ForgeHead({
     <div className="forge-head">
       <div className="forge-head__row">
         <div className="forge-head__text">
+          {tag ? <p className="forge-head__tag" data-testid="forge-review-tag">{tag}</p> : null}
           <p className="forge-head__rule" lang="fr">{title}</p>
           {eyebrow ? (
             <p className="forge-head__eyebrow">{eyebrow}</p>
@@ -296,6 +300,7 @@ export function ForgeStyles() {
 .av2 .forge-head__row { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 .av2 .forge-head__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .av2 .forge-head__rule { margin: 0; font-size: var(--av2-t-body); font-weight: 700; line-height: 1.3; color: var(--av2-ink); overflow-wrap: anywhere; }
+.av2 .forge-head__tag { margin: 0 0 2px; font-size: var(--av2-t-meta); font-weight: 600; line-height: 1.3; color: var(--av2-muted); }
 .av2 .forge-head__eyebrow { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; line-height: 1.3; color: var(--av2-blue); }
 .av2 .forge-head__level {
   align-self: flex-start;

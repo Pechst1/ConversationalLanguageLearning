@@ -22,7 +22,9 @@ rung, and a rule that is clean at the top retires altogether.
 contrast partners (shares renormalised over the roles that are present, and
 over the rules still able to take a slot). Never two items of one rule back to
 back (the one exception: a séance with a single rule). At most
-:data:`MAX_NEW_RULES` brand-new rule per séance.
+:data:`MAX_NEW_RULES` brand-new rule per séance. The day's step («Forge
+today's rule», #169) sets ``review_share`` instead: today's rule throughout,
+review rules only within that share (:meth:`ForgeState._today_first_slot`).
 
 **Evidence, with caps.** Every checked answer yields exactly one evidence
 entry. Within one séance only the first success per rule per rung — and the
@@ -347,11 +349,14 @@ class ForgeState:
     plan: list[int] = field(default_factory=list)
     finished: bool = False
     result: dict[str, Any] | None = None
+    #: #169: the day's step («Forge today's rule»): the share of items the
+    #: non-today rules may take at most (``None``: :data:`ROLE_SHARES`).
+    review_share: float | None = None
 
     # -- construction ------------------------------------------------------
 
     @classmethod
-    def seance(cls, units: Iterable[ForgeUnit], *, length: int) -> ForgeState:
+    def seance(cls, units: Iterable[ForgeUnit], *, length: int, review_share: float | None = None) -> ForgeState:
         prepared = _prepare_units(units)
         tracks = [
             RuleTrack(
@@ -362,7 +367,8 @@ class ForgeState:
             )
             for unit in prepared
         ]
-        return cls(mode=MODE_SEANCE, length=max(1, int(length)), tracks=tracks)
+        share = None if review_share is None else max(0.0, min(1.0, float(review_share)))
+        return cls(mode=MODE_SEANCE, length=max(1, int(length)), tracks=tracks, review_share=share)
 
     @classmethod
     def test_out(cls, concept_id: int, *, short: bool = False) -> ForgeState:
@@ -389,6 +395,7 @@ class ForgeState:
             "plan": list(self.plan),
             "finished": self.finished,
             "result": self.result,
+            "review_share": self.review_share,
         }
 
     @classmethod
@@ -404,6 +411,7 @@ class ForgeState:
             plan=[int(item) for item in raw.get("plan") or []],
             finished=bool(raw.get("finished")),
             result=raw.get("result"),
+            review_share=float(raw["review_share"]) if isinstance(raw.get("review_share"), (int, float)) else None,
         )
 
     # -- reading -----------------------------------------------------------
@@ -451,6 +459,8 @@ class ForgeState:
         live = [track for track in self.tracks if not track.topped]
         if not live:
             return None
+        if self.review_share is not None:
+            return self._today_first_slot(position, live)
         last = self.last_concept_id()
         single_rule = len(self.tracks) == 1
         eligible = [track for track in live if single_rule or track.concept_id != last]
@@ -485,6 +495,39 @@ class ForgeState:
         pick = min(candidates, key=lambda track: (track.served, track.rung, track.concept_id))
         rung = pick.entry_rung() if pick.served == 0 else pick.rung
         return Slot(position, pick.concept_id, rung, pick.role)
+
+    def _today_first_slot(self, position: int, live: list[RuleTrack]) -> Slot | None:
+        """#169 — the day's step: today's rule, with review items as a capped share.
+
+        A review rule takes a slot only while the review items served stay
+        within ``review_share`` of the séance so far *including* this one
+        (``floor``: 0.25 puts them at items 4, 8, 12 — never item 2), and never
+        right after another review item. Today's rule may follow itself: the
+        day's step is about it. The cap holds even once today's rule is topped
+        out: the séance then ends rather than turn into a review séance.
+        """
+
+        today = [track for track in live if track.role == Role.TODAY.value]
+        side = [track for track in live if track.role != Role.TODAY.value]
+        last = self.last_concept_id()
+        side_served = sum(1 for entry in self.history if str(entry.get("role")) != Role.TODAY.value)
+        room = math.floor((self.review_share or 0.0) * (position + 1) + 1e-9) - side_served
+        last_was_side = bool(self.history) and str(self.history[-1].get("role")) != Role.TODAY.value
+        eligible_side = [track for track in side if track.concept_id != last]
+        if eligible_side and room > 0 and not last_was_side:
+            reprises = [t for t in eligible_side if t.reprise_at is not None and t.reprise_at <= position]
+            if reprises:
+                pick = min(reprises, key=lambda track: (track.reprise_at, track.served))
+                return Slot(position, pick.concept_id, pick.rung, pick.role, reprise=True)
+            pick = min(eligible_side, key=lambda track: (track.served, track.rung, track.concept_id))
+            rung = pick.entry_rung() if pick.served == 0 else pick.rung
+            return Slot(position, pick.concept_id, rung, pick.role)
+        if not today:
+            return None
+        pick = today[0]
+        reprise = pick.reprise_at is not None and pick.reprise_at <= position
+        rung = pick.entry_rung() if pick.served == 0 else pick.rung
+        return Slot(position, pick.concept_id, rung, pick.role, reprise=reprise)
 
     # -- settling a provisional answer ----------------------------------------
 
