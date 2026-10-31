@@ -1015,6 +1015,36 @@ def _noun_alternatives() -> tuple[tuple[str, str, str, str], ...]:
     return tuple(pairs)
 
 
+def noun_with_learner_article(noun: object, learner: object) -> str | None:
+    """The bare key noun with the kind of article the learner put in front of their
+    answer, in the noun's own gender: against «appartement», «une maison» is fixed to
+    «un appartement» and «la maison» to «l'appartement» (#174, walk 31 Oct: the fix
+    «un appart → appartement» dropped the article the learner gave).
+
+    ``None`` when the learner wrote no singular article, the key is not one bare noun,
+    or the core lexicon does not know its gender. An «h» noun takes no definite article
+    here: «l'» or «le» depends on an aspirated h this list does not know («le héros»)."""
+
+    key = " ".join(str(noun or "").split())
+    folded_key = fold_typography(key)
+    if not folded_key or " " in folded_key or _strip_article(folded_key)[0] is not None or "'" in folded_key:
+        return None
+    key = key[:1].lower() + key[1:]  # a key written with a capital («Appartement») is still a noun
+    article, rest = _strip_article(fold_typography(learner))
+    if article not in {"un", "une", "le", "la", "l'"} or not rest:
+        return None
+    gender = _gender_of(folded_key)
+    if gender not in {"m", "f"}:
+        return None
+    if article in {"un", "une"}:
+        return f"{'un' if gender == 'm' else 'une'} {key}"
+    if folded_key.startswith("h"):
+        return None
+    if _VOWEL_START.match(folded_key):
+        return f"l'{key}"
+    return f"{'le' if gender == 'm' else 'la'} {key}"
+
+
 def _is_adjective(word: str) -> bool:
     data = _core_lexicon()
     lemma = _lemma_of(word) or word

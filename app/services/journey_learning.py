@@ -1941,7 +1941,21 @@ def _accepted_answers(task: RecallTask) -> list[str]:
         # «un appartement» all count.
         _article, noun = split_article(task.target.label_fr)
         accepted.append(noun)
-    return accepted
+    # #174 (walk 31 Oct): «un appart» for «flat, apartment» was «Not yet» here while La
+    # Forge took it. One accept-list for every typed answer, La Forge's own
+    # (``answer_acceptance.widened_answers``): each noun's other right word («appart»,
+    # «le bureau de poste» for «la poste») and, when a word's gloss says «we», the other
+    # «we». A grammar target's label is the rule's title and an erratum's an explanation,
+    # never the prompt, so neither opens «on» ↔ «nous»: those items ask for their own form.
+    from app.services.answer_acceptance import widened_answers
+
+    gloss = task.target.label_native if task.target.kind is TargetKind.VOCABULARY else None
+    widened = widened_answers(accepted, english=gloss)
+    source = repair_source_of(task)
+    if source:
+        # A rewrite is never answered by the very sentence it asks to change.
+        widened = [text for text in widened if fold_for_comparison(text) != fold_for_comparison(source)] or widened
+    return widened
 
 
 #: Formats answered by placing tiles in order.
@@ -2311,6 +2325,17 @@ def evaluate_recall(
         # saved error keeps the whole sentence, so it can be drilled later.
         part_answer = typed is not None and bool(typed.read_as and typed.expected_part)
         shown = typed.expected_part if part_answer else expected
+        if not part_answer and task.task_type == "short_answer" and expected:
+            # #174 (walk 31 Oct): a bare noun's fix keeps the article the learner gave,
+            # in the noun's gender («une maison → un appartement», not «→ appartement»).
+            from app.services.answer_acceptance import noun_with_learner_article
+
+            with_article = noun_with_learner_article(expected, learner_text)
+            if with_article:
+                shown = with_article
+                if note == task.hint_native:
+                    # «It is 1 word long» under the two words shown would contradict them.
+                    note = None
         if task.rule_native:
             # #278: a missed repair ends on the rule it was about, whatever else it says.
             note = f"{note} {task.rule_native}".strip() if note else task.rule_native
