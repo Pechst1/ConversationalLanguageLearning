@@ -1,0 +1,209 @@
+{
+  "id": "user_apartment",
+  "version": 1,
+  "kind": "room",
+  "in": "quai_de_valmy",
+  "ambiance": "nuit",
+  "title": {
+    "fr": "Ton studio",
+    "en": "Your studio",
+    "de": "Dein Studio"
+  },
+  "can_do": {
+    "fr": "Regarder ton billet de retour, toucher le radiateur, prendre la clé d'Odile.",
+    "en": "Look at your return ticket, touch the radiator, pick up Odile's key.",
+    "de": "Deine Rückfahrkarte ansehen, die Heizung anfassen, Odiles Schlüssel nehmen."
+  },
+  "arrive": {
+    "fr": "Ton studio, au sixième sans ascenseur. Il fait froid.",
+    "en": "Your studio, on the sixth floor with no lift. It is cold.",
+    "de": "Dein Studio im sechsten Stock, ohne Aufzug. Es ist kalt."
+  },
+  "start": {
+    "pos": [11.65, -56.65],
+    "look": [12.15, 20.75, -60.0]
+  },
+  "floors": [
+    {
+      "key": "studio",
+      "shape": [
+        [10.0, -60.0],
+        [13.3, -60.0],
+        [13.3, -56.2],
+        [10.0, -56.2]
+      ],
+      "y": 19.75,
+      "finish": "boards"
+    }
+  ],
+  "flights": [],
+  "walls": [
+    {
+      "key": "studio.n",
+      "a": [10.0, -60.0],
+      "b": [13.3, -60.0],
+      "base": 19.75,
+      "top": 22.35,
+      "finish": "plaster",
+      "tone": "white"
+    },
+    {
+      "key": "studio.e",
+      "a": [13.3, -60.0],
+      "b": [13.3, -56.2],
+      "base": 19.75,
+      "top": 22.35,
+      "finish": "plaster",
+      "tone": "white"
+    },
+    {
+      "key": "studio.s",
+      "a": [13.3, -56.2],
+      "b": [10.0, -56.2],
+      "base": 19.75,
+      "top": 22.35,
+      "finish": "plaster",
+      "tone": "white"
+    },
+    {
+      "key": "studio.w",
+      "a": [10.0, -56.2],
+      "b": [10.0, -60.0],
+      "base": 19.75,
+      "top": 22.35,
+      "finish": "plaster",
+      "tone": "white"
+    }
+  ],
+  "ceilings": [
+    {
+      "shape": [
+        [10.0, -60.0],
+        [13.3, -60.0],
+        [13.3, -56.2],
+        [10.0, -56.2]
+      ],
+      "y": 22.35
+    }
+  ],
+  "doors": [
+    {
+      "key": "porte_palier",
+      "height": 2.1,
+      "hinge": "left",
+      "swing": "in",
+      "tone": "cream",
+      "opens": "never",
+      "mat": true,
+      "wall": 2,
+      "u0": 1.25,
+      "u1": 2.1
+    }
+  ],
+  "windows": [
+    {
+      "key": "fenetre_cour",
+      "wall": 0,
+      "u0": 0.85,
+      "u1": 1.95,
+      "y0": 20.7,
+      "y1": 22.0
+    }
+  ],
+  "holes": [],
+  "rails": [],
+  "lights": [
+    {
+      "key": "ampoule",
+      "kind": "globe",
+      "at": [11.65, 21.9, -58.1],
+      "power": 0.8,
+      "range": 4.2,
+      "ceiling": 22.35
+    }
+  ],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "radiator",
+      "at": [11.4, 19.75, -59.98],
+      "rot": 0,
+      "tone": "white",
+      "look": { "fr": "Le radiateur est froid.", "en": "The radiator is cold.", "de": "Die Heizung ist kalt." },
+      "did": { "fr": "Tu as touché le radiateur : il est froid.", "en": "You touched the radiator: it is cold.", "de": "Du hast die Heizung angefasst: Sie ist kalt." }
+    },
+    {
+      "kind": "bed",
+      "at": [12.83, 19.75, -58.995],
+      "rot": 0,
+      "size": [0.9, 1.95]
+    },
+    {
+      "kind": "phone",
+      "at": [12.62, 20.2, -58.45],
+      "rot": -0.6,
+      "text": ["Retour :", "mercredi 18 novembre"],
+      "look": { "fr": "Sur l'écran : «Retour : mercredi 18 novembre». Ton billet de retour.", "en": "On the screen: «Retour : mercredi 18 novembre». Your return ticket.", "de": "Auf dem Bildschirm: «Retour : mercredi 18 novembre». Deine Rückfahrkarte." },
+      "did": { "fr": "Tu as regardé ton billet de retour.", "en": "You looked at your return ticket.", "de": "Du hast dir deine Rückfahrkarte angesehen." }
+    },
+    {
+      "kind": "keys",
+      "at": [12.95, 20.19, -58.3],
+      "rot": 0.5,
+      "look": { "fr": "La clé d'Odile, et la cigale sur l'anneau.", "en": "Odile's key, and the cicada on the ring.", "de": "Odiles Schlüssel und die Zikade am Ring." },
+      "did": { "fr": "Tu as pris la clé d'Odile dans ta main.", "en": "You held Odile's key.", "de": "Du hast Odiles Schlüssel in die Hand genommen." }
+    },
+    {
+      "kind": "table",
+      "at": [10.75, 19.75, -58.75],
+      "rot": 1.5708
+    },
+    {
+      "kind": "chair",
+      "at": [10.75, 19.75, -59.45],
+      "rot": 0
+    },
+    {
+      "kind": "chair",
+      "at": [10.75, 19.75, -58.0],
+      "rot": 3.1416
+    },
+    {
+      "kind": "kitchenette",
+      "at": [10.02, 19.75, -57.0],
+      "rot": 1.5708,
+      "size": [1.2, 0.58]
+    },
+    {
+      "kind": "suitcase",
+      "at": [12.6, 19.75, -56.42],
+      "rot": 3.1416,
+      "look": { "fr": "Ta valise. Tu rentres mercredi.", "en": "Your suitcase. You go home on Wednesday.", "de": "Dein Koffer. Am Mittwoch fährst du nach Hause." },
+      "did": { "fr": "Tu as regardé ta valise, prête pour mercredi.", "en": "You looked at your suitcase, ready for Wednesday.", "de": "Du hast deinen Koffer angesehen, fertig für Mittwoch." }
+    }
+  ],
+  "courts": [
+    {
+      "x0": 5.0,
+      "z0": -71.0,
+      "x1": 19.0,
+      "z1": -60.3,
+      "open": "s",
+      "storeys": 5,
+      "lit": 0.3,
+      "seed": 6,
+      "roofs": true
+    }
+  ],
+  "marks": {
+    "bedside": [12.15, 19.75, -58.45],
+    "window": [11.4, 19.75, -59.3]
+  },
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "Your rented studio (user_apartment)",
+    "scenes": ["T1 b · À suivre", "Épilogue 1 a", "Épilogue 1 b"],
+    "brief_round": 3
+  }
+}
