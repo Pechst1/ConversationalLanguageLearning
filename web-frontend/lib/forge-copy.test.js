@@ -99,6 +99,43 @@ test('#300 a spot with several wrong words says how many, in all three languages
   assert.equal(spotHint(forgeCopy('en'), 2), 'Tap the 2 wrong words and fix them.');
 });
 
+// #402: the level legend states the rule the staircase applies. The server hands the
+// page that rule (`forge.level_rule`, from `app/core/forge.py`); a miss that keeps the
+// level (owner decision #88) must not be described as «down one».
+test('the level legend says what the server says a miss does', () => {
+  const { levelExplain } = require('./forge-progress.ts');
+  for (const language of ['en', 'de', 'fr']) {
+    const copy = forgeCopy(language);
+    assert.equal(typeof levelExplain, 'function', 'the legend is chosen from the server’s rule');
+    const keeps = levelExplain(copy, { right: 1, wrong: 0 });
+    const down = levelExplain(copy, { right: 1, wrong: -1 });
+    assert.notEqual(keeps, down, language);
+    assert.equal(down, copy.level_explain_down, language);
+  }
+  const en = forgeCopy('en');
+  assert.doesNotMatch(levelExplain(en, { right: 1, wrong: 0 }), /down/i);
+  assert.match(levelExplain(en, { right: 1, wrong: 0 }), /stays/i);
+  // Without the rule (an older server) the legend promises nothing it cannot know.
+  assert.equal(levelExplain(en, undefined), en.level_explain);
+  assert.doesNotMatch(en.level_explain, /down/i);
+  assert.doesNotMatch(forgeCopy('de').level_explain, /runter/i);
+  assert.doesNotMatch(forgeCopy('fr').level_explain, /un de moins/i);
+});
+
+// #402: the header shows the rule's level, not the rung a warm-up item is posed at.
+// A due rule ended day 1 at Level 5 and its first item on day 2 is posed one step
+// easier: the header still says Level 5.
+test('the header level is the rule’s level, not the warm-up item’s rung', () => {
+  const { headerLevel } = require('./forge-progress.ts');
+  assert.equal(headerLevel({ ruleRung: 4, itemRung: 3 }), 4);
+  assert.equal(headerLevel({ answeredRung: 4, ruleRung: 4, itemRung: 3 }), 4);
+  assert.equal(headerLevel({ answeredRung: 5, ruleRung: 4, itemRung: 4 }), 5);
+  // A test-out names the step it asks; an older payload without rules falls back to the item.
+  assert.equal(headerLevel({ ruleRung: 0, itemRung: 3, testOut: true }), 3);
+  assert.equal(headerLevel({ itemRung: 2 }), 2);
+  assert.equal(headerLevel({ answeredRung: null, ruleRung: 4, itemRung: 3 }), 4);
+});
+
 test('#169 an item of another rule in «Forge today\'s rule» says it is a review, and the page shows it', () => {
   for (const language of ['en', 'de', 'fr']) {
     const copy = forgeCopy(language);

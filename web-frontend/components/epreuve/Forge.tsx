@@ -26,7 +26,7 @@ import { Chip, ShapeToken } from '@/components/atelier-v2/ui';
 import { fillForge, type ForgeCopy } from '@/lib/forge-copy';
 import type { NamedDrill } from '@/lib/forge-drills';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
-import { clampRung, levelSegments, levelText, type RecapRuleRow } from '@/lib/forge-progress';
+import { clampRung, levelExplain, levelSegments, levelText, type LevelRule, type RecapRuleRow } from '@/lib/forge-progress';
 
 type Node = React.ReactNode;
 
@@ -93,10 +93,13 @@ export function ForgeHead({
   ruleOpen = false,
   onRule,
   itemKey = '',
+  levelRule,
 }: {
   copy: ForgeCopy;
   title: Node;
   rung: number;
+  /** What a right and a wrong answer do to the level (`forge.level_rule`): the legend states it. */
+  levelRule?: LevelRule;
   /** #169: an item of another rule names itself and why («Review · due today»). */
   tag?: string | null;
   /** The item on screen: the explanation shown unasked steps aside on the next one. */
@@ -151,7 +154,7 @@ export function ForgeHead({
           </Chip>
         )}
       </div>
-      {explain && !eyebrow && <p className="forge-head__explain">{copy.level_explain}</p>}
+      {explain && !eyebrow && <p className="forge-head__explain">{levelExplain(copy, levelRule)}</p>}
     </div>
   );
 }

@@ -1232,6 +1232,8 @@ export interface AtelierForgeView {
   }>;
   /** WP-S7: the run of checked right answers, and the best of the séance. */
   combo?: { run: number; best: number } | null;
+  /** #402: what a right and a wrong answer do to a rule's level, from the staircase itself. */
+  level_rule?: { right: number; wrong: number } | null;
   /** WP-S7: the owner's switches (each on by default). */
   features?: { combo?: boolean; eclair?: boolean; grammar_map?: boolean; mastery_rewards?: boolean } | null;
 }

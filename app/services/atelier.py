@@ -8185,33 +8185,6 @@ class AtelierSRSService:
             return None
         return text, not right
 
-    @staticmethod
-    def _forge_level_after_last_item(track: Any, history: list[dict[str, Any]]) -> int:
-        """The level a rule stands on after the last item the grader read (#370).
-
-        Read from the day's recorded answers (the ladder's own step rule over
-        the rule's last *checked* item), not from the staircase's running value:
-        that one can still hold a provisional climb («uses the rule», read by
-        the instant detector) which the model's later reading took back, and the
-        sheet showed that stale level next to a «Not yet». A rule with no
-        checked item keeps its running level; nothing contradicts it.
-        """
-
-        from app.core import forge as forge_core
-
-        last = next(
-            (
-                entry
-                for entry in reversed(history)
-                if int(entry.get("concept_id", -1)) == int(track.concept_id) and entry.get("checked")
-            ),
-            None,
-        )
-        if last is None:
-            return forge_core.clamp_rung(track.rung)
-        outcome = str(last.get("outcome") or forge_core.OUTCOME_INCORRECT)
-        return forge_core.step_rung(int(last.get("rung", track.rung)), forge_core.Verdict(outcome, checked=True))
-
     def _forge_rule_progress(
         self,
         *,
@@ -8418,7 +8391,9 @@ class AtelierSRSService:
         if forge_state is not None:  # WP-S3: each rule's rung, and the evidence written
             plan = (session.quote_payload or {}).get("forge") or {}
             levels = {
-                track.concept_id: self._forge_level_after_last_item(track, forge_state.history)
+                # #402: the staircase's own reading of each rule's level (one writer),
+                # never a recomputation from the last item's rung.
+                track.concept_id: forge_state.level_read(track.concept_id)
                 for track in forge_state.tracks
             }
             recap["forge"] = {
