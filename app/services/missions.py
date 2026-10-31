@@ -3818,7 +3818,7 @@ class MissionCorrectionService:
         for raw in errata:
             if not isinstance(raw, dict):
                 continue
-            erratum = self._normalize_erratum(raw, mission)
+            erratum = self._normalize_erratum(raw, mission, submission_text=submission_text)
             if self._is_echo_erratum(erratum, submission_text=submission_text):
                 continue
             if is_preference_swap(erratum.get("learner_text"), erratum.get("corrected_target")):
@@ -4330,14 +4330,19 @@ class MissionCorrectionService:
             return True
         return bool(corrected) and corrected == _normalized_repair_text(submission_text)
 
-    def _normalize_erratum(self, erratum: dict[str, Any], mission: RealWorldMission) -> dict[str, Any]:
+    def _normalize_erratum(
+        self, erratum: dict[str, Any], mission: RealWorldMission, *, submission_text: str | None = None
+    ) -> dict[str, Any]:
         external_id = erratum.get("external_id")
         concept_id = None
-        if correction_contract.elides_an_article(erratum.get("learner_text"), erratum.get("corrected_target")):
+        if correction_contract.elides_an_article(
+            erratum.get("learner_text"), erratum.get("corrected_target"), context=submission_text
+        ):
             # #119: «le appartement → l'appartement» and «de Odile → d'Odile» went to the
             # letter's own rule (Un, une, des), whose fallback took every rule id the
             # catalogue does not hold (FR_ELISION). The slip is the rule that teaches
             # l' and d', whatever the letter practised and whatever the corrector called it.
+            # The letter's text tells an object pronoun («je le aime») from the article.
             concept = (
                 self.db.query(GrammarConcept)
                 .filter(GrammarConcept.external_id == correction_contract.ARTICLE_ELISION_UNIT)

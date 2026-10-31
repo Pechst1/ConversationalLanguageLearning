@@ -49,6 +49,21 @@ def test_the_pair_says_when_an_article_was_elided():
     assert not elides_an_article("la appartement", "l'appartements")
 
 
+def test_an_object_pronoun_is_told_from_the_article_by_the_letter_itself():
+    """Review of #434: the contract quotes only «le aime» → «l'aime», so the subject in
+    front of it is in the letter, not in the pair."""
+
+    assert not elides_an_article("le aime", "l'aime", context="Je le aime beaucoup.")
+    assert not elides_an_article("le aime", "l'aime")
+    assert not elides_an_article("la invite", "l'invite", context="Ce soir, je la invite au cinéma.")
+    assert not elides_an_article("le acheter", "l'acheter", context="Je vais le acheter demain.")
+    assert not elides_an_article("le a", "l'a", context="Elle me le a donné.")
+    # The article keeps its rule, with the letter or without it.
+    assert elides_an_article("la école", "l'école", context="Je cherche la école.")
+    assert elides_an_article("Le hôtel", "L'hôtel", context="Le hôtel est loin.")
+    assert elides_an_article("le ami", "l'ami", context="Elle aime le ami de Paul.")
+
+
 def test_a_letters_elision_slips_land_on_the_article_rule(db_session):
     le_la = _unit(db_session, ARTICLE_ELISION_UNIT)
     un_une = _unit(db_session, "FR2_A11_UN_UNE")
@@ -107,3 +122,28 @@ def test_a_model_label_does_not_take_an_elision_away_from_the_article_rule(db_se
         mission,
     )
     assert other["concept_id"] == un_une.id, "any other slip keeps the letter's rule"
+
+
+def test_a_letters_pronoun_elision_keeps_the_letters_rule(db_session):
+    """Review of #434: «je le aime» in a letter on object pronouns is not filed under the article rule."""
+
+    le_la = _unit(db_session, ARTICLE_ELISION_UNIT)
+    un_une = _unit(db_session, "FR2_A11_UN_UNE")
+    user = User(id=uuid4(), email=f"courrier-119p-{uuid4().hex[:6]}@example.com", hashed_password="x", proficiency_level="A1")
+    db_session.add(user)
+    db_session.commit()
+    mission = _mission_for_correction()
+    mission.user_id = user.id
+    mission.selected_concept_ids = [un_une.id]
+    service = MissionCorrectionService(db_session, llm_service=_ExplodingMissionLLM())
+
+    correction = service.correct_submission(
+        user=user,
+        mission=mission,
+        text="Bonjour Odile, je le aime beaucoup, ton cadeau. Je cherche la école de Paul.",
+        mode="letter",
+        near_realtime=True,
+    )
+    by_span = {item["learner_text"].casefold(): item for item in correction["errata"]}
+    assert by_span["le aime"]["concept_id"] != le_la.id, by_span["le aime"]
+    assert by_span["la école"]["concept_id"] == le_la.id
