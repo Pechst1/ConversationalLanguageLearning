@@ -85,10 +85,18 @@ def test_a_reply_without_such_facts_keeps_the_scripted_line():
     assert spoken_reply.repeat_line_for(_step("Un café.", suggested)) == suggested
 
 
-def test_the_learners_earlier_exchanges_do_not_veto_the_line():
+def test_an_earlier_exchange_still_vetoes_the_line():
+    """Review on #405: the date stated on an earlier exchange is still the learner's."""
+
     step = _step("Oui, bien sûr.", "Je rentre le 19 décembre.")
     step.private_task["turns"].insert(0, {"learner": "J'arrive le 5 mars.", "character": "Ah ?"})
-    assert spoken_reply.repeat_line_for(step) == "Je rentre le 19 décembre."
+    assert spoken_reply.repeat_line_for(step) == "J'arrive le 5 mars."
+
+
+def test_the_learners_latest_fact_wins():
+    step = _step("Non, finalement le 5 mars.", "Je rentre le 19 décembre.")
+    step.private_task["turns"].insert(0, {"learner": "Je rentre le 2 décembre.", "character": "Ah ?"})
+    assert spoken_reply.repeat_line_for(step) == "Non, finalement le 5 mars."
 
 
 @pytest.mark.parametrize(
@@ -119,3 +127,22 @@ def test_the_audio_door_reads_the_same_line_as_the_recap():
     step.private_task["turns"][0]["correction"] = {"corrected_fr": corrected}
     assert spoken_reply.repeat_line_for(step) == corrected
     assert spoken_reply.repeat_line_for(step, _correction(corrected)) == corrected
+
+
+def test_a_date_given_on_the_first_of_three_exchanges_still_counts():
+    """Review on #405: a scene now has three exchanges (#378). The date and the reason
+    came on the first turn; the later turns state none, and must not let the line back."""
+
+    step = SimpleNamespace(
+        private_task={
+            "turns": [
+                {"learner": REPLY, "character": "« Deux », oui. Et ce restaurant te fait peur ?",
+                 "correction": {"corrected_fr": "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."}},
+                {"learner": "Non, il ne me fait pas peur.", "character": "Tant mieux. Tu pars avec qui ?"},
+                {"learner": "Je pars seul avec mon sac.", "character": "D'accord, je note."},
+            ],
+            "response_task": {"suggested_response_fr": WRITTEN_BEFOREHAND},
+        }
+    )
+    line = spoken_reply.repeat_line_for(step, _correction("Je pars seul avec mon sac."))
+    assert line == "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."

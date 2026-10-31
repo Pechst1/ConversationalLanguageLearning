@@ -269,27 +269,38 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
         # #379: that example was written before the learner spoke. It is offered
         # only while it keeps every date, number and reason they gave; otherwise
         # it would be their sentence with someone else's facts in it.
-        said, stored = _last_learner_turn(private)
-        if line and not (said and contradicts(said, line)):
+        # A scene has several exchanges (#378): the date and the reason are often
+        # given on the first turn and never repeated, so every real turn counts.
+        turns = _learner_turns(private)
+        # The latest turn that clashes wins: a learner who corrected themselves
+        # («finalement le 5 mars») is offered the corrected fact.
+        clash = next(
+            (index for index in reversed(range(len(turns))) if contradicts(turns[index][0], line)), None
+        )
+        if line and clash is None:
             return line
-        if line and said:
+        if line:
+            said, stored = turns[clash]
             # The recap and its audio door both ask: the correction the learner was
-            # shown is kept with the turn, so both read the same sentence.
-            return _own_sentence(said, correction or stored)
+            # shown is kept with the turn, so both read the same sentence. The
+            # correction handed in is the last turn's.
+            last = clash == len(turns) - 1
+            return _own_sentence(said, (correction if last else None) or stored)
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
     return corrected if len(corrected.split()) >= 3 else None
 
 
-def _last_learner_turn(private: dict[str, Any]) -> tuple[str, Any]:
-    """What the learner wrote on their last real turn, and the correction they were shown
-    for it (a free «ask again» does not count)."""
+def _learner_turns(private: dict[str, Any]) -> list[tuple[str, Any]]:
+    """What the learner wrote on each real turn, in order, with the correction they were
+    shown for it (a free «ask again» does not count)."""
 
-    for exchange in reversed(private.get("turns") or []):
+    turns: list[tuple[str, Any]] = []
+    for exchange in private.get("turns") or []:
         if isinstance(exchange, dict) and not exchange.get("free") and str(exchange.get("learner") or "").strip():
             shown = exchange.get("correction")
             stored = SimpleNamespace(corrected_fr=shown.get("corrected_fr")) if isinstance(shown, dict) else None
-            return str(exchange["learner"]).strip(), stored
-    return "", None
+            turns.append((str(exchange["learner"]).strip(), stored))
+    return turns
 
 
 def _own_sentence(said: str, correction: Any) -> str | None:
