@@ -72,6 +72,7 @@ from app.services.season.turns import (
     MATCH_THRESHOLD,
     ReplyChoice,
     ack_panel,
+    answers_question,
     classifier_payload,
     clean_ack,
     gate_signal,
@@ -362,6 +363,26 @@ def turn_example(turn: dict[str, Any] | None) -> str | None:
         (reply["examples"][0] for reply in replies if reply.get("examples") and not reply.get("clumsy")),
         next((reply["examples"][0] for reply in replies if reply.get("examples")), None),
     )
+
+
+def turn_addressee(turn: dict[str, Any] | None, scenario) -> str:
+    """Who the learner is answering on this turn: the turn's own addressee (a posed
+    «choix» is put by Lila even on Camille's day), else the scene's character."""
+
+    return str((turn or {}).get("to") or scenario.character_id)
+
+
+def routed_sentence(reply: dict[str, Any], understood: bool) -> str | None:
+    """The sentence the learner's answer amounts to, for the line they repeat aloud.
+
+    The routed reply's own first example (a card's label for a «Le choix»), only
+    when the page really heard that reply and it is not the clumsy-but-sincere one:
+    a fallback route says nothing the learner meant."""
+
+    if not understood or reply.get("clumsy"):
+        return None
+    examples = [str(example).strip() for example in reply.get("examples") or [] if str(example).strip()]
+    return examples[0] if examples else None
 
 
 def hint_for(turn: dict[str, Any] | None, language: str | None) -> str | None:
@@ -914,6 +935,11 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         and turn.get("from_solve") != "convaincre"
         and str(turn.get("id")) not in asked
         and (turn.get("ask_again") or not (turn.get("gate") or turn.get("convince")))
+        # #262: «matches none of the authored replies» is not «did not answer». A reply
+        # that takes up the question's own subject («Je garde la cuisine», «Je reste
+        # trois jours») was an answer: the scene hears it (the fallback route plays, the
+        # ack answers the content) and moves on, never re-asking it.
+        and not answers_question(turn, answer.text)
     ):
         # QA-STORY: the reply said none of what the turn is about (a name alone, a
         # greeting, another subject). The addressee asks once for the missing part;
@@ -959,7 +985,9 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     from app.services.season.turns import reaction_lines
 
     addressee = str(scenario.character_id)
-    reply_fr = reaction_text(beats, addressee=addressee)
+    # #313: the words only. Who says each line is ``reply_lines``; a «Lila : » in the
+    # text was printed under the addressee's face (Camille speaking for Lila).
+    reply_fr = reaction_text(beats, addressee=addressee, labelled=False)
     spoken_lines_out = reaction_lines(beats, addressee=addressee)
     if not closing:
         upcoming = turns[next_index] if next_index != index else turn
@@ -970,7 +998,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             else []
         )
         asked = [*lead, upcoming["panel"]] if next_index != index else []
-        question = reaction_text(asked, addressee=addressee) if asked else ""
+        question = reaction_text(asked, addressee=addressee, labelled=False) if asked else ""
         spoken_lines_out += reaction_lines(asked, addressee=addressee)
         reply_fr = "\n".join(part for part in (reply_fr, question) if part)
     reply_fr = reply_fr or "…"
@@ -1020,7 +1048,13 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             for line in ((upcoming_turn or {}).get("panel") or {}).get("lines") or []
             if line.get("text_native")
         ).strip() or None,
-        route={"turn": str(turn.get("id")), "reply": str(reply.get("id"))},
+        route={
+            "turn": str(turn.get("id")),
+            "reply": str(reply.get("id")),
+            # What the learner meant, as a sentence they could say: the recap's
+            # «une phrase à redire» is this, never the question's scripted example.
+            **({"say_fr": said} if (said := routed_sentence(reply, understood)) else {}),
+        },
         heard=_heard(choice, reply),
         stage=stage,
     )
@@ -1103,7 +1137,7 @@ def _ask_again_evaluation(
             # The authored named line already greets a name; any other reaction to
             # what was said comes first.
             panel = {**panel, "lines": [*ack_panel(turn, ack)["lines"], *panel["lines"]]}
-    addressee = str(scenario.character_id)
+    addressee = turn_addressee(turn, scenario)
     beats = [panel] if panel else []
     correction = margin_correction(
         db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history
@@ -1112,7 +1146,7 @@ def _ask_again_evaluation(
         outcome=TaskOutcome.PARTIALLY_MET,
         assistance=assistance,
         observations=[],
-        character_reply_fr=reaction_text(beats, addressee=addressee) or "…",
+        character_reply_fr=reaction_text(beats, addressee=addressee, labelled=False) or "…",
         correction=correction,
         needs_repair=True,
         # Free: the question is still owed, so the exchange it took is given back.

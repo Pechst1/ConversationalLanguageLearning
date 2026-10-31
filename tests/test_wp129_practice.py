@@ -35,6 +35,7 @@ from app.services.grammar_catalog import (
 )
 from app.services.grammar_units import unit_brief
 from app.services.journey_contracts import (
+    MIN_SCENE_EXCHANGES,
     DayShape,
     LearningCandidate,
     RecallTask,
@@ -130,14 +131,15 @@ def _respond(plan):
 
 
 @pytest.mark.parametrize("band", ["A1", "A2"])
-def test_an_a1_a2_regulier_reply_asks_two_exchanges_and_the_day_holds_more_items(band: str) -> None:
+def test_an_a1_a2_regulier_reply_asks_three_exchanges_inside_the_budget(band: str) -> None:
+    # #378 (owner decision 2026-10-30, «Kern zuerst») replaces WP-129's two-exchange
+    # core: a generated scene is a conversation of three exchanges on every rhythm.
+    # The day still fits Régulier; the items give way first.
     plan = _day(band)
     plan.validate()
-    assert _respond(plan).public_prompt["max_turns"] == 2
-    assert "more optional, not in the core estimate" in plan.rationale
+    assert _respond(plan).public_prompt["max_turns"] == MIN_SCENE_EXCHANGES
     assert plan.estimated_active_seconds <= plan.budget_seconds
-    # The reply's third exchange bought items: more than the WP-128 day held.
-    assert len(_recalls(plan)) >= 6, plan.rationale
+    assert len(_recalls(plan)) >= 3, plan.rationale
 
 
 def test_soutenu_keeps_its_story_and_b1_keeps_its_three_exchanges() -> None:

@@ -40,6 +40,7 @@ tricky answers, and run through the real graders):
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
 import unicodedata
@@ -926,6 +927,8 @@ _BETWEEN = frozenset({"ne", "n", "y", "en", "toujours", "déjà", "aussi", "vrai
 _PLURAL_DETERMINERS = frozenset(
     {"les", "mes", "tes", "ses", "nos", "vos", "leurs", "des", "ces", "plusieurs", "deux", "trois", "quatre", "cinq"}
 )
+#: What makes a subject a plural one when no pronoun says so.
+_PLURAL_EVIDENCE = _PLURAL_DETERMINERS | {"ils", "elles", "eux", "et", "beaucoup", "gens"}
 _SINGULAR_DETERMINERS = frozenset(
     {"le", "la", "l", "un", "une", "mon", "ma", "ton", "ta", "son", "sa", "notre", "votre", "leur", "cet", "cette"}
 )
@@ -938,9 +941,13 @@ _PERSON_MARKERS: dict[str, frozenset[str]] = {
     "2pl": frozenset({"vous", "toi", "tu"}),
 }
 #: «after 'tu'», «avec je», «with vous», «nach tu»: a note that hangs its rule on a subject.
+#: «with the plural subject « ils »», «mit dem Subjekt „ils“» (#250: the live note
+#: hung «→ sont» on an «ils» no sentence had) count as citing it too.
 _CITED_SUBJECT = re.compile(
-    r"\b(?:after|with|following|nach|mit|avec|apr[eè]s|derri[eè]re)\s+[«'‘’\"“]?\s*"
-    r"(je|j|tu|il|elle|on|nous|vous|ils|elles)\b",
+    r"\b(?:after|with|following|nach|mit|avec|apr[eè]s|derri[eè]re)\s+"
+    r"(?:(?:the|a|dem|einem|le|un)\s+)?(?:(?:plural|singular|pluriel|singulier)\s+)?"
+    r"(?:(?:subject|Subjekt|sujet)\s+)?(?:(?:pluriel|singulier)\s+)?"
+    r"[«'‘’\"“„]?\s*(je|j|tu|il|elle|on|nous|vous|ils|elles)\b",
     re.IGNORECASE,
 )
 _CITED_EQUIVALENTS: dict[str, frozenset[str]] = {
@@ -989,6 +996,17 @@ def _clause_before(tokens: list[str], index: int) -> list[str]:
         before.append(token)
     before.reverse()
     return before
+
+
+def _clause_after(tokens: list[str], index: int) -> list[str]:
+    """The words of the clause after ``tokens[index]`` (stops at punctuation)."""
+
+    after: list[str] = []
+    for token in tokens[index + 1 :]:
+        if not _is_word(token):
+            break
+        after.append(token)
+    return after
 
 
 #: Object pronouns that sit between a subject and its verb («je lui ai», «il nous a»).
@@ -1116,15 +1134,78 @@ def correction_is_grounded(
     # The span may stand twice («Elle est là. Toi est gentil.»): one place where the
     # correction holds is enough.
     return any(
-        _swap_holds(_clause_before(text_tokens, place[position]), old_persons, new_persons)
+        _swap_holds(
+            _clause_before(text_tokens, place[position]), old_persons, new_persons,
+            after=_clause_after(text_tokens, place[position]),
+        )
         for place in places
     )
 
 
-def _swap_holds(before: list[str], old_persons: frozenset[str], new_persons: frozenset[str]) -> bool:
+_FORM_VERB: dict[str, str] = {
+    **dict.fromkeys(("suis", "es", "est", "sommes", "êtes", "sont"), "être"),
+    **dict.fromkeys(("ai", "as", "a", "avons", "avez", "ont"), "avoir"),
+    **dict.fromkeys(("vais", "vas", "va", "allons", "allez", "vont"), "aller"),
+}
+
+
+def person_swaps_hold(learner_text: object, span: object, corrected: object) -> bool:
+    """Every être/avoir/aller form the correction swaps for another person of the same
+    verb is wrong for its subject, and the replacement right for it.
+
+    :func:`correction_is_grounded` checks this for a correction that changes a single
+    word. A longer one hid the swap behind a second change: «il est vielle» ->
+    «sont vieilles» passed (two words differ) although «est» is right after «il»; the
+    24 Oct live walk showed it as the chip «→ sont». A verb that changes lemma («je
+    suis froid» -> «j'ai froid») is another kind of fix and is not checked here, and
+    a subject the sentence does not make clear never rejects.
+    """
+
+    text_tokens = _clause_tokens(learner_text)
+    span_words = [t for t in _clause_tokens(span) if _is_word(t)]
+    new_words = [t for t in _clause_tokens(corrected) if _is_word(t)]
+    places = _find_spans(text_tokens, span_words)
+    if not places:
+        return True  # whether the span is there is correction_is_grounded's question
+    swaps: list[tuple[int, str, str]] = []
+    matcher = difflib.SequenceMatcher(a=span_words, b=new_words, autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag != "replace" or i2 - i1 != j2 - j1:
+            continue
+        for offset in range(i2 - i1):
+            old, new = span_words[i1 + offset], new_words[j1 + offset]
+            if old != new and _FORM_VERB.get(old) is not None and _FORM_VERB.get(old) == _FORM_VERB.get(new):
+                swaps.append((i1 + offset, old, new))
+    if not swaps:
+        return True
+    return any(
+        all(
+            _swap_holds(
+                _clause_before(text_tokens, place[position]), _FORM_PERSONS[old], _FORM_PERSONS[new],
+                after=_clause_after(text_tokens, place[position]),
+            )
+            for position, old, new in swaps
+        )
+        for place in places
+    )
+
+
+def _swap_holds(
+    before: list[str],
+    old_persons: frozenset[str],
+    new_persons: frozenset[str],
+    *,
+    after: list[str] = (),
+) -> bool:
     person = _subject_person(before)
     if person is not None:
         return person not in old_persons and person in new_persons
+    if new_persons == {"3pl"} and "3sg" in old_persons:
+        # A singular form made plural needs something plural in front of it: «Solvel
+        # est» -> «sont» passed because a name cannot be read (#250, 26 Oct). A
+        # plural determiner, a plural pronoun or a coordination must be there, or a
+        # plural subject right after it («Où est les toilettes ?»).
+        return bool(set(before) & _PLURAL_EVIDENCE) or bool(after[:1] and after[0] in _PLURAL_EVIDENCE)
     # Subject unreadable: a first/second-person replacement still needs its pronoun
     # somewhere in the clause («est → es» with no «tu» or «toi» in it was the #193 bug).
     if not any(p in {"3sg", "3pl"} for p in new_persons):

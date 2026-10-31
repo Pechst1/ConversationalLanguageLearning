@@ -262,7 +262,7 @@ export const PEOPLE: Record<CastId, Person> = {
         reply: w('Voilà.', 'There you go.', 'Bitte schön.'),
       },
     ],
-    slip: w('Tu. Ici, c\'est tu.', "Tu. Here it's tu.", 'Du. Hier sagt man du.'),
+    slip: w('Tu. Ici, on dit tu.', "Tu. Here we say tu.", 'Du. Hier sagt man du.'),
     fallback: [w('Hm. Redis ?', 'Hm. Say again?', 'Hm. Noch mal?'), w('Plus simple. Je suis fatiguée.', "Simpler. I'm tired.", 'Einfacher. Ich bin müde.')],
   },
   augustin_de_roncourt: {

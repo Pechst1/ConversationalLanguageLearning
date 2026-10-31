@@ -37,6 +37,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
+from app.services import order_rules
 from app.services.address import address_instruction
 from app.services.answer_acceptance import accent_policy, is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
@@ -71,6 +72,7 @@ from app.services.forge_grading import (
 from app.services.forge_grading import (
     TO_CORRECT_LABEL as JUDGEMENT_TO_CORRECT,
 )
+from app.services.forge_item_validator import advice, situation_problems
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -86,6 +88,8 @@ from app.services.item_bank import (
     VARIETY_WINDOW_DAYS,
     _is_judgement,
     build_bank_set,
+    judgement_item,
+    label_table,
     units_for_external_id,
 )
 from app.services.item_bank import fingerprint as bank_fingerprint
@@ -737,7 +741,8 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
         start = _word_find(folded, wrong.lower(), spans)
         if start < 0:
             return None
-        spans.append((start, start + len(wrong), fix, index))
+        skip, length, fix = narrow_repair(wrong, fix)
+        spans.append((start + skip, start + skip + length, fix, index))
     if not spans:
         return None
     spans.sort()
@@ -751,6 +756,33 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
     if cursor < len(line):
         parts.append({"text": line[cursor:]})
     return parts
+
+
+def narrow_repair(wrong: str, fix: str) -> tuple[int, int, str]:
+    """``(offset, length, fix)`` of the words of ``wrong`` that differ from ``fix`` (#282).
+
+    An erratum may carry a stretch wider than what is wrong («à le marché aux puces»
+    → «au marché aux puces» for the one slip «à le» → «au»); a gap holding all of it
+    asked the learner to retype words that were right. The leading and trailing
+    words both sides share stay as text, at least one word being kept on each side.
+    Mirrored by ``narrowRepair`` in ``web-frontend/lib/repair-parts.ts``.
+    """
+
+    words = [(match.start(), match.group()) for match in re.finditer(r"\S+", wrong)]
+    fixed = fix.split()
+    lead = 0
+    while lead < len(words) - 1 and lead < len(fixed) - 1 and words[lead][1].lower() == fixed[lead].lower():
+        lead += 1
+    trail = 0
+    while (
+        trail < len(words) - 1 - lead
+        and trail < len(fixed) - 1 - lead
+        and words[-1 - trail][1].lower() == fixed[-1 - trail].lower()
+    ):
+        trail += 1
+    first_at = words[lead][0]
+    last_at, last_word = words[len(words) - 1 - trail]
+    return first_at, last_at + len(last_word) - first_at, " ".join(fixed[lead : len(fixed) - trail])
 
 
 def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]]) -> int:
@@ -812,20 +844,57 @@ def _item_keys(item: dict[str, Any], target: Any, *, mode: str | None = None) ->
     return keys
 
 
-def _form_right_only_order_differs(item: dict[str, Any], learner: str, target: str) -> bool:
+def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> bool:
+    """#380: a typed miss that changes a word every choice of the item shares.
+
+    The choices of a rule item differ only in the rule's form («la / le / les
+    poste»; «On préfère / préfères / préfèrent»). A word they all share (the noun,
+    the pronoun) is not what the rule is about, so a learner who changed it («la
+    gare», «Nous préférons») did not slip on the rule, and reciting the rule's
+    headline would blame the wrong thing. Without two distinct choices the item
+    gives no such evidence and this is False."""
+
+    options = [str(option) for option in (item.get("choices") or item.get("options") or []) if isinstance(option, str)]
+    forms = [_normalize(option).split() for option in dict.fromkeys([target, *options]) if _normalize(option)]
+    if len(forms) < 2:
+        return False
+    fixed = set.intersection(*(set(form) for form in forms))
+    learner_words = set(_normalize(learner).split())
+    return bool(fixed) and not fixed <= learner_words
+
+
+def _form_right_only_order_differs(
+    item: dict[str, Any], learner: str, target: str, concept: Any = None
+) -> bool:
     """#174/#173: a tile build that uses exactly the key's words and keeps the
-    rule's form (``target_span``) intact, so only the order of the rest differs.
+    rule's form intact, so only the order of the rest differs.
 
-    When the rule *is* the order (negation, pronoun placement, inversion) the form
-    span itself is broken by a wrong order, and this is False: the rule is cited."""
+    The form is the item's ``target_span``, or, for a unit whose rule *is* an order
+    (pronoun order, ne … pas: :mod:`order_rules`), the stretch the rule orders in the
+    key (#271). When a wrong order breaks that form this is False: the rule is cited."""
 
-    span = _normalize(item.get("target_span"))
     learner_norm, target_norm = _normalize(learner), _normalize(target)
-    if not span or not learner_norm or learner_norm == target_norm:
+    if not learner_norm or learner_norm == target_norm:
         return False
     if sorted(learner_norm.split()) != sorted(target_norm.split()):
         return False
-    return f" {span} " in f" {learner_norm} "
+    span = _normalize(item.get("target_span"))
+    if span:
+        return f" {span} " in f" {learner_norm} "
+    intact = order_rules.form_intact(getattr(concept, "external_id", None), learner, target)
+    return bool(intact)
+
+
+def _reorders_what_the_rule_orders(concept: Any, learner: str, target: str) -> bool:
+    """#271: ``learner`` is ``target``'s words in another order, and the order broken
+    is the one the unit teaches (:mod:`order_rules`)."""
+
+    learner_norm, target_norm = _normalize(learner), _normalize(target)
+    if not learner_norm or learner_norm == target_norm:
+        return False
+    if sorted(learner_norm.split()) != sorted(target_norm.split()):
+        return False
+    return order_rules.form_intact(getattr(concept, "external_id", None), learner, target) is False
 
 
 def _keyed_verdict(
@@ -949,7 +1018,8 @@ def _judgement_sentence(item: dict[str, Any]) -> str:
 
 def _join_french_tokens(tokens: list[Any]) -> str:
     text = " ".join(str(token).strip() for token in tokens if str(token).strip())
-    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    # French sets ? ! : ; off by a space («demain ?»), never . or , (#271).
+    text = re.sub(r"\s+([,.])", r"\1", text)
     text = re.sub(r"([cdjlmnst])'\s+", r"\1'", text, flags=re.IGNORECASE)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -3058,6 +3128,8 @@ class AtelierExerciseGenerator:
             errors.append("produce source_fragment, prompt, or requirements missing")
         elif _is_vague_output_prompt(produce.get("prompt")):
             errors.append("produce prompt must set a concrete situation")
+        else:
+            errors.extend(f"produce prompt {advice(problem)}" for problem in situation_problems(produce.get("prompt")))
         ladder = payload.get("output_ladder") or {}
         for key in ("sentence", "speak", "conversation"):
             items = (ladder.get(key) or {}).get("items") or []
@@ -3077,6 +3149,12 @@ class AtelierExerciseGenerator:
                     continue
                 if _is_vague_output_prompt(item.get("prompt")):
                     errors.append(f"output_ladder.{key} item {item_id(item)} prompt must give a concrete situation")
+                    continue
+                # ROOT CAUSE #146: the guard knew the shape of a situation, never its sense.
+                errors.extend(
+                    f"output_ladder.{key} item {item_id(item)} prompt {advice(problem)}"
+                    for problem in situation_problems(item.get("prompt"))
+                )
         return errors
 
     @staticmethod
@@ -3980,39 +4058,84 @@ class AtelierExerciseGenerator:
         return items
 
     def _fallback_classify_items(self, concept: GrammarConcept, *, prefix: str) -> list[dict[str, Any]]:
+        """The fallback set's «sort this» items.
+
+        #196 / #144 / #146: the labels are stored answer keys, and each is a
+        ``learner_copy`` row (``atelier.classify.*``) whose English column is the key
+        and whose ``label_l10n`` is what the learner reads in the chrome language, so no
+        English label reaches a French or German learner. A unit with no authored
+        labels is not sorted «its own label / a different grammar role» (the answer was
+        the label of every sentence): its sentences are sorted right or wrong, with the
+        unit's own ✗/✓ pairs, which can be wrong for the sentence.
+        """
+
         profile = infer_grammar_profile(concept)
+
+        def labelled(index: int, prompt: str, labels: list[str], correct: str) -> dict[str, Any]:
+            return {
+                "id": f"{prefix}-fallback-classify-{index}",
+                "prompt": prompt,
+                "labels": labels,
+                "correct_label": correct,
+                "correct_answer": correct,
+                "label_l10n": label_table(labels),
+            }
+
+        def key(name: str) -> str:
+            return _copy(f"atelier.classify.{name}", "en")
+
         if profile.key == "article_after_negation":
-            labels = ["article changes", "être exception"]
+            labels = [key("article_changes"), key("etre_exception")]
             return [
-                {"id": f"{prefix}-fallback-classify-1", "prompt": "pas de café", "labels": labels, "correct_label": "article changes", "correct_answer": "article changes"},
-                {"id": f"{prefix}-fallback-classify-2", "prompt": "Ce n'est pas du café", "labels": labels, "correct_label": "être exception", "correct_answer": "être exception"},
-                {"id": f"{prefix}-fallback-classify-3", "prompt": "pas d'idée", "labels": labels, "correct_label": "article changes", "correct_answer": "article changes"},
+                labelled(1, "pas de café", labels, labels[0]),
+                labelled(2, "Ce n'est pas du café", labels, labels[1]),
+                labelled(3, "pas d'idée", labels, labels[0]),
             ]
         if profile.key == "tense_aspect":
+            labels = [key("background_habit"), key("bounded_event")]
             return [
-                {"id": f"{prefix}-fallback-classify-1", "prompt": "marchais", "labels": ["background/habit", "bounded event"], "correct_label": "background/habit", "correct_answer": "background/habit"},
-                {"id": f"{prefix}-fallback-classify-2", "prompt": "a ouvert", "labels": ["background/habit", "bounded event"], "correct_label": "bounded event", "correct_answer": "bounded event"},
-                {"id": f"{prefix}-fallback-classify-3", "prompt": "allions", "labels": ["background/habit", "bounded event"], "correct_label": "background/habit", "correct_answer": "background/habit"},
+                labelled(1, "marchais", labels, labels[0]),
+                labelled(2, "a ouvert", labels, labels[1]),
+                labelled(3, "allions", labels, labels[0]),
             ]
         if profile.key == "si_present_result_form":
-            labels = ["present condition", "future result", "imperative result"]
+            labels = [key("present_condition"), key("future_result"), key("imperative_result")]
             return [
-                {"id": f"{prefix}-fallback-classify-1", "prompt": "si tu viens", "labels": labels, "correct_label": "present condition", "correct_answer": "present condition"},
-                {"id": f"{prefix}-fallback-classify-2", "prompt": "je répondrai", "labels": labels, "correct_label": "future result", "correct_answer": "future result"},
-                {"id": f"{prefix}-fallback-classify-3", "prompt": "prends ton manteau", "labels": labels, "correct_label": "imperative result", "correct_answer": "imperative result"},
+                labelled(1, "si tu viens", labels, labels[0]),
+                labelled(2, "je répondrai", labels, labels[1]),
+                labelled(3, "prends ton manteau", labels, labels[2]),
             ]
-        labels = [profile.label, "different grammar role"]
-        sentences = self._fallback_sentences(concept)
-        return [
-            {
-                "id": f"{prefix}-fallback-classify-{index}",
-                "prompt": sentence,
-                "labels": labels,
-                "correct_label": profile.label,
-                "correct_answer": profile.label,
-            }
-            for index, sentence in enumerate(sentences[:3], start=1)
-        ]
+        from app.services.grammar_units import contrast_pairs
+
+        pairs = contrast_pairs(concept)
+        wrongs = [pair["wrong"] for pair in pairs]
+        rights: list[str] = []
+        for sentence in [*(pair["right"] for pair in pairs[1:]), *self._fallback_sentences(concept), *(pair["right"] for pair in pairs[:1])]:
+            if sentence and sentence not in rights and sentence not in wrongs:
+                rights.append(sentence)
+        fixes = {pair["wrong"]: pair["right"] for pair in pairs}
+        # Wrong, right, wrong when the unit authors two ✗/✓ pairs, so the right button
+        # moves. The validator wants exactly three items in a recognize mode, so a unit with
+        # fewer pairs is padded with right sentences (cycled when there are fewer than
+        # three): the set is never short, and never an English «its label / other» pair.
+        plan: list[tuple[str, str | None]] = []
+        if wrongs:
+            plan.append((wrongs[0], fixes[wrongs[0]]))
+        if rights:
+            plan.append((rights[0], None))
+        if len(wrongs) > 1:
+            plan.append((wrongs[1], fixes[wrongs[1]]))
+        spare = [(sentence, None) for sentence in rights[1:] or rights] or [(sentence, fixes[sentence]) for sentence in wrongs]
+        index = 0
+        while spare and len(plan) < 3:
+            plan.append(spare[index % len(spare)])
+            index += 1
+        items: list[dict[str, Any]] = []
+        for number, (sentence, fix) in enumerate(plan[:3], start=1):
+            item = judgement_item(f"{prefix}-fallback-classify-{number}", sentence, fix=fix)
+            if item is not None:
+                items.append(item)
+        return items
 
     def _fallback_transform_items(
         self,
@@ -5234,6 +5357,8 @@ class AtelierCorrectionService:
         if correction.get("evidence_applied"):
             return True
         outcome = ForgeService(self.db).amend_attempt(user=user, session=session, attempt=attempt, commit=False)
+        # The forge settles the level shown on the correction itself: build on that.
+        correction = {**dict(attempt.correction_payload or {})}
         if outcome.get("amended"):
             correction["evidence_applied"] = {"mode": "forge", "at": self._now_iso()}
             attempt.correction_payload = correction
@@ -5313,24 +5438,28 @@ class AtelierCorrectionService:
         correction = dict(attempt.correction_payload or {})
         if correction.get("world_reply"):
             return
-        item = next(
-            (
-                candidate
-                for candidate in (attempt.prompt_payload or {}).get("items") or []
-                if isinstance(candidate, dict) and isinstance(candidate.get("character"), dict)
-            ),
-            None,
-        )
+        # ROOT CAUSE #146/#145: the reaction belongs to the item the learner
+        # answered (its id ends the exercise id), not to the first item of the
+        # set that happens to carry a badge: Margaux asked, Lila answered.
+        answered = str(attempt.exercise_id or "").split(":")[-1].strip()
+        posed = [c for c in (attempt.prompt_payload or {}).get("items") or [] if isinstance(c, dict)]
+        speakers = [c for c in posed if isinstance(c.get("character"), dict)]
+        item = next((c for c in speakers if str(c.get("id") or "") == answered), None)
+        if item is None and not any(str(c.get("id") or "") == answered for c in posed):
+            item = speakers[0] if speakers else None  # an id the set does not name: its one speaker
         if not item:
             return
         from app.services.missions import MissionConversationService
 
         serial_context = item.get("serial_context") or {}
         character = item.get("character") or {}
+        # A coached scene (La Forge) opens with the coach's own French line.
+        scene_lines = [line for line in ((item.get("scene") or {}).get("lines") or []) if isinstance(line, dict)]
+        coach_line = next((str(line.get("fr") or "") for line in scene_lines if line.get("speaker") != "learner"), "")
         try:
             reply = MissionConversationService(self.db).respond_for_atelier(
                 character=character,
-                opener=str(serial_context.get("opener") or item.get("prompt") or ""),
+                opener=str(coach_line or serial_context.get("opener") or item.get("prompt") or ""),
                 scene_context=str(serial_context.get("scene_context") or ""),
                 user_text=str((attempt.answer_payload or {}).get("text") or "").strip(),
                 user_id=user.id,
@@ -5836,7 +5965,11 @@ class AtelierCorrectionService:
                 if verdict.accent_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": verdict.expected or target})
                 continue
-            if mode == "word_bank" and item.get("lesson_external_id") and _form_right_only_order_differs(item, learner_text, str(target or "")):
+            if mode == "word_bank" and _reorders_what_the_rule_orders(concept, learner_text, str(target or "")):
+                # #271: the right words, in an order the unit's own rule fixes (the
+                # two pronouns, ne … pas): that is the rule, cited with its order.
+                errata.append(self._order_rule_erratum(concept, item, learner_text, str(target or "")))
+            elif mode == "word_bank" and item.get("lesson_external_id") and _form_right_only_order_differs(item, learner_text, str(target or ""), concept):
                 # #174: the rule's form is placed right; only the order of the rest
                 # differs. Say that, and never blame the day's rule for it.
                 errata.append(self._word_order_erratum(concept, item, learner_text, str(target or "")))
@@ -5946,16 +6079,26 @@ class AtelierCorrectionService:
             language = self.explanation_language
             why = _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
-            if normalize_language(language) == "en" and explanation:
+            outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
+            if outside_rule:
+                # #380: say what differs in the learner's text, not the rule's headline.
+                why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
+            elif normalize_language(language) == "en" and explanation:
                 why = f"{why} {explanation}"
             else:
                 why = f"{why} {_copy('atelier.recognize.rule_reference', language, title=_concept_title_for(concept, language))}"
+            if outside_rule:
+                repair = _copy("atelier.recognize.other_words_repair", language)
+            elif normalize_language(language) == "en":
+                repair = infer_grammar_profile(concept).pattern
+            else:
+                repair = self._repair_for(concept)
             return self._recognize_erratum_payload(
                 concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
                 why=why,
                 # QA-FORGE: the profile's pattern is an English formula
                 # («subject + present verb ending»); other languages get their own line.
-                repair=infer_grammar_profile(concept).pattern if normalize_language(language) == "en" else self._repair_for(concept),
+                repair=repair,
                 task_type=self._task_type_for(concept, item),
             )
         if mode == "fill":
@@ -6310,10 +6453,38 @@ class AtelierCorrectionService:
             label = _copy("atelier.word_bank.label_word_order", language)
             why = _copy("atelier.word_bank.order_why", language)
             repair = _copy("atelier.word_bank.order_repair", language, target=target)
+            task_type = "word_order"
         elif label_is_default:
             label = _copy("atelier.word_bank.label_target_sentence", language)
 
         return [self._word_bank_erratum_payload(concept, item, label, learner_text, target, why, repair, task_type)]
+
+    def _order_rule_erratum(
+        self,
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        learner_text: str,
+        target: str,
+    ) -> dict[str, Any]:
+        """#271 / #146: the miss reorders the elements the unit's rule orders (the two
+        pronouns, ne … pas), so the rule is cited with its order, not «word order»."""
+
+        from app.services.grammar_units import native_rule
+
+        language = self.explanation_language
+        rule = (native_rule(concept, language) if concept else None) or (
+            infer_grammar_profile(concept).pattern if concept else ""
+        )
+        return self._word_bank_erratum_payload(
+            concept,
+            item,
+            _concept_title_for(concept, language) if concept else _copy("atelier.word_bank.label_target_sentence", language),
+            learner_text,
+            target,
+            _copy("atelier.word_bank.rule_order_why", language, rule=rule),
+            _copy("atelier.word_bank.rule_order_repair", language, target=target),
+            self._task_type_for(concept, item),
+        )
 
     def _word_order_erratum(
         self,
@@ -7911,29 +8082,125 @@ class AtelierSRSService:
             ).strip()
         return ""
 
-    @classmethod
-    def _forge_proof_sentence(cls, attempt: AtelierAttempt) -> str:
-        """One French sentence an answer proves (WP-S6 recap): the whole line,
-        never a lone article or a verdict label."""
+    @staticmethod
+    def _words_of(text: str) -> list[str]:
+        return re.findall(r"[\w']+", str(text or "").replace("\u2019", "'").casefold())
 
+    @classmethod
+    def _is_clip(cls, learner: str, candidate: str, flagged: list[str] | None = None) -> bool:
+        """The candidate only drops words of the learner's line (a clipped echo).
+
+        A correction replaces or reorders something; a line that is the
+        learner's own words minus some of them corrects nothing, unless the
+        words it drops are the ones a checked erratum flagged (``flagged``: the
+        errata's ``learner_text``).
+        """
+
+        mine, theirs = cls._words_of(learner), cls._words_of(candidate)
+        if not theirs or len(theirs) >= len(mine):
+            return False
+        wrong = set(cls._words_of(" ".join(flagged or [])))
+        if wrong:
+            # A checked erratum named words the learner wrote and should not have
+            # («Je peux de venir» → «Je peux venir»): dropping them is the fix.
+            dropped = list(mine)
+            for word in theirs:
+                if word in dropped:
+                    dropped.remove(word)
+            if dropped and set(dropped) <= wrong:
+                return False
+        position = 0
+        for word in mine:
+            if word == theirs[position]:
+                position += 1
+                if position == len(theirs):
+                    return True
+        return False
+
+    @classmethod
+    def _forge_proof_line(cls, attempt: AtelierAttempt) -> tuple[str, bool] | None:
+        """One line of the end sheet (WP-S6, #370): ``(French line, fixed)``.
+
+        Every line comes from this attempt's own answer. A right answer is the
+        learner's words verbatim (the corrector's rewrite only stands in for it
+        when it is a real fix, never a clipped echo). A miss shows the *checked
+        correction* of what was written: the item's key for the keyed formats,
+        the corrector's rewrite for a free line. The item's ``example_answer``
+        is the model's sentence, not the learner's and not a correction of it,
+        so it is never a line. An answer nobody checked proves nothing.
+        """
+
+        correction = attempt.correction_payload if isinstance(attempt.correction_payload, dict) else {}
+        if (
+            correction.get("evidence_hold")
+            or correction.get("assessment_status") in {"unavailable", "provisional"}
+            or attempt.verdict == "needs_review"
+        ):
+            # Nobody read this answer: it proves nothing (#334).
+            return None
         prompt = attempt.prompt_payload or {}
         items = prompt.get("items") if isinstance(prompt.get("items"), list) else []
         item = items[0] if len(items) == 1 and isinstance(items[0], dict) else {}
+        right = attempt.verdict in {"correct", "accepted"}
+        learner = re.sub(r"\s+", " ", cls._answer_text(attempt.answer_payload or {})).strip()
         text = ""
-        if attempt.round in {"sentence", "speak", "conversation"}:
-            text = cls._published_phrase_text(attempt) if attempt.verdict in {"correct", "accepted"} else ""
-            text = text or str(item.get("example_answer") or "")
-        elif attempt.round == "transform":
-            text = str(item.get("expected_answer") or "")
-        elif attempt.mode == "fill":
-            blank = str(item.get("prompt") or "")
-            answer = str(item.get("correct_answer") or "")
-            if "___" in blank and answer:
-                text = re.sub(r"\s*\([^)]*\)\s*$", "", blank.replace("___", answer, 1))
-        elif attempt.mode == "word_bank" or item.get("classify_kind") == "minimal_pair":
-            text = str(item.get("correct_answer") or "")
+        if attempt.round in {"sentence", "speak", "conversation", "produce"}:
+            rewrite = cls._published_phrase_text(attempt)
+            flagged = [
+                str(erratum.get("learner_text") or "")
+                for erratum in correction.get("errata") or []
+                if isinstance(erratum, dict)
+            ]
+            fixed_by_checker = bool(rewrite) and rewrite != learner and not cls._is_clip(learner, rewrite, flagged)
+            if right:
+                text = rewrite if fixed_by_checker else learner
+            else:
+                text = rewrite if fixed_by_checker else ""
+        else:
+            key = ""
+            if attempt.round == "transform":
+                key = str(item.get("expected_answer") or "")
+            elif attempt.mode == "fill":
+                blank = str(item.get("prompt") or "")
+                answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")
+                if "___" in blank and answer:
+                    key = re.sub(r"\s*\([^)]*\)\s*$", "", blank.replace("___", answer, 1))
+            elif attempt.mode == "word_bank":
+                key = (learner if right and len(learner.split()) >= 2 else "") or str(item.get("correct_answer") or "")
+            elif item.get("classify_kind") == "minimal_pair":
+                key = str(item.get("correct_answer") or "")
+            text = key
         text = re.sub(r"\s+", " ", text).strip()
-        return text if len(text.split()) >= 2 else ""
+        if len(text.split()) < 2:
+            return None
+        return text, not right
+
+    @staticmethod
+    def _forge_level_after_last_item(track: Any, history: list[dict[str, Any]]) -> int:
+        """The level a rule stands on after the last item the grader read (#370).
+
+        Read from the day's recorded answers (the ladder's own step rule over
+        the rule's last *checked* item), not from the staircase's running value:
+        that one can still hold a provisional climb («uses the rule», read by
+        the instant detector) which the model's later reading took back, and the
+        sheet showed that stale level next to a «Not yet». A rule with no
+        checked item keeps its running level; nothing contradicts it.
+        """
+
+        from app.core import forge as forge_core
+
+        last = next(
+            (
+                entry
+                for entry in reversed(history)
+                if int(entry.get("concept_id", -1)) == int(track.concept_id) and entry.get("checked")
+            ),
+            None,
+        )
+        if last is None:
+            return forge_core.clamp_rung(track.rung)
+        outcome = str(last.get("outcome") or forge_core.OUTCOME_INCORRECT)
+        return forge_core.step_rung(int(last.get("rung", track.rung)), forge_core.Verdict(outcome, checked=True))
 
     def _forge_rule_progress(
         self,
@@ -7973,12 +8240,15 @@ class AtelierSRSService:
             reverse=True,
         )
         for _index, attempt in ranked:
-            sentence = self._forge_proof_sentence(attempt)
+            proof = self._forge_proof_line(attempt)
+            if proof is None:
+                continue
+            sentence, fixed = proof
             key = sentence.casefold()
-            if not sentence or key in seen:
+            if key in seen:
                 continue
             seen.add(key)
-            lines.append({"fr": sentence, "fixed": attempt.verdict not in {"correct", "accepted"}})
+            lines.append({"fr": sentence, "fixed": fixed})
             if len(lines) == 2:
                 break
         next_review = getattr(progress, "next_review", None)
@@ -8137,6 +8407,10 @@ class AtelierSRSService:
         }
         if forge_state is not None:  # WP-S3: each rule's rung, and the evidence written
             plan = (session.quote_payload or {}).get("forge") or {}
+            levels = {
+                track.concept_id: self._forge_level_after_last_item(track, forge_state.history)
+                for track in forge_state.tracks
+            }
             recap["forge"] = {
                 # WP-S4: where the block came from; a folded block returns to its step.
                 "origin": plan.get("origin"),
@@ -8151,8 +8425,8 @@ class AtelierSRSService:
                     {
                         "concept_id": track.concept_id,
                         "role": track.role,
-                        "rung": track.rung,
-                        "rung_name": forge_rung_name(track.rung),
+                        "rung": levels[track.concept_id],
+                        "rung_name": forge_rung_name(levels[track.concept_id]),
                         "served": track.served,
                         **self._forge_rule_progress(
                             user=user,

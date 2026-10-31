@@ -223,7 +223,7 @@ def _turn(text, *, close=False):
         "evidence_quotes": [text],
         "reply_fr": "Merci ! On prépare la salle ensemble.",
         "needs_clarification": False,
-        "resolution_fr": "Romy note votre proposition pour samedi.",
+        "resolution_fr": "Je note votre proposition pour samedi.",
         "summary_native": "You offered to bring posters on Saturday.",
         "callback_fr": "Vous apportez les affiches samedi.",
         "commitments": [{"text_fr": "Apporter les affiches samedi.", "source_quote": text}],
@@ -354,7 +354,7 @@ def test_real_journey_publishes_same_scene_for_reader(
     ended = assembled_client.get(
         f"/api/v1/story-engine/episodes/{scene['id']}", headers=d.headers
     ).json()
-    assert ended["resolution"]["text_fr"] == "Romy note votre proposition pour samedi."
+    assert ended["resolution"]["text_fr"] == "Je note votre proposition pour samedi."
     db_session.refresh(thread)
     assert len(thread.state["living_story"]["events"]) == 1
     assert thread.current_episode_index == 1

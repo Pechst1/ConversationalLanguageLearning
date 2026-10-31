@@ -339,6 +339,27 @@ def test_a_stale_prefetch_is_never_served(
     assert take_prefetched_scene(db_session, user) is None
 
 
+def test_a_scene_written_for_text_is_served_to_a_voice_learner(
+    db_session: Session, enabled: None, revision, generated
+) -> None:
+    """The nightly prefetch writes for text; the app opens the day in voice."""
+
+    user = make_user(db_session, "voice@example.com")
+    assert prefetch_scene_for(db_session, user, input_mode=InputMode.TEXT) == "prefetched"
+    assert take_prefetched_scene(db_session, user, input_mode=InputMode.VOICE) is not None
+
+
+def test_a_stale_prefetch_says_which_part_of_its_key_moved(
+    db_session: Session, enabled: None, revision, generated, caplog: pytest.LogCaptureFixture
+) -> None:
+    user = make_user(db_session, "moved-part@example.com")
+    assert prefetch_scene_for(db_session, user) == "prefetched"
+    revision["value"] = "rev-2"
+    with caplog.at_level("INFO", logger="app.services.journey_latency"):
+        assert take_prefetched_scene(db_session, user) is None
+    assert "discarded as stale (moved: story_revision)" in caplog.text
+
+
 def test_a_prefetch_is_served_exactly_once(
     db_session: Session, enabled: None, revision, generated
 ) -> None:

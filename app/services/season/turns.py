@@ -25,7 +25,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.services import story_memory
+from app.services import speaker_labels, story_memory
 from app.services.cast_registry import display_name
 
 #: A deterministic match must share this much of an example reply's content words.
@@ -146,6 +146,50 @@ def match_reply(turn: dict[str, Any], learner_text: str) -> tuple[str, float]:
     if best_score < MATCH_THRESHOLD:
         return str(turn.get("fallback") or best), best_score
     return best, best_score
+
+
+#: Words of a question that say nothing about its subject: a reply echoing only these
+#: has not answered it.
+_QUESTION_FILLER = frozenset(
+    "combien pourquoi comment quand alors chose quelque quelqu fait ici avis bien".split()
+)
+
+
+def _same_stem(left: str, right: str) -> bool:
+    """«garde» and «gardez», «reste» and «restes»: one verb, two endings."""
+
+    shorter = min(len(left), len(right))
+    if shorter < 4:
+        return False
+    common = 0
+    for a, b in zip(left, right, strict=False):
+        if a != b:
+            break
+        common += 1
+    return common >= max(4, shorter - 1)
+
+
+def answers_question(turn: dict[str, Any], learner_text: str) -> bool:
+    """Whether the learner's words ANSWER what this turn asks, whichever authored reply
+    (if any) they match (walk 21 Oct, #262).
+
+    The turn knows a closed set of replies, so «matches none of them» is not «did not
+    answer»: «Je reste trois jours» answers «Tu restes combien de temps ?» though no
+    authored reply is a duration. A reply answers when it is a statement (not a question
+    back) that takes up the question's own subject, its verb or noun in any ending. A
+    name alone, a greeting or another subject does not."""
+
+    text = str(learner_text or "")
+    if "?" in text:
+        return False
+    said = {word for word in content_words(text) if word not in _QUESTION_FILLER}
+    asked: set[str] = set()
+    for line in (turn.get("panel") or {}).get("lines") or []:
+        if "?" in str(line.get("text_fr") or ""):
+            asked |= content_words(str(line.get("text_fr")))
+    asked |= content_words(str((turn.get("ask_again") or {}).get("text_fr") or ""))
+    asked -= _QUESTION_FILLER
+    return any(_same_stem(word, theirs) for word in said for theirs in asked)
 
 
 _NAME = re.compile(
@@ -383,6 +427,10 @@ def clean_ack(ack: str | None, *, learner_text: str, address: str | None) -> str
         return None
     if reply_is_not_french(text) or "{" in text or "}" in text:
         return None
+    # #313: the acknowledgement is the addressee's words; a «Lila : …» in front of it is
+    # the transcript pattern the model copied, and it is drawn under the addressee.
+    if any(person for person, _ in speaker_labels.labels_in(text, speaker_labels.name_table())):
+        return None
     probe = _PLURAL_VOUS.sub(" ", text)
     if address == "tu" and _VOUS_MARKERS.search(probe):
         return None
@@ -477,10 +525,15 @@ def _short(name: str | None, who: str) -> str:
     return tokens[0]
 
 
-def reaction_text(panels: list[dict[str, Any]], *, addressee: str) -> str:
+def reaction_text(panels: list[dict[str, Any]], *, addressee: str, labelled: bool = True) -> str:
     """The reaction as one reply: the addressee's lines as they are, anyone else's
     lines with their name («Margaux : Elle prenait ça.»). Captions and silent panels
-    stay on the page."""
+    stay on the page.
+
+    ``labelled=False`` is the reply as the learner reads it (#313): the words only.
+    Who says each of them travels in :func:`reaction_lines`, which the screen draws a
+    bubble from; a «Lila : » in the words printed the label under the addressee's face.
+    The labelled form is the transcript the classifier and the critic read."""
 
     parts: list[str] = []
     for panel in panels:
@@ -489,7 +542,7 @@ def reaction_text(panels: list[dict[str, Any]], *, addressee: str) -> str:
             if not text or line.get("kind") not in ("speech", "all"):
                 continue
             who = str(line.get("who") or "")
-            parts.append(text if who == addressee else f"{_short(line.get('name'), who)} : {text}")
+            parts.append(text if who == addressee or not labelled else f"{_short(line.get('name'), who)} : {text}")
     return "\n".join(parts)
 
 

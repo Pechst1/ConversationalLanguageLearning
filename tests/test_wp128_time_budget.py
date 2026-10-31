@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.services import journey_events
 from app.services import journey_planner as planner
 from app.services.daily_journey import _plan_time_budget
-from app.services.journey_contracts import DayShape, StepKind
+from app.services.journey_contracts import MIN_SCENE_EXCHANGES, DayShape, StepKind
 from app.services.journey_day_shapes import DayShapeInputs
 from tests import experience_walk
 from tests.test_journey_end_to_end import (
@@ -212,14 +212,25 @@ def a_rule(monkeypatch):
 
 
 def test_the_new_rule_takes_the_replys_extra_turns_before_it_is_deferred(a_rule) -> None:
-    plain = _day("A1", 600)
-    with_rule = _day("A1", 600, introduction=a_rule)
+    plain = _day("B1", 1200)
+    with_rule = _day("B1", 1200, introduction=a_rule)
     with_rule.validate()
     assert StepKind.RULE in [step.kind for step in with_rule.steps]
     turns = lambda plan: next(s for s in plan.steps if s.kind is StepKind.RESPOND).public_prompt["max_turns"]  # noqa: E731
-    assert turns(with_rule) < turns(plain), with_rule.rationale
-    assert "so the new rule fits the budget" in with_rule.rationale
-    assert not with_rule.longer_day and with_rule.core_seconds() <= 600
+    assert turns(with_rule) <= turns(plain), with_rule.rationale
+    assert turns(with_rule) >= MIN_SCENE_EXCHANGES
+
+
+def test_the_new_rule_never_cuts_the_scene_below_three_exchanges(a_rule) -> None:
+    """#378: the live walk of 30 Oct (A1, Régulier, a new rule) had one reply,
+    because the rule took the reply's turns. Now the rule takes items, and when
+    even that is not enough the day is a longer day of story and rule."""
+
+    with_rule = _day("A1", 600, introduction=a_rule)
+    with_rule.validate()
+    assert StepKind.RULE in [step.kind for step in with_rule.steps]
+    respond = next(s for s in with_rule.steps if s.kind is StepKind.RESPOND)
+    assert respond.public_prompt["max_turns"] >= MIN_SCENE_EXCHANGES
 
 
 def test_a_rule_that_cannot_fit_is_a_longer_day_of_story_and_rule(a_rule) -> None:

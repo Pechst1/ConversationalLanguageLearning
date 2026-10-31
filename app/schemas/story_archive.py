@@ -37,6 +37,8 @@ class ArchiveDay(_Model):
     scene_id: str | None = None
     title_fr: str
     edition_no: int | None = None
+    #: #314: the day re-read an earlier page; the story did not move on.
+    reread: bool = False
     image_url: str | None = None
     character_id: str | None = None
     #: «La réplique de l'abonné·e» — the learner's own lines, oldest first.

@@ -14,10 +14,10 @@
     {
       "character_id": "margaux_barman",
       "name": "Margaux",
-      "role_native": {
-        "en": "Runs Le Mistral. Says very little, sees everything.",
-        "de": "Führt das Mistral. Sagt wenig, sieht alles.",
-        "fr": "Tient Le Mistral. Parle peu, voit tout."
+      "trait_native": {
+        "en": "Says very little, sees everything.",
+        "de": "Sagt wenig, sieht alles.",
+        "fr": "Parle peu, voit tout."
       },
       "line_fr": "Bonsoir.",
       "line_native": {"en": "Good evening.", "de": "Guten Abend.", "fr": "Bonsoir."}
@@ -25,10 +25,10 @@
     {
       "character_id": "augustin_de_roncourt",
       "name": "Gus",
-      "role_native": {
-        "en": "A regular. Theatrical, always in the middle of a story.",
-        "de": "Stammgast. Theatralisch, immer mitten in einer Geschichte.",
-        "fr": "Un habitué. Théâtral, toujours au milieu d'une histoire."
+      "trait_native": {
+        "en": "Theatrical, always in the middle of a story.",
+        "de": "Theatralisch, immer mitten in einer Geschichte.",
+        "fr": "Théâtral, toujours au milieu d'une histoire."
       },
       "line_fr": "Augustin de Roncourt. Enchanté.",
       "line_native": {"en": "Augustin de Roncourt. Delighted.", "de": "Augustin de Roncourt. Sehr erfreut.", "fr": "Augustin de Roncourt. Enchanté."}
@@ -36,10 +36,10 @@
     {
       "character_id": "marin_leveque",
       "name": "Marin",
-      "role_native": {
-        "en": "A regular. Kind, sentimental, feeds everyone.",
-        "de": "Stammgast. Herzlich, sentimental, kocht für alle.",
-        "fr": "Un habitué. Gentil, sentimental, il nourrit tout le monde."
+      "trait_native": {
+        "en": "Kind, sentimental, feeds everyone.",
+        "de": "Herzlich, sentimental, kocht für alle.",
+        "fr": "Gentil, sentimental, il nourrit tout le monde."
       },
       "line_fr": "Tu as faim ?",
       "line_native": {"en": "Are you hungry?", "de": "Hast du Hunger?", "fr": "Tu as faim ?"}
@@ -47,10 +47,10 @@
     {
       "character_id": "lila_bonnet",
       "name": "Lila",
-      "role_native": {
-        "en": "A teacher and painter. Quick, and hard to impress.",
-        "de": "Lehrerin und Malerin. Schlagfertig und schwer zu beeindrucken.",
-        "fr": "Institutrice et peintre. Vive, et difficile à impressionner."
+      "trait_native": {
+        "en": "Quick, and hard to impress.",
+        "de": "Schlagfertig und schwer zu beeindrucken.",
+        "fr": "Vive, et difficile à impressionner."
       },
       "line_fr": "Moi, c'est Lila. Et toi ?",
       "line_native": {"en": "I'm Lila. And you?", "de": "Ich bin Lila. Und du?", "fr": "Moi, c'est Lila. Et toi ?"}

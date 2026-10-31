@@ -229,6 +229,10 @@ services:
         value: "true"
       - key: REVUE_CORRECTEUR_ENABLED
         value: "true"
+      # Owner 2026-10-30: «Au comptoir» replaces the Papier chat for new
+      # sessions whose story has takes (WP-119-AU-COMPTOIR).
+      - key: REVUE_COMPTOIR_ENABLED
+        value: "true"
       # Refuses on its own (nearest known plate) until S3 storage is set.
       - key: REVUE_PLATE_GENERATION_ENABLED
         value: "true"
@@ -462,6 +466,10 @@ services:
       - key: REVUE_RADIO_ENABLED
         value: "true"
       - key: REVUE_CORRECTEUR_ENABLED
+        value: "true"
+      # Owner 2026-10-30: «Au comptoir» replaces the Papier chat for new
+      # sessions whose story has takes (WP-119-AU-COMPTOIR).
+      - key: REVUE_COMPTOIR_ENABLED
         value: "true"
       # Refuses on its own (nearest known plate) until S3 storage is set.
       - key: REVUE_PLATE_GENERATION_ENABLED

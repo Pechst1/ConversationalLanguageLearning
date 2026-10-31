@@ -34,7 +34,17 @@ export type CameoTrigger =
   | 'streak' | 'comfort' | 'rebound' | 'photobomb' | 'idle' | 'poke' | 'finale' | 'troupe' | 'chapter';
 
 export type CameoEvent =
-  | { type: 'answer'; correct: boolean; coachId?: string | null }
+  | {
+    type: 'answer';
+    correct: boolean;
+    coachId?: string | null;
+    /**
+     * Which checked answer this is (#302). A screen reports from an effect, and an effect can run
+     * more than once for one answer (React's dev double-run, a remount), so the director counts
+     * an attempt once however often it is told. A retry is a new attempt with a new id.
+     */
+    attempt?: string | null;
+  }
   | { type: 'idle' }
   | { type: 'poke'; id: string }
   | { type: 'finale'; lead?: string | null }
@@ -76,6 +86,8 @@ export type Cameo = {
 export type CameoState = {
   streak: number;
   wrongRun: number;
+  /** The last attempt counted (`answer.attempt`), so one answer told twice is one answer. */
+  lastAttempt: string | null;
   /** When the last unrequested cameo (photobomb, comfort, idle) appeared. */
   lastAmbientAt: number;
   lastIdleAt: number;
@@ -95,6 +107,7 @@ export type CameoState = {
 export const INITIAL_CAMEO_STATE: CameoState = {
   streak: 0,
   wrongRun: 0,
+  lastAttempt: null,
   lastAmbientAt: -Infinity,
   lastIdleAt: -Infinity,
   lastId: null,
@@ -390,6 +403,9 @@ export function decideCameo(
   let cameo: Cameo | null = null;
 
   if (event.type === 'answer') {
+    // The same checked answer told again is not a second answer.
+    if (event.attempt && event.attempt === state.lastAttempt) return { state, cameo: null };
+    next.lastAttempt = event.attempt ?? null;
     const comforter = castFor(state).find((who) => who.id === state.comforter) ?? null;
     next.comforter = null;
     if (event.correct) {

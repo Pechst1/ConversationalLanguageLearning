@@ -121,7 +121,7 @@ export interface StoryPage {
   storylets: Storylet[];
 }
 
-/** The days the quarter can stage, by their blocking: T1 day a, and day b (the café, then the stairwell). */
+/** The days the director has blocking for: T1 day a, and day b (the café, then the stairwell). Any other page plays its lines at Le Mistral. */
 export const STAGED_DAYS = ['t1.a', 't1.b'];
 
 /** Where a page's panel plays in a room of the season rather than the café: the stairwell and Odile's door (T1 R1–R4). */
@@ -211,6 +211,8 @@ export interface Heard {
   next: string | null;
   closing: boolean;
   mend: Mend | null;
+  /** the talk goes on (a scene written today): the question stays open, asked anew, not again */
+  goesOn?: boolean;
 }
 
 /** A gesture, as the engine takes it. */

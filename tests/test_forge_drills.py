@@ -398,6 +398,51 @@ def test_an_own_sentence_is_read_in_its_whole_line_when_the_answer_is_at_hand(db
     )
 
 
+def test_no_german_key(db_session: Session):
+    """#348: «war» → «est» left «Im est au Mistral, Marin.» as the key, and the right
+    «Je suis au Mistral, Marin.» was refused. The corrected line must be French."""
+    from app.services.forge import BankItemProvider
+
+    user, concept, session, _forge = _forge_seance(db_session, rung=Rung.TRANSFORM)
+    attempt = AtelierAttempt(
+        atelier_session_id=session.id,
+        user_id=user.id,
+        concept_id=concept.id,
+        round="sentence",
+        mode="sentence",
+        exercise_id="x",
+        prompt_payload={},
+        answer_payload={"text": "Im war au Mistral, Marin."},
+        correction_payload={},
+        verdict="incorrect",
+        score_0_4=1.0,
+    )
+    db_session.add(attempt)
+    db_session.commit()
+    _error(
+        db_session, user, learner="war", corrected="est", concept_id=concept.id,
+        source_type="atelier", source_attempt_id=attempt.id,
+    )
+    assert not drills.mine_fits(
+        "Im war au Mistral, Marin.", "Im est au Mistral, Marin."
+    ), "a key with a German word left in it was accepted as a repair"
+    provider = BankItemProvider.for_session(db_session, user=user, session=session)
+    assert provider.mine_candidates(concept.id) == [], "the garbled line was posed as the learner's own repair"
+    assert provider.mine_item(concept_id=concept.id, exclude=set()) is None
+
+
+def test_french_key_ok(db_session: Session):
+    from app.services.answer_acceptance import judge
+    from app.services.forge import BankItemProvider
+
+    user, concept, session, _forge = _forge_seance(db_session, rung=Rung.TRANSFORM)
+    _error(db_session, user, learner="Je es au Mistral, Marin.", corrected="Je suis au Mistral, Marin.", concept_id=concept.id)
+    provider = BankItemProvider.for_session(db_session, user=user, session=session)
+    found = provider.mine_candidates(concept.id)
+    assert [c["expected"] for c in found] == ["Je suis au Mistral, Marin."]
+    assert judge("Je suis au Mistral, Marin.", [found[0]["expected"]]).correct
+
+
 def test_a_recognise_rounds_mistake_is_never_posed_as_the_learners_own(db_session: Session):
     from app.services.forge import BankItemProvider
 

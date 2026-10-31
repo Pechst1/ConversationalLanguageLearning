@@ -5776,6 +5776,11 @@ export interface components {
             margin_notes?: components["schemas"]["MarginNote"][];
             /** Panels */
             panels?: components["schemas"]["ArchivePanel"][] | null;
+            /**
+             * Reread
+             * @default false
+             */
+            reread?: boolean;
             /** Scene Id */
             scene_id?: string | null;
             /** Special */
@@ -8065,6 +8070,11 @@ export interface components {
             edition_no: number | null;
             /** Image Url */
             image_url: string | null;
+            /**
+             * Reread
+             * @default false
+             */
+            reread: boolean;
             /** Season Title Fr */
             season_title_fr: string | null;
             /** Teaser Fr */
@@ -9366,6 +9376,10 @@ export interface components {
             due_on: string;
             /** Entry Id */
             entry_id: string;
+            /** Facts Matched */
+            facts_matched?: number | null;
+            /** Facts Total */
+            facts_total?: number | null;
             /** Prompt Fr */
             prompt_fr: string;
             /** Signal */
@@ -11250,6 +11264,8 @@ export interface components {
             prompt_fr: string | null;
             /** Retry */
             retry?: boolean | null;
+            /** Slip Fr */
+            slip_fr?: string | null;
             /** Source Fr */
             source_fr: string | null;
             target: components["schemas"]["TargetRef"];
@@ -13424,6 +13440,8 @@ export interface components {
             premise_native: string | null;
             /** Previously Fr */
             previously_fr: string[] | null;
+            /** Reread Native */
+            reread_native: string | null;
             season_part: components["schemas"]["SeasonPart"] | null;
             /** Setup Fr */
             setup_fr: string;

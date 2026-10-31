@@ -373,6 +373,21 @@ export function recapTeaserOf(recap: (JourneyRecap & { next_teaser_fr?: unknown 
   return structured;
 }
 
+/**
+ * The ONE «Tomorrow» line of a finished day: Home's finished card and the Done
+ * screen (`/fertig`) both print what this returns, so they cannot disagree about
+ * tomorrow's open question (#359, root cause #143). Null after an early stop (a
+ * day cut short promises nothing) and when the recap carries no teaser.
+ */
+export type TomorrowLine = { teaser: RecapTeaser; hint: string };
+
+export function tomorrowLine(recap: (JourneyRecap & { next_teaser_fr?: unknown }) | null | undefined): TomorrowLine | null {
+  if (!recap || recap.completion_kind === 'early') return null;
+  const teaser = recapTeaserOf(recap);
+  const hint = teaser ? teaserHint(teaser.text_fr) : null;
+  return teaser && hint ? { teaser, hint } : null;
+}
+
 /** Words in a hint: anything with a letter or a digit. */
 const hintWords = (value: string): string[] => value.split(/\s+/).filter((token) => /[0-9A-Za-zÀ-ÖØ-öø-ÿŒœ]/.test(token));
 

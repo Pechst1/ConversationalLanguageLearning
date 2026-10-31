@@ -2323,6 +2323,10 @@ const noSleep = () => Promise.resolve();
   const episodeStep = fs.readFileSync(path.join(__dirname, 'StoryEpisodeStep.tsx'), 'utf8');
   assert.ok(episodeStep.includes('listenFirstPlacement('), 'the placement is the model’s call');
   assert.ok(
+    /declined:\s*declinedStep === step\.id/.test(episodeStep) && episodeStep.includes('setDeclinedStep(enabled ? null : step.id)'),
+    '«Read the scene» is a decision the placement receives (#276), not only a stored preference',
+  );
+  assert.ok(
     episodeStep.includes('footLink={null}'),
     'the reader’s foot no longer carries the offer',
   );

@@ -43,7 +43,7 @@
             {"id": "margaux.cicada", "chip": "Et la cigale ?", "salience": 1, "means": "The learner asks about the cicada on the key ring.", "examples": ["Et la cigale ?", "C'est quoi, la cigale ?", "Le porte-clé, il vient d'où ?"], "say": {"a2": "De Provence. Elle y tenait.", "native": {"en": "From Provence. She was attached to it.", "de": "Aus der Provence. Sie hing daran."}}, "learn": {"id": "margaux.cicada", "say": {"a2": "La cigale vient de Provence. Odile y tenait.", "native": {"en": "The cicada comes from Provence. Odile was attached to it.", "de": "Die Zikade kommt aus der Provence. Odile hing daran."}}}},
             {"id": "margaux.water", "chip": "Un verre d'eau, s'il te plaît.", "direction": "setting down a glass", "means": "The learner orders something to drink.", "examples": ["Un verre d'eau, s'il te plaît.", "Un café, s'il te plaît.", "Une bière, s'il te plaît."], "say": {"a2": "Voilà.", "native": {"en": "There you go.", "de": "Bitte schön."}}}
           ],
-          "slip": {"a2": "Tu. Ici, c'est tu.", "native": {"en": "Tu. Here it's tu.", "de": "Du. Hier sagt man du."}},
+          "slip": {"a2": "Tu. Ici, on dit tu.", "native": {"en": "Tu. Here we say tu.", "de": "Du. Hier sagt man du."}},
           "fallback": [
             {"a2": "Hm. Redis ?", "native": {"en": "Hm. Say again?", "de": "Hm. Noch mal?"}},
             {"a2": "Plus simple. Je suis fatiguée.", "native": {"en": "Simpler. I'm tired.", "de": "Einfacher. Ich bin müde."}}

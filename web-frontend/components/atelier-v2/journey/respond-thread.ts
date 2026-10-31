@@ -42,6 +42,27 @@ import { correctionNotes, dedupeNotes } from '@/lib/correction-notes';
 
 import type { JourneyFeedback } from './journey-state';
 import { speakerOf } from './journey-faces';
+import { drawnCastIdFor } from '@/lib/cast-faces';
+
+function sameVoice(a: string, b: string): boolean {
+  return (drawnCastIdFor(a) || a) === (drawnCastIdFor(b) || b);
+}
+
+/**
+ * Whether a reply is drawn one bubble per speaker (#313). Several voices always are; so is a
+ * single line said by someone other than the person whose face heads the step: the plain bubble
+ * is drawn under the header's name, and Lila's «Pas encore» under Camille's face is Camille
+ * speaking for Lila.
+ */
+export function drawsEachVoice(
+  lines: SpokenLine[] | null | undefined,
+  headerId: string | null | undefined,
+): boolean {
+  if (!lines || lines.length === 0) return false;
+  if (lines.length > 1) return true;
+  const only = lines[0].speaker_id;
+  return Boolean(only && headerId && !sameVoice(only, headerId));
+}
 
 // ---------------------------------------------------------------------------
 // Local copy of the thread (servers that predate WP-89 send no `thread`)
@@ -347,7 +368,7 @@ export function threadBubbles(input: {
       pending: slot.pending,
     });
     lastCharacter = null;
-    if (slot.lines.length > 1) {
+    if (drawsEachVoice(slot.lines, prompt.character_id)) {
       // A many-voiced reply: every speaker is their own bubble, with their face.
       slot.lines.forEach((spoken, index) => {
         bubbles.push({

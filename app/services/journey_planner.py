@@ -48,10 +48,12 @@ from app.services.journey_contracts import (
     DEFAULT_DAY_SHAPE,
     DESK_KINDS,
     INPUT_FLOOR_SHARE,
+    LEGER_SCENE_EXCHANGES,
     LISTENING_RECALL_FORMATS,
     MAX_PLANNED_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
+    MIN_SCENE_EXCHANGES,
     READ_MIN_BUDGET_SECONDS,
     ControlLanguage,
     DayShape,
@@ -83,6 +85,13 @@ from app.services.journey_day_shapes import (
     LetterOffer,
     rotate_recall_formats,
     shape_allows_format,
+)
+from app.services.repair_context import (
+    RepairContext,
+    clean_text,
+    corrected_sentence,
+    find_slip,
+    repair_context_of,
 )
 from app.services.scene_items import (
     CLOZE_INSTRUCTION,
@@ -1096,6 +1105,7 @@ def build_recall_task(
     affordances: list[str],
     optional: bool,
     learner_text: str | None = None,
+    repair: RepairContext | None = None,
 ) -> RecallTask | None:
     """One recall opportunity — a single task, never a fifteen-item ladder.
 
@@ -1108,6 +1118,10 @@ def build_recall_task(
     say <explanation>". Its ``label_native`` is an explanation, not a gloss, so
     it is not offered as the translation help either. Without the learner's
     wording there is no honest repair question, and the target gets no step.
+
+    #278: a repair is not a bare word. With the sentence the slip sat in (``repair``)
+    the card prints that sentence with the slip marked (``slip_fr``) and names the
+    rule it broke (``rule_native``); the learner still types the corrected part.
     """
 
     language = scenario.control_language
@@ -1131,6 +1145,9 @@ def build_recall_task(
     instruction_override: str | None = None
 
     goal: str | None = None
+    slip_fr: str | None = None
+    rule_native: str | None = None
+    sentence_answers: list[str] = []
     if target.kind is TargetKind.ERROR:
         learner = " ".join(str(learner_text or "").split())
         if not learner or _fold(learner) == _fold(label_fr):
@@ -1154,6 +1171,20 @@ def build_recall_task(
         instruction_override = _localized(_ERROR_INSTRUCTION, language)
         gloss = None
         goal = recall_goal("repair_own", language)
+        sentence = clean_text(repair.sentence) if repair else ""
+        if sentence and find_slip(sentence, learner) and _fold(sentence) != _fold(learner):
+            # The slip is marked inside the sentence it was made in.
+            prompt_fr = sentence
+            slip_fr = learner
+            # The card prints a whole sentence under «Write this correctly», so the
+            # corrected sentence is as right an answer as the one marked word.
+            fixed_sentence = corrected_sentence(sentence, learner, label_fr)
+            if fixed_sentence:
+                sentence_answers.append(fixed_sentence)
+        rule = clean_text(repair.rule) if repair else ""
+        if rule:
+            rule_native = recall_goal("repair_rule", language, rule=rule)
+            goal = f"{goal} {rule_native}"
     elif gloss and len(distractors) >= 2:
         task_type = "choice"
     elif _is_phrase(tokens) and gloss:
@@ -1218,6 +1249,8 @@ def build_recall_task(
             estimated_seconds=0,
             goal_native=goal,
             source_fr=prompt_fr,
+            slip_fr=slip_fr,
+            rule_native=rule_native,
             **common,
         )
 
@@ -1227,10 +1260,12 @@ def build_recall_task(
         or _localized(_SHORT_ANSWER_INSTRUCTION, language).format(native=gloss),
         prompt_fr=prompt_fr,
         options=[],
-        accepted_answers=[label_fr],
+        accepted_answers=[label_fr, *sentence_answers],
         estimated_seconds=0,
         goal_native=goal,
         source_fr=prompt_fr,
+        slip_fr=slip_fr,
+        rule_native=rule_native,
         **common,
     )
 
@@ -2031,6 +2066,7 @@ def build_recall_task_in_format(
     learner_text: str | None = None,
     pool: list[TargetRef] | tuple[TargetRef, ...] = (),
     sentences: list[str] | tuple[str, ...] = (),
+    repair: RepairContext | None = None,
 ) -> RecallTask | None:
     """One recall opportunity in one named format, or ``None``.
 
@@ -2075,6 +2111,7 @@ def build_recall_task_in_format(
         affordances=affordances,
         optional=optional,
         learner_text=learner_text,
+        repair=repair,
     )
     return legacy if legacy is not None and legacy.task_type == task_type else None
 
@@ -2088,6 +2125,7 @@ def build_rotated_recall_task(
     formats: list[str],
     day_shape: DayShape = DEFAULT_DAY_SHAPE,
     learner_text: str | None = None,
+    repair: RepairContext | None = None,
 ) -> RecallTask | None:
     """Walk today's seeded format order and take the first honest fit.
 
@@ -2106,6 +2144,7 @@ def build_rotated_recall_task(
             affordances=affordances,
             optional=optional,
             learner_text=learner_text,
+            repair=repair,
         )
         if task is not None:
             return task
@@ -2115,6 +2154,7 @@ def build_rotated_recall_task(
         affordances=affordances,
         optional=optional,
         learner_text=learner_text,
+        repair=repair,
     )
     if fallback is not None and not shape_allows_format(day_shape, fallback.task_type):
         if (
@@ -2391,6 +2431,28 @@ def _spoken_words(panels: Any) -> int:
             if isinstance(line, dict) and line.get("kind") in ("speech", "all"):
                 total += _tokens(str(line.get("text_fr") or ""))
     return total
+
+
+def scene_exchange_floor(
+    scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int = RHYTHM_FIVE_MINUTES * 2
+) -> int:
+    """The fewest exchanges the plan may give today's reply.
+
+    An authored page or content scene keeps its own minimum (``min_turns``: «Le
+    choix», a gate, a turn that routes); its count is the page's. A generated
+    (story-engine) scene (#378, owner
+    decision 2026-10-30) is a conversation of at least
+    :data:`MIN_SCENE_EXCHANGES` from Régulier up, and of
+    :data:`LEGER_SCENE_EXCHANGES` on Léger: the live walk of 30 Oct was cut to one
+    reply to fit a new rule, and the character's question then closed the scene.
+    A longer day is said before the learner starts, never a hidden cut.
+    """
+
+    authored_min = max(1, int(getattr(task, "min_turns", 0) or 0))
+    if not draft_of(scenario) or authored_turns(scenario) or scenario.is_authored_fallback:
+        return authored_min
+    floor = LEGER_SCENE_EXCHANGES if budget_seconds <= RHYTHM_FIVE_MINUTES else MIN_SCENE_EXCHANGES
+    return max(authored_min, min(floor, MAX_RESPOND_TURNS))
 
 
 def authored_turns(scenario: ScenarioBrief) -> list[AuthoredExchange]:
@@ -2979,19 +3041,22 @@ def plan_journey(
             rhythm_caps(budget_seconds).max_turns,
         ),
     )
-    if first_day:
-        # WP-75: the first reply is one turn (a repair is still allowed), so
-        # the two quick recall wins fit in front of it inside five minutes.
+    floor = scene_exchange_floor(scenario, task, budget_seconds)
+    if first_day and floor <= 1:
+        # WP-75: the first reply of an authored page is one turn (a repair is
+        # still allowed), so the two quick recall wins fit in front of it inside
+        # five minutes. #378: a generated scene keeps its three exchanges.
         turns = 1
-    # WP-113: an authored day's «Le choix» is never cut by the rhythm.
-    turns = max(turns, int(getattr(task, "min_turns", 0) or 0))
+    # WP-113: an authored day's «Le choix» is never cut by the rhythm; #378: a
+    # generated scene is never cut below MIN_SCENE_EXCHANGES.
+    turns = max(turns, floor)
     optional_turns = 0
     if practice and not first_day and band in LOW_BANDS and rhythm_caps(budget_seconds).budget_seconds <= 600:
         # WP-129 (owner decision): fewer reply exchanges, more practice items —
         # on Léger and Régulier, where the reply filled the day. Soutenu and
         # Intensif keep their four: a longer rhythm buys story and input
         # (WP-93), and their days had room for items already.
-        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, int(getattr(task, "min_turns", 0) or 0))
+        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, floor)
         if turns > core_turns:
             optional_turns = turns - core_turns
             turns = core_turns
@@ -3008,7 +3073,7 @@ def plan_journey(
     )
     resolution_cost = resolution_seconds(scenario, outcome_key, spt=spt, multiplier=multiplier)
     respond_cost = respond_seconds(task, turns=turns, spt=spt, multiplier=multiplier, band=band, authored=authored)
-    min_turns = max(1, int(getattr(task, "min_turns", 0) or 0))
+    min_turns = floor
     while scene_cost + respond_cost + resolution_cost > budget_seconds and turns > min_turns:
         turns -= 1
         respond_cost = respond_seconds(
@@ -3121,6 +3186,7 @@ def plan_journey(
                 optional = bool(entry.demonstrated)
             metadata = entry.candidate.metadata or {}
             learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
+            repair = repair_context_of(metadata)
             if first_day:
                 recall = _first_day_recall(
                     target=entry.target,
@@ -3134,12 +3200,14 @@ def plan_journey(
                     "short_answer", target=entry.target, scenario=scenario,
                     affordances=affordances, optional=optional, learner_text=learner_wording,
                     pool=[], sentences=scene_sentences(scenario.setup_fr, scenario.opening_line_fr),
+                    repair=repair,
                 ) if scenario.level_band in {"B1", "B2", "C1", "C2"} else build_recall_task(
                     target=entry.target,
                     scenario=scenario,
                     affordances=affordances,
                     optional=optional,
                     learner_text=learner_wording,
+                    repair=repair,
                 )
                 if recall is not None and not shape_allows_format(shape, recall.task_type):
                     recall = None
@@ -3159,6 +3227,7 @@ def plan_journey(
                     formats=formats,
                     day_shape=shape,
                     learner_text=learner_wording,
+                    repair=repair,
                 )
             if recall is None:
                 used_targets.append(entry)
@@ -3185,7 +3254,7 @@ def plan_journey(
     if (
         not first_day
         and not longer_day
-        and turns > 1
+        and turns > floor
         and dropped
         and not any(not skipped for _e, _t, _c, skipped in recalls)
     ):
@@ -3289,6 +3358,7 @@ def plan_journey(
                     # WP-103 T3: what to produce, and what it starts from.
                     "goal_native": recall.goal_native,
                     "source_fr": recall.source_fr,
+                    **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
                     **recall_met(entry.candidate),
                 },
                 private_task=replace(recall, estimated_seconds=cost),
@@ -3587,6 +3657,7 @@ def practice_task(
     learner_text: str | None,
     pool: list[TargetRef],
     sentences: list[str],
+    repair: RepairContext | None = None,
 ) -> RecallTask | None:
     """One quick item in one named format, or ``None``.
 
@@ -3652,6 +3723,7 @@ def practice_task(
         learner_text=learner_text,
         pool=pool,
         sentences=sentences,
+        repair=repair,
     )
 
 
@@ -3947,6 +4019,7 @@ def fill_practice_items(
             identity = target_identity(entry.target)
             metadata = entry.candidate.metadata or {}
             learner_wording = metadata.get("erratum_learner") or metadata.get("original_text")
+            repair = repair_context_of(metadata)
             kept_example = str(metadata.get("example_fr") or "").strip()
             readable = list(sentences if slot == "post" else safe_sentences)
             if kept_example:
@@ -3972,6 +4045,7 @@ def fill_practice_items(
                     learner_text=learner_wording,
                     pool=pool,
                     sentences=readable,
+                    repair=repair,
                 )
                 if task is None:
                     continue
@@ -4900,6 +4974,7 @@ def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
         # WP-103 T3: what to produce, and what it starts from.
         "goal_native": recall.goal_native,
         "source_fr": recall.source_fr,
+        **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
         **recall_met(item.entry.candidate),
     }
     if recall.task_type in LISTENING_RECALL_FORMATS:
@@ -5336,7 +5411,7 @@ def _plan_practice_day(
         )
 
     respond_cost, items = attempt(turns)
-    min_turns = max(1, int(getattr(task, "min_turns", 0) or 0))
+    min_turns = scene_exchange_floor(scenario, task, budget_seconds)
     if intro_card and not intro_reserve(turns) and turns > min_turns:
         # The new unit is worth the reply's second turn. WP-128: and, when the
         # band composes slowly, its third — down to the reply's minimum (one
@@ -5392,7 +5467,7 @@ def _plan_practice_day(
         not forced_intro
         and caps.budget_seconds <= RHYTHM_FIVE_MINUTES
         and len(items) + len(intro_reserve(turns)) < caps.target_items
-        and turns > 1
+        and turns > min_turns
         and not (intro_card and not intro_reserve(turns - 1))
     ):
         # The reply keeps its repair; it gives up its second turn so the day

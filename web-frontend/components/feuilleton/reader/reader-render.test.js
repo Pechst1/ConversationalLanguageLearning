@@ -512,8 +512,27 @@ test('WP-110: your line is the balloon on the art; the character keeps a caption
   assert.ok(/data-you="true"/.test(bubble), 'the balloon is marked as yours');
   assert.ok(/grand-mère/.test(bubble), 'your words are in the balloon');
   assert.ok(!/exactement/.test(bubble), 'the character is not');
-  const captions = markup.slice(markup.indexOf('</figure>'));
-  assert.ok(/exactement/.test(captions), 'the character keeps a caption under the art');
+  // #269: the question the reply answers is read before the reply, not under it.
+  assert.ok(/exactement/.test(markup), 'the character keeps a caption');
+  assert.ok(
+    markup.indexOf('exactement') < markup.indexOf('grand-mère'),
+    'the question is listed before the learner’s reply',
+  );
+});
+
+test('#269: a line said after the reply stays below the picture', () => {
+  const turn = {
+    kind: 'panel', key: 'panel:turn2', ordinal: 1, panelId: 'turn2', panelIndex: 0, title: '', beat: '',
+    imageUrl: '/assets/serial/locations/le_mistral-counter.webp', artStatus: 'ready', character: 'gus',
+    caption: '', tasks: [], movement: 'turn',
+    lines: [
+      { key: 'm0', who: 'Vous', fr: 'Ma grand-mère était Odile.', en: '', character: 'toi', you: true },
+      { key: 'm1', who: 'Gus', fr: 'Ah, je vois.', en: '', character: 'gus' },
+    ],
+  };
+  const markup = renderStory({ stages: [turn], index: 0, panelVariant: () => 'bubble' });
+  assert.ok(markup.indexOf('grand-mère') < markup.indexOf('je vois'));
+  assert.ok(markup.indexOf('</figure>') < markup.indexOf('je vois'), 'what follows the reply is under the art');
 });
 
 test('WP-110: the replay closes on «À suivre…» with tomorrow’s line', () => {
@@ -533,7 +552,8 @@ test('WP-137: a silent panel carries a caption in the learner’s language and a
     imageUrl: '/assets/serial/locations/le_mistral-counter.webp', artStatus: 'ready', character: '',
     caption: '', tasks: [], lines: [], silent: true,
   };
-  for (const [language, words] of [['de', 'Stille'], ['en', 'silence'], ['fr', 'silence']]) {
+  // #269: the caption is the story's, so it is French in every chrome language.
+  for (const [language, words] of [['de', 'silence'], ['en', 'silence'], ['fr', 'silence']]) {
     for (const variant of ['line', null]) {
       const markup = renderStory({ stages: [silent], index: 0, language, panelVariant: () => variant });
       assert.ok(/<figure class="fr-plate"[^>]*data-pan="slow"/.test(markup), `${language} ${variant}: the plate pans`);

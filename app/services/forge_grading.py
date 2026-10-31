@@ -421,6 +421,50 @@ def is_french_word(word: Any) -> bool:
         return False
 
 
+_LINE_WORD = re.compile(r"[^\W\d_](?:[\w'’-]*[^\W_])?")
+
+#: Function words of the two languages a learner's line slips into. The lexicon
+#: knows only a few thousand forms (it lacks «cherché»), so «not in the lexicon»
+#: would skip good French lines; these are words that are *certainly* not French.
+_FOREIGN_FUNCTION_WORDS = frozenset(
+    {
+        # German
+        "im", "war", "waren", "ist", "sind", "bin", "bist", "ich", "du", "er", "wir", "ihr",
+        "und", "oder", "aber", "der", "die", "das", "den", "dem", "des", "ein", "eine", "einen",
+        "nicht", "kein", "keine", "mit", "von", "zu", "zum", "zur", "auf", "für", "nach", "bei",
+        "auch", "wie", "was", "wo", "ja", "nein", "noch", "schon", "sehr", "habe", "hat",
+        "haben", "gehe", "gehen", "heute", "gestern", "morgen", "wohne", "heisse", "heiße",
+        # English
+        "the", "and", "is", "were", "are", "am", "with", "you", "your", "have", "has",
+        "had", "to", "of", "it", "my", "he", "she", "we", "they", "at", "in", "not", "but",
+        "this", "that", "from", "for", "go", "went", "live", "like",
+    }
+)
+
+
+def foreign_words(line: Any) -> list[str]:
+    """The words of ``line`` that are certainly not French (``[]``: nothing in it says so).
+
+    #348: a line is the *target* of a drill only if it is French. «Im est au
+    Mistral, Marin.» was a stored target, made by swapping one word of the
+    learner's German-tinged «Im war au Mistral, Marin.»: the swap fixed the span
+    the error named and nothing else, and nothing ever asked whether the rest of
+    the line was French. The test is one-sided on purpose (the lexicon is small;
+    an unknown word is not a foreign one): a German or English function word, or
+    a German letter, in a word the French lexicon does not know.
+    """
+
+    found: list[str] = []
+    for match in _LINE_WORD.finditer(str(line or "")):
+        token = match.group(0)
+        folded = _fold_word(token)
+        if is_french_word(token):
+            continue
+        if folded in _FOREIGN_FUNCTION_WORDS or re.search("[äöüßÄÖÜ]", token):
+            found.append(token)
+    return found
+
+
 def _all_french(fragment: Any) -> bool:
     words = [word for word in re.findall(r"[^\W\d_][\w'’-]*", str(fragment or "")) if word]
     return bool(words) and all(is_french_word(word) for word in words)
@@ -706,6 +750,35 @@ def _held_to_accent(refined: dict[str, Any], reading: Any, *, learner_text: Any,
     return refined
 
 
+#: Errata about the task, not about a span of French: they are the app's, not checked.
+_UNCHECKED_ERRATA = frozenset({"task_compliance", "length_compliance", "lexical_gap"})
+
+
+def held_to_sentence(
+    errata: list[dict[str, Any]], learner_text: Any, language: Any = "en"
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """``(shown, dropped)``: the model's errata through the one checker every
+    correction passes (#250, ``correction_contract.verify_erratum``), each note held
+    to its own fix (``reconcile_notes``, #369). Free production printed the model's
+    errata as they came: a «sont» for a subject «ils» the answer never had."""
+
+    from app.services import correction_contract
+
+    text = str(learner_text or "")
+    shown: list[dict[str, Any]] = []
+    dropped: list[dict[str, Any]] = []
+    for erratum in errata:
+        if not text or str(erratum.get("task_error_type") or "") in _UNCHECKED_ERRATA:
+            shown.append(erratum)
+            continue
+        verified = correction_contract.verify_erratum(text, erratum, strict_span=False)
+        if verified is None:
+            dropped.append(erratum)
+            continue
+        shown.append(correction_contract.reconcile_notes(verified, language=str(language or "en")[:2]))
+    return shown, dropped
+
+
 def refine_production_correction(
     correction: dict[str, Any],
     *,
@@ -729,11 +802,23 @@ def refine_production_correction(
     errata, gaps, dropped = drop_false_english(
         list(refined.get("errata") or []), list(refined.get("lexical_gaps") or [])
     )
+    errata, unproven = held_to_sentence(errata, learner_text, language)
+    if refined.get("errata") is not None or errata:
+        refined["errata"] = errata  # settled fixes and reconciled notes, dropped or not
+    if unproven:
+        refined["dropped_errata"] = [
+            {"learner_text": item.get("learner_text"), "reason": "not_in_sentence"} for item in unproven
+        ]
+        if not errata and not gaps:
+            refined["corrected_answer"] = str(learner_text or refined.get("corrected_answer") or "")
     if dropped:
         refined["errata"], refined["lexical_gaps"] = errata, gaps
         refined["dropped_errata"] = [
-            {"learner_text": item.get("learner_text"), "reason": "french_word_called_english"}
-            for item in dropped
+            *refined.get("dropped_errata", []),
+            *(
+                {"learner_text": item.get("learner_text"), "reason": "french_word_called_english"}
+                for item in dropped
+            ),
         ]
     reading = accent_reading(learner_text, accepted, accents=accents)
     if reading is not None:
@@ -846,6 +931,7 @@ __all__ = [
     "drop_false_english",
     "is_author_note",
     "fold_typography",
+    "foreign_words",
     "is_french_word",
     "mark_given",
     "matches_accepted",

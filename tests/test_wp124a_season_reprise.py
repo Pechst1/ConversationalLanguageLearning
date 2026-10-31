@@ -159,10 +159,11 @@ def test_a_lost_gap_day_rereads_the_last_page_and_moves_nothing(
         assert all(str(line.get("text_native") or "").strip() for line in lines), "A1: every line shown translated"
     respond = _respond_prompts(transcript)
     assert respond[0]["objective_native"].startswith("Heute lesen wir noch einmal."), respond[0]["objective_native"]
-    # «Le choix» shows the card the learner actually tapped, and only that one.
+    # «Le choix» keeps the learner's own branch only (nothing else is replayed), and one
+    # button is not a decision (#315): the page asks in the free-text field instead.
     cards = [card for prompt in respond for card in prompt.get("choices") or []]
     cards += [card for e in transcript["events"] for card in ((e.get("result") or {}).get("next_turn") or {}).get("choices") or []]
-    assert {card["id"] for card in cards} == {"gus"}, cards
+    assert cards == [], cards
     assert transcript["resolution"]["summary_native"].startswith("Noch einmal gelesen: «La lettre»")
     problems = check_lost_day_stays_in_season(transcript)
     if not SCHEMA_CARRIES_TRANSLATIONS:

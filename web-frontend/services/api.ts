@@ -356,6 +356,9 @@ export interface JournalFollowup {
   text?: string | null;
   /** 'used_again_later' | 'not_recalled' | null */
   signal?: string | null;
+  /** How much of the scene the answer named; set once answered (#337). */
+  facts_total?: number | null;
+  facts_matched?: number | null;
 }
 
 export interface JournalEnvelope {
@@ -1731,8 +1734,8 @@ export interface SerialArchiveEpisode {
 export interface SerialCastMember {
   id: string;
   name: string;
+  /** #298: the learner-facing line under the name, in the interface language. */
   role?: string | null;
-  dynamic_with_user?: string | null;
   model_sheet_url?: string | null;
   accent_colour?: string | null;
   /** WP-97: the engine's trust, 0..5 — it can fall. `null` before any exchange. */

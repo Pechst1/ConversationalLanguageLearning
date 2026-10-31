@@ -22,7 +22,7 @@ Module._resolveFilename = function alias(request, ...rest) {
 const apiPath = Module._resolveFilename('@/services/api', module, false);
 require.cache[apiPath] = { id: apiPath, filename: apiPath, loaded: true, exports: { __esModule: true, default: {}, apiService: {} } };
 
-const { JourneyStory, StoryLost, pageOfJourney, pageOfStage, stagedPageOf, todayOf } = require('./journey-story.ts');
+const { JourneyStory, StoryLost, blockedPage, pageOfJourney, pageOfStage, stagedPageOf, todayOf } = require('./journey-story.ts');
 
 const line = (who, text_fr, extra = {}) => ({ who, name: null, kind: who === 'caption' ? 'caption' : 'speech', mood: 'neutral', direction: null, text_fr, text_native: null, ...extra });
 
@@ -108,6 +108,97 @@ function storyOn(j, handlers, opts = {}) {
   return { story, ...s, snapshots };
 }
 
+/** A day the story engine wrote: a rule first, then the scene's panels, then the talk with Lila. */
+function written({ revision = 3, current = 'rule', turn = 0 } = {}) {
+  const order = ['rule', 'scene', 'talk', 'end'];
+  const at = order.indexOf(current);
+  const state = (i) => (i < at ? 'completed' : i === at ? 'active' : 'pending');
+  return {
+    id: 'j2',
+    revision,
+    status: 'active',
+    local_date: '2026-10-30',
+    edition_no: 17,
+    current_step_id: current,
+    scenario: { title_fr: 'La clé d’Odile', location_id: 'le_mistral', objective_native: 'Ask Lila about the key.' },
+    steps: [
+      { id: 'rule', kind: 'rule', ordinal: 0, status: state(0), prompt: {} },
+      {
+        id: 'scene',
+        kind: 'scene',
+        ordinal: 1,
+        status: state(1),
+        prompt: {
+          objective_native: 'Ask Lila about the key.',
+          setup_fr: 'Le soir, au Mistral.',
+          stage: null,
+          panels: [
+            { id: 'p1', index: 0, narration_fr: 'Le soir tombe sur le quai.', dialogue: [] },
+            { id: 'p2', index: 1, narration_fr: '', dialogue: [{ character_id: 'lila_bonnet', character_name: 'Lila', mood: 'happy', text_fr: 'Tu as la clé ?', text_native: 'Do you have the key?' }, { character_id: 'marin_leveque', character_name: 'Marin', mood: null, text_fr: ' ', text_native: null }] },
+            { id: 'p3', index: 2, narration_fr: '', dialogue: [] },
+          ],
+        },
+      },
+      { id: 'talk', kind: 'respond', ordinal: 2, status: state(2), prompt: { turn_index: turn, help_available: ['hint'], targets: TARGETS, choices: [], objective_native: 'Tell Lila where the key is.', character_id: 'lila_bonnet', character_name: 'Lila', character_line_fr: 'Alors, elle est où ?' } },
+      { id: 'end', kind: 'resolution', ordinal: 3, status: state(3), prompt: { story_pending: false } },
+    ],
+  };
+}
+
+test('a scene the engine wrote today is a page the quarter plays: its panels, then the talk', () => {
+  const page = pageOfJourney(written());
+  assert.equal(page.key, 'jour.2026-10-30');
+  assert.equal(page.number, 17);
+  assert.equal(page.title_fr, 'La clé d’Odile');
+  assert.equal(page.can_do_native, 'Ask Lila about the key.');
+  assert.deepEqual(page.movements.map((m) => [m.kind, m.id]), [['panel', 'jour.p1'], ['panel', 'jour.p2'], ['turn', 'jour.talk']], 'an empty panel and an empty line are left out');
+  assert.deepEqual(page.movements[0].lines.map((l) => [l.who, l.kind, l.text_fr]), [['caption', 'caption', 'Le soir tombe sur le quai.']]);
+  assert.deepEqual(page.movements[1].lines.map((l) => [l.who, l.name, l.mood, l.text_native]), [['lila_bonnet', 'Lila', 'happy', 'Do you have the key?']]);
+  assert.deepEqual(page.movements[1].in_frame, ['lila_bonnet']);
+  const talk = page.movements[2];
+  assert.deepEqual([talk.to, talk.to_name, talk.task_native, talk.choice], ['lila_bonnet', 'Lila', 'Tell Lila where the key is.', false]);
+  assert.deepEqual(talk.panel.lines.map((l) => [l.who, l.text_fr]), [['lila_bonnet', 'Alors, elle est où ?']]);
+  assert.deepEqual(page.storylets, []);
+  assert.equal(blockedPage(page), false);
+  assert.equal(blockedPage(pageOfStage(STAGE)), true);
+});
+
+test('a talk the engine keeps open goes on turn after turn, then closes', async () => {
+  const said = (revision, turn, text, open) => ({
+    pending: false,
+    journey: written({ revision, current: 'talk', turn }),
+    correction: null,
+    character_lines: [{ speaker_id: 'lila_bonnet', speaker_name: 'Lila', text_fr: text }],
+    next_turn: open ? { step_id: 'talk' } : null,
+    stage: null,
+  });
+  const replies = [said(5, 1, 'Sous le paillasson ? Vraiment ?', true), said(6, 2, 'Bon. Merci !', false)];
+  const { story } = storyOn(written({ current: 'scene' }), { advance: async () => written({ revision: 4, current: 'talk' }), attempt: async () => replies.shift() });
+  const first = await story.answer('jour.talk', 'Elle est sous le paillasson.');
+  assert.deepEqual([first.next, first.goesOn, first.reply], ['jour.talk', true, null]);
+  assert.deepEqual(first.beats[0].lines.map((l) => [l.who, l.text_fr]), [['lila_bonnet', 'Sous le paillasson ? Vraiment ?']]);
+  const last = await story.answer('jour.talk', 'Oui, vraiment.');
+  assert.deepEqual([last.next, last.goesOn, last.closing], [null, false, true]);
+  assert.notEqual(first.beats[0].id, last.beats[0].id, 'each turn’s lines are their own beat');
+});
+
+test('a reply without its lines split out is still said, by whoever the talk is with', async () => {
+  const result = { pending: false, journey: written({ revision: 5, current: 'talk', turn: 1 }), correction: null, character_lines: [], character_reply_fr: 'Sous le paillasson ? Et tu l’as laissée là ?', next_turn: { step_id: 'talk' }, stage: null };
+  const { story } = storyOn(written({ revision: 4, current: 'talk' }), { attempt: async () => result });
+  const heard = await story.answer('jour.talk', 'Elle est sous le paillasson.');
+  assert.deepEqual(heard.beats[0].lines.map((l) => [l.who, l.name, l.text_fr]), [['lila_bonnet', 'Lila', 'Sous le paillasson ? Et tu l’as laissée là ?']]);
+  assert.equal(heard.goesOn, true);
+});
+
+test('the scene picks the day up where the warm-up left it', async () => {
+  const { story, of } = storyOn(written({ current: 'rule' }), { advance: async () => written({ revision: 6, current: 'talk' }) });
+  story.follow(written({ revision: 2, current: 'rule' }));
+  assert.equal(story.snapshot.revision, 3, 'an older read is not taken');
+  story.follow(written({ revision: 5, current: 'scene' }));
+  await story.ask('jour.talk');
+  assert.deepEqual(of('advance').map((c) => [c.args[1].currentStepId, c.args[1].expectedRevision]), [['scene', 5]]);
+});
+
 test('the page off the scene step: what the quarter can stage, field by field', () => {
   const page = pageOfStage(STAGE);
   assert.equal(page.key, 't1.a');
@@ -125,7 +216,8 @@ test('the page off the scene step: what the quarter can stage, field by field', 
   assert.deepEqual(people.map((p) => [p.who, p.register, p.hello?.text_fr ?? null]), [['margaux_barman', 'tu', null], ['augustin_de_roncourt', 'vous', 'Ah, vous revoilà.']]);
   assert.equal(pageOfStage(null), null);
   assert.equal(pageOfStage({ key: 't1.a', movements: [{ kind: 'solve', id: 'x' }] }), null);
-  assert.equal(pageOfJourney(journey({ stage: null })), null);
+  assert.equal(pageOfJourney(journey({ stage: null })).key, 'jour.j1', 'off an authored page: the scene written today');
+  assert.equal(pageOfJourney({ ...journey({ stage: null }), steps: journey({ stage: null }).steps.filter((x) => x.kind !== 'respond') }), null, 'nothing to answer, nothing to play');
 });
 
 test('what /quartier does with each state of the day', () => {
@@ -138,8 +230,11 @@ test('what /quartier does with each state of the day', () => {
   assert.equal(kind(journey({ status: 'completed', current: null })), 'done');
   assert.equal(kind(journey({ status: 'ended_early', current: null })), 'done');
   assert.equal(kind(journey({ status: 'unavailable' })), 'handoff:unavailable');
-  assert.equal(kind(journey({ stage: null })), 'handoff:day', 'off an authored page');
-  assert.equal(kind(journey({ stage: { ...STAGE, key: 't1.c' } })), 'handoff:day', 'a day with no blocking');
+  assert.equal(kind(journey({ stage: null })), 'play', 'off an authored page: the scene written today');
+  assert.equal(kind(journey({ stage: { ...STAGE, key: 't1.c' } })), 'play', 'a day with no blocking');
+  assert.equal(kind(written({ current: 'rule' })), 'before', 'a warm-up before the scene, over the quarter');
+  assert.equal(kind(written({ current: 'scene' })), 'play');
+  assert.equal(kind({ ...journey(), steps: journey().steps.filter((x) => x.kind !== 'scene') }), 'handoff:day', 'a day without a scene');
   assert.equal(kind(journey()), 'play');
   assert.equal(kind(journey({ status: 'paused' })), 'play');
   assert.equal(kind(journey({ current: 'talk' })), 'play', 'nothing answered yet');
@@ -154,8 +249,8 @@ test('a day the quarter stages keeps its page wherever it stands: its people tal
   for (const j of [journey(), journey({ current: 'talk', turn: 2 }), journey({ current: 'words' }), journey({ status: 'completed', current: null })]) {
     assert.equal(stagedPageOf(j)?.key, 't1.a', `${j.status} at ${j.current_step_id}`);
   }
-  assert.equal(stagedPageOf(journey({ stage: { ...STAGE, key: 't1.c' } })), null, 'a day with no blocking');
-  assert.equal(stagedPageOf(journey({ stage: null })), null);
+  assert.equal(stagedPageOf(journey({ stage: { ...STAGE, key: 't1.c' } }))?.key, 't1.c', 'a day with no blocking plays as written');
+  assert.equal(stagedPageOf(journey({ stage: null }))?.key, 'jour.j1');
   assert.equal(stagedPageOf(null), null);
 });
 

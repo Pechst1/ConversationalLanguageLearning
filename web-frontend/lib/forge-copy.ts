@@ -59,6 +59,11 @@ export type ForgeCopy = {
   rafale_score: string;
   rafale_perfect: string;
   rafale_time: string;
+  /** A missed judgement in the recap (#358): the call made, the right one, and why. */
+  rafale_miss: string;
+  rafale_said: string;
+  rafale_why_right: string;
+  rafale_why_wrong: string;
   /** The recap's épreuve offer. */
   offer_title: string;
   offer_sub: string;
@@ -116,6 +121,10 @@ const EN: ForgeCopy = {
   rafale_score: '{correct} of {total} right',
   rafale_perfect: 'Four out of four!',
   rafale_time: 'in {s} s',
+  rafale_miss: 'Missed',
+  rafale_said: 'You said “{said}” · the right call is “{right}”',
+  rafale_why_right: 'Nothing to fix here: this sentence already follows the rule.',
+  rafale_why_wrong: 'This sentence breaks the rule. The right form:',
   offer_title: 'Ready for the test?',
   offer_sub: '{n} questions. Pass, and the rule is yours.',
   offer_action: 'Take the test',
@@ -184,6 +193,10 @@ const DE: ForgeCopy = {
   rafale_score: '{correct} von {total} richtig',
   rafale_perfect: 'Vier von vier!',
   rafale_time: 'in {s} s',
+  rafale_miss: 'Verpasst',
+  rafale_said: 'Du hast „{said}“ gewählt · richtig ist „{right}“',
+  rafale_why_right: 'Hier ist nichts zu korrigieren: Der Satz folgt der Regel schon.',
+  rafale_why_wrong: 'Dieser Satz verstößt gegen die Regel. Richtig heißt es:',
   offer_title: 'Bereit für die Prüfung?',
   offer_sub: '{n} Fragen. Bestanden, und die Regel sitzt.',
   offer_action: 'Prüfung starten',
@@ -252,6 +265,10 @@ const FR: ForgeCopy = {
   rafale_score: '{correct} sur {total}',
   rafale_perfect: 'Quatre sur quatre !',
   rafale_time: 'en {s} s',
+  rafale_miss: 'Manquée',
+  rafale_said: 'Tu as dit « {said} » · la bonne réponse est « {right} »',
+  rafale_why_right: 'Rien à corriger ici : la phrase suit déjà la règle.',
+  rafale_why_wrong: 'Cette phrase enfreint la règle. La bonne forme :',
   offer_title: 'Prêt pour l’épreuve ?',
   offer_sub: '{n} questions. Réussie, la règle est acquise.',
   offer_action: 'Passer l’épreuve',

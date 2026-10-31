@@ -231,15 +231,22 @@ def _reported(text: str) -> dict:
     }
 
 
-def _reply(*, refused: bool, keep: bool, name: str | None) -> str:
+#: What the fake character asks next, one per exchange: a line said twice in one
+#: scene is refused as a repeat of the thread (#349), and a scene is three
+#: exchanges from Régulier up (#378).
+_NEXT_QUESTIONS = ("Et après, on fait quoi ?", "Et à quelle heure, alors ?", "Et qui d'autre vient ?")
+
+
+def _reply(*, refused: bool, keep: bool, name: str | None, exchange: int = 0) -> str:
     """The fake character's answer; a character who was told the learner's name uses it."""
 
+    question = _NEXT_QUESTIONS[exchange % len(_NEXT_QUESTIONS)]
     if refused:
         if keep:
-            return f"Dommage, {name}. Et demain, alors ?" if name else "Dommage. Et demain, alors ?"
+            return f"Dommage, {name}. {question}" if name else f"Dommage. {question}"
         return f"Dommage, {name}. Une autre fois alors." if name else "Dommage, une autre fois alors."
     thanks = f"Merci, {name} !" if name else "Merci !"
-    return f"{thanks} Et après, on fait quoi ?" if keep else f"{thanks} On fait ça ensemble."
+    return f"{thanks} {question}" if keep else f"{thanks} On fait ça ensemble."
 
 
 class FakeStoryProvider:
@@ -295,7 +302,10 @@ class FakeStoryProvider:
                 refused = _refuses(source.get("learner_text"))
                 keep = bool((source.get("turn_plan") or {}).get("keep_talking"))
                 value = {
-                    "reply_fr": _reply(refused=refused, keep=keep, name=_name_in(source.get("memory"))),
+                    "reply_fr": _reply(
+                        refused=refused, keep=keep, name=_name_in(source.get("memory")),
+                        exchange=len(source.get("history") or []),
+                    ),
                     "understood_intent": "The learner declines." if refused else "The learner offers help.",
                     "needs_clarification": False,
                     "feeling_shift": "steady",
