@@ -34,6 +34,8 @@ export type ForgeCopy = {
   level: string;
   level_label: string;
   level_explain: string;
+  /** The legend for a rule where a miss does take a level away (the server says so, `forge.level_rule`). */
+  level_explain_down: string;
   /** The line under a right answer. */
   level_up: string;
   run_cheer: string;
@@ -98,7 +100,8 @@ const EN: ForgeCopy = {
   sheet_test_out: 'Know it already? Take the test',
   level: 'Level {n}',
   level_label: 'Your level on this rule: {n} of 6. Tap to see how it works.',
-  level_explain: 'Your level on this rule, from 1 to 6. Right: up one. Wrong: down one, and the rule comes back soon.',
+  level_explain: 'Your level on this rule, from 1 to 6. Right: up one. Wrong: your level stays, and the rule comes back soon.',
+  level_explain_down: 'Your level on this rule, from 1 to 6. Right: up one. Wrong: down one, and the rule comes back soon.',
   level_up: 'Level {n} ↑',
   run_cheer: '{n} in a row',
   cheer_held: 'The rule is yours!',
@@ -170,7 +173,8 @@ const DE: ForgeCopy = {
   sheet_test_out: 'Kannst du sie schon? Direkt prüfen',
   level: 'Stufe {n}',
   level_label: 'Deine Stufe bei dieser Regel: {n} von 6. Tippen für die Erklärung.',
-  level_explain: 'Deine Stufe bei dieser Regel, von 1 bis 6. Richtig: eine hoch. Falsch: eine runter, und die Regel kommt bald wieder.',
+  level_explain: 'Deine Stufe bei dieser Regel, von 1 bis 6. Richtig: eine hoch. Falsch: die Stufe bleibt, und die Regel kommt bald wieder.',
+  level_explain_down: 'Deine Stufe bei dieser Regel, von 1 bis 6. Richtig: eine hoch. Falsch: eine runter, und die Regel kommt bald wieder.',
   level_up: 'Stufe {n} ↑',
   run_cheer: '{n} in Folge',
   cheer_held: 'Die Regel sitzt!',
@@ -242,7 +246,8 @@ const FR: ForgeCopy = {
   sheet_test_out: 'Tu la connais déjà ? Passe l’épreuve',
   level: 'Niveau {n}',
   level_label: 'Ton niveau sur cette règle : {n} sur 6. Touche pour l’explication.',
-  level_explain: 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : un de moins, et la règle revient bientôt.',
+  level_explain: 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : le niveau reste, et la règle revient bientôt.',
+  level_explain_down: 'Ton niveau sur cette règle, de 1 à 6. Juste : un de plus. Faux : un de moins, et la règle revient bientôt.',
   level_up: 'Niveau {n} ↑',
   run_cheer: '{n} d’affilée',
   cheer_held: 'Règle acquise !',

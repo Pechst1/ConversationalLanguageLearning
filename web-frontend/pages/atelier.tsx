@@ -164,6 +164,7 @@ import { fillForge, forgeCopy } from '@/lib/forge-copy';
 import {
   clampRung,
   correctionAnchor,
+  headerLevel,
   cueIsLocalized,
   localizedCue,
   recapRuleRows,
@@ -3777,10 +3778,14 @@ function SessionView({
 
   // ---- La Forge (owner, 2026-10-18): one progress bar, the rule once, its level. ----
   const forgeProgress = forge ? seanceCount(forge, activeItemId) : null;
-  // The level is the rung the item on screen is posed at; once it is answered,
-  // the rung the answer moved it to (a right answer climbs one, a miss drops one).
-  const answeredRung = currentSubmitted ? Number(currentCorrection?.forge?.new_rung) : NaN;
-  const forgeRung = clampRung(Number.isFinite(answeredRung) ? answeredRung : forgeNext?.rung ?? forgeRule?.rung ?? 0);
+  // The level is the rule's own (#402, `headerLevel`), not the rung the item on
+  // screen is posed at; once answered, the level the answer left.
+  const forgeRung = headerLevel({
+    answeredRung: currentSubmitted ? currentCorrection?.forge?.new_rung : null,
+    ruleRung: forgeRule?.rung,
+    itemRung: forgeNext?.rung,
+    testOut: forgeTestOut,
+  });
   // How the item on screen is posed (`lib/forge-drills.ts`); null: the classic way.
   const drill: ForgeDrill | null = forge && activeConcept && !isRetest
     ? drillOnScreen(forge.next, currentCorrection, { conceptId: activeConcept.id, round, mode, itemId: activeItemId })
@@ -3861,6 +3866,7 @@ function SessionView({
               copy={fc}
               title={activeConceptTitle}
               rung={forgeRung}
+              levelRule={forge.level_rule}
               eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
               ruleLabel={t.rule}
               ruleOpen={ruleExpanded}

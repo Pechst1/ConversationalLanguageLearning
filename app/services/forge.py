@@ -1203,11 +1203,18 @@ def forge_units(db: Session, user: User, picked: Iterable[PickedUnit], *, now: d
             and now - introduced >= timedelta(days=HELD_SPACED_AFTER_DAYS)
             and progress.spaced_success_at is None
         )
+        # #402: the rule's level is the stored one, the level the learner ended the
+        # last séance on. How its first item is posed (a warm-up step after the
+        # spacing, minimal pairs first) is the unit's ``warmup``, never a lower level:
+        # lowering the level here made «Level 5» on the end sheet open as «Level 4».
+        warmup: int | None = None
         if unit.role == Role.DUE.value:
-            rung = max(0, rung - 1)  # a warm-up step after the spacing
+            warmup = max(0, rung - 1)
         elif unit.role == Role.CONTRAST.value:
-            rung = min(rung, int(Rung.DISCRIMINATE))  # minimal pairs first
-        units.append(ForgeUnit(unit.concept_id, unit.role, rung, is_new=is_new, needs_spaced=needs_spaced))
+            warmup = min(rung, int(Rung.DISCRIMINATE))
+        units.append(
+            ForgeUnit(unit.concept_id, unit.role, rung, is_new=is_new, needs_spaced=needs_spaced, warmup=warmup)
+        )
     return units
 
 
@@ -1305,7 +1312,10 @@ class ForgeService:
         units = forge_units(self.db, user, picked, now=now)
         if keep_concepts:
             # The learner chose these rules: keep every one of them.
-            units = [ForgeUnit(u.concept_id, u.role, u.rung, is_new=False, needs_spaced=u.needs_spaced) for u in units]
+            units = [
+                ForgeUnit(u.concept_id, u.role, u.rung, is_new=False, needs_spaced=u.needs_spaced, warmup=u.warmup)
+                for u in units
+            ]
         budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
         length = core.seance_length(budget or seance_budget_seconds(user), seconds_per_item(self.db, user))
         state = ForgeState.seance(units, length=length)
@@ -1564,6 +1574,9 @@ class ForgeService:
             # or provisional answer neither extends nor breaks it) and the flags
             # the page reads, so the owner can switch each feature off.
             "combo": {"run": combo, "best": best_combo},
+            # #402: what a right and a wrong answer do to the level, from the
+            # staircase itself: the page's legend states this, not its own prose.
+            "level_rule": core.level_rule(),
             "features": forge_features(),
             "rules": [
                 {
@@ -1645,6 +1658,9 @@ class ForgeService:
             "rung": int(rung),
             "rung_name": core.rung_name(rung),
             "new_rung": decision.new_rung,
+            # #402: the level before this answer. An item posed below it (a warm-up)
+            # is not a climb, so the cheer compares with this, not with ``rung``.
+            "level_before": decision.new_rung - int(state.history[-1].get("rung_move") or 0),
             "counted": decision.counted,
             "schedule": decision.schedule,
             # How the item was posed, and the run of right answers it leaves.
