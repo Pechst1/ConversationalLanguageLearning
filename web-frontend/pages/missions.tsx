@@ -8,7 +8,7 @@ import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
-import { clockTime } from '@/lib/clock-time';
+import { clockTime, inStoredOrder } from '@/lib/clock-time';
 import { castDisplayName } from '@/components/atelier-v2/journey/journey-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
@@ -55,6 +55,7 @@ import {
   crOutcomeSentence,
 } from '@/components/courrier/Correspondance';
 import { courrierCopy, crFill, useCrCopy, type CourrierCopy } from '@/components/courrier/courrier-copy';
+import { courrierTarget } from '@/components/courrier/courrier-waiting';
 import apiService, {
   IntakeArtefact,
   IntakeEnvelope,
@@ -224,15 +225,9 @@ function missionFrame(mission: RealWorldMission | null, messenger: MissionMessen
   return { frame, ask, askLang };
 }
 
-function pickMission(today: MissionToday | null) {
-  return today?.active_mission
-    || today?.weekly_mission
-    || today?.post_session_recommendation
-    || null;
-}
-
+// #397: the thread reads in the order of the times it prints, newest last.
 function missionTurns(mission: RealWorldMission | null) {
-  return [...(mission?.turns || [])].sort((a, b) => Number(a.turn_index || 0) - Number(b.turn_index || 0));
+  return inStoredOrder(mission?.turns || []);
 }
 
 // The word ribbon ("à placer :") — the target word itself, marked "used" once it
@@ -780,7 +775,8 @@ export default function MissionsPage() {
       const nextToday = await apiService.getMissionsToday();
       if (!isCurrent()) return;
       setToday(nextToday);
-      const next = pickMission(nextToday);
+      // #400: the same pick Home's letter row makes (`courrierTarget`).
+      const next = courrierTarget(nextToday).mission;
       if (next) {
         setMission(next);
         setCompletedNextSerial(null);
@@ -1227,8 +1223,9 @@ export default function MissionsPage() {
                         {turn.text}
                       </CrSlip>
                       {/* WP-74 / #250 / #251: no grader ran and the shared model-free pass found
-                          nothing. Not a pass and not a dead end: «No corrections found», and
-                          the corrector can be asked again while the thread is open. */}
+                          nothing. Not a pass and not a dead end: «Not checked yet» (never «No
+                          corrections found», which says the reply is clean), and the corrector
+                          can be asked again while the thread is open. */}
                       {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
                         <>
                           <p className="cr-unassessed" role="status">{t.unassessed}</p>
