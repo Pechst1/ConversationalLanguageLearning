@@ -4333,6 +4333,18 @@ class MissionCorrectionService:
     def _normalize_erratum(self, erratum: dict[str, Any], mission: RealWorldMission) -> dict[str, Any]:
         external_id = erratum.get("external_id")
         concept_id = None
+        if correction_contract.elides_an_article(erratum.get("learner_text"), erratum.get("corrected_target")):
+            # #119: «le appartement → l'appartement» and «de Odile → d'Odile» went to the
+            # letter's own rule (Un, une, des), whose fallback took every rule id the
+            # catalogue does not hold (FR_ELISION). The slip is the rule that teaches
+            # l' and d', whatever the letter practised and whatever the corrector called it.
+            concept = (
+                self.db.query(GrammarConcept)
+                .filter(GrammarConcept.external_id == correction_contract.ARTICLE_ELISION_UNIT)
+                .first()
+            )
+            if concept is not None:
+                return self._normalized(erratum, concept.id)
         if external_id:
             concept = self.db.query(GrammarConcept).filter(GrammarConcept.external_id == external_id).first()
             concept_id = concept.id if concept else None
@@ -4340,6 +4352,10 @@ class MissionCorrectionService:
             concept_id = None
         elif not concept_id and (mission.selected_concept_ids or []):
             concept_id = int((mission.selected_concept_ids or [0])[0] or 0) or None
+        return self._normalized(erratum, concept_id)
+
+    @staticmethod
+    def _normalized(erratum: dict[str, Any], concept_id: int | None) -> dict[str, Any]:
         return {
             **erratum,
             "why_wrong": _clean_feedback(erratum.get("why_wrong")),

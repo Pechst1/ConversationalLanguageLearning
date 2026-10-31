@@ -2137,6 +2137,38 @@ def deterministic_errata(
     return [to_erratum(edit, language=language) for edit in deterministic_edits(text, people=people)]
 
 
+#: #119: the unit that teaches «l'» and «d'» in front of a vowel («Le, la, l', les»).
+ARTICLE_ELISION_UNIT = "FR2_A11_LE_LA"
+
+
+def elides_an_article(learner_text: object, corrected_text: object) -> bool:
+    """#119: whether a correction elides an article or «de»: «la appartement» →
+    «l'appartement», «le hôtel» → «l'hôtel», «de Odile» → «d'Odile».
+
+    Read off the pair, whoever wrote it (this contract or a model): the learner wrote
+    «le», «la» or «de», a space and a word, and the correction glues «l'» or «d'» to
+    that same word. A «le/la» after a subject is an object pronoun («je le aime» →
+    «je l'aime»), which is not the article rule's.
+    """
+
+    wrong, right = _norm(learner_text), _norm(corrected_text)
+    tokens = _tokens(wrong)
+    for i, tok in enumerate(tokens[:-1]):
+        if tok.low not in {"le", "la", "de"}:
+            continue
+        nxt = tokens[i + 1]
+        if wrong[tok.end : nxt.start].strip("  ") != "" or wrong[tok.end : nxt.start] == "":
+            continue  # only a plain space: «l'», «de-», a comma are not this slip
+        if i > 0 and wrong[tokens[i - 1].end : tok.start] in {"'", "-"}:
+            continue  # part of a longer word («aujourd'hui»)
+        if tok.low != "de" and i > 0 and tokens[i - 1].low in _PRONOUN_CONTEXT:
+            continue  # «je le aime»: a pronoun
+        glued = "d" if tok.low == "de" else "l"
+        if re.search(rf"(?<![^\W\d_]){glued}'\s?{re.escape(wrong[nxt.start : nxt.end])}(?![^\W\d_])", right, re.IGNORECASE):
+            return True
+    return False
+
+
 def grounded_errata(
     text: object,
     errata: Iterable[Mapping[str, Any]],
