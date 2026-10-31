@@ -25,10 +25,11 @@ def test_the_scene_cut_keeps_a_title_inside_its_sentence() -> None:
 
 @pytest.mark.parametrize("title", ["M.", "MM.", "Mme.", "Mlle.", "Dr.", "Pr.", "St.", "Ste.", "J."])
 def test_a_title_or_an_initial_does_not_end_a_sentence(title: str) -> None:
-    from app.services.sentence_line import ends_sentence, sentences
+    from app.services.sentence_line import sentences
 
-    assert not ends_sentence(title)
-    assert sentences(f"Voici {title} Dupont. Il part.") == [f"Voici {title} Dupont.", "Il part."]
+    expected = [f"Voici {title} Dupont.", "Il part."]
+    assert sentences(f"Voici {title} Dupont. Il part.") == expected
+    assert planner.scene_sentences(f"Voici {title} Dupont. Il part.") == expected
 
 
 def test_a_real_sentence_end_still_ends_it() -> None:
