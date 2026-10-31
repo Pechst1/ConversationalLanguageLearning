@@ -170,11 +170,10 @@ def lemma_of(key: str, *, capitalised: bool = False) -> str | None:
 
 
 def _sentence_with(text: str, surface: str) -> str:
-    import re
-
     from app.services.scene_items import contains_surface
+    from app.services.sentence_line import sentences_verbatim as sentences
 
-    for sentence in re.split(r"(?<=[.!?…])\s+", text):
+    for sentence in sentences(text):
         if contains_surface(sentence, surface):
             return sentence.strip()
     return text.strip()

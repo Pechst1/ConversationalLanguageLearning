@@ -103,6 +103,7 @@ from app.services.scene_items import (
     scene_lines,
     with_meaning,
 )
+from app.services.sentence_line import ends_sentence
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -1818,7 +1819,6 @@ def build_listen_tap_task(
     )
 
 
-_SENTENCE_END = frozenset(".!?…")
 _QUOTE_MARKS = "«»“”\"„"
 
 
@@ -1836,7 +1836,7 @@ def scene_sentences(*texts: str | None) -> list[str]:
             if not word:
                 continue
             current.append(word)
-            if word[-1] in _SENTENCE_END:
+            if ends_sentence(word):
                 sentence = " ".join(current)
                 current = []
                 if _fold(sentence) not in seen:

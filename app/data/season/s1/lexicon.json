@@ -1571,7 +1571,7 @@
       "en": "big, tall; great",
       "de": "groß"
      },
-     "sentence_fr": "Elle est grande.",
+     "sentence_fr": "Elle est grande. — M.",
      "role": "foundational"
     }
    ]
@@ -3877,7 +3877,7 @@
       "en": "obviously, of course",
       "de": "natürlich, offensichtlich"
      },
-     "sentence_fr": "avec impatience, évidemment.",
+     "sentence_fr": "On vous attendait… avec impatience, évidemment.",
      "role": "new"
     },
     {
@@ -4259,7 +4259,7 @@
       "en": "emissary, envoy; (bouc ~) scapegoat",
       "de": "der Abgesandte, der Emissär"
      },
-     "sentence_fr": "L'émissaire de M.",
+     "sentence_fr": "L'émissaire de M. Marchand, si je ne m'abuse ?",
      "role": "new"
     },
     {
@@ -4315,7 +4315,7 @@
       "en": "to abuse, misuse; overdo it",
       "de": "missbrauchen; übertreiben"
      },
-     "sentence_fr": "Marchand, si je ne m'abuse ?",
+     "sentence_fr": "L'émissaire de M. Marchand, si je ne m'abuse ?",
      "role": "new"
     },
     {
@@ -4825,7 +4825,7 @@
       "en": "so, then",
       "de": "also, dann"
      },
-     "sentence_fr": "Marchand, alors ?",
+     "sentence_fr": "Et M. Marchand, alors ?",
      "role": "foundational"
     },
     {
@@ -5153,7 +5153,7 @@
       "en": "light",
       "de": "das Licht"
      },
-     "sentence_fr": "cette lumière.",
+     "sentence_fr": "Oh, fan de chichourle… cette lumière.",
      "role": "new"
     },
     {
@@ -5519,7 +5519,7 @@
       "en": "light",
       "de": "das Licht"
      },
-     "sentence_fr": "cette lumière.",
+     "sentence_fr": "Oh, fan de chichourle… cette lumière.",
      "role": "foundational"
     }
    ],
@@ -5675,7 +5675,7 @@
       "en": "to look at, watch",
       "de": "anschauen, ansehen"
      },
-     "sentence_fr": "mais regarde-moi cette lumière.",
+     "sentence_fr": "Fan de chichourle… mais regarde-moi cette lumière.",
      "role": "foundational"
     }
    ]
@@ -6797,7 +6797,7 @@
       "en": "formula; phrase, expression; option",
       "de": "die Formel; die Wendung; das Angebot"
      },
-     "sentence_fr": "\"J'essaie.\" La formule la plus molle de toute la langue française.",
+     "sentence_fr": "La formule la plus molle de toute la langue française.",
      "role": "new"
     },
     {
@@ -6969,7 +6969,7 @@
       "en": "peace",
       "de": "der Frieden"
      },
-     "sentence_fr": "en paix.",
+     "sentence_fr": "Monsieur Marchand… est prié de venir… en paix.",
      "role": "new"
     },
     {
@@ -7237,7 +7237,7 @@
       "en": "peace",
       "de": "der Frieden"
      },
-     "sentence_fr": "en paix.",
+     "sentence_fr": "Monsieur Marchand… est prié de bien vouloir venir… en paix.",
      "role": "new"
     },
     {
@@ -7565,7 +7565,7 @@
       "en": "to demand, call for; to complain",
       "de": "verlangen, fordern; sich beschweren"
      },
-     "sentence_fr": "Je réclame votre silence…",
+     "sentence_fr": "Je réclame votre silence… ou, à défaut, votre indulgence !",
      "role": "new"
     },
     {
@@ -7579,7 +7579,7 @@
       "en": "flaw, fault; lack",
       "de": "der Fehler, die Schwäche; der Mangel"
      },
-     "sentence_fr": "ou, à défaut, votre indulgence !",
+     "sentence_fr": "Je réclame votre silence… ou, à défaut, votre indulgence !",
      "role": "new"
     },
     {
@@ -7691,7 +7691,7 @@
       "en": "silence",
       "de": "die Stille, das Schweigen"
      },
-     "sentence_fr": "Je réclame votre silence…",
+     "sentence_fr": "Je réclame votre silence… ou, à défaut, votre indulgence !",
      "role": "new"
     },
     {
@@ -7833,7 +7833,7 @@
       "en": "to demand, require",
       "de": "verlangen, fordern"
      },
-     "sentence_fr": "J'exige votre silence…",
+     "sentence_fr": "J'exige votre silence… sinon votre indulgence !",
      "role": "new"
     },
     {
@@ -8017,7 +8017,7 @@
       "en": "indulgence, leniency",
       "de": "die Nachsicht, die Milde"
      },
-     "sentence_fr": "ou à tout le moins votre indulgence !",
+     "sentence_fr": "Votre attention, je vous prie… ou à tout le moins votre indulgence !",
      "role": "new"
     },
     {
@@ -8031,7 +8031,7 @@
       "en": "to water (animals); to shower (with)",
       "de": "tränken; überhäufen (mit)"
      },
-     "sentence_fr": "Vingt-cinq ans que Margaux nous abreuve de café…",
+     "sentence_fr": "Vingt-cinq ans que Margaux nous abreuve de café… et de vérités dont on se serait bien passé !",
      "role": "new"
     },
     {
@@ -8115,7 +8115,7 @@
       "en": "threshold, doorstep",
       "de": "die Schwelle"
      },
-     "sentence_fr": "Sur le seuil, M.",
+     "sentence_fr": "Sur le seuil, M. Marchand hésite.",
      "role": "new"
     },
     {
@@ -8245,7 +8245,7 @@
       "en": "frying pan",
       "de": "die Pfanne"
      },
-     "sentence_fr": "j'ai oublié la poêle.",
+     "sentence_fr": "Margaux… j'ai oublié la poêle.",
      "role": "new"
     },
     {
@@ -8555,7 +8555,7 @@
       "en": "frying pan",
       "de": "die Pfanne"
      },
-     "sentence_fr": "j'ai oublié la poêle sur le feu.",
+     "sentence_fr": "Margaux… j'ai oublié la poêle sur le feu.",
      "role": "new"
     },
     {
@@ -8739,7 +8739,7 @@
       "en": "to bequeath, hand down",
       "de": "vermachen, vererben"
      },
-     "sentence_fr": "Elle t'a légué l'appartement…",
+     "sentence_fr": "Elle t'a légué l'appartement… et l'incendie en prime.",
      "role": "new"
     },
     {
@@ -9873,7 +9873,7 @@
       "en": "to believe",
       "de": "glauben"
      },
-     "sentence_fr": "Tu crois qu'on peut trouver un visage…",
+     "sentence_fr": "Tu crois qu'on peut trouver un visage… de loin ?",
      "role": "foundational"
     }
    ],
@@ -12377,7 +12377,7 @@
       "en": "to think, reflect",
       "de": "nachdenken, überlegen"
      },
-     "sentence_fr": "Elle m'a répondu : «Je vais réfléchir.» Le lendemain, il y a eu l'incendie.",
+     "sentence_fr": "Elle m'a répondu : «Je vais réfléchir.»",
      "role": "new"
     },
     {
@@ -12419,7 +12419,7 @@
       "en": "to flow, run; to sink",
       "de": "fließen, laufen; sinken, untergehen"
      },
-     "sentence_fr": "et faire couler Margaux.",
+     "sentence_fr": "Ce carnet pourrait consoler M. Marchand… et faire couler Margaux.",
      "role": "new"
     },
     {
@@ -12447,7 +12447,7 @@
       "en": "fire, blaze",
       "de": "der Brand, das Feuer"
      },
-     "sentence_fr": "Elle m'a répondu : «Je vais réfléchir.» Le lendemain, il y a eu l'incendie.",
+     "sentence_fr": "Le lendemain, il y a eu l'incendie.",
      "role": "new"
     },
     {
@@ -13483,7 +13483,7 @@
       "en": "honour",
       "de": "die Ehre"
      },
-     "sentence_fr": "a l'honneur de signer !",
+     "sentence_fr": "Créteil… a l'honneur de signer !",
      "role": "new"
     },
     {
@@ -14191,7 +14191,7 @@
       "en": "fire; traffic light",
       "de": "das Feuer; die Ampel"
      },
-     "sentence_fr": "Si tu vends, tu paies le feu, et tout finit…",
+     "sentence_fr": "Si tu vends, tu paies le feu, et tout finit… proprement.",
      "role": "new"
     },
     {
@@ -14303,7 +14303,7 @@
       "en": "finally, at last; well",
       "de": "endlich, schließlich; na ja"
      },
-     "sentence_fr": "Enfin…",
+     "sentence_fr": "Enfin… plus vieille.",
      "role": "foundational"
     },
     {
@@ -14317,7 +14317,7 @@
       "en": "more; (ne ~) no longer",
       "de": "mehr; (ne ~) nicht mehr"
      },
-     "sentence_fr": "plus vieille.",
+     "sentence_fr": "Enfin… plus vieille.",
      "role": "foundational"
     }
    ],
@@ -14347,7 +14347,7 @@
       "en": "properly, neatly; strictly (speaking)",
       "de": "sauber, ordentlich; eigentlich"
      },
-     "sentence_fr": "proprement.",
+     "sentence_fr": "Si tu vends, tu paies l'incendie, et tout se termine… proprement.",
      "role": "new"
     },
     {
@@ -14375,7 +14375,7 @@
       "en": "fire, blaze",
       "de": "der Brand, das Feuer"
      },
-     "sentence_fr": "Si tu vends, tu paies l'incendie, et tout se termine…",
+     "sentence_fr": "Si tu vends, tu paies l'incendie, et tout se termine… proprement.",
      "role": "new"
     },
     {
@@ -14573,7 +14573,7 @@
       "en": "properly, neatly; strictly (speaking)",
       "de": "sauber, ordentlich; eigentlich"
      },
-     "sentence_fr": "proprement.",
+     "sentence_fr": "Si tu vends, tu règles l'incendie, et tout se termine… proprement.",
      "role": "new"
     },
     {
@@ -14657,7 +14657,7 @@
       "en": "finally, at last; well",
       "de": "endlich, schließlich; na ja"
      },
-     "sentence_fr": "Enfin…",
+     "sentence_fr": "Enfin… plus vieille.",
      "role": "foundational"
     },
     {
@@ -14671,7 +14671,7 @@
       "en": "more; (ne ~) no longer",
       "de": "mehr; (ne ~) nicht mehr"
      },
-     "sentence_fr": "plus vieille.",
+     "sentence_fr": "Enfin… plus vieille.",
      "role": "foundational"
     }
    ]
@@ -15931,7 +15931,7 @@
       "en": "certain, sure; some",
       "de": "sicher; gewisse(r, s)"
      },
-     "sentence_fr": "Tu connais un certain L.",
+     "sentence_fr": "Tu connais un certain L. ?",
      "role": "new"
     },
     {
@@ -15987,7 +15987,7 @@
       "en": "mum, mummy",
       "de": "die Mama"
      },
-     "sentence_fr": "Maman ?",
+     "sentence_fr": "Maman ? …",
      "role": "foundational"
     },
     {
@@ -16001,7 +16001,7 @@
       "en": "to know (be familiar with)",
       "de": "kennen"
      },
-     "sentence_fr": "Tu connais un certain L.",
+     "sentence_fr": "Tu connais un certain L. ?",
      "role": "foundational"
     },
     {
@@ -16073,7 +16073,7 @@
       "en": "mum, mummy",
       "de": "die Mama"
      },
-     "sentence_fr": "Maman ?",
+     "sentence_fr": "Maman ? …",
      "role": "foundational"
     },
     {
@@ -16087,7 +16087,7 @@
       "en": "to know (be familiar with)",
       "de": "kennen"
      },
-     "sentence_fr": "Est-ce que tu connais un certain L.",
+     "sentence_fr": "Est-ce que tu connais un certain L. ?",
      "role": "foundational"
     },
     {
@@ -16101,7 +16101,7 @@
       "en": "certain, sure; some",
       "de": "sicher; gewisse(r, s)"
      },
-     "sentence_fr": "Est-ce que tu connais un certain L.",
+     "sentence_fr": "Est-ce que tu connais un certain L. ?",
      "role": "foundational"
     },
     {
@@ -16173,7 +16173,7 @@
       "en": "mum, mummy",
       "de": "die Mama"
      },
-     "sentence_fr": "Maman ?",
+     "sentence_fr": "Maman ? …",
      "role": "foundational"
     },
     {

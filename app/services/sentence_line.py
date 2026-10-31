@@ -17,11 +17,23 @@ from __future__ import annotations
 
 import re
 
+#: Titles and abbreviations whose full stop is not a sentence end («la lampe de M. Marchand»).
+#: The one list every cut of a French text shares (#398): a single letter followed by a stop
+#: («M.», «J.») is covered by :data:`_INITIAL`.
+TITLE_ABBREVIATIONS = (
+    "M", "MM", "Mme", "Mmes", "Mlle", "Mlles", "Dr", "Pr", "Me", "Mgr", "St", "Ste", "Sts", "Stes",
+    "Mr", "Mrs", "Ms",
+)
+_INITIAL = r"[A-ZÀ-ÖØ-Þ]"
+#: Lookbehinds (fixed width each) that keep a cut from falling after a title or an initial.
+NOT_AFTER_TITLE = "".join(rf"(?<!\b{title}\.)" for title in TITLE_ABBREVIATIONS) + rf"(?<!\b{_INITIAL}\.)"
+_TITLE_WORD = re.compile(rf"(?:{'|'.join(TITLE_ABBREVIATIONS)}|{_INITIAL})\.")
+_WORD_TRIM = "«»“”\"„()[]"
+
 #: A sentence ends on . ! ? … (a closing quote or bracket may follow) and the next one opens
 #: on a capital, an opening quote or a digit.
 _BOUNDARY = re.compile(
-    r"(?:(?<=[.!?…])|(?<=[.!?…][\"»”)]))(?<!\bM\.)(?<!\bMM\.)(?<!\bDr\.)(?<!\bSt\.)(?<!\bMlle\.)"
-    r"\s+(?=[A-ZÀ-ÖØ-Þ«\"“(\d])"
+    r"(?:(?<=[.!?…])|(?<=[.!?…][\"»”)]))" + NOT_AFTER_TITLE + r"\s+(?=[A-ZÀ-ÖØ-Þ«\"“(\d])"
 )
 #: A line that ends on a closed sentence.
 _CLOSED = re.compile(r"[.!?»\"”)]$")
@@ -33,9 +45,25 @@ def _flat(text: object) -> str:
     return " ".join(str(text or "").split())
 
 
+def ends_sentence(word: str) -> bool:
+    """Does this whitespace-delimited word close a sentence? «brille.» does, «M.» and «J.» do not."""
+
+    bare = word.strip(_WORD_TRIM)
+    if not bare or bare[-1] not in ".!?…":
+        return False
+    return not (bare[-1] == "." and _TITLE_WORD.fullmatch(bare))
+
+
 def sentences(text: object) -> list[str]:
     flat = _flat(text)
     return [part.strip() for part in _BOUNDARY.split(flat) if part.strip()] if flat else []
+
+
+def sentences_verbatim(text: object) -> list[str]:
+    """The same cut, but each sentence is a substring of ``text`` as it was stored (a line
+    break inside a sentence stays), so a caller can look it up in the source again."""
+
+    return [part.strip() for part in _BOUNDARY.split(str(text or "")) if part.strip()]
 
 
 def _word_cut(text: str, limit: int) -> str:

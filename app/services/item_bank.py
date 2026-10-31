@@ -54,6 +54,7 @@ from typing import Any
 from app.services import item_semantics as semantics
 from app.services.item_bank_de import GermanFilters, RenderError, g_person, german_violations
 from app.services.item_bank_de import merge_overlay as merge_german
+from app.services.sentence_line import NOT_AFTER_TITLE
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "data" / "grammar_templates"
 ITEM_BANK_VERSION = "forge-bank-1"
@@ -160,6 +161,11 @@ def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> s
     the sentence capital hides that. Opening the sentence with «Sie (alle)» names the
     plural without a head-count the bank does not know. Mid-sentence «sie» is lowercase
     and already unambiguous, so only the sentence start is rewritten.
+
+    A sentence said *to* someone («Sie sind fertig, Lila.») is the exception (#384): the
+    name at the end makes «Sie (alle)» read as «you all, Lila». The vocative is the
+    frame's ``VOC`` binding, which this rewrite has to know about, so the name leads and
+    the pronoun is lowercase: «Lila, sie sind alle fertig.»
     """
 
     if not re.match(r"Sie\s", text):
@@ -168,7 +174,18 @@ def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> s
         isinstance(entry, dict) and _german_pronoun_subject(entry) and _german_person(entry) == 5
         for entry in bindings.values()
     )
-    return "Sie (alle)" + text[3:] if plural_subject else text
+    if not plural_subject:
+        return text
+    vocative = bindings.get("VOC")
+    name = ""
+    if isinstance(vocative, dict):
+        name = str(vocative.get("deu") or vocative.get("fr") or "").strip()
+    if name:
+        said_to = re.match(rf"Sie\s+(\S+)(?:\s+(.*?))?,\s+{re.escape(name)}([.?!])$", text)
+        if said_to:
+            verb, rest, end = said_to.groups()
+            return f"{name}, sie {verb} alle{' ' + rest if rest else ''}{end}"
+    return "Sie (alle)" + text[3:]
 
 
 def _german_pronoun_subject(entry: dict[str, Any]) -> bool:
@@ -2875,7 +2892,7 @@ def _item_id(unit: str, item: BankItem, mode: str) -> str:
 
 
 #: A title's full stop («M. Marchand», «Mme Dupont») ends no sentence.
-_TITLE = r"(?<!\bM\.)(?<!\bMM\.)(?<!\bMme\.)(?<!\bMlle\.)(?<!\bDr\.)(?<!\bMr\.)(?<!\bMrs\.)(?<!\bMs\.)"
+_TITLE = NOT_AFTER_TITLE
 _SENTENCE_BREAK = re.compile(r"(?<=[.!?…])" + _TITLE + r"\s+")
 _SENTENCE_END = re.compile(r"(?:(?<=[!?…])|(?<=\.)" + _TITLE + r")(?:\s+|$)")
 
