@@ -1022,8 +1022,9 @@ def noun_with_learner_article(noun: object, learner: object) -> str | None:
     «un appart → appartement» dropped the article the learner gave).
 
     ``None`` when the learner wrote no singular article, the key is not one bare noun,
-    or the core lexicon does not know its gender. An «h» noun takes no definite article
-    here: «l'» or «le» depends on an aspirated h this list does not know («le héros»)."""
+    or the core lexicon does not know its gender. A noun on «h» or «y» takes no definite
+    article here: «l'» or «le» depends on an aspirated h («le héros») or a consonant y
+    («le yaourt») this list does not know."""
 
     key = " ".join(str(noun or "").split())
     folded_key = fold_typography(key)
@@ -1038,7 +1039,7 @@ def noun_with_learner_article(noun: object, learner: object) -> str | None:
         return None
     if article in {"un", "une"}:
         return f"{'un' if gender == 'm' else 'une'} {key}"
-    if folded_key.startswith("h"):
+    if folded_key.startswith(("h", "y")):
         return None
     if _VOWEL_START.match(folded_key):
         return f"l'{key}"

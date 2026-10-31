@@ -163,9 +163,12 @@ def test_the_article_follows_the_noun_s_gender_and_only_when_it_is_known() -> No
     assert noun_with_learner_article("maison", "le appart") == "la maison"
     assert noun_with_learner_article("appartement", "la maison") == "l'appartement"
     assert noun_with_learner_article("Appartement", "Une maison") == "un appartement"
-    # «l'» or «le» before an h depends on an aspirated h: no definite article is guessed.
+    # «l'» or «le» before an h or a y depends on an aspirated h or a consonant y
+    # («le héros», «le yaourt», never «l'yaourt»): no definite article is guessed.
     assert noun_with_learner_article("héros", "la fille") is None
     assert noun_with_learner_article("héros", "une fille") == "un héros"
+    assert noun_with_learner_article("yaourt", "la glace") is None
+    assert noun_with_learner_article("yaourt", "une glace") == "un yaourt"
     # The key already has its article, is not one noun, or the learner gave none.
     assert noun_with_learner_article("l'appartement", "une maison") is None
     assert noun_with_learner_article("bureau de poste", "une maison") is None
