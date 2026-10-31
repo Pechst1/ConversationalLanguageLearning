@@ -72,8 +72,8 @@ def test_utc_iso_keeps_an_aware_stamp_and_marks_a_naive_one():
 
 
 # ---------------------------------------------------------------------------
-# #397: the thread reads in the order of its stored times, and a turn is stamped
-# when it is written.
+# #397: the thread keeps the conversation's order, and a turn is stamped when it
+# is written.
 # ---------------------------------------------------------------------------
 
 
@@ -83,32 +83,22 @@ def _turn(index: int, role: str, at: datetime) -> RealWorldMissionTurn:
     return turn
 
 
-def test_the_thread_is_listed_by_stored_time_newest_last():
-    """#397: the page printed 02 h 58, 02 h 57, 03 h 11, 03 h 02, 02 h 57 down the thread:
-    it sorted by the turn counter and ignored the stored time it prints."""
+def test_the_thread_keeps_the_conversations_order():
+    """#397 / review on #411: turns are listed by the counter, the order they were said
+    in. The out-of-order times were stamps of the transaction's start (fixed below);
+    sorting by them would move an older reply below the real last one, and the page's
+    composer reads the last assistant turn from this list."""
     base = datetime(2026, 10, 31, 2, 57, 0)
     mission = _mission()
     mission.turns = [
+        _turn(3, "assistant", base),
         _turn(1, "assistant", base + timedelta(minutes=1)),
-        _turn(2, "user", base),
-        _turn(3, "assistant", base + timedelta(minutes=14)),
-        _turn(4, "user", base + timedelta(minutes=5)),
-        _turn(5, "assistant", base),
+        _turn(2, "user", base + timedelta(minutes=14)),
     ]
-    attempt_late = RealWorldMissionAttempt(id=uuid4(), mode="writing", verdict="ok")
-    attempt_late.created_at = base + timedelta(minutes=9)
-    attempt_early = RealWorldMissionAttempt(id=uuid4(), mode="writing", verdict="ok")
-    attempt_early.created_at = base
-    mission.attempts = [attempt_late, attempt_early]
 
     payload = serialize_mission(mission)
 
-    stamps = [datetime.fromisoformat(turn["created_at"]) for turn in payload["turns"]]
-    assert stamps == sorted(stamps), [turn["created_at"] for turn in payload["turns"]]
-    # Equal times (a second-resolution column) keep the turn counter's order.
-    assert [turn["turn_index"] for turn in payload["turns"]][:2] == [2, 5]
-    attempt_stamps = [datetime.fromisoformat(item["created_at"]) for item in payload["attempts"]]
-    assert attempt_stamps == sorted(attempt_stamps)
+    assert [turn["turn_index"] for turn in payload["turns"]] == [1, 2, 3]
 
 
 def test_a_turn_is_stamped_when_it_is_written(db_session):

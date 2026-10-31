@@ -110,21 +110,12 @@ test('the Journal\'s model-free check does not say nothing was found either', ()
   }
 });
 
-// ---- 3. the thread reads in the order of its times --------------------------
+// ---- 3. the thread reads in the conversation's order --------------------------
 
-test('turns are listed by stored time, newest last, the counter breaking ties', () => {
-  const { inStoredOrder } = require('@/lib/clock-time.ts');
-  const turns = [
-    { id: 1, turn_index: 1, created_at: '2026-10-31T02:58:00+00:00' },
-    { id: 2, turn_index: 2, created_at: '2026-10-31T02:57:00+00:00' },
-    { id: 3, turn_index: 3, created_at: '2026-10-31T03:11:00+00:00' },
-    { id: 4, turn_index: 4, created_at: '2026-10-31T03:02:00+00:00' },
-    { id: 5, turn_index: 5, created_at: '2026-10-31T02:57:00+00:00' },
-    { id: 6, turn_index: 6 },
-  ];
-  assert.deepEqual(inStoredOrder(turns).map((turn) => turn.id), [2, 5, 1, 4, 3, 6]);
-});
-
-test('the page lists its turns through that function', () => {
-  assert.match(read('pages', 'missions.tsx'), /inStoredOrder\(/);
+test('the page lists turns by the turn counter, the order the conversation took', () => {
+  // #397 / review on #411: the composer reads the last assistant turn from this list,
+  // so an older reply with a later stamp must never move below the real last one.
+  const page = read('pages', 'missions.tsx');
+  assert.match(page, /function missionTurns[\s\S]{0,400}turn_index/);
+  assert.doesNotMatch(page, /inStoredOrder\(/);
 });

@@ -33,19 +33,3 @@ export function clockTime(raw: unknown): string | undefined {
   return `${pad(date.getHours())} h ${pad(date.getMinutes())}`;
 }
 
-/**
- * Rows (a thread's turns) oldest first by the time they carry, the row's own
- * counter breaking a tie (#397). The slip prints `clockTime(created_at)`, so
- * the order it is printed in must be the order of those times; a row with no
- * usable time goes last.
- */
-export function inStoredOrder<T extends { created_at?: unknown; timestamp?: unknown; turn_index?: unknown }>(rows: readonly T[]): T[] {
-  const at = (row: T) => parseServerTime(row.created_at ?? row.timestamp)?.getTime() ?? Number.POSITIVE_INFINITY;
-  const counter = (row: T) => Number(row.turn_index || 0);
-  return [...rows].sort((a, b) => {
-    const left = at(a);
-    const right = at(b);
-    if (left !== right) return left < right ? -1 : 1;
-    return counter(a) - counter(b);
-  });
-}

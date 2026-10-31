@@ -8,7 +8,7 @@ import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
-import { clockTime, inStoredOrder } from '@/lib/clock-time';
+import { clockTime } from '@/lib/clock-time';
 import { castDisplayName } from '@/components/atelier-v2/journey/journey-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
@@ -225,9 +225,10 @@ function missionFrame(mission: RealWorldMission | null, messenger: MissionMessen
   return { frame, ask, askLang };
 }
 
-// #397: the thread reads in the order of the times it prints, newest last.
+// The conversation's own order. #397's times that disagreed with it were stamps
+// taken when the transaction began; turns are now stamped when written.
 function missionTurns(mission: RealWorldMission | null) {
-  return inStoredOrder(mission?.turns || []);
+  return [...(mission?.turns || [])].sort((a, b) => Number(a.turn_index || 0) - Number(b.turn_index || 0));
 }
 
 // The word ribbon ("à placer :") — the target word itself, marked "used" once it

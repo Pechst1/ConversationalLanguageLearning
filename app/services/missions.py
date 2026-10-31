@@ -215,22 +215,6 @@ def _aware(moment: datetime | None) -> datetime | None:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
-def _in_stored_order(rows: Any) -> list[Any]:
-    """Rows (turns, attempts) oldest first by the time they were stored.
-
-    The page prints each row's time, so the order it is printed in must be the
-    order of those times (#397): the turn counter alone listed 02 h 58 above
-    02 h 57. A tie (a column with whole-second resolution) falls back to the
-    counter, and a row with no stored time goes last rather than first.
-    """
-
-    far_future = datetime.max.replace(tzinfo=UTC)
-    return sorted(
-        rows or [],
-        key=lambda row: (_aware(row.created_at) or far_future, int(getattr(row, "turn_index", 0) or 0)),
-    )
-
-
 def _parse_moment(value: Any) -> datetime | None:
     try:
         return _aware(datetime.fromisoformat(str(value))) if value else None
@@ -7581,7 +7565,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "score_0_4": attempt.score_0_4,
                 "created_at": utc_iso(attempt.created_at),
             }
-            for attempt in _in_stored_order(mission.attempts)
+            for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
         payload["turns"] = [
             {
@@ -7594,7 +7578,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "correction": turn.correction_payload or {},
                 "created_at": utc_iso(turn.created_at),
             }
-            for turn in _in_stored_order(mission.turns)
+            for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
     return payload
 
