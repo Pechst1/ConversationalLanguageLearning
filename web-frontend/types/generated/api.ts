@@ -11268,12 +11268,26 @@ export interface components {
             slip_fr?: string | null;
             /** Source Fr */
             source_fr: string | null;
+            speaker?: components["schemas"]["RecallSpeaker"] | null;
             target: components["schemas"]["TargetRef"];
             /**
              * Task Type
              * @enum {string}
              */
             task_type: "choice" | "tiles" | "short_answer" | "transform" | "classify" | "word_bank" | "match_pairs" | "listen_tap" | "unscramble" | "who_said" | "dictation";
+        };
+        /**
+         * RecallSpeaker
+         * @description #155: who says the line of today's scene a recall item is cut from — the
+         *     face that asks the item and the name in «… te sourit» under a right answer.
+         *     ``name`` is the cast registry's short name («Gus», never the world bible's
+         *     «Augustin « Gus » de Roncourt»).
+         */
+        RecallSpeaker: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** RecallStep */
         RecallStep: {

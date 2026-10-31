@@ -3342,6 +3342,8 @@ def plan_journey(
     # flag off) and keeps its old order.
     recall_steps: list[PlannedStep] = []
     for entry, recall, cost, skipped in recalls:
+        # #155: who says the line the item is cut from, as on a practice day.
+        recall = replace(recall, speaker_id=recall_speaker(recall, scenario))
         recall_steps.append(
             PlannedStep(
                 ordinal=0,
@@ -3360,6 +3362,7 @@ def plan_journey(
                     "source_fr": recall.source_fr,
                     **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
                     **recall_met(entry.candidate),
+                    **recall_speaker_prompt(recall, scenario),
                 },
                 private_task=replace(recall, estimated_seconds=cost),
                 target=entry.target,
@@ -4595,6 +4598,97 @@ def scene_speakers(scenario: ScenarioBrief) -> dict[str, str]:
     return speakers
 
 
+#: #155: the gap a cloze cuts out of its line — the chosen cloze's «___», the
+#: written cloze's «…».
+_LINE_GAP = re.compile(r"_{2,}|…|\.{3}")
+#: Fewer words than this is a word or a name, not a line two speakers could share.
+_LINE_MIN_WORDS = 3
+
+
+def _line_runs(text: str | None) -> list[list[str]]:
+    """``text`` as folded word runs around its gaps (one run when it has none)."""
+
+    runs = [grammar_items._fold(part).split() for part in _LINE_GAP.split(grammar_items.plain(text))]
+    return [run for run in runs if run]
+
+
+def _runs_in(runs: list[list[str]], words: list[str]) -> bool:
+    """Do ``runs`` occur in ``words`` in order, each as a whole-word run?"""
+
+    start = 0
+    for run in runs:
+        found = next(
+            (index for index in range(start, len(words) - len(run) + 1) if words[index:index + len(run)] == run),
+            None,
+        )
+        if found is None:
+            return False
+        start = found + len(run)
+    return True
+
+
+def recall_speaker(task: RecallTask, scenario: ScenarioBrief) -> str | None:
+    """#155 — who says the line of today's scene a recall item is cut from.
+
+    The item's own French (the line it shows, a cloze with its gap, its answer) is
+    looked up among the characters' lines of today's page, sentence by sentence and
+    whole, accents and punctuation folded; the first line it is cut from names the
+    speaker. That person asks the item and smiles at a right answer, so a rebuilt
+    line of Marin's is Marin's face and «Marin te sourit», never the day's
+    character's. ``None`` for an item that is not cut from a character's line (a
+    word on its own, the narration, a rule's own example): the device then keeps
+    the rule's coach or the day's character. Always ``None`` for «Qui a dit ça ?»,
+    whose face would be its answer. A speaker the builder already knew (the voice
+    a listen-and-tap phrase is heard in) is kept.
+    """
+
+    if task.task_type == "who_said":
+        return None
+    if task.speaker_id:
+        return task.speaker_id
+    lines = [
+        (line.character_id, grammar_items._fold(line.text_fr).split(),
+         [grammar_items._fold(sentence).split() for sentence in scene_sentences(line.text_fr)])
+        for line in scene_heard_lines(scenario)
+        if line.character_id and line.character_id != NARRATOR_ID
+    ]
+    if not lines:
+        return None
+    # What the item shows, then what it rebuilds. A pick among different sentences
+    # («Which sentence uses today's rule?») is looked up by what it shows only: its
+    # answer's speaker would point at the right card.
+    answers = () if task.options_kind == "sentences" else (task.solution_fr, *task.accepted_answers[:1])
+    for text in (task.source_fr, task.prompt_fr, *answers):
+        runs = _line_runs(text)
+        if sum(len(run) for run in runs) < _LINE_MIN_WORDS:
+            continue
+        gapped = len(runs) > 1 or bool(_LINE_GAP.search(str(text or "")))
+        for speaker, whole, sentences in lines:
+            for words in (whole, *sentences):
+                if (_runs_in(runs, words) and len(words) - sum(map(len, runs)) <= 4) if gapped else runs[0] == words:
+                    return speaker
+    return None
+
+
+def recall_speaker_prompt(task: RecallTask, scenario: ScenarioBrief | None) -> dict[str, Any]:
+    """#155: ``{"speaker": {"id", "name"}}`` for an item cut from a character's line,
+    else ``{}``. The name is the cast registry's short name; a walk-on the registry
+    does not hold keeps the name today's world gives them, and one with only a
+    machine id («clerk_2») is not named at all."""
+
+    speaker_id = task.speaker_id or (recall_speaker(task, scenario) if scenario is not None else None)
+    if not speaker_id:
+        return {}
+    name = display_name(speaker_id) or ""
+    if not name and scenario is not None:
+        from app.services.scene_items import cast_names, named
+
+        name = cast_names(scenario).get(speaker_id, "")
+        if not named(name):
+            name = ""
+    return {"speaker": {"id": speaker_id, "name": name}} if name else {}
+
+
 def _introduction_items(
     brief: dict[str, Any] | None,
     *,
@@ -4764,7 +4858,13 @@ def add_listening_items(
         line = listen_tap_line(scenario, item.task.target)
         if not line.text_fr:
             return item
-        return replace(item, audio_url=line_audio_url(line.voice, line.text_fr))
+        # #155: the face beside the phrase is the voice it is heard in.
+        speaker = line.character_id if line.character_id != NARRATOR_ID else None
+        return replace(
+            item,
+            audio_url=line_audio_url(line.voice, line.text_fr),
+            task=replace(item.task, speaker_id=speaker) if speaker else item.task,
+        )
 
     placed = [heard(item) for item in placed]
 
@@ -4961,8 +5061,12 @@ def recall_met(candidate: LearningCandidate | None) -> dict[str, Any]:
     return {"met": {"place_label_fr": label}} if label else {}
 
 
-def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
+def _recall_step(ordinal: int, item: PracticeItem, scenario: ScenarioBrief | None = None) -> PlannedStep:
+    # #155: who says the line the item is cut from, kept with the item and sent.
     recall = item.task
+    speaker_id = recall.speaker_id or (recall_speaker(recall, scenario) if scenario is not None else None)
+    if speaker_id != recall.speaker_id:
+        recall = replace(recall, speaker_id=speaker_id)
     prompt: dict[str, Any] = {
         "task_type": recall.task_type,
         "instruction_native": recall.instruction_native,
@@ -4976,6 +5080,7 @@ def _recall_step(ordinal: int, item: PracticeItem) -> PlannedStep:
         "source_fr": recall.source_fr,
         **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
         **recall_met(item.entry.candidate),
+        **recall_speaker_prompt(recall, scenario),
     }
     if recall.task_type in LISTENING_RECALL_FORMATS:
         # WP-91: with a clip the phrase (or the dictated line) is heard, not
@@ -5574,7 +5679,7 @@ def _plan_practice_day(
     # Bouclé → Fin (→ Lecture). Ordinals are numbered once, at the end.
     steps: list[PlannedStep] = []
     for item in placed("warmup"):
-        steps.append(_recall_step(len(steps), item))
+        steps.append(_recall_step(len(steps), item, scenario))
     intro_target: TargetRef | None = None
     intro_entry: SelectedTarget | None = None
     # GRAMMAR-DAY-ONE (#81): an authored page is read first; the unit it uses is
@@ -5611,6 +5716,7 @@ def _plan_practice_day(
                         slot="mid", position=-1 - position, entry=intro_entry,
                         task=guided, cost=guided_cost,
                     ),
+                    scenario,
                 )
             )
         used_targets.append(intro_entry)
@@ -5730,7 +5836,7 @@ def _plan_practice_day(
     # WP-109 «Une seule maison»: the episode is never interrupted. The builds and
     # the word from today (WP-93 put them after the reply) follow the ending.
     for item in [*placed("mid"), *placed("post")]:
-        steps.append(_recall_step(len(steps), item))
+        steps.append(_recall_step(len(steps), item, scenario))
     if desk_step is not None:
         steps.append(desk_step)
     steps.extend(read_steps)
