@@ -73,8 +73,10 @@ WORD_RETENTION = 0.87
 DEFAULT_SCENE_SECONDS = 8 * 60
 #: «Noch 10 Wörter» after the day.
 MORE_WORDS = 10
-#: One deck holds at most this many waiting reviews; the rest come tomorrow.
-DAY_DECK_MAX_REVIEWS = 100
+#: One day deck holds at most this many cards, new words and reviews together
+#: (``pages/vocabulary/review.tsx`` asks for it as ``limit``); the reviews past it
+#: come tomorrow, the new words are never the ones left out (#279).
+DAY_DECK_LIMIT = 100
 #: The day deck asks for up to this many new words (``review.tsx``'s ``DAY_DECK_NEW_WORDS``).
 DAY_DECK_NEW_WORDS = 50
 
@@ -172,13 +174,28 @@ class SessionInputs:
     deck: tuple[int, int] | None = None
 
 
+def review_room(new_words: int, *, reviews_left: int | None = None, deck_limit: int = DAY_DECK_LIMIT) -> int:
+    """How many reviews the day deck holds next to ``new_words`` new ones (#279).
+
+    The reviews fill what the deck's size leaves after the new words: a learner
+    back from a week away has more due than a deck holds, and a deck sized by
+    its reviews first dealt reviews only while Home promised new words too. None
+    past the learner's own «Maximum reviews/day» (``reviews_left``; ``None``
+    when it could not be read). ``GET /vocabulary/due-context?drill=session``
+    deals with the same room.
+    """
+
+    room = max(0, int(deck_limit) - max(0, int(new_words)))
+    if reviews_left is not None:
+        room = min(room, max(0, int(reviews_left)))
+    return room
+
+
 def session_view(inputs: SessionInputs) -> dict[str, Any]:
     """The day's steps with their state (done / next / todo), minutes and links."""
 
-    new_left, reviews = inputs.deck or (
-        max(0, inputs.quota - inputs.introduced),
-        min(max(0, inputs.reviews_due), DAY_DECK_MAX_REVIEWS),
-    )
+    fallback_new = max(0, inputs.quota - inputs.introduced)
+    new_left, reviews = inputs.deck or (fallback_new, min(max(0, inputs.reviews_due), review_room(fallback_new)))
     words_done = inputs.words_marked_done or (new_left == 0 and reviews == 0)
     # What was done, not what was planned: new words met or words reviewed.
     words_met = max(inputs.introduced, inputs.words_reviewed_today)
@@ -277,7 +294,7 @@ def pace_option(
     hold_lag_days: int,
 ) -> dict[str, Any]:
     grammar = forge_items(grammar_seconds_override or pace.forge_seconds) * 25
-    reviews = min(max(0, reviews_due), DAY_DECK_MAX_REVIEWS)
+    reviews = min(max(0, reviews_due), DAY_DECK_LIMIT)
     today = scene_seconds + words_seconds(pace.words, reviews) + grammar
     week8_reviews = round(pace.words * REVIEWS_PER_NEW_WORD_WEEK_8)
     week8 = scene_seconds + words_seconds(pace.words, week8_reviews) + grammar
@@ -388,7 +405,7 @@ def day_deck(db: Session, user: Any, *, reviews_due: int, now: datetime | None =
             new = sum(1 for item in remaining if item.get("list") == "new_words")
             top_up = drill_batch.top_up_new_words(room, batch, remaining, new_limit)
             return new + top_up, len(remaining) - new
-    reviews = min(max(0, reviews_due), DAY_DECK_MAX_REVIEWS, reviews_left_today(db, user, now=now))
+    reviews = min(max(0, reviews_due), review_room(new_limit, reviews_left=reviews_left_today(db, user, now=now)))
     return new_limit, reviews
 
 
@@ -508,6 +525,7 @@ __all__ = [
     "SessionInputs",
     "build_session",
     "day_deck",
+    "review_room",
     "goal_gap",
     "goal_weeks",
     "mark_words_done",

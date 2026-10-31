@@ -363,6 +363,9 @@ class ScenePrompt(JourneyModel):
     #: Walk 2026-10-12 (#77): the season's premise in the learner's language —
     #: who they are and what is at stake. ``None`` off a scripted season.
     premise_native: str | None = None
+    #: #314: on a re-read day, one sentence said before panel 1 («Today we read it
+    #: again, then you answer»). ``None`` on every other day.
+    reread_native: str | None = None
     #: WP-97: the margin notes this page prints. ``None`` on authored days.
     margin_notes: list[MarginNote] | None = None
     #: The part of the season this page belongs to: the client draws that part's
@@ -431,7 +434,7 @@ class RecallMet(JourneyModel):
 class RecallPrompt(JourneyModel):
     # This serializer drops audio_url on silent formats, leaving all other defaults.
     model_config = ConfigDict(
-        json_schema_extra=lambda schema: _drop_required(schema, "audio_url", "met", "retry"),
+        json_schema_extra=lambda schema: _drop_required(schema, "audio_url", "met", "retry", "slip_fr"),
     )
     #: WP-66 brought three Séance formats into the daily loop. Additive: the
     #: three originals are unchanged, so a step persisted before this package
@@ -486,6 +489,9 @@ class RecallPrompt(JourneyModel):
     #: WP-103 T3 (additive): the French the item starts from when it is shown (the
     #: sentence to correct, the learner's own wording to repair). Never the answer.
     source_fr: str | None = None
+    #: #278 (additive): on a repair, the wrong part of ``source_fr`` the learner
+    #: wrote, to be marked. Omitted on every other card.
+    slip_fr: str | None = None
     #: WP-121 A.4 (additive): where a card kept in a Papier was met — the small
     #: context line under the prompt («vu au marché d'Aligre, semaine 41»).
     #: Omitted for every other card.
@@ -506,6 +512,8 @@ class RecallPrompt(JourneyModel):
             data.pop("audio_url", None)
         if isinstance(data, dict) and data.get("met") is None:
             data.pop("met", None)
+        if isinstance(data, dict) and not data.get("slip_fr"):
+            data.pop("slip_fr", None)
         if isinstance(data, dict) and not data.get("retry"):
             data.pop("retry", None)
         return data
@@ -1268,6 +1276,8 @@ class EpisodeHeadline(JourneyModel):
     """WP-109: today's episode as Home and the Feuilleton headline it."""
 
     edition_no: int | None = None
+    #: #314: today is a re-read of an earlier page; the title is that page's.
+    reread: bool = False
     #: The day's title when known: the scene's, or an authored tentpole's. A generated
     #: day not yet written has none — the teaser leads.
     title_fr: str | None = None

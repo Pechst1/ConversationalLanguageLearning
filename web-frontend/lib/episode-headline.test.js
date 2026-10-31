@@ -24,6 +24,11 @@ test('the kicker is the number and the season', () => {
   assert.equal(model.headlineKicker(null), '');
 });
 
+test('#314: a re-read day says so in the kicker, between the number and the season', () => {
+  assert.equal(model.headlineKicker({ ...tentpole, reread: true }), 'Nº 2 · Relecture · La clé d’Odile');
+  assert.equal(model.headlineKicker({ ...tentpole, reread: false }), 'Nº 2 · La clé d’Odile');
+});
+
 test('a known title leads; the teaser follows it', () => {
   assert.equal(model.headlineTitle(tentpole, 'Votre prochain chapitre'), 'La lettre');
   assert.equal(model.headlineTeaser(tentpole, 'La lettre'), 'Demain, Camille.');

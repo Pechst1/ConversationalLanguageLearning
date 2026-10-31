@@ -70,6 +70,12 @@ REPRISE_COPY: dict[str, dict[str, str]] = {
         "de": "Heute lesen wir noch einmal.",
         "fr": "Aujourd'hui, on relit.",
     },
+    # #314: said before panel 1, not only on the closing panel.
+    "season_reprise_intro": {
+        "en": "Today we read «{title}» again, then you answer. The story does not move on today.",
+        "de": "Heute lesen wir «{title}» noch einmal, dann antwortest du. Die Geschichte geht heute nicht weiter.",
+        "fr": "Aujourd'hui, on relit «{title}», puis vous répondez. L'histoire n'avance pas aujourd'hui.",
+    },
     "season_reprise_summary": {
         "en": "A re-read of «{title}». The story did not move on today.",
         "de": "Noch einmal gelesen: «{title}». Die Geschichte ist heute nicht weitergegangen.",
@@ -87,6 +93,14 @@ def reprise_text(key: str, language: str | None, **fields: Any) -> str:
         return template.format(**fields) if fields else template
     except (KeyError, IndexError, ValueError):  # pragma: no cover - authored above
         return template
+
+
+def is_reprise_journey(journey: Any) -> bool:
+    """Is this stored day a reprise? (Read from the plan's fallback marker, never recomputed.)"""
+
+    selection = getattr(journey, "plan_selection", None)
+    marker = selection.get("generation_fallback") if isinstance(selection, dict) else None
+    return isinstance(marker, dict) and marker.get("kind") == REPRISE_FALLBACK_KIND
 
 
 def is_reprise(story_context: dict[str, Any] | None) -> bool:
@@ -432,6 +446,7 @@ __all__ = [
     "REPRISE_SCENARIO_PREFIX",
     "LastPage",
     "is_reprise",
+    "is_reprise_journey",
     "last_page",
     "pinned_turns",
     "reprise_brief",

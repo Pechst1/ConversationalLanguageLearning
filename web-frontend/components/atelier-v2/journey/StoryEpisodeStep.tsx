@@ -31,6 +31,7 @@ import { marginNotes as readMarginNotes } from '@/components/feuilleton/archive/
 import {
   precedemmentView,
   premiseView,
+  rereadView,
   readPrecedemmentDismissed,
   writePrecedemmentDismissed,
 } from '@/components/feuilleton/archive/precedemment-model';
@@ -100,6 +101,7 @@ export function StoryEpisodeStep({
   // condition to someone who never asked for it is how a good idea gets
   // measured as a bad one.
   const [listenFirst, setListenFirst] = useState(false);
+  const [declinedStep, setDeclinedStep] = useState<string | null>(null);
   useEffect(() => {
     setListenFirst(readListenFirst());
   }, []);
@@ -117,6 +119,7 @@ export function StoryEpisodeStep({
     dismissed: previouslyRead !== false,
   });
   const premise = premiseView({ premise: step.prompt.premise_native, dismissed: previouslyRead !== false });
+  const reread = rereadView({ reread: step.prompt.reread_native, dismissed: previouslyRead !== false });
   const readOn = useCallback(() => {
     writePrecedemmentDismissed(journeyId, step.id);
     setPreviouslyRead(true);
@@ -141,6 +144,7 @@ export function StoryEpisodeStep({
     audioAvailable,
     preferred: listenFirst,
     dealt: Boolean(step.prompt.listen_first),
+    declined: declinedStep === step.id,
   });
   const audio = useEpisodeAudio({
     sceneId,
@@ -157,10 +161,16 @@ export function StoryEpisodeStep({
     speaking: lineVoice.speakingKey !== null || audio.state.kind === 'playing',
   });
 
-  const chooseMode = useCallback((enabled: boolean) => {
-    setListenFirst(enabled);
-    writeListenFirst(enabled);
-  }, []);
+  // «Lire plutôt» on this scene. Remembered per scene, not stored: a planner-dealt
+  // listening day must not stay switched off for every later scene by one tap.
+  const chooseMode = useCallback(
+    (enabled: boolean) => {
+      setListenFirst(enabled);
+      writeListenFirst(enabled);
+      setDeclinedStep(enabled ? null : step.id);
+    },
+    [step.id],
+  );
 
   const recordPrediction = useCallback(
     (guess: EpisodeGuessId, verification: EpisodeVerification) => {
@@ -180,13 +190,14 @@ export function StoryEpisodeStep({
     return <StateBlock tone="loading" title={copy.preparing_title} body={copy.preparing_body} />;
   }
 
-  if (previously || premise) {
+  if (previously || premise || reread) {
     return (
       <>
         <ArchiveStyles />
         <Precedemment
           lines={previously ?? []}
           premise={premise}
+          reread={reread}
           language={language}
           onRead={readOn}
           journeyId={journeyId}

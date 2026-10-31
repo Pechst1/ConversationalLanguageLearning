@@ -20,6 +20,7 @@
 
 import type { ControlLanguage, GrammarFocus, StoryEpisode, StoryPanel } from '@/types/daily-journey';
 import { lineMarkRanges } from '@/components/feuilleton/reader/grammar-marks';
+import { isPlanningNote } from '@/components/feuilleton/reader/planning-note';
 import {
   readerCharacterKey,
   type ReaderLine,
@@ -104,9 +105,11 @@ export function storyCharacterName(
  * emitting it needs no second change here.
  */
 export function stripPanelPrefix(text: string | null | undefined): string {
-  return String(text ?? '')
+  const line = String(text ?? '')
     .replace(/^\s*panneau\s*n?[°º]?\s*\d+\s*[:.\-–—]\s*/i, '')
     .trim();
+  // #263: the director's scratch note is not narration; a scene stored with one prints none.
+  return isPlanningNote(line) ? '' : line;
 }
 
 /**
@@ -717,6 +720,13 @@ export function episodeRetainPhrase(episode: StoryEpisode | null | undefined): s
 
 export type RadioState = {
   stage: RadioStage;
+  /**
+   * Whether this cycle asks «how does it end?» at all. False when the scene's
+   * own lines settle no outcome (#277): there is then nothing to predict and
+   * nothing to check, so *prédire* is skipped rather than asked and later
+   * answered with «neither guess is wrong».
+   */
+  asked: boolean;
   guess: EpisodeGuessId | null;
   /** How many lines the learner has turned over at *vérifier*. */
   revealed: number;
@@ -736,10 +746,37 @@ export type RadioEvent =
 
 export const RADIO_INITIAL: RadioState = {
   stage: 'predire',
+  asked: true,
   guess: null,
   revealed: 0,
   heard: false,
 };
+
+/**
+ * Whether the episode's own lines settle how the exchange ends.
+ *
+ * This is the **same** check *vérifier* runs (`verifyEpisodeGuess`), asked
+ * before the audio instead of after it. The question and its answer used to be
+ * decided in two places that never met — the guess was always offered, and only
+ * the check afterwards found there was nothing to check against (#277). One
+ * predicate for both ends means a question is never put that the check cannot
+ * answer.
+ */
+export function episodeSettlesOutcome(episode: StoryEpisode | null | undefined): boolean {
+  return verifyEpisodeGuess(episode, null).supported !== null;
+}
+
+/** The cycle's first state for this episode: guess first only if there is an ending to guess. */
+export function radioInitialFor(episode: StoryEpisode | null | undefined): RadioState {
+  return episodeSettlesOutcome(episode)
+    ? RADIO_INITIAL
+    : { ...RADIO_INITIAL, stage: 'ecouter', asked: false };
+}
+
+/** The stages this cycle actually runs: without a question there is no *prédire*. */
+export function radioStagesFor(state: Pick<RadioState, 'asked'>): readonly RadioStage[] {
+  return state.asked ? RADIO_STAGES : RADIO_STAGES.filter((stage) => stage !== 'predire');
+}
 
 /**
  * The cycle as one pure transition.
@@ -781,7 +818,7 @@ export function radioReduce(state: RadioState, event: RadioEvent): RadioState {
     case 'retain':
       return state.stage === 'verifier' ? { ...state, stage: 'retenir' } : state;
     case 'restart':
-      return RADIO_INITIAL;
+      return state.asked ? RADIO_INITIAL : { ...RADIO_INITIAL, stage: 'ecouter', asked: false };
     default:
       return state;
   }
@@ -899,7 +936,8 @@ export function writeListenFirst(enabled: boolean): void {
  * Three answers, and only three:
  *
  * * `'cycle'` — go straight into predict → listen → verify → retain, because
- *   the learner asked for it or the planner dealt «jour d'écoute»;
+ *   the learner asked for it or the planner dealt «jour d'écoute» — unless they
+ *   have since taken the cycle's own way out («Lire plutôt»), which outranks both;
  * * `'before_first_panel'` — the quiet link, above the panels, where it can
  *   still be taken;
  * * `'none'` — this deployment cannot speak the scene. No offer is made at all,
@@ -911,6 +949,7 @@ export function listenFirstPlacement({
   audioAvailable,
   preferred = false,
   dealt = false,
+  declined = false,
 }: {
   /** The server's own answer about this deployment (`prompt.audio_available`). */
   audioAvailable: boolean;
@@ -918,8 +957,16 @@ export function listenFirstPlacement({
   preferred?: boolean;
   /** WP-66 dealt a listening day for this scene (`prompt.listen_first`). */
   dealt?: boolean;
+  /**
+   * The learner took «Lire plutôt» on this scene. The cycle has two reasons to
+   * open (their remembered choice, the planner's deal) and the exit used to undo
+   * only the first, so on a dealt day it did nothing at all (#276). An exit is a
+   * decision about the placement itself, and it wins over both.
+   */
+  declined?: boolean;
 }): ListenFirstPlacement {
   if (!audioAvailable) return 'none';
+  if (declined) return 'before_first_panel';
   return preferred || dealt ? 'cycle' : 'before_first_panel';
 }
 

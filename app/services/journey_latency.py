@@ -128,17 +128,21 @@ def _digest(payload: Any) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def scene_cache_key(db: Session, user: User, *, input_mode: InputMode) -> str | None:
-    """The identity a prefetched scene must still have to be servable.
+def _end_of_learner_day(user: User) -> datetime:
+    """The learner's next local midnight, in UTC: the horizon the key reads due errata to."""
 
-    WP-14C: *"key generation caches by the relevant story revision, scene
-    identity, learner context and prompt version. A cache keyed only by user and
-    exercise family is insufficient."* All four are here, and every one of them
-    is cheap to recompute — the key costs a thread read, never a provider call.
+    from zoneinfo import ZoneInfo
 
-    Returns ``None`` when there is nothing cacheable (engine off), which callers
-    read as "no prefetch, generate as before".
-    """
+    from app.services.daily_journey import local_date_for, resolve_timezone
+
+    zone = resolve_timezone(getattr(user, "timezone", None))
+    tomorrow = local_date_for(zone, now=_utcnow()) + timedelta(days=1)
+    return datetime.combine(tomorrow, datetime.min.time(), tzinfo=ZoneInfo(zone)).astimezone(UTC)
+
+
+def scene_cache_key_parts(db: Session, user: User) -> dict[str, Any] | None:
+    """What :func:`scene_cache_key` digests, by name (kept on the prefetch row, so a
+    discard can say which part moved). ``None`` when nothing is cacheable."""
 
     if not settings.ATELIER_STORY_ENGINE_ENABLED:
         return None
@@ -155,33 +159,64 @@ def scene_cache_key(db: Session, user: User, *, input_mode: InputMode) -> str | 
         # a repaired erratum would otherwise come back tomorrow morning in a
         # scene the learner already earned their way out of. Ids only, sorted:
         # the ranking's own ordering moves with the clock, the membership does
-        # not.
-        errata = sorted(target.error_id for target in errata_targets_for_user(db, user))
+        # not. Due by the end of the learner's day, not by now: the night's
+        # prefetch and the morning's create must read the same set, or a mistake
+        # merely falling due at 8 o'clock throws the night's scene away.
+        errata = sorted(
+            target.error_id
+            for target in errata_targets_for_user(db, user, due_by=_end_of_learner_day(user))
+        )
     except Exception:  # pragma: no cover - defensive: never break a live request
         logger.exception("journey_latency: cache key context unavailable")
         return None
-    return _digest(
-        {
-            # 1. story revision
-            "story_revision": revision,
-            # 2. scene identity — the family the offer would resolve to today
-            "scene_identity": "story_next",
-            # 3. learner context
-            "level_band": living_story.learner_level_band(user),
-            "control_language": str(normalize_control_language(user.native_language)),
-            "address": living_story.learner_address(user)["address"],
-            "input_mode": str(input_mode),
-            "errata_targets": errata,
-            # 4. prompt version, plus the attempt policy that shapes the output
-            "prompt_version": living_story.VERSION,
-            "max_attempts": int(settings.ATELIER_STORY_MAX_ATTEMPTS),
-            # WP-92: the new rule the scene weaves is learner context too.
-            "grammar_introduce": living_story.grammar_introduce_key(db, user, now=_utcnow()),
-            # WP-94: a scene drafted before the épreuve became ready (or for another
-            # attempt) is never served on the épreuve's day.
-            "epreuve": living_story.epreuve_cache_key(db, user),
-        }
-    )
+    return {
+        # 1. story revision
+        "story_revision": revision,
+        # 2. scene identity — the family the offer would resolve to today
+        "scene_identity": "story_next",
+        # 3. learner context. Not the input mode: the living story drafts the same
+        # scene for a spoken and a typed answer (``generate_scene`` never reads
+        # it), and the nightly prefetch writes for text while the app asks in
+        # voice, so keying on it threw every night's scene away.
+        "level_band": living_story.learner_level_band(user),
+        "control_language": str(normalize_control_language(user.native_language)),
+        "address": living_story.learner_address(user)["address"],
+        "errata_targets": errata,
+        # 4. prompt version, plus the attempt policy that shapes the output
+        "prompt_version": living_story.VERSION,
+        "max_attempts": int(settings.ATELIER_STORY_MAX_ATTEMPTS),
+        # WP-92: the new rule the scene weaves is learner context too.
+        "grammar_introduce": living_story.grammar_introduce_key(db, user, now=_utcnow()),
+        # WP-94: a scene drafted before the épreuve became ready (or for another
+        # attempt) is never served on the épreuve's day.
+        "epreuve": living_story.epreuve_cache_key(db, user),
+    }
+
+
+def scene_cache_key(db: Session, user: User, *, input_mode: InputMode = InputMode.TEXT) -> str | None:
+    """The identity a prefetched scene must still have to be servable.
+
+    WP-14C: *"key generation caches by the relevant story revision, scene
+    identity, learner context and prompt version. A cache keyed only by user and
+    exercise family is insufficient."* All four are here, and every one of them
+    is cheap to recompute — the key costs a thread read, never a provider call.
+    ``input_mode`` is accepted and not keyed (:func:`scene_cache_key_parts`).
+
+    Returns ``None`` when there is nothing cacheable (engine off), which callers
+    read as "no prefetch, generate as before".
+    """
+
+    parts = scene_cache_key_parts(db, user)
+    return _digest(parts) if parts is not None else None
+
+
+def _moved_parts(stored: Any, current: dict[str, Any] | None) -> list[str]:
+    """The names of the key parts that differ between a prefetch row and now."""
+
+    if not isinstance(stored, dict) or current is None:
+        return []
+    now = json.loads(json.dumps(current, default=str))
+    return sorted(name for name in set(stored) | set(now) if stored.get(name) != now.get(name))
 
 
 # ---------------------------------------------------------------------------
@@ -344,7 +379,8 @@ def prefetch_scene_for(
     # The key is recomputed from the brief the provider actually produced: if the
     # thread moved under a long generation, this row is born stale and the serve
     # path will never match it.
-    produced_key = scene_cache_key(db, user, input_mode=input_mode)
+    produced_parts = scene_cache_key_parts(db, user)
+    produced_key = _digest(produced_parts) if produced_parts is not None else None
     row = PilotEvent(
         user_id=user.id,
         event_type=PREFETCH_EVENT,
@@ -353,6 +389,7 @@ def prefetch_scene_for(
         payload={
             "cache_key": produced_key or key,
             "requested_key": key,
+            "key_parts": json.loads(json.dumps(produced_parts, default=str)) if produced_parts else None,
             "prompt_version": str(result.content_version),
             "input_mode": str(input_mode),
             "generated_seconds": round(elapsed, 3),
@@ -443,15 +480,21 @@ def take_prefetched_scene(
 
     if not prefetch_enabled_for(user):
         return None
-    key = scene_cache_key(db, user, input_mode=input_mode)
-    if key is None:
+    parts = scene_cache_key_parts(db, user)
+    if parts is None:
         return None
+    key = _digest(parts)
 
     served: ScenarioBrief | None = None
     for row in _live_prefetch_rows(db, user, cache_key=None):
         payload = row.payload or {}
         matches = str(payload.get("cache_key") or row.entity_id or "") == key
         if served is not None or not matches:
+            if not matches:
+                logger.info(
+                    "journey_latency: prefetched scene discarded as stale (moved: %s)",
+                    ", ".join(_moved_parts(payload.get("key_parts"), parts)) or "unknown",
+                )
             # Every entry this learner holds under a key that is no longer
             # current — and every duplicate behind the one being served — is
             # closed out here. A stale scene is discarded, never served, and its
@@ -935,6 +978,7 @@ __all__ = [
     "prefetch_scene_for",
     "record_latency",
     "scene_cache_key",
+    "scene_cache_key_parts",
     "server_wait_ms_since_last_event",
     "sweep_expired_prefetches",
     "take_prefetched_scene",

@@ -42,3 +42,71 @@ test('the scroll runs again when the repair under a verdict settles', () => {
   assert.match(effect[1], /repairOutcome/);
   assert.match(page, /const repairOutcome = followUps\[feedbackKey\]\?\.outcome \?\? null;/);
 });
+
+// #319: the walk of 23 Oct found a French correction card partly under the sheet.
+// The scroll was worked out once, from the card's size at that moment; a card that
+// grows afterwards (a late font, the notes under the right sentence) stayed where it
+// was, under the sticky sheet. The card is kept above the sheet while it settles.
+function fakePage({ cardTop = 375, cardHeight = 235, sheetTop = 550, headerBottom = 70 } = {}) {
+  const page = { scrollY: 0, cardHeight, observers: [], sheetTop, headerBottom };
+  const rect = (top, height) => ({ top, bottom: top + height, height });
+  const sheet = { classList: { contains: (name) => name === 'ep-foot' }, getBoundingClientRect: () => rect(sheetTop, 140) };
+  const card = { classList: { contains: () => false }, getBoundingClientRect: () => rect(cardTop - page.scrollY, page.cardHeight) };
+  const header = { getBoundingClientRect: () => rect(0, headerBottom) };
+  page.feedback = {
+    parentElement: null,
+    children: [card, sheet],
+    querySelector: (selector) => (selector === '.ep-foot' ? sheet : null),
+  };
+  global.window = { innerHeight: 812, scrollBy: ({ top }) => { page.scrollY += top; } };
+  global.document = {
+    body: {},
+    documentElement: {},
+    querySelector: (selector) => (selector === '.ep-top' ? header : selector === '.ep-foot' ? sheet : null),
+  };
+  global.ResizeObserver = class {
+    constructor(callback) { this.callback = callback; page.observers.push(this); }
+    observe() {}
+    disconnect() { this.callback = null; }
+  };
+  page.cardBox = () => card.getBoundingClientRect();
+  page.resize = () => page.observers.forEach((o) => o.callback && o.callback([]));
+  return page;
+}
+
+function withFakePage(options, run) {
+  const page = fakePage(options);
+  try {
+    run(page);
+  } finally {
+    delete global.window;
+    delete global.document;
+    delete global.ResizeObserver;
+  }
+}
+
+test('a card that grows after the scroll is brought back above the sheet', () => {
+  const { keepCardAboveSheet } = require('./keep-above-sheet.ts');
+  withFakePage({}, (page) => {
+    keepCardAboveSheet(page.feedback, { smooth: false });
+    assert.ok(page.cardBox().bottom <= page.sheetTop, 'the first scroll puts the card above the sheet');
+    page.cardHeight = 335; // the notes arrive and the card runs under the sheet again
+    page.resize();
+    const box = page.cardBox();
+    assert.ok(box.bottom <= page.sheetTop, `the card still runs under the sheet: ${box.top}-${box.bottom}, sheet from ${page.sheetTop}`);
+    assert.ok(box.top >= page.headerBottom, 'and it is not scrolled up under the header');
+  });
+});
+
+test('a card that is let go is not scrolled again', () => {
+  const { keepCardAboveSheet } = require('./keep-above-sheet.ts');
+  withFakePage({}, (page) => {
+    const stop = keepCardAboveSheet(page.feedback, { smooth: false });
+    assert.equal(typeof stop, 'function', 'the caller can let the card go when the verdict goes away');
+    stop();
+    const before = page.scrollY;
+    page.cardHeight = 335;
+    page.resize();
+    assert.equal(page.scrollY, before);
+  });
+});

@@ -21,6 +21,8 @@ from app.db.models.user import User
 from app.schemas.serial import EpisodeBrief
 from app.services.address import character_register
 from app.services.atelier_rewards import AtelierRewardService
+from app.services.cast_registry import card_line
+from app.services.chrome_language import user_chrome_language
 from app.services.graphic_novel import (
     GraphicNovelGenerationError,
     GraphicNovelScheduler,
@@ -207,7 +209,7 @@ class SerialThreadService:
                 "story_engine": _engine_version(), "continue_href": "/atelier",
                 "episodes_href": "/api/v1/story-engine/episodes",
                 "thread": self.serialize_thread(thread) if thread else None,
-                "cast": self.cast_payload(thread) if thread else [],
+                "cast": self.cast_payload(thread, language=user_chrome_language(user)) if thread else [],
                 "active_cast_member": None,
             }
         thread = await self.get_or_create_thread(user)
@@ -218,7 +220,7 @@ class SerialThreadService:
         elif not (episode.brief_payload or {}).get("story_engine"):
             self._ensure_episode_contract(episode)
             self._supersede_incompatible_scene(episode)
-        cast = self.cast_payload(thread)
+        cast = self.cast_payload(thread, language=user_chrome_language(user))
         required = self._episode_required_cast(episode)
         by_id = {str(member.get("id")): member for member in cast}
         active_cast_member = next(
@@ -1057,8 +1059,29 @@ class SerialThreadService:
             "brief_payload": self.serialize_episode(episode)["brief_payload"],
         }
 
-    def cast_payload(self, thread: SerialThread) -> list[dict[str, Any]]:
+    def cast_author_notes(self, thread: SerialThread) -> dict[str, dict[str, str]]:
+        """The story bible's briefs per character (``role``, ``dynamic_with_user``).
+
+        For server-side prompts only. They are written for the author and carry plot
+        and planning notation, so they are kept out of :meth:`cast_payload`, whose rows
+        reach the learner's screen (#298).
+        """
+
         world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+        return {
+            str(member["id"]): {
+                "role": str(member.get("role") or ""),
+                "dynamic_with_user": str(member.get("dynamic_with_user") or ""),
+            }
+            for member in world.get("cast") or []
+            if isinstance(member, dict) and member.get("id")
+        }
+
+    def cast_payload(self, thread: SerialThread, *, language: str | None = None) -> list[dict[str, Any]]:
+        """The cast as the learner sees it. ``language`` is the interface language of
+        the card line (``role``); every row is safe to send to the browser."""
+
+        world =thread.world_bible if isinstance(thread.world_bible, dict) else {}
         relationships = (thread.state or {}).get("relationships") if isinstance((thread.state or {}).get("relationships"), dict) else {}
         visual_characters = ((world.get("visual_design") or {}).get("characters") or {}) if isinstance(world.get("visual_design"), dict) else {}
         episodes_by_character = self._cast_episode_index(thread)
@@ -1090,8 +1113,10 @@ class SerialThreadService:
                 {
                     "id": character_id,
                     "name": member.get("name"),
-                    "role": member.get("role"),
-                    "dynamic_with_user": member.get("dynamic_with_user"),
+                    # #298: the learner's line, from the cast registry in the interface
+                    # language. The bible's ``role`` / ``dynamic_with_user`` are the
+                    # author's briefs: see ``cast_author_notes``, never this payload.
+                    "role": card_line(character_id, language) or None,
                     # WP-D8: the drawn cast shows its approved portrait; only the learner keeps a model sheet.
                     # WP-98: a character added without art (`portrait_missing`, e.g.
                     # season 3's Tiago) gets None, so the face falls back to initials.
@@ -2234,6 +2259,12 @@ class SerialThreadService:
         }.get(character_id, character_id.replace("_", " ").title())
 
     def _character_role(self, thread: SerialThread, character_id: str) -> str:
+        # #265: the registry's role, the one every other surface prints; the bible's
+        # `role` is a paragraph for the director, not a header for the learner.
+        from app.services.cast_registry import role
+
+        if role(character_id):
+            return role(character_id)
         member = self._cast_member(thread, character_id)
         if member and member.get("role"):
             return _compact(member.get("role"), 80)

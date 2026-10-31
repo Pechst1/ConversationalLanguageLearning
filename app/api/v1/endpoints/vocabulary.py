@@ -984,6 +984,12 @@ def get_vocabulary_due_context(
         reviews_left = reviews_left_today(db, current_user)
     except Exception:  # noqa: BLE001 - a cap that cannot be read never costs the deck
         reviews_left = None
+    if drill == "session":
+        # #279: the new words keep their place in the day deck and the reviews fill
+        # the rest, the room Home's words step counts its promise with.
+        from app.services.daily_session import review_room
+
+        due_limit = min(due_limit, review_room(new_limit, deck_limit=limit))
     if reviews_left is not None:
         due_limit = min(due_limit, reviews_left)
         fragile_limit = min(fragile_limit, max(0, reviews_left - due_limit))

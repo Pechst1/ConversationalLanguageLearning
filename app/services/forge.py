@@ -139,7 +139,9 @@ def verdict_from_attempt(attempt: AtelierAttempt) -> Verdict:
     else:
         outcome = core.OUTCOME_INCORRECT
     local: str | None = None
-    if not checked:
+    # «unavailable»: nobody could read it. The local detector's hit was a hint for
+    # the pending relecture; with none coming it is nothing (#281).
+    if not checked and status != "unavailable":
         local_check = correction.get("local_check") if isinstance(correction.get("local_check"), dict) else {}
         if local_check.get("detector") == "hit":
             local = core.OUTCOME_CORRECT
@@ -1665,8 +1667,11 @@ class ForgeService:
     ) -> dict[str, Any]:
         """An asynchronous verdict landed (WP-S1): count a once-unchecked answer.
 
-        Only an answer the forge recorded as unchecked is amended, once; the
-        staircase has moved on, so only the evidence is written.
+        Only an answer the forge recorded as unchecked is amended, once. Its level
+        is settled here too (#281, :meth:`ForgeState.settle`): the local reading
+        stepped the rule on provisionally, and the real verdict (a miss, or
+        «unavailable» when nobody could read it) replaces that step in the
+        séance, in the stored level and in the level shown under the answer.
         """
 
         state = forge_state_of(session)
@@ -1675,14 +1680,19 @@ class ForgeService:
         exercise_key = _exercise_key(attempt)
         entry = next((e for e in state.history if e.get("exercise_key") == exercise_key), None)
         verdict = verdict_from_attempt(attempt)
-        if entry is None or entry.get("checked") or not verdict.checked or entry.get("amended"):
+        correction = attempt.correction_payload if isinstance(attempt.correction_payload, dict) else {}
+        # An answer nobody could read ends its provisional move; one still being
+        # read (or already counted) has nothing to settle yet.
+        unread = not verdict.checked and correction.get("assessment_status") == "unavailable"
+        if entry is None or entry.get("checked") or entry.get("amended") or not (verdict.checked or unread):
             return self.view(user=user, session=session) if commit else {}
         track = state.track(int(attempt.concept_id))
         rung = int(entry["rung"])
         evidence = core.evidence_for(rung, verdict)
+        new_rung = state.settle(entry, verdict) if track is not None else rung
         decision = core.EvidenceDecision(
             concept_id=int(attempt.concept_id), rung=rung, evidence=evidence, counted=evidence is not None,
-            new_rung=track.rung if track else rung,
+            new_rung=new_rung,
         )
         if evidence is not None and track is not None:
             if evidence.correct and rung not in track.scheduled_success_rungs:
@@ -1692,13 +1702,23 @@ class ForgeService:
             elif not evidence.correct and not track.scheduled_failure:
                 decision.schedule = True
                 track.scheduled_failure = True
-        entry.update({"amended": True, "outcome": verdict.outcome, **decision.ledger(), "checked": True})
+        # An unread answer is settled (its provisional step taken back) but not
+        # amended: a retried review that does read it still counts, once.
+        entry.update({"amended": verdict.checked, "outcome": verdict.outcome, **decision.ledger(), "checked": verdict.checked})
         self._write_evidence(user=user, state=state, decision=decision, verdict=verdict, attempt=attempt,
-                             now=datetime.now(UTC), move_rung=False)
+                             now=datetime.now(UTC))
+        shown = dict(correction.get("forge") or {})
+        if shown:
+            # The level shown under the answer is the settled one.
+            shown.update({"new_rung": new_rung, "counted": decision.counted, "schedule": decision.schedule})
+            attempt.correction_payload = {**correction, "forge": shown}
+            flag_modified(attempt, "correction_payload")
+            self.db.add(attempt)
         _store_state(session, state)
         self.db.add(session)
         if not commit:
-            return {"amended": True, "counted": decision.counted, "schedule": decision.schedule}
+            # An unread answer settled its level but wrote no evidence: nothing applied.
+            return {"amended": evidence is not None, "counted": decision.counted, "schedule": decision.schedule}
         self.db.commit()
         return self.view(user=user, session=session)
 

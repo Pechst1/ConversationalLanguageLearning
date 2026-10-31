@@ -22,6 +22,7 @@ legacy life still reads as chapters. Nothing here writes, except
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import date
@@ -33,6 +34,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialThread
+from app.services.sentence_line import drop_cut_tail
 from app.services.story_page import hook_of
 
 logger = logging.getLogger(__name__)
@@ -136,6 +138,17 @@ def season_part_of(payload: Any) -> dict[str, Any] | None:
     }
 
 
+def clean_digest(value: Any) -> str | None:
+    """A chapter's «question → résolution» line without a half an older cut left mid-sentence
+    («… Alors,… → …», #268). A whole digest comes back as it was."""
+
+    line = _text(value, 400)
+    if not line:
+        return None
+    halves = [drop_cut_tail(half) for half in re.split(r"\s*(?:→|->)\s*", line)]
+    return " → ".join(half for half in halves if half) or None
+
+
 def chapter_of(payload: Any) -> dict[str, Any] | None:
     """``script_payload.chapter`` normalised, or ``None``."""
 
@@ -146,7 +159,7 @@ def chapter_of(payload: Any) -> dict[str, Any] | None:
         "index": _int_or_none(raw.get("index")),
         "title_fr": _text(raw.get("title_fr"), 120),
         "closes": bool(raw.get("closes")),
-        "digest_fr": _text(raw.get("digest_fr"), 400) or None,
+        "digest_fr": clean_digest(raw.get("digest_fr")),
         "season": _int_or_none(raw.get("season")),
         "finale": bool(raw.get("finale")),
     }
@@ -380,7 +393,7 @@ def recap_story_fields(db: Session, journey: DailyJourney) -> dict[str, Any]:
             or _text(snapshot_chapter.get("title_fr"), 120)
             or _text((chronicle_row or {}).get("title_fr"), 120),
             "digest_fr": (contract or {}).get("digest_fr")
-            or (_text((chronicle_row or {}).get("resolved_fr"), 400) or None),
+            or clean_digest((chronicle_row or {}).get("resolved_fr")),
         }
         if snapshot_chapter.get("finale") or (contract or {}).get("finale"):
             season_finished = {"number": int(season), "title_fr": _season_title(world, int(season))}
@@ -421,6 +434,19 @@ class _Chapter:
     prologue: bool = False
     days: list[dict[str, Any]] = field(default_factory=list)
     journeys: list[DailyJourney] = field(default_factory=list)
+
+
+def _own_questions(chapters: list[_Chapter]) -> None:
+    seen: set[str] = set()
+    for chapter in chapters:
+        if not chapter.digest_fr:
+            continue
+        question, arrow, rest = chapter.digest_fr.partition(" → ")
+        key = " ".join(re.findall(r"\w+", question.casefold()))
+        if key and key in seen and arrow and chapter.title_fr:
+            chapter.digest_fr = f"{chapter.title_fr} → {rest}"
+        elif key:
+            seen.add(key)
 
 
 def _season_by_ordinal(live: dict[str, Any], ordinal: int, current: int) -> int:
@@ -579,9 +605,14 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
             )
             if row is not None:
                 chapter.closed = True
-                chapter.digest_fr = chapter.digest_fr or (_text(row.get("resolved_fr"), 400) or None)
+                chapter.digest_fr = chapter.digest_fr or clean_digest(row.get("resolved_fr"))
         chapter.journeys.append(journey)
         previous = chapter
+
+    # 1b. No two chapters read alike (#268): a digest whose question an earlier chapter
+    # already filed (every tentpole carries the season's question, in rows written before
+    # the chronicle learnt to file a second one under its own scene) opens on its title.
+    _own_questions([chapters[key] for key in order])
 
     # 2. Seasons, and which one is loaded.
     seasons: dict[int, list[_Chapter]] = {}
@@ -650,6 +681,7 @@ def _day_payloads(
     scene_by_journey: dict[str, GraphicNovelScene],
 ) -> dict[str, dict[str, Any]]:
     from app.services.seals import edition_numbers
+    from app.services.season.reprise import is_reprise_journey
 
     if not journeys:
         return {}
@@ -720,6 +752,7 @@ def _day_payloads(
             "scene_id": str(scene.id) if scene is not None else None,
             "title_fr": (scene.title if scene is not None else "") or str(snapshot.get("title_fr") or ""),
             "edition_no": editions.get(journey.id),
+            "reread": is_reprise_journey(journey),
             "image_url": image,
             "character_id": str(snapshot.get("character_id") or "") or None,
             "learner_lines": _learner_lines(kinds.get("respond")),

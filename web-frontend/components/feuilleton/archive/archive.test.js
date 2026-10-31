@@ -457,6 +457,12 @@ test('walk #77 · «Bisher» opens with the premise in the learner\'s language, 
   assert.equal(prev.premiseView({ premise: '  ' + premise, dismissed: false }), premise);
   assert.equal(prev.premiseView({ premise, dismissed: true }), null, 'read once');
   assert.equal(prev.premiseView({ premise: null, dismissed: false }), null, 'an older server');
+  // #314: a re-read day is announced before panel 1, once.
+  const note = 'Today we read «La lettre» again, then you answer.';
+  assert.equal(prev.rereadView({ reread: ' ' + note, dismissed: false }), note);
+  assert.equal(prev.rereadView({ reread: note, dismissed: true }), null, 'read once');
+  assert.equal(prev.rereadView({ reread: null, dismissed: false }), null, 'any other day');
+  assert.equal(prev.rereadView({ reread: undefined, dismissed: false }), null, 'an older server');
 });
 
 test('the recap: «Fin du chapitre» with the digest, «Tome N» pressed, the margin notes', () => {

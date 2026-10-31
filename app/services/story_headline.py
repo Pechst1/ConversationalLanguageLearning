@@ -151,6 +151,7 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
         cast: list[str] = []
         image: str | None = None
         edition_no: int | None = None
+        reread = False
         if journey is not None:
             if str(getattr(journey, "status", "")) in ("completed", "ended_early"):
                 return None
@@ -158,8 +159,18 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             if finished:
                 return None
             from app.services.seals import edition_no_for
+            from app.services.season.reprise import is_reprise_journey
 
             edition_no = edition_no_for(db, journey)
+            if is_reprise_journey(journey):
+                # #314: a re-read has no scene of its own, so the planned tentpole
+                # (the page the story would have played) must not headline it.
+                reread = True
+                snapshot = journey.scenario_snapshot if isinstance(journey.scenario_snapshot, dict) else {}
+                title = str(snapshot.get("title_fr") or "").strip() or None
+                who = str(snapshot.get("character_id") or "")
+                cast = _ordered([who]) if who else []
+                image = str(snapshot.get("image_url") or "") or None
         season_title: str | None = None
         if title is None:
             planned_title, planned_cast, season_title, planned_image = _tentpole(live, user)
@@ -170,7 +181,13 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             _unused, _cast, season_title, planned_image = _tentpole(live, user)
             image = image or planned_image
         if edition_no is None:
+            # Before the day is planned: the number it will be given (seals.next_edition_no
+            # is the rule the plan applies), not the thread's index on its own.
             edition_no = int((thread.current_episode_index if thread else 0) or 0) + 1
+            if local_date is not None:
+                from app.services.seals import next_edition_no
+
+                edition_no = next_edition_no(db, user.id, local_date, base=edition_no)
 
         teaser = live.get(engine.TEASER_KEY) or {}
         teaser_fr = str(teaser.get("text_fr") or "").strip() or None
@@ -188,6 +205,7 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
         more = season_cast_names(str(season_id)) if season_id else {}
         return {
             "edition_no": edition_no,
+            "reread": reread,
             "title_fr": title,
             "teaser_fr": teaser_fr,
             "season_title_fr": season_title,

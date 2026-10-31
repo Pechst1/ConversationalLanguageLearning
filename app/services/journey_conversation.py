@@ -74,7 +74,7 @@ from app.config import settings
 from app.db.models.error import UserError
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
-from app.services import pragmatics
+from app.services import correction_contract, pragmatics
 from app.services.chrome_language import user_chrome_language
 from app.services.error_memory import ErrorMemoryService
 from app.services.journey_content import render_authored_text
@@ -3116,6 +3116,25 @@ def _repairable(error: UserError) -> tuple[str, str] | None:
     return wrong, correct
 
 
+def _wrong_here(answer: str, span: str, correct: str, why: str) -> bool:
+    """Is the stored mistake a mistake *in this sentence*? (#250, #93)
+
+    An erratum is a pair of words from another sentence: «suis → est» was right
+    after «Lila», and a drill's «ils est → sont» was right after «ils». The same
+    word in a new sentence is not the same mistake — «je suis fatigue» was told
+    «suis → est», «mon chat est» was told «→ sont» with a subject «ils» it never
+    had (live walks 26-30 Oct). So the pair is put back into the learner's own
+    sentence and passes the one check every correction passes
+    (:func:`correction_contract.verify_edit`): span, cited subject, être/avoir/
+    aller person, and the corrected sentence settling.
+    """
+
+    verdict = correction_contract.verify_edit(
+        answer, span, _preserve_case(span, correct), why, strict_span=False
+    )
+    return verdict.ok
+
+
 # -- the question ----------------------------------------------------------
 
 #: Sentence openers that are lower-cased once they follow « Pardon, »; a name keeps
@@ -3400,6 +3419,10 @@ def feedback_decision(
             # credited and nothing is corrected — a correction whose span the
             # learner never wrote is exactly what WP-05 exists to refuse.
             return FeedbackDecision(reason="repair_not_attempted")
+        why = str(error.why_wrong or error.context_snippet or "")
+        if not _wrong_here(answer, span, correct, why):
+            # The learner rebuilt the sentence and the old form is right in it now.
+            return FeedbackDecision(reason="repair_not_wrong_here")
         return FeedbackDecision(
             explicit=Correction(
                 span_fr=span,
@@ -3436,6 +3459,8 @@ def feedback_decision(
             continue
         span = _verbatim_span(answer, wrong)
         if span is None:
+            continue
+        if not _wrong_here(answer, span, correct, str(error.why_wrong or error.context_snippet or "")):
             continue
         if in_margin:
             return FeedbackDecision(

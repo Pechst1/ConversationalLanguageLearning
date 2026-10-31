@@ -39,6 +39,7 @@ const Ep = require('./Epreuve.tsx');
 const Forge = require('./Forge.tsx');
 const Drills = require('./ForgeDrills.tsx');
 const { forgeCopy } = require('@/lib/forge-copy.ts');
+const Lib = require('@/lib/forge-drills.ts');
 
 const h = React.createElement;
 const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
@@ -62,6 +63,37 @@ test('the typed field is French, never corrected by the phone, with the accents 
   assert.match(checked, /<div class="forge-typed" data-verdict="right">/);
   assert.match(checked, /readonly=""/);
   assert.doesNotMatch(checked, /forge-accents/, 'no accents once checked');
+});
+
+// #285: the Browser walk typed into a «Tipp die fehlende Form ein.» gap, the verdict of
+// the earlier tap on «Check» arrived mid-word, and the gap turned read-only under the
+// walk's fingers: «the field does not hold it, focus is on input». A learner who keeps
+// typing after tapping «Check» loses letters the same way, and sees a verdict for words
+// that are no longer the ones in the box. The field is the answer that was sent, from the
+// tap on «Check», not from the verdict.
+test('the typed field is read-only from the tap on «Check», not only from the verdict', () => {
+  const fc = forgeCopy('de');
+  const sending = render('de', h(Drills.ForgeTypedField, { value: 'mangé', onChange: () => undefined, sending: true, copy: fc }));
+  assert.match(sending, /<input class="forge-typed__input"[^>]* readonly=""/, 'letters typed while the check is out would never be graded');
+  assert.doesNotMatch(sending, /forge-accents/, 'no accent can add a letter to an answer that was sent');
+  assert.doesNotMatch(sending, /data-verdict/, 'no verdict yet');
+
+  const idle = render('de', h(Drills.ForgeTypedField, { value: 'mang', onChange: () => undefined, copy: fc }));
+  assert.doesNotMatch(idle, /readonly=""/);
+  assert.match(idle, /forge-accents/);
+});
+
+test('every answer box on the séance page is frozen while its check is out', () => {
+  const boxes = PAGE.split('<textarea').slice(1).map((rest) => rest.slice(0, rest.indexOf('/>')));
+  const answerBoxes = boxes.filter((tag) => /readOnly=\{submitted/.test(tag));
+  assert.equal(answerBoxes.length, 3, 'the transform, output-ladder and produce boxes');
+  for (const tag of answerBoxes) assert.match(tag, /readOnly=\{submitted \|\| sending\}/, tag.slice(0, 80));
+  for (const panel of ['RecognizePanel', 'TransformPanel', 'OutputLadderPanel', 'ProducePanel']) {
+    const at = PAGE.indexOf(`<${panel}\n`);
+    assert.ok(at > 0, `${panel} is rendered`);
+    assert.match(PAGE.slice(at, PAGE.indexOf('/>', at)), /sending=\{submitting\}/, `${panel} is told a check is out`);
+  }
+  assert.match(PAGE, /<ForgeTypedField[\s\S]*?sending=\{sending\}/);
 });
 
 // ---------------------------------------------------------------------------
@@ -155,6 +187,135 @@ test('the rafale’s result: four marks, the fixes, the score and the time', () 
   const perfect = render('fr', h(Drills.ForgeRafaleResult, { rows: rows.map((row) => ({ ...row, correct: true })), items: BURST, copy: fc, onNext: () => undefined, nextLabel: 'Continuer' }));
   assert.match(perfect, /data-verdict="correct"/);
   assert.match(text(perfect), /Quatre sur quatre !/);
+});
+
+// #358 · the recap marks the miss and says why
+
+test('a missed rafale sentence is marked, says the call made and the right one, and gives the reason (#358)', () => {
+  const fc = forgeCopy('en');
+  const rows = [
+    { itemId: 'j-1', sentence: 'Il a mangé une pomme.', answer: 'Correct', expected: 'Correct', correct: true, correctedFr: null },
+    // The learner called a right sentence wrong.
+    { itemId: 'j-3', sentence: 'Nous avons fini.', answer: 'À corriger', expected: 'Correct', correct: false, correctedFr: null },
+    { itemId: 'j-2', sentence: 'Elle a allé au marché.', answer: 'Correct', expected: 'À corriger', correct: false, correctedFr: 'Elle est allée au marché.' },
+  ];
+  const html = render('en', h(Drills.ForgeRafaleResult, {
+    rows, items: BURST, ms: 11000, copy: fc, rule: 'Rule: Le passé composé', onNext: () => undefined, nextLabel: 'Continue',
+  }));
+  const items = html.split('<li data-correct=').slice(1);
+  assert.equal(items.length, 3, 'one entry per sentence');
+  const [hit, wrongCall, wrongSentence] = items;
+  assert.doesNotMatch(hit, /forge-rafale__why|forge-rafale__was|aria-label="Missed"/, 'a right answer needs no reason');
+  assert.match(wrongCall, /^"false"/);
+  assert.match(wrongCall, /role="img" aria-label="Missed"/);
+  assert.match(text(wrongCall), /You said “Needs fixing” · the right call is “Correct”/);
+  assert.match(text(wrongCall), /Nothing to fix here: this sentence already follows the rule\. Rule: Le passé composé/);
+  assert.match(text(wrongSentence), /You said “Correct” · the right call is “Needs fixing”/);
+  assert.match(text(wrongSentence), /This sentence breaks the rule\. The right form: Rule: Le passé composé/);
+  assert.match(wrongSentence, /<p class="forge-rafale__fix" lang="fr">Elle est allée au marché\.<\/p>/);
+  assert.match(text(html), /1 of 3 right/);
+});
+
+test('guard: the rafale recap never lists a sentence without its own result', () => {
+  const fc = forgeCopy('fr');
+  const calls = ['Correct', 'À corriger'];
+  const rows = [];
+  for (const answer of calls) for (const expected of calls) {
+    rows.push({ itemId: `${answer}-${expected}`, sentence: `Phrase ${answer}/${expected}.`, answer, expected, correct: answer === expected, correctedFr: null });
+  }
+  const html = render('fr', h(Drills.ForgeRafaleResult, { rows, items: [], copy: fc, onNext: () => undefined, nextLabel: 'Continuer' }));
+  const entries = html.split('<li data-correct=').slice(1);
+  assert.equal(entries.length, rows.length);
+  entries.forEach((entry, index) => {
+    const row = rows[index];
+    assert.match(entry, row.correct ? /^"true"/ : /^"false"/, `${row.sentence} carries its own mark`);
+    if (!row.correct) {
+      assert.match(entry, /forge-rafale__was/, `${row.sentence}: the call made and the right one`);
+      assert.match(entry, /forge-rafale__why/, `${row.sentence}: the reason`);
+    }
+  });
+  // The page hands the recap every row the server marked, and the rule's line.
+  assert.match(PAGE, /<ForgeRafaleResult\s+rows=\{burstMarks\}/);
+  assert.match(PAGE, /rule=\{feedbackRuleLine\(activeSet, activeConcept, t\)\}/);
+  // A burst mark is never dropped on its way from the server.
+  const marks = Lib.burstRows({ burst: rows.map((row) => ({ item_id: row.itemId, sentence: row.sentence, answer: row.answer, expected: row.expected, correct: row.correct })) });
+  assert.deepEqual(marks.map((mark) => mark.correct), rows.map((row) => row.correct));
+});
+
+// #357 · «Trouve l'erreur» / «Ta phrase»: the fix is the answer as it is typed
+
+/** A tiny hook runner: ForgeSpot rendered as a function, with state, so a
+ *  keystroke can be driven without a DOM. */
+function mountSpot(props) {
+  const slots = [];
+  const internals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher;
+  let tree = null;
+  let cursor = 0;
+  const dispatcher = {
+    useState(initial) {
+      const at = cursor++;
+      if (!(at in slots)) slots[at] = typeof initial === 'function' ? initial() : initial;
+      return [slots[at], (next) => { slots[at] = typeof next === 'function' ? next(slots[at]) : next; render(); }];
+    },
+    useRef(initial) {
+      const at = cursor++;
+      if (!(at in slots)) slots[at] = { current: initial };
+      return slots[at];
+    },
+    useMemo(make) {
+      const at = cursor++;
+      if (!(at in slots)) slots[at] = make();
+      return slots[at];
+    },
+    useCallback: (fn) => fn,
+    useEffect() {},
+    useLayoutEffect() {},
+  };
+  const render = () => {
+    const previous = internals.current;
+    internals.current = dispatcher;
+    cursor = 0;
+    try { tree = Drills.ForgeSpot({ ...props }); } finally { internals.current = previous; }
+  };
+  const find = (node, match, found = []) => {
+    if (Array.isArray(node)) node.forEach((child) => find(child, match, found));
+    else if (node && typeof node === 'object' && node.props) {
+      if (match(node)) found.push(node);
+      find(node.props.children, match, found);
+    }
+    return found;
+  };
+  render();
+  return {
+    props,
+    word: (label) => find(tree, (n) => n.type === 'button' && String(n.props.className) === 'forge-spot__word'
+      && text(renderToStaticMarkup(n)) === label)[0],
+    input: () => find(tree, (n) => n.type === 'input')[0],
+  };
+}
+
+test('typing the fix into the wrong word is the answer at once: Check never waits for Enter (#357)', () => {
+  const sentence = 'Elle nai pas une idée.';
+  const tokens = Lib.spotTokens(sentence);
+  const screen = mountSpot({
+    sentence, edits: {}, copy: forgeCopy('en'),
+    onEdits: (edits) => { screen.props.edits = edits; },
+  });
+  screen.word('nai').props.onClick();
+  assert.ok(screen.input(), 'the word opens as a field');
+  // Check is lit when the answer is non-empty: the fix must be in it already.
+  const ready = () => Lib.spotChanged(tokens, screen.props.edits) && Lib.spotAnswer(tokens, screen.props.edits).length > 0;
+  assert.equal(ready(), false, 'nothing is fixed before a letter is typed');
+  screen.input().props.onChange({ target: { value: 'n’ai' } });
+  assert.equal(ready(), true, 'the fix is in the answer before Enter, a blur or any other tap');
+  assert.equal(Lib.spotAnswer(tokens, screen.props.edits), 'Elle n’ai pas une idée.');
+  // Typing it back as it was is no fix.
+  screen.input().props.onChange({ target: { value: 'nai' } });
+  assert.equal(ready(), false, 'the word as it was is not a fix');
+  // Escape puts back what the answer was when the word was opened.
+  screen.input().props.onChange({ target: { value: 'n’ai' } });
+  screen.input().props.onKeyDown({ key: 'Escape', preventDefault() {} });
+  assert.equal(ready(), false, 'Escape cancels the fix typed in this field');
 });
 
 // ---------------------------------------------------------------------------

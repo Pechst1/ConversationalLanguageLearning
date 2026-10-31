@@ -563,6 +563,34 @@ test('a many-voiced reply is one bubble per speaker, each with who says it', () 
   assert.ok(!replies.some((b) => b.text.includes('Margaux :')), 'no speaker named inside another’s bubble');
 });
 
+test('#313 a single line said by someone other than the step’s speaker is drawn under them, not under the header', () => {
+  const { threadBubbles: bubblesOf, drawsEachVoice } = require('./respond-thread.ts');
+  const prompt = {
+    turn_index: 1, max_turns: 3, repair_allowed: false, character_id: 'camille_marchand',
+    character_name: 'Camille', character_line_fr: 'Pas encore. D’accord. J’aime bien "encore".', objective_native: '', input_modes: ['text'],
+    thread: [{
+      learner_fr: 'Pas encore',
+      character_fr: 'Pas encore. D’accord. J’aime bien "encore".',
+      correction: null,
+      character_lines: [
+        { speaker_id: 'lila_bonnet', speaker_name: 'Lila Bonnet', text_fr: 'Pas encore. D’accord. J’aime bien "encore".' },
+      ],
+    }],
+  };
+  const replies = bubblesOf({ prompt }).filter((b) => b.kind === 'character' && b.reply);
+  assert.deepEqual(replies.map((b) => [b.speaker && b.speaker.name, b.text]), [
+    ['Lila', 'Pas encore. D’accord. J’aime bien "encore".'],
+  ]);
+  assert.ok(!replies.some((b) => /^\w+ :/.test(b.text)), 'no speaker label inside the words');
+  // The header's own single line stays the plain bubble (it types in); several voices never do.
+  const own = [{ speaker_id: 'camille_marchand', speaker_name: 'Camille', text_fr: 'Bien sûr.' }];
+  assert.equal(drawsEachVoice(own, 'camille_marchand'), false);
+  assert.equal(drawsEachVoice(own, 'Camille'), false, 'a name resolves to the same person');
+  assert.equal(drawsEachVoice([{ speaker_id: 'lila_bonnet', text_fr: 'Ah.' }], 'camille_marchand'), true);
+  assert.equal(drawsEachVoice([{ speaker_id: null, text_fr: 'Ah.' }], 'camille_marchand'), false);
+  assert.equal(drawsEachVoice([], 'camille_marchand'), false);
+});
+
 test('#217 the day-1 reply thread names Gus once: speaker labels and listen buttons share one name', () => {
   const FULL = 'Augustin « Gus » de Roncourt';
   const gus = (text) => ({ speaker_id: 'augustin_de_roncourt', speaker_name: FULL, text_fr: text });

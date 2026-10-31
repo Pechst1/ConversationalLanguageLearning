@@ -194,7 +194,7 @@ class TurnScript:
 
     outcome: str = "met"
     reply_fr: str = "Merci ! On s'organise pour samedi."
-    resolution_fr: str = "Romy note votre réponse."
+    resolution_fr: str = "Je note votre réponse."
     summary_native: str = "You answered Romy."
     callback_fr: str = "Vous avez répondu à Romy."
     commitment_text: str | None = None
@@ -740,7 +740,7 @@ def test_a_refusal_is_recorded_honestly_and_keeps_the_chapter_open(
         turn=TurnScript(
             outcome="not_yet",
             reply_fr="Tant pis, une autre fois.",
-            resolution_fr="Romy cherchera quelqu'un d'autre.",
+            resolution_fr="Je chercherai quelqu'un d'autre.",
             summary_native="You declined; Romy will ask someone else.",
             callback_fr="Vous avez refusé de venir samedi.",
             close_chapter=True,  # the model asks; the engine must not grant it
@@ -763,7 +763,7 @@ def test_a_refusal_is_recorded_honestly_and_keeps_the_chapter_open(
 
     scene = scenes_of(db_session, d)[0]
     assert scene.status == "completed"
-    assert scene.recap_payload["resolution_fr"] == "Romy cherchera quelqu'un d'autre."
+    assert scene.recap_payload["resolution_fr"] == "Je chercherai quelqu'un d'autre."
 
 
 def test_a_changed_plan_supersedes_the_earlier_arrangement(

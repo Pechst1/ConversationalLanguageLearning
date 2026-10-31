@@ -2838,6 +2838,13 @@
    "id": "poste",
    "fr": "poste",
    "g": "f",
+   "alt_fr": [
+    {
+     "fr": "bureau de poste",
+     "g": "m",
+     "pl": "bureaux de poste"
+    }
+   ],
    "en": "post office",
    "kind": "place",
    "tags": [

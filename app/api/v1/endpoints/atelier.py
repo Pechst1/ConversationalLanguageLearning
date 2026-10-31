@@ -89,6 +89,7 @@ from app.services.cefr_progress import CEFRProgressService, live_level, with_can
 from app.services.chrome_language import user_chrome_language
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
+from app.services.forge_item_validator import item_problems  # #267: an item agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
@@ -129,7 +130,9 @@ def _serial_conversation_context(db: Session, user: User) -> dict[str, Any] | No
     if mission_character_id:
         preferred_ids.insert(0, mission_character_id)
 
-    cast = serial_service.cast_payload(thread)
+    # #298: this character is echoed to the browser, so it carries the learner's card
+    # line, not the story bible's brief.
+    cast = serial_service.cast_payload(thread, language=user_chrome_language(user))
     if not cast:
         return None
     by_id = {str(member.get("id")): member for member in cast if member.get("id")}
@@ -244,6 +247,14 @@ def _with_learner_instructions(payload: dict[str, Any], *, native_language: Any)
         if not isinstance(node, dict):
             return node
         next_node = {key: localize(value) for key, value in node.items()}
+        if "correct_label" in next_node and not next_node.get("label_l10n"):
+            # #196: a classify item cached before it carried its label table: each stored
+            # answer key that is a copy row is shown in the learner's language.
+            from app.services.item_bank import label_table
+
+            table = label_table(next_node.get("labels"))
+            if table:
+                next_node["label_l10n"] = table
         instruction = next_node.get("instruction")
         if not isinstance(instruction, str) or not instruction.strip():
             return next_node
@@ -274,6 +285,12 @@ def _with_serial_conversation(
         return payload
     character = context["character"]
     register = str(character.get("register") or "vous")
+    # ROOT CAUSE #146: the badge is chosen by the cast, the text was written by the
+    # model, and nothing checked that they agree («Lila · tu» over «Répondez …»).
+    # A prompt that disagrees with its badge is served as a plain situation, with
+    # no speaker, so no portrait and no reaction is put in a mouth that cannot say it.
+    if item_problems(items[0].get("prompt"), register=register):
+        return payload
     items[0].update(
         {
             # The concept is quoted inside a French instruction, so quote the
@@ -1537,12 +1554,18 @@ def submit_attempt(
                 concept=concept,
             )
             ladder = ((enriched.get("output_ladder") or {}).get("conversation") or {})
-            prompt_payload_override = {
-                "round": "conversation",
-                "mode": payload.mode,
-                "rule_panel": enriched.get("rule_panel") or {},
-                **ladder,
-            }
+            # Only the item the learner answered: a séance may hold several
+            # conversation items (La Forge appends its scenes), and the first
+            # one is not the one that was posed.
+            prompt_payload_override = AtelierCorrectionService._scope_prompt_items(
+                {
+                    "round": "conversation",
+                    "mode": payload.mode,
+                    "rule_panel": enriched.get("rule_panel") or {},
+                    **ladder,
+                },
+                payload.exercise_id,
+            )
 
     answer_payload = dict(payload.answer_payload or {})
     if payload.confidence:

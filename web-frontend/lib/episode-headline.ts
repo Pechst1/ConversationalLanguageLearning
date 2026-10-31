@@ -20,10 +20,17 @@ function join(...parts: Array<string | null | undefined>): string {
     .join(' · ');
 }
 
-/** «Nº 7 · La clé d'Odile»: the episode's number and its season. */
+/**
+ * «Nº 7 · La clé d'Odile»: the episode's number and its season; «Nº 7 · Relecture · …»
+ * when the day re-reads an earlier page (#314: said where the day is announced).
+ */
 export function headlineKicker(headline: EpisodeHeadline | null | undefined): string {
   if (!headline) return '';
-  return join(headline.edition_no ? `Nº ${headline.edition_no}` : '', headline.season_title_fr ?? null);
+  return join(
+    headline.edition_no ? `Nº ${headline.edition_no}` : '',
+    headline.reread ? 'Relecture' : null,
+    headline.season_title_fr ?? null,
+  );
 }
 
 /**

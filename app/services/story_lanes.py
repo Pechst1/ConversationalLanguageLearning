@@ -56,7 +56,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
-from app.services import correction_contract, lane_guards, story_memory
+from app.services import (
+    cast_registry,
+    correction_contract,
+    lane_guards,
+    scene_ledger,
+    speaker_labels,
+    story_memory,
+)
 from app.services import living_story as engine
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.journey_contracts import (
@@ -202,7 +209,10 @@ VOICE = """You are one character of Atelier, speaking back to the learner in a s
 scene. Return only JSON matching output_schema. You do not grade and you do not correct.
 reply_fr is the character answering the learner's actual meaning in their own voice and
 register — agree, refuse, ask back, react — never a restatement or copy of the learner's
-sentence and never the learner's next line. Understand the whole turn: negation, refusal,
+sentence and never the learner's next line. You never name yourself in it: when the
+learner's words are about you («ma amie Lila», said to Lila), say moi, me or toi
+(«tu restes pour me voir»). feeling_shift is colder only when your own words are cold:
+a character who says «D'accord, je ne te force pas» has not cooled. Understand the whole turn: negation, refusal,
 paraphrase, pronouns, revised choices; never turn 'I do not want coffee' into ordering
 coffee. The reply is emotional truth, not customer service: show how the words land on
 you (relief, disappointment, a joke to cover hurt, warmth), answering from mood and
@@ -237,6 +247,13 @@ learner_text or history already answers: when the learner said no or kept someth
 themselves, take it as their answer, and the next need comes from the scene (the phone
 rings, the agent is waiting, someone comes in). needs_clarification stays false unless the
 meaning is genuinely unclear. When it is false, do not open a new topic.
+turn_plan.learner_asked, when not null, is a question the learner just asked you: answer
+it first, plainly and in character (yes, no, a fact from the scene, or that you do not
+know), before anything else; never skip it, never answer it with a question of your own.
+ledger lists what this scene has asked so far (asked[].by, text_fr, answered_at): never
+ask again a question whose answered_at is set.
+When turn_plan.keep_talking is false this reply may be the scene's last line: answer and
+react, and close on a statement; do not ask a new question.
 feeling_shift is warmer or colder when this exchange really moved you, steady otherwise.
 who_is_who says who is speaking: you are who_is_who.you_are; learner_text and every
 history[].learner are the LEARNER's words, history[].character are yours. Never repeat,
@@ -267,7 +284,8 @@ after met, a success after not_yet). When released.outcome_corrected_from is set
 grade was corrected after release: write the ending of that corrected outcome.
 resolution_fr (French) is how the scene ends after that reply: the app prints it in the
 character's speech bubble, under their name, so it is the character's own last spoken
-line, in the first person, with no narration about them and no quotation marks.
+line, in the first person, with no narration about them and no quotation marks. They never
+name themselves in it: the learner's words about them come back as moi, me or toi.
 summary_native (in story.control_language) says in one or two plain sentences what
 happened in the story and what the character wants or will do next — a refusal or a
 partial result still gets an honest ending, never invented success. It is not feedback:
@@ -276,7 +294,8 @@ resolution_fr, never a different one. The ending may be bittersweet; it is never
 learner's words did not answer it, the character draws their own conclusion from what
 was said, in character («Pas de nom, alors. D'accord, je garde ça pour moi.»); never
 «on verra demain», «elle reviendra demain» or «la question reste ouverte», unless
-story.carries_over is true. Keep resolution_fr at the learner's level (A1 at most
+story.carries_over is true. resolution_fr ends on a statement, never on a question:
+the learner cannot answer it any more. Keep resolution_fr at the learner's level (A1 at most
 35 words, A2 55, B1 85, B2 110, C1 140). callback_fr is a concise fact to remember, not
 a copy of dialogue.
 When the learner explicitly promises an action in their own words, emit a commitment whose
@@ -360,9 +379,34 @@ def _reply_register(payload: dict) -> str | None:
     return season if season in ("tu", "vous") else None
 
 
+def _history_by_speaker(history: list) -> list:
+    """The thread as a model reads it, with nobody's name inside a string.
+
+    #349 (root cause #145): an exchange the scene kept as a transcript («…Et Gus ?» then «Gus :
+    La fête ?») taught the voice to write transcripts, and a pasted history or a
+    «Gus : » label became the next line. An exchange stored with its spoken ``lines`` is
+    sent as ``said``: one row per speaker, the words only. One without ``lines`` is one
+    voice and goes as it was.
+    """
+
+    out: list = []
+    for exchange in history:
+        lines = exchange.get("lines") if isinstance(exchange, dict) else None
+        if not lines:
+            out.append(exchange)
+            continue
+        said = [
+            {"by": str(line.get("speaker_name") or line.get("speaker_id") or ""), "text_fr": str(line.get("text_fr") or "")}
+            for line in lines
+            if isinstance(line, dict) and str(line.get("text_fr") or "").strip()
+        ]
+        out.append({**{k: v for k, v in exchange.items() if k not in ("character", "lines")}, "said": said})
+    return out
+
+
 def _turn_tail(payload: dict) -> dict:
     return {
-        "history": payload.get("history") or [],
+        "history": _history_by_speaker(payload.get("history") or []),
         "learner_text": payload["learner_text"],
         "turn_plan": payload.get("turn_plan") or {},
     }
@@ -433,6 +477,7 @@ def voice_payload(payload: dict) -> dict:
         **({"agency": turn_agency} if (turn_agency := _season_agency(payload)) else {}),
         # «Ton cap»: where the learner stands on going home or staying.
         **({"heading": heading} if (heading := _season_heading(payload)) else {}),
+        **({"ledger": ledger} if (ledger := payload.get("ledger")) else {}),
         **_turn_tail(payload),
     }
 
@@ -578,6 +623,14 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
 
     story = payload.get("story") or {}
     scene = payload.get("scene") or {}
+    # #313 (root cause #145): the label is the screen's, never part of the line. The
+    # speaker's own «Camille : …» loses it; «Lila : …» said by Camille is a character
+    # answering for someone else, refused with the reason.
+    voice.reply_fr = _settled_speaker(voice.reply_fr, payload)
+
+
+
+    _check_not_the_thread(voice.reply_fr, payload)
     if engine._same_utterance(voice.reply_fr, payload["learner_text"]):
         raise engine.StoryUnavailable(
             "reply_echoes_learner",
@@ -615,6 +668,10 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
         voice.reply_fr, learner_texts=learner_texts, speaker_texts=speaker_texts, register=expected
     )
     engine._check_register([voice.reply_fr], level)
+    # #212: the speaker never names themselves, and a cooling the reply itself gives
+    # way on is not printed under their name.
+    engine._check_speaker_not_named([voice.reply_fr], payload)
+    voice.feeling_shift = engine.reconciled_feeling_shift(voice.feeling_shift, [voice.reply_fr])
     said = engine._address_register([voice.reply_fr])
     if expected and said and said != expected:
         raise engine.StoryUnavailable(
@@ -624,7 +681,110 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     voice.understood_intent = _neutral_intent(voice.understood_intent, payload, address, own)
     if (payload.get("turn_plan") or {}).get("clarify_form_fr"):
         voice.needs_clarification = True
+    # #315: a person the thread never named («M. Delmas a la clé ?») has no referent.
+    bare = _check_introduced(voice.reply_fr, payload)
     engine.reply_soft_check(voice, level, lexical, payload["learner_text"])
+    if bare:
+        raise engine.SoftRejection(
+            "reply_unintroduced_person",
+            hint=(
+                f"{bare} appear in the reply but nothing in the scene introduced them. Name only "
+                "the cast and people the scene or the learner already mentioned."
+            ),
+        )
+
+
+def _scene_name_table(payload: dict) -> dict[str, str]:
+    return speaker_labels.name_table(((payload.get("story") or {}).get("world") or {}).get("cast") or [])
+
+
+def _settled_speaker(reply: str, payload: dict) -> str:
+    """``reply`` without the speaker's own «Name :» labels; refused when it carries
+    another person's (a character speaking for them)."""
+
+    scene = payload.get("scene") or {}
+    clean, foreign = speaker_labels.settle_labels(
+        reply, scene.get("character_id"), _scene_name_table(payload)
+    )
+    if foreign:
+        names = ", ".join(sorted({cast_registry.display_name(person, person) for person in foreign}))
+        raise engine.StoryUnavailable(
+            "reply_speaks_for_other",
+            hint=(
+                f"The reply starts with «{names} :» — a label, and another character's. One "
+                "character speaks, in their own words and with no name in front of the line; "
+                "they never speak for someone else. Answer as yourself."
+            ),
+        )
+    return clean or reply
+
+
+def _introduced_texts(payload: dict) -> list[str]:
+    """Everything the learner has been shown or said in this thread: the words a name
+    must already be in to count as introduced."""
+
+    story = payload.get("story") or {}
+    learner_texts, speaker_texts = thread_voices(payload)
+    world = story.get("world") or {}
+    scene = payload.get("scene") or {}
+    texts = [
+        *learner_texts,
+        *speaker_texts,
+        str(scene.get("title_fr") or ""),
+        str(scene.get("premise_fr") or ""),
+        *[str(row.get("name") or "") for row in world.get("cast") or [] if isinstance(row, dict)],
+        *[
+            str(value)
+            for row in world.get("locations") or []
+            if isinstance(row, dict)
+            for value in row.values()
+            if isinstance(value, str)
+        ],
+        *[str(item) for item in story.get("story_so_far") or [] if isinstance(item, str)],
+        *[str(c.get("text_fr") or "") for c in story.get("commitments") or [] if isinstance(c, dict)],
+        str((story.get("learner") or {}).get("name") or ""),
+        str(story_memory.name_in(story.get(story_memory.MEMORY_KEY)) or ""),
+        " ".join(speaker_labels.name_table().keys()),
+        str(story.get(story_memory.MEMORY_KEY) or ""),
+    ]
+    return [text for text in texts if text.strip()]
+
+
+def _check_introduced(reply: str, payload: dict) -> list[str]:
+    """#315 (root cause #145: the scene holds no state of what is established): a reply
+    names no person that is neither in the cast, nor said by the learner, nor already on
+    the page. A titled name nobody held is refused outright. A bare capitalised name is
+    returned for the caller to refuse once, after the other soft checks, and serve if it
+    comes back (a place is the usual false positive)."""
+
+    titled, bare = lane_guards.unintroduced_people(reply, lane_guards.established_words(_introduced_texts(payload)))
+    if titled:
+        raise engine.StoryUnavailable(
+            "reply_unintroduced_person",
+            hint=(
+                f"{titled} has not been introduced: the learner has never heard of them. Do not "
+                "name anyone who is not in the cast or already in the scene; say «quelqu'un» or "
+                "leave it out."
+            ),
+        )
+    return bare
+
+
+def _check_not_the_thread(reply: str, payload: dict) -> None:
+    """#349 (root cause #145): a reply is the next line, not the scene so far. Refused
+    with the reason when it says again what the characters already said."""
+
+    _, speaker_texts = thread_voices(payload)
+    table = _scene_name_table(payload)
+    earlier = [line for text in speaker_texts for _, line in speaker_labels.labels_in(text, table)]
+    if lane_guards.echoed_thread(reply, earlier):
+        raise engine.StoryUnavailable(
+            "reply_repeats_thread",
+            hint=(
+                "The reply says again what was already said in this scene. Write only the "
+                "next thing this character says, new, and stop at the end of it."
+            ),
+        )
 
 
 def _neutral_intent(intent: str, payload: dict, address: str | None, own: frozenset[str]) -> str:
@@ -942,6 +1102,11 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     lane_guards.check_season_spoiler(written, payload)
     # The ending goes in the character's bubble and the summary under it tells the story.
     lane_guards.check_ending_voice(turn.resolution_fr, turn.summary_native, _character_name(payload))
+    # #378: the scene's last line is printed under the character's name with no reply
+    # box after it. A question at its end could never be answered: it is dropped when
+    # something before it still stands.
+    if not story.get("carries_over"):
+        turn.resolution_fr = scene_ledger.without_trailing_question(turn.resolution_fr)
     if not turn.resolution_fr or not turn.summary_native:
         raise engine.StoryUnavailable(
             "missing_generated_ending",
@@ -1244,6 +1409,11 @@ def evaluate_turn_lanes(
             needs_repair = True  # WP-36: the app's question keeps the scene open.
         if (payload.get("turn_plan") or {}).get("keep_talking"):
             needs_repair = True  # the conversation has exchanges left
+        question_open = not needs_repair and engine.keeps_talking(
+            task, turn_index, self_repair=self_repair, reply_fr=voice.reply_fr
+        )
+        if question_open:
+            needs_repair = True  # #378: the character's question waits for its answer
         correction = None
         if tutor.correction_span_fr and tutor.correction_fr and tutor.correction_note_native:
             candidate = Correction(
@@ -1300,6 +1470,7 @@ def evaluate_turn_lanes(
             correction=correction,
             consequence=proposal,
             needs_repair=needs_repair,
+            question_open=question_open,
             failure_reason="reply_source:model",
             heard={"meant": voice.understood_intent},
         )

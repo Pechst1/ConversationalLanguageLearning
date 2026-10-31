@@ -242,7 +242,6 @@
 .av2 .rv-news:focus-visible { outline: 3px solid var(--av2-ink); outline-offset: 2px; }
 .av2 .rv-news__pic { flex: none; display: block; width: 96px; height: 72px; overflow: hidden; border-radius: 12px; background: var(--av2-paper); }
 .av2 .rv-news__pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.av2 .rv-news__pic-fallback { display: block; width: 100%; height: 100%; background: repeating-linear-gradient(135deg, var(--av2-paper) 0 8px, var(--av2-line) 8px 9px); }
 .av2 .rv-news__sticker { position: absolute; left: 2px; top: -10px; z-index: 2; display: inline-flex; align-items: center; padding: 5px 10px 5px 9px; border-radius: 999px;
   background: var(--av2-red); color: var(--av2-on-red); font: 800 0.75rem/1 var(--av2-sans); letter-spacing: 0.01em; white-space: nowrap;
   box-shadow: 0 0 0 2.5px var(--av2-card), 0 3px 0 2.5px color-mix(in srgb, var(--av2-ink) 14%, transparent); transform: rotate(-7deg); animation: rv-news-pop 420ms cubic-bezier(.3, 1.6, .5, 1) both; }

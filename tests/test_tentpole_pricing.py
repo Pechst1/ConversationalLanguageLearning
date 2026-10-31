@@ -24,7 +24,7 @@ from datetime import date
 import pytest
 
 from app.services import journey_planner as planner
-from app.services.journey_contracts import DayShape, StepKind
+from app.services.journey_contracts import MIN_SCENE_EXCHANGES, DayShape, StepKind
 from app.services.journey_day_shapes import DayShapeInputs
 from app.services.season import runtime
 from app.services.season.clock import Position
@@ -183,18 +183,19 @@ def test_every_tentpole_fits_or_is_flagged(band: str, key: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 3. WP-129's owner decision is untouched on a generated A1/A2 day
+# 3. A generated A1/A2 Régulier day: three exchanges (#378, owner decision
+#    2026-10-30, which replaces WP-129's two-exchange core)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("band", ["A1", "A2"])
-def test_a_generated_a1_a2_regulier_day_keeps_its_two_exchange_core(band: str) -> None:
+def test_a_generated_a1_a2_regulier_day_keeps_its_three_exchange_core(band: str) -> None:
     scenario = engine_brief(level_band=band)
     assert planner.authored_turns(scenario) == []
     plan = _plan(scenario)
-    assert _step(plan, StepKind.RESPOND).public_prompt["max_turns"] == 2
+    assert _step(plan, StepKind.RESPOND).public_prompt["max_turns"] == MIN_SCENE_EXCHANGES
     assert not plan.longer_day
-    assert sum(1 for step in plan.steps if step.kind is StepKind.RECALL) >= 6
+    assert sum(1 for step in plan.steps if step.kind is StepKind.RECALL) >= 3
 
 
 def test_an_authored_minimum_is_still_never_cut_below_its_routing_turn() -> None:

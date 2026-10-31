@@ -2,10 +2,11 @@
  * Le Quartier · today's episode played in a walkable Paris: the quai de Valmy at night in the
  * rain, Le Mistral, the cast (components/quartier, lib/quartier).
  *
- * The story is today's journey (`lib/quartier/journey-story.ts`). When it is a day the quarter
- * has blocking for (T1 day a, for now) the scene plays here, every answer read by the engine; the
- * rest of the day (the words, the grammar) follows in the Feuilleton's own steps, over the quarter.
- * Any other day, or one left in the middle of its talk, is the Feuilleton's to read.
+ * The story is today's journey (`lib/quartier/journey-story.ts`). Its scene plays here, every
+ * answer read by the engine: with the director's blocking on a day it has some (T1 day a, for now),
+ * at Le Mistral as written on any other, a scene the engine wrote today included. What the day
+ * puts before the scene (a rule, a few words) and what follows it are the Feuilleton's own steps,
+ * played over the quarter. A day left in the middle of its talk is the Feuilleton's to finish.
  *
  * Behind `quartierVisible` in launch-flags.json in a production build; a development build
  * always has it. The street is WebGL, so it never renders on the server.
@@ -75,8 +76,9 @@ const COPY = {
     disabled: 'The daily episode is not open on your account yet. The quarter is yours to walk.',
     nothing: 'No new episode today. The quarter is yours to walk.',
     preparing: 'Your day is being written. It will be here in a moment.',
+    before: 'A short warm-up first, then you play today’s scene here.',
     handoff: {
-      day: 'Today’s episode is read in the Feuilleton.',
+      day: 'Today has no scene to play here. The Feuilleton has the day.',
       midway: 'You are in the middle of today’s conversation. Finish it in the Feuilleton.',
       unavailable: 'Today’s episode is not ready yet. The Feuilleton can try again.',
     },
@@ -90,8 +92,9 @@ const COPY = {
     disabled: 'Die tägliche Folge ist für dein Konto noch nicht offen. Das Viertel gehört dir.',
     nothing: 'Heute gibt es keine neue Folge. Das Viertel gehört dir.',
     preparing: 'Dein Tag wird geschrieben. Gleich ist er da.',
+    before: 'Erst eine kurze Aufwärmrunde, dann spielst du die heutige Szene hier.',
     handoff: {
-      day: 'Die heutige Folge liest du im Feuilleton.',
+      day: 'Heute gibt es hier keine Szene zu spielen. Der Tag liegt im Feuilleton.',
       midway: 'Du bist mitten im heutigen Gespräch. Führ es im Feuilleton zu Ende.',
       unavailable: 'Die heutige Folge ist noch nicht fertig. Das Feuilleton kann es noch einmal versuchen.',
     },
@@ -171,6 +174,7 @@ function noteOf(
   copy: Copy,
   feuilleton: () => void,
   after: React.ReactNode,
+  warmUp: () => void,
 ): DayNote | null {
   const phase = c.phase;
   if (phase.kind === 'loading') return null;
@@ -182,7 +186,8 @@ function noteOf(
     return {
       kicker: c.envelope?.headline?.edition_no ? `Épisode ${c.envelope.headline.edition_no}` : undefined,
       title: s.title_fr,
-      text: s.objective_native,
+      // opening the day writes its scene when none was written ahead: that can take a minute
+      text: c.busy ? copy.preparing : s.objective_native,
       action: { label: c.busy ? '…' : 'Ouvrir', run: () => !c.busy && void c.actions.start() },
     };
   }
@@ -200,6 +205,8 @@ function noteOf(
           run: () => !c.busy && void (phase.kind === 'preparing' && phase.retryAllowed ? c.actions.retryGeneration() : c.actions.refresh()),
         },
       };
+    case 'before':
+      return { kicker: today.page.number ? `Épisode ${today.page.number}` : undefined, title: today.page.title_fr || 'Avant la scène', text: copy.before, action: { label: 'Commencer', run: warmUp } };
     case 'handoff':
       return { title: 'Le Feuilleton', text: copy.handoff[today.why], action: { label: 'Ouvrir le Feuilleton', run: feuilleton } };
     case 'practice':
@@ -233,8 +240,8 @@ export default function QuartierPage() {
   }, [router]);
   const feuilleton = React.useCallback(() => void router.push(JOURNEY_RESUME_HREF), [router]);
 
-  // today's story, once its page is one the quarter stages: one per journey. Its scene plays here
-  // while the day stands before it, and the people talk through it whatever the day's state
+  // today's story, once its page is known: one per journey. Its scene plays here while the day
+  // stands before it, and the people talk through it whatever the day's state
   const journeyRef = React.useRef(journey);
   journeyRef.current = journey;
   const staged = stagedPageOf(journey) !== null;
@@ -252,6 +259,16 @@ export default function QuartierPage() {
           }),
     );
   }, [staged, journey?.id, router]);
+
+  // the warm-up done, the Feuilleton's steps give the quarter back its scene
+  const sceneNext = today.kind === 'play';
+  React.useEffect(() => {
+    if (practice && sceneNext) setPractice(false);
+  }, [practice, sceneNext]);
+
+  React.useEffect(() => {
+    if (story && journey) story.follow(journey);
+  }, [story, journey]);
 
   const refresh = controller.actions.refresh;
   const onPlayed = React.useCallback(() => {
@@ -278,7 +295,7 @@ export default function QuartierPage() {
   } else {
     day = {
       story,
-      note: today.kind === 'play' && story ? null : noteOf(today, controller, copy, feuilleton, after),
+      note: today.kind === 'play' && story ? null : noteOf(today, controller, copy, feuilleton, after, () => setPractice(true)),
       end: after,
       onPlayed,
     };

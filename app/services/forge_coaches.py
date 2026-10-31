@@ -28,6 +28,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.services.forge_item_validator import register_problems
+
 COACHES_PATH = Path(__file__).resolve().parents[1] / "data" / "forge_coaches.json"
 
 MOODS = ("neutral", "happy", "cross", "moved")
@@ -166,6 +168,9 @@ def mini_scene(item: Any, coach_payload: dict[str, Any] | None) -> dict[str, Any
     else:
         return None
     if re.search(rf"\b{re.escape(first_name)}\b", f"{line} {reply}"):
+        return None
+    if register_problems(line, coach_payload.get("register")):
+        # #267: «tu» on the badge, «vous» in the line (or the reverse): two people.
         return None
     if str(item.target) not in reply:
         return None

@@ -174,7 +174,8 @@ export function CastCard({ member, language = null }: { member: SerialCastMember
         <div className="fa-card__id">
           <p className="av2-headline av2-headline--rule">{member.name}</p>
           {member.role && (
-            <p className="av2-label" lang="fr">
+            // #298: the card line is written in the interface language, not French.
+            <p className="av2-label" lang={language || undefined}>
               {member.role}
             </p>
           )}

@@ -8,6 +8,7 @@ import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
+import { clockTime } from '@/lib/clock-time';
 import { castDisplayName } from '@/components/atelier-v2/journey/journey-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
@@ -407,12 +408,9 @@ function currentComposerInstruction(
 
 // Slip time rule ("08 h 12"), printed only when the turn carries a timestamp —
 // never invented (honest-data contract).
+// The server stamps UTC; the slip shows the device's clock (#316).
 function slipTime(turn: Record<string, any> | null): string | undefined {
-  const raw = turn?.created_at || turn?.timestamp || null;
-  if (!raw) return undefined;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return `${String(date.getHours()).padStart(2, '0')} h ${String(date.getMinutes()).padStart(2, '0')}`;
+  return clockTime(turn?.created_at || turn?.timestamp || null);
 }
 
 // «12 septembre» / «12 September» / «12. September», in the chrome locale.
@@ -640,6 +638,7 @@ export default function MissionsPage() {
   const [mission, setMission] = useState<RealWorldMission | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [rechecking, setRechecking] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -930,6 +929,11 @@ export default function MissionsPage() {
   };
 
   const startFreshMission = async () => {
+    // A letter is a paid generation that takes ~20 s. `creating` only reaches
+    // the button on the next render, so a fast second tap would otherwise
+    // start a second letter; the ref closes that window (#337).
+    if (creatingRef.current || creating) return;
+    creatingRef.current = true;
     setError(null);
     try {
       const next = await createSeededMission({
@@ -943,6 +947,8 @@ export default function MissionsPage() {
     } catch (createError) {
       console.error(createError);
       toast.error(t.toast_new_failed);
+    } finally {
+      creatingRef.current = false;
     }
   };
 
@@ -1319,11 +1325,11 @@ export default function MissionsPage() {
                     {isSerialAct && completedNextSerial?.thread_id ? (
                       <CrGhost primary href={routeForMissionSerialBeat(completedNextSerial)}>{t.next_act}</CrGhost>
                     ) : (
-                      <CrGhost primary onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
+                      <CrGhost primary onClick={startFreshMission} pending={creating} pendingLabel={t.new_courrier_opening}>{t.new_courrier}</CrGhost>
                     )}
                     <CrGhost href="/atelier" onClick={returnToAtelierHome}>{t.back_atelier}</CrGhost>
                     {isSerialAct && completedNextSerial?.thread_id && (
-                      <CrGhost quiet onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
+                      <CrGhost quiet onClick={startFreshMission} pending={creating} pendingLabel={t.new_courrier_opening}>{t.new_courrier}</CrGhost>
                     )}
                   </div>
                 </section>
@@ -1335,7 +1341,7 @@ export default function MissionsPage() {
                   past, and offering a retry would be pretending it is not. */}
               {lapsed && (
                 <div className="cr-nexts">
-                  <CrGhost primary onClick={startFreshMission} disabled={creating}>{t.new_courrier}</CrGhost>
+                  <CrGhost primary onClick={startFreshMission} pending={creating} pendingLabel={t.new_courrier_opening}>{t.new_courrier}</CrGhost>
                   <CrGhost href="/atelier" onClick={returnToAtelierHome}>{t.back_atelier}</CrGhost>
                 </div>
               )}

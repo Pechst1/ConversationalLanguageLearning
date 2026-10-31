@@ -174,6 +174,18 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Regel: {title}.",
         "fr": "Règle : {title}.",
     },
+    # #380: a miss that changes a word every choice shares (the noun, the pronoun)
+    # is not a slip in the day's rule, so it must not recite the rule.
+    "atelier.recognize.other_words": {
+        "en": "The rule is not what differs here: this line asks for “{target}”, not “{learner}”.",
+        "de": "Die Regel ist hier nicht der Unterschied: Die Zeile verlangt „{target}“, nicht „{learner}“.",
+        "fr": "Ce n’est pas la règle qui diffère ici : la ligne demande « {target} », pas « {learner} ».",
+    },
+    "atelier.recognize.other_words_repair": {
+        "en": "Read the English line again and type the words it asks for.",
+        "de": "Lies die englische Zeile noch einmal und tippe die gesuchten Wörter.",
+        "fr": "Relis la ligne anglaise et tape les mots qu’elle demande.",
+    },
     "atelier.recognize.missing_label": {
         "en": "Missing answer",
         "de": "Fehlende Antwort",
@@ -188,6 +200,49 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "Answer the item first; a blank item is not filed as an erratum.",
         "de": "Beantworte das Element zuerst; ein leeres Element wird nicht als Erratum abgelegt.",
         "fr": "Réponds d’abord ; un élément vide n’est pas consigné comme erratum.",
+    },
+    # -- the fallback classify sets (#196): the English column is the stored
+    # answer key, every column is what the learner reads on the button -----------
+    "atelier.classify.article_changes": {
+        "en": "article changes",
+        "de": "Der Artikel ändert sich",
+        "fr": "l’article change",
+    },
+    "atelier.classify.etre_exception": {
+        "en": "être exception",
+        "de": "Ausnahme bei être",
+        "fr": "exception d’être",
+    },
+    "atelier.classify.background_habit": {
+        "en": "background/habit",
+        "de": "Hintergrund oder Gewohnheit",
+        "fr": "contexte ou habitude",
+    },
+    "atelier.classify.bounded_event": {
+        "en": "bounded event",
+        "de": "Abgeschlossenes Ereignis",
+        "fr": "événement achevé",
+    },
+    "atelier.classify.present_condition": {
+        "en": "present condition",
+        "de": "Bedingung im Präsens",
+        "fr": "condition au présent",
+    },
+    "atelier.classify.future_result": {
+        "en": "future result",
+        "de": "Folge im Futur",
+        "fr": "conséquence au futur",
+    },
+    "atelier.classify.imperative_result": {
+        "en": "imperative result",
+        "de": "Folge im Imperativ",
+        "fr": "conséquence à l’impératif",
+    },
+    # Older stored fallback sets carry this generic second button; shown in the chrome language.
+    "atelier.classify.different_role": {
+        "en": "different grammar role",
+        "de": "Andere grammatische Rolle",
+        "fr": "autre rôle grammatical",
     },
     "atelier.recognize.label_classification": {
         "en": "Classification",
@@ -467,6 +522,16 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "Move the chips into this order: {target}",
         "de": "Bring die Bausteine in diese Reihenfolge: {target}",
         "fr": "Remets les étiquettes dans cet ordre : {target}",
+    },
+    "atelier.word_bank.rule_order_why": {
+        "en": "The order of these words is today's rule, and yours breaks it. {rule}",
+        "de": "Die Reihenfolge dieser Wörter ist die Regel von heute, und deine bricht sie. {rule}",
+        "fr": "L’ordre de ces mots est la règle du jour, et le tien la brise. {rule}",
+    },
+    "atelier.word_bank.rule_order_repair": {
+        "en": "Put them in the rule's order: {target}",
+        "de": "Bring sie in die Reihenfolge der Regel: {target}",
+        "fr": "Remets-les dans l’ordre de la règle : {target}",
     },
     "atelier.word_bank.label_spelling_slip": {
         "en": "Spelling slip",

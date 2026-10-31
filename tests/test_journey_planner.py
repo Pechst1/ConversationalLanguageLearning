@@ -865,6 +865,9 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # WP-137 C-3: the core lexicon's part of speech and band word lists for
         # a choice's decoys — a cached JSON read, no ORM and no scheduler.
         "app.services.practice_level",
+        # #278: the sentence a saved slip sat in, found and cut by string functions
+        # alone — no ORM, no scheduler — so a repair card can print it marked.
+        "app.services.repair_context",
     }, imported
     assert _typing_only_imports(PLANNER_SOURCE) >= {
         "app.services.journey_errata"

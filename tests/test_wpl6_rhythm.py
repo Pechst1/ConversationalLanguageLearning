@@ -142,11 +142,10 @@ def test_regulier_plans_an_eight_to_ten_minute_day_at_the_prior_pace(audio: bool
     assert respond_at == scene_at + 1, "nothing between the question and the reply"
     assert kinds[respond_at + 1] is StepKind.RESOLUTION, "the ending follows the reply"
     assert kinds[respond_at + 2:].count(StepKind.RECALL) > 2, "the builds come after the ending"
-    # WP-93: ~12 items. WP-129 (owner decision 2026-10-04, «fewer replies,
-    # more items»): at A1/A2 on Régulier the core reply is two exchanges, the
-    # third optional and outside the core estimate (it was three).
+    # WP-93: ~12 items. #378 (owner decision 2026-10-30) replaces WP-129's
+    # two-exchange core: the scene is three exchanges on every rhythm.
     assert planner.recall_count(plan) <= 12
-    assert plan.steps[respond_at].public_prompt["max_turns"] == 2
+    assert plan.steps[respond_at].public_prompt["max_turns"] == 3
 
 
 @pytest.mark.parametrize("budget", [1200, 1800])

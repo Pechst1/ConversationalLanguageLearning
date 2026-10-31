@@ -23,6 +23,7 @@ from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier_rewards import AtelierRewardService
+from app.services.chrome_language import user_chrome_language
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService
 from app.services.llm_service import LLMService
@@ -223,7 +224,7 @@ class AudioSessionService:
         if not thread:
             return None, None
         service = SerialThreadService(self.db)
-        cast = service.cast_payload(thread)
+        cast = service.cast_payload(thread, language=user_chrome_language(user))
         if not cast:
             return thread, None
         episode = service.current_episode(thread)
@@ -366,10 +367,15 @@ class AudioSessionService:
             cast_instruction = ""
             if cast_member:
                 callbacks = ", ".join(str(item) for item in relationship.get("callbacks") or [])
+                # #298: the bible's briefs are for this prompt only; the cast row that
+                # goes back to the browser carries the learner's card line instead.
+                brief = SerialThreadService(self.db).cast_author_notes(serial_thread).get(
+                    str(cast_member.get("id")), {}
+                )
                 cast_instruction = f"""
 # PERSONNAGE DU FEUILLETON
-Tu es {cast_member.get('name')}, {cast_member.get('role') or 'une personne de son histoire'}.
-Ta dynamique avec l'apprenant : {cast_member.get('dynamic_with_user') or 'une relation qui se construit'}.
+Tu es {cast_member.get('name')}, {brief.get('role') or cast_member.get('role') or 'une personne de son histoire'}.
+Ta dynamique avec l'apprenant : {brief.get('dynamic_with_user') or 'une relation qui se construit'}.
 Vous vous parlez au registre « {relationship.get('register') or 'vous'} ».
 Dernier souvenir commun : {relationship.get('last_summary') or 'votre histoire vient de commencer'}.
 Rappels possibles : {callbacks or 'aucun encore'}.

@@ -22,7 +22,7 @@
  * Reduced motion keeps the cameos but swaps every slide and hop for a fade.
  * Réglages › «Apparitions» switches it all off.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import {
@@ -38,6 +38,7 @@ import {
   writeMetCast,
   writeSceneCast,
 } from '@/lib/cameo';
+import { KEEP_CLEAR_SELECTOR, clearBubbleTop } from '@/lib/cameo-placement';
 import { seasonItem } from '@/lib/season-items';
 import type { Cameo, CameoEvent, CameoFigure, CameoGag, CameoLang, CameoMood, CameoState } from '@/lib/cameo';
 import { readLearnerLanguage } from '@/lib/learner-language';
@@ -216,6 +217,56 @@ export function CameoLayer() {
   const leaveTimer = useRef<number | null>(null);
   const soloRef = useRef<Cameo | null>(null);
   soloRef.current = shown && shown.kind !== 'troupe' && !leaving ? shown : null;
+  const soloEl = useRef<HTMLDivElement | null>(null);
+
+  // #282: a solo cameo stands where its bubble covers neither the prompt, the answer, the
+  // correction nor the verdict sheet; with no such place on the screen it does not come.
+  // The screen can move under a standing cameo (the next item renders, the page scrolls to
+  // the miss), so the place is checked again whenever the page changes, not only on arrival.
+  useLayoutEffect(() => {
+    const root = soloEl.current;
+    const talk = root?.querySelector<HTMLElement>('.cameo-solo__talk');
+    if (!shown || shown.kind !== 'solo' || !root || !talk) return;
+    const place = () => {
+      const zones = Array.from(document.querySelectorAll(KEEP_CLEAR_SELECTOR))
+        .filter((node) => !node.closest('.cameo-layer'))
+        .map((node) => node.getBoundingClientRect())
+        .filter((rect) => rect.width > 0 && rect.height > 0);
+      if (!zones.length) return;
+      // Layout sizes, not painted ones: the bubble pops in from a smaller scale.
+      const base = root.getBoundingClientRect();
+      const left = base.left + talk.offsetLeft;
+      const bubbleTop = base.top + talk.offsetTop;
+      const top = clearBubbleTop(
+        { left, right: left + talk.offsetWidth, height: talk.offsetHeight },
+        zones,
+        window.innerHeight,
+        bubbleTop,
+      );
+      if (top === null) {
+        if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+        leaveTimer.current = null;
+        setShown(null);
+        return;
+      }
+      if (top !== bubbleTop) root.style.top = `${base.top + (top - bubbleTop)}px`;
+    };
+    place();
+    let frame: number | null = null;
+    const again = () => {
+      if (frame === null) frame = window.requestAnimationFrame(() => { frame = null; place(); });
+    };
+    const watcher = typeof MutationObserver === 'undefined' ? null : new MutationObserver(again);
+    watcher?.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+    window.addEventListener('scroll', again, { passive: true, capture: true });
+    window.addEventListener('resize', again);
+    return () => {
+      watcher?.disconnect();
+      window.removeEventListener('scroll', again, { capture: true } as EventListenerOptions);
+      window.removeEventListener('resize', again);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, [shown?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const later = useCallback((fn: () => void, ms: number) => {
     timers.current.push(window.setTimeout(fn, ms));
@@ -371,6 +422,7 @@ export function CameoLayer() {
       {shown && shown.kind === 'solo' && (
         <div
           key={shown.key}
+          ref={soloEl}
           className="cameo-solo"
           data-edge={shown.edge}
           data-trigger={shown.trigger}
@@ -409,12 +461,14 @@ export function CameoLayer() {
           aria-live="polite"
         >
           <Reason cameo={shown} language={language} />
-          {shown.figures.map((figure, i) => (
-            <span key={figure.id} className="cameo-troupe__member" style={{ '--i': i } as CSSProperties}>
-              <Bubble cameo={shown} language={language} figureIndex={i} />
-              <CameoFace cameo={shown} figure={figure} size={shown.figures.length > 4 ? 70 : 96} />
-            </span>
-          ))}
+          <span className="cameo-troupe__row">
+            {shown.figures.map((figure, i) => (
+              <span key={figure.id} className="cameo-troupe__member" style={{ '--i': i } as CSSProperties}>
+                <Bubble cameo={shown} language={language} figureIndex={i} />
+                <CameoFace cameo={shown} figure={figure} size={shown.figures.length > 4 ? 70 : 96} />
+              </span>
+            ))}
+          </span>
         </div>
       )}
 

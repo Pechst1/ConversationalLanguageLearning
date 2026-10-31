@@ -196,6 +196,27 @@ export function spotAnswer(tokens: SpotToken[], edits: Record<number, string>): 
     .trim();
 }
 
+/**
+ * The fixes with `draft` typed into the word at `index`. The fix is part of the
+ * answer from the first letter typed (#357): Check never waits for Enter, a
+ * blur or a tap elsewhere to «commit» what is already on screen. A draft that
+ * is the word as it was is no fix and takes the word out of the edits.
+ */
+export function spotDraftEdits(
+  tokens: SpotToken[],
+  edits: Record<number, string>,
+  index: number,
+  draft: string,
+): Record<number, string> {
+  const token = tokens[index];
+  if (!token) return edits;
+  const value = String(draft ?? '').replace(/\s+/g, ' ').trim();
+  const next = { ...edits };
+  if (value === token.word) delete next[index];
+  else next[index] = value;
+  return next;
+}
+
 /** Did the fixes change anything? (Retyping a word as it was is no fix.) */
 export function spotChanged(tokens: SpotToken[], edits: Record<number, string>): boolean {
   return Object.entries(edits).some(([index, value]) => {
