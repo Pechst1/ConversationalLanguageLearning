@@ -76,6 +76,19 @@ export function correctionNotes(
 }
 
 /**
+ * The label over a journey correction, by how its two texts relate: an `edit`
+ * is «one thing to fix», a `pick` (#240) names the sentence that carries the
+ * rule, a `meaning` (#167) names the French word whose meaning was missed.
+ */
+export function correctionLabelKey(
+  kind: unknown,
+): 'correction' | 'correction_pick' | 'correction_meaning' {
+  if (kind === 'pick') return 'correction_pick';
+  if (kind === 'meaning') return 'correction_meaning';
+  return 'correction';
+}
+
+/**
  * La Forge's one correction block: the server's `notes_native` when it sent
  * them, else each erratum's `why_wrong` — the rule's note, the model's note and
  * a second-check line are the same explanation more often than not. One line

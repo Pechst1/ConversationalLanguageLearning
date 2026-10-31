@@ -9494,7 +9494,7 @@ export interface components {
              * @default edit
              * @enum {string}
              */
-            kind?: "edit" | "pick";
+            kind?: "edit" | "pick" | "meaning";
             /** Note Native */
             note_native: string;
             /** Notes Native */

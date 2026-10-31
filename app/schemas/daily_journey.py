@@ -567,7 +567,10 @@ class JourneyCorrection(JourneyModel):
     #: #240: ``edit`` is «span → corrected» (the corrected sentence is the learner's, made
     #: right); ``pick`` is a wrong tap among different sentences, where ``corrected_fr``
     #: is the one that carries the rule and the screen must not draw an arrow.
-    kind: Literal["edit", "pick"] = "edit"
+    #: #167: ``meaning`` is a wrong meaning tapped for a French word: ``corrected_fr``
+    #: is the word, the note says what it means, and the tapped meaning (``span_fr``,
+    #: not French) is never drawn as a correction of it.
+    kind: Literal["edit", "pick", "meaning"] = "edit"
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:

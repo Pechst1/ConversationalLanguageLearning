@@ -87,8 +87,12 @@ export type CorrectionProps = {
    * carries the rule and `spanFr` is the one the learner tapped instead. An arrow
    * between those would read as «rewrite A into B», so the right sentence is
    * shown on its own and the tapped one is named as not it.
+   * #167: `meaning` says a meaning was tapped for a French word: `correctedFr` is
+   * the word, shown on its own, and the note says what it means. `spanFr` is the
+   * tapped meaning, in the learner's language: «to write → coopérative» drew it as
+   * French to fix, so it is not shown (the cards already mark it).
    */
-  kind?: 'edit' | 'pick';
+  kind?: 'edit' | 'pick' | 'meaning';
   /** The label before the tapped sentence of a `pick`: «Not this one:». */
   pickNotItLabel?: string;
 };
@@ -117,6 +121,12 @@ export function Correction({
             </p>
           )}
         </>
+      ) : kind === 'meaning' ? (
+        <p className="av2-correction__line" style={{ margin: '4px 0 0' }}>
+          <span className="av2-correction__fix" lang="fr">
+            {correctedFr}
+          </span>
+        </p>
       ) : (
         <p className="av2-correction__line" style={{ margin: '4px 0 0' }}>
           <span className="av2-correction__span" lang="fr">

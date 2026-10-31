@@ -722,4 +722,25 @@ console.log('atelier v2 design system tests passed');
     const table = copy.journeyCopy(language);
     assert.ok(table.correction_pick && table.pick_not_it, `pick copy exists in ${language}`);
   }
+
+  // #167: «to write → coopérative» drew a tapped meaning as French to fix. A missed
+  // meaning shows the French word on its own, and the note says what it means.
+  const meaning = render(h(ui.Correction, {
+    label: 'The word', kind: 'meaning', pickNotItLabel: 'Not this one:',
+    spanFr: 'to write', correctedFr: 'coopérative', noteNative: '«coopérative» means «cooperative».',
+  }));
+  assert.ok(!meaning.includes('→'), 'a meaning is never drawn as French made right');
+  assert.ok(meaning.includes('data-kind="meaning"'));
+  assert.ok(/<span class="av2-correction__fix" lang="fr">coopérative<\/span>/.test(meaning), 'the word, in French');
+  assert.ok(meaning.includes('means «cooperative»'), 'and what it means');
+  assert.ok(!meaning.includes('to write') && !meaning.includes('Not this one:'), 'the tapped meaning is on its card already');
+
+  const { correctionLabelKey } = require('@/lib/correction-notes.ts');
+  assert.equal(correctionLabelKey('edit'), 'correction');
+  assert.equal(correctionLabelKey(undefined), 'correction');
+  assert.equal(correctionLabelKey('pick'), 'correction_pick');
+  assert.equal(correctionLabelKey('meaning'), 'correction_meaning');
+  const labels = ['en', 'de', 'fr'].map((language) => copy.journeyCopy(language).correction_meaning);
+  assert.ok(labels.every((label) => typeof label === 'string' && label.trim()), 'meaning copy exists');
+  assert.equal(new Set(labels).size, 3, 'and is translated');
 }

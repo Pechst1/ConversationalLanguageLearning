@@ -5083,11 +5083,15 @@ def _recall_step(ordinal: int, item: PracticeItem, scenario: ScenarioBrief | Non
         **recall_speaker_prompt(recall, scenario),
     }
     if recall.task_type in LISTENING_RECALL_FORMATS:
-        # WP-91: with a clip the phrase (or the dictated line) is heard, not
-        # read — the prompt prints nothing French. Without one a listen-and-tap
-        # item is read-and-tap, exactly as before; a dictation always has one.
+        # WP-91: with a clip the phrase (or the dictated line) is heard first.
+        # Without one a listen-and-tap item is read-and-tap, exactly as before;
+        # a dictation always has one and never sends its line (the line is its
+        # answer). #167: a listen-and-tap phrase rides along with its clip, so a
+        # learner without sound can read it on request, and every learner sees
+        # the French word once the answer is in; the device holds it back until
+        # then (`dictation-model.listenTapShowsPhrase`).
         prompt["audio_url"] = item.audio_url
-        if item.audio_url:
+        if item.audio_url and recall.task_type != "listen_tap":
             prompt["prompt_fr"] = None
     return PlannedStep(
         ordinal=ordinal,
