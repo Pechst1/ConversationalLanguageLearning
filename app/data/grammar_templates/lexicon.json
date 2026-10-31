@@ -1267,6 +1267,12 @@
    "id": "téléphone",
    "fr": "téléphone",
    "g": "m",
+   "alt_fr": [
+    {
+     "fr": "portable",
+     "g": "m"
+    }
+   ],
    "en": "phone",
    "kind": "obj",
    "tags": [
