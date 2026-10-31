@@ -40,6 +40,7 @@ import type { ControlLanguage, JourneyRecap as JourneyRecapPayload, JourneySnaps
 import { journeyCopy } from './journey-copy';
 import { colophonDigest, keepsakeDate, rewardView } from './journey-recap-model';
 import { ENCORE_HREF, recapChrome } from './recap-copy';
+import { chapterLabelUnder } from './story-episode-model';
 import { TomorrowChoice } from './TomorrowChoice';
 
 export type JourneyRecapProps = {
@@ -119,6 +120,9 @@ export function JourneyRecap({
   const notes = marginNotes(recap?.margin_notes);
   const chapterClosed = !partial && recap?.chapter_closed ? recap.chapter_closed : null;
   const seasonFinished = !partial && recap?.season_finished ? recap.season_finished : null;
+  const dayTitle = journey.scenario?.title_fr?.trim() || null;
+  // Said once: a chapter that is the day's own title is not a second line.
+  const chapterLabel = chapterClosed ? chapterLabelUnder(chapterClosed.title_fr, dayTitle) : null;
   const archiveT = archiveCopy(language);
 
   // «Plus de pratique» opens the drill loop on what today practised when the
@@ -313,9 +317,16 @@ export function JourneyRecap({
         <Surface tone="outline" className="av2-recap__volume" data-chapter-closed={chapterClosed ? chapterClosed.index : undefined}>
           {chapterClosed && (
             <>
-              {chapterClosed.title_fr && (
-                <p className="av2-label" lang="fr">
-                  {frenchSpacing(chapterClosed.title_fr)}
+              {/* #403: the day's own title first, then the chapter it closes, named as a
+                  chapter: the chapter's title alone read as the previous day's episode. */}
+              {dayTitle && (
+                <p className="av2-label" lang="fr" data-episode-title="">
+                  {frenchSpacing(dayTitle)}
+                </p>
+              )}
+              {chapterLabel && (
+                <p className="av2-label" lang="fr" data-chapter-title="">
+                  {frenchSpacing(chapterLabel)}
                 </p>
               )}
               <ChapterColophon

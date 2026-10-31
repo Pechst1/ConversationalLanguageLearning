@@ -172,6 +172,9 @@ class SessionInputs:
     #: ``(new, reviews)``: the cards the day deck holds right now (:func:`day_deck`).
     #: ``None`` when it could not be read: the quota less today's words, and the reviews due.
     deck: tuple[int, int] | None = None
+    #: How many cards the day's deck was dealt with, the ones already answered
+    #: included (:func:`dealt_deck`). ``None`` before any deck was dealt today.
+    dealt: int | None = None
 
 
 def review_room(new_words: int, *, reviews_left: int | None = None, deck_limit: int = DAY_DECK_LIMIT) -> int:
@@ -199,6 +202,11 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
     words_done = inputs.words_marked_done or (new_left == 0 and reviews == 0)
     # What was done, not what was planned: new words met or words reviewed.
     words_met = max(inputs.introduced, inputs.words_reviewed_today)
+    # #396: once the deck is gone through, the step and the end screen say the
+    # size of the deck that was dealt, the number the button and the review's
+    # header showed. Not every word touched today: the scene's own words and La
+    # Forge's reviews are not cards of this deck.
+    words_done_count = inputs.dealt if inputs.dealt else words_met
     grammar_done = inputs.forge_blocks_today > 0
     items = forge_items(inputs.forge_seconds)
     raw = [
@@ -218,7 +226,7 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
             # deck of 17 was the plan and the screen disagreeing. #143: every
             # card of the deck counts, its reviews too, and once done the step
             # says what the end screen says, not the pace's 20.
-            "count": words_met if words_done else new_left + reviews,
+            "count": words_done_count if words_done else new_left + reviews,
             "new_left": new_left,
             "reviews": reviews,
         },
@@ -254,7 +262,7 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
         "done": all_done,
         "tally": {
             "scenes": 1 if inputs.scene_done else 0,
-            "words": words_met,
+            "words": words_done_count if words_done else words_met,
             "exercises": max(0, inputs.exercises_today),
         },
         "more_words": MORE_WORDS,
@@ -391,13 +399,24 @@ def day_deck(db: Session, user: Any, *, reviews_due: int, now: datetime | None =
     drill's room for new words and the reviews due.
     """
 
-    from app.services import drill_batch
+    from app.services import day_words, drill_batch
     from app.services.streak import local_today
     from app.services.vocabulary_pace import drill_new_word_room, reviews_left_today
 
     now = now or datetime.now(UTC)
     room, reserved = drill_new_word_room(db, user, now=now)
     batch = drill_batch.load_batch(db, user, local_today(user, now))
+    plan = day_words.read_plan(batch)
+    if plan is not None:
+        # #396: the day's plan, picked at the first read of the day.
+        if not day_words.is_dealt(plan):
+            return day_words.planned_counts(db, user, plan, now=now, batch=batch)
+        remaining = drill_batch.remaining_items(
+            db, user, day_words.day_items(batch), reserved_new=day_words.remaining_reserved(batch, reserved)
+        )
+        new = sum(1 for item in remaining if item.get("list") == "new_words")
+        pending = day_words.pending_scene_words(db, user, batch, now=now)
+        return new + pending, len(remaining) - new
     new_limit = min(room, DAY_DECK_NEW_WORDS)
     if batch is not None:
         remaining = drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved)
@@ -407,6 +426,46 @@ def day_deck(db: Session, user: Any, *, reviews_due: int, now: datetime | None =
             return new + top_up, len(remaining) - new
     reviews = min(max(0, reviews_due), review_room(new_limit, reviews_left=reviews_left_today(db, user, now=now)))
     return new_limit, reviews
+
+
+def dealt_deck(db: Session, user: Any, *, now: datetime | None = None) -> int | None:
+    """#396: how many cards today's word deck was dealt with, answered ones included.
+
+    ``None`` while no deck was dealt (the review was not opened today). The
+    batch is what ``GET /vocabulary/due-context?drill=session`` dealt and keeps;
+    its answered cards and the ones still to answer are the deck the learner
+    went through, and the review's header opened on exactly that number.
+    """
+
+    from app.services import day_words, drill_batch
+    from app.services.streak import local_today
+    from app.services.vocabulary_pace import drill_new_word_room
+
+    now = now or datetime.now(UTC)
+    batch = drill_batch.load_batch(db, user, local_today(user, now))
+    if day_words.read_plan(batch) is not None:
+        # The size the day deck was dealt with; «more» cards appended later
+        # are the learner's extra, not the day's words.
+        return day_words.dealt_size(batch)
+    # A day without a plan (it could not be made): the batch, less its extras.
+    items = [item for item in (batch.items or []) if not item.get("extra")] if batch is not None else []
+    if not items:
+        return None
+    _room, reserved = drill_new_word_room(db, user, now=now)
+    answered = drill_batch.answered_word_ids(db, user, items)
+    remaining = drill_batch.remaining_items(db, user, items, reserved_new=reserved)
+    return len(answered) + len(remaining) or None
+
+
+def _dealt_deck_or_none(db: Session, user: Any, *, now: datetime) -> int | None:
+    if not getattr(user, "id", None):
+        return None
+    try:
+        with db.begin_nested():
+            return dealt_deck(db, user, now=now)
+    except Exception:  # noqa: BLE001 - a count that cannot be read never costs Home its day
+        logger.warning("daily_session: the dealt deck could not be read", exc_info=True)
+        return None
 
 
 def _day_deck_or_none(db: Session, user: Any, *, reviews_due: int, now: datetime) -> tuple[int, int] | None:
@@ -432,10 +491,14 @@ def build_session(
     forge_blocks_today: int,
     now: datetime | None = None,
 ) -> dict[str, Any]:
+    from app.services.day_words import ensure_plan
     from app.services.forge_picker import forge_budget_seconds
     from app.services.vocabulary_pace import daily_quota, introduced_today
 
     now = now or datetime.now(UTC)
+    # #396: the day's words are picked once, at the first read of the day; the
+    # word step, the deck and the Done screen all count that plan.
+    ensure_plan(db, user, now=now)
     return session_view(
         SessionInputs(
             pace=pace_of(user),
@@ -451,6 +514,7 @@ def build_session(
             exercises_today=exercises_today(db, user, now=now),
             words_reviewed_today=words_reviewed_today(db, user, now=now),
             deck=_day_deck_or_none(db, user, reviews_due=reviews_due, now=now),
+            dealt=_dealt_deck_or_none(db, user, now=now),
         )
     )
 
@@ -525,6 +589,7 @@ __all__ = [
     "SessionInputs",
     "build_session",
     "day_deck",
+    "dealt_deck",
     "review_room",
     "goal_gap",
     "goal_weeks",
