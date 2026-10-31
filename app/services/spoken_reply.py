@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any
 
 from sqlalchemy import func, select
@@ -35,6 +36,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.pilot_event import PilotEvent
+from app.services.learner_facts import contradicts
 from app.services.transcription_cost import (
     TRANSCRIPTION_EVENT_TYPE,
     estimate_audio_seconds,
@@ -264,10 +266,39 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
             return line
     else:
         line = str(task.get("suggested_response_fr") or "").strip()
-        if line:
+        # #379: that example was written before the learner spoke. It is offered
+        # only while it keeps every date, number and reason they gave; otherwise
+        # it would be their sentence with someone else's facts in it.
+        said, stored = _last_learner_turn(private)
+        if line and not (said and contradicts(said, line)):
             return line
+        if line and said:
+            # The recap and its audio door both ask: the correction the learner was
+            # shown is kept with the turn, so both read the same sentence.
+            return _own_sentence(said, correction or stored)
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
     return corrected if len(corrected.split()) >= 3 else None
+
+
+def _last_learner_turn(private: dict[str, Any]) -> tuple[str, Any]:
+    """What the learner wrote on their last real turn, and the correction they were shown
+    for it (a free «ask again» does not count)."""
+
+    for exchange in reversed(private.get("turns") or []):
+        if isinstance(exchange, dict) and not exchange.get("free") and str(exchange.get("learner") or "").strip():
+            shown = exchange.get("correction")
+            stored = SimpleNamespace(corrected_fr=shown.get("corrected_fr")) if isinstance(shown, dict) else None
+            return str(exchange["learner"]).strip(), stored
+    return "", None
+
+
+def _own_sentence(said: str, correction: Any) -> str | None:
+    """The learner's sentence, corrected when the correction is a sentence that keeps their facts."""
+
+    corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
+    if len(corrected.split()) >= 3 and not contradicts(said, corrected):
+        return corrected
+    return said if len(said.split()) >= 3 else None
 
 
 __all__ = [
