@@ -67,3 +67,66 @@ def test_a_sentence_built_with_a_leftover_word_is_a_miss(built: str) -> None:
 )
 def test_the_stored_fix_is_right(built: str) -> None:
     assert _verdict(built) == "correct", built
+
+
+# -- #395: the miss sheet shows the learner's own line, and blames only wrong words --
+
+HAT_SOURCE = "On n'a pas un chapeau, Gus."
+HAT_ANSWER = "On n'a pas de chapeau, Gus."
+
+
+def _hat_miss(built: str) -> dict:
+    base = default_bank().generate("FR2_A11_LE_LA", 1, seed=3)[0]
+    item = dataclasses.replace(base, sentence=HAT_ANSWER, wrong_sentences=(HAT_SOURCE,), traps=("pas un",))
+    payload = transform_item(item)
+    assert payload is not None
+    correction = AtelierCorrectionService(None)._correct_transform_rule_based(
+        None, {"items": [payload]}, {"answers": {payload["id"]: built}}
+    )
+    assert correction["verdict"] == "incorrect"
+    return correction["errata"][0]
+
+
+@pytest.mark.parametrize(
+    "built",
+    [
+        "On n'a pas d'chapeau, Gus.",  # «un» → «d'», the page joins the elision to the next word
+        "On n'a pas d' chapeau, Gus.",
+    ],
+)
+def test_a_missed_fix_shows_the_sentence_the_learner_built(built: str) -> None:
+    erratum = _hat_miss(built)
+
+    # Case, punctuation and order are the learner's own, and nothing is spliced in twice.
+    assert erratum["learner_text"] == built
+    assert erratum["corrected_target"] == HAT_ANSWER
+
+
+@pytest.mark.parametrize("built", ["On n'a pas d'chapeau, Gus.", "On n'a pas d' chapeau, Gus."])
+def test_the_explanation_never_calls_a_word_wrong_that_the_target_has(built: str) -> None:
+    from app.services.forge_grading import tokens
+
+    erratum = _hat_miss(built)
+    why = erratum["why_wrong"]
+    wrong = [op["learner"] for op in erratum.get("diff") or [] if op.get("learner")]
+
+    assert "«d'»" in why and "«de»" in why, why
+    assert "chapeau" not in wrong, erratum.get("diff")
+    assert "does not belong" not in why, why
+    # The guard: no word named as wrong is a word the target line holds.
+    assert not {word for word in wrong if word in tokens(HAT_ANSWER)}, wrong
+
+
+def test_a_word_that_only_moved_is_not_called_extra() -> None:
+    from app.services.forge_grading import describe_diff, token_diff
+
+    ops = token_diff("Gus a un chapeau très beau", "Gus a un très beau chapeau")
+    assert not [op for op in ops if op["kind"] == "extra" and op["learner"] in {"chapeau", "très", "beau"}], ops
+    assert "does not belong" not in describe_diff(ops, "en")
+
+
+def test_a_real_surplus_copy_is_still_extra() -> None:
+    from app.services.forge_grading import token_diff
+
+    ops = token_diff("Gus a un un chapeau", "Gus a un chapeau")
+    assert [op["learner"] for op in ops if op["kind"] == "extra"] == ["un"], ops

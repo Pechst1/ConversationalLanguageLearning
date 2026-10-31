@@ -508,6 +508,23 @@ def _repair_bounds(source: list[str], target: list[str]) -> tuple[int, int]:
     return head, tail
 
 
+def _typed_edge_to_edge(said: list[str], shown: list[str], right: list[str]) -> bool:
+    """Did the learner type the whole line: its unchanged first and last word included?
+
+    A part ("vertes", "chaises vertes") leaves out at least one edge word the
+    source keeps; a whole line never does, however many words an elision glued.
+    When the change is at an edge itself there is no unchanged word to prove it,
+    and the word count (:func:`judge_repair`) decides as before.
+    """
+
+    if not said or not shown or not right or shown == right:
+        return False
+    head, tail = _repair_bounds(shown, right)
+    # Only an unchanged word on BOTH sides can prove it: «la prends pas» starts like
+    # «La tomate ? ... pas la !» by luck when the end of the line is what changed.
+    return head > 0 and tail > 0 and said[0] == shown[0] and said[-1] == shown[-1]
+
+
 def repair_readings(answer: object, source: object, target: object) -> list[tuple[str, str, int]]:
     """Every whole sentence a repair answer may stand for (owner request 2026-10-17).
 
@@ -597,8 +614,18 @@ def judge_repair(
     best = judge(answer, keys, accents=accents, typo=typo, article_optional=article_optional)
     if best.exact or not str(source or "").strip():
         return best
-    whole = len(fold_typography(answer).split()) >= len(fold_typography(source).split())
+    said = fold_typography(answer).split()
+    shown = fold_typography(source).split()
+    whole = len(said) >= len(shown)
     for key in keys:
+        if _typed_edge_to_edge(said, shown, fold_typography(key).split()):
+            # #395: «On n'a pas d'chapeau, Gus.» has one word fewer than «On n'a pas
+            # un chapeau, Gus.» (the page joins an elision to the next word), so a
+            # word count alone read the whole line as a fragment and spliced it into
+            # the source: «on n'a pas d'chapeau gus chapeau gus». A line that starts
+            # and ends on the source's own unchanged edge words is the whole line.
+            whole = True
+            continue
         for sentence, part, _context in repair_readings(answer, source, key):
             if fold_typography(sentence) == fold_typography(answer):
                 continue
