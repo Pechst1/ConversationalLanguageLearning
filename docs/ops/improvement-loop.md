@@ -146,8 +146,11 @@ written criteria (`tests/gold_transcripts/criteria.py`).
 - **Proof:** a story-lane fix is proven when its surface's score moves on the runs after
   it is deployed. A drop with no story change is a regression to look at; changing a
   criterion restarts the trend.
+- **Judge:** `claude-sonnet-5-5`, paid from the owner's Claude API credits (calibrated on
+  31 Oct with `rejudge`); a judge change restarts the trend.
 - **Comparing models:** `--label NAME --set KEY=VALUE` runs the same inputs with other
-  settings outside the production trend (`tests/gold_transcripts/README.md`).
+  settings outside the production trend; `--surface page` scores the night writer's page
+  (not in the weekly run; `tests/gold_transcripts/README.md`).
 
 ## Live mode (owner decision)
 

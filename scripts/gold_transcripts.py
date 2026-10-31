@@ -7,6 +7,8 @@
     python scripts/gold_transcripts.py run --surface scene --limit 3 --max-usd 0.2   # a quick look
     python scripts/gold_transcripts.py run --label haiku-live --set STORY_LIVE_MODEL=claude-haiku-5-5 --max-usd 1
                                                                    # same inputs, another model (a comparison run)
+    python scripts/gold_transcripts.py run --surface page --label writer-sonnet --set STORY_WRITER_MODEL=claude-sonnet-5-5 --max-usd 1.5
+                                                                   # the night writer's pages (not in the weekly run)
     python scripts/gold_transcripts.py rejudge var/gold/<date>-production.json --judge-model claude-sonnet-5-5 --max-usd 1
                                                                    # the same answers, another judge (calibrate a judge change)
     python scripts/gold_transcripts.py trend                       # the history kept in the digest comments
@@ -39,14 +41,18 @@ from loguru import logger  # noqa: E402
 
 from tests.gold_transcripts import runner as R  # noqa: E402
 from tests.gold_transcripts import surfaces as S  # noqa: E402
-from tests.gold_transcripts.criteria import CRITERIA, CRITERIA_VERSION  # noqa: E402
+from tests.gold_transcripts.criteria import (  # noqa: E402
+    CRITERIA,
+    CRITERIA_VERSION,
+    WEEKLY_SURFACES,
+)
 
 API_KEY_ENVS = ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")
 OUT = REPO / "var" / "gold"
 
 
 def _sets(args: argparse.Namespace) -> list[str]:
-    return args.surface or list(S.SURFACES)
+    return args.surface or list(WEEKLY_SURFACES)
 
 
 def _overrides(pairs: list[str] | None) -> dict[str, str]:
@@ -232,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--surface", action="append", choices=list(S.SURFACES), help="only this surface (repeatable)")
         p.add_argument("--limit", type=int, default=None, help="only the first N items of each surface")
         p.add_argument("--set", action="append", metavar="KEY=VALUE", help="an app setting on top of render.yaml (repeatable)")
-        p.add_argument("--judge-model", default=R.DEFAULT_JUDGE)
+        p.add_argument("--judge-model", default=None, help=f"default {R.DEFAULT_JUDGE}; {R.PAGE_JUDGE} when pages are scored")
     run = sub.choices["run"]
     run.add_argument("--max-usd", type=float, default=None, help=f"spending cap (required, at most {R.HARD_CAP_USD})")
     run.add_argument("--id", action="append", help="only this item (repeatable)")
@@ -255,6 +261,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     logger.remove()  # the engine logs every refusal; the report says what matters
+    if args.command in ("plan", "run"):
+        try:
+            args.judge_model = R.judge_for(_sets(args), args.judge_model)
+        except ValueError as exc:
+            print(f"{args.command} refuses: {exc}.")
+            return 2
     return {"plan": cmd_plan, "run": cmd_run, "rejudge": cmd_rejudge, "trend": cmd_trend}[args.command](args)
 
 
