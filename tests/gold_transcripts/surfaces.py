@@ -2,7 +2,7 @@
 learner would be shown.
 
 Every adapter calls the same functions production calls, with the model client handed
-in (``client``): the real :class:`LLMService` behind a spending meter at night, a fake
+in (``client``): the real :class:`LLMService` behind a spending meter on the weekly run, a fake
 in the tests. Nothing here touches the database: the few writes the production paths
 make (cost ledger rows, the learner's level read) are replaced by no-ops or by the
 item's own level.

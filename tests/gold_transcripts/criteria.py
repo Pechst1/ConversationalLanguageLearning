@@ -6,8 +6,8 @@ is answered by the judge model, which sees only these words, the learner's input
 item's ground-truth notes and the output. A criterion that does not apply to an item
 (no refusal to honour, no off-script remark) is ``na`` and leaves the item's score alone.
 
-Changing a criterion's text changes :data:`CRITERIA_VERSION`; the nightly report prints
-the version beside every score, and the trend only compares nights of one version.
+Changing a criterion's text changes :data:`CRITERIA_VERSION`; the weekly report prints
+the version beside every score, and the trend only compares runs of one version.
 """
 
 from __future__ import annotations

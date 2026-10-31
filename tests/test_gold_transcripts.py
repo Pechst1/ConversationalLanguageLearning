@@ -266,7 +266,7 @@ def _night(date, score, label="production"):
 
 def test_report_marker_reads_back_as_history_and_trend():
     first = R.render_report(_night("2026-11-01", 70.0), [])
-    assert "first night" in first
+    assert "first run" in first
     history = R.parse_history(["unrelated digest comment", first])
     assert len(history) == 1
     assert history[0]["date"] == "2026-11-01" and history[0]["criteria"] == CRITERIA_VERSION
@@ -275,7 +275,7 @@ def test_report_marker_reads_back_as_history_and_trend():
     assert "| +8 |" in second and "70 → 78" in second
     # A comparison run does not count against the production trend.
     other = R.render_report(_night("2026-11-02", 50.0, label="haiku-live"), history)
-    assert "first night" in other and "haiku-live" in other
+    assert "first run" in other and "haiku-live" in other
 
 
 def test_profile_applies_render_values_and_restores():
