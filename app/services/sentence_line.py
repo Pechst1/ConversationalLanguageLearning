@@ -17,12 +17,27 @@ from __future__ import annotations
 
 import re
 
+#: Titles whose full stop ends no sentence («la lampe de M. Marchand», «Mme. Odile»): the one
+#: list every cut of a French text shares (#398). One capital and a stop («J. Dupont») is an
+#: initial, and ends no sentence either.
+TITLE_ABBREVIATIONS = (
+    "M", "MM", "Mme", "Mmes", "Mlle", "Mlles", "Dr", "Pr", "Me", "Mgr", "St", "Ste", "Mr", "Mrs", "Ms",
+)
+_INITIAL = "[A-ZÀ-ÖØ-Þ]"
+_TITLE = rf"(?:{'|'.join(TITLE_ABBREVIATIONS)}|{_INITIAL})\."
+#: Lookbehinds, each of fixed width, that keep a cut from falling after a title or an initial.
+NOT_AFTER_TITLE = "".join(rf"(?<!\b{title}\.)" for title in TITLE_ABBREVIATIONS) + rf"(?<!\b{_INITIAL}\.)"
+_TITLE_WORD = re.compile(_TITLE)
+#: What is left of a sentence cut at its title («Sur le toit, la lampe de M.»), or a signature.
+_STOPS_AT_TITLE = re.compile(rf"(?<![^\s(«\"“'’—–-]){_TITLE}[\s»\"”)]*$")
+
 #: A sentence ends on . ! ? … (a closing quote or bracket may follow) and the next one opens
 #: on a capital, an opening quote or a digit.
 _BOUNDARY = re.compile(
-    r"(?:(?<=[.!?…])|(?<=[.!?…][\"»”)]))(?<!\bM\.)(?<!\bMM\.)(?<!\bDr\.)(?<!\bSt\.)(?<!\bMlle\.)"
-    r"\s+(?=[A-ZÀ-ÖØ-Þ«\"“(\d])"
+    r"(?:(?<=[.!?…])|(?<=[.!?…][\"»”)]))" + NOT_AFTER_TITLE + r"\s+(?=[A-ZÀ-ÖØ-Þ«\"“(\d])"
 )
+#: The looser cut a scene line is looked up by: after any . ! ? … that is no title's.
+_LOOSE_BOUNDARY = re.compile(r"(?<=[.!?…])" + NOT_AFTER_TITLE + r"\s+")
 #: A line that ends on a closed sentence.
 _CLOSED = re.compile(r"[.!?»\"”)]$")
 #: «À suivre…» ends on an ellipsis on purpose: it is a whole phrase.
@@ -36,6 +51,32 @@ def _flat(text: object) -> str:
 def sentences(text: object) -> list[str]:
     flat = _flat(text)
     return [part.strip() for part in _BOUNDARY.split(flat) if part.strip()] if flat else []
+
+
+def cut_sentences(text: object) -> list[str]:
+    """``text`` cut after every . ! ? … that is no title's or initial's, each piece as it was
+    stored, so a caller can look a word up in it (#398: «Sur le toit, la lampe de M.» was the
+    sentence of «lampe»). Unlike :func:`sentences`, the next piece need not open on a capital."""
+
+    return [part for part in _LOOSE_BOUNDARY.split(str(text or "")) if part.strip()]
+
+
+def ends_sentence(word: str) -> bool:
+    """Whether a word, as a text is cut on its spaces, closes a sentence: «brille.» and «pas ?»
+    do; a title or an initial («M.», «Mme.», «J.») does not (#398)."""
+
+    bare = str(word or "").strip("«»“”\"„()[]")
+    if not bare or bare[-1] not in ".!?…":
+        return False
+    return not _TITLE_WORD.fullmatch(bare)
+
+
+def stops_at_title(text: object) -> bool:
+    """Whether a text stops on a title or an initial («Sur le toit, la lampe de M.», «— M.»):
+    the rest of a sentence cut at its abbreviation, or a signature, never a sentence a drill
+    may pose (#398)."""
+
+    return bool(_STOPS_AT_TITLE.search(str(text or "").strip()))
 
 
 def _word_cut(text: str, limit: int) -> str:

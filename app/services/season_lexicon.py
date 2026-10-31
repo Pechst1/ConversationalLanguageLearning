@@ -170,11 +170,11 @@ def lemma_of(key: str, *, capitalised: bool = False) -> str | None:
 
 
 def _sentence_with(text: str, surface: str) -> str:
-    import re
-
     from app.services.scene_items import contains_surface
+    from app.services.sentence_line import cut_sentences
 
-    for sentence in re.split(r"(?<=[.!?…])\s+", text):
+    # #398: a title's full stop («la lampe de M. Marchand») ends no sentence.
+    for sentence in cut_sentences(text):
         if contains_surface(sentence, surface):
             return sentence.strip()
     return text.strip()

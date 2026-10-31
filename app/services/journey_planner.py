@@ -103,6 +103,7 @@ from app.services.scene_items import (
     scene_lines,
     with_meaning,
 )
+from app.services.sentence_line import ends_sentence, stops_at_title
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -1818,12 +1819,17 @@ def build_listen_tap_task(
     )
 
 
-_SENTENCE_END = frozenset(".!?…")
 _QUOTE_MARKS = "«»“”\"„"
 
 
 def scene_sentences(*texts: str | None) -> list[str]:
-    """The sentences of what the learner reads, in order, without repeats."""
+    """The sentences of what the learner reads, in order, without repeats.
+
+    #398 (live walk 31 Oct): «Sur le toit, la lampe de M.» was offered as a sentence by
+    «Which sentence uses today's rule?»: a title's or an initial's full stop ends no
+    sentence (:func:`~app.services.sentence_line.ends_sentence`), and what is left of a
+    sentence cut at one, or a signature («— M.»), is no sentence at all.
+    """
 
     sentences: list[str] = []
     seen: set[str] = set()
@@ -1836,15 +1842,15 @@ def scene_sentences(*texts: str | None) -> list[str]:
             if not word:
                 continue
             current.append(word)
-            if word[-1] in _SENTENCE_END:
+            if ends_sentence(word):
                 sentence = " ".join(current)
                 current = []
-                if _fold(sentence) not in seen:
+                if _fold(sentence) not in seen and not stops_at_title(sentence):
                     seen.add(_fold(sentence))
                     sentences.append(sentence)
         if current:
             sentence = " ".join(current)
-            if _fold(sentence) not in seen:
+            if _fold(sentence) not in seen and not stops_at_title(sentence):
                 seen.add(_fold(sentence))
                 sentences.append(sentence)
     return sentences

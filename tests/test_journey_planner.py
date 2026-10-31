@@ -868,6 +868,9 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # #278: the sentence a saved slip sat in, found and cut by string functions
         # alone — no ORM, no scheduler — so a repair card can print it marked.
         "app.services.repair_context",
+        # #398: where a sentence ends («M.» and «J.» end none) — the one cut every
+        # French text shares, pure string functions, no ORM and no scheduler.
+        "app.services.sentence_line",
     }, imported
     assert _typing_only_imports(PLANNER_SOURCE) >= {
         "app.services.journey_errata"

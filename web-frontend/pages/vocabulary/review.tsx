@@ -79,6 +79,7 @@ import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
 import { markWordsDoneToday } from '@/lib/continue-learning';
+import { cardContextText, cardExample } from '@/lib/card-example';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -1071,13 +1072,12 @@ export default function VocabularyReviewPage() {
     : '';
   const french = current ? queueFrench(current) : '';
   const meaning = current ? queueMeaning(current) : '';
-  const example = current ? queueExample(current) : '';
+  // A card with no example sentence quotes nothing, never «lampe - lamp» (walk finding 398).
+  const example = current ? cardExample({ french, meaning, example: queueExample(current) }) : '';
   const exampleTranslation = current ? queueExampleTranslation(current) : '';
   const visualCue = current ? wordVisualCue(current, language) : null;
   const visibleExample = mode === 'audio' ? '' : example;
-  const contextText = mode === 'audio'
-    ? [meaning, example].filter(Boolean).join(' · ')
-    : example || (current ? `${french} - ${meaning}` : '');
+  const contextText = cardContextText({ mode, meaning, example });
   const typedMatches =
     mode === 'scene' || mode === 'rescue'
       ? matchesLineForm(normalizeAnswer(typedAnswer), normalizeAnswer(answer))
