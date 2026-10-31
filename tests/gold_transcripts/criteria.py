@@ -16,6 +16,8 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 
+from app.services.season.story_judge import QUESTIONS as _STORY_QUESTIONS
+
 
 @dataclass(frozen=True)
 class Criterion:
@@ -29,6 +31,7 @@ SURFACE_TITLES = {
     "forge": "La Forge free text",
     "courrier": "Courrier reply",
     "correction": "Correction",
+    "page": "Night writer's page",
 }
 
 CRITERIA: dict[str, tuple[Criterion, ...]] = {
@@ -199,7 +202,19 @@ CRITERIA: dict[str, tuple[Criterion, ...]] = {
             "The corrected sentence is the learner's sentence with the errors fixed and the meaning kept.",
         ),
     ),
+    # The season's generated page, written ahead of time (story_split: planner, author, aids,
+    # the story critic). The judged questions are the story judge's own
+    # (app/services/season/story_judge.py, QUESTIONS), scored 1 to 5; «new» needs the
+    # previous page, which a learner jumped to the day does not have, so it is not asked.
+    "page": (
+        Criterion("served", "check", "A page was written within the prefetch's 330 seconds: no lost day."),
+        *(Criterion(key, "judge", text) for key, text in _STORY_QUESTIONS.items() if key != "new"),
+    ),
 }
+
+#: The surfaces of the weekly production score; ``page`` runs only when asked for
+#: (``--surface page``), for the writer-model comparison.
+WEEKLY_SURFACES = ("scene", "forge", "courrier", "correction")
 
 
 def criteria_version() -> str:

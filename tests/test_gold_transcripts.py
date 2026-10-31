@@ -10,13 +10,14 @@ the report's hidden history marker reads back into the trend.
 from __future__ import annotations
 
 import json
+import os
 from types import SimpleNamespace
 
 import pytest
 
 from tests.gold_transcripts import runner as R
 from tests.gold_transcripts import surfaces as S
-from tests.gold_transcripts.criteria import CRITERIA, CRITERIA_VERSION, judged
+from tests.gold_transcripts.criteria import CRITERIA, CRITERIA_VERSION, WEEKLY_SURFACES, judged
 
 
 def _result(content, model="fake", cost=0.0):
@@ -82,6 +83,12 @@ def test_set_is_sized_and_well_formed(surface):
     assert len(ids) == len(set(ids)), "item ids are unique"
     for item in items:
         assert item["learner_text"].strip(), item["id"]
+        if surface == "page":
+            context = json.loads((S.PAGES / f"{item['id']}.json").read_text(encoding="utf-8"))
+            position = context["season_script"]["position"]
+            assert (position["season_day"], position["kind"]) == (item["season_day"], "gap"), item["id"]
+            assert context["level"] == item["level"], item["id"]
+            continue
         assert "live walk" in item["source"] or "eval" in item["source"] or "prompt rule" in item["source"], item["id"]
         assert isinstance(item.get("truth"), dict), item["id"]
         if surface == "scene":
@@ -110,7 +117,7 @@ def test_every_criterion_is_named_once():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("surface", list(S.SURFACES))
+@pytest.mark.parametrize("surface", list(WEEKLY_SURFACES))
 def test_every_item_reaches_an_answer(surface):
     model = FakeModel()
     for item in S.load_items(surface):
@@ -119,6 +126,62 @@ def test_every_item_reaches_an_answer(surface):
         verdicts = S.checks(surface, item, output)
         assert set(verdicts) == {c.id for c in CRITERIA[surface] if c.by == "check"}
     assert model.calls, "the surface called the model"
+
+
+class PageWriter:
+    """story_split's fake writer (tests/test_story_split.py) plus a story judge that rates
+    every question 4, except «level» 2."""
+
+    def __init__(self):
+        from tests.test_story_split import SplitProvider
+
+        self.writer = SplitProvider()
+        self.judged: list[str] = []
+
+    def generate_chat_completion(self, messages, **kwargs):
+        system = kwargs.get("system_prompt") or ""
+        if system.startswith("You judge one day"):
+            asked = messages[-1]["content"].split("Questions: ", 1)[1].split("\n", 1)[0].split(", ")
+            self.judged.append(kwargs.get("model"))
+            return _result({q: {"score": 2 if q == "level" else 4, "reason": "fake", "line": ""} for q in asked})
+        return self.writer.generate_chat_completion(messages, **kwargs)
+
+
+def test_the_page_surface_writes_each_day_and_is_rated_on_the_story_judge_questions(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "STORY_PLAN_THEN_WRITE", True)
+    for item in S.load_items("page"):
+        output = S.run_page(item, PageWriter().writer)
+        assert not output["failure"], (item["id"], output)
+        assert output["seconds"] < S.PAGE_BUDGET_SECONDS and output["page_lines"], item["id"]
+        assert any("«" in line for line in output["page_lines"]), "the dialogue is on the page"
+    client = PageWriter()
+    result = R.run(["page"], client=client, judge_model="gpt-6.1-sol", limit=3)
+    summary = result["surfaces"]["page"]
+    assert client.judged == ["gpt-6.1-sol"] * 3
+    assert summary["lost"] == 0 and summary["seconds_median"] is not None
+    assert summary["ratings"]["level"]["mean"] == 2 and summary["criteria"]["natural"] == "3/3"
+    # Four questions at 4/5 and one at 2/5: (4 × 0.75 + 0.25) / 5 = 65.
+    assert summary["score"] == 65.0
+    report = R.render_report({**result, "date": "2026-11-01", "label": "writer-test", "cap_usd": 1.0}, [])
+    assert "0 of 3 days lost" in report and "level 2.0" in report
+
+
+def test_a_lost_day_scores_zero_and_is_not_judged(monkeypatch):
+    from app.config import settings
+    from app.services import living_story as engine
+
+    monkeypatch.setattr(settings, "STORY_PLAN_THEN_WRITE", True)
+
+    def lost(*args, **kwargs):
+        raise engine.StoryUnavailable("timeout")
+
+    monkeypatch.setattr(engine, "_approved", lost)
+    client = PageWriter()
+    result = R.run(["page"], client=client, limit=2)
+    assert client.judged == []
+    assert result["surfaces"]["page"]["lost"] == 2 and result["surfaces"]["page"]["score"] == 0.0
 
 
 def test_scene_payload_carries_the_item():
@@ -234,7 +297,7 @@ def test_parse_verdicts_never_passes_a_missing_verdict():
 def test_run_scores_and_stops_at_the_cap():
     model = FakeModel(cost=0.004)
     meter = R.Meter(inner=model, cap_usd=0.05)
-    result = R.run(["forge", "correction"], client=meter, limit=10)
+    result = R.run(["forge", "correction"], client=meter, judge_model=R.PAGE_JUDGE, limit=10)
     rows = result["items"]["forge"] + result["items"]["correction"]
     scored = [r for r in rows if r["status"] == "scored"]
     skipped = [r for r in rows if r["status"] == "not_run"]
@@ -276,6 +339,82 @@ def test_report_marker_reads_back_as_history_and_trend():
     # A comparison run does not count against the production trend.
     other = R.render_report(_night("2026-11-02", 50.0, label="haiku-live"), history)
     assert "first run" in other and "haiku-live" in other
+
+
+class StrictJudge(FakeModel):
+    """Fails every `takes_up`: a second judge that disagrees on one criterion."""
+
+    def generate_chat_completion(self, messages, **kwargs):
+        if kwargs.get("system_prompt") == R.JUDGE_SYSTEM:
+            payload = json.loads(messages[-1]["content"])
+            self.calls.append(("judge", kwargs.get("model")))
+            return _result({"criteria": [
+                {"id": c["id"], "verdict": "fail" if c["id"] == "takes_up" else "pass", "reason": "strict"}
+                for c in payload["criteria"]
+            ]})
+        return super().generate_chat_completion(messages, **kwargs)
+
+
+def test_rejudge_scores_the_same_answers_with_another_judge():
+    before = R.run(["courrier"], client=FakeModel(), limit=3)
+    before["items"]["courrier"][2].update(failure="stock line", score=0.0)  # a fallback stays a fallback
+    judge = StrictJudge()
+    after = R.rejudge(before, judge_client=judge, judge_model="claude-sonnet-5-5")
+    assert [model for kind, model in judge.calls] == ["claude-sonnet-5-5"] * 2, "only judged answers, no app call"
+    assert after["judge_model"] == "claude-sonnet-5-5" and after["rejudged_from"] == R.DEFAULT_JUDGE
+    rows = after["items"]["courrier"]
+    assert rows[0]["output"] == before["items"]["courrier"][0]["output"]
+    assert rows[0]["verdicts"]["served"][0] == "pass", "the deterministic check is kept"
+    assert rows[0]["verdicts"]["takes_up"][0] == "fail" and rows[2]["score"] == 0.0
+    agreement = R.judge_agreement(before, after)["courrier"]
+    judged_count = len(judged("courrier"))
+    assert agreement["verdicts"] == 2 * judged_count
+    assert agreement["agreement"] == round((judged_count - 1) / judged_count, 3)
+    assert agreement["flips"][0].endswith("takes_up: pass→fail")
+
+
+def test_a_judge_change_restarts_the_trend():
+    first = R.render_report(_night("2026-11-01", 70.0), [])
+    history = R.parse_history([first])
+    assert history[0]["judge"] == R.DEFAULT_JUDGE
+    # Entries written before the judge was recorded count as the first judge's.
+    legacy = [{k: v for k, v in history[0].items() if k != "judge"}]
+    first_judge = {**_night("2026-11-02", 78.0), "judge_model": R.FIRST_JUDGE}
+    assert "| +8 |" in R.render_report(first_judge, legacy)
+    report = R.render_report(_night("2026-11-02", 78.0), legacy)
+    assert "first run" in report and "The judge changed" in report
+
+
+def test_no_claude_judge_grades_the_claude_night_writer(monkeypatch, tmp_path, capsys):
+    assert R.judge_for(["scene", "forge"]) == R.DEFAULT_JUDGE
+    assert R.judge_for(["page"]) == R.PAGE_JUDGE and not R.PAGE_JUDGE.startswith("claude")
+    with pytest.raises(ValueError):
+        R.judge_for(["page"], "claude-opus-5-5")
+    from scripts import gold_transcripts as cli
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    assert cli.main(["plan", "--surface", "page", "--judge-model", "claude-sonnet-5-5"]) == 2
+    saved = tmp_path / "pages.json"
+    saved.write_text(json.dumps({"judge_model": R.PAGE_JUDGE, "items": {"page": []}}), encoding="utf-8")
+    assert cli.main(["rejudge", str(saved), "--judge-model", "claude-sonnet-5-5", "--max-usd", "1"]) == 2
+    assert "Claude model" in capsys.readouterr().out
+
+
+def test_an_unrated_page_question_earns_nothing():
+    verdicts = {"served": ("pass", ""), "natural": ("pass", "5/5 fine")}
+    verdicts.update({c.id: ("fail", "judge: no verdict") for c in judged("page") if c.id != "natural"})
+    assert R.item_score(verdicts, "page") == 1 / len(judged("page"))
+
+
+def test_cli_maps_the_environment_anthropic_key(monkeypatch):
+    import importlib
+
+    from scripts import gold_transcripts as cli
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")  # registered, so the test's own value is undone
+    monkeypatch.setenv("ATELIER_ANTHROPIC_API_KEY", "sk-ant-test")
+    importlib.reload(cli)
+    assert os.environ["ANTHROPIC_API_KEY"] == "sk-ant-test"
 
 
 def test_profile_applies_render_values_and_restores():
@@ -324,3 +463,4 @@ def test_cli_refuses_without_a_cap_above_the_cap_and_in_ci(monkeypatch, capsys):
     monkeypatch.setenv("CI", "true")
     assert cli.main(["run", "--max-usd", "1"]) == 2
     assert "CI" in capsys.readouterr().out
+    assert cli.main(["rejudge", "x.json", "--judge-model", "claude-sonnet-5-5", "--max-usd", "1"]) == 2
