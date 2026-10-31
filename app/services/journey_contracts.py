@@ -688,6 +688,12 @@ class RecallTask:
     #: language («Rule: Le verbe être au présent.»). Shown with the answer, so a
     #: repair never ends on a bare «Correct».
     rule_native: str | None = None
+    #: #155: who says the line of today's scene this item is cut from (a cast id),
+    #: so the face that asks the item and smiles at a right answer is that person
+    #: and not the day's character. ``None`` when the item is not cut from a
+    #: character's line, and always for «Qui a dit ça ?», whose face would be its
+    #: answer. Public as ``RecallPrompt.speaker`` (``journey_planner.recall_speaker``).
+    speaker_id: str | None = None
 
 
 #: WP-103 T3 (the owner's test: «Build the sentence. Some chips are not needed.» —

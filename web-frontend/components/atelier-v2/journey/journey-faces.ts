@@ -1,9 +1,10 @@
 /**
  * WP-77 — who is on screen in the daily journey.
  *
- * The scene's speaker and the one who reacts to a recall answer is the day's
- * scenario character; a respond step names its own speaker (a letter day's
- * correspondent first). Pure, so the node harness can check it.
+ * The scene's speaker is the day's scenario character; a respond step names its
+ * own speaker (a letter day's correspondent first). A recall item cut from a line
+ * of the scene is that line's speaker's (#155, `drillSpeaker`). Pure, so the node
+ * harness can check it.
  */
 
 import { drawnCastIdFor } from '@/lib/cast-faces';
@@ -69,14 +70,19 @@ export function journeySpeaker(
 }
 
 /**
- * La troupe vivante: who asks a drill and reacts to its answer. A grammar drill on a rule the
- * day introduces belongs to that rule's coach (the card's speaker, as in La Forge); anything else
- * stays with the scene's character. `null` when nobody is known.
+ * La troupe vivante: who asks a drill and reacts to its answer. A drill cut from a line of
+ * today's scene belongs to whoever says that line (#155: the server names them in
+ * `prompt.speaker`, so a rebuilt line of Marin's is Marin's face and «Marin te sourit», not the
+ * day's character's). Otherwise a grammar drill on a rule the day introduces belongs to that
+ * rule's coach (the card's speaker, as in La Forge), and anything else stays with the scene's
+ * character. `null` when nobody is known.
  */
 export function drillSpeaker(
   journey: Pick<JourneySnapshot, 'scenario' | 'steps'> | null | undefined,
   step: PublicStep | null | undefined,
 ): JourneySpeaker | null {
+  const line = step?.kind === 'recall' ? step.prompt.speaker : null;
+  if (line?.id && line.name) return speakerOf(line.id, line.name);
   if (step?.kind === 'recall' && step.prompt.target?.kind === 'grammar') {
     const concept = Number(step.prompt.target.id);
     for (const other of journey?.steps ?? []) {
