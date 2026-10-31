@@ -184,6 +184,45 @@ def test_meter_refuses_the_call_that_would_pass_the_cap():
     assert meter.calls == 2
 
 
+def test_meter_reserves_parallel_calls_and_prices_claude_at_its_floor():
+    import threading
+
+    from app.services.llm_service import ANTHROPIC_MIN_MAX_TOKENS, LLMProviderError
+
+    gate = threading.Event()
+
+    class Slow(FakeModel):
+        def generate_chat_completion(self, messages, **kwargs):
+            gate.wait(5)
+            return _result("ok", cost=0.0)
+
+    messages = [{"role": "user", "content": "x"}]
+    meter = R.Meter(inner=Slow(), cap_usd=0.01)
+    one_call = meter.worst_case("chat", messages, {"model": "gpt-6-luna", "max_tokens": 10})
+    meter.cap_usd = one_call * 1.5  # room for one call in flight, not two
+    errors: list[Exception] = []
+
+    def call():
+        try:
+            meter.generate_chat_completion(messages, model="gpt-6-luna", max_tokens=10)
+        except LLMProviderError as exc:
+            errors.append(exc)
+
+    first = threading.Thread(target=call)
+    first.start()
+    for _ in range(500):  # until the first call is admitted and in flight
+        if meter.reserved_usd > 0:
+            break
+        threading.Event().wait(0.01)
+    call()  # nothing is spent yet: only the reservation can refuse it
+    gate.set()
+    first.join()
+    assert len(errors) == 1 and meter.calls == 1 and meter.reserved_usd == pytest.approx(0.0)
+    claude = meter.worst_case("chat", messages, {"model": "claude-sonnet-5-5", "max_tokens": 1000})
+    floor = meter.worst_case("chat", messages, {"model": "claude-sonnet-5-5", "max_tokens": ANTHROPIC_MIN_MAX_TOKENS})
+    assert claude == floor
+
+
 def test_parse_verdicts_never_passes_a_missing_verdict():
     content = json.dumps({"criteria": [{"id": "takes_up", "verdict": "pass", "reason": "ok"}, {"id": "no_reask", "verdict": "maybe"}]})
     verdicts = R.parse_verdicts("scene", content)

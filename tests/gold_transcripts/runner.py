@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import subprocess
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -143,6 +144,9 @@ class Meter:
     exhausted: bool = False
     log: list[dict] = field(default_factory=list)
     role: str = "app"
+    #: Estimates of the calls in flight (the scene's tutor and voice run in parallel).
+    reserved_usd: float = 0.0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def _default_model(self, kind: str) -> str:
         from app.config import settings
@@ -156,25 +160,36 @@ class Meter:
         rates, _known = text_price_for(model)
         chars = len(kwargs.get("system_prompt") or "") + sum(len(str(m.get("content", ""))) for m in messages)
         prompt_tokens = chars / 3 + 50
-        completion = kwargs.get("max_tokens") or (800 if kind == "error" else 512)
+        completion = int(kwargs.get("max_tokens") or (800 if kind == "error" else 512))
+        if str(model).startswith("claude"):
+            # The Anthropic provider raises every request to its own floor (thinking included).
+            from app.services.llm_service import ANTHROPIC_MIN_MAX_TOKENS
+
+            completion = max(completion, ANTHROPIC_MIN_MAX_TOKENS)
         return prompt_tokens / 1000 * rates["prompt"] + completion / 1000 * rates["completion"]
 
     def _call(self, kind: str, method: Callable[..., Any], messages: Any, kwargs: dict) -> Any:
         from app.services.llm_service import LLMProviderError
 
         estimate = self.worst_case(kind, messages, kwargs)
-        if self.exhausted or self.spent_usd + estimate > self.cap_usd:
-            self.exhausted = True
-            raise LLMProviderError(
-                f"gold budget: US${self.spent_usd:.4f} spent, this call could cost US${estimate:.4f}, cap US${self.cap_usd:.2f}"
-            )
+        with self._lock:  # admission and reservation together: parallel calls cannot share headroom
+            if self.exhausted or self.spent_usd + self.reserved_usd + estimate > self.cap_usd:
+                self.exhausted = True
+                raise LLMProviderError(
+                    f"gold budget: US${self.spent_usd:.4f} spent, US${self.reserved_usd:.4f} in flight, "
+                    f"this call could cost US${estimate:.4f}, cap US${self.cap_usd:.2f}"
+                )
+            self.reserved_usd += estimate
         started = time.monotonic()
+        result = None
         try:
             result = method(messages, **kwargs)
         finally:
-            self.calls += 1
-        cost = float(getattr(result, "cost", 0.0) or 0.0)
-        self.spent_usd += cost
+            cost = float(getattr(result, "cost", 0.0) or 0.0)
+            with self._lock:
+                self.reserved_usd -= estimate
+                self.spent_usd += cost
+                self.calls += 1
         self.log.append({
             "role": self.role, "model": getattr(result, "model", None), "cost": round(cost, 6),
             "seconds": round(time.monotonic() - started, 2),
