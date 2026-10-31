@@ -290,8 +290,28 @@ def test_profile_applies_render_values_and_restores():
     finally:
         R.restore_profile(applied)
     assert settings.STORY_LIVE_MODEL == before
+
+
+def test_profile_never_makes_the_process_a_production_server():
+    """CI shares worker processes: a failed or applied profile must not leak APP_ENV,
+    SMTP or spend settings into the next test file."""
+
+    from app.config import settings
+
+    snapshot = settings.model_dump()
+    applied = R.apply_profile()
+    try:
+        assert "APP_ENV" not in applied and "SMTP_PORT" not in applied
+        assert "USER_DAILY_SPEND_CAP_USD" not in applied
+        assert settings.APP_ENV == snapshot["APP_ENV"]
+    finally:
+        R.restore_profile(applied)
+    assert settings.model_dump() == snapshot
     with pytest.raises(ValueError):
         R.apply_profile({"NOT_A_SETTING": "x"})
+    with pytest.raises(ValueError):
+        R.apply_profile({"MISSION_CHAT_TIMEOUT_SECONDS": "not a number"})
+    assert settings.model_dump() == snapshot
 
 
 def test_cli_refuses_without_a_cap_above_the_cap_and_in_ci(monkeypatch, capsys):

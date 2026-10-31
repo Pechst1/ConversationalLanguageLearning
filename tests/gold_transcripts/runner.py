@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import threading
 import time
@@ -64,36 +65,49 @@ def render_values(service: str = "atelier-api", path: Path | None = None) -> dic
     raise ValueError(f"render.yaml has no service {service!r}")
 
 
+#: The render.yaml keys the profile copies: model, effort, provider and LLM limits. The rest
+#: (APP_ENV, SMTP, spend caps, feature switches) would turn the process into a production
+#: server, which the surfaces do not need and a test worker must never inherit.
+PROFILE_KEY = re.compile(r"MODEL|EFFORT|PROVIDER|LLM|MAX_TOKENS|TIMEOUT|^STORY_|^MISSION_")
+
+
 def apply_profile(overrides: dict[str, str] | None = None, *, production: bool = True) -> dict[str, Any]:
     """Set the app's settings as production runs them; returns the values applied.
-    Call :func:`restore_profile` with the result to undo."""
+    Call :func:`restore_profile` with the result to undo. Nothing is set when it raises."""
 
     from pydantic import TypeAdapter
 
     from app.config import settings
 
+    fields = type(settings).model_fields
+    overrides = dict(overrides or {})
+    for key in overrides:
+        if key not in fields:
+            raise ValueError(f"--set {key}: not an app setting")
     wanted: dict[str, str] = {}
     if production:
-        wanted.update(render_values())
+        wanted.update({k: v for k, v in render_values().items() if PROFILE_KEY.search(k)})
     wanted.update({"ATELIER_LLM_ENABLED": "true", "ATELIER_CORRECTION_LLM_ENABLED": "true"})
-    wanted.update(overrides or {})
-    fields = type(settings).model_fields
-    old: dict[str, Any] = {}
-    applied: dict[str, Any] = {}
+    wanted.update(overrides)
+    values: dict[str, Any] = {}
     for key, raw in wanted.items():
         if key not in fields:
-            if overrides and key in overrides:
-                raise ValueError(f"--set {key}: not an app setting")
             continue
         try:
-            value = _coerce(TypeAdapter(fields[key].annotation), raw)
+            values[key] = _coerce(TypeAdapter(fields[key].annotation), raw)
         except ValueError:
-            if overrides and key in overrides:
+            if key in overrides:
                 raise
-            continue  # a deploy-only value (a JSON list, a URL list) no surface reads
-        old[key] = getattr(settings, key)
-        setattr(settings, key, value)
-        applied[key] = value
+            continue  # a deploy-only value no surface reads
+    old: dict[str, Any] = {}
+    try:
+        for key, value in values.items():
+            old[key] = getattr(settings, key)
+            setattr(settings, key, value)
+    except Exception:
+        restore_profile({"_restore": old})
+        raise
+    applied: dict[str, Any] = dict(values)
     applied["_restore"] = old
     return applied
 
