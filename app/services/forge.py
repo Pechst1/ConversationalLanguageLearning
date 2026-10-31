@@ -54,7 +54,7 @@ from app.db.models.atelier import AtelierAttempt, AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services import forge_drills as drills
-from app.services.forge_coaches import coach_for_concept, coach_mood
+from app.services.forge_coaches import coach_for_concept, coach_mood, story_state_of
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
 FORGE_KEY = "forge"
@@ -734,7 +734,10 @@ class BankItemProvider:
         # WP-S5: free use is a two-line scene with the rule's coach when the item
         # carries its own question; otherwise it is the plain task, with no line (#176).
         return item_bank.output_item(
-            candidate, round_name="conversation", requirement=requirement, coach=coach_for_concept(concept.external_id)
+            candidate,
+            round_name="conversation",
+            requirement=requirement,
+            coach=coach_for_concept(concept.external_id, state=story_state_of(self.db, self.user)),
         )
 
     def _requirement(self, concept: GrammarConcept, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1442,14 +1445,20 @@ class ForgeService:
 
     # -- serving --------------------------------------------------------------
 
-    def coach_for(self, concept_id: int) -> dict[str, Any] | None:
-        """WP-S5: the rule's coach (cached per service)."""
+    def coach_for(self, concept_id: int, user: User | None = None) -> dict[str, Any] | None:
+        """WP-S5: the rule's coach (cached per service). With the ``user`` (#147): only
+        someone this learner has met, in the register their story has."""
 
         cache = self.__dict__.setdefault("_coaches", {})
-        if concept_id not in cache:
+        key = (concept_id, str(getattr(user, "id", "")))
+        if key not in cache:
             concept = self.db.get(GrammarConcept, int(concept_id))
-            cache[concept_id] = coach_for_concept(concept.external_id) if concept is not None else None
-        return cache[concept_id]
+            cache[key] = (
+                coach_for_concept(concept.external_id, state=story_state_of(self.db, user))
+                if concept is not None
+                else None
+            )
+        return cache[key]
 
     def provider(self, *, user: User, session: AtelierSession) -> ItemProvider:
         return self._item_provider or BankItemProvider.for_session(self.db, user=user, session=session)
@@ -1551,7 +1560,7 @@ class ForgeService:
                     # learner's language, no retired frame, no server-only key.
                     "item": _public_item(dict(item.payload or {}), user),
                     # WP-S5: who teaches this rule.
-                    "coach": self.coach_for(slot.concept_id),
+                    "coach": self.coach_for(slot.concept_id, user),
                 }
                 if item.group:
                     # A burst: every judgement of it, the lead first.
@@ -1608,7 +1617,7 @@ class ForgeService:
                     "rung_name": core.rung_name(track.rung),
                     "served": track.served,
                     "topped": track.topped,
-                    "coach": self.coach_for(track.concept_id),
+                    "coach": self.coach_for(track.concept_id, user),
                 }
                 for track in state.tracks
             ],
@@ -1690,7 +1699,7 @@ class ForgeService:
             "run": run,
             # WP-S5: the rule's coach, and the face they make at this answer.
             "held": held,
-            "coach": self.coach_for(int(attempt.concept_id)),
+            "coach": self.coach_for(int(attempt.concept_id), user),
             "coach_mood": coach_mood(correct=verdict.correct, checked=verdict.checked, held=held),
         }
         attempt.correction_payload = correction

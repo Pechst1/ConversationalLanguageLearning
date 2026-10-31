@@ -57,28 +57,70 @@ def family_for_unit(unit: str | None) -> dict[str, Any] | None:
     return _unit_family().get(str(unit or ""))
 
 
-def coach(character_id: str | None, *, family: dict[str, Any] | None = None) -> dict[str, Any] | None:
-    """The coach payload for one cast member: ``{id, name, register, family, family_title}``."""
+#: Who stands in for a coach the learner has not met yet, in order: the people the
+#: season puts on its first page (#147: Romy coached «L'interview» before T4).
+STAND_INS = ("margaux_barman", "lila_bonnet", "marin_leveque", "augustin_de_roncourt")
+
+
+def coach(
+    character_id: str | None,
+    *,
+    family: dict[str, Any] | None = None,
+    state: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """The coach payload for one cast member: ``{id, name, register, family, family_title}``.
+
+    #147: the name is the cast registry's (what the learner reads on every other
+    screen), and with the learner's thread ``state`` the register is the one the scene
+    and the Courrier use (``address.character_register``: Gus says vous until T3). The
+    coaches file only says who coaches which rules, and a register for no learner.
+    """
 
     cast = _data()["cast"].get(str(character_id or ""))
     if cast is None:
         return None
+    from app.services.cast_registry import display_name
+
+    register = cast.get("register", "tu")
+    if state is not None:
+        from app.services.address import character_register
+
+        register = character_register(state, str(character_id))
     return {
         "id": str(character_id),
-        "name": cast["name"],
-        "register": cast.get("register", "tu"),
+        "name": display_name(character_id, cast["name"]),
+        "register": register,
         "family": family["id"] if family else None,
         "family_title": dict(family["title"]) if family else None,
     }
 
 
-def coach_for_unit(unit: str | None) -> dict[str, Any] | None:
+def coach_for_unit(unit: str | None, *, state: dict[str, Any] | None = None) -> dict[str, Any] | None:
     family = family_for_unit(unit)
-    return coach(family["coach"], family=family) if family else None
+    return _met_coach(family["coach"], family=family, state=state) if family else None
 
 
-def coach_for_concept(external_id: str | None) -> dict[str, Any] | None:
-    """The coach of a concept (a v2 unit, or a v1 concept through its card or its units)."""
+def _met_coach(
+    character_id: str, *, family: dict[str, Any] | None, state: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    """The coach, or, when this learner has not met them yet, the first stand-in they have
+    met (without the family's title: «Romy's interview» is not Margaux's)."""
+
+    if state is None:
+        return coach(character_id, family=family)
+    from app.services.cast_registry import has_met
+
+    if has_met(state, character_id):
+        return coach(character_id, family=family, state=state)
+    stand_in = next((cid for cid in STAND_INS if cid != character_id and has_met(state, cid)), None)
+    return coach(stand_in, state=state) if stand_in else None
+
+
+def coach_for_concept(external_id: str | None, *, state: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """The coach of a concept (a v2 unit, or a v1 concept through its card or its units).
+
+    With the learner's thread ``state`` (#147): only someone the learner has met, and
+    their register as the story has it."""
 
     from app.services.item_bank import units_for_external_id
     from app.services.rule_cards import rule_card_for
@@ -92,10 +134,27 @@ def coach_for_concept(external_id: str | None) -> dict[str, Any] | None:
     speaker = card.get("speaker")
     if speaker and speaker in _data()["cast"]:
         # The authored card's speaker is the face the learner already knows.
-        return coach(speaker, family=family if family and family["coach"] == speaker else None)
+        return _met_coach(speaker, family=family if family and family["coach"] == speaker else None, state=state)
     if family:
-        return coach(family["coach"], family=family)
+        return _met_coach(family["coach"], family=family, state=state)
     return None
+
+
+def story_state_of(db: Any, user: Any) -> dict[str, Any] | None:
+    """The learner's story thread state when it says who they have met, else ``None``
+    (the coaches then stay as the file has them: no story to read, nothing to filter)."""
+
+    if db is None or user is None or getattr(user, "id", None) is None:
+        return None
+    try:
+        from app.services.cast_registry import met_ids
+        from app.services.story_correspondence import active_thread
+
+        thread = active_thread(db, user)
+    except Exception:  # noqa: BLE001 - a coach is decoration, never a reason to fail an item
+        return None
+    state = thread.state if thread is not None and isinstance(thread.state, dict) else None
+    return state if state is not None and met_ids(state) is not None else None
 
 
 def coach_mood(*, correct: bool | None, checked: bool, held: bool = False) -> str:
@@ -198,6 +257,7 @@ def mini_scene(item: Any, coach_payload: dict[str, Any] | None) -> dict[str, Any
 
 __all__ = [
     "MOODS",
+    "STAND_INS",
     "cast_ids",
     "coach",
     "coach_for_concept",
@@ -205,4 +265,5 @@ __all__ = [
     "coach_mood",
     "family_for_unit",
     "mini_scene",
+    "story_state_of",
 ]
