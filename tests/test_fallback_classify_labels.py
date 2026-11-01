@@ -262,7 +262,7 @@ def test_the_guard_walks_every_unit_of_the_seed() -> None:
     assert all(_detector(concept) for concept in concepts), "every seeded unit has a detector to be held to"
 
 
-def test_no_fallback_option_or_tile_is_an_invented_form() -> None:
+def test_no_invented_form() -> None:
     """«prêters», «encores», «peuxs», «J'économises»: a word bank's tiles and a fill's
     choices are words of the concept's sentences or words the lexicon knows."""
 
@@ -286,7 +286,7 @@ def test_no_fallback_option_or_tile_is_an_invented_form() -> None:
     assert autrement == 0, "«autrement» is not a distractor every bank may carry"
 
 
-def test_the_two_walked_units_offer_no_invented_form() -> None:
+def test_walked_units_real() -> None:
     generator = AtelierExerciseGenerator(None)
     by_id = {concept.external_id: concept for concept in _unit_concepts()}
     offered: set[str] = set()
@@ -300,7 +300,7 @@ def test_the_two_walked_units_offer_no_invented_form() -> None:
         assert invented not in offered, invented
 
 
-def test_a_fill_blank_is_a_word_the_rule_decides() -> None:
+def test_blank_is_ruled() -> None:
     """The blank sits inside the span the concept's detector recognises in the finished
     sentence: it is a word today's rule decides, not the first word of four letters."""
 
@@ -326,7 +326,7 @@ def test_a_fill_blank_is_a_word_the_rule_decides() -> None:
     assert off_rule == [], f"{len(off_rule)} blanks off the rule, e.g. " + "; ".join(off_rule[:6])
 
 
-def test_a_wrong_option_in_the_two_walked_units_breaks_the_rule() -> None:
+def test_wrong_option_breaks() -> None:
     """«Tu peux me la prêter» is as right as «me le»: a wrong option must be a word that
     makes the detector lose the form in the blank, and a real one."""
 
@@ -349,7 +349,7 @@ def test_a_wrong_option_in_the_two_walked_units_breaks_the_rule() -> None:
                 assert not shown, (external_id, other)
 
 
-def test_every_fallback_transform_row_practises_the_concept_it_is_filed_under() -> None:
+def test_row_fits_concept() -> None:
     """A row is filed under a concept only when the concept's detector recognises the
     form in it (its answer, or its source for a unit whose detector flags the slip): no place-preposition rows under «Pour, sans, avant de», no
     single-pronoun swaps under «Deux pronoms ensemble»."""
@@ -368,7 +368,7 @@ def test_every_fallback_transform_row_practises_the_concept_it_is_filed_under() 
     assert misfiled == [], f"{len(misfiled)} misfiled rows, e.g. " + "; ".join(misfiled[:6])
 
 
-def test_the_two_walked_units_get_no_off_rule_rewrite() -> None:
+def test_no_off_rule_row() -> None:
     generator = AtelierExerciseGenerator(None)
     by_id = {concept.external_id: concept for concept in _unit_concepts()}
     prep = generator._fallback_transform_items(by_id["FR2_B11_PREP_INFINITIVE"], [], prefix="t")
@@ -381,7 +381,7 @@ def test_the_two_walked_units_get_no_off_rule_rewrite() -> None:
     }
 
 
-def test_a_rewrite_of_a_correct_sentence_is_not_called_correct_the_error() -> None:
+def test_rewrite_goal() -> None:
     """«Corrige l'erreur dans la phrase» is the goal of a repair. A directed or a contrast
     rewrite starts from a right sentence: it has no error to correct."""
 
@@ -402,7 +402,7 @@ def test_a_rewrite_of_a_correct_sentence_is_not_called_correct_the_error() -> No
         assert goals["contrast_rewrite"] != repair_goal, (language, goals)
 
 
-def test_a_filled_sentence_never_keeps_a_blank_underscore() -> None:
+def test_no_underscore() -> None:
     """The end sheet printed «Tu peux_ me le prêter demain ?»: the blank is four
     underscores and the sheet replaced three."""
 
