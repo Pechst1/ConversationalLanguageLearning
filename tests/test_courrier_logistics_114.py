@@ -121,12 +121,20 @@ def test_what_the_scene_or_the_learner_already_holds_may_be_said_again(monkeypat
     assert len(llm.systems) == 1
 
 
-def test_a_statement_about_the_address_is_no_request() -> None:
-    from app.services import lane_guards
+def test_a_statement_about_the_address_is_kept_but_a_request_for_it_is_not(monkeypatch) -> None:
+    statement = "Bien reçu : nous avons ton adresse. Le paquet arrive demain, tu es là ?"
+    service, llm, mission = _service(monkeypatch, [statement])
+    assert _respond(service, mission, LEARNER_24_OCT) == statement
+    assert len(llm.systems) == 1
 
-    assert lane_guards.personal_requests("Nous avons votre adresse.") == set()
-    assert lane_guards.personal_requests("Quelle est votre adresse e-mail ?") == {"email"}
-    assert lane_guards.personal_requests("Votre numéro de téléphone, s'il vous plaît ?") == {"phone"}
+
+@pytest.mark.parametrize(
+    "request_text",
+    ["Quelle est ton adresse e-mail ?", "Ton numéro de téléphone, s'il te plaît ?", "Où habites-tu exactement ?"],
+)
+def test_a_request_for_email_phone_or_home_is_rewritten(monkeypatch, request_text: str) -> None:
+    service, _llm, mission = _service(monkeypatch, [request_text, GOOD_13_OCT])
+    assert _respond(service, mission, LEARNER_13_OCT) == GOOD_13_OCT
 
 
 def test_no_delivery_goal_asks_the_learner_for_a_tracking_number_or_an_address() -> None:
