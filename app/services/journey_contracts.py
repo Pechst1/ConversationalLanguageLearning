@@ -1309,6 +1309,11 @@ class Correction:
     #: item's gap filled with it), so the saved error can be drilled later as that
     #: sentence with the slip marked, not as a bare word. ``None`` when unknown.
     context_fr: str | None = None
+    #: #174: the app's own register rule wrote this edit («Tu as» -> «Vous avez» at
+    #: a counter that stays on «vous»), not a model. Its claim is about the scene, not
+    #: about the learner's grammar, so the checks that prove a model's fix against
+    #: the learner's sentence (subject kept, cited form present) do not apply to it.
+    rule_written: bool = False
 
     def is_valid_for(self, learner_text: str) -> bool:
         """Reject no-op corrections and spans the learner never wrote."""
