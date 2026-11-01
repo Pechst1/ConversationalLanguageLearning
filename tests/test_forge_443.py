@@ -33,7 +33,7 @@ from tests.test_daily_journey_state import create_request, enabled, make_user  #
 from tests.test_wp_s4_one_picker import v2  # noqa: F401 - fixture
 
 
-def test_the_forge_entry_opens_on_the_rule_the_day_planned(db_session: Session, v2, enabled) -> None:
+def test_entry_names_planned_rule(db_session: Session, v2, enabled) -> None:
     user = make_user(db_session, f"forge-443-{uuid.uuid4().hex[:8]}@example.com")
     service = DailyJourneyService(db_session, build_default_adapters())
     created, code = service.create_journey(user, create_request())
@@ -58,7 +58,7 @@ def test_the_forge_entry_opens_on_the_rule_the_day_planned(db_session: Session, 
     assert f"concept={days_rule.id}" in today.practice_href
 
 
-def test_a_top_out_the_model_withdrew_does_not_leave_the_seance_finished() -> None:
+def test_withdrawn_top_out_reopens() -> None:
     state = ForgeState.seance([ForgeUnit(7, "today", rung=int(core.TOP_RUNG))], length=17, review_share=0.25)
     slot = state.next_slot()
     assert slot is not None and slot.rung == int(core.TOP_RUNG)
