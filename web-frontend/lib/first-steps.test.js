@@ -1,7 +1,7 @@
 // node --test lib/first-steps.test.js
 //
 // GENTLE-ONBOARDING (owner, 2026-10-12): the walkthrough, the first-time
-// stickers and the first day's route (story → words → La Forge).
+// stickers and the first day's route (story → La Forge → words).
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -31,13 +31,13 @@ function memory() {
   };
 }
 
-test('the first day runs story, then the words, then La Forge (the server plan’s order)', () => {
-  assert.deepEqual([...steps.ROUTE_STAGES], ['story', 'words', 'forge']);
+test('the first day runs story, then La Forge, then the words (the server plan’s order)', () => {
+  assert.deepEqual([...steps.ROUTE_STAGES], ['story', 'forge', 'words']);
   assert.equal(steps.nextRouteStage([]), 'story');
-  assert.equal(steps.nextRouteStage(['story']), 'words');
-  assert.equal(steps.nextRouteStage(['story', 'words']), 'forge');
-  // La Forge done before the words still sends the learner to the words next.
+  assert.equal(steps.nextRouteStage(['story']), 'forge');
   assert.equal(steps.nextRouteStage(['story', 'forge']), 'words');
+  // The words done before La Forge still send the learner to La Forge next.
+  assert.equal(steps.nextRouteStage(['story', 'words']), 'forge');
   assert.equal(steps.nextRouteStage(['story', 'forge', 'words']), null);
 });
 
@@ -146,11 +146,14 @@ test('#127: the rule sticker never claims the card quotes the scene', () => {
 });
 
 test('#123: the episode-end sticker does not say the day is done, and names what follows', () => {
-  // Round 3: after the scene come the words, then the grammar.
-  const expected = { de: /Wörter.*Grammatik/, en: /words.*grammar/, fr: /mots.*grammaire/ };
+  // Owner, 1 Nov 2026: after the scene comes the grammar, then the words.
+  const expected = { de: /Grammatik.*Wörter/, en: /grammar.*words/, fr: /grammaire.*mots/ };
   for (const language of ['de', 'en', 'fr']) {
     const { title, body } = steps.firstStepsCopy(language).stickers.resolution;
     assert.doesNotMatch(`${title} ${body}`, /Tag ist geschafft|Ende des Tages|day is done|end of the day|journée est faite|fin du jour/);
     assert.match(body, expected[language]);
+    // The walkthrough's «your first day» card says the same order.
+    const { day_body: dayBody } = steps.firstStepsCopy(language).walkthrough;
+    assert.match(dayBody, expected[language], `${language}: ${dayBody}`);
   }
 });

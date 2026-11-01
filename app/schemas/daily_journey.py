@@ -12,7 +12,7 @@ in this module:
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, get_args
 from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
@@ -1314,7 +1314,15 @@ class EpisodeHeadline(JourneyModel):
     cast_variants: dict[str, str] = Field(default_factory=dict)
 
 
-DaySessionStepKind = Literal["scene", "words", "grammar", "finish"]
+#: The day's steps IN THEIR ORDER (owner, 1 Nov 2026: the scene, then La Forge,
+#: then the words, then the seal). This literal is the one place the order is
+#: written: ``app.services.daily_session.session_view`` lays the day out by it,
+#: the generated ``types/generated/api.ts`` union keeps its order, and the
+#: frontend's ``lib/day-order.ts`` is checked against that union
+#: (``day-order.test.js``), as is the backend (``test_round3_daily_session``).
+DaySessionStepKind = Literal["scene", "grammar", "words", "finish"]
+#: :data:`DaySessionStepKind` as a tuple, for code that walks the day.
+DAY_STEP_ORDER: tuple[str, ...] = get_args(DaySessionStepKind)
 DaySessionStepState = Literal["done", "next", "todo"]
 PaceName = Literal["ruhig", "normal", "schnell"]
 
@@ -1342,8 +1350,8 @@ class DaySessionTally(JourneyModel):
 
 
 class DaySession(JourneyModel):
-    """Round 3 (owner, 2026-10-14): the day as one sequence — Szene, Wörter,
-    Grammatik, Fertig — at the learner's pace. See ``app.services.daily_session``."""
+    """Round 3 (owner, 2026-10-14): the day as one sequence — Szene, Grammatik
+    (La Forge), Wörter, Fertig (order: owner, 1 Nov 2026) — at the learner's pace. See ``app.services.daily_session``."""
 
     pace: PaceName
     steps: list[DaySessionStep]

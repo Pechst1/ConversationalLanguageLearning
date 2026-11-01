@@ -26,7 +26,9 @@ const dp = require('./day-plan.ts');
 const WORDS = '/vocabulary/review?day=1';
 const FORGE = '/atelier?mode=forge&concept=1&budget=300&from=day';
 
-// The server's plan (`TodayEnvelope.session`) for [scene, words, grammar] states.
+// The server's plan (`TodayEnvelope.session`) for [scene, grammar, words] states:
+// the day's order (owner, 1 Nov 2026: La Forge before the words), which
+// `day-order.test.js` holds to the server's.
 function plan(states) {
   const all = states.every((state) => state === 'done');
   const first = states.findIndex((state) => state !== 'done');
@@ -35,11 +37,11 @@ function plan(states) {
     pace: 'normal',
     steps: [
       { kind: 'scene', state: withNext[0], minutes: 8, href: null },
-      { kind: 'words', state: withNext[1], minutes: 6, href: WORDS, count: 17 },
-      { kind: 'grammar', state: withNext[2], minutes: 5, href: FORGE, count: 12 },
+      { kind: 'grammar', state: withNext[1], minutes: 5, href: FORGE, count: 12 },
+      { kind: 'words', state: withNext[2], minutes: 6, href: WORDS, count: 17 },
       { kind: 'finish', state: all ? 'done' : 'todo', minutes: 0, href: '/fertig' },
     ],
-    next_kind: ['scene', 'words', 'grammar'][first] ?? null,
+    next_kind: ['scene', 'grammar', 'words'][first] ?? null,
     minutes_left: 19,
     done: all,
     tally: { scenes: 0, words: 0, exercises: 0 },
@@ -53,15 +55,15 @@ function plan(states) {
 // the step itself next, later ones still to come.
 const START = {
   scene: ['next', 'todo', 'todo'],
-  words: ['done', 'next', 'todo'],
-  grammar: ['done', 'done', 'next'],
+  grammar: ['done', 'next', 'todo'],
+  words: ['done', 'done', 'next'],
 };
 
 // What the plan itself says must come next when the exit finishes the step.
 const AFTER_FINISH = {
-  scene: { kind: 'words', href: WORDS, dayDone: false },
-  words: { kind: 'grammar', href: FORGE, dayDone: false },
-  grammar: { kind: 'finish', href: '/fertig', dayDone: true },
+  scene: { kind: 'grammar', href: FORGE, dayDone: false },
+  grammar: { kind: 'words', href: WORDS, dayDone: false },
+  words: { kind: 'finish', href: '/fertig', dayDone: true },
 };
 
 for (const step of ['scene', 'words', 'grammar']) {
@@ -89,7 +91,7 @@ test('a stopped scene is done (the server marks any terminal status) but the day
   const stopped = dp.afterExit(plan(START.scene), 'scene', 'stopped', 'en');
   assert.deepEqual(stopped.done, ['scene']);
   assert.equal(stopped.dayDone, false);
-  assert.equal(stopped.next.kind, 'words');
+  assert.equal(stopped.next.kind, 'grammar');
   // #153: Home reads the very same plan once the server has caught up.
   assert.equal(dp.dayIsDone(plan(['done', 'todo', 'todo'])), false);
 });
@@ -118,7 +120,7 @@ test('the day is done only when every working step is done in the plan', () => {
   for (const scene of states) {
     for (const words of states) {
       for (const grammar of states) {
-        const all = [scene, words, grammar];
+        const all = [scene, grammar, words];
         assert.equal(dp.dayIsDone(plan(all)), all.every((state) => state === 'done'), all.join('/'));
       }
     }
@@ -145,6 +147,16 @@ test('#152: the onboarding route lists the steps in the plan’s order', () => {
   assert.deepEqual(planOrder, [...dp.WORK_STEPS]);
 });
 
+test('owner, 1 Nov: after the scene La Forge is next, after La Forge the words', () => {
+  assert.equal(dp.handOnAfterScene(plan(START.scene), 'en').kind, 'grammar');
+  assert.equal(dp.handOnAfterGrammar(plan(START.grammar), 'en').kind, 'words');
+  assert.equal(dp.handOnAfterWords(plan(START.words), 'en').kind, 'finish');
+  // Words done first (from the Cahier, say): the scene's end still names La Forge,
+  // and La Forge's recap goes to the seal.
+  assert.equal(dp.handOnAfterScene(plan(['next', 'todo', 'done']), 'en').kind, 'grammar');
+  assert.equal(dp.handOnAfterGrammar(plan(['done', 'next', 'done']), 'en').kind, 'finish');
+});
+
 test('screens ask the plan: no second reader of «the day is done» is left in the pages', () => {
   const read = (file) => fs.readFileSync(path.join(WEB_ROOT, file), 'utf8');
   const atelier = read('pages/atelier.tsx');
@@ -162,7 +174,7 @@ test('screens ask the plan: no second reader of «the day is done» is left in t
 });
 
 test('#175: a failed rule check from the day hands back to the day’s open grammar step', () => {
-  const p = plan(['done', 'done', 'todo']);
+  const p = plan(['done', 'todo', 'done']);
   const failed = dp.handOnAfterRuleCheck(p, false, 'de');
   assert.equal(failed.kind, 'grammar');
   assert.equal(failed.href, FORGE, 'La Forge, from=day, never the Cahier');
@@ -176,7 +188,7 @@ test('#175: a passed rule check closes the grammar step and the plan’s next st
   const passed = dp.handOnAfterRuleCheck(grammarFirst, true, 'en');
   assert.equal(passed.kind, 'words');
   assert.equal(passed.href, WORDS);
-  const last = dp.handOnAfterRuleCheck(plan(['done', 'done', 'todo']), true, 'en');
+  const last = dp.handOnAfterRuleCheck(plan(['done', 'todo', 'done']), true, 'en');
   assert.equal(last.kind, 'finish');
   assert.equal(last.href, '/fertig');
   assert.equal(dp.handOnAfterRuleCheck(null, false, 'en'), null);
@@ -186,7 +198,7 @@ test('review of #221: a rule check from the day never offers the Cahier, even be
   const early = dp.ruleCheckExitFromDay(undefined, false, 'de');
   assert.equal(early.href, '/fertig', 'a reloaded result page stays in the day');
   assert.doesNotMatch(early.href, /^\/grammar/);
-  assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'done', 'todo']), false, 'de').href, FORGE);
+  assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'todo', 'done']), false, 'de').href, FORGE);
   assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'todo', 'todo']), true, 'en').href, WORDS);
   // The page reads the live forge view (where the result lands after the last answer),
   // not the session's copy from the start, and asks this helper for the exit.
@@ -209,7 +221,7 @@ test('#175: the whole exit — start from the day, fail, and La Forge is the nex
   const query = Object.fromEntries(address.searchParams.entries());
   assert.equal(dp.ruleCheckIsFromDay(query), true);
   // … fails, and its only button names the day's open grammar step: La Forge from=day, not /grammar.
-  const exit = dp.handOnAfterRuleCheck(plan(['done', 'done', 'todo']), false, 'de');
+  const exit = dp.handOnAfterRuleCheck(plan(['done', 'todo', 'todo']), false, 'de');
   assert.equal(exit.href, FORGE);
   assert.doesNotMatch(exit.href, /^\/grammar/);
   assert.match(exit.label, /Grammatik/);

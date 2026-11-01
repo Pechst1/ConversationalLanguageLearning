@@ -1259,7 +1259,7 @@ class DailyJourneyService:
         forge: ForgeEntry,
         due_words: int,
     ) -> DaySession:
-        """Szene, Wörter, Grammatik, Fertig — each with its state and minutes."""
+        """Szene, Grammatik, Wörter, Fertig — each with its state and minutes."""
 
         from app.services.daily_session import build_session
 

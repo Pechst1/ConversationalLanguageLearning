@@ -1,7 +1,7 @@
 /**
  * Round 3 (owner, 2026-10-14) — the day as one sequence, on La Une.
  *
- * `DaySessionPlan`: the programme — Szene · Wörter · Grammatik · Fertig as path
+ * `DaySessionPlan`: the programme — Szene · Grammatik · Wörter · Fertig as path
  * nodes with the minutes each still costs — and one quiet «Tempo: Normal».
  * `DaySessionNext`: the one button once the scene is done («Weiter: 20 Wörter
  * · 8 Min.»), and after the day the one optional extra («Noch 10 Wörter»).
