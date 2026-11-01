@@ -61,7 +61,7 @@ def _respond(service, mission, text: str) -> str:
     return service.respond(user=SimpleNamespace(id=None), mission=mission, user_text=text)
 
 
-def test_the_13_oct_reply_with_a_tracking_number_and_an_address_request_is_rewritten(monkeypatch) -> None:
+def test_13_oct_tracking_and_address(monkeypatch) -> None:
     service, llm, mission = _service(monkeypatch, [MARIN_13_OCT, GOOD_13_OCT])
     answer = _respond(service, mission, LEARNER_13_OCT)
     assert "123456789" not in answer and "adresse" not in answer.casefold(), f"the invented logistics were shown: {answer}"
@@ -69,15 +69,15 @@ def test_the_13_oct_reply_with_a_tracking_number_and_an_address_request_is_rewri
     assert "tracking" in llm.systems[1] and "Rewrite your reply" in llm.systems[1]
 
 
-def test_a_reply_that_keeps_inventing_gets_the_plain_acknowledgement(monkeypatch) -> None:
+def test_repeat_gets_the_plain_ack(monkeypatch) -> None:
     service, _llm, mission = _service(monkeypatch, [MARIN_13_OCT, MARIN_13_OCT])
     answer = _respond(service, mission, LEARNER_13_OCT)
     assert "123456789" not in answer and "adresse" not in answer.casefold()
     assert "je l'ai bien lu" in answer
 
 
-@pytest.mark.parametrize("invented", [VOISIN_24_OCT_ADDRESS, VOISIN_24_OCT_TRACKING])
-def test_the_24_oct_address_and_reference_requests_are_not_shown(monkeypatch, invented: str) -> None:
+@pytest.mark.parametrize("invented", [VOISIN_24_OCT_ADDRESS, VOISIN_24_OCT_TRACKING], ids=["addr", "ref"])
+def test_24_oct_requests(monkeypatch, invented: str) -> None:
     service, _llm, mission = _service(
         monkeypatch,
         [invented, GOOD_13_OCT],
@@ -86,7 +86,7 @@ def test_the_24_oct_address_and_reference_requests_are_not_shown(monkeypatch, in
     assert _respond(service, mission, LEARNER_24_OCT) == GOOD_13_OCT
 
 
-def test_the_actor_prompt_says_to_answer_the_learner_and_invent_nothing(monkeypatch) -> None:
+def test_prompt_invents_nothing(monkeypatch) -> None:
     service, llm, mission = _service(monkeypatch, [GOOD_13_OCT])
     _respond(service, mission, LEARNER_13_OCT)
     prompt = llm.systems[0].casefold()
@@ -101,14 +101,15 @@ def test_the_actor_prompt_says_to_answer_the_learner_and_invent_nothing(monkeypa
         "On se retrouve à 18 h 30, rue de la Paix, au numéro 12.",
         "Le train part à 10 h 45 : le quai 3.",
     ],
+    ids=["cat", "cafe", "street", "train"],
 )
-def test_ordinary_lines_are_kept_as_written(monkeypatch, reply: str) -> None:
+def test_ordinary_lines_kept(monkeypatch, reply: str) -> None:
     service, llm, mission = _service(monkeypatch, [reply])
     assert _respond(service, mission, LEARNER_13_OCT) == reply
     assert len(llm.systems) == 1
 
 
-def test_what_the_scene_or_the_learner_already_holds_may_be_said_again(monkeypatch) -> None:
+def test_grounded_lines_kept(monkeypatch) -> None:
     # The scene's own opening asks for the street, and mentions an order number.
     opening = "Bonjour, ton paquet est arrivé, mais pas chez toi. Quelle est ta rue ? Le numéro de commande est sur la photo."
     reply = "Merci. Tu peux confirmer ton adresse ? Le numéro de commande est bien sur la photo."
@@ -121,7 +122,7 @@ def test_what_the_scene_or_the_learner_already_holds_may_be_said_again(monkeypat
     assert len(llm.systems) == 1
 
 
-def test_a_statement_about_the_address_is_kept_but_a_request_for_it_is_not(monkeypatch) -> None:
+def test_statement_kept(monkeypatch) -> None:
     statement = "Bien reçu : nous avons ton adresse. Le paquet arrive demain, tu es là ?"
     service, llm, mission = _service(monkeypatch, [statement])
     assert _respond(service, mission, LEARNER_24_OCT) == statement
@@ -131,20 +132,21 @@ def test_a_statement_about_the_address_is_kept_but_a_request_for_it_is_not(monke
 @pytest.mark.parametrize(
     "request_text",
     ["Quelle est ton adresse e-mail ?", "Ton numéro de téléphone, s'il te plaît ?", "Où habites-tu exactement ?"],
+    ids=["mail", "phone", "home"],
 )
-def test_a_request_for_email_phone_or_home_is_rewritten(monkeypatch, request_text: str) -> None:
+def test_personal_request_rewritten(monkeypatch, request_text: str) -> None:
     service, _llm, mission = _service(monkeypatch, [request_text, GOOD_13_OCT])
     assert _respond(service, mission, LEARNER_13_OCT) == GOOD_13_OCT
 
 
-def test_no_delivery_goal_asks_the_learner_for_a_tracking_number_or_an_address() -> None:
+def test_goals_ask_no_number() -> None:
     from app.services.missions import MISSION_SUCCESS_OBJECTIVES
 
     goals = " ".join(MISSION_SUCCESS_OBJECTIVES["deliveries_admin"]).casefold()
     assert "tracking" not in goals and "order reference" not in goals and "address" not in goals
 
 
-def test_the_atelier_reaction_with_an_invented_tracking_number_is_held_back(monkeypatch) -> None:
+def test_atelier_held_back(monkeypatch) -> None:
     from app.services import missions
 
     monkeypatch.setattr(missions, "_record_mission_llm_cost", lambda *a, **k: None)
