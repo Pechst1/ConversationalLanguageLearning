@@ -87,6 +87,21 @@ class DailyWordSlateService:
                 continue
         return ids
 
+    def existing_word_ids(self, *, user: User, now: datetime | None = None) -> list[int]:
+        """Word ids on today's slate if it was already selected — read-only, never raises."""
+        try:
+            slate = self._row(user=user, now=now) if getattr(user, "id", None) else None
+        except Exception:
+            return []
+        entries = ((slate.payload or {}).get("words") or []) if slate is not None else []
+        ids: list[int] = []
+        for entry in entries:
+            try:
+                ids.append(int(entry["word_id"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+        return ids
+
     def focus_word_ids(self, *, user: User, now: datetime | None = None) -> list[int]:
         """Slate words with real retrieval value (due/fragile — never brand-new).
 

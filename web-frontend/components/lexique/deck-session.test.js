@@ -52,3 +52,20 @@ test('the cached deck drops the filed cards, so a reopened deck does not show th
   assert.equal(cached.algorithm, 'fsrs');
   assert.deepEqual(ids(context.due_words), [1, 2], 'the deck on screen is untouched');
 });
+
+// Owner request, 1 Nov: today's scene words first, in an order the server decides once
+// (`deck_order`, app/services/deck_order.py) for every client.
+test('the deck shows the server order and never re-sorts it by tiers of its own', () => {
+  const { deckOrdered } = require('./deck-session.ts');
+  const items = [{ word_id: 1 }, { word_id: 2 }, { word_id: 3 }, { word_id: 4 }];
+  assert.deepEqual(deckOrdered(items, [3, 1, 2]).map((item) => item.word_id), [3, 1, 2, 4]);
+  assert.deepEqual(deckOrdered(items, []).map((item) => item.word_id), [1, 2, 3, 4]);
+  assert.deepEqual(deckOrdered(items, undefined).map((item) => item.word_id), [1, 2, 3, 4]);
+  const page = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', '..', 'pages', 'vocabulary', 'review.tsx'),
+    'utf8',
+  );
+  assert.match(page, /deckOrdered\(queueItems\(context\), context\?\.deck_order\)/);
+  assert.doesNotMatch(page, /rung\(item\) === 'rescue'/);
+  assert.doesNotMatch(page, /\.sort\(\(a, b\) => rank\(/);
+});

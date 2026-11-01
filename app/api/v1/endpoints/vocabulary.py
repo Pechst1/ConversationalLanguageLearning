@@ -876,6 +876,11 @@ def _planned_day_deck(
     batch.cursor = len(items) - len(remaining)
     db.commit()
     payload = service.vocabulary_due_context_from_batch(user=user, items=remaining, now=now)
+    # Owner request, 1 Nov: today's scene words are flagged (first in the deck's
+    # order) and quote the scene line they appeared in.
+    from app.services.scene_deck import apply_to_day_deck
+
+    payload = apply_to_day_deck(db, user, batch, payload, now=now)
     # The day deck holds the day's whole dose: no continuation inside it.
     payload["new_words_left_today"] = 0
     return payload
@@ -1110,6 +1115,12 @@ def get_vocabulary_due_context(
                 }
                 for item in payload.get(bucket_name) or []
             ]
+    # The deck's one order (app/services/deck_order.py): every client shows it.
+    from app.services.deck_order import deck_order
+
+    payload["deck_order"] = deck_order(
+        payload, slate_ids=DailyWordSlateService(db).existing_word_ids(user=current_user)
+    )
     return VocabularyDueContextResponse(**payload)
 
 
@@ -1155,18 +1166,21 @@ def _with_word_grammar(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
         .filter(VocabularyWord.id.in_(ids))
         .all()
     )
-    from app.services.lexicon_grammar import word_grammar
+    from app.services.lexicon_grammar import word_grammar, word_number
 
-    # WP-84: the core lexicon fills what the card lacks, so every noun shows le / la.
+    # WP-84: the core lexicon fills what the card lacks, so every noun shows le / la
+    # (and «les» on a noun used in the plural only).
     grammar = {int(row.id): word_grammar(row) for row in rows}
+    numbers = {int(row.id): word_number(row) for row in rows}
     words = []
     for entry in payload.get("words") or []:
         if isinstance(entry, dict):
             try:
-                pos, gender = grammar.get(int(entry.get("word_id") or 0), (None, None))
+                key = int(entry.get("word_id") or 0)
             except (TypeError, ValueError):
-                pos, gender = None, None
-            entry = {**entry, "part_of_speech": pos, "gender": gender}
+                key = 0
+            pos, gender = grammar.get(key, (None, None))
+            entry = {**entry, "part_of_speech": pos, "gender": gender, "number": numbers.get(key)}
         words.append(entry)
     return {**payload, "words": words}
 

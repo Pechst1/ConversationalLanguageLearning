@@ -116,3 +116,17 @@ export function deckFoot({ revealed, graded }: { revealed: boolean; graded: bool
   if (!revealed) return 'turn';
   return graded ? 'graded-next' : 'grades';
 }
+
+/**
+ * The deck's order is the server's (`deck_order`, `app/services/deck_order.py`): the
+ * device never re-sorts the deck by tiers of its own (owner request, 1 Nov). A card the
+ * order does not name keeps its place after it; with no order the payload's stands.
+ */
+export function deckOrdered<T extends { word_id: number }>(items: T[], order?: readonly number[] | null): T[] {
+  if (!order?.length) return items;
+  const position = new Map(order.map((id, index) => [id, index]));
+  return items
+    .map((item, index) => ({ item, at: position.get(item.word_id) ?? order.length + index }))
+    .sort((a, b) => a.at - b.at)
+    .map(({ item }) => item);
+}

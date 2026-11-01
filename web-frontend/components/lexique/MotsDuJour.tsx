@@ -73,6 +73,7 @@ export default function MotsDuJour({
                   <WordToken
                     word={entry.word}
                     gender={entry.gender}
+                    number={entry.number}
                     partOfSpeech={entry.part_of_speech}
                     state={entry.bucket}
                     size="sm"

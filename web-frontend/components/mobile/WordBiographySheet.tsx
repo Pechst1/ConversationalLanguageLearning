@@ -157,6 +157,7 @@ const WordBiographySheet = React.forwardRef<HTMLDivElement, WordBiographySheetPr
                   <WordToken
                     word={biography.word.word}
                     gender={biography.word.gender}
+                    number={biography.word.number}
                     partOfSpeech={biography.word.part_of_speech}
                     state={biography.progress.fragility_level}
                     size="lg"

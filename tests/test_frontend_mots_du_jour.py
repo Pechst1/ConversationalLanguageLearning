@@ -47,6 +47,9 @@ def test_mots_du_jour_component_uses_tokens_and_triple_stamps() -> None:
 def test_review_deck_floats_slate_words_first_with_anchor() -> None:
     source = REVIEW_PAGE.read_text(encoding="utf-8")
     assert "apiService.getWordsOfTheDay().catch(() => null)" in source
-    assert "slateById.has(item.word_id)" in source
+    # The slate's tier is the server's deck order (owner request, 1 Nov: one order for every client).
+    assert "deckOrdered(queueItems(context), context?.deck_order)" in source
+    order = (ROOT / "app" / "services" / "deck_order.py").read_text(encoding="utf-8")
+    assert "in slate_ids" in order
     assert "Mot du jour" in source
     assert "currentSlateEntry?.anchor" in source

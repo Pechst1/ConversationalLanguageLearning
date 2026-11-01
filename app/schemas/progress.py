@@ -377,6 +377,9 @@ class VocabularyRecommendationItem(BaseModel):
     # Stored noun gender ("m" / "f"), or None when the catalogue does not know
     # it. The Lexique draws it as a shape (WP-D6); nothing is guessed here.
     gender: str | None = None
+    #: "pl" for a noun used in the plural only («les gens»), else None — read from
+    #: app/data/lexical/fr_pluralia_tantum.json, never guessed from a final -s.
+    number: str | None = None
     topic_tags: list[str] = Field(default_factory=list)
     # The server already resolves which gloss this learner should read
     # (app/services/glosses.py). The response model used to drop those two
@@ -397,6 +400,9 @@ class VocabularyRecommendationItem(BaseModel):
     rescue_cue: dict[str, Any] | None = None
     recommendation_reason: dict[str, Any] | None = None
     episodic_anchor: dict[str, Any] | None = None
+    #: Owner request, 1 Nov: the word appeared in today's scene (the day deck). It
+    #: comes first, and its example is the scene line (with its translation).
+    scene_word: bool = False
 
 
 class VocabularyRecommendationSummary(BaseModel):
@@ -444,6 +450,9 @@ class VocabularyDueContextResponse(BaseModel):
     #: share). The drill offers them as an explicit «Encore N mots» continuation.
     #: ``None`` when not read (a review-only «Encore» deck, a demo account).
     new_words_left_today: int | None = None
+    #: The deck's one order (``app/services/deck_order.py``): the word ids in the
+    #: order every client shows them — today's scene words first.
+    deck_order: list[int] = Field(default_factory=list)
 
 
 class VocabularyMasteryMapCell(BaseModel):

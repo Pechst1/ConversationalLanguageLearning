@@ -7710,6 +7710,8 @@ export interface components {
             example_translation?: string | null;
             /** Gender */
             gender?: string | null;
+            /** Number */
+            number?: string | null;
             /** Part Of Speech */
             part_of_speech?: string | null;
             /** Stamps */
@@ -15892,6 +15894,8 @@ export interface components {
              * @default fsrs_retrievability_v1
              */
             algorithm?: string;
+            /** Deck Order */
+            deck_order?: number[];
             /** Due Words */
             due_words: components["schemas"]["VocabularyRecommendationItem"][];
             /** Fragile Words */
@@ -16080,6 +16084,8 @@ export interface components {
             leech?: boolean;
             /** Next Review */
             next_review?: string | null;
+            /** Number */
+            number?: string | null;
             /** Part Of Speech */
             part_of_speech?: string | null;
             /** Phase */
@@ -16107,6 +16113,11 @@ export interface components {
             scene_cue?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Scene Word
+             * @default false
+             */
+            scene_word?: boolean;
             /** Scheduled Days */
             scheduled_days?: number | null;
             /** Scheduler */
@@ -16196,6 +16207,8 @@ export interface components {
             language: string;
             /** Normalized Word */
             normalized_word: string;
+            /** Number */
+            number?: string | null;
             /** Part Of Speech */
             part_of_speech?: string | null;
             /** Topic Tags */
