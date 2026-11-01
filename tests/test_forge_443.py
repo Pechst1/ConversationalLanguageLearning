@@ -29,7 +29,11 @@ from app.db.models.daily_journey import DailyJourney
 from app.services.atelier import AtelierScheduler
 from app.services.daily_journey import DailyJourneyService
 from app.services.daily_journey_adapters import build_default_adapters
-from tests.test_daily_journey_state import create_request, enabled, make_user  # noqa: F401 - fixture
+from tests.test_daily_journey_state import (  # noqa: F401 - fixture
+    create_request,
+    enabled,
+    make_user,
+)
 from tests.test_wp_s4_one_picker import v2  # noqa: F401 - fixture
 
 
