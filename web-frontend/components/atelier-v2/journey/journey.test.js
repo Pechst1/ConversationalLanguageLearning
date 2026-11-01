@@ -2363,8 +2363,68 @@ console.log('WP-66 day shapes and recall formats: ok');
   assert.equal(teaserHint('Marin hésite. «Qui était Odile, et pourquoi est-elle partie ?» À suivre…'), 'Qui était Odile, et pourquoi est-elle partie ?');
   assert.equal(teaserHint('Deux clés pour la même porte.'), 'Deux clés pour la même porte');
   const long = teaserHint('Je viendrai signer la pétition de la boulangère demain matin avant le marché du quartier');
-  assert.ok(long.endsWith('…') && long.split(/\s+/).length <= 7, long);
-  assert.doesNotMatch(long, /\b(de|la|le) …$/);
+  assert.ok(long.endsWith('…') && long.split(/\s+/).length <= 9, long);
+  assert.doesNotMatch(long, /\b(de|la|le) ?…$/);
+}
+
+// #450 (owner, 2026-11-01): a hook sentence of up to nine words is shown whole, and a
+// hint never stops mid-clause. Day 2's real hook was cut to «Ton billet de retour est…».
+{
+  const { teaserHint, TEASER_HINT_WORDS } = require('./season-return-model.ts');
+  assert.equal(TEASER_HINT_WORDS, 9);
+  assert.equal(
+    teaserHint('Ton billet de retour est pour mercredi prochain. Le jour où Lila n\'a pas classe. À suivre…'),
+    'Ton billet de retour est pour mercredi prochain',
+  );
+  // No whole sentence fits: the longest whole clause does, before the «—».
+  assert.equal(
+    teaserHint('Ton billet de retour est pour mercredi prochain — précisément le jour où Lila n\'a pas cours. À suivre…'),
+    'Ton billet de retour est pour mercredi prochain',
+  );
+  // Cut by words: back to the last word that carries meaning, never an auxiliary.
+  assert.equal(
+    teaserHint('Ton billet de retour est vraiment pour mercredi prochain et pas pour jeudi'),
+    'Ton billet de retour est vraiment pour mercredi…',
+  );
+}
+
+// #450 sweep: every season «À suivre…» line (the hooks a tentpole files as next_teaser_fr,
+// at every level) gives a hint that fits and never ends on a word that leaves the reader
+// hanging. The word list is the test's own, so the model cannot pass by shrinking its set.
+{
+  const { teaserHint } = require('./season-return-model.ts');
+  const HANGING = new Set([
+    'le', 'la', 'les', 'un', 'une', 'des', 'du', 'au', 'aux', 'ce', 'cette', 'ces', 'mon', 'ma', 'ton', 'ta',
+    'son', 'sa', 'ses', 'à', 'de', 'avec', 'dans', 'en', 'par', 'pour', 'sur', 'chez', 'sans', 'et', 'ou',
+    'mais', 'que', 'qui', 'où', 'si', 'je', 'tu', 'il', 'elle', 'on', 'ne', 'se', 'est', 'sont', 'était',
+    'sera', 'a', 'ont', 'avait', 'va', 'vont', 'peut', 'doit', 'veut', 'faut', 'quelque', 'chaque',
+  ]);
+  const seasonDir = path.join(REPO_ROOT, 'app/data/season/s1');
+  const hooks = new Set();
+  const collect = (node) => {
+    if (typeof node === 'string') {
+      if (/À suivre\s*(?:…|\.\.\.)\s*$/.test(node)) hooks.add(node);
+    } else if (Array.isArray(node)) {
+      node.forEach(collect);
+    } else if (node && typeof node === 'object') {
+      for (const [key, value] of Object.entries(node)) if (key !== 'native' && !key.endsWith('_native')) collect(value);
+    }
+  };
+  for (const file of fs.readdirSync(seasonDir)) {
+    if (file.endsWith('.json') && file !== 'lexicon.json') collect(JSON.parse(fs.readFileSync(path.join(seasonDir, file), 'utf8')));
+  }
+  assert.ok(hooks.size > 50, `the sweep reads the season's hooks (${hooks.size})`);
+  assert.ok([...hooks].some((line) => line.startsWith('Ton billet de retour est pour mercredi prochain.')), 'day 2 «La lettre» is in the sweep');
+  const hanging = [];
+  for (const line of hooks) {
+    const hint = teaserHint(line);
+    assert.ok(hint, `no hint for «${line}»`);
+    const words = hint.split(/\s+/).filter((token) => /[0-9A-Za-zÀ-ÿŒœ]/.test(token));
+    assert.ok(words.length <= 9, `«${hint}» has ${words.length} words (from «${line}»)`);
+    const last = words[words.length - 1].toLowerCase().replace(/[»"”),;:.!?…—–]+$/g, '');
+    if (HANGING.has(last) || /^(?:[ldjmnstc]|qu)['’]$/.test(last)) hanging.push(`«${hint}» ← «${line}»`);
+  }
+  assert.deepEqual(hanging, [], `hints that stop mid-clause:\n${hanging.join('\n')}`);
 }
 
 // Owner 2026-10-18: a card without a picture draws its place, never an empty slot.
