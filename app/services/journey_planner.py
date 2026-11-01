@@ -3752,7 +3752,7 @@ def _vocabulary_rung(entry: SelectedTarget, band: str) -> str | None:
         return None
     from app.services.recall_ladder import rung
 
-    return rung(stability=stability, reps=1, lapses=None, level=band, has_example=False)
+    return rung(stability=stability, reps=1, lapses=None, level=band)
 
 
 def _slot_formats(

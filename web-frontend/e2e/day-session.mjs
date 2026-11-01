@@ -124,7 +124,8 @@ async function playTheDay(native) {
   findings.check('home-words-is-the-hand-on', homeWords === promised, `Home said «${homeWordsText.trim()}», La Forge's recap «${toWordsText.trim()}»`, where('drill'));
   let presses = 0;
   while (presses < 260 && (await page.locator('[data-day-next]').count()) === 0) {
-    const rate = page.locator('.lx-review__foot .lx-rate').last();
+    // An unturned card offers only its turn button; a turned one its grades.
+    const rate = page.locator('.lx-review__foot .lx-turn, .lx-review__foot .lx-rate').last();
     if (await rate.count()) {
       await rate.click().catch(() => {});
       presses += 1;

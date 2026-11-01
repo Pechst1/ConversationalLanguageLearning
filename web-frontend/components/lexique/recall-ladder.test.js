@@ -7,21 +7,20 @@ require(path.resolve(__dirname, '../../node_modules/sucrase/register/ts'));
 const ladder = require('./recall-ladder.ts');
 
 test('the server’s rung is the card’s mode', () => {
-  assert.equal(ladder.ladderRung({ ladder: 'production' }, false), 'production');
-  assert.equal(ladder.ladderRung({ ladder: 'audio' }, false), 'audio');
-  assert.equal(ladder.ladderRung(null, false), null, 'an older server: the page decides');
+  assert.equal(ladder.ladderRung({ ladder: 'production' }), 'production');
+  assert.equal(ladder.ladderRung({ ladder: 'audio' }), 'audio');
+  assert.equal(ladder.ladderRung(null), null, 'no rung: the server’s table decides');
 });
 
-test('a cloze or a scene that cannot be blanked is asked as production', () => {
-  assert.equal(ladder.ladderRung({ ladder: 'cloze' }, false), 'production');
-  assert.equal(ladder.ladderRung({ ladder: 'cloze' }, true), 'cloze');
-  assert.equal(ladder.ladderRung({ ladder: 'scene', scene_cue: { sentence_fr: 'Tu as vu la _____ ?' } }, false), 'scene');
-  assert.equal(ladder.ladderRung({ ladder: 'scene', scene_cue: null }, false), 'production');
+test('a cloze (an older deck) or a scene that cannot be blanked is asked as production', () => {
+  assert.equal(ladder.ladderRung({ ladder: 'cloze' }), 'production');
+  assert.equal(ladder.ladderRung({ ladder: 'scene', scene_cue: { sentence_fr: 'Tu as vu la _____ ?' } }), 'scene');
+  assert.equal(ladder.ladderRung({ ladder: 'scene', scene_cue: null }), 'production');
 });
 
 test('a stubborn word is rescued with its cue', () => {
   const item = { ladder: 'rescue', rescue_cue: { sentence_fr: null, first_letter: 's', length: 7 } };
-  assert.equal(ladder.ladderRung(item, false), 'rescue');
+  assert.equal(ladder.ladderRung(item), 'rescue');
   assert.deepEqual(ladder.ladderCue(item), { sentence_fr: null, first_letter: 's', length: 7 });
 });
 

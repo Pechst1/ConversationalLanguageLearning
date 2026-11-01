@@ -57,3 +57,62 @@ export function withoutFiled<C extends DeckLists>(context: C, filed: ReadonlySet
   }
   return next;
 }
+
+/**
+ * Owner, 1 Nov: «wenn ich auf „Weiß ich“ gehe, bleibt die Karte trotzdem da und ich komme
+ * nicht weiter». The page filed a card only once the server had answered the review: a
+ * slow, refused or failed request left the card on screen with every grade button
+ * disabled, and each grade button reached the filing its own way. Every grade now goes
+ * through {@link gradeAction} and is filed at once; the server's answer can only move a
+ * card into or out of «ask again» ({@link settleVerdict}, {@link reviewNotSaved}), never
+ * hold the deck.
+ */
+export type GradeAction = { kind: 'reveal' } | { kind: 'file'; rating: number; wrong: boolean };
+
+/**
+ * What a grade does, for every grade the page offers (Encore, Dur, «Weiß ich» / Bien,
+ * Facile, the graded card's one «Weiter», the keys 1–4): an unturned card is turned
+ * first (a grade never files blind); a turned card is filed. An answered card is right
+ * or wrong by its answer (the device's own fold until the server's verdict lands); a
+ * self-rated card is wrong only on «Encore».
+ */
+export function gradeAction({
+  revealed,
+  rating,
+  graded,
+  typedMatches,
+}: {
+  revealed: boolean;
+  rating: number;
+  graded: boolean;
+  typedMatches: boolean;
+}): GradeAction {
+  if (!revealed) return { kind: 'reveal' };
+  return { kind: 'file', rating, wrong: graded ? !typedMatches : rating === 0 };
+}
+
+/** The server's verdict on a card already filed: it moves the card into or out of «ask again». */
+export function settleVerdict(progress: DeckProgress, wordId: number, wrong: boolean): DeckProgress {
+  if (!progress.filed.has(wordId)) return progress;
+  const queued = progress.again.includes(wordId);
+  if (queued === wrong) return progress;
+  return { filed: progress.filed, again: nextAgainQueue([...progress.again], wordId, wrong) };
+}
+
+/** A review the server did not save: the card is asked again at the end, never lost or stuck. */
+export function reviewNotSaved(progress: DeckProgress, wordId: number): DeckProgress {
+  return settleVerdict(progress, wordId, true);
+}
+
+/**
+ * What the card's foot offers (owner, 1 Nov). «Weiß ich» on an unturned card only turned
+ * it, so the card stayed: a button said one thing and did another. Before the card is
+ * turned the foot holds one button, which turns it; the grades (Encore, «Weiß ich», Dur,
+ * Facile) appear only on a turned card, and a typed answer is filed by its one «Weiter».
+ */
+export type DeckFoot = 'turn' | 'graded-next' | 'grades';
+
+export function deckFoot({ revealed, graded }: { revealed: boolean; graded: boolean }): DeckFoot {
+  if (!revealed) return 'turn';
+  return graded ? 'graded-next' : 'grades';
+}

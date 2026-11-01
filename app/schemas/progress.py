@@ -388,7 +388,8 @@ class VocabularyRecommendationItem(BaseModel):
     translations: VocabularyRecommendationTranslations
     example_sentence: str | None = None
     example_translation: str | None = None
-    #: WP-115b — the recall ladder: recognition | production | audio | cloze, or
+    #: WP-115b — the recall ladder: recognition | production | audio (never cloze,
+    #: owner decision 2026-11-01), or
     #: ``scene`` (the word's own line, first two reviews) / ``rescue`` (a leech).
     ladder: str | None = None
     scene_cue: dict[str, Any] | None = None

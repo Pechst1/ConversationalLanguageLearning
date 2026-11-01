@@ -220,9 +220,9 @@ async function drillReloadKeepsTheBatch(l) {
       (r) => r.url().includes('/anki/review') && r.method() === 'POST',
       { timeout: 20000 },
     );
-    // A grade on an unturned card turns it; the second press files it (on a graded
-    // card the second press is its one «next» button).
-    await page.locator('.lx-review__foot .lx-rate').last().click();
+    // An unturned card offers only its turn button (owner, 1 Nov: no grade that only
+    // turns the card); once turned, the grade files it (on a graded card, its one «next»).
+    await page.locator('.lx-review__foot .lx-turn').click();
     await sleep(300);
     await page.locator('.lx-review__foot .lx-rate').last().click();
     const request = await filed;

@@ -19,19 +19,15 @@ from app.services.recall_ladder import blank_word, card_ladder, rung
         (2.0, "B1", "production"),
         (2.0, "A2", "recognition"),
         (12.0, "A2", "audio"),
-        (40.0, "A2", "cloze"),
+        (40.0, "A2", "production"),
     ],
 )
 def test_the_rung_follows_stability_and_the_band(stability, level, expected):
-    assert rung(stability=stability, reps=3, lapses=0, level=level, has_example=True) == expected
+    assert rung(stability=stability, reps=3, lapses=0, level=level) == expected
 
 
 def test_a_word_never_reviewed_is_recognised_first():
-    assert rung(stability=50.0, reps=0, lapses=0, level="B1", has_example=True) == "recognition"
-
-
-def test_a_cloze_needs_a_sentence_to_blank():
-    assert rung(stability=40.0, reps=5, lapses=0, level="A2", has_example=False) == "audio"
+    assert rung(stability=50.0, reps=0, lapses=0, level="B1") == "recognition"
 
 
 def test_blanking_keeps_the_article_and_never_invents_a_blank():
@@ -56,7 +52,7 @@ def test_a_kept_word_first_comes_back_in_its_own_line():
         "expected_fr": "serrure", "hint_fr": None,
     }
     later = card_ladder(_progress(reps=3, stability=40.0, context=kept), WORD, level="A2")
-    assert later["ladder"] == "cloze" and later["scene_cue"] is None, "from the third review: new contexts"
+    assert later["ladder"] == "production" and later["scene_cue"] is None, "from the third review: translated"
 
 
 def test_a_kept_conjugated_verb_comes_back_in_its_own_line():

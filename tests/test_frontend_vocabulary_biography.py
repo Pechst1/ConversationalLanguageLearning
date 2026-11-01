@@ -72,11 +72,14 @@ def test_vocabulary_review_keeps_anki_flow_and_exposes_history() -> None:
     assert "reviewOptions.map" in source
 
 
-def test_vocabulary_review_cloze_and_audio_guards_are_unicode_safe() -> None:
+def test_vocabulary_review_example_and_audio_guards_are_unicode_safe() -> None:
     source = read_page(VOCABULARY_REVIEW_PAGE)
+    # Owner decision 2026-11-01: no cloze card; the word is marked in its example, by
+    # a Unicode-safe boundary (lib/card-example.ts).
+    example = read_page(ROOT / "web-frontend" / "lib" / "card-example.ts")
 
-    assert "const boundary = 'A-Za-z0-9À-ÖØ-öø-ÿ'" in source
-    assert "new RegExp(`(^|[^${boundary}])" in source
+    assert "const LETTER = 'A-Za-z0-9À-ÖØ-öø-ÿŒœ'" in example
+    assert "new RegExp(`(^|[^${LETTER}])" in example
     assert "recordingWordIdRef" in source
     assert "activeWordIdRef.current !== wordId" in source
     assert "cancelActiveRecording()" in source
@@ -126,8 +129,10 @@ def test_vocabulary_review_keeps_header_and_rating_controls_compact() -> None:
     assert "remainingSummary" not in source
     assert "refreshQueueSummary" not in source
     assert "const handleRatingClick" in source
-    assert "disabled={reviewing}" in source
-    assert "disabled={reviewing || !revealed}" not in source
+    # Owner, 1 Nov («Weiß ich» left the card on screen): a grade is never held while a
+    # review is in flight; the card is filed at once and the server only settles it.
+    assert "disabled={reviewing" not in source
+    assert "gradeAction({ revealed, rating, graded, typedMatches })" in source
     assert "t.reveal_before" in source
     assert "reveal_before: 'Révéler la réponse avant de noter'" in read_page(LEXIQUE_COPY)
     assert ">Deck</Link>" not in source
@@ -190,7 +195,7 @@ def test_vocabulary_review_back_face_keeps_answer_content_visible() -> None:
     assert 'className="lx-card__middle review-answer-container"' in source
     # The back face is the yellow reward surface; the example sits on it.
     assert ".av2 .lx-card[data-face='back'] {" in source
-    assert "{revealed && visibleExample && (" in source
+    assert "{revealed && faces.backExample && (" in source
     assert "overflow-wrap: anywhere;" in source
 
 
