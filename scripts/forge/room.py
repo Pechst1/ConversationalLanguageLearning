@@ -23,8 +23,8 @@ import math
 FLOOR_FINISHES = {"cabochons", "boards", "tomettes", "cobbles", "stone"}
 WALL_FINISHES = {"wainscot", "plaster", "stone"}
 ZONES = {"room", "sealed", "out"}
-TONES = {"ochre", "cream", "faux", "wainscot", "stone", "porch", "oxblood", "brown", "wood", "grey", "celadon", "white", "render", "coat", "oilcloth", "blanket", "navy"}
-THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette"}
+TONES = {"ochre", "cream", "faux", "wainscot", "stone", "porch", "oxblood", "brown", "wood", "grey", "celadon", "white", "render", "coat", "oilcloth", "blanket", "navy", "walnut", "leather"}
+THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette", "longtable", "armchair", "pen", "folder", "bookcase"}
 LIGHTS = {"globe", "sconce", "hublot"}
 DIRS = {"x+": (1, 0), "x-": (-1, 0), "z+": (0, 1), "z-": (0, -1)}
 
@@ -255,6 +255,8 @@ def draft(brief: dict, place: dict | None = None):
         out = {"key": wn["key"], "wall": i, "u0": r3(u0), "u1": r3(u1), "y0": wn["y"][0], "y1": wn["y"][1]}
         if wn.get("shutters"):
             out["shutters"] = wn["shutters"]
+        if wn.get("guard"):
+            out["guard"] = True
         windows.append(out)
     for hl in brief.get("holes", []):
         i, u0, u1 = resolve(hl["wall"], hl["u"][0], hl["u"][1], "hole")
@@ -288,6 +290,7 @@ def draft(brief: dict, place: dict | None = None):
         "timers": brief.get("timers", {}),
         "things": brief.get("things", []),
         "courts": brief.get("courts", []),
+        **({"boulevards": brief["boulevards"]} if brief.get("boulevards") else {}),
         "marks": brief.get("marks", {}),
         "provenance": {
             "canon": canon.get("doc", ""),
@@ -528,6 +531,17 @@ def check(room: dict) -> list[str]:
                 fx0, fz0, fx1, fz1 = bbox(f["shape"])
                 if fx0 < c["x1"] - 0.3 and c["x0"] + 0.3 < fx1 and fz0 < c["z1"] - 0.3 and c["z0"] + 0.3 < fz1:
                     p.append(f"the courtyard overlaps {f['key']}")
+    # a boulevard lies outside the room, on the far side of its façade
+    for b in room.get("boulevards", []):
+        sgn = -1 if b["side"] == "n" else 1
+        z0, z1 = sorted((b["z"], b["z"] + sgn * b["width"]))
+        for f in room["floors"]:
+            if f.get("zone", "room") == "room":
+                fx0, fz0, fx1, fz1 = bbox(f["shape"])
+                if fx0 < b["x1"] and b["x0"] < fx1 and fz0 < z1 - 0.3 and z0 + 0.3 < fz1:
+                    p.append(f"the boulevard overlaps {f['key']}")
+        if not 10 <= b["width"] <= 60:
+            p.append(f"a boulevard {b['width']} m wide")
     # the canon: a door the story opens once is the season's (Odile's «1»)
     for d in room["doors"]:
         if d.get("opens") == "once" and not d.get("numeral"):
