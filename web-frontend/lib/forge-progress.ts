@@ -138,6 +138,18 @@ export function seanceCount(
   return { n: Math.max(1, Math.min(total, current)), total };
 }
 
+/**
+ * #443: is the item on screen the séance's last, so that its primary is «Finish»?
+ * Only when the server has no item to name after it: a séance with another item
+ * ahead (`next`) is never ended by the primary, whatever else the view says. The
+ * quiet «Finish» in the top bar stays the way out early.
+ */
+export function endsTheSeance(
+  forge: { mode?: string | null; finished?: boolean | null; next?: unknown } | null | undefined,
+): boolean {
+  return Boolean(forge && forge.mode === 'seance' && forge.finished && !forge.next);
+}
+
 export function seanceCountText(copy: ForgeCopy, forge: ForgeViewLike, onScreenItemId?: string | null): string {
   const count = seanceCount(forge, onScreenItemId);
   return count ? fillForge(copy.count_of, count) : '';
