@@ -21,6 +21,7 @@ MARIN_13_OCT = (
     "c'est le 123456789. Tu pourrais me confirmer ton adresse ?"
 )
 GOOD_13_OCT = "Un chat dans une valise ? Pauvre Bruno ! J'ai du poisson chez moi. Tu veux passer le chercher ?"
+GOOD_24_OCT = "Je comprends pour le chat. Je passe après midi, vous êtes là ?"
 LEARNER_24_OCT = "Non, je ne suis pas chez moi demain matin. Mon chat déteste le voisin."
 VOISIN_24_OCT_ADDRESS = "Je comprends pour le chat. Pouvez-vous me donner votre adresse exacte ?"
 VOISIN_24_OCT_TRACKING = "Merci. Il me faut encore le numéro de suivi ou la référence de votre commande."
@@ -35,7 +36,7 @@ class _Llm:
         return SimpleNamespace(content=self.drafts.pop(0))
 
 
-def _service(monkeypatch, drafts: list[str], *, opening: str = "Salut ! Tu es bien arrivé ?"):
+def _service(monkeypatch, drafts: list[str], *, opening: str = "Salut ! Tu es bien arrivé ?", register: str = "tu / warm informal"):
     from app.services import missions
 
     monkeypatch.setattr(missions, "_record_mission_llm_cost", lambda *a, **k: None)
@@ -45,7 +46,7 @@ def _service(monkeypatch, drafts: list[str], *, opening: str = "Salut ! Tu es bi
         title="Un mot de Marin",
         brief="Réponds à Marin.",
         prompt_payload={
-            "messenger": {"contact_name": "Marin", "register": "tu / warm informal", "opening_message": opening}
+            "messenger": {"contact_name": "Marin", "register": register, "opening_message": opening}
         },
         source_snapshot={},
         turns=[],
@@ -80,10 +81,11 @@ def test_repeat_gets_the_plain_ack(monkeypatch) -> None:
 def test_24_oct_requests(monkeypatch, invented: str) -> None:
     service, _llm, mission = _service(
         monkeypatch,
-        [invented, GOOD_13_OCT],
+        [invented, GOOD_24_OCT],
         opening="Bonjour, merci pour votre réponse. Nous avons maintenant votre adresse. Le paquet arrive demain matin.",
+        register="vous / registre poli",
     )
-    assert _respond(service, mission, LEARNER_24_OCT) == GOOD_13_OCT
+    assert _respond(service, mission, LEARNER_24_OCT) == GOOD_24_OCT
 
 
 def test_prompt_invents_nothing(monkeypatch) -> None:
