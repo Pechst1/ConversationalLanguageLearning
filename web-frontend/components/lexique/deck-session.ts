@@ -103,3 +103,16 @@ export function settleVerdict(progress: DeckProgress, wordId: number, wrong: boo
 export function reviewNotSaved(progress: DeckProgress, wordId: number): DeckProgress {
   return settleVerdict(progress, wordId, true);
 }
+
+/**
+ * What the card's foot offers (owner, 1 Nov). «Weiß ich» on an unturned card only turned
+ * it, so the card stayed: a button said one thing and did another. Before the card is
+ * turned the foot holds one button, which turns it; the grades (Encore, «Weiß ich», Dur,
+ * Facile) appear only on a turned card, and a typed answer is filed by its one «Weiter».
+ */
+export type DeckFoot = 'turn' | 'graded-next' | 'grades';
+
+export function deckFoot({ revealed, graded }: { revealed: boolean; graded: boolean }): DeckFoot {
+  if (!revealed) return 'turn';
+  return graded ? 'graded-next' : 'grades';
+}

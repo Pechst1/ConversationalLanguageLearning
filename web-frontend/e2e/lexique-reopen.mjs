@@ -32,12 +32,12 @@ try {
     word: document.querySelector('.lx-card[data-face="front"] .lx-card__word')?.textContent || null,
     count: document.querySelector('.av2-progress__count')?.textContent || '',
   }));
-  // «je sais» twice: the first tap turns the card, the second files it.
+  // Turn the card (its one button before it is turned), then «je sais» files it.
   const know = async () => {
-    for (let tap = 0; tap < 2; tap++) {
-      await page.locator('button.av2-btn--done.lx-rate').tap();
-      await sleep(tap ? 700 : 250);
-    }
+    await page.locator('.lx-review__foot .lx-turn').tap();
+    await sleep(250);
+    await page.locator('button.av2-btn--done.lx-rate').tap();
+    await sleep(700);
   };
   const filed = [];
   let lastDone = 0;

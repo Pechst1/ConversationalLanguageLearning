@@ -25,6 +25,7 @@ import {
 import {
   EMPTY_PROGRESS,
   fileCard,
+  deckFoot,
   gradeAction,
   progressAfterLoad,
   remainingCards,
@@ -1068,6 +1069,7 @@ export default function VocabularyReviewPage() {
       ? matchesLineForm(normalizeAnswer(typedAnswer), normalizeAnswer(answer))
       : normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
   const graded = mode !== 'recognition' && typedAnswer.trim().length > 0;
+  const foot = deckFoot({ revealed, graded });
   const hint = current ? cardHint(t, current) : '';
   // WP-115b: the ladder's own cue on the scene and rescue rungs.
   const ladderCue = sceneOrRescueCue(current);
@@ -1400,9 +1402,22 @@ export default function VocabularyReviewPage() {
                     files grade 0 and Je sais grade 2 (Bien); Dur (1) and
                     Facile (3) stay reachable underneath as quiet actions, so
                     the four-grade FSRS scale is unchanged. */}
-                {graded && revealed ? (
+                {foot === 'turn' ? (
+                  /* Owner, 1 Nov: an unturned card offers no grade (a «Weiß ich» that
+                     only turned the card left it on screen); its one button turns it. */
+                  <div className="lx-review__foot" data-foot="turn">
+                    <button
+                      type="button"
+                      className="av2-btn av2-btn--primary lx-turn"
+                      title={t.reveal_before}
+                      onClick={() => setRevealed(true)}
+                    >
+                      {t.reveal_first}
+                    </button>
+                  </div>
+                ) : foot === 'graded-next' ? (
                   /* WP-115a: the answer graded itself — one button files it. */
-                  <div className="lx-review__foot" role="group" aria-label={t.ratings_group}>
+                  <div className="lx-review__foot" role="group" aria-label={t.ratings_group} data-foot="graded-next">
                     <button
                       type="button"
                       className="av2-btn av2-btn--primary lx-rate"
@@ -1413,14 +1428,14 @@ export default function VocabularyReviewPage() {
                     </button>
                   </div>
                 ) : (
-                <div className="lx-review__foot" role="group" aria-label={t.ratings_group}>
+                <div className="lx-review__foot" role="group" aria-label={t.ratings_group} data-foot="grades">
                   <div className="lx-review__pair">
                     <button
                       type="button"
                       className="av2-btn lx-rate"
                       onClick={() => handleRatingClick(0)}
-                      title={revealed ? fill(t.rate_as, { label: t.deck_again }) : t.reveal_first}
-                      aria-label={revealed ? fill(t.rate_as, { label: t.deck_again }) : t.reveal_before}
+                      title={fill(t.rate_as, { label: t.deck_again })}
+                      aria-label={fill(t.rate_as, { label: t.deck_again })}
                     >
                       <span className="av2-shape av2-shape--dot lx-rate__dot" aria-hidden="true" />
                       {t.deck_again}
@@ -1429,8 +1444,8 @@ export default function VocabularyReviewPage() {
                       type="button"
                       className="av2-btn av2-btn--done lx-rate"
                       onClick={() => handleRatingClick(2)}
-                      title={revealed ? fill(t.rate_as, { label: t.deck_good }) : t.reveal_first}
-                      aria-label={revealed ? fill(t.rate_as, { label: t.deck_good }) : t.reveal_before}
+                      title={fill(t.rate_as, { label: t.deck_good })}
+                      aria-label={fill(t.rate_as, { label: t.deck_good })}
                     >
                       <ShapeToken kind="reward" size="sm" />
                       {t.deck_know}
@@ -1444,8 +1459,8 @@ export default function VocabularyReviewPage() {
                           tone="quiet"
                           inline
                           onClick={() => handleRatingClick(option.rating)}
-                          title={revealed ? fill(t.rate_as, { label: t[option.label] }) : t.reveal_first}
-                          aria-label={revealed ? fill(t.rate_as, { label: t[option.label] }) : t.reveal_before}
+                          title={fill(t.rate_as, { label: t[option.label] })}
+                          aria-label={fill(t.rate_as, { label: t[option.label] })}
                         >
                           {t[option.label]}
                         </Action>
@@ -1630,6 +1645,7 @@ export default function VocabularyReviewPage() {
         .av2 .lx-review__foot { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .av2 .lx-review__pair { display: flex; gap: 10px; min-width: 0; }
         .av2 .lx-rate { flex: 1 1 0; width: auto; font-size: var(--av2-t-body-lg); }
+        .av2 .lx-turn { width: 100%; font-size: var(--av2-t-body-lg); }
         .av2 .lx-rate__dot { background: var(--av2-red); width: 12px; height: 12px; }
         .av2 .lx-review__grades { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; min-width: 0; }
 

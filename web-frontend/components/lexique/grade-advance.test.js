@@ -72,3 +72,29 @@ test('the review page files through the one path, never after awaiting the serve
   for (const handler of grades) assert.match(handler, /handleRatingClick\(/, handler);
   assert.match(page, /gradeAction\(\{ revealed, rating, graded, typedMatches \}\)/);
 });
+
+test('an unturned card offers no grade, only the button that turns it', () => {
+  for (const graded of [false, true]) {
+    assert.equal(deck.deckFoot({ revealed: false, graded }), 'turn');
+  }
+  assert.equal(deck.deckFoot({ revealed: true, graded: false }), 'grades');
+  assert.equal(deck.deckFoot({ revealed: true, graded: true }), 'graded-next');
+  // The keys 1–4 on an unturned card still only turn it (Enter / Space too).
+  assert.deepEqual(deck.gradeAction({ revealed: false, rating: 2, graded: false, typedMatches: false }), { kind: 'reveal' });
+});
+
+test('the review page draws grade buttons only on a turned card', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', '..', 'pages', 'vocabulary', 'review.tsx'), 'utf8');
+  assert.match(page, /const foot = deckFoot\(\{ revealed, graded \}\)/);
+  const start = page.indexOf("{foot === 'turn' ? (");
+  assert.ok(start > 0, 'the foot is chosen by deckFoot');
+  const turn = page.slice(start, page.indexOf(") : foot === 'graded-next' ? (", start));
+  assert.doesNotMatch(turn, /lx-rate|handleRatingClick|deck_know|deck_again|deck_hard|deck_easy|deck_good/, 'no grade on the front');
+  assert.match(turn, /lx-turn/);
+  assert.match(turn, /onClick=\{\(\) => setRevealed\(true\)\}/);
+  // Every grade button is drawn inside the turned branches only.
+  const front = page.slice(0, start);
+  const footer = front.slice(front.lastIndexOf('<div className="lx-card__bottom">'));
+  assert.doesNotMatch(footer, /lx-rate/, 'no grade button ahead of the foot');
+  assert.doesNotMatch(page, /revealed \? fill\(t\.rate_as/, 'no grade label that changes with the face');
+});
