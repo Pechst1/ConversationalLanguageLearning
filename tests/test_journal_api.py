@@ -443,3 +443,23 @@ def test_a_failed_check_can_be_retried_over_the_wire(journal_client, db_session,
     assert second.status_code == 200
     assert second.json()["entry"]["correction"]["assessment_status"] == "checked"
     assert second.json()["entry"]["entry_text"] == body["text"]
+
+
+def test_the_cue_counts_days_when_it_is_read_not_when_it_was_offered(
+    journal_client, db_session
+):
+    """#444: a stored «1 day ago» kept saying «Yesterday» on every later visit."""
+    email = _email()
+    headers = login(journal_client, email)
+    _seed_scene(db_session, email, days_ago=3)
+    user = db_session.query(User).filter(User.email == email).one()
+    # The offer was created two days ago, when the scene really was «yesterday».
+    created = journal_module.JournalService(db_session).offer(
+        user, now=datetime.now(UTC) - timedelta(days=2)
+    )
+    assert created is not None and created.cue["days_ago"] == 1
+
+    state = journal_client.get("/api/v1/journal/state", headers=headers).json()
+    assert state["status"] == "offered"
+    assert state["entry"]["id"] == str(created.id)
+    assert state["entry"]["cue"]["days_ago"] == 3
