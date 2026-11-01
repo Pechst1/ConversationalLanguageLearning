@@ -6442,6 +6442,10 @@ class MissionScheduler:
                 "serial": bool(getattr(mission, "serial_thread_id", None)),
             },
         )
+        # O-1: l'or in shadow — the letter's first written attempt (best effort).
+        from app.services import gold_ledger
+
+        gold_ledger.record_letter(self.db, user=user, mission=mission, attempts=attempts)
         self.db.add(mission)
         self.db.commit()
         self.db.refresh(mission)

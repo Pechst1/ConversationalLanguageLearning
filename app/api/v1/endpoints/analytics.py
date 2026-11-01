@@ -254,6 +254,21 @@ def read_pilot_forge(
     return forge_dashboard(db)
 
 
+@router.get("/pilot-gold")
+def read_pilot_gold(
+    *,
+    days: int = Query(14, ge=1, le=120),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict:
+    """Package O-1 «L'or» in shadow: §18's numbers against §5's targets, read live."""
+
+    _require_admin(current_user)
+    from app.services.gold_report import build_gold_report
+
+    return build_gold_report(db, days=days)
+
+
 @router.get("/pilot-ops")
 def read_pilot_operations(
     *,

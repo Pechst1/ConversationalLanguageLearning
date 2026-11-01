@@ -292,6 +292,30 @@ def build_capability_summary(
     )
 
 
+def capability_confirmed_at(db: Session, *, user: User) -> dict[CapabilityKey, datetime]:
+    """O-1: when each capability first reached ``used_again_later`` (§4.3, «Capacité confirmée»).
+
+    The same opportunities and the same repeat rule as :func:`build_capability_summary`,
+    so the gold milestone can never disagree with the state the learner is shown.
+    """
+
+    by_capability, _unknown = _capability_opportunities(
+        db, user=user, language=normalize_control_language("en")
+    )
+    reached: dict[CapabilityKey, datetime] = {}
+    for key, opportunities in by_capability.items():
+        independent = [item for item in opportunities if item.independent]
+        repeats = _repeat_use_ids(independent)
+        moments = [
+            item.observed_at
+            for item in independent
+            if item.step_id in repeats and item.observed_at is not None
+        ]
+        if moments:
+            reached[key] = min(moments)
+    return reached
+
+
 def build_register_summary(
     db: Session, *, user: User, control_language: str = "en"
 ) -> CapabilitySummary:

@@ -398,6 +398,74 @@ Europe/Paris (freeze, rank, award editions, queue the pli), then `ardoise_seat_w
 Mode flag `ATELIER_GOLD_MODE = off | shadow | live`. Shadow writes the ledger and the
 nightly report, and shows nothing.
 
+### 17.1 O-1 as built (implementation note, 2026-11-01)
+
+What shipped: the table in `app/core/gold.py` (pure, `tests/test_gold_core.py`); the
+writers in `app/services/gold_ledger.py`; the tables `atelier_gold_ledger` and
+`atelier_gold_balance` (migration `a9c4e6f8b0d2`); the §18 report in
+`app/services/gold_report.py`, run nightly at 05:20 Europe/Berlin by
+`app.tasks.gold.nightly_report` and kept as a `gold_shadow_report` pilot event, live at
+`GET /api/v1/analytics/pilot-gold?days=14` (owner only) and on the command line with
+`scripts/gold_ledger_report.py`. `ATELIER_GOLD_MODE` defaults to `shadow` (config,
+`render.yaml`); a mistyped value refuses to start; `live` records like `shadow` until O-2.
+Every writer runs inside a SAVEPOINT (`app.db.savepoint.best_effort`) under the learner's
+credit lock: a failure is logged and the answer goes on as if the ledger did not exist.
+Nothing reaches a response or a model prompt.
+
+Where the build differs from the text above, and why:
+
+1. **Source keys name the evidence, not the day's rank.** `gold:journey:{journey}:{step}:{kind}:{id}`
+   (`…:unit` for an item with no tracked target, such as «Qui a dit ça ?»),
+   `effect_source_key(journey, "gold:reply:{step}:{turn}")`, `gold:forge:{attempt}`,
+   `gold:letter:{mission}`, `gold:milestone:{kind}:{id}`, `gold:bonus:joli:{local_date}`.
+   The planned `gold:{kind}:{id}:{date}:{rank}` would let a pulped row block a later real
+   top-up, and one key per reply step cannot pay per turn. R1 is read from the day's live
+   entries (pending included) under the lock; a replayed request finds its own key.
+2. **The journey hooks sit in `daily_journey`** (`_attempt_recall`, `_attempt_respond`,
+   `_finish`), after the step's evidence is flushed and in the same transaction, not in
+   `apply_learning_evidence` / `_record_objective_evidence`: the gold needs the step (a
+   warm-up? a retry? which turn, how many free turns) and the learner's own help before a
+   retry's server-side «solution».
+3. **R4 in the journey** doubles only a warm-up (an item posed before the scene) whose
+   target has a recorded contact at least 20 h old, read before the answer stamps it. Items
+   after the scene ask about what was just read there; a target never met before is a first
+   meeting, not a delayed recall.
+4. **R5 applies in La Forge only:** a séance item posed below the rule's stored level
+   (#402). The journey has no level to be below.
+5. **A retry pays the repair (1)** at the learner's own help: a hint halves it to nothing.
+6. **Reply turns** pay per exchange up to what the scene can take: its planned turns, the
+   repair slot and the open-question grace (`SCENE_QUESTION_GRACE`). The repair slot pays
+   the repair only after a turn that was not met; an answer to the character's question
+   after a met turn pays as a reply. A turn that cost no exchange pays nothing.
+7. **Letters** are judged on their first written attempt (R7): accepted 8, partial 4, a
+   rewrite after «needs revision» nothing. A letter answered from the day («jour de
+   lettre») was paid as the scene's reply turns and pays nothing a second time.
+8. **«Joli !»** The judge's 4/4 is not recorded on a reply turn, so the bonus pays a turn
+   met unaided, with no erratum shown, whose `concept_evidence` uses a unit `correct`.
+   Once a local day, outside the plafond.
+9. **Journée parfaite:** every recall and respond step completed and met on the first try
+   (no retry step), unaided; a respond step counts when every exchange it consumed has a
+   met, unaided gold entry. Optional skipped steps do not count against it.
+10. **Milestones count from the learner's first ledger entry, less an hour,** so switching
+    the ledger on pays nothing for what was reached before. A test-out pass (held and
+    tested out at the same instant) pays no «Règle tenue»: La Forge marks it with its own
+    token. «Règle tenue» pays at once from La Forge; épreuves and capabilities on the
+    day's finish and in the nightly job, which also rebuilds every active learner's livret.
+11. **The timezone pin** (§6) travels on each entry's evidence (`tz`, `tz_claimed`,
+    `tz_claimed_since`); no extra column.
+12. **`week_id`** is the ISO week of the entry's instant in Europe/Paris, whatever the
+    learner's zone.
+13. **Void reasons** add `unread`: a relecture nobody could read pulps the pending entry,
+    and a retried review that does read it revives it (La Forge's own rule for an unread
+    answer). Settled stays settled; a withdrawn target's settled entry is annotated, not
+    voided. The `injection` branch voids a step's gold when a critic issue code names
+    injection; no critic code does today, so the branch is reserved.
+14. **Formats:** the journey's `sentence` recall pays guided (3), `conversation` free (5),
+    `word_bank` recognised (1); an unknown format pays as recognition, never more.
+15. **Éclair** (the 60-second minimal-pair sprint) pays nothing: its taps are graded on
+    the page before the server re-grades the filed round, and a sprint rewards speed.
+    Its observations still reach the rule's record.
+
 ## 18. Metrics for the nightly loop
 
 The north star stays the plan's: minutes of the learner's own French, words read and heard,

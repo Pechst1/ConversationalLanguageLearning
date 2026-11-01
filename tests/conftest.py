@@ -85,6 +85,7 @@ from app.db.models.daily_journey import (
 from app.db.models.episode_audio import EpisodeAudioClip
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.feedback import UserFeedbackReport
+from app.db.models.gold import GoldBalance, GoldLedgerEntry
 from app.db.models.grammar import (
     GrammarConcept,
     GrammarConceptArchive,
@@ -285,6 +286,8 @@ def db_engine():
             DailyJourneyStep.__table__,
             DailyJourneyMutation.__table__,
             StreakDay.__table__,
+            GoldLedgerEntry.__table__,
+            GoldBalance.__table__,
         ],
     )
     try:
@@ -293,6 +296,8 @@ def db_engine():
         Base.metadata.drop_all(
             bind=engine,
             tables=[
+                GoldBalance.__table__,
+                GoldLedgerEntry.__table__,
                 StreakDay.__table__,
                 DailyJourneyMutation.__table__,
                 DailyJourneyStep.__table__,
