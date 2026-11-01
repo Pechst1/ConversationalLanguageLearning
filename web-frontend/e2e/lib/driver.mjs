@@ -82,6 +82,9 @@ export const SNAPSHOT_FN = (typeable) => {
         compare: q('.ep-repair__submit').map(box),
         gaps: q('.ep-parts__gap').map((n) => n.value),
         hints: q('.ep-repair-hint').map((n) => n.innerText.trim()),
+        // #381: each repair on screen («ok» once accepted) and the «Not yet» bands under them.
+        repairs: q('.ep-repair').map((n) => n.getAttribute('data-status') || 'open'),
+        failBands: q('.ep-feedback .ep-verdict[data-tone="wrong"]').length,
       };
     })(),
     theme: document.documentElement.getAttribute('data-theme'),

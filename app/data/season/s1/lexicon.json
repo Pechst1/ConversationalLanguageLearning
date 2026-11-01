@@ -1,7 +1,7 @@
 {
  "version": 1,
  "season_id": "s1",
- "source": "263d874261c0",
+ "source": "2e3027d80eb5",
  "note": "Derived by scripts/build_season_lexicon.py from the tentpoles and level files; never edited by hand.",
  "days": {
   "e1.a@garder": {
@@ -4259,7 +4259,7 @@
       "en": "emissary, envoy; (bouc ~) scapegoat",
       "de": "der Abgesandte, der Emissär"
      },
-     "sentence_fr": "L'émissaire de M.",
+     "sentence_fr": "L'émissaire de M. Marchand, si je ne m'abuse ?",
      "role": "new"
     },
     {
@@ -4315,7 +4315,7 @@
       "en": "to abuse, misuse; overdo it",
       "de": "missbrauchen; übertreiben"
      },
-     "sentence_fr": "Marchand, si je ne m'abuse ?",
+     "sentence_fr": "L'émissaire de M. Marchand, si je ne m'abuse ?",
      "role": "new"
     },
     {
@@ -4797,7 +4797,7 @@
       "en": "precise",
       "de": "genau, präzise"
      },
-     "sentence_fr": "Jeudi prochain, dix-huit heures précises.",
+     "sentence_fr": "Jeudi prochain, dix-huit heures précises, pour la visite de l'appartement.",
      "role": "new"
     },
     {
@@ -4825,7 +4825,7 @@
       "en": "so, then",
       "de": "also, dann"
      },
-     "sentence_fr": "Marchand, alors ?",
+     "sentence_fr": "Et M. Marchand, alors ?",
      "role": "foundational"
     },
     {
@@ -8115,7 +8115,7 @@
       "en": "threshold, doorstep",
       "de": "die Schwelle"
      },
-     "sentence_fr": "Sur le seuil, M.",
+     "sentence_fr": "Sur le seuil, M. Marchand hésite.",
      "role": "new"
     },
     {
@@ -15931,7 +15931,7 @@
       "en": "certain, sure; some",
       "de": "sicher; gewisse(r, s)"
      },
-     "sentence_fr": "Tu connais un certain L.",
+     "sentence_fr": "Tu connais un certain L. ?",
      "role": "new"
     },
     {
@@ -16001,7 +16001,7 @@
       "en": "to know (be familiar with)",
       "de": "kennen"
      },
-     "sentence_fr": "Tu connais un certain L.",
+     "sentence_fr": "Tu connais un certain L. ?",
      "role": "foundational"
     },
     {
@@ -16087,7 +16087,7 @@
       "en": "to know (be familiar with)",
       "de": "kennen"
      },
-     "sentence_fr": "Est-ce que tu connais un certain L.",
+     "sentence_fr": "Est-ce que tu connais un certain L. ?",
      "role": "foundational"
     },
     {
@@ -16101,7 +16101,7 @@
       "en": "certain, sure; some",
       "de": "sicher; gewisse(r, s)"
      },
-     "sentence_fr": "Est-ce que tu connais un certain L.",
+     "sentence_fr": "Est-ce que tu connais un certain L. ?",
      "role": "foundational"
     },
     {
@@ -17657,6 +17657,7 @@
    "vie",
    "vieux",
    "visage",
+   "visiter",
    "vite",
    "vivre",
    "voir",
@@ -18139,6 +18140,7 @@
    "vie",
    "vieux",
    "visage",
+   "visiter",
    "vite",
    "vivre",
    "voir",
@@ -18719,6 +18721,7 @@
    "vie",
    "vieux",
    "visage",
+   "visite",
    "visiter",
    "vite",
    "vivre",

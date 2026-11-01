@@ -67,3 +67,75 @@ test('a gap is fixed by its fix, accents counting, typography not', () => {
   assert.ok(!gapIsFixed('taches', 'tâches'));
   assert.ok(gapIsFixed('l’hôtel', "l'hôtel"));
 });
+
+// #381 (live walk 30 Oct): «Je voudrais un tomate, sil te plait.» The gap holds «un»
+// («tomate» stays text, #282), the correction above it shows «un tomate → une tomate»,
+// and the learner typed «une tomate» there: the right fix was drawn red, and the line
+// sent read «une tomate tomate».
+const WALK_LINE = 'Je voudrais un tomate, sil te plait.';
+const WALK_ERRATA = [
+  { learner_text: 'un tomate', corrected_target: 'une tomate', task_error_type: 'agreement' },
+  { learner_text: 'sil te plait', corrected_target: "s'il te plaît", task_error_type: 'spelling' },
+];
+const { gapTyped, isRepairableLine, repairState } = require('./repair-parts.ts');
+
+test('#381 · a gap typed with the words the line already has around it holds the fix', () => {
+  const parts = repairParts(WALK_LINE, WALK_ERRATA);
+  assert.deepEqual(parts, [
+    { text: 'Je voudrais ' },
+    { wrong: 'un', fix: 'une', erratum: 0 },
+    { text: ' tomate, ' },
+    { wrong: 'sil te plait', fix: "s'il te plaît", erratum: 1 },
+    { text: '.' },
+  ]);
+  assert.equal(gapTyped(parts, 1, 'une tomate'), 'une');
+  assert.ok(gapIsFixed(gapTyped(parts, 1, 'une tomate'), parts[1].fix), '«une tomate» is not red');
+  assert.ok(gapIsFixed(gapTyped(parts, 1, 'Une Tomate'), parts[1].fix), 'case is typography');
+  // Still wrong: the accent is the fix.
+  assert.ok(!gapIsFixed(gapTyped(parts, 3, "s'il te plait"), parts[3].fix));
+  // The line sent is the line the server accepts: the learner's, each gap fixed.
+  const fixedLine = parts.map((part) => ('text' in part ? part.text : part.fix)).join('');
+  assert.equal(fixedLine, "Je voudrais une tomate, s'il te plaît.");
+  assert.equal(assembleRepair(parts, { 1: 'une tomate', 3: 's’il te plaît' }), 'Je voudrais une tomate, s’il te plaît.');
+  assert.ok(gapIsFixed(assembleRepair(parts, { 1: 'une tomate', 3: 's’il te plaît' }), fixedLine));
+});
+
+test('#381 · neighbouring words come off either side, and only to leave the fix', () => {
+  const parts = repairParts('Demain je vais à le marché avec Paul', [
+    { learner_text: 'je vais à le marché', corrected_target: 'je vais au marché', task_error_type: 'preposition' },
+  ]);
+  assert.deepEqual(parts[1], { wrong: 'à le', fix: 'au', erratum: 0 });
+  assert.equal(gapTyped(parts, 1, 'je vais au marché'), 'au');
+  assert.equal(gapTyped(parts, 1, 'vais au'), 'au');
+  assert.equal(gapTyped(parts, 1, 'au marché.'), 'au');
+  // A wrong fix stays as typed, neighbours and all: it is red and the line is refused.
+  assert.equal(gapTyped(parts, 1, 'je vais à le marché'), 'je vais à le marché');
+  assert.equal(gapTyped(parts, 1, 'aux marché'), 'aux marché');
+  // Words the line does not hold there are not neighbours.
+  assert.equal(gapTyped(parts, 1, 'au supermarché'), 'au supermarché');
+  assert.equal(assembleRepair(parts, { 1: 'aux marché' }), 'Demain je vais aux marché marché avec Paul');
+  // A gap typed as its fix is left alone, spaces and all.
+  assert.equal(gapTyped(parts, 1, ' au '), ' au ');
+  assert.equal(gapTyped([{ text: 'x' }], 0, 'x'), 'x', 'text is not a gap');
+});
+
+test('#381 · the band says the line is mended only once every repair on screen is accepted', () => {
+  const line = { learner_text: WALK_LINE, corrected_target: "Je voudrais une tomate, s'il te plaît." };
+  const state = (issues, repairs, extra = {}) => repairState({ issues, repairs, inPlace: false, isLabelCompare: false, needsNewAnswer: false, ...extra });
+  // A free line fixed in place (La Forge's production rounds).
+  assert.deepEqual(state([line], { 0: { status: 'ok' } }, { inPlace: true }), { complete: true, mended: true });
+  assert.deepEqual(state([line], { 0: { status: 'no' } }, { inPlace: true }), { complete: false, mended: false });
+  assert.deepEqual(state([line], {}, { inPlace: true }), { complete: false, mended: false });
+  // Corrections retyped one by one: every one must be accepted.
+  const two = [line, { learner_text: 'il a allé', corrected_target: 'il est allé hier.' }];
+  assert.deepEqual(state(two, { 0: { status: 'ok' }, 1: { status: 'no' } }), { complete: false, mended: false });
+  assert.deepEqual(state(two, { 0: { status: 'ok' }, 1: { status: 'ok' } }), { complete: true, mended: true });
+  // A one-word fix has no repair step: «Continue» is there, the «Not yet» stands.
+  assert.deepEqual(state([{ learner_text: 'taches', corrected_target: 'tâches' }], {}), { complete: true, mended: false });
+  // A line to write anew, or a label compare, is never «mended».
+  assert.deepEqual(state([line, { task_error_type: 'task_compliance', corrected_target: '' }], { 0: { status: 'ok' } }, { inPlace: true, needsNewAnswer: true }), { complete: false, mended: false });
+  assert.deepEqual(state([line], { 0: { status: 'ok' } }, { isLabelCompare: true }), { complete: true, mended: false });
+  // The field in place counts even on a line too short to need a retype.
+  assert.deepEqual(state([{ learner_text: 'Merci beaucop', corrected_target: 'Merci beaucoup' }], { 0: { status: 'ok' } }, { inPlace: true }), { complete: true, mended: true });
+  assert.ok(isRepairableLine('Il est allé hier.') && !isRepairableLine('tâches') && !isRepairableLine('Merci beaucoup'));
+});

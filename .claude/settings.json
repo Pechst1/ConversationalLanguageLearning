@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/loop/loop_queue.py merge-ready:*)",
+      "Bash(python3 scripts/loop/loop_queue.py merge-ready:*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

@@ -553,3 +553,23 @@ test('#269: a replayed exchange lists the speaker’s question before the learne
   assert.equal(first.bubble.fr, 'Trois jours.');
   assert.deepEqual(first.after.map((line) => line.fr), ['Combien de temps tu restes ?']);
 });
+
+test('#403: day 2 of a chapter names day 2 in the reader head, and the chapter as the chapter it is', () => {
+  const { readerHeadParts } = require('../../feuilleton/reader/panel-model.ts');
+  // The season's chapter «Le mauvais accueil» holds day 1 (same title) and day 2 «La lettre».
+  const chapter = { id: 't1', title_fr: 'Le mauvais accueil' };
+  const dayOne = { ...episode, title_fr: 'Le mauvais accueil', chapter };
+  const dayTwo = { ...episode, title_fr: 'La lettre', chapter };
+  const head = (day) => readerHeadParts({ episodeLabel: model.storyEpisodeLabel(day), title: day.title_fr });
+  // Day 1: the chapter and the page are one title, printed once.
+  assert.deepEqual(head(dayOne), { eyebrow: '', title: 'Le mauvais accueil' });
+  // Day 2: the heading is day 2's title; the line over it is not another episode's bare title.
+  const second = head(dayTwo);
+  assert.equal(second.title, 'La lettre');
+  assert.notEqual(second.eyebrow, 'Le mauvais accueil', 'yesterday’s title must not head today’s page');
+  assert.equal(second.eyebrow, 'Chapitre · Le mauvais accueil');
+  // A chapter that already says «Chapitre N» is not named twice.
+  assert.equal(model.chapterKicker('Chapitre 1 · La fête du quartier', 'Une lettre'), 'Chapitre 1 · La fête du quartier');
+  assert.equal(model.chapterLabelUnder('Le mauvais accueil', 'Le mauvais accueil'), null);
+  assert.equal(model.chapterLabelUnder('Le mauvais accueil', 'La lettre'), 'Chapitre · Le mauvais accueil');
+});

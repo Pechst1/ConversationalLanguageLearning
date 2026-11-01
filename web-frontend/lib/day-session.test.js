@@ -131,3 +131,19 @@ test('#279 · a deck of new words and reviews names its two halves; one half alo
   assert.equal(only({ count: 12, new_left: 0, reviews: 12 }), '8 min');
   assert.equal(only({ count: 20, new_left: 20, reviews: 0 }), '8 min');
 });
+
+test('#396 · the day chip counts today only once the day is done, not at the first practice', () => {
+  // The server counts today from the first practice: 19 -> 20 once the words are done.
+  const words = session(['done', 'done', 'next', 'todo']);
+  assert.deepEqual(ds.homeDayChip(20, true, words), { streak: 19, dayDone: false });
+  // Nothing practised yet: the number is the morning's.
+  assert.deepEqual(ds.homeDayChip(19, false, session(['next', 'todo', 'todo', 'todo'])), { streak: 19, dayDone: false });
+  // Grammar done too: the day is done, and today is in the count.
+  const done = session(['done', 'done', 'done', 'done']);
+  assert.deepEqual(ds.homeDayChip(20, true, done), { streak: 20, dayDone: true });
+  // A first day never shows less than nothing.
+  assert.deepEqual(ds.homeDayChip(1, true, words), { streak: 0, dayDone: false });
+  // No session today (no journey): the server's own flag stands.
+  assert.deepEqual(ds.homeDayChip(20, true, null), { streak: 20, dayDone: true });
+  assert.deepEqual(ds.homeDayChip(19, false, undefined), { streak: 19, dayDone: false });
+});

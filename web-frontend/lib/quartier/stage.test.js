@@ -86,3 +86,26 @@ test('every walk the scene asks for has a way through the streets', () => {
   // the floor of the café is the café's floor, not the pavement
   assert.ok(Math.abs(nav.heightAt(MARKS.atZinc.x, MARKS.atZinc.z) - MARKS.atZinc.y) < 0.05);
 });
+
+test('day b: the director has blocking for every movement, in order, and the stairwell is a room of the season', () => {
+  const season = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/t1.json'), 'utf8'));
+  const day = season.days.find((d) => d.day === 'b');
+  const ids = day.movements.map((m) => m.id);
+  for (const id of ids) assert.ok(STAGED.includes(id), `${id} has no blocking`);
+  assert.deepEqual(ids, STAGED.filter((id) => ids.includes(id)));
+  const { STAGED_DAYS, ROOM_OF, roomOf } = require('./story.ts');
+  assert.ok(STAGED_DAYS.includes('t1.b'));
+  // R1 to R4 play in the stairwell the forge built; the café's panels stay in the café
+  const inRoom = day.movements.filter((m) => m.kind === 'panel' && roomOf(m)).map((m) => m.id);
+  assert.deepEqual(inRoom, ['b.r1', 'b.r2', 'b.r3', 'b.r4']);
+  const room = JSON.parse(fs.readFileSync(path.join(__dirname, 'world', 'rooms', `${ROOM_OF.stairwell}.json`), 'utf8'));
+  for (const mark of ['streetDoor', 'lilaStep', 'landing', 'door', 'threshold', 'inside']) assert.ok(room.marks[mark], `the stairwell has no «${mark}» mark`);
+  // every silent beat of a reply is acted
+  for (const turn of day.movements.filter((m) => m.kind === 'turn' || m.kind === 'solve')) {
+    const beats = [...(turn.replies ?? turn.options ?? []).flatMap((r) => r.beats ?? []), ...(turn.after ?? [])];
+    for (const beat of beats) {
+      if (!beat.silence || (beat.lines ?? []).length) continue;
+      assert.ok(Object.values(SILENT_BEATS).some((re) => re.test(beat.id)), `${beat.id} is silent and nothing acts it`);
+    }
+  }
+});

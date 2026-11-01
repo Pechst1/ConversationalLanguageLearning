@@ -68,6 +68,9 @@ async function playTheDay(native) {
   await page.locator('[data-day-session]').waitFor({ timeout: 60000 }).catch(() => {});
   const before = await programme(page);
   findings.check('day-programme-on-la-une', before.join() === 'scene:next,words:todo,grammar:todo,finish:todo', `programme: ${before.join(' ') || 'none'}`, where('home'));
+  // #396: Home's word count before the scene is the day's one number.
+  const homeWordsText = await page.locator('[data-day-session] [data-part="words"]').first().innerText().catch(() => '');
+  const homeWords = Number((homeWordsText.match(/\d+/) || [])[0]);
   await walk.shoot('home-programme');
 
   // 2 · The scene, to its ending.
@@ -93,6 +96,7 @@ async function playTheDay(native) {
   const promised = Number((handOnText.match(/\d+/) || [])[0]);
   const deckCount = (await page.locator('.av2-progress__count').first().innerText().catch(() => '')).trim();
   findings.check('words-deck-is-the-count-promised', deckCount === `0/${promised}`, `«${handOnText.trim()}» opened a deck of «${deckCount}»`, where('drill'));
+  findings.check('home-words-is-the-hand-on', homeWords === promised, `Home said «${homeWordsText.trim()}», the scene's ending «${handOnText.trim()}»`, where('drill'));
   let presses = 0;
   while (presses < 260 && (await page.locator('[data-day-next]').count()) === 0) {
     const rate = page.locator('.lx-review__foot .lx-rate').last();
@@ -141,6 +145,7 @@ async function playTheDay(native) {
   findings.check('fertig-says-the-day-is-done', state === 'done', `data-fertig=${state}`, where('fertig'));
   const tally = await page.locator('.av2-tally__n').allInnerTexts().catch(() => []);
   findings.check('fertig-tallies-scene-words-exercises', tally.length === 3 && Number(tally[0]) === 1 && Number(tally[1]) > 0 && Number(tally[2]) > 0, `tally: ${tally.join(' · ')}`, where('fertig'));
+  findings.check('fertig-words-is-the-deck', Number(tally[1]) === promised, `the deck held ${promised}, Done says ${tally[1]} words`, where('fertig'));
   findings.check('fertig-offers-ten-more-words', (await page.locator('[data-more-words]').count()) === 1, 'no «Noch 10 Wörter»', where('fertig'));
   // #359: the Done screen names tomorrow's open question (the line Home prints, checked below
   // against Home), and the curtain call's «End of the session» tag is centred over the cast and

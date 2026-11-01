@@ -39,7 +39,7 @@ from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services import order_rules
 from app.services.address import address_instruction
-from app.services.answer_acceptance import accent_policy, is_preference_swap
+from app.services.answer_acceptance import accent_policy, is_preference_swap, widened_answers
 from app.services.atelier_assets import AtelierAssetService
 
 # WP-16 additive: the correction call's request bound and its cost row.
@@ -131,7 +131,12 @@ def _accepted_answers(prompt_payload: dict[str, Any]) -> list[str]:
         item.get("example_answer"),
         prompt_payload.get("example_answer"),
     ]
-    return [str(value) for value in dict.fromkeys(values) if isinstance(value, str) and value.strip()]
+    stored = [str(value) for value in dict.fromkeys(values) if isinstance(value, str) and value.strip()]
+    # #174 / #380: one accept-list, not one stored string. «We prefer Le Mistral»
+    # takes «Nous préférons» as well as «On préfère», «the post office» takes «le
+    # bureau de poste» as well as «la poste».
+    english = item.get("prompt_en") or item.get("prompt") or prompt_payload.get("prompt")
+    return widened_answers(stored, english=english)
 
 
 def _free_answer_accents(concept: Any, prompt_payload: dict[str, Any]) -> str:
@@ -2293,55 +2298,66 @@ def _is_vague_output_prompt(prompt: Any) -> bool:
     return len(normalized.split()) < 6 and not has_direct_dialogue or not (has_scene_signal or has_direct_dialogue)
 
 
-def _fallback_output_prompt_for(concept: GrammarConcept | None, round_name: str) -> str:
-    lesson = lesson_for(concept)
-    if lesson:
-        return lesson["scene"]
+#: The grammar families with their own fallback situations; every other rule gets
+#: the generic ones (``learner_copy``: ``atelier.fallback.prompt.<family>.<round>``).
+_FALLBACK_PROMPT_FAMILIES = ("tense_aspect", "si_present_result_form", "article_after_negation")
+_FALLBACK_OUTPUT_ROUNDS = ("sentence", "speak", "conversation")
+
+
+def _fallback_family(concept: GrammarConcept | None) -> str:
     profile = infer_grammar_profile(concept) if concept else None
-    profile_key = profile.key if profile else ""
-    prompts: dict[str, dict[str, str]] = {
-        "tense_aspect": {
-            "sentence": "Yesterday a friend asks why you arrived late. Explain what was happening and what happened in one French sentence.",
-            "speak": "A colleague asks what you were doing when the phone rang. Say one sentence with the background and the event.",
-            "conversation": "Message received: « Pourquoi tu n'as pas répondu hier soir ? » Reply with what was going on and what happened.",
-        },
-        "si_present_result_form": {
-            "sentence": "A colleague asks: « Tu termines tôt aujourd'hui ? » Answer with what you will do if that happens.",
-            "speak": "A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.",
-            "conversation": "Message received: « S'il pleut demain, on fait quoi ? » Reply with a real condition and its consequence.",
-        },
-        "article_after_negation": {
-            "sentence": "A friend asks what food or drink is left at home today. Say one thing you do not have.",
-            "speak": "At a cafe, someone asks what is available. Say one missing item with ne...pas de/d'.",
-            "conversation": "Message received: « Tu as encore du café ? » Reply with a negated quantity.",
-        },
-    }
-    fallback = {
-        "sentence": "A friend asks for one concrete update about today. Answer in French with one complete sentence.",
-        "speak": "Ton amie demande : « Quel est ton programme pour demain matin ? » Donne une activité et une heure précises.",
-        "conversation": "Message received: « Qu'est-ce qui se passe ? » Reply naturally in French.",
-    }
-    return prompts.get(profile_key, fallback).get(round_name, fallback["sentence"])
+    key = profile.key if profile else ""
+    return key if key in _FALLBACK_PROMPT_FAMILIES else "generic"
+
+
+def _fallback_output_prompt_key(concept: GrammarConcept | None, round_name: str) -> str | None:
+    """The copy key of a rule's fallback task for one output round; ``None`` when a
+    curated lesson gives the rule its own scene."""
+
+    if lesson_for(concept):
+        return None
+    round_name = round_name if round_name in _FALLBACK_OUTPUT_ROUNDS else "sentence"
+    return f"atelier.fallback.prompt.{_fallback_family(concept)}.{round_name}"
+
+
+def _fallback_produce_prompt_key(concept: GrammarConcept | None) -> str | None:
+    """The copy key of a rule's fallback paragraph task; ``None`` for a curated lesson."""
+
+    if lesson_for(concept):
+        return None
+    return f"atelier.fallback.produce.{_fallback_family(concept)}"
+
+
+def _fallback_output_prompt_for(concept: GrammarConcept | None, round_name: str) -> str:
+    key = _fallback_output_prompt_key(concept, round_name)
+    return lesson_for(concept)["scene"] if key is None else _copy(key, "en")
 
 
 def _fallback_produce_prompt_for(concept: GrammarConcept | None) -> str:
-    lesson = lesson_for(concept)
-    if lesson:
-        return lesson["scene"]
-    profile = infer_grammar_profile(concept) if concept else None
-    profile_key = profile.key if profile else ""
-    prompts: dict[str, str] = {
-        "tense_aspect": "A friend asks what happened yesterday when your plans changed. Write a short French note that contrasts the background scene with the completed events.",
-        "si_present_result_form": "A teammate asks how tomorrow's plan changes if the weather or timing changes. Write a short French reply with real si-conditions and their consequences.",
-        "article_after_negation": "A roommate asks what supplies are missing before shopping. Write a short French note naming what you do not have.",
-    }
-    if profile_key in prompts:
-        return prompts[profile_key]
-    pattern = profile.pattern if profile else "the target grammar pattern"
-    return (
-        "A friend asks for a short update about today's plan. "
-        f"Write a French note with concrete details, making this pattern visible: {pattern}"
-    )
+    key = _fallback_produce_prompt_key(concept)
+    return lesson_for(concept)["scene"] if key is None else _copy(key, "en")
+
+
+def _prompt_table(key: str | None) -> dict[str, str] | None:
+    """#196: a fallback task in every chrome language (``prompt_l10n``, as the item bank
+    stores its cues): the stored ``prompt`` stays the English column (what the grader
+    reads), and the learner is served the column of their own chrome language."""
+
+    if key is None:
+        return None
+    return {language: _copy(key, language) for language in ("en", "de", "fr")}
+
+
+def _with_fallback_prompt(node: dict[str, Any], key: str | None, prompt: str) -> dict[str, Any]:
+    """``node`` asking ``prompt``, with that task's table when it is a fallback task."""
+
+    node["prompt"] = prompt
+    table = _prompt_table(key)
+    if table:
+        node["prompt_l10n"] = table
+    else:
+        node.pop("prompt_l10n", None)
+    return node
 
 
 @dataclass(frozen=True)
@@ -3721,6 +3737,7 @@ class AtelierExerciseGenerator:
                                 round_name="sentence",
                                 kind="short_sentence",
                                 prompt=_fallback_output_prompt_for(concept, "sentence"),
+                                prompt_key=_fallback_output_prompt_key(concept, "sentence"),
                                 example=sentences[0],
                                 min_words=5,
                                 max_words=24,
@@ -3735,6 +3752,7 @@ class AtelierExerciseGenerator:
                                 round_name="speak",
                                 kind="spoken_response",
                                 prompt=_fallback_output_prompt_for(concept, "speak"),
+                                prompt_key=_fallback_output_prompt_key(concept, "speak"),
                                 example=sentences[1],
                                 min_words=5,
                                 max_words=24,
@@ -3749,6 +3767,7 @@ class AtelierExerciseGenerator:
                                 round_name="conversation",
                                 kind="conversation_turn",
                                 prompt=_fallback_output_prompt_for(concept, "conversation"),
+                                prompt_key=_fallback_output_prompt_key(concept, "conversation"),
                                 example=sentences[2],
                                 min_words=6,
                                 max_words=30,
@@ -3761,6 +3780,7 @@ class AtelierExerciseGenerator:
         for mode in ATELIER_RECOGNIZE_MODES:
             payload["recognize"][mode]["items"] = payload["recognize"][mode]["items"][:ATELIER_ITEMS_PER_RECOGNIZE_MODE]
         payload["transform"]["items"] = payload["transform"]["items"][:ATELIER_TRANSFORM_ITEMS]
+        _with_fallback_prompt(payload["produce"], _fallback_produce_prompt_key(concept), payload["produce"]["prompt"])
         return payload
 
     def _fallback_sentences(self, concept: GrammarConcept) -> list[str]:
@@ -4246,8 +4266,12 @@ class AtelierExerciseGenerator:
         example: str,
         min_words: int,
         max_words: int,
+        prompt_key: str | None = None,
     ) -> dict[str, Any]:
-        return {
+        """One output-round item; ``prompt_key`` is the copy key of a fallback task, whose
+        table goes with it (#196). A curated lesson's scene has no key and no table."""
+
+        item = {
             "id": f"{prefix}-fallback-{round_name}",
             "type": kind,
             "instruction": _copy("atelier.fallback.output_instruction", "en"),
@@ -4265,6 +4289,7 @@ class AtelierExerciseGenerator:
             "min_words": min_words,
             "max_words": max_words,
         }
+        return _with_fallback_prompt(item, prompt_key, prompt)
 
     def _normalize_llm_exercise_payload(self, concept: GrammarConcept, payload: dict[str, Any]) -> dict[str, Any]:
         incoming = dict(payload)
@@ -4353,7 +4378,7 @@ class AtelierExerciseGenerator:
             }
         ]
         if _is_vague_output_prompt(produce.get("prompt")):
-            produce["prompt"] = _fallback_produce_prompt_for(concept)
+            _with_fallback_prompt(produce, _fallback_produce_prompt_key(concept), _fallback_produce_prompt_for(concept))
         produce["min_words"] = int(produce.get("min_words") or 70)
         produce["max_words"] = int(produce.get("max_words") or 140)
         payload["produce"] = produce
@@ -4378,7 +4403,9 @@ class AtelierExerciseGenerator:
                 ]
                 item["id"] = str(item.get("id") or f"{concept.external_id or concept.id}-{round_name}-{index + 1}")
                 if _is_vague_output_prompt(item.get("prompt")):
-                    item["prompt"] = _fallback_output_prompt_for(concept, round_name)
+                    _with_fallback_prompt(
+                        item, _fallback_output_prompt_key(concept, round_name), _fallback_output_prompt_for(concept, round_name)
+                    )
                 item["min_words"] = int(item.get("min_words") or (5 if round_name == "sentence" else 6))
                 item["max_words"] = int(item.get("max_words") or (30 if round_name == "conversation" else 24))
                 normalized_items.append(item)
@@ -5647,14 +5674,24 @@ class AtelierCorrectionService:
                     correction["errata"] = []
                 elif acceptable and acceptable.get("wrong"):
                     correction["local_check"] = {**local_check, "trap": {"wrong": acceptable["wrong"], "right": acceptable["right"]}}
-            elif local_check is not None and text.strip() and self._can_schedule_ai_review():
+            elif local_check is not None and text.strip() and (
+                local_check["local_status"] == LOCAL_RIGHT or self._can_schedule_ai_review()
+            ):
+                # #401: an accepted answer is right by the key alone. Whether a model
+                # is configured decides only what happens to every OTHER sentence, so
+                # the key's verdict is never held back by the model's availability.
                 correction["local_check"] = local_check
-                correction["assessment_status"] = "provisional"
                 # WP-103 T9: before the model has read it, the séance says «Right» only
                 # for an accepted answer; anything else is «checking» («Je relis…»).
                 correction["local_status"] = local_check["local_status"]
                 if local_check["local_status"] == LOCAL_RIGHT:
                     correction.update({"verdict": "correct", "score_0_4": 4.0, "errata": [], "missing_targets": []})
+                # With no model to read it, the key's «Right» is the whole check.
+                correction["assessment_status"] = (
+                    "provisional"
+                    if self._can_schedule_ai_review()
+                    else "checked"
+                )
             else:
                 correction.update({
                     "verdict": "needs_review", "score_0_4": 0,
@@ -8175,33 +8212,6 @@ class AtelierSRSService:
             return None
         return text, not right
 
-    @staticmethod
-    def _forge_level_after_last_item(track: Any, history: list[dict[str, Any]]) -> int:
-        """The level a rule stands on after the last item the grader read (#370).
-
-        Read from the day's recorded answers (the ladder's own step rule over
-        the rule's last *checked* item), not from the staircase's running value:
-        that one can still hold a provisional climb («uses the rule», read by
-        the instant detector) which the model's later reading took back, and the
-        sheet showed that stale level next to a «Not yet». A rule with no
-        checked item keeps its running level; nothing contradicts it.
-        """
-
-        from app.core import forge as forge_core
-
-        last = next(
-            (
-                entry
-                for entry in reversed(history)
-                if int(entry.get("concept_id", -1)) == int(track.concept_id) and entry.get("checked")
-            ),
-            None,
-        )
-        if last is None:
-            return forge_core.clamp_rung(track.rung)
-        outcome = str(last.get("outcome") or forge_core.OUTCOME_INCORRECT)
-        return forge_core.step_rung(int(last.get("rung", track.rung)), forge_core.Verdict(outcome, checked=True))
-
     def _forge_rule_progress(
         self,
         *,
@@ -8408,7 +8418,9 @@ class AtelierSRSService:
         if forge_state is not None:  # WP-S3: each rule's rung, and the evidence written
             plan = (session.quote_payload or {}).get("forge") or {}
             levels = {
-                track.concept_id: self._forge_level_after_last_item(track, forge_state.history)
+                # #402: the staircase's own reading of each rule's level (one writer),
+                # never a recomputation from the last item's rung.
+                track.concept_id: forge_state.level_read(track.concept_id)
                 for track in forge_state.tracks
             }
             recap["forge"] = {

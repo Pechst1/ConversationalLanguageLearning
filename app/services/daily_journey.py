@@ -426,6 +426,8 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         **({"options_kind": task.options_kind} if task.options_kind != "variants" else {}),
         **({"slip_fr": task.slip_fr} if task.slip_fr else {}),
         **({"rule_native": task.rule_native} if task.rule_native else {}),
+        # #155: only when set, so every other stored task reads as before.
+        **({"speaker_id": task.speaker_id} if task.speaker_id else {}),
     }
 
 
@@ -450,6 +452,7 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         options_kind="sentences" if payload.get("options_kind") == "sentences" else "variants",
         slip_fr=payload.get("slip_fr") or None,
         rule_native=payload.get("rule_native") or None,
+        speaker_id=payload.get("speaker_id") or None,
     )
 
 
@@ -633,17 +636,19 @@ def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
         key = answer_key_for(str(step.id), private.get("recall_task"))
         if key is not None:
             prompt["answer_key"] = key
-        if (
-            prompt.get("task_type") == "listen_tap"
-            and prompt.get("audio_url")
-            and not settings.ATELIER_EPISODE_AUDIO_ENABLED
-        ):
-            # WP-91: planned with a clip, projected after audio was switched
-            # off — the phrase is printed again and the item is read-and-tap,
-            # exactly as a day planned without audio.
+        if prompt.get("task_type") == "listen_tap" and prompt.get("audio_url"):
+            # #167: a heard phrase carries its French, so it can be read when
+            # there is no sound and is shown once the answer is in. A day planned
+            # before #167 stored none: it is read back from the task. It is the
+            # question, not the answer (the answer is a meaning).
             task = private.get("recall_task") if isinstance(private.get("recall_task"), dict) else {}
-            prompt["prompt_fr"] = task.get("prompt_fr")
-            prompt["audio_url"] = None
+            if not prompt.get("prompt_fr"):
+                prompt["prompt_fr"] = task.get("prompt_fr")
+            if not settings.ATELIER_EPISODE_AUDIO_ENABLED:
+                # WP-91: planned with a clip, projected after audio was switched
+                # off — the item is read-and-tap, exactly as a day planned
+                # without audio.
+                prompt["audio_url"] = None
     elif StepKind(step.kind) is StepKind.RULE and "review" in prompt and not _RULE_PROMPT_HAS_REVIEW:
         # WP-129 (D7): the tentpole's review in context says ``review`` to the
         # client once ``RulePrompt`` carries the field; a schema without it

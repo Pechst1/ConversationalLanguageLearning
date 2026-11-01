@@ -170,6 +170,12 @@ class VocabularyDrillBatch(Base):
     count as of the last read. ``new_limit`` / ``new_dealt`` are the latest deal's
     new-word allowance and how many new words it served, so a resumed deck can
     still say whether the supply ran out (WP-131's «Encore N mots»).
+
+    ``plan`` (#396) is the day's word plan, picked once at the first read of the
+    day (:mod:`app.services.day_words`): the reviews the day deck holds, the
+    day's new-word dose, and once dealt the deck's size. Every screen that
+    counts the day's words (Home, the scene's hand-on, the review, Done) reads
+    it. ``None`` on a row from before it, or before the day was first read.
     """
 
     __tablename__ = "vocabulary_drill_batch"
@@ -181,6 +187,7 @@ class VocabularyDrillBatch(Base):
     new_limit = Column(Integer, nullable=False, default=0)
     new_dealt = Column(Integer, nullable=False, default=0)
     cursor = Column(Integer, nullable=False, default=0)
+    plan = Column(JSONB().with_variant(JSON(), "sqlite"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now(), nullable=False)
     updated_at = Column(

@@ -58,6 +58,7 @@ from app.schemas.atelier import (
     AtelierWorkshopComposeRequest,
     AtelierWorkshopComposeResponse,
 )
+from app.services.address import character_register
 from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
     ATELIER_ITEMS_PER_RECOGNIZE_MODE,
@@ -85,6 +86,8 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
+from app.services.cast_registry import display_name, people_addressed, people_named
+from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
 from app.services.chrome_language import user_chrome_language
 from app.services.error_memory import ErrorMemoryService
@@ -142,8 +145,9 @@ def _serial_conversation_context(db: Session, user: User) -> dict[str, Any] | No
             cast,
             key=lambda member: int((member.get("relationship") or {}).get("closeness") or 0),
         )
-    relationship = character.get("relationship") if isinstance(character.get("relationship"), dict) else {}
-    register = str(relationship.get("register") or "vous").lower()
+    # #147 / #350: the register the scene and the Courrier read, not a copy on the card.
+    state = thread.state if isinstance(thread.state, dict) else {}
+    register = character_register(state, str(character.get("id") or ""))
     messenger = mission_prompt.get("messenger") if isinstance(mission_prompt.get("messenger"), dict) else {}
     opener = str(
         messenger.get("opening_message")
@@ -166,13 +170,31 @@ def _serial_conversation_context(db: Session, user: User) -> dict[str, Any] | No
         "episode_index": episode.episode_index if episode else thread.current_episode_index,
         "scene_context": scene_context,
         "opener": opener,
-        "character": {
-            "id": character.get("id"),
-            "name": character.get("name"),
-            "role": character.get("role"),
-            "register": register,
-            "closeness": int(relationship.get("closeness") or 0),
+        "character": _cast_badge(character, state=state),
+        # Everyone the learner has met, as a badge: an item that names one of them
+        # («…, Gus.») is put under that person, not under the beat's character (#147).
+        "met": {
+            str(member.get("id")): member for member in cast if member.get("id")
         },
+        "state": state,
+    }
+
+
+def _cast_badge(member: dict[str, Any], *, state: dict[str, Any]) -> dict[str, Any]:
+    """The byline over a conversation item, from the cast registry (#147).
+
+    The name is what the learner reads everywhere else («Lila», never the bible's
+    «Lila Bonnet»), and the register is the one resolver's (``address.character_register``).
+    """
+
+    character_id = str(member.get("id") or "")
+    relationship = member.get("relationship") if isinstance(member.get("relationship"), dict) else {}
+    return {
+        "id": member.get("id"),
+        "name": display_name(character_id, str(member.get("name") or "")),
+        "role": member.get("role"),
+        "register": character_register(state, character_id),
+        "closeness": int(relationship.get("closeness") or 0),
     }
 
 
@@ -284,6 +306,25 @@ def _with_serial_conversation(
         # WP-S5: a coached two-line scene keeps its coach as the character.
         return payload
     character = context["character"]
+    # #147 (31 Oct): «Say in French: "She is at the church, Gus."» went out under Lila,
+    # and Lila answered a line said to Gus. The item carries its own cast in its words:
+    # a line said to a person is put under that person when the learner has met them,
+    # and served plain (no badge, no reaction) when they have not.
+    words = f"{items[0].get('prompt') or ''} {items[0].get('example_answer') or ''}"
+    named, addressed = people_named(words), people_addressed(words)
+    met = context.get("met") or {}
+    if addressed:
+        addressee = met.get(addressed[0])
+        if addressee is None:
+            return payload
+        if str(addressee.get("id")) != str(character.get("id")):
+            character = _cast_badge(addressee, state=context.get("state") or {})
+    elif named and (
+        (_resolve_cast_id(str(character.get("id") or "")) or str(character.get("id") or "")) in named or any(person not in met for person in named)
+    ):
+        # Said *about* the badge's person («Lila est à l'école» under Lila), or about
+        # someone the learner has not met: no speaker fits, so none is put on it.
+        return payload
     register = str(character.get("register") or "vous")
     # ROOT CAUSE #146: the badge is chosen by the cast, the text was written by the
     # model, and nothing checked that they agree («Lila · tu» over «Répondez …»).
@@ -745,6 +786,30 @@ def _stamp_forge_origin(db: Session, session: AtelierSession, payload: Any) -> N
     db.add(session)
     db.commit()
     db.refresh(session)
+
+
+def _stamp_unforged_origin(session: AtelierSession, payload: Any) -> None:
+    """#169: a prepared séance not yet composed takes the request's origin and
+    length, so the forge composes it as the step that opened it (the day's
+    step keeps to today's rule) instead of as a generic plan."""
+
+    origin = getattr(payload, "origin", None) if payload is not None else None
+    if not origin or is_forge_session(session):
+        return
+    quote = dict(session.quote_payload or {})
+    forge = dict(quote.get("forge") or {}) if isinstance(quote.get("forge"), dict) else {}
+    if forge.get("units") is not None:
+        return
+    forge["origin"] = origin
+    budget = getattr(payload, "budget_seconds", None)
+    if budget:
+        forge["budget_seconds"] = int(budget)
+    step_id = getattr(payload, "journey_step_id", None)
+    if step_id:
+        forge["journey_step_id"] = str(step_id)
+    quote["forge"] = forge
+    session.quote_payload = quote
+    flag_modified(session, "quote_payload")
 
 
 def _park_session(db: Session, session: AtelierSession) -> None:
@@ -1350,6 +1415,7 @@ def start_session(
     if not payload or not (payload.concept_ids or payload.preferred_concept_id or payload.preferred_vocabulary_ids):
         resumable = _resumable_session(db, current_user)
         if resumable is not None:
+            _stamp_unforged_origin(resumable, payload)
             resumable.status = "in_progress"
             db.add(resumable)
             db.commit()
@@ -1391,11 +1457,14 @@ def start_session(
         # WP-S4 — La Forge's one picker: the chosen rule (or today's) first,
         # then due rules and introduced contrast partners. No padding from
         # teaching order; a new rule only through the rhythm quota.
+        origin = (payload.origin if payload else None) or ("practice" if preferred_id else "after_day")
         forge = forge_plan(
             db,
             current_user,
             preferred_concept_id=preferred_id,
             budget_seconds=payload.budget_seconds if payload else None,
+            # #169: the day's step («Forge today's rule») keeps to today's rule.
+            origin=origin,
         )
         selections = scheduler.selections_for_plan(
             current_user, forge, limit=scheduler.concept_limit(current_user)
@@ -1423,7 +1492,7 @@ def start_session(
     if forge is not None:
         quote["forge"] = {
             **forge.as_payload(),
-            "origin": (payload.origin if payload else None) or ("practice" if preferred_id else "after_day"),
+            "origin": origin,
             "journey_step_id": str(payload.journey_step_id) if payload and payload.journey_step_id else None,
         }
     session = AtelierSession(

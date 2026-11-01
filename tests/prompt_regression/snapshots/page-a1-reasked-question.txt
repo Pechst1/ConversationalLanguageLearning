@@ -1,5 +1,5 @@
 # prompt snapshot · page-a1-reasked-question · lane page · level A1
-# key: sha256:31098a830fb99a028d4efd8ca48e5d324910e8504cf58531fae2c258d1346322
+# key: sha256:da3cbac9a5f6a114e17486df63753c538b9fe47b763e30a356acbc0c669b086e
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
 ======== call 1 · PagePlan #1 · 4306614ee1dd9fd2 ========
@@ -1198,7 +1198,7 @@ peut écrire ton nom.»
  ]
 }
 
-======== call 3 · PageText #1 · ae2ffb983f3b6328 ========
+======== call 3 · PageText #1 · 46746f84b4681d96 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PageText", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PageText sha256:3fcf082adfdc0612
 -------- system --------
@@ -1245,6 +1245,10 @@ LEVEL A1
 Present tense, everyday words, lines mostly under 10 words, one idea per line.
 Gestures, objects and names carry the rest: the drama stays, the words get simple. At most
 about 160 words in premise, captions and lines together.
+Words: the ones a beginner learns first (the café, the flat, family, food, days, the
+weather; être, avoir, aller, faire, vouloir, pouvoir). A thing a beginner cannot name (a
+notary's papers, a stove, a hot-water bottle) is drawn in visual_direction and pointed at,
+never named.
 From the bible: «Le café d'Odile. Toujours le même.» · «Bravo, Gus. Belle gaffe.» · «Ma
 grand-mère dit : beaucoup d'argent, beaucoup de problèmes.»
 suggested_response_fr: one short sentence («Oui, ce soir.», «Je ne sais pas encore.»).
@@ -1265,8 +1269,16 @@ FRENCH
   and cannot find it; the word itself is never printed.
 - special, when present, is today's one special rule: follow it.
 - previous_rejections: why earlier pages for today were refused. Fix that.
+- Before you return the page, read every line as a learner at A1 would. A word they
+  would have to look up becomes a simpler word, or the picture shows the thing and the
+  line drops it; names, story_words and the concept stay. A structure above the level
+  card gets the plain form the card allows. The drama stays the same as at C1: only the
+  words get simpler.
 
 NOT THIS → THIS (the left side is from real pages)
+- «Rien ne peut être vendu avant les papiers de la succession.» (A2) → «On ne peut rien
+  vendre. Pas avant les papiers.»
+- «Il pose la soupe sur le seul brûleur qui marche.» (A2) → «Il met la soupe sur le feu.»
 - «Tout le monde attend ta réponse.» → «Romy pose son stylo.»
 - «Dis une phrase avec "J'ai".» → «Tu as dormi, cette nuit ?»
 - «Dis-moi quelle condition tu veux que je respecte.» → «Je peux écrire ton nom ?»

@@ -91,14 +91,10 @@ JOURNEY_DEEP_LINK = "/atelier?start=today"
 #: A scenario may name a character by a short id («marin») or the full one; the
 #: first token decides, as in ``episode_audio.PINNED_VOICES``.
 PORTRAIT_CHARACTERS: dict[str, str] = {
-    "marin": "marin_leveque",
-    "romy": "romy_tremblay",
-    "lila": "lila_bonnet",
-    "margaux": "margaux_barman",
-    "augustin": "augustin_de_roncourt",
-    "gus": "augustin_de_roncourt",
-    "landlord": "landlord_marchand",
-    "marchand": "landlord_marchand",
+    # #147: the registry's aliases for the people a push can show, not a second table.
+    alias: cast_id
+    for alias, cast_id in cast_registry.aliases().items()
+    if cast_id in {"marin_leveque", "romy_tremblay", "lila_bonnet", "margaux_barman", "augustin_de_roncourt", "landlord_marchand"}
 }
 
 #: The display name when nothing else names the character: the cast registry's, so a
@@ -413,7 +409,8 @@ def _speaker(db: Session, user: User) -> tuple[str, str]:
     name = str(scenario.get("character_name") or "").strip()
     key = portrait_character(raw_id)
     if raw_id and name:
-        return (key or raw_id), name
+        # #147: the registry's name («Gus»), whatever the scene's snapshot spelled.
+        return (key or raw_id), cast_registry.display_name(raw_id, name)
     if key:
         return key, CHARACTER_NAMES.get(key, name or key)
     return DEFAULT_CHARACTER_ID, CHARACTER_NAMES[DEFAULT_CHARACTER_ID]

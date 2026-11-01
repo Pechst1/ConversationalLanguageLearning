@@ -11,6 +11,9 @@
 //   * «Compare» is fully above the pink verdict sheet (the page scrolled it clear);
 //   * the field holds «à le», the words the instruction names, not «à le marché aux puces»,
 //     and typing «au» alone there is what the instruction says.
+// Then (#381) the live walk's line «Je voudrais un tomate, sil te plait.»: typed as the walker
+// typed it, only the gap still wrong is red; with the right repair typed and accepted, the band
+// under «Line fixed» takes the success state and «Not yet» is gone.
 // The same predicates run in the 7-day walk (e2e/lib/miss-layout.mjs). Exit 1 on a failure.
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
@@ -81,6 +84,44 @@ async function measure(page, label, { cameoComes = false } = {}) {
   check(`${label} «Compare» takes a click (nothing in front of it)`, clicked === null, clicked);
 }
 
+/** #381: type the right repair of the walk's line and read the band under «Line fixed». */
+async function repairedLine(page) {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(`http://localhost:${port}/dev/miss-layout?case=381`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.waitForSelector('.ep-parts__gap', { timeout: 120000 });
+  const gaps = page.locator('.ep-parts__gap');
+  check('381 the line has a gap for each correction', (await gaps.count()) === 2, `${await gaps.count()} gaps`);
+  // The red every gap to fix is drawn in, before anything is typed or compared.
+  const toFix = await gaps.nth(0).evaluate((node) => getComputedStyle(node).color);
+  // As the walker did: the whole stretch in the gap of «un», and «plait» without its accent.
+  await gaps.nth(0).fill('une tomate');
+  await gaps.nth(1).fill("s'il te plait");
+  const draft = await page.locator('[data-fixture="draft"]').textContent();
+  check('381 «une tomate» typed in the gap of «un» is sent once', draft === "Je voudrais une tomate, s'il te plait.", `the line sent is «${draft}»`);
+  await page.locator('.ep-repair__submit').first().click();
+  await page.waitForSelector('.ep-repair[data-status="no"]', { timeout: 10000 });
+  await page.evaluate(() => document.activeElement?.blur()); // no focus colour on a gap
+  const drawn = await gaps.evaluateAll((nodes) => nodes.map((node) => ({ state: node.getAttribute('data-state'), color: getComputedStyle(node).color })));
+  check('381 only the gap still wrong is red', drawn[0].state === 'fixed' && drawn[1].state === 'wrong', `gaps drawn as ${JSON.stringify(drawn)}`);
+  check('381 «une tomate» is not drawn in the red of a gap to fix', drawn[0].color !== toFix, `«une tomate» is ${drawn[0].color}, a gap to fix ${toFix}`);
+  check('381 «Not yet» while a word is still wrong', (await page.locator('.ep-feedback .ep-verdict[data-tone="wrong"]').count()) === 1, 'no «Not yet» band before the line is fixed');
+  await page.screenshot({ path: path.join(outDir, 'repair-381-one-word-left.png') });
+  // The right repair: the accent.
+  await gaps.nth(1).fill("s'il te plaît");
+  await page.locator('.ep-repair__submit').first().click();
+  await page.waitForSelector('.ep-repair[data-status="ok"]', { timeout: 10000 });
+  await sleep(500);
+  await page.screenshot({ path: path.join(outDir, 'repair-381-fixed.png') });
+  const snap = await page.evaluate(SNAPSHOT_FN, TYPEABLE_FIELD);
+  const said = snap.epFeedback.map((feedback) => feedback.text).join(' ').replace(/\s+/g, ' ');
+  check('381 «Line fixed» is on screen', /Line fixed/.test(said), said.slice(0, 240));
+  check('381 «Not yet» is gone once the line is fixed', !/Not yet/i.test(said), said.slice(0, 240));
+  check('381 the band shows the success state', (await page.locator('.ep-feedback .ep-foot[data-tone="correct"] .ep-verdict[data-tone="correct"]').count()) === 1, 'no success band under the fixed line');
+  check('381 the answer stays a miss', snap.epFeedback.length === 1 && snap.epFeedback[0].verdict === 'wrong', JSON.stringify(snap.epFeedback.map((feedback) => feedback.verdict)));
+  const banner = missLayoutChecks(snap.layout).find((entry) => entry.name === 'repaired-line-has-no-failure-banner');
+  check('381 repaired-line-has-no-failure-banner', Boolean(banner) && banner.ok, banner ? banner.detail : `the screen did not offer the parts to check: ${JSON.stringify(snap.layout.repairs)}`);
+}
+
 let browser;
 let failed = 0;
 const check = (name, ok, detail) => {
@@ -109,6 +150,7 @@ try {
   await page.waitForSelector('.cameo-bubble', { timeout: 8000 }).catch(() => {});
   await sleep(1500);
   await measure(page, '375x1100', { cameoComes: true });
+  await repairedLine(page);
 } catch (error) {
   console.log(`FAIL the page did not come up: ${error.message}`);
   failed += 1;

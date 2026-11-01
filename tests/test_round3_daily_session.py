@@ -187,12 +187,14 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     assert session["pace"] == "normal"
     assert [step["kind"] for step in session["steps"]] == ["scene", "words", "grammar", "finish"]
     assert session["next_kind"] == "scene"
-    # #143: the cards the deck would deal now. Until the journey is planned the
-    # drill leaves the journey's share of the 20 to it (WP-L6).
+    # #143/#396: the day's words, the scene's share of the 20 included: the
+    # scene's words are cards of the deck once it met them, so Home's number does
+    # not move when the scene is played. The drill alone leaves that share to the
+    # journey until it is planned (WP-L6).
     user = db_session.get(User, learner_id(db_session, "round3-today@example.com"))
     room, _reserved = vocabulary_pace.drill_new_word_room(db_session, user)
     assert 0 < room < 20
-    assert session["steps"][1]["count"] == room
+    assert session["steps"][1]["count"] == 20
     assert session["steps"][2]["href"].endswith("&from=day")
 
     sheet = assembled_client.get("/api/v1/daily-journeys/session/pace", headers=headers)
@@ -213,7 +215,8 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     db_session.refresh(user)
     room, _reserved = vocabulary_pace.drill_new_word_room(db_session, user)
     assert 0 < room < 10
-    assert today["session"]["steps"][1]["count"] == room
+    # A pace changed before the deck is dealt re-plans the day.
+    assert today["session"]["steps"][1]["count"] == 10
 
 
 def test_the_word_step_can_be_marked_done(

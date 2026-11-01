@@ -78,24 +78,29 @@ def test_143_the_word_step_promises_the_cards_the_day_deck_deals(
     supply = _supply(db_session, 40, "w143a")
     normal_pace(db_session, user, {supply[0]})
 
+    # #396: the day's 20, the scene's reserved word included: once the scene
+    # met it, it is a card of the deck (its first).
     promised = _home_words(db_session, user)
+    assert promised["count"] == 20
+    _answer(client, headers, [supply[0]])  # the scene meets its word
+    assert _home_words(db_session, user)["count"] == 20, "the scene does not move the day's number"
     deck = _deck(client, headers, DAY)
     cards = _cards(deck)
-    assert supply[0] not in cards, "the journey's reserved word is the journey's to introduce"
+    assert cards[0] == supply[0], "the scene's word comes first"
     # Before: «Weiter: 20 Wörter» over a deck of 19.
-    assert promised["count"] == len(cards) == 19
+    assert promised["count"] == len(cards) == 20
     assert deck["new_words_left_today"] == 0, "the deck holds the whole dose"
 
     # Halfway through, Home names what the deck still holds.
     _answer(client, headers, cards[:7])
-    assert _home_words(db_session, user)["count"] == len(_cards(_deck(client, headers, DAY))) == 12
+    assert _home_words(db_session, user)["count"] == len(_cards(_deck(client, headers, DAY))) == 13
 
     # Done: the step says what the day did, as the end screen does, not the pace's 20.
     _answer(client, headers, cards[7:])
     assert _cards(_deck(client, headers, DAY)) == []
     done = _home_words(db_session, user)
     assert done["state"] == "done"
-    assert done["count"] == 19
+    assert done["count"] == 20
 
 
 def test_143_the_day_deck_opens_the_lexiques_batch_on_the_whole_dose(

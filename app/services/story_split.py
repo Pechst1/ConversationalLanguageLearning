@@ -336,8 +336,16 @@ FRENCH
   and cannot find it; the word itself is never printed.
 - special, when present, is today's one special rule: follow it.
 - previous_rejections: why earlier pages for today were refused. Fix that.
+- Before you return the page, read every line as a learner at {band} would. A word they
+  would have to look up becomes a simpler word, or the picture shows the thing and the
+  line drops it; names, story_words and the concept stay. A structure above the level
+  card gets the plain form the card allows. The drama stays the same as at C1: only the
+  words get simpler.
 
 NOT THIS → THIS (the left side is from real pages)
+- «Rien ne peut être vendu avant les papiers de la succession.» (A2) → «On ne peut rien
+  vendre. Pas avant les papiers.»
+- «Il pose la soupe sur le seul brûleur qui marche.» (A2) → «Il met la soupe sur le feu.»
 - «Tout le monde attend ta réponse.» → «Romy pose son stylo.»
 - «Dis une phrase avec "J'ai".» → «Tu as dormi, cette nuit ?»
 - «Dis-moi quelle condition tu veux que je respecte.» → «Je peux écrire ton nom ?»
@@ -364,16 +372,25 @@ LEVEL_CARDS = {
     "A1": """Present tense, everyday words, lines mostly under 10 words, one idea per line.
 Gestures, objects and names carry the rest: the drama stays, the words get simple. At most
 about 160 words in premise, captions and lines together.
+Words: the ones a beginner learns first (the café, the flat, family, food, days, the
+weather; être, avoir, aller, faire, vouloir, pouvoir). A thing a beginner cannot name (a
+notary's papers, a stove, a hot-water bottle) is drawn in visual_direction and pointed at,
+never named.
 From the bible: «Le café d'Odile. Toujours le même.» · «Bravo, Gus. Belle gaffe.» · «Ma
 grand-mère dit : beaucoup d'argent, beaucoup de problèmes.»
 suggested_response_fr: one short sentence («Oui, ce soir.», «Je ne sais pas encore.»).""",
     "A2": """Present, passé composé and futur proche; simple reasons with parce que or mais;
 lines up to 12 words. At most about 240 words.
+Words: everyday words only. A word an A2 learner would look up (succession, tribunal,
+palier, brûleur, bouillotte) becomes a common one («les papiers», «devant la porte»,
+«le feu») or is drawn and not named.
 From the bible: «Alors ? Pourquoi elle est partie, à ton avis ?» · «Vous allez vendre,
 non ? C'est plus simple pour tout le monde.» · «Mais arrête. C'est évident.»
 suggested_response_fr: one sentence («Odile, c'est ma grand-mère.»).""",
     "B1": """All past tenses, simple hypotheses with si, opinions with a reason; lines up to
 16 words and still short. At most about 300 words.
+Words: common words. A rarer word only when the scene cannot do without it, and then the
+picture or the next line makes it clear.
 From the bible: «On ne prévoit pas une tarte pour l'anniversaire de quelqu'un quand on s'en
 va.» · «Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.» · «Je
 déteste avoir raison la nuit.»

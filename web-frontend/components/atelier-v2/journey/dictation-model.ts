@@ -77,14 +77,27 @@ export function promptIsHeard(prompt: Pick<RecallPrompt, 'task_type' | 'audio_ur
 
 /**
  * listen_tap: is the phrase printed? Yes when there is no clip, when the clip
- * failed (read-and-tap, as before WP-91), and once the answer is graded.
+ * failed (read-and-tap, as before WP-91), once the answer is graded, and (#167)
+ * when the learner asked to read it: on a train, on a silent phone or at a desk
+ * without sound, a heard-only word cannot be answered at all.
  */
 export function listenTapShowsPhrase(
   prompt: Pick<RecallPrompt, 'task_type' | 'audio_url'>,
-  options: { clipFailed: boolean; graded: boolean },
+  options: { clipFailed: boolean; graded: boolean; asked?: boolean },
 ): boolean {
   if (prompt.task_type !== 'listen_tap') return true;
-  return !promptIsHeard(prompt) || options.clipFailed || options.graded;
+  return !promptIsHeard(prompt) || options.clipFailed || options.graded || Boolean(options.asked);
+}
+
+/**
+ * #167: «Show the text» is offered while a heard phrase is held back, and only
+ * when the payload carries the phrase (a server before #167 sent none).
+ */
+export function listenTapOffersText(
+  prompt: Pick<RecallPrompt, 'task_type' | 'audio_url' | 'prompt_fr'>,
+  options: { clipFailed: boolean; graded: boolean; asked?: boolean },
+): boolean {
+  return !listenTapShowsPhrase(prompt, options) && Boolean(String(prompt.prompt_fr ?? '').trim());
 }
 
 /** A dictation can be checked once something is typed. */

@@ -23,6 +23,9 @@ const CAST = Object.keys(A.PEOPLE);
 const turns = T1A.movements.filter((m) => m.kind === 'turn' || (m.kind === 'solve' && m.to));
 /** The café crème and the key, as the engine asks them: questions whose replies are the options. */
 const CHOICES = { 'a.cafe': ['drink', 'declined', 'refused'], 'a.key': ['take', 'leave'] };
+/** Day b's questions, from the season file: Camille's, the letter («Le choix», asked by Lila), the key. */
+const T1B = require(path.join(WEB_ROOT, '..', 'app/data/season/s1/t1.json')).days.find((d) => d.day === 'b');
+const DAY_B = T1B.movements.filter((m) => m.kind === 'turn' || (m.kind === 'solve' && m.mechanic === 'choix'));
 
 /** Every effect list the agency layer can apply. */
 function allEffects() {
@@ -57,7 +60,7 @@ function allLines() {
 }
 
 test('every route of the day changes something, and says so in the carnet', () => {
-  const routes = turns.flatMap((t) => (t.replies ?? t.options).map((r) => `${t.id}.${r.id}`));
+  const routes = [...turns, ...DAY_B].flatMap((t) => (t.replies ?? t.options).map((r) => `${t.id}.${r.id}`));
   for (const [turn, replies] of Object.entries(CHOICES)) for (const r of replies) routes.push(`${turn}.${r}`);
   for (const route of new Set(routes)) {
     const effects = A.REPLY_EFFECTS[route];

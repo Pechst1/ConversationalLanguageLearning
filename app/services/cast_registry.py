@@ -34,6 +34,7 @@ before their day.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
@@ -189,6 +190,12 @@ def resolve_id(character_id: str | None) -> str | None:
     return _ALIASES.get(raw.split("_", 1)[0])
 
 
+def aliases() -> dict[str, str]:
+    """``{alias: registry id}``: the short ids scenes use («gus», «marchand», «landlord»)."""
+
+    return dict(_ALIASES)
+
+
 def member(character_id: str | None) -> CastMember | None:
     cast_id = resolve_id(character_id)
     return _registry().get(cast_id) if cast_id else None
@@ -269,3 +276,141 @@ def introduced_by(character_id: str | None, tentpole: int, day: str = "z") -> bo
 
     found = member(character_id)
     return found is not None and found.first_day <= (int(tentpole), str(day))
+
+
+# --------------------------------------------------------------------------- #
+# Who this learner has met (#147, re-test 31 Oct: unmet people were listed)
+# --------------------------------------------------------------------------- #
+
+_SEGMENT = re.compile(r"^([tg])(\d+)$")
+
+
+def season_reach(state: Mapping[str, Any] | None) -> tuple[int, str] | None:
+    """How far this life's season has gone, as ``(tentpole, day letter)``, or ``None``.
+
+    Read from the season's played log (``living_story.season_script.played``): a
+    tentpole day is ``(n, "a")`` / ``(n, "b")``; a gap day after tentpole *n* is
+    ``(n, "z")`` (everyone that tentpole put on a page is met). ``None`` when the
+    thread plays no season yet.
+    """
+
+    live = (state or {}).get("living_story") if isinstance(state, Mapping) else None
+    script = live.get("season_script") if isinstance(live, Mapping) else None
+    played = script.get("played") if isinstance(script, Mapping) else None
+    best: tuple[int, str] | None = None
+    for row in played if isinstance(played, list) else []:
+        if not isinstance(row, Mapping):
+            continue
+        found = _SEGMENT.match(str(row.get("segment") or "").strip().lower())
+        if not found:
+            continue
+        number = int(found.group(2))
+        if found.group(1) == "g":
+            point = (number, "z")
+        else:
+            point = (number, "a" if int(row.get("day_in_segment") or 1) <= 1 else "b")
+        best = point if best is None or point > best else best
+    return best
+
+
+def _met_in_story(state: Mapping[str, Any] | None) -> set[str]:
+    """Ids the story has actually put in front of the learner: a relationship with
+    something in it (closeness, a callback, a summary) or a mood the engine keeps."""
+
+    found: set[str] = set()
+    relationships = (state or {}).get("relationships") if isinstance(state, Mapping) else None
+    for key, entry in (relationships or {}).items() if isinstance(relationships, Mapping) else []:
+        if isinstance(entry, Mapping) and (
+            int(entry.get("closeness") or 0) > 0 or entry.get("callbacks") or entry.get("last_summary")
+        ):
+            found.add(resolve_id(str(key)) or str(key))
+    live = (state or {}).get("living_story") if isinstance(state, Mapping) else None
+    moods = live.get("moods") if isinstance(live, Mapping) else None
+    for key in (moods or {}) if isinstance(moods, Mapping) else []:
+        found.add(resolve_id(str(key)) or str(key))
+    return found
+
+
+def met_ids(state: Mapping[str, Any] | None) -> frozenset[str] | None:
+    """Everyone this learner has met: the registry's people the season has reached
+    (:func:`introduced_by`), plus anyone the story has spoken with. ``None`` when the
+    thread plays no season (an older story has no canon of who comes when): the caller
+    then does not filter.
+
+    Ids are registry ids where the registry holds the person, the stored id otherwise.
+    """
+
+    reach = season_reach(state)
+    if reach is None:
+        return None
+    found = _met_in_story(state)
+    found.update(cid for cid in _registry() if introduced_by(cid, *reach))
+    return frozenset(found)
+
+
+def has_met(state: Mapping[str, Any] | None, character_id: str | None) -> bool:
+    """Has this learner met this person? ``True`` when nothing can tell (no season)."""
+
+    known = met_ids(state)
+    if known is None:
+        return True
+    raw = str(character_id or "").strip()
+    return bool(raw) and (resolve_id(raw) or raw) in known
+
+
+#: Names a line may call a person by, longest first: «Monsieur Marchand» before «Marchand».
+def _name_patterns() -> list[tuple[re.Pattern[str], str]]:
+    rows: list[tuple[str, str]] = []
+    for row in _registry().values():
+        spellings = {row.short_name, row.spoken_name}
+        nickname = re.search(r"«\s*([^»]+?)\s*»", row.name)
+        if nickname:
+            spellings.add(nickname.group(1))
+        first = re.sub(r"«[^»]*»", " ", row.name).split()
+        if first and len(first[0]) >= 3 and first[0][:1].isupper() and first[0] not in {"Mme", "Maître"}:
+            spellings.add(first[0])
+        rows.extend((spelling, row.id) for spelling in spellings if spelling)
+    rows.sort(key=lambda pair: -len(pair[0]))
+    return [(re.compile(rf"(?<![\w-]){re.escape(name)}(?![\w-])"), cid) for name, cid in rows]
+
+
+def people_named(text: Any) -> list[str]:
+    """Registry ids of the people a text names, in order of first mention, once each.
+
+    «Elle est à l'église, Gus.» → ``["augustin_de_roncourt"]``. A La Forge item or a
+    prompt carries its cast in its words; this is how a surface reads it back, so the
+    badge over a line is the person the line is said to (#147, 31 Oct)."""
+
+    content = str(text or "")
+    hits: list[tuple[int, str]] = []
+    taken: list[tuple[int, int]] = []
+    for pattern, cid in _name_patterns():
+        for match in pattern.finditer(content):
+            span = match.span()
+            if any(start < span[1] and span[0] < end for start, end in taken):
+                continue
+            taken.append(span)
+            hits.append((span[0], cid))
+    out: list[str] = []
+    for _pos, cid in sorted(hits):
+        if cid not in out:
+            out.append(cid)
+    return out
+
+
+def people_addressed(text: Any) -> list[str]:
+    """Registry ids of the people a text speaks *to* (a vocative): «…, Gus.», «Lila, tu…».
+
+    :func:`people_named` minus the people the text only talks *about*."""
+
+    content = str(text or "")
+    out: list[str] = []
+    for pattern, cid in _name_patterns():
+        for match in pattern.finditer(content):
+            before = content[: match.start()].rstrip(" \u00a0")
+            after = content[match.end():].lstrip(" \u00a0")
+            vocative_after = before.endswith(",") and (not after or after[:1] in ".?!…»\"”)")
+            vocative_before = (not before or before[-1:] in ".?!:«\"“") and after[:1] == ","
+            if (vocative_after or vocative_before) and cid not in out:
+                out.append(cid)
+    return out

@@ -81,6 +81,8 @@ export type JourneyCopyKey =
   // #240: a wrong tap on «which sentence uses the rule» is not a correction of that sentence.
   | 'correction_pick'
   | 'pick_not_it'
+  // #167: a missed meaning names the French word.
+  | 'correction_meaning'
   | 'reply_authored_note'
   | 'progress_label'
   | 'time_left'
@@ -218,6 +220,8 @@ export type JourneyCopyKey =
   | 'dictation_label'
   | 'dictation_placeholder'
   | 'listen_unavailable_read'
+  // #167: a heard phrase can be read on request (no sound, a silent phone).
+  | 'listen_show_text'
   // WP-103 T3: a drill's header names the drill; a scene-cut item says where from.
   | 'drill_recall'
   | 'drill_warmup'
@@ -318,6 +322,7 @@ const EN: CopyTable = {
   correction: 'One thing to fix',
   correction_pick: 'This sentence uses the rule',
   pick_not_it: 'Not this one:',
+  correction_meaning: 'The word',
   reply_authored_note: 'Written reply from the script',
   progress_label: 'Progress in today’s scene',
   time_left: 'left',
@@ -434,6 +439,7 @@ const EN: CopyTable = {
   dictation_label: 'What you hear',
   dictation_placeholder: 'Write what you hear, in French',
   listen_unavailable_read: 'No sound right now — read the line instead.',
+  listen_show_text: 'Show the text',
   drill_recall: 'Recall',
   drill_warmup: 'Before the scene',
   drill_retry: 'Once more',
@@ -525,6 +531,7 @@ const DE: CopyTable = {
   correction: 'Eine Sache zum Korrigieren',
   correction_pick: 'In diesem Satz steckt die Regel',
   pick_not_it: 'Nicht dieser:',
+  correction_meaning: 'Das Wort',
   reply_authored_note: 'Vorgeschriebene Antwort aus dem Skript',
   progress_label: 'Fortschritt in der heutigen Szene',
   time_left: 'übrig',
@@ -641,6 +648,7 @@ const DE: CopyTable = {
   dictation_label: 'Was du hörst',
   dictation_placeholder: 'Schreib auf Französisch, was du hörst',
   listen_unavailable_read: 'Gerade kein Ton — lies den Satz stattdessen.',
+  listen_show_text: 'Text zeigen',
   drill_recall: 'Wiederholung',
   drill_warmup: 'Vor der Szene',
   drill_retry: 'Noch einmal',
@@ -732,6 +740,7 @@ const FR: CopyTable = {
   correction: 'Une chose à corriger',
   correction_pick: 'La règle est dans cette phrase',
   pick_not_it: 'Pas celle-ci :',
+  correction_meaning: 'Le mot',
   reply_authored_note: 'Réponse écrite, tirée du scénario',
   progress_label: 'Progression dans la scène du jour',
   time_left: 'restant',
@@ -848,6 +857,7 @@ const FR: CopyTable = {
   dictation_label: 'Ce que tu entends',
   dictation_placeholder: 'Écris ce que tu entends',
   listen_unavailable_read: 'Pas de son pour l’instant : lis la phrase.',
+  listen_show_text: 'Afficher le texte',
   drill_recall: 'Rappel',
   drill_warmup: 'Avant la scène',
   drill_retry: 'Encore une fois',

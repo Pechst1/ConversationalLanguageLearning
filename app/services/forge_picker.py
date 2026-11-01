@@ -56,6 +56,15 @@ Read-only. Nothing here writes or moves a due date.
     plan.reason           # why the anchor is the anchor (see ANCHOR_REASONS)
     plan.new_concept_id   # the anchor when forging it introduces it, else None
 
+**The day's grammar step** (#169, owner 2026-10-31). A forge opened as
+«Forge today's rule» (``origin`` in :data:`DAY_ORIGINS`: the day's grammar
+step, the after-day chip, a folded step) works today's rule, plus at most
+:data:`DAY_REVIEW_RULES` review rule for at most :data:`DAY_REVIEW_SHARE` of the
+items. A review rule must pass :func:`day_review_eligible`: the learner was
+taught it (:func:`rule_was_taught`) *and* its schedule says it is due. A rule
+a scene only showed, an erratum only named, or a correction only guessed
+never enters; nor do contrast partners. This is the only place that rule lives.
+
 A started séance stores ``plan.as_payload()`` in ``quote_payload["forge"]``
 (with ``origin`` and, when folded into the day, ``journey_step_id``), so the
 composer reads the same plan the start endpoint seated.
@@ -97,6 +106,18 @@ ANCHOR_REASONS = (
     REASON_EMPTY,
 )
 
+#: #169 — «Forge today's rule»: the origins that open the forge as the day's
+#: rule (the séance start's ``origin``). A ``practice`` forge (a Cahier fiche)
+#: keeps the full today / due / contrast mix.
+DAY_ORIGINS = frozenset({"journey", "after_day"})
+#: At most this many review rules sit beside today's rule on the day's step…
+DAY_REVIEW_RULES = 1
+#: …and together they take at most this share of its items (3 of 12), never
+#: before today's rule has had its first items (``app.core.forge``).
+DAY_REVIEW_SHARE = 0.25
+#: A day plan's review unit, and why it is there (the page says «Review»).
+REASON_REVIEW_DUE = "review_due"
+
 #: A forge block on its own (the after-day chip, «Forge · 5 min»), per rhythm.
 #: Soutenu and Intensif fold the forge into the day instead; there the planner
 #: sizes it from what the day leaves (``journey_planner``), capped by this.
@@ -132,6 +153,9 @@ class ForgePlan:
     #: The anchor, when forging it is what introduces it (quota or explicit).
     new_concept_id: int | None = None
     notes: tuple[str, ...] = field(default_factory=tuple)
+    #: #169: the day's step caps its review items at this share (``None``: the
+    #: ordinary 40 / 40 / 20 mix of ``app.core.forge.ROLE_SHARES``).
+    review_share: float | None = None
 
     @property
     def anchor(self) -> ForgeUnit | None:
@@ -160,6 +184,7 @@ class ForgePlan:
             "reason": self.reason,
             "rhythm": self.rhythm,
             "new_concept_id": self.new_concept_id,
+            "review_share": self.review_share,
         }
 
 
@@ -236,6 +261,50 @@ def _progress_rows(db: Session, user: Any, language: str) -> list[tuple[UserGram
 
 def _introduced(progress: UserGrammarProgress) -> bool:
     return progress.introduced_at is not None or int(progress.reps or 0) > 0
+
+
+def rule_was_taught(progress: UserGrammarProgress | None) -> bool:
+    """Did the learner go through this rule's own teaching? (#169)
+
+    Taught means La Forge has worked it (``forge_rung`` is set the first time
+    the forge writes evidence for it), its épreuve was passed, or it is held.
+    ``introduced_at`` alone is not enough: the first evidence on *any* surface
+    stamps it, so a scene that showed «un, une, des», a recall card or an
+    erratum (even a false correction, #318) "introduces" a rule nobody taught.
+    """
+
+    if progress is None:
+        return False
+    return (
+        progress.forge_rung is not None
+        or progress.tested_out_at is not None
+        or progress.held_at is not None
+    )
+
+
+def _scheduled_due(progress: UserGrammarProgress, *, now: datetime) -> bool:
+    """Its schedule says it is due now (or it was due this morning and the
+    Rappel reviewed it today: the forge still climbs it, WP-S8)."""
+
+    next_review = _aware(progress.next_review)
+    if next_review is None:
+        return False
+    if next_review <= now:
+        return True
+    last = _aware(progress.last_review)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return bool(progress.held_at is None and last is not None and last >= start_of_day)
+
+
+def day_review_eligible(progress: UserGrammarProgress | None, *, now: datetime) -> bool:
+    """May this rule sit beside today's rule on the day's step? (#169)
+
+    Only a rule the learner was taught (:func:`rule_was_taught`) whose schedule
+    says it is due. Never a rule a scene, an erratum or a correction merely
+    touched; never one that is only in the errata.
+    """
+
+    return progress is not None and rule_was_taught(progress) and _scheduled_due(progress, now=now)
 
 
 def _second_new_rule_due(db: Session, user: Any, *, now: datetime) -> bool:
@@ -494,8 +563,13 @@ def forge_plan(
     *,
     preferred_concept_id: int | None = None,
     budget_seconds: int | None = None,
+    origin: str | None = None,
 ) -> ForgePlan:
-    """The rules a forge block works on, today first. Read-only."""
+    """The rules a forge block works on, today first. Read-only.
+
+    ``origin`` in :data:`DAY_ORIGINS` makes it the day's step («Forge today's
+    rule»): today's rule plus at most :data:`DAY_REVIEW_RULES` taught, due rule.
+    """
 
     from app.services.journey_rhythm import rhythm_of
 
@@ -524,6 +598,29 @@ def forge_plan(
     if anchor_id is not None:
         units.append(ForgeUnit(anchor_id, ROLE_TODAY, reason))
         seen.add(anchor_id)
+
+    if origin in DAY_ORIGINS and anchor_id is not None:
+        # #169: the day's step is today's rule. Beside it, at most one rule
+        # the learner was taught and that is due — the weak spot first.
+        weak_spot = weak_spot_id(db, user, now=now, language=language, introduced=progress_by_id)
+        candidates = [(weak_spot, REASON_WEAK_SPOT)] if weak_spot is not None else []
+        candidates.extend((concept_id, REASON_REVIEW_DUE) for concept_id in due_ids)
+        for concept_id, why in candidates:
+            if len(units) > DAY_REVIEW_RULES:
+                break
+            if concept_id in seen or not day_review_eligible(progress_by_id.get(concept_id), now=now):
+                continue
+            units.append(ForgeUnit(concept_id, ROLE_DUE, why))
+            seen.add(concept_id)
+        return ForgePlan(
+            units=tuple(units),
+            budget_seconds=budget,
+            reason=reason,
+            rhythm=rhythm,
+            new_concept_id=anchor_id if is_new else None,
+            notes=tuple(notes),
+            review_share=DAY_REVIEW_SHARE,
+        )
 
     due_cap, contrast_cap = unit_caps(budget)
     weak_spot = weak_spot_id(db, user, now=now, language=language, introduced=progress_by_id)
@@ -629,6 +726,12 @@ def forge_anchor_brief(
 
 __all__ = [
     "ANCHOR_REASONS",
+    "DAY_ORIGINS",
+    "DAY_REVIEW_RULES",
+    "DAY_REVIEW_SHARE",
+    "REASON_REVIEW_DUE",
+    "day_review_eligible",
+    "rule_was_taught",
     "FOLDED_RHYTHMS",
     "FORGE_MIN_SECONDS",
     "FORGE_SECONDS",

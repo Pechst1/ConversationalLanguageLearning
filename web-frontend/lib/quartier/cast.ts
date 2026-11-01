@@ -407,6 +407,16 @@ export class Troupe<F extends Figure = PaperFigure> {
     return this.people.get(key) ?? null;
   }
 
+  /** Take someone off the stage, to stand them up again otherwise (Camille, out of the doorway's shadow). */
+  remove(key: string) {
+    const f = this.people.get(key);
+    if (!f) return;
+    this.group.remove(f.root);
+    f.dispose();
+    this.people.delete(key);
+    this.specs.delete(key);
+  }
+
   /** Change someone's face (and gesture): in the round at once, a card when its print is ready. */
   async face(key: string, expression: string, gesture: string | null = null) {
     const f = this.people.get(key);

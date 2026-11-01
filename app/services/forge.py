@@ -54,7 +54,7 @@ from app.db.models.atelier import AtelierAttempt, AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services import forge_drills as drills
-from app.services.forge_coaches import coach_for_concept, coach_mood
+from app.services.forge_coaches import coach_for_concept, coach_mood, recast_scene, story_state_of
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
 FORGE_KEY = "forge"
@@ -734,7 +734,10 @@ class BankItemProvider:
         # WP-S5: free use is a two-line scene with the rule's coach when the item
         # carries its own question; otherwise it is the plain task, with no line (#176).
         return item_bank.output_item(
-            candidate, round_name="conversation", requirement=requirement, coach=coach_for_concept(concept.external_id)
+            candidate,
+            round_name="conversation",
+            requirement=requirement,
+            coach=coach_for_concept(concept.external_id, state=story_state_of(self.db, self.user)),
         )
 
     def _requirement(self, concept: GrammarConcept, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1093,7 +1096,16 @@ def _aware(value: datetime | None) -> datetime | None:
 #: ``origin`` / ``journey_step_id``). They share ``quote_payload["forge"]`` with
 #: the engine's state (:meth:`ForgeState.to_dict`) — one source of truth for the
 #: séance's rules; no key of one names a key of the other.
-PLAN_KEYS = ("units", "budget_seconds", "reason", "rhythm", "new_concept_id", "origin", "journey_step_id")
+PLAN_KEYS = (
+    "units",
+    "budget_seconds",
+    "reason",
+    "rhythm",
+    "new_concept_id",
+    "origin",
+    "journey_step_id",
+    "review_share",
+)
 
 
 def _plan_payload_of(session: AtelierSession) -> dict[str, Any]:
@@ -1121,11 +1133,14 @@ class ForgePlanComposer:
         plan: dict[str, Any] | None = None,
         preferred_concept_id: int | None = None,
         budget_seconds: int | None = None,
+        origin: str | None = None,
     ) -> None:
         self.db = db
         self.plan = dict(plan) if isinstance(plan, dict) and plan.get("units") is not None else None
         self.preferred_concept_id = preferred_concept_id
         self.budget_seconds = budget_seconds
+        #: #169: the step that opened the séance («Forge today's rule» keeps to today's rule).
+        self.origin = origin
 
     def pick(self, user: User, *, now: datetime) -> list[PickedUnit]:
         if self.plan is None:
@@ -1137,6 +1152,7 @@ class ForgePlanComposer:
                 now,
                 preferred_concept_id=self.preferred_concept_id,
                 budget_seconds=self.budget_seconds,
+                origin=self.origin,
             )
             self.plan = fresh.as_payload()
         units: list[PickedUnit] = []
@@ -1203,11 +1219,18 @@ def forge_units(db: Session, user: User, picked: Iterable[PickedUnit], *, now: d
             and now - introduced >= timedelta(days=HELD_SPACED_AFTER_DAYS)
             and progress.spaced_success_at is None
         )
+        # #402: the rule's level is the stored one, the level the learner ended the
+        # last séance on. How its first item is posed (a warm-up step after the
+        # spacing, minimal pairs first) is the unit's ``warmup``, never a lower level:
+        # lowering the level here made «Level 5» on the end sheet open as «Level 4».
+        warmup: int | None = None
         if unit.role == Role.DUE.value:
-            rung = max(0, rung - 1)  # a warm-up step after the spacing
+            warmup = max(0, rung - 1)
         elif unit.role == Role.CONTRAST.value:
-            rung = min(rung, int(Rung.DISCRIMINATE))  # minimal pairs first
-        units.append(ForgeUnit(unit.concept_id, unit.role, rung, is_new=is_new, needs_spaced=needs_spaced))
+            warmup = min(rung, int(Rung.DISCRIMINATE))
+        units.append(
+            ForgeUnit(unit.concept_id, unit.role, rung, is_new=is_new, needs_spaced=needs_spaced, warmup=warmup)
+        )
     return units
 
 
@@ -1283,10 +1306,13 @@ class ForgeService:
         quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
         plan = _plan_payload_of(session)
         if composer is None:
+            budget_hint = plan.get("budget_seconds")
             composer = ForgePlanComposer(
                 self.db,
                 plan=plan or None,
                 preferred_concept_id=quote.get("forge_today_concept_id"),
+                budget_seconds=int(budget_hint) if isinstance(budget_hint, (int, float)) and budget_hint > 0 else None,
+                origin=plan.get("origin"),
             )
         picked = composer.pick(user, now=now)
         if isinstance(composer, ForgePlanComposer) and composer.plan is not None:
@@ -1305,10 +1331,19 @@ class ForgeService:
         units = forge_units(self.db, user, picked, now=now)
         if keep_concepts:
             # The learner chose these rules: keep every one of them.
-            units = [ForgeUnit(u.concept_id, u.role, u.rung, is_new=False, needs_spaced=u.needs_spaced) for u in units]
+            units = [
+                ForgeUnit(u.concept_id, u.role, u.rung, is_new=False, needs_spaced=u.needs_spaced, warmup=u.warmup)
+                for u in units
+            ]
         budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
         length = core.seance_length(budget or seance_budget_seconds(user), seconds_per_item(self.db, user))
-        state = ForgeState.seance(units, length=length)
+        share = plan.get("review_share")
+        state = ForgeState.seance(
+            units,
+            length=length,
+            # #169: the day's step caps the review items (``forge_picker.DAY_REVIEW_SHARE``).
+            review_share=float(share) if isinstance(share, (int, float)) and not keep_concepts else None,
+        )
         concept_ids = [track.concept_id for track in state.tracks]
         if concept_ids:
             session.selected_concept_ids = concept_ids
@@ -1410,14 +1445,20 @@ class ForgeService:
 
     # -- serving --------------------------------------------------------------
 
-    def coach_for(self, concept_id: int) -> dict[str, Any] | None:
-        """WP-S5: the rule's coach (cached per service)."""
+    def coach_for(self, concept_id: int, user: User | None = None) -> dict[str, Any] | None:
+        """WP-S5: the rule's coach (cached per service). With the ``user`` (#147): only
+        someone this learner has met, in the register their story has."""
 
         cache = self.__dict__.setdefault("_coaches", {})
-        if concept_id not in cache:
+        key = (concept_id, str(getattr(user, "id", "")))
+        if key not in cache:
             concept = self.db.get(GrammarConcept, int(concept_id))
-            cache[concept_id] = coach_for_concept(concept.external_id) if concept is not None else None
-        return cache[concept_id]
+            cache[key] = (
+                coach_for_concept(concept.external_id, state=story_state_of(self.db, user))
+                if concept is not None
+                else None
+            )
+        return cache[key]
 
     def provider(self, *, user: User, session: AtelierSession) -> ItemProvider:
         return self._item_provider or BankItemProvider.for_session(self.db, user=user, session=session)
@@ -1517,9 +1558,10 @@ class ForgeService:
                     # The item itself: a bank top-up is not in the exercise
                     # set the client loaded at the start. WP-103: its goal in the
                     # learner's language, no retired frame, no server-only key.
-                    "item": _public_item(dict(item.payload or {}), user),
+                    # #147: a shared scene is said by this learner's coach.
+                    "item": recast_scene(_public_item(dict(item.payload or {}), user), self.coach_for(slot.concept_id, user)),
                     # WP-S5: who teaches this rule.
-                    "coach": self.coach_for(slot.concept_id),
+                    "coach": self.coach_for(slot.concept_id, user),
                 }
                 if item.group:
                     # A burst: every judgement of it, the lead first.
@@ -1564,6 +1606,9 @@ class ForgeService:
             # or provisional answer neither extends nor breaks it) and the flags
             # the page reads, so the owner can switch each feature off.
             "combo": {"run": combo, "best": best_combo},
+            # #402: what a right and a wrong answer do to the level, from the
+            # staircase itself: the page's legend states this, not its own prose.
+            "level_rule": core.level_rule(),
             "features": forge_features(),
             "rules": [
                 {
@@ -1573,7 +1618,7 @@ class ForgeService:
                     "rung_name": core.rung_name(track.rung),
                     "served": track.served,
                     "topped": track.topped,
-                    "coach": self.coach_for(track.concept_id),
+                    "coach": self.coach_for(track.concept_id, user),
                 }
                 for track in state.tracks
             ],
@@ -1645,6 +1690,9 @@ class ForgeService:
             "rung": int(rung),
             "rung_name": core.rung_name(rung),
             "new_rung": decision.new_rung,
+            # #402: the level before this answer. An item posed below it (a warm-up)
+            # is not a climb, so the cheer compares with this, not with ``rung``.
+            "level_before": decision.new_rung - int(state.history[-1].get("rung_move") or 0),
             "counted": decision.counted,
             "schedule": decision.schedule,
             # How the item was posed, and the run of right answers it leaves.
@@ -1652,7 +1700,7 @@ class ForgeService:
             "run": run,
             # WP-S5: the rule's coach, and the face they make at this answer.
             "held": held,
-            "coach": self.coach_for(int(attempt.concept_id)),
+            "coach": self.coach_for(int(attempt.concept_id), user),
             "coach_mood": coach_mood(correct=verdict.correct, checked=verdict.checked, held=held),
         }
         attempt.correction_payload = correction

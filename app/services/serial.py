@@ -19,6 +19,7 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.schemas.serial import EpisodeBrief
+from app.services import cast_registry
 from app.services.address import character_register
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.cast_registry import card_line
@@ -1100,12 +1101,25 @@ class SerialThreadService:
 
             logging.getLogger(__name__).exception("serial: cast memory unreadable")
             memory = {}
+        # #147 (re-test 31 Oct): the Trombinoscope listed the whole season, Maître Vasseur
+        # and Mme Diallo before the story had put them on a page. A person is listed once
+        # the learner has met them (the season's reach, or a scene with them).
+        state = thread.state if isinstance(thread.state, dict) else {}
+        met = cast_registry.met_ids(state)
         rows: list[dict[str, Any]] = []
         for member in world.get("cast") or []:
             if not isinstance(member, dict) or not member.get("id"):
                 continue
             character_id = str(member.get("id"))
+            if (
+                met is not None
+                and (cast_registry.resolve_id(character_id) or character_id) not in met
+                and not episodes_by_character.get(character_id)
+            ):
+                continue
             relationship = relationships.get(character_id, {})
+            # #147 / #350: one register per person, read where the scene and the Courrier read it.
+            register = "tu" if (memory.get(character_id) or {}).get("tu_since") else character_register(state, character_id)
             visual = visual_characters.get(character_id, {}) if isinstance(visual_characters, dict) else {}
             episodes = episodes_by_character.get(character_id, [])
             feeling = moods.get(character_id) if isinstance(moods.get(character_id), dict) else None
@@ -1127,8 +1141,7 @@ class SerialThreadService:
                     # `register` "tu"|"vous"; `tu_since` {date, scene_id}|None.
                     "trust": (memory.get(character_id) or {}).get("trust"),
                     "known_about_you": (memory.get(character_id) or {}).get("known_about_you") or [],
-                    "register": (memory.get(character_id) or {}).get("register")
-                    or ((relationship or {}).get("register") or "vous"),
+                    "register": register,
                     "tu_since": (memory.get(character_id) or {}).get("tu_since"),
                     "relationship": {
                         # WP-97: DEPRECATED. The only-rising count is kept for old
@@ -1140,8 +1153,7 @@ class SerialThreadService:
                         "trust": (memory.get(character_id) or {}).get("trust"),
                         "known_about_you": (memory.get(character_id) or {}).get("known_about_you") or [],
                         "tu_since": (memory.get(character_id) or {}).get("tu_since"),
-                        "register": (memory.get(character_id) or {}).get("register")
-                        or ((relationship or {}).get("register") or "vous"),
+                        "register": register,
                         "register_switch_episode": (relationship or {}).get("register_switch_episode"),
                         "last_summary": (relationship or {}).get("last_summary") or "",
                         "callbacks": (relationship or {}).get("callbacks") or [],

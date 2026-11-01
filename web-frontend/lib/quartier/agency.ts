@@ -124,6 +124,19 @@ export const REPLY_EFFECTS: Record<string, Effect[]> = {
     regard('margaux_barman', 1),
     journal(w('Tu as laissé la clé à Margaux, derrière la caisse.', 'You left the key with Margaux, behind the till.', 'Du hast den Schlüssel bei Margaux gelassen, hinter der Kasse.'), 'margaux_barman'),
   ],
+  // T1 day b, «La lettre»
+  'b.turn1.a': [journal(w('Tu as dit à Camille : je vends et je rentre.', "You told Camille: I'm selling and going home.", 'Du hast Camille gesagt: Ich verkaufe und fahre nach Hause.'), 'camille_marchand')],
+  'b.turn1.b': [journal(w('Tu as dit à Camille : pas encore.', 'You told Camille: not yet.', 'Du hast Camille gesagt: noch nicht.'), 'camille_marchand')],
+  'b.turn1.c': [regard('camille_marchand', 1), journal(w('Tu as demandé à Camille : plus simple pour qui ?', 'You asked Camille: simpler for whom?', 'Du hast Camille gefragt: einfacher für wen?'), 'camille_marchand')],
+  'b.turn1.d': [journal(w('Tu as dit à Camille : pas ce soir.', 'You told Camille: not tonight.', 'Du hast Camille gesagt: nicht heute Abend.'), 'camille_marchand')],
+  'b.letter.margaux': [regard('margaux_barman', 1), journal(w('Tu as montré la lettre à Margaux.', 'You showed the letter to Margaux.', 'Du hast Margaux den Brief gezeigt.'), 'margaux_barman')],
+  'b.letter.lila': [regard('lila_bonnet', 1), journal(w('Tu as montré la lettre à Lila.', 'You showed the letter to Lila.', 'Du hast Lila den Brief gezeigt.'), 'lila_bonnet')],
+  'b.letter.gus': [journal(w('Tu as montré la lettre à Gus. Tout le café connaît le prix.', 'You showed the letter to Gus. The whole café knows the price.', 'Du hast Gus den Brief gezeigt. Das ganze Café kennt den Preis.'), 'augustin_de_roncourt')],
+  'b.letter.marin': [regard('marin_leveque', 1), journal(w('Tu as montré la lettre à Marin.', 'You showed the letter to Marin.', 'Du hast Marin den Brief gezeigt.'), 'marin_leveque')],
+  'b.letter.nobody': [journal(w('Tu as gardé la lettre pour toi.', 'You kept the letter to yourself.', 'Du hast den Brief für dich behalten.'))],
+  'b.key.asks': [{ kind: 'item', id: 'cle_cigale', holder: 'toi' }, journal(w('Margaux t’a rendu la clé.', 'Margaux gave you back the key.', 'Margaux hat dir den Schlüssel zurückgegeben.'), 'margaux_barman')],
+  'b.key.clumsy': [{ kind: 'item', id: 'cle_cigale', holder: 'toi' }, journal(w('Margaux t’a rendu la clé.', 'Margaux gave you back the key.', 'Margaux hat dir den Schlüssel zurückgegeben.'), 'margaux_barman')],
+  'b.key.other': [{ kind: 'item', id: 'cle_cigale', holder: 'toi' }, journal(w('Margaux t’a tendu la clé sans un mot.', 'Margaux held out the key without a word.', 'Margaux hat dir wortlos den Schlüssel hingehalten.'), 'margaux_barman')],
 };
 
 /* ------------------------------------------------------------------------------------------ */

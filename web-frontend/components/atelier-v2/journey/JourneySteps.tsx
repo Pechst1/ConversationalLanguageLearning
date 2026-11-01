@@ -118,7 +118,7 @@ import { MatchPairs } from './MatchPairs';
 import { WhoSaid } from './WhoSaid';
 import { listenTapHasAudio, optionLang } from './practice-formats';
 import { Dictation } from './Dictation';
-import { isDictation } from './dictation-model';
+import { isDictation, listenTapOffersText, listenTapShowsPhrase } from './dictation-model';
 import { HeardLine } from './HeardLine';
 import {
   CharacterSmiles,
@@ -135,6 +135,7 @@ import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-e
 import { getStoryEpisodeEntry, loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
 import { getStoryEpisodeForJourney } from '@/services/daily-journey';
 import { listenLabel, useStepVoice } from './useStepVoice';
+import { correctionLabelKey } from '@/lib/correction-notes';
 import {
   closesConversation,
   continuesConversation,
@@ -499,6 +500,8 @@ export function RecallStepView({
   const [text, setText] = useState(() => draft?.get(draftKey) ?? '');
   // WP-91: a clip that cannot play turns a listening item back into reading.
   const [clipFailed, setClipFailed] = useState(false);
+  // #167: «Show the text» — a learner without sound reads the heard phrase instead.
+  const [asked, setAsked] = useState(false);
   // WP-76: the verdict the hashed key gave on the device, before the server's.
   const [local, setLocal] = useState<{
     stepId: string;
@@ -519,6 +522,7 @@ export function RecallStepView({
     setTiles([]);
     setLocal(null);
     setClipFailed(false);
+    setAsked(false);
     setText(draft?.get(draftKey) ?? '');
   }, [draft, draftKey, step.id]);
 
@@ -600,13 +604,15 @@ export function RecallStepView({
     [onSubmit, step.id],
   );
   // WP-78. Read-and-tap until a clip exists: the phrase is the headline. With
-  // a clip, the phrase stays unprinted until the answer is graded.
+  // a clip, the phrase is held back until the answer is graded, the clip fails
+  // or (#167) the learner asks to read it.
   const dictating = isDictation(step.prompt);
   const heard = !dictating && listenTapHasAudio(step.prompt) && !clipFailed;
+  const held = heard && !listenTapShowsPhrase(step.prompt, { clipFailed, graded, asked });
   // #278: a repair prints the learner's own sentence with the wrong part marked.
   const slipParts = slipSegments(step.prompt.prompt_fr, step.prompt.slip_fr);
   const headline: React.ReactNode =
-    heard && !graded
+    held
       ? step.prompt.instruction_native
       : slipParts
         ? slipParts.map((part, index) =>
@@ -619,8 +625,8 @@ export function RecallStepView({
             ),
           )
         : step.prompt.prompt_fr || step.prompt.instruction_native;
-  // A listening item keeps its phrase unprinted until graded: no goal that could print it.
-  const goal = (heard || dictating) && !graded ? null : drillGoalLine(step.prompt);
+  // A held-back phrase stays unprinted: no goal that could print it.
+  const goal = held || (dictating && !graded) ? null : drillGoalLine(step.prompt);
 
   return (
     // Text diet: the step header already names the drill («Recall · Avoir»), so
@@ -653,6 +659,12 @@ export function RecallStepView({
       {goal && <DrillGoalLine goal={goal} copy={copy} />}
       {heard && (
         <HeardLine audioUrl={step.prompt.audio_url} copy={copy} onUnavailable={() => setClipFailed(true)} />
+      )}
+      {/* #167: no sound (a train, a silent phone, a desk) is never a dead end. */}
+      {listenTapOffersText(step.prompt, { clipFailed, graded, asked }) && (
+        <Action tone="secondary" inline onClick={() => setAsked(true)}>
+          {copy.listen_show_text}
+        </Action>
       )}
       {clipFailed && !dictating && !graded && <p className="av2-label">{copy.listen_unavailable_read}</p>}
       {dictating && !graded && (
@@ -1765,7 +1777,7 @@ export function JourneyFeedbackView({
           <div className="av2-graded" data-state="story" ref={gradedRef} tabIndex={-1}>
             {result.correction && (
               <Correction
-                label={result.correction.kind === 'pick' ? copy.correction_pick : copy.correction}
+                label={copy[correctionLabelKey(result.correction.kind)]}
                 kind={result.correction.kind}
                 pickNotItLabel={copy.pick_not_it}
                 spanFr={result.correction.span_fr}
@@ -1804,7 +1816,7 @@ export function JourneyFeedbackView({
           >
             {result.correction && (
               <Correction
-                label={result.correction.kind === 'pick' ? copy.correction_pick : copy.correction}
+                label={copy[correctionLabelKey(result.correction.kind)]}
                 kind={result.correction.kind}
                 pickNotItLabel={copy.pick_not_it}
                 spanFr={result.correction.span_fr}

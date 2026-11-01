@@ -620,6 +620,7 @@ def check_wishes_are_not_corrected(transcript: dict[str, Any]) -> list[str]:
 
 
 # Wave 1 package checks live in their own modules (tests/walk_checks_wp*.py).
+from tests.walk_checks_155 import check_recall_speakers  # noqa: E402
 from tests.walk_checks_wp124a import check_lost_day_stays_in_season  # noqa: E402
 from tests.walk_checks_wp132b import check_no_old_serial_season  # noqa: E402
 from tests.walk_checks_wp133b import check_reply_lanes  # noqa: E402
@@ -641,6 +642,7 @@ CHECKS = (
     check_no_old_serial_season,
     check_reply_lanes,
     check_gendered_learner_nouns,
+    check_recall_speakers,
 )
 
 

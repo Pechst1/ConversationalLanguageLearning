@@ -160,6 +160,13 @@ def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> s
     the sentence capital hides that. Opening the sentence with «Sie (alle)» names the
     plural without a head-count the bank does not know. Mid-sentence «sie» is lowercase
     and already unambiguous, so only the sentence start is rewritten.
+
+    A sentence said *to* someone is the exception (#384): «Sie (alle) sind fertig, Lila.»
+    read as «you all, Lila», a capital «Sie» and a name to say it to. There the name
+    leads and the pronoun loses its capital: «Lila, sie sind fertig.» A small «sie»
+    before a plural verb can only be «they», so nothing is added. «alle» would be one
+    more word to translate («tous») and would stand wrongly before a reflexive
+    («sie ziehen alle sich an», review on #409).
     """
 
     if not re.match(r"Sie\s", text):
@@ -168,7 +175,25 @@ def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> s
         isinstance(entry, dict) and _german_pronoun_subject(entry) and _german_person(entry) == 5
         for entry in bindings.values()
     )
-    return "Sie (alle)" + text[3:] if plural_subject else text
+    if not plural_subject:
+        return text
+    return _name_first(text, bindings.get("VOC")) or "Sie (alle)" + text[3:]
+
+
+def _name_first(text: str, vocative: Any) -> str | None:
+    """#384: «Sie sind fertig, Lila.» → «Lila, sie sind fertig.», wherever the name stands
+    («Sie wollen Birnen, Lila? Ja, …» → «Lila, sie wollen Birnen? Ja, …»). ``None`` when
+    the sentence names nobody it is said to (the frame's ``VOC`` binding)."""
+
+    if not isinstance(vocative, dict):
+        return None
+    name = str(vocative.get("deu") or vocative.get("fr") or "").strip()
+    if not name:
+        return None
+    said_to = re.match(rf"Sie\s+(.+?),\s+{re.escape(name)}(?=[.?!])", text, re.DOTALL)
+    if said_to is None:
+        return None
+    return f"{name}, sie {said_to.group(1)}{text[said_to.end():]}"
 
 
 def _german_pronoun_subject(entry: dict[str, Any]) -> bool:
@@ -2436,7 +2461,7 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
     "forge.speak": {
         "en": "Say it in French.",
         "de": "Sag es auf Französisch.",
-        "fr": "Dites-le en français.",
+        "fr": "Dis-le en français.",
     },
     "forge.conversation": {
         "en": "Reply in French, with today's rule.",
@@ -2678,6 +2703,7 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     if code not in {"en", "de", "fr"}:
         code = "en"
     own = str(native or "").strip().lower()[:2]
+    _with_fallback_task(out, code)
     kind = _goal_kind(out)
     l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None
     if kind == "judge":
@@ -2703,6 +2729,10 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     if isinstance(key, str) and key in INSTRUCTIONS_L10N:
         table = dict(out.get("instruction_l10n") or {}) if isinstance(out.get("instruction_l10n"), dict) else {}
         out["instruction_l10n"] = {**INSTRUCTIONS_L10N[key], **{k: v for k, v in table.items() if k == "en"}}
+    elif not isinstance(out.get("instruction_l10n"), dict):
+        copied = _copy_instruction_table(key, out.get("instruction"))
+        if copied:
+            out["instruction_l10n"] = copied
     meanings = out.get("meaning_l10n") if isinstance(out.get("meaning_l10n"), dict) else {}
     native_meaning = str(meanings.get(code) or "").strip() if code != "en" else ""
     own_meaning = ""
@@ -2781,6 +2811,38 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     return out
 
 
+def _with_fallback_task(out: dict[str, Any], code: str) -> None:
+    """#196: a La Forge fallback task («A friend asks for one concrete update about
+    today…») in the learner's language. A set stored before its task carried a table
+    holds only the English sentence (or, for the generic speak task, a French one):
+    the table is looked up from that text, and the task is read from the learner's
+    column. Any other prompt (a French sentence, a model's task) is left alone."""
+
+    if isinstance(out.get("prompt_l10n"), dict):
+        return
+    from app.services.learner_copy import fallback_prompt_table
+
+    table = fallback_prompt_table(out.get("prompt"))
+    if table:
+        out["prompt_l10n"] = table
+        out["prompt"] = table.get(code) or table["en"]
+
+
+def _copy_instruction_table(key: Any, instruction: Any) -> dict[str, str] | None:
+    """An instruction that is a ``learner_copy`` row (by its key, or by the English a
+    cached set stored) in every chrome language. La Forge serves its items through
+    :func:`public_item` only, so a fallback item's «Use the target grammar visibly in
+    your answer.» reached a French learner in English (#196)."""
+
+    from app.services.learner_copy import LEARNER_COPY, key_for_english, learner_text
+
+    if not (isinstance(key, str) and key in LEARNER_COPY):
+        key = key_for_english(instruction) if isinstance(instruction, str) and instruction.strip() else None
+    if key is None:
+        return None
+    return {language: learner_text(key, language) for language in ("en", "de", "fr")}
+
+
 #: The pseudo-scenes La Forge wrapped round every production item until WP-103 T11
 #: («Romy texts you from the newsroom…»), in every language they were written in.
 #: They came from nowhere in the learner's story; a stored item still carrying one
@@ -2841,6 +2903,26 @@ def public_payload(node: Any, language: Any = None, native: Any = None) -> Any:
     out = {key: public_payload(value, language, native) for key, value in node.items()}
     if "id" in out and any(key in out for key in ("prompt", "tokens", "source", "labels", "choices")):
         out = public_item(out, language, native)
+    elif isinstance(out.get("prompt"), str) and isinstance(out.get("requirements"), list):
+        out = _served_paragraph_task(out, language)
+    return out
+
+
+def _served_paragraph_task(node: dict[str, Any], language: Any) -> dict[str, Any]:
+    """The paragraph round («produce») is no item, but its task is a cue like an
+    item's (#196): read in the learner's language when it is a fallback task, with no
+    English column left for a German or French learner."""
+
+    code = str(language or "en").strip().lower()[:2]
+    if code not in {"en", "de", "fr"}:
+        code = "en"
+    out = dict(node)
+    _with_fallback_task(out, code)
+    table = out.get("prompt_l10n")
+    if isinstance(table, dict) and isinstance(table.get(code), str) and table[code].strip():
+        out["prompt"] = table[code]
+        if code != "en":
+            out["prompt_l10n"] = {lang: text for lang, text in table.items() if lang != "en"}
     return out
 
 

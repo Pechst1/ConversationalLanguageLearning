@@ -336,6 +336,23 @@ def test_a_new_chapter_needs_the_author_s_title_and_question():
     assert str(caught.value) == "chapter_missing"
 
 
+def test_the_author_rereads_the_page_at_the_learner_s_level():
+    """Gold run of 31 Oct: «level» was every night writer's weakest question (Haiku 3.0,
+    Sonnet 2.3, Opus 2.7 of 5). A2 pages reached for «succession», «palier», «bouillotte».
+    Each band's card now names the words it allows, and the author rereads every line at
+    the band before returning it."""
+
+    for band in ("A1", "A2", "B1"):
+        system = " ".join(story_split.author_system({"level": band}).split())
+        assert f"read every line as a learner at {band} would" in system, band
+        assert "Words:" in story_split.LEVEL_CARDS[band], band
+        assert "The drama stays the same as at C1" in system, band
+    # The two real A2 lines the judge marked down sit in NOT THIS → THIS with their fix.
+    system = " ".join(story_split.author_system({"level": "A2"}).split())
+    assert "«On ne peut rien vendre. Pas avant les papiers.»" in system
+    assert "«Il met la soupe sur le feu.»" in system
+
+
 def test_the_planner_the_author_and_the_aids_are_the_writer_s_calls(monkeypatch):
     monkeypatch.setattr(settings, "STORY_WRITER_MODEL", "gpt-6-luna")
     monkeypatch.setattr(settings, "STORY_LIVE_MODEL", None)

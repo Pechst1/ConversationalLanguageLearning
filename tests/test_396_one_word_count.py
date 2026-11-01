@@ -1,0 +1,286 @@
+"""#396 — the day's word count is one number from Home to the Done screen.
+
+Live walk 31 October (day 19): Home said «5 words», the step button «Next: 8
+words», the review opened at 0/8, Home afterwards «10 words — done» and the Done
+screen «11 Words». The step button and the review already agreed (both read the
+deck, #143/#279); the two numbers after the deck was finished did not: the
+finished step and the end screen's tally counted *every word touched today*
+(``max(introduced today, distinct words reviewed today)``), the scene's own
+words and La Forge's reviews included, while the deck the learner went through
+held eight cards. A finished step now says the size of the deck that was dealt,
+the number the button and the review header showed.
+"""
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.db.models.progress import UserVocabularyProgress
+from app.services import daily_session, vocabulary_pace
+from app.services.progress import ProgressService
+from app.utils.cache import cache_backend
+from tests.test_wp154_drill_reload import (
+    _deck,
+    _forget_test_words,  # noqa: F401 - autouse fixture: the suite shares one database
+    _login,
+    _supply,
+)
+
+#: ``pages/vocabulary/review.tsx``'s ``dayQueueParams`` (``WORDS_HREF``).
+DAY = {
+    "limit": 100, "due_limit": 100, "fragile_limit": 0, "new_limit": 50, "topic_limit": 0, "linked_limit": 0,
+    "drill": "session",
+}
+
+
+def _cards(deck: dict) -> list[int]:
+    return [
+        item["word_id"]
+        for name in ("due_words", "fragile_words", "linked_words", "topic_compatible_words", "new_words")
+        for item in deck[name]
+    ]
+
+
+def _answer(client: TestClient, headers: dict, word_ids: list[int]) -> None:
+    """Answer each card «good»: the word is not due again in minutes."""
+
+    for word_id in word_ids:
+        reviewed = client.post(
+            "/api/v1/anki/review", headers=headers, json={"word_id": word_id, "rating": 3, "format": "flashcard"}
+        )
+        assert reviewed.status_code == 200, reviewed.text
+
+
+def _session(db: Session, user) -> dict:
+    """Home's day as ``TodayEnvelope.session`` carries it, scene done."""
+
+    db.expire_all()
+    # The due count is cached for a minute; this test is about the day's number,
+    # not the cache (``test_396_an_answered_card_is_no_longer_counted_as_due``).
+    cache_backend.clear()
+    return daily_session.build_session(
+        db,
+        user,
+        journey=None,
+        scene_done=True,
+        scene_seconds=480,
+        reviews_due=ProgressService(db).count_due_reviews(user.id),
+        forge_href="/atelier?mode=forge&from=day",
+        forge_blocks_today=0,
+    )
+
+
+def _words_step(session: dict) -> dict:
+    return next(step for step in session["steps"] if step["kind"] == "words")
+
+
+def test_396_the_finished_step_and_the_end_screen_say_the_decks_size(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers, user = _login(client, db_session)
+    user.daily_pace = None
+    user.new_words_per_day = 10
+    db_session.commit()
+    supply = _supply(db_session, 40, "w396")
+    # Words met on earlier days and due today: the deck's reviews.
+    now = datetime.now(UTC)
+    for word_id in _supply(db_session, 4, "w396due"):
+        db_session.add(
+            UserVocabularyProgress(
+                user_id=user.id, word_id=word_id, state="review", phase="review", reps=3,
+                due_at=now - timedelta(hours=3), last_review_date=now - timedelta(days=4),
+                created_at=now - timedelta(days=9),
+            )
+        )
+    db_session.commit()
+    # The scene is done: it met three new words and answered them (the journey's
+    # own credit), and its reservation is spent.
+    monkeypatch.setattr(vocabulary_pace, "journey_reservation", lambda *_a, **_k: (True, set()))
+    monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *_a, **_k: 1.0)
+    _answer(client, headers, supply[:3])
+
+    # What Home and the step button promise, and what the review opens with.
+    promised = _words_step(_session(db_session, user))
+    deck = _deck(client, headers, DAY)
+    cards = _cards(deck)
+    assert promised["count"] == len(cards), f"the button says {promised['count']}, the review opens at 0/{len(cards)}"
+    assert len(cards) > 4, "new words and the due reviews are in the deck"
+
+    # The learner goes through the deck, and La Forge reviews a word of the scene on top.
+    _answer(client, headers, cards)
+    _answer(client, headers, supply[:2])
+
+    finished = _session(db_session, user)
+    step = _words_step(finished)
+
+    assert step["state"] == "done", step
+    assert step["count"] == len(cards), (
+        f"Home says «{step['count']} words — done» after a deck of {len(cards)} cards"
+    )
+    assert finished["tally"]["words"] == len(cards), (
+        f"the Done screen says {finished['tally']['words']} Words after a deck of {len(cards)} cards"
+    )
+
+
+def test_396_an_answered_card_is_no_longer_counted_as_due(client: TestClient, db_session: Session) -> None:
+    """Home's «to review» is the due count, cached for a minute. The review page's
+    own write path did not drop it, so Home went on counting cards the learner had
+    just answered: the day's number then differed from the deck's."""
+
+    headers, user = _login(client, db_session)
+    now = datetime.now(UTC)
+    due = _supply(db_session, 3, "w396stale")
+    for word_id in due:
+        db_session.add(
+            UserVocabularyProgress(
+                user_id=user.id, word_id=word_id, state="review", phase="review", reps=3,
+                due_at=now - timedelta(hours=3), last_review_date=now - timedelta(days=4),
+                created_at=now - timedelta(days=9),
+            )
+        )
+    db_session.commit()
+    cache_backend.clear()
+    assert ProgressService(db_session).count_due_reviews(user.id) == 3
+
+    _answer(client, headers, due)
+
+    counted = ProgressService(db_session).count_due_reviews(user.id)
+    assert counted == 0, f"Home still counts {counted} reviews after the learner answered all three"
+
+
+def test_396_one_number_from_home_before_the_scene_to_the_done_screen(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The walk's day, played through: Home before the scene (no journey planned
+    yet), the journey planned, the scene meeting its words and answering one of
+    the day's reviews, the hand-on, the review, Home after, «more» opened and
+    left, the Done screen. One number throughout (#396: 5 → 8 → 10 → 11)."""
+
+    headers, user = _login(client, db_session)
+    user.daily_pace = None
+    user.new_words_per_day = 10
+    db_session.commit()
+    supply = _supply(db_session, 40, "w396day")
+    now = datetime.now(UTC)
+    due = _supply(db_session, 4, "w396dayd")
+    for word_id in due:
+        db_session.add(
+            UserVocabularyProgress(
+                user_id=user.id, word_id=word_id, state="review", phase="review", reps=3,
+                due_at=now - timedelta(hours=3), last_review_date=now - timedelta(days=4),
+                next_review_date=now - timedelta(hours=3), due_date=(now - timedelta(days=1)).date(),
+                created_at=now - timedelta(days=9),
+            )
+        )
+    db_session.commit()
+    monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *_a, **_k: 1.0)
+    reservation: dict = {"planned": False, "ids": set()}
+    monkeypatch.setattr(
+        vocabulary_pace, "journey_reservation", lambda *_a, **_k: (reservation["planned"], set(reservation["ids"]))
+    )
+    reviews_before = ProgressService(db_session).count_due_reviews(user.id)
+    assert reviews_before == 4
+
+    # Home, before the scene: no journey planned, its share of the 10 kept free.
+    home = _words_step(_session(db_session, user))
+    assert home["count"] == 10 + 4, home
+    assert (home["new_left"], home["reviews"]) == (10, 4)
+
+    # The learner starts the scene: the journey is planned with three new words.
+    reservation.update(planned=True, ids=set(supply[:3]))
+    assert _words_step(_session(db_session, user))["count"] == home["count"], "planning the scene moves nothing"
+
+    # The scene meets its three words and answers one of the day's reviews.
+    _answer(client, headers, supply[:3])
+    _answer(client, headers, due[:1])
+    hand_on = _words_step(_session(db_session, user))
+    assert hand_on["count"] == home["count"], f"Home said {home['count']}, the hand-on «Next: {hand_on['count']} words»"
+
+    # The review opens on that number, the scene's words first.
+    cards = _cards(_deck(client, headers, DAY))
+    assert len(cards) == home["count"], f"Home said {home['count']}, the review opens at 0/{len(cards)}"
+    assert set(cards[:3]) == set(supply[:3])
+    assert set(due) <= set(cards), "the day's reviews stay the day's, the one the scene answered too"
+    assert _cards(_deck(client, headers, DAY)) == cards, "a reload is the same deck"
+
+    _answer(client, headers, cards)
+    assert _cards(_deck(client, headers, DAY)) == []
+    after = _session(db_session, user)
+    assert _words_step(after)["state"] == "done"
+    assert _words_step(after)["count"] == home["count"], f"Home after the deck: «{_words_step(after)['count']} words — done»"
+
+    # «10 more words» opened and left unanswered: still the day's number (#408 review).
+    extra = client.get("/api/v1/vocabulary/due-context", headers=headers, params={**DAY, "drill": "more", "extra": 10})
+    assert extra.status_code == 200, extra.text
+    assert _cards(extra.json()), "the extra deck deals new words"
+    finished = _session(db_session, user)
+    assert _words_step(finished)["count"] == home["count"]
+    assert finished["tally"]["words"] == home["count"], f"Done says {finished['tally']['words']} Words"
+
+
+def _setup_day(db_session: Session, user, monkeypatch: pytest.MonkeyPatch, reserved: set[int]) -> None:
+    user.daily_pace = "normal"
+    user.new_words_per_day = 20
+    db_session.commit()
+    monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *_a, **_k: 1.0)
+    monkeypatch.setattr(vocabulary_pace, "journey_reservation", lambda *_a, **_k: (True, set(reserved)))
+
+
+def test_396_a_scene_word_already_due_is_counted_once(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A word the scene met and the learner missed is due again: it is the
+    scene's card and one of the reviews due. The deck deals it once; Home
+    counted it twice (PR #419 review)."""
+
+    headers, user = _login(client, db_session)
+    supply = _supply(db_session, 40, "w396once")
+    now = datetime.now(UTC)
+    db_session.add(
+        UserVocabularyProgress(
+            user_id=user.id, word_id=supply[0], state="relearning", phase="relearn", reps=1, lapses=1,
+            due_at=now - timedelta(minutes=5), next_review_date=now - timedelta(minutes=5), due_date=now.date(),
+            last_review_date=now - timedelta(minutes=20), created_at=now - timedelta(minutes=30),
+        )
+    )
+    db_session.commit()
+    _setup_day(db_session, user, monkeypatch, {supply[0]})
+
+    promised = _words_step(_session(db_session, user))
+    cards = _cards(_deck(client, headers, DAY))
+    assert cards.count(supply[0]) == 1
+    assert promised["count"] == len(cards) == 20, f"Home said {promised['count']}, the review opens at 0/{len(cards)}"
+
+
+def test_396_a_card_the_lexique_left_keeps_its_place_in_the_count(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Lexique opened first deals a fragile card next to its new words; the
+    day deck keeps it, so Home counts it (PR #419 review)."""
+
+    from tests.test_wp154_drill_reload import SESSION
+
+    headers, user = _login(client, db_session)
+    _supply(db_session, 40, "w396lex")
+    now = datetime.now(UTC)
+    fragile = _supply(db_session, 1, "w396frag")[0]
+    db_session.add(
+        UserVocabularyProgress(
+            user_id=user.id, word_id=fragile, state="review", phase="review", reps=4, lapses=2,
+            proficiency_score=20, due_at=now + timedelta(days=2), next_review_date=now + timedelta(days=2),
+            due_date=(now + timedelta(days=2)).date(), last_review_date=now - timedelta(days=2),
+            created_at=now - timedelta(days=20),
+        )
+    )
+    db_session.commit()
+    _setup_day(db_session, user, monkeypatch, set())
+
+    lexique = _deck(client, headers, SESSION)
+    assert fragile in _cards(lexique), "the Lexique deals the fragile card"
+    promised = _words_step(_session(db_session, user))
+    cards = _cards(_deck(client, headers, DAY))
+    assert fragile in cards
+    assert promised["count"] == len(cards) == 21, f"Home said {promised['count']}, the review opens at 0/{len(cards)}"

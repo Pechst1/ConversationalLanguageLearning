@@ -28,6 +28,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from app.services.sentence_line import cut_sentences
+
 LEXICON_MIN = 3
 LEXICON_MAX = 5
 #: The highest French 5000 rank that still sits comfortably inside a band. A
@@ -170,7 +172,8 @@ def sentence_of(draft: dict[str, Any], entry: dict[str, Any]) -> str:
             (value for value in texts.values() if contains_surface(value, entry.get("surface_fr"))),
             "",
         )
-    for sentence in re.split(r"(?<=[.!?…])\s+", text):
+    # #398: a title's full stop («la lampe de M. Marchand») ends no sentence.
+    for sentence in cut_sentences(text):
         if contains_surface(sentence, entry.get("surface_fr")):
             return sentence.strip()
     return text.strip()

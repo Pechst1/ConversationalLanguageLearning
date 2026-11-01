@@ -309,8 +309,8 @@ export interface JournalCorrection {
    *  'no_check_target' cannot be retried. */
   failure_reason?: string | null;
   /** 'model' | 'deterministic'. A deterministic check is the model-free pass of the shared corrector
-   *  (#250): it marks real mistakes but cannot say a text is right, so a clean result reads
-   *  «No corrections found», and `retryable` says whether the model could be asked again. */
+   *  (#250): it marks real mistakes but cannot say a text is right, so a clean result says it was
+   *  a basic check only (never «nothing found»), and `retryable` says whether the model could be asked again. */
   checker?: string | null;
   retryable?: boolean;
   explanation_language?: string | null;
@@ -1232,6 +1232,8 @@ export interface AtelierForgeView {
   }>;
   /** WP-S7: the run of checked right answers, and the best of the séance. */
   combo?: { run: number; best: number } | null;
+  /** #402: what a right and a wrong answer do to a rule's level, from the staircase itself. */
+  level_rule?: { right: number; wrong: number } | null;
   /** WP-S7: the owner's switches (each on by default). */
   features?: { combo?: boolean; eclair?: boolean; grammar_map?: boolean; mastery_rewards?: boolean } | null;
 }

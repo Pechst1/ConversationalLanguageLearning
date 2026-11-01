@@ -181,6 +181,14 @@ test('a right answer is cheered from the second in a row, or when it climbs a le
   assert.equal(D.levelText(fc, 3), 'Niveau 4');
 });
 
+// #402: a warm-up item is posed below the level; answering it right restores nothing and
+// climbs nothing, so it is not cheered as «Level N ↑».
+test('a right answer on a warm-up item is not cheered as a climb', () => {
+  const fc = forgeCopy('en');
+  assert.equal(D.forgeCheer({ forge: { rung: 3, new_rung: 4, level_before: 4, run: 1 } }, fc), null);
+  assert.equal(D.forgeCheer({ forge: { rung: 3, new_rung: 5, level_before: 4, run: 1 } }, fc), 'Level 6 ↑');
+});
+
 test('the recap’s épreuve offer is one rule and a few questions, or nothing', () => {
   assert.deepEqual(D.testOutOffer({ forge: { test_out_offer: { concept_id: 7, rung: 3, short: true, items: 3 } } }), { conceptId: 7, items: 3 });
   assert.deepEqual(D.testOutOffer({ forge: { test_out_offer: { concept_id: '7' } } }), { conceptId: 7, items: 3 });

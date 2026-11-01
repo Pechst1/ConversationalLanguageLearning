@@ -54,6 +54,19 @@ def test_a_word_drill_miss_shows_the_french_word_with_its_gloss() -> None:
     # «brouillard = fog»: the French word is on screen after the miss (#167).
     assert "brouillard" in result.correction.corrected_fr
     assert "fog" in result.correction.note_native
+    # #167 (22 and 30 Oct): «to write → coopérative» drew the tapped meaning as French
+    # to fix. A missed meaning is its own kind: the screen shows the word, no arrow.
+    assert result.correction.kind == "meaning"
+    public = _public(task, _wrong_option(task))
+    assert public is not None and public.kind == "meaning"
+    assert public.corrected_fr == "brouillard"
+
+
+def test_only_a_meaning_drill_miss_is_a_meaning() -> None:
+    for task in _picked_tasks("en"):
+        result = _evaluate(task, option_id=_wrong_option(task))
+        assert result.correction is not None
+        assert (result.correction.kind == "meaning") is (task.task_type == "listen_tap"), task.task_type
 
 
 def test_a_right_pick_has_no_correction() -> None:

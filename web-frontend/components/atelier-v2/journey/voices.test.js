@@ -297,6 +297,17 @@ test('listen_tap reads again when the clip fails; dictation needs something type
   assert.equal(dictation.listenTapShowsPhrase(heard, { clipFailed: true, graded: false }), true);
   assert.equal(dictation.listenTapShowsPhrase(heard, { clipFailed: false, graded: true }), true);
   assert.equal(dictation.listenTapShowsPhrase({ ...heard, audio_url: null }, { clipFailed: false, graded: false }), true);
+  // #167: a learner without sound asks to read it; «Show the text» is offered only while
+  // the phrase is held back, and only when the payload carries one.
+  assert.equal(dictation.listenTapShowsPhrase(heard, { clipFailed: false, graded: false, asked: true }), true);
+  const withText = { ...heard, prompt_fr: 'plusieurs' };
+  assert.equal(dictation.listenTapOffersText(withText, { clipFailed: false, graded: false }), true);
+  assert.equal(dictation.listenTapOffersText(withText, { clipFailed: false, graded: false, asked: true }), false);
+  assert.equal(dictation.listenTapOffersText(withText, { clipFailed: true, graded: false }), false);
+  assert.equal(dictation.listenTapOffersText(withText, { clipFailed: false, graded: true }), false);
+  assert.equal(dictation.listenTapOffersText({ ...withText, audio_url: null }, { clipFailed: false, graded: false }), false);
+  assert.equal(dictation.listenTapOffersText({ ...heard, prompt_fr: null }, { clipFailed: false, graded: false }), false);
+  assert.equal(dictation.listenTapOffersText({ ...withText, task_type: 'dictation' }, { clipFailed: false, graded: false }), false);
   assert.equal(dictation.isDictation({ task_type: 'dictation' }), true);
   assert.equal(dictation.promptIsHeard({ task_type: 'dictation', audio_url: heard.audio_url }), true);
   assert.equal(dictation.dictationReady('  '), false);
@@ -338,6 +349,7 @@ const VOICE_KEYS = [
   'dictation_label',
   'dictation_placeholder',
   'listen_unavailable_read',
+  'listen_show_text',
 ];
 
 test('every new string exists, and differs, in English, German and French', () => {

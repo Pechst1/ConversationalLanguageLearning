@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, case, func, not_, or_, select
+from sqlalchemy import and_, case, event, func, not_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -18,6 +18,53 @@ from app.services.glosses import gloss_payload
 from app.services.lexicon_grammar import word_grammar
 from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
 from app.utils.cache import cache_backend
+
+#: The cached «how many reviews are due» (``ProgressService.count_due_reviews``).
+DUE_REVIEWS_NAMESPACE = "progress:due_reviews"
+_FORGET_DUE_KEY = "due_reviews_forget"
+
+
+def forget_due_review_counts(user_id: Any) -> None:
+    """Drop every cached due count of one learner."""
+
+    cache_backend.invalidate(DUE_REVIEWS_NAMESPACE, prefix=f"{user_id}:")
+
+
+@event.listens_for(Session, "after_flush")
+def _forget_due_counts_on_flush(session: Session, _context: Any) -> None:
+    """#396: a write to a learner's progress rows drops that learner's cached due count.
+
+    The count is cached for a minute. It used to be dropped by two of the write
+    paths (``record_review``, ``record_context_credit``); the review page's own
+    path (``EnhancedSRSService.process_review``) was not one of them, so Home
+    went on counting cards the learner had just answered, and its number for the
+    day's words differed from the review's. The write itself is the one place
+    every path goes through: the count is dropped here, at the flush, and again
+    once the learner's data is committed (a read in between may have cached the
+    old rows).
+    """
+
+    touched = {
+        obj.user_id
+        for obj in (*session.new, *session.dirty, *session.deleted)
+        if isinstance(obj, UserVocabularyProgress) and obj.user_id is not None
+    }
+    if not touched:
+        return
+    for user_id in touched:
+        forget_due_review_counts(user_id)
+    session.info.setdefault(_FORGET_DUE_KEY, set()).update(touched)
+
+
+@event.listens_for(Session, "after_commit")
+def _forget_due_counts_on_commit(session: Session) -> None:
+    for user_id in session.info.pop(_FORGET_DUE_KEY, set()):
+        forget_due_review_counts(user_id)
+
+
+@event.listens_for(Session, "after_rollback")
+def _drop_pending_due_forgets(session: Session) -> None:
+    session.info.pop(_FORGET_DUE_KEY, None)
 
 
 def as_aware_datetime(value: datetime | None) -> datetime | None:
@@ -1319,7 +1366,7 @@ class ProgressService:
             f"{user_id}:{direction or 'all'}:{deck_name or 'all'}:"
             f"{today.isoformat()}:{include_upcoming_days}"
         )
-        cached = cache_backend.get("progress:due_reviews", cache_key)
+        cached = cache_backend.get(DUE_REVIEWS_NAMESPACE, cache_key)
         if cached is not None:
             return int(cached)
 
@@ -1337,7 +1384,7 @@ class ProgressService:
             query = query.filter(VocabularyWord.deck_name == deck_name)
         count = query.scalar()
         result = int(count or 0)
-        cache_backend.set("progress:due_reviews", cache_key, result, ttl_seconds=60)
+        cache_backend.set(DUE_REVIEWS_NAMESPACE, cache_key, result, ttl_seconds=60)
         return result
 
     def calculate_new_word_budget(
@@ -1483,7 +1530,7 @@ class ProgressService:
 
         self.db.add(review_log)
         self.db.flush([progress, review_log])
-        cache_backend.invalidate("progress:due_reviews", prefix=f"{user.id}:")
+        forget_due_review_counts(user.id)
         return progress, review_log, outcome
 
     def record_context_credit(
@@ -1539,7 +1586,7 @@ class ProgressService:
 
         self.db.add(progress)
         self.db.flush([progress])
-        cache_backend.invalidate("progress:due_reviews", prefix=f"{user.id}:")
+        forget_due_review_counts(user.id)
         return progress
 
     # ------------------------------------------------------------------

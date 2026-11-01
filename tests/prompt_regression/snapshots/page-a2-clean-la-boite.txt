@@ -1,5 +1,5 @@
 # prompt snapshot · page-a2-clean-la-boite · lane page · level A2
-# key: sha256:2653a42cfe9c1ed20ffd4cf0d39c82c2de47365c97ce4574d5ee12460c0290ee
+# key: sha256:8f97974bb3fe3b91ed12c4258b1c44a98998edc653fa69b73f0d76f180dafe2f
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
 ======== call 1 · PagePlan #1 · 2beea47a1512a6ba ========
@@ -581,7 +581,7 @@ peut écrire ton nom.»
  "previous_rejections": []
 }
 
-======== call 2 · PageText #1 · 6acb697423886915 ========
+======== call 2 · PageText #1 · 708e54e7da822fe1 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PageText", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PageText sha256:3fcf082adfdc0612
 -------- system --------
@@ -627,6 +627,9 @@ THE PAGE
 LEVEL A2
 Present, passé composé and futur proche; simple reasons with parce que or mais;
 lines up to 12 words. At most about 240 words.
+Words: everyday words only. A word an A2 learner would look up (succession, tribunal,
+palier, brûleur, bouillotte) becomes a common one («les papiers», «devant la porte»,
+«le feu») or is drawn and not named.
 From the bible: «Alors ? Pourquoi elle est partie, à ton avis ?» · «Vous allez vendre,
 non ? C'est plus simple pour tout le monde.» · «Mais arrête. C'est évident.»
 suggested_response_fr: one sentence («Odile, c'est ma grand-mère.»).
@@ -647,8 +650,16 @@ FRENCH
   and cannot find it; the word itself is never printed.
 - special, when present, is today's one special rule: follow it.
 - previous_rejections: why earlier pages for today were refused. Fix that.
+- Before you return the page, read every line as a learner at A2 would. A word they
+  would have to look up becomes a simpler word, or the picture shows the thing and the
+  line drops it; names, story_words and the concept stay. A structure above the level
+  card gets the plain form the card allows. The drama stays the same as at C1: only the
+  words get simpler.
 
 NOT THIS → THIS (the left side is from real pages)
+- «Rien ne peut être vendu avant les papiers de la succession.» (A2) → «On ne peut rien
+  vendre. Pas avant les papiers.»
+- «Il pose la soupe sur le seul brûleur qui marche.» (A2) → «Il met la soupe sur le feu.»
 - «Tout le monde attend ta réponse.» → «Romy pose son stylo.»
 - «Dis une phrase avec "J'ai".» → «Tu as dormi, cette nuit ?»
 - «Dis-moi quelle condition tu veux que je respecte.» → «Je peux écrire ton nom ?»

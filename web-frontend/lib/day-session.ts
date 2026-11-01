@@ -288,6 +288,27 @@ export function sessionMore(
   };
 }
 
+/**
+ * #396: what Home's day chip (the streak number and its «done» mark) says. The
+ * server's streak counts today from the first practice, which the day's words
+ * already are, so the chip went 19 → 20 while the grammar step was still to do.
+ * With the day's session in hand the chip counts today only once the session is
+ * done (the Done step); until then it shows the chain as it stood this morning.
+ * Without a session (no journey today) the server's own flag stands.
+ */
+export function homeDayChip(
+  days: number,
+  practiceDone: boolean,
+  session: DaySession | null | undefined,
+): { streak: number; dayDone: boolean } {
+  const count = Number.isFinite(days) && days > 0 ? Math.round(days) : 0;
+  if (!session) return { streak: count, dayDone: practiceDone };
+  const dayDone = Boolean(session.done);
+  // The server counted today for the practice so far: take it back until the day is done.
+  const streak = practiceDone && !dayDone ? Math.max(0, count - 1) : count;
+  return { streak, dayDone };
+}
+
 /** The mark's four shapes fill in with the day's four steps. */
 export function sessionMarkState(session: DaySession, language: ControlLanguage): DayMarkState {
   const groups = {} as Record<DayMarkGroup, DayMarkGroupState>;

@@ -30,12 +30,13 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 
 from app.config import settings
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
+from app.db.models.user import User
 from app.services import living_story as engine
 from tests import test_journey_end_to_end as support
 from tests.test_living_story import EXTRA_PANELS, with_reading_aids
@@ -1681,8 +1682,39 @@ def test_two_hundred_days_reach_a_finale_an_interlude_and_a_second_season(
     assert prompt_size(SEASON_RUN_DAYS) <= prompt_size(20) * 1.6
 
 
+# Every die a life rolls is seeded by an id the database hands out: the learner's for
+# the first day's arc order (the thread does not exist yet), the thread's for every
+# chapter shape and agenda tick after that. With random ids two lives drew the same
+# arc order once in 120 runs (CI, 8 October 2026), and the same six or seven chapter
+# shapes once in 3,000 to 12,000 (CI, 31 October 2026, #412). That was the dice
+# working, not the principle failing, so the test now plays the same two lives.
+PINNED_LIVES: tuple[tuple[uuid.UUID, uuid.UUID], ...] = (
+    # (learner id, thread id)
+    (uuid.UUID("00000000-0000-4000-8000-0000000000a1"), uuid.UUID("00000000-0000-4000-8000-0000000000b1")),
+    (uuid.UUID("00000000-0000-4000-8000-0000000000a2"), uuid.UUID("00000000-0000-4000-8000-0000000000b2")),
+)
+
+
+@pytest.fixture
+def pinned_ids():
+    """The next learner and thread rows the app inserts take the ids queued here."""
+
+    queues: dict[type, list[uuid.UUID]] = {User: [], SerialThread: []}
+
+    def assign(mapper, connection, target) -> None:
+        queue = queues[mapper.class_]
+        if target.id is None and queue:
+            target.id = queue.pop(0)
+
+    for model in queues:
+        event.listen(model, "before_insert", assign)
+    yield queues
+    for model in queues:
+        event.remove(model, "before_insert", assign)
+
+
 def test_two_seeds_deal_different_arcs_shapes_and_agenda_timings(
-    assembled_client, db_session, journey_enabled, clock, provider
+    assembled_client, db_session, journey_enabled, clock, provider, pinned_ids
 ):
     """Principle 1 again, one level up: two learners do not live the same season.
 
@@ -1692,13 +1724,9 @@ def test_two_seeds_deal_different_arcs_shapes_and_agenda_timings(
 
     provider.season_engine = True
     lives: list[dict] = []
-    # Five arcs are sorted by a hash of the life's thread id, so two random lives
-    # draw the same order once in 120 runs (CI, 8 October 2026). That is the dice
-    # working, not the principle failing: when it happens, a third life is played
-    # and compared instead.
-    for life_index in range(3):
-        if life_index == 2 and lives[0]["arcs"] != lives[1]["arcs"]:
-            break
+    for learner_seed, thread_seed in PINNED_LIVES:
+        pinned_ids[User].append(learner_seed)
+        pinned_ids[SerialThread].append(thread_seed)
         start = len(provider.director_contexts())
         d = driver(assembled_client, db_session, cefr="A2.2")
         for day in range(1, 25):
@@ -1712,11 +1740,20 @@ def test_two_seeds_deal_different_arcs_shapes_and_agenda_timings(
                 ),
             )
             clock.advance(days=1)
+        assert (d.user_id, thread_of(db_session, d).id) == (learner_seed, thread_seed), (
+            "the life runs on its pinned ids"
+        )
         live = live_state(db_session, d)
+        shapes = [row.get("shape") for row in _chapter_rows(db_session, d)]
+        # The hand on record is the one this life's own seed deals, chapter by chapter.
+        dealt: list[str] = []
+        for index in range(len(shapes)):
+            dealt.append(engine.chapter_shape(str(thread_seed), index, dealt[-1] if dealt else None))
+        assert shapes == dealt, "each chapter's shape is dealt from the life's own seed"
         lives.append(
             {
                 "arcs": [arc["id"] for arc in provider.director_contexts()[start]["world"]["arcs"]],
-                "shapes": [row.get("shape") for row in _chapter_rows(db_session, d)],
+                "shapes": shapes,
                 "agendas": {
                     key: int(entry.get("last_day") or 0) for key, entry in live["agendas"].items()
                 },
@@ -1725,7 +1762,7 @@ def test_two_seeds_deal_different_arcs_shapes_and_agenda_timings(
         )
         clock.advance(days=1)
 
-    first, second = lives[0], lives[-1]
+    first, second = lives
     assert first["arcs"] != second["arcs"], "two lives, two orders of the season's arcs"
     assert first["shapes"] != second["shapes"], "two lives, two hands of chapters"
     assert first["agendas"] != second["agendas"], "the cast's weeks move at different moments"

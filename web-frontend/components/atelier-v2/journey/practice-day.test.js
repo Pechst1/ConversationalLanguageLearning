@@ -190,6 +190,123 @@ test('listen-and-tap without a clip is read-and-tap: the phrase is printed, mean
   const heardHtml = renderToStaticMarkup(React.createElement(steps.RecallStepView, baseProps(heard)));
   assert.ok(heardHtml.includes('av2-heard__play'), 'a clip is played when one exists');
   assert.ok(!heardHtml.includes('brouillard'), 'and the phrase waits until the answer');
+  // #167: without sound the drill could not be answered at all. The phrase travels
+  // with the clip, and a learner can ask to read it.
+  assert.ok(heardHtml.includes(`>${EN.listen_show_text}<`), '«Show the text» is offered');
+  const answered = renderToStaticMarkup(
+    React.createElement(
+      steps.RecallStepView,
+      baseProps(heard, { feedback: { kind: 'graded', verdict: 'wrong', result: {} } }),
+    ),
+  );
+  assert.ok(answered.includes('brouillard'), 'once the answer is in, the French word is on screen');
+  assert.ok(!answered.includes(`>${EN.listen_show_text}<`), 'and nothing is left to show');
+});
+
+// #167: the live walks of 16–30 Oct could only guess «What does it mean?» (no sound in
+// the cloud, on a train, on a silent phone). The French word is one tap away.
+function mountView(Component, props) {
+  const cells = [];
+  const queue = [];
+  let cursor = 0;
+  let tree = null;
+  const same = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
+  const cell = () => cells[cursor++] || (cells[cursor - 1] = {});
+  const fake = {
+    useState(initial) {
+      const slot = cell();
+      if (!('value' in slot)) slot.value = typeof initial === 'function' ? initial() : initial;
+      return [slot.value, (next) => {
+        const value = typeof next === 'function' ? next(slot.value) : next;
+        if (Object.is(value, slot.value)) return;
+        slot.value = value;
+        render();
+      }];
+    },
+    useRef(initial) {
+      const slot = cell();
+      if (!('ref' in slot)) slot.ref = { current: initial };
+      return slot.ref;
+    },
+    useEffect(fn, deps) {
+      const slot = cell();
+      if (!('deps' in slot) || !same(slot.deps, deps)) {
+        slot.deps = deps;
+        queue.push(fn);
+      }
+    },
+    useMemo(fn, deps) {
+      const slot = cell();
+      if (!('deps' in slot) || !same(slot.deps, deps)) {
+        slot.deps = deps;
+        slot.value = fn();
+      }
+      return slot.value;
+    },
+    useCallback(fn, deps) {
+      const slot = cell();
+      if (!('deps' in slot) || !same(slot.deps, deps)) {
+        slot.deps = deps;
+        slot.value = fn;
+      }
+      return slot.value;
+    },
+  };
+  function render() {
+    const saved = {};
+    for (const name of Object.keys(fake)) {
+      saved[name] = React[name];
+      React[name] = fake[name];
+    }
+    try {
+      cursor = 0;
+      tree = Component(props);
+      while (queue.length) queue.shift()();
+    } finally {
+      for (const name of Object.keys(fake)) React[name] = saved[name];
+    }
+  }
+  render();
+  return {
+    get tree() {
+      return tree;
+    },
+  };
+}
+function findElement(node, match) {
+  if (!node || typeof node !== 'object') return null;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findElement(child, match);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (node.props && match(node)) return node;
+  return node.props ? findElement(node.props.children, match) : null;
+}
+
+test('a heard word drill shows its French word when the learner asks', () => {
+  const step = recallStep({
+    task_type: 'listen_tap',
+    instruction_native: 'What does it mean?',
+    prompt_fr: 'plusieurs',
+    options: [
+      { id: 'lt_a', text_fr: 'between', side: 'native' },
+      { id: 'lt_b', text_fr: 'several', side: 'native' },
+      { id: 'lt_c', text_fr: 'you', side: 'native' },
+    ],
+    audio_url: '/api/v1/daily-journeys/line-audio/clip-2',
+  });
+  const view = mountView(steps.RecallStepView, baseProps(step));
+  assert.equal(view.tree.props.headline, 'What does it mean?', 'heard first');
+  const show = findElement(view.tree, (node) => node.props.children === EN.listen_show_text);
+  assert.ok(show, '«Show the text» is on screen');
+  show.props.onClick();
+  assert.equal(view.tree.props.headline, 'plusieurs', 'the French word is the headline');
+  assert.equal(view.tree.props.headlineLang, 'fr');
+  assert.equal(findElement(view.tree, (node) => node.props.children === EN.listen_show_text), null, 'asked once');
+  assert.ok(findElement(view.tree, (node) => node.props.audioUrl), 'the clip can still be played');
 });
 
 test('an unscramble renders the one tile bank', () => {

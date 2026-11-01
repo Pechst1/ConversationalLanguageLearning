@@ -330,7 +330,7 @@ test('«Plus de pratique» opens the server href for what today practised', () =
   assert.deepEqual(opened, ['/atelier?mode=practice&concept=7']);
 });
 
-test('the recap chrome stays under 15 words', () => {
+test('the recap chrome stays under 18 words (15, and #382 «Où va demain ?» says what the choice is for)', () => {
   const chrome = [
     FR.finished_title,
     RECAP_CHROME.streak_label,
@@ -341,7 +341,7 @@ test('the recap chrome stays under 15 words', () => {
     RECAP_CHROME.keep_seal,
     'Plus de pratique',
   ].join(' ');
-  assert.ok(chrome.split(/\s+/).length <= 15, chrome);
+  assert.ok(chrome.split(/\s+/).length <= 18, chrome);
 });
 
 test('the day-complete haptic and sound fire on the way into the recap', () => {
@@ -537,4 +537,19 @@ test('«Demain»: the finished card offers the threads under «La suite demain»
   assert.deepEqual(picks, ['pour_son_anniversaire']);
   assert.equal(chips[0].props['data-planned'], '');
   assert.equal(element.props['aria-label'], 'Choisis la suite');
+});
+
+test('#403: day 2 «La lettre» — the finished card names day 2, and the chapter it closes as a chapter', () => {
+  const chapter = { index: 1, title_fr: 'Le mauvais accueil', digest_fr: 'La lettre est ouverte.' };
+  const scenario = { ...day().journey.scenario, title_fr: 'La lettre' };
+  const html = render(day({ chapter_closed: chapter }, { scenario }));
+  const said = textOf(html);
+  assert.match(html, /data-episode-title[^>]*>La lettre</, 'the card carries day 2’s title');
+  assert.match(said, /Chapitre · Le mauvais accueil/, 'the chapter is named as the chapter');
+  assert.match(said, /Fin du chapitre/);
+  assert.doesNotMatch(html, /data-chapter-title[^>]*>Le mauvais accueil</, 'yesterday’s title is not printed bare');
+  // A chapter that is the day’s own title is said once, not twice.
+  const same = render(day({ chapter_closed: { ...chapter, title_fr: 'La lettre' } }, { scenario }));
+  assert.match(same, /data-episode-title/);
+  assert.doesNotMatch(same, /data-chapter-title/);
 });

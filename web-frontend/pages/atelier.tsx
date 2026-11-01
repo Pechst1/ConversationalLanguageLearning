@@ -132,6 +132,7 @@ import { dayMarkState } from '@/components/atelier-v2/journey/day-mark';
 import { DaySessionNext, TempoSheet } from '@/components/atelier-v2/home/DaySession';
 import {
   daySessionCopy,
+  homeDayChip,
   sessionMarkState,
   sessionMore,
   sessionNextAction,
@@ -160,10 +161,11 @@ import {
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { fillForge, forgeCopy } from '@/lib/forge-copy';
+import { fillForge, forgeCopy, forgeRoleTag } from '@/lib/forge-copy';
 import {
   clampRung,
   correctionAnchor,
+  headerLevel,
   cueIsLocalized,
   localizedCue,
   recapRuleRows,
@@ -186,7 +188,7 @@ import {
   type ForgeDrill,
 } from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
-import { assembleRepair, repairParts } from '@/lib/repair-parts';
+import { assembleRepair, isRepairableLine, repairParts, repairState } from '@/lib/repair-parts';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
@@ -3106,6 +3108,11 @@ function TodayView({
       ];
 
   const sessionCopy = daySessionCopy(chromeLanguage);
+  const homeChip = homeDayChip(
+    streak,
+    Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
+    daySession,
+  );
   const sessionNext = sessionNextAction(daySession, chromeLanguage);
   const sessionExtra = sessionMore(daySession, chromeLanguage);
   const homeHero = daySession && (sessionNext || sessionExtra) ? (
@@ -3128,9 +3135,11 @@ function TodayView({
       dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
       editionLabel={editionLabel}
       special={specialEdition}
-      streak={streak}
+      streak={homeChip.streak}
       // WP-79: the server's checked `streak.today_done` (WP-80), never inferred.
-      dayDone={Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done)}
+      // #396: with the day's session, «done» is the session's Done step, so the
+      // chip does not move while the grammar step is still to do.
+      dayDone={homeChip.dayDone}
       settingsHref="/settings"
       // WP-D5: the streak opens «Vos sceaux» in Cahier → Relevé.
       streakHref="/notebook?mode=releve#sceaux"
@@ -3777,10 +3786,14 @@ function SessionView({
 
   // ---- La Forge (owner, 2026-10-18): one progress bar, the rule once, its level. ----
   const forgeProgress = forge ? seanceCount(forge, activeItemId) : null;
-  // The level is the rung the item on screen is posed at; once it is answered,
-  // the rung the answer moved it to (a right answer climbs one, a miss drops one).
-  const answeredRung = currentSubmitted ? Number(currentCorrection?.forge?.new_rung) : NaN;
-  const forgeRung = clampRung(Number.isFinite(answeredRung) ? answeredRung : forgeNext?.rung ?? forgeRule?.rung ?? 0);
+  // The level is the rule's own (#402, `headerLevel`), not the rung the item on
+  // screen is posed at; once answered, the level the answer left.
+  const forgeRung = headerLevel({
+    answeredRung: currentSubmitted ? currentCorrection?.forge?.new_rung : null,
+    ruleRung: forgeRule?.rung,
+    itemRung: forgeNext?.rung,
+    testOut: forgeTestOut,
+  });
   // How the item on screen is posed (`lib/forge-drills.ts`); null: the classic way.
   const drill: ForgeDrill | null = forge && activeConcept && !isRetest
     ? drillOnScreen(forge.next, currentCorrection, { conceptId: activeConcept.id, round, mode, itemId: activeItemId })
@@ -3861,7 +3874,9 @@ function SessionView({
               copy={fc}
               title={activeConceptTitle}
               rung={forgeRung}
+              levelRule={forge.level_rule}
               eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
+              tag={forgeTestOut ? null : forgeRoleTag(fc, forgeNext?.role)}
               ruleLabel={t.rule}
               ruleOpen={ruleExpanded}
               onRule={ruleIntro ? undefined : toggleRule}
@@ -4244,11 +4259,15 @@ export function ExerciseFeedbackMoment({
   // The typed retype only gates Next for corrections that are real lines;
   // one-word fixes are settled by the galley marks alone.
   const needsNewAnswer = issues.some((issue) => issue.task_error_type === 'task_compliance' || !issue.corrected_target);
-  const repairsComplete = !needsNewAnswer && (isLabelCompare || issues.every((issue, index) => {
-    const target = String(issue.corrected_target || '').trim();
-    if (!isRepairableLine(target)) return true;
-    return repairs[String(index)]?.status === 'ok';
-  }));
+  // #381: one reading of the repair step for the band and the buttons: once every line
+  // on screen is mended, the band says so instead of «Not yet» under «Line fixed».
+  const { complete: repairsComplete, mended } = repairState({
+    issues,
+    repairs,
+    inPlace: Boolean(lineParts),
+    isLabelCompare: Boolean(isLabelCompare),
+    needsNewAnswer,
+  });
   // WP-S1: the verdict on screen is the local one and it never waits. The
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
@@ -4311,7 +4330,9 @@ export function ExerciseFeedbackMoment({
   }
 
   return (
-    <div className="ep-feedback" data-verdict="wrong" ref={feedbackRef}>
+    // The answer stays a miss (`data-verdict`, the line comes back later); `data-mended`
+    // says its line was fixed.
+    <div className="ep-feedback" data-verdict="wrong" data-mended={mended ? 'true' : undefined} ref={feedbackRef}>
       {issues.map((issue, index) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
@@ -4387,9 +4408,13 @@ export function ExerciseFeedbackMoment({
       )}
       {/* The design's blush footer: badge + "Presque." with the rule as its
           13px line, then the primary — Continuer once the line is recopied,
-          otherwise the retry. The quiet links stay third-tier underneath. */}
-      <EpFoot tone="wrong">
-        <EpVerdict tone="no" sub={rule} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
+          otherwise the retry. The quiet links stay third-tier underneath.
+          #381: a mended line turns the band to the success state (the same
+          band, so the cast still counts the answer once, as a miss). */}
+      <EpFoot tone={mended ? 'correct' : 'wrong'}>
+        <EpVerdict tone={mended ? 'go' : 'no'} sub={rule} coach={coach} coachMood={mended ? 'happy' : mood} attempt={attempt}>
+          {mended ? t.verdict_correct : t.verdict_wrong}
+        </EpVerdict>
         {repairsComplete
           ? (!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>)
           : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
@@ -4833,13 +4858,6 @@ function feedbackRuleLine(activeSet: Record<string, any> | null, activeConcept: 
 // "Recopie la correction" is a line-level exercise: retyping a one-word fill
 // option or a classify label teaches nothing, so the typed repair only appears
 // when the corrected target is an actual sentence.
-function isRepairableLine(target: string): boolean {
-  const trimmed = target.trim();
-  if (!trimmed) return false;
-  const words = trimmed.split(/\s+/).length;
-  return words >= 3 || (words >= 2 && /[.!?…]$/.test(trimmed));
-}
-
 function browserSpeak(text: string, onDone: () => void) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     onDone();

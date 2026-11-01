@@ -68,6 +68,44 @@ export function levelText(copy: ForgeCopy, rung: unknown): string {
   return fillForge(copy.level, { n: clampRung(rung) + 1 });
 }
 
+/**
+ * #402: the level in the La Forge header. It is the rule's own level (`forge.rules[].rung`,
+ * the stored level the last séance ended on), never the rung the item on screen is posed at:
+ * a due rule's first item is a warm-up one step below, and showing that rung made «Level 5»
+ * on the end sheet open as «Level 4» the next day. Once answered, the level the answer left.
+ * A test-out has no level yet: it names the step it asks.
+ */
+export function headerLevel({
+  answeredRung,
+  ruleRung,
+  itemRung,
+  testOut = false,
+}: {
+  answeredRung?: unknown;
+  ruleRung?: unknown;
+  itemRung?: unknown;
+  testOut?: boolean;
+}): number {
+  const finite = (value: unknown) => (value === null || value === undefined || value === '' ? NaN : Number(value));
+  const answered = finite(answeredRung);
+  if (Number.isFinite(answered)) return clampRung(answered);
+  const first = testOut ? finite(itemRung) : finite(ruleRung);
+  return clampRung(Number.isFinite(first) ? first : finite(itemRung));
+}
+
+/** What a right and a wrong answer do to a rule's level: `forge.level_rule`, from the staircase itself. */
+export type LevelRule = { right?: number | null; wrong?: number | null } | null | undefined;
+
+/**
+ * #402: the level legend under the header. It states the rule the server applies
+ * (`forge.level_rule`, `app/core/forge.py`): a miss that takes a level away says
+ * «down one»; with no rule or a miss that keeps the level, it says the level stays.
+ */
+export function levelExplain(copy: ForgeCopy, rule: LevelRule): string {
+  const wrong = Number(rule?.wrong);
+  return Number.isFinite(wrong) && wrong < 0 ? copy.level_explain_down : copy.level_explain;
+}
+
 type ForgeViewLike = {
   length?: number | null;
   answered?: number | null;

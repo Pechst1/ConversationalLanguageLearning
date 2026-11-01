@@ -34,6 +34,7 @@ from app.schemas.vocabulary import (
 )
 from app.services.conjugation import ConjugationService
 from app.services.core_lexicon import CORE_DECK
+from app.services.daily_session import DAY_DECK_LIMIT, DAY_DECK_NEW_WORDS
 from app.services.daily_words import DailyWordSlateService
 from app.services.glosses import gloss_payload, normalize_language
 from app.services.progress import ProgressService
@@ -761,6 +762,7 @@ def _drill_deck(
     new_limit: int,
     reserved_new: set[int],
     new_room: int | None,
+    day_deck: bool = False,
 ) -> dict[str, Any]:
     """WP-154: the word drill's deck, kept for the learner's app day.
 
@@ -770,11 +772,15 @@ def _drill_deck(
     it. See :mod:`app.services.drill_batch`.
     """
 
-    from app.services import drill_batch
+    from app.services import day_words, drill_batch
     from app.services.streak import local_today
 
     now = datetime.now(UTC)
     day = local_today(user, now)
+    if drill == drill_batch.DRILL_SESSION and day_deck:
+        planned = _planned_day_deck(db, service, user, context_kwargs=context_kwargs, reserved_new=reserved_new, now=now)
+        if planned is not None:
+            return planned
     batch = drill_batch.load_batch(db, user, day)
     if drill == drill_batch.DRILL_SESSION and batch is not None:
         items = list(batch.items or [])
@@ -803,7 +809,10 @@ def _drill_deck(
     payload = service.get_vocabulary_due_context(**{**context_kwargs, "exclude_new_word_ids": exclude, "now": now})
     served_new = len(payload.get("new_words") or [])
     dealt = drill_batch.items_from_payload(payload, now)
-    if drill == drill_batch.DRILL_MORE and batch is not None:
+    if (drill == drill_batch.DRILL_MORE and batch is not None) or day_words.is_dealt(day_words.read_plan(batch)):
+        # #396: cards dealt past the day's deck («more», a Lexique session after
+        # it) are the learner's extra, never the day's count.
+        dealt = [{**item, "extra": True} for item in dealt]
         items = drill_batch.merge_items(db, user, list(batch.items or []), dealt)
         drill_batch.save_batch(db, user, day, items, new_limit=new_limit, new_dealt=served_new, batch=batch)
         db.commit()
@@ -817,6 +826,58 @@ def _drill_deck(
     drill_batch.save_batch(db, user, day, dealt, new_limit=new_limit, new_dealt=served_new, batch=batch)
     db.commit()
     payload["new_words_left_today"] = new_words_left_today(new_room, new_limit, served_new)
+    return payload
+
+
+def _planned_day_deck(
+    db: Session,
+    service: ProgressService,
+    user: User,
+    *,
+    context_kwargs: dict[str, Any],
+    reserved_new: set[int],
+    now: datetime,
+) -> dict[str, Any] | None:
+    """#396: the day deck dealt from the day's plan (:mod:`app.services.day_words`).
+
+    The first open deals the plan's cards (the scene's words, the plan's
+    reviews, the drill's share of the dose) and records the deck's size; later
+    reads serve what is left, the scene's words joining once it met them.
+    ``None`` when the day has no plan: the batch is then dealt as before.
+    """
+
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from app.services import day_words, drill_batch
+
+    batch = day_words.ensure_plan(db, user, now=now, commit=False)
+    plan = day_words.read_plan(batch)
+    if plan is None:
+        return None
+    if not day_words.is_dealt(plan):
+        kept: list[dict[str, Any]] = []
+        if batch.items:
+            kept = drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved_new)
+        items, new_dealt, pending = day_words.deal_items(
+            db, user, plan, now=now, context_kwargs=context_kwargs, kept=kept
+        )
+        batch.items = items
+        flag_modified(batch, "items")
+        batch.new_limit = new_dealt
+        batch.new_dealt = new_dealt
+        day_words.mark_dealt(batch, plan, size=len(items) + pending, now=now)
+        db.flush()
+    else:
+        day_words.join_scene_words(db, user, batch, now=now)
+    items = day_words.day_items(batch)
+    remaining = drill_batch.remaining_items(
+        db, user, items, reserved_new=day_words.remaining_reserved(batch, reserved_new)
+    )
+    batch.cursor = len(items) - len(remaining)
+    db.commit()
+    payload = service.vocabulary_due_context_from_batch(user=user, items=remaining, now=now)
+    # The day deck holds the day's whole dose: no continuation inside it.
+    payload["new_words_left_today"] = 0
     return payload
 
 
@@ -971,6 +1032,7 @@ def get_vocabulary_due_context(
     # pace leaves after today's journey (one intake pool), and never a word
     # the journey has reserved. WP-131: the room is kept, so the deck can say
     # what the day's allowance still holds after it.
+    requested_new = new_limit
     new_limit, reserved_new, new_room = vocabulary_pace_allowance(db, current_user, new_limit)
     if extra:
         # Round 3: the learner finished the day and asked for more: the pace is
@@ -1018,6 +1080,10 @@ def get_vocabulary_due_context(
             new_limit=new_limit,
             reserved_new=set(reserved_new or ()),
             new_room=new_room,
+            # #396: the day's deck (``review.tsx``'s ``dayQueueParams``, the
+            # day's whole dose) is dealt from the day's plan; the Lexique's
+            # smaller session is not.
+            day_deck=drill == "session" and limit >= DAY_DECK_LIMIT and requested_new >= DAY_DECK_NEW_WORDS,
         )
     else:
         payload = service.get_vocabulary_due_context(**context_kwargs)

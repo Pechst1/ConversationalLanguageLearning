@@ -1,0 +1,222 @@
+{
+ "surface": "page",
+ "about": "The season's generated pages: story_split.draw (planner, author, aids) on a captured story_context() of a learner jumped to a gap day of season 1, at A1, A2 or B1. Contexts live in sets/pages/<id>.json (test_capture_pages.py). Scored on the story judge's questions (app/services/season/story_judge.py) from 1 to 5; this surface is the writer-model comparison of the Phase 2 decision.",
+ "items": [
+  {
+   "id": "p-a1-g1.1",
+   "level": "A1",
+   "cefr": "A1.1",
+   "season_day": 3,
+   "segment_day": "g1.1",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A1 learner, season day 3 (g1.1): the page written ahead of time"
+  },
+  {
+   "id": "p-a1-g1.3",
+   "level": "A1",
+   "cefr": "A1.1",
+   "season_day": 5,
+   "segment_day": "g1.3",
+   "source": "seed of tests/prompt_regression/contexts, recaptured",
+   "learner_text": "A1 learner, season day 5 (g1.3): the page written ahead of time"
+  },
+  {
+   "id": "p-a1-g2.2",
+   "level": "A1",
+   "cefr": "A1.1",
+   "season_day": 11,
+   "segment_day": "g2.2",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A1 learner, season day 11 (g2.2): the page written ahead of time"
+  },
+  {
+   "id": "p-a1-g2.5",
+   "level": "A1",
+   "cefr": "A1.1",
+   "season_day": 14,
+   "segment_day": "g2.5",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A1 learner, season day 14 (g2.5): the page written ahead of time"
+  },
+  {
+   "id": "p-a1-g3.2",
+   "level": "A1",
+   "cefr": "A1.1",
+   "season_day": 19,
+   "segment_day": "g3.2",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A1 learner, season day 19 (g3.2): the page written ahead of time"
+  },
+  {
+   "id": "p-a1-g3.6",
+   "level": "A1",
+   "cefr": "A1.1",
+   "season_day": 23,
+   "segment_day": "g3.6",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A1 learner, season day 23 (g3.6): the page written ahead of time"
+  },
+  {
+   "id": "p-a1-g4.2",
+   "level": "A1",
+   "cefr": "A1.1",
+   "season_day": 28,
+   "segment_day": "g4.2",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A1 learner, season day 28 (g4.2): the page written ahead of time"
+  },
+  {
+   "id": "p-a1-g5.2",
+   "level": "A1",
+   "cefr": "A1.1",
+   "season_day": 36,
+   "segment_day": "g5.2",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A1 learner, season day 36 (g5.2): the page written ahead of time"
+  },
+  {
+   "id": "p-a2-g1.2",
+   "level": "A2",
+   "cefr": "A2.1",
+   "season_day": 4,
+   "segment_day": "g1.2",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A2 learner, season day 4 (g1.2): the page written ahead of time"
+  },
+  {
+   "id": "p-a2-g1.5",
+   "level": "A2",
+   "cefr": "A2.1",
+   "season_day": 7,
+   "segment_day": "g1.5",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A2 learner, season day 7 (g1.5): the page written ahead of time"
+  },
+  {
+   "id": "p-a2-g2.3",
+   "level": "A2",
+   "cefr": "A2.1",
+   "season_day": 12,
+   "segment_day": "g2.3",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A2 learner, season day 12 (g2.3): the page written ahead of time"
+  },
+  {
+   "id": "p-a2-g2.5",
+   "level": "A2",
+   "cefr": "A2.1",
+   "season_day": 14,
+   "segment_day": "g2.5",
+   "source": "seed of tests/prompt_regression/contexts, recaptured",
+   "learner_text": "A2 learner, season day 14 (g2.5): the page written ahead of time"
+  },
+  {
+   "id": "p-a2-g3.4",
+   "level": "A2",
+   "cefr": "A2.1",
+   "season_day": 21,
+   "segment_day": "g3.4",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A2 learner, season day 21 (g3.4): the page written ahead of time"
+  },
+  {
+   "id": "p-a2-g4.4",
+   "level": "A2",
+   "cefr": "A2.1",
+   "season_day": 30,
+   "segment_day": "g4.4",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A2 learner, season day 30 (g4.4): the page written ahead of time"
+  },
+  {
+   "id": "p-a2-g5.5",
+   "level": "A2",
+   "cefr": "A2.1",
+   "season_day": 39,
+   "segment_day": "g5.5",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A2 learner, season day 39 (g5.5): the page written ahead of time"
+  },
+  {
+   "id": "p-a2-g6.3",
+   "level": "A2",
+   "cefr": "A2.1",
+   "season_day": 46,
+   "segment_day": "g6.3",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "A2 learner, season day 46 (g6.3): the page written ahead of time"
+  },
+  {
+   "id": "p-b1-g1.4",
+   "level": "B1",
+   "cefr": "B1.1",
+   "season_day": 6,
+   "segment_day": "g1.4",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "B1 learner, season day 6 (g1.4): the page written ahead of time"
+  },
+  {
+   "id": "p-b1-g2.4",
+   "level": "B1",
+   "cefr": "B1.1",
+   "season_day": 13,
+   "segment_day": "g2.4",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "B1 learner, season day 13 (g2.4): the page written ahead of time"
+  },
+  {
+   "id": "p-b1-g3.3",
+   "level": "B1",
+   "cefr": "B1.1",
+   "season_day": 20,
+   "segment_day": "g3.3",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "B1 learner, season day 20 (g3.3): the page written ahead of time"
+  },
+  {
+   "id": "p-b1-g3.7",
+   "level": "B1",
+   "cefr": "B1.1",
+   "season_day": 24,
+   "segment_day": "g3.7",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "B1 learner, season day 24 (g3.7): the page written ahead of time"
+  },
+  {
+   "id": "p-b1-g4.4",
+   "level": "B1",
+   "cefr": "B1.1",
+   "season_day": 30,
+   "segment_day": "g4.4",
+   "source": "seed of tests/prompt_regression/contexts, recaptured",
+   "learner_text": "B1 learner, season day 30 (g4.4): the page written ahead of time"
+  },
+  {
+   "id": "p-b1-g5.7",
+   "level": "B1",
+   "cefr": "B1.1",
+   "season_day": 41,
+   "segment_day": "g5.7",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "B1 learner, season day 41 (g5.7): the page written ahead of time"
+  },
+  {
+   "id": "p-b1-g6.6",
+   "level": "B1",
+   "cefr": "B1.1",
+   "season_day": 49,
+   "segment_day": "g6.6",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "B1 learner, season day 49 (g6.6): the page written ahead of time"
+  },
+  {
+   "id": "p-b1-g7.3",
+   "level": "B1",
+   "cefr": "B1.1",
+   "season_day": 55,
+   "segment_day": "g7.3",
+   "source": "season gap day, captured by test_capture_pages.py",
+   "learner_text": "B1 learner, season day 55 (g7.3): the page written ahead of time"
+  }
+ ]
+}

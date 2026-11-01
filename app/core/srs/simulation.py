@@ -616,7 +616,11 @@ def simulate_items_to_held(
                 )
                 units.append(
                     forge_core.ForgeUnit(
-                        item.index, forge_core.Role.DUE.value, max(0, item.rung - 1), needs_spaced=needs_spaced
+                        item.index,
+                        forge_core.Role.DUE.value,
+                        item.rung,
+                        needs_spaced=needs_spaced,
+                        warmup=max(0, item.rung - 1),
                     )
                 )
             if today is not None and today.index > 0:
@@ -626,7 +630,8 @@ def simulate_items_to_held(
                         forge_core.ForgeUnit(
                             partner.index,
                             forge_core.Role.CONTRAST.value,
-                            min(partner.rung, int(forge_core.Rung.DISCRIMINATE)),
+                            partner.rung,
+                            warmup=min(partner.rung, int(forge_core.Rung.DISCRIMINATE)),
                         )
                     )
             if not units:
