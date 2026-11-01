@@ -830,6 +830,8 @@ export interface VocabularyRecommendationItem {
   part_of_speech?: string | null;
   /** Stored noun gender ("m" / "f"); null when the catalogue does not know it. */
   gender?: string | null;
+  /** "pl" for a noun used in the plural only («les gens»); null otherwise. */
+  number?: string | null;
   topic_tags?: string[];
   translations: {
     de?: string | null;
@@ -889,6 +891,7 @@ export interface DailyWordEntry {
   anchor?: string | null;
   part_of_speech?: string | null;
   gender?: string | null;
+  number?: string | null;
   stamps?: Partial<Record<'lu' | 'retrouve' | 'place', string | null>>;
   triple?: boolean;
 }

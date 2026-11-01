@@ -22,6 +22,10 @@ from pathlib import Path
 from typing import Any
 
 POS_PATH = Path(__file__).resolve().parents[1] / "data" / "lexical" / "fr_core_pos.json"
+#: Nouns used in the plural only (``les gens``, ``les vacances``): the one list,
+#: sent to every client as the noun's ``number`` (owner request, 1 Nov).
+PLURALIA_PATH = Path(__file__).resolve().parents[1] / "data" / "lexical" / "fr_pluralia_tantum.json"
+NOUN_TAGS = frozenset({"noun", "nom", "n"})
 
 _ARTICLES = ("le ", "la ", "les ", "un ", "une ", "des ", "l'", "l’", "du ", "de la ", "de l'")
 
@@ -100,16 +104,47 @@ def word_grammar(word: Any) -> tuple[str | None, str | None]:
     surface = getattr(word, "word", None) or getattr(word, "normalized_word", None)
     if not pos:
         pos = lexicon_pos(surface) or None
-    if not gender and str(pos or "").lower() in {"noun", "nom", "n"}:
+    if not gender and str(pos or "").lower() in NOUN_TAGS:
         gender = lexicon_gender(surface)
     return pos, gender
 
 
+@lru_cache(maxsize=1)
+def pluralia_tantum() -> frozenset[str]:
+    """The lemmas of the nouns used in the plural only (folded)."""
+
+    try:
+        payload = json.loads(PLURALIA_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):  # pragma: no cover - a missing file marks nothing
+        return frozenset()
+    return frozenset(_fold(lemma) for lemma in payload.get("lemmas") or [])
+
+
+def word_number(word: Any) -> str | None:
+    """``"pl"`` for a French noun used in the plural only, else ``None``.
+
+    Never read off a final -s or -x (le bras, le prix, le temps): only the curated
+    list (:data:`PLURALIA_PATH`) says a noun is plural. A row that is not a noun
+    (``frais`` the adjective) has no number."""
+
+    language = str(getattr(word, "language", None) or "fr").lower()
+    if language != "fr":
+        return None
+    pos, _gender = word_grammar(word)
+    if str(pos or "").lower() not in NOUN_TAGS:
+        return None
+    surface = getattr(word, "word", None) or getattr(word, "normalized_word", None)
+    return "pl" if lemma_key(surface) in pluralia_tantum() else None
+
+
 __all__ = [
+    "PLURALIA_PATH",
     "lemma_key",
     "lexicon_entry",
     "lexicon_gender",
     "lexicon_grammar_table",
     "lexicon_pos",
+    "pluralia_tantum",
     "word_grammar",
+    "word_number",
 ]

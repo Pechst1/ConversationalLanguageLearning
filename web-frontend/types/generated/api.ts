@@ -7690,6 +7690,8 @@ export interface components {
             example_translation?: string | null;
             /** Gender */
             gender?: string | null;
+            /** Number */
+            number?: string | null;
             /** Part Of Speech */
             part_of_speech?: string | null;
             /** Stamps */
@@ -16062,6 +16064,8 @@ export interface components {
             leech?: boolean;
             /** Next Review */
             next_review?: string | null;
+            /** Number */
+            number?: string | null;
             /** Part Of Speech */
             part_of_speech?: string | null;
             /** Phase */
@@ -16183,6 +16187,8 @@ export interface components {
             language: string;
             /** Normalized Word */
             normalized_word: string;
+            /** Number */
+            number?: string | null;
             /** Part Of Speech */
             part_of_speech?: string | null;
             /** Topic Tags */

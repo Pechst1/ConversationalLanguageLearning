@@ -1166,18 +1166,21 @@ def _with_word_grammar(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
         .filter(VocabularyWord.id.in_(ids))
         .all()
     )
-    from app.services.lexicon_grammar import word_grammar
+    from app.services.lexicon_grammar import word_grammar, word_number
 
-    # WP-84: the core lexicon fills what the card lacks, so every noun shows le / la.
+    # WP-84: the core lexicon fills what the card lacks, so every noun shows le / la
+    # (and «les» on a noun used in the plural only).
     grammar = {int(row.id): word_grammar(row) for row in rows}
+    numbers = {int(row.id): word_number(row) for row in rows}
     words = []
     for entry in payload.get("words") or []:
         if isinstance(entry, dict):
             try:
-                pos, gender = grammar.get(int(entry.get("word_id") or 0), (None, None))
+                key = int(entry.get("word_id") or 0)
             except (TypeError, ValueError):
-                pos, gender = None, None
-            entry = {**entry, "part_of_speech": pos, "gender": gender}
+                key = 0
+            pos, gender = grammar.get(key, (None, None))
+            entry = {**entry, "part_of_speech": pos, "gender": gender, "number": numbers.get(key)}
         words.append(entry)
     return {**payload, "words": words}
 

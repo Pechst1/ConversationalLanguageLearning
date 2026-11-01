@@ -377,6 +377,9 @@ class VocabularyRecommendationItem(BaseModel):
     # Stored noun gender ("m" / "f"), or None when the catalogue does not know
     # it. The Lexique draws it as a shape (WP-D6); nothing is guessed here.
     gender: str | None = None
+    #: "pl" for a noun used in the plural only («les gens»), else None — read from
+    #: app/data/lexical/fr_pluralia_tantum.json, never guessed from a final -s.
+    number: str | None = None
     topic_tags: list[str] = Field(default_factory=list)
     # The server already resolves which gloss this learner should read
     # (app/services/glosses.py). The response model used to drop those two

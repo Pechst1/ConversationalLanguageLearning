@@ -16,6 +16,8 @@ class VocabularyWordRead(BaseModel):
     normalized_word: str
     part_of_speech: str | None = None
     gender: str | None = None
+    #: "pl" for a noun used in the plural only («les gens»); see lexicon_grammar.word_number.
+    number: str | None = None
     frequency_rank: int | None = None
     english_translation: str | None = None
     definition: str | None = None
@@ -40,9 +42,10 @@ class VocabularyWordRead(BaseModel):
     def _lexicon_grammar(self) -> VocabularyWordRead:
         # WP-84: a French noun with no stored gender reads it from the core
         # lexicon, so every Lexique noun and the word sheet show le / la.
-        from app.services.lexicon_grammar import word_grammar
+        from app.services.lexicon_grammar import word_grammar, word_number
 
         self.part_of_speech, self.gender = word_grammar(self)
+        self.number = word_number(self)
         return self
 
 
@@ -150,6 +153,7 @@ class DailyWordEntry(BaseModel):
     # day's persisted slate), so a gender backfill shows the same day. WP-D6.
     part_of_speech: str | None = None
     gender: str | None = None
+    number: str | None = None
     stamps: dict[str, str | None] = Field(default_factory=dict)
     triple: bool = False
 

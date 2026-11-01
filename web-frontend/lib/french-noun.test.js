@@ -48,3 +48,48 @@ test('the word token draws the same article (one rule)', () => {
   assert.equal(wordToken.articleFor, articleFor);
   assert.equal(wordToken.wordTokenModel({ word: 'yaourt', gender: 'm' }).article, 'le');
 });
+
+// Codex review on #465: «le gens», «la vacances». A noun used in the plural only takes
+// «les»; the server says which (`number: "pl"`, app/data/lexical/fr_pluralia_tantum.json).
+const fs = require('node:fs');
+const path = require('node:path');
+const DATA = path.join(__dirname, '..', '..', 'app', 'data', 'lexical');
+const LEXICON = JSON.parse(fs.readFileSync(path.join(DATA, 'fr_core_lexicon.json'), 'utf8')).lemmas;
+const PLURALIA = new Set(JSON.parse(fs.readFileSync(path.join(DATA, 'fr_pluralia_tantum.json'), 'utf8')).lemmas);
+
+test('«gens» and «vacances», as the catalogue has them, take «les»', () => {
+  for (const lemma of ['gens', 'vacances']) {
+    const entry = LEXICON[lemma];
+    assert.equal(entry.pos, 'noun');
+    const shown = frenchHeadword({ word: lemma, gender: entry.gender, partOfSpeech: entry.pos, number: 'pl' });
+    assert.equal(shown, `les ${lemma}`);
+    assert.equal(articleFor(lemma, entry.gender, 'pl'), 'les');
+    assert.equal(wordToken.wordTokenModel({ word: lemma, gender: entry.gender, number: 'pl' }).article, 'les');
+  }
+  // A written «les» is kept, never doubled.
+  assert.equal(frenchHeadword({ word: 'les vacances', gender: 'f', partOfSpeech: 'noun', number: 'pl' }), 'les vacances');
+});
+
+test('no noun of the lexicon used in the plural only gets le, la or l’', () => {
+  let swept = 0;
+  for (const [lemma, entry] of Object.entries(LEXICON)) {
+    if (entry.pos !== 'noun') continue;
+    // The server's number for this lemma (lexicon_grammar.word_number reads the same file).
+    const number = PLURALIA.has(lemma) ? 'pl' : null;
+    const shown = frenchHeadword({ word: lemma, gender: entry.gender, partOfSpeech: 'noun', number });
+    if (PLURALIA.has(lemma)) {
+      swept += 1;
+      assert.equal(shown, `les ${lemma}`, lemma);
+      assert.doesNotMatch(shown, /^(le |la |l’)/, lemma);
+    } else {
+      assert.doesNotMatch(shown, /^les /, lemma);
+    }
+  }
+  assert.ok(swept >= 2, `${swept} plural-only nouns swept`);
+});
+
+test('a final -s or -x says nothing: le bras, le prix, le temps', () => {
+  for (const lemma of ['bras', 'prix', 'temps']) {
+    assert.equal(frenchHeadword({ word: lemma, gender: LEXICON[lemma].gender, partOfSpeech: 'noun' }), `le ${lemma}`);
+  }
+});

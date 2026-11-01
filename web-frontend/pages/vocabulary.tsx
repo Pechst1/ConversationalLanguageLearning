@@ -701,6 +701,7 @@ function LxWordRow({
   stateLabel,
   gender,
   partOfSpeech,
+  number,
   onSelect,
 }: {
   word: string;
@@ -709,13 +710,15 @@ function LxWordRow({
   stateLabel: string;
   gender?: string | null;
   partOfSpeech?: string | null;
+  /** 'pl' for a noun used in the plural only: «les» in the token. */
+  number?: string | null;
   onSelect: () => void;
 }) {
   const bars = stateBars(state);
   const shape = stateShape(state);
   return (
     <button type="button" className="lx-row" onClick={onSelect} role="listitem">
-      <WordToken word={word} gender={gender} partOfSpeech={partOfSpeech} state={state} />
+      <WordToken word={word} gender={gender} partOfSpeech={partOfSpeech} number={number} state={state} />
       <span className="lx-row__main">
         <span className="lx-row__title">{word}</span>
         <span className="lx-row__meta">{meta}</span>
@@ -1271,6 +1274,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
                 // gender would describe a word that is not on the row.
                 gender={item.direction === 'de_to_fr' ? null : item.gender}
                 partOfSpeech={item.direction === 'de_to_fr' ? null : item.part_of_speech}
+                number={item.direction === 'de_to_fr' ? null : item.number}
                 onSelect={() => openDetail({ kind: 'queue', item })}
               />
             );
@@ -1321,6 +1325,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
                 stateLabel={st.label}
                 gender={item.gender}
                 partOfSpeech={item.part_of_speech}
+                number={item.number}
                 onSelect={() => openDetail({ kind: 'deck', item })}
               />
             );

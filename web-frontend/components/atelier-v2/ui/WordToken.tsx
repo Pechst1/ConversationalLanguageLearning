@@ -15,6 +15,8 @@ import { wordTokenModel } from '@/lib/word-token';
 export type WordTokenProps = {
   word: string;
   gender?: string | null;
+  /** 'pl' for a noun used in the plural only: its article is «les». */
+  number?: string | null;
   partOfSpeech?: string | null;
   /** Any learner-state key: new / learning / mastered / holding / due… */
   state?: string | null;
@@ -22,8 +24,8 @@ export type WordTokenProps = {
   className?: string;
 };
 
-export function WordToken({ word, gender, partOfSpeech, state, size = 'md', className }: WordTokenProps) {
-  const model = wordTokenModel({ word, gender, partOfSpeech, state });
+export function WordToken({ word, gender, partOfSpeech, number, state, size = 'md', className }: WordTokenProps) {
+  const model = wordTokenModel({ word, gender, partOfSpeech, number, state });
   const classes = ['av2-word-token', size !== 'md' ? `av2-word-token--${size}` : null, className]
     .filter(Boolean)
     .join(' ');

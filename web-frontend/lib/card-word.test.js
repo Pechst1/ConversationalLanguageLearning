@@ -87,3 +87,11 @@ test('no surface of the review deck renders the bare lemma', () => {
   // The deck's last line names the last word with its article too.
   assert.match(source, /const word = lastItem \? shownFrench\(lastItem\)/);
 });
+
+test('a card of a noun used in the plural only shows «les»', () => {
+  const item = { word: 'vacances', gender: 'f', part_of_speech: 'noun', number: 'pl', translation: 'Ferien', direction: 'de_to_fr' };
+  assert.equal(shownFrench(item), 'les vacances');
+  const { answer, expected } = cardTexts({ item, mode: 'production', cue: null, listenPrompt: '' });
+  assert.equal(answer, 'les vacances');
+  assert.equal(expected, 'vacances');
+});

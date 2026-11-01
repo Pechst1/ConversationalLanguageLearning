@@ -68,21 +68,24 @@ export function wordTokenModel({
   word,
   gender,
   partOfSpeech,
+  number,
   state,
 }: {
   word: string;
   gender?: string | null;
   partOfSpeech?: string | null;
+  /** The server's number: 'pl' for a noun used in the plural only («les gens»). */
+  number?: string | null;
   state?: string | null;
 }): WordTokenModel {
   const tone = wordTokenTone(state);
-  const initial = String(word || '').trim().replace(/^(l['’]|la\s+|le\s+)/i, '').charAt(0).toUpperCase() || '·';
+  const initial = String(word || '').trim().replace(/^(l['’]|la\s+|les\s+|le\s+)/i, '').charAt(0).toUpperCase() || '·';
   const known = normalizeGender(gender);
   if (known) {
     return {
       shape: known === 'f' ? 'feminine' : 'masculine',
       tone,
-      article: articleFor(word, known),
+      article: articleFor(word, known, number),
       label: known === 'f' ? 'féminin' : 'masculin',
       initial,
     };

@@ -9,7 +9,12 @@
  * noun the catalogue has no gender for — and an epicene one («l’artiste»,
  * «dentiste»), which has no one article — is shown as it is.
  *
- * `articleFor` (the token's la / le / l’, `lib/word-token.ts`) is this module's rule.
+ * A noun used in the plural only («les gens», «les vacances») takes «les»: the server
+ * says so (`number: "pl"`, from `app/data/lexical/fr_pluralia_tantum.json`, read by
+ * `app/services/lexicon_grammar.py`). A final -s or -x says nothing (le bras, le prix,
+ * le temps), so nothing here reads one.
+ *
+ * `articleFor` (the token's la / le / l’ / les, `lib/word-token.ts`) is this module's rule.
  */
 
 export type NounGender = 'f' | 'm';
@@ -49,9 +54,15 @@ function elides(text: string): boolean {
   return first === 'h' && !H_ASPIRE.has(text.split(/\s/)[0]);
 }
 
-/** la / le / l’ for a gendered noun. A written article on the entry wins. */
-export function articleFor(word: string, gender: NounGender): string {
+/** The server's number for a noun: 'pl' for one used in the plural only. */
+export function isPluralOnly(number?: string | null): boolean {
+  return String(number || '').trim().toLowerCase() === 'pl';
+}
+
+/** la / le / l’ for a gendered noun, les for one used in the plural only. A written article wins. */
+export function articleFor(word: string, gender: NounGender | null, number?: string | null): string {
   const text = String(word || '').trim().toLowerCase().replace(/'/g, '’');
+  if (/^les\s/.test(text) || isPluralOnly(number)) return 'les';
   if (/^l’/.test(text)) return 'l’';
   if (/^la\s/.test(text)) return 'la';
   if (/^le\s/.test(text)) return 'le';
@@ -68,24 +79,28 @@ export function genderNote(gender: NounGender): string {
 
 /**
  * The French word as a card shows it: a noun with a known gender carries its
- * article (and, after «l’», its gender); anything else is shown as it is.
+ * article (and, after «l’», its gender), a noun used in the plural only «les»;
+ * anything else is shown as it is.
  */
 export function frenchHeadword({
   word,
   gender,
   partOfSpeech,
+  number,
 }: {
   word?: string | null;
   gender?: string | null;
   partOfSpeech?: string | null;
+  number?: string | null;
 }): string {
   const text = String(word || '').trim();
   const known = normalizeGender(gender);
-  if (!text || !known) return text;
   const pos = String(partOfSpeech || '').trim().toLowerCase();
-  // The server only gives a gender to a noun; a stored part of speech that says
-  // otherwise («verb» on an imported row) wins.
-  if (pos && !NOUN_TAGS.has(pos)) return text;
+  // The server only gives a gender or a number to a noun; a stored part of speech
+  // that says otherwise («verb» on an imported row) wins.
+  if (!text || (pos && !NOUN_TAGS.has(pos))) return text;
+  if (isPluralOnly(number)) return WRITTEN_ARTICLE.test(text) ? text : `les ${text}`;
+  if (!known) return text;
   const written = WRITTEN_ARTICLE.exec(text);
   if (written) {
     return /^l[’']/i.test(written[1]) ? `${text.replace(/^l'/i, 'l’')} ${genderNote(known)}` : text;

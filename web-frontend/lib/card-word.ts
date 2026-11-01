@@ -20,6 +20,8 @@ export type CardWordItem = {
   direction?: string | null;
   gender?: string | null;
   part_of_speech?: string | null;
+  /** 'pl' for a noun used in the plural only («les gens»). */
+  number?: string | null;
   translation?: string | null;
   translations?: Record<string, string | null | undefined> | null;
 };
@@ -41,7 +43,12 @@ export function bareFrench(item: CardWordItem): string {
 
 /** The card's French as the learner reads it: a noun with its article. */
 export function shownFrench(item: CardWordItem): string {
-  return frenchHeadword({ word: bareFrench(item), gender: item.gender, partOfSpeech: item.part_of_speech });
+  return frenchHeadword({
+    word: bareFrench(item),
+    gender: item.gender,
+    partOfSpeech: item.part_of_speech,
+    number: item.number,
+  });
 }
 
 /** The meaning in the learner's language. */
