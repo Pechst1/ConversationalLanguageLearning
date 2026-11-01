@@ -13,14 +13,14 @@ import { daySessionCopy } from '@/lib/day-session';
 
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
+  cardMode,
   gradedFormat,
   ladderCue,
   deckProgress,
-  ladderRung,
   lineAnswer,
+  lineMeaning,
   linePrompt,
   matchesLineForm,
-  type CardMode,
 } from '@/components/lexique/recall-ladder';
 import {
   EMPTY_PROGRESS,
@@ -79,7 +79,7 @@ import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
 import { markWordsDoneToday } from '@/lib/continue-learning';
-import { cardContextText, cardExample } from '@/lib/card-example';
+import { cardContextText, cardExample, cardFaces, type MarkedExample } from '@/lib/card-example';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -97,7 +97,7 @@ import { cardContextText, cardExample } from '@/lib/card-example';
  * recognition card: the four FSRS grades (Encore 0 · Dur 1 · Bien 2 · Facile 3)
  * — the pair carries 0 and 2, the two remaining grades sit under it as quiet
  * actions so the scale and the 1–4 keys are unchanged; the production, audio
- * and cloze modes with their field and microphone; the episodic anchor
+ * and line (scene, rescue) modes with their field and microphone; the episodic anchor
  * byline; the visual cue chip; the word biography; the offline cache note; the
  * end-of-deck continuation. */
 
@@ -381,44 +381,19 @@ function wordVisualCue(item: VocabularyRecommendationItem, language: string): Vi
   return visualCueFor(signal, hasSignal, language);
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function clozePrompt(item: VocabularyRecommendationItem) {
-  const french = queueFrench(item);
-  const example = queueExample(item);
-  if (!french || !example) return example;
-  const boundary = 'A-Za-z0-9À-ÖØ-öø-ÿ';
-  const pattern = new RegExp(`(^|[^${boundary}])(${escapeRegExp(french)})(?=$|[^${boundary}])`, 'i');
-  return example.replace(pattern, '$1_____');
-}
-
-// True only when the sentence actually loses the word. The example is often
-// inflected ("final" against "la séance finale"), and the un-blanked sentence
-// was printed as the prompt with the answer still in it.
-function clozeIsBlanked(item: VocabularyRecommendationItem) {
-  const prompt = clozePrompt(item);
-  return Boolean(prompt) && prompt.includes('_____');
-}
-
-/** WP-115b: the server's rung of the recall ladder, when it sent one. */
-function ladderOf(item: VocabularyRecommendationItem | null): CardMode | null {
-  return ladderRung(item as never, item ? clozeIsBlanked(item) : false);
-}
-
 function sceneOrRescueCue(item: VocabularyRecommendationItem | null) {
   return ladderCue(item as never);
 }
 
-function cardMode(item: VocabularyRecommendationItem | null): CardMode {
-  if (!item) return 'recognition';
-  const ladder = ladderOf(item);
-  if (ladder) return ladder;
-  if ((item.proficiency_score || 0) >= 90 && item.example_sentence && clozeIsBlanked(item)) return 'cloze';
-  if ((item.proficiency_score || 0) >= 72 && item.bucket !== 'new') return 'audio';
-  if ((item.proficiency_score || 0) >= 55 && item.bucket !== 'new') return 'production';
-  return 'recognition';
+/* The example with the card's word marked (lib/card-example.ts cuts it). */
+function MarkedSentence({ marked }: { marked: MarkedExample }) {
+  return (
+    <>
+      {marked.before}
+      {marked.word && <mark className="lx-card__mark">{marked.word}</mark>}
+      {marked.after}
+    </>
+  );
 }
 
 // Bucket keys are corrector internals; the card prints their name in the
@@ -1058,11 +1033,9 @@ export default function VocabularyReviewPage() {
       ? t.listen_prompt
       : mode === 'production'
       ? queueMeaning(current) || queueFrench(current)
-      : mode === 'cloze'
-        ? clozePrompt(current)
-        : mode === 'scene' || mode === 'rescue'
-          ? linePrompt(sceneOrRescueCue(current)) || queueMeaning(current) || queueFrench(current)
-          : queueWord(current)
+      : mode === 'scene' || mode === 'rescue'
+        ? linePrompt(sceneOrRescueCue(current)) || queueMeaning(current) || queueFrench(current)
+        : queueWord(current)
     : '';
   // Owner decision 2026-10-08: a line card is answered with the form in the line.
   const answer = current
@@ -1076,7 +1049,16 @@ export default function VocabularyReviewPage() {
   const example = current ? cardExample({ french, meaning, example: queueExample(current) }) : '';
   const exampleTranslation = current ? queueExampleTranslation(current) : '';
   const visualCue = current ? wordVisualCue(current, language) : null;
-  const visibleExample = mode === 'audio' ? '' : example;
+  // Owner decision 2026-11-01: the example travels with the card — on the front of a
+  // recognition card (word marked), on the back of every card with its translation.
+  const faces = cardFaces({
+    mode,
+    french,
+    meaning,
+    example,
+    exampleTranslation,
+    promptIsFrench: current ? !asksFromLearnerSide(current) : false,
+  });
   const contextText = cardContextText({ mode, meaning, example });
   const typedMatches =
     mode === 'scene' || mode === 'rescue'
@@ -1086,6 +1068,8 @@ export default function VocabularyReviewPage() {
   const hint = current ? cardHint(t, current) : '';
   // WP-115b: the ladder's own cue on the scene and rescue rungs.
   const ladderCue = sceneOrRescueCue(current);
+  // A blanked line also says what the word means (owner decision 2026-11-01).
+  const lineCue = lineMeaning(mode, ladderCue, meaning);
   const ladderHint =
     mode === 'scene'
       ? t.ladder_scene_hint
@@ -1313,10 +1297,21 @@ export default function VocabularyReviewPage() {
                           >
                             {prompt}
                           </p>
+                          {lineCue && <p className="lx-card__hint lx-card__meaning">{lineCue}</p>}
                           {ladderHint ? (
                             <p className="lx-card__hint" data-ladder={mode}>{ladderHint}</p>
                           ) : (
                             hint && <p className="lx-card__hint">{hint}</p>
+                          )}
+                          {faces.frontExample && (
+                            <p className="av2-fr lx-card__example lx-card__example--front" lang="fr">
+                              « <MarkedSentence marked={faces.frontExample} /> »
+                            </p>
+                          )}
+                          {faces.frontTranslation && (
+                            <p className="lx-card__example lx-card__example-tr lx-card__example--front">
+                              {faces.frontTranslation}
+                            </p>
                           )}
                           {mode !== 'recognition' && (
                             /* WP-115b: say it — a spoken answer is graded like a typed one. */
@@ -1380,13 +1375,15 @@ export default function VocabularyReviewPage() {
                   )}
 
                   <div className="lx-card__bottom">
-                    {revealed && visibleExample && (
+                    {revealed && faces.backExample && (
                       <p className="av2-fr lx-card__example">
-                        « {visibleExample} »
-                        {exampleTranslation && <span className="lx-card__example-tr">{exampleTranslation}</span>}
+                        « <MarkedSentence marked={faces.backExample} /> »
+                        {faces.backTranslation && (
+                          <span className="lx-card__example-tr">{faces.backTranslation}</span>
+                        )}
                       </p>
                     )}
-                    {revealed && contextText && contextText !== example && !visibleExample && (
+                    {revealed && contextText && contextText !== example && !faces.backExample && (
                       <p className="av2-fr lx-card__example review-context-anchor">« {contextText} »</p>
                     )}
                     {revealed && currentSlateEntry?.anchor && (
@@ -1590,6 +1587,14 @@ export default function VocabularyReviewPage() {
           overflow-wrap: anywhere;
         }
         .av2 .lx-card__example + .lx-card__example { margin-top: 8px; }
+        .av2 .lx-card__example--front { margin-top: 4px; }
+        .av2 .lx-card__mark {
+          background: none;
+          color: inherit;
+          font-weight: 700;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+        }
         .av2 .lx-card__example-tr {
           display: block;
           margin-top: 4px;

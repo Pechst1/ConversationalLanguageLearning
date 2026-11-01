@@ -72,11 +72,14 @@ def test_vocabulary_review_keeps_anki_flow_and_exposes_history() -> None:
     assert "reviewOptions.map" in source
 
 
-def test_vocabulary_review_cloze_and_audio_guards_are_unicode_safe() -> None:
+def test_vocabulary_review_example_and_audio_guards_are_unicode_safe() -> None:
     source = read_page(VOCABULARY_REVIEW_PAGE)
+    # Owner decision 2026-11-01: no cloze card; the word is marked in its example, by
+    # a Unicode-safe boundary (lib/card-example.ts).
+    example = read_page(ROOT / "web-frontend" / "lib" / "card-example.ts")
 
-    assert "const boundary = 'A-Za-z0-9À-ÖØ-öø-ÿ'" in source
-    assert "new RegExp(`(^|[^${boundary}])" in source
+    assert "const LETTER = 'A-Za-z0-9À-ÖØ-öø-ÿŒœ'" in example
+    assert "new RegExp(`(^|[^${LETTER}])" in example
     assert "recordingWordIdRef" in source
     assert "activeWordIdRef.current !== wordId" in source
     assert "cancelActiveRecording()" in source
@@ -190,7 +193,7 @@ def test_vocabulary_review_back_face_keeps_answer_content_visible() -> None:
     assert 'className="lx-card__middle review-answer-container"' in source
     # The back face is the yellow reward surface; the example sits on it.
     assert ".av2 .lx-card[data-face='back'] {" in source
-    assert "{revealed && visibleExample && (" in source
+    assert "{revealed && faces.backExample && (" in source
     assert "overflow-wrap: anywhere;" in source
 
 

@@ -7,7 +7,14 @@ the band deciding how long a learner stays on the receptive side (Terai et al. 2
 learners at lower levels gain more from recognising first; at B1 production pays sooner):
 
 ``recognition`` → ``production`` (the meaning → type the French) → ``audio`` (hear it →
-type it) → ``cloze`` (a new sentence, the word blanked).
+type it) → ``production`` again at the top.
+
+Owner decision 2026-11-01: the top rung used to be ``cloze`` (a new sentence with the
+word blanked), and those cards mostly did not work: the word was too hard to reach from
+the sentence alone. A well-held word is now translated (meaning → French) and the card
+carries its example sentence; the ladder never deals a ``cloze`` card. The drill's own
+fallback (``web-frontend/components/lexique/recall-ladder.ts``) mirrors
+:data:`THRESHOLDS` and :data:`RUNGS`, and a test holds the two together.
 
 Two rungs sit beside the ladder:
 
@@ -27,7 +34,7 @@ from typing import Any
 LEECH_LAPSES = 5
 #: Reviews after which a story word leaves its own scene for new contexts.
 SCENE_REVIEWS = 2
-#: Stability (days) at which a card moves up: production, audio, cloze.
+#: Stability (days) at which a card moves up a step; the step's format is in :data:`RUNGS`.
 THRESHOLDS: dict[str, tuple[float, float, float]] = {
     "A1": (5.0, 14.0, 30.0),
     "A2": (3.0, 10.0, 30.0),
@@ -35,6 +42,10 @@ THRESHOLDS: dict[str, tuple[float, float, float]] = {
     "B2": (1.0, 5.0, 14.0),
     "C1": (1.0, 4.0, 10.0),
 }
+#: The format from each threshold on. No step is ``cloze`` (owner decision 2026-11-01).
+RUNGS: tuple[str, str, str] = ("production", "audio", "production")
+#: Every format :func:`rung` can return.
+LADDER_RUNGS: frozenset[str] = frozenset({"recognition", *RUNGS})
 
 
 def _band(level: str | None) -> str:
@@ -176,20 +187,15 @@ def rung(
     reps: int | None,
     lapses: int | None,
     level: str | None,
-    has_example: bool,
 ) -> str:
-    """The ladder's rung for one card: recognition, production, audio or cloze."""
+    """The ladder's rung for one card: recognition, production or audio — never cloze."""
 
     if not reps:
         return "recognition"
-    production, audio, cloze = THRESHOLDS[_band(level)]
     held = float(stability or 0.0)
-    if held >= cloze and has_example:
-        return "cloze"
-    if held >= audio:
-        return "audio"
-    if held >= production:
-        return "production"
+    for threshold, step in reversed(tuple(zip(THRESHOLDS[_band(level)], RUNGS, strict=True))):
+        if held >= threshold:
+            return step
     return "recognition"
 
 
@@ -210,9 +216,7 @@ def card_ladder(progress: Any, word: Any, *, level: str | None) -> dict[str, Any
     lemma = str(getattr(word, "word", "") or "")
     example_blank = blank_word(str(getattr(word, "example_sentence", "") or ""), lemma)
     out: dict[str, Any] = {
-        "ladder": rung(
-            stability=progress.stability, reps=reps, lapses=lapses, level=level, has_example=bool(example_blank)
-        ),
+        "ladder": rung(stability=progress.stability, reps=reps, lapses=lapses, level=level),
         "scene_cue": None,
         "leech": leech,
         "rescue_cue": None,
