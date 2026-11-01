@@ -41,6 +41,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.services.cast_aliases import ALIASES
 from app.services.cast_roles import role_of
 from app.services.cast_voices import CAST_VOICES
 
@@ -86,19 +87,8 @@ _FIRST_APPEARANCE: dict[str, tuple[int, str]] = {
     "odile_ferrand": (4, "b"),
     "maitre_vasseur": (6, "b"),
 }
-#: Ids a scene uses for the same person.
-_ALIASES: dict[str, str] = {
-    "odile": "odile_ferrand",
-    "marchand": "landlord_marchand",
-    "landlord": "landlord_marchand",
-    "gus": "augustin_de_roncourt",
-    "augustin": "augustin_de_roncourt",
-    "marin": "marin_leveque",
-    "lila": "lila_bonnet",
-    "margaux": "margaux_barman",
-    "romy": "romy_tremblay",
-    "camille": "camille_marchand",
-}
+#: Ids a scene uses for the same person: ``cast_aliases``, which ``cast_voices`` reads too.
+_ALIASES: dict[str, str] = ALIASES
 #: A person whose gender the learner picks: the season flag that holds the choice.
 GENDER_FLAGS: dict[str, str] = {"camille_marchand": "s1.camille_gender"}
 #: Ids in a scene that are not a person with a face: the learner, the narration

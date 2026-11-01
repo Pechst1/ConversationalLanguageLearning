@@ -47,6 +47,7 @@ import hashlib
 import re
 from dataclasses import dataclass
 
+from app.services.cast_aliases import ALIASES
 from app.services.cast_roles import role_of
 
 #: The id narration lines carry, in the episode manifest and in the cache.
@@ -70,14 +71,11 @@ CAST_VOICES: dict[str, str] = {
 #: falls back to the id's first token, so ``marin`` and ``marin_leveque`` are
 #: one voice.
 CAST_ALIASES: dict[str, str] = {
-    "romy": "romy_tremblay",
-    "marin": "marin_leveque",
-    "lila": "lila_bonnet",
-    "augustin": "augustin_de_roncourt",
-    "gus": "augustin_de_roncourt",
-    "margaux": "margaux_barman",
-    "marchand": "landlord_marchand",
-    "landlord": "landlord_marchand",
+    # #147: the registry's alias table (``cast_aliases``), narrowed to the people who have a
+    # pinned voice, not a second list to keep in step.
+    alias: cast_id
+    for alias, cast_id in ALIASES.items()
+    if cast_id in CAST_VOICES
 }
 
 #: The learner's own line in a script («toi»), when one is ever spoken.
