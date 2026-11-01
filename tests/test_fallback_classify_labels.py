@@ -195,3 +195,230 @@ def test_a_set_stored_before_the_fix_is_still_shown_in_the_learners_language() -
     assert table["fr"]["different grammar role"] and table["fr"]["Pronoun choice"]
     assert table["de"]["different grammar role"] != "different grammar role"
     assert table["fr"]["Pronoun choice"] != "Pronoun choice"
+
+
+# --------------------------------------------------------------------------- #
+# #447 / #448 / #146: the fallback pools are drawn from the day's concept
+# --------------------------------------------------------------------------- #
+#
+# Walk 2026-11-01 (b1-fr-chrome): «Pour, sans, avant de + infinitif» was served
+# «Il habite à cette rue» → «dans» (a place preposition), «Deux pronoms ensemble»
+# was served single-pronoun swaps, and both sets offered «prêters», «encores»,
+# «peuxs», «J'économises» and a fixed «autrement». The rows were filed by the
+# concept's *family* («preposition», «pronoun_choice»), and the wrong options were
+# `token + "s"`. A row now serves a concept only when the concept's own detector
+# recognises its form in it, and a wrong option is a real French word.
+
+
+def _detector(concept: GrammarConcept) -> list[str]:
+    from app.services.grammar_units import regex_patterns, unit_detectors
+
+    return regex_patterns(unit_detectors(concept))
+
+
+def _spans(concept: GrammarConcept, sentence: str) -> list[tuple[int, int]]:
+    from app.services.grammar_units import detector_spans
+
+    return detector_spans(_detector(concept), sentence)
+
+
+def _authored_words(concept: GrammarConcept, generator: AtelierExerciseGenerator) -> set[str]:
+    """Every word of the sentences the concept authors, folded (whole and in pieces)."""
+
+    import re
+
+    from app.services.grammar_units import contrast_pairs
+    from app.services.lexical_coverage import fold
+
+    sentences = [
+        *re.split(r"\s*[;|]\s*", concept.anchor_examples or ""),
+        *generator._fallback_sentences(concept),
+    ]
+    for pair in contrast_pairs(concept):
+        sentences.extend([pair["wrong"], pair["right"]])
+    words: set[str] = set()
+    for sentence in sentences:
+        for token in re.findall(r"[^\W\d_]+(?:['’-][^\W\d_]+)*", sentence):
+            words.add(fold(token))
+            words.update(fold(piece) for piece in re.findall(r"[^\W\d_]+", token))
+    return words
+
+
+def _is_french(word: str, authored: set[str]) -> bool:
+    from app.services.lexical_coverage import fold, load_lexicon, tokenize
+
+    if not any(char.isalpha() for char in word):
+        return True
+    if fold(word) in authored:
+        return True
+    lexicon = load_lexicon()
+    keys = [token.key for token in tokenize(word)]
+    return bool(keys) and all(key in lexicon.lemmas or key in lexicon.forms or key in lexicon.atomic for key in keys)
+
+
+def test_the_guard_walks_every_unit_of_the_seed() -> None:
+    concepts = _unit_concepts()
+    assert len(concepts) > 150
+    assert all(_detector(concept) for concept in concepts), "every seeded unit has a detector to be held to"
+
+
+def test_no_fallback_option_or_tile_is_an_invented_form() -> None:
+    """«prêters», «encores», «peuxs», «J'économises»: a word bank's tiles and a fill's
+    choices are words of the concept's sentences or words the lexicon knows."""
+
+    generator = AtelierExerciseGenerator(None)
+    invented: list[str] = []
+    autrement = 0
+    for concept in _unit_concepts():
+        authored = _authored_words(concept, generator)
+        sentences = generator._fallback_sentences(concept)
+        for item in generator._fallback_word_bank_items(concept, sentences, prefix="t"):
+            for tile in item["tokens"]:
+                autrement += tile.lower() == "autrement" and "autrement" not in authored
+                if not _is_french(tile, authored):
+                    invented.append(f"{concept.external_id} tile {tile!r}")
+        for item in generator._fallback_fill_items(concept, prefix="t"):
+            for choice in item["choices"]:
+                autrement += choice.lower() == "autrement" and "autrement" not in authored
+                if not _is_french(choice, authored):
+                    invented.append(f"{concept.external_id} choice {choice!r}")
+    assert invented == [], f"{len(invented)} invented forms, e.g. " + "; ".join(invented[:8])
+    assert autrement == 0, "«autrement» is not a distractor every bank may carry"
+
+
+def test_the_two_walked_units_offer_no_invented_form() -> None:
+    generator = AtelierExerciseGenerator(None)
+    by_id = {concept.external_id: concept for concept in _unit_concepts()}
+    offered: set[str] = set()
+    for external_id in ("FR2_B11_DOUBLE_PRONOUNS", "FR2_B11_PREP_INFINITIVE"):
+        concept = by_id[external_id]
+        for item in generator._fallback_word_bank_items(concept, generator._fallback_sentences(concept), prefix="t"):
+            offered.update(item["tokens"])
+        for item in generator._fallback_fill_items(concept, prefix="t"):
+            offered.update(item["choices"])
+    for invented in ("prêters", "encores", "peuxs", "J'économises", "dossiers", "Lave-tois", "autrement"):
+        assert invented not in offered, invented
+
+
+def test_a_fill_blank_is_a_word_the_rule_decides() -> None:
+    """The blank sits inside the span the concept's detector recognises in the finished
+    sentence: it is a word today's rule decides, not the first word of four letters."""
+
+    import re
+
+    generator = AtelierExerciseGenerator(None)
+    off_rule: list[str] = []
+    for concept in _unit_concepts():
+        items = generator._fallback_fill_items(concept, prefix="t")
+        assert len(items) == 3, (concept.external_id, [item["prompt"] for item in items])
+        for item in items:
+            blank = re.search(r"_{2,}", item["prompt"])
+            assert blank, item
+            answer = item["correct_answer"]
+            assert answer in item["choices"] and len(set(item["choices"])) == len(item["choices"]) >= 3, item
+            filled = item["prompt"][: blank.start()] + answer + item["prompt"][blank.end():]
+            covered = any(
+                blank.start() < end and start < blank.start() + len(answer) for start, end in _spans(concept, filled)
+            )
+            if not covered:
+                off_rule.append(f"{concept.external_id}: {item['prompt']!r} -> {answer!r}")
+                continue
+    assert off_rule == [], f"{len(off_rule)} blanks off the rule, e.g. " + "; ".join(off_rule[:6])
+
+
+def test_a_wrong_option_in_the_two_walked_units_breaks_the_rule() -> None:
+    """«Tu peux me la prêter» is as right as «me le»: a wrong option must be a word that
+    makes the detector lose the form in the blank, and a real one."""
+
+    import re
+
+    generator = AtelierExerciseGenerator(None)
+    by_id = {concept.external_id: concept for concept in _unit_concepts()}
+    for external_id in ("FR2_B11_DOUBLE_PRONOUNS", "FR2_B11_PREP_INFINITIVE"):
+        concept = by_id[external_id]
+        for item in generator._fallback_fill_items(concept, prefix="t"):
+            blank = re.search(r"_{2,}", item["prompt"])
+            assert blank, item
+            for choice in item["choices"]:
+                if choice == item["correct_answer"]:
+                    continue
+                other = item["prompt"][: blank.start()] + choice + item["prompt"][blank.end():]
+                shown = any(
+                    blank.start() < end and start < blank.start() + len(choice) for start, end in _spans(concept, other)
+                )
+                assert not shown, (external_id, other)
+
+
+def test_every_fallback_transform_row_practises_the_concept_it_is_filed_under() -> None:
+    """A row is filed under a concept only when the concept's detector recognises the
+    form in it (its answer, or its source for a unit whose detector flags the slip): no place-preposition rows under «Pour, sans, avant de», no
+    single-pronoun swaps under «Deux pronoms ensemble»."""
+
+    generator = AtelierExerciseGenerator(None)
+    misfiled: list[str] = []
+    for concept in _unit_concepts():
+        items = generator._fallback_transform_items(concept, generator._fallback_sentences(concept), prefix="t")
+        # The validator takes one item or three, never the same correction twice.
+        assert len(items) in {1, 3}, (concept.external_id, items)
+        assert len({item["source"] for item in items}) == len(items), (concept.external_id, items)
+        for item in items:
+            # A register unit («ne» dropped) has its detector on the ✗ side of a pair.
+            if not (_spans(concept, item["expected_answer"]) or _spans(concept, item["source"])):
+                misfiled.append(f"{concept.external_id}: {item['source']!r} -> {item['expected_answer']!r}")
+    assert misfiled == [], f"{len(misfiled)} misfiled rows, e.g. " + "; ".join(misfiled[:6])
+
+
+def test_the_two_walked_units_get_no_off_rule_rewrite() -> None:
+    generator = AtelierExerciseGenerator(None)
+    by_id = {concept.external_id: concept for concept in _unit_concepts()}
+    prep = generator._fallback_transform_items(by_id["FR2_B11_PREP_INFINITIVE"], [], prefix="t")
+    assert not {"Il habite dans cette rue.", "Je vais chez Marie.", "Nous parlons de ce projet."} & {
+        item["expected_answer"] for item in prep
+    }
+    pronouns = generator._fallback_transform_items(by_id["FR2_B11_DOUBLE_PRONOUNS"], [], prefix="t")
+    assert not {"Je le vois demain.", "Nous lui parlons ce soir.", "Elle en prend deux."} & {
+        item["expected_answer"] for item in pronouns
+    }
+
+
+def test_a_rewrite_of_a_correct_sentence_is_not_called_correct_the_error() -> None:
+    """«Corrige l'erreur dans la phrase» is the goal of a repair. A directed or a contrast
+    rewrite starts from a right sentence: it has no error to correct."""
+
+    rows = {
+        "directed_rewrite": ("Je bois du café.", "Je ne bois pas de café."),
+        "contrast_rewrite": ("C'est du café.", "Ce n'est pas du café."),
+        "repair_rewrite": ("Elle n'a pas une idée.", "Elle n'a pas d'idée."),
+    }
+    for language, repair_goal in (("fr", "Corrige l’erreur dans la phrase."), ("de", "Korrigiere den Fehler im Satz.")):
+        goals = {
+            kind: ib.with_goal({"id": kind, "type": kind, "source": source, "expected_answer": answer}, language).get(
+                "goal_native"
+            )
+            for kind, (source, answer) in rows.items()
+        }
+        assert goals["repair_rewrite"] == repair_goal, (language, goals)
+        assert goals["directed_rewrite"] != repair_goal, (language, goals)
+        assert goals["contrast_rewrite"] != repair_goal, (language, goals)
+
+
+def test_a_filled_sentence_never_keeps_a_blank_underscore() -> None:
+    """The end sheet printed «Tu peux_ me le prêter demain ?»: the blank is four
+    underscores and the sheet replaced three."""
+
+    from types import SimpleNamespace
+
+    from app.services.atelier import AtelierSRSService
+
+    for blank in ("___", "____", "_____"):
+        item = {"id": "f", "prompt": f"Tu {blank} me le prêter demain ?", "choices": ["peux", "veux"], "correct_answer": "peux"}
+        attempt = SimpleNamespace(
+            correction_payload={},
+            verdict="correct",
+            prompt_payload={"items": [item]},
+            answer_payload={"answers": {"f": "peux"}},
+            round="recognize",
+            mode="fill",
+        )
+        proof = AtelierSRSService._forge_proof_line(attempt)
+        assert proof is not None and proof[0] == "Tu peux me le prêter demain ?", (blank, proof)
