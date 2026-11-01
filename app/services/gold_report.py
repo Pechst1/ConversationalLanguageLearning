@@ -12,6 +12,11 @@ and §5 the Monte Carlo medians the shadow data has to confirm or replace:
 * the ledger's own health: pending entries still waiting for a relecture,
   pulped entries by reason, milestones by kind.
 
+A learner-day is a day with a ledger entry, or a practised streak day (the
+day's journey or a séance finished) since the learner's first ledger day: a
+finished day that earned nothing counts, at 0, so the medians and shares see
+the days that paid nothing as well as the days that paid.
+
 Pure reads; nothing here writes. The nightly task stores the result as a
 ``gold_shadow_report`` pilot event, and ``GET /analytics/pilot-gold`` returns it
 live for the owner.
@@ -25,10 +30,12 @@ from datetime import UTC, date, datetime, timedelta
 from statistics import mean, median
 from typing import Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core import gold as core
 from app.db.models.gold import GoldLedgerEntry
+from app.db.models.streak_day import STREAK_DAY_PRACTISED, StreakDay
 from app.db.models.user import User
 
 #: How long a pending entry may wait for its relecture before the report names it.
@@ -88,6 +95,36 @@ def _delayed(breakdown: dict[str, Any]) -> bool:
     return any(str(factor.get("name")) == "rappel_differe" for factor in breakdown.get("factors") or [])
 
 
+def _iso_week(local: date) -> str:
+    year, week, _weekday = local.isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def _practised_days(db: Session, *, since: date) -> list[tuple[Any, date]]:
+    """Practised streak days in the window, from each learner's first ledger day on.
+
+    Before it the ledger was not recording that learner (it had just been switched
+    on), so a day there paid nothing for want of a ledger, not of an answer.
+    """
+
+    first_days = {
+        str(user_id): first
+        for user_id, first in db.query(GoldLedgerEntry.user_id, func.min(GoldLedgerEntry.local_date))
+        .group_by(GoldLedgerEntry.user_id)
+        .all()
+    }
+    rows = (
+        db.query(StreakDay.user_id, StreakDay.local_date)
+        .filter(StreakDay.kind == STREAK_DAY_PRACTISED, StreakDay.local_date > since)
+        .all()
+    )
+    return [
+        (user_id, local)
+        for user_id, local in rows
+        if first_days.get(str(user_id)) is not None and local >= first_days[str(user_id)]
+    ]
+
+
 def _rhythms(db: Session, user_ids: Iterable[Any]) -> dict[str, str]:
     from app.services.journey_rhythm import rhythm_for_minutes
 
@@ -99,13 +136,14 @@ def _rhythms(db: Session, user_ids: Iterable[Any]) -> dict[str, str]:
 
 
 def build_gold_report(db: Session, *, days: int = 14, now: datetime | None = None) -> dict[str, Any]:
-    """§18 over the last ``days`` local days, every learner with a ledger entry."""
+    """§18 over the last ``days`` local days, every learner-day (see the module)."""
 
     now = _aware(now) or datetime.now(UTC)
     days = max(1, min(int(days), 120))
     since = now.date() - timedelta(days=days)
     entries = db.query(GoldLedgerEntry).filter(GoldLedgerEntry.local_date > since).all()
-    rhythms = _rhythms(db, (entry.user_id for entry in entries))
+    practised = _practised_days(db, since=since)
+    rhythms = _rhythms(db, [entry.user_id for entry in entries] + [user_id for user_id, _local in practised])
 
     by_day: dict[tuple[str, date], _Day] = {}
     categories_amount: Counter = Counter()
@@ -163,6 +201,12 @@ def build_gold_report(db: Session, *, days: int = 14, now: datetime | None = Non
             elif entry.entry_kind == "bonus":
                 day.bonus += amount
                 sources_amount["bonus"] += amount
+    for raw_id, local in practised:
+        user_id = str(raw_id)
+        if (user_id, local) not in by_day:
+            by_day[(user_id, local)] = _Day(
+                user_id=user_id, local_date=local, week_id=_iso_week(local), rhythm=rhythms.get(user_id, "regulier")
+            )
 
     all_days = list(by_day.values())
     earn_total = sum(day.earn_settled + day.pending for day in all_days)

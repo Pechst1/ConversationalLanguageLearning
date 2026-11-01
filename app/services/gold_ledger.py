@@ -61,6 +61,8 @@ VOID_NOT_YET = "not_yet"
 VOID_UNREAD = "unread"
 VOID_WITHDRAWN = "withdrawn"
 VOID_INJECTION = "injection"
+#: A relecture's verdict pays, but the rule's best of the day is already paid (R1).
+VOID_ALREADY_PAID = "already_paid"
 
 #: §6: a timezone change moves the learner's gold day only once the new zone has
 #: been claimed this long, so a change of zone cannot reset the plafond.
@@ -1134,8 +1136,8 @@ def settle_forge_item(
     unread: bool,
     now: datetime | None = None,
 ) -> None:
-    """The relecture landed (R6): settle or void the pending entry, or mint the
-    settled one a provisional miss did not. Never raises."""
+    """The relecture landed (R6): settle or void the pending entry, revive an unread
+    one, or mint the settled one a provisional miss did not. Never raises."""
 
     if not ledger_on() or getattr(attempt, "concept_id", None) is None:
         return
@@ -1163,15 +1165,29 @@ def settle_forge_item(
                 reprise=bool(evidence.get("reprise")), below_level=bool(evidence.get("below_level")),
                 delayed=False, concept_id=attempt.concept_id,
             )
-            minted = core.resettle(dict(entry.breakdown or {}), observation)
+            if revivable:
+                # The day went on without the pulped entry: a later answer may have paid
+                # the rule (R1) or spent the plafond (R8). The revival reads the day as it
+                # stands now, so the rule's best is paid once and the plafond holds.
+                minted = core.mint(observation, _day_state(db, user_id=user.id, local_date=entry.local_date))
+            else:
+                # A pending entry was part of the day all along (later answers saw it).
+                minted = core.resettle(dict(entry.breakdown or {}), observation)
+            read = {**evidence, "outcome": outcome, "checked": True}
             if minted is None:
+                # The verdict pays, but no more than the day already paid the rule.
+                entry.evidence = read
                 if entry.state == core.STATE_PENDING:
-                    _void(db, entry, reason=VOID_NOT_YET, now=now)
+                    _void(db, entry, reason=VOID_ALREADY_PAID, now=now)
+                else:
+                    entry.voided_at, entry.void_reason = now, VOID_ALREADY_PAID
+                    db.add(entry)
+                    db.flush([entry])
                 return
             entry.state = core.STATE_SETTLED
             entry.amount = minted.amount
             entry.breakdown = {**minted.breakdown, "provisional_amount": int((entry.breakdown or {}).get("amount") or 0)}
-            entry.evidence = {**evidence, "outcome": outcome, "checked": True, "settled_by": "relecture"}
+            entry.evidence = {**read, "settled_by": "relecture"}
             entry.settled_at = now
             entry.voided_at = None
             entry.void_reason = None

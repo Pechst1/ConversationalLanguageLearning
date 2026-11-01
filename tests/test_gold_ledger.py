@@ -32,6 +32,7 @@ from app.db.models.daily_journey import DailyJourneyStep
 from app.db.models.gold import GoldBalance, GoldLedgerEntry
 from app.db.models.grammar import UserGrammarProgress
 from app.db.models.pilot_event import PilotEvent
+from app.db.models.streak_day import STREAK_DAY_PRACTISED, STREAK_DAY_RELACHE, StreakDay
 from app.db.models.user import User
 from app.services import gold_ledger, journey_capabilities
 from app.services.atelier import AtelierCorrectionService
@@ -658,6 +659,82 @@ def test_an_unread_answer_is_pulped_and_a_review_that_reads_it_revives_it(db_ses
     assert _balance(db_session, user.id) == 3
 
 
+def _pulped_unread(db: Session, user: User, concept_id: int) -> SimpleNamespace:
+    """A provisional guided sentence (pending 3) whose relecture nobody could read."""
+
+    attempt = _forge_attempt(concept_id, round_name="sentence")
+    gold_ledger.record_forge_item(
+        db, user=user, attempt=attempt, rung=int(Rung.PRODUCE), verdict=_forge_verdict(checked=False, local="correct"),
+        mode="seance", reprise=False, below_level=False, level_before=4, contact_before=None, now=NOW,
+    )
+    gold_ledger.settle_forge_item(
+        db, user=user, attempt=attempt, history_entry={"rung": int(Rung.PRODUCE)},
+        verdict=_forge_verdict(), unread=True, now=NOW + timedelta(minutes=1),
+    )
+    return attempt
+
+
+def _read_at_last(db: Session, user: User, attempt: SimpleNamespace, *, outcome: str = "correct") -> GoldLedgerEntry:
+    gold_ledger.settle_forge_item(
+        db, user=user, attempt=attempt, history_entry={"rung": int(Rung.PRODUCE)},
+        verdict=_forge_verdict(outcome), unread=False, now=NOW + timedelta(hours=1),
+    )
+    [entry] = [row for row in _forge_entries(db, user) if row.source_key == f"gold:forge:{attempt.id}"]
+    return entry
+
+
+@pytest.mark.parametrize(
+    ("meanwhile", "revived"),
+    [(Rung.PRODUCE, ("void", 3, "already_paid")), (Rung.TRANSFORM, ("settled", 1, None))],
+    ids=["meanwhile-the-same-form", "meanwhile-a-weaker-form"],
+)
+def test_a_revived_answer_is_priced_against_the_day_as_it_stands(
+    db_session: Session, meanwhile: Rung, revived: tuple[str, int, str | None]
+) -> None:
+    user = _user(db_session)
+    pulped = _pulped_unread(db_session, user, 4444)
+    gold_ledger.record_forge_item(  # the same rule again, while the first answer lies pulped
+        db_session, user=user, attempt=_forge_attempt(4444), rung=int(meanwhile), verdict=_forge_verdict(),
+        mode="seance", reprise=False, below_level=False, level_before=4, contact_before=None,
+        now=NOW + timedelta(minutes=2),
+    )
+    entry = _read_at_last(db_session, user, pulped)
+    assert (entry.state, entry.amount, entry.void_reason) == revived
+    assert (entry.evidence["outcome"], entry.evidence["checked"]) == ("correct", True)
+    assert _settled(db_session, user.id) == 3 == _balance(db_session, user.id), (
+        "R1: the rule's best of the day (guided, 3) is paid once, whichever answer pays it"
+    )
+
+
+def test_a_revival_after_the_plafond_pays_what_the_plafond_leaves(db_session: Session) -> None:
+    user = _user(db_session)
+    pulped = _pulped_unread(db_session, user, 4545)
+    journey, steps = _journey("scene", *(["respond"] * 30))
+    for minute, step in enumerate(steps[1:]):  # 150 earned: the plafond is spent
+        _pay_reply(db_session, user, journey, step, _reply(), now=NOW + timedelta(minutes=2 + minute))
+    entry = _read_at_last(db_session, user, pulped)
+    assert (entry.state, entry.amount, entry.breakdown["earned"]) == ("settled", 0, 3)
+    assert entry.breakdown["day_earned_before"] == 150
+    assert _settled(db_session, user.id) == core.DAY_CAP == _balance(db_session, user.id)
+
+
+def test_a_partial_verdict_the_day_already_paid_pulps_the_pending_gold(db_session: Session) -> None:
+    user = _user(db_session)
+    journey, (_scene, recall) = _journey("scene", "recall")
+    _pay_recall(db_session, user, journey, recall, _recall(_rule(4646), evidence=EvidenceKind.RECOGNIZED), fmt="choice")
+    attempt = _forge_attempt(4646, round_name="sentence")
+    gold_ledger.record_forge_item(
+        db_session, user=user, attempt=attempt, rung=int(Rung.PRODUCE),
+        verdict=_forge_verdict(checked=False, local="correct"), mode="seance", reprise=False, below_level=False,
+        level_before=4, contact_before=None, now=NOW + timedelta(minutes=1),
+    )
+    entry = _read_at_last(db_session, user, attempt, outcome="partial")
+    assert (entry.state, entry.void_reason, entry.evidence["outcome"]) == ("void", "already_paid", "partial"), (
+        "half a guided sentence is worth 1, no more than the morning's recognition already paid the rule"
+    )
+    assert _settled(db_session, user.id) == 1 == _balance(db_session, user.id)
+
+
 @pytest.mark.parametrize(("seen_days_ago", "amount", "rules"), [(None, 1, ["R5"]), (2, 2, ["R4", "R5"])])
 def test_a_forge_warmup_posed_below_the_level_pays_half(
     db_session: Session, seen_days_ago: int | None, amount: int, rules: list[str]
@@ -1041,6 +1118,28 @@ def test_the_report_reads_production_the_plafond_and_the_rhythm_median(db_sessio
     assert checks == {"production_share": True, "plafond_day_share": False, "stale_pending": True}
     page = report_markdown(report)
     assert "| regulier | 1 | 2 | 48.5 |" in page
+
+
+def test_a_finished_day_that_earned_nothing_counts_at_zero(db_session: Session) -> None:
+    user = _user(db_session)
+    user.daily_goal_minutes = 10  # Régulier
+    journey, (_scene, recall) = _journey("scene", "recall")
+    _pay_recall(db_session, user, journey, recall, _recall(_word(97)), now=NOW)  # Tuesday: 2
+    for offset, kind in ((-3, STREAK_DAY_PRACTISED), (0, STREAK_DAY_PRACTISED), (1, STREAK_DAY_PRACTISED),
+                         (2, STREAK_DAY_RELACHE)):
+        db_session.add(StreakDay(user_id=user.id, local_date=(NOW + timedelta(days=offset)).date(), kind=kind))
+    never_paid = _user(db_session)  # practised, but nothing on the ledger at all
+    db_session.add(StreakDay(user_id=never_paid.id, local_date=NOW.date(), kind=STREAK_DAY_PRACTISED))
+    db_session.flush()
+
+    report = build_gold_report(db_session, days=14, now=NOW + timedelta(days=3))
+    regulier = report["gold_by_rhythm"]["regulier"]
+    assert (report["learners"], report["learner_days"]) == (1, 2), (
+        "Tuesday (2) and Wednesday (finished, 0); not Saturday, before the ledger started for this "
+        "learner, not the relâche, and not a learner the ledger never recorded"
+    )
+    assert (regulier["days"], regulier["median"], regulier["journee_pleine_share"]) == (2, 1, 0.0)
+    assert report["journees_pleines"] == {"learner_weeks": 1, "mean_per_week": 0, "weeks_with_five": 0}
 
 
 def test_the_report_names_stale_pending_and_pulped_entries(db_session: Session) -> None:

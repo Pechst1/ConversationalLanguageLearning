@@ -406,11 +406,14 @@ writers in `app/services/gold_ledger.py`; the tables `atelier_gold_ledger` and
 `app/services/gold_report.py`, run nightly at 05:20 Europe/Berlin by
 `app.tasks.gold.nightly_report` and kept as a `gold_shadow_report` pilot event, live at
 `GET /api/v1/analytics/pilot-gold?days=14` (owner only) and on the command line with
-`scripts/gold_ledger_report.py`. `ATELIER_GOLD_MODE` defaults to `shadow` (config,
-`render.yaml`); a mistyped value refuses to start; `live` records like `shadow` until O-2.
-Every writer runs inside a SAVEPOINT (`app.db.savepoint.best_effort`) under the learner's
-credit lock: a failure is logged and the answer goes on as if the ledger did not exist.
-Nothing reaches a response or a model prompt.
+`scripts/gold_ledger_report.py`. The report's learner-days are the days with a ledger entry
+and the practised streak days (the journey or a séance finished) since the learner's first
+ledger day, so a finished day that earned nothing counts, at 0. `ATELIER_GOLD_MODE`
+defaults to `shadow` (config, `render.yaml`); a mistyped value refuses to start; `live`
+records like `shadow` until O-2. Every writer runs inside a SAVEPOINT
+(`app.db.savepoint.best_effort`) under the learner's credit lock: a failure is logged and
+the answer goes on as if the ledger did not exist. Nothing reaches a response or a model
+prompt.
 
 Where the build differs from the text above, and why:
 
@@ -457,9 +460,12 @@ Where the build differs from the text above, and why:
     learner's zone.
 13. **Void reasons** add `unread`: a relecture nobody could read pulps the pending entry,
     and a retried review that does read it revives it (La Forge's own rule for an unread
-    answer). Settled stays settled; a withdrawn target's settled entry is annotated, not
-    voided. The `injection` branch voids a step's gold when a critic issue code names
-    injection; no critic code does today, so the branch is reserved.
+    answer). The revival is priced against the day as it stands then, not the day it was
+    minted on: answers given while it lay pulped did not see it, so R1 and R8 are read
+    again. They also add `already_paid`: the verdict pays, but no more than the day already
+    paid the rule (R1). Settled stays settled; a withdrawn target's settled entry is
+    annotated, not voided. The `injection` branch voids a step's gold when a critic issue
+    code names injection; no critic code does today, so the branch is reserved.
 14. **Formats:** the journey's `sentence` recall pays guided (3), `conversation` free (5),
     `word_bank` recognised (1); an unknown format pays as recognition, never more.
 15. **Éclair** (the 60-second minimal-pair sprint) pays nothing: its taps are graded on
