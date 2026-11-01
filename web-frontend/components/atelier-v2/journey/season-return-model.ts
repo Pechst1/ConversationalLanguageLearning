@@ -412,7 +412,17 @@ export function teaserHint(line: unknown): string | null {
   // The innermost «…»: the last opening guillemet and the first closing one after it.
   const open = heart.lastIndexOf('«');
   const close = open >= 0 ? heart.indexOf('»', open) : -1;
-  if (open >= 0 && close > open + 1) heart = heart.slice(open + 1, close).trim();
+  if (open >= 0 && close > open + 1) {
+    heart = heart.slice(open + 1, close).trim();
+  } else {
+    // #171 / #445: with nothing quoted, the line is a voice opener («Au fait…»,
+    // «Toi, tu me caches quelque chose…»), a frame, and last the row it names, told.
+    // The opener is the stock part of the line, never tomorrow: Home reads the last
+    // sentence («Tu as promis, hein ? Parler samedi avec Gus.» → «Parler samedi avec Gus»).
+    const sentences = heart.match(/[^.!?…]+(?:[.!?…]+|$)/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
+    const last = sentences.length > 1 ? sentences[sentences.length - 1] : '';
+    if (last && hintWords(last).length > 1) heart = last;
+  }
   heart = heart
     .replace(/^[«"“\s]+|[»"”\s]+$/g, '')
     .replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/i, '')

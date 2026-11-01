@@ -209,14 +209,18 @@ def _live(**commitment):
     }
 
 
-def test_a_promise_is_quoted_in_the_learners_own_words():
-    live = _live(text_fr="Je serai chez moi après quatorze heures.", source_quote="Je rentre après deux heures.")
+def test_a_promise_is_told_from_the_ledger_never_quoted_from_the_reply():
+    """#445 (after #378): the hook says what was promised; it never carries the
+    learner's raw reply, whose errors the scene may have corrected a minute before."""
+
+    live = _live(text_fr="Rentrer après deux heures.", source_quote="Je rentre après deux heures.")
     candidates = engine.teaser_candidates(live, {})
     promise = next(row for row in candidates if row["kind"] == "commitment")
-    assert promise["text_fr"] == "Je rentre après deux heures."
-    text = engine.compose_teaser(promise, character_id="lila_bonnet", register="tu")
-    assert "« Je rentre après deux heures. »" in text
-    assert "quatorze" not in text
+    assert promise["text_fr"] == "Rentrer après deux heures."
+    for variant in range(2):
+        text = engine.compose_teaser(promise, character_id="lila_bonnet", register="tu", variant=variant)
+        assert "«" not in text and "Je rentre" not in text
+        assert "Rentrer après deux heures." in text
 
 
 def test_the_walks_hook_is_not_written():
@@ -236,3 +240,72 @@ def test_a_detail_is_told_not_quoted():
     for variant in range(2):
         text = engine.compose_teaser(plant, character_id="lila_bonnet", register="tu", variant=variant)
         assert "«" not in text and "La vieille clé bleue du compteur." in text
+
+
+# ---------------------------------------------------------------------------
+# #445: the walk of 1 Nov (Nº 19, Gus), four replies, the last one an answer
+# ---------------------------------------------------------------------------
+
+GUS_REPLIES = [
+    "Je suis peur un peu.",
+    "Non, finalement je ne parle pas samedi, c'est trop.",
+    "La clé d'Odile, tu la connais ?",
+    "Non, pas comme ca. Je vais essayer de parler samedi, avec toi.",
+]
+
+
+def _gus_live():
+    return {
+        "commitments": [
+            {
+                "id": "e19:commitment:0",
+                "status": "open",
+                "witnesses": ["augustin_de_roncourt"],
+                "text_fr": "Essayer de parler samedi avec Gus.",
+                "source_quote": GUS_REPLIES[3],
+            }
+        ],
+    }
+
+
+def test_the_hook_never_carries_a_learner_string_with_an_uncorrected_error():
+    teaser = engine.next_teaser(
+        _gus_live(), {}, character_id="augustin_de_roncourt", register="tu", date="2026-11-01", seed="t"
+    )
+    assert teaser is not None and teaser["kind"] == "commitment"
+    text = teaser["text_fr"]
+    assert "comme ca" not in text, text
+    assert "«" not in text, text
+    assert "parler samedi avec Gus" in text
+    for reply in GUS_REPLIES:
+        assert reply not in text
+
+
+def test_what_the_learner_wrote_never_becomes_a_promise_unless_it_is_told_as_one():
+    """A row whose restatement is not a plain «what the learner will do» (a first-person
+    line, a number the learner never wrote) is not a hook: nothing is cut from the reply."""
+
+    for restated in (
+        "Je vais essayer de parler samedi.",  # a line of dialogue
+        "Tu viens samedi.",  # addressed to the learner
+        "Rentrer après quatorze heures.",  # a number the learner did not say
+        "Se retrouver samedi.",  # reflexive: wrong person in a character's mouth
+        "Venir avec moi samedi.",  # «moi» is the learner here, the speaker there
+    ):
+        live = _live(text_fr=restated, source_quote="Je rentre après deux heures. Je viens samedi.")
+        assert all(row["kind"] != "commitment" for row in engine.teaser_candidates(live, {})), restated
+
+
+def test_a_vous_hook_tells_the_promise_in_vous():
+    candidate = next(row for row in engine.teaser_candidates(_gus_live(), {}) if row["kind"] == "commitment")
+    texts = [
+        engine.compose_teaser(candidate, character_id="augustin_de_roncourt", register="vous", variant=v)
+        for v in range(2)
+    ]
+    assert all("Vous " in text and "Tu " not in text for text in texts), texts
+
+
+def test_a_vowel_infinitive_is_told_whole():
+    live = _live(text_fr="Apporter du pain dimanche.", source_quote="J'apporte du pain dimanche.")
+    promise = next(row for row in engine.teaser_candidates(live, {}) if row["kind"] == "commitment")
+    assert "Apporter du pain dimanche." in engine.compose_teaser(promise, character_id=None, register="tu")
