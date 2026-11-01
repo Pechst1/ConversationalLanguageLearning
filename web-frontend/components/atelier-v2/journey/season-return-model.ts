@@ -410,12 +410,15 @@ export const TEASER_HINT_WORDS = 9;
  * read the same way.
  *
  * Too long still, the hint is the longest WHOLE piece that fits: the first
- * sentence, else the first clause(s) up to a «—», «,» or «;». Only when no whole
- * piece fits is the line cut by words, and a cut never ends on a word that
- * leaves the reader hanging (an article, a preposition, a pronoun, an auxiliary
- * or copula: «Ton billet de retour est…» says nothing, #450). Every piece also
- * passes that check, so no hint can end mid-clause. Pure; nothing is invented,
- * every word is the line's.
+ * sentence, else the first clause(s) up to a «—», «:», «,» or «;». A run made
+ * only of frames («Dans l'arrière-salle, sous un drap», «En 1970») names a place
+ * or a time, not the hook, so it is never the hint: the leading frames are
+ * dropped and the main clause is kept («Lila cache quelque chose depuis des
+ * mois», #461). Only when no whole piece fits is the line cut by words, from the
+ * main clause, and a cut never ends on a word that leaves the reader hanging (an
+ * article, a preposition, a pronoun, an auxiliary or copula: «Ton billet de
+ * retour est…» says nothing, #450). Every piece also passes that check, so no
+ * hint can end mid-clause. Pure; nothing is invented, every word is the line's.
  */
 export function teaserHint(line: unknown): string | null {
   let heart = text(line).replace(/\s+/g, ' ');
@@ -429,23 +432,33 @@ export function teaserHint(line: unknown): string | null {
     .replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/i, '')
     .trim();
   if (!heart) return null;
-  // «Lila et Berlin : peut-on…» → «Lila et Berlin».
+  // «Lila et Berlin : peut-on…» → «Lila et Berlin»; a head that is only a frame («Dans sept jours») is not a name.
   const head = heart.match(/^([^:?!.…]{2,60}?)\s*:\s+\S/);
-  if (head && hintWords(head[1]).length <= 5) return head[1].trim();
+  if (head && hintWords(head[1]).length <= 5 && !isHintFrame(head[1])) return head[1].trim();
   const bare = heart.replace(/[\s.,;:]+$/, '');
   if (hintWords(bare).length <= TEASER_HINT_WORDS) return bare;
   const sentence = (heart.match(/^.+?[.!?…](?=\s|$)/) || [''])[0].replace(/[\s.]+$/, '');
-  if (fitsWhole(sentence)) return sentence;
+  // A first sentence that is only a frame says nothing, unless the writer suspended it on purpose
+  // («Derrière le tableau du Mistral…»): that ellipsis is the hook, as written.
+  if (fitsWhole(sentence) && (!isHintFrame(sentence) || sentence.endsWith('…'))) return sentence;
   // The longest run of whole clauses that fits: «… mercredi prochain — précisément…» → «… mercredi prochain».
   // split() with a capturing group keeps the breaks at odd indices; each even index ends a clause.
-  const parts = (sentence || bare).split(/(\s[—–]\s|[,;]\s)/);
+  const parts = (sentence || bare).split(/(\s[—–:]\s|[,;]\s)/);
   for (let end = parts.length - 3; end >= 0; end -= 2) {
+    const clauses = parts.slice(0, end + 1).filter((_, index) => index % 2 === 0);
     const piece = parts.slice(0, end + 1).join('').replace(/[\s,;:—–.]+$/, '');
-    // A clause is a hint only when it says something: «En 1970» alone is a frame, not a hook.
-    if (hintWords(piece).length >= HINT_MIN_CLAUSE_WORDS && fitsWhole(piece)) return piece;
+    // A clause is a hint only when it says something: frames alone name a place or a time, not the hook.
+    if (clauses.some((clause) => !isHintFrame(clause)) && hintWords(piece).length >= HINT_MIN_CLAUSE_WORDS && fitsWhole(piece)) {
+      return piece;
+    }
   }
+  // Leading frames go before the main clause does: «Dimanche, une enveloppe dort…» → «Une enveloppe dort…».
+  let lead = 0;
+  while (lead < parts.length - 1 && isHintFrame(parts[lead])) lead += 2;
+  const core = lead > 0 ? capitalized(parts.slice(lead).join('').replace(/[\s,;:—–.]+$/, '')) : '';
+  if (fitsWhole(core)) return core;
   const kept: string[] = [];
-  for (const token of heart.split(' ')) {
+  for (const token of (core || heart).split(' ')) {
     if (hintWords([...kept, token].join(' ')).length > TEASER_HINT_WORDS - 1) break;
     kept.push(token);
   }
@@ -453,6 +466,28 @@ export function teaserHint(line: unknown): string | null {
   while (kept.length > 1 && hintDangles(kept[kept.length - 1])) kept.pop();
   return `${kept.join(' ').replace(/[\s,;:.—–]+$/, '')}…`;
 }
+
+const capitalized = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);
+
+/**
+ * True when a clause is only a frame: it opens on a preposition or a time word
+ * («Dans l'arrière-salle», «sous un drap», «En 1970», «Dimanche», «Ce soir»), so
+ * it says where or when, not who does what.
+ */
+export function isHintFrame(clause: string): boolean {
+  const lower = clause.trim().toLowerCase().replace(/^[«"“(]+/, '');
+  if (/^(?:ce|cet|cette)\s+(?:soir|matin|nuit|après-midi|week-end|semaine|année|hiver|été|automne|printemps)\b/.test(lower)) return true;
+  const first = (lower.split(/\s+/)[0] || '').replace(/[,;:.!?…]+$/, '').replace(/^(?:l|d|qu|jusqu)['’].*$/, '');
+  return HINT_FRAME_STARTS.has(first);
+}
+
+const HINT_FRAME_STARTS = new Set([
+  'à', 'au', 'aux', 'dans', 'sous', 'sur', 'en', 'chez', 'derrière', 'devant', 'depuis', 'pendant', 'avant',
+  'après', 'vers', 'près', 'loin', 'entre', 'par', 'pour', 'avec', 'sans', 'contre', 'au-dessus', 'au-dessous',
+  'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'demain', 'hier', 'aujourd’hui',
+  "aujourd'hui", 'maintenant', 'bientôt', 'ensuite', 'puis', 'alors', 'enfin', 'désormais', 'soudain', 'tous',
+  'toutes', 'chaque', 'là-haut', 'en-bas', 'ici', 'là',
+]);
 
 /** The fewest words a clause needs to stand for the whole line. */
 const HINT_MIN_CLAUSE_WORDS = 4;

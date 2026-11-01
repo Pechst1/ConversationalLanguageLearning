@@ -2381,6 +2381,11 @@ console.log('WP-66 day shapes and recall formats: ok');
     teaserHint('Ton billet de retour est pour mercredi prochain — précisément le jour où Lila n\'a pas cours. À suivre…'),
     'Ton billet de retour est pour mercredi prochain',
   );
+  // #461: a run of frames names a place, not the hook; the main clause is kept (t5 A2 hook).
+  assert.equal(
+    teaserHint('Dans l\'arrière-salle, sous un drap, Lila cache quelque chose depuis des mois. À suivre…'),
+    'Lila cache quelque chose depuis des mois',
+  );
   // Cut by words: back to the last word that carries meaning, never an auxiliary.
   assert.equal(
     teaserHint('Ton billet de retour est vraiment pour mercredi prochain et pas pour jeudi'),
@@ -2415,6 +2420,15 @@ console.log('WP-66 day shapes and recall formats: ok');
   }
   assert.ok(hooks.size > 50, `the sweep reads the season's hooks (${hooks.size})`);
   assert.ok([...hooks].some((line) => line.startsWith('Ton billet de retour est pour mercredi prochain.')), 'day 2 «La lettre» is in the sweep');
+  // A hint whose every clause opens on a preposition or a time word says where or when, never the hook.
+  const FRAME_START = new Set([
+    'à', 'au', 'aux', 'dans', 'sous', 'sur', 'en', 'chez', 'derrière', 'devant', 'depuis', 'pendant', 'avant',
+    'après', 'vers', 'entre', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'demain', 'hier',
+  ]);
+  const onlyFrames = (hint) => hint
+    .replace(/…$/, '')
+    .split(/\s[—–:]\s|[,;]\s/)
+    .every((clause) => FRAME_START.has(clause.trim().toLowerCase().split(/\s+/)[0]));
   const hanging = [];
   for (const line of hooks) {
     const hint = teaserHint(line);
@@ -2423,8 +2437,11 @@ console.log('WP-66 day shapes and recall formats: ok');
     assert.ok(words.length <= 9, `«${hint}» has ${words.length} words (from «${line}»)`);
     const last = words[words.length - 1].toLowerCase().replace(/[»"”),;:.!?…—–]+$/g, '');
     if (HANGING.has(last) || /^(?:[ldjmnstc]|qu)['’]$/.test(last)) hanging.push(`«${hint}» ← «${line}»`);
+    // The one exception: the writer's own first sentence, suspended on «…» («Derrière le tableau du Mistral…»).
+    const writersSuspense = hint.endsWith('…') && line.startsWith(hint);
+    if (onlyFrames(hint) && !writersSuspense) hanging.push(`«${hint}» (frames only) ← «${line}»`);
   }
-  assert.deepEqual(hanging, [], `hints that stop mid-clause:\n${hanging.join('\n')}`);
+  assert.deepEqual(hanging, [], `hints that stop mid-clause or carry no clause:\n${hanging.join('\n')}`);
 }
 
 // Owner 2026-10-18: a card without a picture draws its place, never an empty slot.
