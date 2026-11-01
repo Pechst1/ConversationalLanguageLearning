@@ -445,7 +445,7 @@ def test_a_failed_check_can_be_retried_over_the_wire(journal_client, db_session,
     assert second.json()["entry"]["entry_text"] == body["text"]
 
 
-def test_the_cue_counts_days_when_it_is_read_not_when_it_was_offered(
+def test_cue_days_ago_counted_on_read(
     journal_client, db_session
 ):
     """#444: a stored «1 day ago» kept saying «Yesterday» on every later visit."""

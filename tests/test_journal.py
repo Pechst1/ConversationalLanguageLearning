@@ -1097,7 +1097,7 @@ def _episode_journey(db_session, user: User, *, local_date: date, episode: str, 
     return journey
 
 
-def test_yesterday_is_the_previous_days_episode_not_an_older_unwritten_offer(db_session):
+def test_yesterday_is_previous_episode(db_session):
     """#444: the learner plays day 1, is offered its scene, writes nothing, plays day 2.
 
     The open offer used to be kept for ever with its cue frozen at «1 day ago», so
@@ -1126,7 +1126,7 @@ def test_yesterday_is_the_previous_days_episode_not_an_older_unwritten_offer(db_
     assert offered_on_day_2.status != "offered"
 
 
-def test_a_scene_with_nothing_to_recall_is_never_offered_as_yesterday(db_session):
+def test_no_recall_items_not_offered(db_session):
     """#444: «This scene has nothing noted to recall» — such a scene is not offered at all."""
     user = _user(db_session)
     empty = _episode_journey(
