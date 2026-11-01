@@ -65,10 +65,14 @@ services:
       # were killed for memory on the first deploy. Raise it with the plan.
       - key: WEB_CONCURRENCY
         value: "1"
+      # Owner 2026-10-31: Opus writes the page ahead of time (~US$0.37 a page with
+      # the critic), and the night counts against this cap, so a night with one
+      # retry (~US$0.75) has to fit under it.
       - key: USER_DAILY_SPEND_CAP_USD
-        value: "0.50"
+        value: "1.00"
       # WP-138: the whole service's day (every learner, art included, UTC).
-      # About ten learners at their own cap; a normal day costs ~US$0.05 each.
+      # About five learners at their own cap, or about a dozen at the ~US$0.42
+      # of a day with Opus writing the page.
       - key: SERVICE_DAILY_SPEND_CAP_USD
         value: "5.00"
       - key: RATE_LIMIT_TRUSTED_PROXY_HOPS
@@ -119,12 +123,14 @@ services:
       # Story models per step (plan decisions 9 and 10). The paid measurement
       # (Oct 2026) picked them and they were set by hand in the dashboard; they
       # are recorded here so the manifest says what production runs.
+      # Writer: the page comparison of 2026-10-31 (gold page surface, same 10
+      # pages, level fix #433) scored Opus 5.5 80, Sonnet 5.5 64, Haiku 5.5 63.
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: STORY_PLAN_THEN_WRITE
         value: "true"
       - key: STORY_WRITER_MODEL
-        value: claude-haiku-5-5
+        value: claude-opus-5-5
       - key: STORY_WRITER_REASONING_EFFORT
         value: medium
       - key: STORY_CRITIC_MODEL
@@ -269,8 +275,10 @@ services:
         sync: false
       - key: GRAPHIC_NOVEL_IMAGE_S3_PUBLIC_BASE_URL
         sync: false
+      # Seven Opus pages a week (~US$2.60) plus the days themselves; at 2.00 the
+      # prefetch would skip a learner from the fifth night on.
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
-        value: "2.00"
+        value: "4.00"
       - key: APNS_TEAM_ID
         sync: false
       - key: APNS_KEY_ID
@@ -366,7 +374,7 @@ services:
       - key: STORY_PLAN_THEN_WRITE
         value: "true"
       - key: STORY_WRITER_MODEL
-        value: claude-haiku-5-5
+        value: claude-opus-5-5
       - key: STORY_WRITER_REASONING_EFFORT
         value: medium
       - key: STORY_CRITIC_MODEL
