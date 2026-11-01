@@ -4,7 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 
-import { learnerGloss } from '@/lib/glosses';
+import {
+  answerSide,
+  askedSide,
+  asksFromLearnerSide,
+  bareFrench,
+  cardMeaning,
+  cardTexts,
+  shownFrench,
+} from '@/lib/card-word';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
@@ -17,9 +25,7 @@ import {
   gradedFormat,
   ladderCue,
   deckProgress,
-  lineAnswer,
   lineMeaning,
-  linePrompt,
   matchesLineForm,
 } from '@/components/lexique/recall-ladder';
 import {
@@ -34,6 +40,7 @@ import {
   withoutFiled,
   type DeckLoad,
   type DeckProgress,
+  deckOrdered,
 } from '@/components/lexique/deck-session';
 import {
   fill,
@@ -256,37 +263,8 @@ function queueItems(context: VocabularyDueContext | null) {
   });
 }
 
-// A card direction reads "<asked side>_to_<answer side>". Only the first half
-// matters here: `de_to_fr`/`en_to_fr` ask from the learner's side, everything
-// else asks from the target language. The page used to name `de_to_fr`
-// explicitly, so an English learner's cards fell through to the wrong branch.
-function asksFromLearnerSide(item: VocabularyRecommendationItem) {
-  const [from, to] = String(item.direction || '').split('_to_');
-  return Boolean(from && to && from !== 'fr');
-}
-
-function queueWord(item: VocabularyRecommendationItem) {
-  if (asksFromLearnerSide(item)) {
-    return learnerGloss(item, item.word);
-  }
-  return item.word || item.translations?.fr || '';
-}
-
-function queueTranslation(item: VocabularyRecommendationItem) {
-  if (asksFromLearnerSide(item)) {
-    return item.translations?.fr || item.word || '';
-  }
-  return learnerGloss(item);
-}
-
-function queueFrench(item: VocabularyRecommendationItem) {
-  return item.translations?.fr || item.word || '';
-}
-
-function queueMeaning(item: VocabularyRecommendationItem) {
-  return learnerGloss(item);
-}
-
+// The card's word, on either side, is `lib/card-word.ts`'s: a French noun always
+// carries its article there (owner request, 1 Nov). Nothing here prints the bare lemma.
 function queueExample(item: VocabularyRecommendationItem) {
   return item.example_sentence?.trim() || '';
 }
@@ -375,10 +353,10 @@ function hasSignal(signal: string, words: string[]) {
 // line prints that column, whitelisted, in its own slot.
 function wordVisualCue(item: VocabularyRecommendationItem, language: string): VisualCue {
   const signal = foldedSignal([
-    queueFrench(item),
-    queueWord(item),
-    queueMeaning(item),
-    queueTranslation(item),
+    bareFrench(item),
+    askedSide(item),
+    cardMeaning(item),
+    answerSide(item),
     ...(item.topic_tags || []),
   ].filter(Boolean).join(' '));
 
@@ -516,7 +494,7 @@ function VocabularyReviewContinuation({
 }) {
   const t = useLexCopy();
   const wordId = lastItem?.word_id || null;
-  const word = lastItem ? queueFrench(lastItem) || queueWord(lastItem) : '';
+  const word = lastItem ? shownFrench(lastItem) || askedSide(lastItem) : '';
   const ratingCopy = lastRating !== null ? ratingToneLabel(t, lastRating) : '';
   // «5 more minutes» after the Seal on a day nothing is due yet (day 1): no card
   // was answered, so «Deck cleared» would be a claim. Say what is true.
@@ -676,27 +654,16 @@ export default function VocabularyReviewPage() {
     return map;
   }, [wordSlate]);
   const allItems = useMemo(() => {
-    const items = queueItems(context);
-    // WP-115b (owner test 2026-09-30): reviews before new words, as in Anki — and
-    // among the reviews, the words that don't stick and the story's own lines
-    // first. The day's slate words follow, then the rest.
-    const rung = (item: (typeof items)[number]) => (item as { ladder?: string | null }).ladder;
-    const rank = (item: (typeof items)[number]) =>
-      rung(item) === 'rescue' ? 0
-        : rung(item) === 'scene' ? 1
-          : item.bucket === 'due' || item.bucket === 'fragile' ? 2
-            : slateById.has(item.word_id) ? 3
-              : 4;
-    const ordered = items
-      .map((item, index) => ({ item, index }))
-      .sort((a, b) => rank(a.item) - rank(b.item) || a.index - b.index)
-      .map(({ item }) => item);
+    // The deck's order is the server's (`deck_order`, app/services/deck_order.py):
+    // today's scene words first (owner request, 1 Nov), then the words that don't
+    // stick and the story's own lines, the reviews, the day's slate words, the rest.
+    const ordered = deckOrdered(queueItems(context), context?.deck_order);
     if (!resumeWordId) return ordered;
     return [
       ...ordered.filter((item) => item.word_id === resumeWordId),
       ...ordered.filter((item) => item.word_id !== resumeWordId),
     ];
-  }, [context, resumeWordId, slateById]);
+  }, [context, resumeWordId]);
   const remainingItems = useMemo(() => remainingCards(allItems, deck), [allItems, deck]);
   const current = remainingItems[0] || null;
   /* GENTLE-ONBOARDING: an emptied deck on the first day ticks the words off,
@@ -837,7 +804,7 @@ export default function VocabularyReviewPage() {
   const playAudioPrompt = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (!current || audioPlaying) return;
-    const text = queueFrench(current);
+    const text = bareFrench(current);
     if (!text) return;
     setAudioPlaying(true);
     try {
@@ -1032,23 +999,16 @@ export default function VocabularyReviewPage() {
   });
 
   const mode = cardMode(current);
-  const prompt = current
-    ? mode === 'audio'
-      ? t.listen_prompt
-      : mode === 'production'
-      ? queueMeaning(current) || queueFrench(current)
-      : mode === 'scene' || mode === 'rescue'
-        ? linePrompt(sceneOrRescueCue(current)) || queueMeaning(current) || queueFrench(current)
-        : queueWord(current)
-    : '';
-  // Owner decision 2026-10-08: a line card is answered with the form in the line.
-  const answer = current
-    ? mode === 'recognition'
-      ? queueTranslation(current)
-      : lineAnswer(mode, sceneOrRescueCue(current), queueFrench(current))
-    : '';
-  const french = current ? queueFrench(current) : '';
-  const meaning = current ? queueMeaning(current) : '';
+  // The card's two sides (a noun with its article) and what a typed answer is graded
+  // against — owner decision 2026-10-08: a line card is answered with the form in the line.
+  const { prompt, answer, expected } = cardTexts({
+    item: current,
+    mode,
+    cue: sceneOrRescueCue(current),
+    listenPrompt: t.listen_prompt,
+  });
+  const french = current ? bareFrench(current) : '';
+  const meaning = current ? cardMeaning(current) : '';
   // A card with no example sentence quotes nothing, never «lampe - lamp» (walk finding 398).
   const example = current ? cardExample({ french, meaning, example: queueExample(current) }) : '';
   const exampleTranslation = current ? queueExampleTranslation(current) : '';
@@ -1066,8 +1026,8 @@ export default function VocabularyReviewPage() {
   const contextText = cardContextText({ mode, meaning, example });
   const typedMatches =
     mode === 'scene' || mode === 'rescue'
-      ? matchesLineForm(normalizeAnswer(typedAnswer), normalizeAnswer(answer))
-      : normalizeAnswer(typedAnswer) === normalizeAnswer(answer);
+      ? matchesLineForm(normalizeAnswer(typedAnswer), normalizeAnswer(expected))
+      : normalizeAnswer(typedAnswer) === normalizeAnswer(expected);
   const graded = mode !== 'recognition' && typedAnswer.trim().length > 0;
   const foot = deckFoot({ revealed, graded });
   const hint = current ? cardHint(t, current) : '';
@@ -1356,7 +1316,7 @@ export default function VocabularyReviewPage() {
                       <div className="lx-card__marks">
                         <IconAction
                           className="lx-card__history"
-                          label={fill(t.open_story, { word: french || prompt })}
+                          label={fill(t.open_story, { word: (current ? shownFrench(current) : french) || prompt })}
                           onClick={(event) => {
                             event.stopPropagation();
                             void openBiography();
@@ -1365,7 +1325,7 @@ export default function VocabularyReviewPage() {
                           <ShapeToken kind="story" size="sm" title={t.story_title} />
                         </IconAction>
                       </div>
-                      <p className="av2-headline lx-card__word review-answer-word">{answer || meaning || french}</p>
+                      <p className="av2-headline lx-card__word review-answer-word">{answer || meaning || shownFrench(current)}</p>
                       {mode !== 'recognition' && typedAnswer && (
                         <p className="lx-card__hint lx-card__verdict" data-match={typedMatches ? 'true' : 'false'}>
                           <ShapeToken kind={typedMatches ? 'done' : 'action'} size="sm" />

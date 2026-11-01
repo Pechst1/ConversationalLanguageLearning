@@ -838,6 +838,8 @@ export interface VocabularyRecommendationItem {
   };
   example_sentence?: string | null;
   example_translation?: string | null;
+  /** Owner request, 1 Nov: the word appeared in today's scene; its example is that line. */
+  scene_word?: boolean;
 }
 
 export interface VocabularyRecommendations {
@@ -872,6 +874,9 @@ export interface VocabularyDueContext {
   /** WP-131: new words the day's allowance still holds after this deck; the
    *  drill offers them as «Encore N mots». `null` on a review-only deck. */
   new_words_left_today?: number | null;
+  /** The deck's one order (word ids; app/services/deck_order.py): today's scene
+   *  words first. Every client shows the deck in this order. */
+  deck_order?: number[];
 }
 
 export interface DailyWordEntry {

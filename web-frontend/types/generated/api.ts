@@ -15872,6 +15872,8 @@ export interface components {
              * @default fsrs_retrievability_v1
              */
             algorithm?: string;
+            /** Deck Order */
+            deck_order?: number[];
             /** Due Words */
             due_words: components["schemas"]["VocabularyRecommendationItem"][];
             /** Fragile Words */
@@ -16087,6 +16089,11 @@ export interface components {
             scene_cue?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Scene Word
+             * @default false
+             */
+            scene_word?: boolean;
             /** Scheduled Days */
             scheduled_days?: number | null;
             /** Scheduler */

@@ -397,6 +397,9 @@ class VocabularyRecommendationItem(BaseModel):
     rescue_cue: dict[str, Any] | None = None
     recommendation_reason: dict[str, Any] | None = None
     episodic_anchor: dict[str, Any] | None = None
+    #: Owner request, 1 Nov: the word appeared in today's scene (the day deck). It
+    #: comes first, and its example is the scene line (with its translation).
+    scene_word: bool = False
 
 
 class VocabularyRecommendationSummary(BaseModel):
@@ -444,6 +447,9 @@ class VocabularyDueContextResponse(BaseModel):
     #: share). The drill offers them as an explicit «Encore N mots» continuation.
     #: ``None`` when not read (a review-only «Encore» deck, a demo account).
     new_words_left_today: int | None = None
+    #: The deck's one order (``app/services/deck_order.py``): the word ids in the
+    #: order every client shows them — today's scene words first.
+    deck_order: list[int] = Field(default_factory=list)
 
 
 class VocabularyMasteryMapCell(BaseModel):

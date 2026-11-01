@@ -16,7 +16,9 @@
  * same whitelist the Lexique prints.
  */
 
-export type WordGender = 'f' | 'm';
+import { articleFor, normalizeGender, type NounGender } from './french-noun';
+
+export type WordGender = NounGender;
 export type WordTokenShape = 'feminine' | 'masculine' | 'other' | 'plain';
 export type WordTokenTone = 'new' | 'learning' | 'known';
 
@@ -31,16 +33,8 @@ export type WordTokenModel = {
   initial: string;
 };
 
-const FEMININE = new Set(['f', 'fem', 'fém', 'feminine', 'féminin', 'féminine', 'feminin', 'nf', 'n.f.']);
-const MASCULINE = new Set(['m', 'masc', 'masculine', 'masculin', 'nm', 'n.m.']);
-
-/** The stored gender as 'f' / 'm', or null. «m/f» and anything unknown stay null. */
-export function normalizeGender(value?: string | null): WordGender | null {
-  const key = String(value || '').trim().toLowerCase();
-  if (FEMININE.has(key)) return 'f';
-  if (MASCULINE.has(key)) return 'm';
-  return null;
-}
+// The gender and the article are `lib/french-noun.ts`'s, the one rule every surface uses.
+export { normalizeGender, articleFor };
 
 /* Same whitelist as the Lexique's meta line: the imported deck's column is an
    English machine key, and junk values print nothing. */
@@ -60,30 +54,6 @@ export const PART_OF_SPEECH_LABELS: Record<string, string> = {
 export function normalizePartOfSpeech(value?: string | null): string {
   const key = String(value || '').trim().toLowerCase();
   return key in PART_OF_SPEECH_LABELS ? key : '';
-}
-
-/* Words whose h blocks elision (h aspiré). The default for h is elision
-   (l’homme, l’heure, l’hôtel), so only the common aspirated ones are listed. */
-const H_ASPIRE = new Set([
-  'hache', 'haie', 'haine', 'hall', 'halte', 'hamac', 'hameau', 'hamster', 'hanche', 'handicap',
-  'hangar', 'hareng', 'haricot', 'harpe', 'hasard', 'hâte', 'hausse', 'haut', 'hauteur', 'héros',
-  'hibou', 'hockey', 'homard', 'honte', 'hors-d’œuvre', 'hotte', 'housse', 'huit', 'hurlement', 'hutte',
-]);
-
-function foldAccents(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '');
-}
-
-/** la / le / l’ for a gendered noun. A written article on the entry wins. */
-export function articleFor(word: string, gender: WordGender): string {
-  const text = String(word || '').trim().toLowerCase().replace(/'/g, '’');
-  if (/^l’/.test(text)) return 'l’';
-  if (/^la\s/.test(text)) return 'la';
-  if (/^le\s/.test(text)) return 'le';
-  const first = foldAccents(text).charAt(0);
-  if ('aeiouy'.includes(first) && first) return 'l’';
-  if (first === 'h' && !H_ASPIRE.has(text.split(/\s/)[0])) return 'l’';
-  return gender === 'f' ? 'la' : 'le';
 }
 
 /** Map any learner-state vocabulary onto the three colour roles. */
