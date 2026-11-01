@@ -25,8 +25,11 @@ import {
 import {
   EMPTY_PROGRESS,
   fileCard,
+  gradeAction,
   progressAfterLoad,
   remainingCards,
+  reviewNotSaved,
+  settleVerdict,
   withoutFiled,
   type DeckLoad,
   type DeckProgress,
@@ -566,7 +569,6 @@ export default function VocabularyReviewPage() {
   const [wordSlate, setWordSlate] = useState<DailyWordSlate | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [reviewing, setReviewing] = useState(false);
   const [returning, setReturning] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [typedAnswer, setTypedAnswer] = useState('');
@@ -940,42 +942,44 @@ export default function VocabularyReviewPage() {
     recorder.stop();
   };
 
-  const submitRating = async (rating: number) => {
-    if (!current || reviewing) return;
-    setReviewing(true);
-    try {
-      // WP-115a: a card the learner answered is graded by the answer (the server
-      // earns the grade); a card only turned over stays a self-rated flashcard.
-      // QA-CLOSE: the typed text goes to the server, which grades it.
-      const answered = graded
-        ? { format: gradedFormat(mode, spokenAnswer), answer_text: typedAnswer }
-        : { format: 'flashcard' as const };
-      const response = await apiService.submitAnkiReview({ word_id: current.word_id, rating, ...answered });
-      toast.success(reviewMessage(t, response));
-      if (response.note_native) toast(response.note_native);
-      // WP-115b: wrong → again at the end of the session; right → it leaves the loop.
-      // The server's verdict decides; the device's own fold only when it sent none.
-      const serverCorrect = typeof response.correct === 'boolean' ? response.correct : typedMatches;
-      const wrong = graded ? !serverCorrect : rating === 0;
-      const filed = fileCard(deckRef.current, current.word_id, wrong);
-      setDeck((prev) => fileCard(prev, current.word_id, wrong));
-      // A deck reopened later starts after this card, not on it.
-      if (contextRef.current) {
-        writeReviewContextCache(withoutFiled(contextRef.current, filed.filed), wordSlateRef.current);
-      }
-      emitCameo({ type: 'answer', correct: !wrong });
-      setSpokenAnswer(false);
-      setLastRating(rating);
-      setLastReviewedItem(current);
-      setContext((prev) => optimisticallyDecrementSummary(prev, current));
-      setRevealed(false);
-      setTypedAnswer('');
-    } catch (error) {
-      console.error(error);
-      toast.error(t.review_failed);
-    } finally {
-      setReviewing(false);
+  // Owner, 1 Nov («Weiß ich» left the card on screen): the card is filed the moment it
+  // is graded, before the server answers; the answer only settles «ask again».
+  const fileGrade = (rating: number, provisionalWrong: boolean) => {
+    if (!current) return;
+    const item = current;
+    const answered = graded
+      ? { format: gradedFormat(mode, spokenAnswer), answer_text: typedAnswer }
+      : { format: 'flashcard' as const };
+    const filed = fileCard(deckRef.current, item.word_id, provisionalWrong);
+    deckRef.current = filed;
+    setDeck((prev) => fileCard(prev, item.word_id, provisionalWrong));
+    // A deck reopened later starts after this card, not on it.
+    if (contextRef.current) {
+      writeReviewContextCache(withoutFiled(contextRef.current, filed.filed), wordSlateRef.current);
     }
+    setSpokenAnswer(false);
+    setLastRating(rating);
+    setLastReviewedItem(item);
+    setContext((prev) => optimisticallyDecrementSummary(prev, item));
+    setRevealed(false);
+    setTypedAnswer('');
+    // WP-115a: a card the learner answered is graded by the answer (the server earns
+    // the grade); a card only turned over stays a self-rated flashcard.
+    apiService
+      .submitAnkiReview({ word_id: item.word_id, rating, ...answered })
+      .then((response) => {
+        toast.success(reviewMessage(t, response));
+        if (response.note_native) toast(response.note_native);
+        // WP-115b: wrong → again at the end of the session; right → it leaves the loop.
+        const wrong = graded && typeof response.correct === 'boolean' ? !response.correct : provisionalWrong;
+        setDeck((prev) => settleVerdict(prev, item.word_id, wrong));
+        emitCameo({ type: 'answer', correct: !wrong });
+      })
+      .catch((error) => {
+        console.error(error);
+        toast.error(t.review_failed);
+        setDeck((prev) => reviewNotSaved(prev, item.word_id));
+      });
   };
 
   const returnToAtelier = async () => {
@@ -983,14 +987,13 @@ export default function VocabularyReviewPage() {
     await router.push('/atelier');
   };
 
-  // A grade pressed on an unturned card turns it first; it never files blind.
+  // Every grade goes through here (the pair, Dur and Facile, the graded card's one
+  // «Weiter», the keys 1-4): an unturned card is turned first; a turned card is filed.
   const handleRatingClick = (rating: number) => {
-    if (reviewing) return;
-    if (!revealed) {
-      setRevealed(true);
-      return;
-    }
-    void submitRating(rating);
+    if (!current) return;
+    const action = gradeAction({ revealed, rating, graded, typedMatches });
+    if (action.kind === 'reveal') setRevealed(true);
+    else fileGrade(action.rating, action.wrong);
   };
 
   // The deck was tap-only: nothing revealed a card or filed it from a
@@ -1404,8 +1407,7 @@ export default function VocabularyReviewPage() {
                       type="button"
                       className="av2-btn av2-btn--primary lx-rate"
                       data-graded={typedMatches ? 'correct' : 'wrong'}
-                      disabled={reviewing}
-                      onClick={() => void submitRating(typedMatches ? 2 : 0)}
+                      onClick={() => handleRatingClick(typedMatches ? 2 : 0)}
                     >
                       {t.deck_graded_next}
                     </button>
@@ -1416,7 +1418,6 @@ export default function VocabularyReviewPage() {
                     <button
                       type="button"
                       className="av2-btn lx-rate"
-                      disabled={reviewing}
                       onClick={() => handleRatingClick(0)}
                       title={revealed ? fill(t.rate_as, { label: t.deck_again }) : t.reveal_first}
                       aria-label={revealed ? fill(t.rate_as, { label: t.deck_again }) : t.reveal_before}
@@ -1427,7 +1428,6 @@ export default function VocabularyReviewPage() {
                     <button
                       type="button"
                       className="av2-btn av2-btn--done lx-rate"
-                      disabled={reviewing}
                       onClick={() => handleRatingClick(2)}
                       title={revealed ? fill(t.rate_as, { label: t.deck_good }) : t.reveal_first}
                       aria-label={revealed ? fill(t.rate_as, { label: t.deck_good }) : t.reveal_before}
@@ -1443,7 +1443,6 @@ export default function VocabularyReviewPage() {
                           key={option.rating}
                           tone="quiet"
                           inline
-                          disabled={reviewing}
                           onClick={() => handleRatingClick(option.rating)}
                           title={revealed ? fill(t.rate_as, { label: t[option.label] }) : t.reveal_first}
                           aria-label={revealed ? fill(t.rate_as, { label: t[option.label] }) : t.reveal_before}

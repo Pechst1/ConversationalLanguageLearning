@@ -129,8 +129,10 @@ def test_vocabulary_review_keeps_header_and_rating_controls_compact() -> None:
     assert "remainingSummary" not in source
     assert "refreshQueueSummary" not in source
     assert "const handleRatingClick" in source
-    assert "disabled={reviewing}" in source
-    assert "disabled={reviewing || !revealed}" not in source
+    # Owner, 1 Nov («Weiß ich» left the card on screen): a grade is never held while a
+    # review is in flight; the card is filed at once and the server only settles it.
+    assert "disabled={reviewing" not in source
+    assert "gradeAction({ revealed, rating, graded, typedMatches })" in source
     assert "t.reveal_before" in source
     assert "reveal_before: 'Révéler la réponse avant de noter'" in read_page(LEXIQUE_COPY)
     assert ">Deck</Link>" not in source
