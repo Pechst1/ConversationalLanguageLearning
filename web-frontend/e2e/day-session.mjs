@@ -2,10 +2,10 @@
 // Round 3 · the day as one sequence, walked in the browser.   npm run walk:day
 //
 // One new A1 learner per language plays day 1 the way the day is meant to run:
-// La Une's programme (Szene · Wörter · Grammatik · Fertig), the scene, the scene's
-// ending handing on to the words, the day's word deck to its end, the deck handing
-// on to La Forge, La Forge's recap handing on to «Fertig für heute», and La Une after
-// with every step done. Screenshots and a contact sheet go to e2e/out/day-<stamp>/.
+// La Une's programme (Szene · Grammatik · Wörter · Fertig; owner, 1 Nov 2026), the
+// scene, the scene's ending handing on to La Forge, La Forge's recap handing on to
+// the day's word deck, the deck to its end handing on to «Fertig für heute», and
+// La Une after with every step done. Screenshots and a contact sheet go to e2e/out/day-<stamp>/.
 //
 //   --langs de,fr,en   chrome languages (default de)
 //   --out DIR          output folder
@@ -67,7 +67,7 @@ async function playTheDay(native) {
   await page.goto(`${stack.web}/atelier`, { waitUntil: 'domcontentloaded' });
   await page.locator('[data-day-session]').waitFor({ timeout: 60000 }).catch(() => {});
   const before = await programme(page);
-  findings.check('day-programme-on-la-une', before.join() === 'scene:next,words:todo,grammar:todo,finish:todo', `programme: ${before.join(' ') || 'none'}`, where('home'));
+  findings.check('day-programme-on-la-une', before.join() === 'scene:next,grammar:todo,words:todo,finish:todo', `programme: ${before.join(' ') || 'none'}`, where('home'));
   // #396: Home's word count before the scene is the day's one number.
   const homeWordsText = await page.locator('[data-day-session] [data-part="words"]').first().innerText().catch(() => '');
   const homeWords = Number((homeWordsText.match(/\d+/) || [])[0]);
@@ -84,37 +84,11 @@ async function playTheDay(native) {
   await walk.shoot('scene-ending');
   const handOn = page.locator('.journey-recap .av2-btn--primary, .av2-reward .av2-btn--primary').first();
   const handOnText = await handOn.innerText().catch(() => '');
-  findings.check('scene-hands-on-to-the-words', WORDS_NEXT.test(handOnText), `the ending's button reads «${handOnText.trim()}»`, where('recap'));
+  // Owner, 1 Nov 2026: La Forge comes before the words.
+  findings.check('scene-hands-on-to-the-grammar', GRAMMAR_NEXT.test(handOnText), `the ending's button reads «${handOnText.trim()}»`, where('recap'));
   await handOn.click();
 
-  // 3 · The day's word deck, to its end.
-  await page.waitForURL(/\/vocabulary\/review\?day=1/, { timeout: 30000 }).catch(() => {});
-  findings.check('words-open-the-day-deck', page.url().includes('/vocabulary/review?day=1'), page.url(), where('drill'));
-  await page.locator('.lx-card, [data-day-next]').first().waitFor({ timeout: 45000 }).catch(() => {});
-  await walk.shoot('words-first-card');
-  // #143: «Weiter: 20 Wörter» opened «0/19». The deck is the count the button promised.
-  const promised = Number((handOnText.match(/\d+/) || [])[0]);
-  const deckCount = (await page.locator('.av2-progress__count').first().innerText().catch(() => '')).trim();
-  findings.check('words-deck-is-the-count-promised', deckCount === `0/${promised}`, `«${handOnText.trim()}» opened a deck of «${deckCount}»`, where('drill'));
-  findings.check('home-words-is-the-hand-on', homeWords === promised, `Home said «${homeWordsText.trim()}», the scene's ending «${handOnText.trim()}»`, where('drill'));
-  let presses = 0;
-  while (presses < 260 && (await page.locator('[data-day-next]').count()) === 0) {
-    const rate = page.locator('.lx-review__foot .lx-rate').last();
-    if (await rate.count()) {
-      await rate.click().catch(() => {});
-      presses += 1;
-    }
-    await sleep(250);
-  }
-  const wordsDone = await page.locator('[data-day-next]').count();
-  findings.check('words-deck-ends-with-the-next-step', wordsDone === 1, `${presses} presses, no «words done» screen`, where('drill'));
-  await walk.shoot('words-done');
-  const toGrammar = page.locator('[data-day-next] .av2-btn--primary').first();
-  const toGrammarText = await toGrammar.innerText().catch(() => '');
-  findings.check('words-hand-on-to-the-grammar', GRAMMAR_NEXT.test(toGrammarText), `the button reads «${toGrammarText.trim()}»`, where('drill'));
-  await toGrammar.click().catch(() => {});
-
-  // 4 · La Forge, to its recap.
+  // 3 · La Forge, to its recap.
   await page.waitForURL(/mode=forge.*from=day|from=day.*mode=forge/, { timeout: 30000 }).catch(() => {});
   const forgeUrl = new URL(page.url());
   findings.check('grammar-opens-la-forge-for-the-day', forgeUrl.searchParams.get('from') === 'day', page.url(), where('forge'));
@@ -131,11 +105,39 @@ async function playTheDay(native) {
   await walk.shoot('forge-recap');
   // The walk's driver presses a recap's primary button itself, so the hand-on
   // is either still on screen or already taken.
-  const toFinish = page.locator('.ep-recap .ep-handoff .av2-btn--primary').first();
+  const toWords = page.locator('.ep-recap .ep-handoff .av2-btn--primary').first();
+  const toWordsText = await toWords.innerText().catch(() => '');
+  const handedOn = page.url().includes('/vocabulary/review');
+  findings.check('grammar-hands-on-to-the-words', handedOn || WORDS_NEXT.test(toWordsText), `the recap's button reads «${toWordsText.trim()}» on ${page.url()}`, where('forge'));
+  if (!handedOn) await toWords.click().catch(() => {});
+
+  // 4 · The day's word deck, to its end.
+  await page.waitForURL(/\/vocabulary\/review\?day=1/, { timeout: 30000 }).catch(() => {});
+  findings.check('words-open-the-day-deck', page.url().includes('/vocabulary/review?day=1'), page.url(), where('drill'));
+  await page.locator('.lx-card, [data-day-next]').first().waitFor({ timeout: 45000 }).catch(() => {});
+  await walk.shoot('words-first-card');
+  // #143: «Weiter: 20 Wörter» opened «0/19». The deck is the count the button promised
+  // (the recap's, when the walk saw it; Home's number otherwise, which #396 makes the same).
+  const promised = Number((toWordsText.match(/\d+/) || [])[0]) || homeWords;
+  const deckCount = (await page.locator('.av2-progress__count').first().innerText().catch(() => '')).trim();
+  findings.check('words-deck-is-the-count-promised', deckCount === `0/${promised}`, `«${toWordsText.trim() || homeWordsText.trim()}» opened a deck of «${deckCount}»`, where('drill'));
+  findings.check('home-words-is-the-hand-on', homeWords === promised, `Home said «${homeWordsText.trim()}», La Forge's recap «${toWordsText.trim()}»`, where('drill'));
+  let presses = 0;
+  while (presses < 260 && (await page.locator('[data-day-next]').count()) === 0) {
+    const rate = page.locator('.lx-review__foot .lx-rate').last();
+    if (await rate.count()) {
+      await rate.click().catch(() => {});
+      presses += 1;
+    }
+    await sleep(250);
+  }
+  const wordsDone = await page.locator('[data-day-next]').count();
+  findings.check('words-deck-ends-with-the-next-step', wordsDone === 1, `${presses} presses, no «words done» screen`, where('drill'));
+  await walk.shoot('words-done');
+  const toFinish = page.locator('[data-day-next] .av2-btn--primary').first();
   const toFinishText = await toFinish.innerText().catch(() => '');
-  const handedOn = page.url().includes('/fertig');
-  findings.check('grammar-hands-on-to-fertig', handedOn || FINISH.test(toFinishText), `the recap's button reads «${toFinishText.trim()}» on ${page.url()}`, where('forge'));
-  if (!handedOn) await toFinish.click().catch(() => {});
+  findings.check('words-hand-on-to-fertig', FINISH.test(toFinishText), `the button reads «${toFinishText.trim()}»`, where('drill'));
+  await toFinish.click().catch(() => {});
 
   // 5 · Fertig für heute.
   await page.waitForURL(/\/fertig/, { timeout: 30000 }).catch(() => {});
@@ -170,7 +172,7 @@ async function playTheDay(native) {
   await page.locator('[data-day-session]').waitFor({ timeout: 30000 }).catch(() => {});
   await sleep(1500);
   const after = await programme(page);
-  findings.check('la-une-after-the-day', after.join() === 'scene:done,words:done,grammar:done,finish:done', `programme: ${after.join(' ') || 'none'}`, where('home'));
+  findings.check('la-une-after-the-day', after.join() === 'scene:done,grammar:done,words:done,finish:done', `programme: ${after.join(' ') || 'none'}`, where('home'));
   // #143: «20 Wörter — erledigt» on La Une after «Fertig» counted 19.
   const wordsRow = await page.locator('[data-day-session] [data-part="words"]').first().innerText().catch(() => '');
   findings.check('la-une-words-match-fertig', Number((wordsRow.match(/\d+/) || [])[0]) === Number(tally[1]), `La Une «${wordsRow.trim()}», Fertig ${tally[1]}`, where('home'));

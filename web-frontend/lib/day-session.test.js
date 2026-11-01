@@ -22,17 +22,19 @@ Module._resolveFilename = function resolve(request, ...rest) {
 const ds = require('./day-session.ts');
 const dp = require('./day-plan.ts');
 
+// The server's plan, its states in the day's order: [scene, grammar, words, finish]
+// (owner, 1 Nov 2026: La Forge before the words; `day-order.test.js`).
 function session(states, overrides = {}) {
-  const [scene, words, grammar, finish] = states;
+  const [scene, grammar, words, finish] = states;
   return {
     pace: 'normal',
     steps: [
       { kind: 'scene', state: scene, minutes: scene === 'done' ? 0 : 8, href: null },
-      { kind: 'words', state: words, minutes: words === 'done' ? 0 : 8, href: '/vocabulary/review?day=1', count: 32, new_left: 20, reviews: 12 },
       { kind: 'grammar', state: grammar, minutes: grammar === 'done' ? 0 : 5, href: '/atelier?mode=forge&from=day', count: 12 },
+      { kind: 'words', state: words, minutes: words === 'done' ? 0 : 8, href: '/vocabulary/review?day=1', count: 32, new_left: 20, reviews: 12 },
       { kind: 'finish', state: finish, minutes: 0, href: '/fertig' },
     ],
-    next_kind: ['scene', 'words', 'grammar'].find((kind, index) => states[index] === 'next') ?? null,
+    next_kind: ['scene', 'grammar', 'words'].find((kind, index) => states[index] === 'next') ?? null,
     minutes_left: 21,
     done: finish === 'done',
     tally: { scenes: 1, words: 20, exercises: 12 },
@@ -47,12 +49,12 @@ test('the programme is four rows with their minutes, in the learner’s language
   const rows = ds.sessionRows(session(['next', 'todo', 'todo', 'todo']), 'de');
   assert.deepEqual(rows.map((row) => [row.label, row.meta]), [
     ['Szene', '8 Min.'],
-    ['32 Wörter', '20 neu · 12 zum Wiederholen · 8 Min.'],
     ['Grammatik', '5 Min.'],
+    ['32 Wörter', '20 neu · 12 zum Wiederholen · 8 Min.'],
     ['Fertig', ''],
   ]);
-  assert.deepEqual(rows.map((row) => row.shape), ['story', 'reward', 'action', 'done']);
-  assert.equal(ds.sessionRows(session(['next', 'todo', 'todo', 'todo']), 'fr')[1].label, '32 mots');
+  assert.deepEqual(rows.map((row) => row.shape), ['story', 'action', 'reward', 'done']);
+  assert.equal(ds.sessionRows(session(['next', 'todo', 'todo', 'todo']), 'fr')[2].label, '32 mots');
 });
 
 test('a news day opens with Le Papier', () => {
@@ -68,12 +70,18 @@ test('a done step drops its minutes', () => {
 test('the journey card starts the scene; after it the one button names the next step', () => {
   assert.equal(ds.sessionNextAction(session(['next', 'todo', 'todo', 'todo']), 'de'), null);
   assert.deepEqual(ds.sessionNextAction(session(['done', 'next', 'todo', 'todo']), 'de'), {
+    kind: 'grammar',
+    label: 'Weiter: Grammatik',
+    meta: '5 Min.',
+    href: '/atelier?mode=forge&from=day',
+  });
+  assert.deepEqual(ds.sessionNextAction(session(['done', 'done', 'next', 'todo']), 'de'), {
     kind: 'words',
     label: 'Weiter: 32 Wörter',
     meta: '20 neu · 12 zum Wiederholen · 8 Min.',
     href: '/vocabulary/review?day=1',
   });
-  assert.equal(ds.sessionNextAction(session(['done', 'done', 'next', 'todo']), 'en').label, 'Next: grammar');
+  assert.equal(ds.sessionNextAction(session(['done', 'next', 'todo', 'todo']), 'en').label, 'Next: grammar');
   assert.equal(ds.sessionNextAction(session(['done', 'done', 'done', 'done']), 'de'), null);
 });
 
@@ -88,7 +96,8 @@ test('only a finished day offers ten more words', () => {
 
 test('the mark’s four shapes are the four steps', () => {
   const mark = ds.sessionMarkState(session(['done', 'next', 'todo', 'todo']), 'de');
-  assert.deepEqual(mark.groups, { scene: 'done', recall: 'active', respond: 'todo', resolution: 'todo' });
+  // The mark's groups follow the step's kind: La Forge (respond) is active now.
+  assert.deepEqual(mark.groups, { scene: 'done', recall: 'todo', respond: 'active', resolution: 'todo' });
   assert.equal(mark.done, 1);
   assert.equal(mark.total, 4);
 });
@@ -109,36 +118,40 @@ test('the Tempo sheet says what each pace holds, costs and reaches', () => {
   assert.equal(ds.paceNote(options, 'de'), 'Wörter kommen zur Wiederholung zurück. Nach 8 Wochen dauert ein Tag etwa 3 bis 8 Min. länger.');
 });
 
-test('the scene’s ending hands on to the words, La Forge’s recap to the words or Fertig', () => {
+test('the scene’s ending hands on to La Forge, La Forge’s recap to the words, the words to Fertig', () => {
   const afterScene = dp.handOnAfterScene(session(['next', 'todo', 'todo', 'todo']), 'de');
-  assert.equal(afterScene.label, 'Weiter: 32 Wörter');
-  assert.equal(afterScene.href, '/vocabulary/review?day=1');
-  assert.equal(dp.handOnAfterScene(session(['done', 'done', 'next', 'todo']), 'de').label, 'Weiter: Grammatik');
-  assert.equal(dp.handOnAfterGrammar(session(['done', 'next', 'todo', 'todo']), 'de').kind, 'words');
-  const finish = dp.handOnAfterGrammar(session(['done', 'done', 'next', 'todo']), 'de');
+  assert.equal(afterScene.label, 'Weiter: Grammatik');
+  assert.equal(afterScene.href, '/atelier?mode=forge&from=day');
+  // Words done first (from the Cahier, say): the scene still hands on to La Forge.
+  assert.equal(dp.handOnAfterScene(session(['next', 'todo', 'done', 'todo']), 'de').label, 'Weiter: Grammatik');
+  const afterGrammar = dp.handOnAfterGrammar(session(['done', 'next', 'todo', 'todo']), 'de');
+  assert.deepEqual([afterGrammar.kind, afterGrammar.label], ['words', 'Weiter: 32 Wörter']);
+  const finish = dp.handOnAfterWords(session(['done', 'done', 'next', 'todo']), 'de');
   assert.deepEqual([finish.kind, finish.label, finish.href], ['finish', 'Fertig für heute', '/fertig']);
+  // La Forge skipped: the words' end sends the learner back to it, not to Fertig.
+  assert.equal(dp.handOnAfterWords(session(['done', 'todo', 'next', 'todo']), 'de').kind, 'grammar');
 });
 
 test('#279 · a deck of new words and reviews names its two halves; one half alone needs no split', () => {
-  const both = ds.sessionRows(session(['done', 'next', 'todo', 'todo']), 'en')[1];
+  const both = ds.sessionRows(session(['done', 'done', 'next', 'todo']), 'en')[2];
   assert.equal(both.label, '32 words');
   assert.equal(both.meta, '20 new · 12 to review · 8 min');
   const only = (words) => {
-    const base = session(['done', 'next', 'todo', 'todo']);
-    base.steps[1] = { ...base.steps[1], ...words };
-    return ds.sessionRows(base, 'fr')[1].meta;
+    const base = session(['done', 'done', 'next', 'todo']);
+    base.steps[2] = { ...base.steps[2], ...words };
+    return ds.sessionRows(base, 'fr')[2].meta;
   };
   assert.equal(only({ count: 12, new_left: 0, reviews: 12 }), '8 min');
   assert.equal(only({ count: 20, new_left: 20, reviews: 0 }), '8 min');
 });
 
 test('#396 · the day chip counts today only once the day is done, not at the first practice', () => {
-  // The server counts today from the first practice: 19 -> 20 once the words are done.
+  // The server counts today from the first practice: 19 -> 20 once La Forge is done.
   const words = session(['done', 'done', 'next', 'todo']);
   assert.deepEqual(ds.homeDayChip(20, true, words), { streak: 19, dayDone: false });
   // Nothing practised yet: the number is the morning's.
   assert.deepEqual(ds.homeDayChip(19, false, session(['next', 'todo', 'todo', 'todo'])), { streak: 19, dayDone: false });
-  // Grammar done too: the day is done, and today is in the count.
+  // Everything done: the day is done, and today is in the count.
   const done = session(['done', 'done', 'done', 'done']);
   assert.deepEqual(ds.homeDayChip(20, true, done), { streak: 20, dayDone: true });
   // A first day never shows less than nothing.

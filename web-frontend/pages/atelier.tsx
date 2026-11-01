@@ -1108,8 +1108,8 @@ export default function AtelierPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [journey.envelope],
   );
-  /* GENTLE-ONBOARDING: the learner's first day is the story, then the words,
-     then La Forge. Its route is drawn after the recap and on Home once the
+  /* GENTLE-ONBOARDING: the learner's first day is the story, then La Forge,
+     then the words. Its route is drawn after the recap and on Home once the
      story is done; La Forge opens at the server's forge href on every rhythm
      (the first day folds nothing in). */
   const firstDayJourney = castIntroOf(journey.journey).length > 0;

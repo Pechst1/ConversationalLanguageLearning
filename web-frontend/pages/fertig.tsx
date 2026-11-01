@@ -1,6 +1,6 @@
 /* Round 3 (owner, 2026-10-14) — «Fertig für heute».
 
-   The day's last step, after the scene, the words and the grammar: the seal,
+   The day's last step, after the scene, the grammar and the words: the seal,
    one headline, what the day held (1 Szene · 20 Wörter · 12 Übungen), tomorrow's
    open question (the line Home prints, `TomorrowLine`), and the troupe's curtain
    call over it. One ink button back to La Une. Only now the

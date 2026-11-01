@@ -6,7 +6,8 @@
  * the learner choose to keep going.»
  *
  * The server sends the day's four steps (`TodayEnvelope.session`, built in
- * `app/services/daily_session.py`): Szene, Wörter, Grammatik, Fertig, each
+ * `app/services/daily_session.py`): Szene, Grammatik, Wörter, Fertig (the
+ * order is the server's, `lib/day-order.ts`), each
  * `done`, `next` or `todo`, with its minutes. This file turns them into what
  * Home and the hand-offs print: the programme rows, the one button («Weiter:
  * 20 Wörter · 8 Min.»), the mark's four shapes, and the Tempo sheet's rows.
