@@ -35,6 +35,7 @@ celery_app = Celery(
         "app.tasks.health",
         "app.tasks.password_reset_delivery",
         "app.tasks.revue",
+        "app.tasks.gold",
     ],
 )
 
@@ -122,6 +123,12 @@ celery_app.conf.beat_schedule = {
     "revue-weekly-intake": {
         "task": "app.tasks.revue.weekly_intake",
         "schedule": crontab(hour=5, minute=0),
+    },
+    # Package O-1: l'or in shadow — milestones reconciled, the livret recomputed
+    # and the §18 report kept as a pilot event, after the night's other jobs.
+    "gold-nightly-report": {
+        "task": "app.tasks.gold.nightly_report",
+        "schedule": crontab(hour=5, minute=20),
     },
     # WP-73: liveness — a fresh Redis heartbeat proves beat, broker and a worker.
     "worker-heartbeat": {

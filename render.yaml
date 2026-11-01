@@ -258,6 +258,10 @@ services:
         value: "true"
       - key: SPEND_RESERVATIONS_ENABLED
         value: "true"
+      # Package O-1: l'or recorded in shadow (the ledger and the nightly report,
+      # nothing on a learner's screen). off | shadow | live.
+      - key: ATELIER_GOLD_MODE
+        value: shadow
       # --- Owner 2026-10-12: every product feature on (end) --------------
       # Durable image storage (any S3-compatible bucket; docs/ops/image-storage.md
       # sets up Cloudflare R2). Entered here on the API only: the worker inherits it.
@@ -498,6 +502,10 @@ services:
         value: "true"
       - key: SPEND_RESERVATIONS_ENABLED
         value: "true"
+      # Package O-1: l'or recorded in shadow (the ledger and the nightly report,
+      # nothing on a learner's screen). off | shadow | live.
+      - key: ATELIER_GOLD_MODE
+        value: shadow
       # --- Owner 2026-10-12: every product feature on (end) --------------
       # Durable image storage: inherited from the API's dashboard values.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE

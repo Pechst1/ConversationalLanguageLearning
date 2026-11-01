@@ -315,6 +315,14 @@ class Settings(BaseSettings):
         True,
         description="WP-S7: a Seal ring per rule held today and a rare token for a passed test-out.",
     )
+    ATELIER_GOLD_MODE: str = Field(
+        "shadow",
+        description=(
+            "Package O-1 l'or: off writes nothing; shadow writes the gold ledger and the nightly "
+            "report and shows nothing to learners; live is reserved for O-2 (until then it records "
+            "like shadow)."
+        ),
+    )
     ATELIER_BACKGROUND_PREGENERATION_ENABLED: bool = Field(
         True,
         description="Pre-generate the learner's next Atelier session in the background.",
@@ -1015,6 +1023,16 @@ class Settings(BaseSettings):
         normalized = value.strip().upper()
         if normalized not in {"A1", "A2", "B1", "B2"}:
             raise ValueError("REVUE_MIN_BAND must be one of: A1, A2, B1, B2")
+        return normalized
+
+    @field_validator("ATELIER_GOLD_MODE")
+    @classmethod
+    def validate_atelier_gold_mode(cls, value: str) -> str:
+        """O-1: a mistyped mode must not silently switch the ledger off (or on)."""
+
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"off", "shadow", "live"}:
+            raise ValueError("ATELIER_GOLD_MODE must be one of: off, shadow, live")
         return normalized
 
     @field_validator("GRAPHIC_NOVEL_IMAGE_STORAGE")

@@ -87,7 +87,7 @@ from app.schemas.daily_journey import (
     forge_href_for,
     practice_href_for,
 )
-from app.services import scene_ledger
+from app.services import gold_ledger, scene_ledger
 from app.services.chrome_language import user_chrome_language
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
@@ -2391,6 +2391,10 @@ class DailyJourneyService:
                     self.db, user, on_date=local_date_for(journey.timezone)
                 )
             self._close_learning_session(journey, payload.finish_kind)
+            # O-1: the journée parfaite and every milestone reached (shadow, best effort).
+            gold_ledger.record_journey_finish(
+                self.db, user=user, journey=journey, complete=payload.finish_kind == "complete", now=_utcnow()
+            )
             self.db.flush()
         except HTTPException as exc:
             self._record_error(receipt, exc)
@@ -5187,6 +5191,8 @@ class DailyJourneyService:
         private = dict(step.private_task or {})
         task = _recall_task_from_json(private["recall_task"])
         assistance = self._step_assistance(step)
+        # O-1: the learner's own help, before a retry's server-side «solution».
+        own_assistance = assistance
         retry = bool(private.get(RETRY_OF_KEY))
         if retry:
             # The answer was shown after the first miss: a hit now is a repair after
@@ -5207,6 +5213,8 @@ class DailyJourneyService:
             # The first miss already booked the lapse and saved the error; missing it
             # again a few steps later is the same mistake, not a second one.
             recorded = replace(evaluation, observations=[], correction=None)
+        # O-1 (R4): each target's last contact, read before this answer stamps it.
+        contacts = gold_ledger.snapshot_contacts(self.db, user=user, evaluation=recorded)
         applied = self._apply_evidence(user, journey, step, recorded, answer.mode)
         step.evidence_ref = applied.evidence_ref
         step.status = str(StepStatus.COMPLETED)
@@ -5216,6 +5224,19 @@ class DailyJourneyService:
         if missed and not retry:
             self._queue_retry(journey, step)
         self.db.flush()
+        # O-1: l'or in shadow — the ledger only; a failure there never costs the answer.
+        gold_ledger.record_journey_recall(
+            self.db,
+            user=user,
+            journey=journey,
+            step=step,
+            task=task,
+            evaluation=recorded,
+            assistance=own_assistance,
+            retry=retry,
+            contacts=contacts,
+            now=step.completed_at,
+        )
 
         return AttemptResult(
             evidence_ref=applied.evidence_ref,
@@ -5285,6 +5306,8 @@ class DailyJourneyService:
         brief = self._pinned_brief(journey)
         assistance = self._step_assistance(step)
         history = list(private.get("turns", []))
+        # O-1: the outcome of the exchange before this one (a repair follows a miss).
+        previous_outcome = (private.get("result") or {}).get("outcome") if history else None
         # WP-89: a turn that cost no exchange (the opening greeting nudge) does
         # not move the conversation's own clock either.
         free_turns = sum(1 for turn in history if isinstance(turn, dict) and turn.get("free"))
@@ -5309,6 +5332,21 @@ class DailyJourneyService:
         step.evidence_ref = applied.evidence_ref
         if evaluation.turn_consumed:
             step.turns_used += 1
+        # O-1: l'or in shadow, one entry per exchange; never costs the turn.
+        gold_ledger.record_journey_reply(
+            self.db,
+            user=user,
+            journey=journey,
+            step=step,
+            task=task,
+            evaluation=evaluation,
+            assistance=assistance,
+            turn_position=len(history),
+            turn_index=max(0, step.turn_index - free_turns),
+            consumed_before=sum(1 for turn in history if isinstance(turn, dict) and not turn.get("free")),
+            previous_outcome=previous_outcome,
+            now=_utcnow(),
+        )
         public_correction = self._public_correction(evaluation.correction, answer.text)
         history.append(
             {

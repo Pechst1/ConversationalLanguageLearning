@@ -2380,12 +2380,14 @@ def evaluate_recall(
         if context:
             correction = replace(correction, context_fr=context)
     slip_note = None
+    slip_kind = None
     if is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
         # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
         from app.services.answer_acceptance import feedback_note
         from app.services.chrome_language import user_chrome_language
 
         slip_note = feedback_note(typed, str(user_chrome_language(user)))
+        slip_kind = "accent" if typed.accent_slip else "typo"
     return RecallEvaluation(
         outcome=TaskOutcome.MET if is_correct else TaskOutcome.NOT_YET,
         assistance=assistance,
@@ -2394,6 +2396,7 @@ def evaluate_recall(
         pending=False,
         failure_reason=None,
         slip_note_native=slip_note,
+        slip_kind=slip_kind,
     )
 
 
@@ -3828,6 +3831,19 @@ def correct_released_grading(
         flag_modified(moment, "result_payload")
         retracted.append(str(target.get("id")))
     db.flush()
+    # O-1: settled gold stays (the grader erred, not the learner); the ledger notes it.
+    from app.services import gold_ledger
+
+    gold_ledger.note_released_grading_corrected(
+        db,
+        user=user,
+        journey_id=journey_id,
+        step_id=step_id,
+        outcome=outcome,
+        withdrawn_target_ids=sorted(withdrawn),
+        reason=reason,
+        now=now,
+    )
     return {"corrected_rows": len(corrected), "withdrawn_target_ids": retracted}
 
 

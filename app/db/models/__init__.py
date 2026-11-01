@@ -21,6 +21,7 @@ from app.db.models.daily_journey import (
 from app.db.models.episode_audio import EpisodeAudioClip
 from app.db.models.error import UserError, UserErrorConcept
 from app.db.models.feedback import UserFeedbackReport
+from app.db.models.gold import GoldBalance, GoldLedgerEntry
 from app.db.models.grammar import (
     GrammarConcept,
     GrammarConceptArchive,
@@ -102,6 +103,8 @@ __all__ = [
     "AtelierLanguagePack",
     "AtelierSession",
     "AtelierServedItem",
+    "GoldBalance",
+    "GoldLedgerEntry",
     "RealWorldMission",
     "RealWorldMissionAttempt",
     "RealWorldMissionTurn",

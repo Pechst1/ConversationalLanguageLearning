@@ -54,6 +54,7 @@ from app.db.models.atelier import AtelierAttempt, AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services import forge_drills as drills
+from app.services import gold_ledger
 from app.services.forge_coaches import coach_for_concept, coach_mood, recast_scene, story_state_of
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
@@ -1676,8 +1677,34 @@ class ForgeService:
                     state.served_fingerprints.append(str(member))
         state.history[-1]["exercise_key"] = exercise_key
         state.history[-1]["drill"] = drill
+        # #402: the level before this answer; an item posed below it is a warm-up.
+        level_before = decision.new_rung - int(state.history[-1].get("rung_move") or 0)
+        reprise = bool(served and pending.get("reprise"))
+        below_level = state.mode == core.MODE_SEANCE and int(rung) < level_before
+        # O-1: kept with the answer, so a relecture that lands later prices it the same.
+        state.history[-1]["reprise"] = reprise
+        state.history[-1]["below_level"] = below_level
         now = now or datetime.now(UTC)
+        contact_before = gold_ledger.forge_contact_before(
+            self.db, user=user, concept_id=attempt.concept_id, rung=int(rung), verdict=verdict
+        )
         held = self._write_evidence(user=user, state=state, decision=decision, verdict=verdict, attempt=attempt, now=now)
+        # O-1: l'or in shadow (R6: an unchecked answer is pending until its relecture).
+        gold_ledger.record_forge_item(
+            self.db,
+            user=user,
+            attempt=attempt,
+            rung=int(rung),
+            verdict=verdict,
+            mode=state.mode,
+            reprise=reprise,
+            below_level=below_level,
+            level_before=level_before,
+            contact_before=contact_before,
+            now=now,
+        )
+        if held:
+            gold_ledger.record_rule_held(self.db, user=user, now=now)
         if served and pending.get("personal") and verdict.checked and verdict.correct:
             self._review_own_mistake(user=user, item=pending.get("item") or {}, now=now)
         if state.mode == core.MODE_TEST_OUT and state.finished:
@@ -1692,7 +1719,7 @@ class ForgeService:
             "new_rung": decision.new_rung,
             # #402: the level before this answer. An item posed below it (a warm-up)
             # is not a climb, so the cheer compares with this, not with ``rung``.
-            "level_before": decision.new_rung - int(state.history[-1].get("rung_move") or 0),
+            "level_before": level_before,
             "counted": decision.counted,
             "schedule": decision.schedule,
             # How the item was posed, and the run of right answers it leaves.
@@ -1753,8 +1780,14 @@ class ForgeService:
         # An unread answer is settled (its provisional step taken back) but not
         # amended: a retried review that does read it still counts, once.
         entry.update({"amended": verdict.checked, "outcome": verdict.outcome, **decision.ledger(), "checked": verdict.checked})
-        self._write_evidence(user=user, state=state, decision=decision, verdict=verdict, attempt=attempt,
-                             now=datetime.now(UTC))
+        held = self._write_evidence(user=user, state=state, decision=decision, verdict=verdict, attempt=attempt,
+                                    now=datetime.now(UTC))
+        # O-1: the pending gold settles (or is pulped) with the relecture's verdict.
+        gold_ledger.settle_forge_item(
+            self.db, user=user, attempt=attempt, history_entry=entry, verdict=verdict, unread=unread
+        )
+        if held:
+            gold_ledger.record_rule_held(self.db, user=user)
         shown = dict(correction.get("forge") or {})
         if shown:
             # The level shown under the answer is the settled one.
