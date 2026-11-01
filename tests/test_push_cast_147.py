@@ -73,19 +73,19 @@ def _scene(db_session, user: User, character: tuple[str, str]) -> None:
     db_session.commit()
 
 
-def test_a_teaser_from_someone_not_met_yet_is_not_pushed(db_session) -> None:
+def test_unmet_teaser_not_pushed(db_session) -> None:
     user = _learner(db_session)
     _thread(db_session, user, {"text_fr": "J’ai une question pour vous, demain.", "character_id": "romy_tremblay"})
 
     push = copy.daily_journey_morning_push(db_session, user, today=TODAY)
 
     assert push is not None
-    assert push.character_id != "romy_tremblay", "Romy greets on day 1, three tentpoles before the story meets her"
+    assert push.character_id != "romy_tremblay", "Romy pushes on day 1"
     assert push.title != "Romy"
     assert push.source == "authored"
 
 
-def test_the_scene_s_speaker_not_met_yet_does_not_speak_the_push(db_session) -> None:
+def test_unmet_scene_speaker_not_pushed(db_session) -> None:
     user = _learner(db_session)
     _thread(db_session, user)
     _scene(db_session, user, ("romy_tremblay", "Romy"))
@@ -93,11 +93,11 @@ def test_the_scene_s_speaker_not_met_yet_does_not_speak_the_push(db_session) -> 
     push = copy.daily_journey_morning_push(db_session, user, today=TODAY)
 
     assert push is not None
-    assert push.character_id != "romy_tremblay"
+    assert push.character_id != "romy_tremblay", "Romy pushes on day 1"
     assert copy.streak_at_risk_push(db_session, user, days=3).character_id != "romy_tremblay"
 
 
-def test_someone_the_learner_has_met_still_speaks(db_session) -> None:
+def test_met_speaker_still_speaks(db_session) -> None:
     user = _learner(db_session)
     _thread(db_session, user, {"text_fr": "Demain, je vous montre la lettre.", "character_id": "lila_bonnet"})
 
@@ -107,7 +107,7 @@ def test_someone_the_learner_has_met_still_speaks(db_session) -> None:
     assert (push.title, push.source) == ("Lila", "engine")
 
 
-def test_voices_and_push_tables_read_the_registry_s_aliases() -> None:
+def test_one_alias_table() -> None:
     """A nickname the registry knows for a voiced person is the voice's too, and the push
     tables hold exactly the registry's people (no second list to drift)."""
 
@@ -125,7 +125,7 @@ def test_voices_and_push_tables_read_the_registry_s_aliases() -> None:
     assert set(copy.PORTRAIT_CHARACTERS.values()) <= set(copy.CHARACTER_NAMES)
 
 
-def test_a_thread_without_a_season_is_not_filtered(db_session) -> None:
+def test_no_season_no_filter(db_session) -> None:
     """An older story has no canon of who comes when; the push keeps the scene's speaker."""
 
     user = _learner(db_session)
