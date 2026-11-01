@@ -529,6 +529,16 @@ class ForgeState:
 
         if self.finished:
             return None
+        return self._slot_ahead()
+
+    def _slot_ahead(self) -> Slot | None:
+        """The next slot from the tracks alone, whatever ``finished`` says.
+
+        ``finished`` is a stored copy of «no slot ahead» (#443): whoever moves a
+        track after it was written (:meth:`settle` takes a provisional top-out
+        back) must re-read it from here, or the séance stays over.
+        """
+
         position = self.position
         if position >= self.length:
             return None
@@ -676,6 +686,10 @@ class ForgeState:
                 if track.reprise_at <= self.position:
                     track.reprise_at = None
             entry["rung_move"] = final
+        if self.mode == MODE_SEANCE:
+            # #443: a provisional top-out may have ended the séance; withdrawing it
+            # (or confirming it) re-reads the end from the tracks.
+            self.finished = self._slot_ahead() is None
         # Its move is final now: :meth:`level_read` no longer takes it back.
         entry["settled"] = True
         return track.rung

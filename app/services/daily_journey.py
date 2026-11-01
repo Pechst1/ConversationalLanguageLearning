@@ -214,6 +214,25 @@ def _planned_introduction(plan: Any) -> dict[str, Any] | None:
     return None
 
 
+def _planned_rule_id(journey: Any, today: date) -> int | None:
+    """#443: the grammar unit today's journey was planned to introduce, or None.
+
+    The plan is the one place that decides the day's rule (``_planned_introduction``
+    stores it); the forge entry Home links to reads it from there instead of asking
+    the forge picker again, which knows nothing of the scene's own rule.
+    """
+
+    if journey is None or getattr(journey, "local_date", None) != today:
+        return None
+    selection = getattr(journey, "plan_selection", None)
+    planned = selection.get("introduction") if isinstance(selection, dict) else None
+    try:
+        concept_id = int(planned.get("concept_id")) if isinstance(planned, dict) else 0
+    except (TypeError, ValueError):
+        return None
+    return concept_id if concept_id > 0 else None
+
+
 def _forge_block_completed(db: Session, user_id: Any, step_id: Any) -> bool:
     """WP-S4: was a forge block opened from this journey step completed?"""
 
@@ -1117,7 +1136,8 @@ class DailyJourneyService:
         if enabled and journey is None:
             available = self._available_descriptor(user)
 
-        forge_anchor = self._forge_anchor_id(user)
+        # #443: the day's rule is the one the day planned, not a second reading of the picker.
+        forge_anchor = self._forge_anchor_id(user, planned=_planned_rule_id(journey, today))
         forge_entry = self._forge_entry(user, anchor=forge_anchor) if enabled else None
         if forge_entry is not None:
             forge_entry = forge_entry.model_copy(
@@ -2890,13 +2910,15 @@ class DailyJourneyService:
             anchor = self._forge_anchor_id(user)
         return practice_href_for(anchor)
 
-    def _forge_anchor_id(self, user: User) -> int | None:
+    def _forge_anchor_id(self, user: User, *, planned: int | None = None) -> int | None:
+        """Today's rule for the forge entry: the day's planned rule (``planned``), else the picker's."""
+
         from app.services.forge_picker import forge_anchor_id
 
         return run_best_effort(
             self.db,
             "daily_journey: forge anchor for practice_href",
-            lambda: forge_anchor_id(self.db, user, _utcnow()),
+            lambda: forge_anchor_id(self.db, user, _utcnow(), preferred_concept_id=planned),
             default=None,
             log=logger,
         )
