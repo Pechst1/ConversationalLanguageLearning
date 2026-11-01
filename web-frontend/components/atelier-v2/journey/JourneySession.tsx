@@ -309,7 +309,7 @@ export function JourneySession({
   /* GENTLE-ONBOARDING: the learner's first day (the one that meets the cast)
      opens on the walkthrough — the app, the shapes, the progress row, the
      day's route — before the cast intro. Once per device. The day's route
-     (story → words → La Forge) is remembered under the journey's date. */
+     (story → La Forge → words) is remembered under the journey's date. */
   const firstDay = castIntro.length > 0;
   const localDate = journey?.local_date ?? null;
   const [walkthroughDone, setWalkthroughDone] = React.useState(true);

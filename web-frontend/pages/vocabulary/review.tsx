@@ -722,7 +722,7 @@ export default function VocabularyReviewPage() {
   const remainingItems = useMemo(() => remainingCards(allItems, deck), [allItems, deck]);
   const current = remainingItems[0] || null;
   /* GENTLE-ONBOARDING: an emptied deck on the first day ticks the words off,
-     the last stage of story → words → La Forge. `null` on any other day. */
+     the last stage of story → La Forge → words. `null` on any other day. */
   const [firstDayDone, setFirstDayDone] = useState<RouteStage[] | null>(null);
   const deckEmpty = !loading && !loadError && !current;
   useEffect(() => {
@@ -753,7 +753,7 @@ export default function VocabularyReviewPage() {
   // once the deck is done, never in «Encore 5 minutes» (review only), and at most
   // one session's worth at a time; the server stays the judge of the room.
   // Round 3: in the day's deck the dose goes on by itself, deck after deck,
-  // until today's new words are met; then the day moves on to the grammar.
+  // until today's new words are met; then the day moves on to its next step.
   const daySession = useMemo(() => daySessionMode(), []);
   const dayLeft = daySession?.kind === 'day' ? Number(context?.new_words_left_today || 0) : 0;
   const [dayNext, setDayNext] = useState<{ label: string; meta: string; href: string } | null>(null);

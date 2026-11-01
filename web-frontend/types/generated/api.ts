@@ -7730,8 +7730,8 @@ export interface components {
         };
         /**
          * DaySession
-         * @description Round 3 (owner, 2026-10-14): the day as one sequence — Szene, Wörter,
-         *     Grammatik, Fertig — at the learner's pace. See ``app.services.daily_session``.
+         * @description Round 3 (owner, 2026-10-14): the day as one sequence — Szene, Grammatik
+         *     (La Forge), Wörter, Fertig (order: owner, 1 Nov 2026) — at the learner's pace. See ``app.services.daily_session``.
          */
         DaySession: {
             /**
@@ -7751,7 +7751,7 @@ export interface components {
             /** More Words */
             more_words: number;
             /** Next Kind */
-            next_kind: ("scene" | "words" | "grammar" | "finish") | null;
+            next_kind: ("scene" | "grammar" | "words" | "finish") | null;
             /**
              * Pace
              * @enum {string}
@@ -7774,7 +7774,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "scene" | "words" | "grammar" | "finish";
+            kind: "scene" | "grammar" | "words" | "finish";
             /**
              * Minutes
              * @default 0

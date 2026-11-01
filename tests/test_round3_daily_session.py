@@ -1,7 +1,8 @@
 # ruff: noqa: F811 - the WP-12 fixtures are imported by name and requested as arguments
 """Round 3 (owner, 2026-10-14): the day as one sequence, with a real daily dose.
 
-* The day is Szene, Wörter, Grammatik, Fertig, in that order, each with its
+* The day is Szene, Grammatik (La Forge), Wörter, Fertig, in that order (owner,
+  1 Nov 2026: La Forge before the words), each with its
   state and its minutes; Home's one button opens the first step not done.
 * The pace (Ruhig / Normal / Schnell) sets the day's words, the rules a week
   and the séance's length; a new learner starts on Normal.
@@ -27,6 +28,12 @@ from tests.test_journey_end_to_end import (
 )
 
 
+def _step(view: dict, kind: str) -> dict:
+    """A step by its kind: no test reads the day's order from a position."""
+
+    return next(step for step in view["steps"] if step["kind"] == kind)
+
+
 def _inputs(**overrides) -> SessionInputs:
     base = {
         "pace": "normal",
@@ -48,27 +55,53 @@ def _inputs(**overrides) -> SessionInputs:
 def test_a_fresh_day_is_four_steps_and_the_scene_comes_first() -> None:
     view = session_view(_inputs())
 
-    assert [step["kind"] for step in view["steps"]] == ["scene", "words", "grammar", "finish"]
+    assert [step["kind"] for step in view["steps"]] == ["scene", "grammar", "words", "finish"]
     assert [step["state"] for step in view["steps"]] == ["next", "todo", "todo", "todo"]
     assert view["next_kind"] == "scene"
-    words = view["steps"][1]
+    words = _step(view, "words")
     # 20 new words at 20 s and 12 reviews at 6 s: 400 + 72 s, eight minutes.
     # #143: the step names every card the deck shows, the reviews too.
     assert (words["count"], words["new_left"], words["reviews"], words["minutes"]) == (32, 20, 12, 8)
-    grammar = view["steps"][2]
+    grammar = _step(view, "grammar")
     # 300 s at 25 s an item: twelve items, five minutes.
     assert (grammar["count"], grammar["minutes"]) == (12, 5)
     assert view["minutes_left"] == 8 + 8 + 5
 
 
-def test_after_the_scene_the_words_are_next_then_the_grammar() -> None:
+def test_after_the_scene_la_forge_is_next_then_the_words() -> None:
+    # Owner, 1 Nov 2026: La Forge comes before the words.
     view = session_view(_inputs(scene_done=True, introduced=4))
-    assert view["next_kind"] == "words"
-    assert view["steps"][1]["new_left"] == 16
+    assert view["next_kind"] == "grammar"
+    assert _step(view, "words")["new_left"] == 16
+    assert _step(view, "words")["state"] == "todo"
 
+    view = session_view(_inputs(scene_done=True, introduced=4, forge_blocks_today=1))
+    assert view["next_kind"] == "words"
+
+    # Words done first (e.g. from the Cahier) leave La Forge as the next step.
     view = session_view(_inputs(scene_done=True, introduced=20, words_marked_done=True))
     assert view["next_kind"] == "grammar"
-    assert view["steps"][1]["minutes"] == 0
+    assert _step(view, "words")["minutes"] == 0
+
+
+def test_the_day_is_laid_out_in_the_schemas_one_order() -> None:
+    """Guard: the order is written once, in the ``DaySessionStepKind`` literal.
+
+    ``session_view`` lays the day out by it, the OpenAPI schema (and so the
+    generated ``api.ts`` union the frontend's ``lib/day-order.ts`` is checked
+    against) carries it in the same order, and it is the owner's.
+    """
+
+    from typing import get_args
+
+    from app.main import app
+    from app.schemas.daily_journey import DAY_STEP_ORDER, DaySessionStepKind
+
+    assert DAY_STEP_ORDER == get_args(DaySessionStepKind) == ("scene", "grammar", "words", "finish")
+    view = session_view(_inputs())
+    assert tuple(step["kind"] for step in view["steps"]) == DAY_STEP_ORDER
+    schema = app.openapi()["components"]["schemas"]["DaySessionStep"]["properties"]["kind"]
+    assert tuple(schema["enum"]) == DAY_STEP_ORDER
 
 
 def test_the_day_is_done_only_when_all_three_are_and_then_offers_ten_more_words() -> None:
@@ -91,10 +124,10 @@ def test_the_day_is_done_only_when_all_three_are_and_then_offers_ten_more_words(
 def test_the_word_step_names_the_cards_it_will_show_and_the_tally_what_was_done() -> None:
     # #153: the scene already met 3 of the 20 new words, so the deck holds 17.
     mid = session_view(_inputs(scene_done=True, introduced=3, reviews_due=0))
-    assert (mid["steps"][1]["count"], mid["steps"][1]["new_left"]) == (17, 17)
+    assert (_step(mid, "words")["count"], _step(mid, "words")["new_left"]) == (17, 17)
     # No new words left but reviews waiting: the step names the reviews.
     reviews = session_view(_inputs(scene_done=True, introduced=20, reviews_due=9))
-    assert reviews["steps"][1]["count"] == 9
+    assert _step(reviews, "words")["count"] == 9
     # The end screen counts words reviewed, not the pace's target.
     done = session_view(
         _inputs(scene_done=True, introduced=3, words_marked_done=True, words_reviewed_today=17, forge_blocks_today=1)
@@ -104,7 +137,7 @@ def test_the_word_step_names_the_cards_it_will_show_and_the_tally_what_was_done(
 
 def test_words_count_as_done_without_the_mark_once_nothing_is_left() -> None:
     view = session_view(_inputs(scene_done=True, introduced=20, reviews_due=0))
-    assert view["steps"][1]["state"] == "done"
+    assert _step(view, "words")["state"] == "done"
 
 
 def test_the_rules_a_week_decide_when_a1_is_reached() -> None:
@@ -185,7 +218,7 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     assert today.status_code == 200, today.text
     session = today.json()["session"]
     assert session["pace"] == "normal"
-    assert [step["kind"] for step in session["steps"]] == ["scene", "words", "grammar", "finish"]
+    assert [step["kind"] for step in session["steps"]] == ["scene", "grammar", "words", "finish"]
     assert session["next_kind"] == "scene"
     # #143/#396: the day's words, the scene's share of the 20 included: the
     # scene's words are cards of the deck once it met them, so Home's number does
@@ -194,8 +227,8 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     user = db_session.get(User, learner_id(db_session, "round3-today@example.com"))
     room, _reserved = vocabulary_pace.drill_new_word_room(db_session, user)
     assert 0 < room < 20
-    assert session["steps"][1]["count"] == 20
-    assert session["steps"][2]["href"].endswith("&from=day")
+    assert _step(session, "words")["count"] == 20
+    assert _step(session, "grammar")["href"].endswith("&from=day")
 
     sheet = assembled_client.get("/api/v1/daily-journeys/session/pace", headers=headers)
     assert sheet.status_code == 200, sheet.text
@@ -216,7 +249,7 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     room, _reserved = vocabulary_pace.drill_new_word_room(db_session, user)
     assert 0 < room < 10
     # A pace changed before the deck is dealt re-plans the day.
-    assert today["session"]["steps"][1]["count"] == 10
+    assert _step(today["session"], "words")["count"] == 10
 
 
 def test_the_word_step_can_be_marked_done(
@@ -226,7 +259,7 @@ def test_the_word_step_can_be_marked_done(
     # No journey today yet: the mark has nowhere to live and the step stays open.
     response = assembled_client.post("/api/v1/daily-journeys/session/words-done", headers=headers)
     assert response.status_code == 200, response.text
-    assert response.json()["steps"][1]["state"] in {"todo", "next"}
+    assert _step(response.json(), "words")["state"] in {"todo", "next"}
 
 
 def test_a_word_count_sent_at_registration_is_kept_as_a_custom_intake(

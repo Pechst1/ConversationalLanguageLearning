@@ -19,11 +19,12 @@
  * step's exit path.
  */
 
+import { WORK_STEPS, type DayWorkKind } from '@/lib/day-order';
 import { daySessionCopy, sessionStep } from '@/lib/day-session';
 import type { ControlLanguage, DaySession, DaySessionStepKind } from '@/types/daily-journey';
 
-/** The steps a learner works through; «finish» is the seal, not work. */
-export type DayWorkKind = Exclude<DaySessionStepKind, 'finish'>;
+/** The day's order lives in `day-order.ts` (one place, checked against the server's). */
+export { WORK_STEPS, type DayWorkKind };
 
 /**
  * How a step was left.
@@ -49,8 +50,6 @@ export type DayAfterExit = {
   /** Every working step is done. The only value any screen may call «the day is done». */
   dayDone: boolean;
 };
-
-export const WORK_STEPS: readonly DayWorkKind[] = ['scene', 'words', 'grammar'];
 
 /**
  * Does leaving `step` this way finish it? The server marks the scene done on any
@@ -188,7 +187,7 @@ export function handOnAfterScene(
   return afterExit(plan, 'scene', how, language)?.next ?? null;
 }
 
-/** La Forge's recap: the words if they are still open, else "Fertig". */
+/** La Forge's recap: the plan's next open step (the words, in the day's order), else "Fertig". */
 export function handOnAfterGrammar(
   plan: DaySession | null | undefined,
   language: ControlLanguage,
@@ -197,7 +196,7 @@ export function handOnAfterGrammar(
   return afterExit(plan, 'grammar', how, language)?.next ?? null;
 }
 
-/** The word deck's end: the grammar if it is still open, else "Fertig". */
+/** The word deck's end: any step still open (La Forge, if skipped), else "Fertig". */
 export function handOnAfterWords(
   plan: DaySession | null | undefined,
   language: ControlLanguage,

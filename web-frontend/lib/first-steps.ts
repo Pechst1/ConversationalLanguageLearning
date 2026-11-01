@@ -18,6 +18,7 @@
  * harmless, and nothing here can block a step when storage is unreachable.
  */
 
+import { ROUTE_STAGE_OF, WORK_STEPS, type RouteStage } from '@/lib/day-order';
 import type { ControlLanguage } from '@/types/daily-journey';
 import type { ShapeKind } from '@/components/atelier-v2/ui/Shapes';
 
@@ -106,7 +107,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       resolution: {
         title: 'Das Ende der Folge',
-        body: 'Hier endet die Szene. Danach kommen deine Wörter und die Grammatik.',
+        body: 'Hier endet die Szene. Danach kommen die Grammatik und deine Wörter.',
       },
       read: {
         title: 'Eine Seite zum Lesen',
@@ -148,7 +149,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         'Rechts oben: dein Tag füllt sich.',
       ],
       day_title: 'Dein erster Tag',
-      day_body: 'Szene, dann deine Wörter, dann Grammatik. Gelbe Zettel erklären Neues.',
+      day_body: 'Szene, dann Grammatik, dann deine Wörter. Gelbe Zettel erklären Neues.',
     },
     route: {
       title: 'Dein erster Tag',
@@ -184,7 +185,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       resolution: {
         title: 'The end of the episode',
-        body: 'The scene ends here. Next come your words and the grammar.',
+        body: 'The scene ends here. Next come the grammar and your words.',
       },
       read: {
         title: 'A page to read',
@@ -226,7 +227,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         'Top right: your day fills in.',
       ],
       day_title: 'Your first day',
-      day_body: 'Scene, then your words, then grammar. Yellow notes explain new things.',
+      day_body: 'Scene, then grammar, then your words. Yellow notes explain new things.',
     },
     route: {
       title: 'Your first day',
@@ -262,7 +263,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       resolution: {
         title: 'La fin de l’épisode',
-        body: 'La scène se termine ici. Ensuite viennent tes mots et la grammaire.',
+        body: 'La scène se termine ici. Ensuite viennent la grammaire et tes mots.',
       },
       read: {
         title: 'Une page à lire',
@@ -304,7 +305,7 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         'En haut à droite : ta journée se remplit.',
       ],
       day_title: 'Ton premier jour',
-      day_body: 'La scène, puis tes mots, puis la grammaire. Les notes jaunes expliquent le nouveau.',
+      day_body: 'La scène, puis la grammaire, puis tes mots. Les notes jaunes expliquent le nouveau.',
     },
     route: {
       title: 'Ton premier jour',
@@ -417,16 +418,16 @@ export function stickerFor(kind: string | null | undefined): FirstStepKey | null
 }
 
 // ---------------------------------------------------------------------------
-// The first day's route: story → words → La Forge
+// The first day's route: story → La Forge → words
 // ---------------------------------------------------------------------------
 
-export type RouteStage = 'story' | 'forge' | 'words';
+export type { RouteStage };
 /**
- * #152: the order is the server's day plan (scene, words, grammar), written here
- * in the route's own names (story, words, forge). `day-plan.test.js` holds the
- * two to each other.
+ * #152: the order is the day plan's (`day-order.ts`, checked against the
+ * server's), in the route's own names (story, forge, words). Derived, never
+ * written out here.
  */
-export const ROUTE_STAGES: readonly RouteStage[] = ['story', 'words', 'forge'];
+export const ROUTE_STAGES: readonly RouteStage[] = WORK_STEPS.map((kind) => ROUTE_STAGE_OF[kind]);
 
 type RouteMemory = { date: string; done: RouteStage[] };
 

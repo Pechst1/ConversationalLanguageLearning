@@ -5,14 +5,16 @@ Forge are part of the day, not extras. Only after the day's quota is done can
 the learner choose to keep going.» And: «Work the daily dose backward from my
 level goal … Let the learner pick a pace and show what each pace costs.»
 
-The day is four steps, always in this order:
+Owner, 1 Nov 2026: La Forge comes before the words. The day is four steps,
+always in this order (``DAY_STEP_ORDER``, the schema's ``DaySessionStepKind``
+literal, is the one place the order is written):
 
 1. **Szene** — today's journey (or Le Papier on a news day). Its answer to the
    character stays inside it: nothing comes between a character's question and
    the reply.
-2. **Wörter** — the day's new words at the learner's pace plus the reviews due,
+2. **Grammatik** — one La Forge séance on the day's rule.
+3. **Wörter** — the day's new words at the learner's pace plus the reviews due,
    the scene's words first (they were introduced by the scene).
-3. **Grammatik** — one La Forge séance on the day's rule.
 4. **Fertig** — the seal and what the day held. Only now «Noch 10 Wörter».
 
 The pace (:data:`PACES`) is worked back from the level goal. A band is covered
@@ -38,6 +40,8 @@ from typing import Any, Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+
+from app.schemas.daily_journey import DAY_STEP_ORDER
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +213,7 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
     words_done_count = inputs.dealt if inputs.dealt else words_met
     grammar_done = inputs.forge_blocks_today > 0
     items = forge_items(inputs.forge_seconds)
-    raw = [
+    by_kind = [
         {
             "kind": "scene",
             "done": inputs.scene_done,
@@ -238,6 +242,8 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
             "count": items,
         },
     ]
+    # The order is the schema's (DAY_STEP_ORDER), never the list above.
+    raw = sorted(by_kind, key=lambda step: DAY_STEP_ORDER.index(step["kind"]))
     all_done = all(step["done"] for step in raw)
     steps: list[dict[str, Any]] = []
     next_seen = False
