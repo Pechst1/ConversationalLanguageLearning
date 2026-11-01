@@ -167,7 +167,6 @@ import {
   correctionAnchor,
   headerLevel,
   cueIsLocalized,
-  endsTheSeance,
   localizedCue,
   recapRuleRows,
   seanceCount,
@@ -3732,7 +3731,7 @@ function SessionView({
   const rulePreference = ruleOpenByConcept[conceptRuleKey];
   const ruleExpanded = firstConceptDrill ? rulePreference !== false : rulePreference === true;
   const isFinalConversation = forge
-    ? endsTheSeance(forge)
+    ? Boolean(forge.finished && forge.mode === 'seance')
     : !isRetest && round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
   const currentFeedback = currentSubmitted
     ? feedbackForExercise(round, mode, activeSet, activeItemIndex, currentAnswers, currentCorrection, t)
