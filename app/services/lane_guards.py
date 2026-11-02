@@ -882,3 +882,172 @@ def echoed_thread(reply: str, earlier: list[str]) -> list[str]:
     if any(len(sentence.split()) >= 5 for sentence in repeated) or len(repeated) >= 2:
         return repeated
     return []
+
+
+# ---------------------------------------------------------------------------
+# #467 — what the learner already answered, and what was named (root cause #145)
+# ---------------------------------------------------------------------------
+#
+# Live walk 2 Nov 2026: Marin asked «Tu veux garder ce nom ?», the learner answered
+# «Non, je veux pas ce nom…», and Marin said «Oui, bien sûr. Tu me le fais garder ?»: his
+# own question again, from the line the learner had just answered. The summary then said
+# «Napoléon donne son nom au canapé du menu»: a cat's name moved onto the sofa. Both come
+# from one flaw: the thread is read as text, not as a record of who asked, who answered
+# and who named what. The scene ledger (``scene_ledger.build``) holds the first; the
+# thread's own sentences hold the second.
+
+#: Verbs that carry no topic of their own: «Tu me le fais garder ?» asks about «garder»,
+#: not about «faire». Compared folded.
+_LIGHT_VERBS = frozenset(
+    """fais fait faites faire veux veut voulez vouloir peux peut pouvez pouvoir vais vont
+    allez aller dis dit dites dire sais sait savez savoir as avez avoir etes serait""".split()
+)
+
+
+def _topic_stems(text: str) -> set[str]:
+    """What a question is about: its content words (light verbs aside) by their first
+    four letters, so «garder» meets «gardes» and «gardez»."""
+
+    return {
+        token[:4]
+        for token in _content(_tokens(text))
+        if len(token) >= 3 and token not in _LIGHT_VERBS
+    }
+
+
+def reasked_question(reply: str, ledger: dict | None) -> str | None:
+    """The earlier question of the character that ``reply`` asks again, or None.
+
+    A question of the reply is a re-ask when everything it is about is in a question the
+    learner has already answered (``ledger["asked"]``: by the character, ``answered_at``
+    set). A new question on the same verb about something else («Tu veux garder le chat ?»
+    after «Tu veux garder ce nom ?») is not: it adds a topic. Returns the earlier question.
+    """
+
+    answered = [
+        row
+        for row in (ledger or {}).get("asked") or []
+        if isinstance(row, dict) and row.get("by") == "character" and row.get("answered_at") is not None
+    ]
+    if not answered:
+        return None
+    for sentence in _SENTENCE.findall(reply or ""):
+        if not sentence.strip().endswith("?"):
+            continue
+        asked = _topic_stems(sentence)
+        if not asked:
+            continue
+        for row in answered:
+            if asked <= _topic_stems(str(row.get("text_fr") or "")):
+                return str(row.get("text_fr") or "")
+    return None
+
+
+def without_reasked_question(reply: str, ledger: dict | None) -> str:
+    """``reply`` without its re-asked question, when something else in it stands; the
+    reply itself when it is only that question."""
+
+    parts = [part.strip() for part in _SENTENCE.findall(reply or "") if part.strip()]
+    kept = [part for part in parts if not (part.endswith("?") and reasked_question(part, ledger))]
+    return " ".join(kept) if kept else reply
+
+
+#: Words that open a capitalised title («Les Mots sur les cartes»), never a name.
+_TITLE_OPENERS = frozenset({"les", "le", "la", "un", "une", "des", "du", "mon", "ton", "son"})
+_ARTICLE = r"(?i:(?:le|la|les|un|une|ce|cette|mon|ton|son|sa)\s+|l['’]\s*)"
+_THING = r"([a-zà-öø-ÿ]{3,})"
+_NAME = r"([A-ZÀ-ÖØ-Þ][\w'’-]+)"
+_NAMING_FORMS = (
+    # (pattern, (name group, thing group)): «Napoléon donne son nom au canapé»
+    (re.compile(rf"\b{_NAME}\s+donne\s+(?:son|le|ce)\s+nom\s+(?:à\s+{_ARTICLE}|au\s+|aux\s+){_THING}"), (1, 2)),
+    # «Le canapé s'appelle Napoléon», «est nommé / baptisé Napoléon»
+    (
+        re.compile(rf"\b{_ARTICLE}{_THING}\s+(?:s['’]appelle|est\s+(?:appelée?|nommée?|baptisée?))\s+{_NAME}"),
+        (2, 1),
+    ),
+    # «appeler le canapé Napoléon»
+    (re.compile(rf"\bappel(?:er|ez|ons|ent|le|les)\s+{_ARTICLE}{_THING}\s+{_NAME}"), (2, 1)),
+    # «Le nom du canapé est Napoléon»
+    (re.compile(rf"\bnom\s+(?:du|des|de\s+la|de\s+l['’])\s*{_THING}\s+est\s+{_NAME}"), (2, 1)),
+)
+_NAMING_CUES = ("appel", "nomm", "baptis")
+
+
+def naming_claims(text: str) -> list[tuple[str, str]]:
+    """Each «thing named name» the text states, as ``(name, thing)`` in text order:
+    «Napoléon donne son nom au canapé», «le canapé s'appelle Napoléon», «appeler le menu
+    Napoléon», «le nom du canapé est Napoléon». A person called by their own name
+    («Marin s'appelle Marin») has no article-led thing and is no claim."""
+
+    found: list[tuple[int, str, str]] = []
+    for pattern, (name_group, thing_group) in _NAMING_FORMS:
+        for match in pattern.finditer(text or ""):
+            name, thing = match.group(name_group), match.group(thing_group)
+            if name.casefold() in _TITLE_OPENERS:
+                continue
+            found.append((match.start(), name, thing))
+    claims: list[tuple[str, str]] = []
+    for _, name, thing in sorted(found):
+        if (name, thing) not in claims:
+            claims.append((name, thing))
+    return claims
+
+
+def _thread_texts(payload: dict) -> list[str]:
+    scene = payload.get("scene") or {}
+    texts = [str(scene.get("opening_line_fr") or ""), str(payload.get("learner_text") or "")]
+    for turn in payload.get("history") or []:
+        if isinstance(turn, dict):
+            texts.extend((str(turn.get("learner") or ""), str(turn.get("character") or "")))
+    for panel in scene.get("panels") or []:
+        if isinstance(panel, dict):
+            texts.append(str(panel.get("narration_fr") or ""))
+            texts.extend(
+                str(line.get("text_fr") or "") for line in panel.get("dialogue") or [] if isinstance(line, dict)
+            )
+    return [text for text in texts if text.strip()]
+
+
+def _names_thing(thing: str, name: str, payload: dict) -> bool:
+    """True when one sentence of the thread puts ``thing`` with a naming word or with
+    ``name``: someone called it something, or said its name."""
+
+    prefix = _bare(thing.casefold())[:5]
+    key = _name_key(name)
+    for text in _thread_texts(payload):
+        for sentence in _SENTENCE_SPLIT.split(text):
+            tokens = [_bare(token) for token in _tokens(sentence)]
+            if not any(token.startswith(prefix) for token in tokens):
+                continue
+            if key in {_name_key(token) for token in tokens}:
+                return True
+            if any(token in ("nom", "noms") or token.startswith(_NAMING_CUES) for token in tokens):
+                return True
+    return False
+
+
+def unsupported_naming(ending_texts: list[str], payload: dict) -> tuple[str, str] | None:
+    """The first ``(name, thing)`` an ending states that the thread never put together,
+    or None. «Napoléon donne son nom au canapé du menu»: the learner named the menu and
+    a cat; the sofa came up in sentences with no name and no naming word."""
+
+    for text in ending_texts:
+        for name, thing in naming_claims(text):
+            if not _names_thing(thing, name, payload):
+                return name, thing
+    return None
+
+
+def check_naming_claims(ending_texts: list[str], payload: dict) -> None:
+    claim = unsupported_naming(ending_texts, payload)
+    if claim is None:
+        return
+    name, thing = claim
+    raise engine.StoryUnavailable(
+        "invented_name",
+        hint=(
+            f"The ending gives the name «{name}» to «{thing}», but nobody in this scene named "
+            f"«{thing}»: a name stays with what it was given to (a cat's name is not the sofa's). "
+            "Say it as the learner and the characters said it, or leave the name out."
+        ),
+    )

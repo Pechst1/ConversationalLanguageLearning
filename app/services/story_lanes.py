@@ -317,7 +317,8 @@ story.season_turn.gate is set, is what the learner expressed toward Lila (romanc
 friendship or none) — read from meaning, never accuracy.
 story.season_turn.must_not lists what the season keeps for later: never name it, hint at most.
 The ending credits the learner only with what their own words say or accepted; a plan or a
-proposal a character made stays the character's. It never says the learner agreed or
+proposal a character made stays the character's. A name stays with the thing it was given
+to: never move a name the learner or a character gave onto another thing. It never says the learner agreed or
 changed their mind when their words did not: when the season moves something the learner
 wanted kept (a ticket they meant to use), the character gives the world's reason for it,
 and the learner's reason stays the one they gave.
@@ -683,7 +684,7 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
         voice.needs_clarification = True
     # #315: a person the thread never named («M. Delmas a la clé ?») has no referent.
     bare = _check_introduced(voice.reply_fr, payload)
-    engine.reply_soft_check(voice, level, lexical, payload["learner_text"])
+    engine.reply_soft_check(voice, level, lexical, payload["learner_text"], ledger=payload.get("ledger"))
     if bare:
         raise engine.SoftRejection(
             "reply_unintroduced_person",
@@ -1098,6 +1099,8 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     if normalize_control_language(story.get("control_language")) == "fr":
         french.append(turn.summary_native)
     lane_guards.check_invented_choice(french, payload)
+    # #467: a name stays with the thing it was given to («Napoléon» is the cat, not the sofa).
+    lane_guards.check_naming_claims(french, payload)
     # WP-155 §3: a generated day's ending keeps the reveals of the tentpoles ahead.
     lane_guards.check_season_spoiler(written, payload)
     # The ending goes in the character's bubble and the summary under it tells the story.

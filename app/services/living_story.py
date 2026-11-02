@@ -5857,7 +5857,13 @@ def trim_reply(reply: str | None, level: Any) -> str:
     return " ".join(words[:cap]).rstrip(" ,;:") + "…"
 
 
-def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: str | None = None) -> None:
+def reply_soft_check(
+    model: Any,
+    level: Any,
+    lexical: Any = None,
+    learner_text: str | None = None,
+    ledger: dict | None = None,
+) -> None:
     """The reply checks that never cost a turn (WP-103 T5), run last.
 
     Length: above the band's line → :class:`SoftRejection` carrying the reply trimmed
@@ -5891,11 +5897,30 @@ def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: 
         ignored = lane_guards.ignored_reply_hint(reply, learner_text)
         if ignored:
             hints.append(ignored)
+    reasked = None
+    if ledger and not getattr(model, "needs_clarification", False):
+        # #467 (root cause #145): a question the learner has already answered is not
+        # asked again. Asked again once; if it comes back, what is served drops it.
+        from app.services import lane_guards
+
+        reasked = lane_guards.reasked_question(trimmed, ledger)
+        if reasked:
+            trimmed = lane_guards.without_reasked_question(trimmed, ledger)
+            hints.append(
+                f"The reply asks again a question the learner has already answered («{reasked[:120]}»). "
+                "Take their answer as it is and move on to what follows from it."
+            )
     if not hints:
         return
     served = model.model_copy(update={"reply_fr": trimmed}) if trimmed != reply else model
     raise SoftRejection(
-        "reply_above_level" if issue else ("reply_off_lexicon" if lexical_hint else "reply_ignores_learner"),
+        "reply_above_level"
+        if issue
+        else (
+            "reply_off_lexicon"
+            if lexical_hint
+            else ("reply_reasks_answered_question" if reasked else "reply_ignores_learner")
+        ),
         hint=" ".join(hints),
         proposal=served,
     )
@@ -9870,7 +9895,7 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
     if reply_checks:
         # WP-103 T5: last, on a turn every hard guard has accepted — length and words
         # are refused once with the reason, then the trimmed reply is served.
-        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"])
+        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"], ledger=payload.get("ledger"))
 
 
 def _transfer_target_ids(task: Any) -> set[int]:
