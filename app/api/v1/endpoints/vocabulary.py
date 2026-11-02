@@ -23,6 +23,7 @@ from app.schemas.vocabulary import (
     ConjugationReviewRequest,
     ConjugationReviewResponse,
     DailyWordSlateResponse,
+    NewWordsPace,
     VocabularyBiographyEvent,
     VocabularyBiographyExample,
     VocabularyBiographyOrigin,
@@ -40,7 +41,11 @@ from app.services.glosses import gloss_payload, normalize_language
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
-from app.services.vocabulary_pace import new_words_left_today, vocabulary_pace_allowance
+from app.services.vocabulary_pace import (
+    grant_extra_new_words,
+    new_words_left_today,
+    vocabulary_pace_allowance,
+)
 from app.utils.cache import build_cache_key, cache_backend
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
@@ -806,6 +811,17 @@ def _drill_deck(
     if drill == drill_batch.DRILL_MORE and batch is not None:
         # Nothing the batch already dealt as new is dealt again.
         exclude |= {int(item["word_id"]) for item in batch.items or [] if item.get("list") == "new_words"}
+        if new_room is not None:
+            # The room counts only the words already met; the batch's new cards
+            # still unanswered take their share of it too, or a reload of the
+            # continuation dealt past the day's cap.
+            waiting = sum(
+                1
+                for item in drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved_new)
+                if item.get("list") == "new_words"
+            )
+            new_limit = max(0, min(new_limit, new_room - waiting))
+            context_kwargs = {**context_kwargs, "new_limit": new_limit}
     payload = service.get_vocabulary_due_context(**{**context_kwargs, "exclude_new_word_ids": exclude, "now": now})
     served_new = len(payload.get("new_words") or [])
     dealt = drill_batch.items_from_payload(payload, now)
@@ -886,6 +902,45 @@ def _planned_day_deck(
     return payload
 
 
+@router.get("/new-words", response_model=NewWordsPace)
+def get_new_words_pace(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> NewWordsPace:
+    """Owner request, 2 Nov: the learner's daily new words, today's extras, the
+    «Noch 5 neue Wörter» offer and Réglages' steps, each with how much sooner it
+    covers the words of their goal level."""
+
+    from app.services.goal_estimate import new_words_pace
+
+    return NewWordsPace(**new_words_pace(db, current_user))
+
+
+@router.post("/new-words/more", response_model=NewWordsPace)
+def add_extra_new_words(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> NewWordsPace:
+    """«Noch 5 neue Wörter»: today's cap grows by one step, then the client deals
+    the continuation (``GET /vocabulary/due-context?drill=more``), which the cap
+    now has room for. Refused past the day's last step."""
+
+    from app.services.goal_estimate import new_words_pace
+    from app.services.vocabulary_pace import (
+        EXTRA_WORDS_STEP,
+        MAX_EXTRA_NEW_WORDS,
+        extra_new_words_today,
+    )
+
+    if extra_new_words_today(db, current_user) + EXTRA_WORDS_STEP > MAX_EXTRA_NEW_WORDS:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No more extra words today")
+    grant_extra_new_words(db, current_user)
+    db.commit()
+    return NewWordsPace(**new_words_pace(db, current_user))
+
+
 @router.get("/due-context", response_model=VocabularyDueContextResponse)
 def get_vocabulary_due_context(
     *,
@@ -907,15 +962,6 @@ def get_vocabulary_due_context(
         description=(
             "WP-154: the word drill's own deck. `session` serves the rest of the batch dealt "
             "today (a new one once it is answered); `more` appends the «Encore N mots» continuation."
-        ),
-    ),
-    extra: int = Query(
-        0,
-        ge=0,
-        le=20,
-        description=(
-            "Round 3: «Noch 10 Wörter» after the day — new words beyond the day's pace, "
-            "appended like `more`. Only after the learner chose to keep going."
         ),
     ),
     db: Session = Depends(deps.get_db),
@@ -1038,12 +1084,11 @@ def get_vocabulary_due_context(
     # the journey has reserved. WP-131: the room is kept, so the deck can say
     # what the day's allowance still holds after it.
     requested_new = new_limit
+    # Owner request, 2 Nov: new words past the day's dose come only from the
+    # extras the learner asked for (``POST /vocabulary/new-words/more``), which
+    # raise the one cap (``vocabulary_pace.effective_new_word_cap``) this room
+    # reads. The client never sizes them.
     new_limit, reserved_new, new_room = vocabulary_pace_allowance(db, current_user, new_limit)
-    if extra:
-        # Round 3: the learner finished the day and asked for more: the pace is
-        # a daily dose, not a ceiling on a learner who wants to keep going.
-        new_limit, new_room = extra, None
-        drill = "more"
     # WP-115a: the learner's «Maximum reviews/day» — due words first, then fragile.
     try:
         from app.services.vocabulary_pace import reviews_left_today

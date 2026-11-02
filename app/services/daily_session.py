@@ -15,7 +15,7 @@ literal, is the one place the order is written):
 2. **Grammatik** — one La Forge séance on the day's rule.
 3. **Wörter** — the day's new words at the learner's pace plus the reviews due,
    the scene's words first (they were introduced by the scene).
-4. **Fertig** — the seal and what the day held. Only now «Noch 10 Wörter».
+4. **Fertig** — the seal and what the day held. Only now «Noch 5 Wörter».
 
 The pace (:data:`PACES`) is worked back from the level goal. A band is covered
 at 80 % of its words and 85 % of its grammar units (``level_coverage``); a unit
@@ -42,6 +42,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.schemas.daily_journey import DAY_STEP_ORDER
+from app.services.vocabulary_pace import EXTRA_WORDS_STEP
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,10 @@ REVIEWS_PER_NEW_WORD_WEEK_8 = 2.85
 WORD_RETENTION = 0.87
 #: The scene's minutes before today's estimate exists.
 DEFAULT_SCENE_SECONDS = 8 * 60
-#: «Noch 10 Wörter» after the day.
-MORE_WORDS = 10
+#: «Noch 5 Wörter» after the day: one step of today's extras (owner, 2 Nov 2026),
+#: the same step the day deck's end offers. The tap raises today's cap first
+#: (``POST /vocabulary/new-words/more``); the link only opens the continuation.
+MORE_WORDS = EXTRA_WORDS_STEP
 #: One day deck holds at most this many cards, new words and reviews together
 #: (``pages/vocabulary/review.tsx`` asks for it as ``limit``); the reviews past it
 #: come tomorrow, the new words are never the ones left out (#279).

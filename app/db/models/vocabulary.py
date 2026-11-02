@@ -176,6 +176,11 @@ class VocabularyDrillBatch(Base):
     day's new-word dose, and once dealt the deck's size. Every screen that
     counts the day's words (Home, the scene's hand-on, the review, Done) reads
     it. ``None`` on a row from before it, or before the day was first read.
+
+    ``extra_new_words`` (owner, 2 Nov 2026) are the new words the learner asked
+    for today on top of their own daily number («Noch 5 neue Wörter»), in steps.
+    :func:`app.services.vocabulary_pace.effective_new_word_cap` is the one place
+    that adds them to the day's cap.
     """
 
     __tablename__ = "vocabulary_drill_batch"
@@ -188,6 +193,7 @@ class VocabularyDrillBatch(Base):
     new_dealt = Column(Integer, nullable=False, default=0)
     cursor = Column(Integer, nullable=False, default=0)
     plan = Column(JSONB().with_variant(JSON(), "sqlite"), nullable=True)
+    extra_new_words = Column(Integer, nullable=False, default=0, server_default="0")
 
     created_at = Column(DateTime(timezone=True), default=app_now, server_default=func.now(), nullable=False)
     updated_at = Column(

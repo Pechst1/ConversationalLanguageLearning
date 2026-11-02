@@ -78,9 +78,97 @@ def journey_word_share(user: Any, factor: float = 1.0) -> int:
 
 
 def daily_quota(db: Session, user: Any, *, now: datetime | None = None) -> int:
-    """How many new words this learner takes in today, all surfaces together."""
+    """The day's dose: the new words the learner's own number (or pace) brings
+    today, throttled, all surfaces together. The day deck and Home count this;
+    the ceiling on introductions is :func:`effective_new_word_cap`."""
 
     return _quota(user, intake_throttle_factor(db, user, now=now))
+
+
+#: Owner request, 2 Nov 2026: «Noch 5 neue Wörter» — one tap adds this many new
+#: words to today's cap, after the day's deck (and after the day, on Fertig).
+EXTRA_WORDS_STEP = 5
+#: A day's extras stop here: ten taps, a long day's worth on top of any pace.
+MAX_EXTRA_NEW_WORDS = 50
+
+
+def extra_new_words_today(db: Session, user: Any, *, now: datetime | None = None) -> int:
+    """The new words the learner asked for today on top of their own number."""
+
+    from app.services import drill_batch
+
+    if not getattr(user, "id", None):
+        return 0
+    batch = drill_batch.load_batch(db, user, local_today(user, now or datetime.now(UTC)))
+    return max(0, int(getattr(batch, "extra_new_words", 0) or 0)) if batch is not None else 0
+
+
+def effective_new_word_cap(
+    db: Session, user: Any, *, now: datetime | None = None, factor: float | None = None
+) -> int:
+    """How many new words this learner may take in today: the one answer.
+
+    The day's dose (their own number or pace, throttled) plus the extras they
+    asked for today («Noch 5 neue Wörter»). Every room for new words — the word
+    drill's, the journey's — is this cap less what today already introduced.
+    The extras are the learner's explicit choice, so the throttle never halves
+    them. ``factor``: the throttle already read by the caller.
+    """
+
+    if factor is None:
+        factor = intake_throttle_factor(db, user, now=now)
+    return _quota(user, factor) + extra_new_words_today(db, user, now=now)
+
+
+def grant_extra_new_words(db: Session, user: Any, *, now: datetime | None = None) -> int:
+    """One «Noch 5 neue Wörter» tap: today's extras grow by :data:`EXTRA_WORDS_STEP`,
+    up to :data:`MAX_EXTRA_NEW_WORDS`. Returns today's extras. Flushes, never commits.
+
+    The extras live on the day's batch row (one per learner and day), so they
+    start from zero every day and a reload never grants twice: only this call
+    raises them.
+    """
+
+    from app.services import day_words, drill_batch
+
+    now = now or datetime.now(UTC)
+    day = local_today(user, now)
+    batch = day_words.ensure_plan(db, user, now=now, commit=False) or drill_batch.load_batch(db, user, day)
+    if batch is None:
+        batch = drill_batch.save_batch(db, user, day, [], new_limit=0, new_dealt=0, batch=None)
+    if batch is None:
+        return 0
+    current = max(0, int(batch.extra_new_words or 0))
+    batch.extra_new_words = min(MAX_EXTRA_NEW_WORDS, current + EXTRA_WORDS_STEP)
+    db.flush([batch])
+    return int(batch.extra_new_words)
+
+
+def is_extra_new_word(db: Session, user: Any, word_id: int, *, now: datetime | None = None) -> bool:
+    """Was ``word_id`` introduced today past the day's dose, inside the extras the
+    learner asked for? The words introduced today, in the order they were met,
+    fill the dose first (the scene's words included); the next ones, up to
+    today's extras, are the extra words that earn their own gold."""
+
+    now = now or datetime.now(UTC)
+    extras = extra_new_words_today(db, user, now=now)
+    if extras <= 0:
+        return False
+    start, end = _local_window(user, now)
+    rows = db.execute(
+        select(UserVocabularyProgress.word_id)
+        .where(
+            UserVocabularyProgress.user_id == user.id,
+            UserVocabularyProgress.created_at >= start,
+            UserVocabularyProgress.created_at < end,
+        )
+        .order_by(UserVocabularyProgress.created_at, UserVocabularyProgress.id)
+    ).all()
+    order = [int(row[0]) for row in rows if row[0] is not None]
+    if int(word_id) not in order:
+        return False
+    dose = daily_quota(db, user, now=now)
+    return dose <= order.index(int(word_id)) < dose + extras
 
 
 def planned_new_words(user: Any) -> int:
@@ -181,7 +269,8 @@ def journey_new_word_room(db: Session, user: Any, *, now: datetime | None = None
     left after everything already introduced today."""
 
     factor = intake_throttle_factor(db, user, now=now)
-    room = max(0, _quota(user, factor) - len(introduced_today(db, user, now=now)))
+    cap = effective_new_word_cap(db, user, now=now, factor=factor)
+    room = max(0, cap - len(introduced_today(db, user, now=now)))
     if factor < 1.0:
         room = min(room, journey_word_share(user, factor))
     return room
@@ -199,7 +288,7 @@ def drill_new_word_room(
     """
 
     factor = intake_throttle_factor(db, user, now=now)
-    quota = _quota(user, factor)
+    quota = effective_new_word_cap(db, user, now=now, factor=factor)
     introduced = introduced_today(db, user, now=now)
     planned, reserved = journey_reservation(db, user, now=now)
     taken = len(introduced | reserved)
@@ -281,11 +370,17 @@ def new_words_left_today(room: int | None, new_limit: int, served: int) -> int |
 __all__ = [
     "DEFAULT_NEW_WORDS_PER_DAY",
     "DRILL_SESSION_NEW_WORDS",
+    "EXTRA_WORDS_STEP",
     "JOURNEY_NEW_WORDS_KEY",
+    "MAX_EXTRA_NEW_WORDS",
     "daily_quota",
     "drill_new_word_room",
+    "effective_new_word_cap",
+    "extra_new_words_today",
+    "grant_extra_new_words",
     "intake_throttle_factor",
     "introduced_today",
+    "is_extra_new_word",
     "journey_new_word_room",
     "journey_reservation",
     "journey_word_share",

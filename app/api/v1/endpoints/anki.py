@@ -413,6 +413,17 @@ def submit_anki_review(
             direction=payload.direction,
         )
         DailyWordSlateService(db).record_encounter(user=current_user, word_id=word.id, kind="retrouve")
+        # Owner request, 2 Nov: a new word the learner asked for past the day's
+        # dose («Noch 5 neue Wörter») earns its gold once, when answered right.
+        from app.services.gold_ledger import record_extra_word
+
+        record_extra_word(
+            db,
+            user=current_user,
+            word_id=word.id,
+            passed=verdict.correct if verdict is not None else rating >= 1,
+            checked_answer=verdict is not None and bool(verdict.correct),
+        )
         db.commit()
         db.refresh(progress)
 

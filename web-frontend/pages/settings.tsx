@@ -60,6 +60,7 @@ import {
     type Rhythm,
 } from '@/lib/rhythm';
 import { daySessionCopy, paceRows, type PaceRow } from '@/lib/day-session';
+import { moreWordsCopy, settingsGoalLine } from '@/lib/more-words';
 import type { PaceName } from '@/types/daily-journey';
 import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
 import { ambiancePreferred, setAmbianceEnabled } from '@/lib/sound-bed';
@@ -67,7 +68,7 @@ import { cameosEnabled, setCameosEnabled } from '@/lib/cameo';
 import { setVoicesAloud, voicesAloud } from '@/lib/voice-preference';
 import { SETTINGS_LEGAL_COPY, legalHref, resolveLegalLanguage } from '@/lib/legal';
 import { INTEREST_TOPICS, interestTopicKey, interestTopicLabel } from '@/lib/interest-topics';
-import { apiService as api, type AddressPreference } from '@/services/api';
+import { apiService as api, type AddressPreference, type NewWordsPace } from '@/services/api';
 import { appSignOut, useAppSession } from '@/lib/app-auth';
 import { nativePushIsAvailable, registerNativePushToken } from '@/lib/native-push';
 import { FEEDBACK_OPEN_EVENT } from '@/components/feedback/FeedbackWidget';
@@ -238,6 +239,9 @@ const interestTopicPresets = INTEREST_TOPICS;
 // Round 3: the paces, in the order of the Tempo sheet, and the words each brings.
 const PACE_NAMES: PaceName[] = ['ruhig', 'normal', 'schnell'];
 const PACE_WORDS: Record<PaceName, number> = { ruhig: 10, normal: 20, schnell: 40 };
+// Owner, 2 Nov: the steps of «Neue Wörter pro Tag» until the server's own
+// (`goal_estimate.WORD_STEPS`, each priced against the goal) have arrived.
+const NEW_WORD_STEPS = [10, 15, 20, 30, 40];
 
 interface SettingsPageProps {
     userEmail?: string;
@@ -459,6 +463,10 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     // A number of new words typed here is sent as a custom intake; untouched,
     // the pace speaks for it.
     const [wordsTouched, setWordsTouched] = useState(false);
+    // Owner, 2 Nov: the steps of «Neue Wörter pro Tag» and how much sooner each
+    // covers the goal's words (`GET /vocabulary/new-words`), against the
+    // learner's saved number.
+    const [newWordsPace, setNewWordsPace] = useState<NewWordsPace | null>(null);
     /**
      * WP-32's «Écouter d’abord» preference (WP-37 hook). It lives in
      * `localStorage`, not in the settings payload, so it is read *after* mount:
@@ -506,6 +514,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     );
     const copy = settingsCopy(copyLanguage);
     const paceCopy = daySessionCopy(copyLanguage);
+    const wordsCopy = moreWordsCopy(copyLanguage);
+    const wordsGoalLine = settingsGoalLine(copyLanguage, settings.newWordsPerDay, newWordsPace);
+    const wordSteps = newWordsPace?.steps?.length ? newWordsPace.steps.map((step) => step.words) : NEW_WORD_STEPS;
     const castArt = useArtSet();
     const legalLanguage = resolveLegalLanguage(copyLanguage);
     const legalCopy = SETTINGS_LEGAL_COPY[legalLanguage];
@@ -612,6 +623,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         api.getDaySessionPace()
             .then((body) => setPaceChoices(paceRows(body.options, body.goal, copyLanguage)))
             .catch(() => setPaceChoices(null));
+        api.getNewWordsPace()
+            .then(setNewWordsPace)
+            .catch(() => setNewWordsPace(null));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settingsReloadKey, copyLanguage]);
 
@@ -685,6 +699,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
 
             await api.updateSettings(payload);
             persistVisualSettings(settings.theme, settings.fontSize);
+            // The saved number is the new baseline of «… etwa 3 Wochen früher».
+            api.getNewWordsPace().then(setNewWordsPace).catch(() => undefined);
 
             setSaveFailed(false);
             setSaveMessage(copy.save_done);
@@ -1365,16 +1381,40 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             </Row>
                             {/* WP-L6: the vocabulary pace — one intake pool for the
                                 story and the word drill — with its honest review
-                                load, labelled as an estimate. */}
+                                load, labelled as an estimate. Owner, 2 Nov: clear
+                                steps up to 40 a day, and under a faster one how much
+                                sooner it covers the goal's words. */}
                             <Row
                                 label={copy.row_new_words}
                                 id="st-words-label"
                                 hint={formatReviewLoad(copy.row_new_words_hint, settings.newWordsPerDay)}
+                                stacked
                             >
+                                <Segmented
+                                    label={copy.row_new_words}
+                                    options={wordSteps.map((words) => ({ value: words, label: String(words) }))}
+                                    value={settings.newWordsPerDay}
+                                    onChange={(words) => {
+                                        // The pace that brings this many words stays; any other leaves it.
+                                        const keeps = settings.dailyPace !== null && PACE_WORDS[settings.dailyPace] === words;
+                                        setWordsTouched(!keeps);
+                                        setSettings((prev) => ({
+                                            ...prev,
+                                            dailyPace: keeps ? prev.dailyPace : null,
+                                            newWordsPerDay: words,
+                                        }));
+                                        setHasChanges(true);
+                                    }}
+                                />
+                                {wordsGoalLine && (
+                                    <span className="st-row__hint" data-goal-line="">{wordsGoalLine}</span>
+                                )}
+                            </Row>
+                            <Row label={wordsCopy.own_number} id="st-words-own-label">
                                 <input
                                     type="number"
                                     className="av2-field__control st-number"
-                                    aria-labelledby="st-words-label"
+                                    aria-labelledby="st-words-own-label"
                                     min={NEW_WORDS_MIN}
                                     max={NEW_WORDS_MAX}
                                     value={settings.newWordsPerDay}

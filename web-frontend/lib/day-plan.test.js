@@ -45,9 +45,9 @@ function plan(states) {
     minutes_left: 19,
     done: all,
     tally: { scenes: 0, words: 0, exercises: 0 },
-    more_words: 10,
-    more_minutes: 4,
-    more_href: '/vocabulary/review?more=10',
+    more_words: 5,
+    more_minutes: 2,
+    more_href: '/vocabulary/review?more=5',
   };
 }
 

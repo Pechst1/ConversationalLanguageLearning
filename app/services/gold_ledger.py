@@ -56,6 +56,9 @@ SOURCE_JOURNEY_REPLY = "journey_reply"
 SOURCE_FORGE_ITEM = "forge_item"
 SOURCE_LETTER = "letter"
 SOURCE_MILESTONE = "milestone"
+#: Owner request, 2 Nov 2026: a new word learned past the day's dose, one the
+#: learner asked for («Noch 5 neue Wörter»), earns its gold.
+SOURCE_EXTRA_WORD = "extra_word"
 
 VOID_NOT_YET = "not_yet"
 VOID_UNREAD = "unread"
@@ -1304,6 +1307,81 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
         )
 
 
+# ---------------------------------------------------------------------------
+# Extra new words (owner request, 2 Nov 2026)
+# ---------------------------------------------------------------------------
+
+
+def extra_word_source_key(word_id: Any) -> str:
+    return f"gold:extra_word:{int(word_id)}"
+
+
+def record_extra_word(
+    db: Session,
+    *,
+    user: Any,
+    word_id: int,
+    passed: bool,
+    checked_answer: bool,
+    now: datetime | None = None,
+) -> GoldLedgerEntry | None:
+    """A new word the learner asked for past the day's dose, answered right. Never raises.
+
+    Whether ``word_id`` is such a word is
+    :func:`app.services.vocabulary_pace.is_extra_new_word`'s answer, read here.
+
+    Owner request, 2 Nov: «noch mehr Wörter pro Tag … das sollte auch mehr XP
+    geben». Each extra word pays once, the first time it is answered right
+    (``passed``): a typed answer the server checked pays as typed recall, a card
+    the learner turned and rated as recognition. It goes through the table like
+    every other entry (:func:`_mint_and_write`): the day's best per word (R1),
+    the plafond (R8), the day's earned gold and the livret all count it. A miss
+    pays nothing and costs nothing.
+    """
+
+    if not ledger_on() or not passed:
+        return None
+    result: GoldLedgerEntry | None = None
+    with best_effort(db, "gold: extra word", log=_log):
+        from app.services.vocabulary_pace import is_extra_new_word
+
+        now = _now(now)
+        if _existing(db, user_id=user.id, source_key=extra_word_source_key(word_id)) is not None:
+            return None  # paid once, the first time it was answered right
+        if not is_extra_new_word(db, user, int(word_id), now=now):
+            return None
+        category = core.Category.TYPED if checked_answer else core.Category.RECOGNISED
+        target = core.target_key("vocabulary", int(word_id))
+        day = _open_day(db, user, when=now, now=now)
+        result = _mint_and_write(
+            db,
+            user_id=user.id,
+            day=day,
+            observation=core.GoldObservation(category=category, outcome=core.OUTCOME_MET, target=target),
+            source_kind=SOURCE_EXTRA_WORD,
+            source_key=extra_word_source_key(word_id),
+            target=_target_json("vocabulary", int(word_id)),
+            evidence={
+                "category": str(category),
+                "outcome": core.OUTCOME_MET,
+                "assistance": "none",
+                "word_id": int(word_id),
+                "extra_word": True,
+                "checked_answer": bool(checked_answer),
+            },
+            now=now,
+        )
+    return result
+
+
+def day_earned(db: Session, *, user: Any, now: datetime | None = None) -> int:
+    """The learner's gold earned on their gold day so far (R8's running total)."""
+
+    now = _now(now)
+    zone, _evidence = _pinned_zone(db, user, now)
+    return int(_day_state(db, user_id=user.id, local_date=core.local_date(now, zone)).earned)
+
+
 __all__ = [
     "DELAYED_RECALL_GAP",
     "ENTRY_BONUS",
@@ -1312,6 +1390,7 @@ __all__ = [
     "MODE_LIVE",
     "MODE_OFF",
     "MODE_SHADOW",
+    "SOURCE_EXTRA_WORD",
     "SOURCE_FORGE_ITEM",
     "SOURCE_JOURNEY_REPLY",
     "SOURCE_JOURNEY_TARGET",
@@ -1320,11 +1399,14 @@ __all__ = [
     "ZONE_SETTLES_AFTER",
     "forge_contact_before",
     "gold_mode",
+    "day_earned",
+    "extra_word_source_key",
     "is_delayed_recall",
     "ledger_on",
     "note_released_grading_corrected",
     "recompute_balance",
     "reconcile_milestones",
+    "record_extra_word",
     "record_forge_item",
     "record_journey_finish",
     "record_journey_recall",

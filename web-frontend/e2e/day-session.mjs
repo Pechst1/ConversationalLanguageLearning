@@ -134,6 +134,10 @@ async function playTheDay(native) {
   }
   const wordsDone = await page.locator('[data-day-next]').count();
   findings.check('words-deck-ends-with-the-next-step', wordsDone === 1, `${presses} presses, no «words done» screen`, where('drill'));
+  // Owner, 2 Nov: the day deck's end offers «Noch 5 neue Wörter», with its line on the goal.
+  await page.locator('[data-day-next] [data-extra-words]').waitFor({ timeout: 10000 }).catch(() => {});
+  const extraOffer = (await page.locator('[data-day-next] [data-extra-words] [data-goal-line]').first().innerText().catch(() => '')).trim();
+  findings.check('words-done-offers-five-more-with-the-goal', extraOffer.length > 0, 'no «Noch 5 neue Wörter» with its goal line', where('drill'));
   await walk.shoot('words-done');
   const toFinish = page.locator('[data-day-next] .av2-btn--primary').first();
   const toFinishText = await toFinish.innerText().catch(() => '');
@@ -149,7 +153,7 @@ async function playTheDay(native) {
   const tally = await page.locator('.av2-tally__n').allInnerTexts().catch(() => []);
   findings.check('fertig-tallies-scene-words-exercises', tally.length === 3 && Number(tally[0]) === 1 && Number(tally[1]) > 0 && Number(tally[2]) > 0, `tally: ${tally.join(' · ')}`, where('fertig'));
   findings.check('fertig-words-is-the-deck', Number(tally[1]) === promised, `the deck held ${promised}, Done says ${tally[1]} words`, where('fertig'));
-  findings.check('fertig-offers-ten-more-words', (await page.locator('[data-more-words]').count()) === 1, 'no «Noch 10 Wörter»', where('fertig'));
+  findings.check('fertig-offers-five-more-words', (await page.locator('[data-more-words]').count()) === 1, 'no «Noch 5 neue Wörter»', where('fertig'));
   // #359: the Done screen names tomorrow's open question (the line Home prints, checked below
   // against Home), and the curtain call's «End of the session» tag is centred over the cast and
   // touches no bubble at phone width.

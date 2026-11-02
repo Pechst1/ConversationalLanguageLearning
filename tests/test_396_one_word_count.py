@@ -212,8 +212,10 @@ def test_396_one_number_from_home_before_the_scene_to_the_done_screen(
     assert _words_step(after)["state"] == "done"
     assert _words_step(after)["count"] == home["count"], f"Home after the deck: «{_words_step(after)['count']} words — done»"
 
-    # «10 more words» opened and left unanswered: still the day's number (#408 review).
-    extra = client.get("/api/v1/vocabulary/due-context", headers=headers, params={**DAY, "drill": "more", "extra": 10})
+    # «5 more words» opened and left unanswered: still the day's number (#408 review).
+    granted = client.post("/api/v1/vocabulary/new-words/more", headers=headers)
+    assert granted.status_code == 200, granted.text
+    extra = client.get("/api/v1/vocabulary/due-context", headers=headers, params={**DAY, "drill": "more", "new_limit": 5})
     assert extra.status_code == 200, extra.text
     assert _cards(extra.json()), "the extra deck deals new words"
     finished = _session(db_session, user)
