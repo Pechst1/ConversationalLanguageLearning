@@ -118,6 +118,8 @@ def prefetch_next_journey_scenes() -> dict[str, int | str]:
             counts[status] = counts.get(status, 0) + 1
             if status == "prefetched":
                 paid += 1
+                if queue_story_acts(db, user):
+                    counts["acts_queued"] = counts.get("acts_queued", 0) + 1
         return {
             "status": "ok",
             "expired_closed": expired,
@@ -176,7 +178,10 @@ def warm_learner_next_day(user_id: str, input_mode: str = "text") -> dict[str, s
         user = db.get(User, uuid.UUID(str(user_id)))
         if user is None or not prefetch_enabled_for(user):
             return {"status": "skipped_cohort"}
-        return {"status": prefetch_scene_for(db, user, input_mode=mode)}
+        status = prefetch_scene_for(db, user, input_mode=mode)
+        if status == "prefetched":
+            queue_story_acts(db, user)
+        return {"status": status}
     except Exception as exc:  # pragma: no cover - a warm-up never raises
         logger.warning("Day-2 warm-up failed", user_id=str(user_id), error=str(exc))
         db.rollback()
@@ -233,3 +238,74 @@ def draw_prefetched_panel_art(prefetch_id: str) -> dict[str, str]:
     except Exception as exc:  # pragma: no cover - the bound scene draws what is missing
         logger.warning("Prefetch panel art failed", prefetch_id=str(prefetch_id), error=str(exc))
         return {"status": "error"}
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 «Folge in Akten» — the acts after the page, one task each
+# ---------------------------------------------------------------------------
+
+
+def _newest_page_id(db, user: User) -> str | None:
+    from app.services.journey_latency import _live_prefetch_rows
+
+    rows = _live_prefetch_rows(db, user, cache_key=None)
+    return str(rows[0].id) if rows else None
+
+
+def queue_story_acts(db, user: User, *, prefetch_id: str | None = None) -> bool:
+    """Queue the acts after the page the night just wrote for ``user``. Returns whether
+    a task was queued. Every rule (switch, cohort, rhythm, budget) is ``story_acts``'s;
+    this only refuses what would cost a broker round trip for nothing."""
+
+    from app.services.story_acts import acts_enabled_for, roles_to_write
+
+    if not acts_enabled_for(user):
+        return False
+    if celery_app.conf.task_always_eager:
+        # As the day-2 warm-up: eager dev has no worker, and an eager task would pay for
+        # the acts inside this run.
+        return False
+    try:
+        page = prefetch_id or _newest_page_id(db, user)
+        roles = roles_to_write(db, user) if page else []
+        if not roles:
+            return False
+        write_story_acts.apply_async(args=[str(user.id), page, roles])
+    except Exception as exc:  # pragma: no cover - a broker that is down costs the acts only
+        logger.info("Story acts not queued", user_id=str(user.id), error=str(exc))
+        return False
+    return True
+
+
+@celery_app.task(name="app.tasks.journey_prefetch.write_story_acts")
+def write_story_acts(user_id: str, prefetch_id: str, roles: list[str]) -> dict[str, str]:
+    """Write the first of ``roles`` after the page ``prefetch_id``, then queue the rest.
+
+    One act per task, so no task runs longer than a page does. «Le soir» comes first and
+    «À côté» is only written once it stands (it is never played without it): an act that
+    is not written ends the chain.
+    """
+
+    if not settings.ATELIER_JOURNEY_PREFETCH_ENABLED or not roles:
+        return {"status": "disabled"}
+    from app.services.story_acts import write_act
+
+    role, rest = str(roles[0]), [str(item) for item in roles[1:]]
+    db = SessionLocal()
+    try:
+        user = db.get(User, uuid.UUID(str(user_id)))
+        if user is None:
+            return {"status": "skipped_cohort", "role": role}
+        status = write_act(db, user, prefetch_id=str(prefetch_id), role=role)
+    except Exception as exc:  # pragma: no cover - an act never fails the night
+        logger.warning("Story act failed", user_id=str(user_id), role=role, error=str(exc))
+        db.rollback()
+        return {"status": "error", "role": role}
+    finally:
+        db.close()
+    if status in ("prefetched", "cached") and rest:
+        try:
+            write_story_acts.apply_async(args=[str(user_id), str(prefetch_id), rest])
+        except Exception as exc:  # pragma: no cover - a broker that is down costs one act
+            logger.info("Next story act not queued", user_id=str(user_id), error=str(exc))
+    return {"status": status, "role": role}

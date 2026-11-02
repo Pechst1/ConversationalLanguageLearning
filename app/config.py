@@ -918,6 +918,23 @@ class Settings(BaseSettings):
         le=90,
         description="Only learners with a journey event this recent are prefetched for.",
     )
+    ATELIER_STORY_ACTS: bool = Field(
+        False,
+        description=(
+            "Phase 2 «Folge in Akten»: after the night writes a learner's page (act 1), "
+            "it also writes «Le soir» and, on Intensif, «À côté», as many as the "
+            "learner's rhythm and pace can play. Off: the night writes one page, as "
+            "before. Who gets acts is ATELIER_STORY_ACTS_COHORT."
+        ),
+    )
+    ATELIER_STORY_ACTS_COHORT: str = Field(
+        "",
+        description=(
+            "Comma-separated user ids or emails the night writes acts for, or '*' for "
+            "every prefetched learner. Empty: everyone in development, nobody in "
+            "production (the same rule as ATELIER_DAILY_JOURNEY_COHORT)."
+        ),
+    )
 
     # ---- WP-31: rehearsing a real upcoming situation ---------------------
     ATELIER_REHEARSAL_WEEKLY_CAP: int = Field(

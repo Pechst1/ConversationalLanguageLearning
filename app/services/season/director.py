@@ -209,6 +209,14 @@ that planned exchange: a page that sets up a concrete decision the learner's rep
 settles (the ticket moved or kept, the letter answered or not) is a change. Never ask
 for the learner's reply, words or decision to appear on the page; refuse only when even
 the planned exchange would leave the day as it began.
+When act is present, the page is a later act of a day that has several (act.role: «À côté»,
+a side thread; «Le soir», the evening). act.first_act is the page the learner read first
+today, and it already took the season's step: the act moves no premise and nothing in
+must_not, advances_thread means a thread a little (for «À côté», one the first act did not
+touch), and moves_on also fails when the act stages the first act again (its lead, its
+place, its question). It may never assume how the learner answered the first act
+(act.first_act.replies lists the ways it may go): honours_choices is false if it does. For
+«Le soir», hook means it ends on the reason to come back tomorrow (act.day_hook, when set).
 Write change_summary as «before → after» in one sentence. issues: one short sentence per
 failed item, written as an instruction for a rewrite; it calls the learner «the learner»,
 never by their name and never «il» or «elle» (a rewrite copies its words). accepted is true only when
@@ -743,12 +751,15 @@ def critic_payload(
     *,
     recent_days: list | None = None,
     memory: dict[str, Any] | None = None,
+    act: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """What the story critic reads: the gap's rules, the learner's last days, what the
     learner said (``memory``) and the proposed page — never the learner's vocabulary,
-    never the grammar plan."""
+    never the grammar plan. Phase 2: on a later act of the day, ``act`` (its role, the
+    day's first act, the day's hook)."""
 
     return {
+        **({"act": act} if act else {}),
         "season": brief.get("season"),
         "gap": brief.get("gap"),
         "today": {
@@ -809,12 +820,14 @@ def learner_turn(draft: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def review_verdict(review: StoryReview) -> bool:
+def review_verdict(review: StoryReview, *, act: bool = False) -> bool:
     """The verdict the engine applies, whatever the critic's own ``accepted`` says.
     Phase 1: a page must also read like people and ask one plain question;
-    ``moves_on`` is scored and stored, never refused for (yet). Phase 3: a page must
-    remember what the learner said (``remembers``) — a reader item, so a second
-    refusal for it alone is still served (``canon_guards.READER_ITEMS``)."""
+    ``moves_on`` is scored and stored, never refused for on the day's page. Phase 3: a
+    page must remember what the learner said (``remembers``) — a reader item, so a
+    second refusal for it alone is still served (``canon_guards.READER_ITEMS``).
+    Phase 2 (acts doc, «Nachts schreiben» 3): a later act of the day is also refused
+    when it does not move on — from the last days or from the day's first act."""
 
     return bool(
         review.meaningful_change
@@ -825,4 +838,5 @@ def review_verdict(review: StoryReview) -> bool:
         and review.one_plain_question
         and review.remembers
         and not review.spoils_next_tentpole
+        and (review.moves_on or not act)
     )

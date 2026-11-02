@@ -573,6 +573,16 @@ def _concept(context: dict) -> Any:
     return engine.grammar_plan_prompt(plan) if plan else None
 
 
+def planner_system(context: dict) -> str:
+    """The planner's prompt: :data:`PLANNER`, and on a later act its act rules."""
+
+    act = context.get(ACT_KEY) or {}
+    role = str(act.get("role") or "")
+    if role not in ACT_ROLE_RULES:
+        return PLANNER
+    return PLANNER + ACT_PLANNER + ACT_ROLE_RULES[role]
+
+
 def planner_payload(context: dict, rejections: list[str]) -> dict:
     from app.services import living_story as engine
 
@@ -598,6 +608,8 @@ def planner_payload(context: dict, rejections: list[str]) -> dict:
         "story_words": context.get(engine.STORY_WORDS_KEY) or None,
         "learner_agency_rules": agency or None,
         "special": _special(context),
+        # Phase 2: on a later act, the act's role, the day's first act and the day's hook.
+        **({"act": act} if (act := context.get(ACT_KEY)) else {}),
         "previous_rejections": rejections,
     }
 
@@ -644,6 +656,9 @@ def author_payload(context: dict, plan: PagePlan, rejections: list[str]) -> dict
         "concept": _concept(context),
         "story_words": context.get(engine.STORY_WORDS_KEY) or None,
         "special": _special(context),
+        # Phase 2: a later act knows the page the learner read first today, as printed —
+        # never the planner's notes about it.
+        **({"act": _author_act(act)} if (act := context.get(ACT_KEY)) else {}),
         "previous_rejections": rejections,
     }
 
@@ -818,7 +833,8 @@ def author_system(context: dict) -> str:
     band = str(context.get("level") or "A2").upper()[:2]
     brief = (context.get("season_script") or {}).get("brief") or {}
     panels = str((brief.get("level") or {}).get("panels") or "4 to 6")
-    return AUTHOR.format(band=band, panels=panels, level_card=LEVEL_CARDS.get(band, LEVEL_CARDS["A2"]))
+    system = AUTHOR.format(band=band, panels=panels, level_card=LEVEL_CARDS.get(band, LEVEL_CARDS["A2"]))
+    return system + ACT_AUTHOR if context.get(ACT_KEY) else system
 
 
 def draw(context: dict):
@@ -833,9 +849,14 @@ def draw(context: dict):
             # The planner thinks more than it writes: medium effort unless the writer's
             # own effort is configured (``story_route``).
             plan, _usage = engine._json_call(
-                PLANNER, planner_payload(context, rejections), PagePlan, record, deadline=deadline, reasoning_effort="medium"
+                planner_system(context),
+                planner_payload(context, rejections),
+                PagePlan,
+                record,
+                deadline=deadline,
+                reasoning_effort="medium",
             )
-            issue = plan_issue(plan, context)
+            issue = plan_issue(plan, context) or act_plan_issue(plan, context)
             if issue is None:
                 break
             logger.info("story_split: plan refused (%s)", issue[:200])
@@ -877,3 +898,181 @@ def draw(context: dict):
             raise engine.StoryUnavailable("invalid_story_output", hint=str(exc)[:400]) from exc
 
     return run
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 «Folge in Akten» — a later act of the day
+# ---------------------------------------------------------------------------
+
+#: The context key a later act carries (:func:`act_context`): its role, the day's first
+#: act as the reader met it, and the hook the day's plan leads into.
+ACT_KEY = "act"
+
+ACT_PLANNER = """
+
+TODAY HAS MORE THAN ONE ACT
+This plan is not the day's first page. act.first_act is the page the learner reads first
+today: it took the season's one step, and its change has happened. You plan a later act of
+the same day (act.role):
+- It moves nothing the season owns: premise_id is null, chapter is null, and it never
+  stages, hints at or names anything in brief.gap.must_not or what tomorrow brings.
+- Another person leads it, somewhere else: lead_id is not act.first_act.lead_id and
+  location_id is not act.first_act.location_id.
+- It stands on its own. The learner's reply to the first act is not known yet
+  (act.first_act.replies lists the ways it may go): build on what the first act's page
+  showed, never on how the learner answered.
+- Something still happens on this page and is different by its last panel, and the lead
+  asks the learner one plain question of their own, never the first act's question again.
+"""
+
+#: What each later role adds (acts doc, «Was ein Akt ist»).
+ACT_ROLE_RULES = {
+    "cote": """act.role is «À côté», a side thread: the people of the neighbourhood living their
+own lives. Plan it around one of brief.gap.threads the first act did not touch
+(act.first_act.threads), a small moment from brief.today.small_moments or one of
+brief.gap.complications. Small and personal is right; it never needs the first act.""",
+    "soir": """act.role is «Le soir», the evening of the same day. What the first act changed has
+consequences tonight: who hears of it, what it costs, what someone does about it. The day's
+question gets its answer here (act.first_act.change), whichever way the learner's reply
+goes, and the page ends on the hook for tomorrow: hook says act.day_hook in your own words
+when it is set. Lead into tomorrow; never stage it.""",
+}
+
+ACT_AUTHOR = """
+
+TODAY HAS MORE THAN ONE ACT
+- This page is a later act of today (act.role). act.first_act is the page the learner read
+  first today: never retell it, and never write as if you knew how the learner answered it.
+- title_fr is this act's own headline, never the first act's (act.first_act.title_fr)."""
+
+#: The first act's fields a later act reads (``season_checklist`` and the page).
+_FIRST_ACT_CHECKLIST = ("change_before", "change_after", "hook_fr", "threads", "small_moment_id")
+
+
+def first_act(draft: dict) -> dict:
+    """The day's first act as a later act reads it: the printed page, its lead and place,
+    the change it made, its question and the ways the learner's reply may go."""
+
+    checklist = draft.get("season_checklist") or {}
+    return {
+        "title_fr": draft.get("title_fr"),
+        "premise_fr": draft.get("premise_fr"),
+        "lead_id": draft.get("character_id"),
+        "location_id": draft.get("location_id"),
+        "change": {"before": checklist.get("change_before"), "after": checklist.get("change_after")},
+        "question_fr": draft.get("opening_line_fr"),
+        "replies": draft.get("objective_semantics"),
+        "hook_fr": checklist.get("hook_fr"),
+        "threads": list(checklist.get("threads") or []),
+        "small_moment_id": checklist.get("small_moment_id"),
+    }
+
+
+def _author_act(act: dict) -> dict:
+    first = act.get("first_act") or {}
+    return {
+        "role": act.get("role"),
+        "first_act": {key: first.get(key) for key in ("title_fr", "premise_fr", "lead_id", "location_id", "question_fr")},
+    }
+
+
+def _situation(draft: dict) -> dict:
+    """The first act as a recent situation (``living_story.bind_journey``'s row): every
+    repeat guard and the critic's ``moves_on`` then read it as the day before."""
+
+    return {
+        "title_fr": draft.get("title_fr"),
+        "novelty_key": draft.get("novelty_key") or "",
+        "premise_fr": draft.get("premise_fr") or "",
+        "objective_native": draft.get("objective_native") or "",
+        "character_id": draft.get("character_id"),
+        "location_id": draft.get("location_id"),
+        "causal_reason": draft.get("causal_reason"),
+        "beat": draft.get("beat"),
+        "problem_key": draft.get("problem_key") or "",
+        "chapter_title_fr": (draft.get("chapter") or {}).get("title_fr"),
+    }
+
+
+def act_context(context: dict, draft: dict, role: str) -> dict:
+    """The writer's context for a later act of the day whose first act is ``draft`` (its
+    ``SceneDraft`` as stored on the brief).
+
+    The season's day is the first act's: today's premise, beat, gate, callback, agreed
+    decision and yesterday's obstacle are its, and a later act stages none of them. What a
+    later act may use is what the first act left: the gap's threads and complications and
+    the small moments it did not take. The chapter is the first act's, carried over
+    verbatim, and the first act counts as the latest day, so every repeat guard and the
+    critic compare the act with it.
+    """
+
+    from copy import deepcopy
+
+    from app.services import living_story as engine
+
+    first = first_act(draft)
+    script = deepcopy(context.get("season_script") or {})
+    brief = script.get("brief") or {}
+    today = dict(brief.get("today") or {})
+    day_hook = (today.get("beat") or {}).get("hook")
+    taken = first.get("small_moment_id")
+    today.update(
+        {
+            "required_premise": None,
+            "beat": None,
+            "premises": [],
+            "small_moments": [row for row in today.get("small_moments") or [] if row.get("id") != taken],
+            "gate": None,
+            "may_set": [],
+            "open_obstacle": None,
+        }
+    )
+    for key in ("picked", "callback", "learner_agency_rules"):
+        today.pop(key, None)
+    brief["today"] = today
+    rules = dict(brief.get("page_rules") or {})
+    rules["chapter"] = {**dict(rules.get("chapter") or {}), "open_new": False}
+    brief["page_rules"] = rules
+    script["brief"] = brief
+    chapter = dict(context.get("chapter") or {})
+    if not chapter or chapter.get("resolved") or chapter.get("exhausted"):
+        # The first act opened today's chapter: the act goes on in it.
+        opened = draft.get("chapter") or {}
+        chapter = {
+            "title_fr": opened.get("title_fr"),
+            "dramatic_question": opened.get("dramatic_question"),
+            "possible_developments": list(opened.get("possible_developments") or []),
+            "shape": (context.get("chapter_shape") or {}).get("shape") or chapter.get("shape"),
+        }
+    act = {"role": str(role), "first_act": first, "day_hook": day_hook or None}
+    written = {
+        key: value
+        for key, value in context.items()
+        if key not in ("absence", "callback", engine.GRAMMAR_PLAN_KEY, engine.EPREUVE_KEY)
+    }
+    return {
+        **written,
+        "season_script": script,
+        "chapter": chapter,
+        "recent_situations": [*(context.get("recent_situations") or []), _situation(draft)],
+        ACT_KEY: act,
+    }
+
+
+def act_plan_issue(plan: PagePlan, context: dict) -> str | None:
+    """Why a later act's plan cannot be written (before a word of French is paid for), or
+    ``None`` when it can, or when ``context`` is not a later act's."""
+
+    act = context.get(ACT_KEY) or {}
+    if not act:
+        return None
+    first = act.get("first_act") or {}
+    if plan.lead_id == first.get("lead_id"):
+        return f"{plan.lead_id} leads the first act today: another person leads this act."
+    if plan.location_id == first.get("location_id"):
+        return f"The first act happens at {plan.location_id}: this act happens somewhere else."
+    if plan.premise_id:
+        return "A later act stages none of the season's premises: premise_id is null."
+    if act.get("role") == "soir" and not plan.hook.strip():
+        return "«Le soir» ends on the hook for tomorrow: write hook."
+    return None
