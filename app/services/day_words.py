@@ -405,6 +405,15 @@ def day_items(batch: Any) -> list[dict[str, Any]]:
     return [item for item in batch.items or [] if not item.get("extra")]
 
 
+def extra_items(batch: Any) -> list[dict[str, Any]]:
+    """The «more» cards the learner asked for after the day's deck (owner, 2 Nov:
+    «Noch 5 neue Wörter»), in the order they were dealt. The day deck serves the
+    ones still unanswered after its own cards, so a reload of ``?day=1`` keeps
+    the continuation; they never count as the day's words (:func:`day_items`)."""
+
+    return [item for item in batch.items or [] if item.get("extra")]
+
+
 def remaining_reserved(batch: Any, reserved: set[int]) -> set[int]:
     """The reserved words a planned deck's remainder leaves out: never its own
     scene cards (a word the scene left unmet, released into the deck)."""

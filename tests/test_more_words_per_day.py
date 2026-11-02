@@ -187,6 +187,58 @@ def test_the_client_never_sizes_the_words_past_the_dose(
     assert _ids(_deck(client, headers, MORE)) == extra, "a reload deals the same five, never five more"
 
 
+#: review.tsx's ``dayQueueParams`` (``/vocabulary/review?day=1``).
+DAY = {"limit": 100, "due_limit": 100, "fragile_limit": 0, "new_limit": 50, "topic_limit": 0, "linked_limit": 0,
+       "drill": "session"}
+
+
+def _deck_ids(deck: dict) -> list[int]:
+    return [
+        item["word_id"]
+        for name in ("due_words", "fragile_words", "linked_words", "topic_compatible_words", "new_words")
+        for item in deck[name]
+    ]
+
+
+def test_a_reload_of_the_day_deck_keeps_the_extras_not_yet_answered(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex review on #490: «Noch 5» accepted on ``?day=1`` and the page
+    reloaded served the day deck's own cards only, and the continuation was
+    gone. The day deck serves today's unanswered extras after its own cards,
+    from the server's batch; the reload grants nothing."""
+
+    headers, user = _login(client, db_session)
+    supply = _supply(db_session, 30, "wreload")
+    _dose_of(db_session, user, monkeypatch, 3)
+
+    day = _deck_ids(_deck(client, headers, DAY))
+    assert len(day) == 3 and set(day) <= set(supply)
+    _answer(client, headers, day)
+    assert _deck_ids(_deck(client, headers, DAY)) == []
+
+    assert client.post("/api/v1/vocabulary/new-words/more", headers=headers).status_code == 200
+    extra = _ids(_deck(client, headers, {**MORE, "limit": 35}))
+    assert len(extra) == 5
+    _answer(client, headers, extra[:2])
+
+    reloaded = _deck_ids(_deck(client, headers, DAY))
+    assert sorted(reloaded) == sorted(extra[2:]), f"the reload served {reloaded}, the extras left were {extra[2:]}"
+    assert vocabulary_pace.extra_new_words_today(db_session, user) == 5, "a reload granted more"
+    finished = _session_words(db_session, user)
+    assert finished == 3, "the extras joined the day's own count"
+
+    _answer(client, headers, extra[2:])
+    assert _deck_ids(_deck(client, headers, DAY)) == []
+
+
+def _session_words(db: Session, user) -> int | None:
+    from app.services import daily_session
+
+    db.expire_all()
+    return daily_session.dealt_deck(db, user)
+
+
 def test_the_last_step_of_the_day_is_refused(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:

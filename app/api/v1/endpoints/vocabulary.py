@@ -890,8 +890,12 @@ def _planned_day_deck(
         db, user, items, reserved_new=day_words.remaining_reserved(batch, reserved_new)
     )
     batch.cursor = len(items) - len(remaining)
+    # Owner request, 2 Nov: the extras the learner asked for today and has not
+    # answered yet follow the day's cards, so every way back into the day deck
+    # (a reload, Home's link) resumes «Noch 5 neue Wörter» from the server's batch.
+    extras = drill_batch.remaining_items(db, user, day_words.extra_items(batch), reserved_new=reserved_new)
     db.commit()
-    payload = service.vocabulary_due_context_from_batch(user=user, items=remaining, now=now)
+    payload = service.vocabulary_due_context_from_batch(user=user, items=remaining + extras, now=now)
     # Owner request, 1 Nov: today's scene words are flagged (first in the deck's
     # order) and quote the scene line they appeared in.
     from app.services.scene_deck import apply_to_day_deck
