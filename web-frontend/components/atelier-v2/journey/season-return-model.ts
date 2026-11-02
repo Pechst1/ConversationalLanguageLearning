@@ -368,6 +368,7 @@ export function recapTeaserOf(recap: (JourneyRecap & { next_teaser_fr?: unknown 
       character_id: structured?.character_id ?? null,
       character_name: structured?.character_name ?? null,
       source: 'engine',
+      open_fr: structured?.open_fr ?? null,
     };
   }
   return structured;
@@ -384,7 +385,10 @@ export type TomorrowLine = { teaser: RecapTeaser; hint: string };
 export function tomorrowLine(recap: (JourneyRecap & { next_teaser_fr?: unknown }) | null | undefined): TomorrowLine | null {
   if (!recap || recap.completion_kind === 'early') return null;
   const teaser = recapTeaserOf(recap);
-  const hint = teaser ? teaserHint(teaser.text_fr) : null;
+  // #466: the engine names the open row its hook asks about; that is the line. Cutting the
+  // hook's prose is the fallback for a hook that names nothing (an authored page's caption,
+  // a learner's pick), never the rule: the first words of a hook are a voice opener.
+  const hint = teaser ? teaserHint(teaser.open_fr) ?? teaserHint(teaser.text_fr) : null;
   return teaser && hint ? { teaser, hint } : null;
 }
 

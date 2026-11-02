@@ -62,6 +62,10 @@ def _event_id(journey: DailyJourney) -> str:
     return f"journey:{journey.id}:story"
 
 
+#: The engine's hook in full: voice, frame, the row's words (110) and the closing question.
+ENGINE_TEASER_CHARS = 260
+
+
 def _clean(value: Any, limit: int = 180) -> str:
     text = " ".join(str(value or "").split())
     return text[:limit].rstrip() if len(text) > limit else text
@@ -291,13 +295,17 @@ def recap_teaser(user: User, journey: DailyJourney, live: dict[str, Any]) -> dic
             return {"text_fr": _clean(teaser.get("text_fr"), 160), "character_id": None, "character_name": None, "source": "engine"}
         if not source_event or source_event == _event_id(journey):
             teaser_id = str(teaser.get("character_id") or "").strip() or raw_id
+            open_fr = _clean(teaser.get("open_fr"), 160)
             return {
-                "text_fr": _clean(teaser.get("text_fr"), 160),
+                # The hook ends on its question (#466): a clip that cuts the end cuts the question.
+                "text_fr": _clean(teaser.get("text_fr"), ENGINE_TEASER_CHARS),
                 "character_id": teaser_id or None,
                 "character_name": _clean(teaser.get("character_name"), 60)
                 or (name if teaser_id == raw_id else CHARACTER_NAMES.get(_portrait_id(teaser_id) or "", ""))
                 or None,
                 "source": "engine",
+                # The open row's own words (#466), when the engine named them: «Tomorrow» prints these.
+                **({"open_fr": open_fr} if open_fr else {}),
             }
 
     line = _resolution_line(journey)
