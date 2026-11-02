@@ -11751,6 +11751,12 @@ export interface components {
             /** Character Name */
             character_name: string | null;
             /**
+             * Open Fr
+             * @description The open row the hook asks about, in its own words (#466): what «Tomorrow» prints,
+             *     so no surface cuts the character's voice opener out of ``text_fr`` to stand for it.
+             */
+            open_fr: string | null;
+            /**
              * Source
              * @enum {string}
              */

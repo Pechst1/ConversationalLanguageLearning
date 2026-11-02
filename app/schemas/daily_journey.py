@@ -966,6 +966,9 @@ class RecapTeaser(JourneyModel):
     character_id: str | None = None
     character_name: str | None = None
     source: Literal["engine", "resolution", "authored"]
+    #: The open row the hook asks about, in its own words (#466): what «Tomorrow» prints,
+    #: so no surface cuts the character's voice opener out of ``text_fr`` to stand for it.
+    open_fr: str | None = None
 
 
 class RecapLevelUp(JourneyModel):
