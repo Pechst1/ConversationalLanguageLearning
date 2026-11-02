@@ -876,8 +876,8 @@ def _planned_day_deck(
     batch.cursor = len(items) - len(remaining)
     db.commit()
     payload = service.vocabulary_due_context_from_batch(user=user, items=remaining, now=now)
-    # Owner request, 1 Nov: today's scene words are flagged (first in the deck's
-    # order) and quote the scene line they appeared in.
+    # Today's scene words are flagged (the scene's share of the new-word slots,
+    # app/services/deck_order.py) and every card the scene printed quotes its line.
     from app.services.scene_deck import apply_to_day_deck
 
     payload = apply_to_day_deck(db, user, batch, payload, now=now)

@@ -876,8 +876,9 @@ export interface VocabularyDueContext {
   /** WP-131: new words the day's allowance still holds after this deck; the
    *  drill offers them as «Encore N mots». `null` on a review-only deck. */
   new_words_left_today?: number | null;
-  /** The deck's one order (word ids; app/services/deck_order.py): today's scene
-   *  words first. Every client shows the deck in this order. */
+  /** The deck's one order (word ids; app/services/deck_order.py): the due reviews
+   *  first, then the new words with today's scene words mixed in. Every client
+   *  shows the deck in this order. */
   deck_order?: number[];
 }
 
