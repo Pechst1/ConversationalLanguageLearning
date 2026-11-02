@@ -63,10 +63,13 @@ class ActProvider(SplitProvider):
             return super()._plan(source)
         first = act["first_act"]
         lead = "marin_leveque" if first["lead_id"] != "marin_leveque" else "lila_bonnet"
-        if self.act_repeats_lead_once:
+        if self.act_repeats_lead_once or act.get("shape") == "two_hander":
+            # A two-hander's act goes on with its one voice (``story_split.ACT_SHAPE_RULES``).
             self.act_repeats_lead_once = False
             lead = first["lead_id"]
         place = "le_mistral" if first["location_id"] != "le_mistral" else "quai_de_valmy"
+        if act.get("shape") == "bottle":
+            place = act["room"]
         n = len(self.plans)
         plan = {
             "premise_id": None,
@@ -118,7 +121,8 @@ def acts_writer(season_on, monkeypatch):  # noqa: F811 - the fixture above
     fake.critic_refusals_left = 0
     monkeypatch.setattr(engine, "_client", lambda: fake)
     monkeypatch.setattr(settings, "STORY_PLAN_THEN_WRITE", True)
-    # Every chapter dealt standard: a bottle or a two-hander plays one act (tested below).
+    # Every chapter dealt standard: a bottle and a two-hander keep a room or a voice
+    # (tested below).
     monkeypatch.setattr(engine, "SHAPE_DECK", ("standard",))
     return fake
 
@@ -229,18 +233,51 @@ def test_a_tentpole_day_plays_one_act(assembled_client, db_session, journey_enab
     assert acts_writer.calls == []
 
 
-@pytest.mark.parametrize("shape", ["bottle", "two_hander"])
-def test_a_chapter_in_one_room_or_for_two_voices_plays_one_act(
-    assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch, shape
+def test_a_bottle_chapter_s_act_stays_in_its_room_with_someone_else(
+    assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch
 ):
-    monkeypatch.setattr(engine, "SHAPE_DECK", (shape,))
+    monkeypatch.setattr(engine, "SHAPE_DECK", ("bottle",))
     user = _learner_on_gap_day(assembled_client, db_session)
-    first = SimpleNamespace(scenario_key="story_g", story_context={"draft": {"panels": [{"narration_fr": "Le café."}]}})
+    first = _first_act(db_session, user)
+    acts_writer.calls.clear()
 
     act = _act(db_session, user, first)
 
-    assert isinstance(act, ContentUnavailable) and act.reason == f"act_not_in_a_{shape}"
-    assert acts_writer.calls == []
+    assert not isinstance(act, ContentUnavailable), act
+    assert act.location_id == first.location_id, "a bottle keeps its room"
+    assert act.character_id != first.character_id, "someone else comes into it"
+    [planner] = _payloads(acts_writer, "PagePlan")
+    assert planner["act"]["shape"] == "bottle" and planner["act"]["room"] == first.location_id
+    [critic] = _payloads(acts_writer, "StoryReview")
+    assert critic["act"]["shape"] == "bottle"
+
+
+def test_a_two_hander_s_evening_goes_on_with_its_one_voice_somewhere_else(
+    assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch
+):
+    monkeypatch.setattr(engine, "SHAPE_DECK", ("two_hander",))
+    user = _learner_on_gap_day(assembled_client, db_session)
+    first = _first_act(db_session, user)
+    acts_writer.calls.clear()
+
+    act = _act(db_session, user, first)
+
+    assert not isinstance(act, ContentUnavailable), act
+    assert act.character_id == first.character_id, "a two-hander keeps its one voice"
+    assert act.location_id != first.location_id
+    [planner] = _payloads(acts_writer, "PagePlan")
+    assert planner["act"]["shape"] == "two_hander"
+
+
+def test_a_two_hander_has_no_side_thread(assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch):
+    monkeypatch.setattr(engine, "SHAPE_DECK", ("two_hander",))
+    user = _learner_on_gap_day(assembled_client, db_session)
+    first = SimpleNamespace(scenario_key="story_g", story_context={"draft": {"panels": [{"narration_fr": "Le café."}]}})
+
+    act = _act(db_session, user, first, role="cote")
+
+    assert isinstance(act, ContentUnavailable) and act.reason == "act_not_in_a_two_hander"
+    assert acts_writer.calls == [], "nothing is paid for"
 
 
 def test_an_act_needs_a_written_first_act():
@@ -467,7 +504,7 @@ def test_no_act_is_written_after_a_page_that_expired_and_was_written_again(db_se
 
 @pytest.mark.parametrize(
     ("reason", "status"),
-    [("story_critic_refused", "unavailable"), ("act_not_on_a_gap_day", "skipped_day"), ("act_not_in_a_bottle", "skipped_day")],
+    [("story_critic_refused", "unavailable"), ("act_not_on_a_gap_day", "skipped_day"), ("act_not_in_a_two_hander", "skipped_day")],
 )
 def test_an_act_that_is_not_written_stores_nothing(db_session, night, reason, status):
     night["act_result"] = ContentUnavailable(reason=reason)
@@ -716,6 +753,7 @@ def test_a_later_act_s_context_leaves_the_season_s_day_to_the_first_act():
     assert not {"absence", "callback", engine.GRAMMAR_PLAN_KEY, engine.EPREUVE_KEY} & set(act)
     assert act["recent_situations"][-1]["character_id"] == "lila_bonnet", "the first act reads as the day before"
     assert act["act"]["role"] == "soir" and act["act"]["day_hook"] == "Someone knocks at Odile's door."
+    assert act["act"]["shape"] == "standard" and "room" not in act["act"]
     first = act["act"]["first_act"]
     assert (first["lead_id"], first["location_id"], first["question_fr"]) == ("lila_bonnet", "user_apartment", "C'est qui, à ton avis ?")
     assert first["change"] == {"before": "The box is closed.", "after": "The box is open."}
@@ -767,12 +805,68 @@ def test_a_later_act_s_plan_that_keeps_the_rules_passes():
     assert story_split.act_plan_issue(_plan(lead_id="lila_bonnet", cast=["lila_bonnet"]), _context()) is None, "a page is no act"
 
 
+def _shaped(shape: str, room: str | None = None) -> dict:
+    context = _context()
+    context["chapter"] = {"title_fr": "Le zinc", "dramatic_question": "Qui viendra ?", "shape": shape}
+    if room:
+        context["chapter"]["location_id"] = room
+    return context
+
+
+def test_a_bottle_chapter_s_act_keeps_the_room_and_changes_the_lead():
+    context = story_split.act_context(_shaped("bottle", room="le_mistral"), _draft(location_id="le_mistral"), "soir")
+    assert context["act"]["shape"] == "bottle" and context["act"]["room"] == "le_mistral"
+
+    assert story_split.act_plan_issue(_plan(), context) is None, "Marin comes into Lila's room"
+    assert "bottle" in story_split.act_plan_issue(_plan(location_id="quai_de_valmy"), context)
+    assert "leads the first act" in story_split.act_plan_issue(_plan(lead_id="lila_bonnet", cast=["lila_bonnet"]), context)
+
+
+def test_a_bottle_the_first_act_opened_keeps_the_first_act_s_room():
+    context = _context()  # yesterday's chapter is resolved: the first act opened today's
+    context["chapter_shape"] = {"shape": "bottle"}
+    act = story_split.act_context(context, _draft(), "cote")
+
+    assert act["chapter"]["shape"] == "bottle" and act["chapter"]["location_id"] == "user_apartment"
+    assert act["act"]["room"] == "user_apartment"
+    assert story_split.act_plan_issue(_plan(location_id="user_apartment", hook=""), act) is None
+
+
+def test_a_two_hander_s_act_keeps_the_lead_and_changes_the_place():
+    context = story_split.act_context(_shaped("two_hander"), _draft(), "soir")
+    assert context["act"]["shape"] == "two_hander" and "room" not in context["act"]
+    lila = {"lead_id": "lila_bonnet", "cast": ["lila_bonnet"]}
+
+    assert story_split.act_plan_issue(_plan(**lila), context) is None, "Lila again, at le_mistral"
+    assert "two-hander" in story_split.act_plan_issue(_plan(), context)
+    assert "somewhere else" in story_split.act_plan_issue(_plan(**lila, location_id="user_apartment"), context)
+
+
+def test_an_act_that_breaks_its_chapter_s_shape_is_refused():
+    checklist = SimpleNamespace(premise_id=None, hook_fr="Demain, Odile frappe.")
+    first = {"lead_id": "lila_bonnet", "location_id": "le_mistral"}
+    marin_outside = SimpleNamespace(character_id="marin_leveque", location_id="quai_de_valmy", season_checklist=checklist)
+    lila_inside = SimpleNamespace(character_id="lila_bonnet", location_id="le_mistral", season_checklist=checklist)
+
+    bottle = {"act": {"role": "soir", "first_act": first, "shape": "bottle", "room": "le_mistral"}}
+    with pytest.raises(engine.StoryUnavailable, match="act_breaks_chapter_shape"):
+        engine._validate_act(marin_outside, bottle)
+    two_hander = {"act": {"role": "soir", "first_act": first, "shape": "two_hander"}}
+    with pytest.raises(engine.StoryUnavailable, match="act_breaks_chapter_shape"):
+        engine._validate_act(marin_outside, two_hander)
+    with pytest.raises(engine.StoryUnavailable, match="act_repeats_first_act"):
+        engine._validate_act(lila_inside, two_hander)
+
+
 def test_the_planner_reads_the_act_s_rules_only_on_a_later_act():
     assert story_split.planner_system({}) == story_split.PLANNER
     assert story_split.planner_system({"act": {"role": "fil"}}) == story_split.PLANNER
     soir = story_split.planner_system({"act": {"role": "soir"}})
     assert soir.startswith(story_split.PLANNER) and "TODAY HAS MORE THAN ONE ACT" in soir and "«Le soir»" in soir
     assert "«À côté»" in story_split.planner_system({"act": {"role": "cote"}})
+    assert "act.shape is" not in soir
+    assert "act.shape is bottle" in story_split.planner_system({"act": {"role": "cote", "shape": "bottle"}})
+    assert "act.shape is two_hander" in story_split.planner_system({"act": {"role": "soir", "shape": "two_hander"}})
     assert story_split.author_system({"level": "A2"}).count("TODAY HAS MORE THAN ONE ACT") == 0
     assert "TODAY HAS MORE THAN ONE ACT" in story_split.author_system({"level": "A2", "act": {"role": "soir"}})
 
@@ -806,7 +900,7 @@ def test_the_critic_reads_a_later_act_as_one_and_refuses_it_when_it_does_not_mov
     brief = _context()["season_script"]["brief"]
     assert "act" not in critic_payload(brief, _draft())
     assert critic_payload(brief, _draft(), act={"role": "soir"})["act"] == {"role": "soir"}
-    assert "When act is present" in STORY_CRITIC
+    assert "When act is present" in STORY_CRITIC and "act.shape" in STORY_CRITIC
 
 
 def test_an_act_with_the_first_act_s_lead_or_without_tomorrow_s_hook_is_refused():
