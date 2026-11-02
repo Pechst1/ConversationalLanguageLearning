@@ -78,6 +78,8 @@ class GoldLedgerDay(BaseModel):
 class GoldLedgerWeek(BaseModel):
     visible: bool
     week_id: str | None = None
+    #: Every entry of the week; ``entries`` lists the newest of them.
+    entries_total: int | None = None
     settled: int | None = None
     pending: int | None = None
     mark: int | None = None

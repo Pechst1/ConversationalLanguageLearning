@@ -33,12 +33,17 @@ function publish(next: GoldState) {
   listeners.forEach((listener) => listener());
 }
 
+/** Bumped when the learner changes: a read started for the previous one is dropped. */
+let generation = 0;
+
 export function refreshGold(): Promise<void> {
   if (hidden) return Promise.resolve();
   if (inflight) return inflight;
-  inflight = apiService
+  const asked = generation;
+  const request = apiService
     .getGold()
     .then((view) => {
+      if (asked !== generation) return;
       if (!view?.visible) {
         hidden = true;
         publish({ view, grain: null });
@@ -51,9 +56,10 @@ export function refreshGold(): Promise<void> {
     })
     .catch(() => undefined)
     .finally(() => {
-      inflight = null;
+      if (inflight === request) inflight = null;
     });
-  return inflight;
+  inflight = request;
+  return request;
 }
 
 function onAnswer() {
@@ -96,6 +102,8 @@ export function setGoldIdentity(next: string) {
     return;
   }
   identity = next;
+  generation += 1;
+  inflight = null;
   state = { view: null, grain: null };
   hidden = false;
   seen.clear();

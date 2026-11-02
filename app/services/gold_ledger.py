@@ -31,7 +31,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, text
+from sqlalchemy import and_, func, or_, text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -1350,9 +1350,17 @@ def snapshot_word_card(db: Session, *, progress: Any) -> dict[str, datetime | No
     def read() -> dict[str, datetime | None]:
         from app.db.models.progress import ReviewLog
 
+        # An imported card's SM-2 review log carries no source (``EnhancedSRSService.
+        # _process_anki_review``); only the deck reviews those cards, so it counts too.
         last_drill = (
             db.query(func.max(ReviewLog.review_date))
-            .filter(ReviewLog.progress_id == progress.id, ReviewLog.source == "drill")
+            .filter(
+                ReviewLog.progress_id == progress.id,
+                or_(
+                    ReviewLog.source == "drill",
+                    and_(ReviewLog.source.is_(None), ReviewLog.scheduler_type == "anki"),
+                ),
+            )
             .scalar()
         )
         return {"contact": _aware(getattr(progress, "last_review_date", None)), "drill": _aware(last_drill)}

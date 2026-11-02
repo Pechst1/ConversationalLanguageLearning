@@ -17,6 +17,9 @@ from app.core import gold as core
 from app.db.models.gold import GoldBalance, GoldLedgerEntry
 from app.services import gold_ledger
 
+#: The most entries «D'où vient ton or» lists for a week (its totals read them all).
+LEDGER_ENTRIES_SHOWN = 500
+
 #: The weeks «D'où vient ton or» can open: ``2026-W45``.
 WEEK_PATTERN = re.compile(r"^(\d{4})-W(\d{2})$")
 
@@ -153,28 +156,33 @@ def build_gold_view(db: Session, *, user: Any, now: datetime | None = None) -> d
     week_id = core.week_id(now)
     rhythm = _rhythm(user)
     mark = core.JOURNEE_PLEINE_MARK[rhythm]
-    monday = today - timedelta(days=today.weekday())
+    # The week is the ledger's (§15: the ISO week in Europe/Paris); its days are the
+    # learner's local days that hold its entries, which can begin a day before its
+    # Monday for a learner west of Paris.
+    monday, _sunday = week_bounds(week_id) or (today, today)
     rows = (
         db.query(GoldLedgerEntry)
         .filter(
             GoldLedgerEntry.user_id == user.id,
-            GoldLedgerEntry.local_date >= min(monday, today - timedelta(days=1)),
+            GoldLedgerEntry.local_date >= min(monday, today) - timedelta(days=1),
         )
         .order_by(GoldLedgerEntry.created_at.asc())
         .all()
     )
-    days: dict[date, _DayTotals] = defaultdict(_DayTotals)
+    day = _DayTotals()
     week = _DayTotals()
+    week_days: dict[date, _DayTotals] = defaultdict(_DayTotals)
     for row in rows:
-        days[row.local_date].add(row)
+        if row.local_date == today:
+            day.add(row)
         if row.week_id == week_id:
             week.add(row)
-    day = days[today]
+            week_days[row.local_date].add(row)
     todays = [row for row in rows if row.local_date == today]
     subjects = _subjects(db, todays)
     balance = db.get(GoldBalance, user.id)
-    week_days = [monday + timedelta(days=offset) for offset in range(7)]
-    pleines = sum(1 for local in week_days if days[local].earn_settled >= mark)
+    shown_days = sorted({monday + timedelta(days=offset) for offset in range(7)} | set(week_days))
+    pleines = sum(1 for totals in week_days.values() if totals.earn_settled >= mark)
     return {
         "visible": True,
         "mode": gold_ledger.gold_mode(),
@@ -200,10 +208,10 @@ def build_gold_view(db: Session, *, user: Any, now: datetime | None = None) -> d
             "days": [
                 {
                     "local_date": local.isoformat(),
-                    "settled": days[local].settled,
-                    "pleine": days[local].earn_settled >= mark,
+                    "settled": week_days[local].settled if local in week_days else 0,
+                    "pleine": local in week_days and week_days[local].earn_settled >= mark,
                 }
-                for local in week_days
+                for local in shown_days
             ],
         },
         "entries": [_entry(row, subjects) for row in reversed(todays)],
@@ -223,7 +231,6 @@ def build_gold_ledger(db: Session, *, user: Any, week: str | None = None, now: d
         db.query(GoldLedgerEntry)
         .filter(GoldLedgerEntry.user_id == user.id, GoldLedgerEntry.week_id == week_id)
         .order_by(GoldLedgerEntry.created_at.desc())
-        .limit(500)
         .all()
     )
     mark = core.JOURNEE_PLEINE_MARK[_rhythm(user)]
@@ -232,10 +239,13 @@ def build_gold_ledger(db: Session, *, user: Any, week: str | None = None, now: d
     for row in rows:
         days[row.local_date].add(row)
         total.add(row)
-    subjects = _subjects(db, rows)
+    # The totals read the whole week; the sheet lists the newest entries only.
+    shown = rows[:LEDGER_ENTRIES_SHOWN]
+    subjects = _subjects(db, shown)
     return {
         "visible": True,
         "week_id": week_id,
+        "entries_total": len(rows),
         "settled": total.settled,
         "pending": total.pending,
         "mark": mark,
@@ -248,7 +258,7 @@ def build_gold_ledger(db: Session, *, user: Any, week: str | None = None, now: d
             }
             for local, totals in sorted(days.items(), reverse=True)
         ],
-        "entries": [_entry(row, subjects) for row in rows],
+        "entries": [_entry(row, subjects) for row in shown],
     }
 
 

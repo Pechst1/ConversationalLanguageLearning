@@ -8581,6 +8581,8 @@ export interface components {
             days?: components["schemas"]["GoldLedgerDay"][];
             /** Entries */
             entries?: components["schemas"]["GoldEntry"][];
+            /** Entries Total */
+            entries_total?: number | null;
             /** Mark */
             mark?: number | null;
             /** Pending */

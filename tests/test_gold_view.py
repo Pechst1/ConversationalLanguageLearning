@@ -181,6 +181,20 @@ def test_an_accent_slip_pays_half(client: TestClient, db_session):
     assert entry.breakdown["reason_fr"] == "Rappel écrit · accent oublié ×1/2"
 
 
+def test_an_imported_cards_second_try_today_pays_nothing(client: TestClient, db_session):
+    """R7 for an imported Anki card too: its SM-2 review log carries no source."""
+
+    headers, user = _login(client, db_session)
+    word = _make_due_word(db_session, user, "la clé", rank=89)
+    db_session.flush()
+    progress = db_session.query(UserVocabularyProgress).filter_by(user_id=user.id, word_id=word.id).one()
+    progress.scheduler = "anki"
+    db_session.commit()
+    assert _review(client, headers, word.id, format="typed", answer_text="la porte")["correct"] is False
+    assert _review(client, headers, word.id, format="typed", answer_text="la clé")["correct"] is True
+    assert _cards(db_session, user) == []
+
+
 def test_the_deck_writes_nothing_with_the_ledger_off(client: TestClient, db_session, monkeypatch):
     monkeypatch.setattr(settings, "ATELIER_GOLD_MODE", "off")
     headers, user = _login(client, db_session)
@@ -283,6 +297,54 @@ def test_past_ninety_the_day_says_the_plafond_pays_half(client: TestClient, db_s
     _write_cards(db_session, user, 25, now=now - timedelta(hours=1))
     today = build_gold_view(db_session, user=user, now=now)["today"]
     assert (today["earned_before_plafond"], today["settled"], today["plafond"]) == (100, 95, "half")
+
+
+def test_the_week_is_the_ledgers_even_west_of_paris(client: TestClient, db_session):
+    """Sunday evening in New York is already Monday in Paris: the new week counts only its own days."""
+
+    _headers, user = _login(client, db_session)
+    _owner(db_session, user)
+    user.timezone = "America/New_York"
+    user.daily_goal_minutes = 5  # léger: mark 10
+    db_session.commit()
+    friday = datetime(2026, 11, 6, 15, 0, tzinfo=UTC)
+    _write_cards(db_session, user, 3, now=friday)  # a full Friday in W45
+    sunday_night = datetime(2026, 11, 9, 3, 0, tzinfo=UTC)  # Sun 22:00 in New York, Mon 04:00 in Paris
+    view = build_gold_view(db_session, user=user, now=sunday_night)
+    assert view["week"]["week_id"] == "2026-W46"
+    assert (view["week"]["settled"], view["week"]["journees_pleines"]) == (0, 0)
+    gold_ledger.record_word_card(
+        db_session, user=user, word_id=_make_due_word(db_session, user, "le soir", rank=2000).id,
+        review_format="typed", verdict=SimpleNamespace(correct=True, note=None),
+        snapshot={"contact": friday - timedelta(days=2)}, now=sunday_night - timedelta(minutes=5),
+    )
+    _write_cards(db_session, user, 3, now=sunday_night - timedelta(minutes=4))
+    view = build_gold_view(db_session, user=user, now=sunday_night)
+    assert view["today"]["local_date"] == "2026-11-08"
+    assert view["week"]["journees_pleines"] == 1
+    sunday = next(day for day in view["week"]["days"] if day["local_date"] == "2026-11-08")
+    assert sunday["pleine"] is True
+    assert view["week"]["settled"] == view["today"]["settled"] == 16
+
+
+def test_the_weeks_totals_read_every_entry_however_many(client: TestClient, db_session):
+    from app.services.gold_view import LEDGER_ENTRIES_SHOWN, build_gold_ledger
+
+    _headers, user = _login(client, db_session)
+    _owner(db_session, user)
+    now = datetime(2026, 11, 3, 9, 0, tzinfo=UTC)
+    for index in range(LEDGER_ENTRIES_SHOWN + 1):
+        db_session.add(GoldLedgerEntry(
+            user_id=user.id, amount=1, entry_kind="earn", state="settled", source_kind="word_card",
+            source_key=f"gold:test:{index}", evidence={}, breakdown={"earned": 1}, rule_version="gold-v1",
+            local_date=now.date(), week_id="2026-W45", created_at=now + timedelta(seconds=index),
+        ))
+    db_session.flush()
+    ledger = build_gold_ledger(db_session, user=user, week="2026-W45", now=now)
+    assert ledger["settled"] == LEDGER_ENTRIES_SHOWN + 1
+    assert ledger["entries_total"] == LEDGER_ENTRIES_SHOWN + 1
+    assert len(ledger["entries"]) == LEDGER_ENTRIES_SHOWN
+    assert ledger["days"][0]["settled"] == LEDGER_ENTRIES_SHOWN + 1
 
 
 def test_a_malformed_week_is_refused(client: TestClient, db_session):
