@@ -528,33 +528,53 @@ def take_prefetched_scene(
     return served
 
 
-def sweep_expired_prefetches(db: Session, *, limit: int = 200) -> int:
-    """Bill and close out prefetches nobody consumed before they expired."""
+#: How far past its expiry a prefetch is still swept: a row this old no longer counts
+#: towards any learner's week, and the read stays bounded however long the ledger grows.
+SWEEP_WINDOW = timedelta(days=14)
 
-    rows = list(
-        db.scalars(
-            select(PilotEvent)
-            .where(
-                PilotEvent.event_type == PREFETCH_EVENT,
-                PilotEvent.occurred_at < _ttl_floor(),
-            )
-            .order_by(PilotEvent.occurred_at.asc())
-            .limit(limit)
-        ).all()
-    )
-    spent = _consumed_ids(db, [str(row.id) for row in rows])
+
+def sweep_expired_prefetches(db: Session, *, limit: int = 200) -> int:
+    """Bill and close out prefetches nobody consumed before they expired: the page and,
+    Phase 2, the acts written after it (``story_acts``). At most ``limit`` a run.
+
+    The expired rows stay on the ledger once closed, so the oldest-first read pages on
+    past them: reading only the first ``limit`` rows found the same closed ones every
+    run, once there were that many, and never reached a newer one."""
+
+    from app.services.story_acts import ACT_PREFETCH_EVENT
+
+    floor = _ttl_floor()
     closed = 0
-    for row in rows:
-        if str(row.id) in spent:
-            continue
-        _mark(
-            db,
-            row,
-            PREFETCH_DISCARDED_EVENT,
-            reason="expired",
-            cost_usd=_usage_cost(row.payload or {}),
+    offset = 0
+    while closed < limit:
+        rows = list(
+            db.scalars(
+                select(PilotEvent)
+                .where(
+                    PilotEvent.event_type.in_([PREFETCH_EVENT, ACT_PREFETCH_EVENT]),
+                    PilotEvent.occurred_at < floor,
+                    PilotEvent.occurred_at >= floor - SWEEP_WINDOW,
+                )
+                .order_by(PilotEvent.occurred_at.asc(), PilotEvent.id.asc())
+                .offset(offset)
+                .limit(limit)
+            ).all()
         )
-        closed += 1
+        if not rows:
+            break
+        offset += len(rows)
+        spent = _consumed_ids(db, [str(row.id) for row in rows])
+        for row in rows:
+            if str(row.id) in spent or closed >= limit:
+                continue
+            _mark(
+                db,
+                row,
+                PREFETCH_DISCARDED_EVENT,
+                reason="expired",
+                cost_usd=_usage_cost(row.payload or {}),
+            )
+            closed += 1
     if closed:
         db.commit()
     return closed

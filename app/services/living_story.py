@@ -1774,7 +1774,11 @@ def _approved(
     story_review=None,
     digest=None,
     draw=None,
+    keep_refused: bool = True,
 ) -> tuple[Any, list[dict]]:
+    # ``keep_refused`` (WP-114): a draft the story critic refused once may still be
+    # served when the retry it bought fails — the day's page never costs a learner a
+    # day. Phase 2: a later act passes False; a weak act is dropped, never played.
     # Leave headroom under the journey's 90-second generation claim and HTTP timeout.
     # No hidden retries or provider cascades may multiply this budget.
     deadline = time.monotonic() + (
@@ -1948,10 +1952,11 @@ def _approved(
                         proposal=proposal,
                         digest=digest,
                     )
-                    if correctness:
+                    if correctness or not keep_refused:
                         # Never kept, never served: the next attempt carries the
                         # critic's words; if none is left, an earlier storytelling-only
                         # draft is served, else the day falls to the re-read (WP-124b).
+                        # A later act (Phase 2) is written again or dropped.
                         continue
                     if critic_refusals <= 1:
                         critic_kept = critic_kept or proposal
@@ -1992,9 +1997,10 @@ def _approved(
         if callable(override):
             override()
         return critic_kept, usage
-    if soft["fallback"] is not None:
+    if soft["fallback"] is not None and keep_refused:
         # WP-90: every later attempt failed, but an earlier draft was only missing
         # reading aids — serve it, with those aids left empty, rather than lose the day.
+        # Never a later act (Phase 2): that draft was refused before the critic read it.
         logger.info("living_story: serving the draft kept without reading aids (%s)", reason)
         return soft["fallback"], usage
     if usage:
@@ -8700,6 +8706,64 @@ def epreuve_cache_key(db: Session, user: User) -> str | None:
     return f"{view.get('band')}:{int(view.get('attempts') or 0) + 1}"
 
 
+def _add_director_context(db: Session, user: User, context: dict, *, now: datetime | None = None) -> None:
+    """What only the writer reads, added to ``story_context``'s ``context`` in place."""
+
+    errata = due_errata(db, user)
+    # Director-only (WP-24 §5, the quality half of the mistake loop). Added
+    # here rather than inside ``story_context`` so the actor's turn payload,
+    # which is built from the same function, never learns what the learner
+    # is expected to get wrong.
+    context["errata"] = errata_hints(errata)
+    # WP-29 §5.1/§5.3, added here for the same reason and one more: the same ranked
+    # errata the director was told about and the prefetch key was built from also
+    # name what today may legitimately be new, so the coverage guard cannot excuse a
+    # word the plan never chose.
+    context[LEXICON_KEY] = scene_lexicon(db, user, context, errata=errata)
+    # WP-86. Director-only as well: the words this learner kept and the words
+    # recent scenes taught, so a later scene can bring them back; and the
+    # French 5000 rank the lexicon's band fit is scored against (never
+    # prompted, never stored — `_storable_context` keeps only provenance).
+    context.update(_director_vocabulary(db, user))
+    context[LEXICON_KEY]["rank_of"] = _rank_lookup(db, user)
+    # WP-115c: the learner's hardest due words, carried by today's story as needs.
+    story_words = _story_words(db, user)
+    if story_words:
+        context[STORY_WORDS_KEY] = story_words
+    # WP-90. Director-only too: whether each line comes with a translation.
+    context[LINE_TRANSLATION_KEY] = line_translation_language(context)
+    # WP-92. Director-only: the day's grammar, chosen before the director writes —
+    # the same unit the Règle step will introduce on the day this scene is for.
+    plan = grammar_plan_for(
+        db,
+        user,
+        now=now,
+        level=context.get("level"),
+        control_language=str(context.get("control_language") or "en"),
+    )
+    if plan:
+        context[GRAMMAR_PLAN_KEY] = plan
+    # WP-93. The words of the band this learner has not met, read against the
+    # finished page (``word_outcome``); never shown to the director.
+    mots = mots_a_placer(db, user, context, limit=MOTS_POOL)
+    if mots:
+        context[MOTS_KEY] = mots
+    # WP-95 / WP-94. Director-only: the sub-band's can-dos to choose the scene's one
+    # from, and — when the checkpoint says the learner is ready — the épreuve.
+    view = scene_checkpoint(db, user)
+    menu = can_do_menu(
+        db,
+        user,
+        band=_sub_band(view, user, context),
+        control_language=str(context.get("control_language") or "en"),
+    )
+    if menu:
+        context[CAN_DOS_KEY] = menu
+    epreuve = epreuve_plan(view, menu, context, _live_state(db, user))
+    if epreuve:
+        context[EPREUVE_KEY] = epreuve
+
+
 def generate_scene(
     db: Session, *, user: User, input_mode: InputMode, now: datetime | None = None
 ):
@@ -8727,59 +8791,7 @@ def generate_scene(
             authored = season_end_brief(season_today, context)
             if authored is not None:
                 return authored
-        errata = due_errata(db, user)
-        # Director-only (WP-24 §5, the quality half of the mistake loop). Added
-        # here rather than inside ``story_context`` so the actor's turn payload,
-        # which is built from the same function, never learns what the learner
-        # is expected to get wrong.
-        context["errata"] = errata_hints(errata)
-        # WP-29 §5.1/§5.3, added here for the same reason and one more: the same ranked
-        # errata the director was told about and the prefetch key was built from also
-        # name what today may legitimately be new, so the coverage guard cannot excuse a
-        # word the plan never chose.
-        context[LEXICON_KEY] = scene_lexicon(db, user, context, errata=errata)
-        # WP-86. Director-only as well: the words this learner kept and the words
-        # recent scenes taught, so a later scene can bring them back; and the
-        # French 5000 rank the lexicon's band fit is scored against (never
-        # prompted, never stored — `_storable_context` keeps only provenance).
-        context.update(_director_vocabulary(db, user))
-        context[LEXICON_KEY]["rank_of"] = _rank_lookup(db, user)
-        # WP-115c: the learner's hardest due words, carried by today's story as needs.
-        story_words = _story_words(db, user)
-        if story_words:
-            context[STORY_WORDS_KEY] = story_words
-        # WP-90. Director-only too: whether each line comes with a translation.
-        context[LINE_TRANSLATION_KEY] = line_translation_language(context)
-        # WP-92. Director-only: the day's grammar, chosen before the director writes —
-        # the same unit the Règle step will introduce on the day this scene is for.
-        plan = grammar_plan_for(
-            db,
-            user,
-            now=now,
-            level=context.get("level"),
-            control_language=str(context.get("control_language") or "en"),
-        )
-        if plan:
-            context[GRAMMAR_PLAN_KEY] = plan
-        # WP-93. The words of the band this learner has not met, read against the
-        # finished page (``word_outcome``); never shown to the director.
-        mots = mots_a_placer(db, user, context, limit=MOTS_POOL)
-        if mots:
-            context[MOTS_KEY] = mots
-        # WP-95 / WP-94. Director-only: the sub-band's can-dos to choose the scene's one
-        # from, and — when the checkpoint says the learner is ready — the épreuve.
-        view = scene_checkpoint(db, user)
-        menu = can_do_menu(
-            db,
-            user,
-            band=_sub_band(view, user, context),
-            control_language=str(context.get("control_language") or "en"),
-        )
-        if menu:
-            context[CAN_DOS_KEY] = menu
-        epreuve = epreuve_plan(view, menu, context, _live_state(db, user))
-        if epreuve:
-            context[EPREUVE_KEY] = epreuve
+        _add_director_context(db, user, context, now=now)
         reviews: list[dict] = []
         from app.services import story_split
 
@@ -8816,6 +8828,112 @@ def generate_scene(
         brief = _brief(draft, context, usage=usage)
         if season_day:
             brief.story_context["season"] = season_day
+        return brief
+    except StoryUnavailable as exc:
+        return ContentUnavailable(reason=str(exc)[:100])
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 «Folge in Akten» — a later act of the day, written at night
+# ---------------------------------------------------------------------------
+
+#: Where a later act's brief says what it is (``brief.story_context``): its role and the
+#: day's first act it was written against. A brief without it is a day's first act.
+ACT_STORY_KEY = "act"
+#: The chapter shapes whose days play one act (``generate_act``).
+ACT_FREE_SHAPES = ("bottle", "two_hander")
+
+
+def _validate_act(draft: SceneDraft, context: dict) -> None:
+    """A later act is held to every rule a page is (:func:`_validate_scene`) and to its
+    own, checked first: another lead and another place than the day's first act, none
+    of the season's premises, and «Le soir» ends on tomorrow's hook."""
+
+    from app.services.story_split import ACT_KEY
+
+    act = context.get(ACT_KEY) or {}
+    first = act.get("first_act") or {}
+    if draft.character_id == first.get("lead_id") or draft.location_id == first.get("location_id"):
+        raise StoryUnavailable(
+            "act_repeats_first_act",
+            hint=(
+                f"The first act today is {first.get('lead_id')} at {first.get('location_id')}: this act has "
+                "another lead and another place."
+            ),
+        )
+    if draft.season_checklist is not None:
+        # Only the day's first act takes the season's step.
+        draft.season_checklist.premise_id = None
+    if act.get("role") == "soir" and not (draft.season_checklist and draft.season_checklist.hook_fr.strip()):
+        raise StoryUnavailable(
+            "act_without_hook",
+            hint="«Le soir» ends on the «À suivre…» line for tomorrow: write hook_fr.",
+        )
+    _validate_scene(draft, context)
+
+
+def generate_act(
+    db: Session, *, user: User, first: ScenarioBrief, role: str, now: datetime | None = None
+):
+    """Write a later act (``role``: «À côté» or «Le soir») of the day whose first act is
+    ``first``, ahead of time (``written_ahead_of_time``). Returns its
+    :class:`ScenarioBrief` or :class:`ContentUnavailable`.
+
+    Only a generated day of a season's gap, written by the planner and the author
+    (``story_split.applies``), has acts after it: a tentpole, an épreuve, a «On se
+    tutoie ?» day, a bottle chapter, a two-hander and a page written live play one act
+    (:data:`ACT_FREE_SHAPES`). The act is
+    planned, written and aided like a page, against the first act
+    (``story_split.act_context``), and read by the story critic as an act — a refused
+    act is written again or dropped, never served (``keep_refused=False``). Its brief
+    carries no season day: only the first act moves the season.
+    """
+
+    from app.services import story_split
+
+    try:
+        story = first.story_context if isinstance(first.story_context, dict) else {}
+        draft = story.get("draft")
+        if not isinstance(draft, dict) or not draft.get("panels"):
+            return ContentUnavailable(reason="act_without_a_written_page")
+        context = story_context(db, user, now=now)
+        season_today = context.get(SEASON_TODAY_KEY)
+        if season_today is None or season_today.pos.is_tentpole or season_today.pos.finished:
+            return ContentUnavailable(reason="act_not_on_a_gap_day")
+        _add_director_context(db, user, context, now=now)
+        if not story_split.applies(context):
+            return ContentUnavailable(reason="act_not_on_a_planned_day")
+        shape = page_shape(context)
+        if shape in ACT_FREE_SHAPES:
+            # A bottle chapter keeps every page in one room and a two-hander every voice
+            # but one off the page: an act has another place and another lead.
+            return ContentUnavailable(reason=f"act_not_in_a_{shape}")
+        act_context = story_split.act_context(context, draft, str(role))
+        # The words the day hunts for are the first act's (its reply is graded on them).
+        act_context.pop(STORY_WORDS_KEY, None)
+        reviews: list[dict] = []
+        try:
+            act_draft, usage = _approved(
+                DIRECTOR,
+                _prompt_payload(act_context),
+                SceneDraft,
+                lambda p: _validate_act(p, act_context),
+                db=db,
+                user=user,
+                story_review=_season_story_review(act_context, reviews),
+                digest=lambda p: scene_digest(p, act_context),
+                draw=story_split.draw(act_context),
+                keep_refused=False,
+            )
+        finally:
+            _record_story_reviews(db, user, act_context, reviews)
+        settle_can_do(act_draft, act_context)
+        try:
+            act_context[WORDS_OUTCOME_KEY] = word_outcome(act_draft, act_context)
+        except Exception:  # pragma: no cover - a measurement never costs the act
+            logger.exception("living_story: an act's word outcome unavailable")
+        brief = _brief(act_draft, act_context, usage=usage)
+        brief.story_context[ACT_STORY_KEY] = {"role": str(role), "first_scenario_key": str(first.scenario_key)}
         return brief
     except StoryUnavailable as exc:
         return ContentUnavailable(reason=str(exc)[:100])
@@ -8886,6 +9004,11 @@ def _season_story_review(context: dict, reviews: list[dict]):
         critic_payload,
         review_verdict,
     )
+    from app.services.story_split import ACT_KEY
+
+    # Phase 2: a later act of the day is read as one (``critic_payload``'s ``act``), must
+    # also move on, and is never served refused — a weak act is dropped (acts doc, risks).
+    act = context.get(ACT_KEY) or None
 
     def review(proposal, *, deadline, record, final: bool = False):
         try:
@@ -8896,6 +9019,7 @@ def _season_story_review(context: dict, reviews: list[dict]):
                     proposal.model_dump(mode="json"),
                     recent_days=(context.get("recent_situations") or [])[-3:],
                     memory=context.get(story_memory.MEMORY_KEY),
+                    act=act,
                 ),
                 StoryReview,
                 record,
@@ -8906,13 +9030,13 @@ def _season_story_review(context: dict, reviews: list[dict]):
             # A critic that cannot answer never refuses a draft.
             reviews.append({"accepted": True, "unavailable": str(exc), "final": final})
             return None
-        accepted = review_verdict(verdict)
+        accepted = review_verdict(verdict, act=act is not None)
         # WP-149: a refusal that names a correctness defect (the register canon, the
         # flags, a spoiler) is never served — not on the final reading, not as the
         # kept draft. A storytelling-only refusal keeps WP-114's rule: the second is
         # accepted and logged, and the critic never costs a learner a day for it.
         kind = None if accepted else review_class(verdict)
-        served = accepted or (final and kind == STORYTELLING)
+        served = accepted or (final and kind == STORYTELLING and act is None)
         reviews.append(
             {
                 **verdict.model_dump(),
@@ -8921,6 +9045,7 @@ def _season_story_review(context: dict, reviews: list[dict]):
                 "class": kind,
                 "override": bool(final and served and not accepted),
                 "title_fr": proposal.title_fr,
+                **({"act": act.get("role")} if act else {}),
             }
         )
         return {"accepted": served, "issues": list(verdict.issues), "class": kind}
