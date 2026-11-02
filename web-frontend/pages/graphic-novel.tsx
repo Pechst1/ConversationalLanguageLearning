@@ -175,6 +175,7 @@ export default function GraphicNovelPage() {
     date: typeof query.day === 'string' ? query.day : null,
     journeyId: typeof query.journey === 'string' ? query.journey : null,
     sceneId: typeof query.cause === 'string' ? query.cause : null,
+    act: typeof query.act === 'string' && Number(query.act) > 1 ? Math.trunc(Number(query.act)) : null,
   };
   const edition = typeof query.scene === 'string' || Boolean(graphicNovelContextKey(query));
   if (edition) return <GraphicNovelEditionPage />;

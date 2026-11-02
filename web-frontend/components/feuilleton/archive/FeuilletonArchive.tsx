@@ -61,7 +61,13 @@ import { Trombinoscope } from './Trombinoscope';
 import { ShellCorner } from '@/components/layout/ShellCorner';
 
 export type ArchiveView = 'archive' | 'cast' | 'day';
-export type ArchiveDayQuery = { date: string | null; journeyId: string | null; sceneId: string | null };
+export type ArchiveDayQuery = {
+  date: string | null;
+  journeyId: string | null;
+  sceneId: string | null;
+  /** Phase 2: one of a day's later acts (`?act=2`); a day opens on its first act. */
+  act?: number | null;
+};
 
 const ARCHIVE_HREF = '/graphic-novel';
 const CAST_HREF = '/graphic-novel?view=cast';
@@ -290,11 +296,12 @@ function BackLink({ language }: { language: ControlLanguage | null }) {
   );
 }
 
-/** «Nº 4 · 12 sept.» (+ «Numéro spécial») — a planche's kicker. */
+/** «Nº 4 · 12 sept.» (+ «Numéro spécial»; «Nº 4 · Acte 2 · 12 sept.» for a later act) — a planche's kicker. */
 export function plancheKicker(day: ArchiveDay, language: ControlLanguage | null): string {
   const t = archiveCopy(language);
   return [
     day.edition_no !== null ? faFill(t.edition_n, { n: day.edition_no }) : '',
+    day.act > 1 ? faFill(t.act_n, { n: day.act }) : '',
     archiveDate(day.date, language),
     day.reread ? t.reread : '',
     day.special === 'epreuve' ? canDoCopy(language).special_kicker : '',

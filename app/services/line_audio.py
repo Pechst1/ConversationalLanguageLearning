@@ -70,6 +70,7 @@ from app.services.episode_audio import (
     speak_text,
     spec_for,
 )
+from app.services.journey_contracts import step_act
 from app.services.pilot_events import PilotEventService
 
 #: The pilot-ledger event type for one line that was actually synthesized.
@@ -139,24 +140,34 @@ def _add(lines: list[StepLine], character_id: Any, text: Any) -> None:
         lines.append(StepLine(str(character_id or NARRATOR_ID), clean))
 
 
-def _scene_step(journey: DailyJourney) -> DailyJourneyStep | None:
-    return next((step for step in journey.steps if step.kind == "scene"), None)
+def _scene_step(journey: DailyJourney, act: int = 1) -> DailyJourneyStep | None:
+    """The scene step of the day's act ``act``. Phase 2 «Folge in Akten»: a day may
+    play up to three acts, each its own scene; a one-act day's only scene is act 1."""
+
+    return next(
+        (step for step in journey.steps if step.kind == "scene" and step_act(step) == act), None
+    )
 
 
-def _brief(journey: DailyJourney) -> dict[str, Any]:
-    scene = _scene_step(journey)
+def _brief(journey: DailyJourney, act: int = 1) -> dict[str, Any]:
+    """The brief the act was planned with: the day's ``scenario_brief`` for act 1, a
+    later act's own ``act_brief`` (``DailyJourneyService._persist_plan``) — so a later
+    act's lines are its page's, spoken by its own character."""
+
+    scene = _scene_step(journey, act)
     private = scene.private_task if scene is not None and isinstance(scene.private_task, dict) else {}
-    brief = private.get("scenario_brief")
+    brief = private.get("scenario_brief" if act <= 1 else "act_brief")
     return brief if isinstance(brief, dict) else {}
 
 
 def _scene_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> list[StepLine]:
     """The bound scene's dialogue and narration, its panels, and what the
-    scene step prints (the setup and the character's line)."""
+    scene step prints (the setup and the character's line) — the scene of the
+    step's own act."""
 
     lines: list[StepLine] = []
     prompt = step.public_prompt if isinstance(step.public_prompt, dict) else {}
-    brief = _brief(journey)
+    brief = _brief(journey, step_act(step))
     speaker = brief.get("character_id") or NARRATOR_ID
     _add(lines, speaker, prompt.get("character_line_fr"))
     _add(lines, speaker, brief.get("opening_line_fr"))
@@ -200,7 +211,8 @@ def step_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> li
     * resolution: the ending's line;
     * rule (WP-92): the scene's line on the card (``scene_example_fr``);
     * read (WP-93): the lines of the page the «Lecture» shows.
-    Any other step speaks nothing through this door.
+    Any other step speaks nothing through this door. On a day of acts a scene,
+    a reply and an ending are their own act's, said by that act's character.
     """
 
     kind = str(step.kind)
@@ -209,7 +221,7 @@ def step_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> li
         return _scene_lines(db, journey, step)
     lines: list[StepLine] = []
     if kind == "respond":
-        speaker = prompt.get("character_id") or _brief(journey).get("character_id")
+        speaker = prompt.get("character_id") or _brief(journey, step_act(step)).get("character_id")
         _add(lines, speaker, prompt.get("character_line_fr"))
         private = step.private_task if isinstance(step.private_task, dict) else {}
         for turn in private.get("turns") or []:
@@ -223,7 +235,7 @@ def step_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> li
             _add(lines, NARRATOR_ID, repeat_line_for(step))
         return lines
     if kind == "resolution":
-        _add(lines, _brief(journey).get("character_id"), prompt.get("character_line_fr"))
+        _add(lines, _brief(journey, step_act(step)).get("character_id"), prompt.get("character_line_fr"))
         return lines
     if kind == "rule":
         # WP-92: the scene's own line on the rule card, said by its speaker.

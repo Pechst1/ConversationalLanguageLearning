@@ -216,6 +216,69 @@ test('planche and margin-note routes find their day', () => {
   assert.equal(model.marginNoteEdition({ ...note, cause_edition_no: 9 }, ARCHIVE), 9);
 });
 
+test('a day of acts files a planche per act, in play order, under its one date and Nº', () => {
+  // Phase 2 «Folge in Akten»: each act is its own page, reply and ending.
+  const raw = {
+    seasons: [
+      {
+        number: 2,
+        title_fr: 'Les voisins',
+        finished: false,
+        loaded: true,
+        day_count: 4,
+        chapters: [
+          {
+            index: 4,
+            title_fr: 'La radio',
+            closed: false,
+            // deliberately out of order: the model owns the order
+            days: [
+              day('2026-11-02', 9, { scene_id: 's-soir', act: 3, act_role: 'soir', title_fr: 'La radio du soir' }),
+              day('2026-11-02', 9, { title_fr: 'Le carton de photos' }),
+              day('2026-11-02', 9, {
+                scene_id: 's-cote',
+                act: 2,
+                act_role: 'cote',
+                title_fr: 'Au comptoir',
+                learner_lines: ['Un café, s’il vous plaît.'],
+                ending_fr: 'Margaux sourit.',
+              }),
+              day('2026-11-01', 8),
+            ],
+          },
+        ],
+      },
+    ],
+    current: { season: 2, chapter: 4 },
+  };
+  const archive = model.normalizeArchive(raw);
+  const days = archive.seasons[0].chapters[0].days;
+  assert.deepEqual(
+    days.map((d) => [d.date, d.act, d.act_role]),
+    [['2026-11-01', 1, null], ['2026-11-02', 1, null], ['2026-11-02', 2, 'cote'], ['2026-11-02', 3, 'soir']],
+  );
+  assert.equal(model.seasonPageCount(archive.seasons[0]), 4, 'each act is a planche');
+  // The kicker says the act; the day's first act is the day as it always was.
+  assert.equal(surface.plancheKicker(days[2], 'fr'), 'Nº 9 · Acte 2 · 2 nov.');
+  assert.equal(surface.plancheKicker(days[1], 'fr'), 'Nº 9 · 2 nov.');
+  // Each later act has its own route, and the route finds it; the day opens on its first act.
+  assert.equal(model.archiveDayHref(days[2]), '/graphic-novel?day=2026-11-02&journey=j-2026-11-02&act=2');
+  assert.equal(model.archiveDayHref(days[1]), '/graphic-novel?day=2026-11-02&journey=j-2026-11-02');
+  assert.equal(model.findArchiveDay(archive, { journeyId: 'j-2026-11-02', act: 3 }).scene_id, 's-soir');
+  assert.equal(model.findArchiveDay(archive, { journeyId: 'j-2026-11-02' }).act, 1);
+  assert.equal(model.findArchiveDay(archive, { journeyId: 'j-2026-11-02', act: 5 }).act, 1, 'an act it did not play opens the day');
+  assert.equal(model.findArchiveDay(archive, { date: '2026-11-02' }).act, 1, 'a date opens its day on its first act');
+  assert.equal(model.findArchiveDay(archive, { sceneId: 's-cote' }).act, 2, 'a note citing an act finds that act');
+  // The volume prints each act as a row of its own, and the act's page keeps its reply and ending.
+  const html = text(decode(inRoot(h(surface.ArchiveVolume, { archive, language: 'fr', openKeys: ['s2c4'], onToggleChapter: () => {} }))));
+  assert.match(html, /Nº 9 · 2 nov\. Le carton de photos[\s\S]*Nº 9 · Acte 2 · 2 nov\. Au comptoir[\s\S]*Nº 9 · Acte 3 · 2 nov\. La radio du soir/);
+  const page = text(decode(inRoot(h(surface.ArchiveDayPage, { day: days[2], archive, language: 'fr', episode: null }))));
+  assert.match(page, /Nº 9 · Acte 2 · 2 nov\./);
+  assert.match(page, /Un café, s’il vous plaît\.[\s\S]*Margaux sourit\./);
+  // An older server sends no act: every day it files is a day of one act.
+  assert.deepEqual(model.archiveDays(ARCHIVE).map((d) => [d.act, d.act_role]), [[1, null], [1, null], [1, null], [1, null]]);
+});
+
 test('an older server: the season projection prints as one chapter', () => {
   const fallback = model.archiveFromSeason({
     thread_id: 't', season_number: 1, chapter: { number: 2, title_fr: 'Les voisins' }, today: null, commitments: [],

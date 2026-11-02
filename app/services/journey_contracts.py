@@ -207,6 +207,23 @@ def step_act(step: Any) -> int:
         return 1
 
 
+def scene_act(scene: Any) -> tuple[int, str | None]:
+    """A published page's act on its day and the act's role: ``source_snapshot["act"]``,
+    which ``living_story.bind_act`` stamps on a later act's scene. Every other page, and
+    every page of a one-act day, is ``(1, None)``."""
+
+    snapshot = getattr(scene, "source_snapshot", None)
+    act = (snapshot if isinstance(snapshot, dict) else {}).get("act")
+    if not isinstance(act, dict):
+        return 1, None
+    try:
+        number = max(1, int(act.get("number") or 1))
+    except (TypeError, ValueError):
+        number = 1
+    role = act.get("role")
+    return number, str(role) if role else None
+
+
 class ActShape(NamedTuple):
     """A full act's page at one band: what the night asks the writer for, and
     what the planner prices before the act is written."""

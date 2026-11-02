@@ -24,6 +24,8 @@ const FR = {
   chapter_end: 'Fin du chapitre',
   tome_n: 'Tome {n}',
   edition_n: 'Nº {n}',
+  // Phase 2: a later act's planche, as the act's title card says it («Acte 2»).
+  act_n: 'Acte {n}',
   // ---- the archive
   nav_aria: 'Le Feuilleton',
   season_n: 'Saison {n}',
@@ -89,6 +91,7 @@ const EN: ArchiveCopy = {
   chapter_end: 'Fin du chapitre',
   tome_n: 'Tome {n}',
   edition_n: 'Nº {n}',
+  act_n: 'Acte {n}',
   nav_aria: 'Le Feuilleton',
   season_n: 'Season {n}',
   season_pages_one: 'Season {season} · one page',
@@ -145,6 +148,7 @@ const DE: ArchiveCopy = {
   chapter_end: 'Fin du chapitre',
   tome_n: 'Tome {n}',
   edition_n: 'Nº {n}',
+  act_n: 'Acte {n}',
   nav_aria: 'Le Feuilleton',
   season_n: 'Staffel {n}',
   season_pages_one: 'Staffel {season} · eine Seite',

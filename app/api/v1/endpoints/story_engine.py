@@ -16,6 +16,7 @@ from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.schemas.story_archive import StoryArchive
+from app.services.journey_contracts import scene_act
 from app.services.living_story import ENGINE_VERSION_PREFIX
 
 router = APIRouter(prefix="/story-engine", tags=["story-engine"])
@@ -113,21 +114,6 @@ def public_grammar_focus(scene) -> dict | None:
         "title_native": str(focus.get("title_native") or ""),
         "woven": bool(focus.get("woven")),
     }
-
-
-def scene_act(scene) -> tuple[int, str | None]:
-    """Phase 2 «Folge in Akten»: a page's act on its day and the act's role — ``(1,
-    None)`` for every page of a one-act day (``living_story.bind_act`` stamps the rest)."""
-
-    act = (scene.source_snapshot or {}).get("act")
-    if not isinstance(act, dict):
-        return 1, None
-    try:
-        number = max(1, int(act.get("number") or 1))
-    except (TypeError, ValueError):
-        number = 1
-    role = act.get("role")
-    return number, str(role) if role else None
 
 
 def public_scene(scene, names: dict[str, str] | None = None):
