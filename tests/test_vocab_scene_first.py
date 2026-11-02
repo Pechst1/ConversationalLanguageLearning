@@ -145,7 +145,7 @@ def _login(client: TestClient, db: Session) -> tuple[dict, User]:
     return {"Authorization": f"Bearer {token}"}, user
 
 
-def _todays_scene(db: Session, user: User, *, reserved: list[int]) -> DailyJourney:
+def _todays_scene(db: Session, user: User, *, reserved: list[int], status: str = "completed") -> DailyJourney:
     """Today's journey, over: two reserved words, a lexicon and translated lines."""
 
     journey = DailyJourney(
@@ -153,7 +153,7 @@ def _todays_scene(db: Session, user: User, *, reserved: list[int]) -> DailyJourn
         user_id=user.id,
         local_date=local_today(user),
         timezone="Europe/Paris",
-        status="completed",
+        status=status,
         budget_seconds=600,
         plan_selection={vocabulary_pace.JOURNEY_NEW_WORDS_KEY: list(reserved)},
         created_at=datetime.now(UTC),
@@ -261,6 +261,85 @@ def test_due_reviews_come_first_and_scene_words_take_at_most_a_third_of_the_new_
     # A reload is the same deck.
     again = client.get("/api/v1/vocabulary/due-context", headers=headers, params=DAY_DECK).json()
     assert again["deck_order"] == order
+
+
+def _met_today(db: Session, user: User, word: VocabularyWord) -> None:
+    """The scene introduced ``word`` today (its progress row is today's)."""
+
+    now = datetime.now(UTC)
+    db.add(
+        UserVocabularyProgress(
+            user_id=user.id, word_id=word.id, reps=1, state="learning", scheduler="fsrs", stability=0.5,
+            due_at=now + timedelta(hours=6), next_review_date=now + timedelta(hours=6),
+            created_at=now - timedelta(minutes=20),
+        )
+    )
+    db.flush()
+
+
+@pytest.mark.parametrize("scene_status", ["completed", "active"])
+def test_the_scene_share_never_takes_the_day_past_its_intake(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, scene_status: str
+) -> None:
+    """Codex on PR #487: quota 9, six words the scene introduced (``completed``) or has
+    still to introduce (``active``). Leaving five of them out of the deck frees no
+    intake: the scheduler's replacements stop at the day's nine, and Home's count
+    is the deck's."""
+
+    from app.services import daily_session, day_words, drill_batch, vocabulary_pace
+    from app.services.deck_order import scene_slots as share_of
+    from app.services.streak import local_today
+    from app.services.vocabulary_pace import introduced_today
+
+    monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *_a, **_k: 1.0)
+    headers, user = _login(client, db_session)
+    user.new_words_per_day = 9
+    db_session.flush()
+    reviews = [_word(db_session, f"scnirev{index}{uuid.uuid4().hex[:4]}") for index in range(2)]
+    for word in reviews:
+        _due(db_session, user, word)
+    scene_words = [_word(db_session, f"scnin{index}{uuid.uuid4().hex[:4]}") for index in range(6)]
+    if scene_status == "completed":
+        for word in scene_words:
+            _met_today(db_session, user, word)
+    _todays_scene(db_session, user, reserved=[word.id for word in scene_words], status=scene_status)
+    for index in range(12):
+        _word(db_session, f"scninew{index:02d}{uuid.uuid4().hex[:4]}")
+    db_session.commit()
+
+    db_session.expire_all()
+    # Home's first read of the day picks the day's plan (``build_session``), then counts it.
+    day_words.ensure_plan(db_session, user)
+    home_new, home_reviews = daily_session.day_deck(db_session, user, reviews_due=len(reviews))
+    response = client.get("/api/v1/vocabulary/due-context", headers=headers, params=DAY_DECK)
+    assert response.status_code == 200, response.text
+    deck = response.json()
+    cards = _all_cards(deck)
+    order = deck["deck_order"]
+    db_session.expire_all()
+    batch = drill_batch.load_batch(db_session, user, local_today(user))
+    size = day_words.dealt_size(batch)
+    pending = int(size or 0) - len(cards)
+
+    # Home's count is the deck: the cards dealt and the scene's still to come.
+    assert home_new + home_reviews == size, (home_new, home_reviews, size, len(cards))
+    assert sum(daily_session.day_deck(db_session, user, reviews_due=len(reviews))) == size
+
+    # The day introduces at most its nine: today's introductions, the deck's new
+    # cards, and the scene's reservations still to come.
+    scene_ids = {word.id for word in scene_words}
+    deck_new = {word_id for word_id, card in cards.items() if word_id not in scene_ids and card["bucket"] == "new"}
+    still_to_come = scene_ids - introduced_today(db_session, user) if scene_status == "active" else set()
+    introductions = introduced_today(db_session, user) | deck_new | still_to_come
+    assert len(introductions) <= 9, (len(introductions), len(deck_new), len(still_to_come))
+
+    # The rule holds: reviews first, the scene's share at most a third of the new slots.
+    review_ids = {word.id for word in reviews}
+    assert set(order[: len(review_ids)]) == review_ids, order
+    scene_slots_held = sum(1 for word_id in cards if word_id in scene_ids) + pending
+    new_slots = len(cards) - len(review_ids) + pending
+    assert 1 <= scene_slots_held <= share_of(new_slots, scene_slots_held) <= max(1, new_slots // 3)
+    assert len(deck_new) == 3, "the scheduler fills what the intake leaves, no more"
 
 
 def test_the_deck_order_puts_reviews_first_and_mixes_a_third_of_scene_words_into_the_new() -> None:

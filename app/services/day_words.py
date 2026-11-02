@@ -31,6 +31,7 @@ and the hand-on printed.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -95,21 +96,91 @@ def scene_words(
     return False, set(), int(plan.get("share") or 0)
 
 
-def drill_room(db: Session, user: Any, plan: dict[str, Any], *, now: datetime, release: bool = False) -> int:
-    """The drill's new words: the plan's dose less today's introductions (the
-    scene's included) and the scene's share, the way ``drill_new_word_room``
-    reads it, on the dose as it stood when the day was planned. ``release``:
-    the deck is dealt before any scene was planned, so the scene's share is the
-    deck's (a day without a scene, or one that comes later, keeps the count)."""
+@dataclass(frozen=True)
+class NewWordSplit:
+    """The day deck's new-word slots, split (:func:`new_word_split`)."""
+
+    #: The scene's cards dealt now, ``(word_id, list)``: the ones the scheduler had
+    #: due anyway (reviews, no slot of the share), then the share's met and released words.
+    scene: list[tuple[int, str]]
+    #: The share's words still to come (the scene has not met them yet).
+    pending: int
+    #: How many of the scheduler's next new words the deck asks for.
+    scheduler: int
+
+    @property
+    def scene_keep(self) -> int:
+        """The scene cards the deck may hold in all, the ones that join later included."""
+
+        return len(self.scene) + self.pending
+
+
+def new_word_split(
+    db: Session,
+    user: Any,
+    plan: dict[str, Any],
+    *,
+    now: datetime,
+    kept_new: int = 0,
+    exclude: set[int] | frozenset[int] = frozenset(),
+    release: bool = False,
+) -> NewWordSplit:
+    """The day deck's new words: the scene's share and the scheduler's, inside the day's intake.
+
+    One function for the deal (:func:`deal_items`) and Home's count before it
+    (:func:`planned_counts`), so the two can never disagree.
+
+    * **Intake.** The words the deck may still introduce are the plan's dose
+      (``plan["quota"]``, read here only) less today's introductions (the
+      scene's met words among them) and the reservations the scene has still
+      to introduce, capped at ``DAY_DECK_NEW_WORDS``. A scene word left out of
+      the deck frees no intake if the scene introduced it or will: only a word
+      the scene left unmet once it is over (released into the deck) does, by
+      not being dealt.
+    * **The share** (owner rule, 2 Nov, :func:`app.services.deck_order.scene_slots`):
+      the most scene cards ``k`` with ``k <= scene_slots(new_slots, k)``, where
+      the new-word slots are those ``k`` plus the scheduler's words the intake
+      leaves (and the new cards ``kept`` from a smaller deck). Met words first,
+      then released ones, then the ones still to come. A scene word the
+      scheduler had due anyway is one of the day's reviews: always dealt, no slot.
+      Before the journey is planned, the share kept free for it is a count, not
+      words: it is held whole, as before (the deck dealt then releases it).
+
+    ``exclude``: word ids the deck already holds (the Lexique's cards). ``release``:
+    the deck is dealt before any scene was planned, so the share kept free for
+    the scene is the deck's.
+    """
 
     from app.services.daily_session import DAY_DECK_NEW_WORDS
+    from app.services.deck_order import scene_slots
     from app.services.vocabulary_pace import introduced_today
 
-    planned, reserved, slots = scene_words(db, user, plan, now=now)
-    introduced = introduced_today(db, user, now=now)
-    taken = len(introduced | reserved)
-    pending = 0 if planned or release else slots
-    return min(DAY_DECK_NEW_WORDS, max(0, int(plan.get("quota") or 0) - taken - pending))
+    scene, pending = ([], 0) if release else _scene_cards(
+        db, user, plan, now=now, scene_done=_scene_done(db, user, now=now)
+    )
+    due_ids = {int(value) for value in plan.get("reviews") or []}
+    scene = [card for card in scene if card[0] not in exclude]
+    scene_due = [card for card in scene if card[0] in due_ids]
+    met = [card for card in scene if card[0] not in due_ids and card[1] == SCENE_LIST]
+    released = [card for card in scene if card[0] not in due_ids and card[1] != SCENE_LIST]
+    intake = int(plan.get("quota") or 0) - len(introduced_today(db, user, now=now)) - pending
+    allowance = min(DAY_DECK_NEW_WORDS, max(0, intake))
+    kept_new = max(0, int(kept_new))
+    if not release and not scene_words(db, user, plan, now=now)[0]:
+        # No journey planned yet: the share the dose keeps free for it is a count,
+        # not words; the scene decides them (and the share applies) once it is planned.
+        return NewWordSplit(scene=[], pending=pending, scheduler=max(0, allowance - kept_new))
+    for k in range(len(met) + len(released) + pending, -1, -1):
+        met_k = min(k, len(met))
+        released_k = min(k - met_k, len(released))
+        scheduler = max(0, allowance - kept_new - released_k)
+        if k <= scene_slots(k + scheduler + kept_new, k):
+            break
+    return NewWordSplit(
+        scene=scene_due + met[:met_k] + released[:released_k],
+        pending=k - met_k - released_k,
+        scheduler=scheduler,
+    )
 
 
 def _due_review_ids(db: Session, user: Any, *, room: int, now: datetime) -> list[int]:
@@ -224,21 +295,24 @@ def planned_counts(
 
     from app.services import drill_batch
 
-    planned, reserved, slots = scene_words(db, user, plan, now=now)
+    _planned, reserved, _slots = scene_words(db, user, plan, now=now)
     review_ids = {int(value) for value in plan.get("reviews") or []} - reserved
-    room = drill_room(db, user, plan, now=now)
+    kept_ids: set[int] = set()
     kept_new = 0
     if batch is not None and batch.items:
         kept = drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved)
         for item in kept:
             word_id = int(item.get("word_id") or 0)
-            if not word_id or word_id in reserved:
+            if not word_id or word_id in kept_ids:
                 continue
+            kept_ids.add(word_id)
             if item.get("list") == "new_words":
                 kept_new += 1
             else:
                 review_ids.add(word_id)
-    return slots + max(room, kept_new), len(review_ids)
+    split = new_word_split(db, user, plan, now=now, kept_new=kept_new, exclude=kept_ids)
+    scene_ids = {word_id for word_id, _name in split.scene}
+    return kept_new + split.scene_keep + split.scheduler, len(review_ids - scene_ids)
 
 
 def _scene_cards(
@@ -283,15 +357,13 @@ def deal_items(
     reviews and the drill's new words. ``pending`` are the scene's words still to come (the deck was opened
     before the scene met them); they join the deck when it is next read.
 
-    The scene's words (dealt and pending) take at most
-    :func:`app.services.deck_order.scene_slots` of the deck's new-word slots
-    (owner rule, 2 Nov); the rest of the slots are the scheduler's next new
-    words. The share is recorded as ``scene_keep`` so the words that join later
-    stay inside it.
+    The new words are :func:`new_word_split`'s: the scene's share (owner rule,
+    2 Nov) and the scheduler's next new words, inside the day's intake. The
+    share is recorded as ``scene_keep`` so the words that join later stay
+    inside it.
     """
 
     from app.db.models.progress import UserVocabularyProgress
-    from app.services.deck_order import scene_slots
     from app.services.progress import ProgressService
 
     stamp = _iso(now)
@@ -299,8 +371,6 @@ def deal_items(
     release = not planned
     if release:
         plan["released"] = True
-    scene_done = _scene_done(db, user, now=now)
-    scene, pending = _scene_cards(db, user, plan, now=now, scene_done=scene_done)
     seen: set[int] = set()
     items: list[dict[str, Any]] = []
 
@@ -317,20 +387,13 @@ def deal_items(
             name = str(item.get("list") or "due_words")
             add(word_id, name, str(item.get("bucket") or ("new" if name == "new_words" else "due")))
             kept_new += 1 if name == "new_words" else 0
-    room = max(0, drill_room(db, user, plan, now=now, release=release) - kept_new)
     # Owner rule, 2 Nov (app/services/deck_order.py): the scene's words take at most
-    # their share of the deck's new-word slots; the slots they leave go to the
-    # scheduler's next new words, so the deck's size (Home's count) does not move.
-    # A scene word the scheduler had due anyway is one of the day's reviews: no slot of the share.
-    due_ids = {int(value) for value in plan.get("reviews") or []}
-    scene = [(word_id, name) for word_id, name in scene if word_id not in seen]
-    scene_due = [card for card in scene if card[0] in due_ids]
-    scene_new = [card for card in scene if card[0] not in due_ids]
-    keep = scene_slots(len(scene_new) + pending + kept_new + room, len(scene_new) + pending)
-    plan["scene_keep"] = keep + len(scene_due)
-    room += max(0, len(scene_new) + pending - keep)
-    pending = min(pending, max(0, keep - len(scene_new)))
-    for word_id, name in scene_due + scene_new[:keep]:
+    # their share of the new-word slots, inside the day's intake (new_word_split).
+    split = new_word_split(db, user, plan, now=now, kept_new=kept_new, exclude=seen, release=release)
+    plan["scene_keep"] = split.scene_keep
+    pending = split.pending
+    room = split.scheduler
+    for word_id, name in split.scene:
         add(word_id, name, "due" if name == SCENE_LIST else "new")
         items[-1]["scene"] = True
     review_ids = [int(value) for value in plan.get("reviews") or []]
@@ -451,6 +514,7 @@ def dealt_size(batch: Any) -> int | None:
 
 __all__ = [
     "PLAN_VERSION",
+    "NewWordSplit",
     "day_items",
     "deal_items",
     "dealt_size",
@@ -459,6 +523,7 @@ __all__ = [
     "join_scene_words",
     "make_plan",
     "mark_dealt",
+    "new_word_split",
     "pending_scene_words",
     "planned_counts",
     "read_plan",
