@@ -38,9 +38,9 @@ function session(states, overrides = {}) {
     minutes_left: 21,
     done: finish === 'done',
     tally: { scenes: 1, words: 20, exercises: 12 },
-    more_words: 10,
-    more_minutes: 4,
-    more_href: '/vocabulary/review?more=10',
+    more_words: 5,
+    more_minutes: 2,
+    more_href: '/vocabulary/review?more=5',
     ...overrides,
   };
 }
@@ -85,12 +85,12 @@ test('the journey card starts the scene; after it the one button names the next 
   assert.equal(ds.sessionNextAction(session(['done', 'done', 'done', 'done']), 'de'), null);
 });
 
-test('only a finished day offers ten more words', () => {
+test('only a finished day offers five more words', () => {
   assert.equal(ds.sessionMore(session(['done', 'next', 'todo', 'todo']), 'de'), null);
   assert.deepEqual(ds.sessionMore(session(['done', 'done', 'done', 'done']), 'de'), {
-    label: 'Noch 10 Wörter',
-    meta: '4 Min.',
-    href: '/vocabulary/review?more=10',
+    label: 'Noch 5 neue Wörter',
+    meta: '2 Min.',
+    href: '/vocabulary/review?more=5',
   });
 });
 

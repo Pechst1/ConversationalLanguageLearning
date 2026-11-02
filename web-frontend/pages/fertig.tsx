@@ -4,7 +4,9 @@
    one headline, what the day held (1 Szene · 20 Wörter · 12 Übungen), tomorrow's
    open question (the line Home prints, `TomorrowLine`), and the troupe's curtain
    call over it. One ink button back to La Une. Only now the
-   quiet «Noch 10 Wörter»: continuing past the day's dose is the learner's choice.
+   quiet «Noch 5 neue Wörter»: continuing past the day's dose is the learner's choice.
+   Owner, 2 Nov: the tap raises today's cap on the server, then opens the five;
+   one line under it says how much sooner that pace covers the goal's words.
 
    Reached before the day is done (an old link, a tap from the plan), it says
    which step comes next and opens it instead. */
@@ -27,6 +29,8 @@ import { emitCameo } from '@/lib/cameo';
 import { castIdFor } from '@/lib/cast-faces';
 import { daySessionCopy, sessionMore, sessionNextAction } from '@/lib/day-session';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { extraWordsOffer } from '@/lib/more-words';
+import apiService, { type NewWordsPace } from '@/services/api';
 import { dailyJourneyService } from '@/services/daily-journey';
 import type { TodayEnvelope } from '@/types/daily-journey';
 
@@ -42,6 +46,8 @@ export default function FertigPage() {
   const fallbackLanguage = useChromeLanguage();
   const [envelope, setEnvelope] = useState<TodayEnvelope | null>(null);
   const [failed, setFailed] = useState(false);
+  const [pace, setPace] = useState<NewWordsPace | null>(null);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -61,7 +67,32 @@ export default function FertigPage() {
   const view = journey ? rewardView(journey, journey.recap ?? null, language) : null;
   const seal = session?.done && journey?.status === 'completed' ? view?.seal ?? null : null;
   const next = sessionNextAction(session, language);
-  const more = sessionMore(session, language);
+  const offer = extraWordsOffer(pace, language);
+  // The offer stands unless the server says today's extras are spent.
+  const more = pace && !offer ? null : sessionMore(session, language);
+  const dayDone = Boolean(session?.done);
+  useEffect(() => {
+    if (!dayDone) return;
+    let live = true;
+    apiService
+      .getNewWordsPace()
+      .then((body) => live && setPace(body))
+      .catch(() => live && setPace(null));
+    return () => {
+      live = false;
+    };
+  }, [dayDone]);
+  const addWords = async () => {
+    if (!more) return;
+    setAdding(true);
+    try {
+      await apiService.addExtraNewWords();
+      await router.push(more.href);
+    } catch (error) {
+      console.error(error);
+      setAdding(false);
+    }
+  };
   // The same line Home's finished card prints; an early stop or a recap with no teaser has none.
   const tomorrow = session?.done ? tomorrowLine(journey?.recap) : null;
   const home = () => void router.push('/atelier');
@@ -142,11 +173,18 @@ export default function FertigPage() {
             </Action>
           )}
           {more && (
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              {offer && (
+                <p className="av2-body" data-goal-line="" style={{ textAlign: 'center', margin: 0 }}>
+                  {offer.line}
+                </p>
+              )}
               <button
                 type="button"
                 className="av2-btn av2-btn--quiet av2-btn--inline"
-                onClick={() => void router.push(more.href)}
+                onClick={() => void addWords()}
+                disabled={adding}
+                aria-busy={adding || undefined}
                 data-more-words=""
               >
                 {more.label}

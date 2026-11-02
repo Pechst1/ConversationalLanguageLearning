@@ -78,7 +78,7 @@ const DE: Copy = {
   next_grammar: 'Weiter: Grammatik',
   next_finish: 'Fertig für heute',
   done_today: 'Heute erledigt',
-  more_words: (n) => `Noch ${n} Wörter`,
+  more_words: (n) => `Noch ${n} neue Wörter`,
   tempo: (pace) => `Tempo: ${pace}`,
   pace: { ruhig: 'Ruhig', normal: 'Normal', schnell: 'Schnell' },
   sheet_title: 'Dein Tempo',
@@ -116,7 +116,7 @@ const FR: Copy = {
   next_grammar: 'Suite : grammaire',
   next_finish: 'Fini pour aujourd’hui',
   done_today: 'Fait aujourd’hui',
-  more_words: (n) => `Encore ${n} mots`,
+  more_words: (n) => `Encore ${n} nouveaux mots`,
   tempo: (pace) => `Rythme : ${pace}`,
   pace: { ruhig: 'Calme', normal: 'Normal', schnell: 'Rapide' },
   sheet_title: 'Ton rythme',
@@ -154,7 +154,7 @@ const EN: Copy = {
   next_grammar: 'Next: grammar',
   next_finish: 'Done for today',
   done_today: 'Done today',
-  more_words: (n) => `${n} more words`,
+  more_words: (n) => `${n} more new words`,
   tempo: (pace) => `Pace: ${pace}`,
   pace: { ruhig: 'Easy', normal: 'Normal', schnell: 'Fast' },
   sheet_title: 'Your pace',
@@ -275,7 +275,7 @@ export function sessionNextAction(
   return { kind: step.kind, label, meta, href: step.href };
 }
 
-/** After the day, the one optional extra: «Noch 10 Wörter · 4 Min.». */
+/** After the day, the one optional extra: «Noch 5 neue Wörter · 2 Min.» (owner, 2 Nov). */
 export function sessionMore(
   session: DaySession | null | undefined,
   language: ControlLanguage,

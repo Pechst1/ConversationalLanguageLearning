@@ -421,6 +421,17 @@ def submit_anki_review(
             db, user=current_user, word_id=word.id, review_format=review_format, verdict=verdict,
             snapshot=gold_snapshot,
         )
+        # Owner request, 2 Nov: a new word the learner asked for past the day's
+        # dose («Noch 5 neue Wörter») earns its gold once, when answered right,
+        # a self-rated card too (a graded one is already paid as a word card;
+        # the shared R1 keeps the word at its best of the day).
+        gold_ledger.record_extra_word(
+            db,
+            user=current_user,
+            word_id=word.id,
+            passed=verdict.correct if verdict is not None else rating >= 1,
+            checked_answer=verdict is not None and bool(verdict.correct),
+        )
         db.commit()
         db.refresh(progress)
 

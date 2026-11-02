@@ -207,7 +207,7 @@ def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:
 
     from app.services.daily_session import DAY_DECK_LIMIT, DAY_DECK_NEW_WORDS, review_room
     from app.services.vocabulary_pace import (
-        _quota,
+        effective_new_word_cap,
         intake_throttle_factor,
         introduced_today,
         journey_reservation,
@@ -216,7 +216,9 @@ def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:
     )
 
     factor = intake_throttle_factor(db, user, now=now)
-    quota = _quota(user, factor)
+    # The one cap (owner, 2 Nov): its dose part. Today's extras are dealt after
+    # the day's deck as the learner's continuation, never into its count.
+    quota = effective_new_word_cap(db, user, now=now, factor=factor, extras=False)
     planned, _reserved = journey_reservation(db, user, now=now)
     share = 0 if planned else min(quota, journey_word_share(user, factor))
     new_words = min(DAY_DECK_NEW_WORDS, max(0, quota - len(introduced_today(db, user, now=now))))
@@ -226,7 +228,7 @@ def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:
         "at": _iso(now),
         # The dose as the learner set it: a pace changed before the deck is
         # dealt re-plans the day (the Tempo sheet).
-        "dose": int(_quota(user, 1.0)),
+        "dose": _dose(user),
         "quota": int(quota),
         "share": int(share),
         "reviews": _due_review_ids(db, user, room=room, now=now),
@@ -236,9 +238,9 @@ def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:
 
 
 def _dose(user: Any) -> int:
-    from app.services.vocabulary_pace import _quota
+    from app.services.vocabulary_pace import planned_new_words
 
-    return int(_quota(user, 1.0))
+    return int(planned_new_words(user))
 
 
 def ensure_plan(db: Session, user: Any, *, now: datetime | None = None, commit: bool = True) -> Any:
@@ -493,6 +495,15 @@ def day_items(batch: Any) -> list[dict[str, Any]]:
     learner asked for after it."""
 
     return [item for item in batch.items or [] if not item.get("extra")]
+
+
+def extra_items(batch: Any) -> list[dict[str, Any]]:
+    """The «more» cards the learner asked for after the day's deck (owner, 2 Nov:
+    «Noch 5 neue Wörter»), in the order they were dealt. The day deck serves the
+    ones still unanswered after its own cards, so a reload of ``?day=1`` keeps
+    the continuation; they never count as the day's words (:func:`day_items`)."""
+
+    return [item for item in batch.items or [] if item.get("extra")]
 
 
 def remaining_reserved(batch: Any, reserved: set[int]) -> set[int]:

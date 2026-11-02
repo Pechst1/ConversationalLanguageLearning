@@ -898,6 +898,9 @@ export interface DailyWordEntry {
   triple?: boolean;
 }
 
+export type NewWordsPace = components['schemas']['NewWordsPace'];
+export type NewWordsStep = components['schemas']['NewWordsStep'];
+
 export interface DailyWordSlate {
   date: string;
   words: DailyWordEntry[];
@@ -915,8 +918,6 @@ export interface VocabularyDueContextParams extends VocabularyRecommendationPara
   /** WP-154: the drill page's own deck — `session` serves the rest of the batch
    *  dealt today, `more` appends the «Encore N mots» continuation to it. */
   drill?: 'session' | 'more';
-  /** Round 3: «Noch 10 Wörter» after the day — new words past the day's pace. */
-  extra?: number;
 }
 
 export type VocabularyWord = components['schemas']['VocabularyWordRead'];
@@ -2543,6 +2544,16 @@ class ApiService {
 
   async getWordsOfTheDay(): Promise<DailyWordSlate> {
     return this.atelierGet('/vocabulary/words-of-the-day');
+  }
+
+  /** Owner, 2 Nov: the learner's daily new words, today's extras, the «Noch 5» offer and Réglages' steps. */
+  async getNewWordsPace(): Promise<NewWordsPace> {
+    return this.atelierGet('/vocabulary/new-words');
+  }
+
+  /** «Noch 5 neue Wörter»: today's cap grows by one step; then deal the continuation (`drill: 'more'`). */
+  async addExtraNewWords(): Promise<NewWordsPace> {
+    return this.atelierPost('/vocabulary/new-words/more', {});
   }
 
   async getConjugationReview(params?: { limit?: number; cefr_band?: string }): Promise<ConjugationReviewQueue> {

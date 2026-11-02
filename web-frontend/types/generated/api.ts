@@ -5244,6 +5244,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vocabulary/new-words": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get New Words Pace
+         * @description Owner request, 2 Nov: the learner's daily new words, today's extras, the
+         *     «Noch 5 neue Wörter» offer and Réglages' steps, each with how much sooner it
+         *     covers the words of their goal level.
+         */
+        get: operations["get_new_words_pace_api_v1_vocabulary_new_words_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vocabulary/new-words/more": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Extra New Words
+         * @description «Noch 5 neue Wörter»: today's cap grows by one step, then the client deals
+         *     the continuation (``GET /vocabulary/due-context?drill=more``), which the cap
+         *     now has room for. Refused past the day's last step.
+         */
+        post: operations["add_extra_new_words_api_v1_vocabulary_new_words_more_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vocabulary/words-of-the-day": {
         parameters: {
             query?: never;
@@ -10744,6 +10788,46 @@ export interface components {
             next_chapter?: components["schemas"]["ChapterRead"] | null;
             /** Next Chapter Id */
             next_chapter_id: string;
+        };
+        /**
+         * NewWordsPace
+         * @description Owner request, 2 Nov 2026: more new words a day, and what they bring.
+         *
+         *     ``cap_today`` is ``vocabulary_pace.effective_new_word_cap``: the learner's own
+         *     number (throttled) plus today's extras. ``more`` is the «Noch 5 neue Wörter»
+         *     offer, ``steps`` Réglages' choices.
+         */
+        NewWordsPace: {
+            /** Can Add More */
+            can_add_more: boolean;
+            /** Cap Today */
+            cap_today: number;
+            /** Extra Today */
+            extra_today: number;
+            /** Goal */
+            goal?: string | null;
+            more: components["schemas"]["NewWordsStep"];
+            /** Step */
+            step: number;
+            /** Steps */
+            steps?: components["schemas"]["NewWordsStep"][];
+            /**
+             * Words Left
+             * @default 0
+             */
+            words_left?: number;
+            /** Words Per Day */
+            words_per_day: number;
+        };
+        /**
+         * NewWordsStep
+         * @description One daily number of new words, and how much sooner it covers the goal's words.
+         */
+        NewWordsStep: {
+            /** Days Sooner */
+            days_sooner?: number | null;
+            /** Words */
+            words: number;
         };
         /** NextFocus */
         NextFocus: {
@@ -24914,8 +24998,6 @@ export interface operations {
                 /** @description WP-154: the word drill's own deck. `session` serves the rest of the batch dealt today (a new one once it is answered); `more` appends the «Encore N mots» continuation. */
                 drill?: string | null;
                 due_limit?: number;
-                /** @description Round 3: «Noch 10 Wörter» after the day — new words beyond the day's pace, appended like `more`. Only after the learner chose to keep going. */
-                extra?: number;
                 feuilleton_scene_id?: string | null;
                 fragile_limit?: number;
                 limit?: number;
@@ -25016,6 +25098,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_new_words_pace_api_v1_vocabulary_new_words_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewWordsPace"];
+                };
+            };
+        };
+    };
+    add_extra_new_words_api_v1_vocabulary_new_words_more_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewWordsPace"];
                 };
             };
         };

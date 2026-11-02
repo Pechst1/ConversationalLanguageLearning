@@ -194,3 +194,36 @@ class ConjugationReviewResponse(BaseModel):
     correct: bool | None = None
     expected: str | None = None
     note_native: str | None = None
+
+
+class NewWordsStep(BaseModel):
+    """One daily number of new words, and how much sooner it covers the goal's words."""
+
+    words: int
+    #: Days sooner than the learner's own number now, at this many new words a
+    #: day (``goal_estimate.days_sooner``). ``None``: no honest figure (no goal,
+    #: nothing left, not faster): the client says only that more words get there sooner.
+    days_sooner: int | None = None
+
+
+class NewWordsPace(BaseModel):
+    """Owner request, 2 Nov 2026: more new words a day, and what they bring.
+
+    ``cap_today`` is ``vocabulary_pace.effective_new_word_cap``: the learner's own
+    number (throttled) plus today's extras. ``more`` is the «Noch 5 neue Wörter»
+    offer, ``steps`` Réglages' choices.
+    """
+
+    #: The learner's own daily number (their pace's, or the one they set).
+    words_per_day: int
+    extra_today: int
+    cap_today: int
+    #: New words one «Noch 5» tap adds.
+    step: int
+    can_add_more: bool
+    #: The learner's goal band (``"A2.1"``); ``None`` when none is set or it is passed.
+    goal: str | None = None
+    words_left: int = 0
+    #: The offer: today's number with one more step, every day.
+    more: NewWordsStep
+    steps: list[NewWordsStep] = Field(default_factory=list)

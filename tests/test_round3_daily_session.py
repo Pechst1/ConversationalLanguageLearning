@@ -104,7 +104,7 @@ def test_the_day_is_laid_out_in_the_schemas_one_order() -> None:
     assert tuple(schema["enum"]) == DAY_STEP_ORDER
 
 
-def test_the_day_is_done_only_when_all_three_are_and_then_offers_ten_more_words() -> None:
+def test_the_day_is_done_only_when_all_three_are_and_then_offers_five_more_words() -> None:
     view = session_view(
         _inputs(
             scene_done=True,
@@ -118,7 +118,8 @@ def test_the_day_is_done_only_when_all_three_are_and_then_offers_ten_more_words(
     assert view["next_kind"] is None
     assert view["steps"][-1]["state"] == "done"
     assert view["tally"] == {"scenes": 1, "words": 20, "exercises": 12}
-    assert (view["more_words"], view["more_minutes"]) == (10, 4)
+    # Owner, 2 Nov: one step of today's extras, the same as at the day deck's end.
+    assert (view["more_words"], view["more_minutes"], view["more_href"]) == (5, 2, "/vocabulary/review?more=5")
 
 
 def test_the_word_step_names_the_cards_it_will_show_and_the_tally_what_was_done() -> None:
