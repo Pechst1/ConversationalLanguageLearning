@@ -4,20 +4,29 @@ The paid run is ``scripts/gold_transcripts.py run`` from the nightly routine, ne
 These tests check, with a fake model client and no network: the gold sets are well formed
 and sized, every item drives its surface's production code to an answer, the spending
 meter refuses the call that would pass the cap, the judge's answer is read strictly, and
-the report's hidden history marker reads back into the trend.
+the report's hidden history marker reads back into the trend. A day of acts (Phase 2
+«Folge in Akten») is written as the night writes it and judged act by act.
 """
 
 from __future__ import annotations
 
 import json
 import os
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
 
 from tests.gold_transcripts import runner as R
 from tests.gold_transcripts import surfaces as S
-from tests.gold_transcripts.criteria import CRITERIA, CRITERIA_VERSION, WEEKLY_SURFACES, judged
+from tests.gold_transcripts.criteria import (
+    CRITERIA,
+    CRITERIA_VERSION,
+    DAY_SURFACE,
+    WEEKLY_SURFACES,
+    criteria_version,
+    judged,
+)
 
 
 def _result(content, model="fake", cost=0.0):
@@ -78,9 +87,19 @@ class FakeModel:
 @pytest.mark.parametrize("surface", list(S.SURFACES))
 def test_set_is_sized_and_well_formed(surface):
     items = S.load_items(surface)
-    assert 20 <= len(items) <= 30, f"{surface}: {len(items)} items, the plan asks 20–30"
     ids = [item["id"] for item in items]
     assert len(ids) == len(set(ids)), "item ids are unique"
+    if surface == DAY_SURFACE:
+        # One day for each band the acts are measured on, each on a page of the page set:
+        # a weekly run writes one, in turn (``runner.week_day``).
+        assert sorted(item["level"] for item in items) == ["A1", "A2", "B1"]
+        pages = {item["id"]: item for item in S.load_items("page")}
+        for item in items:
+            page = pages[item["page"]]
+            assert (page["level"], page["season_day"]) == (item["level"], item["season_day"]), item["id"]
+            assert item["learner_text"].strip() and item["segment_day"] in item["page"], item["id"]
+        return
+    assert 20 <= len(items) <= 30, f"{surface}: {len(items)} items, the plan asks 20–30"
     for item in items:
         assert item["learner_text"].strip(), item["id"]
         if surface == "page":
@@ -137,14 +156,28 @@ class PageWriter:
 
         self.writer = SplitProvider()
         self.judged: list[str] = []
+        self.readings: list[tuple[str, str]] = []
 
     def generate_chat_completion(self, messages, **kwargs):
         system = kwargs.get("system_prompt") or ""
-        if system.startswith("You judge one day"):
+        if system.startswith(("You judge one day", "You judge one act")):
             asked = messages[-1]["content"].split("Questions: ", 1)[1].split("\n", 1)[0].split(", ")
             self.judged.append(kwargs.get("model"))
+            self.readings.append((system, messages[-1]["content"]))
             return _result({q: {"score": 2 if q == "level" else 4, "reason": "fake", "line": ""} for q in asked})
         return self.writer.generate_chat_completion(messages, **kwargs)
+
+
+class DayWriter(PageWriter):
+    """The page writer that also plans and writes a later act (the night's fake,
+    tests/test_story_acts_night.py), its critic letting every act through."""
+
+    def __init__(self):
+        super().__init__()
+        from tests.test_story_acts_night import ActProvider
+
+        self.writer = ActProvider()
+        self.writer.critic_refusals_left = 0
 
 
 def test_the_page_surface_writes_each_day_and_is_rated_on_the_story_judge_questions(monkeypatch):
@@ -464,3 +497,149 @@ def test_cli_refuses_without_a_cap_above_the_cap_and_in_ci(monkeypatch, capsys):
     assert cli.main(["run", "--max-usd", "1"]) == 2
     assert "CI" in capsys.readouterr().out
     assert cli.main(["rejudge", "x.json", "--judge-model", "claude-sonnet-5-5", "--max-usd", "1"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# A day of acts (Phase 2 «Folge in Akten»)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def plan_then_write(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "STORY_PLAN_THEN_WRITE", True)
+
+
+def test_a_day_is_its_page_then_each_act_an_intensif_learner_plays(plan_then_write):
+    played = {"A1": ["fil", "soir"], "A2": ["fil", "soir"], "B1": ["fil", "cote", "soir"]}
+    for item in S.load_items(DAY_SURFACE):
+        output = S.run_day(item, DayWriter().writer)
+        assert not output["failure"], (item["id"], output)
+        acts = output["acts"]
+        assert [act["role"] for act in acts] == played[item["level"]], "in play order"
+        first, *later = acts
+        for act in acts:
+            assert not act["failure"] and act["page_lines"] and act["seconds"] < S.PAGE_BUDGET_SECONDS, item["id"]
+        for act in later:
+            # The act moves on from the day's first act (a bottle chapter keeps its room).
+            assert act["lead"] != first["lead"], item["id"]
+        verdicts = S.checks(DAY_SURFACE, item, output)
+        assert verdicts == {f"{role}.served": ("pass", "") for role in played[item["level"]]}
+
+
+def test_a_day_is_judged_act_by_act_and_a_later_act_against_the_first(plan_then_write):
+    client = DayWriter()
+    result = R.run([DAY_SURFACE], client=client, judge_model=R.PAGE_JUDGE, ids=["d-b1-g4.4"])
+
+    assert result["criteria_version"] == criteria_version([DAY_SURFACE]) != CRITERIA_VERSION
+    assert client.judged == [R.PAGE_JUDGE] * 3, "one reading an act"
+    first, cote, soir = client.readings
+    assert first[0].startswith("You judge one act of a day") and "Act: «Le fil»" in first[1]
+    assert "Questions: natural, clear_question, something_happens, voices, level\n" in first[1]
+    for system, user in (cote, soir):
+        assert "Questions: natural, clear_question, something_happens, voices, level, new\n" in user
+        assert "The day's first act: " in user and "Previous day" not in user
+        assert "compared with the day's first act" in system
+    summary = result["surfaces"][DAY_SURFACE]
+    assert summary["days"] == ["d-b1-g4.4"]
+    acts = summary["acts"]
+    assert list(acts) == ["fil", "cote", "soir"]
+    assert all(act["written"] == 1 and not act["dropped"] for act in acts.values())
+    assert "new" in acts["soir"]["ratings"] and "new" not in acts["fil"]["ratings"]
+    assert acts["soir"]["gate"] == "fail", "«level» at 2 fails the gate on the act alone"
+    assert acts["soir"]["vs_first"] == 0.0
+    # «Le fil»: four of five at 4/5 and «level» at 2/5 = 65; a later act asks six: 66.7.
+    assert summary["score"] == round(100 * (0.65 + 2 * (5 * 0.75 + 0.25) / 6) / 3, 1)
+    assert summary["criteria"]["soir.served"] == "1/1" and summary["criteria"]["cote.new"] == "1/1"
+
+    report = R.render_report({**result, "date": "2026-11-08", "label": "production", "cap_usd": 2.0}, [])
+    assert "| A day of acts |" in report and "A day of acts (`d-b1-g4.4`)" in report
+    assert "| Le soir | yes | " in report and "| À côté | yes | " in report
+    entry = R.parse_history([report])[0]
+    assert entry["scores"] == {DAY_SURFACE: summary["score"]} and entry["days"] == ["d-b1-g4.4"]
+    assert entry["criteria"] == criteria_version([DAY_SURFACE])
+
+
+def test_a_dropped_act_scores_zero_and_the_night_writes_none_after_it(plan_then_write, monkeypatch):
+    from app.services import living_story as engine
+
+    drafted = engine.draft_later_act
+
+    def critic_refuses_le_soir(act_context, **kwargs):
+        if not kwargs["reviews"] and act_context["act"]["role"] == "soir":
+            raise engine.StoryUnavailable("story_critic_refused", hint="the act repeats the first")
+        return drafted(act_context, **kwargs)
+
+    monkeypatch.setattr(engine, "draft_later_act", critic_refuses_le_soir)
+    client = DayWriter()
+    result = R.run([DAY_SURFACE], client=client, ids=["d-b1-g4.4"])
+
+    [row] = result["items"][DAY_SURFACE]
+    roles = {act["role"]: act for act in row["output"]["acts"]}
+    assert roles["soir"]["failure"] == "dropped: story_critic_refused"
+    assert "dropped" in roles["cote"]["not_run"], "«À côté» is never played without «Le soir»"
+    assert client.judged == [R.PAGE_JUDGE], "only «Le fil» was written"
+    assert set(row["verdicts"]) == {"fil.served", "soir.served", *(f"fil.{c.id}" for c in judged("page"))}
+    assert R.act_scores(row["verdicts"])["soir"] == 0.0 and row["score"] == pytest.approx(0.65 / 2)
+    acts = result["surfaces"][DAY_SURFACE]["acts"]
+    assert (acts["soir"]["dropped"], acts["cote"]["not_run"]) == (1, 1)
+    lines = "\n".join(R.day_lines(result["surfaces"][DAY_SURFACE]))
+    assert "| Le soir | dropped 1: dropped: story_critic_refused |" in lines
+    assert "| À côté | not written: the act before it was dropped" in lines
+
+
+def test_acts_the_run_s_cap_cannot_hold_are_not_written_and_not_scored(plan_then_write):
+    client = DayWriter()
+    client.writer.cap_usd = 0.5  # under one act at its dearest and the judge's readings
+    client.writer.spent_usd = 0.0
+    output = S.run_day(S.load_items(DAY_SURFACE, ["d-a2-g2.5"])[0], client.writer)
+
+    first, soir = output["acts"]
+    assert not first["failure"] and soir == {"role": "soir", "failure": None, "not_run": soir["not_run"]}
+    assert "spending cap" in soir["not_run"]
+    assert S.checks(DAY_SURFACE, {}, output) == {"fil.served": ("pass", "")}
+
+
+def test_the_weekly_day_run_writes_one_day_of_the_set_in_turn():
+    items = S.load_items(DAY_SURFACE)
+    weeks = [R.week_day(items, date.fromisocalendar(2026, week, 7))[0]["id"] for week in (45, 46, 47, 48)]
+    assert sorted(weeks[:3]) == sorted(item["id"] for item in items) and weeks[3] == weeks[0]
+    result = R.run([DAY_SURFACE], client=DayWriter(), when=date(2026, 11, 8), limit=1)
+    assert result["surfaces"][DAY_SURFACE]["items"] == 1
+
+
+def test_the_day_keeps_its_own_criteria_and_never_moves_the_weekly_trend():
+    assert R.run_version(list(WEEKLY_SURFACES)) == CRITERIA_VERSION == criteria_version()
+    assert R.run_version([DAY_SURFACE]) == criteria_version([DAY_SURFACE]) != CRITERIA_VERSION
+    assert R.judge_for([DAY_SURFACE]) == R.PAGE_JUDGE
+    with pytest.raises(ValueError, match="Claude model"):
+        R.judge_for([DAY_SURFACE], "claude-sonnet-5-5")
+    weekly = R.parse_history([R.render_report(_night("2026-11-08", 70.0), [])])
+    day = {
+        "date": "2026-11-08", "label": "production", "criteria": criteria_version([DAY_SURFACE]),
+        "judge": R.PAGE_JUDGE, "scores": {DAY_SURFACE: 60.0}, "spent": 1.4, "days": ["d-a1-g1.3"],
+    }
+    report = R.render_report(_night("2026-11-15", 72.0), [*weekly, day])
+    assert "| +2 |" in report and "The criteria changed" not in report
+
+
+def test_the_day_runs_on_its_own_and_posts_as_the_week_s_day(monkeypatch, capsys):
+    from scripts import gold_transcripts as cli
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    assert cli.main(["plan", "--surface", DAY_SURFACE, "--surface", "scene"]) == 2
+    assert "runs on its own" in capsys.readouterr().out
+
+    def args(*argv):
+        parsed = SimpleNamespace(label="production", post_comparison=False, limit=None, id=None, surface=None)
+        for key, value in zip(argv[::2], argv[1::2], strict=True):
+            setattr(parsed, key, value)
+        return parsed
+
+    assert cli._not_posted(args()) is None
+    assert cli._not_posted(args("surface", [DAY_SURFACE])) is None
+    assert "partial" in cli._not_posted(args("surface", [DAY_SURFACE], "id", ["d-b1-g4.4"]))
+    assert "partial" in cli._not_posted(args("surface", ["scene"]))
+    assert "comparison" in cli._not_posted(args("surface", [DAY_SURFACE], "label", "acts-first"))
+

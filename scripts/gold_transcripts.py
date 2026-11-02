@@ -9,6 +9,8 @@
                                                                    # same inputs, another model (a comparison run)
     python scripts/gold_transcripts.py run --surface page --label writer-sonnet --set STORY_WRITER_MODEL=claude-sonnet-5-5 --max-usd 1.5
                                                                    # the night writer's pages (not in the weekly run)
+    python scripts/gold_transcripts.py run --surface day --max-usd 2 --post
+                                                                   # a whole day of acts, one day of the set a week (its own run)
     python scripts/gold_transcripts.py rejudge var/gold/<date>-production.json --judge-model claude-sonnet-5-5 --max-usd 1
                                                                    # the same answers, another judge (calibrate a judge change)
     python scripts/gold_transcripts.py trend                       # the history kept in the digest comments
@@ -27,7 +29,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -43,8 +45,9 @@ from tests.gold_transcripts import runner as R  # noqa: E402
 from tests.gold_transcripts import surfaces as S  # noqa: E402
 from tests.gold_transcripts.criteria import (  # noqa: E402
     CRITERIA,
-    CRITERIA_VERSION,
+    DAY_SURFACE,
     WEEKLY_SURFACES,
+    run_version,
 )
 
 API_KEY_ENVS = ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")
@@ -52,7 +55,20 @@ OUT = REPO / "var" / "gold"
 
 
 def _sets(args: argparse.Namespace) -> list[str]:
-    return args.surface or list(WEEKLY_SURFACES)
+    return list(dict.fromkeys(args.surface)) if args.surface else list(WEEKLY_SURFACES)
+
+
+def _when(args: argparse.Namespace) -> date:
+    """The run's date: which day of the set a weekly day run writes (``runner.week_day``)."""
+
+    return date.fromisoformat(args.date) if args.date else datetime.now(UTC).date()
+
+
+def _day_items(args: argparse.Namespace) -> list[dict]:
+    """The days a day run writes: the ones named, else the week's day."""
+
+    items = S.load_items(DAY_SURFACE, args.id)
+    return (items if args.id else R.week_day(items, _when(args)))[: args.limit or None]
 
 
 def _overrides(pairs: list[str] | None) -> dict[str, str]:
@@ -86,6 +102,33 @@ class _Recorder:
         return self._refuse("error", messages, kwargs)
 
 
+def _plan_day(args: argparse.Namespace, per_judge: float) -> tuple[int, float, float]:
+    """A day of acts priced from what the night writer measured (``runner.NIGHT_WRITER_USD``):
+    a refused call stops the day at its first, so recording it would price one call."""
+
+    from app.config import settings
+
+    writer = str(settings.STORY_WRITER_MODEL or "")
+    measured = R.NIGHT_WRITER_USD.get(writer)
+    items = _day_items(args)
+    app_cost = judge_cost = 0.0
+    for item in items:
+        roles = S.day_roles(item)
+        acts = 1 + len(roles)
+        judge_cost += per_judge * acts
+        if measured is None:
+            print(f"{DAY_SURFACE:10s} {item['id']}: «Le fil» + {', '.join(roles) or 'no later act'} · writer {writer} not measured")
+            continue
+        typical = measured["page"] + measured["act"] * len(roles)
+        dearest = measured["page"] + measured["act_dearest"] * len(roles)
+        app_cost += dearest
+        print(
+            f"{DAY_SURFACE:10s} {item['id']}: «Le fil» + {', '.join(roles) or 'no later act'} · writer {writer} "
+            f"measured about US${typical:.2f}, at most US${dearest:.2f} · judge worst case US${per_judge * acts:.3f}"
+        )
+    return len(items), app_cost, judge_cost
+
+
 def cmd_plan(args: argparse.Namespace) -> int:
     applied = R.apply_profile(_overrides(args.set))
     try:
@@ -94,17 +137,23 @@ def cmd_plan(args: argparse.Namespace) -> int:
         from app.services.llm_service import text_price_for
 
         rates, _ = text_price_for(args.judge_model)
+        # The judge reads ~3k characters and writes ≤1k tokens, once per item (per act).
+        per_judge = (3500 / 3 + 600) / 1000 * rates["prompt"] + 1000 / 1000 * rates["completion"]
         judge_cost = 0.0
         for surface in _sets(args):
-            items = S.load_items(surface)[: args.limit or None]
+            if surface == DAY_SURFACE:
+                count, app, judge = _plan_day(args, per_judge)
+                total_items += count
+                app_cost += app
+                judge_cost += judge
+                continue
+            items = S.load_items(surface, args.id)[: args.limit or None]
             recorder = _Recorder()
             for item in items:
                 try:
                     S.SURFACES[surface](item, recorder)
                 except Exception:  # noqa: BLE001, S110 - a refused call may surface as anything
                     pass
-            # The judge reads ~3k characters and writes ≤1k tokens, once per item.
-            per_judge = (3500 / 3 + 600) / 1000 * rates["prompt"] + 1000 / 1000 * rates["completion"]
             judge_cost += per_judge * len(items)
             app_cost += sum(recorder.estimates)
             total_items += len(items)
@@ -112,7 +161,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
                 f"{surface:10s} {len(items):3d} items · first-attempt app calls {len(recorder.estimates):3d} "
                 f"(worst case US${sum(recorder.estimates):.3f}) · judge worst case US${per_judge * len(items):.3f}"
             )
-        print(f"criteria {CRITERIA_VERSION} · {total_items} items · judge {args.judge_model}")
+        print(f"criteria {run_version(_sets(args))} · {total_items} items · judge {args.judge_model}")
         print(f"worst case ≈ US${app_cost + judge_cost:.2f} (retries not counted; the meter caps the real run)")
         print("models: " + json.dumps(R.models_in_use(), ensure_ascii=False))
     finally:
@@ -143,22 +192,24 @@ def cmd_run(args: argparse.Namespace) -> int:
     from app.services.llm_service import LLMService
 
     applied = R.apply_profile(_overrides(args.set))
-    date = args.date or datetime.now(UTC).strftime("%Y-%m-%d")
+    when = _when(args)
+    day = when.isoformat()
     try:
         meter = R.Meter(inner=LLMService(), cap_usd=args.max_usd)
         result = R.run(
             _sets(args), client=meter, judge_model=args.judge_model, limit=args.limit, ids=args.id,
-            progress=(lambda line: print(line, flush=True)) if args.verbose else None,
+            progress=(lambda line: print(line, flush=True)) if args.verbose else None, when=when,
         )
         result.update(
-            date=date, label=args.label, cap_usd=args.max_usd, spent_usd=round(meter.spent_usd, 4),
+            date=day, label=args.label, cap_usd=args.max_usd, spent_usd=round(meter.spent_usd, 4),
             calls=meter.calls, models=R.models_in_use(),
             settings_overrides=_overrides(args.set), call_log=meter.log,
         )
     finally:
         R.restore_profile(applied)
     OUT.mkdir(parents=True, exist_ok=True)
-    out = Path(args.out) if args.out else OUT / f"{date}-{args.label}.json"
+    name = args.label if _sets(args) != [DAY_SURFACE] else f"{args.label}-day"
+    out = Path(args.out) if args.out else OUT / f"{day}-{name}.json"
     out.write_text(json.dumps(result, ensure_ascii=False, indent=1, default=str) + "\n", encoding="utf-8")
     history: list[dict] = []
     try:
@@ -170,13 +221,21 @@ def cmd_run(args: argparse.Namespace) -> int:
     print(report)
     print(f"\nfull results: {out}")
     if args.post:
-        if args.label != "production" and not args.post_comparison:
-            print("not posted: a comparison run (--label) posts only with --post-comparison.")
-        elif args.limit or args.id or args.surface:
-            print("not posted: a partial run (--limit/--id/--surface) is not a production score.")
-        else:
-            print("posted: " + R.post_comment(report))
+        why = _not_posted(args)
+        print(f"not posted: {why}." if why else "posted: " + R.post_comment(report))
     return 0
+
+
+def _not_posted(args: argparse.Namespace) -> str | None:
+    """Why a run's report stays off the digest issue; ``None`` when it is posted. The
+    weekly run and the week's day of acts (``--surface day`` alone) are the production
+    scores; anything narrower is a look."""
+
+    if args.label != "production" and not args.post_comparison:
+        return "a comparison run (--label) posts only with --post-comparison"
+    if args.limit or args.id or (args.surface and _sets(args) != [DAY_SURFACE]):
+        return "a partial run (--limit/--id/--surface) is not a production score"
+    return None
 
 
 def cmd_rejudge(args: argparse.Namespace) -> int:
@@ -229,6 +288,7 @@ def cmd_trend(args: argparse.Namespace) -> int:
         return 0
     surfaces = list(CRITERIA)
     print("date        label        criteria      " + "  ".join(f"{s:>10s}" for s in surfaces) + "   spent")
+    # A day run's entry has the day score alone, under the day's own criteria version.
     for entry in history[-args.nights:]:
         cells = "  ".join(
             f"{entry['scores'].get(s):>10.0f}" if entry["scores"].get(s) is not None else f"{'–':>10s}" for s in surfaces
@@ -246,11 +306,11 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--limit", type=int, default=None, help="only the first N items of each surface")
         p.add_argument("--set", action="append", metavar="KEY=VALUE", help="an app setting on top of render.yaml (repeatable)")
         p.add_argument("--judge-model", default=None, help=f"default {R.DEFAULT_JUDGE}; {R.PAGE_JUDGE} when pages are scored")
+        p.add_argument("--id", action="append", help="only this item (repeatable)")
+        p.add_argument("--date", default=None, help="the run's date (default: today, UTC); picks the week's day of acts")
     run = sub.choices["run"]
     run.add_argument("--max-usd", type=float, default=None, help=f"spending cap (required, at most {R.HARD_CAP_USD})")
-    run.add_argument("--id", action="append", help="only this item (repeatable)")
     run.add_argument("--label", default="production", help="the run's name in the history; anything but «production» is a comparison")
-    run.add_argument("--date", default=None, help="the run's date (default: today, UTC)")
     run.add_argument("--out", default=None, help="where the full results JSON goes (default var/gold/<date>-<label>.json)")
     run.add_argument("--post", action="store_true", help=f"post the report on issue #{R.DIGEST_ISSUE}")
     run.add_argument("--post-comparison", action="store_true", help="allow --post for a comparison run")
@@ -269,6 +329,9 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.remove()  # the engine logs every refusal; the report says what matters
     if args.command in ("plan", "run"):
+        if DAY_SURFACE in _sets(args) and _sets(args) != [DAY_SURFACE]:
+            print(f"{args.command} refuses: the day of acts runs on its own (--surface {DAY_SURFACE}), with its own cap and comment.")
+            return 2
         try:
             args.judge_model = R.judge_for(_sets(args), args.judge_model)
         except ValueError as exc:

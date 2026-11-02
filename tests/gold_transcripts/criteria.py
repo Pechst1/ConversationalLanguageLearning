@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 
+from app.services.season.story_judge import ACT_NEW as _ACT_NEW
 from app.services.season.story_judge import QUESTIONS as _STORY_QUESTIONS
 
 
@@ -32,6 +34,7 @@ SURFACE_TITLES = {
     "courrier": "Courrier reply",
     "correction": "Correction",
     "page": "Night writer's page",
+    "day": "A day of acts",
 }
 
 CRITERIA: dict[str, tuple[Criterion, ...]] = {
@@ -210,19 +213,51 @@ CRITERIA: dict[str, tuple[Criterion, ...]] = {
         Criterion("served", "check", "A page was written within the prefetch's 330 seconds: no lost day."),
         *(Criterion(key, "judge", text) for key, text in _STORY_QUESTIONS.items() if key != "new"),
     ),
+    # Phase 2 «Folge in Akten»: a whole day, the page and each later act an Intensif
+    # learner at the day's level plays, each written as the night writes it. Every act is
+    # scored as a page on the story judge's questions; a later act is also asked «new»
+    # against the day's first act. Verdicts are kept per act (``<role>.<criterion>``).
+    "day": (
+        Criterion(
+            "served",
+            "check",
+            "The act was written within the night's 330 seconds a task and the critic let it through: "
+            "no lost page, no dropped act.",
+        ),
+        *(Criterion(key, "judge", text) for key, text in _STORY_QUESTIONS.items() if key != "new"),
+        Criterion("new", "judge", _ACT_NEW),
+    ),
 }
 
 #: The surfaces of the weekly production score; ``page`` runs only when asked for
 #: (``--surface page``), for the writer-model comparison.
 WEEKLY_SURFACES = ("scene", "forge", "courrier", "correction")
+#: The day of acts runs on its own every week (``--surface day``): its own cap, its own
+#: comment, one day of the set a week.
+DAY_SURFACE = "day"
+#: Surfaces with a criteria version of their own: their runs compare only with each
+#: other, and adding one left :data:`CRITERIA_VERSION` (the weekly runs') as it was.
+OWN_VERSION = (DAY_SURFACE,)
 
 
-def criteria_version() -> str:
-    blob = json.dumps({s: [asdict(c) for c in cs] for s, cs in CRITERIA.items()}, sort_keys=True)
+def criteria_version(surfaces: Iterable[str] | None = None) -> str:
+    """The version of the criteria of ``surfaces``; by default of every surface but
+    :data:`OWN_VERSION`, which is :data:`CRITERIA_VERSION`."""
+
+    chosen = list(surfaces) if surfaces is not None else [s for s in CRITERIA if s not in OWN_VERSION]
+    blob = json.dumps({s: [asdict(c) for c in CRITERIA[s]] for s in chosen}, sort_keys=True)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:12]
 
 
 CRITERIA_VERSION = criteria_version()
+
+
+def run_version(surfaces: Iterable[str]) -> str:
+    """The version a run carries into the history: :data:`CRITERIA_VERSION`, unless it
+    runs a surface of :data:`OWN_VERSION`, whose version covers exactly what it ran."""
+
+    chosen = list(surfaces)
+    return criteria_version(chosen) if any(s in OWN_VERSION for s in chosen) else CRITERIA_VERSION
 
 
 def judged(surface: str) -> tuple[Criterion, ...]:

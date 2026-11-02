@@ -462,20 +462,20 @@ def _line_cost(clip: LineAudioClip) -> float:
 def over_spend_cap(db: Session, owner_id: uuid.UUID, *, user: Any = None) -> bool:
     """The learner's daily spend cap, read the way the line-audio route reads it
     (``line_audio._cap_near``: at :data:`~app.services.line_audio.CAP_NEAR_SHARE` of
-    ``USER_DAILY_SPEND_CAP_USD``, the learner's own day). A cap of 0 is off; a ledger
-    read that fails never silences the bulletin."""
+    ``USER_DAILY_SPEND_CAP_USD``, the learner's own day, or their acts cap). A cap of 0
+    is off; a ledger read that fails never silences the bulletin."""
 
     from app.services.line_audio import CAP_NEAR_SHARE
     from app.services.spend_guard import daily_cap_usd, learner_zone, spend_today_usd
 
-    cap = daily_cap_usd()
-    if cap <= 0:
+    if daily_cap_usd() <= 0:
         return False
     try:
         if user is None:
             from app.db.models.user import User
 
             user = db.get(User, owner_id)
+        cap = daily_cap_usd(user)
         spent = spend_today_usd(db, owner_id, zone=learner_zone(user))
     except Exception as exc:  # noqa: BLE001 - a ledger read never costs the bulletin
         logger.warning("revue radio: spend ledger unreadable ({})", exc)

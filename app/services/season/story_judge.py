@@ -53,6 +53,17 @@ QUESTIONS: dict[str, str] = {
     "level": "the words fit the learner's level; the drama is the same as it would be at C1.",
 }
 
+#: Phase 2 «Folge in Akten»: a later act of a day is asked «new» against the day's first
+#: act, not the day before (acts doc: «der Wochenrichter vergleicht Akt 2 mit Akt 1»). A
+#: bottle chapter keeps its room and a two-hander its one voice, so «or».
+ACT_NEW = (
+    "the question is new, and the place or the lead character changes compared with the "
+    "day's first act."
+)
+#: The act a page is when it is one act of a day of acts (``Page.act``), in play order.
+ACT_ROLES = ("fil", "cote", "soir")
+ACT_LABELS = {"fil": "Le fil", "cote": "À côté", "soir": "Le soir"}
+
 #: The plan's gate.
 GATE_HIGH = ("natural", "clear_question")
 GATE_HIGH_MEDIAN = 4
@@ -217,8 +228,12 @@ class Page:
     level: str
     items: list[Item]
     day: int | None = None
-    #: What «new» compares with; ``None`` when there is no previous page.
+    #: What «new» compares with; ``None`` when there is no previous page. For a later act
+    #: of a day (``act``), the day's first act.
     previous_summary: str | None = None
+    #: The act this page is when it is one act of a day of acts (:data:`ACT_ROLES`);
+    #: ``None`` for a day of one page.
+    act: str | None = None
 
     @property
     def label(self) -> str:
@@ -227,6 +242,10 @@ class Page:
         path = Path(self.source)
         where = f"{path.parent.name}/{path.name}" if path.parent.name else path.name
         return f"{where} {self.key}"
+
+    @property
+    def later_act(self) -> bool:
+        return bool(self.act) and self.act != ACT_ROLES[0]
 
     @property
     def text(self) -> str:
@@ -440,12 +459,20 @@ def questions_for(page: Page, *, include_new: bool = True) -> list[str]:
     return [key for key in QUESTIONS if not (key == "new" and skip_new)]
 
 
-def rubric_messages(page: Page, questions: Sequence[str]) -> tuple[str, str]:
-    """``(system, user)`` for one page: the asked questions' 5/5 and the page."""
+def question_text(page: Page, key: str) -> str:
+    """What 5 of 5 means for ``key`` on this page: a later act's «new» is :data:`ACT_NEW`."""
 
-    definitions = "\n".join(f"- {key}: {QUESTIONS[key]}" for key in questions)
+    return ACT_NEW if key == "new" and page.later_act else QUESTIONS[key]
+
+
+def rubric_messages(page: Page, questions: Sequence[str]) -> tuple[str, str]:
+    """``(system, user)`` for one page: the asked questions' 5/5 and the page. A later act
+    of a day is read as one: «new» compares it with the day's first act."""
+
+    definitions = "\n".join(f"- {key}: {question_text(page, key)}" for key in questions)
+    what = "one act of a day" if page.act else "one day"
     system = (
-        "You judge one day of a French comic-strip story written for language learners, the way "
+        f"You judge {what} of a French comic-strip story written for language learners, the way "
         f"a reader reads it.\n{READING}\n\n"
         f"Score each question below from 1 to 5. 5 means:\n{definitions}\n"
         "1 means the page clearly fails it; 3 means it half holds.\n\n"
@@ -454,8 +481,11 @@ def rubric_messages(page: Page, questions: Sequence[str]) -> tuple[str, str]:
         '"line": "<the line it is about, copied from the page>"}}'
     )
     head = [f"Learner level: {page.level}"]
+    if page.act:
+        head.append(f"Act: «{ACT_LABELS.get(page.act, page.act)}»")
     if "new" in questions and page.previous_summary:
-        head.append(f"Previous day: {page.previous_summary}")
+        compared = "The day's first act" if page.later_act else "Previous day"
+        head.append(f"{compared}: {page.previous_summary}")
     head.append("Questions: " + ", ".join(questions))
     return system, "\n".join([*head, "", f"Page «{page.title}»:", page.text])
 
@@ -692,6 +722,7 @@ def judge_pages(
             "source": page.source,
             "key": page.key,
             "day": page.day,
+            "act": page.act,
             "title": page.title,
             "level": page.level,
             "previous": page.previous_summary if "new" in questions else None,
@@ -806,6 +837,20 @@ def gate(
     return report
 
 
+def act_report(rows: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Per act of a day of acts (``row["act"]``), in play order: its score table and the
+    plan's gate on it. The gate is read act by act, so a strong first act never hides a
+    weak later one (acts doc: «ob Akt 2 und 3 so gut sind wie Akt 1»)."""
+
+    report: dict[str, dict[str, Any]] = {}
+    for role in ACT_ROLES:
+        mine = [row for row in rows if row.get("act") == role]
+        if mine:
+            table = score_table(mine)
+            report[role] = {"pages": len(mine), "summary": table, "gate": gate(table)}
+    return report
+
+
 def rubric_report(
     pages: Sequence[Page],
     judge: Judge,
@@ -825,7 +870,7 @@ def rubric_report(
         for cell in (row.get("scores") or {}).values()
         if cell.get("score") is not None
     )
-    return {
+    report = {
         "mode": mode,
         **judge.fields(),
         "sources": list(sources),
@@ -835,6 +880,9 @@ def rubric_report(
         "lowest": lowest_lines(rows),
         "gate": gate(table, planned=planned, taken=taken),
     }
+    if any(page.act for page in pages):
+        report["acts"] = act_report(rows)
+    return report
 
 
 def pairwise_report(
@@ -968,6 +1016,12 @@ def markdown(report: dict[str, Any]) -> str:
         errors = [f"- {row['page']}: {row['error']}" for row in report["pages"] if row.get("error")]
         if errors:
             out += ["", "**Calls without scores**", "", *errors]
+    if report.get("acts"):
+        out += ["", "**By act** (the gate on each act alone)", ""]
+        for role, act in report["acts"].items():
+            medians = ", ".join(f"{key} {_fmt(row['median'])}" for key, row in act["summary"].items())
+            pages = f"{act['pages']} page" + ("" if act["pages"] == 1 else "s")
+            out.append(f"- {ACT_LABELS.get(role, role)} ({pages}): {medians} · gate {act['gate']['verdict']}")
     verdict = report["gate"]
     out += ["", f"**Gate** (plan, Phase 1): {verdict['verdict']}"]
     if verdict.get("judgements"):
@@ -986,6 +1040,9 @@ def markdown(report: dict[str, Any]) -> str:
 
 
 __all__ = [
+    "ACT_LABELS",
+    "ACT_NEW",
+    "ACT_ROLES",
     "DEFAULT_CAP_USD",
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_REASONING_EFFORT",
@@ -995,6 +1052,7 @@ __all__ = [
     "Judge",
     "Page",
     "SpendCapReached",
+    "act_report",
     "benchmark_pages",
     "call_ceiling_usd",
     "classify",
@@ -1011,6 +1069,7 @@ __all__ = [
     "pairwise_plan",
     "pairwise_report",
     "parse_lines",
+    "question_text",
     "questions_for",
     "read_scores",
     "read_transcript",

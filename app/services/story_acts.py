@@ -13,8 +13,12 @@ key (the first act's cache key), with the act's brief. It is billed when it is s
 unserved, when it expires (``journey_latency.sweep_expired_prefetches``), like the page.
 Every guard is checked before a cent is spent: the switch and its cohort, the first act
 still waiting and still current, the act still planned for the learner's rhythm, the
-learner's week (with what the night has written and not yet billed) and the service's
-day. A later act the writer cannot get past its guards and the critic is dropped, never
+learner's week (with what the night has written and not yet billed, and room left for
+the next night's page: the acts never take the first act's money), the learner's day
+(the acts are billed on the day they are played, which must still open and play under
+the learner's cap) and the service's day. A learner with acts has caps of their own
+(``ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD`` and ``…_WEEKLY_COST_GUARDRAIL_USD``): they
+rise with the switch, for the cohort alone. A later act the writer cannot get past its guards and the critic is dropped, never
 replaced by anything weaker.
 
 In the morning the page is served as always, and the acts written after *that* page are
@@ -55,6 +59,11 @@ ACT_ENTITY_TYPE = "journey_story_act"
 #: The order the night writes the later acts in: «Le soir» first — «À côté» is never
 #: played without it, so it is only paid for once «Le soir» stands.
 WRITING_ORDER: tuple[ActRole, ...] = tuple(reversed(ACT_DROP_ORDER))
+#: What a day of acts costs to play on top of its night (the live turns of up to three
+#: scenes, their corrections and the characters' voices): kept free under the learner's
+#: daily cap when the night writes an act. A day of one scene plays for about US$0.05
+#: (``spend_guard``, WP-68), so this holds three.
+DAY_PLAY_USD = 0.15
 #: Why a day has no act after it (``living_story.generate_act``): not a failure, the
 #: day plays one act.
 _ONE_ACT_DAYS = frozenset(
@@ -191,7 +200,8 @@ def write_act(db: Session, user: User, *, prefetch_id: str, role: str) -> str:
     was served, discarded or expired, or its key moved (it will never be served);
     ``cached`` — this act is already written; ``skipped_rhythm`` — the learner's rhythm
     and pace no longer play it; ``skipped_budget`` — the learner's week, counting what
-    the night has written and not yet billed, or the service's day; ``skipped_day`` —
+    the night has written and not yet billed and keeping the next page's room, the
+    learner's day (:func:`day_holds_an_act`) or the service's day; ``skipped_day`` —
     the day plays one act (a tentpole, an épreuve …) or not this one («À côté» in a
     two-hander);
     ``unavailable`` — the writer or the critic refused every attempt: the act is
@@ -204,6 +214,7 @@ def write_act(db: Session, user: User, *, prefetch_id: str, role: str) -> str:
         _usage_cost,
         _weekly_spend_usd,
         scene_cache_key,
+        weekly_guardrail_usd,
     )
 
     if not acts_enabled_for(user):
@@ -230,11 +241,15 @@ def write_act(db: Session, user: User, *, prefetch_id: str, role: str) -> str:
     if wanted not in planned_roles(db, user):
         return "skipped_rhythm"
 
-    guardrail = float(settings.PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD or 0.0)
+    guardrail = weekly_guardrail_usd(user)
     page_cost = _usage_cost(first_row.payload or {})
-    if guardrail > 0 and _weekly_spend_usd(db, user) + _unbilled_usd(db, user) + page_cost >= guardrail:
-        # An act costs about what the page did: one that would take the week past its
-        # guardrail is not written (acts doc: «Reicht das Geld nicht, schreibt er weniger»).
+    unbilled = _unbilled_usd(db, user)
+    if guardrail > 0 and _weekly_spend_usd(db, user) + unbilled + 2 * page_cost >= guardrail:
+        # An act costs about what the page did. It is written only while the week holds it
+        # and the next night's page after it: the acts never take the first act's money
+        # (acts doc: «Akt 1 fällt nie weg», «Reicht das Geld nicht, schreibt er weniger»).
+        return "skipped_budget"
+    if not day_holds_an_act(db, user, night_usd=unbilled + page_cost):
         return "skipped_budget"
     from app.services.spend_guard import day_bounds, service_budget_reached, service_daily_cap_usd
 
@@ -284,6 +299,26 @@ def write_act(db: Session, user: User, *, prefetch_id: str, role: str) -> str:
     )
     db.commit()
     return "prefetched"
+
+
+def day_holds_an_act(db: Session, user: User, *, night_usd: float) -> bool:
+    """The learner's day can still pay for what the night has written for it and the
+    act about to be written (``night_usd``), and still play (:data:`DAY_PLAY_USD`).
+
+    The night's pages and acts are billed on the day they are played; the day opens
+    under the learner's cap, its voices stop near it and its panels well before it
+    (``spend_guard``, ``line_audio``, ``panel_art``). A night that wrote past it would
+    cost the learner the day it was writing for, so the act it cannot afford is not
+    written. The day is the learner's own today: the beat writes in the small hours of
+    the day it writes for."""
+
+    from app.services.spend_guard import daily_cap_usd, learner_zone, spend_today_usd
+
+    cap = daily_cap_usd(user)
+    if cap <= 0:
+        return True
+    spent = spend_today_usd(db, user.id, zone=learner_zone(user))
+    return spent + float(night_usd) + DAY_PLAY_USD <= cap
 
 
 #: On a taken act's brief (``story_context``): the ledger row it was stored in, so the

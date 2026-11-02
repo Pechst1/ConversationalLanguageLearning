@@ -286,6 +286,22 @@ def has_live_prefetch(db: Session, user: User, *, input_mode: InputMode = InputM
 # ---------------------------------------------------------------------------
 
 
+def weekly_guardrail_usd(user: User | None = None) -> float:
+    """The learner's weekly story guardrail: ``PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD``,
+    or for a learner the night writes acts for ``ATELIER_STORY_ACTS_WEEKLY_COST_GUARDRAIL_USD``
+    when that is higher (their nights write up to three pages). 0 is off, for everyone."""
+
+    guardrail = float(settings.PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD or 0.0)
+    if guardrail > 0 and user is not None:
+        acts = float(getattr(settings, "ATELIER_STORY_ACTS_WEEKLY_COST_GUARDRAIL_USD", 0.0) or 0.0)
+        if acts > guardrail:
+            from app.services.spend_guard import acts_learner
+
+            if acts_learner(user):
+                return acts
+    return guardrail
+
+
 def _weekly_spend_usd(db: Session, user: User) -> float:
     since = _utcnow() - timedelta(days=7)
     rows = db.scalars(
@@ -353,7 +369,7 @@ def prefetch_scene_for(
         # Idempotent: the same key twice never pays twice.
         return "cached"
 
-    guardrail = float(settings.PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD or 0.0)
+    guardrail = weekly_guardrail_usd(user)
     if guardrail > 0 and _weekly_spend_usd(db, user) >= guardrail:
         return "skipped_budget"
     from app.services.spend_guard import service_budget_reached

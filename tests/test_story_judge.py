@@ -10,12 +10,15 @@ No network: every call goes to a fake client that answers the way the judge woul
 4. The pairwise order is seeded, and the judge's A/B maps back to old and new.
 5. The spend cap stops the run before a call could pass it, and says what it skipped.
 6. The benchmark reads the authored tentpole pages at B1, in French.
+7. A later act of a day of acts is asked «new» against the day's first act, and the gate
+   is read act by act.
 """
 
 from __future__ import annotations
 
 import json
 import re
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +26,7 @@ import pytest
 
 from app.services.llm_service import LLMResult, estimate_text_cost_usd
 from app.services.season.story_judge import (
+    ACT_NEW,
     QUESTIONS,
     Judge,
     SpendCapReached,
@@ -39,6 +43,7 @@ from app.services.season.story_judge import (
     questions_for,
     rubric_messages,
     rubric_report,
+    summarize,
 )
 
 EVIDENCE = Path(__file__).resolve().parents[1] / "docs/implementation/atelier-v2/evidence"
@@ -516,3 +521,39 @@ def test_the_cli_writes_the_report_and_its_summary_and_a_dry_run_calls_nothing(
     assert (tmp_path / "b1.md").read_text(encoding="utf-8").startswith("# Story judge · rubric")
     with pytest.raises(SystemExit):
         cli.main(["pairwise", str(OLD_B1)])  # transcripts come in pairs
+
+
+# ---------------------------------------------------------------------------
+# 7. A day of acts (Phase 2 «Folge in Akten»)
+# ---------------------------------------------------------------------------
+
+
+def test_a_later_act_is_asked_new_against_the_day_s_first_act_and_gated_on_its_own():
+    first, other = generated_pages(load_transcript(OLD_B1))[:2]
+    fil = replace(first, act="fil", previous_summary=None)
+    soir = replace(other, act="soir", previous_summary=summarize(fil))
+    answers = iter([scored(ALL_FOURS), scored({**ALL_FOURS, "natural": 2})])
+    fake = FakeJudge(lambda user: next(answers)(user))
+
+    report = rubric_report([fil, soir], Judge(client=fake, model="gpt-6.1-sol"))
+
+    fil_call, soir_call = fake.calls
+    fil_user, soir_user = (call["messages"][-1]["content"] for call in fake.calls)
+    assert fil_call["system_prompt"].startswith("You judge one act of a day")
+    assert "Act: «Le fil»" in fil_user and "new" not in asked(fil_user)
+    assert "Act: «Le soir»" in soir_user and asked(soir_user) == list(QUESTIONS)
+    assert f"The day's first act: {summarize(fil)}" in soir_user and "Previous day" not in soir_user
+    assert f"- new: {ACT_NEW}" in soir_call["system_prompt"]
+    # A day of one page reads as before.
+    system, user = rubric_messages(other, questions_for(other))
+    assert system.startswith("You judge one day of") and f"- new: {QUESTIONS['new']}" in system
+    assert "Act:" not in user and "Previous day: " in user
+
+    acts = report["acts"]
+    assert list(acts) == ["fil", "soir"]
+    assert acts["fil"]["gate"]["verdict"] == "pass"
+    assert acts["soir"]["gate"]["verdict"] == "fail", "a strong first act never hides a weak later one"
+    assert acts["soir"]["summary"]["new"]["median"] == 4
+    summary_md = markdown(report)
+    assert "**By act** (the gate on each act alone)" in summary_md
+    assert "- Le soir (1 page): natural 2, " in summary_md and "· gate fail" in summary_md

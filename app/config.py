@@ -935,6 +935,26 @@ class Settings(BaseSettings):
             "production (the same rule as ATELIER_DAILY_JOURNEY_COHORT)."
         ),
     )
+    ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD: float = Field(
+        0.0,
+        ge=0,
+        description=(
+            "USER_DAILY_SPEND_CAP_USD for a learner the night writes acts for "
+            "(ATELIER_STORY_ACTS and its cohort): the higher of the two holds, so the cap "
+            "rises with the switch and only for those learners. Their night writes up to "
+            "three pages for the day, billed on the day they are played. 0 = the plain cap; "
+            "a plain cap of 0 stays off."
+        ),
+    )
+    ATELIER_STORY_ACTS_WEEKLY_COST_GUARDRAIL_USD: float = Field(
+        0.0,
+        ge=0,
+        description=(
+            "PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD for a learner the night writes acts "
+            "for: the higher of the two holds. 0 = the plain guardrail; a plain guardrail "
+            "of 0 stays off."
+        ),
+    )
 
     # ---- WP-31: rehearsing a real upcoming situation ---------------------
     ATELIER_REHEARSAL_WEEKLY_CAP: int = Field(

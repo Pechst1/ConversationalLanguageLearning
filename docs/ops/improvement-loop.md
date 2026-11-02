@@ -151,6 +151,12 @@ written criteria (`tests/gold_transcripts/criteria.py`).
 - **Comparing models:** `--label NAME --set KEY=VALUE` runs the same inputs with other
   settings outside the production trend; `--surface page` scores the night writer's page
   (not in the weekly run; `tests/gold_transcripts/README.md`).
+- **A day of acts** (Phase 2 «Folge in Akten»): the same routine then runs
+  `python scripts/gold_transcripts.py run --surface day --max-usd 2 --post`, one day of the
+  set a week: the page and each later act an Intensif learner plays, written as the night
+  writes them and judged act by act by `gpt-6.1-sol` (a later act's «new» against the day's
+  first act). Its own comment and criteria version; it shows each week whether acts 2 and
+  3 hold up against act 1, and what an act costs the night writer.
 
 ## Live mode (owner decision)
 
