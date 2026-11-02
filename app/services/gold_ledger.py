@@ -56,6 +56,7 @@ SOURCE_JOURNEY_REPLY = "journey_reply"
 SOURCE_FORGE_ITEM = "forge_item"
 SOURCE_LETTER = "letter"
 SOURCE_MILESTONE = "milestone"
+SOURCE_WORD_CARD = "word_card"
 
 VOID_NOT_YET = "not_yet"
 VOID_UNREAD = "unread"
@@ -79,6 +80,25 @@ def gold_mode() -> str:
 
     raw = str(getattr(settings, "ATELIER_GOLD_MODE", MODE_SHADOW) or "").strip().lower()
     return raw if raw in MODES else MODE_OFF
+
+
+def gold_ui() -> str:
+    """O-2: who sees l'or (``off`` · ``owner`` · ``all``)."""
+
+    raw = str(getattr(settings, "ATELIER_GOLD_UI", "owner") or "").strip().lower()
+    return raw if raw in {"off", "owner", "all"} else "off"
+
+
+def gold_visible(user: Any) -> bool:
+    """O-2: l'or is on this learner's screen. Owner: admin accounts only (the pilot
+    owner checks the numbers before anyone else sees them)."""
+
+    audience = gold_ui()
+    if not ledger_on() or audience == "off" or user is None:
+        return False
+    if audience == "all":
+        return True
+    return str(getattr(user, "role", "user") or "user") == "admin"
 
 
 def ledger_on() -> bool:
@@ -1304,6 +1324,106 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
         )
 
 
+# ---------------------------------------------------------------------------
+# Le Wörterstapel: graded word cards (O-2)
+# ---------------------------------------------------------------------------
+
+#: A graded card's format, by what it proves (``vocab_fsrs._EARNED``): picking the
+#: word among options is recognition; typing it, filling its line, writing what was
+#: heard or saying it is recall of the form.
+WORD_CARD_CATEGORY: dict[str, core.Category] = {
+    "choice": core.Category.RECOGNISED,
+    "typed": core.Category.TYPED,
+    "cloze": core.Category.TYPED,
+    "audio": core.Category.TYPED,
+    "spoken": core.Category.TYPED,
+}
+
+
+def snapshot_word_card(db: Session, *, progress: Any) -> dict[str, datetime | None]:
+    """Before the review is written: the word's last contact (R4) and the last deck
+    answer of this card (R7). Never raises."""
+
+    if not ledger_on() or progress is None or getattr(progress, "id", None) is None:
+        return {}
+
+    def read() -> dict[str, datetime | None]:
+        from app.db.models.progress import ReviewLog
+
+        last_drill = (
+            db.query(func.max(ReviewLog.review_date))
+            .filter(ReviewLog.progress_id == progress.id, ReviewLog.source == "drill")
+            .scalar()
+        )
+        return {"contact": _aware(getattr(progress, "last_review_date", None)), "drill": _aware(last_drill)}
+
+    return run_best_effort(db, "gold: word card snapshot", read, default={}, log=_log)
+
+
+def record_word_card(
+    db: Session,
+    *,
+    user: Any,
+    word_id: int,
+    review_format: str,
+    verdict: Any,
+    snapshot: dict[str, datetime | None] | None = None,
+    now: datetime | None = None,
+) -> None:
+    """One graded card of the word deck. Never raises.
+
+    Law 1: a self-rated flashcard («Facile») pays nothing, so only a card the server
+    graded from the learner's answer reaches the table. Each word pays once a day at
+    its best (R1, shared with the journey's targets), the first deck answer of the
+    day only (R7), double after 20 h (R4), under the plafond (R8): more words a day
+    is more gold, up to the plafond.
+    """
+
+    if not ledger_on() or verdict is None:
+        return
+    category = WORD_CARD_CATEGORY.get(str(review_format or ""))
+    if category is None:
+        return
+    with best_effort(db, "gold: word card", log=_log):
+        now = _now(now)
+        snapshot = snapshot or {}
+        correct = bool(getattr(verdict, "correct", False))
+        accent = correct and getattr(verdict, "note", None) == "accent"
+        day = _open_day(db, user, when=now, now=now)
+        zone = str(day.zone.get("tz") or "UTC")
+        last_drill = _aware(snapshot.get("drill"))
+        first_today = last_drill is None or core.local_date(last_drill, zone) != day.local_date
+        previous = _aware(snapshot.get("contact"))
+        observation = core.GoldObservation(
+            category=category,
+            outcome=core.OUTCOME_MET if correct else core.OUTCOME_NOT_YET,
+            assistance="none",
+            accent_slip=accent,
+            delayed_recall=is_delayed_recall(previous, now=now),
+            first_attempt=first_today,
+            target=core.target_key("vocabulary", word_id),
+        )
+        _mint_and_write(
+            db,
+            user_id=user.id,
+            day=day,
+            observation=observation,
+            source_kind=SOURCE_WORD_CARD,
+            source_key=f"gold:word:{word_id}:{day.local_date.isoformat()}:{category}",
+            target=_target_json("vocabulary", word_id),
+            evidence={
+                "category": str(category),
+                "format": str(review_format),
+                "outcome": observation.outcome,
+                "assistance": "none",
+                "accent_slip": accent,
+                "delayed_recall": observation.delayed_recall,
+                "previous_contact_at": _iso(previous),
+            },
+            now=now,
+        )
+
+
 __all__ = [
     "DELAYED_RECALL_GAP",
     "ENTRY_BONUS",
@@ -1317,9 +1437,13 @@ __all__ = [
     "SOURCE_JOURNEY_TARGET",
     "SOURCE_LETTER",
     "SOURCE_MILESTONE",
+    "SOURCE_WORD_CARD",
+    "WORD_CARD_CATEGORY",
     "ZONE_SETTLES_AFTER",
     "forge_contact_before",
     "gold_mode",
+    "gold_ui",
+    "gold_visible",
     "is_delayed_recall",
     "ledger_on",
     "note_released_grading_corrected",
@@ -1331,7 +1455,9 @@ __all__ = [
     "record_journey_reply",
     "record_letter",
     "record_rule_held",
+    "record_word_card",
     "reply_source_key",
     "settle_forge_item",
     "snapshot_contacts",
+    "snapshot_word_card",
 ]
