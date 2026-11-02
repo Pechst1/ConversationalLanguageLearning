@@ -127,6 +127,7 @@ from app.services.journey_contracts import (
     effect_source_key,
     normalize_answer_text,
     rhythm_caps,
+    step_act,
     strongest_assistance,
 )
 from app.services.journey_day_shapes import (
@@ -2503,7 +2504,14 @@ class DailyJourneyService:
             from app.services.season.gestures import GestureRefused
             from app.services.season.gestures import choose as season_choose
 
-            respond = next((step for step in journey.steps if str(step.kind) == str(StepKind.RESPOND)), None)
+            respond = next(
+                (
+                    step
+                    for step in journey.steps
+                    if str(step.kind) == str(StepKind.RESPOND) and step_act(step) == 1
+                ),
+                None,
+            )
             try:
                 result = season_choose(
                     self.db,
@@ -2570,6 +2578,10 @@ class DailyJourneyService:
         read_views = self._read_views(journey)
         scene_story = self._scene_story_fields(journey)
         streak_fields = _streak_snapshot_fields(self.db, journey)
+        ordered = sorted(journey.steps, key=lambda item: item.ordinal)
+        # Phase 2: the day's story fields are its first act's, on the day's first scene;
+        # a later act's scene is a page of its own.
+        first_scene = next((step for step in ordered if StepKind(step.kind) is StepKind.SCENE), None)
         steps = [
             {
                 "id": str(step.id),
@@ -2583,10 +2595,10 @@ class DailyJourneyService:
                 else read_views.get(step.id) or _public_prompt_view(step)
                 if StepKind(step.kind) is StepKind.READ
                 else {**_public_prompt_view(step), **scene_story}
-                if StepKind(step.kind) is StepKind.SCENE
+                if step is first_scene
                 else _public_prompt_view(step),
             }
-            for step in sorted(journey.steps, key=lambda item: item.ordinal)
+            for step in ordered
         ]
         return JourneySnapshot.model_validate(
             {
@@ -3806,6 +3818,11 @@ class DailyJourneyService:
             decision = DayShapeDecision(
                 shape=DEFAULT_DAY_SHAPE, reason="season_page_question", eligible=decision.eligible
             )
+        # Phase 2 «Folge in Akten»: the acts the night wrote after this page, with the
+        # switch on for the learner (``story_acts.take_acts``). The plan keeps the ones
+        # the day holds. Without any — every day while the switch is off — nothing
+        # below changes.
+        acts = self._acts_for_today(user, result) if story_brief and not first_day else []
         try:
             if first_day:
                 # WP-75: the scene's own words, not the (empty) queue of a
@@ -3858,29 +3875,30 @@ class DailyJourneyService:
             if not first_day:
                 # WP-121 A.4: a card kept in a Papier says where it was met.
                 candidates = self._with_place_lines(user, list(candidates))
-            plan = self._plan_with_shape(
-                scenario=result,
-                candidates=list(candidates),
-                budget_seconds=fresh.budget_seconds,
+            plan_inputs: dict[str, Any] = {
+                "scenario": result,
+                "candidates": list(candidates),
+                "budget_seconds": fresh.budget_seconds,
                 # WP-L6: the learner's measured pace, once three days are
                 # measured; the priors before that (the planner ignores an
                 # untrusted profile).
-                pace=self._pace_profile(user, fresh),
+                "pace": self._pace_profile(user, fresh),
                 # WP-04 coordination addition, ratified 2026-09-05: the frozen
                 # ScenarioBrief carries no modality, so RespondPrompt.input_modes
                 # can only know about voice if the create request says so.
-                input_mode=input_mode,
-                errata_targets=errata,
-                dice=dice,
-                decision=decision,
-                scenario_result=result,
-                first_day=first_day,
-                introduction=introduction,
-                forge=forge,
-                reading=reading,
-                desk=desk,
-                page_review=page_review,
-            )
+                "input_mode": input_mode,
+                "errata_targets": errata,
+                "dice": dice,
+                "decision": decision,
+                "scenario_result": result,
+                "first_day": first_day,
+                "introduction": introduction,
+                "forge": forge,
+                "reading": reading,
+                "desk": desk,
+                "page_review": page_review,
+            }
+            plan = self._plan_with_shape(**plan_inputs, acts=acts)
             plan.validate()
             because = self._plan_because(plan, list(candidates), errata)
         except AdapterUnavailable as exc:
@@ -3935,6 +3953,21 @@ class DailyJourneyService:
                 result = bind_journey(self.db, user=user, journey=fresh, brief=result)
             except StoryUnavailable as exc:
                 raise _GenerationFailure(str(exc), fallback_eligible=True) from exc
+            if getattr(plan, "acts", None):
+                bound = self._bind_acts(user, fresh, result, plan)
+                if bound is None:
+                    # All or none: the day plays its first act alone, planned again.
+                    plan = self._plan_with_shape(**plan_inputs, acts=None)
+                    plan.validate()
+                    because = self._plan_because(plan, list(candidates), errata)
+                else:
+                    plan = bound
+        if acts:
+            # Every act the night wrote for this page is closed out: served when the
+            # day plays it, billed now when it does not.
+            from app.services.story_acts import close_acts
+
+            close_acts(self.db, user, acts, played=list(getattr(plan, "acts", None) or []))
         self._persist_plan(
             fresh, result, plan, input_mode, because=because, fallback=fallback,
             native_language=getattr(user, "native_language", None),
@@ -3988,6 +4021,55 @@ class DailyJourneyService:
         fresh.generation_claimed_at = None
         fresh.revision += 1
         self.db.flush()
+
+    # ------------------------------------------------------------------
+    # Phase 2 «Folge in Akten» — the acts after the day's first
+    # ------------------------------------------------------------------
+
+    def _acts_for_today(self, user: User, brief: ScenarioBrief) -> list[Any]:
+        """The acts the night wrote after the page being served (``story_acts.take_acts``):
+        none without the switch, without a page written ahead, or on a reprise. A read
+        that fails costs the day its later acts, never the day."""
+
+        if _is_reprise(brief):
+            return []
+        from app.services.story_acts import take_acts
+
+        return list(
+            run_best_effort(
+                self.db,
+                "daily_journey: the night's acts",
+                lambda: take_acts(self.db, user, brief),
+                default=[],
+                log=logger,
+            )
+            or []
+        )
+
+    def _bind_acts(self, user: User, journey: DailyJourney, first: ScenarioBrief, plan: Any) -> Any:
+        """Publish each act the plan kept, after the first (``living_story.bind_act``),
+        and return the plan with the acts as published. All or none: when one cannot be
+        published, none is and ``None`` is returned — the day loses its later acts, never
+        its first."""
+
+        from app.services.living_story import bind_act
+
+        nested = self.db.begin_nested()
+        try:
+            bound = [
+                replace(
+                    item,
+                    scenario=bind_act(self.db, user=user, journey=journey, first=first, act=item, number=number),
+                )
+                for number, item in enumerate(plan.acts, start=2)
+            ]
+        except Exception:
+            logger.exception("daily_journey: a later act could not be published; the day plays one act")
+            self._rollback_savepoint(nested)
+            return None
+        if nested.is_active:
+            nested.commit()
+        return replace(plan, acts=bound)
 
     # ------------------------------------------------------------------
     # WP-75 — the first day is authored, instant, and introduces the cast
@@ -4879,6 +4961,7 @@ class DailyJourneyService:
         reading: Any = None,
         desk: Any = None,
         page_review: Any = None,
+        acts: Any = None,
     ) -> Any:
         """Call the planner with WP-66's arguments, or without them.
 
@@ -4932,6 +5015,10 @@ class DailyJourneyService:
             if page_review and "page_review" in accepted:
                 # WP-129 (D7): a unit met earlier, reviewed in a line of the page.
                 base["page_review"] = page_review
+            if acts and "acts" in accepted:
+                # Phase 2: the acts the night wrote after the first; the day keeps
+                # the ones it holds.
+                base["acts"] = list(acts)
         return plan_journey(
             **base,
             day_shape=decision.shape,
@@ -5332,7 +5419,9 @@ class DailyJourneyService:
     ) -> AttemptResult:
         private = dict(step.private_task or {})
         task = _response_task_from_json(private["response_task"])
-        brief = self._pinned_brief(journey)
+        # Phase 2: a later act's reply is to its own page and its own character.
+        act = step_act(step)
+        brief = self._pinned_brief(journey, act=act)
         assistance = self._step_assistance(step)
         history = list(private.get("turns", []))
         # O-1: the outcome of the exchange before this one (a repair follows a miss).
@@ -5454,13 +5543,14 @@ class DailyJourneyService:
             # The resolution the learner is shown must be the one that was
             # actually derived — never the planner's optimistic default.
             self._settle_resolution(
-                user, journey, brief, task, proposal=evaluation.consequence
+                user, journey, brief, task, proposal=evaluation.consequence, act=act
             )
 
         self._store_step_result(step, evaluation, assistance)
         self.db.flush()
-        if step.status == str(StepStatus.COMPLETED):
-            # WP-94 / WP-95: grade the épreuve, press the scene's can-do.
+        if step.status == str(StepStatus.COMPLETED) and act == 1:
+            # WP-94 / WP-95: grade the épreuve, press the scene's can-do — the day's,
+            # which is its first act's (a later act's reply is graded on no target).
             self._settle_can_do(user, journey, step, brief)
         # After the turn's own flush, and inside a savepoint: a telemetry row
         # must not be able to take a graded turn down with it.
@@ -5468,7 +5558,7 @@ class DailyJourneyService:
         # Last, because it is the only thing here that reaches outside the
         # journey: on «jour de lettre» the turn the learner just took *is* the
         # answer to a Courrier letter, and the Courrier must stop waiting for it.
-        if step.status == str(StepStatus.COMPLETED):
+        if step.status == str(StepStatus.COMPLETED) and act == 1:
             self._finish_answered_letter(user, journey, step, evaluation)
 
         return AttemptResult(
@@ -5646,14 +5736,15 @@ class DailyJourneyService:
             timezone=journey.timezone,
         )
 
-    def _respond_learner_texts(self, journey: DailyJourney) -> list[str]:
-        """Everything the learner actually said in the respond step, in order."""
+    def _respond_learner_texts(self, journey: DailyJourney, *, act: int = 1) -> list[str]:
+        """Everything the learner actually said in the respond step (of the act
+        ``act``), in order."""
 
         respond = next(
             (
                 step
                 for step in journey.steps
-                if StepKind(step.kind) is StepKind.RESPOND
+                if StepKind(step.kind) is StepKind.RESPOND and step_act(step) == act
             ),
             None,
         )
@@ -5774,8 +5865,10 @@ class DailyJourneyService:
         task: ResponseTask,
         *,
         proposal: StoryOutcomeProposal | None,
+        act: int = 1,
     ) -> None:
-        """Render the ending that was actually earned.
+        """Render the ending that was actually earned — the ending of the act
+        ``act`` on a day of acts (Phase 2), the day's one ending otherwise.
 
         Integration-owner rule (2026-09-05): WP-04 bakes an optimistic default
         into the plan — for ``arrange_meeting`` that is
@@ -5796,7 +5889,7 @@ class DailyJourneyService:
             (
                 step
                 for step in journey.steps
-                if StepKind(step.kind) is StepKind.RESOLUTION
+                if StepKind(step.kind) is StepKind.RESOLUTION and step_act(step) == act
             ),
             None,
         )
@@ -5838,7 +5931,7 @@ class DailyJourneyService:
 
         prompt = dict(resolution.public_prompt or {})
         prompt["outcome_key"] = outcome_key
-        learner_texts = self._respond_learner_texts(journey)
+        learner_texts = self._respond_learner_texts(journey, act=act)
         line = self._rendered_ending(
             self.adapters.conversation.resolution_line,
             brief,
@@ -5950,38 +6043,32 @@ class DailyJourneyService:
     def _settle_resolution_if_unsettled(
         self, user: User, journey: DailyJourney
     ) -> None:
-        """Neutral ending for a journey that never produced a consequence."""
+        """Neutral ending for a journey that never produced a consequence — for
+        each act's ending, on a day of acts (Phase 2)."""
 
-        resolution = next(
-            (
-                step
-                for step in journey.steps
-                if StepKind(step.kind) is StepKind.RESOLUTION
-            ),
-            None,
-        )
-        if resolution is None or (resolution.private_task or {}).get(
-            "resolution_settled"
-        ):
-            return
-        respond = next(
-            (
-                step
-                for step in journey.steps
-                if StepKind(step.kind) is StepKind.RESPOND
-            ),
-            None,
-        )
-        if respond is None:
-            return
-        try:
-            brief = self._pinned_brief(journey)
-            task = _response_task_from_json(
-                dict(respond.private_task or {})["response_task"]
+        steps = sorted(journey.steps, key=lambda item: item.ordinal)
+        for resolution in [step for step in steps if StepKind(step.kind) is StepKind.RESOLUTION]:
+            if (resolution.private_task or {}).get("resolution_settled"):
+                continue
+            act = step_act(resolution)
+            respond = next(
+                (
+                    step
+                    for step in steps
+                    if StepKind(step.kind) is StepKind.RESPOND and step_act(step) == act
+                ),
+                None,
             )
-        except (HTTPException, KeyError):  # pragma: no cover - defensive
-            return
-        self._settle_resolution(user, journey, brief, task, proposal=None)
+            if respond is None:
+                continue
+            try:
+                brief = self._pinned_brief(journey, act=act)
+                task = _response_task_from_json(
+                    dict(respond.private_task or {})["response_task"]
+                )
+            except (HTTPException, KeyError):  # pragma: no cover - defensive
+                continue
+            self._settle_resolution(user, journey, brief, task, proposal=None, act=act)
 
     def _store_step_result(
         self, step: DailyJourneyStep, evaluation: Any, assistance: AssistanceLevel
@@ -6049,15 +6136,30 @@ class DailyJourneyService:
             return "none"
         return source if source in {"authored", "model", "none"} else "none"
 
-    def _pinned_brief(self, journey: DailyJourney) -> ScenarioBrief:
+    def _pinned_brief(self, journey: DailyJourney, *, act: int = 1) -> ScenarioBrief:
         """The brief this journey was planned with, never a fresher one.
 
         The whole brief is persisted with the scene step, so a content bump or a
         learner level change cannot swap the variant mid-journey. If that
         snapshot is ever missing, fall back to WP-03's pinned lookup using the
         stored ``content_version`` and ``level_band`` — still not the latest.
+
+        Phase 2: a later act's brief (``act`` 2 or 3) is its own scene step's
+        ``act_brief``, as published that morning (``living_story.bind_act``).
         """
 
+        if act > 1:
+            for step in sorted(journey.steps, key=lambda item: item.ordinal):
+                payload = (step.private_task or {}).get("act_brief")
+                if payload and step_act(step) == act:
+                    return _brief_from_json(payload)
+            raise journey_error(
+                http_status.HTTP_409_CONFLICT,
+                JourneyErrorCode.JOURNEY_NOT_ACTIVE,
+                "This act has no pinned content.",
+                current_revision=journey.revision,
+                refresh_href=refresh_href_for(journey.id),
+            )
         for step in journey.steps:
             payload = (step.private_task or {}).get("scenario_brief")
             if payload:
@@ -6207,10 +6309,13 @@ class DailyJourneyService:
                             target=observation["target"],
                             reason_native="Not yet — this one comes back tomorrow.",
                         )
-            if StepKind(step.kind) is StepKind.RESPOND and result:
+            # Phase 2: the day's objective and its story outcome are its first act's.
+            if StepKind(step.kind) is StepKind.RESPOND and result and step_act(step) == 1:
                 objective_outcome = TaskOutcome(result["outcome"])
-            if StepKind(step.kind) is StepKind.RESOLUTION and private.get(
-                "story_outcome"
+            if (
+                StepKind(step.kind) is StepKind.RESOLUTION
+                and private.get("story_outcome")
+                and step_act(step) == 1
             ):
                 story_outcome = StoryOutcome.model_validate(private["story_outcome"])
 
@@ -6242,7 +6347,7 @@ class DailyJourneyService:
 
         can_do_result: dict[str, Any] = {}
         for step in journey.steps:
-            if StepKind(step.kind) is StepKind.RESPOND:
+            if StepKind(step.kind) is StepKind.RESPOND and step_act(step) == 1:
                 value = (step.private_task or {}).get("can_do")
                 if isinstance(value, dict):
                     can_do_result = value

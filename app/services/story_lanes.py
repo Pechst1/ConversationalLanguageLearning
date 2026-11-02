@@ -79,6 +79,7 @@ from app.services.journey_contracts import (
     TargetObservation,
     TaskOutcome,
     normalize_control_language,
+    step_act,
 )
 from app.services.met_gate import DOWNGRADED, met_gate
 from app.services.season import agency
@@ -1588,19 +1589,28 @@ def discard_pending(db: Session) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _lock_resolution(db: Session, user_id, journey_id):
-    """User row first, then the resolution step — the order every settler takes."""
+def _lock_resolution(db: Session, user_id, journey_id, *, job_id: str | None = None, step_id=None):
+    """User row first, then the journey's resolution steps — the order every settler
+    takes. Returns the one a lane settles: the step ``step_id``, or the one whose lane is
+    the job ``job_id`` (Phase 2: a day of acts has one ending per act); with neither,
+    the day's first."""
 
     from app.db.models.daily_journey import DailyJourneyStep
     from app.db.models.user import User
 
     db.execute(select(User.id).where(User.id == user_id).with_for_update())
-    return db.scalars(
+    rows = db.scalars(
         select(DailyJourneyStep)
         .where(DailyJourneyStep.journey_id == journey_id, DailyJourneyStep.kind == "resolution")
+        .order_by(DailyJourneyStep.ordinal)
         .with_for_update()
         .execution_options(populate_existing=True)
-    ).first()
+    ).all()
+    if step_id is not None:
+        return next((row for row in rows if str(row.id) == str(step_id)), None)
+    if job_id is not None:
+        return next((row for row in rows if lane_of(row).get("job_id") == job_id), None)
+    return rows[0] if rows else None
 
 
 def _lanes_of(lane: dict) -> tuple[TutorVerdict, VoiceReply]:
@@ -1677,7 +1687,7 @@ def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reaso
 
     from app.services.pilot_events import PilotEventService
 
-    locked = _lock_resolution(db, user.id, journey.id)
+    locked = _lock_resolution(db, user.id, journey.id, step_id=resolution.id)
     if locked is not None:
         resolution = locked
     if not lane_open(resolution):
@@ -1699,18 +1709,24 @@ def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reaso
     return turn
 
 
-def _journey_parts(db: Session, journey):
-    """The pinned brief, the response task and the respond step, as stored."""
+def _journey_parts(db: Session, journey, *, act: int = 1):
+    """The pinned brief, the response task and the respond step of the day's act ``act``
+    (Phase 2; a one-act day is act 1), as stored."""
 
     from app.services.daily_journey import _brief_from_json, _response_task_from_json
 
     steps = sorted(journey.steps, key=lambda s: s.ordinal)
+    # A later act's brief is its scene step's ``act_brief``; the first act's is the day's.
+    key = "scenario_brief" if act == 1 else "act_brief"
     brief_json = next(
-        ((s.private_task or {}).get("scenario_brief") for s in steps
-         if (s.private_task or {}).get("scenario_brief")),
+        ((s.private_task or {}).get(key) for s in steps
+         if (s.private_task or {}).get(key) and step_act(s) == act),
         None,
     )
-    respond = [s for s in steps if s.kind == "respond" and (s.private_task or {}).get("turns")]
+    respond = [
+        s for s in steps
+        if s.kind == "respond" and step_act(s) == act and (s.private_task or {}).get("turns")
+    ]
     if not brief_json or not respond:
         raise engine.StoryUnavailable("story_scene_not_found")
     step = respond[-1]
@@ -1733,22 +1749,28 @@ def _stale(lane: dict, now: datetime) -> bool:
 
 
 def heal_stale_lane(db: Session, user, journey) -> bool:
-    """The polling read's repair (no paid call): a dead lane gets the authored ending."""
+    """The polling read's repair (no paid call): a dead lane gets the authored ending —
+    each act's, on a day of acts."""
 
-    resolution = next((s for s in journey.steps if s.kind == "resolution"), None)
-    if resolution is None or not lane_open(resolution) or not _stale(lane_of(resolution), _now()):
-        return False
-    try:
-        brief, _task, _step = _journey_parts(db, journey)
-        settle_with_fallback(db, user=user, journey=journey, brief=brief, resolution=resolution,
-                             reason="story_lane_stale")
-        db.commit()
-    except Exception:  # pragma: no cover - a read must never 500 on a repair
-        logger.exception("story_lanes: could not heal lane of journey %s", journey.id)
-        db.rollback()
-        return False
-    db.refresh(resolution)
-    return True
+    now = _now()
+    stale = [
+        s for s in sorted(journey.steps, key=lambda s: s.ordinal)
+        if s.kind == "resolution" and lane_open(s) and _stale(lane_of(s), now)
+    ]
+    healed = False
+    for resolution in stale:
+        try:
+            brief, _task, _step = _journey_parts(db, journey, act=step_act(resolution))
+            settle_with_fallback(db, user=user, journey=journey, brief=brief, resolution=resolution,
+                                 reason="story_lane_stale")
+            db.commit()
+        except Exception:  # pragma: no cover - a read must never 500 on a repair
+            logger.exception("story_lanes: could not heal lane of journey %s", journey.id)
+            db.rollback()
+            return healed
+        db.refresh(resolution)
+        healed = True
+    return healed
 
 
 # ---------------------------------------------------------------------------
@@ -1764,7 +1786,7 @@ def _load(db: Session, job: StoryJob):
 
 
 def _claim(db: Session, job: StoryJob) -> bool:
-    resolution = _lock_resolution(db, UUID(job.user_id), UUID(job.journey_id))
+    resolution = _lock_resolution(db, UUID(job.user_id), UUID(job.journey_id), job_id=job.job_id)
     lane = lane_of(resolution) if resolution is not None else {}
     if lane.get("status") != "pending" or lane.get("job_id") != job.job_id:
         db.rollback()
@@ -1789,9 +1811,11 @@ def run_story_job(job: StoryJob, *, session_factory=None) -> str:
         if not _claim(db, job):
             return "skipped"
         user, journey = _load(db, job)
-        resolution = next(s for s in journey.steps if s.kind == "resolution")
+        resolution = next(
+            s for s in journey.steps if s.kind == "resolution" and lane_of(s).get("job_id") == job.job_id
+        )
         lane = lane_of(resolution)
-        brief, task, respond = _journey_parts(db, journey)
+        brief, task, respond = _journey_parts(db, journey, act=step_act(resolution))
         turns = list((respond.private_task or {}).get("turns") or [])
         shown = str(turns[-1].get("character") or "") if turns else ""
         answer = AttemptAnswer(
@@ -1865,7 +1889,7 @@ def _finish_job(db: Session, job: StoryJob, result: StoryLaneResult, payload: di
     from app.services.pilot_events import PilotEventService
 
     try:
-        resolution = _lock_resolution(db, UUID(job.user_id), UUID(job.journey_id))
+        resolution = _lock_resolution(db, UUID(job.user_id), UUID(job.journey_id), job_id=job.job_id)
         user, journey = _load(db, job)
         lane = lane_of(resolution) if resolution is not None else {}
         usage = list(result.usage)
@@ -1882,7 +1906,7 @@ def _finish_job(db: Session, job: StoryJob, result: StoryLaneResult, payload: di
             logger.warning("story_lanes: reply_refused_after_release: %s", issue)
             events.record("reply_refused_after_release", user_id=user.id, entity_type="living_story",
                           entity_id=str(journey.id), payload={"issue": issue[:300]}, cost_usd=0.0)
-        brief, _task, respond = _journey_parts(db, journey)
+        brief, _task, respond = _journey_parts(db, journey, act=step_act(resolution))
         if result.correction is not None and result.tutor is not None:
             _correct_learning_record(db, user=user, journey=journey, resolution=resolution,
                                      respond=respond, correction=result.correction, tutor=result.tutor)
