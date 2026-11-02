@@ -63,6 +63,7 @@ from app.services.forge_grading import (
     drop_false_english,
     fold_typography,
     free_use_acceptable,
+    held_to_sentence,
     mark_given,
     notes_native,
     production_local_check,
@@ -5300,6 +5301,8 @@ class AtelierCorrectionService:
                 learner_text=self._answer_text(attempt.answer_payload or {}),
                 accepted=_accepted_answers(attempt.prompt_payload or {}),
                 accents=_free_answer_accents(concept, attempt.prompt_payload or {}),
+                mode=attempt.mode,
+                answers=(attempt.answer_payload or {}).get("answers"),
             )
             if attempt.round in FREE_PRODUCTION_ROUNDS and final.get("lexical_gaps"):
                 final = self._ingest_lexical_gaps(user=user, session=session, correction=final)
@@ -5402,13 +5405,17 @@ class AtelierCorrectionService:
         learner_text: str | None = None,
         accepted: list[str] | None = None,
         accents: str = "lenient",
+        mode: str | None = None,
+        answers: Any = None,
     ) -> dict[str, Any]:
         """The stored correction once the model's reading lands (see run_ai_review_for_attempt).
 
         WP-103 T9/T10, free production: the model's reading is held to the key
         (:func:`refine_production_correction`, with the item's ``accents`` policy),
         and a «Right» already shown is never reversed — the model's corrections of
-        it become style notes.
+        it become style notes. A keyed rung's sentence the learner wrote or built
+        (transform, word_bank) has the model's errata held to it the same way
+        (:meth:`_held_to_items`, #174).
         """
 
         ai_passes = _verdict_passes(ai.get("verdict")) and not [
@@ -5444,7 +5451,18 @@ class AtelierCorrectionService:
             final = dict(local)
             final.pop("memory_updates", None)
             if not ai_passes and not local_passes and ai.get("errata"):
-                final["errata"] = list(ai.get("errata") or [])
+                errata = list(ai.get("errata") or [])
+                if round_name == "transform" or (round_name == "recognize" and mode == "word_bank"):
+                    errata, dropped = self._held_to_items(
+                        errata, list(local.get("errata") or []), answers, learner_text
+                    )
+                    if dropped:
+                        final["dropped_errata"] = [
+                            {"learner_text": item.get("learner_text"), "reason": "not_in_sentence"}
+                            for item in dropped
+                        ]
+                if errata:
+                    final["errata"] = errata
             elif ai_passes != local_passes:
                 final["relecture_disagreed"] = {"verdict": ai.get("verdict"), "score_0_4": ai.get("score_0_4")}
         for carried_key in self._CARRIED_CORRECTION_KEYS:
@@ -5452,6 +5470,56 @@ class AtelierCorrectionService:
                 final[carried_key] = local[carried_key]
         final["notes_native"] = notes_native(final.get("errata"), extra=final.get("feedback_notes_native") or ())
         return final
+
+    def _held_to_items(
+        self,
+        errata: list[dict[str, Any]],
+        key_errata: list[dict[str, Any]],
+        answers: Any,
+        learner_text: str | None,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """``(shown, dropped)``: a keyed rung's relecture errata, each held to its own
+        item's answer by the one checker every correction passes (#250,
+        :func:`held_to_sentence`), as free production's already are (#174): a fix
+        the sentence does not bear out («Tu es» → «Tu est») is never printed.
+
+        An item with any erratum the checker drops shows the key's own errata
+        instead of the model's, so a wrong answer never loses a fix it needs: a
+        rung that asks for «vous» has «mange → mangez, with vous» dropped (no «vous»
+        in «Tu mange»), and the key's «Vous mangez» still says it. ``shown`` is
+        empty when no item keeps the model's errata (the key's stay whole)."""
+
+        answer_map = answers if isinstance(answers, dict) else {}
+
+        def answer_of(item_id: str) -> str:
+            value = answer_map.get(item_id) if item_id else None
+            if value is None:
+                return str(learner_text or "")
+            return _join_french_tokens(value) if isinstance(value, list) else str(value)
+
+        checked: list[tuple[str, list[dict[str, Any]]]] = []
+        dropped: list[dict[str, Any]] = []
+        failed: set[str] = set()
+        for erratum in errata:
+            item_id = str(erratum.get("item_id") or "")
+            shown, unproven = held_to_sentence([erratum], answer_of(item_id), self.explanation_language)
+            checked.append((item_id, shown))
+            if unproven:
+                dropped.extend(unproven)
+                failed.add(item_id)
+        if all(item_id in failed for item_id, _ in checked):
+            return [], dropped
+        out: list[dict[str, Any]] = []
+        restored: set[str] = set()
+        for item_id, shown in checked:
+            if item_id not in failed:
+                out.extend(shown)
+            elif item_id not in restored:
+                restored.add(item_id)
+                out.extend(
+                    item for item in key_errata if isinstance(item, dict) and str(item.get("item_id") or "") == item_id
+                )
+        return out, dropped
 
     def _attach_world_reply(self, attempt: AtelierAttempt, *, user: User) -> None:
         """The conversation rung's in-character reply, once the turn is accepted.
