@@ -20,6 +20,13 @@ from app.core import forge as core
 from app.core.forge import Rung
 
 
+def _level_is(actual: object, expected: object, what: str) -> None:
+    """One-line failure text, so the red/green proof can read what failed."""
+
+    if int(actual) != int(expected):  # type: ignore[call-overload]
+        raise AssertionError(f"{what}: level {int(actual)} instead of {int(expected)}")
+
+
 def _climbed_on_an_unread_sentence() -> tuple[core.ForgeState, dict]:
     state = core.ForgeState.seance([core.ForgeUnit(1, core.Role.TODAY.value, int(Rung.PRODUCE))], length=8)
     state.record(
@@ -39,11 +46,11 @@ def test_a_read_warm_up_does_not_make_the_unread_climb_permanent() -> None:
     assert state.track(1).rung == Rung.FREE_USE
 
     # While the sentence is still unread the end sheet already shows the level without its climb.
-    assert state.level_read(1) == Rung.PRODUCE
+    _level_is(state.level_read(1), Rung.PRODUCE, "the end sheet's level while the sentence is unread")
 
     # Nobody ever reads the sentence: the climb goes back.
-    assert state.settle(first, core.Verdict(core.OUTCOME_INCORRECT, checked=False)) == Rung.PRODUCE
-    assert state.track(1).rung == Rung.PRODUCE
+    _level_is(state.settle(first, core.Verdict(core.OUTCOME_INCORRECT, checked=False)), Rung.PRODUCE, "settled level")
+    _level_is(state.track(1).rung, Rung.PRODUCE, "the rule's level after the sentence was never read")
     assert state.track(1).topped is False
 
 
@@ -102,6 +109,6 @@ def test_unread_free_text_answer_then_warm_up_leaves_the_stored_level_unchanged(
         .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == concept.id)
         .one()
     )
-    assert forge_state_of(session).track(concept.id).rung == int(Rung.PRODUCE), "the séance's level"
-    assert progress.forge_rung == int(Rung.PRODUCE), "the stored level, which the mastery-test offer reads"
-    assert failed.correction_payload["forge"]["new_rung"] == int(Rung.PRODUCE), "the level the learner is shown"
+    _level_is(forge_state_of(session).track(concept.id).rung, Rung.PRODUCE, "the séance's level")
+    _level_is(progress.forge_rung, Rung.PRODUCE, "the stored level, which the mastery-test offer reads")
+    _level_is(failed.correction_payload["forge"]["new_rung"], Rung.PRODUCE, "the level the learner is shown")
