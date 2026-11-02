@@ -182,6 +182,10 @@ class SessionInputs:
     #: How many cards the day's deck was dealt with, the ones already answered
     #: included (:func:`dealt_deck`). ``None`` before any deck was dealt today.
     dealt: int | None = None
+    #: Phase 2 «Folge in Akten»: the acts today's journey opened, and the story's
+    #: words it read or heard (``story_reading.day_reading``).
+    acts: int = 0
+    story_words: int = 0
 
 
 def review_room(new_words: int, *, reviews_left: int | None = None, deck_limit: int = DAY_DECK_LIMIT) -> int:
@@ -273,6 +277,8 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
             "scenes": 1 if inputs.scene_done else 0,
             "words": words_done_count if words_done else words_met,
             "exercises": max(0, inputs.exercises_today),
+            "acts": max(0, inputs.acts),
+            "story_words": max(0, inputs.story_words),
         },
         "more_words": MORE_WORDS,
         "more_minutes": minutes(words_seconds(MORE_WORDS, 0)),
@@ -502,12 +508,14 @@ def build_session(
 ) -> dict[str, Any]:
     from app.services.day_words import ensure_plan
     from app.services.forge_picker import forge_budget_seconds
+    from app.services.story_reading import safe_day_reading
     from app.services.vocabulary_pace import daily_quota, introduced_today
 
     now = now or datetime.now(UTC)
     # #396: the day's words are picked once, at the first read of the day; the
     # word step, the deck and the Done screen all count that plan.
     ensure_plan(db, user, now=now)
+    story = safe_day_reading(journey)
     return session_view(
         SessionInputs(
             pace=pace_of(user),
@@ -524,6 +532,8 @@ def build_session(
             words_reviewed_today=words_reviewed_today(db, user, now=now),
             deck=_day_deck_or_none(db, user, reviews_due=reviews_due, now=now),
             dealt=_dealt_deck_or_none(db, user, now=now),
+            acts=story.acts,
+            story_words=story.words,
         )
     )
 

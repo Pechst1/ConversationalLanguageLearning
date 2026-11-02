@@ -54,8 +54,12 @@ type Copy = {
   months: (n: string) => string;
   finish_title: string;
   tally_scene: string;
+  /** Phase 2 «Folge in Akten»: the first tile on a day that played more than one act. */
+  tally_acts: string;
   tally_words: string;
   tally_exercises: string;
+  /** The story's words read or heard today («1.030 Wörter Geschichte gelesen»). */
+  story_read: (n: string) => string;
   back_home: string;
   scene_done: string;
   words_done: string;
@@ -92,8 +96,10 @@ const DE: Copy = {
   months: (n) => `≈ ${n} Monaten`,
   finish_title: 'Fertig für heute',
   tally_scene: 'Szene',
+  tally_acts: 'Akte',
   tally_words: 'Wörter',
   tally_exercises: 'Übungen',
+  story_read: (n) => `${n} Wörter Geschichte gelesen`,
   back_home: 'Zurück zu La Une',
   scene_done: 'Szene geschafft',
   words_done: 'Wörter geschafft',
@@ -130,8 +136,10 @@ const FR: Copy = {
   months: (n) => `≈ ${n} mois`,
   finish_title: 'Fini pour aujourd’hui',
   tally_scene: 'Scène',
+  tally_acts: 'Actes',
   tally_words: 'Mots',
   tally_exercises: 'Exercices',
+  story_read: (n) => `${n} mots d’histoire lus`,
   back_home: 'Retour à La Une',
   scene_done: 'Scène terminée',
   words_done: 'Mots terminés',
@@ -168,8 +176,10 @@ const EN: Copy = {
   months: (n) => `≈ ${n} months`,
   finish_title: 'Done for today',
   tally_scene: 'Scene',
+  tally_acts: 'Acts',
   tally_words: 'Words',
   tally_exercises: 'Exercises',
+  story_read: (n) => `${n} words of story read`,
   back_home: 'Back to La Une',
   scene_done: 'Scene done',
   words_done: 'Words done',
@@ -246,6 +256,30 @@ export function sessionRows(
       step.state === 'done' ? '' : step.kind === 'words' ? wordsMeta(step, copy) : step.minutes > 0 ? copy.minutes(step.minutes) : '';
     return { kind: step.kind, state: step.state, label, meta, shape: SESSION_SHAPE[step.kind] };
   });
+}
+
+const LOCALE: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
+
+/**
+ * The Fertig screen's first tile: the day's scene, or — on a day that played more
+ * than one act (Phase 2 «Folge in Akten») — its acts («2 Akte»).
+ */
+export function tallyStory(tally: DaySession['tally'], language: ControlLanguage): { n: number; label: string } {
+  const copy = daySessionCopy(language);
+  const acts = Number(tally.acts || 0);
+  return acts > 1 ? { n: acts, label: copy.tally_acts } : { n: Number(tally.scenes || 0), label: copy.tally_scene };
+}
+
+/**
+ * The phase's number under the tally: the words of the story the day read or heard,
+ * each opened act's page, its character's lines and its ending (the server's
+ * `story_reading`). `null` on a day that read none.
+ */
+export function storyReadLine(tally: DaySession['tally'], language: ControlLanguage): string | null {
+  const words = Number(tally.story_words || 0);
+  if (!(words > 0)) return null;
+  const formatted = new Intl.NumberFormat(LOCALE[language] ?? 'en-GB').format(words);
+  return daySessionCopy(language).story_read(formatted);
 }
 
 export function sessionStep(session: DaySession | null | undefined, kind: DaySessionStepKind): DaySessionStep | null {

@@ -2277,6 +2277,19 @@ def page_texts(panels: list[dict[str, Any]]) -> list[str]:
     return texts
 
 
+def scene_texts(scenario: ScenarioBrief) -> list[str]:
+    """Every French text the scene puts before the learner: its page
+    (``page_texts``), then the opening line when the page does not print it. A
+    page-less brief (legacy content) shows the opening line alone. Phase 2: the
+    words a day reads of its story are counted from these (``story_reading``)."""
+
+    texts = page_texts(scene_page(scenario))
+    opening = " ".join(str(scenario.opening_line_fr or "").split())
+    if opening and not any(_fold(opening) in _fold(text) for text in texts):
+        texts.append(opening)
+    return texts
+
+
 def page_seconds(
     texts: list[str], *, panels: int, spt: float, multiplier: float, audio: bool,
     band: str | None = None,
@@ -2321,10 +2334,7 @@ def scene_seconds(
     if not panels:
         reading += _reading_seconds(spt, scenario.opening_line_fr)
         return max(1, round(SCENE_BASE_SECONDS * multiplier + reading))
-    texts = page_texts(panels)
-    opening = " ".join(str(scenario.opening_line_fr or "").split())
-    if opening and not any(_fold(opening) in _fold(text) for text in texts):
-        texts.append(opening)
+    texts = scene_texts(scenario)
     page = page_seconds(
         texts, panels=len(panels), spt=spt, multiplier=multiplier, audio=audio, band=band
     )

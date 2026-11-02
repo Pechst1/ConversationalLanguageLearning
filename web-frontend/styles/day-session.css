@@ -56,6 +56,8 @@
 .av2 .av2-tally__item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border-radius: var(--av2-r-tile); background: var(--av2-card); }
 .av2 .av2-tally__n { font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: 2rem; line-height: 1; }
 .av2 .av2-tally__l { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+/* Phase 2 «Folge in Akten»: the story's words read, under the tally. */
+.av2 .av2-tally__story { margin: 0; text-align: center; color: var(--av2-muted); }
 .av2 .av2-fertig { min-height: 100dvh; display: flex; flex-direction: column; }
 .av2 .av2-fertig__body { flex: 1; display: flex; flex-direction: column; gap: 18px; padding: 24px var(--av2-gutter, 20px) 28px; }
 .av2 .av2-fertig__spacer { flex: 1; }

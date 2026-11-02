@@ -1106,6 +1106,8 @@ export interface WeeklyDossierStats {
   words_produced: number;
   missions_completed: number;
   feuilleton_scenes_completed: number;
+  /** Phase 2 «Folge in Akten»: the story's words read or heard in the period. */
+  story_words_read?: number;
 }
 
 export interface WeeklyDossierThread {

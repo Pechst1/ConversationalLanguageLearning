@@ -160,3 +160,21 @@ test('#396 · the day chip counts today only once the day is done, not at the fi
   assert.deepEqual(ds.homeDayChip(20, true, null), { streak: 20, dayDone: true });
   assert.deepEqual(ds.homeDayChip(19, false, undefined), { streak: 19, dayDone: false });
 });
+
+test('Phase 2 · Fertig says «2 Akte» on a day of acts, and the scene on a day of one', () => {
+  assert.deepEqual(ds.tallyStory({ scenes: 1, words: 20, exercises: 12, acts: 2, story_words: 640 }, 'de'), { n: 2, label: 'Akte' });
+  assert.deepEqual(ds.tallyStory({ scenes: 1, words: 20, exercises: 12, acts: 3, story_words: 1030 }, 'fr'), { n: 3, label: 'Actes' });
+  assert.deepEqual(ds.tallyStory({ scenes: 1, words: 20, exercises: 12, acts: 1, story_words: 290 }, 'en'), { n: 1, label: 'Scene' });
+  // An older server sends no acts: the tile is the scene, as it always was.
+  assert.deepEqual(ds.tallyStory({ scenes: 1, words: 20, exercises: 12 }, 'de'), { n: 1, label: 'Szene' });
+});
+
+test('Phase 2 · under the tally, the story’s words read, in the learner’s own number format', () => {
+  assert.equal(ds.storyReadLine({ scenes: 1, words: 20, exercises: 12, acts: 3, story_words: 1030 }, 'de'), '1.030 Wörter Geschichte gelesen');
+  assert.equal(ds.storyReadLine({ scenes: 1, words: 20, exercises: 12, acts: 3, story_words: 1030 }, 'en'), '1,030 words of story read');
+  assert.match(ds.storyReadLine({ scenes: 1, words: 20, exercises: 12, acts: 3, story_words: 1030 }, 'fr'), /^1\s030 mots d’histoire lus$/u);
+  assert.equal(ds.storyReadLine({ scenes: 1, words: 20, exercises: 12, acts: 1, story_words: 290 }, 'de'), '290 Wörter Geschichte gelesen');
+  // A day that read none of the story, or an older server, prints no line.
+  assert.equal(ds.storyReadLine({ scenes: 0, words: 20, exercises: 12, acts: 0, story_words: 0 }, 'de'), null);
+  assert.equal(ds.storyReadLine({ scenes: 1, words: 20, exercises: 12 }, 'de'), null);
+});

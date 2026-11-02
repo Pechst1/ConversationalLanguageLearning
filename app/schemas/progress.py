@@ -498,6 +498,10 @@ class WeeklyDossierStats(BaseModel):
     words_produced: int = 0
     missions_completed: int = 0
     feuilleton_scenes_completed: int = 0
+    #: Phase 2 «Folge in Akten»: the story's words read or heard in the period —
+    #: every opened act's page, its character's lines and its ending
+    #: (``story_reading.period_reading``).
+    story_words_read: int = 0
 
 
 class WeeklyDossierThread(BaseModel):
