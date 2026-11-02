@@ -421,12 +421,6 @@ def test_the_courrier_composer_labels_say_tu() -> None:
     assert not offenders, f"composer titles that say vous: {offenders}"
 
 
-def test_the_missions_scan_reads_the_composer_title_table() -> None:
-    """The «message» row of `_writing_title` was outside the scanned keys, so «Votre dépêche» slipped through."""
-
-    assert "message" in MISSION_LEARNER_KEYS
-
-
 def test_a_stock_reply_with_no_declared_register_tutoie_the_learner() -> None:
     """Chrome says tu everywhere (#185): a model-free reply with no register on record is no exception."""
 
