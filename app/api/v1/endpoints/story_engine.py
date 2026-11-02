@@ -115,6 +115,21 @@ def public_grammar_focus(scene) -> dict | None:
     }
 
 
+def scene_act(scene) -> tuple[int, str | None]:
+    """Phase 2 «Folge in Akten»: a page's act on its day and the act's role — ``(1,
+    None)`` for every page of a one-act day (``living_story.bind_act`` stamps the rest)."""
+
+    act = (scene.source_snapshot or {}).get("act")
+    if not isinstance(act, dict):
+        return 1, None
+    try:
+        number = max(1, int(act.get("number") or 1))
+    except (TypeError, ValueError):
+        number = 1
+    role = act.get("role")
+    return number, str(role) if role else None
+
+
 def public_scene(scene, names: dict[str, str] | None = None):
     source = scene.source_snapshot or {}
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
@@ -145,6 +160,7 @@ def public_scene(scene, names: dict[str, str] | None = None):
     ]
     from app.services.story_page import episode_page
 
+    act, act_role = scene_act(scene)
     return {
         "id": str(scene.id),
         "scene_id": str(scene.id),
@@ -158,6 +174,8 @@ def public_scene(scene, names: dict[str, str] | None = None):
         # WP-92: the form this page shows («Rayons X» marks it in the lines).
         "grammar_focus": public_grammar_focus(scene),
         "panels": public_panels,
+        "act": act,
+        "act_role": act_role,
         # WP-110: the finished day as one page, the learner's lines in it.
         "page": episode_page(scene, public_panels, names),
         "resolution": {
@@ -206,10 +224,15 @@ def episodes(
     )
     from app.services.panel_art import heal_stale_rendering
 
-    heal_stale_rendering(db, rows[:20])
-    names = cast_names(db, rows[:20])
+    page = rows[:20]
+    if journey_id:
+        # Phase 2: a day's pages in play order, its first act first (a stable sort: the
+        # newest first within an act, as before).
+        page = sorted(page, key=lambda scene: scene_act(scene)[0])
+    heal_stale_rendering(db, page)
+    names = cast_names(db, page)
     return {
-        "episodes": [public_scene(scene, names) for scene in rows[:20]],
+        "episodes": [public_scene(scene, names) for scene in page],
         "next_cursor": str(rows[19].id) if len(rows) > 20 else None,
     }
 

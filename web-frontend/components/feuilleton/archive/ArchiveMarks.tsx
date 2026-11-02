@@ -177,11 +177,14 @@ export function Precedemment({
   lines,
   premise = null,
   reread = null,
+  act = null,
   language = null,
   onRead,
   journeyId = null,
 }: {
   lines: string[];
+  /** Phase 2 «Folge in Akten»: the title card before act 2 and act 3 («Acte 2 · Plus tard»). */
+  act?: { act: number; heading: string; title: string | null } | null;
   /** Walk #77: who the learner is and what is at stake, in their language. */
   premise?: string | null;
   /** #314: a re-read day's one sentence («Today we read it again, then you answer»). */
@@ -200,6 +203,12 @@ export function Precedemment({
   );
   return (
     <section className="fa-previously" aria-label={t.previously_aria} data-precedemment="">
+      {act && (
+        <header className="fa-previously__act" data-act-card={act.act} lang="fr">
+          <p className="av2-label">{act.heading}</p>
+          {act.title && <p className="av2-fr av2-body fa-previously__premise">{act.title}</p>}
+        </header>
+      )}
       {reread && (
         <>
           <p className="av2-label">{t.reread}</p>

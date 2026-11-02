@@ -423,6 +423,90 @@ export function stepReadsStoryEpisode(kind: string | null | undefined): boolean 
   return kind === 'scene' || kind === 'resolution';
 }
 
+type ActStep = { id: string; kind: string; act?: number | null };
+
+function actOf(step: { act?: number | null } | null | undefined): number {
+  const act = step?.act;
+  return typeof act === 'number' && Number.isFinite(act) && act >= 1 ? Math.floor(act) : 1;
+}
+
+/**
+ * Phase 2 «Folge in Akten»: the act whose page the day is on — the current
+ * step's when it is a scene, a reply or an ending, else the last of those
+ * before it (the act just played), else 1. A day of one act is always on act 1.
+ */
+export function storyActOf(
+  journey: { current_step_id?: string | null; steps?: ActStep[] | null } | null | undefined,
+): number {
+  let act = 1;
+  for (const step of journey?.steps ?? []) {
+    if (step && (step.kind === 'scene' || step.kind === 'respond' || step.kind === 'resolution')) {
+      act = actOf(step);
+    }
+    if (journey?.current_step_id && step?.id === journey.current_step_id) break;
+  }
+  return act;
+}
+
+/** Phase 2: how many acts the day plays — 1 on a day of one act. */
+export function journeyActCount(journey: { steps?: ActStep[] | null } | null | undefined): number {
+  let count = 1;
+  for (const step of journey?.steps ?? []) {
+    if (step?.kind === 'scene') count = Math.max(count, actOf(step));
+  }
+  return count;
+}
+
+/**
+ * Phase 2: Home's line while the day waits in act 2 or act 3 («Acte 2 t'attend»):
+ * the current step is that act's scene, reply or ending. `null` otherwise.
+ */
+export function openActLine(
+  journey: { current_step_id?: string | null; steps?: ActStep[] | null } | null | undefined,
+): string | null {
+  const current = (journey?.steps ?? []).find((step) => step?.id === journey?.current_step_id);
+  if (!current || !(current.kind === 'scene' || current.kind === 'respond' || current.kind === 'resolution')) {
+    return null;
+  }
+  const act = actOf(current);
+  return act > 1 ? `Acte ${act} t’attend` : null;
+}
+
+/** What the card before an act after the first says: «Acte 2 · Plus tard», then the page's title. */
+export type ActTitleCard = { act: number; heading: string; title: string | null };
+
+const ACT_MOMENTS: Record<string, string> = {
+  // «Le soir»: the same evening, later. «À côté»: somewhere else, meanwhile.
+  soir: 'Plus tard',
+  cote: 'Pendant ce temps',
+};
+
+/**
+ * Phase 2: the title card before act 2 and act 3 («Acte 2 · Plus tard», the
+ * page's title under it), in the place the reader keeps before the first panel.
+ * None for act 1, and none once the learner has read on.
+ */
+export function actTitleCard({
+  act,
+  role = null,
+  title = null,
+  dismissed = false,
+}: {
+  act: number;
+  role?: string | null;
+  title?: string | null;
+  dismissed?: boolean;
+}): ActTitleCard | null {
+  if (dismissed || !(act > 1)) return null;
+  const moment = role ? ACT_MOMENTS[role] : undefined;
+  const clean = (title ?? '').trim();
+  return {
+    act,
+    heading: moment ? `Acte ${act} · ${moment}` : `Acte ${act}`,
+    title: clean || null,
+  };
+}
+
 /** The saved server position, clamped to the panels the episode actually has. */
 export function storyStartIndex(episode: StoryEpisode | null | undefined, stageCount: number): number {
   if (!episode || stageCount <= 0) return 0;
@@ -1110,21 +1194,22 @@ export function storyStagesWithFinale(
 
 type JourneyLike = {
   id?: string | null;
-  steps?: Array<{ id: string; kind: string; prompt?: unknown }> | null;
+  steps?: Array<{ id: string; kind: string; prompt?: unknown; act?: number | null }> | null;
 } | null | undefined;
 
 /**
  * The page the finale closes: the engine's episode when it published one for
  * this journey, else the authored scene's own page, else nothing (the finale
- * then stands alone).
+ * then stands alone). On a day of acts, the page of the act `act` (Phase 2).
  */
 export function journeyStoryPage(
   journey: JourneyLike,
   episode: StoryEpisode | null | undefined,
+  act = 1,
 ): StoryEpisode | null {
   if (episode && episode.panels?.length) return episode;
   if (!journey?.id) return null;
-  const scenes = (journey.steps || []).filter((step) => step && step.kind === 'scene');
+  const scenes = (journey.steps || []).filter((step) => step && step.kind === 'scene' && actOf(step) === act);
   for (let i = scenes.length - 1; i >= 0; i -= 1) {
     const panels = (scenes[i].prompt as { panels?: StoryPanel[] | null } | undefined)?.panels;
     const page = authoredPageEpisode(journey.id, scenes[i].id, panels);

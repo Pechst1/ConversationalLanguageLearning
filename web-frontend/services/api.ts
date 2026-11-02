@@ -3249,9 +3249,14 @@ class ApiService {
     return this.get<StoryEpisode>(`/story-engine/episodes/${encodeURIComponent(sceneId)}`, this.journeyConfig());
   }
 
-  async getStoryEpisodeForJourney(journeyId: string): Promise<StoryEpisode | null> {
+  /**
+   * The page of a journey's act (Phase 2 «Folge in Akten»): act 1 by default, the
+   * day's one page on a day of one act. A page without an `act` (an older server)
+   * is act 1.
+   */
+  async getStoryEpisodeForJourney(journeyId: string, act = 1): Promise<StoryEpisode | null> {
     const page = await this.get<StoryEpisodePage>(`/story-engine/episodes?journey_id=${encodeURIComponent(journeyId)}`, this.journeyConfig());
-    return page.episodes[0] ?? null;
+    return page.episodes.find((episode) => (episode.act ?? 1) === act) ?? null;
   }
 
   async saveStoryReadingPosition(sceneId: string, panelIndex: number): Promise<{ scene_id: string; panel_index: number }> {

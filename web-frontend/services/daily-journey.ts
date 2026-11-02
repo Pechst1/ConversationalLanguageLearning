@@ -133,8 +133,18 @@ export function currentStep(journey: JourneySnapshot | null): PublicStep | null 
   return journey.steps.find((step) => step.id === journey.current_step_id) ?? null;
 }
 
-export function respondStep(journey: JourneySnapshot | null): RespondStep | null {
-  const step = journey?.steps.find((item) => item.kind === 'respond');
+/**
+ * Phase 2 «Folge in Akten»: the act a step belongs to, 1 to 3. Every step of a
+ * one-act day is act 1, and so is a step saved before the field existed.
+ */
+export function stepAct(step: { act?: number | null } | null | undefined): number {
+  const act = step?.act;
+  return typeof act === 'number' && Number.isFinite(act) && act >= 1 ? Math.floor(act) : 1;
+}
+
+/** The reply of the day's act `act` (the first act's by default: the day's one reply on a day of one act). */
+export function respondStep(journey: JourneySnapshot | null, act = 1): RespondStep | null {
+  const step = journey?.steps.find((item) => item.kind === 'respond' && stepAct(item) === act);
   return (step as RespondStep | undefined) ?? null;
 }
 
@@ -339,7 +349,8 @@ export const recordEpisodePrediction = (
 /** Reader navigation is separate from the journey mutation/reward authority. */
 export const getStoryEpisodes = (before?: string) => apiService.getStoryEpisodes(before);
 export const getStoryEpisode = (sceneId: string) => apiService.getStoryEpisode(sceneId);
-export const getStoryEpisodeForJourney = (journeyId: string) => apiService.getStoryEpisodeForJourney(journeyId);
+export const getStoryEpisodeForJourney = (journeyId: string, act = 1) =>
+  apiService.getStoryEpisodeForJourney(journeyId, act);
 export const saveStoryReadingPosition = (sceneId: string, panelIndex: number) =>
   apiService.saveStoryReadingPosition(sceneId, panelIndex);
 

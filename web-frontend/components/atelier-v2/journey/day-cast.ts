@@ -14,12 +14,20 @@ import { journeySpeaker } from './journey-faces';
 
 type DayJourney = Pick<JourneySnapshot, 'scenario' | 'steps'>;
 
-/** The cameo cast ids of today's page: its panels' speakers, then every step's face. */
-export function dayCast(journey: DayJourney | null | undefined, episode?: Pick<StoryEpisode, 'panels'> | null): string[] {
+type DayPage = Pick<StoryEpisode, 'panels'> | null | undefined;
+
+/**
+ * The cameo cast ids of today's page: its panels' speakers, then every step's face. On a
+ * day of acts (Phase 2), every act's page read so far, in play order.
+ */
+export function dayCast(journey: DayJourney | null | undefined, episode?: DayPage | DayPage[]): string[] {
   if (!journey) return [];
   const ids: Array<string | null> = [];
-  for (const panel of episode?.panels ?? []) {
-    for (const line of panel?.dialogue ?? []) ids.push(castIdFor(line.character_id, line.character_name));
+  const pages = Array.isArray(episode) ? episode : [episode];
+  for (const page of pages) {
+    for (const panel of page?.panels ?? []) {
+      for (const line of panel?.dialogue ?? []) ids.push(castIdFor(line.character_id, line.character_name));
+    }
   }
   for (const step of journey.steps ?? []) {
     const speaker = journeySpeaker(journey, step);

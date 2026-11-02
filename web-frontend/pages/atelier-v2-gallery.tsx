@@ -161,6 +161,7 @@ function filStep(id: string, extra: Partial<RespondPrompt>): RespondStep {
     status: 'active',
     estimated_seconds: 120,
     assistance_used: [],
+    act: 1,
     prompt: filPrompt(extra),
   };
 }

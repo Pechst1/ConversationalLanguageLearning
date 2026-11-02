@@ -831,6 +831,9 @@ class _PublicStepBase(JourneyModel):
     status: StepStatus
     estimated_seconds: int
     assistance_used: list[AssistanceLevel] = Field(default_factory=list)
+    #: Phase 2 «Folge in Akten»: the act a scene, reply or ending belongs to, 1 to 3 in
+    #: play order. Every other step, and every step of a one-act day, is act 1.
+    act: int = Field(default=1, ge=1, le=3)
 
 
 class SceneStep(_PublicStepBase):

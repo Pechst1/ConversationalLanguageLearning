@@ -7993,6 +7993,11 @@ export interface components {
         };
         /** DeskStep */
         DeskStep: {
+            /**
+             * Act
+             * @default 1
+             */
+            act: number;
             /** Assistance Used */
             assistance_used: components["schemas"]["AssistanceLevel"][];
             /** Estimated Seconds */
@@ -8514,6 +8519,11 @@ export interface components {
         };
         /** ForgeStep */
         ForgeStep: {
+            /**
+             * Act
+             * @default 1
+             */
+            act: number;
             /** Assistance Used */
             assistance_used: components["schemas"]["AssistanceLevel"][];
             /** Estimated Seconds */
@@ -11471,6 +11481,11 @@ export interface components {
         };
         /** ReadStep */
         ReadStep: {
+            /**
+             * Act
+             * @default 1
+             */
+            act: number;
             /** Assistance Used */
             assistance_used: components["schemas"]["AssistanceLevel"][];
             /** Estimated Seconds */
@@ -11575,6 +11590,11 @@ export interface components {
         };
         /** RecallStep */
         RecallStep: {
+            /**
+             * Act
+             * @default 1
+             */
+            act: number;
             /** Assistance Used */
             assistance_used: components["schemas"]["AssistanceLevel"][];
             /** Estimated Seconds */
@@ -12002,6 +12022,11 @@ export interface components {
         };
         /** ResolutionStep */
         ResolutionStep: {
+            /**
+             * Act
+             * @default 1
+             */
+            act: number;
             /** Assistance Used */
             assistance_used: components["schemas"]["AssistanceLevel"][];
             /** Estimated Seconds */
@@ -12099,6 +12124,11 @@ export interface components {
         };
         /** RespondStep */
         RespondStep: {
+            /**
+             * Act
+             * @default 1
+             */
+            act: number;
             /** Assistance Used */
             assistance_used: components["schemas"]["AssistanceLevel"][];
             /** Estimated Seconds */
@@ -12295,6 +12325,11 @@ export interface components {
         };
         /** RuleStep */
         RuleStep: {
+            /**
+             * Act
+             * @default 1
+             */
+            act: number;
             /** Assistance Used */
             assistance_used: components["schemas"]["AssistanceLevel"][];
             /** Estimated Seconds */
@@ -13814,6 +13849,11 @@ export interface components {
         };
         /** SceneStep */
         SceneStep: {
+            /**
+             * Act
+             * @default 1
+             */
+            act: number;
             /** Assistance Used */
             assistance_used: components["schemas"]["AssistanceLevel"][];
             /** Estimated Seconds */
@@ -14513,6 +14553,16 @@ export interface components {
         };
         /** StoryEpisodeRead */
         StoryEpisodeRead: {
+            /**
+             * Act
+             * @default 1
+             */
+            act?: number;
+            /**
+             * Act Role
+             * @default null
+             */
+            act_role?: string | null;
             chapter: components["schemas"]["StoryChapterRead"] | null;
             grammar_focus: components["schemas"]["GrammarFocusRead"] | null;
             /** Id */

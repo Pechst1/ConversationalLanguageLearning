@@ -97,6 +97,7 @@ from app.services.daily_journey_adapters import (
 from app.services.journey_capabilities import build_journey_register_line
 from app.services.journey_content import learner_level_band
 from app.services.journey_contracts import (
+    ACT_STEP_KINDS,
     DEFAULT_DAY_SHAPE,
     FIRST_DAY_KIND,
     READ_MIN_BUDGET_SECONDS,
@@ -631,6 +632,24 @@ def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
             }
         )
     return thread
+
+
+def _public_acts(ordered: list[DailyJourneyStep]) -> dict[Any, int]:
+    """Phase 2 «Folge in Akten»: the act of each step, from the plan's order alone.
+
+    Each act is its scene, its reply and its ending, back to back, so a story step's
+    act is the number of scenes up to it; every other step, and every step of a one-act
+    day, is act 1. Read from the public order, never from ``private_task``: it agrees
+    with the stored ``private_task["act"]`` (``step_act``) by construction."""
+
+    acts: dict[Any, int] = {}
+    scenes = 0
+    for step in ordered:
+        kind = StepKind(step.kind)
+        if kind is StepKind.SCENE:
+            scenes += 1
+        acts[step.id] = max(scenes, 1) if kind in ACT_STEP_KINDS else 1
+    return acts
 
 
 def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
@@ -2609,6 +2628,7 @@ class DailyJourneyService:
         # Phase 2: the day's story fields are its first act's, on the day's first scene;
         # a later act's scene is a page of its own.
         first_scene = next((step for step in ordered if StepKind(step.kind) is StepKind.SCENE), None)
+        acts = _public_acts(ordered)
         steps = [
             {
                 "id": str(step.id),
@@ -2617,6 +2637,7 @@ class DailyJourneyService:
                 "status": step.status,
                 "estimated_seconds": step.estimated_seconds,
                 "assistance_used": list(step.assistance_used or []),
+                "act": acts[step.id],
                 "prompt": self._forge_prompt_view(journey, step)
                 if StepKind(step.kind) is StepKind.FORGE
                 else read_views.get(step.id) or _public_prompt_view(step)
