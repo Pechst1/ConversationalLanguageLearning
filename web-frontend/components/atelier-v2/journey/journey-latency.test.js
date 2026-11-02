@@ -520,6 +520,43 @@ async function main() {
     assert.equal(journeyHeaderCaption(between, stepOf), 'Schritt 6 von 6');
   });
 
+  await test('#469: the count names the part of the day the step on screen belongs to (day order), not «Szene» for all', () => {
+    const stepOf = (position, total) => `Schritt ${position} von ${total}`;
+    const daySession = require('../../../lib/day-session');
+    const order = require('../../../lib/day-order');
+    // The session passes this as the caption's part; `?.` keeps a missing helper an assertion, not a crash.
+    const partOf = (step) => daySession.dayPartLabel?.(step, 'de');
+    const target = (kind) => ({ kind, id: 1 });
+    const steps = [
+      { id: 's-scene', kind: 'scene', prompt: {} },
+      { id: 's-respond', kind: 'respond', prompt: {} },
+      { id: 's-rule', kind: 'rule', prompt: {} },
+      { id: 's-d1', kind: 'recall', prompt: { target: target('grammar') } },
+      { id: 's-w1', kind: 'recall', prompt: { target: target('word') } },
+      { id: 's-resolution', kind: 'resolution', prompt: {} },
+    ];
+    const at = (current) => ({
+      id: 'j-469',
+      status: 'active',
+      current_step_id: current,
+      steps: steps.map((step) => ({ ...step, status: step.id === current ? 'active' : 'pending' })),
+    });
+    const caption = (id) => journeyHeaderCaption(at(id), stepOf, partOf);
+    // The part is the day step's name: the same wording Today's programme uses.
+    assert.equal(caption('s-scene'), 'Szene · Schritt 1 von 6');
+    assert.equal(caption('s-respond'), 'Szene · Schritt 2 von 6');
+    assert.equal(caption('s-rule'), 'Grammatik · Schritt 3 von 6', 'the rule card is the grammar step, not the scene');
+    assert.equal(caption('s-d1'), 'Grammatik · Schritt 4 von 6', 'its drill too');
+    assert.equal(caption('s-w1'), 'Wörter · Schritt 5 von 6', 'a word drill is the words');
+    assert.equal(caption('s-resolution'), 'Szene · Schritt 6 von 6');
+    // Every stage of the day order has a part name, in every language.
+    for (const stage of order.WORK_STEPS) {
+      for (const language of ['de', 'en', 'fr']) {
+        assert.ok(daySession.dayPartLabel?.({ kind: { scene: 'scene', grammar: 'rule', words: 'recall' }[stage], prompt: {} }, language));
+      }
+    }
+  });
+
   await test('#143: the day plan read before the scene is read again once the scene has ended', () => {
     // Walk 20 Oct: the ending's «Weiter: 16 Wörter» was Today's plan from before the
     // scene introduced its words; the deck it opened held 19.

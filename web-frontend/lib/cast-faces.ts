@@ -163,3 +163,37 @@ export function drawnCastIdFor(...seeds: unknown[]): string | null {
   }
   return null;
 }
+
+/**
+ * The cast's short names, written once on this side (#147, #473). It mirrors the server's cast
+ * registry (`app/services/cast_registry.py`, `short_name`), which sends the same name.
+ */
+const CAST_DISPLAY_NAMES: Readonly<Record<string, string>> = {
+  margaux_barman: 'Margaux',
+  marin_leveque: 'Marin',
+  romy_tremblay: 'Romy',
+  lila_bonnet: 'Lila',
+  augustin_de_roncourt: 'Gus',
+  landlord_marchand: 'M. Marchand',
+  camille_marchand: 'Camille',
+  odile_ferrand: 'Odile',
+  // Named, not drawn: no portrait (an initial), but the same name on every surface.
+  mme_diallo: 'Mme Diallo',
+  maitre_vasseur: 'Maître Vasseur',
+  bastien_roux: 'Bastien Roux',
+};
+
+/**
+ * The one name the learner reads for a person of the drawn cast, or `null` for anyone outside it
+ * (a clerk, a generated character). Every surface that prints a speaker's name goes through this
+ * (#155, #217, #473): the opening line, each later line of a many-voiced reply, the listen button,
+ * the rule card. It is the net for a payload that still carries the world bible's full name or a
+ * bare id. Pass the id first and the display name second, like `castIdFor`.
+ */
+export function castDisplayName(id: string | null | undefined, name?: string | null): string | null {
+  // A registry id is its own claim, drawn or not («mme_diallo» has no portrait and a name).
+  const asId = fold(id).trim().replace(/[\s-]+/g, '_');
+  if (asId && Object.prototype.hasOwnProperty.call(CAST_DISPLAY_NAMES, asId)) return CAST_DISPLAY_NAMES[asId];
+  const castId = drawnCastIdFor(id, name);
+  return (castId && CAST_DISPLAY_NAMES[castId]) || null;
+}
