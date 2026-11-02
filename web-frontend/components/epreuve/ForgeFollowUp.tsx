@@ -24,6 +24,7 @@ import type { DrillGoal } from '@/components/atelier-v2/journey/drill-frame';
 import { frenchSpacing } from '@/lib/french-typography';
 import {
   followUpOutcome,
+  followUpSlips,
   type ForgeFollowUp as FollowUpSpec,
   type FollowUpOutcome,
 } from '@/lib/forge-followup';
@@ -141,13 +142,15 @@ export function ForgeFollowUp({
     onDraft({ ...draft, outcome: 'revealed', skipped: true });
   };
   const options = followUp.options;
+  // A try that missed marks the word that differs; a skip has no try to mark.
+  const slips = settled && !draft.skipped ? followUpSlips(followUpAnswer(followUp, draft), followUp) : [];
 
   return (
     <section className="ep-follow" data-outcome={draft.outcome ?? 'open'} aria-label={t.follow_title}>
       <p className="av2-label ep-follow__title">{t.follow_title}</p>
       {followUp.goalNative && <p className="av2-body ep-follow__goal">{followUp.goalNative}</p>}
       <blockquote className="ep-follow__quote" lang="fr">
-        <span className="av2-sr">{t.follow_wrong_label}: </span>
+        <span className="av2-sr">{t.follow_wrong_label} </span>
         {frenchSpacing(followUp.sourceFr)}
       </blockquote>
 
@@ -213,6 +216,19 @@ export function ForgeFollowUp({
 
       {settled && (
         <div className="ep-follow__answer" role="status" aria-live="polite">
+          {slips.length > 0 && (
+            <p className="ep-follow__slips" lang="fr">
+              <span className="av2-sr">{t.follow_differs} </span>
+              {slips.map((slip, index) => (
+                <span className="ep-follow__slip" key={`${slip.learner}-${index}`}>
+                  {index > 0 && ', '}
+                  <mark className="ep-follow__slip-from">{frenchSpacing(slip.learner)}</mark>
+                  {' → '}
+                  <strong className="ep-follow__slip-to">{frenchSpacing(slip.target)}</strong>
+                </span>
+              ))}
+            </p>
+          )}
           <p className="av2-label">{t.corrected_sentence}</p>
           {(followUp.correctedFr || followUp.accepted[0]) && (
             <p className="av2-fr ep-follow__fixed" lang="fr">

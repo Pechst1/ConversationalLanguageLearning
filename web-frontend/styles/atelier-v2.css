@@ -3698,6 +3698,9 @@
   color: var(--av2-green);
   overflow-wrap: anywhere;
 }
+.av2 .ep-follow__slips { margin: 0; font-size: var(--av2-t-option); line-height: 1.35; }
+.av2 .ep-follow__slip-from { background: transparent; color: var(--av2-ink); text-decoration: line-through; }
+.av2 .ep-follow__slip-to { color: var(--av2-green); font-weight: 600; }
 .av2 .ep-follow[data-outcome='open'] .ep-follow__quote { color: var(--av2-ink); }
 .av2 .ep-follow--line { padding: 12px 14px; }
 

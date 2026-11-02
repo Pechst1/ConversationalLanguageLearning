@@ -168,6 +168,57 @@ def describe_diff(ops: list[dict[str, str]], language: Any) -> str:
     return " ".join(sentences)
 
 
+#: Object pronouns by function: a direct object (COD) has no «à», an indirect one (COI) has.
+_COD_PRONOUNS = frozenset({"le", "la", "les", "l'"})
+_COI_PRONOUNS = frozenset({"lui", "leur"})
+#: A subject or particle and the elided form it takes before a vowel («je ai» → «j'ai»).
+_ELISIONS: dict[str, str] = {
+    "je": "j'", "le": "l'", "la": "l'", "me": "m'", "te": "t'", "se": "s'",
+    "de": "d'", "ne": "n'", "ce": "c'", "que": "qu'",
+}
+
+
+def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
+    """The one slip a diff makes, by category, or ``None`` when it is not one we name.
+
+    #449 (and #146): La Forge explained a miss with the day's rule card, so «lui» for
+    «le» was answered with the order of two pronouns. What the learner got wrong
+    decides the note; the rule card is only the fallback for a miss with no category.
+    Only a lone difference is named: with two, nothing says which one was meant.
+    """
+
+    slips = [op for op in ops if op.get("kind") != "accent"]
+    if len(slips) != 1 or slips[0].get("kind") != "word" or slips[0].get("given"):
+        return None
+    learner = strip_accents(slips[0].get("learner") or "")
+    target = strip_accents(slips[0].get("target") or "")
+    if learner in _COI_PRONOUNS and target in _COD_PRONOUNS:
+        return {"category": "cod_for_coi", "learner": learner, "target": target}
+    if learner in _COD_PRONOUNS and target in _COI_PRONOUNS:
+        return {"category": "coi_for_cod", "learner": learner, "target": target}
+    if target.endswith("'") and _ELISIONS.get(learner) == target:
+        return {"category": "elision", "learner": learner, "target": target}
+    return None
+
+
+def slip_note(ops: list[dict[str, str]], language: Any) -> tuple[str, str] | None:
+    """``(why, repair)`` for the slip's category, in the learner's language."""
+
+    slip = slip_category(ops)
+    if slip is None:
+        return None
+    fields = {"learner": slip["learner"], "target": slip["target"]}
+    if slip["category"] == "elision":
+        return (
+            _copy("forge.slip.elision.why", language, **fields),
+            _copy("forge.slip.elision.repair", language, **fields),
+        )
+    return (
+        _copy(f"forge.slip.{slip['category']}.why", language, **fields),
+        _copy("forge.slip.object_pronoun.repair", language),
+    )
+
+
 def similarity(learner: Any, target: Any) -> float:
     """0–1 token similarity to a model answer (accent-insensitive)."""
 
@@ -635,7 +686,7 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
     "adjective": {
         "en": "«{adjective}» goes before the noun: «{target}».",
         "de": "«{adjective}» steht vor dem Nomen: «{target}».",
-        "fr": "«{adjective}» se place avant le nom : «{target}».",
+        "fr": "« {adjective} » se place avant le nom : « {target} ».",
     },
     "label": {"en": "Word order", "de": "Wortstellung", "fr": "Ordre des mots"},
 }
@@ -941,6 +992,8 @@ __all__ = [
     "reordering_correction",
     "same_answer",
     "similarity",
+    "slip_category",
+    "slip_note",
     "strip_accents",
     "token_diff",
     "tokens",
