@@ -5021,13 +5021,29 @@ class DailyJourneyService:
             else {}
         )
 
+        # Phase 2 «Folge in Akten»: a later act's steps say which act they are,
+        # and its scene and ending read its own brief. Kept in ``private_task``
+        # (no migration; a step without the key is act 1) until the prompts the
+        # app reads carry the act. Every one-act day — all of them while the acts
+        # are off — has none of this.
+        later_acts = dict(enumerate(getattr(plan, "acts", None) or [], start=2))
         first_step_id: uuid.UUID | None = None
         for planned in sorted(plan.steps, key=lambda item: item.ordinal):
             kind = StepKind(planned.kind)
             public_prompt = dict(planned.public_prompt)
             private_task: dict[str, Any] = {}
+            number = int(getattr(planned, "act", 1) or 1)
+            later_act = later_acts.get(number)
+            act_brief = later_act.scenario if later_act is not None else None
+            if later_act is not None:
+                private_task["act"] = number
+                private_task["act_role"] = str(later_act.role)
 
-            if kind is StepKind.SCENE:
+            if kind is StepKind.SCENE and act_brief is not None:
+                # A later act's brief, under its own key: every reader of the
+                # day's pinned ``scenario_brief`` keeps finding the first act's.
+                private_task["act_brief"] = _brief_to_json(act_brief)
+            elif kind is StepKind.SCENE:
                 # The pinned brief lives with the scene step: private by
                 # construction, and never part of any public projection.
                 private_task["scenario_brief"] = _brief_to_json(brief)
@@ -5064,10 +5080,11 @@ class DailyJourneyService:
                 private_task["concept_id"] = public_prompt.get("concept_id")
                 private_task["budget_seconds"] = public_prompt.get("budget_seconds")
             elif kind is StepKind.RESOLUTION:
-                private_task["resolution_lines"] = dict(brief.resolution_lines)
-                private_task["resolution_summaries"] = dict(brief.resolution_summaries)
+                ending_brief = act_brief or brief
+                private_task["resolution_lines"] = dict(ending_brief.resolution_lines)
+                private_task["resolution_summaries"] = dict(ending_brief.resolution_summaries)
                 private_task["allowed_outcomes"] = list(
-                    brief.response_task.allowed_outcomes
+                    ending_brief.response_task.allowed_outcomes
                 )
 
             step = DailyJourneyStep(
@@ -5122,6 +5139,18 @@ class DailyJourneyService:
             # recap and the Feuilleton archive all read this one number.
             EDITION_KEY: _assigned_edition_no(self.db, journey, brief.serial_episode_id),
         }
+        if later_acts:
+            # Phase 2: the acts after the first, as planned. Telemetry, and what
+            # the night's report counts (planned against played).
+            journey.plan_selection["acts"] = [
+                {
+                    "act": number,
+                    "role": str(act.role),
+                    "scenario_key": str(act.scenario.scenario_key),
+                    "title_fr": act.scenario.title_fr,
+                }
+                for number, act in later_acts.items()
+            ]
         if fallback:
             # WP-69. The story engine could not write this day and an authored
             # scene stands in. Telemetry only — nothing public reads it, and the

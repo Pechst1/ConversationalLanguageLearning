@@ -43,6 +43,8 @@ from app.services.journey_content import (
     scenario_target_affordances,
 )
 from app.services.journey_contracts import (
+    ACT_DROP_ORDER,
+    ACT_ROLE_ORDER,
     CLASSIC_RECALL_FORMATS,
     DEFAULT_BUDGET_SECONDS,
     DEFAULT_DAY_SHAPE,
@@ -55,6 +57,8 @@ from app.services.journey_contracts import (
     MAX_RESPOND_TURNS,
     MIN_SCENE_EXCHANGES,
     READ_MIN_BUDGET_SECONDS,
+    ActBrief,
+    ActRole,
     ControlLanguage,
     DayShape,
     HelpKind,
@@ -71,6 +75,8 @@ from app.services.journey_contracts import (
     StepStatus,
     TargetKind,
     TargetRef,
+    act_shape,
+    act_story_ceiling,
     article_optional,
     day_shape_rule,
     normalize_answer_text,
@@ -2715,6 +2721,283 @@ def authored_ending(scenario: ScenarioBrief) -> tuple[str, str] | None:
 
 
 # --------------------------------------------------------------------------
+# Phase 2 «Folge in Akten» — the acts, priced with the same clock
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class PricedAct:
+    """An act after the day's first, priced the way the first is priced."""
+
+    act: ActBrief
+    #: The act's reply task, its opening line guarded (:func:`guard_opening_line`).
+    task: ResponseTask
+    outcome_key: str
+    turns: int
+    scene_seconds: int
+    respond_seconds: int
+    resolution_seconds: int
+
+    @property
+    def seconds(self) -> int:
+        return self.scene_seconds + self.respond_seconds + self.resolution_seconds
+
+
+def act_turns(scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int) -> int:
+    """The exchanges an act's reply plans on a day of several acts: the scene's
+    floor (#378: three from Régulier up, an authored page's own count), never
+    more — on such a day a longer rhythm buys another act, not a fourth exchange."""
+
+    ceiling = max(
+        1,
+        min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_RESPOND_TURNS, rhythm_caps(budget_seconds).max_turns),
+    )
+    return max(scene_exchange_floor(scenario, task, budget_seconds), min(MIN_SCENE_EXCHANGES, ceiling))
+
+
+def price_act(
+    act: ActBrief, *, budget_seconds: int, spt: float, multiplier: float, audio: bool,
+    band: str | None,
+) -> PricedAct:
+    """An act's scene, reply and ending, each priced as the day's first is: the
+    page by what is on it, the reply by its exchanges at the band (at
+    :func:`act_turns`), the ending as it is shown. Raises
+    :class:`PlanUnavailable` for an act that cannot honestly end."""
+
+    scenario = act.scenario
+    outcome_key = _require_plannable(scenario)
+    task = guard_opening_line(scenario.response_task)
+    turns = act_turns(scenario, task, budget_seconds)
+    return PricedAct(
+        act=act,
+        task=task,
+        outcome_key=outcome_key,
+        turns=turns,
+        scene_seconds=scene_seconds(scenario, spt=spt, multiplier=multiplier, audio=audio, band=band),
+        respond_seconds=respond_seconds(
+            task, turns=turns, spt=spt, multiplier=multiplier, band=band,
+            authored=authored_turns(scenario),
+        ),
+        resolution_seconds=resolution_seconds(scenario, outcome_key, spt=spt, multiplier=multiplier),
+    )
+
+
+def fit_acts(
+    first_seconds: int, later: list[PricedAct], *, budget_seconds: int, spare: float = 0.0
+) -> list[PricedAct]:
+    """The later acts a day keeps, in the order they are played.
+
+    At most the rhythm's ``max_acts``, one act per role, and only while all the
+    acts together — the first at ``first_seconds`` — stay within
+    :func:`~app.services.journey_contracts.act_story_ceiling`, so a fifth of the
+    day stays for practice; ``spare`` keeps that share of the ceiling free on
+    top (the night's margin, :data:`NIGHT_ACT_SPARE`). What does not fit goes in
+    :data:`~app.services.journey_contracts.ACT_DROP_ORDER`: «À côté», then «Le
+    soir». «À côté» is never played without «Le soir», which answers the day's
+    question and ends on its hook. The first act is the day and is never given up.
+    """
+
+    caps = rhythm_caps(budget_seconds)
+    ceiling = act_story_ceiling(budget_seconds) * (1.0 - max(0.0, spare))
+    kept: list[PricedAct] = []
+    for priced in sorted(later, key=lambda item: ACT_ROLE_ORDER.index(ActRole(str(item.act.role)))):
+        role = ActRole(str(priced.act.role))
+        if role is not ActRole.FIL and all(item.act.role != role for item in kept):
+            kept.append(priced)
+    if all(item.act.role != ActRole.SOIR for item in kept):
+        return []
+
+    def too_much(acts: list[PricedAct]) -> bool:
+        return bool(acts) and (
+            1 + len(acts) > caps.max_acts
+            or first_seconds + sum(item.seconds for item in acts) > ceiling
+        )
+
+    for role in ACT_DROP_ORDER:
+        if not too_much(kept):
+            break
+        kept = [item for item in kept if item.act.role != role]
+    return [] if too_much(kept) else kept
+
+
+#: The night writes an act only when the day would hold it with this share of
+#: the acts' ceiling to spare. A written page comes out a little longer or
+#: shorter than its shape, the morning prices the real one and gives up what no
+#: longer fits — and an act written for nothing is the night's money spent.
+NIGHT_ACT_SPARE = 0.05
+#: A placeholder word: a nominal act is priced by how many words it has, never read.
+_NOMINAL_WORD = "mot"
+
+
+def _nominal_words(count: int) -> str:
+    return " ".join([_NOMINAL_WORD] * max(0, int(count)))
+
+
+def nominal_act_brief(band: str | None, role: ActRole | str = ActRole.FIL) -> ScenarioBrief:
+    """An act before it is written, as the morning will price it: a generated
+    page of the band's act shape for ``role`` (:func:`act_shape`), with the setup,
+    objective and opening line of a generated day, in placeholder words. Never
+    shown and never stored — it exists to be priced."""
+
+    key = _band_key(band) or "B1"
+    shape = act_shape(key, role)
+    per_line, extra = divmod(shape.words, shape.lines)
+    texts = [_nominal_words(per_line + (1 if index < extra else 0)) for index in range(shape.lines)]
+    panels = []
+    for index in range(shape.panels):
+        chunk = texts[index :: shape.panels]
+        panels.append(
+            {
+                "narration_fr": chunk[0] if chunk else "",
+                "dialogue": [{"character_id": "nominal", "text_fr": text} for text in chunk[1:]],
+            }
+        )
+    # A generated day's chrome (tests/wp93_briefs.engine_draft): a premise of
+    # about ten words and its translation, an objective of about eight, and the
+    # character's question about one line of the page long.
+    opening = _nominal_words(max(1, per_line))
+    objective = _nominal_words(8)
+    task = ResponseTask(
+        objective_native=objective,
+        character_id="nominal",
+        character_name="",
+        opening_line_fr=opening,
+        max_turns=MAX_RESPOND_TURNS,
+    )
+    return ScenarioBrief(
+        scenario_key=f"nominal:{key}:{ActRole(str(role))}",
+        content_version="nominal",
+        title_fr="",
+        objective_key="nominal",
+        objective_native=objective,
+        level_band=key,
+        character_id="nominal",
+        character_name="",
+        location_id="nominal",
+        location_name="",
+        image_url=None,
+        setup_fr=_nominal_words(10),
+        setup_native=_nominal_words(12),
+        opening_line_fr=opening,
+        response_task=task,
+        story_context={"draft": {"panels": panels, "opening_line_fr": opening}},
+    )
+
+
+def acts_to_write(
+    *, budget_seconds: int, band: str | None, pace: PacingProfile | None = None
+) -> tuple[ActRole, ...]:
+    """The acts the night writes for one learner's day, in the order they play.
+
+    Never more than the morning can play: each act is priced before it exists
+    as the morning will price it (:func:`nominal_act_brief`, its page read —
+    :func:`plan_journey` prices a day of several acts as read — at the
+    learner's measured pace once it is trusted), and :func:`fit_acts` keeps
+    what fits with :data:`NIGHT_ACT_SPARE` to spare. Léger and Régulier play
+    «Le fil» alone; a band that composes slowly gets fewer acts (A1 and A2:
+    one on Soutenu, two on Intensif; B1 up: two and three).
+    """
+
+    caps = rhythm_caps(budget_seconds)
+    if caps.max_acts <= 1:
+        return (ActRole.FIL,)
+    key = _band_key(band) or "B1"
+    profile = pace or PacingProfile()
+    spt = profile.effective_seconds_per_token(key)
+    multiplier = profile.effective_step_multiplier()
+
+    def priced(role: ActRole) -> PricedAct:
+        return price_act(
+            ActBrief(role=role, scenario=nominal_act_brief(key, role)),
+            budget_seconds=budget_seconds, spt=spt, multiplier=multiplier, audio=False, band=key,
+        )
+
+    first = priced(ActRole.FIL).seconds
+    kept = fit_acts(
+        first,
+        [priced(role) for role in ACT_ROLE_ORDER if role is not ActRole.FIL],
+        budget_seconds=budget_seconds,
+        spare=NIGHT_ACT_SPARE,
+    )
+    return (ActRole.FIL, *(ActRole(str(item.act.role)) for item in kept))
+
+
+def later_act_steps(
+    item: PricedAct, number: int, *, shape: DayShape, audio_available: bool,
+    input_mode: InputMode,
+) -> list[PlannedStep]:
+    """A later act's scene, reply and ending, as the first act's are planned on
+    a practice day (ordinals are numbered by the caller), each step carrying
+    the act's number. The prompts are the first act's keys and no more: the
+    app learns about acts when its prompts carry them (the app's own change).
+    The reply asks for no target: the day's words and unit are the first act's,
+    and the later acts' conversations stay free."""
+
+    scenario = item.act.scenario
+    task = item.task
+    return [
+        PlannedStep(
+            ordinal=0,
+            kind=StepKind.SCENE,
+            estimated_seconds=item.scene_seconds,
+            public_prompt={
+                "setup_fr": scenario.setup_fr,
+                "setup_native": scenario.setup_native,
+                "objective_native": scenario.objective_native,
+                "character_line_fr": _scene_line_without_spoiler(scenario),
+                "character_line_audio_url": None,
+                "image_url": scenario.image_url,
+                "listen_first": bool(shape is DayShape.LISTENING and audio_available),
+                **({"panels": [dict(panel) for panel in scenario.panels]} if scenario.panels else {}),
+            },
+            act=number,
+        ),
+        PlannedStep(
+            ordinal=0,
+            kind=StepKind.RESPOND,
+            estimated_seconds=item.respond_seconds,
+            public_prompt={
+                "turn_index": 0,
+                "max_turns": item.turns,
+                "repair_allowed": bool(task.repair_allowed),
+                "character_id": task.character_id,
+                "character_name": display_name(task.character_id, task.character_name),
+                "character_line_fr": task.opening_line_fr,
+                "character_line_audio_url": None,
+                "objective_native": task.objective_native,
+                "input_modes": supported_input_modes(scenario, input_mode=input_mode),
+                "targets": [],
+                "help_available": _respond_help(task),
+                "letter": None,
+            },
+            private_task=replace(
+                task, max_turns=item.turns, targets=[], estimated_seconds=item.respond_seconds
+            ),
+            act=number,
+        ),
+        PlannedStep(
+            ordinal=0,
+            kind=StepKind.RESOLUTION,
+            estimated_seconds=item.resolution_seconds,
+            public_prompt={
+                "outcome_key": item.outcome_key,
+                "character_line_fr": render_authored_text(
+                    scenario.resolution_lines.get(item.outcome_key, "")
+                ),
+                "summary_native": render_authored_text(
+                    scenario.resolution_summaries.get(item.outcome_key, "")
+                ),
+                "image_url": scenario.image_url,
+                "chapter_recap_fr": None,
+                "register_note_fr": None,
+                "register_reason_native": None,
+            },
+            act=number,
+        ),
+    ]
+
+
+# --------------------------------------------------------------------------
 # 4. The plan
 # --------------------------------------------------------------------------
 
@@ -2879,8 +3162,20 @@ def plan_journey(
     reading: dict[str, Any] | list[dict[str, Any]] | None = None,
     desk: dict[str, Any] | None = None,
     page_review: list[dict[str, Any]] | None = None,
+    acts: list[ActBrief] | None = None,
 ) -> PlannedJourney:
     """Build today's immutable plan.
+
+    ``acts`` (Phase 2 «Folge in Akten») are the acts the night wrote after the
+    day's first («À côté», «Le soir»). On a practice day of a rhythm that plays
+    more than one act, each is priced with the same clock as the first
+    (:func:`price_act`); on such a day every act's reply plans its floor
+    (:func:`act_turns`) and the pages are priced as read — the later acts are
+    the day's reading time, and a learner who also hears every line is slower,
+    which the measured pace then says. The day keeps the acts :func:`fit_acts`
+    keeps (a fifth of the day stays for practice), plays them straight after
+    the first act's ending, and gives one up rather than its rule. Omitted —
+    every caller while the acts are off — the day is exactly the one-act day.
 
     ``page_review`` (WP-129, content program D7) — on a tentpole day, the
     briefs of units the page uses that the learner met on an earlier day: one
@@ -3127,40 +3422,106 @@ def plan_journey(
             # the practice day plans the story and its rule, flagged.
             practice = False
 
-    if practice and not first_day and practice_day_shape_rule(shape, budget_seconds).max_recall > 0:
-        practice_plan = _plan_practice_day(
-            scenario=scenario,
-            task=task,
-            outcome_key=outcome_key,
-            candidates=candidates,
-            selection=selection,
-            affordances=affordances,
-            reasons_by_identity=reasons_by_identity,
-            shape=shape,
-            shape_reason=shape_reason,
-            dice=dice,
-            letter=letter,
-            chapter_recap_fr=chapter_recap_fr,
-            audio_available=audio_available,
-            input_mode=input_mode,
-            budget_seconds=budget_seconds,
-            turns=turns,
-            spt=spt,
-            multiplier=multiplier,
-            scene_cost=scene_cost,
-            resolution_cost=resolution_cost,
-            notes=notes,
-            partners=partners,
-            introduction=introduction,
-            forge=forge,
-            reading=reading,
-            scene_audio=scene_audio,
-            desk=desk,
-            band=band,
-            story_longer=longer_day,
-            practice_units=practice_units,
-            page_review=page_review,
+    # Phase 2 «Folge in Akten»: the acts the night wrote after the first, kept
+    # while the day holds them. With none (every day while the acts are off)
+    # nothing below changes.
+    kept_acts: list[PricedAct] = []
+    act_turn_count, act_scene_cost = turns, scene_cost
+    if acts:
+        playable = (
+            practice
+            and not first_day
+            and not longer_day
+            and shape not in (DayShape.SHORT, DayShape.REVUE)
+            and rhythm_caps(budget_seconds).max_acts > 1
+            and practice_day_shape_rule(shape, budget_seconds).max_recall > 0
         )
+        if not playable:
+            notes.append(f"acts set aside: this {shape} day plays one act")
+        else:
+            priced_acts: list[PricedAct] = []
+            for act in acts:
+                try:
+                    priced_acts.append(
+                        price_act(
+                            act, budget_seconds=budget_seconds, spt=spt, multiplier=multiplier,
+                            audio=False, band=band,
+                        )
+                    )
+                except PlanUnavailable as exc:
+                    notes.append(f"act «{act.role}» set aside: {exc.reason}")
+            act_turn_count = act_turns(scenario, task, budget_seconds)
+            act_scene_cost = scene_seconds(
+                scenario, spt=spt, multiplier=multiplier, audio=False, band=band
+            )
+            first_act_seconds = (
+                act_scene_cost
+                + respond_seconds(
+                    task, turns=act_turn_count, spt=spt, multiplier=multiplier, band=band,
+                    authored=authored,
+                )
+                + resolution_cost
+            )
+            kept_acts = fit_acts(first_act_seconds, priced_acts, budget_seconds=budget_seconds)
+            for item in priced_acts:
+                if all(item is not kept for kept in kept_acts):
+                    notes.append(
+                        f"act «{item.act.role}» given up: its {item.seconds}s do not fit the day"
+                    )
+
+    if practice and not first_day and practice_day_shape_rule(shape, budget_seconds).max_recall > 0:
+        # Phase 2: the acts that fit, then one act fewer at a time — «À côté»
+        # first — while they would cost the day its rule; last, the one-act day.
+        tries = [list(kept_acts)]
+        for role in ACT_DROP_ORDER:
+            fewer = [item for item in tries[-1] if item.act.role != role]
+            if len(fewer) < len(tries[-1]):
+                tries.append(fewer)
+        if tries[-1]:
+            tries.append([])
+        practice_plan = None
+        for later in tries:
+            practice_plan = _plan_practice_day(
+                scenario=scenario,
+                task=task,
+                outcome_key=outcome_key,
+                candidates=candidates,
+                selection=selection,
+                affordances=affordances,
+                reasons_by_identity=reasons_by_identity,
+                shape=shape,
+                shape_reason=shape_reason,
+                dice=dice,
+                letter=letter,
+                chapter_recap_fr=chapter_recap_fr,
+                audio_available=audio_available,
+                input_mode=input_mode,
+                budget_seconds=budget_seconds,
+                turns=act_turn_count if later else turns,
+                spt=spt,
+                multiplier=multiplier,
+                scene_cost=act_scene_cost if later else scene_cost,
+                resolution_cost=resolution_cost,
+                # A try with acts writes its notes on a copy: a try given up
+                # leaves no trace but the one line below.
+                notes=list(notes) if later else notes,
+                partners=partners,
+                introduction=introduction,
+                forge=forge,
+                reading=reading,
+                scene_audio=False if later else scene_audio,
+                desk=desk,
+                band=band,
+                story_longer=longer_day,
+                practice_units=practice_units,
+                page_review=page_review,
+                acts=later,
+            )
+            if practice_plan is not None or not later:
+                break
+            notes.append(
+                f"{1 + len(later)} acts would cost the day its rule or its practice share; one fewer"
+            )
         if practice_plan is not None:
             return practice_plan
         # WP-128: a longer story whose unit has no card to show: the story alone.
@@ -5233,12 +5594,21 @@ def _plan_practice_day(
     story_longer: bool = False,
     practice_units: list[LearningCandidate] | None = None,
     page_review: list[dict[str, Any]] | None = None,
+    acts: list[PricedAct] | None = None,
 ) -> PlannedJourney | None:
     """WP-78 — warm-ups → scene → reply → builds → a word from today → ending.
 
     WP-128: ``story_longer`` — the story alone is longer than the rhythm; the
     day is then the story and its rule (a flagged longer day), or ``None`` when
     there is no rule to plan, for the caller's story-alone day.
+
+    Phase 2 «Folge in Akten»: ``acts`` are the later acts :func:`fit_acts`
+    kept. Their scenes, replies and endings follow the first act's ending, with
+    nothing between them, and their seconds are reserved before anything else
+    is fitted — the «Lecture», the desk and the drills get what the acts leave.
+    ``None`` when the acts would cost the day its rule or the reply's unit
+    sentence pushes them past their share of the day, for the caller to try one
+    act fewer.
 
     WP-93 (W5): the scene's page ends on the question the reply answers, so
     nothing sits between them — the builds that used to come between the
@@ -5261,6 +5631,12 @@ def _plan_practice_day(
     caps = rhythm_caps(budget_seconds)
     forge_reserve = forge_reserve_seconds(forge)
     authored = authored_turns(scenario)
+    # Phase 2: the later acts are the day's story as much as the first; what
+    # follows is fitted into what they leave (``day_room``), while the rhythm's
+    # caps and the input floor stay the whole day's.
+    later = list(acts or [])
+    acts_cost = sum(item.seconds for item in later)
+    day_room = budget_seconds - acts_cost
     # WP-93 «Lecture»: the long rhythms' extra pages (one on Soutenu, two on
     # Intensif), reserved before any drill, in the order offered.
     read_steps: list[PlannedStep] = []
@@ -5278,7 +5654,7 @@ def _plan_practice_day(
             offer, scenario, spt=spt, multiplier=multiplier, audio=heard, band=band
         )
         spent = sum(step.estimated_seconds for step in read_steps)
-        if core + resolution_cost + spent + cost > budget_seconds:
+        if core + resolution_cost + spent + cost > day_room:
             notes.append("lecture skipped: the day's budget does not hold another page")
             continue
         variant = str(offer["variant"])
@@ -5303,18 +5679,26 @@ def _plan_practice_day(
     # «Le bureau» (WP-121/122): one Revue desk, reserved like the «Lecture».
     desk_step = _desk_step(
         desk, shape=shape, shape_reason=shape_reason,
-        room=budget_seconds - (core + resolution_cost + read_cost), notes=notes,
+        room=day_room - (core + resolution_cost + read_cost), notes=notes,
     )
     desk_cost = desk_step.estimated_seconds if desk_step is not None else 0
     # WP-93: the input floor. The page (and the «Lecture») count; what they
     # leave short of the floor is kept free of drills — only a heard item may
     # use it. A page-less (legacy) brief has no page to price and keeps the
-    # pre-WP-93 fill.
+    # pre-WP-93 fill. Phase 2: every act's page and reply are input too.
     input_gap = 0
     if scene_page(scenario):
         floor = round(INPUT_FLOOR_SHARE * budget_seconds)
+        acts_input = sum(
+            item.scene_seconds
+            + reply_input_seconds(
+                item.task, turns=item.turns, spt=spt, band=band,
+                authored=authored_turns(item.act.scenario),
+            )
+            for item in later
+        )
         input_gap = max(
-            0, floor - scene_cost - read_cost - reply_input_seconds(
+            0, floor - scene_cost - read_cost - acts_input - reply_input_seconds(
                 task, turns=turns, spt=spt, band=band, authored=authored
             )
         )
@@ -5420,7 +5804,7 @@ def _plan_practice_day(
         # hand tomorrow's director again (a reprise that cannot introduce its
         # unit repeats forever), so they are not held to it.
         room = (
-            budget_seconds - (scene_cost + cost + resolution_cost) - intro_card_cost
+            day_room - (scene_cost + cost + resolution_cost) - intro_card_cost
             - read_cost - desk_cost
         )
         # The rule step and its items share the day's step envelope.
@@ -5437,7 +5821,7 @@ def _plan_practice_day(
         # WP-S4: the folded forge keeps its room free of quick items; WP-93:
         # so do the «Lecture» and the input floor (only heard items use it).
         headroom = (
-            budget_seconds - (scene_cost + cost + resolution_cost) - forge_reserve - read_cost
+            day_room - (scene_cost + cost + resolution_cost) - forge_reserve - read_cost
             - desk_cost
         )
         reserved = intro_reserve(turn_count)
@@ -5569,7 +5953,7 @@ def _plan_practice_day(
         rule_now = practice_day_shape_rule(shape, budget_seconds)
         spent = scene_cost + asked_cost + resolution_cost + forge_reserve + read_cost + desk_cost
         if (
-            spent + sum(item.cost for item in asked_items) <= budget_seconds
+            spent + sum(item.cost for item in asked_items) <= day_room
             and len(asked_items) >= rule_now.min_recall
             and len(asked_items) >= len(plain_items) - 1
         ):
@@ -5593,6 +5977,14 @@ def _plan_practice_day(
         if len(shorter) > len(items):
             turns, respond_cost, items = turns - 1, shorter_cost, shorter
             notes.append("reply reduced to one turn so the practice items fit the budget")
+    if later and (
+        forced_intro
+        or scene_cost + respond_cost + resolution_cost + acts_cost > act_story_ceiling(budget_seconds)
+    ):
+        # Phase 2: the acts would cost the day its rule, or a reply that asks
+        # for the unit pushes them past their share of the day: the caller
+        # plans one act fewer.
+        return None
 
     rule = practice_day_shape_rule(shape, budget_seconds)
     if len(items) < rule.min_recall and not forced_intro:
@@ -5629,7 +6021,7 @@ def _plan_practice_day(
             scene_cost + respond_cost + resolution_cost + desk_cost + read_cost
             + (intro_card_cost + sum(cost for _t, cost in reserved_now) if reserved_now else 0)
         )
-        while review_step is not None and spent + sum(item.cost for item in items) + review_step.estimated_seconds > budget_seconds:
+        while review_step is not None and spent + sum(item.cost for item in items) + review_step.estimated_seconds > day_room:
             dropped = _drop_one_recall(items)
             if dropped is None or len(dropped) < practice_day_shape_rule(shape, budget_seconds).min_recall:
                 notes.append("page review skipped: the day's budget does not hold it")
@@ -5838,6 +6230,14 @@ def _plan_practice_day(
             },
         )
     )
+    # Phase 2: the later acts, straight after the first act's ending.
+    for number, item in enumerate(later, start=2):
+        steps.extend(
+            later_act_steps(
+                item, number, shape=shape, audio_available=audio_available, input_mode=input_mode
+            )
+        )
+        notes.append(f"act {number} «{item.act.role}»: {item.seconds}s, {item.turns} exchange(s)")
     if review_step is not None:
         # D7: straight after the ending, while the page is fresh.
         steps.append(replace(review_step, ordinal=len(steps)))
@@ -5915,6 +6315,7 @@ def _plan_practice_day(
         shape_reason=shape_reason,
         practice=True,
         longer_day=forced_intro,
+        acts=[item.act for item in later],
     )
     plan.validate()
     return plan
