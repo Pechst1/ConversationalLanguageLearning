@@ -433,8 +433,10 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
     panels = [_engine_panel(panel, language=today.language) for panel in scene] or [
         _engine_panel({"lines": [], "visual": page["title_fr"]}, language=today.language)
     ]
+    # #472: the page's title standing in for a missing caption or first line is no
+    # text of the scene: a lexicon word is the scene's only if the scene says it.
     text = " ".join(
-        [premise, opening_fr]
+        [str(captions[0].get("text_fr") or "") if captions else "", " ".join(str(line.get("text_fr")) for line in opening)]
         + [line["text_fr"] for panel in panels for line in panel["dialogue"]]
         + [panel["narration_fr"] for panel in panels]
     )

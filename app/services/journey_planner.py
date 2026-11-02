@@ -3861,6 +3861,37 @@ def overlaps_the_day(task: RecallTask, tasks: list[RecallTask], avoid: set[str] 
     return False
 
 
+#: The order a day's slots are met in (the fill order is not the display order).
+_DISPLAY_ORDER: dict[str, int] = {"warmup": 0, "mid": 1, "post": 2}
+
+
+def _shown_text(task: RecallTask) -> str:
+    """Everything an item prints before it is answered, folded: never the solution."""
+
+    parts = [task.prompt_fr, task.goal_native, task.hint_native]
+    parts.extend(str(option.get("text_fr") or "") for option in task.options or [])
+    return " ".join(_fold(str(part)) for part in parts if part)
+
+
+def gives_away_gender(task: RecallTask, earlier: RecallTask) -> bool:
+    """#474: is ``task`` a gender classify whose answer ``earlier`` has already printed?
+
+    «lettre · Maskulin oder feminin?» three drills after «la lettre · Was bedeutet
+    das?» asks nothing: since #465 every noun item carries its article, and the
+    article *is* the answer. Any gendered article (:data:`_GENDER_ARTICLES`) in
+    front of the noun, in anything ``earlier`` shows, gives it away.
+    """
+
+    if task.task_type != str(RecallFormat.CLASSIFY):
+        return False
+    solution = (task.solution_fr or "").split()
+    if len(solution) < 2 or _GENDER_ARTICLES.get(solution[0].casefold()) is None:
+        return False
+    noun = _fold(" ".join(solution[1:]))
+    articles = "|".join(re.escape(article) for article in _GENDER_ARTICLES)
+    return re.search(rf"(?<!\w)(?:{articles})\s+{re.escape(noun)}(?!\w)", _shown_text(earlier)) is not None
+
+
 def _repeats_the_day(
     task: RecallTask, entry: SelectedTarget, items: list[PracticeItem], *, slot: str | None = None,
     avoid: set[str] | frozenset[str] = frozenset(),
@@ -3876,6 +3907,16 @@ def _repeats_the_day(
     if any(_task_face(item.task) == face for item in items):
         return True
     if overlaps_the_day(task, [item.task for item in items], avoid):
+        return True
+    # #474: nor a gender drill on a noun an item met earlier in the séance printed
+    # with its article. An item already placed in the same or an earlier slot is
+    # met first (the fill order is not the display order: a later slot placed
+    # earlier is met after, and the gender drill then comes first, which is fine).
+    if slot is not None and any(
+        _DISPLAY_ORDER.get(item.slot, 0) <= _DISPLAY_ORDER.get(str(slot), 0)
+        and gives_away_gender(task, item.task)
+        for item in items
+    ):
         return True
     identity = target_identity(entry.target)
     block = _BLOCK_OF.get(str(slot), str(slot)) if slot is not None else None
@@ -5963,22 +6004,10 @@ def expected_day_seconds(budget_seconds: int, recent: list[int] | None = None) -
     return min(budget, int(budget * share))
 
 
-#: WP-128. One card of the word drill: seeing it, typing or turning it, the
-#: verdict and «Weiter» (the walk's Timer: 4 s + 0.35 s a typed character +
-#: reading + 1.5 s) — about nine seconds.
-WORD_CARD_SECONDS = 9
-#: WP-128. The drill a day offers at most (``review.tsx``: 30 due cards).
-WORD_DRILL_MAX_CARDS = 30
 #: WP-128. A Courrier letter: about this many words of French to read (the
 #: letter and its answer back), and a reply of two and a half sentences.
 LETTER_READ_TOKENS = 60
 LETTER_REPLY_SENTENCES = 2.5
-
-
-def word_drill_seconds(cards: int) -> int:
-    """WP-128: the drill's own estimate for ``cards`` waiting cards (0: none)."""
-
-    return max(0, min(int(cards or 0), WORD_DRILL_MAX_CARDS)) * WORD_CARD_SECONDS
 
 
 def letter_seconds(band: str | None) -> int:
@@ -6213,7 +6242,6 @@ __all__ = [
     "PAGE_READING_FACTOR_BY_BAND",
     "READING_PRIOR_SECONDS_PER_TOKEN",
     "REPLY_WORDS_FLOOR",
-    "WORD_CARD_SECONDS",
     "compose_seconds_per_word",
     "expected_reply_words",
     "letter_seconds",
@@ -6224,7 +6252,6 @@ __all__ = [
     "authored_ending",
     "reply_input_seconds",
     "story_alone_seconds",
-    "word_drill_seconds",
     # WP-93 / WP-92
     "PAGE_READING_FACTOR",
     "SCENE_LINE_HELP_SECONDS",

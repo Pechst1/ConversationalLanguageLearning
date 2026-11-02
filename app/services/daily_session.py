@@ -147,6 +147,27 @@ def words_seconds(new_words: int, reviews: int) -> int:
     return max(0, int(new_words)) * SECONDS_PER_NEW_WORD + max(0, int(reviews)) * SECONDS_PER_REVIEW
 
 
+def day_words_seconds(
+    db: Session, user: Any, *, session: Any = None, reviews_due: int = 0, now: datetime | None = None
+) -> int:
+    """#470: what the day's words cost, from the day deck (new and due) alone.
+
+    The one pricing of the words: the plan's word step (:func:`session_view`) and
+    the day card's «+ Wörter» extension both come from here, so Home cannot print
+    two numbers for one deck. ``session`` is the built ``DaySession`` (its word
+    step already holds the deck's counts and its state); without one the deck is
+    read the way :func:`build_session` reads it. 0 once the words are done.
+    """
+
+    if session is not None:
+        step = next((step for step in session.steps if step.kind == "words"), None)
+        if step is None or step.state == "done":
+            return 0
+        return words_seconds(step.new_left or 0, step.reviews or 0)
+    deck = _day_deck_or_none(db, user, reviews_due=reviews_due, now=now or datetime.now(UTC))
+    return words_seconds(*deck) if deck else 0
+
+
 def minutes(seconds: float) -> int:
     return max(1, math.ceil(float(seconds) / 60)) if seconds > 0 else 0
 
@@ -601,6 +622,7 @@ __all__ = [
     "goal_weeks",
     "mark_words_done",
     "pace_for_words",
+    "day_words_seconds",
     "pace_forge_seconds",
     "pace_of",
     "pace_option",

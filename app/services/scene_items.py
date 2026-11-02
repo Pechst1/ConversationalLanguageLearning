@@ -77,7 +77,22 @@ def scene_texts(draft: dict[str, Any]) -> dict[str, str]:
             if isinstance(line, dict):
                 texts[f"panel:{index}:line:{number}"] = str(line.get("text_fr") or "")
     texts["opening"] = str(draft.get("opening_line_fr") or "")
-    return {ref: text for ref, text in texts.items() if text.strip()}
+    # #472: a title is a name, not something said in the scene. A page without a
+    # caption or a spoken first line is published with its title standing in for
+    # ``premise_fr`` and ``opening_line_fr`` (the fields cannot be empty), so every
+    # reader of these texts («la lettre» quoting «La lettre») took the title for a
+    # line. They are read here once: no caller quotes, repairs a line_ref to, or
+    # finds a word in a text that is the page's title.
+    titles = {fold(title) for title in draft_titles(draft)}
+    return {ref: text for ref, text in texts.items() if text.strip() and fold(text) not in titles}
+
+
+def draft_titles(draft: dict[str, Any]) -> list[str]:
+    """The names a draft carries (its page and chapter titles), never lines of the scene."""
+
+    chapter = draft.get("chapter")
+    names = [draft.get("title_fr"), chapter.get("title_fr") if isinstance(chapter, dict) else None]
+    return [str(name) for name in names if str(name or "").strip()]
 
 
 def band_fit(rank: int | None, level: str | None) -> float | None:
