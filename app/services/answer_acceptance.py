@@ -1038,15 +1038,31 @@ def noun_with_learner_article(noun: object, learner: object) -> str | None:
     return _with_article_kind(key, learner, gender)
 
 
-def _with_article_kind(noun: str, learner: object, gender: str | None) -> str | None:
+#: The core lexicon's nouns that are only plural («les gens», «des vacances»), accent-
+#: folded: the article named on one is «les» or «des», never a singular one (#174,
+#: review on #485: «un vacances» was named «une vacances»).
+_PLURAL_ONLY_NOUNS = frozenset(
+    {
+        "gens", "vacances", "felicitations", "medias", "dechets", "mathematiques", "degats",
+        "archives", "pourparlers", "alentours", "moeurs", "cereales",
+    }
+)
+
+
+def _with_article_kind(noun: str, learner: object, gender: str | None, *, plural: bool = False) -> str | None:
     """``noun`` with the kind of article (un/une or le/la/l') ``learner`` starts with,
     in ``gender``; ``None`` when the learner gave no singular article, the gender is
-    unknown, or a definite article would hang on an «h» or a «y»."""
+    unknown, or a definite article would hang on an «h» or a «y». A plural noun
+    (``plural``, or one only used in the plural) keeps its number: «des» or «les»."""
 
     article, rest = _strip_article(fold_typography(learner))
-    if article not in {"un", "une", "le", "la", "l'"} or not rest or gender not in {"m", "f"}:
+    if article not in {"un", "une", "le", "la", "l'"} or not rest:
         return None
     noun = noun[:1].lower() + noun[1:]  # a key written with a capital («Appartement») is still a noun
+    if plural or strip_accents(fold_typography(noun)) in _PLURAL_ONLY_NOUNS:
+        return f"{'des' if article in {'un', 'une'} else 'les'} {noun}"
+    if gender not in {"m", "f"}:
+        return None
     if article in {"un", "une"}:
         return f"{'un' if gender == 'm' else 'une'} {noun}"
     folded = fold_typography(noun)
@@ -1079,7 +1095,8 @@ def article_slip_fix(key: object, learner: object) -> str | None:
         return text[:1].lower() + text[1:]
     folded = fold_typography(noun)
     gender = _ARTICLES.get(key_article) or _gender_of(folded) or _gender_of(_CLIPPED_NOUNS.get(folded, ""))
-    return _with_article_kind(noun, learner, gender)
+    # «les vacances» against «un vacances» is «des vacances»: the key's number stays.
+    return _with_article_kind(noun, learner, gender, plural=key_article in {"les", "des"})
 
 
 def article_slip_note(note: str | None, fixed: str, language: str | None) -> str | None:

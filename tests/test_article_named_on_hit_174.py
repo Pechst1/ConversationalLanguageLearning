@@ -15,7 +15,11 @@ from types import SimpleNamespace
 import pytest
 
 from app.services import journey_learning
-from app.services.answer_acceptance import article_slip_fix, article_slip_note
+from app.services.answer_acceptance import (
+    article_slip_fix,
+    article_slip_note,
+    noun_with_learner_article,
+)
 from app.services.journey_contracts import AssistanceLevel, AttemptAnswer, InputMode, TaskOutcome
 from tests.test_qa_practice_items import GERMAN_A1, _short_answer
 
@@ -46,6 +50,25 @@ def test_a_wrong_article_stays_a_hit_and_is_named(typed: str, note: str) -> None
     assert evaluation.slip_note_native == note
     assert evaluation.slip_kind == "article"
     assert evaluation.correction is None  # named, never filed as a mistake
+
+
+@pytest.mark.parametrize(
+    ("key", "typed", "named"),
+    [("les vacances", "un vacances", "des vacances"), ("des vacances", "le vacances", "les vacances")],
+)
+def test_a_plural_noun_is_named_with_a_plural_article(key: str, typed: str, named: str) -> None:
+    # Review on #485: «une vacances» / «la vacances» taught a wrong form.
+    evaluation = _evaluate(_short_answer(key, "Ferien"), typed)
+
+    assert evaluation.outcome is TaskOutcome.MET
+    assert evaluation.slip_note_native == f"Richtig — achte auf den Artikel: «{named}»."
+
+
+def test_a_plural_only_noun_s_fix_keeps_its_number() -> None:
+    # The same builder writes a missed bare noun's fix with the learner's article.
+    assert noun_with_learner_article("vacances", "une maison") == "des vacances"
+    assert noun_with_learner_article("gens", "la famille") == "les gens"
+    assert noun_with_learner_article("mois", "une semaine") == "un mois"  # an -s noun that is singular
 
 
 def test_the_line_is_in_the_learner_s_language() -> None:
@@ -84,6 +107,13 @@ def test_a_gloss_that_names_its_article_still_refuses_the_wrong_one() -> None:
         ("la poste", "un poste", "une poste"),
         ("l'école", "la école", "l'école"),
         ("les toilettes", "la toilettes", "les toilettes"),
+        # A plural keeps its number (review on #485: «un vacances» was named «une vacances»).
+        ("les vacances", "un vacances", "des vacances"),
+        ("des vacances", "le vacances", "les vacances"),
+        ("les toilettes", "une toilettes", "des toilettes"),
+        ("vacances", "une vacances", "des vacances"),
+        ("gens", "le gens", "les gens"),
+        ("Vacances", "la vacances", "les vacances"),
         # Nothing is named when it cannot be told.
         ("un appartement", "appartement", None),
         ("un hôtel", "le hôtel", None),
