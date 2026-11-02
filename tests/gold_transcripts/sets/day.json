@@ -1,0 +1,36 @@
+{
+  "surface": "day",
+  "about": "A whole day of acts (Phase 2 «Folge in Akten»): the night writer's page («Le fil») and each later act an Intensif learner at the day's level plays («Le soir»; on B1 also «À côté»), each written as the night writes it: story_split.draw (planner, author, aids) in the production retry loop, the story critic reading a later act as an act and dropping it when it refuses (living_story.draft_later_act). The three days of tests/prompt_regression/contexts, read from their recaptures in sets/pages (one shape each: bottle, ensemble, ensemble). Each act is scored on the story judge's questions (app/services/season/story_judge.py) from 1 to 5, and a later act also on «new» against the day's first act. A day costs the night writer about US$0.72 (A1, A2) to 1.07 (B1) on Opus 5.5 as measured, at most about 1.73, so the weekly run writes one day, in turn by ISO week.",
+  "items": [
+    {
+      "id": "d-a1-g1.3",
+      "page": "p-a1-g1.3",
+      "level": "A1",
+      "cefr": "A1.1",
+      "season_day": 5,
+      "segment_day": "g1.3",
+      "source": "tests/prompt_regression/contexts/s1-g1.3-a1.json, recaptured as sets/pages/p-a1-g1.3.json",
+      "learner_text": "A1 learner on Intensif, season day 5 (g1.3, a bottle chapter): the page and «Le soir»"
+    },
+    {
+      "id": "d-a2-g2.5",
+      "page": "p-a2-g2.5",
+      "level": "A2",
+      "cefr": "A2.1",
+      "season_day": 14,
+      "segment_day": "g2.5",
+      "source": "tests/prompt_regression/contexts/s1-g2.5-a2.json, recaptured as sets/pages/p-a2-g2.5.json",
+      "learner_text": "A2 learner on Intensif, season day 14 (g2.5, an ensemble chapter): the page and «Le soir»"
+    },
+    {
+      "id": "d-b1-g4.4",
+      "page": "p-b1-g4.4",
+      "level": "B1",
+      "cefr": "B1.1",
+      "season_day": 30,
+      "segment_day": "g4.4",
+      "source": "tests/prompt_regression/contexts/s1-g4.4-b1.json, recaptured as sets/pages/p-b1-g4.4.json",
+      "learner_text": "B1 learner on Intensif, season day 30 (g4.4, an ensemble chapter): the page, «À côté» and «Le soir»"
+    }
+  ]
+}

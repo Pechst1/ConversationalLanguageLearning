@@ -8892,6 +8892,44 @@ def _validate_act(draft: SceneDraft, context: dict) -> None:
     _validate_scene(draft, context)
 
 
+def later_act_context(context: dict, first_draft: dict, role: str) -> dict:
+    """The writer's context for a later act (``role``) of the day whose first act is
+    ``first_draft`` (its ``SceneDraft`` as stored on the brief): ``story_split.act_context``,
+    without the words the day hunts for, which are the first act's (its reply is graded
+    on them)."""
+
+    from app.services import story_split
+
+    act_context = story_split.act_context(context, first_draft, str(role))
+    act_context.pop(STORY_WORDS_KEY, None)
+    return act_context
+
+
+def draft_later_act(
+    act_context: dict, *, db: Session, user: User, reviews: list[dict]
+) -> tuple[SceneDraft, list[dict]]:
+    """The writing of a later act, :func:`generate_act` without its database reads: the
+    planner, the author and the aids against the first act, the story critic reading it
+    as an act (each reading appended to ``reviews``), through the production retry loop.
+    A refused act is never kept: :class:`StoryUnavailable` once every attempt is refused.
+    The gold transcripts' day surface writes its acts with this on a captured context."""
+
+    from app.services import story_split
+
+    return _approved(
+        DIRECTOR,
+        _prompt_payload(act_context),
+        SceneDraft,
+        lambda p: _validate_act(p, act_context),
+        db=db,
+        user=user,
+        story_review=_season_story_review(act_context, reviews),
+        digest=lambda p: scene_digest(p, act_context),
+        draw=story_split.draw(act_context),
+        keep_refused=False,
+    )
+
+
 def generate_act(
     db: Session, *, user: User, first: ScenarioBrief, role: str, now: datetime | None = None
 ):
@@ -8926,23 +8964,10 @@ def generate_act(
         shape = page_shape(context)
         if str(role) not in ACT_ROLES_BY_SHAPE.get(shape, (str(role),)):
             return ContentUnavailable(reason=f"act_not_in_a_{shape}")
-        act_context = story_split.act_context(context, draft, str(role))
-        # The words the day hunts for are the first act's (its reply is graded on them).
-        act_context.pop(STORY_WORDS_KEY, None)
+        act_context = later_act_context(context, draft, str(role))
         reviews: list[dict] = []
         try:
-            act_draft, usage = _approved(
-                DIRECTOR,
-                _prompt_payload(act_context),
-                SceneDraft,
-                lambda p: _validate_act(p, act_context),
-                db=db,
-                user=user,
-                story_review=_season_story_review(act_context, reviews),
-                digest=lambda p: scene_digest(p, act_context),
-                draw=story_split.draw(act_context),
-                keep_refused=False,
-            )
+            act_draft, usage = draft_later_act(act_context, db=db, user=user, reviews=reviews)
         finally:
             _record_story_reviews(db, user, act_context, reviews)
         settle_can_do(act_draft, act_context)

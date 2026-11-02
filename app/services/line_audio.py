@@ -431,7 +431,7 @@ def _shared_clip(
 def _cap_near(db: Session, user: Any) -> bool:
     from app.services.spend_guard import daily_cap_usd, learner_zone, spend_today_usd
 
-    cap = daily_cap_usd()
+    cap = daily_cap_usd(user)
     if cap <= 0:
         return False
     try:

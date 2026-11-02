@@ -452,9 +452,10 @@ def test_an_act_the_rhythm_no_longer_plays_is_not_written(db_session, night):
 
 
 def test_the_week_s_guardrail_counts_what_the_night_wrote_and_nobody_billed(db_session, night, monkeypatch):
-    # The page and every act cost 0.004 (``make_brief``). With the page written, «Le soir»
-    # fits under 0.01; with «Le soir» written too, «À côté» would not.
-    monkeypatch.setattr(settings, "PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD", 0.01)
+    # The page and every act cost 0.004 (``make_brief``), and an act keeps the next
+    # night's page its room. With the page written, «Le soir» and a page after it fit
+    # under 0.014 (0.012); with «Le soir» written too, «À côté» would not (0.016).
+    monkeypatch.setattr(settings, "PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD", 0.014)
     user = _learner(db_session)
     page = _page(db_session, user)
 

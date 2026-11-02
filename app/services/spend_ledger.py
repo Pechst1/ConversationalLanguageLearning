@@ -149,9 +149,9 @@ def reserve(
                 )
                 _refuse(moment, None)
 
-        cap = spend_guard.daily_cap_usd()
+        cap = spend_guard.daily_cap_usd(user)
         if cap > 0 and user_id is not None:
-            limit = spend_guard.open_day_ceiling_usd() if open_day else cap
+            limit = spend_guard.open_day_ceiling_usd(user) if open_day else cap
             learner_total = spend_guard.spend_today_usd(session, user_id, now=moment, zone=zone) + outstanding_usd(
                 session, user_id, now=moment, zone=zone
             )

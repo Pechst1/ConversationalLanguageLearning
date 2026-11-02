@@ -412,18 +412,44 @@ def page_lines(draft: Any, context: dict) -> list[str]:
     return [line for line in lines if not line.startswith("*Checklist")]
 
 
-def run_page(item: dict, client: Any) -> dict:
+def _spent(client: Any) -> float | None:
+    """What a paid run's meter has spent so far; ``None`` for a fake."""
+
+    value = getattr(client, "spent_usd", None)
+    return float(value) if isinstance(value, int | float) else None
+
+
+def _cost(client: Any, before: float | None, usage: list | None = None) -> float:
+    """What one page or act cost: the meter's own count when the run is paid (every call,
+    the critic's and a refused attempt's included), else the usage the engine recorded."""
+
+    from app.services import living_story as engine
+
+    after = _spent(client)
+    if before is not None and after is not None:
+        return round(after - before, 4)
+    return round(engine.usage_cost_usd(usage or []), 4)
+
+
+def _attempts(usage: list) -> int:
+    return len({entry.get("attempt") for entry in usage if isinstance(entry, dict)}) or 1
+
+
+def _write_page(context: dict, client: Any) -> tuple[dict, Any]:
+    """The page written ahead of time on ``context``, as the prefetch writes it:
+    ``(output, draft)``, the draft ``None`` when the day is lost."""
+
     from uuid import uuid4
 
     from app.services import living_story as engine
     from app.services import story_split
 
-    context = page_context(item)
     reviews: list[dict] = []
+    before = _spent(client)
     started = time.monotonic()
     with _patched(engine, "_client", lambda: client), engine.written_ahead_of_time():
         if not story_split.applies(context):
-            return {"failure": "story_split does not apply to this context", "seconds": 0.0}
+            return {"failure": "story_split does not apply to this context", "seconds": 0.0}, None
         try:
             draft, usage = engine._approved(
                 engine.DIRECTOR,
@@ -439,18 +465,147 @@ def run_page(item: dict, client: Any) -> dict:
                 draw=story_split.draw(context),
             )
         except engine.StoryUnavailable as exc:
-            return {"failure": f"lost day: {exc}", "seconds": round(time.monotonic() - started, 1), "reviews": len(reviews)}
+            return {
+                "failure": f"lost day: {exc}", "seconds": round(time.monotonic() - started, 1),
+                "reviews": len(reviews), "cost_usd": _cost(client, before),
+            }, None
     seconds = round(time.monotonic() - started, 1)
-    return {
+    output = {
         "failure": None if seconds <= PAGE_BUDGET_SECONDS else f"lost day: {seconds:.0f} s, over the {PAGE_BUDGET_SECONDS} s budget",
         "seconds": seconds,
+        "cost_usd": _cost(client, before, usage),
         "title": draft.title_fr,
         "objective": draft.objective_native,
         "lead": draft.character_id,
+        "place": draft.location_id,
         "page_lines": page_lines(draft, context),
-        "attempts": len({entry.get("attempt") for entry in usage if isinstance(entry, dict)}) or 1,
+        "attempts": _attempts(usage),
         "model_calls": len(usage),
         "reviews": len(reviews),
+    }
+    return output, draft
+
+
+def run_page(item: dict, client: Any) -> dict:
+    return _write_page(page_context(item), client)[0]
+
+
+# ---------------------------------------------------------------------------
+# A day of acts (Phase 2 «Folge in Akten»): the page, then each later act the day plays,
+# written as the night writes it (``living_story.draft_later_act``)
+# ---------------------------------------------------------------------------
+
+#: The rhythm a day of acts is measured on: the one that plays the most acts.
+DAY_RHYTHM = "intensif"
+#: The most one act cost on the production loop (2 Nov, Opus 5.5: US$0.68), and what the
+#: judge's readings of a day may cost at worst (three readings by the page judge). A paid
+#: run writes an act only while both still fit under its cap, so the day it wrote is
+#: always judged.
+ACT_AT_MOST_USD = 0.70
+DAY_JUDGE_USD = 0.15
+
+
+def day_roles(item: dict, context: dict | None = None) -> list[str]:
+    """The later acts the day plays, in the order the night writes them
+    (``story_acts.WRITING_ORDER``, «Le soir» first): what ``journey_planner.acts_to_write``
+    gives an Intensif learner at the item's level, less what the chapter's shape does
+    not play (``living_story.ACT_ROLES_BY_SHAPE``)."""
+
+    from app.services import living_story as engine
+    from app.services.journey_planner import acts_to_write
+    from app.services.journey_rhythm import RHYTHM_BUDGET_SECONDS
+    from app.services.story_acts import WRITING_ORDER
+
+    planned = set(acts_to_write(budget_seconds=RHYTHM_BUDGET_SECONDS[DAY_RHYTHM], band=item["level"]))
+    roles = [str(role) for role in WRITING_ORDER if role in planned]
+    if context is not None:
+        kept = engine.ACT_ROLES_BY_SHAPE.get(engine.page_shape(context))
+        roles = [role for role in roles if kept is None or role in kept]
+    return roles
+
+
+def _room_for_an_act(client: Any) -> bool:
+    cap = getattr(client, "cap_usd", None)
+    spent = _spent(client)
+    if not isinstance(cap, int | float) or spent is None or cap == float("inf"):
+        return True
+    return spent + ACT_AT_MOST_USD + DAY_JUDGE_USD <= cap
+
+
+def _write_act(context: dict, first: dict, role: str, client: Any) -> dict:
+    """One later act against the day's first act (``first``, its ``SceneDraft`` as
+    stored), as ``story_acts.write_act`` has it written at night. An act the critic
+    refuses, or one over the 330 s a night task has, is dropped."""
+
+    from uuid import uuid4
+
+    from app.services import living_story as engine
+
+    act_context = engine.later_act_context(context, first, role)
+    reviews: list[dict] = []
+    before = _spent(client)
+    started = time.monotonic()
+    with _patched(engine, "_client", lambda: client), engine.written_ahead_of_time():
+        try:
+            act, usage = engine.draft_later_act(
+                act_context, db=_NoDB(), user=SimpleNamespace(id=uuid4()), reviews=reviews
+            )
+        except engine.StoryUnavailable as exc:
+            return {
+                "role": role, "failure": f"dropped: {exc}", "hint": compact(exc.hint, 300),
+                "seconds": round(time.monotonic() - started, 1), "cost_usd": _cost(client, before),
+                "reviews": len(reviews),
+            }
+    seconds = round(time.monotonic() - started, 1)
+    return {
+        "role": role,
+        "failure": None if seconds <= PAGE_BUDGET_SECONDS else f"dropped: {seconds:.0f} s, over the {PAGE_BUDGET_SECONDS} s a night task has",
+        "seconds": seconds,
+        "cost_usd": _cost(client, before, usage),
+        "title": act.title_fr,
+        "objective": act.objective_native,
+        "lead": act.character_id,
+        "place": act.location_id,
+        "page_lines": page_lines(act, act_context),
+        "attempts": _attempts(usage),
+        "model_calls": len(usage),
+        "reviews": len(reviews),
+    }
+
+
+def run_day(item: dict, client: Any) -> dict:
+    """The day's page («Le fil»), then each later act the day plays (:func:`day_roles`),
+    written in the night's order and returned in play order (``ACT_ROLE_ORDER``). As at
+    night, a lost page loses the day, and an act is written only once the one before it
+    stands (``journey_prefetch.write_story_acts``): after a dropped act the rest are
+    ``not_run``, as are the acts a paid run's cap cannot hold any more. A ``not_run`` act
+    says nothing of the writer and is not scored."""
+
+    from app.services.journey_contracts import ACT_ROLE_ORDER
+
+    context = page_context({**item, "id": item["page"]})
+    page, draft = _write_page(context, client)
+    first = {"role": "fil", **page}
+    if draft is None or page.get("failure"):
+        return {"failure": page["failure"], "seconds": page.get("seconds", 0.0), "acts": [first]}
+    written: dict[str, dict] = {}
+    stored = draft.model_dump(mode="json")
+    stopped = ""
+    for role in day_roles(item, context):
+        if not stopped and not _room_for_an_act(client):
+            stopped = "the run's spending cap (what was written is kept for the judge)"
+        if stopped:
+            written[role] = {"role": role, "failure": None, "not_run": stopped}
+            continue
+        written[role] = _write_act(context, stored, role, client)
+        if written[role].get("failure"):
+            stopped = "the act before it was dropped, and the night writes no act after a dropped one"
+    acts = [first, *(written[str(role)] for role in ACT_ROLE_ORDER if str(role) in written)]
+    return {
+        "failure": None,
+        "seconds": round(sum(float(act.get("seconds") or 0.0) for act in acts), 1),
+        "cost_usd": round(sum(float(act.get("cost_usd") or 0.0) for act in acts), 4),
+        "acts": acts,
     }
 
 
@@ -460,6 +615,7 @@ SURFACES: dict[str, Callable[[dict, Any], dict]] = {
     "courrier": run_courrier,
     "correction": run_correction,
     "page": run_page,
+    "day": run_day,
 }
 
 
@@ -489,6 +645,14 @@ def checks(surface: str, item: dict, output: dict) -> dict[str, tuple[str, str]]
         }
     if surface in ("courrier", "page"):
         return {"served": served}
+    if surface == "day":
+        # One verdict per act; an act the cap left unwritten says nothing and is not counted.
+        out: dict[str, tuple[str, str]] = {}
+        for act in output.get("acts") or []:
+            if act.get("not_run"):
+                continue
+            out[f"{act['role']}.served"] = ("fail", str(act["failure"])) if act.get("failure") else ("pass", "")
+        return out
     if surface == "forge":
         want = bool(truth.get("correct"))
         got = bool(output.get("passes"))

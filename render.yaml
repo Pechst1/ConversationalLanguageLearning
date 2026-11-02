@@ -70,6 +70,15 @@ services:
       # retry (~US$0.75) has to fit under it.
       - key: USER_DAILY_SPEND_CAP_USD
         value: "1.00"
+      # Phase 2 «Folge in Akten»: a learner the night writes acts for (the switch
+      # ATELIER_STORY_ACTS and its cohort, both set in the dashboard) is held to
+      # this cap instead, so it rises with the switch and for the cohort alone.
+      # Their night writes the page and up to two acts, billed on the day they are
+      # played: the dearest night Opus was measured to write (US$0.37 a page,
+      # US$0.68 an act) leaves the day its voices and its panels under it
+      # (tests/test_story_acts_budget.py checks it against STORY_WRITER_MODEL).
+      - key: ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD
+        value: "2.50"
       # WP-138: the whole service's day (every learner, art included, UTC).
       # About five learners at their own cap, or about a dozen at the ~US$0.42
       # of a day with Opus writing the page.
@@ -286,6 +295,12 @@ services:
       # prefetch would skip a learner from the fifth night on.
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
         value: "4.00"
+      # The same for a learner with acts: seven nights of a page and two acts (about
+      # US$1.07 each on Opus as measured) plus their days, and the next night's page
+      # after them. A week of the dearest nights would pass it: the night then writes
+      # fewer acts, never fewer pages.
+      - key: ATELIER_STORY_ACTS_WEEKLY_COST_GUARDRAIL_USD
+        value: "12.00"
       - key: APNS_TEAM_ID
         sync: false
       - key: APNS_KEY_ID
@@ -537,6 +552,11 @@ services:
         fromService: {type: web, name: atelier-api, envVarKey: SERVICE_DAILY_SPEND_CAP_USD}
       - key: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD
         fromService: {type: web, name: atelier-api, envVarKey: PILOT_SERIAL_WEEKLY_COST_GUARDRAIL_USD}
+      # The night writes acts only while the learner's day and week with acts hold them.
+      - key: ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD
+        fromService: {type: web, name: atelier-api, envVarKey: ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD}
+      - key: ATELIER_STORY_ACTS_WEEKLY_COST_GUARDRAIL_USD
+        fromService: {type: web, name: atelier-api, envVarKey: ATELIER_STORY_ACTS_WEEKLY_COST_GUARDRAIL_USD}
       - key: APNS_TEAM_ID
         sync: false
       - key: APNS_KEY_ID

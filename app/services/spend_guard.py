@@ -26,6 +26,11 @@ a max so neither ledger can hide the other.
 the same day their streak counts, so a cap reset can never land in the middle
 of a local evening. ``Retry-After`` counts to the learner's next midnight.
 
+**Phase 2 «Folge in Akten».** A learner the night writes acts for is held to
+``ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD`` when it is higher (:func:`daily_cap_usd` of the
+learner): their night writes up to three pages for the day, billed on it, so their cap
+rises with the switch and nobody else's does. Every reader of the cap passes the learner.
+
 **WP-88 — a started day is never cut off.** Creating a day checks the cap as
 before; the routes that finish a day already started (attempts, help, retry,
 the scene's audio) are refused only past ``cap × USER_DAILY_SPEND_OPEN_DAY_MULTIPLIER``,
@@ -57,16 +62,38 @@ PANEL_ART_EVENT_TYPE = "journey_panel_art_cost"
 ART_EVENT_TYPES = frozenset({PANEL_ART_EVENT_TYPE})
 
 
-def daily_cap_usd() -> float:
+def daily_cap_usd(user: Any = None) -> float:
+    """The learner's daily cap: ``USER_DAILY_SPEND_CAP_USD``, or for a learner the night
+    writes acts for ``ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD`` when that is higher. A cap
+    of 0 is off, for everyone."""
+
     value = getattr(settings, "USER_DAILY_SPEND_CAP_USD", None)
-    return 0.50 if value is None else max(0.0, float(value))
+    cap = 0.50 if value is None else max(0.0, float(value))
+    if cap > 0 and user is not None:
+        acts_cap = float(getattr(settings, "ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD", 0.0) or 0.0)
+        if acts_cap > cap and acts_learner(user):
+            return acts_cap
+    return cap
 
 
-def open_day_ceiling_usd() -> float:
+def acts_learner(user: Any) -> bool:
+    """The night writes acts for this learner (``story_acts.acts_enabled_for``). A read
+    that fails never lifts a cap."""
+
+    try:
+        from app.services.story_acts import acts_enabled_for
+
+        return bool(acts_enabled_for(user))
+    except Exception as exc:  # noqa: BLE001 - a cohort read never lifts a cap
+        logger.warning("Story acts cohort unreadable, plain caps hold: {}", exc)
+        return False
+
+
+def open_day_ceiling_usd(user: Any = None) -> float:
     """Where a day already started is finally refused (WP-88)."""
 
     multiplier = getattr(settings, "USER_DAILY_SPEND_OPEN_DAY_MULTIPLIER", None)
-    return daily_cap_usd() * max(1.0, float(2.0 if multiplier is None else multiplier))
+    return daily_cap_usd(user) * max(1.0, float(2.0 if multiplier is None else multiplier))
 
 
 def learner_zone(user: Any = None) -> ZoneInfo:
@@ -239,11 +266,11 @@ def enforce_daily_budget(
             "That is everything for today. Your practice continues tomorrow.",
             seconds_until_reset(now),
         )
-    cap = daily_cap_usd()
+    cap = daily_cap_usd(user)
     user_id = getattr(user, "id", None)
     if cap <= 0 or user_id is None:
         return
-    limit = open_day_ceiling_usd() if open_day else cap
+    limit = open_day_ceiling_usd(user) if open_day else cap
     zone = learner_zone(user)
     try:
         spent = spend_today_usd(db, user_id, now=now, zone=zone)
