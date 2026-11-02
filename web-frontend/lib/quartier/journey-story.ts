@@ -167,6 +167,36 @@ export function pageOfJourney(journey: JourneySnapshot | null): StoryPage | null
   return pageOfStage(scene.prompt.stage) ?? pageOfScene(journey, scene);
 }
 
+/** The one question of a scene written today: the talk, which goes on for as long as the engine keeps it open. */
+export const WRITTEN_TALK = 'jour.talk';
+
+/** A line ends at «.», «!», «?» or «…» (a closing guillemet may follow), before a space or the end. */
+const SENTENCE_END = /[.!?…]+(?:\s*[»”"])?(?=\s|$)/g;
+/** «M. Vasseur», «Mme Marchand», an initial: a full stop that ends no sentence. */
+const TITLE = /(?:^|[\s«"'(])(?:M|Mme|Mlle|Me|Mgr|Dr|St|Ste|[A-Z])\.$/;
+const ASKED_CHARS = 200;
+
+/**
+ * What a line asks: its last question (a line that asks, then goes on, still asks), else the
+ * whole line. Once a talk written today has gone on past its opening question, the answer sheet
+ * shows this, because the day's task would read as the first question asked again.
+ */
+export function questionOf(text: string | null | undefined): string | null {
+  const flat = String(text ?? '').split(/\s+/).join(' ').trim();
+  if (!flat) return null;
+  const parts: string[] = [];
+  let start = 0;
+  for (const m of Array.from(flat.matchAll(SENTENCE_END))) {
+    const end = (m.index ?? 0) + m[0].length;
+    if (m[0].startsWith('.') && TITLE.test(flat.slice(start, (m.index ?? 0) + 1))) continue;
+    parts.push(flat.slice(start, end).trim());
+    start = end;
+  }
+  if (flat.slice(start).trim()) parts.push(flat.slice(start).trim());
+  const asked = [...parts].reverse().find((s) => /\?\s*[»”"]?$/.test(s)) ?? flat;
+  return asked.length > ASKED_CHARS ? `${asked.slice(0, ASKED_CHARS - 1).trimEnd()}…` : asked;
+}
+
 /**
  * A scene the story engine wrote for today (no authored page, so no `stage`): its panels, the
  * narration as captions and the dialogue as lines, then the talk as one question to whoever it is
@@ -202,7 +232,7 @@ export function pageOfScene(journey: JourneySnapshot, scene: SceneStep): StoryPa
   const asked = t.character_line_fr?.trim();
   movements.push({
     kind: 'turn',
-    id: 'jour.talk',
+    id: WRITTEN_TALK,
     to,
     to_name: t.character_name || null,
     task_native: t.objective_native || str(p.objective_native),
@@ -492,7 +522,10 @@ export class JourneyStory implements Story {
     if (p.help_available.includes('hint')) help.push('hint');
     if (this.words(turn, step).length) help.push('words');
     if (p.help_available.includes('suggested_response')) help.push('example');
-    return { task: turn?.task_native ?? p.objective_native ?? null, help };
+    // a talk written today goes on past its opening question: what they asked last is what you
+    // answer now (also after a reload mid-talk), not the day's task again
+    const line = turnId === WRITTEN_TALK && p.turn_index > 0 ? questionOf(p.character_line_fr) : null;
+    return { task: turn?.task_native ?? p.objective_native ?? null, line, help };
   }
 
   async answer(turnId: string, text: string): Promise<Heard> {
