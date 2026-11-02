@@ -3571,7 +3571,7 @@ class MissionGenerator:
     # French defaults), so it belongs to the French publication surface.
     def _writing_title(self, mission_type: str) -> str:
         return {
-            "message": "Votre dépêche",
+            "message": "Ta dépêche",
             "explain_plan": "Ton plan",
             "news_summary": "Ta brève",
             "travel_work": "Ce que tu dirais",
@@ -6570,14 +6570,16 @@ def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None
     # (a tu letter from Gus opening «Bonjour, c'est Gus» was answered «votre message»);
     # the register the story has today outranks both (#147).
     declared = register_now or register_word(messenger.get("target_register") or payload.get("target_register"))
-    tu = (
-        declared == "tu"
-        if declared
-        else "tu" in register.split()
+    # #196: the app says tu to the learner (#185), so a reply with no register on record
+    # tutoie too; only a letter that says vous (declared, or written «vous …») is answered so.
+    says_vous = "vous" in register.lower().split() or opening.startswith(("Bonjour Madame", "Bonjour Monsieur"))
+    says_tu = (
+        "tu" in register.split()
         or "tu /" in register
         or opening.startswith(("Salut", "Coucou"))
         or " toi" in opening
     )
+    tu = declared == "tu" if declared else says_tu or not says_vous
     if tu:
         return "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
     return "Merci pour votre message, je l'ai bien lu. Je vous réponds rapidement."

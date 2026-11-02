@@ -84,7 +84,7 @@ export const SIGNUP_CONSENT: Record<
     end: '.',
   },
   fr: {
-    ai: 'Vos réponses et votre voix sont traitées par OpenAI pour vous corriger et vous répondre.',
+    ai: 'Tes réponses et ta voix sont traitées par OpenAI pour te corriger et te répondre.',
     accept: 'Créer un compte vaut acceptation des',
     terms: 'conditions',
     and: 'et de la',

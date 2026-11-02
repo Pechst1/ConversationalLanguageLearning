@@ -57,6 +57,7 @@ MISSION_LEARNER_KEYS = frozenset(
         "channel_label",
         "contact_role",
         "title",
+        "message",
         "explain_plan",
         "news_summary",
         "travel_work",
@@ -355,3 +356,81 @@ def test_the_app_pushes_say_tu(module: str) -> None:
         if (hits := _address_violations("fr", text))
     ]
     assert not offenders, "push copy uses the wrong register:\n" + "\n".join(offenders)
+
+
+# ---------------------------------------------------------------------------
+# #196: the guard also covers French copy outside the server tables
+# ---------------------------------------------------------------------------
+
+FRONTEND = Path(__file__).resolve().parents[1] / "web-frontend"
+_TS_STRING = re.compile(r"'((?:[^'\\\n]|\\.)*)'|\"((?:[^\"\\\n]|\\.)*)\"|`((?:[^`\\]|\\.)*)`")
+
+
+def _frontend_fr_blocks(source: str) -> list[str]:
+    """The body of every `fr: { … }` object literal in a TypeScript source."""
+
+    blocks: list[str] = []
+    for match in re.finditer(r"\bfr\s*:\s*\{", source):
+        depth, index = 1, match.end()
+        while depth and index < len(source):
+            depth += (source[index] == "{") - (source[index] == "}")
+            index += 1
+        blocks.append(source[match.end() : index - 1])
+    return blocks
+
+
+def _frontend_files() -> list[Path]:
+    files = sorted((FRONTEND / "lib").glob("*.ts"))
+    for folder in ("components", "app"):
+        for pattern in ("*.ts", "*.tsx"):
+            files += sorted((FRONTEND / folder).rglob(pattern))
+    return [path for path in files if "node_modules" not in path.parts]
+
+
+def test_frontend_french_copy_says_tu() -> None:
+    """Sign-up read «Vos réponses et votre voix … pour vous corriger» (`lib/legal.ts`) next to «Garde ton histoire».
+
+    The guard used to read server tables only; every `fr: { … }` table of the frontend is
+    a place the app speaks to the learner, so the scan walks all of them.
+    """
+
+    offenders = []
+    scanned = 0
+    for path in _frontend_files():
+        for block in _frontend_fr_blocks(path.read_text(encoding="utf-8")):
+            scanned += 1
+            for match in _TS_STRING.finditer(block):
+                value = next(group for group in match.groups() if group is not None)
+                if hits := _address_violations("fr", value):
+                    offenders.append(f"{path.relative_to(FRONTEND)} {value[:80]!r} -> {hits}")
+    assert scanned > 10, "the scan found no frontend `fr:` tables to read"
+    assert not offenders, "frontend French copy speaks vous to the learner:\n" + "\n".join(offenders)
+
+
+def test_the_courrier_composer_labels_say_tu() -> None:
+    """«Votre dépêche» sat above «Garde la longueur d'un vrai message»."""
+
+    from app.services.missions import MissionGenerator
+
+    generator = MissionGenerator.__new__(MissionGenerator)
+    offenders = {
+        kind: title
+        for kind in ("message", "explain_plan", "news_summary", "travel_work", "conversation", "other")
+        if _address_violations("fr", title := generator._writing_title(kind))
+    }
+    assert not offenders, f"composer titles that say vous: {offenders}"
+
+
+def test_the_missions_scan_reads_the_composer_title_table() -> None:
+    """The «message» row of `_writing_title` was outside the scanned keys, so «Votre dépêche» slipped through."""
+
+    assert "message" in MISSION_LEARNER_KEYS
+
+
+def test_a_stock_reply_with_no_declared_register_tutoie_the_learner() -> None:
+    """Chrome says tu everywhere (#185): a model-free reply with no register on record is no exception."""
+
+    from app.services.missions import _unassessed_acknowledgement
+
+    reply = _unassessed_acknowledgement(SimpleNamespace(prompt_payload={"messenger": {}}))
+    assert not _address_violations("fr", reply), f"the stock reply addresses the learner as vous: {reply!r}"
