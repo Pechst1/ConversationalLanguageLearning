@@ -1,28 +1,31 @@
-"""Owner request, 1 November — the day deck opens on today's scene words.
+"""Today's scene words in the day deck, each quoting its scene line.
 
-The day's word deck (``review.tsx?day=1``, dealt by :mod:`app.services.day_words`)
-had the scene's words somewhere in it: a scene word the learner had already met
-in the Lexique's eight kept that place, one the scene met after the deck was
-dealt joined at the end, and the drill re-sorted the cards on the device by its
-own tiers. Each card quoted the catalogue's example, not the line the learner had
-just read.
+Owner request, 1 November (scene words in the day deck, quoting their lines),
+reworked 2 November: the deck asks *primarily* what the SRS scheduler proposes
+next, with today's scene words mixed into the new-word slots
+(:mod:`app.services.deck_order`, the one place the deck's mix and order are
+decided).
 
-Now a word that appeared in today's scene is a *scene word* of the deck:
-
-* one the day's plan dealt as the scene's (``scene`` on the batch item), one
-  today's journey reserved, one the learner kept from today's scene, or one the
-  scene's lexicon taught;
-* its card quotes the scene line it appeared in, with the line's translation
-  when the scene carried one (``text_native``, A1/A2 learners);
-* it comes first in the deck (:mod:`app.services.deck_order`, the one place the
-  deck's order is decided, for every client).
+* A **scene word** is a word the deck holds *because of* today's scene: one the
+  day's plan dealt as the scene's (``scene`` on the batch item) or one today's
+  journey reserved, and not one of the reviews the scheduler had due (a due
+  review stays a review, wherever it was printed). It carries ``scene_word``.
+* **Any** deck card whose word the scene taught (lexicon), the learner kept from
+  today's scene, or a scene word found in the scene's text quotes the scene line
+  it appeared in, with the line's translation when the scene carried one
+  (``text_native``, A1/A2 learners).
+* #472: the line is a line of the scene, never its title. An authored page with
+  no caption (every day B) is published with its French title in
+  ``premise_fr`` / ``opening_line_fr``, so «la lettre» quoted the episode title
+  «La lettre». :func:`quotable_texts` is the scene's text a card may quote:
+  :func:`app.services.scene_items.scene_texts` less any text that is the
+  draft's (or its chapter's) title.
 
 Where the lines are known: the day's scene draft
 (``private_task["scenario_brief"]["story_context"]["draft"]`` on the journey's
-steps) holds the lines, their translations and the lexicon (each entry's line,
-:func:`app.services.scene_items.sentence_of`); a word kept from today's scene
-carries its own tapped line in ``progress.context`` (WP-115a). Pure reads, no
-model call, no write.
+steps) holds the lines, their translations and the lexicon (each entry's
+``line_ref``); a word kept from today's scene carries its own tapped line in
+``progress.context`` (WP-115a). Pure reads, no model call, no write.
 """
 from __future__ import annotations
 
@@ -68,19 +71,46 @@ def _line_with_meaning(sentence: str, draft: dict[str, Any]) -> tuple[str, str |
     return sentence, None
 
 
-def _found_in_texts(draft: dict[str, Any], head: str) -> str:
-    """The first sentence of the scene that holds ``head``, or ''."""
+def _bare(text: Any) -> str:
+    from app.services.scene_items import fold
 
-    from app.services.scene_items import contains_surface, scene_texts
+    return fold(text).strip(" .!?…«»\"'")
+
+
+def _titles(draft: dict[str, Any]) -> set[str]:
+    chapter = draft.get("chapter") if isinstance(draft.get("chapter"), dict) else {}
+    return {key for key in (_bare(draft.get("title_fr")), _bare(chapter.get("title_fr"))) if key}
+
+
+def quotable_texts(draft: dict[str, Any]) -> dict[str, str]:
+    """The scene's texts a card may quote: every learner-facing line, never a title (#472)."""
+
+    from app.services.scene_items import scene_texts
+
+    titles = _titles(draft)
+    return {ref: text for ref, text in scene_texts(draft).items() if _bare(text) not in titles}
+
+
+def line_holding(draft: dict[str, Any], surface: str, *, line_ref: str = "") -> str:
+    """The sentence of the scene that holds ``surface`` (``line_ref``'s first), or ''.
+
+    The sentence, not the whole text, so a narration of three sentences quotes
+    the one with the word; a title's full stop («M. Marchand») ends none (#398).
+    """
+
+    from app.services.scene_items import contains_surface
     from app.services.sentence_line import cut_sentences
 
-    if not head:
+    if not surface:
         return ""
-    for text in scene_texts(draft).values():
-        if not contains_surface(text, head):
+    texts = quotable_texts(draft)
+    titles = _titles(draft)
+    ordered = ([texts[line_ref]] if line_ref in texts else []) + list(texts.values())
+    for text in ordered:
+        if not contains_surface(text, surface):
             continue
         for sentence in cut_sentences(text):
-            if contains_surface(sentence, head):
+            if contains_surface(sentence, surface) and _bare(sentence) not in titles:
                 return sentence.strip()
         return text.strip()
     return ""
@@ -99,12 +129,14 @@ def scene_lines(
     ``words`` / ``progress`` are the deck's catalogue rows and the learner's rows;
     ``candidates`` the words the day already knows are the scene's (dealt as the
     scene's, reserved by today's journey). A candidate's line is looked for in
-    the scene's text; any other word is a scene word only through the lexicon
+    the scene's text; any other word quotes the scene only through the lexicon
     or the learner's own keep, never because a common word happens to be printed.
+    A line is always one of :func:`quotable_texts` (never the episode's title):
+    an entry whose ``line_ref`` names the title is looked up in the lines.
     """
 
     from app.services.lexicon_grammar import lemma_key
-    from app.services.scene_items import fold, lexicon_of, sentence_of
+    from app.services.scene_items import fold, lexicon_of
 
     lexicon: dict[str, dict[str, Any]] = {}
     if draft:
@@ -120,14 +152,14 @@ def scene_lines(
         kept = str(context.get("sentence_fr") or "").strip() if journey_key and str(context.get("journey_id") or "") == journey_key else ""
         head = lemma_key(getattr(word, "word", "") or "")
         entry = lexicon.get(fold(head))
-        if kept:
-            sentence = kept
-        elif entry is not None:
-            sentence = sentence_of(draft, entry)
-        elif word_id in candidates and draft:
-            sentence = _found_in_texts(draft, head)
-        else:
-            continue
+        sentence = kept if kept and _bare(kept) not in _titles(draft) else ""
+        if not sentence and entry is not None and draft:
+            surface = str(entry.get("surface_fr") or entry.get("lemma") or head)
+            sentence = line_holding(draft, surface, line_ref=str(entry.get("line_ref") or "")) or line_holding(
+                draft, head
+            )
+        if not sentence and word_id in candidates and draft:
+            sentence = line_holding(draft, head)
         if not sentence:
             continue
         line, translation = _line_with_meaning(sentence, draft) if draft else (sentence, None)
@@ -141,10 +173,13 @@ def mark_scene_words(
     scene_ids: set[int],
     lines: dict[int, dict[str, str | None]],
 ) -> dict[str, Any]:
-    """Flag the payload's scene words and give each its scene line as the example.
+    """Flag the payload's scene words; give every card with a scene line that line as example.
 
-    A scene word without a line (a reserved word the scene's text no longer
-    prints) is still first in the deck; its card keeps the catalogue's example.
+    ``scene_ids`` are the deck's scene words (the mix's scene share,
+    :mod:`app.services.deck_order`); ``lines`` may hold other cards too (a review
+    the scene featured): those quote the scene but stay what they are. A scene
+    word without a line (a reserved word the scene's text no longer prints) keeps
+    the catalogue's example.
     """
 
     from app.services.drill_batch import PAYLOAD_LISTS
@@ -153,12 +188,15 @@ def mark_scene_words(
         cards = []
         for card in payload.get(name) or []:
             word_id = int(card.get("word_id") or 0)
-            if word_id in scene_ids or word_id in lines:
+            if word_id in scene_ids:
                 card = {**card, SCENE_WORD_KEY: True}
-                line = lines.get(word_id)
-                if line and line.get("sentence_fr"):
-                    card["example_sentence"] = line["sentence_fr"]
-                    card["example_translation"] = line.get("translation") or None
+            line = lines.get(word_id)
+            if line and line.get("sentence_fr"):
+                card = {
+                    **card,
+                    "example_sentence": line["sentence_fr"],
+                    "example_translation": line.get("translation") or None,
+                }
             cards.append(card)
         payload[name] = cards
     return payload
@@ -181,9 +219,13 @@ def apply_to_day_deck(db: Any, user: Any, batch: Any, payload: dict[str, Any], *
     journey = todays_journey(db, user, now=now)
     if journey is None:
         return payload
+    from app.services.day_words import read_plan
+
     _planned, reserved = journey_reservation(db, user, now=now)
     flagged = {int(item["word_id"]) for item in getattr(batch, "items", None) or [] if item.get("scene")}
     candidates = (set(reserved) | flagged) & ids
+    # A word the scheduler had due when the day was planned is a review, scene or not.
+    due_reviews = {int(value) for value in (read_plan(batch) or {}).get("reviews") or []}
     words = {int(word.id): word for word in db.scalars(select(VocabularyWord).where(VocabularyWord.id.in_(ids)))}
     progress = {
         int(row.word_id): row
@@ -196,7 +238,15 @@ def apply_to_day_deck(db: Any, user: Any, batch: Any, payload: dict[str, Any], *
     lines = scene_lines(
         draft=journey_draft(journey), journey_id=journey.id, words=words, progress=progress, candidates=candidates
     )
-    return mark_scene_words(payload, scene_ids=candidates, lines=lines)
+    return mark_scene_words(payload, scene_ids=candidates - due_reviews, lines=lines)
 
 
-__all__ = ["SCENE_WORD_KEY", "apply_to_day_deck", "journey_draft", "mark_scene_words", "scene_lines"]
+__all__ = [
+    "SCENE_WORD_KEY",
+    "apply_to_day_deck",
+    "journey_draft",
+    "line_holding",
+    "mark_scene_words",
+    "quotable_texts",
+    "scene_lines",
+]

@@ -59,7 +59,13 @@
   "arbitre": "m",
   "dirigeant": "m",
   "élu": "m",
-  "écrit": "m"
+  "écrit": "m",
+  "joueur": "m",
+  "visiteur": "m",
+  "voleur": "m",
+  "fermier": "m",
+  "sénateur": "m",
+  "instituteur": "m"
  },
  "deck_band_overrides": {
   "A1.2": "seconde kilomètre meilleur mieux texte inviter ci demi-heure bravo oh ah euh",

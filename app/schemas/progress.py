@@ -400,8 +400,9 @@ class VocabularyRecommendationItem(BaseModel):
     rescue_cue: dict[str, Any] | None = None
     recommendation_reason: dict[str, Any] | None = None
     episodic_anchor: dict[str, Any] | None = None
-    #: Owner request, 1 Nov: the word appeared in today's scene (the day deck). It
-    #: comes first, and its example is the scene line (with its translation).
+    #: The day deck holds the word because of today's scene (owner rules, 1 and 2 Nov):
+    #: it takes one of the scene's share of the new-word slots (``deck_order.py``), and
+    #: its example is the scene line (with its translation).
     scene_word: bool = False
 
 
@@ -451,7 +452,8 @@ class VocabularyDueContextResponse(BaseModel):
     #: ``None`` when not read (a review-only «Encore» deck, a demo account).
     new_words_left_today: int | None = None
     #: The deck's one order (``app/services/deck_order.py``): the word ids in the
-    #: order every client shows them — today's scene words first.
+    #: order every client shows them — the due reviews first, then the new words
+    #: with today's scene words mixed in (at most a third of them).
     deck_order: list[int] = Field(default_factory=list)
 
 
