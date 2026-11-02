@@ -403,6 +403,10 @@ def submit_anki_review(
             if progress.scheduler == "anki"
             else earned_rating(review_format, verdict.correct if verdict is not None else None, payload.rating)
         )
+        from app.services import gold_ledger
+
+        # O-2: the word's last contact and last deck answer, before this review stamps them.
+        gold_snapshot = gold_ledger.snapshot_word_card(db, progress=progress) if verdict is not None else {}
         srs = EnhancedSRSService(db)
         srs.process_review(
             progress=progress,
@@ -413,6 +417,10 @@ def submit_anki_review(
             direction=payload.direction,
         )
         DailyWordSlateService(db).record_encounter(user=current_user, word_id=word.id, kind="retrouve")
+        gold_ledger.record_word_card(
+            db, user=current_user, word_id=word.id, review_format=review_format, verdict=verdict,
+            snapshot=gold_snapshot,
+        )
         db.commit()
         db.refresh(progress)
 

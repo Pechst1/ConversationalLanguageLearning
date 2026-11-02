@@ -19,6 +19,7 @@ import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
 import { handOnAfterWords } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
 
+import { GoldPill } from '@/components/gold/GoldPill';
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
   cardMode,
@@ -1117,6 +1118,8 @@ export default function VocabularyReviewPage() {
               )}
               {countLabel && <span className="av2-progress__count">{countLabel}</span>}
             </div>
+            {/* O-2: each word typed back right is a feuille d'or (only where the switch shows it). */}
+            <GoldPill />
           </header>
 
           <div className="av2-screen__body lx-review__body">

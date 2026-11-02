@@ -9,6 +9,7 @@ import { CameoLayer } from '@/components/cast/CameoLayer';
 import { AppAuthProvider, useAppSession } from '@/lib/app-auth';
 import { listenForNativePushActions } from '@/lib/native-push';
 import apiService from '@/services/api';
+import { setGoldIdentity } from '@/lib/gold';
 import {
   accountScopeKey,
   consumeResumeSuppression,
@@ -79,6 +80,8 @@ function AppLifecycle() {
   useEffect(() => {
     if (session.status === 'loading') return;
     syncAccountScope(accountScopeKey(identity));
+    // O-2: another learner (or none) never sees the previous one's gold.
+    setGoldIdentity(identity);
   }, [identity, session.status]);
 
   // WP-73: error tracking knows the learner by id only, and crash reports

@@ -1747,6 +1747,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/gold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Gold
+         * @description The counter, the day's seal rim and the week (§16).
+         */
+        get: operations["read_gold_api_v1_gold_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gold/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Gold Ledger
+         * @description One week of entries with their reasons («D'où vient ton or»).
+         */
+        get: operations["read_gold_ledger_api_v1_gold_ledger_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/grammar/achievements": {
         parameters: {
             query?: never;
@@ -8478,6 +8518,144 @@ export interface components {
             goals_completed?: string[];
             /** Goals Remaining */
             goals_remaining?: string[];
+        };
+        /**
+         * GoldEntry
+         * @description One ledger line as «D'où vient ton or» prints it.
+         */
+        GoldEntry: {
+            /** Amount */
+            amount: number;
+            /** Category */
+            category?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /**
+             * Delayed Recall
+             * @default false
+             */
+            delayed_recall?: boolean;
+            /** Entry Kind */
+            entry_kind: string;
+            /** Id */
+            id: string;
+            /** Local Date */
+            local_date: string;
+            /**
+             * Plafond Cut
+             * @default false
+             */
+            plafond_cut?: boolean;
+            /**
+             * Reason Fr
+             * @default
+             */
+            reason_fr?: string;
+            /** Settled At */
+            settled_at?: string | null;
+            /** Source Kind */
+            source_kind: string;
+            /** State */
+            state: string;
+            /** Subject */
+            subject?: string | null;
+            /** Void Reason */
+            void_reason?: string | null;
+            /** Voided At */
+            voided_at?: string | null;
+        };
+        /** GoldLedgerDay */
+        GoldLedgerDay: {
+            /** Local Date */
+            local_date: string;
+            /** Pending */
+            pending: number;
+            /** Pleine */
+            pleine: boolean;
+            /** Settled */
+            settled: number;
+        };
+        /** GoldLedgerWeek */
+        GoldLedgerWeek: {
+            /** Days */
+            days?: components["schemas"]["GoldLedgerDay"][];
+            /** Entries */
+            entries?: components["schemas"]["GoldEntry"][];
+            /** Entries Total */
+            entries_total?: number | null;
+            /** Mark */
+            mark?: number | null;
+            /** Pending */
+            pending?: number | null;
+            /** Settled */
+            settled?: number | null;
+            /** Visible */
+            visible: boolean;
+            /** Week Id */
+            week_id?: string | null;
+        };
+        /** GoldToday */
+        GoldToday: {
+            /** Earn Settled */
+            earn_settled: number;
+            /** Earned Before Plafond */
+            earned_before_plafond: number;
+            /** Local Date */
+            local_date: string;
+            /** Mark */
+            mark: number;
+            /** Pending */
+            pending: number;
+            /** Plafond */
+            plafond: string;
+            /** Plafond Full Rate Up To */
+            plafond_full_rate_up_to: number;
+            /** Plafond Stops At */
+            plafond_stops_at: number;
+            /** Pleine */
+            pleine: boolean;
+            /** Rhythm */
+            rhythm: string;
+            /** Settled */
+            settled: number;
+        };
+        /**
+         * GoldView
+         * @description ``visible`` false: l'or is not on this learner's screen yet (nothing else is sent).
+         */
+        GoldView: {
+            /** Balance */
+            balance?: number | null;
+            /** Entries */
+            entries?: components["schemas"]["GoldEntry"][];
+            /** Mode */
+            mode?: string | null;
+            today?: components["schemas"]["GoldToday"] | null;
+            /** Visible */
+            visible: boolean;
+            week?: components["schemas"]["GoldWeek"] | null;
+        };
+        /** GoldWeek */
+        GoldWeek: {
+            /** Days */
+            days?: components["schemas"]["GoldWeekDay"][];
+            /** Journees Pleines */
+            journees_pleines: number;
+            /** Journees Pleines Goal */
+            journees_pleines_goal: number;
+            /** Settled */
+            settled: number;
+            /** Week Id */
+            week_id: string;
+        };
+        /** GoldWeekDay */
+        GoldWeekDay: {
+            /** Local Date */
+            local_date: string;
+            /** Pleine */
+            pleine: boolean;
+            /** Settled */
+            settled: number;
         };
         /**
          * GrammarConceptCreate
@@ -19093,6 +19271,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackReportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_gold_api_v1_gold_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoldView"];
+                };
+            };
+        };
+    };
+    read_gold_ledger_api_v1_gold_ledger_get: {
+        parameters: {
+            query?: {
+                /** @description ISO week, 2026-W45; this week by default. */
+                week?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoldLedgerWeek"];
                 };
             };
             /** @description Validation Error */

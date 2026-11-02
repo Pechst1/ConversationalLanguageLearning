@@ -1674,6 +1674,9 @@
 }
 
 .av2 .av2-home__mast-main { min-width: 0; }
+/* O-2: the gold pill sits right of the date, just before the saucers. */
+.av2 .av2-home__mast > .av2-gold-pill { order: 1; margin-left: auto; margin-bottom: 8px; }
+.av2 .av2-home__mast > .av2-home__streak { order: 2; }
 /* 2026-10-01: Settings in the same corner on every tab (components/layout/ShellCorner.tsx). */
 .av2.shell-corner.av2-icon-btn { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 16px; z-index: 5; box-shadow: 0 0 0 1px var(--av2-line); }
 /* 2026-10-01: the mark is a button (quick settings); it keeps its look. */
@@ -2887,6 +2890,9 @@
 
 /* Session head: the mark sits in the right-hand slot. */
 .av2 .av2-session__head > .av2-mark { margin-left: auto; }
+/* O-2: the gold pill sits right, the day mark beside it. */
+.av2 .av2-session__head > .av2-gold-pill { margin-left: auto; }
+.av2 .av2-session__head > .av2-gold-pill ~ .av2-mark { margin-left: 0; }
 
 /* The token rail: one shape per step, never wrapping — 8 steps fit at 320px. */
 .av2 .av2-token-count { flex: none; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); font-variant-numeric: tabular-nums; }
@@ -3703,3 +3709,224 @@
 
 /* GENTLE-ONBOARDING: the first day's route above the day's recap. */
 .av2 .journey-first-route { margin-bottom: 18px; }
+
+/* ==========================================================================
+   Package O-2 — l'or on screen (docs/ATELIER_GOLD_ECONOMY_PLAN.md §3, §11, §14)
+   ========================================================================== */
+
+/* ---- O-2: the gold rim (le tirage du jour), between the disc and the rings ---- */
+.av2 .av2-seal[data-gold] {
+  margin: calc(var(--av2-seal-size) * 0.06);
+}
+.av2 .av2-seal[data-gold][data-rings] {
+  margin: calc(var(--av2-seal-size) * 0.2);
+}
+.av2 .av2-seal__gold-track {
+  fill: var(--av2-line);
+  stroke: none;
+}
+.av2 .av2-seal__gold-leaf {
+  fill: var(--av2-gold);
+  stroke: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .av2 .av2-seal[data-stamp='true'] .av2-seal__gold-leaf {
+    animation: av2-gold-gild 0.9s 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+@keyframes av2-gold-gild {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---- O-2: l'or — the counter pill, le grain, the ×2, «D'où vient ton or» (§3, §11, §14) ---- */
+.av2 {
+  --av2-gold: var(--av2-yellow);
+  --av2-gold-deep: var(--av2-yellow-deep);
+}
+.av2 .av2-gold-glyph { flex: none; display: block; overflow: visible; }
+.av2 .av2-gold-glyph__face { fill: var(--av2-gold); }
+.av2 .av2-gold-glyph__press { fill: var(--av2-gold-deep); }
+.av2 .av2-gold-glyph__proof {
+  fill: none;
+  stroke: var(--av2-gold-deep);
+  stroke-width: 1.5;
+  stroke-dasharray: 2.5 2;
+}
+.av2 .av2-gold-glyph[data-state='void'] { opacity: 0.35; }
+
+.av2 .av2-gold-pill {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 11px 4px 9px;
+  border: 0;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-card);
+  box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line-2);
+  color: var(--av2-ink);
+  font-family: var(--av2-sans);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  overflow: visible;
+}
+.av2 .av2-gold-pill:focus-visible {
+  outline: 2px solid var(--av2-ink);
+  outline-offset: 2px;
+}
+.av2 .av2-gold-pill__n {
+  display: inline-flex;
+  overflow: hidden;
+  height: 1.1em;
+  align-items: center;
+}
+.av2 .av2-gold-pill__digit { display: inline-block; }
+.av2 .av2-gold-pill[data-grain] .av2-gold-pill__digit {
+  animation: av2-gold-roll 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes av2-gold-roll {
+  from { transform: translateY(70%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.av2 .av2-gold-pill__plus {
+  position: absolute;
+  right: 6px;
+  top: -16px;
+  font-size: 12px;
+  color: var(--av2-gold-deep);
+  animation: av2-gold-plus 900ms ease-out both;
+  pointer-events: none;
+}
+@keyframes av2-gold-plus {
+  0% { opacity: 0; transform: translateY(6px); }
+  25% { opacity: 1; transform: none; }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+/* Le grain: a small square lifts from below and lands on the pill's glyph. */
+.av2 .av2-gold-grain {
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.av2 .av2-gold-grain__leaf {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: var(--av2-gold);
+  box-shadow: 0 2px 0 var(--av2-gold-deep);
+  animation: av2-gold-grain 400ms cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+.av2 .av2-gold-grain__leaf[data-pending] {
+  background: transparent;
+  box-shadow: none;
+  outline: 1.5px dashed var(--av2-gold-deep);
+}
+@keyframes av2-gold-grain {
+  0% { opacity: 0; transform: translate(0, 46px) rotate(-30deg) scale(0.8); }
+  30% { opacity: 1; }
+  85% { opacity: 1; transform: translate(0, -3px) rotate(8deg) scale(1); }
+  100% { opacity: 0; transform: none; }
+}
+/* ×2: the square splits in two. */
+.av2 .av2-gold-grain[data-delayed] .av2-gold-grain__leaf {
+  animation-name: av2-gold-grain-left;
+}
+.av2 .av2-gold-grain[data-delayed] .av2-gold-grain__leaf--twin {
+  animation-name: av2-gold-grain-right;
+  animation-delay: 60ms;
+}
+@keyframes av2-gold-grain-left {
+  0% { opacity: 0; transform: translate(0, 46px) scale(0.8); }
+  45% { opacity: 1; transform: translate(-9px, 14px) rotate(-14deg); }
+  85% { opacity: 1; transform: translate(0, -3px); }
+  100% { opacity: 0; transform: none; }
+}
+@keyframes av2-gold-grain-right {
+  0% { opacity: 0; transform: translate(0, 46px) scale(0.8); }
+  45% { opacity: 1; transform: translate(9px, 14px) rotate(14deg); }
+  85% { opacity: 1; transform: translate(0, -3px); }
+  100% { opacity: 0; transform: none; }
+}
+.av2 .av2-gold-remembered {
+  position: fixed;
+  left: 50%;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  z-index: 40;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: var(--av2-r-pill);
+  background: var(--av2-ink);
+  color: var(--av2-paper);
+  font-family: var(--av2-serif, Georgia, serif);
+  font-style: italic;
+  font-size: 15px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: av2-gold-remembered 2400ms ease-out both;
+}
+@keyframes av2-gold-remembered {
+  0% { opacity: 0; transform: translate(-50%, -6px); }
+  12% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The information stays (the number, the +n, the line); the movement goes. */
+  .av2 .av2-gold-pill[data-grain] .av2-gold-pill__digit,
+  .av2 .av2-gold-grain__leaf { animation: none; }
+  .av2 .av2-gold-grain { display: none; }
+  .av2 .av2-gold-pill__plus,
+  .av2 .av2-gold-remembered { animation-name: av2-gold-fade; }
+}
+@keyframes av2-gold-fade {
+  0%, 85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Fertig: le tirage du jour's line under the headline. */
+.av2 .av2-gold-tirage {
+  flex-wrap: wrap;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--av2-sans);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--av2-ink);
+}
+
+/* «D'où vient ton or» */
+.av2 .av2-gold-sheet { display: grid; gap: 16px; padding-top: 4px; }
+.av2 .av2-gold-sheet__today { margin: 0; color: var(--av2-ink); font-variant-numeric: tabular-nums; }
+.av2 .av2-gold-sheet__note, .av2 .av2-gold-sheet__empty { color: var(--av2-muted); }
+.av2 .av2-gold-sheet__empty { margin: 0; }
+.av2 .av2-gold-sheet__day { display: grid; gap: 6px; }
+.av2 .av2-gold-sheet__day > h3 { margin: 0; text-transform: none; }
+.av2 .av2-gold-sheet__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.av2 .av2-gold-entry {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--av2-line);
+}
+.av2 .av2-gold-entry__why { min-width: 0; overflow-wrap: anywhere; }
+.av2 .av2-gold-entry__n { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.av2 .av2-gold-entry[data-state='pending'] .av2-gold-entry__n { color: var(--av2-muted); }
+.av2 .av2-gold-entry[data-state='void'] { color: var(--av2-muted); }
+.av2 .av2-gold-entry[data-state='void'] .av2-gold-entry__n { font-weight: 400; font-style: italic; }
+.av2 .av2-gold-sheet__weeks { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }

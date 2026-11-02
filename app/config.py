@@ -323,6 +323,14 @@ class Settings(BaseSettings):
             "like shadow)."
         ),
     )
+    ATELIER_GOLD_UI: str = Field(
+        "owner",
+        description=(
+            "Package O-2 l'or on screen: off shows it to nobody; owner shows it only to admin "
+            "accounts (the pilot owner) while the numbers are checked; all shows it to every "
+            "learner. Nothing is shown while ATELIER_GOLD_MODE is off."
+        ),
+    )
     ATELIER_BACKGROUND_PREGENERATION_ENABLED: bool = Field(
         True,
         description="Pre-generate the learner's next Atelier session in the background.",
@@ -1033,6 +1041,16 @@ class Settings(BaseSettings):
         normalized = str(value or "").strip().lower()
         if normalized not in {"off", "shadow", "live"}:
             raise ValueError("ATELIER_GOLD_MODE must be one of: off, shadow, live")
+        return normalized
+
+    @field_validator("ATELIER_GOLD_UI")
+    @classmethod
+    def validate_atelier_gold_ui(cls, value: str) -> str:
+        """O-2: a mistyped audience must not show l'or to everyone (or hide it)."""
+
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"off", "owner", "all"}:
+            raise ValueError("ATELIER_GOLD_UI must be one of: off, owner, all")
         return normalized
 
     @field_validator("GRAPHIC_NOVEL_IMAGE_STORAGE")

@@ -94,6 +94,7 @@ import { SpecialKickerContext } from './special-edition';
 import { canDoCopy } from '@/lib/can-do-copy';
 import { epreuveOf } from '@/lib/can-dos';
 import type { DailyJourneyController } from './useDailyJourney';
+import { GoldPill } from '@/components/gold/GoldPill';
 import { RvJourneyPapier } from '@/components/revue/RvJourneyPapier';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { Walkthrough } from '@/components/onboarding/Walkthrough';
@@ -408,6 +409,8 @@ export function JourneySession({
             ) : (
               <span className="av2-label">{copy.progress_none}</span>
             )}
+            {/* O-2: l'or, only where the switch shows it (nothing renders otherwise). */}
+            <GoldPill />
             {dayMark && <AtelierMark size={28} progress={dayMark.groups} title={dayMark.label} />}
             {/* W6 (WP-89): the connection lives in the header's own slot. It
                 hangs under the head out of the flow, so it can never push the

@@ -1,4 +1,5 @@
 import type { components } from '@/types/generated/api';
+import { noteGoldRequest } from '@/lib/gold-events';
 import { rememberCastVariants } from '@/lib/cast-variants';
 import { captureClientError, newRequestId } from '@/lib/observability';
 import type { StoryEpisode, StoryEpisodePage } from "@/types/daily-journey";
@@ -2082,7 +2083,11 @@ class ApiService {
 
     // Response interceptor for error handling
     this.api.interceptors.response.use(
-      (response: AxiosResponse) => response,
+      (response: AxiosResponse) => {
+        // O-2: an answer that may have minted gold; the counter reads the ledger again.
+        noteGoldRequest(response.config?.method, response.config?.url);
+        return response;
+      },
       async (error) => {
         const detail = error.response?.data?.detail;
         const message = apiErrorMessage(error);
@@ -2573,6 +2578,16 @@ class ApiService {
 
   async submitReview(data: { word_id: number; rating: number; response_time_ms?: number }): Promise<ReviewResponse> {
     return this.post('/progress/review', data);
+  }
+
+  /** O-2: the livret, the day and the week (`{visible: false}` while l'or is not shown). */
+  async getGold(): Promise<components['schemas']['GoldView']> {
+    return this.get('/gold', { suppressGlobalError: true } as SilentRequestConfig);
+  }
+
+  /** O-2: «D'où vient ton or», one ISO week of entries. */
+  async getGoldLedger(week?: string): Promise<components['schemas']['GoldLedgerWeek']> {
+    return this.get('/gold/ledger', { params: week ? { week } : undefined, suppressGlobalError: true } as SilentRequestConfig);
   }
 
   async submitAnkiReview(data: {
