@@ -2388,6 +2388,25 @@ def evaluate_recall(
 
         slip_note = feedback_note(typed, str(user_chrome_language(user)))
         slip_kind = "accent" if typed.accent_slip else "typo"
+    elif (
+        is_correct
+        and task.task_type == "short_answer"
+        and typed is not None
+        and not typed.correct
+        and typed.note in {"gender", "elision"}
+        and article_optional(task.target)
+    ):
+        # Owner call (2 Nov 2026, #174): a noun asked for without its article is right
+        # with any article or none (QA-PRACTICE, 3 Oct), so «une appartement» stays a
+        # hit; the wrong article is named on it, the way a forgiven accent is, and is
+        # never passed in silence.
+        from app.services.answer_acceptance import article_slip_fix, article_slip_note
+        from app.services.chrome_language import user_chrome_language
+
+        fixed = article_slip_fix(typed.expected, learner_text)
+        if fixed:
+            slip_note = article_slip_note(typed.note, fixed, str(user_chrome_language(user)))
+            slip_kind = "article" if slip_note else None
     return RecallEvaluation(
         outcome=TaskOutcome.MET if is_correct else TaskOutcome.NOT_YET,
         assistance=assistance,
