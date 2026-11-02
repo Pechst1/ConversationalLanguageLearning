@@ -135,6 +135,8 @@ export type LexiqueCopy = {
   dossier_reviews: string;
   dossier_seen: string;
   dossier_used: string;
+  /** Phase 2 «Folge in Akten»: the story's words read or heard this week. */
+  dossier_story: string;
   // the word sheet
   details_label: string;
   tile_rank: string;
@@ -379,6 +381,7 @@ const EN: LexiqueCopy = {
   dossier_reviews: 'Reviews',
   dossier_seen: 'Seen',
   dossier_used: 'Used',
+  dossier_story: 'Words of story read',
   details_label: 'Word details',
   tile_rank: 'Frequency rank',
   tile_nature: 'Part of speech',
@@ -618,6 +621,7 @@ const DE: LexiqueCopy = {
   dossier_reviews: 'Wiederholungen',
   dossier_seen: 'Gesehen',
   dossier_used: 'Verwendet',
+  dossier_story: 'Wörter Geschichte gelesen',
   details_label: 'Wortdetails',
   tile_rank: 'Häufigkeitsrang',
   tile_nature: 'Wortart',
@@ -857,6 +861,7 @@ const FR: LexiqueCopy = {
   dossier_reviews: 'Révisions',
   dossier_seen: 'Vus',
   dossier_used: 'Employés',
+  dossier_story: 'Mots d’histoire lus',
   details_label: 'Détails du mot',
   tile_rank: 'Rang de fréquence',
   tile_nature: 'Nature',

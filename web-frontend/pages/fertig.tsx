@@ -1,7 +1,8 @@
 /* Round 3 (owner, 2026-10-14) — «Fertig für heute».
 
    The day's last step, after the scene, the grammar and the words: the seal,
-   one headline, what the day held (1 Szene · 20 Wörter · 12 Übungen), tomorrow's
+   one headline, what the day held (1 Szene · 20 Wörter · 12 Übungen; «2 Akte» on a
+   day of acts, and under it the story's words read, Phase 2's number), tomorrow's
    open question (the line Home prints, `TomorrowLine`), and the troupe's curtain
    call over it. One ink button back to La Une. Only now the
    quiet «Noch 5 neue Wörter»: continuing past the day's dose is the learner's choice.
@@ -27,7 +28,7 @@ import { useGold } from '@/lib/gold';
 import { rimFraction, tirageLine } from '@/lib/gold-model';
 import { emitCameo } from '@/lib/cameo';
 import { castIdFor } from '@/lib/cast-faces';
-import { daySessionCopy, sessionMore, sessionNextAction } from '@/lib/day-session';
+import { daySessionCopy, sessionMore, sessionNextAction, storyReadLine, tallyStory } from '@/lib/day-session';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { extraWordsOffer } from '@/lib/more-words';
 import apiService, { type NewWordsPace } from '@/services/api';
@@ -95,6 +96,9 @@ export default function FertigPage() {
   };
   // The same line Home's finished card prints; an early stop or a recap with no teaser has none.
   const tomorrow = session?.done ? tomorrowLine(journey?.recap) : null;
+  // Phase 2 «Folge in Akten»: «2 Akte» on a day of acts, and the story's words read.
+  const story = session ? tallyStory(session.tally, language) : null;
+  const storyRead = session ? storyReadLine(session.tally, language) : null;
   const home = () => void router.push('/atelier');
   // O-2: le tirage du jour, where the switch shows l'or.
   const gold = useGold();
@@ -137,8 +141,8 @@ export default function FertigPage() {
             <ul className="av2-tally" aria-label={copy.finish_title}>
               <li className="av2-tally__item">
                 <ShapeToken kind="story" size="lg" />
-                <span className="av2-tally__n">{session.tally.scenes}</span>
-                <span className="av2-tally__l">{copy.tally_scene}</span>
+                <span className="av2-tally__n">{story?.n ?? session.tally.scenes}</span>
+                <span className="av2-tally__l">{story?.label ?? copy.tally_scene}</span>
               </li>
               <li className="av2-tally__item">
                 <ShapeToken kind="reward" size="lg" />
@@ -151,6 +155,11 @@ export default function FertigPage() {
                 <span className="av2-tally__l">{copy.tally_exercises}</span>
               </li>
             </ul>
+          )}
+          {storyRead && (
+            <p className="av2-body av2-tally__story" data-story-words="">
+              {storyRead}
+            </p>
           )}
           <TomorrowLine line={tomorrow} language={language} />
           {session?.done && journey && (

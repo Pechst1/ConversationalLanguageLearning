@@ -40,6 +40,8 @@ let browser;
 const WORDS_NEXT = /Weiter: \d+ Wörter|Suite : \d+ mots|Next: \d+ words/;
 const GRAMMAR_NEXT = /Weiter: Grammatik|Suite : grammaire|Next: grammar/;
 const FINISH = /Fertig für heute|Fini pour aujourd’hui|Done for today/;
+// Phase 2 «Folge in Akten»: Fertig's first tile on a day that played more than one act.
+const ACTS = /^(Akte|Actes|Acts)$/;
 
 async function programme(page) {
   return page.locator('[data-day-session] [data-part]').evaluateAll((rows) =>
@@ -184,7 +186,13 @@ async function playTheDay(native) {
   const state = await page.locator('.av2-fertig__body').getAttribute('data-fertig').catch(() => null);
   findings.check('fertig-says-the-day-is-done', state === 'done', `data-fertig=${state}`, where('fertig'));
   const tally = await page.locator('.av2-tally__n').allInnerTexts().catch(() => []);
-  findings.check('fertig-tallies-scene-words-exercises', tally.length === 3 && Number(tally[0]) === 1 && Number(tally[1]) > 0 && Number(tally[2]) > 0, `tally: ${tally.join(' · ')}`, where('fertig'));
+  // The first tile is the day's scene, or on a day of acts its acts («2 Akte»).
+  const storyLabel = (await page.locator('.av2-tally__l').first().innerText().catch(() => '')).trim();
+  const storyTile = Number(tally[0]) === 1 || (Number(tally[0]) > 1 && ACTS.test(storyLabel));
+  findings.check('fertig-tallies-scene-words-exercises', tally.length === 3 && storyTile && Number(tally[1]) > 0 && Number(tally[2]) > 0, `tally: ${tally.join(' · ')} (${storyLabel})`, where('fertig'));
+  // Phase 2: under the tally, the story's words the day read (its pages, the characters' lines, the endings).
+  const storyRead = (await page.locator('[data-story-words]').first().innerText().catch(() => '')).trim();
+  findings.check('fertig-counts-the-story-read', Number(storyRead.replace(/\D/g, '')) > 0, `the story line reads «${storyRead}»`, where('fertig'));
   findings.check('fertig-words-is-the-deck', Number(tally[1]) === promised, `the deck held ${promised}, Done says ${tally[1]} words`, where('fertig'));
   findings.check('fertig-offers-five-more-words', (await page.locator('[data-more-words]').count()) === 1, 'no «Noch 5 neue Wörter»', where('fertig'));
   // #359: the Done screen names tomorrow's open question (the line Home prints, checked below

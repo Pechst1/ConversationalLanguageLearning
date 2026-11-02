@@ -1411,6 +1411,13 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
           {/* Sans, not Garamond: «Le lexique» is the one headline on this screen. */}
           <h2 className="lx-dossier__title">{weeklyDossier.headline || t.dossier_fallback}</h2>
           <dl className="lx-dossier__stats">
+            {/* Phase 2 «Folge in Akten»: the story's words read this week, the phase's number. */}
+            {(weeklyDossier.stats.story_words_read ?? 0) > 0 && (
+              <div className="lx-dossier__story" data-story-words="">
+                <dt className="av2-label">{t.dossier_story}</dt>
+                <dd>{new Intl.NumberFormat(t.locale).format(weeklyDossier.stats.story_words_read ?? 0)}</dd>
+              </div>
+            )}
             <div><dt className="av2-label">{t.dossier_repairs}</dt><dd>{weeklyDossier.stats.repairs_filed ?? 0}</dd></div>
             <div><dt className="av2-label">{t.dossier_reviews}</dt><dd>{weeklyDossier.stats.vocabulary_reviews ?? 0}</dd></div>
             <div><dt className="av2-label">{t.dossier_seen}</dt><dd>{weeklyDossier.stats.words_seen ?? 0}</dd></div>
@@ -1831,6 +1838,7 @@ export default function VocabularyPage({ embedded = false }: VocabularyPageProps
         .av2 .lx-dossier__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 0; }
         .av2 .lx-dossier__stats div { min-width: 0; padding: 10px 12px; border-radius: var(--av2-r-tile); background: var(--av2-paper); }
         .av2 .lx-dossier__stats dd { margin: 4px 0 0; font-size: var(--av2-t-title); font-weight: 700; line-height: 1; }
+        .av2 .lx-dossier__stats .lx-dossier__story { grid-column: 1 / -1; }
         .av2 .lx-dossier__thread { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
         .av2 .lx-dossier__thread .av2-shape { margin-top: 5px; }
         .av2 .lx-dossier__thread span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

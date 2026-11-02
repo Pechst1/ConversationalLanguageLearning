@@ -112,12 +112,15 @@ def test_the_day_is_done_only_when_all_three_are_and_then_offers_five_more_words
             words_marked_done=True,
             forge_blocks_today=1,
             exercises_today=12,
+            acts=2,
+            story_words=640,
         )
     )
     assert view["done"] is True
     assert view["next_kind"] is None
     assert view["steps"][-1]["state"] == "done"
-    assert view["tally"] == {"scenes": 1, "words": 20, "exercises": 12}
+    # Phase 2: the acts the day opened and the story's words it read (story_reading).
+    assert view["tally"] == {"scenes": 1, "words": 20, "exercises": 12, "acts": 2, "story_words": 640}
     # Owner, 2 Nov: one step of today's extras, the same as at the day deck's end.
     assert (view["more_words"], view["more_minutes"], view["more_href"]) == (5, 2, "/vocabulary/review?more=5")
 

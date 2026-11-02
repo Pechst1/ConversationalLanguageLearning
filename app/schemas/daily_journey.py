@@ -1350,6 +1350,12 @@ class DaySessionTally(JourneyModel):
     scenes: int = 0
     words: int = 0
     exercises: int = 0
+    #: Phase 2 «Folge in Akten»: the acts the day opened, 0 to 3 (the Fertig
+    #: screen says «2 Akte» for more than one).
+    acts: int = 0
+    #: The phase's number: the story's words read or heard today — each opened
+    #: act's page, its character's lines and its ending (``story_reading``).
+    story_words: int = 0
 
 
 class DaySession(JourneyModel):

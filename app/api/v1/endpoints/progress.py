@@ -39,6 +39,7 @@ from app.schemas import (
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
 from app.services.daily_words import DailyWordSlateService
 from app.services.progress import ProgressService, vocabulary_progress_is_due
+from app.services.story_reading import period_reading
 from app.services.unified_srs import InterleavingMode, UnifiedSRSService
 
 router = APIRouter(prefix="/progress", tags=["progress"])
@@ -516,6 +517,7 @@ def get_weekly_dossier(
             words_produced=int(words_produced or 0),
             missions_completed=missions_completed,
             feuilleton_scenes_completed=scenes_completed,
+            story_words_read=period_reading(db, current_user.id, since=period_start).words,
         ),
         strengths=strengths,
         fragile_threads=fragile_threads,

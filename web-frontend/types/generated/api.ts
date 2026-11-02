@@ -7906,6 +7906,11 @@ export interface components {
         /** DaySessionTally */
         DaySessionTally: {
             /**
+             * Acts
+             * @default 0
+             */
+            acts: number;
+            /**
              * Exercises
              * @default 0
              */
@@ -7915,6 +7920,11 @@ export interface components {
              * @default 0
              */
             scenes: number;
+            /**
+             * Story Words
+             * @default 0
+             */
+            story_words: number;
             /**
              * Words
              * @default 0
@@ -16598,6 +16608,11 @@ export interface components {
              * @default 0
              */
             repairs_filed?: number;
+            /**
+             * Story Words Read
+             * @default 0
+             */
+            story_words_read?: number;
             /**
              * Vocabulary Reviews
              * @default 0
