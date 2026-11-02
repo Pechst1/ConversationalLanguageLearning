@@ -47,7 +47,7 @@ _ONE_ACT_DAYS = frozenset(
         "act_without_a_written_page",
         "act_not_on_a_gap_day",
         "act_not_on_a_planned_day",
-        "act_not_in_a_bottle",
+        # «À côté» in a two-hander: nobody but the chapter's one voice to lead it.
         "act_not_in_a_two_hander",
     }
 )
@@ -177,7 +177,8 @@ def write_act(db: Session, user: User, *, prefetch_id: str, role: str) -> str:
     ``cached`` — this act is already written; ``skipped_rhythm`` — the learner's rhythm
     and pace no longer play it; ``skipped_budget`` — the learner's week, counting what
     the night has written and not yet billed, or the service's day; ``skipped_day`` —
-    the day plays one act (a tentpole, an épreuve, a bottle chapter …);
+    the day plays one act (a tentpole, an épreuve …) or not this one («À côté» in a
+    two-hander);
     ``unavailable`` — the writer or the critic refused every attempt: the act is
     dropped; ``prefetched`` — the act was written and stored.
     """

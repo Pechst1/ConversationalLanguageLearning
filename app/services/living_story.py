@@ -8840,27 +8840,24 @@ def generate_scene(
 #: Where a later act's brief says what it is (``brief.story_context``): its role and the
 #: day's first act it was written against. A brief without it is a day's first act.
 ACT_STORY_KEY = "act"
-#: The chapter shapes whose days play one act (``generate_act``).
-ACT_FREE_SHAPES = ("bottle", "two_hander")
+#: The later acts a chapter's shape plays (``generate_act``): a two-hander has one voice
+#: besides the learner's, so «Le soir» goes on with it and no side thread has anyone to
+#: lead it. Every other shape plays every act.
+ACT_ROLES_BY_SHAPE = {"two_hander": ("soir",)}
 
 
 def _validate_act(draft: SceneDraft, context: dict) -> None:
     """A later act is held to every rule a page is (:func:`_validate_scene`) and to its
-    own, checked first: another lead and another place than the day's first act, none
-    of the season's premises, and «Le soir» ends on tomorrow's hook."""
+    own, checked first: another lead and another place than the day's first act (a
+    bottle keeps its room, a two-hander its lead: ``story_split.act_repeat``), none of
+    the season's premises, and «Le soir» ends on tomorrow's hook."""
 
-    from app.services.story_split import ACT_KEY
+    from app.services.story_split import ACT_KEY, act_repeat
 
     act = context.get(ACT_KEY) or {}
-    first = act.get("first_act") or {}
-    if draft.character_id == first.get("lead_id") or draft.location_id == first.get("location_id"):
-        raise StoryUnavailable(
-            "act_repeats_first_act",
-            hint=(
-                f"The first act today is {first.get('lead_id')} at {first.get('location_id')}: this act has "
-                "another lead and another place."
-            ),
-        )
+    repeat = act_repeat(act, lead_id=draft.character_id, location_id=draft.location_id)
+    if repeat:
+        raise StoryUnavailable(repeat[0], hint=repeat[1])
     if draft.season_checklist is not None:
         # Only the day's first act takes the season's step.
         draft.season_checklist.premise_id = None
@@ -8881,8 +8878,8 @@ def generate_act(
 
     Only a generated day of a season's gap, written by the planner and the author
     (``story_split.applies``), has acts after it: a tentpole, an épreuve, a «On se
-    tutoie ?» day, a bottle chapter, a two-hander and a page written live play one act
-    (:data:`ACT_FREE_SHAPES`). The act is
+    tutoie ?» day and a page written live play one act, and a two-hander plays «Le soir»
+    alone (:data:`ACT_ROLES_BY_SHAPE`). The act is
     planned, written and aided like a page, against the first act
     (``story_split.act_context``), and read by the story critic as an act — a refused
     act is written again or dropped, never served (``keep_refused=False``). Its brief
@@ -8904,9 +8901,7 @@ def generate_act(
         if not story_split.applies(context):
             return ContentUnavailable(reason="act_not_on_a_planned_day")
         shape = page_shape(context)
-        if shape in ACT_FREE_SHAPES:
-            # A bottle chapter keeps every page in one room and a two-hander every voice
-            # but one off the page: an act has another place and another lead.
+        if str(role) not in ACT_ROLES_BY_SHAPE.get(shape, (str(role),)):
             return ContentUnavailable(reason=f"act_not_in_a_{shape}")
         act_context = story_split.act_context(context, draft, str(role))
         # The words the day hunts for are the first act's (its reply is graded on them).

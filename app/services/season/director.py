@@ -214,7 +214,8 @@ a side thread; «Le soir», the evening). act.first_act is the page the learner 
 today, and it already took the season's step: the act moves no premise and nothing in
 must_not, advances_thread means a thread a little (for «À côté», one the first act did not
 touch), and moves_on also fails when the act stages the first act again (its lead, its
-place, its question). It may never assume how the learner answered the first act
+place, its question); a bottle chapter (act.shape) keeps the first act's room by rule and a
+two-hander its lead, so that alone is no repeat. It may never assume how the learner answered the first act
 (act.first_act.replies lists the ways it may go): honours_choices is false if it does. For
 «Le soir», hook means it ends on the reason to come back tomorrow (act.day_hook, when set).
 Write change_summary as «before → after» in one sentence. issues: one short sentence per

@@ -580,7 +580,7 @@ def planner_system(context: dict) -> str:
     role = str(act.get("role") or "")
     if role not in ACT_ROLE_RULES:
         return PLANNER
-    return PLANNER + ACT_PLANNER + ACT_ROLE_RULES[role]
+    return PLANNER + ACT_PLANNER + ACT_ROLE_RULES[role] + ACT_SHAPE_RULES.get(str(act.get("shape") or ""), "")
 
 
 def planner_payload(context: dict, rejections: list[str]) -> dict:
@@ -917,7 +917,7 @@ the same day (act.role):
 - It moves nothing the season owns: premise_id is null, chapter is null, and it never
   stages, hints at or names anything in brief.gap.must_not or what tomorrow brings.
 - Another person leads it, somewhere else: lead_id is not act.first_act.lead_id and
-  location_id is not act.first_act.location_id.
+  location_id is not act.first_act.location_id, unless act.shape keeps one of them (below).
 - It stands on its own. The learner's reply to the first act is not known yet
   (act.first_act.replies lists the ways it may go): build on what the first act's page
   showed, never on how the learner answered.
@@ -936,6 +936,21 @@ consequences tonight: who hears of it, what it costs, what someone does about it
 question gets its answer here (act.first_act.change), whichever way the learner's reply
 goes, and the page ends on the hook for tomorrow: hook says act.day_hook in your own words
 when it is set. Lead into tomorrow; never stage it.""",
+}
+
+#: What a chapter's shape keeps on a later act (``act.shape``; acts doc, «Kammerspiel»). A
+#: bottle keeps its room and a two-hander its one voice; every other shape takes another
+#: lead and another place.
+ACT_SHAPE_RULES = {
+    "bottle": """
+act.shape is bottle: today's chapter keeps one room, act.room. This act happens there too
+(location_id is act.room), later in the day, and someone other than act.first_act.lead_id
+leads it: who comes into the room changes, never the room.""",
+    "two_hander": """
+act.shape is two_hander: today's chapter is the learner and act.first_act.lead_id alone.
+That same person leads this act (lead_id is act.first_act.lead_id, cast is [lead_id]),
+somewhere else, later that day (location_id is not act.first_act.location_id), and nobody
+else is on the page.""",
 }
 
 ACT_AUTHOR = """
@@ -1034,17 +1049,25 @@ def act_context(context: dict, draft: dict, role: str) -> dict:
     rules["chapter"] = {**dict(rules.get("chapter") or {}), "open_new": False}
     brief["page_rules"] = rules
     script["brief"] = brief
+    # The shape the first act was written in: its chapter's, or the hand it was dealt
+    # when it opened today's chapter.
+    shape = engine.page_shape(context)
     chapter = dict(context.get("chapter") or {})
     if not chapter or chapter.get("resolved") or chapter.get("exhausted"):
-        # The first act opened today's chapter: the act goes on in it.
+        # The first act opened today's chapter: the act goes on in it, in the room it
+        # opened in and with the person it opened on (as ``open_chapter`` stores them).
         opened = draft.get("chapter") or {}
         chapter = {
             "title_fr": opened.get("title_fr"),
             "dramatic_question": opened.get("dramatic_question"),
             "possible_developments": list(opened.get("possible_developments") or []),
-            "shape": (context.get("chapter_shape") or {}).get("shape") or chapter.get("shape"),
+            "shape": shape,
+            "location_id": draft.get("location_id"),
+            "character_id": draft.get("character_id"),
         }
-    act = {"role": str(role), "first_act": first, "day_hook": day_hook or None}
+    act = {"role": str(role), "first_act": first, "day_hook": day_hook or None, "shape": shape}
+    if shape == "bottle":
+        act["room"] = chapter.get("location_id") or first.get("location_id")
     written = {
         key: value
         for key, value in context.items()
@@ -1059,6 +1082,37 @@ def act_context(context: dict, draft: dict, role: str) -> dict:
     }
 
 
+def act_repeat(act: dict, *, lead_id: str | None, location_id: str | None) -> tuple[str, str] | None:
+    """``(reason, hint)`` when a later act's lead or place breaks its rule, else ``None``.
+
+    Another person leads a later act, somewhere else, except where the chapter's shape
+    keeps one of them (:data:`ACT_SHAPE_RULES`): a bottle keeps its room and takes another
+    lead, a two-hander keeps its one voice and goes somewhere else."""
+
+    first = act.get("first_act") or {}
+    shape = str(act.get("shape") or "")
+    if shape == "two_hander":
+        if lead_id != first.get("lead_id"):
+            return (
+                "act_breaks_chapter_shape",
+                f"Today's chapter is a two-hander, the learner and {first.get('lead_id')} alone: "
+                f"{first.get('lead_id')} leads this act too, never {lead_id}.",
+            )
+    elif lead_id == first.get("lead_id"):
+        return "act_repeats_first_act", f"{lead_id} leads the first act today: another person leads this act."
+    if shape == "bottle":
+        room = act.get("room") or first.get("location_id")
+        if location_id != room:
+            return (
+                "act_breaks_chapter_shape",
+                f"Today's chapter is a bottle: every page happens at {room}. This act happens there "
+                "too: someone else comes into the room.",
+            )
+    elif location_id == first.get("location_id"):
+        return "act_repeats_first_act", f"The first act happens at {location_id}: this act happens somewhere else."
+    return None
+
+
 def act_plan_issue(plan: PagePlan, context: dict) -> str | None:
     """Why a later act's plan cannot be written (before a word of French is paid for), or
     ``None`` when it can, or when ``context`` is not a later act's."""
@@ -1066,11 +1120,9 @@ def act_plan_issue(plan: PagePlan, context: dict) -> str | None:
     act = context.get(ACT_KEY) or {}
     if not act:
         return None
-    first = act.get("first_act") or {}
-    if plan.lead_id == first.get("lead_id"):
-        return f"{plan.lead_id} leads the first act today: another person leads this act."
-    if plan.location_id == first.get("location_id"):
-        return f"The first act happens at {plan.location_id}: this act happens somewhere else."
+    repeat = act_repeat(act, lead_id=plan.lead_id, location_id=plan.location_id)
+    if repeat:
+        return repeat[1]
     if plan.premise_id:
         return "A later act stages none of the season's premises: premise_id is null."
     if act.get("role") == "soir" and not plan.hook.strip():
