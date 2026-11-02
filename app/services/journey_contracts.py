@@ -195,6 +195,18 @@ def act_roles(count: int) -> tuple[ActRole, ...]:
     return tuple(role for role in ACT_ROLE_ORDER if role not in dropped)
 
 
+def step_act(step: Any) -> int:
+    """The act a stored step belongs to: ``private_task["act"]``, which only a later
+    act's scene, reply and ending carry (``DailyJourneyService._persist_plan``). Every
+    other step, and every step of a one-act day, is act 1."""
+
+    private = getattr(step, "private_task", None)
+    try:
+        return max(1, int((private if isinstance(private, dict) else {}).get("act") or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
 class ActShape(NamedTuple):
     """A full act's page at one band: what the night asks the writer for, and
     what the planner prices before the act is written."""

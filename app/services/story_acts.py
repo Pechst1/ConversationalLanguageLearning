@@ -16,12 +16,21 @@ still waiting and still current, the act still planned for the learner's rhythm,
 learner's week (with what the night has written and not yet billed) and the service's
 day. A later act the writer cannot get past its guards and the critic is dropped, never
 replaced by anything weaker.
+
+In the morning the page is served as always, and the acts written after *that* page are
+taken with it (``take_acts``), in play order. The plan keeps the ones the day can hold
+(``journey_planner.plan_journey``), each kept act is published as a scene of its own
+(``living_story.bind_act``), and every act taken is closed out once the plan stands
+(``close_acts``): a played act is served and billed on its scene, an act the day gives up
+is billed then, like a page that expires. A day without the switch never takes an act;
+its acts expire with the page.
 """
 
 from __future__ import annotations
 
 import time
 import uuid
+from dataclasses import replace
 from datetime import datetime
 from typing import Any
 
@@ -32,7 +41,13 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.pilot_event import PilotEvent
 from app.db.models.user import User
-from app.services.journey_contracts import ACT_DROP_ORDER, ActRole, ScenarioBrief
+from app.services.journey_contracts import (
+    ACT_DROP_ORDER,
+    ACT_ROLE_ORDER,
+    ActBrief,
+    ActRole,
+    ScenarioBrief,
+)
 
 #: One row per written act, beside the page's ``journey_scene_prefetched`` row.
 ACT_PREFETCH_EVENT = "journey_story_act_prefetched"
@@ -271,6 +286,92 @@ def write_act(db: Session, user: User, *, prefetch_id: str, role: str) -> str:
     return "prefetched"
 
 
+#: On a taken act's brief (``story_context``): the ledger row it was stored in, so the
+#: morning can close out exactly the acts it played and the ones it did not.
+ACT_ROW_KEY = "act_prefetch_id"
+
+
+def take_acts(db: Session, user: User, brief: ScenarioBrief) -> list[ActBrief]:
+    """The acts the night wrote after the page the morning is serving, in the order
+    they are played (``ACT_ROLE_ORDER``): «À côté», then «Le soir».
+
+    Only the page itself counts: its ``prefetch_id`` (``take_prefetched_scene``), with
+    the switch and its cohort on. Nothing is written here but the close-out of an act
+    that cannot be read: the plan decides which acts the day keeps, and
+    :func:`close_acts` marks those served and bills the rest — after the binding, in
+    the morning's transaction, so a morning that rolls back leaves every act as it was,
+    to be billed when it expires.
+    """
+
+    from app.services.journey_latency import (
+        PREFETCH_DISCARDED_EVENT,
+        _brief_codec,
+        _mark,
+        _usage_cost,
+    )
+    from app.services.living_story import PREFETCH_ID_KEY
+
+    if not acts_enabled_for(user):
+        return []
+    prefetch_id = str((brief.story_context or {}).get(PREFETCH_ID_KEY) or "")
+    if not prefetch_id:
+        return []
+    taken: dict[ActRole, ActBrief] = {}
+    for row in act_rows(db, user, prefetch_id=prefetch_id):
+        payload = row.payload or {}
+        try:
+            role = ActRole(str(payload.get("role")))
+            scenario = _brief_codec()[1](dict(payload.get("brief") or {}))
+        except Exception:
+            logger.exception("story_acts: an act the night wrote cannot be read")
+            _mark(db, row, PREFETCH_DISCARDED_EVENT, reason="unreadable_brief", cost_usd=_usage_cost(payload))
+            continue
+        if role is ActRole.FIL or role in taken:
+            # One act per role, the first written (``write_act`` writes each once).
+            _mark(db, row, PREFETCH_DISCARDED_EVENT, reason="superseded", cost_usd=_usage_cost(payload))
+            continue
+        taken[role] = ActBrief(
+            role=role,
+            scenario=replace(scenario, story_context={**dict(scenario.story_context or {}), ACT_ROW_KEY: str(row.id)}),
+        )
+    return [taken[role] for role in ACT_ROLE_ORDER if role in taken]
+
+
+def close_acts(db: Session, user: User, taken: list[ActBrief], *, played: list[ActBrief]) -> None:
+    """Close out every act :func:`take_acts` handed the morning: an act the day plays
+    is served (it is billed on the scene it is published as, ``bind_act``); an act the
+    day gave up (it did not fit, or the day plays one act) is discarded and billed now,
+    as a page the morning does not serve."""
+
+    from app.services.journey_latency import (
+        PREFETCH_CONSUMED_EVENT,
+        PREFETCH_DISCARDED_EVENT,
+        _consumed_ids,
+        _mark,
+        _usage_cost,
+    )
+
+    def row_id(act: ActBrief) -> str:
+        return str((act.scenario.story_context or {}).get(ACT_ROW_KEY) or "")
+
+    served = {row_id(act) for act in played} - {""}
+    ids = [row_id(act) for act in taken if row_id(act)]
+    closed = _consumed_ids(db, ids)
+    for value in ids:
+        if value in closed:
+            continue
+        try:
+            row = db.get(PilotEvent, uuid.UUID(value))
+        except (TypeError, ValueError):
+            continue
+        if row is None or row.event_type != ACT_PREFETCH_EVENT or str(row.user_id) != str(user.id):
+            continue
+        if value in served:
+            _mark(db, row, PREFETCH_CONSUMED_EVENT, reason="served")
+        else:
+            _mark(db, row, PREFETCH_DISCARDED_EVENT, reason="not_played", cost_usd=_usage_cost(row.payload or {}))
+
+
 def act_payloads(rows: list[PilotEvent]) -> list[dict[str, Any]]:
     """What a row holds, for reports: the role, the time it took, its title."""
 
@@ -287,11 +388,14 @@ def act_payloads(rows: list[PilotEvent]) -> list[dict[str, Any]]:
 __all__ = [
     "ACT_ENTITY_TYPE",
     "ACT_PREFETCH_EVENT",
+    "ACT_ROW_KEY",
     "WRITING_ORDER",
     "act_payloads",
     "act_rows",
     "acts_enabled_for",
+    "close_acts",
     "planned_roles",
     "roles_to_write",
+    "take_acts",
     "write_act",
 ]

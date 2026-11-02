@@ -34,6 +34,7 @@ from app.services import correction_contract, scene_ledger, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.journey_contracts import (
+    ActBrief,
     AssistanceLevel,
     AttemptAnswer,
     CapabilityKey,
@@ -48,6 +49,7 @@ from app.services.journey_contracts import (
     TargetObservation,
     TaskOutcome,
     normalize_control_language,
+    step_act,
 )
 from app.services.lexical_coverage import (
     LearnerLexicon,
@@ -3965,12 +3967,13 @@ def settle_tutoiement(
     return {"character_id": character_id, "state": decision or "asked"}
 
 
-def _learner_lines(journey: Any) -> list[str]:
-    """The learner's own replies in today's scene, in order (the respond step's turns)."""
+def _learner_lines(journey: Any, *, act: int | None = None) -> list[str]:
+    """The learner's own replies in today's scene, in order (the respond step's turns);
+    with ``act``, in that act's scene only (Phase 2)."""
 
     lines: list[str] = []
     for step in getattr(journey, "steps", None) or []:
-        if str(getattr(step, "kind", "")) != "respond":
+        if str(getattr(step, "kind", "")) != "respond" or (act is not None and step_act(step) != act):
             continue
         for turn in (getattr(step, "private_task", None) or {}).get("turns") or []:
             if isinstance(turn, dict) and str(turn.get("learner") or "").strip():
@@ -3978,9 +3981,10 @@ def _learner_lines(journey: Any) -> list[str]:
     return lines
 
 
-def _page_thread(journey: Any, brief: Any) -> dict[str, Any] | None:
+def _page_thread(journey: Any, brief: Any, *, act: int | None = None) -> dict[str, Any] | None:
     """WP-110: a generated day's conversation, for the finished page — who turned to
-    the learner, what they asked, and each reply with the answer it got.
+    the learner, what they asked, and each reply with the answer it got; with ``act``,
+    that act's conversation only (Phase 2).
 
     None on a tentpole day (its page is the season's, with the routed replies) and on
     a day with no reply.
@@ -3991,7 +3995,7 @@ def _page_thread(journey: Any, brief: Any) -> dict[str, Any] | None:
         return None
     exchanges: list[dict[str, str]] = []
     for step in getattr(journey, "steps", None) or []:
-        if str(getattr(step, "kind", "")) != "respond":
+        if str(getattr(step, "kind", "")) != "respond" or (act is not None and step_act(step) != act):
             continue
         for turn in (getattr(step, "private_task", None) or {}).get("turns") or []:
             if isinstance(turn, dict) and str(turn.get("learner") or "").strip():
@@ -4041,10 +4045,12 @@ def memory_day(
     day: int,
     witnesses: list[str],
     world: dict | None,
+    act: int | None = None,
 ) -> story_memory.Day:
     """Story engine Phase 3: one settled day as ``story_memory.after_day`` reads it — the
     exchanges as stored (with their route and what each heard), a tentpole's turns so
-    each line knows what it answered, and what the accepted ending reported."""
+    each line knows what it answered, and what the accepted ending reported. With
+    ``act`` (Phase 2), one act of the day: its own exchanges only."""
 
     from app.services.season.page import present_at_turns
     from app.services.season.runtime import _cast_names as season_cast_names
@@ -4058,7 +4064,7 @@ def memory_day(
     exchanges = [
         exchange
         for step in getattr(journey, "steps", None) or []
-        if str(getattr(step, "kind", "")) == "respond"
+        if str(getattr(step, "kind", "")) == "respond" and (act is None or step_act(step) == act)
         for exchange in (getattr(step, "private_task", None) or {}).get("turns") or []
         if isinstance(exchange, dict)
     ]
@@ -4099,6 +4105,7 @@ def memory_day(
         returns_to=draft.returns_to,
         not_names=not_names,
         is_word=story_memory.word_check(_french_words()),
+        act=int(act or 1),
     )
 
 
@@ -8844,6 +8851,22 @@ ACT_STORY_KEY = "act"
 #: besides the learner's, so «Le soir» goes on with it and no side thread has anyone to
 #: lead it. Every other shape plays every act.
 ACT_ROLES_BY_SHAPE = {"two_hander": ("soir",)}
+#: A later act's bound brief: the day's season gap, for the reveals it forbids alone
+#: (WP-155, ``_season_turn_must_not``). The act carries no season day — the first act
+#: alone settles flags, stages a gate, carries «Ton cap» and the agency — but its reply
+#: and its ending keep the day's reveals as the first act's do (``_turn_payload``).
+ACT_REVEALS_KEY = "act_reveals"
+
+
+def _act_reveals(first: ScenarioBrief) -> dict | None:
+    """``{id, position: {segment}}`` of the gap the first act (``first``, as bound) plays,
+    or ``None`` when it plays none."""
+
+    season_day = (first.story_context or {}).get("season") or {}
+    segment = (season_day.get("position") or {}).get("segment")
+    if season_day.get("kind") != "gap" or not season_day.get("id") or not segment:
+        return None
+    return {"id": str(season_day["id"]), "position": {"segment": str(segment)}}
 
 
 def _validate_act(draft: SceneDraft, context: dict) -> None:
@@ -9130,6 +9153,54 @@ def _lock_context(db: Session, user: User, expected: str) -> SerialThread:
     return thread
 
 
+def _publish_panels(scene: GraphicNovelScene, brief: ScenarioBrief, draft: SceneDraft, *, season_images: list) -> None:
+    """The page's panels on its scene, each opening on its place's plate (or an authored
+    page's own panel image). The first panel carries the page's generation usage."""
+
+    # WP-92 «Rayons X»: per line, where the day's form is said (offsets into text_fr).
+    grammar = brief.story_context.get(GRAMMAR_OUTCOME_KEY) or None
+    line_marks = (grammar or {}).get("marks") or {}
+
+    def dialogue_payload(panel_index: int, panel_draft: Panel) -> list[dict]:
+        lines = []
+        for line_index, line in enumerate(panel_draft.dialogue):
+            payload = line.model_dump()
+            if grammar is not None:
+                payload["grammar_marks"] = list(line_marks.get(f"{panel_index}:{line_index}") or [])
+            lines.append(payload)
+        return lines
+
+    for index, panel in enumerate(draft.panels):
+        panel_image = (
+            season_images[index].get("image_url")
+            if index < len(season_images) and season_images[index].get("image_url")
+            else brief.image_url
+        )
+        scene.panels.append(
+            GraphicNovelPanel(
+                panel_index=index,
+                title=f"{index + 1}",
+                beat=panel.narration_fr,
+                image_prompt=panel.visual_direction,
+                image_url=panel_image,
+                overlay_payload={
+                    "narration_fr": panel.narration_fr,
+                    # WP-90: each line carries `mood` and `text_native` (None above A2).
+                    # WP-92: and `grammar_marks` when the scene had a grammar plan.
+                    "dialogue": dialogue_payload(index, panel),
+                    "alt_native": panel.alt_native,
+                },
+                generation_metadata={
+                    "source": "ai",
+                    "image_source": "setting_reference",
+                    # WP-116: the plate stays known after a drawing replaces image_url.
+                    "plate_url": panel_image,
+                    "usage": brief.story_context["generation_usage"] if index == 0 else [],
+                },
+            )
+        )
+
+
 def bind_journey(
     db: Session, *, user: User, journey: DailyJourney, brief: ScenarioBrief
 ) -> ScenarioBrief:
@@ -9202,48 +9273,8 @@ def bind_journey(
     )
     db.add(scene)
     db.flush()
-    # WP-92 «Rayons X»: per line, where the day's form is said (offsets into text_fr).
     grammar = brief.story_context.get(GRAMMAR_OUTCOME_KEY) or None
-    line_marks = (grammar or {}).get("marks") or {}
-
-    def dialogue_payload(panel_index: int, panel_draft: Panel) -> list[dict]:
-        lines = []
-        for line_index, line in enumerate(panel_draft.dialogue):
-            payload = line.model_dump()
-            if grammar is not None:
-                payload["grammar_marks"] = list(line_marks.get(f"{panel_index}:{line_index}") or [])
-            lines.append(payload)
-        return lines
-
-    for index, panel in enumerate(draft.panels):
-        panel_image = (
-            season_images[index].get("image_url")
-            if index < len(season_images) and season_images[index].get("image_url")
-            else brief.image_url
-        )
-        scene.panels.append(
-            GraphicNovelPanel(
-                panel_index=index,
-                title=f"{index + 1}",
-                beat=panel.narration_fr,
-                image_prompt=panel.visual_direction,
-                image_url=panel_image,
-                overlay_payload={
-                    "narration_fr": panel.narration_fr,
-                    # WP-90: each line carries `mood` and `text_native` (None above A2).
-                    # WP-92: and `grammar_marks` when the scene had a grammar plan.
-                    "dialogue": dialogue_payload(index, panel),
-                    "alt_native": panel.alt_native,
-                },
-                generation_metadata={
-                    "source": "ai",
-                    "image_source": "setting_reference",
-                    # WP-116: the plate stays known after a drawing replaces image_url.
-                    "plate_url": panel_image,
-                    "usage": brief.story_context["generation_usage"] if index == 0 else [],
-                },
-            )
-        )
+    _publish_panels(scene, brief, draft, season_images=season_images)
     # Every panel opens on the location plate; its own drawing replaces it once the
     # scene is committed (app/services/panel_art.py). The reader never waits for art.
     # WP-90: a prefetched scene's panels were drawn at prefetch time — those drawings
@@ -9538,6 +9569,145 @@ def bind_journey(
     )
 
 
+def bind_act(
+    db: Session, *, user: User, journey: DailyJourney, first: ScenarioBrief, act: ActBrief, number: int
+) -> ScenarioBrief:
+    """Phase 2 «Folge in Akten»: publish a later act of today, after :func:`bind_journey`
+    published the first (``first``, as bound).
+
+    The first act took the day's step: its episode, its chapter, the season's day. A
+    later act is one more page of that episode and chapter, played after it. Its scene is
+    published as the first act's is — the panels, their drawings, and one cost row (an act
+    is billed when it is served) — and it joins the situations a later page may not
+    repeat. It owns no episode and moves nothing else: its exchange settles as a later act
+    (``settle_resolution``)."""
+
+    brief = act.scenario
+    # The owner first, then the thread: the order every writer of the story takes.
+    db.execute(select(User.id).where(User.id == user.id).with_for_update())
+    thread = _active_thread(db, user, lock=True)
+    if thread is None or str(thread.id) != str(first.serial_thread_id or ""):
+        raise StoryUnavailable("story_thread_changed")
+    first_scene = db.get(GraphicNovelScene, UUID(str(first.story_context["scene_id"])))
+    if first_scene is None or first_scene.user_id != user.id:
+        raise StoryUnavailable("story_scene_not_found")
+    draft = draft_model_for(brief.story_context).model_validate(brief.story_context["draft"])
+    stage = {"number": int(number), "role": str(act.role)}
+    first_source = first_scene.source_snapshot or {}
+    first_script = first_scene.script_payload or {}
+    scene = GraphicNovelScene(
+        user_id=user.id,
+        serial_thread_id=thread.id,
+        episode_index=None,
+        title=brief.title_fr,
+        brief=brief.setup_fr,
+        status="available",
+        cadence="daily",
+        created_at=datetime.now(UTC),
+        source_snapshot={
+            "journey_id": str(journey.id),
+            "serial_episode_id": str(first.serial_episode_id),
+            "story_engine": VERSION,
+            "owns_episode": False,
+            ACT_STORY_KEY: stage,
+            # The first act's chapter: an act goes on in it.
+            **({"chapter": first_source["chapter"]} if first_source.get("chapter") else {}),
+        },
+        script_payload={
+            "title": brief.title_fr,
+            "location_id": brief.location_id,
+            "story_engine": VERSION,
+            COVERAGE_KEY: brief.story_context.get(COVERAGE_KEY),
+            ACT_STORY_KEY: stage,
+        },
+        cache_key=str(brief.scenario_key),
+        prompt_version=VERSION,
+        image_model="existing-setting-art",
+        image_quality="reference",
+    )
+    db.add(scene)
+    db.flush()
+    _publish_panels(scene, brief, draft, season_images=[])
+    # Its panels are drawn as a page served live is: nothing was drawn for it at night.
+    from app.services import panel_art
+
+    panel_art.request_scene_art(db, scene, level_band=getattr(brief, "level_band", None), user=user)
+    state = dict(thread.state or {})
+    live = dict(state.get(STATE_KEY) or {})
+    chapter = dict(live.get("chapter") or {})
+    live["recent_situations"] = [
+        *live.get("recent_situations", []),
+        {
+            "id": str(brief.scenario_key),
+            "title_fr": draft.title_fr,
+            "novelty_key": draft.novelty_key,
+            "premise_fr": draft.premise_fr,
+            "objective_native": draft.objective_native,
+            "character_id": draft.character_id,
+            "location_id": draft.location_id,
+            "causal_reason": draft.causal_reason,
+            "beat": draft.beat,
+            "problem_key": draft.problem_key,
+            "chapter_title_fr": chapter.get("title_fr"),
+            ACT_STORY_KEY: stage,
+        },
+    ][-14:]
+    state[STATE_KEY] = live
+    thread.state = state
+    usage = brief.story_context.get("generation_usage") or []
+    usd = usage_cost_usd(usage)
+    words = brief.story_context.get(WORDS_OUTCOME_KEY) or {}
+    scene.script_payload = {
+        **scene.script_payload,
+        "estimated_cost": {
+            "story_generation_usd": usd,
+            "image_generation_usd": 0.0,
+            "total_estimated_usd": usd,
+            "panel_count": len(draft.panels),
+            "image_units": 0,
+            "image_quality": "reference",
+            "render_mode": "setting_reference",
+            "currency": "USD",
+            "basis": f"{VERSION} usage metadata",
+        },
+        "recycled_lemmas": list(words.get("recycled") or []),
+        "placed_lemmas": list(words.get("placed") or []),
+        "can_do_id": draft.can_do_id,
+        **({"chapter": first_script["chapter"]} if first_script.get("chapter") else {}),
+    }
+    _record_cost(
+        db,
+        user,
+        "journey_story_scene_cost",
+        usage,
+        entity_type="living_story_scene",
+        entity_id=scene.id,
+        payload={
+            "journey_id": str(journey.id),
+            "stage": "act",
+            "act": stage,
+            "chapter_id": first.story_context.get("chapter_id"),
+            "character_id": brief.character_id,
+            "location_id": brief.location_id,
+        },
+    )
+    db.flush()
+    return replace(
+        brief,
+        serial_thread_id=str(thread.id),
+        serial_episode_id=first.serial_episode_id,
+        story_context={
+            **brief.story_context,
+            ACT_STORY_KEY: {**dict(brief.story_context.get(ACT_STORY_KEY) or {}), **stage},
+            "scene_id": str(scene.id),
+            "owns_episode": False,
+            "chapter_id": first.story_context.get("chapter_id"),
+            "published_revision": _fingerprint(thread),
+            **({ACT_REVEALS_KEY: reveals} if (reveals := _act_reveals(first)) else {}),
+        },
+    )
+
+
 def _season_turn_must_not(season_day: dict, today) -> dict:
     """WP-155: ``{season, gap, must_not: [{id, text}]}`` for a generated day's turn — the
     texts the reply and ending lanes read, the ids their spoiler guard reads back."""
@@ -9617,6 +9787,12 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
 
         if (contract := contract_for(season_day, speaker=scenario.character_id)) is not None:
             context["season_turn"]["agency"] = agency_for_turn(contract)
+    elif isinstance(reveals := (scenario.story_context or {}).get(ACT_REVEALS_KEY), dict):
+        # Phase 2: a later act's reply and ending keep the day's reveals (the voice's
+        # «never_reveal», the lanes' spoiler guard). It settles no flag and stages no
+        # gate: the day's first act alone moves the season.
+        if must_not := _season_turn_must_not(reveals, context.get(SEASON_TODAY_KEY)):
+            context["season_turn"] = {"may_set": [], "gate": None, **must_not}
     context["agendas"] = [
         row
         for row in context.get("agendas") or []
@@ -10373,6 +10549,15 @@ def settle_resolution(
         private["resolution_settled"] = True
         resolution.private_task = private
         return
+    act = step_act(resolution)
+    if act > 1:
+        # Phase 2: a later act's exchange is its own character's, inside today: the
+        # first act settled the day (its step, its chapter, the season).
+        _settle_later_act(
+            db, user=user, journey=journey, brief=brief, resolution=resolution, proposal=proposal,
+            scene=scene, act=act,
+        )
+        return
     turn = SemanticTurn.model_validate(
         {key: value for key, value in proposal.details.items() if key in SemanticTurn.model_fields}
     )
@@ -10603,7 +10788,7 @@ def settle_resolution(
     # questions still open — in the same transaction as the day (idempotent per event).
     live[story_memory.MEMORY_KEY] = story_memory.after_day(
         live.get(story_memory.MEMORY_KEY),
-        memory_day(journey, brief, draft, turn, event_id=event_id, day=day, witnesses=witnesses, world=world),
+        memory_day(journey, brief, draft, turn, event_id=event_id, day=day, witnesses=witnesses, world=world, act=act),
     )
     state[STATE_KEY] = live
     state["story_so_far"] = [*state.get("story_so_far", []), event["summary_fr"]][-40:]
@@ -10627,7 +10812,7 @@ def settle_resolution(
         live,
         character_id=brief.character_id,
         scene_id=str(scene.id),
-        learner_lines=_learner_lines(journey),
+        learner_lines=_learner_lines(journey, act=act),
         reply_fr=turn.reply_fr,
         registers_before=registers_before,
         episode_index=thread.current_episode_index,
@@ -10703,7 +10888,7 @@ def settle_resolution(
         # No surface composes a hook of its own.
         **({HOOK_PAYLOAD_KEY: teaser["text_fr"]} if teaser else {}),
         # WP-110: the conversation as it was had, so the finished page draws it.
-        **({"page_thread": page_thread} if (page_thread := _page_thread(journey, brief)) else {}),
+        **({"page_thread": page_thread} if (page_thread := _page_thread(journey, brief, act=act)) else {}),
         "estimated_cost": {
             **cost,
             "story_generation_usd": round(
@@ -10748,6 +10933,185 @@ def settle_resolution(
         # An authored season page ends on its «À suivre…» caption: narration, said
         # by nobody — never under the addressed character's face.
         **({"narrated": True} if (brief.story_context.get("season") or {}).get("kind") == "tentpole" else {}),
+    }
+    private.update(
+        resolution_settled=True,
+        story_outcome={
+            "serial_thread_id": str(thread.id),
+            "serial_episode_id": brief.serial_episode_id,
+            "outcome_key": proposal.outcome_key,
+            "callback_fr": turn.callback_fr or None,
+        },
+    )
+    resolution.private_task = private
+    db.flush()
+
+
+def _settle_later_act(
+    db: Session,
+    *,
+    user: User,
+    journey: DailyJourney,
+    brief: ScenarioBrief,
+    resolution,
+    proposal: StoryOutcomeProposal,
+    scene: GraphicNovelScene,
+    act: int,
+) -> None:
+    """Phase 2: commit one later act's exchange (``act`` 2 or 3 of the day).
+
+    The first act's exchange settles the day: the day's count, the chapter, the
+    chronicle, the plants, the arcs, the season's flags and tomorrow's teaser. A later
+    act is its own character's scene inside that day, so what it settles is theirs and
+    the learner's: the event (and the knowledge of who witnessed it), the promises made
+    or kept, the character's mood and the relationship, what the learner said (the
+    memory, so a later act's conversation can come back to it), the scene's own ending
+    and cost. It never moves the day, the season or the episode, which the first act owns.
+    Idempotent per act (``journey:{id}:story:act{n}``)."""
+
+    private = dict(resolution.private_task or {})
+    turn = SemanticTurn.model_validate(
+        {key: value for key, value in proposal.details.items() if key in SemanticTurn.model_fields}
+    )
+    thread = _lock_context(db, user, proposal.details["revision"])
+    state = dict(thread.state or {})
+    live = dict(state.get(STATE_KEY) or {})
+    event_id = f"journey:{journey.id}:story:act{act}"
+    if (scene.recap_payload or {}).get("source_key") == event_id:
+        return
+    witnesses = sorted(
+        {
+            brief.character_id,
+            *[
+                line["character_id"]
+                for panel in brief.story_context["draft"]["panels"]
+                for line in panel["dialogue"]
+            ],
+        }
+    )
+    event = {
+        "id": event_id,
+        "scene_id": str(scene.id),
+        "witnesses": witnesses,
+        "summary_fr": turn.callback_fr or turn.resolution_fr,
+        "source_quotes": turn.evidence_quotes,
+        "outcome": turn.outcome,
+        "at": datetime.now(UTC).isoformat(),
+        "chapter_id": (live.get("chapter") or {}).get("id"),
+        "date": _journey_date(journey),
+        ACT_STORY_KEY: act,
+    }
+    if turn.outcome != "met":
+        question = open_question_of(brief.story_context["draft"].get("opening_line_fr"))
+        if question:
+            event["open_question_fr"] = question
+    live["events"] = [*live.get("events", []), event][-MAX_HISTORY:]
+    # The day the first act's exchange makes: already counted once it has settled, the
+    # next one while its ending is still being written.
+    day = int(live.get("day_index") or 0)
+    if not any(
+        isinstance(row, dict) and row.get("id") == f"journey:{journey.id}:story" for row in live.get("events") or []
+    ):
+        day += 1
+    commitments = [dict(c) for c in live.get("commitments", [])]
+    for c in commitments:
+        if c["id"] in turn.resolved_commitment_ids:
+            c.update(status="resolved", resolved_by=event_id)
+    for index, c in enumerate(turn.commitments):
+        duplicate = next(
+            (
+                existing
+                for existing in commitments
+                if existing["status"] == "open" and _same_promise(existing["text_fr"], c.text_fr)
+            ),
+            None,
+        )
+        if duplicate:
+            duplicate["restatements"] = [*duplicate.get("restatements", []), {
+                "text_fr": c.text_fr,
+                "source_quote": c.source_quote,
+                "source_event_id": event_id,
+            }][-5:]
+            if len(c.text_fr) > len(duplicate["text_fr"]):
+                duplicate["text_fr"] = c.text_fr
+            continue
+        commitments.append(
+            {
+                "id": f"{event_id}:commitment:{index}",
+                "text_fr": c.text_fr,
+                "source_quote": c.source_quote,
+                "source_event_id": event_id,
+                "witnesses": witnesses,
+                "status": "open",
+                "day": day,
+            }
+        )
+    live["commitments"] = [c for c in commitments if c["status"] == "open"] + [
+        c for c in commitments if c["status"] != "open"
+    ][-20:]
+    live["moods"] = moods_after_turn(live.get("moods") or {}, brief.character_id, turn, event_id)
+    draft = draft_model_for(brief.story_context).model_validate(brief.story_context["draft"])
+    world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
+    live[story_memory.MEMORY_KEY] = story_memory.after_day(
+        live.get(story_memory.MEMORY_KEY),
+        memory_day(journey, brief, draft, turn, event_id=event_id, day=day, witnesses=witnesses, world=world, act=act),
+    )
+    state[STATE_KEY] = live
+    state["story_so_far"] = [*state.get("story_so_far", []), event["summary_fr"]][-40:]
+    from app.services.serial import SerialThreadService
+
+    episode = db.get(SerialEpisode, UUID(brief.serial_episode_id)) if brief.serial_episode_id else None
+    SerialThreadService(db)._update_relationship_state(
+        state=state,
+        thread=thread,
+        character_id=brief.character_id,
+        # The day's episode: the first act's, which this act belongs to.
+        episode_index=episode.episode_index if episode is not None else thread.current_episode_index,
+        success=turn.outcome == "met",
+        summary_override=turn.summary_native,
+        callback_override=turn.callback_fr,
+    )
+    thread.state = state
+    scene.recap_payload = {
+        "source_key": event_id,
+        "summary_native": turn.summary_native,
+        "resolution_fr": turn.resolution_fr,
+        "story_event_id": event_id,
+        "generation_usage": proposal.details.get("usage", []),
+    }
+    turn_usage = proposal.details.get("usage") or []
+    turn_usd = usage_cost_usd(turn_usage)
+    cost = dict((scene.script_payload or {}).get("estimated_cost") or {})
+    scene.script_payload = {
+        **(scene.script_payload or {}),
+        **({"page_thread": page_thread} if (page_thread := _page_thread(journey, brief, act=act)) else {}),
+        "estimated_cost": {
+            **cost,
+            "story_generation_usd": round(float(cost.get("story_generation_usd") or 0.0) + turn_usd, 6),
+            "total_estimated_usd": round(float(cost.get("total_estimated_usd") or 0.0) + turn_usd, 6),
+        },
+    }
+    _record_cost(
+        db,
+        user,
+        "journey_story_turn_cost",
+        turn_usage,
+        entity_type="living_story_scene",
+        entity_id=scene.id,
+        payload={
+            "journey_id": str(journey.id),
+            "stage": proposal.details.get("cost_stage", "turn"),
+            "outcome": turn.outcome,
+            ACT_STORY_KEY: act,
+        },
+    )
+    scene.status = "completed"
+    scene.completed_at = datetime.now(UTC)
+    resolution.public_prompt = {
+        **resolution.public_prompt,
+        "outcome_key": proposal.outcome_key,
+        "character_line_fr": turn.resolution_fr,
+        "summary_native": turn.summary_native,
     }
     private.update(
         resolution_settled=True,
