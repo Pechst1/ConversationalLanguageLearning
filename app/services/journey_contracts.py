@@ -1334,7 +1334,8 @@ class RecallEvaluation:
     #: line in the learner's language («Richtig — achte auf den Akzent: «très»»).
     #: Never a correction: nothing is filed as an erratum.
     slip_note_native: str | None = None
-    #: O-1: what that forgiven slip was — ``accent`` (l'or pays half, R3) or ``typo``.
+    #: O-1: what that forgiven slip was — ``accent`` (l'or pays half, R3), ``typo``, or
+    #: ``article`` (a noun asked without its article, given with a wrong one: #174).
     slip_kind: str | None = None
 
 
