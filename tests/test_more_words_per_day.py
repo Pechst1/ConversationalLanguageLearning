@@ -12,8 +12,9 @@ other read of the day knew they had been granted. Now:
 * the cap is one function, ``vocabulary_pace.effective_new_word_cap``: the
   learner's own number plus the extras they asked for today, stored on the
   day's batch row by ``POST /vocabulary/new-words/more``; every room reads it;
-* an extra word answered right earns its gold through the ledger's one path
-  (``gold_ledger._mint_and_write``), so the day's earned gold counts it;
+* an extra word earns its gold the way every deck card does
+  (``gold_ledger.record_word_card``), under Law 1: an answer the server graded
+  pays, a self-rated flashcard pays nothing, extra or not;
 * ``goal_estimate.days_sooner`` is the one figure for «… etwa 3 Wochen früher»,
   and there is no figure without a goal.
 """
@@ -83,13 +84,23 @@ def _answer(client: TestClient, headers: dict, word_ids: list[int], *, rating: i
         assert reviewed.status_code == 200, reviewed.text
 
 
-def _extra_entries(db: Session, user) -> list[GoldLedgerEntry]:
+def _gold_entries(db: Session, user) -> list[GoldLedgerEntry]:
     db.expire_all()
-    return (
-        db.query(GoldLedgerEntry)
-        .filter(GoldLedgerEntry.user_id == user.id, GoldLedgerEntry.source_kind == gold_ledger.SOURCE_EXTRA_WORD)
-        .all()
-    )
+    return db.query(GoldLedgerEntry).filter(GoldLedgerEntry.user_id == user.id).all()
+
+
+def _type_right(client: TestClient, db: Session, headers: dict, word_ids: list[int]) -> None:
+    from app.db.models.vocabulary import VocabularyWord
+
+    for word_id in word_ids:
+        word = db.get(VocabularyWord, word_id)
+        reviewed = client.post(
+            "/api/v1/anki/review",
+            headers=headers,
+            json={"word_id": word_id, "rating": 3, "format": "typed", "answer_text": word.word},
+        )
+        assert reviewed.status_code == 200, reviewed.text
+        assert reviewed.json()["correct"] is True, reviewed.text
 
 
 # ---------------------------------------------------------------------------
@@ -279,55 +290,60 @@ def test_the_last_step_of_the_day_is_refused(
 
 
 # ---------------------------------------------------------------------------
-# More gold, through the ledger's one path
+# More gold, under the deck's one law
 # ---------------------------------------------------------------------------
 
 
-def test_an_extra_word_answered_right_earns_gold_through_the_ledger(
+def test_a_self_rated_extra_word_pays_nothing_like_every_flashcard(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Law 1 (O-2, #486): a self-rated flashcard pays nothing. «Noch 5» is no exception."""
+
+    headers, user = _login(client, db_session)
+    _supply(db_session, 30, "wself")
+    _dose_of(db_session, user, monkeypatch, 2)
+    _answer(client, headers, _ids(_deck(client, headers, SESSION)))
+    assert client.post("/api/v1/vocabulary/new-words/more", headers=headers).status_code == 200
+    extra = _ids(_deck(client, headers, MORE))
+    assert len(extra) == 5
+    _answer(client, headers, extra)  # «Weiß ich» on every one
+    assert _gold_entries(db_session, user) == [], "a self-rated card reached the gold table"
+
+
+def test_a_typed_extra_word_pays_as_a_word_card_and_counts_in_the_day(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     headers, user = _login(client, db_session)
-    _supply(db_session, 30, "wgold")
+    _supply(db_session, 30, "wtyped")
     _dose_of(db_session, user, monkeypatch, 2)
-
-    minted: list[str] = []
-    shared = gold_ledger._mint_and_write
-
-    def spy(*args, **kwargs):
-        minted.append(kwargs["source_kind"])
-        return shared(*args, **kwargs)
-
-    monkeypatch.setattr(gold_ledger, "_mint_and_write", spy)
-
-    dose = _ids(_deck(client, headers, SESSION))
-    assert len(dose) == 2
-    _answer(client, headers, dose)
-    assert _extra_entries(db_session, user) == [], "the day's own dose earns no extra-word gold"
+    _answer(client, headers, _ids(_deck(client, headers, SESSION)))
     before = gold_ledger.day_earned(db_session, user=user)
 
     assert client.post("/api/v1/vocabulary/new-words/more", headers=headers).status_code == 200
     extra = _ids(_deck(client, headers, MORE))
-    assert len(extra) == 5
-    _answer(client, headers, extra[:1], rating=0)  # a miss pays nothing
-    assert _extra_entries(db_session, user) == []
-    _answer(client, headers, extra[1:3])
-    _answer(client, headers, extra[1:2])  # answered again: once per word
+    _type_right(client, db_session, headers, extra[:2])
 
-    entries = _extra_entries(db_session, user)
-    assert sorted(int(entry.target["id"]) for entry in entries) == sorted(extra[1:3])
-    assert all(entry.entry_kind == gold_ledger.ENTRY_EARN and entry.amount == 1 for entry in entries)
-    assert minted.count(gold_ledger.SOURCE_EXTRA_WORD) == 2, "the extra words went around the shared mint"
-    assert gold_ledger.day_earned(db_session, user=user) == before + 2, "the day's gold does not count them"
+    paid = [entry for entry in _gold_entries(db_session, user) if entry.amount > 0 and entry.voided_at is None]
+    assert sorted(int(entry.target["id"]) for entry in paid) == sorted(extra[:2])
+    assert {entry.source_kind for entry in paid} == {gold_ledger.SOURCE_WORD_CARD}, "a second path pays the deck"
+    assert gold_ledger.day_earned(db_session, user=user) > before, "the day's gold does not count them"
 
 
-def test_no_extra_word_gold_without_extras(
-    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    headers, user = _login(client, db_session)
-    _supply(db_session, 10, "wnogold")
-    _dose_of(db_session, user, monkeypatch, 3)
-    _answer(client, headers, _ids(_deck(client, headers, SESSION)))
-    assert _extra_entries(db_session, user) == []
+def test_the_review_endpoint_pays_the_deck_through_one_writer() -> None:
+    """Two writers for one card is how a self-rated extra came to pay while every
+    other flashcard paid nothing. The review endpoint calls exactly one."""
+
+    tree = ast.parse((ROOT / "app/api/v1/endpoints/anki.py").read_text())
+    writers = sorted(
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "gold_ledger"
+        and node.func.attr.startswith("record_")
+    )
+    assert writers == ["record_word_card"], writers
 
 
 # ---------------------------------------------------------------------------
